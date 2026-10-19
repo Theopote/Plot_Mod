@@ -281,9 +281,8 @@ class ProfileEditorWindowSessionTest {
         session.confirm(testContext(), live, config);
 
         Road liveNorthSouth = manager.getNetwork().getRoad(northSouth.getId());
-        boolean hasPropagatedJunctionElevation = liveNorthSouth.getVerticalAlignment().getPvis().stream()
-            .anyMatch(pvi -> Math.abs(pvi.getElevation() - 80.0) < 1e-3);
-        assertTrue(hasPropagatedJunctionElevation);
+        assertEquals(80, com.plot.plugin.road.vertical.VerticalAlignmentGeometry
+            .elevationAt(liveNorthSouth.getVerticalAlignment(), 100).orElseThrow(), 1e-6);
         assertTrue(ProfileEditorNetworkApplier.alignmentPvisEqual(
             session.editingNetwork().getRoad(northSouth.getId()).getVerticalAlignment(),
             liveNorthSouth.getVerticalAlignment()));

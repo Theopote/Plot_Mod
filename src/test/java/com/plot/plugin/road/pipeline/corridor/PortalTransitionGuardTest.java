@@ -14,6 +14,40 @@ class PortalTransitionGuardTest {
     private static final int ROAD_Y = 64;
 
     @Test
+    void exposedSlopesOnBothSidesClearAboveRoofWhileCrownRemainsProtected() {
+        for (Vec2d forward : java.util.List.of(new Vec2d(1, 0), new Vec2d(0, 1), new Vec2d(1, 1).normalize())) {
+            var normal = new Vec2d(-forward.y, forward.x);
+            var center = new Vec2d(100, 200);
+            var plan = new RoadCorridorPlan();
+            plan.putClearance(new ColumnKey(100, 200), new ClearanceCell(center, ROAD_Y, ROAD_Y + 8,
+                RoadCorridorConstructionMode.PORTAL, RoadConstructionType.TUNNEL_PORTAL));
+            plan.registerPortalBackfillSite(new PortalBackfillSite(center, normal, forward, ROAD_Y, 7, 1));
+            var guard = PortalTransitionGuard.from(plan);
+            var host = CorridorTestFixtures.planHost(new RoadSystemConfig("portal-batter"));
+            int roof = RoadCorridorPlanBuilder.portalRoofTopY(host, ROAD_Y);
+            assertEquals(roof, guard.capCutTopY(center, roof + 4, host, 4));
+            for (int side : new int[]{-1, 1}) {
+                Vec2d exposed = center.add(normal.multiply(side * 10));
+                assertEquals(roof + 4, guard.capCutTopY(exposed, roof + 4, host, 4));
+                assertEquals(roof + 4, guard.capClearTopY(exposed, roof + 4, host, 4));
+                // Keep the designed slope face; only its overlying terrain is removed.
+                assertEquals(roof - 1, guard.capSlopeSurfaceY(exposed, roof + 4, host, 8));
+                var key = new ColumnKey(host.worldX(exposed), host.worldZ(exposed));
+                plan.slopeCellOrCreate(key, exposed).mergeCut(roof + 2, "minecraft:stone");
+                var solids = new com.plot.plugin.road.solid.RoadSolidModel();
+                RoadCorridorSolidEmitter.emit(solids, plan, new com.plot.core.terrain.FlatTerrainSampler(roof + 4),
+                    host, null, "minecraft:stone");
+                assertTrue(solids.primitives().stream().anyMatch(p ->
+                    p.planPoint().subtract(exposed).lengthSquared() < 1e-12 && p.elevation() == roof
+                        && "minecraft:air".equals(p.materialId())), "terrain lid at slope crown must be cleared");
+                assertTrue(solids.primitives().stream().anyMatch(p ->
+                    p.planPoint().subtract(exposed).lengthSquared() < 1e-12 && p.elevation() == roof + 4
+                        && "minecraft:air".equals(p.materialId())), "clear the whole exposed terrain column");
+            }
+        }
+    }
+
+    @Test
     void findsPortalByWorldZForNorthSouthAlignment() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         // N–S portal mouth around x=50, z=10..12 — old worldX-only index would miss z-neighbors.

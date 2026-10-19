@@ -165,7 +165,11 @@ public final class VerticalProfileControlPoints {
                     pvi.getStation(), elevation, pvi.getCurveLength(), pvi.getConstraint())
                 : pvi.copy());
         }
-        return new RoadVerticalAlignment(edited);
+        RoadVerticalAlignment result = new RoadVerticalAlignment(edited);
+        if (source.getPvis().get(pviIndex).getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            return withAnchoredElevations(result, java.util.Map.of(source.getPvis().get(pviIndex).getStation(), elevation));
+        }
+        return result;
     }
 
     /** Moves one control point while preserving endpoint stations and minimum neighbor spacing. */
@@ -206,7 +210,45 @@ public final class VerticalProfileControlPoints {
                     station, elevation, pvi.getCurveLength(), pvi.getConstraint())
                 : pvi.copy());
         }
-        return normalizeAdjacentCurves(new RoadVerticalAlignment(edited), pviIndex);
+        RoadVerticalAlignment result = normalizeAdjacentCurves(new RoadVerticalAlignment(edited), pviIndex);
+        if (pvis.get(pviIndex).getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            return withAnchoredElevations(result, java.util.Map.of(station, elevation));
+        }
+        return result;
+    }
+
+    /** Solve tangent heights together so curves pass through the actual crossing elevations. */
+    public static RoadVerticalAlignment withAnchoredElevations(
+            RoadVerticalAlignment source, java.util.Map<Double, Double> anchors) {
+        var points = source.getPvis();
+        int count = points.size();
+        double[] lower = new double[count], diagonal = new double[count];
+        double[] upper = new double[count], values = new double[count];
+        for (int i = 0; i < count; i++) {
+            var point = points.get(i);
+            Double target = anchors.get(point.getStation());
+            diagonal[i] = 1;
+            values[i] = target != null ? target : point.getElevation();
+            if (target != null && point.hasCurve() && i > 0 && i < count - 1) {
+                lower[i] = point.getCurveLength() / (8 * (point.getStation() - points.get(i - 1).getStation()));
+                upper[i] = point.getCurveLength() / (8 * (points.get(i + 1).getStation() - point.getStation()));
+                diagonal[i] -= lower[i] + upper[i];
+            }
+        }
+        for (int i = 1; i < count; i++) {
+            double factor = lower[i] / diagonal[i - 1];
+            diagonal[i] -= factor * upper[i - 1];
+            values[i] -= factor * values[i - 1];
+        }
+        for (int i = count - 1; i >= 0; i--) {
+            values[i] = (values[i] - (i + 1 < count ? upper[i] * values[i + 1] : 0)) / diagonal[i];
+        }
+        List<PointOfVerticalIntersection> result = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            var point = points.get(i);
+            result.add(new PointOfVerticalIntersection(point.getStation(), values[i], point.getCurveLength(), point.getConstraint()));
+        }
+        return new RoadVerticalAlignment(result);
     }
 
     /**
@@ -252,26 +294,20 @@ public final class VerticalProfileControlPoints {
         return !sharedJunction && pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED;
     }
 
+    public static boolean isCurveEditable(Road road, RoadVerticalAlignment alignment, int index) {
+        if (road == null || road.getVerticalMode() == RoadVerticalMode.FLAT || alignment == null
+                || index <= 0 || index >= alignment.pviCount() - 1) return false;
+        var constraint = alignment.getPvis().get(index).getConstraint();
+        return constraint != VerticalControlPointConstraint.USER_LOCKED
+            && constraint != VerticalControlPointConstraint.ENDPOINT_FIXED;
+    }
+
     public static boolean canAutoSmooth(RoadNetwork network, Road road, ControlPoint point) {
-        if (!isEditablePvi(network, road, point)) {
-            return false;
-        }
-        if (road.getVerticalAlignment() == null) {
-            return false;
-        }
-        int index = point.pviIndex();
-        return index > 0 && index < road.getVerticalAlignment().pviCount() - 1;
+        return point != null && isCurveEditable(road, road != null ? road.getVerticalAlignment() : null, point.pviIndex());
     }
 
     public static boolean canAutoSmooth(RoadNetwork network, Road road, ProfileControlPoint point) {
-        if (!isEditablePvi(network, road, point)) {
-            return false;
-        }
-        if (road.getVerticalAlignment() == null) {
-            return false;
-        }
-        int index = point.pviIndex();
-        return index > 0 && index < road.getVerticalAlignment().pviCount() - 1;
+        return point != null && isCurveEditable(road, road != null ? road.getVerticalAlignment() : null, point.pviIndex());
     }
 
     public static boolean exceedsGradeLimit(ControlPoint point, double maxGradePercent) {
@@ -567,7 +603,14 @@ public final class VerticalProfileControlPoints {
             edited.add(new PointOfVerticalIntersection(
                 pvi.getStation(), pvi.getElevation(), curve, pvi.getConstraint()));
         }
-        return normalizeAdjacentCurves(new RoadVerticalAlignment(edited), pviIndex);
+        RoadVerticalAlignment result = normalizeAdjacentCurves(new RoadVerticalAlignment(edited), pviIndex);
+        java.util.Map<Double, Double> anchors = new java.util.LinkedHashMap<>();
+        for (var point : pvis) {
+            if (point.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+                anchors.put(point.getStation(), VerticalAlignmentGeometry.elevationAt(source, point.getStation()).orElseThrow());
+            }
+        }
+        return withAnchoredElevations(result, anchors);
     }
 
     static double maxCurveLength(List<PointOfVerticalIntersection> pvis, int pviIndex) {

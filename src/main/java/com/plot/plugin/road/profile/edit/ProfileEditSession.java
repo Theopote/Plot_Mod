@@ -263,7 +263,11 @@ public final class ProfileEditSession {
     private void applyDraftToNetwork(RoadNetwork network, Road road, RoadSystemConfig config) {
         switch (draft.kind()) {
             case PVI, CURVE -> {
+                RoadVerticalAlignment before = road.getVerticalAlignment();
                 road.setVerticalAlignment(draft.draftAlignment());
+                if (draft.kind() == ProfileEditDraft.Kind.CURVE) {
+                    RoadProfileConstraintSynchronizer.preserveCrossingElevations(network, road, before, config);
+                }
                 road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
             }
             case INTERSECTION -> commitIntersectionDraft(network, road, config);

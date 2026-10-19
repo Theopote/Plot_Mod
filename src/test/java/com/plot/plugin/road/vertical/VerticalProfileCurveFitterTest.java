@@ -26,7 +26,7 @@ class VerticalProfileCurveFitterTest {
         assertFalse(result.changed());
     }
 
-    @Test void refusesCurveAtExactSharedJunctionElevation() {
+    @Test void smoothsCurveThroughExactSharedJunctionElevation() {
         RoadVerticalAlignment source = new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 70),
             PointOfVerticalIntersection.of(40, 76)
@@ -35,8 +35,9 @@ class VerticalProfileCurveFitterTest {
 
         VerticalProfileCurveFitter.Result result = VerticalProfileCurveFitter.fitAt(source, 1);
 
-        assertFalse(result.hasSpace());
-        assertFalse(result.changed());
-        assertFalse(result.alignment().getPvis().get(1).hasCurve());
+        assertTrue(result.hasSpace());
+        assertTrue(result.changed());
+        assertTrue(result.alignment().getPvis().get(1).hasCurve());
+        assertEquals(76, VerticalAlignmentGeometry.elevationAt(result.alignment(), 40).orElseThrow(), 1e-6);
     }
 }

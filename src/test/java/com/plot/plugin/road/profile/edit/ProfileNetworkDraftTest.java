@@ -23,6 +23,26 @@ class ProfileNetworkDraftTest {
     private final RoadSystemConfig config = new RoadSystemConfig("network-draft");
 
     @Test
+    void firstCurveEditAtRegistryCrossingKeepsActualHeightInLiveDraftAndCommit() {
+        RoadNetwork network = new RoadNetwork();
+        Road a = road(network, "a");
+        Road b = road(network, "b");
+        a.setVerticalAlignment(VerticalProfileControlPoints.withElevation(a.getVerticalAlignment(), 1, 80));
+        b.setVerticalAlignment(VerticalProfileControlPoints.withElevation(b.getVerticalAlignment(), 1, 80));
+        network.registerCrossing(RoadCrossing.atGrade("a", 50, "b", 50, new Vec2d(50, 0)));
+        var edit = new ProfileEditSession();
+        edit.beginCurveEdit(a, 1);
+        edit.updateCurveLength(20);
+        var preview = edit.previewNetwork(network, a, config);
+        assertEquals(80, at(preview.getRoad("a"), 50), 1e-6);
+        assertEquals(80, at(preview.getRoad("b"), 50), 1e-6);
+        assertEquals(20, preview.getRoad("a").getVerticalAlignment().getPvis().get(1).getCurveLength());
+        edit.commitEdit(network, a, config, null, null, null);
+        assertEquals(80, at(a, 50), 1e-6);
+        assertEquals(80, at(b, 50), 1e-6);
+    }
+
+    @Test
     void livePreviewLinksRoadsButCancelLeavesWorkingAndLiveNetworksUntouched() {
         RoadNetwork live = new RoadNetwork();
         Road a = road(live, "a");
@@ -35,12 +55,12 @@ class ProfileNetworkDraftTest {
         edit.beginPviEdit(current);
         edit.updatePviElevation(working, current, 1, 80);
         var preview = edit.previewNetwork(working, current, config);
-        assertEquals(80, at(preview.getRoad("a"), 50));
-        assertEquals(80, at(preview.getRoad("b"), 50));
+        assertEquals(80, at(preview.getRoad("a"), 50), 1e-6);
+        assertEquals(80, at(preview.getRoad("b"), 50), 1e-6);
         assertEquals(80, RoadProfileIntersectionResolver.forRoadDesign(preview,
             preview.getRoad("a"), config).getFirst().otherRoadElevation());
-        assertEquals(64, at(working.getRoad("b"), 50));
-        assertEquals(64, at(a, 50));
+        assertEquals(64, at(working.getRoad("b"), 50), 1e-6);
+        assertEquals(64, at(a, 50), 1e-6);
         assertSame(preview, edit.previewNetwork(working, current, config), "unchanged drafts reuse preview");
         edit.cancelEdit();
         assertSame(working, edit.previewNetwork(working, current, config));
@@ -60,16 +80,16 @@ class ProfileNetworkDraftTest {
         edit.beginPviEdit(a);
         edit.updatePviElevation(working, a, 1, 70);
         edit.commitEdit(working, a, config, window, null, null);
-        assertEquals(70, at(working.getRoad("b"), 50));
+        assertEquals(70, at(working.getRoad("b"), 50), 1e-6);
 
         Road b = working.getRoad("b");
         edit.beginPviEdit(b);
         edit.updatePviElevation(working, b, 1, 74);
         edit.commitEdit(working, b, config, window, null, null);
-        assertEquals(74, at(a, 50));
-        assertEquals(74, at(b, 50));
-        assertEquals(64, at(a, 0), "grades are not auto-fitted per road during editing");
-        assertEquals(64, at(live.getRoad("a"), 50));
+        assertEquals(74, at(a, 50), 1e-6);
+        assertEquals(74, at(b, 50), 1e-6);
+        assertEquals(64, at(a, 0), 1e-6, "grades are not auto-fitted per road during editing");
+        assertEquals(64, at(live.getRoad("a"), 50), 1e-6);
         assertTrue(window.touchedRoadIds().containsAll(List.of("a", "b")));
     }
 
@@ -88,12 +108,12 @@ class ProfileNetworkDraftTest {
         edit.beginIntersectionEdit(List.of(marker));
         edit.updateIntersectionDrag(0, RoadProfileIntersectionDragEditor.DragTarget.CURRENT, 72);
         var preview = edit.previewNetwork(network, road, config);
-        assertEquals(72, at(preview.getRoad("self"), 75));
-        assertEquals(78, at(preview.getRoad("self"), 25));
-        assertEquals(64, at(road, 25));
+        assertEquals(72, at(preview.getRoad("self"), 75), 1e-6);
+        assertEquals(78, at(preview.getRoad("self"), 25), 1e-6);
+        assertEquals(64, at(road, 25), 1e-6);
         edit.commitEdit(network, road, config, null, null, null);
-        assertEquals(72, at(road, 75));
-        assertEquals(78, at(road, 25));
+        assertEquals(72, at(road, 75), 1e-6);
+        assertEquals(78, at(road, 25), 1e-6);
     }
 
     @Test
@@ -128,9 +148,9 @@ class ProfileNetworkDraftTest {
         edit.beginIntersectionEdit(List.of(marker));
         edit.updateIntersectionDrag(0, RoadProfileIntersectionDragEditor.DragTarget.OTHER, 90);
         var preview = edit.previewNetwork(network, upper, config);
-        assertEquals(90, at(preview.getRoad("lower"), 50));
-        assertEquals(96, at(preview.getRoad("upper"), 50));
-        assertEquals(88, at(upper, 50));
+        assertEquals(90, at(preview.getRoad("lower"), 50), 1e-6);
+        assertEquals(96, at(preview.getRoad("upper"), 50), 1e-6);
+        assertEquals(88, at(upper, 50), 1e-6);
     }
 
     @Test

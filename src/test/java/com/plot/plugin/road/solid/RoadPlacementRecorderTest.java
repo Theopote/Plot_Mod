@@ -14,6 +14,67 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class RoadPlacementRecorderTest {
 
     @Test
+    void approachClearanceRemovesOtherApproachsWallInEitherMergeOrder() {
+        var pos = new BlockPos(2, 67, 0);
+        var wall = new RoadGenerationResult(0);
+        wall.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        var clearance = new RoadGenerationResult(0);
+        clearance.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+        for (boolean wallFirst : new boolean[]{false, true}) {
+            var merged = new RoadGenerationResult(0);
+            merged.mergeFrom(wallFirst ? wall : clearance);
+            merged.mergeFrom(wallFirst ? clearance : wall);
+            assertEquals("minecraft:air", merged.placementRecords.get(pos).newBlockId);
+            assertEquals(RoadSolidMaterialPriority.AIR, merged.placementMaterialPriorities.get(pos));
+        }
+    }
+
+    @Test
+    void pavementWinsOverAnotherApproachsLiningAndBatterInEitherMergeOrder() {
+        var pos = new BlockPos(2, 64, 0);
+        for (var layer : java.util.List.of(RoadSolidLayer.TUNNEL, RoadSolidLayer.SUBGRADE)) {
+            var obstruction = new RoadGenerationResult(0);
+            obstruction.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:stone_bricks",
+                layer, RoadSolidMaterialPriority.STRUCTURAL);
+            var surface = new RoadGenerationResult(0);
+            surface.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:white_concrete",
+                RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+            for (boolean obstructionFirst : new boolean[]{false, true}) {
+                var merged = new RoadGenerationResult(0);
+                merged.mergeFrom(obstructionFirst ? obstruction : surface);
+                merged.mergeFrom(obstructionFirst ? surface : obstruction);
+                assertEquals("minecraft:white_concrete", merged.placementRecords.get(pos).newBlockId);
+                assertEquals(RoadSolidLayer.ROAD, merged.placementLayers.get(pos));
+                assertEquals(RoadSolidMaterialPriority.DEFAULT, merged.placementMaterialPriorities.get(pos));
+            }
+        }
+    }
+
+    @Test
+    void mergingRoadSurfaceAndOtherEdgesExcavationIsOrderIndependent() {
+        var pos = new BlockPos(2, 76, 0);
+        var air = new RoadGenerationResult(0);
+        air.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+        for (var layer : java.util.List.of(RoadSolidLayer.ROAD, RoadSolidLayer.SHOULDER, RoadSolidLayer.BRIDGE)) {
+            var surface = new RoadGenerationResult(0);
+            surface.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:white_concrete",
+                layer, RoadSolidMaterialPriority.DEFAULT);
+            for (boolean airFirst : new boolean[]{false, true}) {
+                var merged = new RoadGenerationResult(0);
+                merged.mergeFrom(airFirst ? air : surface);
+                merged.mergeFrom(airFirst ? surface : air);
+                assertEquals("minecraft:white_concrete", merged.placementRecords.get(pos).newBlockId);
+                assertEquals("minecraft:stone", merged.placementRecords.get(pos).previousBlockId);
+                assertEquals(layer, merged.placementLayers.get(pos));
+                assertEquals(RoadSolidMaterialPriority.DEFAULT, merged.placementMaterialPriorities.get(pos));
+            }
+        }
+    }
+
+    @Test
     void recordIfAbsentKeepsFirstClaim() {
         Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
         BlockPos pos = new BlockPos(1, 64, 2);
@@ -56,7 +117,7 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
-    void mergeFromCopiesLayersAndMaterialPrioritiesFirstClaim() {
+    void mergeFromCopiesWinningClearanceRecordAndMetadataTogether() {
         RoadGenerationResult first = new RoadGenerationResult(0);
         RoadGenerationResult second = new RoadGenerationResult(0);
         BlockPos pos = new BlockPos(2, 66, 3);
@@ -71,9 +132,9 @@ class RoadPlacementRecorderTest {
         aggregate.mergeFrom(first);
         aggregate.mergeFrom(second);
 
-        assertEquals("minecraft:stone_bricks", aggregate.placementRecords.get(pos).newBlockId);
+        assertEquals("minecraft:air", aggregate.placementRecords.get(pos).newBlockId);
         assertEquals(RoadSolidLayer.TUNNEL, aggregate.placementLayers.get(pos));
-        assertEquals(RoadSolidMaterialPriority.STRUCTURAL, aggregate.placementMaterialPriorities.get(pos));
+        assertEquals(RoadSolidMaterialPriority.CLEARANCE, aggregate.placementMaterialPriorities.get(pos));
     }
 
     @Test

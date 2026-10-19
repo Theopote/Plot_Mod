@@ -3,7 +3,8 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
 
-import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ public final class JunctionCorridorPlanFilter {
         if (plan == null || context == null || context.exclusionPolygons().isEmpty()) {
             return;
         }
-        List<ColumnKey> toRemove = new ArrayList<>();
+        Set<ColumnKey> toRemove = new HashSet<>();
         for (var entry : plan.surfaceMask().entries()) {
             Vec2d planPoint = entry.getValue().planPoint();
             if (planPoint != null && insideAny(planPoint, context.exclusionPolygons())) {

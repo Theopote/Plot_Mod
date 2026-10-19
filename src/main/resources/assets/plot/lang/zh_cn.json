@@ -1504,7 +1504,7 @@
   "plugin.road.profile_editor_undo": "撤销",
   "plugin.road.profile_editor_redo": "重做",
   "plugin.road.profile_editor_restore": "恢复",
-  "plugin.road.profile_editor_unsaved_status": "预览中的修改尚未保存",
+  "plugin.road.profile_editor_unsaved_status": "路网草稿未确认，可切换路径继续编辑",
   "plugin.road.profile_editor_clean_status": "无未保存修改",
   "plugin.road.profile_editor_dirty_marker": "（已修改）",
   "plugin.road.profile_editor_continue_edit": "继续编辑",

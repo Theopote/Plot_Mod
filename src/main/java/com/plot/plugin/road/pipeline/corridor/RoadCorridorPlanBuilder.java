@@ -63,7 +63,6 @@ public final class RoadCorridorPlanBuilder {
             ctx.carriagewaySeedKey(),
             ctx.request().junctionCorridor(),
             planHost);
-        JunctionCorridorPlanFilter.apply(plan, ctx.request().junctionCorridor());
         return plan;
     }
 
@@ -83,7 +82,8 @@ public final class RoadCorridorPlanBuilder {
         List<StationSample> stations = collectStations(
             segments, heightInfos, crossSections, constructionTypes,
             designElevation, buildProfile, host::snapEndpointElevation, unitsPerBlock,
-            junctionCorridor != null ? junctionCorridor.endpointTrim() : null);
+            junctionCorridor != null && junctionCorridor.exclusionPolygons().isEmpty()
+                ? junctionCorridor.endpointTrim() : null);
         if (stations.isEmpty()) {
             return plan;
         }
@@ -103,6 +103,9 @@ public final class RoadCorridorPlanBuilder {
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
+        // Exact polygon ownership, rather than also skipping an entire endpoint
+        // length, keeps the approach pavement connected to the plaza boundary.
+        JunctionCorridorPlanFilter.apply(plan, junctionCorridor);
         return plan;
     }
 

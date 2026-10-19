@@ -18,6 +18,60 @@ class RoadProfileConstraintSynchronizerTest {
     private final RoadSystemConfig config = new RoadSystemConfig("constraints");
 
     @Test
+    void linkingACrossingPreservesRemoteUserCurveLengths() {
+        Road a = road("a", 64);
+        Road b = road("b", 64);
+        a.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64), PointOfVerticalIntersection.withCurve(30, 70, 40),
+            PointOfVerticalIntersection.of(60, 64), PointOfVerticalIntersection.of(100, 64))));
+        network.registerCrossing(RoadCrossing.atGrade("a", 90, "b", 50, new Vec2d(90, 0)));
+        var before = a.getVerticalAlignment();
+        RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
+        assertEquals(40, a.getVerticalAlignment().getPvis().get(1).getCurveLength());
+        assertEquals(VerticalAlignmentGeometry.elevationAt(before, 30).orElseThrow(), at(a, 30), 1e-6);
+    }
+
+    @Test
+    void curvedCrossingRetainsActualHeightAndContinuousGradeAfterHandleEdit() {
+        Road a = road("a", 64);
+        Road b = road("b", 64);
+        network.registerCrossing(RoadCrossing.atGrade("a", 50, "b", 50, new Vec2d(50, 0)));
+        var before = a.getVerticalAlignment();
+        raise(a, 50, 80);
+        RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
+        assertTrue(a.getVerticalAlignment().getPvis().get(1).hasCurve());
+        double height = at(a, 50);
+        before = a.getVerticalAlignment();
+        a.setVerticalAlignment(VerticalProfileControlPoints.withCurveLength(before, 1, 20));
+        RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
+        assertEquals(20, a.getVerticalAlignment().getPvis().get(1).getCurveLength());
+        assertEquals(height, at(a, 50), 1e-6);
+        assertEquals(height, at(b, 50), 1e-6);
+        for (double station : new double[]{40, 50, 60}) {
+            assertEquals(VerticalAlignmentGeometry.gradeAt(a.getVerticalAlignment(), station - 1e-5).orElseThrow(),
+                VerticalAlignmentGeometry.gradeAt(a.getVerticalAlignment(), station + 1e-5).orElseThrow(), 1e-3);
+        }
+    }
+
+    @Test
+    void neighbouringCurvedAnchorsAreSolvedTogether() {
+        Road a = selfRoad();
+        var stack = RoadStackCrossing.atGrade(a.getId(), 25, 75, new Vec2d(25, 0));
+        network.registerStackCrossing(stack);
+        var before = a.getVerticalAlignment();
+        raise(a, 75, 80);
+        RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
+        for (int i : new int[]{1, 2}) {
+            before = a.getVerticalAlignment();
+            a.setVerticalAlignment(VerticalProfileControlPoints.withCurveLength(before, i, 20));
+            var result = RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
+            assertTrue(result.unresolvedConstraints().isEmpty());
+            assertEquals(80, at(a, 25), 1e-6);
+            assertEquals(80, at(a, 75), 1e-6);
+        }
+    }
+
+    @Test
     void threeWayRegistryCrossingSharesHeightWithoutSmoothingUserProfile() {
         Road a = road("a", 64);
         Road b = road("b", 64);
@@ -29,10 +83,10 @@ class RoadProfileConstraintSynchronizerTest {
         var result = RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
 
         assertTrue(result.unresolvedConstraints().isEmpty());
-        assertEquals(90, at(a, 50));
-        assertEquals(90, at(b, 50));
-        assertEquals(90, at(c, 50));
-        assertEquals(64, at(b, 0), "editing must not auto-fit adjacent grades");
+        assertEquals(90, at(a, 50), 1e-6);
+        assertEquals(90, at(b, 50), 1e-6);
+        assertEquals(90, at(c, 50), 1e-6);
+        assertEquals(64, at(b, 0), 1e-6, "editing must not auto-fit adjacent grades");
         assertTrue(RoadProfileConstraintSynchronizer.validate(network, java.util.Set.of("a"), config).isEmpty());
     }
 
@@ -46,8 +100,8 @@ class RoadProfileConstraintSynchronizerTest {
         raise(a, 50, 72);
         RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
 
-        assertEquals(68, at(a, 25));
-        assertEquals(68, at(b, 25));
+        assertEquals(68, at(a, 25), 1e-6);
+        assertEquals(68, at(b, 25), 1e-6);
         assertEquals(68, network.getCrossing(crossing.id()).sharedElevation());
         assertTrue(b.getVerticalAlignment().getPvis().stream().anyMatch(p -> p.getStation() == 25));
     }
@@ -60,13 +114,13 @@ class RoadProfileConstraintSynchronizerTest {
         var before = lower.getVerticalAlignment();
         raise(lower, 50, 66);
         RoadProfileConstraintSynchronizer.synchronize(network, lower, before, config);
-        assertEquals(80, at(upper, 50), "a surplus clearance must be retained");
+        assertEquals(80, at(upper, 50), 1e-6, "a surplus clearance must be retained");
 
         before = lower.getVerticalAlignment();
         raise(lower, 50, 78);
         RoadProfileConstraintSynchronizer.synchronize(network, lower, before, config);
-        assertEquals(78, at(lower, 50));
-        assertEquals(84, at(upper, 50));
+        assertEquals(78, at(lower, 50), 1e-6);
+        assertEquals(84, at(upper, 50), 1e-6);
     }
 
     @Test
@@ -78,8 +132,8 @@ class RoadProfileConstraintSynchronizerTest {
         raise(upper, 50, 60);
         var result = RoadProfileConstraintSynchronizer.synchronize(network, upper, before, config);
         assertTrue(result.unresolvedConstraints().isEmpty());
-        assertEquals(54, at(lower, 50));
-        assertEquals(60, at(upper, 50));
+        assertEquals(54, at(lower, 50), 1e-6);
+        assertEquals(60, at(upper, 50), 1e-6);
     }
 
     @Test
@@ -91,8 +145,8 @@ class RoadProfileConstraintSynchronizerTest {
         raise(road, 75, 74);
         var result = RoadProfileConstraintSynchronizer.synchronize(network, road, before, config);
         assertTrue(result.unresolvedConstraints().isEmpty());
-        assertEquals(74, at(road, 25));
-        assertEquals(74, at(road, 75));
+        assertEquals(74, at(road, 25), 1e-6);
+        assertEquals(74, at(road, 75), 1e-6);
         assertEquals(74, network.getStackCrossing(stack.id()).sharedElevation());
     }
 
@@ -107,8 +161,8 @@ class RoadProfileConstraintSynchronizerTest {
         raise(road, 75, 72);
         var result = RoadProfileConstraintSynchronizer.synchronize(network, road, before, config);
         assertTrue(result.unresolvedConstraints().isEmpty());
-        assertEquals(72, at(road, 75));
-        assertEquals(78, at(road, 25));
+        assertEquals(72, at(road, 75), 1e-6);
+        assertEquals(78, at(road, 25), 1e-6);
     }
 
     @Test
@@ -123,8 +177,8 @@ class RoadProfileConstraintSynchronizerTest {
         raise(a, 50, 72);
         var result = RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
         assertFalse(result.unresolvedConstraints().isEmpty());
-        assertEquals(64, at(b, 50));
-        assertEquals(64, at(c, 50));
+        assertEquals(64, at(b, 50), 1e-6);
+        assertEquals(64, at(c, 50), 1e-6);
         assertTrue(result.changedRoadIds().isEmpty());
     }
 
@@ -140,7 +194,7 @@ class RoadProfileConstraintSynchronizerTest {
         RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
         FlatVerticalIntentSupport.syncCompiledAlignment(network, b, 8);
         assertEquals(RoadVerticalMode.FLAT, b.getVerticalMode());
-        assertEquals(70, at(b, 50));
+        assertEquals(70, at(b, 50), 1e-6);
         assertEquals(64, b.getFlatVerticalIntent().getBaseElevation());
     }
 
@@ -157,8 +211,8 @@ class RoadProfileConstraintSynchronizerTest {
         raise(lower, 50, 72);
         var result = RoadProfileConstraintSynchronizer.synchronize(network, lower, before, config);
         assertFalse(result.unresolvedConstraints().isEmpty());
-        assertEquals(72, at(lower, 50));
-        assertEquals(70, at(upper, 50));
+        assertEquals(72, at(lower, 50), 1e-6);
+        assertEquals(70, at(upper, 50), 1e-6);
         assertEquals(VerticalControlPointConstraint.USER_LOCKED,
             upper.getVerticalAlignment().getPvis().get(1).getConstraint());
     }
@@ -172,7 +226,7 @@ class RoadProfileConstraintSynchronizerTest {
         var before = a.getVerticalAlignment();
         raise(a, 50, 70);
         RoadProfileConstraintSynchronizer.synchronize(network, a, before, config);
-        assertEquals(70, at(b, 50));
+        assertEquals(70, at(b, 50), 1e-6);
         assertEquals(RoadVerticalMode.FIT_TERRAIN, b.getVerticalMode());
     }
 
@@ -196,8 +250,8 @@ class RoadProfileConstraintSynchronizerTest {
         var before = lower.getVerticalAlignment();
         raise(lower, 50, 90);
         RoadProfileConstraintSynchronizer.synchronize(network, lower, before, config);
-        assertEquals(90, at(lower, 50));
-        assertEquals(96, at(upper, 50));
+        assertEquals(90, at(lower, 50), 1e-6);
+        assertEquals(96, at(upper, 50), 1e-6);
     }
 
     private Road road(String id, double elevation) {

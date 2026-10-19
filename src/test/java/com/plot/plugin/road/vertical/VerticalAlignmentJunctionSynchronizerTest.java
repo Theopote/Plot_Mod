@@ -58,6 +58,13 @@ class VerticalAlignmentJunctionSynchronizerTest {
         assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED, shared.getConstraint());
         assertTrue(VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
             network, northSouth, 20));
+        northSouth.setVerticalAlignment(VerticalProfileControlPoints.withCurveLength(northSouth.getVerticalAlignment(), 1, 8));
+        VerticalAlignmentJunctionSynchronizer.publishJunctionElevations(network, northSouth);
+        assertEquals(76, junction.getManualElevation(), 1e-6);
+        VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, northSouth);
+        assertEquals(8, northSouth.getVerticalAlignment().getPvis().get(1).getCurveLength());
+        assertEquals(76, VerticalAlignmentGeometry.elevationAt(northSouth.getVerticalAlignment(), 20).orElseThrow(), 1e-6);
+
     }
 
     private static Fixture fixture(boolean gradeSeparated) {

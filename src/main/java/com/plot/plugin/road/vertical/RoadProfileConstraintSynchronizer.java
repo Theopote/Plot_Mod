@@ -150,12 +150,15 @@ public final class RoadProfileConstraintSynchronizer {
             saveFlatOverride(network, link.a, flatKey(link, link.a), groups.get(root(parents, link.a)).elevation);
             saveFlatOverride(network, link.b, flatKey(link, link.b), groups.get(root(parents, link.b)).elevation);
         }
+        Map<String, Map<Double, Double>> targets = new LinkedHashMap<>();
         for (Point point : parents.keySet()) {
             Group group = groups.get(root(parents, point));
-            if (group != null && setElevation(network.getRoad(point.roadId), point.station, group.elevation)) {
-                changedRoads.add(point.roadId);
-            }
+            if (group != null) targets.computeIfAbsent(point.roadId, ignored -> new LinkedHashMap<>())
+                .put(point.station, group.elevation);
         }
+        targets.forEach((roadId, elevations) -> {
+            if (setElevations(network.getRoad(roadId), elevations)) changedRoads.add(roadId);
+        });
         for (Link link : links) {
             if (link.separated) continue;
             double value = groups.get(root(parents, link.a)).elevation;
@@ -184,43 +187,94 @@ public final class RoadProfileConstraintSynchronizer {
         }
     }
 
+    /** A curve-length edit changes shape, while every existing crossing keeps its road height. */
+    public static void preserveCrossingElevations(
+            RoadNetwork network, Road road, RoadVerticalAlignment before, RoadSystemConfig config) {
+        Map<Double, Double> targets = new LinkedHashMap<>();
+        for (var link : collectLinks(network, config)) {
+            for (var point : List.of(link.a, link.b)) {
+                if (!road.getId().equals(point.roadId)) continue;
+                VerticalAlignmentGeometry.elevationAt(before, point.station)
+                    .ifPresent(value -> targets.put(point.station, value));
+            }
+        }
+        if (!targets.isEmpty()) setElevations(road, targets, false);
+    }
+
     /** Insert a missing crossing control point; never silently ignore an interior intersection. */
     public static boolean setElevation(Road road, double station, double elevation) {
         if (road == null || !Double.isFinite(station) || !Double.isFinite(elevation)
                 || VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), station).isEmpty()) {
             return false;
         }
+        return setElevations(road, Map.of(station, elevation));
+    }
+
+    static boolean setElevations(Road road, Map<Double, Double> targets) {
+        return setElevations(road, targets, true);
+    }
+
+    static boolean setElevations(Road road, Map<Double, Double> targets, boolean smoothNewAnchors) {
         List<PointOfVerticalIntersection> points = new ArrayList<>();
-        boolean found = false;
-        boolean changed = false;
+        Map<Double, Double> anchors = new LinkedHashMap<>();
         for (var pvi : road.getVerticalAlignment().getPvis()) {
-            if (Math.abs(pvi.getStation() - station) <= EPSILON) {
-                found = true;
+            Double target = targets.entrySet().stream()
+                .filter(entry -> Math.abs(entry.getKey() - pvi.getStation()) <= EPSILON)
+                .map(Map.Entry::getValue).findFirst().orElse(null);
+            if (target != null) {
                 var constraint = pvi.getConstraint().isAutomaticallyMovable()
                     ? VerticalControlPointConstraint.JUNCTION_FIXED : pvi.getConstraint();
-                changed |= Math.abs(pvi.getElevation() - elevation) > EPSILON || pvi.hasCurve()
-                    || pvi.getConstraint() != constraint;
-                points.add(new PointOfVerticalIntersection(station, elevation, null,
-                    constraint));
+                points.add(pvi.withConstraint(constraint));
+                anchors.put(pvi.getStation(), target);
             } else {
-                // A curve straddling the new anchor would otherwise move the actual road
-                // away from its locked crossing elevation even with a PVI at that station.
-                boolean overlaps = pvi.hasCurve()
-                    && Math.abs(pvi.getStation() - station) <= pvi.getCurveLength() / 2 + EPSILON;
-                changed |= overlaps;
-                points.add(overlaps ? new PointOfVerticalIntersection(pvi.getStation(),
-                    pvi.getElevation(), null, pvi.getConstraint()) : pvi.copy());
+                points.add(pvi.copy());
             }
         }
-        if (!found) {
-            points.add(new PointOfVerticalIntersection(station, elevation, null,
+        for (var entry : targets.entrySet()) {
+            if (anchors.keySet().stream().anyMatch(station -> Math.abs(station - entry.getKey()) <= EPSILON)) continue;
+            points.add(new PointOfVerticalIntersection(entry.getKey(), entry.getValue(), null,
                 VerticalControlPointConstraint.JUNCTION_FIXED));
-            changed = true;
+            anchors.put(entry.getKey(), entry.getValue());
         }
-        if (changed) {
-            points.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
-            road.setVerticalAlignment(new RoadVerticalAlignment(points));
+        points.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
+        // Only shorten curves intersected by a newly inserted crossing anchor.
+        // Curves elsewhere in the user's design retain their original lengths.
+        for (int i = 1; i < points.size() - 1; i++) {
+            var point = points.get(i);
+            if (!point.hasCurve()) continue;
+            double maximum = point.getCurveLength();
+            for (double station : anchors.keySet()) {
+                double distance = Math.abs(station - point.getStation());
+                if (distance > EPSILON && distance <= point.getCurveLength() / 2 + EPSILON) {
+                    maximum = Math.min(maximum, distance);
+                }
+            }
+            points.set(i, new PointOfVerticalIntersection(point.getStation(), point.getElevation(), maximum, point.getConstraint()));
         }
+        for (int i = 1; i < points.size() - 1; i++) {
+            var point = points.get(i);
+            if (!anchors.containsKey(point.getStation())) continue;
+            Double length = point.getCurveLength();
+            boolean newAnchor = road.getVerticalAlignment().getPvis().stream().noneMatch(old ->
+                Math.abs(old.getStation() - point.getStation()) <= EPSILON
+                    && old.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED);
+            double maximum = VerticalProfileControlPoints.maxCurveLength(points, i);
+            if (smoothNewAnchors && newAnchor && !point.hasCurve()) length = Math.min(8.0, maximum);
+            if (length != null) length = Math.min(length, maximum);
+            points.set(i, new PointOfVerticalIntersection(point.getStation(), point.getElevation(), length, point.getConstraint()));
+        }
+        var updated = VerticalProfileControlPoints.withAnchoredElevations(new RoadVerticalAlignment(points), anchors);
+        var previous = road.getVerticalAlignment().getPvis();
+        boolean changed = previous.size() != updated.pviCount();
+        if (!changed) {
+            for (int i = 0; i < previous.size(); i++) {
+                var a = previous.get(i);
+                var b = updated.getPvis().get(i);
+                changed |= Math.abs(a.getElevation() - b.getElevation()) > EPSILON
+                    || !Objects.equals(a.getCurveLength(), b.getCurveLength()) || a.getConstraint() != b.getConstraint();
+            }
+        }
+        if (changed) road.setVerticalAlignment(updated);
         return changed;
     }
 

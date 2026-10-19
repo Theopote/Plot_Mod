@@ -148,7 +148,7 @@ class VerticalProfileControlPointsTest {
         assertTrue(VerticalProfileControlPoints.isEditablePvi(network, road, start));
     }
 
-    @Test void junctionFixedMiddlePviIsNotEditable() {
+    @Test void junctionFixedMiddlePviKeepsElevationLockedButAllowsSmoothing() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road");
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
@@ -167,7 +167,7 @@ class VerticalProfileControlPointsTest {
             .orElseThrow();
         assertEquals(ProfilePointRole.JUNCTION_FIXED, middle.role());
         assertFalse(VerticalProfileControlPoints.isEditablePvi(network, road, middle));
-        assertFalse(VerticalProfileControlPoints.canAutoSmooth(network, road, middle));
+        assertTrue(VerticalProfileControlPoints.canAutoSmooth(network, road, middle));
     }
 
     @Test void bootstrapOrInsertCreatesThreePointProfileWhenAlignmentMissing() {

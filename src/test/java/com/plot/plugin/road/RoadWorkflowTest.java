@@ -153,7 +153,17 @@ class RoadWorkflowTest {
             terrain,
             nodeElevations);
 
-        assertFalse(underpassResult.roadBlocks.isEmpty());
+        // A short lower approach can lie entirely inside the plaza footprint;
+        // its pavement is then owned by the junction in the final network result.
+        var preview = new RoadNetworkGenerator(generator).generatePreview(network, terrain);
+        for (int y : new int[]{70, 73}) {
+            var pos = new net.minecraft.util.math.BlockPos(5, y, 5);
+            var record = preview.aggregate().placementRecords.get(pos);
+            assertNotNull(record, "crossing pavement missing at " + pos);
+            assertFalse("minecraft:air".equals(record.newBlockId));
+            assertTrue(java.util.Set.of(com.plot.plugin.road.solid.RoadSolidLayer.ROAD,
+                com.plot.plugin.road.solid.RoadSolidLayer.MARKING).contains(preview.aggregate().placementLayers.get(pos)));
+        }
         assertFalse(elevatedResult.roadBlocks.isEmpty());
         assertEquals(70, (int) underpassResult.profileBuildHeights.getFirst());
         assertEquals(73, (int) elevatedResult.profileBuildHeights.getFirst());

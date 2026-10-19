@@ -15,6 +15,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionFinalVoxelValidatorTest {
 
     @Test
+    void upperRoadHeadroomIsNotADeckLeak() {
+        var deck = new BlockPos(0, 72, 0);
+        var manifest = new JunctionValidationManifest("n1", List.of(), List.of(deck), List.of(),
+            squareFootprint(), 64, 72, 65, 68);
+        var aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(deck, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(deck, RoadSolidLayer.BRIDGE);
+        for (int dy = 1; dy <= 4; dy++) {
+            var headroom = deck.up(dy);
+            aggregate.recordPlacementOverride(headroom, "minecraft:stone", "minecraft:air");
+            aggregate.placementLayers.put(headroom, RoadSolidLayer.TUNNEL);
+        }
+        var report = JunctionFinalVoxelValidator.validateNode(manifest, aggregate,
+            PlacementRecordColumnIndex.build(aggregate), IdentityCoordinateService.INSTANCE);
+        assertEquals(0, report.protectedLosses());
+        assertEquals(0, report.crossLayerLeaks());
+    }
+
+    @Test
     void slopedSurfaceExpectationsNotFlaggedWhenPresent() {
         BlockPos surfaceAt72 = new BlockPos(0, 72, 0);
         JunctionValidationManifest manifest = new JunctionValidationManifest(

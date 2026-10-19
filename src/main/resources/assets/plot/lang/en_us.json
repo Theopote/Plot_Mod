@@ -1505,7 +1505,7 @@
   "plugin.road.profile_editor_undo": "Undo",
   "plugin.road.profile_editor_redo": "Redo",
   "plugin.road.profile_editor_restore": "Restore",
-  "plugin.road.profile_editor_unsaved_status": "Unsaved preview changes",
+  "plugin.road.profile_editor_unsaved_status": "Network draft not confirmed; switch roads to continue editing",
   "plugin.road.profile_editor_clean_status": "No unsaved changes",
   "plugin.road.profile_editor_dirty_marker": "(modified)",
   "plugin.road.profile_editor_continue_edit": "Continue editing",

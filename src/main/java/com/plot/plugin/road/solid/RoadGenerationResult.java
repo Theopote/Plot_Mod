@@ -112,10 +112,38 @@ public class RoadGenerationResult {
         bridgeBlocks.addAll(source.bridgeBlocks);
         tunnelBlocks.addAll(source.tunnelBlocks);
         streetlightBlocks.addAll(source.streetlightBlocks);
-        // 边与边重叠时 first-claim：记录、图层、同层材质优先级必须一起拷贝，
-        // 否则 flushJunctionSolids 看到 existingLayer=null，路口清场 AIR 盖不住残留衬砌。
+        // Keep each winning record, layer and material priority consistent so junction
+        // rasterization can correctly resolve remaining structural/clearance conflicts.
         for (Map.Entry<BlockPos, BlockRecord> entry : source.placementRecords.entrySet()) {
-            placementRecords.putIfAbsent(entry.getKey(), entry.getValue());
+            BlockPos pos = entry.getKey();
+            BlockRecord incoming = entry.getValue();
+            BlockRecord existing = placementRecords.get(pos);
+            boolean incomingAir = incoming != null && "minecraft:air".equals(incoming.newBlockId);
+            boolean existingSurface = isProtectedSurface(placementLayers.get(pos));
+            if (incomingAir && existing != null && "minecraft:air".equals(existing.newBlockId)) {
+                recordPlacementByLayerPriority(pos, incoming.previousBlockId, incoming.newBlockId,
+                    source.placementLayers.get(pos), source.placementMaterialPriorities.getOrDefault(
+                        pos, RoadSolidMaterialPriority.DEFAULT));
+                continue;
+            }
+            // Excavation, subgrade and tunnel lining from another edge must not
+            // replace designed pavement. Copy the winning record and metadata together.
+            boolean replaceWithSurface = existing != null
+                    && ("minecraft:air".equals(existing.newBlockId)
+                        || !existingSurface)
+                    && incoming != null && !incomingAir
+                    && isProtectedSurface(source.placementLayers.get(pos));
+            // The union of approach clearance volumes opens tunnel junctions;
+            // first-claim would retain another approach's wall across the lane.
+            boolean replaceWithClearance = existing != null && incomingAir && !existingSurface;
+            if (replaceWithSurface || replaceWithClearance) {
+                recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
+                placementLayers.put(pos, source.placementLayers.get(pos));
+                placementMaterialPriorities.put(pos, source.placementMaterialPriorities.getOrDefault(
+                    pos, RoadSolidMaterialPriority.DEFAULT));
+            } else {
+                placementRecords.putIfAbsent(pos, incoming);
+            }
         }
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : source.placementLayers.entrySet()) {
             placementLayers.putIfAbsent(entry.getKey(), entry.getValue());
@@ -144,6 +172,13 @@ public class RoadGenerationResult {
         bridgeLength += source.bridgeLength;
         tunnelLength += source.tunnelLength;
         normalRoadLength += source.normalRoadLength;
+    }
+
+    private static boolean isProtectedSurface(RoadSolidLayer layer) {
+        return layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.SIDEWALK || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN || layer == RoadSolidLayer.MARKING
+            || layer == RoadSolidLayer.BRIDGE;
     }
 
     public void copyProfileFrom(RoadGenerationResult source) {

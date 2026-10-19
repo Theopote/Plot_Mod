@@ -138,46 +138,14 @@ public final class JunctionFinalVoxelValidator {
         if (!manifest.hasGradeSeparation() || footprintColumns.isEmpty()) {
             return 0;
         }
-        int floorY = manifest.elevatedDeckY() != null
-            ? manifest.elevatedDeckY() - 1
-            : manifest.junctionY();
-        int upperBandEnd = manifest.elevatedDeckY() != null
-            ? manifest.elevatedDeckY() + 8
-            : Integer.MAX_VALUE;
-        Set<BlockPos> protectedVolume = new HashSet<>(manifest.expectedProtectedBlocks());
         int leaks = 0;
-        for (ColumnKey column : footprintColumns) {
-            for (BlockPos pos : index.positionsInColumn(column.worldX(), column.worldZ())) {
-                if (pos.getY() <= floorY || pos.getY() > upperBandEnd) {
-                    continue;
-                }
-                if (!index.isTunnelAir(pos, aggregate)) {
-                    continue;
-                }
-                if (protectedVolume.contains(pos) || isInUpperProtectedVolume(pos, protectedVolume, floorY)) {
-                    leaks++;
-                }
-            }
+        // The manifest lists actual structure blocks. Empty space above a deck is
+        // legitimate upper-road clearance, even when its record uses the TUNNEL layer.
+        for (BlockPos pos : new HashSet<>(manifest.expectedProtectedBlocks())) {
+            if (footprintColumns.contains(new ColumnKey(pos.getX(), pos.getZ()))
+                    && index.isTunnelAir(pos, aggregate)) leaks++;
         }
         return leaks;
-    }
-
-    private static boolean isInUpperProtectedVolume(
-            BlockPos pos,
-            Set<BlockPos> protectedBlocks,
-            int floorY) {
-        if (pos.getY() <= floorY) {
-            return false;
-        }
-        for (BlockPos protectedPos : protectedBlocks) {
-            if (protectedPos.getX() == pos.getX()
-                    && protectedPos.getZ() == pos.getZ()
-                    && pos.getY() >= protectedPos.getY() - 1
-                    && pos.getY() <= protectedPos.getY() + 3) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static int countDisconnectedTunnelComponents(

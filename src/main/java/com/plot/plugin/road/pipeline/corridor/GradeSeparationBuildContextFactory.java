@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -122,13 +123,15 @@ public final class GradeSeparationBuildContextFactory {
         }
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
         double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));
@@ -157,13 +160,15 @@ public final class GradeSeparationBuildContextFactory {
         }
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
         double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));

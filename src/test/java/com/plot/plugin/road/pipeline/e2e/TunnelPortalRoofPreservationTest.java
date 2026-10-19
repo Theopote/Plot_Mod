@@ -44,7 +44,7 @@ class TunnelPortalRoofPreservationTest {
         List<BlockPos> preserveSamples = new ArrayList<>();
         for (int x = 0; x <= 6; x++) {
             for (int z = -6; z <= 6; z++) {
-                if (Math.abs(z) < 5) {
+                if (Math.abs(z) < 5 || !insidePortalRoof(scenario, style, z)) {
                     continue;
                 }
                 for (int y = roofTop + 1; y <= terrainTop; y++) {
@@ -65,7 +65,7 @@ class TunnelPortalRoofPreservationTest {
             }
         }
         assertEquals(0, unexpectedAir,
-            "blocks above portal roof must not become air, violations=" + unexpectedAir);
+            "blocks above portal roof must not become air, violations=" + unexpectedAir + " positions=" + preserveSamples.stream().filter(pos -> isAirPlacement(edge, pos)).toList());
 
         int gapLayers = 0;
         for (int x = 0; x <= 6; x++) {
@@ -111,7 +111,7 @@ class TunnelPortalRoofPreservationTest {
     }
 
     @Test
-    void r09PortalVerticalExcavationStaysBelowRoof() {
+    void r09PortalExcavatesExposedBatterWithoutClearingAboveRoofShell() {
         RoadGoldenScenario scenario = RoadGoldenScenarioFactory.r09Tunnel();
         int roofTop = portalRoofTop(scenario, ResolvedTunnelStyle.defaults());
         RoadGenerationResult edge = preview(scenario);
@@ -131,9 +131,14 @@ class TunnelPortalRoofPreservationTest {
                 airAboveRoofOutsideEnvelope++;
             }
         }
-        assertTrue(airAboveRoofOutsideEnvelope <= 4,
-            "portal must not carve air above roof outside corridor envelope, count="
-                + airAboveRoofOutsideEnvelope);
+        assertTrue(airAboveRoofOutsideEnvelope > 4, "fixture must clear exposed slope terrain above crown height");
+        for (var entry : edge.placementRecords.entrySet()) {
+            var pos = entry.getKey();
+            if (pos.getX() >= 0 && pos.getX() <= 8 && pos.getY() > roofTop
+                    && insidePortalRoof(scenario, ResolvedTunnelStyle.defaults(), pos.getZ())) {
+                assertTrue(!"minecraft:air".equals(entry.getValue().newBlockId), "roof shell exposed at " + pos);
+            }
+        }
     }
 
     @Test
@@ -271,6 +276,13 @@ class TunnelPortalRoofPreservationTest {
         return RoadBenchmarkHarness.generatePreview(
             scenario.network(), generator, scenario.terrain())
             .edgeResults().values().iterator().next();
+    }
+
+    private static boolean insidePortalRoof(RoadGoldenScenario scenario, ResolvedTunnelStyle style, int lateral) {
+        int width = RoadCorridorWidth.gradingEnvelopeWidthBlocks(ResolvedCrossSection.fromConfig(scenario.config()));
+        var section = TunnelPortalExcavationMask.forPortal(style, width, ROAD_Y).crossSection();
+        return section.kindAt(lateral, section.maxY())
+            != com.plot.plugin.road.tunnel.TunnelCrossSectionMask.CellKind.OUTSIDE;
     }
 
     private static int portalRoofTop(RoadGoldenScenario scenario, ResolvedTunnelStyle style) {

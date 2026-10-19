@@ -50,7 +50,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
                 RoadNode node = network.getNode(entry.getKey());
                 if (node == null) continue;
                 Double previous = node.getManualElevation();
-                node.setManualElevation(pvi.getElevation());
+                node.setManualElevation(VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), entry.getValue()).orElseThrow());
                 if (previous == null || Math.abs(previous - node.getManualElevation()) > 1e-6) {
                     changedNodeIds.add(node.getId());
                 }
@@ -63,31 +63,19 @@ public final class VerticalAlignmentJunctionSynchronizer {
         if (!canSynchronize(network, road) || road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
             return 0;
         }
-        List<PointOfVerticalIntersection> pvis = new ArrayList<>(road.getVerticalAlignment().getPvis());
+        Map<Double, Double> targets = new LinkedHashMap<>();
         int changed = 0;
         for (Map.Entry<String, Double> entry : junctionStations(network, road).entrySet()) {
             RoadNode node = network.getNode(entry.getKey());
             if (node == null || node.getManualElevation() == null) continue;
-            int index = matchingPviIndex(pvis, entry.getValue());
-            if (index >= 0) {
-                PointOfVerticalIntersection old = pvis.get(index);
-                if (Math.abs(old.getElevation() - node.getManualElevation()) > 1e-6
-                        || old.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED
-                        || old.hasCurve()) {
-                    pvis.set(index, new PointOfVerticalIntersection(
-                        old.getStation(), node.getManualElevation(), null,
-                        VerticalControlPointConstraint.JUNCTION_FIXED));
-                    changed++;
-                }
-            } else {
-                pvis.add(new PointOfVerticalIntersection(
-                    entry.getValue(), node.getManualElevation(), null,
-                    VerticalControlPointConstraint.JUNCTION_FIXED));
-                pvis.sort(java.util.Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
-                changed++;
-            }
+            targets.put(entry.getValue(), node.getManualElevation());
+            int index = matchingPviIndex(road.getVerticalAlignment().getPvis(), entry.getValue());
+            if (index < 0 || road.getVerticalAlignment().getPvis().get(index).getConstraint()
+                    != VerticalControlPointConstraint.JUNCTION_FIXED
+                    || Math.abs(VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), entry.getValue())
+                        .orElseThrow() - node.getManualElevation()) > 1e-6) changed++;
         }
-        if (changed > 0) road.setVerticalAlignment(new RoadVerticalAlignment(pvis));
+        if (!targets.isEmpty()) RoadProfileConstraintSynchronizer.setElevations(road, targets, false);
         return changed;
     }
 

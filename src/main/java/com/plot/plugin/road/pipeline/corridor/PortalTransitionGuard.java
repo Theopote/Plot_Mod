@@ -6,6 +6,7 @@ import com.plot.plugin.road.geometry.RoadCorridorWidth;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 
 /**
  * Portal station index for capping cut/clearance/slope above the designed tunnel roof.
@@ -15,9 +16,11 @@ import java.util.Map;
  */
 final class PortalTransitionGuard {
     private final Map<ColumnKey, Integer> designYByColumn;
+    private final List<PortalBackfillSite> sites;
 
-    private PortalTransitionGuard(Map<ColumnKey, Integer> designYByColumn) {
+    private PortalTransitionGuard(Map<ColumnKey, Integer> designYByColumn, List<PortalBackfillSite> sites) {
         this.designYByColumn = designYByColumn;
+        this.sites = sites;
     }
 
     static PortalTransitionGuard from(RoadCorridorPlan plan) {
@@ -31,7 +34,7 @@ final class PortalTransitionGuard {
                 designYByColumn.merge(entry.getKey(), cell.designSurfaceY(), Math::max);
             }
         }
-        return new PortalTransitionGuard(designYByColumn);
+        return new PortalTransitionGuard(designYByColumn, plan != null ? plan.portalBackfillSites() : List.of());
     }
 
     Integer designSurfaceYNear(int worldX, int worldZ, int searchBand) {
@@ -77,6 +80,7 @@ final class PortalTransitionGuard {
             int requestedTopY,
             RoadCorridorPlanBuilder.PlanHost host,
             int roadHalfWidth) {
+        if (!coversRoofColumn(planPoint, host)) return requestedTopY;
         Integer designY = designSurfaceYNear(planPoint, host, roadHalfWidth);
         if (designY == null) {
             return requestedTopY;
@@ -90,12 +94,34 @@ final class PortalTransitionGuard {
             int groundY,
             RoadCorridorPlanBuilder.PlanHost host,
             int roadHalfWidth) {
+        if (!coversRoofColumn(planPoint, host)) return groundY;
         Integer designY = designSurfaceYNear(planPoint, host, roadHalfWidth);
         if (designY == null) {
             return groundY;
         }
         int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
         return Math.min(groundY, roofTop);
+    }
+
+    /** Outside the actual roof footprint, excavate to terrain top instead of leaving a lid. */
+    private boolean coversRoofColumn(Vec2d point, RoadCorridorPlanBuilder.PlanHost host) {
+        if (sites.isEmpty() || point == null || host == null) return true;
+        var style = host.tunnelStyle();
+        for (var site : sites) {
+            double scale = site.unitsPerBlock() > 1e-9 ? site.unitsPerBlock() : 1.0;
+            var delta = point.subtract(site.center());
+            var normal = site.leftNormal().normalize();
+            var forward = site.forward().normalize();
+            double along = (delta.x * forward.x + delta.y * forward.y) / scale;
+            if (Math.abs(along) > RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS + 0.5) continue;
+            double lateral = (delta.x * normal.x + delta.y * normal.y) / scale;
+            int lining = Math.min(com.plot.plugin.road.tunnel.TunnelStyle.MAX_LINING_THICKNESS,
+                style.liningThickness() + 1);
+            int width = site.envelopeWidthBlocks() + style.sideClearance() * 2 + lining * 2;
+            if (lateral >= com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(width) - 0.5
+                    && lateral <= com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(width) + 0.5) return true;
+        }
+        return false;
     }
 
     /**

@@ -18,14 +18,15 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         213, 0, 0, 0, 0, 0, 0, 0, 0, 213, 0, 0, List.of());
 
+    // Exact plaza ownership now retains the approach cells at junction seams.
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        361, 0, 0, 36, 0, 0, 147, 0, 0, 338, 0, 0, List.of());
+        384, 0, 0, 36, 0, 0, 147, 0, 0, 349, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        449, 0, 0, 52, 0, 0, 163, 0, 0, 423, 0, 0, List.of());
+        479, 0, 0, 52, 0, 0, 163, 0, 0, 429, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        529, 0, 0, 58, 0, 0, 199, 0, 0, 492, 0, 0, List.of());
+        550, 0, 0, 58, 0, 0, 199, 0, 0, 494, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
         239, 36, 0, 0, 0, 0, 0, 0, 36, 239, 0, 0, List.of());
@@ -33,17 +34,18 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
         176, 9, 58, 0, 0, 42, 0, 58, 9, 218, 0, 0, List.of());
 
+    // Portal roof sealing and exposed-batter excavation are covered by semantic regressions.
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
-        371, 0, 6876, 0, 108, 2122, 0, 6876, 0, 2555, 1, 2, List.of());
+        371, 0, 7036, 0, 108, 2572, 0, 7036, 0, 3005, 1, 2, List.of());
 
     public static final RoadGoldenMetrics R09 = new RoadGoldenMetrics(
-        349, 0, 7580, 0, 0, 2540, 0, 7580, 0, 2846, 0, 2, List.of());
+        349, 0, 7600, 0, 0, 2683, 0, 7600, 0, 2989, 0, 2, List.of());
 
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         265, 0, 0, 0, 380, 0, 0, 0, 0, 635, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        533, 21, 0, 0, 13, 36, 147, 0, 21, 558, 1, 0, List.of());
+        546, 21, 0, 0, 13, 36, 147, 0, 21, 571, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

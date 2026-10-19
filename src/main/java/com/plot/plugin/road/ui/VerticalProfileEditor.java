@@ -78,7 +78,6 @@ final class VerticalProfileEditor {
 
     private static final float MIN_EDITOR_CHART_HEIGHT = 220f;
     private static final int EDITOR_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
-    private static final int AUTO_VOXEL_PREVIEW_DELAY_FRAMES = 45;
 
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
     private String editorRoadId = "";
@@ -92,8 +91,6 @@ final class VerticalProfileEditor {
     private final AdaptiveProfileControls adaptiveProfileControls = new AdaptiveProfileControls();
     private ProfileEditorWindowSession windowSession;
     private boolean closeConfirmPending;
-    private boolean roadSwitchConfirmPending;
-    private String pendingRoadSwitchId = "";
     private Runnable onProfileConfirmed;
     private int selectedIntersectionIndex = -1;
     private RoadGradeSeparationControls gradeSeparationControls;
@@ -109,7 +106,6 @@ final class VerticalProfileEditor {
     private ProfileRenderCache profileRenderCache;
     private Function<Road, FlatElevationProfileOverlay> flatOverlayResolver = road -> null;
     private VoxelProfilePreviewCompileRequest pendingVoxelCompile;
-    private int autoVoxelPreviewCountdown = -1;
 
     void clearCache() {
         cachedChartData = null;
@@ -123,10 +119,7 @@ final class VerticalProfileEditor {
             ProfileChartInteraction.IntersectionDragTarget.NONE;
         windowSession = null;
         closeConfirmPending = false;
-        roadSwitchConfirmPending = false;
-        pendingRoadSwitchId = "";
         pendingVoxelCompile = null;
-        autoVoxelPreviewCountdown = -1;
         invalidateIntersectionCache();
     }
 
@@ -188,7 +181,6 @@ final class VerticalProfileEditor {
         }
         ensureWindowSession(ctx, liveNetwork);
         tickPendingVoxelCompile(ctx);
-        tickAutoVoxelPreview(ctx);
         RoadNetwork network = windowSession.editingNetwork();
         ensureEditorRoadSelection(ctx, network);
 
@@ -277,10 +269,7 @@ final class VerticalProfileEditor {
         windowSession = null;
         profileEditSession.cancelEdit();
         closeConfirmPending = false;
-        roadSwitchConfirmPending = false;
-        pendingRoadSwitchId = "";
         pendingVoxelCompile = null;
-        autoVoxelPreviewCountdown = -1;
     }
 
     private void handleEditorCloseRequest(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -453,7 +442,6 @@ final class VerticalProfileEditor {
 
     private void renderEditorDialogs(RoadUiContext ctx, RoadNetwork liveNetwork) {
         renderCloseConfirmDialog(ctx, liveNetwork);
-        renderRoadSwitchDialog(ctx, liveNetwork);
     }
 
     private void renderCloseConfirmDialog(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -479,44 +467,6 @@ final class VerticalProfileEditor {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_continue_edit") + "##close_continue")) {
             closeConfirmPending = false;
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.endPopup();
-    }
-
-    private void renderRoadSwitchDialog(RoadUiContext ctx, RoadNetwork liveNetwork) {
-        if (!RoadUiWidgets.beginDeferredPopupModal(
-                "##profile_editor_road_switch_confirm",
-                roadSwitchConfirmPending,
-                () -> roadSwitchConfirmPending = false)) {
-            return;
-        }
-        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_road_switch_message"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_confirm") + "##switch_apply")) {
-            if (confirmWindowSession(ctx, liveNetwork, true)) {
-                reopenWindowSession(ctx, liveNetwork);
-                roadSwitchConfirmPending = false;
-                if (pendingRoadSwitchId != null && !pendingRoadSwitchId.isBlank()) {
-                    applyEditorRoadSwitch(ctx, pendingRoadSwitchId, true);
-                    pendingRoadSwitchId = "";
-                }
-            }
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_restore") + "##switch_discard")) {
-            restoreWindowSession();
-            roadSwitchConfirmPending = false;
-            if (pendingRoadSwitchId != null && !pendingRoadSwitchId.isBlank()) {
-                applyEditorRoadSwitch(ctx, pendingRoadSwitchId, true);
-                pendingRoadSwitchId = "";
-            }
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_continue_edit") + "##switch_continue")) {
-            roadSwitchConfirmPending = false;
-            pendingRoadSwitchId = "";
             ImGui.closeCurrentPopup();
         }
         ImGui.endPopup();
@@ -722,7 +672,6 @@ final class VerticalProfileEditor {
         }
         if (ImGui.button(
                 PlotI18n.tr("plugin.road.update_voxel_profile") + "##update_voxel_profile")) {
-            autoVoxelPreviewCountdown = -1;
             requestVoxelProfilePreview(ctx, road);
         }
         if (computing) {
@@ -734,7 +683,6 @@ final class VerticalProfileEditor {
         if (windowSession == null || road == null) {
             return;
         }
-        autoVoxelPreviewCountdown = -1;
         RoadNetwork editingNetwork = windowSession.editingNetwork();
         Road editingRoad = editingNetwork.getRoad(road.getId());
         if (editingRoad == null) {
@@ -1560,8 +1508,7 @@ final class VerticalProfileEditor {
             .filter(point -> point.pviIndex() == selectedPvi)
             .findFirst()
             .orElse(null);
-        if (selected == null
-                || !VerticalProfileControlPoints.isEditablePvi(network, road, selected)) {
+        if (selected == null || !VerticalProfileControlPoints.isCurveEditable(road, alignment, selectedPvi)) {
             return List.of();
         }
         PointOfVerticalIntersection pvi = alignment.getPvis().get(selectedPvi);
@@ -1648,37 +1595,6 @@ final class VerticalProfileEditor {
         ctx.requestOverlayRefresh();
     }
 
-    private void tickAutoVoxelPreview(RoadUiContext ctx) {
-        if (autoVoxelPreviewCountdown < 0 || windowSession == null) {
-            return;
-        }
-        if (--autoVoxelPreviewCountdown > 0) {
-            return;
-        }
-        autoVoxelPreviewCountdown = -1;
-        if (editorRoadId == null || editorRoadId.isBlank() || pendingVoxelCompile != null) {
-            return;
-        }
-        Road road = windowSession.editingNetwork().getRoad(editorRoadId);
-        if (road == null) {
-            return;
-        }
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(editorRoadId);
-        if (slot.state() == VoxelProfilePreviewState.COMPUTING) {
-            autoVoxelPreviewCountdown = 5;
-            return;
-        }
-        requestVoxelProfilePreview(ctx, road);
-    }
-
-    private void scheduleAutoVoxelPreview() {
-        if (windowSession == null || editorRoadId == null || editorRoadId.isBlank()) {
-            autoVoxelPreviewCountdown = -1;
-            return;
-        }
-        autoVoxelPreviewCountdown = AUTO_VOXEL_PREVIEW_DELAY_FRAMES;
-    }
-
     private void notifyWorkingProfileChanged() {
         profileRenderCache = null;
         invalidateIntersectionCache();
@@ -1687,7 +1603,6 @@ final class VerticalProfileEditor {
         }
         // Geometry/clearance overlays update live. Defer terrain and voxel work
         // until the user requests it after editing the connected set of roads.
-        autoVoxelPreviewCountdown = -1;
     }
 
     private boolean isChartDerivedDataStale(Road road) {
