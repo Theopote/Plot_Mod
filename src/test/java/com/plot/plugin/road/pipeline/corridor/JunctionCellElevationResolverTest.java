@@ -15,8 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class JunctionCellElevationResolverTest {
 
@@ -119,7 +118,7 @@ class JunctionCellElevationResolverTest {
             e -> List.of(new Vec2d(0, 0), new Vec2d(20, 0)),
             1.0);
 
-        assertTrue(sample != null);
+        assertNotNull(sample);
         assertEquals(18.0, sample.worldStation(), 0.5,
             "station must be from edge start so end-node approaches read the junction-side profile");
     }

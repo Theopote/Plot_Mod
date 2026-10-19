@@ -674,8 +674,12 @@ public final class RoadCrossSectionPreviewRenderer {
                 return fromResolved(ResolvedCrossSection.fromConfig(new RoadSystemConfig("preview")), 10.0f);
             }
             RoadSystemConfig defaults = new RoadSystemConfig("preview");
+            var section = style.toCrossSection(themeId);
+            // Show the style's own slope setting, including silent urban presets,
+            // without changing their inheritance behavior during generation.
+            section.getSlopeBatter().setEnabled(style.resolveIncludeSlopeBatter());
             return fromResolved(
-                ResolvedCrossSection.resolve(style.toCrossSection(themeId), defaults),
+                ResolvedCrossSection.resolve(section, defaults),
                 0f
             );
         }

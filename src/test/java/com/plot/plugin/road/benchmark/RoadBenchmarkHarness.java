@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
@@ -85,6 +86,12 @@ public final class RoadBenchmarkHarness {
             TerrainSampler terrain) {
         long generationStart = System.nanoTime();
         RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
+        // Fixtures provide an explicit design, equivalent to confirming the manual
+        // profile in the editor before previewing it.
+        networkGenerator.setActiveManualProfileRoadIds(network.getRoads().values().stream()
+            .filter(road -> road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
+            .map(road -> road.getId())
+            .toList());
         RoadNetworkGenerator.PreviewResult preview =
             networkGenerator.generatePreview(network, terrain);
         long generationNanos = System.nanoTime() - generationStart;

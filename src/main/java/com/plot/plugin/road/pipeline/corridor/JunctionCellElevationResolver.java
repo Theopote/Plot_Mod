@@ -52,8 +52,8 @@ public final class JunctionCellElevationResolver {
             if (sample == null) {
                 continue;
             }
-            int profileY = elevationAtStation(result, sample.worldStation());
-            if (profileY < 0) {
+            Integer profileY = elevationAtStation(result, sample.worldStation());
+            if (profileY == null) {
                 continue;
             }
             double weight = 1.0 / (sample.projectionDistance() / scale + 1.0);
@@ -114,9 +114,9 @@ public final class JunctionCellElevationResolver {
         return best;
     }
 
-    static int elevationAtStation(RoadGenerationResult result, double worldStation) {
+    static Integer elevationAtStation(RoadGenerationResult result, double worldStation) {
         if (result == null) {
-            return -1;
+            return null;
         }
         if (result.buildProfile != null && result.buildProfile.isActive()) {
             return result.buildProfile.elevationAtWorldStation(worldStation);
@@ -124,7 +124,7 @@ public final class JunctionCellElevationResolver {
         List<Double> distances = result.profileDistances;
         List<Integer> heights = result.profileBuildHeights;
         if (distances == null || heights == null || distances.isEmpty() || heights.isEmpty()) {
-            return -1;
+            return null;
         }
         if (worldStation <= distances.getFirst() + EPSILON) {
             return heights.getFirst();

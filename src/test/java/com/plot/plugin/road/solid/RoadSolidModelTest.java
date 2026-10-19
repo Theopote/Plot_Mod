@@ -48,13 +48,18 @@ class RoadSolidModelTest {
     }
 
     @Test
-    void equalMaterialPriorityKeepsFirstWriter() {
+    void equalMaterialPriorityUsesSameTieBreakRegardlessOfInsertionOrder() {
         RoadSolidModel model = new RoadSolidModel();
         Vec2d point = new Vec2d(0, 2);
 
         assertTrue(model.add(point, 64, RoadSolidLayer.ROAD, "minecraft:stone"));
         assertFalse(model.add(point, 64, RoadSolidLayer.ROAD, "minecraft:dirt"));
         assertEquals("minecraft:stone", model.primitives().getFirst().materialId());
+
+        RoadSolidModel reversed = new RoadSolidModel();
+        assertTrue(reversed.add(point, 64, RoadSolidLayer.ROAD, "minecraft:dirt"));
+        assertTrue(reversed.add(point, 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertEquals(model.primitives(), reversed.primitives());
     }
 
     @Test

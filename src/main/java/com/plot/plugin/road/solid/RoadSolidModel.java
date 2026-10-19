@@ -88,7 +88,13 @@ public final class RoadSolidModel {
         Integer existingIndex = keyToIndex.get(key);
         if (existingIndex != null) {
             RoadSolidPrimitive existing = primitives.get(existingIndex);
-            if (primitive.materialPriority() > existing.materialPriority()) {
+            // Match RoadPlacementRecorder's tie-break so chunk boundaries cannot
+            // change the winning material at the same layer and world position.
+            if (primitive.materialPriority() > existing.materialPriority()
+                    || (primitive.materialPriority() == existing.materialPriority()
+                        && primitive.materialId() != null
+                        && (existing.materialId() == null
+                            || primitive.materialId().compareTo(existing.materialId()) > 0))) {
                 primitives.set(existingIndex, primitive);
                 return true;
             }
