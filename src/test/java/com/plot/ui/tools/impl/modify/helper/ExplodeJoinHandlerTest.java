@@ -1,6 +1,7 @@
 package com.plot.ui.tools.impl.modify.helper;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.RectangleShape;
@@ -41,6 +42,50 @@ class ExplodeJoinHandlerTest {
         PolylineShape polyline = (PolylineShape) joined;
         assertEquals(4, polyline.getPoints().size());
         assertFalse(polyline.isClosed());
+        assertTrue(ExplodeJoinHandler.hasJoinEffect(original, result));
+    }
+
+    @Test
+    void explodeClosedPolylineProducesFourSegments() {
+        PolylineShape closed = new PolylineShape(List.of(
+                new Vec2d(0, 0),
+                new Vec2d(10, 0),
+                new Vec2d(10, 10),
+                new Vec2d(0, 10)
+        ), true);
+
+        List<Shape> result = ExplodeJoinHandler.explodeShapes(List.of(closed));
+
+        assertEquals(4, result.size());
+        assertTrue(result.stream().allMatch(LineShape.class::isInstance));
+    }
+
+    @Test
+    void explodeArcProducesMultipleSegments() {
+        ArcShape arc = new ArcShape(new Vec2d(0, 0), 10, 0, Math.PI / 2);
+
+        List<Shape> result = ExplodeJoinHandler.explodeShapes(List.of(arc));
+
+        assertTrue(result.size() > 1);
+        assertTrue(result.stream().allMatch(LineShape.class::isInstance));
+    }
+
+    @Test
+    void joinClosedLoopIntoClosedPolyline() {
+        LineShape line1 = new LineShape(new Vec2d(0, 0), new Vec2d(10, 0));
+        LineShape line2 = new LineShape(new Vec2d(10, 0), new Vec2d(10, 10));
+        LineShape line3 = new LineShape(new Vec2d(10, 10), new Vec2d(0, 10));
+        LineShape line4 = new LineShape(new Vec2d(0, 10), new Vec2d(0, 0));
+        List<Shape> original = List.of(line1, line2, line3, line4);
+
+        List<Shape> result = ExplodeJoinHandler.joinShapes(original);
+
+        assertEquals(1, result.size());
+        Shape joined = result.getFirst();
+        assertInstanceOf(PolylineShape.class, joined);
+        PolylineShape polyline = (PolylineShape) joined;
+        assertTrue(polyline.isClosed());
+        assertEquals(4, polyline.getPoints().size());
         assertTrue(ExplodeJoinHandler.hasJoinEffect(original, result));
     }
 

@@ -4,8 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.command.commands.CopyMoveCommand;
+import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.context.ApplicationContext;
-import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.constants.ModifyConstraints;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class MoveHandlerTest {
 
@@ -60,6 +62,30 @@ class MoveHandlerTest {
         assertEquals(10.0, vector.x, 1e-6);
         assertEquals(10.0, vector.y, 1e-6);
         assertEquals(Math.PI / 4, handler.calculateMoveAngle(params), 1e-6);
+    }
+
+    @Test
+    void createModifyCommandUsesCopyMoveCommandWhenCopyModeEnabled() {
+        CircleShape circle = new CircleShape(new Vec2d(0, 0), 5);
+        ModifyParameters params = moveParams(new Vec2d(0, 0), new Vec2d(3, 4));
+        params.setCopyMode(true);
+
+        List<Shape> modified = handler.calculateModifiedShapes(List.of(circle), params);
+        ModifyCommand command = handler.createModifyCommand(List.of(circle), modified, params);
+
+        assertInstanceOf(CopyMoveCommand.class, command);
+    }
+
+    @Test
+    void createModifyCommandUsesMoveCommandWhenCopyModeDisabled() {
+        CircleShape circle = new CircleShape(new Vec2d(0, 0), 5);
+        ModifyParameters params = moveParams(new Vec2d(0, 0), new Vec2d(3, 4));
+        params.setCopyMode(false);
+
+        List<Shape> modified = handler.calculateModifiedShapes(List.of(circle), params);
+        ModifyCommand command = handler.createModifyCommand(List.of(circle), modified, params);
+
+        assertFalse(command instanceof CopyMoveCommand);
     }
 
     @Test
