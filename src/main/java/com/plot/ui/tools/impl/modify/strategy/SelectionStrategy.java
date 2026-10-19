@@ -549,6 +549,7 @@ public class SelectionStrategy implements IModifyStrategy {
             // 修复：被选中的图形不需要额外设置highlighted状态
             // Shape.render()方法会根据isSelected()状态自动应用SELECTED样式
             if (selected) {
+                shape.setHighlighted(false);
                 LOGGER.debug("图形 {} 已选中", shape.getId());
                 context.addSelectedShape(shape);
             } else {
@@ -611,7 +612,7 @@ public class SelectionStrategy implements IModifyStrategy {
             try {
                 List<Shape> allShapes = ApplicationContext.getInstance().getAppState().getShapes();
                 for (Shape shape : allShapes) {
-                    if (tempSelectedShapeIds.contains(shape.getId()) && !shape.isSelected()) {
+                    if (tempSelectedShapeIds.contains(shape.getId())) {
                         shape.setHighlighted(false);
                     }
                 }

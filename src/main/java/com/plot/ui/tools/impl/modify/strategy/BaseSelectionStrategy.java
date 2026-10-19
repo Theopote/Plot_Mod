@@ -188,10 +188,12 @@ public abstract class BaseSelectionStrategy {
      */
     protected void updateShapeSelection(Shape shape, boolean selected, ModifyToolContext context) {
         if (shape != null) {
-            shape.setSelected(selected);
             if (selected) {
+                shape.setHighlighted(false);
+                shape.setSelected(true);
                 context.addSelectedShape(shape);
             } else {
+                shape.setSelected(false);
                 shape.setHighlighted(false);
                 context.removeSelectedShape(shape);
             }
@@ -246,7 +248,7 @@ public abstract class BaseSelectionStrategy {
             try {
                 List<Shape> allShapes = com.plot.core.context.ApplicationContext.getInstance().getAppState().getShapes();
                 for (Shape shape : allShapes) {
-                    if (tempSelectedShapeIds.contains(shape.getId()) && !shape.isSelected()) {
+                    if (tempSelectedShapeIds.contains(shape.getId())) {
                         shape.setHighlighted(false);
                     }
                 }

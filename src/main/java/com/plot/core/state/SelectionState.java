@@ -39,17 +39,14 @@ public final class SelectionState {
 
         for (Shape old : oldSelection) {
             if (!newSelection.contains(old)) {
-                try {
-                    old.setSelected(false);
-                } catch (Exception e) {
-                    ExceptionDebug.log("SelectionState: clear previous selection", e);
-                }
+                clearShapeVisualState(old);
             }
         }
 
         for (Shape cur : newSelection) {
             try {
                 cur.setSelected(true);
+                cur.setHighlighted(false);
             } catch (Exception e) {
                 ExceptionDebug.log("SelectionState: set new selection highlight", e);
             }
@@ -65,6 +62,7 @@ public final class SelectionState {
             selectedShapes.add(shape);
             try {
                 shape.setSelected(true);
+                shape.setHighlighted(false);
             } catch (Exception e) {
                 ExceptionDebug.log("SelectionState: add shape to selection", e);
             }
@@ -74,28 +72,47 @@ public final class SelectionState {
 
     public void removeSelectedShape(Shape shape) {
         if (selectedShapes.remove(shape)) {
-            try {
-                shape.setSelected(false);
-            } catch (Exception e) {
-                ExceptionDebug.log("SelectionState: remove shape from selection", e);
-            }
+            clearShapeVisualState(shape);
             publishSelectionChangedEvent();
         }
     }
 
     public void clearSelection() {
-        if (selectedShapes.isEmpty()) {
-            return;
-        }
         for (Shape s : new ArrayList<>(selectedShapes)) {
-            try {
-                s.setSelected(false);
-            } catch (Exception e) {
-                ExceptionDebug.log("SelectionState: clear all selection highlights", e);
-            }
+            clearShapeVisualState(s);
         }
         selectedShapes.clear();
+        clearStaleHighlights();
         publishSelectionChangedEvent();
+    }
+
+    private static void clearShapeVisualState(Shape shape) {
+        if (shape == null) {
+            return;
+        }
+        try {
+            shape.setSelected(false);
+            shape.setHighlighted(false);
+        } catch (Exception e) {
+            ExceptionDebug.log("SelectionState: clear shape visual state", e);
+        }
+    }
+
+    /** 清除框选预览等遗留的橙色高亮（selected=false 但 highlighted=true）。 */
+    private void clearStaleHighlights() {
+        try {
+            AppState appState = appStateSupplier.get();
+            if (appState == null) {
+                return;
+            }
+            for (Shape shape : appState.getShapes()) {
+                if (shape.isHighlighted()) {
+                    shape.setHighlighted(false);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionDebug.log("SelectionState: clear stale highlights", e);
+        }
     }
 
     public void clear() {

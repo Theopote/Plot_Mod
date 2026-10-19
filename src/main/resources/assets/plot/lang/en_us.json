@@ -1509,7 +1509,6 @@
   "plugin.road.profile_overview_road_index": "Road %1$d / %2$d",
   "plugin.road.profile_overview_active": "(active)",
   "plugin.road.profile_overview_editing": "(editing)",
-  "plugin.road.profile_overview_editing": "(editing)",
   "plugin.road.profile_overview_select_road": "Set as active road",
   "plugin.road.profile_overview_edit": "Edit",
   "plugin.road.profile_overview_empty": "No stationable roads in the network; profiles cannot be shown.",

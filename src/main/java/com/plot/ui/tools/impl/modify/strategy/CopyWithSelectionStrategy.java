@@ -275,6 +275,7 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
         currentMode = StrategyMode.COPY;
         selectedShapes = getSelectedShapesFromIds(context);
         for (Shape shape : selectedShapes) {
+            shape.setHighlighted(false);
             shape.setSelected(true);
             context.addSelectedShape(shape);
         }
