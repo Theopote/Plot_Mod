@@ -18,6 +18,7 @@ import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -84,8 +85,9 @@ class EarthworkPreviewLifecycleTest {
         EarthworkBuildManager buildManager = new EarthworkBuildManager(
             host, new TerrainSnapshotCache(), manager, msg -> {});
 
-        assertNotNull(buildManager.validateBuildEligibility(project, regionB.getId()));
-        buildManager.buildInWorld(project, regionB.getId());
+        assertNotNull(buildManager.validateBuildEligibility(
+            project, regionB.getId(), null, false, null));
+        buildManager.buildInWorld(project, regionB.getId(), false);
         assertTrue(enqueued.isEmpty(), "mismatched region must not enqueue placements");
     }
 
@@ -104,10 +106,12 @@ class EarthworkPreviewLifecycleTest {
         EarthworkBuildManager buildManager = new EarthworkBuildManager(
             stubHost(), new TerrainSnapshotCache(), manager, msg -> {});
 
-        assertNull(buildManager.validateBuildEligibility(project, region.getId()));
+        assertNull(buildManager.validateBuildEligibility(
+            project, region.getId(), null, false, null));
 
         region.setManualTargetElevation(70);
-        assertNotNull(buildManager.validateBuildEligibility(project, region.getId()));
+        assertNotNull(buildManager.validateBuildEligibility(
+            project, region.getId(), null, false, null));
     }
 
     @Test
@@ -128,9 +132,72 @@ class EarthworkPreviewLifecycleTest {
             host, new TerrainSnapshotCache(), manager, msg -> {});
 
         manager.markDirty();
-        assertNotNull(buildManager.validateBuildEligibility(project, region.getId()));
-        buildManager.buildInWorld(project, region.getId());
+        assertNotNull(buildManager.validateBuildEligibility(
+            project, region.getId(), null, false, null));
+        buildManager.buildInWorld(project, region.getId(), false);
         assertTrue(enqueued.isEmpty());
+    }
+
+    @Test
+    void formalPathRejectsWhenWorldUnavailable() {
+        EarthworkProject project = singleRegionProject();
+        GradingRegion region = project.getRegions().values().iterator().next();
+        EarthworkGenerationResult preview = seededPreview(project, region);
+
+        EarthworkPreviewManager manager = EarthworkPreviewManager.withGenerationResult(
+            stubHost(),
+            EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE).site(),
+            new TerrainSnapshotCache(),
+            msg -> {},
+            preview);
+        EarthworkBuildManager buildManager = new EarthworkBuildManager(
+            stubHost(), new TerrainSnapshotCache(), manager, msg -> {});
+
+        assertNotNull(buildManager.validateBuildEligibility(project, region.getId()));
+        assertFalse(EarthworkPreviewIdentity.matchesCurrent(
+            preview, project, region.getId(), null));
+    }
+
+    @Test
+    void buildRejectsWhenTerrainChanged() {
+        EarthworkProject project = singleRegionProject();
+        GradingRegion region = project.getRegions().values().iterator().next();
+        EarthworkGenerationResult preview = seededPreview(project, region);
+
+        EarthworkPreviewManager manager = EarthworkPreviewManager.withGenerationResult(
+            stubHost(),
+            EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE).site(),
+            new TerrainSnapshotCache(),
+            msg -> {},
+            preview);
+        EarthworkBuildManager buildManager = new EarthworkBuildManager(
+            stubHost(), new TerrainSnapshotCache(), manager, msg -> {});
+
+        TerrainSnapshot.ComparisonResult stale = new TerrainSnapshot.ComparisonResult(false, 4, 10);
+        assertNotNull(buildManager.validateBuildEligibility(
+            project, region.getId(), null, false, stale));
+        assertNull(buildManager.validateBuildEligibility(
+            project, region.getId(), null, false, new TerrainSnapshot.ComparisonResult(true, 0, 10)));
+    }
+
+    @Test
+    void buildRejectsWhenAlreadyInFlight() {
+        EarthworkProject project = singleRegionProject();
+        GradingRegion region = project.getRegions().values().iterator().next();
+        EarthworkGenerationResult preview = seededPreview(project, region);
+
+        EarthworkPreviewManager manager = EarthworkPreviewManager.withGenerationResult(
+            stubHost(),
+            EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE).site(),
+            new TerrainSnapshotCache(),
+            msg -> {},
+            preview);
+        EarthworkBuildManager buildManager = new EarthworkBuildManager(
+            stubHost(), new TerrainSnapshotCache(), manager, msg -> {});
+
+        buildManager.setBuildInFlightForTest(true);
+        assertNotNull(buildManager.validateBuildEligibility(
+            project, region.getId(), null, false, null));
     }
 
     @Test
@@ -165,6 +232,33 @@ class EarthworkPreviewLifecycleTest {
         EarthworkQuickEdge.NATURAL.applyTo(zone.getEdgeSettings());
         long after = EarthworkPreviewIdentity.designRevision(project, region);
         assertTrue(before != after);
+    }
+
+    @Test
+    void designRevisionChangesWithOutlineAndHoles() {
+        EarthworkProject project = singleRegionProject();
+        GradingRegion region = project.getRegions().values().iterator().next();
+        long before = EarthworkPreviewIdentity.designRevision(project, region);
+
+        region.setOuterPoints(rectangleOutline(0, 5, 0, 5));
+        assertTrue(before != EarthworkPreviewIdentity.designRevision(project, region));
+
+        long mid = EarthworkPreviewIdentity.designRevision(project, region);
+        region.setHoles(List.of(rectangleOutline(1, 2, 1, 2)));
+        assertTrue(mid != EarthworkPreviewIdentity.designRevision(project, region));
+    }
+
+    @Test
+    void normalizedOutlineFingerprintIgnoresRotationAndWinding() {
+        List<Vec2d> base = rectangleOutline(0, 3, 0, 3);
+        List<Vec2d> rotated = List.of(base.get(1), base.get(2), base.get(3), base.get(0));
+        List<Vec2d> reversed = List.of(base.get(0), base.get(3), base.get(2), base.get(1));
+
+        long a = EarthworkPreviewIdentity.normalizedOutlineFingerprint(base);
+        long b = EarthworkPreviewIdentity.normalizedOutlineFingerprint(rotated);
+        long c = EarthworkPreviewIdentity.normalizedOutlineFingerprint(reversed);
+        assertEquals(a, b);
+        assertEquals(a, c);
     }
 
     private static EarthworkGenerationResult seededPreview(EarthworkProject project, GradingRegion region) {

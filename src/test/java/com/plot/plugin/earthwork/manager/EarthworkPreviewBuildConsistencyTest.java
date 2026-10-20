@@ -136,7 +136,8 @@ class EarthworkPreviewBuildConsistencyTest {
         EarthworkBuildManager buildManager = new EarthworkBuildManager(
             host, new TerrainSnapshotCache(), previewManager, msg -> {});
 
-        buildManager.buildInWorld(project, regionId);
+        // 单测无 Minecraft 客户端世界：跳过世界强制校验，仍校验设计身份
+        buildManager.buildInWorld(project, regionId, false);
         return enqueued;
     }
 

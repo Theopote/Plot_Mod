@@ -9,6 +9,7 @@ import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.adopt.EarthworkAdoptDefaults;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
+import com.plot.plugin.earthwork.manager.EarthworkPreviewIdentity;
 import com.plot.plugin.earthwork.material.EarthworkMaterialScope;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -220,14 +221,30 @@ public final class EarthworkRegionPanel {
             return;
         }
 
-        ctx.projectHistory().push(ctx.project());
-        int adopted = 0;
+        List<List<Vec2d>> toAdopt = new ArrayList<>();
         int skippedDuplicates = 0;
         for (List<Vec2d> points : validOutlines) {
             if (hasMatchingRegionOutline(ctx.project(), points)) {
                 skippedDuplicates++;
-                continue;
+            } else {
+                toAdopt.add(points);
             }
+        }
+        if (toAdopt.isEmpty()) {
+            ctx.selectedRegions().clear();
+            lastSelectionVersion = Long.MIN_VALUE;
+            if (skippedDuplicates > 0) {
+                ctx.setProjectStatus(PlotI18n.tr(
+                    "plugin.earthwork.adopt_duplicate_skipped", skippedDuplicates));
+            } else {
+                ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_no_selection"));
+            }
+            return;
+        }
+
+        ctx.projectHistory().push(ctx.project());
+        int adopted = 0;
+        for (List<Vec2d> points : toAdopt) {
             GradingRegion region = new GradingRegion(points);
             region.setName(PlotI18n.tr("plugin.earthwork.default_name",
                 ctx.project().getRegionCount() + 1));
@@ -246,14 +263,10 @@ public final class EarthworkRegionPanel {
         // 强制下次从画布重读选区，避免本地清空后仍命中旧 selection version
         lastSelectionVersion = Long.MIN_VALUE;
         ctx.clearPreview();
-        if (adopted == 0 && skippedDuplicates > 0) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_duplicate_skipped", skippedDuplicates));
-        } else if (adopted > 1) {
+        if (adopted > 1) {
             ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_success_batch", adopted));
-        } else if (adopted == 1) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_success"));
         } else {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_no_selection"));
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_success"));
         }
     }
 
@@ -261,26 +274,14 @@ public final class EarthworkRegionPanel {
         if (project == null || outline == null || outline.size() < 3) {
             return false;
         }
-        long fingerprint = outlineFingerprint(outline);
+        long fingerprint = EarthworkPreviewIdentity.normalizedOutlineFingerprint(outline);
         for (GradingRegion existing : project.getRegions().values()) {
-            if (outlineFingerprint(existing.getOuterPoints()) == fingerprint) {
+            if (EarthworkPreviewIdentity.normalizedOutlineFingerprint(existing.getOuterPoints())
+                == fingerprint) {
                 return true;
             }
         }
         return false;
-    }
-
-    private static long outlineFingerprint(List<Vec2d> points) {
-        long hash = 17L;
-        for (Vec2d point : points) {
-            if (point == null) {
-                continue;
-            }
-            hash = 31L * hash + Double.hashCode(Math.rint(point.x * 100.0) / 100.0);
-            hash = 31L * hash + Double.hashCode(Math.rint(point.y * 100.0) / 100.0);
-        }
-        hash = 31L * hash + points.size();
-        return hash;
     }
 
     private static World getClientWorld() {
@@ -403,6 +404,15 @@ public final class EarthworkRegionPanel {
             signature = 31 * signature + Long.hashCode(report.geometricCutVolume());
             signature = 31 * signature + Long.hashCode(report.geometricFillVolume());
             signature = 31 * signature + Double.hashCode(report.reusableCutVolume());
+            signature = 31 * signature + site.getZoneCount();
+            for (GradingZone zone : site.getGradingZones().values()) {
+                if (zone == null || zone.getRegion() == null) {
+                    continue;
+                }
+                signature = 31 * signature + zone.getId().hashCode();
+                signature = 31 * signature + Long.hashCode(
+                    EarthworkPreviewIdentity.designRevision(project, zone.getRegion()));
+            }
         }
         return signature;
     }

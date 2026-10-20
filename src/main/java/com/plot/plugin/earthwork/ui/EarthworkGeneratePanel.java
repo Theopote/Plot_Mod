@@ -204,16 +204,6 @@ public final class EarthworkGeneratePanel {
                 : 0L;
             ImGui.text(String.format(PlotI18n.tr("plugin.earthwork.build_confirm"), blockCount));
 
-            TerrainSnapshot.ComparisonResult terrainComparison =
-                ctx.previewManager().comparePreviewTerrainWithWorld(EarthworkUiWidgets.getClientWorld());
-            boolean terrainStale = terrainComparison != null && terrainComparison.terrainChanged();
-            if (terrainStale) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.earthwork.terrain_changed_since_preview",
-                    terrainComparison.changedColumns(),
-                    terrainComparison.totalColumns()));
-            }
-
             com.plot.api.world.PlacementReadiness readiness =
                 ctx.host().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
@@ -221,17 +211,12 @@ public final class EarthworkGeneratePanel {
             }
 
             ImGui.separator();
+            // 地形过期、身份、占用等一律由 BuildManager 统一校验；弹窗只展示原因
             String eligibility = ctx.buildManager().validateBuildEligibility(
                 ctx.project(), ctx.selectedRegionId());
-            boolean identityOk = eligibility == null;
-            if (!identityOk && eligibility != null) {
+            boolean canBuild = eligibility == null && readiness.ready();
+            if (eligibility != null) {
                 ImGui.textColored(PluginUiColors.WARNING, eligibility);
-            }
-            boolean canBuild = readiness.ready()
-                && !ctx.host().placement().isBusy()
-                && !terrainStale
-                && identityOk;
-            if (terrainStale || !identityOk) {
                 if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), 180, 0)) {
                     GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
                     if (region != null) {

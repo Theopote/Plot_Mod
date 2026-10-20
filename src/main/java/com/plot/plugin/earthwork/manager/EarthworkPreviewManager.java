@@ -212,9 +212,26 @@ public final class EarthworkPreviewManager {
             return false;
         }
 
+        long designAtStart = EarthworkPreviewIdentity.designRevision(project, region);
         EarthworkPreviewIdentity.stamp(computed, project, region, world, terrain);
+        if (generation != calculationGeneration.get()
+            || computed.designRevision != designAtStart
+            || !EarthworkPreviewIdentity.matchesDesign(computed, project, region.getId())) {
+            LOGGER.debug(
+                "丢弃发布前已过期的土方预览 generation={} designChanged={}",
+                generation,
+                computed.designRevision != designAtStart);
+            return false;
+        }
+
         enrichProjectReport(project, site, region, computed);
         computed.warnings.addAll(validation.warningKeys());
+
+        if (generation != calculationGeneration.get()) {
+            LOGGER.debug("丢弃写入前已过期的土方预览 generation={}", generation);
+            return false;
+        }
+
         lastGenerationResult = computed;
         previewState = EarthworkPreviewState.VALID;
 
