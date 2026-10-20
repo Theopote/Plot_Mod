@@ -63,8 +63,8 @@ public final class NumericInputSupport {
     /**
      * 沿轴参考方向的垂直线，距中心 {@code blocks} 处的点（符号由鼠标侧决定）。
      */
-    public static Vec2d pointAtPerpendicularDistance(Vec2d center, Vec2d axisPoint,
-                                                     Vec2d towardMouse, double blocks) {
+    public static Vec2d pointAtPerpendicularBlockDistance(Vec2d center, Vec2d axisPoint,
+                                                          Vec2d towardMouse, double blocks) {
         if (center == null || axisPoint == null || blocks <= 0.0) {
             return towardMouse;
         }
@@ -76,12 +76,10 @@ public final class NumericInputSupport {
         Vec2d axisDir = axisDelta.multiply(1.0 / axisLen);
         Vec2d perpDir = new Vec2d(-axisDir.y, axisDir.x);
         double sign = 1.0;
-        if (towardMouse != null) {
-            Vec2d toMouse = towardMouse.subtract(center);
-            if (toMouse.dot(perpDir) < 0.0) {
-                sign = -1.0;
-            }
+        if (towardMouse != null && towardMouse.subtract(center).dot(perpDir) < 0.0) {
+            sign = -1.0;
         }
-        return center.add(perpDir.multiply(sign * blocks));
+        Vec2d toward = center.add(perpDir.multiply(sign * 1000.0));
+        return pointAtBlockDistance(center, toward, blocks);
     }
 }

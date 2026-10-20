@@ -406,10 +406,9 @@ public class LineTool extends DrawingTool {
         direction = direction.normalize();
         Vec2d perpendicular = new Vec2d(-direction.y, direction.x); // 垂直向量
         
-        // 为每条线创建偏移版本
+        // 为每条线创建偏移版本（lineSpacing 为方块距离，需换算到画布垂直偏移）
         for (int i = 0; i < lineCount; i++) {
-            float offset = calculateLineOffset(i);
-            Vec2d offsetVector = perpendicular.multiply(offset);
+            Vec2d offsetVector = perpendicularBlockOffset(start, end, calculateLineOffset(i));
             
             Vec2d lineStart = start.add(offsetVector);
             Vec2d lineEnd = end.add(offsetVector);
@@ -428,6 +427,25 @@ public class LineTool extends DrawingTool {
         return lines;
     }
     
+    /**
+     * 将垂直于参考线的方块偏移量换算为画布偏移向量。
+     */
+    private Vec2d perpendicularBlockOffset(Vec2d start, Vec2d end, float blockOffset) {
+        if (Math.abs(blockOffset) < 1e-9f) {
+            return new Vec2d(0, 0);
+        }
+        Vec2d direction = end.subtract(start);
+        if (direction.length() < 1e-9) {
+            return new Vec2d(0, 0);
+        }
+        direction = direction.normalize();
+        Vec2d perpendicular = new Vec2d(-direction.y, direction.x);
+        double sign = blockOffset >= 0.0 ? 1.0 : -1.0;
+        Vec2d toward = start.add(perpendicular.multiply(sign * 1000.0));
+        Vec2d offsetPoint = DrawMeasureHelper.pointAtBlockDistance(start, toward, Math.abs(blockOffset));
+        return offsetPoint.subtract(start);
+    }
+
     /**
      * 计算线条偏移量
      * 修复：确保用户绘制的轨迹是多线组的中心轴

@@ -2508,6 +2508,8 @@
   "status.plot.draw.typing_distance_ready": "Distance: %s — press Enter to finish",
   "status.plot.draw.typing_dimensions": "Width,height input: %s (keep typing…)",
   "status.plot.draw.typing_dimensions_ready": "Size: %s — press Enter to finish",
+  "status.plot.draw.typing_radians": "Radian input: %s (keep typing…)",
+  "status.plot.draw.typing_radians_ready": "Radians: %s — press Enter to finish",
   "status.plot.copy.typing_distance": "Copy distance input: %s (keep typing…)",
   "status.plot.copy.typing_distance_ready": "Copy distance: %s — press Enter to finish",
   "status.plot.fillet.typing_radius": "Fillet radius input: %s (keep typing…)",

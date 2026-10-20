@@ -342,7 +342,13 @@ public class CircleTool extends DrawingTool {
             } else if (currentMousePoint != null) {
                 // 绘制到鼠标位置的线
                 context.drawLine(p1, currentMousePoint, connectorLineColor);
-                DrawMeasureHelper.drawDiameterLabel(context, p1, currentMousePoint);
+                if (!radiusInput.isEmpty()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(p1, currentMousePoint),
+                        radiusInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawDiameterLabel(context, p1, currentMousePoint);
+                }
                 
                 if (previewCircle != null) {
                     Vec2d center = previewCircle.getCenter();
@@ -933,6 +939,8 @@ public class CircleTool extends DrawingTool {
             LOGGER.debug("CircleTool.onMouseDown: 点击位置={}, 转换后={}, 捕捉={}, 类型={}", 
                         pos, worldPoint, snapResult.snapped, snapResult.snapType);
             
+            currentMousePoint = worldPoint;
+
             // 根据当前模式处理点击
             switch (currentMode) {
                 case CENTER_RADIUS -> {
@@ -1040,6 +1048,10 @@ public class CircleTool extends DrawingTool {
                            currentMousePoint, snapResult.snapType);
             }
             
+            if (!radiusInput.isEmpty()) {
+                applyRadiusInput(context);
+            }
+
             // 根据当前模式更新预览
             switch (currentMode) {
                 case CENTER_RADIUS -> {
@@ -1081,7 +1093,7 @@ public class CircleTool extends DrawingTool {
 
         @Override
         public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
-            if (currentMode != DrawMode.CENTER_RADIUS || controlPoints.size() != 1) {
+            if (!isCircleNumericInputActive()) {
                 return InteractionResult.IGNORED;
             }
             if (NumericInputKeys.isEscape(keyCode) && !radiusInput.isEmpty()) {
@@ -1094,42 +1106,76 @@ public class CircleTool extends DrawingTool {
                 return InteractionResult.CONTINUE;
             }
             if (NumericInputKeys.isEnter(keyCode) && !radiusInput.isEmpty()) {
-                Double blocks = radiusInput.tryParse();
-                if (blocks != null && blocks > 0.0 && currentMousePoint != null) {
-                    Vec2d center = controlPoints.getFirst();
-                    Vec2d edge = DrawMeasureHelper.pointAtBlockDistance(center, currentMousePoint, blocks);
-                    controlPoints.add(edge);
-                    updatePreview(center, center.distance(edge));
-                    radiusInput.clear();
-                    return InteractionResult.COMPLETE;
-                }
-                return InteractionResult.CONTINUE;
+                return confirmRadiusInput(context);
             }
             return InteractionResult.IGNORED;
         }
 
         @Override
         public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
-            if (currentMode != DrawMode.CENTER_RADIUS || controlPoints.size() != 1
-                || !radiusInput.append(character)) {
+            if (!isCircleNumericInputActive() || !radiusInput.append(character)) {
                 return InteractionResult.IGNORED;
             }
             applyRadiusInput(context);
             return InteractionResult.CONTINUE;
         }
 
+        private boolean isCircleNumericInputActive() {
+            if (controlPoints.size() != 1 || currentMousePoint == null) {
+                return false;
+            }
+            return currentMode == DrawMode.CENTER_RADIUS || currentMode == DrawMode.TWO_POINTS;
+        }
+
+        private InteractionResult confirmRadiusInput(DrawingToolContext context) {
+            Double blocks = radiusInput.tryParse();
+            if (blocks == null || blocks <= 0.0 || currentMousePoint == null) {
+                return InteractionResult.CONTINUE;
+            }
+            if (currentMode == DrawMode.CENTER_RADIUS) {
+                Vec2d center = controlPoints.getFirst();
+                Vec2d edge = DrawMeasureHelper.pointAtBlockDistance(center, currentMousePoint, blocks);
+                controlPoints.add(edge);
+                updatePreview(center, center.distance(edge));
+                radiusInput.clear();
+                return InteractionResult.COMPLETE;
+            }
+            if (currentMode == DrawMode.TWO_POINTS) {
+                Vec2d p1 = controlPoints.getFirst();
+                Vec2d p2 = DrawMeasureHelper.pointAtBlockDistance(p1, currentMousePoint, blocks);
+                controlPoints.add(p2);
+                Vec2d center = new Vec2d((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0);
+                updatePreview(center, p1.distance(center));
+                radiusInput.clear();
+                return InteractionResult.COMPLETE;
+            }
+            return InteractionResult.CONTINUE;
+        }
+
         private void applyRadiusInput(DrawingToolContext context) {
             Double blocks = radiusInput.tryParse();
             if (blocks != null && blocks > 0.0 && !controlPoints.isEmpty() && currentMousePoint != null) {
-                Vec2d center = controlPoints.getFirst();
-                currentMousePoint = DrawMeasureHelper.pointAtBlockDistance(center, currentMousePoint, blocks);
-                updatePreview(center, center.distance(currentMousePoint));
+                if (currentMode == DrawMode.CENTER_RADIUS) {
+                    Vec2d center = controlPoints.getFirst();
+                    currentMousePoint = DrawMeasureHelper.pointAtBlockDistance(center, currentMousePoint, blocks);
+                    updatePreview(center, center.distance(currentMousePoint));
+                } else if (currentMode == DrawMode.TWO_POINTS) {
+                    Vec2d p1 = controlPoints.getFirst();
+                    currentMousePoint = DrawMeasureHelper.pointAtBlockDistance(p1, currentMousePoint, blocks);
+                    Vec2d center = new Vec2d((p1.x + currentMousePoint.x) / 2.0, (p1.y + currentMousePoint.y) / 2.0);
+                    updatePreview(center, p1.distance(center));
+                }
             }
             if (blocks == null) {
-                setStatusMessage(PlotI18n.status("status.plot.draw.typing_radius", radiusInput.getText()));
+                String key = currentMode == DrawMode.TWO_POINTS
+                    ? "status.plot.draw.typing_distance"
+                    : "status.plot.draw.typing_radius";
+                setStatusMessage(PlotI18n.status(key, radiusInput.getText()));
             } else {
-                setStatusMessage(PlotI18n.status("status.plot.draw.typing_radius_ready",
-                    DrawMeasureHelper.formatBlocks(blocks)));
+                String readyKey = currentMode == DrawMode.TWO_POINTS
+                    ? "status.plot.draw.typing_distance_ready"
+                    : "status.plot.draw.typing_radius_ready";
+                setStatusMessage(PlotI18n.status(readyKey, DrawMeasureHelper.formatBlocks(blocks)));
             }
             ToolPreviewRefresh.request();
         }

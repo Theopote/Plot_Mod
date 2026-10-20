@@ -498,19 +498,33 @@ public class RectangleTool extends DrawingTool {
                 getActiveNumericInputText(), "");
         }
 
-        // 圆角模式：绘制圆角半径指示线
-        if (currentMode == RectangleMode.ROUNDED && controlPoints.size() == 2 && currentMousePoint != null) {
+        if (currentMode == RectangleMode.ROUNDED && !controlPoints.isEmpty() && currentMousePoint != null) {
             var theme = ThemeManager.getInstance().getCurrentTheme();
-            Vec2d p1 = controlPoints.get(0);
-            Vec2d p2 = controlPoints.get(1);
-            Vec2d center = new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
-
-            // 绘制从中心到第三点的连线，表示圆角半径
-            context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
-
-            DrawMeasureHelper.drawTextLabel(context,
-                    DrawMeasureHelper.formatRadius(DrawMeasureHelper.radiusBlocks(center, center.distance(currentMousePoint))),
+            Color guideColor = toColor(theme.mutedText, 220);
+            if (controlPoints.size() == 1) {
+                Vec2d p1 = controlPoints.getFirst();
+                context.drawLine(p1, currentMousePoint, guideColor);
+                if (segmentInput.hasInput()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(p1, currentMousePoint), segmentInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint);
+                }
+            } else if (controlPoints.size() >= 2) {
+                Vec2d p1 = controlPoints.get(0);
+                Vec2d p2 = controlPoints.get(1);
+                context.drawLine(p1, currentMousePoint, guideColor);
+                context.drawLine(p2, currentMousePoint, guideColor);
+                context.drawLine(p1, p2, guideColor);
+                DrawMeasureHelper.drawSegmentLabel(context, p1, p2);
+                DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint);
+                Vec2d center = new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
+                DrawMeasureHelper.drawTextLabel(context,
+                    DrawMeasureHelper.formatRadius(
+                        DrawMeasureHelper.radiusBlocks(center, center.distance(currentMousePoint))),
                     currentMousePoint);
+            }
         }
 
         if (previewShape != null) {
@@ -587,8 +601,13 @@ public class RectangleTool extends DrawingTool {
             }
         } else if (currentMode == RectangleMode.ROUNDED) {
             if (controlPoints.size() == 1) {
-                // 创建两点连线的预览
-                this.previewShape = new Polygon(List.of(controlPoints.getFirst(), currentMousePoint));
+                Vec2d[] bounds = calculateTwoPointBounds();
+                if (bounds != null) {
+                    this.previewShape = new RectangleShape(bounds[0],
+                        bounds[1].x - bounds[0].x, bounds[1].y - bounds[0].y, 0.0);
+                } else {
+                    this.previewShape = null;
+                }
             } else if (controlPoints.size() == 2) {
                 // 计算圆角矩形，第三点决定圆角大小
                 Vec2d[] bounds = calculateRoundedRectangleBounds();

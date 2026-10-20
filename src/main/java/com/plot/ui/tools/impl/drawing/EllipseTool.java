@@ -808,16 +808,24 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
     }
 
     private Vec2d applyEllipseNumericPoint(Vec2d anchor, Vec2d toward, double blocks) {
-        boolean minorStep = switch (currentMode) {
-            case THREE_POINTS_AXIS, THREE_POINTS_CENTER -> controlPoints.size() >= 2;
-            default -> false;
+        return switch (currentMode) {
+            case THREE_POINTS_AXIS -> {
+                if (controlPoints.size() >= 2) {
+                    Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
+                    yield com.plot.ui.tools.helper.NumericInputSupport.pointAtPerpendicularBlockDistance(
+                        center, controlPoints.get(1), toward, blocks);
+                }
+                yield segmentInput.pointAtDistance(controlPoints.getFirst(), toward, blocks);
+            }
+            case THREE_POINTS_CENTER -> {
+                if (controlPoints.size() >= 2) {
+                    yield com.plot.ui.tools.helper.NumericInputSupport.pointAtPerpendicularBlockDistance(
+                        controlPoints.getFirst(), controlPoints.get(1), toward, blocks);
+                }
+                yield segmentInput.pointAtDistance(controlPoints.getFirst(), toward, blocks);
+            }
+            default -> segmentInput.pointAtDistance(anchor, toward, blocks);
         };
-        if (minorStep) {
-            Vec2d axisPoint = controlPoints.get(1);
-            return com.plot.ui.tools.helper.NumericInputSupport.pointAtPerpendicularDistance(
-                anchor, axisPoint, toward, blocks);
-        }
-        return segmentInput.pointAtDistance(anchor, toward, blocks);
     }
 
     private void applyEllipseSegmentDistance() {

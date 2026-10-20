@@ -872,6 +872,7 @@ public class ArcTool extends DrawingTool {
             
             // 添加控制点
             controlPoints.add(worldPoint);
+            currentMousePoint = worldPoint;
             updateStatusMessageForCurrentMode();
             
             // 检查是否完成绘制
@@ -905,8 +906,9 @@ public class ArcTool extends DrawingTool {
                 return InteractionResult.CONTINUE; // 触发重绘显示吸附指示
             }
             
-            // 更新预览
-            if (controlPoints.size() >= 2) {
+            if (segmentInput.hasInput()) {
+                applySegmentDistance(context);
+            } else if (controlPoints.size() >= 2) {
                 updatePreviewWithMouse(currentMousePoint);
             }
             
@@ -932,11 +934,38 @@ public class ArcTool extends DrawingTool {
             return segmentInput.onKeyTyped(character, active, () -> applySegmentDistance(context));
         }
 
+        private boolean isCenterStartEndRadianStep() {
+            return currentMode == ArcMode.CENTER_START_END && controlPoints.size() == 2;
+        }
+
         private void applySegmentDistance(DrawingToolContext context) {
+            if (isCenterStartEndRadianStep()) {
+                Double radians = segmentInput.buffer().tryParse();
+                if (radians != null && controlPoints.size() >= 2) {
+                    Vec2d center = controlPoints.get(0);
+                    Vec2d start = controlPoints.get(1);
+                    double radius = Math.max(MIN_RADIUS, center.distance(start));
+                    double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
+                    double endAngle = startAngle + radians;
+                    currentMousePoint = new Vec2d(
+                        center.x + radius * Math.cos(endAngle),
+                        center.y + radius * Math.sin(endAngle));
+                    updatePreviewWithMouse(currentMousePoint);
+                    setStatusMessage(PlotI18n.status("status.plot.draw.typing_radians_ready",
+                        segmentInput.getText()));
+                } else if (segmentInput.hasInput()) {
+                    setStatusMessage(PlotI18n.status("status.plot.draw.typing_radians", segmentInput.getText()));
+                }
+                ToolPreviewRefresh.request();
+                return;
+            }
+
             Double blocks = segmentInput.parsePositive();
             if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
-                currentMousePoint = segmentInput.pointAtDistance(
-                    controlPoints.getLast(), currentMousePoint, blocks);
+                Vec2d anchor = currentMode == ArcMode.CENTER_START_END && controlPoints.size() == 1
+                    ? controlPoints.getFirst()
+                    : controlPoints.getLast();
+                currentMousePoint = segmentInput.pointAtDistance(anchor, currentMousePoint, blocks);
                 if (controlPoints.size() >= 2) {
                     updatePreviewWithMouse(currentMousePoint);
                 }
@@ -952,7 +981,10 @@ public class ArcTool extends DrawingTool {
 
         private InteractionResult confirmSegmentDistance(DrawingToolContext context) {
             applySegmentDistance(context);
-            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+            boolean ready = isCenterStartEndRadianStep()
+                ? segmentInput.buffer().tryParse() != null
+                : segmentInput.parsePositive() != null;
+            if (currentMousePoint == null || !ready) {
                 return InteractionResult.CONTINUE;
             }
             segmentInput.clear();
