@@ -60,6 +60,7 @@ public class ToolOptionRendererFactory {
                 case "spiral" -> new SpiralToolOptionRenderer();
                 case "sine" -> new SineToolOptionRenderer();
                 case "move" -> new MoveToolOptionRenderer();
+                case "copy" -> new CopyToolOptionRenderer();
                 case "rotate" -> new RotateToolOptionRenderer();
                 case "mirror" -> new MirrorToolOptionRenderer();
                 case "scale" -> new ScaleToolOptionRenderer();
@@ -73,6 +74,8 @@ public class ToolOptionRendererFactory {
                 case "trim" -> new TrimToolOptionRenderer();
                 case "extend" -> new ExtendToolOptionRenderer();
                 case "break" -> new BreakToolOptionRenderer();
+                case "explode" -> new ExplodeToolOptionRenderer();
+                case "join" -> new JoinToolOptionRenderer();
                 case "text" -> createTextToolOptionRenderer(tool);
                 case "annotation" -> new AnnotationToolOptionRenderer();
     
