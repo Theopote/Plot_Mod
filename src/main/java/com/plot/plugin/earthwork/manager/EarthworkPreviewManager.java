@@ -54,9 +54,21 @@ public final class EarthworkPreviewManager {
 
     private volatile EarthworkGenerationResult lastGenerationResult;
     private volatile EarthworkValidationReport lastValidationReport = EarthworkValidationReport.empty();
+    private volatile EarthworkPreviewState previewState = EarthworkPreviewState.NONE;
+    /** 递增令牌：参数变更后使在途计算结果作废。 */
+    private final java.util.concurrent.atomic.AtomicLong calculationGeneration =
+        new java.util.concurrent.atomic.AtomicLong(0L);
 
     public EarthworkValidationReport getLastValidationReport() {
         return lastValidationReport;
+    }
+
+    public EarthworkPreviewState getPreviewState() {
+        return previewState;
+    }
+
+    public long getPreviewGeneration() {
+        return calculationGeneration.get();
     }
 
     public EarthworkPreviewManager(
@@ -88,6 +100,9 @@ public final class EarthworkPreviewManager {
         EarthworkPreviewManager manager = new EarthworkPreviewManager(
             host, sitePipeline, terrainCache, statusSink);
         manager.lastGenerationResult = generationResult;
+        manager.previewState = generationResult != null && !generationResult.placementRecords.isEmpty()
+            ? EarthworkPreviewState.VALID
+            : EarthworkPreviewState.NONE;
         return manager;
     }
 
@@ -95,9 +110,38 @@ public final class EarthworkPreviewManager {
         return lastGenerationResult;
     }
 
+    /** 有可展示的缓存（含 DIRTY 旧图），不代表可施工。 */
+    public boolean hasCachedPreview() {
+        return lastGenerationResult != null && previewState.hasCachedResult();
+    }
+
+    /** 可安全施工的预览。 */
     public boolean hasValidPreview() {
         EarthworkGenerationResult result = lastGenerationResult;
-        return result != null && !result.placementRecords.isEmpty();
+        return previewState.allowsBuild()
+            && result != null
+            && !result.placementRecords.isEmpty();
+    }
+
+    /**
+     * 参数变更时立即标记 DIRTY：保留旧图参考，但撤销施工资格。
+     */
+    public void markDirty() {
+        calculationGeneration.incrementAndGet();
+        if (lastGenerationResult != null) {
+            boolean wasBuildable = previewState.allowsBuild();
+            previewState = EarthworkPreviewState.DIRTY;
+            if (wasBuildable) {
+                statusSink.accept(PlotI18n.tr("plugin.earthwork.preview_invalidated"));
+            }
+        } else if (previewState != EarthworkPreviewState.NONE
+            && previewState != EarthworkPreviewState.DIRTY) {
+            previewState = EarthworkPreviewState.NONE;
+        }
+    }
+
+    public void markCalculating() {
+        previewState = EarthworkPreviewState.CALCULATING;
     }
 
     public boolean calculatePreview(
@@ -114,13 +158,16 @@ public final class EarthworkPreviewManager {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             EarthworkWorkMode workMode) {
+        long generation = calculationGeneration.incrementAndGet();
+        previewState = EarthworkPreviewState.CALCULATING;
+
         World world = getClientWorld();
         if (world == null) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_world_unavailable"));
+            failPreview(generation, PlotI18n.tr("plugin.earthwork.generate_world_unavailable"));
             return false;
         }
         if (project == null || region == null) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            failPreview(generation, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
             return false;
         }
 
@@ -128,41 +175,49 @@ public final class EarthworkPreviewManager {
             project, region, buildingLookup, roadLookup);
         lastValidationReport = validation;
         if (validation.blocksPreview()) {
-            statusSink.accept(validation.firstBlockingMessage());
+            failPreview(generation, validation.firstBlockingMessage());
             return false;
         }
 
         long started = System.nanoTime();
         EarthworkSite site = project.getActiveSite();
+        EarthworkGenerationResult computed;
+        TerrainSnapshot terrain;
         try {
-            TerrainSnapshot terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
-            lastGenerationResult = sitePipeline.execute(
+            terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
+            computed = sitePipeline.execute(
                 com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext.of(
                     site, world, terrain, region, buildingLookup, roadLookup, workMode));
         } catch (BuildingFootprintResolver.UnresolvedBuildingReferenceException e) {
             LOGGER.error("土方预览被建筑引用阻断: {}", e.getMessage());
-            lastGenerationResult = null;
-            statusSink.accept(e.getMessage());
+            failPreview(generation, e.getMessage());
             return false;
         } catch (RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException e) {
             LOGGER.error("土方预览被道路设计面阻断: {}", e.getMessage());
-            lastGenerationResult = null;
-            statusSink.accept(e.getMessage());
+            failPreview(generation, e.getMessage());
             return false;
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
-            lastGenerationResult = null;
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            failPreview(generation, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
             return false;
         }
 
-        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+        if (generation != calculationGeneration.get()) {
+            LOGGER.debug("丢弃过期土方预览结果 generation={}", generation);
             return false;
         }
 
-        enrichProjectReport(project, site, region, lastGenerationResult);
-        lastGenerationResult.warnings.addAll(validation.warningKeys());
+        if (computed == null || computed.placementRecords.isEmpty()) {
+            failPreview(generation, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            return false;
+        }
+
+        EarthworkPreviewIdentity.stamp(computed, project, region, world, terrain);
+        enrichProjectReport(project, site, region, computed);
+        computed.warnings.addAll(validation.warningKeys());
+        lastGenerationResult = computed;
+        previewState = EarthworkPreviewState.VALID;
+
         long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
         if (elapsedMs >= 50L) {
             LOGGER.warn(
@@ -173,6 +228,18 @@ public final class EarthworkPreviewManager {
         }
         statusSink.accept(resolvePreviewReadyMessage(projectPreview()));
         return true;
+    }
+
+    private void failPreview(long generation, String message) {
+        if (generation != calculationGeneration.get()) {
+            return;
+        }
+        clearGhostsOnly();
+        lastGenerationResult = null;
+        previewState = EarthworkPreviewState.FAILED;
+        if (message != null && !message.isBlank()) {
+            statusSink.accept(message);
+        }
     }
 
     private String resolvePreviewReadyMessage(GhostProjectionSummary ghost) {
@@ -238,29 +305,39 @@ public final class EarthworkPreviewManager {
     }
 
     public void clearPreview() {
+        calculationGeneration.incrementAndGet();
+        clearGhostsOnly();
+        lastGenerationResult = null;
+        lastValidationReport = EarthworkValidationReport.empty();
+        previewState = EarthworkPreviewState.NONE;
+    }
+
+    private void clearGhostsOnly() {
         IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.EARTHWORK);
         }
-        lastGenerationResult = null;
-        lastValidationReport = EarthworkValidationReport.empty();
     }
 
     /**
-     * 参数/工程变更后使预览失效，并清零区域上次统计，避免陈旧数据误导。
+     * 参数/工程变更后使预览失效：立即收回施工资格；若需彻底清除虚影与缓存则走 {@link #clearPreview()}。
+     * 默认标记 DIRTY（保留旧结果参考）；无缓存时等同 NONE。
      */
     public void invalidatePreview(EarthworkProject project) {
         boolean hadPreview = lastGenerationResult != null;
-        clearPreview();
+        if (hadPreview) {
+            // 保留虚影/旧结果作参考，但立即收回施工资格
+            markDirty();
+        } else {
+            calculationGeneration.incrementAndGet();
+            previewState = EarthworkPreviewState.NONE;
+        }
         if (project != null) {
             EarthworkSite site = project.getActiveSite();
             site.setLastReport(EarthworkVolumeReport.empty());
             for (GradingRegion region : project.getRegions().values()) {
                 region.setLastVolumeReport(EarthworkVolumeReport.empty());
             }
-        }
-        if (hadPreview) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.preview_invalidated"));
         }
     }
 

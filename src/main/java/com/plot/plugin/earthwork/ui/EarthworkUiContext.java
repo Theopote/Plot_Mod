@@ -13,6 +13,7 @@ import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.earthwork.model.GradingRegion;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -135,7 +136,15 @@ public final class EarthworkUiContext {
     }
 
     public void setSelectedRegionId(String selectedRegionId) {
-        this.selectedRegionId = selectedRegionId != null ? selectedRegionId : "";
+        String next = selectedRegionId != null ? selectedRegionId : "";
+        String previous = this.selectedRegionId;
+        this.selectedRegionId = next;
+        if (!Objects.equals(previous, next)) {
+            EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+            if (preview != null && !next.equals(preview.sourceRegionId)) {
+                invalidatePreview();
+            }
+        }
     }
 
     public String projectStatus() {
@@ -227,6 +236,7 @@ public final class EarthworkUiContext {
 
     /** 选项拖动/切换时合并到下一次渲染线程计算，避免每帧同步跑完整管线。 */
     public void scheduleRecalculatePreview() {
+        previewManager.markDirty();
         DebouncedTasks.publishDebounced("earthwork.preview.recalculate", () -> {
             net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
             if (client != null) {

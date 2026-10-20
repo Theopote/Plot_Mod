@@ -40,6 +40,17 @@ public class EarthworkGenerationResult {
     public final List<String> warnings = new ArrayList<>();
     public int calculationCellCount;
 
+    /** 生成时绑定的区域 ID（施工前必须与当前选中区域一致）。 */
+    public String sourceRegionId = "";
+    /** 生成时绑定的场地 ID。 */
+    public String sourceSiteId = "";
+    /** 生成时的世界标识（如 dimension id）。 */
+    public String worldKey = "";
+    /** 设计参数指纹（目标高度、边坡等）。 */
+    public long designRevision;
+    /** 地形快照指纹。 */
+    public long terrainRevision;
+
     /**
      * 用最终 {@link #placementRecords} 回写改方块计数，使预览虚影、落地与报告使用同一份变更。
      */

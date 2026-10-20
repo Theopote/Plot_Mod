@@ -8,12 +8,15 @@ import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.utils.PlotI18n;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -26,6 +29,7 @@ public final class EarthworkBuildManager {
     private final TerrainSnapshotCache terrainCache;
     private final EarthworkPreviewManager previewManager;
     private final Consumer<String> statusSink;
+    private final AtomicBoolean buildInFlight = new AtomicBoolean(false);
 
     public EarthworkBuildManager(
             PluginContext host,
@@ -38,20 +42,40 @@ public final class EarthworkBuildManager {
         this.statusSink = statusSink != null ? statusSink : msg -> {};
     }
 
-    public void buildInWorld(EarthworkProject project, String builtRegionId) {
-        EarthworkGenerationResult resultSnapshot = previewManager.getLastGenerationResult();
-        if (resultSnapshot == null || resultSnapshot.placementRecords.isEmpty()) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.build_no_blocks"));
-            return;
+    /**
+     * @return 拒绝原因（已本地化文案）；可施工时返回 null
+     */
+    public String validateBuildEligibility(EarthworkProject project, String builtRegionId) {
+        if (!previewManager.hasValidPreview()) {
+            return PlotI18n.tr("plugin.earthwork.build_preview_not_valid");
         }
-
+        EarthworkGenerationResult result = previewManager.getLastGenerationResult();
+        if (result == null || result.placementRecords.isEmpty()) {
+            return PlotI18n.tr("plugin.earthwork.build_no_blocks");
+        }
+        World world = clientWorld();
+        if (!EarthworkPreviewIdentity.matchesCurrent(result, project, builtRegionId, world)) {
+            return PlotI18n.tr("plugin.earthwork.build_preview_mismatch");
+        }
         PlacementReadiness readiness = host.projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
-            statusSink.accept(readiness.message());
+            return readiness.message();
+        }
+        if (host.placement().isBusy() || buildInFlight.get()) {
+            return PlotI18n.tr("plugin.earthwork.build_in_progress_wait");
+        }
+        return null;
+    }
+
+    public void buildInWorld(EarthworkProject project, String builtRegionId) {
+        String rejection = validateBuildEligibility(project, builtRegionId);
+        if (rejection != null) {
+            statusSink.accept(rejection);
             return;
         }
 
-        if (host.placement().isBusy()) {
+        EarthworkGenerationResult resultSnapshot = previewManager.getLastGenerationResult();
+        if (!buildInFlight.compareAndSet(false, true)) {
             statusSink.accept(PlotI18n.tr("plugin.earthwork.build_in_progress_wait"));
             return;
         }
@@ -61,23 +85,27 @@ public final class EarthworkBuildManager {
             records, host.projection(), host.placement());
         statusSink.accept(PlotI18n.tr("plugin.earthwork.build_in_progress", records.size()));
         command.executeScheduled(() -> {
-            EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
-            if (result != null && result.cancelled()) {
-                if (command.hasAppliedRecords()) {
-                    host.commands().pushExecuted(command);
+            try {
+                EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
+                if (result != null && result.cancelled()) {
+                    if (command.hasAppliedRecords()) {
+                        host.commands().pushExecuted(command);
+                        invalidateTerrainAfterBuild(project, builtRegionId);
+                    }
+                    statusSink.accept(PlotI18n.tr(
+                        "plugin.earthwork.build_cancelled", result.success(), result.total()));
+                    previewManager.clearPreview();
+                    return;
+                }
+                host.commands().pushExecuted(command);
+                if (result != null && result.success() > 0) {
                     invalidateTerrainAfterBuild(project, builtRegionId);
                 }
-                statusSink.accept(PlotI18n.tr(
-                    "plugin.earthwork.build_cancelled", result.success(), result.total()));
+                applyBuildResultStatus(result);
                 previewManager.clearPreview();
-                return;
+            } finally {
+                buildInFlight.set(false);
             }
-            host.commands().pushExecuted(command);
-            if (result != null && result.success() > 0) {
-                invalidateTerrainAfterBuild(project, builtRegionId);
-            }
-            applyBuildResultStatus(result);
-            previewManager.clearPreview();
         });
     }
 
@@ -112,5 +140,10 @@ public final class EarthworkBuildManager {
             result.success(),
             result.total(),
             result.failed()));
+    }
+
+    private static World clientWorld() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client != null ? client.world : null;
     }
 }

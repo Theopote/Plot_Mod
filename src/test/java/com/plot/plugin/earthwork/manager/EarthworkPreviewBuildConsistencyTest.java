@@ -123,6 +123,8 @@ class EarthworkPreviewBuildConsistencyTest {
             EarthworkGenerationResult preview,
             EarthworkProject project,
             String regionId) {
+        GradingRegion region = project.getRegion(regionId);
+        EarthworkPreviewIdentity.stamp(preview, project, region, null, null);
         List<BlockRecord> enqueued = new ArrayList<>();
         PluginContext host = capturingHost(enqueued);
         EarthworkPreviewManager previewManager = EarthworkPreviewManager.withGenerationResult(

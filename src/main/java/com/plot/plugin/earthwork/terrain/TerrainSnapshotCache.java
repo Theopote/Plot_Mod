@@ -191,7 +191,7 @@ public final class TerrainSnapshotCache {
         return regionId != null && byRegionId.containsKey(regionId);
     }
 
-    static String worldKey(World world) {
+    public static String worldKey(World world) {
         if (world == null) {
             return "null";
         }

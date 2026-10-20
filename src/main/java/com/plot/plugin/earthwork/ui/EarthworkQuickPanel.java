@@ -37,6 +37,10 @@ public final class EarthworkQuickPanel {
         }
 
         EarthworkUiWidgets.renderRegionSelector(ctx);
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.quick.add_region"))) {
+            regionPanel.renderAdoptSection();
+        }
+
         GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
         if (region == null) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
@@ -52,6 +56,9 @@ public final class EarthworkQuickPanel {
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (preview != null) {
             ImGui.separator();
+            if (!ctx.previewManager().hasValidPreview()) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.earthwork.preview_stale_hint"));
+            }
             EarthworkUiWidgets.renderPlayerCutFill(
                 preview.volumeReport,
                 preview.resolvedElevation,

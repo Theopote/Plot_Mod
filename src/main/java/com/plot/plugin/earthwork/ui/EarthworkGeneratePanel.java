@@ -54,6 +54,10 @@ public final class EarthworkGeneratePanel {
                 }
 
                 if (preview != null) {
+                    if (!ctx.previewManager().hasValidPreview()) {
+                        ImGui.textColored(PluginUiColors.WARNING,
+                            PlotI18n.tr("plugin.earthwork.preview_stale_hint"));
+                    }
                     ImGui.separator();
                     ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
                     ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
@@ -99,14 +103,14 @@ public final class EarthworkGeneratePanel {
             ctx.recalculatePreview();
         }
         ImGui.sameLine();
-        boolean hasPreview = ctx.previewManager().getLastGenerationResult() != null;
-        if (!hasPreview) {
+        boolean hasCached = ctx.previewManager().hasCachedPreview();
+        if (!hasCached) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), half, 0)) {
             ctx.clearPreview();
         }
-        if (!hasPreview) {
+        if (!hasCached) {
             ImGui.endDisabled();
         }
 
@@ -120,6 +124,8 @@ public final class EarthworkGeneratePanel {
     public void renderPreviewBuildButtons(EarthworkGenerationResult preview) {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean hasPlacements = preview != null && !preview.placementRecords.isEmpty();
+        boolean buildable = ctx.previewManager().hasValidPreview()
+            && ctx.buildManager().validateBuildEligibility(ctx.project(), ctx.selectedRegionId()) == null;
         if (!hasPlacements) {
             ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
             ImGui.beginDisabled();
@@ -132,18 +138,13 @@ public final class EarthworkGeneratePanel {
         }
 
         ImGui.sameLine();
-        com.plot.api.world.PlacementReadiness buildReadiness =
-            ctx.host().projection().checkWorldModificationReadiness();
-        boolean buildDisabled = !hasPlacements
-            || !buildReadiness.ready()
-            || ctx.host().placement().isBusy();
-        if (buildDisabled) {
+        if (!buildable) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.build"), half, 0)) {
             ctx.setBuildConfirmPending(true);
         }
-        if (buildDisabled) {
+        if (!buildable) {
             ImGui.endDisabled();
         }
     }
@@ -220,8 +221,17 @@ public final class EarthworkGeneratePanel {
             }
 
             ImGui.separator();
-            boolean canBuild = readiness.ready() && !ctx.host().placement().isBusy() && !terrainStale;
-            if (terrainStale) {
+            String eligibility = ctx.buildManager().validateBuildEligibility(
+                ctx.project(), ctx.selectedRegionId());
+            boolean identityOk = eligibility == null;
+            if (!identityOk && eligibility != null) {
+                ImGui.textColored(PluginUiColors.WARNING, eligibility);
+            }
+            boolean canBuild = readiness.ready()
+                && !ctx.host().placement().isBusy()
+                && !terrainStale
+                && identityOk;
+            if (terrainStale || !identityOk) {
                 if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), 180, 0)) {
                     GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
                     if (region != null) {

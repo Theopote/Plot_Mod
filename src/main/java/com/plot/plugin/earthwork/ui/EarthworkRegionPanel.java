@@ -94,9 +94,9 @@ public final class EarthworkRegionPanel {
             ctx.project().getRegionCount(),
             String.format("%.1f", ctx.project().getTotalArea())));
         renderSiteOverlapWarnings();
-        renderProjectGlobalBalance(ctx.project());
         EarthworkSite site = ctx.project().getActiveSite();
         if (ctx.config().getWorkMode().showsLearningMetrics()) {
+            renderProjectGlobalBalance(ctx.project());
             renderSiteMaterialModel(site);
         }
         if (!site.getExclusionZones().isEmpty()) {
@@ -222,9 +222,15 @@ public final class EarthworkRegionPanel {
 
         ctx.projectHistory().push(ctx.project());
         int adopted = 0;
+        int skippedDuplicates = 0;
         for (List<Vec2d> points : validOutlines) {
+            if (hasMatchingRegionOutline(ctx.project(), points)) {
+                skippedDuplicates++;
+                continue;
+            }
             GradingRegion region = new GradingRegion(points);
-            region.setName(PlotI18n.tr("plugin.earthwork.default_name", adopted + 1));
+            region.setName(PlotI18n.tr("plugin.earthwork.default_name",
+                ctx.project().getRegionCount() + 1));
             EarthworkAdoptDefaults.applyToNewRegion(
                 region,
                 ctx.config(),
@@ -237,10 +243,44 @@ public final class EarthworkRegionPanel {
         }
 
         ctx.selectedRegions().clear();
+        // 强制下次从画布重读选区，避免本地清空后仍命中旧 selection version
+        lastSelectionVersion = Long.MIN_VALUE;
         ctx.clearPreview();
-        ctx.setProjectStatus(adopted > 1
-            ? PlotI18n.tr("plugin.earthwork.adopt_success_batch", adopted)
-            : PlotI18n.tr("plugin.earthwork.adopt_success"));
+        if (adopted == 0 && skippedDuplicates > 0) {
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_duplicate_skipped", skippedDuplicates));
+        } else if (adopted > 1) {
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_success_batch", adopted));
+        } else if (adopted == 1) {
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_success"));
+        } else {
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_no_selection"));
+        }
+    }
+
+    private static boolean hasMatchingRegionOutline(EarthworkProject project, List<Vec2d> outline) {
+        if (project == null || outline == null || outline.size() < 3) {
+            return false;
+        }
+        long fingerprint = outlineFingerprint(outline);
+        for (GradingRegion existing : project.getRegions().values()) {
+            if (outlineFingerprint(existing.getOuterPoints()) == fingerprint) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static long outlineFingerprint(List<Vec2d> points) {
+        long hash = 17L;
+        for (Vec2d point : points) {
+            if (point == null) {
+                continue;
+            }
+            hash = 31L * hash + Double.hashCode(Math.rint(point.x * 100.0) / 100.0);
+            hash = 31L * hash + Double.hashCode(Math.rint(point.y * 100.0) / 100.0);
+        }
+        hash = 31L * hash + points.size();
+        return hash;
     }
 
     private static World getClientWorld() {
