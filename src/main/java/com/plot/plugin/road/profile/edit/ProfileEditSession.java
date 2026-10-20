@@ -93,8 +93,10 @@ public final class ProfileEditSession {
                 || pviIndex >= draft.draftAlignment().pviCount()) {
             return;
         }
-        RoadVerticalAlignment updated = VerticalProfileControlPoints.withElevation(
-            draft.draftAlignment(), pviIndex, elevationBounds.clamp(elevation), road);
+        double length = RoadStationing.canonicalLength(network, road);
+        RoadVerticalAlignment updated = com.plot.plugin.road.vertical.VerticalProfileDesignRules.slopeAllowed(length)
+            ? VerticalProfileControlPoints.withElevation(draft.draftAlignment(), pviIndex, elevationBounds.clamp(elevation), road)
+            : com.plot.plugin.road.vertical.VerticalProfileDesignRules.flatAlignment(length, elevationBounds.clamp(elevation));
         draft.setDraftAlignment(updated);
         draftRevision++;
     }

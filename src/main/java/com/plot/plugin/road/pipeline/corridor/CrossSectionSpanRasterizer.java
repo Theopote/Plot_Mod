@@ -4,11 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,10 +38,15 @@ public final class CrossSectionSpanRasterizer {
         }
         Vec2d startNormal = normalize(fromNormal);
         Vec2d endNormal = normalize(toNormal);
-        double blockScale = scale > 1e-9 ? scale : 1.0;
-        int steps = Math.max(1, (int) Math.ceil(toCenter.subtract(fromCenter).length() / blockScale * 2));
+        boolean rotated = Math.abs(startNormal.x * startNormal.y) > 1e-9
+            || Math.abs(endNormal.x * endNormal.y) > 1e-9
+            || startNormal.subtract(endNormal).lengthSquared() > 1e-9;
+        var fromWorld = host.canvasToBlockPos(fromCenter);
+        var toWorld = host.canvasToBlockPos(toCenter);
+        double worldDistance = Math.hypot(toWorld.getX() - fromWorld.getX(), toWorld.getZ() - fromWorld.getZ());
+        int steps = (int) Math.ceil(worldDistance * (rotated ? 2 : 1));
         for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
+            double t = steps == 0 ? 0 : (double) i / steps;
             Vec2d center = fromCenter.lerp(toCenter, t);
             Vec2d normal = normalize(startNormal.lerp(endNormal, t));
             int surfaceY = (int) Math.round(fromY + (toY - fromY) * t);
@@ -81,25 +84,25 @@ public final class CrossSectionSpanRasterizer {
             }
             int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
             for (double inset : CELL_INSETS) {
-            Vec2d planPoint = center.add(normal.multiply((lateral + inset) * scale));
-            int worldX = host.worldX(planPoint), worldZ = host.worldZ(planPoint);
-            if (worldX == lastX && worldZ == lastZ) continue;
-            lastX = worldX;
-            lastZ = worldZ;
-            ResolvedCrossSection.SurfaceBandSpec spec = band.get();
-            if (spec.materialMix() != null) {
-                BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
-                String materialId = MaterialMixResolver.resolve(
-                    spec.materialMix(), pos, seedKey, host::resolveBlockId);
-                RoadCorridorPlanBuilder.writeSurfaceAndClearance(
-                    plan, planPoint, surfaceY, spec.layer(), materialId, host,
-                    terrain, constructionType, tunnelThreshold);
-            } else {
-                String materialId = host.resolveBlockId(spec.materialId());
-                RoadCorridorPlanBuilder.writeSurfaceAndClearance(
-                    plan, planPoint, surfaceY, spec.layer(), materialId, host,
-                    terrain, constructionType, tunnelThreshold);
-            }
+                Vec2d planPoint = center.add(normal.multiply((lateral + inset) * scale));
+                int worldX = host.worldX(planPoint), worldZ = host.worldZ(planPoint);
+                if (worldX == lastX && worldZ == lastZ) continue;
+                lastX = worldX;
+                lastZ = worldZ;
+                ResolvedCrossSection.SurfaceBandSpec spec = band.get();
+                if (spec.materialMix() != null) {
+                    BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
+                    String materialId = MaterialMixResolver.resolve(
+                        spec.materialMix(), pos, seedKey, host::resolveBlockId);
+                    RoadCorridorPlanBuilder.writeSurfaceAndClearance(
+                        plan, planPoint, surfaceY, spec.layer(), materialId, host,
+                        terrain, constructionType, tunnelThreshold);
+                } else {
+                    String materialId = host.resolveBlockId(spec.materialId());
+                    RoadCorridorPlanBuilder.writeSurfaceAndClearance(
+                        plan, planPoint, surfaceY, spec.layer(), materialId, host,
+                        terrain, constructionType, tunnelThreshold);
+                }
             }
         }
     }

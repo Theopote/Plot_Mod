@@ -86,8 +86,20 @@ public final class ProfileEditorWindowSession {
                 var points = new java.util.ArrayList<PointOfVerticalIntersection>();
                 for (int i = 0; i < chart.stations().size(); i++) {
                     double elevation = chart.previewElevationAt(chart.stations().get(i));
-                    if (Double.isFinite(elevation)) points.add(
-                        PointOfVerticalIntersection.of(chart.stations().get(i), elevation));
+                    if (Double.isFinite(elevation)) {
+                        double station = chart.stations().get(i);
+                        // Drop exact collinear terrain samples; preserve the sampled profile
+                        // while avoiding thousands of indistinguishable editor anchors.
+                        while (points.size() >= 2) {
+                            var a = points.get(points.size() - 2);
+                            var b = points.getLast();
+                            double expected = a.getElevation() + (elevation - a.getElevation())
+                                * (b.getStation() - a.getStation()) / (station - a.getStation());
+                            if (Math.abs(expected - b.getElevation()) > 1e-8) break;
+                            points.removeLast();
+                        }
+                        points.add(PointOfVerticalIntersection.of(station, elevation));
+                    }
                 }
                 var alignment = new RoadVerticalAlignment(points);
                 if (VerticalAlignmentGeometry.isEvaluable(alignment)) {

@@ -252,29 +252,29 @@ public final class TunnelStructureGenerator {
             // integer lateral samples alone leave a checkerboard of native terrain.
             int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
             for (double inset : CELL_INSETS) {
-            Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
-            int worldX = columnResolver.worldX(point);
-            int worldZ = columnResolver.worldZ(point);
-            if (worldX == lastX && worldZ == lastZ) continue;
-            lastX = worldX;
-            lastZ = worldZ;
-            if (!terrain.isChunkLoaded(worldX, worldZ)) {
-                continue;
-            }
-            if (kind == TunnelCrossSectionMask.CellKind.AIR) {
-                // 洞室：清障为空气。不得对 LINING 格先写 air，否则 shouldPlaceLining 拒绝时会留下顶板破洞，
-                // 上方沙砾等重力方块会落到路面。
-                if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
-                    cutHolder[0]++;
+                Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
+                int worldX = columnResolver.worldX(point);
+                int worldZ = columnResolver.worldZ(point);
+                if (worldX == lastX && worldZ == lastZ) continue;
+                lastX = worldX;
+                lastZ = worldZ;
+                if (!terrain.isChunkLoaded(worldX, worldZ)) {
+                    continue;
                 }
-                solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-            } else if (shouldPlaceLining(terrain, worldX, y, worldZ, point)) {
-                if (hasTerrainObstruction(terrain, worldX, y, worldZ)
-                        || terrain.isSolidBlock(worldX, y, worldZ)) {
-                    cutHolder[0]++;
+                if (kind == TunnelCrossSectionMask.CellKind.AIR) {
+                    // 洞室：清障为空气。不得对 LINING 格先写 air，否则 shouldPlaceLining 拒绝时会留下顶板破洞，
+                    // 上方沙砾等重力方块会落到路面。
+                    if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
+                        cutHolder[0]++;
+                    }
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                } else if (shouldPlaceLining(terrain, worldX, y, worldZ, point)) {
+                    if (hasTerrainObstruction(terrain, worldX, y, worldZ)
+                            || terrain.isSolidBlock(worldX, y, worldZ)) {
+                        cutHolder[0]++;
+                    }
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
                 }
-                solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
-            }
             }
         });
         int lining = portalFrame
@@ -509,9 +509,9 @@ public final class TunnelStructureGenerator {
     }
 
     private static boolean hasTerrainObstruction(TerrainSampler terrain, int worldX, int y, int worldZ) {
-        return terrain.isSolidBlock(worldX, y, worldZ)
-            || terrain.isRoadClearableDecoration(worldX, y, worldZ)
-            || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
+        return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
+            || terrain.isSolidBlock(worldX, y, worldZ)
+            || terrain.isRoadClearableDecoration(worldX, y, worldZ);
     }
 
     /**

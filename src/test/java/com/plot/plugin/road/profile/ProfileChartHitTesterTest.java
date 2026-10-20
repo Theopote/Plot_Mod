@@ -36,7 +36,7 @@ class ProfileChartHitTesterTest {
     }
 
     @Test
-    void junctionFixedDoesNotOpenContextMenu() {
+    void junctionFixedOpensElevationContextMenu() {
         ProfileControlPoint junctionFixed = new ProfileControlPoint(
             1, 50, 75, ProfilePointRole.JUNCTION_FIXED, null, null, false, false);
         assertTrue(ProfileChartHitTester.canOpenPviContextMenu(junctionFixed));

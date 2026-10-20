@@ -269,16 +269,18 @@ public class RoadNetworkGenerator {
         if (synchronizedRoads > 0) {
             LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
-        int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
-            generationNetwork,
-            roadGenerator.getConfig());
-        if (smoothedRoads > 0) {
-            LOGGER.info("生成前已自动平缓 {} 条道路纵断面坡度", smoothedRoads);
+        try (var ignored = session.stationingCache().activate()) {
+            int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
+                generationNetwork,
+                roadGenerator.getConfig());
+            if (smoothedRoads > 0) {
+                LOGGER.info("生成前已自动平缓 {} 条道路纵断面坡度", smoothedRoads);
+            }
+            Map<String, Integer> nodeElevations =
+                roadGenerator.resolveNetworkNodeElevations(generationNetwork, session.terrain());
+            session.networkResult().setNodeElevations(nodeElevations);
+            session.markPrepared();
         }
-        Map<String, Integer> nodeElevations =
-            roadGenerator.resolveNetworkNodeElevations(generationNetwork, session.terrain());
-        session.networkResult().setNodeElevations(nodeElevations);
-        session.markPrepared();
     }
 
     /** @return 本帧处理的边数 */
@@ -300,14 +302,16 @@ public class RoadNetworkGenerator {
         Map<String, Integer> nodeElevations = session.nodeElevations();
         RoadNetwork generationNetwork = session.generationNetwork();
         NetworkGenerationResult networkResult = session.networkResult();
-        for (RoadEdge edge : batch) {
-            if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
-            processed++;
-            RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
-            RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
-            EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
-                generationNetwork, edge, start, end, session.terrain(), nodeElevations);
-            networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
+        try (var ignored = session.stationingCache().activate()) {
+            for (RoadEdge edge : batch) {
+                if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
+                processed++;
+                RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
+                RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
+                EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
+                    generationNetwork, edge, start, end, session.terrain(), nodeElevations);
+                networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
+            }
         }
         session.advanceEdges(processed);
         return processed;
@@ -333,27 +337,29 @@ public class RoadNetworkGenerator {
         Map<String, Integer> nodeElevations = session.nodeElevations();
         RoadNetwork generationNetwork = session.generationNetwork();
         NetworkGenerationResult networkResult = session.networkResult();
-        for (RoadNode node : batch) {
-            if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
-            processed++;
-            if (!shouldGenerateJunction(node, failedEdgeIds)) {
-                networkResult.recordSkippedJunction(
-                    node.getId(),
-                    "connected edge generation failed");
-                continue;
-            }
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                junctionGenerator.generateJunction(
-                    node,
-                    generationNetwork,
-                    session.terrain(),
-                    nodeElevations,
-                    networkResult.getEdgeResults());
-            if (!junctionBlocks.isEmpty()) {
-                networkResult.junctionResults.put(node.getId(), junctionBlocks);
-            }
-            if (junctionBlocks.report() != null) {
-                networkResult.mergeJunctionReport(junctionBlocks.report());
+        try (var ignored = session.stationingCache().activate()) {
+            for (RoadNode node : batch) {
+                if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
+                processed++;
+                if (!shouldGenerateJunction(node, failedEdgeIds)) {
+                    networkResult.recordSkippedJunction(
+                        node.getId(),
+                        "connected edge generation failed");
+                    continue;
+                }
+                RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+                    junctionGenerator.generateJunction(
+                        node,
+                        generationNetwork,
+                        session.terrain(),
+                        nodeElevations,
+                        networkResult.getEdgeResults());
+                if (!junctionBlocks.isEmpty()) {
+                    networkResult.junctionResults.put(node.getId(), junctionBlocks);
+                }
+                if (junctionBlocks.report() != null) {
+                    networkResult.mergeJunctionReport(junctionBlocks.report());
+                }
             }
         }
         session.advanceJunctions(processed);
@@ -435,50 +441,54 @@ public class RoadNetworkGenerator {
             return ProfileSamplingResult.empty();
         }
         preparePreviewSession(session);
-        Map<String, Integer> nodeElevations = session.nodeElevations();
-        RoadNetwork generationNetwork = session.generationNetwork();
-        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
-        for (RoadEdge edge : generationNetwork.getEdges().values()) {
-            RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
-            RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
-            if (start == null || end == null) {
-                continue;
+        try (var ignored = session.stationingCache().activate()) {
+            Map<String, Integer> nodeElevations = session.nodeElevations();
+            RoadNetwork generationNetwork = session.generationNetwork();
+            Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+            for (RoadEdge edge : generationNetwork.getEdges().values()) {
+                RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
+                RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
+                if (start == null || end == null) {
+                    continue;
+                }
+                RoadGenerationResult profile = roadGenerator.sampleEdgeProfile(
+                    generationNetwork, edge, start, end, terrain, nodeElevations);
+                if (profile != null && profile.hasProfileData()) {
+                    edgeResults.put(edge.getId(), profile);
+                }
             }
-            RoadGenerationResult profile = roadGenerator.sampleEdgeProfile(
-                generationNetwork, edge, start, end, terrain, nodeElevations);
-            if (profile != null && profile.hasProfileData()) {
-                edgeResults.put(edge.getId(), profile);
+            if (edgeResults.isEmpty()) {
+                return ProfileSamplingResult.empty();
             }
+            Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
+                generationNetwork,
+                edgeResults,
+                roadGenerator.getConfig());
+            LOGGER.info("纵断面采样完成: {} 条边, {} 条道路纵断面", edgeResults.size(), roadProfiles.size());
+            return new ProfileSamplingResult(generationNetwork, edgeResults, nodeElevations, roadProfiles);
         }
-        if (edgeResults.isEmpty()) {
-            return ProfileSamplingResult.empty();
-        }
-        Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
-            generationNetwork,
-            edgeResults,
-            roadGenerator.getConfig());
-        LOGGER.info("纵断面采样完成: {} 条边, {} 条道路纵断面", edgeResults.size(), roadProfiles.size());
-        return new ProfileSamplingResult(generationNetwork, edgeResults, nodeElevations, roadProfiles);
     }
 
     private PreviewResult buildPreviewResult(RoadNetworkPreviewSession session) {
-        applyTunnelJunctionConnectivity(session);
-        RoadNetwork profileNetwork = session.generationNetwork();
-        NetworkGenerationResult networkResult = session.networkResult();
-        Map<String, RoadGenerationResult> edgeResults = networkResult.getEdgeResults();
-        Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
-            profileNetwork,
-            edgeResults,
-            roadGenerator.getConfig());
-        RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), networkResult);
-        applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
-        return new PreviewResult(
-            profileNetwork,
-            aggregate,
-            edgeResults,
-            networkResult.getNodeElevations(),
-            networkResult,
-            roadProfiles);
+        try (var ignored = session.stationingCache().activate()) {
+            applyTunnelJunctionConnectivity(session);
+            RoadNetwork profileNetwork = session.generationNetwork();
+            NetworkGenerationResult networkResult = session.networkResult();
+            Map<String, RoadGenerationResult> edgeResults = networkResult.getEdgeResults();
+            Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
+                profileNetwork,
+                edgeResults,
+                roadGenerator.getConfig());
+            RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), networkResult);
+            applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
+            return new PreviewResult(
+                profileNetwork,
+                aggregate,
+                edgeResults,
+                networkResult.getNodeElevations(),
+                networkResult,
+                roadProfiles);
+        }
     }
 
     private static PreviewResult emptyPreviewResult() {

@@ -295,7 +295,7 @@ public final class RoadCorridorPlanBuilder {
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(fromPoint, toPoint);
         int last = span.size() - 1;
         for (int i = 0; i < span.size(); i++) {
-            Vec2d planPoint = span.get(i);
+            Vec2d planPoint = host.canonicalColumnPoint(span.get(i));
             int surfaceY = last == 0
                 ? fromY
                 : (int) Math.round(fromY + (toY - fromY) * ((double) i / last));
@@ -453,7 +453,7 @@ public final class RoadCorridorPlanBuilder {
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(fromPoint, toPoint);
         int last = span.size() - 1;
         for (int i = 0; i < span.size(); i++) {
-            Vec2d planPoint = span.get(i);
+            Vec2d planPoint = host.canonicalColumnPoint(span.get(i));
             int surfaceY = last == 0
                 ? fromY
                 : (int) Math.round(fromY + (toY - fromY) * ((double) i / last));
@@ -485,7 +485,7 @@ public final class RoadCorridorPlanBuilder {
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(fromPoint, toPoint);
         int last = span.size() - 1;
         for (int i = 0; i < span.size(); i++) {
-            Vec2d planPoint = span.get(i);
+            Vec2d planPoint = host.canonicalColumnPoint(span.get(i));
             int surfaceY = last == 0
                 ? fromY
                 : (int) Math.round(fromY + (toY - fromY) * ((double) i / last));
@@ -504,6 +504,7 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
+        planPoint = host.canonicalColumnPoint(planPoint);
         BlockPos worldPos = host.canvasToBlockPos(planPoint);
         int worldX = worldPos.getX();
         int worldZ = worldPos.getZ();
@@ -773,6 +774,9 @@ public final class RoadCorridorPlanBuilder {
 
         BlockPos canvasToBlockPos(Vec2d canvasPos);
 
+        /** Exact world-column center in canvas space; ownership uses the same point as placement. */
+        default Vec2d canonicalColumnPoint(Vec2d point) { return point; }
+
         int worldX(Vec2d planPoint);
 
         int worldZ(Vec2d planPoint);
@@ -802,7 +806,16 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold = terrainStyle != null
                 ? RoadConstructionHeuristics.tunnelThreshold(terrainStyle)
                 : RoadConstructionHeuristics.tunnelThreshold(host.config());
+            var coordinates = host.coordinateTransformer();
+            var projection = coordinates != null ? coordinates.captureProjection() : null;
             return new PlanHost() {
+                @Override
+                public Vec2d canonicalColumnPoint(Vec2d point) {
+                    if (projection == null || !projection.isValid()) return point;
+                    var column = host.canvasToBlockPos(point);
+                    return projection.toCanvas(new Vec2d(column.getX(), column.getZ()));
+                }
+
                 @Override
                 public RoadSystemConfig config() {
                     return host.config();

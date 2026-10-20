@@ -19,6 +19,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadConstructionClassifierTest {
 
     @Test
+    void sustainedCliffUsesOnlyMountainSideShelterAndOrdinaryBanksRemainOpen() {
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(30, 0));
+        var info = new SegmentHeightInfo(segment, 90, 90, 64, 64, 0);
+        var columns = new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+            public int worldX(Vec2d p) { return (int) Math.round(p.x); }
+            public int worldZ(Vec2d p) { return (int) Math.round(p.y); }
+        };
+        for (boolean left : List.of(true, false)) {
+            TerrainSampler cliff = new TerrainSampler() {
+                public int sampleSurfaceY(Vec2d p) { return (left ? p.y > 0 : p.y < 0) ? 120 : 60; }
+                public boolean isSolidBlock(int x, int y, int z) { return y <= sampleSurfaceY(new Vec2d(x, z)); }
+            };
+            assertEquals(left ? RoadConstructionType.ROCK_SHELTER_LEFT : RoadConstructionType.ROCK_SHELTER_RIGHT,
+                RoadConstructionClassifier.cliffShelterType(info, cliff, 7,
+                    com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(), columns, 1));
+        }
+        assertEquals(null, RoadConstructionClassifier.cliffShelterType(info, new FlatTerrainSampler(70), 7,
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(), columns, 1));
+        assertEquals(null, RoadConstructionClassifier.cliffShelterType(info, new FlatTerrainSampler(120), 7,
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(), columns, 1));
+    }
+
+    @Test
     void classifyMarksBridgeWhenTargetIsHighAboveGround() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);

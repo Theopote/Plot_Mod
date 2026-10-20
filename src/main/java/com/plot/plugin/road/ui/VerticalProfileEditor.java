@@ -1639,6 +1639,12 @@ final class VerticalProfileEditor {
                     && VerticalProfileControlPoints.isCurveEditable(road, alignment, atStation)) {
                 return atStation;
             }
+            double station = intersections.get(selectedIntersection).roadStation();
+            for (int i = 1; i < alignment.pviCount() - 1; i++) {
+                var pvi = alignment.getPvis().get(i);
+                if (pvi.hasCurve() && Math.abs(station - pvi.getStation()) <= pvi.getCurveLength() / 2
+                        && VerticalProfileControlPoints.isCurveEditable(road, alignment, i)) return i;
+            }
         }
         return selectedPvi;
     }

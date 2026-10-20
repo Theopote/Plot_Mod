@@ -48,6 +48,27 @@ class ProfileEditSessionTest {
     }
 
     @Test
+    void numericEditKeepsShortRoadFlatAndPreservesLoopSeam() {
+        var shortNetwork = new RoadNetwork();
+        var shortRoad = shortNetwork.createRoad("short");
+        var a = shortNetwork.createNode(new Vec2d(0, 0));
+        var b = shortNetwork.createNode(new Vec2d(3, 0));
+        shortNetwork.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), shortRoad.getId());
+        shortRoad.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64), PointOfVerticalIntersection.of(3, 64))));
+        shortRoad.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        session.beginNumericEdit(shortRoad);
+        session.updatePviElevation(shortNetwork, shortRoad, 0, 70);
+        assertTrue(session.effectiveAlignment(shortRoad).getPvis().stream().allMatch(p -> p.getElevation() == 70));
+        session.cancelEdit();
+        road.setTopologyMode(com.plot.plugin.road.model.RoadTopologyMode.LOOP);
+        session.beginNumericEdit(road);
+        session.updatePviElevation(network, road, 0, 72);
+        assertEquals(72, session.effectiveAlignment(road).getPvis().getFirst().getElevation());
+        assertEquals(72, session.effectiveAlignment(road).getPvis().getLast().getElevation());
+    }
+
+    @Test
     void pviDragDoesNotMutateRoadUntilCommit() {
         double originalMid = road.getVerticalAlignment().getPvis().get(1).getElevation();
         session.beginPviEdit(road);

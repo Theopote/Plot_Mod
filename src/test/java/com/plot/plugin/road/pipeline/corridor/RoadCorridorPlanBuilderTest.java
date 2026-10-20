@@ -22,6 +22,100 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoadCorridorPlanBuilderTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"0,1", "30,1", "45,1", "60,1", "30,4", "30,0.25"})
+    void rotatedPavementCoversInteriorWorldColumns(double angle, double blocksPerCanvas) {
+        var config = CorridorTestFixtures.baseConfig();
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeBikeLane(false);
+        config.setIncludeSlopeBatter(false);
+        double a = Math.toRadians(angle), dx = Math.cos(a), dz = Math.sin(a);
+        var coordinates = com.plot.api.world.SnapshotCoordinateService.uniformScale(blocksPerCanvas);
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(dx * 30 / blocksPerCanvas, dz * 30 / blocksPerCanvas));
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 64, 64, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)), List.of(RoadConstructionType.ROAD),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), new FlatTerrainSampler(64),
+            1 / blocksPerCanvas, "rotation", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config, coordinates));
+        for (int x = -4; x <= 34; x++) for (int z = -4; z <= 34; z++) {
+            double along = x * dx + z * dz, lateral = -x * dz + z * dx;
+            if (along >= 2 && along <= 28 && Math.abs(lateral) <= 2.7) {
+                assertNotNull(plan.surfaceMask().get(new ColumnKey(x, z)), "missing pavement " + x + "," + z);
+            }
+        }
+    }
+
+    @Test
+    void bendingPavementHasNoHolesInsideAnyRoadLeg() {
+        var config = CorridorTestFixtures.baseConfig();
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeBikeLane(false);
+        config.setIncludeSlopeBatter(false);
+        var segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(12, 0)),
+            new PathSegment(new Vec2d(12, 0), new Vec2d(24, 12)),
+            new PathSegment(new Vec2d(24, 12), new Vec2d(24, 24)));
+        var heights = segments.stream().map(p -> new SegmentHeightInfo(p, 64, 64, 64, 64, 0)).toList();
+        var plan = RoadCorridorPlanBuilder.build(segments, heights,
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
+            List.of(RoadConstructionType.ROAD, RoadConstructionType.ROAD, RoadConstructionType.ROAD),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), new FlatTerrainSampler(64),
+            1, "bend", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config));
+        for (int x = -4; x <= 28; x++) for (int z = -4; z <= 28; z++) {
+            var point = new Vec2d(x, z);
+            boolean interior = segments.stream().anyMatch(segment -> {
+                var tangent = segment.end.subtract(segment.start).normalize();
+                var delta = point.subtract(segment.start);
+                double station = delta.x * tangent.x + delta.y * tangent.y;
+                double lateral = -delta.x * tangent.y + delta.y * tangent.x;
+                return station >= 0 && station <= segment.distance && Math.abs(lateral) <= 2.7;
+            });
+            if (interior) assertNotNull(plan.surfaceMask().get(new ColumnKey(x, z)), "missing bent pavement " + point);
+        }
+    }
+
+    @Test
+    void clearanceChecksFullHeadroomEvenWhenHeightMapMissesFloatingBlocksAndPlants() {
+        var config = CorridorTestFixtures.baseConfig();
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(12, 0));
+        TerrainSampler terrain = new TerrainSampler() {
+            public int sampleSurfaceY(Vec2d p) { return 64; }
+            public int sampleColumnTopY(Vec2d p) { return 64; }
+            public boolean isSolidBlock(int x, int y, int z) { return y <= 64; }
+            public boolean isRoadClearableDecoration(int x, int y, int z) { return y == 66; }
+            public boolean isConstructionVolumeObstruction(int x, int y, int z) { return y == 67; }
+        };
+        var host = CorridorTestFixtures.planHost(config);
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 64, 64, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)), List.of(RoadConstructionType.ROAD),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), terrain, 1, "floating",
+            JunctionCorridorBuildContext.NONE, host);
+        var solids = new com.plot.plugin.road.solid.RoadSolidModel();
+        RoadCorridorClearancePass.apply(solids, plan, terrain, host);
+        for (int y : new int[] {66, 67}) assertTrue(solids.primitives().stream().anyMatch(p ->
+            Math.round(p.planPoint().x) == 6 && Math.round(p.planPoint().y) == 0
+                && p.elevation() == y && "minecraft:air".equals(p.materialId())));
+    }
+
+    @Test
+    void rockShelterSuppressesBatterAndCapsExcavationBelowCliffTop() {
+        var config = CorridorTestFixtures.baseConfig();
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 120, 120, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)), List.of(RoadConstructionType.ROCK_SHELTER_LEFT),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), new FlatTerrainSampler(120),
+            1, "cliff", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config));
+        assertTrue(plan.slopeEntries().isEmpty());
+        assertFalse(plan.surfaceMask().entries().isEmpty());
+        int top = 64 + com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults().clearHeight();
+        assertTrue(plan.clearanceEntries().stream().allMatch(e -> e.getValue().clearTopY() <= top));
+    }
+
     @Test
     void spanRasterizationCoversStraightSegmentLength() {
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();

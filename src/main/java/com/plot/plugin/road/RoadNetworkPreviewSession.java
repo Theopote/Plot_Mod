@@ -17,6 +17,7 @@ public final class RoadNetworkPreviewSession {
 
     private final RoadNetwork sourceNetwork;
     private final RoadNetwork generationNetwork;
+    private final com.plot.plugin.road.station.RoadStationingReadCache stationingCache;
     private final RoadNetworkGenerator.NetworkGenerationResult networkResult;
     private final TerrainSampler terrain;
     private final List<RoadEdge> edges;
@@ -34,6 +35,7 @@ public final class RoadNetworkPreviewSession {
             List<RoadNode> junctionNodes) {
         this.sourceNetwork = sourceNetwork;
         this.generationNetwork = generationNetwork;
+        this.stationingCache = new com.plot.plugin.road.station.RoadStationingReadCache(generationNetwork);
         this.networkResult = networkResult;
         this.terrain = terrain;
         this.edges = edges;
@@ -56,6 +58,10 @@ public final class RoadNetworkPreviewSession {
 
     public RoadNetwork sourceNetwork() {
         return sourceNetwork;
+    }
+
+    com.plot.plugin.road.station.RoadStationingReadCache stationingCache() {
+        return stationingCache;
     }
 
     RoadNetwork generationNetwork() {

@@ -33,6 +33,63 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TunnelStructureGeneratorTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 15, 30, 45, 60, 75, 90})
+    void diagonalTunnelHasContinuousRoofWallsAndClearCavity(int angle) {
+        double radians = Math.toRadians(angle);
+        double dx = Math.cos(radians), dz = Math.sin(radians);
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(dx * 30, dz * 30));
+        var style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        var config = new RoadSystemConfig("diagonal-tunnel");
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeBikeLane(false);
+        var solids = new RoadSolidModel();
+        TunnelStructureGenerator.generate(testHost(), solids, null, style, List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 100, 100, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
+            columnTerrain(100, 100, 100), 1, List.of(RoadConstructionType.TUNNEL),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), List.of(), null, columnResolver());
+        var blocks = new java.util.HashMap<BlockPos, String>();
+        solids.primitives().forEach(p -> blocks.put(new BlockPos((int) Math.round(p.planPoint().x),
+            p.elevation(), (int) Math.round(p.planPoint().y)), p.materialId()));
+        for (int x = -6; x <= 36; x++) for (int z = -6; z <= 36; z++) {
+            double along = x * dx + z * dz;
+            double lateral = -x * dz + z * dx;
+            if (along < 2 || along > 28) continue;
+            if (Math.abs(lateral) <= 3.2) {
+                assertEquals("minecraft:stone_bricks", blocks.get(new BlockPos(x, 70, z)), "roof at " + x + "," + z);
+                for (int y = 65; y <= 68; y++) {
+                    assertEquals("minecraft:air", blocks.get(new BlockPos(x, y, z)), "cavity at " + x + "," + y + "," + z);
+                }
+            }
+            if (Math.abs(lateral) >= 4.8 && Math.abs(lateral) <= 5.2) {
+                assertEquals("minecraft:stone_bricks", blocks.get(new BlockPos(x, 66, z)), "wall at " + x + "," + z);
+            }
+        }
+    }
+
+    @Test
+    void rockShelterLeavesValleyOpenAndDoesNotExcavateToCliffTop() {
+        var solids = new RoadSolidModel();
+        var style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        TerrainSampler cliff = new TerrainSampler() {
+            public int sampleSurfaceY(Vec2d p) { return p.y >= 0 ? 140 : 60; }
+            public boolean isSolidBlock(int x, int y, int z) { return y <= sampleSurfaceY(new Vec2d(x, z)); }
+        };
+        TunnelStructureGenerator.placeRockShelter(solids, style, new Vec2d(0, 0), new Vec2d(0, 1),
+            7, 64, "minecraft:stone_bricks", cliff, columnResolver(), 1, true);
+        for (int y = 65; y <= 69; y++) {
+            final int testY = y;
+            assertTrue(solids.primitives().stream().anyMatch(p -> Math.round(p.planPoint().y) == 5
+                && p.elevation() == testY && "minecraft:stone_bricks".equals(p.materialId())));
+            assertFalse(solids.primitives().stream().anyMatch(p -> p.planPoint().y < 0 && p.elevation() == testY
+                && !"minecraft:air".equals(p.materialId())));
+        }
+        assertFalse(solids.primitives().stream().anyMatch(p -> p.elevation() > 70));
+    }
+
     @Test
     void liningDoesNotReplaceTreesOrBlocksAboveSurface() {
         RoadSolidModel solids = new RoadSolidModel();

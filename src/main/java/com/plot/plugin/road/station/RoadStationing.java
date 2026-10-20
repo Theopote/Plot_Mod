@@ -98,6 +98,16 @@ public final class RoadStationing {
             RoadNetwork network,
             Road road,
             boolean applyLoopSeam) {
+        var cache = RoadStationingReadCache.activeFor(network);
+        if (cache != null && road != null) {
+            return cache.segments(road.getId(), applyLoopSeam,
+                () -> buildOrientedSegmentsUncached(network, road, applyLoopSeam));
+        }
+        return buildOrientedSegmentsUncached(network, road, applyLoopSeam);
+    }
+
+    private static List<OrientedRoadSegment> buildOrientedSegmentsUncached(
+            RoadNetwork network, Road road, boolean applyLoopSeam) {
         if (network == null || road == null) {
             return List.of();
         }
@@ -215,6 +225,14 @@ public final class RoadStationing {
      * 道路是否具备稳定桩号语义（连通、无分叉；LINEAR 或 LOOP）。
      */
     public static boolean isStationable(RoadNetwork network, Road road) {
+        var cache = RoadStationingReadCache.activeFor(network);
+        if (cache != null && road != null) {
+            return cache.stationable(road.getId(), () -> isStationableUncached(network, road));
+        }
+        return isStationableUncached(network, road);
+    }
+
+    private static boolean isStationableUncached(RoadNetwork network, Road road) {
         if (network == null || road == null) {
             return false;
         }

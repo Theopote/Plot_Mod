@@ -142,6 +142,12 @@ public class RoadGenerator {
         if (network == null || edge == null || edge.getRoadId() == null) {
             return;
         }
+        // Network preview prepared every road before entering the read scope.
+        // Rematerializing a whole alignment for every edge is both expensive
+        // and invalidates the prepared snapshot's stationing.
+        if (com.plot.plugin.road.station.RoadStationingReadCache.isActiveFor(network)) {
+            return;
+        }
         Road road = network.getRoadForEdge(edge);
         if (road == null) {
             return;

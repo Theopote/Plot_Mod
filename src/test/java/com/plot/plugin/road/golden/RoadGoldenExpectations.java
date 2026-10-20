@@ -15,8 +15,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R01 = new RoadGoldenMetrics(
         155, 0, 0, 0, 0, 0, 0, 0, 0, 155, 0, 0, List.of());
 
+    // Sub-block sweep fills two previously missed curved pavement cells.
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
-        213, 0, 0, 0, 0, 0, 0, 0, 0, 213, 0, 0, List.of());
+        215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
     // Exact plaza ownership now retains the approach cells at junction seams.
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
@@ -25,8 +26,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
         479, 0, 0, 52, 0, 0, 163, 0, 0, 429, 0, 0, List.of());
 
+    // Dense rotated approaches retain complete pavement at the five-way plaza seam.
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        550, 0, 0, 58, 0, 0, 199, 0, 0, 494, 0, 0, List.of());
+        574, 0, 0, 58, 0, 0, 199, 0, 0, 514, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
         239, 36, 0, 0, 0, 0, 0, 0, 36, 239, 0, 0, List.of());

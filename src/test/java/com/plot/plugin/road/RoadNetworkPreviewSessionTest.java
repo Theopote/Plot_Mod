@@ -38,6 +38,23 @@ class RoadNetworkPreviewSessionTest {
     }
 
     @Test
+    void zeroBudgetYieldsWithoutSkippingUnprocessedEdgesOrJunctions() {
+        var session = generator.beginPreviewSession(network, new FlatTerrainSampler(64));
+        generator.preparePreviewSession(session);
+        int count = 0;
+        while (session.hasMoreEdges()) {
+            assertEquals(1, generator.tickPreviewSessionEdges(session, 100, 0));
+            count++;
+        }
+        assertEquals(2, count);
+        while (session.hasMoreJunctions()) {
+            assertEquals(1, generator.tickPreviewSessionJunctions(session, 100, 0));
+        }
+        var result = generator.completePreviewSession(session);
+        assertEquals(2, result.networkResult().successEdgeCount());
+    }
+
+    @Test
     void incrementalSessionMatchesSyncGenerateAll() {
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
 

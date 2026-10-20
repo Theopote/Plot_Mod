@@ -18,6 +18,26 @@ class RoadProfileConstraintSynchronizerTest {
     private final RoadSystemConfig config = new RoadSystemConfig("constraints");
 
     @Test
+    void editorCrossingAnchorsPreserveEveryElevationAndExistingCurve() {
+        Road a = road("a", 64);
+        road("b", 64);
+        a.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64), PointOfVerticalIntersection.withCurve(30, 70, 20),
+            PointOfVerticalIntersection.of(100, 64))));
+        var original = a.getVerticalAlignment().copy();
+        network.registerCrossing(RoadCrossing.atGrade("a", 75, "b", 50, new Vec2d(75, 0)));
+        network.registerCrossing(RoadCrossing.atGrade("a", 32, "b", 30, new Vec2d(32, 0)));
+        RoadProfileConstraintSynchronizer.seedCrossingAnchors(network, config);
+        assertTrue(a.getVerticalAlignment().getPvis().stream().anyMatch(p -> p.getStation() == 75
+            && p.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED));
+        assertFalse(a.getVerticalAlignment().getPvis().stream().anyMatch(p -> p.getStation() == 32));
+        for (double station = 0; station <= 100; station += 0.25) {
+            assertEquals(VerticalAlignmentGeometry.elevationAt(original, station).orElseThrow(), at(a, station), 1e-8);
+        }
+        assertEquals(20, a.getVerticalAlignment().getPvis().get(1).getCurveLength());
+    }
+
+    @Test
     void linkingACrossingPreservesRemoteUserCurveLengths() {
         Road a = road("a", 64);
         Road b = road("b", 64);
