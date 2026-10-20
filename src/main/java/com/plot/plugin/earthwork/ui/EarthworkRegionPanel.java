@@ -219,14 +219,15 @@ public final class EarthworkRegionPanel {
 
         ImGui.spacing();
         List<GradingRegion> regions = EarthworkRegionListHelper.sorted(ctx.project(), ctx.regionSortMode());
-        for (int i = 0; i < regions.size(); i++) {
-            renderAdoptedRegionRow(regions.get(i), i);
+        for (GradingRegion region : regions) {
+            renderAdoptedRegionRow(region);
         }
     }
 
-    private void renderAdoptedRegionRow(GradingRegion region, int colorIndex) {
+    private void renderAdoptedRegionRow(GradingRegion region) {
         ImGui.pushID(region.getId());
         boolean selected = region.getId().equals(ctx.selectedRegionId());
+        int colorIndex = EarthworkOverviewRenderer.stableColorIndex(region.getId());
 
         if (EarthworkOverviewRenderer.renderRegionThumbnail(
                 region.getOuterPoints(),

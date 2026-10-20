@@ -136,11 +136,10 @@ public final class EarthworkOverviewRenderer {
 
         Bounds bounds = computeBounds(regions);
         MapViewport viewport = buildViewport(bounds, origin.x, origin.y, width, height);
-        for (int i = 0; i < regions.size(); i++) {
-            GradingRegion region = regions.get(i);
+        for (GradingRegion region : regions) {
             boolean selected = selectedRegionIds != null && selectedRegionIds.contains(region.getId());
-            // 与画布叠加层共用色板；选中仅加粗，不换色
-            int color = regionColor(i);
+            // 与画布叠加层共用稳定色板；选中仅加粗，不换色
+            int color = stableRegionColor(region.getId());
             drawRegion(drawList, region.getOuterPoints(), viewport, color, selected);
             for (List<Vec2d> hole : region.getHoles()) {
                 drawRegion(drawList, hole, viewport, color, selected);
@@ -348,6 +347,18 @@ public final class EarthworkOverviewRenderer {
 
     public static int regionColor(int index) {
         return REGION_COLORS[Math.floorMod(index, REGION_COLORS.length)];
+    }
+
+    /** 基于区域稳定 ID 的色板索引（删除/排序不影响其它区域颜色）。 */
+    public static int stableColorIndex(String regionId) {
+        if (regionId == null || regionId.isBlank()) {
+            return 0;
+        }
+        return Math.floorMod(regionId.hashCode(), REGION_COLORS.length);
+    }
+
+    public static int stableRegionColor(String regionId) {
+        return regionColor(stableColorIndex(regionId));
     }
 
     private static void renderCenteredHint(

@@ -28,7 +28,6 @@ public final class EarthworkRegionOverlayController {
             return List.of();
         }
         List<EarthworkRegionOverlayEntry> entries = new ArrayList<>();
-        int colorIndex = 0;
         for (GradingRegion region : project.getRegions().values()) {
             if (region == null) {
                 continue;
@@ -45,9 +44,9 @@ public final class EarthworkRegionOverlayController {
                 region.getHoles(),
                 selected ? EarthworkRegionOverlayState.SELECTED : EarthworkRegionOverlayState.REGISTERED,
                 geometryVersion(region),
-                colorIndex++));
+                EarthworkOverviewRenderer.stableColorIndex(region.getId())));
         }
-        appendCanvasEntries(entries, canvasShapes, pickSessionActive, colorIndex);
+        appendCanvasEntries(entries, canvasShapes, pickSessionActive);
         entries.sort(Comparator.comparingInt(entry -> entry.state().renderPriority()));
         return entries;
     }
@@ -55,20 +54,19 @@ public final class EarthworkRegionOverlayController {
     private static void appendCanvasEntries(
             List<EarthworkRegionOverlayEntry> entries,
             List<Shape> canvasShapes,
-            boolean pickSessionActive,
-            int colorIndexStart) {
+            boolean pickSessionActive) {
         if (canvasShapes == null || canvasShapes.isEmpty()) {
             return;
         }
         List<Shape> adoptable = EarthworkGeometryUtils.findAdoptableRegions(canvasShapes);
-        int colorIndex = colorIndexStart;
         for (Shape shape : adoptable) {
             List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(shape);
             if (points.size() < 3) {
                 continue;
             }
+            String canvasId = "canvas:" + shape.getId();
             entries.add(new EarthworkRegionOverlayEntry(
-                "canvas:" + shape.getId(),
+                canvasId,
                 shape.getId(),
                 points,
                 List.of(),
@@ -76,7 +74,7 @@ public final class EarthworkRegionOverlayController {
                     ? EarthworkRegionOverlayState.PICK_ACTIVE
                     : EarthworkRegionOverlayState.CANDIDATE,
                 EarthworkPreviewIdentity.normalizedOutlineFingerprint(points),
-                colorIndex++));
+                EarthworkOverviewRenderer.stableColorIndex(canvasId)));
         }
     }
 
@@ -106,9 +104,13 @@ public final class EarthworkRegionOverlayController {
         return best;
     }
 
-    /** 与总览缩略图共用的稳定色板索引颜色。 */
+    /** 与总览缩略图共用的稳定色板颜色。 */
     public static int stableColor(int colorIndex) {
         return EarthworkOverviewRenderer.regionColor(colorIndex);
+    }
+
+    public static int stableColorForRegionId(String regionId) {
+        return EarthworkOverviewRenderer.stableRegionColor(regionId);
     }
 
     private static long geometryVersion(GradingRegion region) {

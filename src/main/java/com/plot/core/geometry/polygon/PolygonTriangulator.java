@@ -34,7 +34,28 @@ public final class PolygonTriangulator {
         if (!validation.valid()) {
             return TriangulationResult.fail(String.join(",", validation.issues()));
         }
+        return earClip(polygon);
+    }
 
+    /**
+     * 孔洞桥接多边形三角化：允许桥接点处的非相邻重复顶点（零宽度走廊）。
+     * 仅去除连续重复点，不做完整 normalize（以免破坏桥接结构）。
+     */
+    public static TriangulationResult triangulateBridged(List<Vec2d> points) {
+        List<Vec2d> polygon = PolygonNormalizer.removeDuplicateVertices(points);
+        if (polygon.size() < 3) {
+            return TriangulationResult.fail("too_few_vertices");
+        }
+        if (!PolygonValidator.hasFiniteCoordinates(polygon)) {
+            return TriangulationResult.fail("non_finite_coordinates");
+        }
+        if (PolygonUtils.absoluteArea(polygon) <= PolygonUtils.MIN_AREA) {
+            return TriangulationResult.fail("degenerate_area");
+        }
+        return earClip(polygon);
+    }
+
+    private static TriangulationResult earClip(List<Vec2d> polygon) {
         List<Integer> indices = new ArrayList<>();
         for (int i = 0; i < polygon.size(); i++) {
             indices.add(i);

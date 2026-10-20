@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.polygon.PolygonNormalizer;
 import com.plot.core.geometry.polygon.PolygonTriangulator;
+import com.plot.core.geometry.polygon.PolygonUtils;
 import com.plot.core.geometry.polygon.RegionTriangulator;
 import com.plot.ui.canvas.CanvasCamera;
 
@@ -14,6 +15,8 @@ import java.util.Map;
 
 /**
  * 按区域 ID + 几何版本缓存世界坐标三角形；画布平移/缩放只做屏幕投影。
+ * <p>
+ * 多孔洞走 {@link RegionTriangulator#bridgeAllHoles} 完整桥接；失败则不填充（仅轮廓）。
  */
 public final class EarthworkRegionTriangulationCache {
     private static final int MAX_ENTRIES = 128;
@@ -29,6 +32,13 @@ public final class EarthworkRegionTriangulationCache {
     }
 
     public record ScreenTriangle(float ax, float ay, float bx, float by, float cx, float cy) {
+    }
+
+    /** 世界坐标三角形（测试与面积校验用）。 */
+    public record WorldTriangle(Vec2d a, Vec2d b, Vec2d c) {
+        public double absoluteArea() {
+            return PolygonUtils.absoluteArea(List.of(a, b, c));
+        }
     }
 
     public static List<ScreenTriangle> resolveScreenTriangles(
@@ -54,6 +64,15 @@ public final class EarthworkRegionTriangulationCache {
         return screen;
     }
 
+    /** 解析并缓存世界坐标网格；失败返回空列表（调用方应仅画轮廓）。 */
+    public static List<WorldTriangle> resolveWorldTriangles(EarthworkRegionOverlayEntry entry) {
+        CachedMesh mesh = resolveMesh(entry);
+        if (mesh == null) {
+            return List.of();
+        }
+        return mesh.worldTriangles;
+    }
+
     public static void invalidate(String regionId) {
         if (regionId == null || regionId.isBlank()) {
             return;
@@ -69,7 +88,6 @@ public final class EarthworkRegionTriangulationCache {
         }
     }
 
-    /** 测试用：当前缓存条目数。 */
     static int sizeForTest() {
         synchronized (CACHE) {
             return CACHE.size();
@@ -77,6 +95,9 @@ public final class EarthworkRegionTriangulationCache {
     }
 
     private static CachedMesh resolveMesh(EarthworkRegionOverlayEntry entry) {
+        if (entry == null || entry.outerPoints().size() < 3) {
+            return null;
+        }
         synchronized (CACHE) {
             CachedMesh cached = CACHE.get(entry.regionId());
             if (cached != null && cached.geometryVersion == entry.geometryVersion()) {
@@ -95,6 +116,7 @@ public final class EarthworkRegionTriangulationCache {
     private static CachedMesh buildMesh(EarthworkRegionOverlayEntry entry) {
         TriangulationPlan plan = planTriangulation(entry.toGeometry());
         if (plan == null || !plan.result.success() || plan.vertices.isEmpty()) {
+            // 安全降级：不填充，避免错误覆盖孔洞
             return null;
         }
         List<WorldTriangle> triangles = new ArrayList<>(plan.result.triangles().size());
@@ -111,20 +133,16 @@ public final class EarthworkRegionTriangulationCache {
             if (a == null || b == null || c == null) {
                 continue;
             }
-            // 多洞回退：丢弃重心落在孔洞内的三角形
-            if (!entry.containsWorldPoint(
-                    (a.x + b.x + c.x) / 3.0,
-                    (a.y + b.y + c.y) / 3.0)) {
-                continue;
-            }
             triangles.add(new WorldTriangle(a, b, c));
+        }
+        if (triangles.isEmpty()) {
+            return null;
         }
         return new CachedMesh(entry.geometryVersion(), List.copyOf(triangles));
     }
 
     /**
-     * 与 {@link PolygonTriangulator#triangulate} / {@link RegionTriangulator} 对齐：
-     * 返回结果中的三角形索引对应规范化后的顶点列表。
+     * 完整多孔桥接 + 耳切；失败返回 {@code null}（不回退到“外轮廓+重心过滤”）。
      */
     static TriangulationPlan planTriangulation(RegionGeometry geometry) {
         if (geometry == null || geometry.isEmpty()) {
@@ -132,26 +150,21 @@ public final class EarthworkRegionTriangulationCache {
         }
         if (!geometry.hasHoles()) {
             List<Vec2d> vertices = PolygonNormalizer.normalizeOutline(geometry.outerRing());
-            return new TriangulationPlan(vertices, PolygonTriangulator.triangulate(vertices));
+            PolygonTriangulator.TriangulationResult result = PolygonTriangulator.triangulate(vertices);
+            return result.success() ? new TriangulationPlan(vertices, result) : null;
         }
-        List<Vec2d> hole = geometry.holes().getFirst();
-        List<Vec2d> bridged = RegionTriangulator.bridgeSingleHole(geometry.outerRing(), hole);
-        if (bridged.size() >= 3) {
-            List<Vec2d> vertices = PolygonNormalizer.normalizeOutline(bridged);
-            PolygonTriangulator.TriangulationResult bridgedResult = PolygonTriangulator.triangulate(vertices);
-            if (bridgedResult.success()) {
-                return new TriangulationPlan(vertices, bridgedResult);
-            }
+        RegionTriangulator.BridgedPolygon bridged =
+            RegionTriangulator.bridgeAllHoles(geometry.outerRing(), geometry.holes());
+        if (bridged == null || bridged.vertices().size() < 3) {
+            return null;
         }
-        // 桥接失败时回退：三角化外轮廓，由重心过滤剔除孔洞内三角形
-        List<Vec2d> outer = PolygonNormalizer.normalizeOutline(geometry.outerRing());
-        return new TriangulationPlan(outer, PolygonTriangulator.triangulate(outer));
+        List<Vec2d> vertices = bridged.vertices();
+        // 偏移走廊已消除重合顶点，走标准简单多边形三角化
+        PolygonTriangulator.TriangulationResult result = PolygonTriangulator.triangulate(vertices);
+        return result.success() ? new TriangulationPlan(vertices, result) : null;
     }
 
     record TriangulationPlan(List<Vec2d> vertices, PolygonTriangulator.TriangulationResult result) {
-    }
-
-    private record WorldTriangle(Vec2d a, Vec2d b, Vec2d c) {
     }
 
     private record CachedMesh(long geometryVersion, List<WorldTriangle> worldTriangles) {
