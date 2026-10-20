@@ -36,6 +36,8 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_CONTROL_INVALID = PluginUiColors.ERROR;
     private static final int COLOR_ENDPOINT = 0xFFFFE066;
     private static final int COLOR_JUNCTION_FIXED = 0xFF9AA0A6;
+    private static final int COLOR_CURVE_HANDLE = 0xFF88DDFF;
+    private static final int COLOR_CURVE_HANDLE_SELECTED = 0xFFFFFFFF;
     private static final float DRAG_THRESHOLD_PX = 5f;
     private static final float DASH_LENGTH = 6f;
     private static final float DASH_GAP = 4f;
@@ -233,7 +235,8 @@ public final class RoadProfileChartRenderer {
         }
         drawRoadControlPoints(drawList, controls, selectedPviIndex, maxGradePercent, layout, range);
         drawRoadCurveHandles(
-            drawList, controls, curveHandles, activeCurveHandlePvi, activeCurveHandle, layout, range);
+            drawList, controls, curveHandles,
+            activeCurveHandlePvi, activeCurveHandle, layout, range);
         ProfileChartIntersectionSupport.drawIntersectionMarkers(
             drawList, intersections, selectedIntersectionIndex, layout,
             range.totalStation(), range.minElevation(), range.maxElevation(), mode);
@@ -313,7 +316,9 @@ public final class RoadProfileChartRenderer {
             if (hoveredPvi != null && active < 0 && activeCurvePvi < 0 && activeIntersectionDrag < 0) {
                 ProfileChartInteractionTooltips.renderPviHover(hoveredPvi, maxGradePercent);
             }
-            updateHoverCursor(controls, layout, range, mouseX, mouseY, active, activeIntersectionDrag);
+            updateHoverCursor(
+                controls, curveHandles, layout, range, mouseX, mouseY,
+                active, activeIntersectionDrag, activeCurvePvi);
         }
 
         if (activeCurvePvi >= 0 && ImGui.isMouseDown(0)) {
@@ -1041,14 +1046,44 @@ public final class RoadProfileChartRenderer {
             ProfileChartInteraction.CurveHandleSide activeSide,
             ProfileChartLayout layout,
             RoadProfilePlotRange range) {
-        if (handles == null) {
+        if (handles == null || handles.isEmpty()) {
             return;
         }
+        int sourcePvi = handles.getFirst().pviIndex();
+        ProfileControlPoint pvi = findControlPoint(controls, sourcePvi);
+        if (pvi == null) {
+            return;
+        }
+        float pviX = layout.plotX(pvi.roadStation(), range.totalStation());
+        float pviY = layout.plotY(pvi.elevation(), range.minElevation(), range.maxElevation());
+        ProfileChartInteraction.CurveHandle leftHandle = null;
+        ProfileChartInteraction.CurveHandle rightHandle = null;
         for (ProfileChartInteraction.CurveHandle handle : handles) {
             float x = layout.plotX(handle.localDistance(), range.totalStation());
             float y = layout.plotY(handle.elevation(), range.minElevation(), range.maxElevation());
-            int color = handle.pviIndex() == activePvi ? 0xFFFFFFFF : 0xFF88DDFF;
+            boolean active = handle.pviIndex() == activePvi
+                && ((handle.leftSide() && activeSide == ProfileChartInteraction.CurveHandleSide.LEFT)
+                    || (!handle.leftSide() && activeSide == ProfileChartInteraction.CurveHandleSide.RIGHT));
+            int color = active ? COLOR_CURVE_HANDLE_SELECTED : COLOR_CURVE_HANDLE;
+            drawList.addLine(pviX, pviY, x, y, color, 1.2f);
             drawList.addRectFilled(x - 3f, y - 3f, x + 3f, y + 3f, color);
+            if (handle.leftSide()) {
+                leftHandle = handle;
+            } else {
+                rightHandle = handle;
+            }
+        }
+        if (leftHandle != null && rightHandle != null) {
+            float leftX = layout.plotX(leftHandle.localDistance(), range.totalStation());
+            float rightX = layout.plotX(rightHandle.localDistance(), range.totalStation());
+            float midY = layout.plotY(
+                (leftHandle.elevation() + rightHandle.elevation()) * 0.5,
+                range.minElevation(),
+                range.maxElevation());
+            drawList.addLine(leftX, midY, rightX, midY, COLOR_CURVE_HANDLE, 1.0f);
+        }
+        if (activePvi < 0) {
+            drawList.addCircle(pviX, pviY, 7f, COLOR_CURVE_HANDLE, 16, 1.4f);
         }
     }
 
@@ -1071,13 +1106,22 @@ public final class RoadProfileChartRenderer {
 
     private static void updateHoverCursor(
             List<ProfileControlPoint> controls,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
             ProfileChartLayout layout,
             RoadProfilePlotRange range,
             float mouseX,
             float mouseY,
             int activePvi,
-            int activeIntersectionDrag) {
-        if (activePvi >= 0 || activeIntersectionDrag >= 0) {
+            int activeIntersectionDrag,
+            int activeCurveHandlePvi) {
+        if (activePvi >= 0 || activeIntersectionDrag >= 0 || activeCurveHandlePvi >= 0) {
+            return;
+        }
+        ProfileChartHitTester.CurveHandleHit curveHit = ProfileChartHitTester.hitCurveHandle(
+            curveHandles, layout, range, mouseX, mouseY,
+            ProfileChartHitTester.DEFAULT_CURVE_HANDLE_HIT_RADIUS_PX);
+        if (curveHit != null) {
+            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
             return;
         }
         ProfileControlPoint hovered = findHoveredControl(controls, layout, range, mouseX, mouseY);

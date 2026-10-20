@@ -826,9 +826,13 @@ final class VerticalProfileEditor {
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
         int chartSelectedPvi = flatMode ? -1 : editorState.selectedProfilePvi;
         int chartActivePvi = flatMode ? -1 : editorState.activeProfilePvi;
+        int curveHandlePvi = flatMode
+            ? -1
+            : resolveCurveHandlePviIndex(
+                road, effectiveAlignment, chartSelectedPvi, selectedIntersectionIndex, intersections);
         List<ProfileChartInteraction.CurveHandle> curveHandles = flatMode
             ? List.of()
-            : buildRoadCurveHandles(editingNetwork, road, effectiveAlignment, points, chartSelectedPvi);
+            : buildRoadCurveHandles(editingNetwork, road, effectiveAlignment, points, curveHandlePvi);
         if (!flatMode) {
             renderProfileInteractionHint();
         }
@@ -1490,6 +1494,43 @@ final class VerticalProfileEditor {
             deleteProfilePvi(ctx, network, road, pviIndex);
         }
         ImGui.endPopup();
+    }
+
+    private static int resolveCurveHandlePviIndex(
+            Road road,
+            RoadVerticalAlignment alignment,
+            int selectedPvi,
+            int selectedIntersection,
+            List<RoadProfileIntersection> intersections) {
+        if (road == null || alignment == null) {
+            return -1;
+        }
+        if (selectedPvi > 0 && selectedPvi < alignment.pviCount() - 1
+                && VerticalProfileControlPoints.isCurveEditable(road, alignment, selectedPvi)) {
+            return selectedPvi;
+        }
+        if (selectedIntersection >= 0 && intersections != null
+                && selectedIntersection < intersections.size()) {
+            int atStation = findPviIndexAtStation(
+                alignment, intersections.get(selectedIntersection).roadStation());
+            if (atStation > 0 && atStation < alignment.pviCount() - 1
+                    && VerticalProfileControlPoints.isCurveEditable(road, alignment, atStation)) {
+                return atStation;
+            }
+        }
+        return selectedPvi;
+    }
+
+    private static int findPviIndexAtStation(RoadVerticalAlignment alignment, double station) {
+        if (alignment == null) {
+            return -1;
+        }
+        for (int i = 0; i < alignment.pviCount(); i++) {
+            if (Math.abs(alignment.getPvis().get(i).getStation() - station) <= 0.26) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static List<ProfileChartInteraction.CurveHandle> buildRoadCurveHandles(
