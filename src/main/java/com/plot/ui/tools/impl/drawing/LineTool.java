@@ -29,6 +29,8 @@ import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.plot.ui.tools.snap.SnapEnhancer;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.ExceptionDebug;
+import com.plot.camera.CameraManager;
+import com.plot.infrastructure.coordinate.CoordinateTransformer;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -66,6 +68,9 @@ public class LineTool extends DrawingTool {
     private String currentDrawingType = MODE_SINGLE;
     private int lineCount = 2;  // 修复：与选项面板默认值保持一致
     private float lineSpacing = 10.0f;
+    /** 相邻平行线在画布上的垂直间距（视图变化时保持不变，方块数随之更新） */
+    private float canvasAdjacentSpacing = -1f;
+    private float lastViewDistance = -1f;
 
     // 统一捕捉可视化
     private final SnapEnhancer snapEnhancer = new SnapEnhancer("LineTool");
@@ -395,20 +400,17 @@ public class LineTool extends DrawingTool {
     private List<LineShape> createParallelLines(Vec2d start, Vec2d end) {
         List<LineShape> lines = new ArrayList<>();
         
-        // 计算垂直于线段的单位向量（用于偏移）
         Vec2d direction = end.subtract(start);
         if (direction.length() == 0) {
-            // 如果起点和终点相同，创建一条零长度线
             lines.add(new LineShape(start, end));
             return lines;
         }
         
         direction = direction.normalize();
-        Vec2d perpendicular = new Vec2d(-direction.y, direction.x); // 垂直向量
-        
-        // 为每条线创建偏移版本（lineSpacing 为方块距离，需换算到画布垂直偏移）
+        refreshLineSpacingForViewChange(start, end);
+
         for (int i = 0; i < lineCount; i++) {
-            Vec2d offsetVector = perpendicularBlockOffset(start, end, calculateLineOffset(i));
+            Vec2d offsetVector = perpendicularOffsetVector(start, end, calculateLineOffset(i));
             
             Vec2d lineStart = start.add(offsetVector);
             Vec2d lineEnd = end.add(offsetVector);
@@ -427,6 +429,54 @@ public class LineTool extends DrawingTool {
         return lines;
     }
     
+    /**
+     * 视图范围变化时，保持画布上的线间距不变，并更新对应的方块数显示。
+     */
+    private void refreshLineSpacingForViewChange(Vec2d start, Vec2d end) {
+        float viewDistance = CameraManager.getInstance().getViewDistance();
+        if (lastViewDistance >= 0 && Math.abs(viewDistance - lastViewDistance) > 0.01f) {
+            try {
+                CoordinateTransformer.getInstance().clearCache();
+            } catch (Exception e) {
+                ExceptionDebug.log("LineTool: clear coordinate cache on view change", e);
+            }
+            if (canvasAdjacentSpacing > 0) {
+                lineSpacing = measureBlocksForCanvasSpacing(start, end, canvasAdjacentSpacing);
+            }
+        }
+        lastViewDistance = viewDistance;
+        if (canvasAdjacentSpacing <= 0 && lineSpacing > 0) {
+            canvasAdjacentSpacing = (float) perpendicularOffsetVector(start, end, lineSpacing).length();
+        }
+    }
+
+    private float measureBlocksForCanvasSpacing(Vec2d start, Vec2d end, float canvasSpacing) {
+        Vec2d direction = end.subtract(start);
+        if (direction.length() < 1e-9 || canvasSpacing <= 0) {
+            return lineSpacing;
+        }
+        direction = direction.normalize();
+        Vec2d perpendicular = new Vec2d(-direction.y, direction.x);
+        Vec2d sample = start.add(perpendicular.multiply(canvasSpacing));
+        return (float) DrawMeasureHelper.distanceBlocks(start, sample);
+    }
+
+    private Vec2d perpendicularOffsetVector(Vec2d start, Vec2d end, float spacingMultiple) {
+        if (Math.abs(spacingMultiple) < 1e-9f) {
+            return new Vec2d(0, 0);
+        }
+        if (canvasAdjacentSpacing > 0) {
+            Vec2d direction = end.subtract(start);
+            if (direction.length() < 1e-9) {
+                return new Vec2d(0, 0);
+            }
+            direction = direction.normalize();
+            Vec2d perpendicular = new Vec2d(-direction.y, direction.x);
+            return perpendicular.multiply(spacingMultiple / lineSpacing * canvasAdjacentSpacing);
+        }
+        return perpendicularBlockOffset(start, end, spacingMultiple);
+    }
+
     /**
      * 将垂直于参考线的方块偏移量换算为画布偏移向量。
      */
@@ -611,9 +661,10 @@ public class LineTool extends DrawingTool {
      * 设置线条间距
      */
     public boolean setLineSpacing(float spacing) {
-        if (spacing > 0 && spacing <= 1000) { // 添加合理的上限
+        if (spacing > 0 && spacing <= 1000) {
             lineSpacing = spacing;
-            LOGGER.info("LineTool: 线条间距已更新: {}", spacing);
+            canvasAdjacentSpacing = -1f;
+            LOGGER.info("LineTool: 线条间距已更新: {} blocks", spacing);
             return true;
         }
         LOGGER.warn("LineTool: 无效的线条间距: {}", spacing);
@@ -659,9 +710,18 @@ public class LineTool extends DrawingTool {
             }
 
             // 计算调整量并应用（向上滚轮为正）
-            float adjustment = (float) (delta); // 每个滚动单位调整1.0个世界单位间距
+            float adjustment = (float) delta;
             float newSpacing = Math.max(0.1f, Math.min(1000f, lineSpacing + adjustment));
             boolean changed = setLineSpacing(newSpacing);
+            if (changed && interactionStrategy != null) {
+                List<Vec2d> pts = interactionStrategy.getControlPoints();
+                Vec2d mouse = interactionStrategy.getCurrentMousePoint();
+                if (pts != null && !pts.isEmpty() && mouse != null) {
+                    Vec2d start = pts.getFirst();
+                    Vec2d end = pts.size() >= 2 ? pts.get(1) : mouse;
+                    canvasAdjacentSpacing = (float) perpendicularBlockOffset(start, end, newSpacing).length();
+                }
+            }
             if (changed) {
                 setStatusMessage("status.plot.line.multi_click");
                 // 立即更新预览以反映变化
@@ -831,6 +891,20 @@ public class LineTool extends DrawingTool {
     }
 
     public float getLineSpacing() {
+        if (MODE_MULTI.equals(currentDrawingType) && isInState() && interactionStrategy != null) {
+            List<Vec2d> pts = interactionStrategy.getControlPoints();
+            Vec2d mouse = interactionStrategy.getCurrentMousePoint();
+            if (pts != null && !pts.isEmpty() && mouse != null && lineCount >= 2) {
+                Vec2d start = pts.getFirst();
+                Vec2d end = pts.size() >= 2 ? pts.get(1) : mouse;
+                List<LineShape> lines = createParallelLines(start, end);
+                if (lines.size() >= 2) {
+                    Vec2d a = DrawMeasureHelper.midpoint(lines.get(0).getStart(), lines.get(0).getEnd());
+                    Vec2d b = DrawMeasureHelper.midpoint(lines.get(1).getStart(), lines.get(1).getEnd());
+                    return (float) DrawMeasureHelper.distanceBlocks(a, b);
+                }
+            }
+        }
         return lineSpacing;
     }
 

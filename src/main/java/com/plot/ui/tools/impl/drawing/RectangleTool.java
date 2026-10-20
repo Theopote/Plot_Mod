@@ -513,17 +513,16 @@ public class RectangleTool extends DrawingTool {
             } else if (controlPoints.size() >= 2) {
                 Vec2d p1 = controlPoints.get(0);
                 Vec2d p2 = controlPoints.get(1);
-                context.drawLine(p1, currentMousePoint, guideColor);
-                context.drawLine(p2, currentMousePoint, guideColor);
-                context.drawLine(p1, p2, guideColor);
-                DrawMeasureHelper.drawSegmentLabel(context, p1, p2);
-                DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint);
-                Vec2d center = new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
-                context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
-                DrawMeasureHelper.drawTextLabel(context,
-                    DrawMeasureHelper.formatRadius(
-                        DrawMeasureHelper.radiusBlocks(center, center.distance(currentMousePoint))),
-                    currentMousePoint);
+                double radiusBlocks = DrawMeasureHelper.radiusBlocks(
+                    new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2),
+                    calculateCornerRadiusFromThirdPoint(p1, p2, currentMousePoint));
+                if (segmentInput.hasInput()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, currentMousePoint, segmentInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawTextLabel(context,
+                        DrawMeasureHelper.formatRadius(radiusBlocks), currentMousePoint);
+                }
             }
         }
 

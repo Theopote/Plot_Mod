@@ -287,7 +287,14 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
                 if (controlPoints.size() >= 2) {
                     drawSegmentOrInput(context, controlPoints.get(0), controlPoints.get(1), false);
                 } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                    drawSegmentOrInput(context, controlPoints.getFirst(), currentMousePoint, true);
+                    Vec2d center = controlPoints.getFirst().add(currentMousePoint).multiply(0.5);
+                    if (hasActiveNumericInput()) {
+                        DrawMeasureHelper.drawNumericInputOverlay(
+                            context, DrawMeasureHelper.midpoint(center, currentMousePoint),
+                            getActiveNumericInputText(), "");
+                    } else {
+                        DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+                    }
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
                     Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
@@ -815,7 +822,8 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
                     yield com.plot.ui.tools.helper.NumericInputSupport.pointAtPerpendicularBlockDistance(
                         center, controlPoints.get(1), toward, blocks);
                 }
-                yield segmentInput.pointAtDistance(controlPoints.getFirst(), toward, blocks);
+                // 第一个数值为长半轴（非整轴长度），轴端点距 = 2 × 长半轴
+                yield segmentInput.pointAtDistance(controlPoints.getFirst(), toward, blocks * 2.0);
             }
             case THREE_POINTS_CENTER -> {
                 if (controlPoints.size() >= 2) {
@@ -843,12 +851,21 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             refreshEllipsePreviewForMode();
         }
         if (blocks == null && segmentInput.hasInput()) {
-            setStatusMessage(com.plot.utils.PlotI18n.status(
-                "status.plot.draw.typing_distance", segmentInput.getText()));
+            String key = isThreePointsAxisMajorStep()
+                ? "status.plot.draw.typing_radius"
+                : "status.plot.draw.typing_distance";
+            setStatusMessage(com.plot.utils.PlotI18n.status(key, segmentInput.getText()));
         } else if (blocks != null) {
-            setStatusMessage(com.plot.utils.PlotI18n.status("status.plot.draw.typing_distance_ready",
+            String key = isThreePointsAxisMajorStep()
+                ? "status.plot.draw.typing_radius_ready"
+                : "status.plot.draw.typing_distance_ready";
+            setStatusMessage(com.plot.utils.PlotI18n.status(key,
                 DrawMeasureHelper.formatBlocks(blocks)));
         }
+    }
+
+    private boolean isThreePointsAxisMajorStep() {
+        return currentMode == EllipseMode.THREE_POINTS_AXIS && controlPoints.size() == 1;
     }
 
     private void applyPairInputForCorner() {
