@@ -7,6 +7,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.EarthworkConfig;
+import com.plot.core.model.Shape;
 import com.plot.plugin.earthwork.EarthworkCutFillHeatmapRenderer;
 import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -14,6 +15,9 @@ import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.EarthworkRegionGeometryCanvasRenderer;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayController;
+import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayEntry;
+import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayRenderer;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.manager.EarthworkBuildManager;
 import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
@@ -187,22 +191,50 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
             return;
         }
         synchronized (projectLock) {
-            if (uiContext.project().getRegionCount() <= 0) {
+            boolean pickActive = uiContext.pickSession().isActive();
+            boolean showRegions = uiContext.showRegionOverlayRef().get() || pickActive;
+            java.util.List<Shape> canvasShapes = resolveOverlayCanvasShapes();
+            java.util.List<EarthworkRegionOverlayEntry> regionEntries =
+                EarthworkRegionOverlayController.snapshot(
+                    uiContext.project(),
+                    uiContext.selectedRegionId(),
+                    canvasShapes,
+                    pickActive,
+                    showRegions);
+            if (!regionEntries.isEmpty()) {
+                EarthworkRegionOverlayRenderer.render(drawList, camera, regionEntries);
+            }
+
+            if (uiContext.project().getRegionCount() <= 0 && !pickActive) {
                 return;
             }
             EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
             if (preview != null
                 && preview.designTerrainGrid != null
                 && config.getWorkMode() != com.plot.plugin.earthwork.model.EarthworkWorkMode.QUICK) {
-                EarthworkCutFillHeatmapRenderer.render(drawList, camera, preview.designTerrainGrid);
+                EarthworkCutFillHeatmapRenderer.render(
+                    drawList, camera, preview.designTerrainGrid, uiContext.project());
             }
-            if (config.isShowEdgeTreatmentOverlay()) {
+            if (config.isShowEdgeTreatmentOverlay() && uiContext.project().getRegionCount() > 0) {
                 EarthworkEdgeTreatmentCanvasRenderer.render(
                     drawList, camera, uiContext.project(), uiContext.selectedRegionId());
             }
-            EarthworkRegionGeometryCanvasRenderer.render(
-                drawList, camera, uiContext.project(), uiContext.selectedRegionId());
+            if (uiContext.project().getRegionCount() > 0) {
+                EarthworkRegionGeometryCanvasRenderer.render(
+                    drawList, camera, uiContext.project(), uiContext.selectedRegionId());
+            }
         }
+    }
+
+    private java.util.List<Shape> resolveOverlayCanvasShapes() {
+        if (!uiContext.pickSession().isActive()) {
+            return java.util.List.of();
+        }
+        java.util.List<Shape> accumulated = uiContext.pickSession().getAccumulatedRegions();
+        if (!accumulated.isEmpty()) {
+            return accumulated;
+        }
+        return uiContext.host().appState().getSelectedShapes();
     }
 
     private void onProjectLoaded(String filePath) {

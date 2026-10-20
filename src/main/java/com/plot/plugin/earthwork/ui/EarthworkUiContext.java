@@ -51,6 +51,7 @@ public final class EarthworkUiContext {
     private final ImBoolean autoBalanceRef = new ImBoolean(true);
     private final ImBoolean showGridRef = new ImBoolean(true);
     private final ImBoolean showEdgeTreatmentOverlayRef = new ImBoolean(true);
+    private final ImBoolean showRegionOverlayRef = new ImBoolean(true);
     private final ImString regionNameBuffer = createRegionNameBuffer();
     private final imgui.type.ImInt workModeIndex = new imgui.type.ImInt(0);
     private final imgui.type.ImInt regionIndex = new imgui.type.ImInt(0);
@@ -207,6 +208,10 @@ public final class EarthworkUiContext {
 
     public ImBoolean showEdgeTreatmentOverlayRef() {
         return showEdgeTreatmentOverlayRef;
+    }
+
+    public ImBoolean showRegionOverlayRef() {
+        return showRegionOverlayRef;
     }
 
     public ImString regionNameBuffer() {

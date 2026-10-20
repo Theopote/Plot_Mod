@@ -71,6 +71,10 @@ public final class EarthworkRegionPickSession {
         return accumulatedRegions.size();
     }
 
+    public List<Shape> getAccumulatedRegions() {
+        return List.copyOf(accumulatedRegions.values());
+    }
+
     public void begin() {
         active = true;
         accumulatedRegions.clear();

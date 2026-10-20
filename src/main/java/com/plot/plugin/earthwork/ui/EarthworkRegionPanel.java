@@ -44,40 +44,40 @@ public final class EarthworkRegionPanel {
     }
 
     public void render() {
-        renderAdoptSection();
+        renderCanvasSection();
         ImGui.separator();
-        renderOverviewSection();
+        renderAdoptedSection();
     }
 
     /** Quick 模式无区域时仅显示认领区。 */
     public void renderAdoptSection() {
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.adopt_hint"));
-        ImGui.spacing();
+        renderPickControls(true);
+    }
 
+    private void renderCanvasSection() {
         if (ctx.pickSession().isActive()) {
-            int count = ctx.pickSession().getAccumulatedCount();
-            if (count > 0) {
-                ImGui.text(String.format(
-                    PlotI18n.tr("plugin.earthwork.regions_selected"),
-                    count));
-            }
-        } else {
-            updateSelectedRegionsIfNeeded();
+            renderPickSessionState();
+            renderCanvasPreview();
+            return;
         }
 
-        if (!ctx.selectedRegions().isEmpty()) {
-            ImGui.text(String.format(
-                PlotI18n.tr("plugin.earthwork.regions_selected"),
-                ctx.selectedRegions().size()));
-        } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.draw_region_hint"));
-        }
+        renderPickControls(false);
+    }
 
-        ImGui.spacing();
+    private void renderPickControls(boolean quickMode) {
+        if (!quickMode) {
+            ImGui.checkbox(
+                PlotI18n.tr("plugin.earthwork.overlay.show_regions"),
+                ctx.showRegionOverlayRef());
+            ImGui.sameLine();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.pick_region"), 0, 0)) {
             startPickSession();
         }
         ImGui.sameLine();
+        if (!ctx.pickSession().isActive()) {
+            updateSelectedRegionsIfNeeded();
+        }
         boolean adoptDisabled = ctx.selectedRegions().isEmpty();
         if (adoptDisabled) {
             ImGui.beginDisabled();
@@ -88,9 +88,99 @@ public final class EarthworkRegionPanel {
         if (adoptDisabled) {
             ImGui.endDisabled();
         }
+
+        if (quickMode) {
+            ImGui.spacing();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.adopt_hint"));
+        } else {
+            ImGui.spacing();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.draw_region_hint"));
+        }
+
+        if (!ctx.selectedRegions().isEmpty()) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.regions_selected", ctx.selectedRegions().size()));
+        }
     }
 
-    private void renderOverviewSection() {
+    private void renderPickSessionState() {
+        int count = ctx.pickSession().getAccumulatedCount();
+        if (count > 0) {
+            ImGui.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.earthwork.regions_selected", count));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.earthwork.pick_started"));
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("status.plot.earthwork.pick_region_active"));
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.cancel_pick") + "##earthwork_cancel_pick", 0, 0)) {
+            ctx.pickSession().cancel();
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.pick_cancelled"));
+        }
+    }
+
+    private void renderCanvasPreview() {
+        List<Shape> previewShapes = resolvePickPreviewShapes();
+        if (previewShapes.isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.pick_preview_waiting"));
+            return;
+        }
+
+        List<EarthworkOverviewRenderer.RegionMapItem> mapItems = new ArrayList<>();
+        for (int i = 0; i < previewShapes.size(); i++) {
+            List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(previewShapes.get(i));
+            if (points.size() < 3) {
+                continue;
+            }
+            mapItems.add(new EarthworkOverviewRenderer.RegionMapItem(
+                points,
+                true,
+                EarthworkOverviewRenderer.regionColor(i),
+                i));
+        }
+        ImGui.text(PlotI18n.tr("plugin.earthwork.pick_preview_title", previewShapes.size()));
+        EarthworkOverviewRenderer.renderRegionPreviewMap(
+            "earthwork_canvas_pick_map",
+            mapItems,
+            PlotI18n.tr("plugin.earthwork.pick_preview_waiting"),
+            hitIndex -> focusCanvasShape(previewShapes.get(hitIndex)));
+
+        ImGui.beginChild("earthwork_canvas_pick_thumbs", 0, 132, true);
+        for (int i = 0; i < previewShapes.size(); i++) {
+            Shape shape = previewShapes.get(i);
+            ImGui.pushID(shape.getId());
+            List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(shape);
+            EarthworkOverviewRenderer.renderRegionThumbnail(points, true, i);
+            ImGui.sameLine();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.pick_preview_item", i + 1));
+            ImGui.popID();
+        }
+        ImGui.endChild();
+    }
+
+    private List<Shape> resolvePickPreviewShapes() {
+        List<Shape> accumulated = ctx.pickSession().getAccumulatedRegions();
+        if (!accumulated.isEmpty()) {
+            return accumulated;
+        }
+        return EarthworkGeometryUtils.findAdoptableRegions(ctx.host().appState().getSelectedShapes());
+    }
+
+    private void focusCanvasShape(Shape shape) {
+        if (shape == null) {
+            return;
+        }
+        List<Shape> selected = new ArrayList<>(ctx.host().appState().getSelectedShapes());
+        if (!selected.contains(shape)) {
+            selected.add(shape);
+            ctx.host().appState().setSelectedShapes(selected);
+        }
+    }
+
+    private void renderAdoptedSection() {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_stats",
             ctx.project().getRegionCount(),
             String.format("%.1f", ctx.project().getTotalArea())));
@@ -100,7 +190,7 @@ public final class EarthworkRegionPanel {
             renderProjectGlobalBalance(ctx.project());
             renderSiteMaterialModel(site);
         }
-        if (!site.getExclusionZones().isEmpty()) {
+        if (site != null && !site.getExclusionZones().isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.earthwork.exclusions_count",
                 site.getExclusionZones().size()));
@@ -122,41 +212,66 @@ public final class EarthworkRegionPanel {
             ImGui.endCombo();
         }
 
-        ImGui.beginChild("earthwork_overview_list", 0, 220, true);
-        for (GradingRegion region : EarthworkRegionListHelper.sorted(ctx.project(), ctx.regionSortMode())) {
-            ImGui.pushID(region.getId());
-            boolean selected = region.getId().equals(ctx.selectedRegionId());
-            if (ImGui.selectable(region.getName() + "##row", selected)) {
-                ctx.setSelectedRegionId(region.getId());
-            }
+        EarthworkOverviewRenderer.renderProjectMap(
+            ctx.project(),
+            ctx.selectedRegionId().isEmpty() ? List.of() : List.of(ctx.selectedRegionId()),
+            id -> ctx.setSelectedRegionId(id));
 
-            ImGui.sameLine();
-            String stats = region.getLastVolumeReport().hasGeometricVolume()
-                ? PlotI18n.tr("plugin.earthwork.overview_stats",
-                    region.getLastVolumeReport().geometricCutVolume(),
-                    region.getLastVolumeReport().geometricFillVolume(),
-                    region.getLastResolvedElevation())
-                : PlotI18n.tr("plugin.earthwork.overview_no_stats");
-            String areaText = String.format("%.1f", region.computeArea());
-            if (!region.getHoles().isEmpty()) {
-                areaText += PlotI18n.tr("plugin.earthwork.overview_holes_suffix", region.getHoles().size());
-            }
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.earthwork.overview_item",
-                areaText,
-                stats));
-
-            if (ImGui.button(PlotI18n.tr("plugin.earthwork.locate"), 60, 0)) {
-                EarthworkUiWidgets.locateRegion(ctx, region);
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.earthwork.delete"), 60, 0)) {
-                ctx.setPendingDeleteRegionId(region.getId());
-                ctx.setDeleteConfirmPending(true);
-            }
-            ImGui.popID();
+        ImGui.spacing();
+        List<GradingRegion> regions = EarthworkRegionListHelper.sorted(ctx.project(), ctx.regionSortMode());
+        for (int i = 0; i < regions.size(); i++) {
+            renderAdoptedRegionRow(regions.get(i), i);
         }
-        ImGui.endChild();
+    }
+
+    private void renderAdoptedRegionRow(GradingRegion region, int colorIndex) {
+        ImGui.pushID(region.getId());
+        boolean selected = region.getId().equals(ctx.selectedRegionId());
+
+        if (EarthworkOverviewRenderer.renderRegionThumbnail(
+                region.getOuterPoints(),
+                selected,
+                colorIndex)) {
+            ctx.setSelectedRegionId(region.getId());
+        }
+        ImGui.sameLine();
+        float columnWidth = Math.max(1f, ImGui.getContentRegionAvailX() - 8f);
+
+        ImGui.beginGroup();
+        if (ImGui.selectable(
+                region.getName() + "##row",
+                selected,
+                0,
+                columnWidth,
+                ImGui.getTextLineHeight())) {
+            ctx.setSelectedRegionId(region.getId());
+        }
+
+        String stats = region.getLastVolumeReport().hasGeometricVolume()
+            ? PlotI18n.tr("plugin.earthwork.overview_stats",
+                region.getLastVolumeReport().geometricCutVolume(),
+                region.getLastVolumeReport().geometricFillVolume(),
+                region.getLastResolvedElevation())
+            : PlotI18n.tr("plugin.earthwork.overview_no_stats");
+        String areaText = String.format("%.1f", region.computeArea());
+        if (!region.getHoles().isEmpty()) {
+            areaText += PlotI18n.tr("plugin.earthwork.overview_holes_suffix", region.getHoles().size());
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.earthwork.overview_item",
+            areaText,
+            stats));
+
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.locate"), 60, 0)) {
+            EarthworkUiWidgets.locateRegion(ctx, region);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.delete"), 60, 0)) {
+            ctx.setPendingDeleteRegionId(region.getId());
+            ctx.setDeleteConfirmPending(true);
+        }
+        ImGui.endGroup();
+        ImGui.popID();
     }
 
     private void updateSelectedRegionsIfNeeded() {
