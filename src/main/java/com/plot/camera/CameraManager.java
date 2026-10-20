@@ -16,6 +16,9 @@ import com.plot.infrastructure.event.view.CameraSettingsEvent;
 public class CameraManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/CameraManager");
 
+    /** 主世界默认云层底部高度（与 DimensionType.cloudHeight 缺省一致）。 */
+    static final int DEFAULT_CLOUD_HEIGHT = 192;
+
     private boolean isOrthographic = false;
     private float viewDistance = 50.0f; // 默认视图范围
     private CameraState savedState;
@@ -121,7 +124,8 @@ public class CameraManager {
             client.options.hudHidden = false;
         }
         
-        // 玩家位置保持拖动后的位置；此处不再重设位置
+        // X/Z 保持拖动后的位置；仅当仍在云层之上时把 Y 降到云层正下方（不强制落到地面）
+        double restoredY = lowerBelowCloudsIfNeeded(player, currentPosition);
 
         // 重置旋转角度和平移值（因为已经反映在玩家位置上了）
         rotationAngle = 0.0f;
@@ -129,8 +133,51 @@ public class CameraManager {
         panY = 0.0f;
         panBasePlayerPos = null;
 
-        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={} (保持拖动后的位置)",
-                player.getPitch(), player.getYaw(), currentPosition);
+        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos=({}, {}, {})",
+                player.getPitch(), player.getYaw(),
+                currentPosition.x, restoredY, currentPosition.z);
+    }
+
+    /**
+     * 关闭 Plot 后：仅当玩家高于云层时，保持 X/Z，将 Y 降到云层正下方。
+     * 已在云层以下时不改动 Y（包括空中悬浮）。
+     */
+    private double lowerBelowCloudsIfNeeded(PlayerEntity player, Vec3d currentPosition) {
+        World world = player.getEntityWorld();
+        int cloudHeight = resolveCloudHeight(world);
+
+        double targetY = resolveExitYBelowClouds(currentPosition.y, cloudHeight);
+        if (Math.abs(targetY - currentPosition.y) > 1.0e-3) {
+            player.setPos(currentPosition.x, targetY, currentPosition.z);
+            LOGGER.info("关闭 Plot：玩家高于云层 (Y={} >= {})，已降至云层下方 Y={}（保持 XZ）",
+                    String.format("%.1f", currentPosition.y), cloudHeight, String.format("%.1f", targetY));
+        }
+        return targetY;
+    }
+
+    /**
+     * @param currentY    当前玩家 Y
+     * @param cloudHeight 云层底部高度
+     * @return 已在云下则原样返回；高于云层则返回 {@code cloudHeight - 1}
+     */
+    static double resolveExitYBelowClouds(double currentY, int cloudHeight) {
+        if (!Double.isFinite(currentY) || currentY < cloudHeight) {
+            return currentY;
+        }
+        return cloudHeight - 1.0;
+    }
+
+    static int resolveCloudHeight(World world) {
+        if (world == null) {
+            return DEFAULT_CLOUD_HEIGHT;
+        }
+        try {
+            return world.getDimension()
+                    .cloudHeight()
+                    .orElse(DEFAULT_CLOUD_HEIGHT);
+        } catch (Exception e) {
+            return DEFAULT_CLOUD_HEIGHT;
+        }
     }
 
     public void toggleCamera() {
