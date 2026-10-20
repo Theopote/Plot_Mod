@@ -1588,6 +1588,8 @@
   "plugin.road.profile_intersection_detail": "Details ▸",
   "plugin.road.profile_select_pvi_hint": "Select a control point on the chart to edit its elevation.",
   "plugin.road.profile_control_elevation_tooltip": "Elevation: Y=%s",
+  "plugin.road.profile_pvi_elevation_input": "Anchor elevation",
+  "plugin.road.profile_pvi_elevation_range": "Elevation range: %.0f to %.0f",
   "plugin.road.profile_pvi_delete": "Delete PVI",
   "plugin.road.profile_pvi_delete_disabled": "Cannot delete endpoints or when only two PVIs remain",
   "plugin.road.profile_legend_curve_handle": "Curve handle",

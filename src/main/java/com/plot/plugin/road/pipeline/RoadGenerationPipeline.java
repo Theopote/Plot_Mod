@@ -114,7 +114,7 @@ public final class RoadGenerationPipeline {
                 public int worldZ(com.plot.api.geometry.Vec2d planPoint) {
                     return host.canvasToBlockPos(planPoint).getZ();
                 }
-            });
+            }, ctx.unitsPerBlock());
         detection = WaterCrossingConstructionResolver.apply(
             detection,
             request.profileWaterCrossings(),

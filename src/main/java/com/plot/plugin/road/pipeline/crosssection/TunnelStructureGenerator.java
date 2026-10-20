@@ -38,6 +38,7 @@ import java.util.List;
 public final class TunnelStructureGenerator {
     private static final double EPSILON = 1e-6;
     private static final int PORTAL_FRAME_DEPTH_BLOCKS = 2;
+    private static final double[] CELL_INSETS = {0.0, -0.25, 0.25};
 
     private TunnelStructureGenerator() {
     }
@@ -65,7 +66,7 @@ public final class TunnelStructureGenerator {
             ConstructionDetection detection,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
         if (tunnelStyle == null
-                || constructionTypes.stream().noneMatch(RoadConstructionType::isTunnelFamily)) {
+                || constructionTypes.stream().noneMatch(type -> type.isTunnelFamily() || type.isRockShelter())) {
             return;
         }
         List<TunnelPortalPlanner.PortalStation> portals = planPortalStations(
@@ -81,7 +82,9 @@ public final class TunnelStructureGenerator {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
-            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            // Half-block station spacing covers diagonal/curved voxel footprints.
+            boolean diagonal = Math.abs(leftNormal.x) > EPSILON && Math.abs(leftNormal.y) > EPSILON;
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale * (diagonal ? 2 : 1)));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
@@ -105,9 +108,15 @@ public final class TunnelStructureGenerator {
                     type,
                     profileWaterCrossings,
                     worldStation);
-                if (!sampleType.isTunnelFamily()) {
+                if (sampleType.isRockShelter()) {
+                    // Classifier sides refer to the geometric segment's forward normal.
+                    Vec2d rockNormal = PathSegmentGeometry.chainLeftNormal(segment, true);
+                    total = total.add(placeRockShelter(solids, tunnelStyle, center, rockNormal,
+                        envelopeWidth, targetY, host.resolveBlockId(tunnelStyle.liningMaterial()),
+                        terrain, columnResolver, unitsPerBlock, sampleType == RoadConstructionType.ROCK_SHELTER_LEFT));
                     continue;
                 }
+                if (!sampleType.isTunnelFamily()) continue;
                 boolean portalFrame = TunnelPortalPlanner.findPortalNear(portals, worldStation) != null;
                 double structureStation = structureStationAt(
                     tunnelRunContaining(detection != null ? detection.runs() : null, worldStation),
@@ -162,6 +171,47 @@ public final class TunnelStructureGenerator {
         }
     }
 
+    /** Open valley side, rock-side wall and a roof only where rock actually covers it. */
+    static RoadRoadbedGradingUtils.GradingVolumes placeRockShelter(
+            RoadSolidModel solids, ResolvedTunnelStyle style, Vec2d center, Vec2d leftNormal,
+            int width, int roadY, String material, TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns, double unitsPerBlock, boolean rockOnLeft) {
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        Vec2d normal = leftNormal.normalize();
+        int min = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(width) - style.sideClearance();
+        int max = com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(width) + style.sideClearance();
+        int wall = rockOnLeft ? max + 1 : min - 1;
+        int roof = roadY + style.clearHeight() + 1;
+        int cut = 0;
+        for (int lateral = min - style.liningThickness(); lateral <= max + style.liningThickness(); lateral++) {
+            boolean wallColumn = rockOnLeft ? lateral >= wall : lateral <= wall;
+            for (double inset : CELL_INSETS) {
+                Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
+                int x = columns.worldX(point), z = columns.worldZ(point);
+                if (!terrain.isChunkLoaded(x, z)) continue;
+                if (wallColumn) {
+                    for (int y = roadY; y < roof + style.liningThickness(); y++) {
+                        solids.add(point, y, RoadSolidLayer.TUNNEL, material, RoadSolidMaterialPriority.STRUCTURAL);
+                    }
+                    continue;
+                }
+                // A thin structural slab supports the exposed part without filling the valley.
+                solids.add(point, roadY - 1, RoadSolidLayer.TUNNEL, material, RoadSolidMaterialPriority.STRUCTURAL);
+                for (int y = roadY + 1; y < roof; y++) {
+                    if (hasTerrainObstruction(terrain, x, y, z)) cut++;
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                }
+                boolean mountainHalf = rockOnLeft ? lateral >= 0 : lateral <= 0;
+                if (mountainHalf && terrain.sampleSurfaceY(point) >= roof) {
+                    for (int y = roof; y < roof + style.liningThickness(); y++) {
+                        solids.add(point, y, RoadSolidLayer.TUNNEL, material, RoadSolidMaterialPriority.STRUCTURAL);
+                    }
+                }
+            }
+        }
+        return new RoadRoadbedGradingUtils.GradingVolumes(cut, 0);
+    }
+
     static RoadRoadbedGradingUtils.GradingVolumes placeCrossSection(
             RoadSolidModel solids,
             ResolvedTunnelStyle tunnelStyle,
@@ -198,11 +248,18 @@ public final class TunnelStructureGenerator {
                     && kind != TunnelCrossSectionMask.CellKind.LINING) {
                 return;
             }
-            Vec2d point = center.add(normal.multiply(lateral * scale));
+            // Cover the width of each mask cell, not just its center. At 45 degrees
+            // integer lateral samples alone leave a checkerboard of native terrain.
+            int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
+            for (double inset : CELL_INSETS) {
+            Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
             int worldX = columnResolver.worldX(point);
             int worldZ = columnResolver.worldZ(point);
+            if (worldX == lastX && worldZ == lastZ) continue;
+            lastX = worldX;
+            lastZ = worldZ;
             if (!terrain.isChunkLoaded(worldX, worldZ)) {
-                return;
+                continue;
             }
             if (kind == TunnelCrossSectionMask.CellKind.AIR) {
                 // 洞室：清障为空气。不得对 LINING 格先写 air，否则 shouldPlaceLining 拒绝时会留下顶板破洞，
@@ -217,6 +274,7 @@ public final class TunnelStructureGenerator {
                     cutHolder[0]++;
                 }
                 solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
+            }
             }
         });
         int lining = portalFrame

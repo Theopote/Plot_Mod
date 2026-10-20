@@ -94,7 +94,7 @@ public final class RoadNetworkPreviewJob {
     }
 
     private void tickEdges() {
-        networkGenerator.tickPreviewSessionEdges(session, RoadNetworkGenerator.PREVIEW_EDGES_PER_TICK);
+        networkGenerator.tickPreviewSessionEdges(session, RoadNetworkGenerator.PREVIEW_EDGES_PER_TICK, 8_000_000L);
         manager.updatePreviewJobProgress(this);
         if (!session.hasMoreEdges()) {
             phase = Phase.JUNCTIONS;
@@ -102,7 +102,7 @@ public final class RoadNetworkPreviewJob {
     }
 
     private void tickJunctions() {
-        networkGenerator.tickPreviewSessionJunctions(session, RoadNetworkGenerator.PREVIEW_JUNCTIONS_PER_TICK);
+        networkGenerator.tickPreviewSessionJunctions(session, RoadNetworkGenerator.PREVIEW_JUNCTIONS_PER_TICK, 8_000_000L);
         manager.updatePreviewJobProgress(this);
         if (!session.hasMoreJunctions()) {
             phase = Phase.AGGREGATING;

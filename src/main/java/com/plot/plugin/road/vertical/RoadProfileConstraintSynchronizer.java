@@ -187,6 +187,48 @@ public final class RoadProfileConstraintSynchronizer {
         }
     }
 
+    /** Materialize tangent crossing anchors for editor handles without changing the curve. */
+    public static Set<String> seedCrossingAnchors(RoadNetwork network, RoadSystemConfig config) {
+        Set<String> changed = new LinkedHashSet<>();
+        for (var link : collectLinks(network, config)) {
+            for (var crossing : List.of(link.a, link.b)) {
+                Road road = network.getRoad(crossing.roadId);
+                if (road == null || road.getVerticalMode() == RoadVerticalMode.FLAT) continue;
+                var alignment = road.getVerticalAlignment();
+                var height = VerticalAlignmentGeometry.elevationAt(alignment, crossing.station);
+                if (height.isEmpty()) continue;
+                var points = new ArrayList<>(alignment.getPvis());
+                int existing = -1;
+                boolean insideCurve = false;
+                for (int i = 0; i < points.size(); i++) {
+                    var pvi = points.get(i);
+                    if (Math.abs(pvi.getStation() - crossing.station) < EPSILON) existing = i;
+                    if (pvi.hasCurve() && Math.abs(pvi.getStation() - crossing.station) < pvi.getCurveLength() / 2 + EPSILON) {
+                        insideCurve = true;
+                    }
+                }
+                if (existing >= 0) {
+                    var pvi = points.get(existing);
+                    if (pvi.getConstraint() != VerticalControlPointConstraint.FREE) continue;
+                    points.set(existing, pvi.withConstraint(VerticalControlPointConstraint.JUNCTION_FIXED));
+                } else {
+                    // Splitting an existing parabola would alter its shape. The explicit
+                    // smooth action remains available for that case.
+                    if (insideCurve || crossing.station <= points.getFirst().getStation()
+                            || crossing.station >= points.getLast().getStation()) continue;
+                    points.add(new PointOfVerticalIntersection(crossing.station, height.getAsDouble(), null,
+                        VerticalControlPointConstraint.JUNCTION_FIXED));
+                    points.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
+                }
+                var mode = road.getVerticalMode();
+                road.setVerticalAlignment(new RoadVerticalAlignment(points));
+                road.setVerticalMode(mode);
+                changed.add(road.getId());
+            }
+        }
+        return changed;
+    }
+
     /** A curve-length edit changes shape, while every existing crossing keeps its road height. */
     public static void preserveCrossingElevations(
             RoadNetwork network, Road road, RoadVerticalAlignment before, RoadSystemConfig config) {

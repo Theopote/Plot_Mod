@@ -17,7 +17,10 @@ public enum RoadConstructionType {
     /** 桥台：桥跨与路基相接的端段 */
     BRIDGE_ABUTMENT,
     /** 洞门：隧道与路基相接的端段 */
-    TUNNEL_PORTAL;
+    TUNNEL_PORTAL,
+    /** 高悬崖靠左/右山侧衬砌；限制开挖高度，不向坡顶放坡。 */
+    ROCK_SHELTER_LEFT,
+    ROCK_SHELTER_RIGHT;
 
     /** 统计/成段用的族类型：桥台归桥、洞门归隧。 */
     public RoadConstructionType family() {
@@ -37,11 +40,15 @@ public enum RoadConstructionType {
     }
 
     public boolean isStructure() {
-        return isBridgeFamily() || isTunnelFamily();
+        return isBridgeFamily() || isTunnelFamily() || isRockShelter();
     }
 
     public boolean isStructureInterior() {
-        return this == BRIDGE || this == TUNNEL;
+        return this == BRIDGE || this == TUNNEL || isRockShelter();
+    }
+
+    public boolean isRockShelter() {
+        return this == ROCK_SHELTER_LEFT || this == ROCK_SHELTER_RIGHT;
     }
 
     public boolean isPortalOrAbutment() {

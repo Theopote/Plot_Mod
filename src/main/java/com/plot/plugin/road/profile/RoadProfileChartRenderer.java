@@ -367,6 +367,15 @@ public final class RoadProfileChartRenderer {
             ProfileControlPoint point = ProfileChartHitTester.hitPvi(
                 controls, layout, range, mouseX, mouseY,
                 ProfileChartHitTester.DEFAULT_PVI_HIT_RADIUS_PX);
+            if (point == null) {
+                var crossing = ProfileChartHitTester.hitIntersection(intersections, layout, range, mouseX, mouseY);
+                if (crossing != null && crossing.index() >= 0 && crossing.index() < intersections.size()
+                        && crossing.target() != ProfileChartInteraction.IntersectionDragTarget.OTHER) {
+                    double station = intersections.get(crossing.index()).roadStation();
+                    point = controls.stream().filter(p -> Math.abs(p.roadStation() - station) < 1e-6)
+                        .findFirst().orElse(null);
+                }
+            }
             if (ProfileChartHitTester.canOpenPviContextMenu(point)) {
                 contextMenuPvi = point.pviIndex();
                 ImGui.openPopup("##road_profile_pvi_context");
@@ -383,20 +392,20 @@ public final class RoadProfileChartRenderer {
             int nearest = ProfileChartHitTester.hitPviIndex(
                 controls, layout, range, mouseX, mouseY,
                 ProfileChartHitTester.DEFAULT_PVI_HIT_RADIUS_PX);
-            if (hit != null && hit.target()
+            if (curveHit != null) {
+                activeCurvePvi = curveHit.pviIndex();
+                activeCurveSide = curveHit.side();
+                curveHandleStarted = true;
+                selected = curveHit.pviIndex();
+                selectedIntersection = -1;
+                pending = -1;
+            } else if (hit != null && hit.target()
                     != ProfileChartInteraction.IntersectionDragTarget.NONE) {
                 activeIntersectionDrag = hit.index();
                 activeIntersectionTarget = hit.target();
                 selectedIntersection = hit.index();
                 intersectionStarted = true;
                 selected = -1;
-                pending = -1;
-            } else if (curveHit != null) {
-                activeCurvePvi = curveHit.pviIndex();
-                activeCurveSide = curveHit.side();
-                curveHandleStarted = true;
-                selected = curveHit.pviIndex();
-                selectedIntersection = -1;
                 pending = -1;
             } else if (nearest >= 0 && isEditable(controls, nearest)) {
                 selected = nearest;

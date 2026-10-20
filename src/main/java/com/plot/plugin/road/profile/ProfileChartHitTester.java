@@ -98,10 +98,8 @@ public final class ProfileChartHitTester {
             intersections, layout, range, mouseX, mouseY);
     }
 
-    /** Endpoints may open menu (delete disabled); junction-fixed points do not. */
+    /** Every anchor exposes its elevation; deletion and locked editing are checked separately. */
     public static boolean canOpenPviContextMenu(ProfileControlPoint point) {
-        return point != null
-            && point.elevationEditable()
-            && point.role() != ProfilePointRole.JUNCTION_FIXED;
+        return point != null;
     }
 }

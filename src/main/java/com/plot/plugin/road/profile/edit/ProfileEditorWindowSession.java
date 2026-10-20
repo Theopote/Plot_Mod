@@ -99,6 +99,15 @@ public final class ProfileEditorWindowSession {
                 }
             });
         }
+        var anchored = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer
+            .seedCrossingAnchors(workingNetwork, config);
+        for (String roadId : anchored) {
+            var derived = workingNetwork.getRoad(roadId);
+            var original = openSnapshot.getRoad(roadId);
+            var mode = original.getVerticalMode();
+            original.setVerticalAlignment(derived.getVerticalAlignment().copy());
+            original.setVerticalMode(mode);
+        }
     }
 
     public boolean isDirty() {

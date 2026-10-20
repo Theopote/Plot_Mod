@@ -93,13 +93,8 @@ public final class ProfileEditSession {
                 || pviIndex >= draft.draftAlignment().pviCount()) {
             return;
         }
-        double station = draft.draftAlignment().getPvis().get(pviIndex).getStation();
-        RoadVerticalAlignment updated = VerticalProfileControlPoints.move(
-            draft.draftAlignment(),
-            pviIndex,
-            station,
-            elevationBounds.clamp(elevation),
-            RoadStationing.canonicalLength(network, road));
+        RoadVerticalAlignment updated = VerticalProfileControlPoints.withElevation(
+            draft.draftAlignment(), pviIndex, elevationBounds.clamp(elevation), road);
         draft.setDraftAlignment(updated);
         draftRevision++;
     }

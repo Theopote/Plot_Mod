@@ -283,6 +283,13 @@ public class RoadNetworkGenerator {
 
     /** @return 本帧处理的边数 */
     public int tickPreviewSessionEdges(RoadNetworkPreviewSession session, int maxEdges) {
+        return tickPreviewSessionEdges(session, maxEdges, Long.MAX_VALUE);
+    }
+
+    /** Yield between items once the frame budget is consumed; always finish one item. */
+    public int tickPreviewSessionEdges(RoadNetworkPreviewSession session, int maxEdges, long budgetNanos) {
+        long started = System.nanoTime();
+        int processed = 0;
         if (session == null || !session.isPrepared() || maxEdges <= 0) {
             return 0;
         }
@@ -294,18 +301,27 @@ public class RoadNetworkGenerator {
         RoadNetwork generationNetwork = session.generationNetwork();
         NetworkGenerationResult networkResult = session.networkResult();
         for (RoadEdge edge : batch) {
+            if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
+            processed++;
             RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
             RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
             EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
                 generationNetwork, edge, start, end, session.terrain(), nodeElevations);
             networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
         }
-        session.advanceEdges(batch.size());
-        return batch.size();
+        session.advanceEdges(processed);
+        return processed;
     }
 
     /** @return 本帧处理的路口数 */
     public int tickPreviewSessionJunctions(RoadNetworkPreviewSession session, int maxJunctions) {
+        return tickPreviewSessionJunctions(session, maxJunctions, Long.MAX_VALUE);
+    }
+
+    /** Yield between items once the frame budget is consumed; always finish one item. */
+    public int tickPreviewSessionJunctions(RoadNetworkPreviewSession session, int maxJunctions, long budgetNanos) {
+        long started = System.nanoTime();
+        int processed = 0;
         if (session == null || !session.isPrepared() || maxJunctions <= 0) {
             return 0;
         }
@@ -318,6 +334,8 @@ public class RoadNetworkGenerator {
         RoadNetwork generationNetwork = session.generationNetwork();
         NetworkGenerationResult networkResult = session.networkResult();
         for (RoadNode node : batch) {
+            if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
+            processed++;
             if (!shouldGenerateJunction(node, failedEdgeIds)) {
                 networkResult.recordSkippedJunction(
                     node.getId(),
@@ -338,8 +356,8 @@ public class RoadNetworkGenerator {
                 networkResult.mergeJunctionReport(junctionBlocks.report());
             }
         }
-        session.advanceJunctions(batch.size());
-        return batch.size();
+        session.advanceJunctions(processed);
+        return processed;
     }
 
     public PreviewResult completePreviewSession(RoadNetworkPreviewSession session) {

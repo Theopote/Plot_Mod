@@ -164,16 +164,17 @@ public final class RoadVoxelRasterizer {
             IBlockProjectionService projectionHandler,
             SolidWriter writer) {
         List<RoadSolidPrimitive> primitives = solids.primitives();
-        List<Integer> insertionOrder = new ArrayList<>(primitives.size());
-        for (int i = 0; i < primitives.size(); i++) {
-            insertionOrder.add(i);
+        // Stable buckets preserve insertion order within each layer without boxing
+        // and sorting an index for every voxel in a large preview.
+        var buckets = new java.util.TreeMap<Integer, List<RoadSolidPrimitive>>();
+        for (var primitive : primitives) {
+            buckets.computeIfAbsent(RoadSolidLayerPriority.of(primitive.layer()), ignored -> new ArrayList<>()).add(primitive);
         }
-        insertionOrder.sort(Comparator
-            .comparingInt((Integer index) -> RoadSolidLayerPriority.of(primitives.get(index).layer()))
-            .thenComparingInt(index -> index));
-
-        for (int index : insertionOrder) {
-            writer.write(result, primitives.get(index), transformer, projectionHandler);
+        var layers = new ArrayList<>(buckets.keySet());
+        for (var layer : layers) {
+            for (var primitive : buckets.get(layer)) {
+                writer.write(result, primitive, transformer, projectionHandler);
+            }
         }
     }
 

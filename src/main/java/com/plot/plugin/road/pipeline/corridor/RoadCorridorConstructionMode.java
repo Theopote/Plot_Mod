@@ -6,5 +6,6 @@ public enum RoadCorridorConstructionMode {
     BRIDGE,
     TUNNEL,
     /** Tunnel portal mouth: clearance capped to designed cavity, not terrain top. */
-    PORTAL
+    PORTAL,
+    SHELTER
 }

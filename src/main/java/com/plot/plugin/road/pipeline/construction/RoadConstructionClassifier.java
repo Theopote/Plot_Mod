@@ -55,6 +55,16 @@ public final class RoadConstructionClassifier {
             int gradingEnvelopeWidth,
             ResolvedTunnelStyle tunnelStyle,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
+        return classify(segments, heightInfos, terrain, config, terrainStyle, canvasToBlockPos,
+            gradingEnvelopeWidth, tunnelStyle, columnResolver, 1.0);
+    }
+
+    public static ConstructionDetection classify(
+            List<com.plot.plugin.road.pipeline.geometry.PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos, TerrainSampler terrain, RoadSystemConfig config,
+            RoadTerrainStyle terrainStyle, CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth, ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver, double unitsPerBlock) {
         List<Double> segmentDistances = new ArrayList<>();
         List<Integer> groundHeights = new ArrayList<>();
         List<Integer> targetHeights = new ArrayList<>();
@@ -84,6 +94,14 @@ public final class RoadConstructionClassifier {
         for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
             RoadConstructionType type = resolvedTypes.get(i);
+            if (!type.isBridgeFamily() && !isSubmerged(info)) {
+                RoadConstructionType shelter = cliffShelterType(info, terrain, gradingEnvelopeWidth,
+                    tunnelStyle, columnResolver, unitsPerBlock);
+                if (shelter != null) {
+                    resolvedTypes.set(i, shelter);
+                    continue;
+                }
+            }
             if (type == RoadConstructionType.BRIDGE) {
                 int heightDifference = Math.max(
                     info.targetStart - info.groundStart,
@@ -91,7 +109,7 @@ public final class RoadConstructionClassifier {
                 bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
             } else if (type == RoadConstructionType.TUNNEL) {
                 if (isSubmerged(info) || !validateTunnelSegment(
-                    info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward)) {
+                    info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward, unitsPerBlock)) {
                     resolvedTypes.set(i, RoadConstructionType.CUT);
                 } else {
                     int heightDifference = Math.max(
@@ -133,7 +151,7 @@ public final class RoadConstructionClassifier {
                 bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
             } else if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
                 if (isSubmerged(info) || !validateTunnelSegment(
-                    info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true)) {
+                    info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true, 1.0)) {
                     resolvedTypes.set(i, RoadConstructionType.CUT);
                 } else {
                     int heightDifference = Math.max(
@@ -175,6 +193,40 @@ public final class RoadConstructionClassifier {
         }
     }
 
+    /** Only sustained, one-sided rock cuts qualify; ordinary banks keep their batter. */
+    static RoadConstructionType cliffShelterType(
+            SegmentHeightInfo info, TerrainSampler terrain, int width, ResolvedTunnelStyle style,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns, double unitsPerBlock) {
+        if (terrain == null || columns == null || style == null || width <= 0) return null;
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        Vec2d normal = PathSegmentGeometry.chainLeftNormal(info.segment, true);
+        int left = com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(width) + style.sideClearance() + 1;
+        int right = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(width) - style.sideClearance() - 1;
+        int high = Math.max(16, style.clearHeight() * 2 + style.liningThickness());
+        RoadConstructionType candidate = null;
+        for (double t : new double[] {0.25, 0.5, 0.75}) {
+            Vec2d center = info.segment.start.lerp(info.segment.end, t);
+            int y = (int) Math.round(info.targetStart + (info.targetEnd - info.targetStart) * t);
+            Vec2d lp = center.add(normal.multiply(left * scale));
+            Vec2d rp = center.add(normal.multiply(right * scale));
+            if (!terrain.isChunkLoaded(columns.worldX(lp), columns.worldZ(lp))
+                    || !terrain.isChunkLoaded(columns.worldX(rp), columns.worldZ(rp))) return null;
+            int lh = terrain.sampleSurfaceY(lp) - y;
+            int rh = terrain.sampleSurfaceY(rp) - y;
+            RoadConstructionType atSample;
+            if (lh >= high && rh < style.clearHeight()
+                    && terrain.isSolidBlock(columns.worldX(lp), y + style.clearHeight(), columns.worldZ(lp))) {
+                atSample = RoadConstructionType.ROCK_SHELTER_LEFT;
+            } else if (rh >= high && lh < style.clearHeight()
+                    && terrain.isSolidBlock(columns.worldX(rp), y + style.clearHeight(), columns.worldZ(rp))) {
+                atSample = RoadConstructionType.ROCK_SHELTER_RIGHT;
+            } else return null;
+            if (candidate != null && candidate != atSample) return null;
+            candidate = atSample;
+        }
+        return candidate;
+    }
+
     private static boolean isSubmerged(SegmentHeightInfo info) {
         return info.waterStart != null || info.waterEnd != null;
     }
@@ -186,7 +238,7 @@ public final class RoadConstructionClassifier {
             int gradingEnvelopeWidth,
             ResolvedTunnelStyle tunnelStyle,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            boolean chainForward) {
+            boolean chainForward, double unitsPerBlock) {
         if (terrain == null || canvasToBlockPos == null || tunnelStyle == null) {
             return false;
         }
@@ -208,7 +260,7 @@ public final class RoadConstructionClassifier {
             gradingEnvelopeWidth,
             tunnelStyle,
             columnResolver,
-            1.0);
+            unitsPerBlock);
         return feasibility.valid();
     }
 

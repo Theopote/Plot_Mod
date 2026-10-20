@@ -95,6 +95,7 @@ final class VerticalProfileEditor {
     private int selectedIntersectionIndex = -1;
     private String intersectionInputKey = "";
     private final imgui.type.ImFloat intersectionHeightInput = new imgui.type.ImFloat();
+    private final imgui.type.ImFloat pviHeightInput = new imgui.type.ImFloat();
     private boolean intersectionInputDirty;
     private int intersectionInputTarget;
     private RoadGradeSeparationControls gradeSeparationControls;
@@ -1583,6 +1584,31 @@ final class VerticalProfileEditor {
             return;
         }
         int pviIndex = editorState.contextMenuPvi;
+        var alignment = road.getVerticalAlignment();
+        if (alignment == null || pviIndex >= alignment.pviCount()) {
+            ImGui.endPopup();
+            return;
+        }
+        var point = alignment.getPvis().get(pviIndex);
+        var bounds = resolveElevationBounds(ctx);
+        if (ImGui.isWindowAppearing()) pviHeightInput.set((float) VerticalAlignmentGeometry
+            .elevationAt(alignment, point.getStation()).orElse(point.getElevation()));
+        boolean locked = point.getConstraint() == com.plot.plugin.road.vertical.VerticalControlPointConstraint.USER_LOCKED;
+        ImGui.beginDisabled(locked);
+        ImGui.inputFloat(PlotI18n.tr("plugin.road.profile_pvi_elevation_input"), pviHeightInput, 0.1f, 1f, "%.2f");
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_elevation_range", bounds.minY(), bounds.maxY()));
+        if (ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_apply_height")) && Float.isFinite(pviHeightInput.get())) {
+            recordUndoPointBeforeEdit();
+            profileEditSession.setElevationBounds(bounds);
+            profileEditSession.beginNumericEdit(road);
+            profileEditSession.updatePviElevation(network, road, pviIndex, bounds.clamp(pviHeightInput.get()));
+            profileEditSession.commitEdit(network, road, ctx.networkManager().getConfig(), windowSession, null,
+                this::notifyWorkingProfileChanged);
+            pviHeightInput.set((float) bounds.clamp(pviHeightInput.get()));
+            ctx.requestOverlayRefresh();
+        }
+        ImGui.endDisabled();
+        ImGui.separator();
         boolean canDelete = canDeleteProfilePvi(network, road, pviIndex);
         if (!canDelete) {
             ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_delete_disabled"));

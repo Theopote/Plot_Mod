@@ -1588,6 +1588,8 @@
   "plugin.road.profile_intersection_detail": "详情 ▸",
   "plugin.road.profile_select_pvi_hint": "在图表上选中控制点以编辑标高。",
   "plugin.road.profile_control_elevation_tooltip": "高程：Y=%s",
+  "plugin.road.profile_pvi_elevation_input": "锚点高程",
+  "plugin.road.profile_pvi_elevation_range": "允许高程：%.0f ～ %.0f",
   "plugin.road.profile_pvi_delete": "删除变坡点",
   "plugin.road.profile_pvi_delete_disabled": "端点或仅剩两个变坡点时不可删除",
   "plugin.road.profile_legend_curve_handle": "竖曲线手柄",

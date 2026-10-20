@@ -28,7 +28,34 @@ public final class TunnelCrossSectionMask {
         this.maxY = maxY;
     }
 
-    public static TunnelCrossSectionMask build(
+    // Geometry only; no terrain/world references. Bounded to avoid retaining a
+    // mask at every elevation along a long graded road.
+    private record Key(TunnelShape shape, int width, int side, int height, int lining, int y, boolean portal) { }
+    private static final Map<Key, TunnelCrossSectionMask> CACHE =
+        new java.util.LinkedHashMap<>(32, 0.75f, true);
+    private static final int MAX_CACHED_CELLS = 100_000;
+    private static int cachedCells;
+
+    public static synchronized TunnelCrossSectionMask build(
+            TunnelShape shape, int roadEnvelopeWidth, int sideClearance,
+            int clearHeight, int liningThickness, int roadY, boolean portalFrame) {
+        var key = new Key(shape, roadEnvelopeWidth, sideClearance, clearHeight, liningThickness, roadY, portalFrame);
+        var mask = CACHE.get(key);
+        if (mask != null) return mask;
+        mask = buildUncached(shape, roadEnvelopeWidth, sideClearance, clearHeight, liningThickness, roadY, portalFrame);
+        if (mask.cells.size() <= MAX_CACHED_CELLS) {
+            while (!CACHE.isEmpty() && (CACHE.size() >= 32 || cachedCells + mask.cells.size() > MAX_CACHED_CELLS)) {
+                var iterator = CACHE.entrySet().iterator();
+                cachedCells -= iterator.next().getValue().cells.size();
+                iterator.remove();
+            }
+            CACHE.put(key, mask);
+            cachedCells += mask.cells.size();
+        }
+        return mask;
+    }
+
+    private static TunnelCrossSectionMask buildUncached(
             TunnelShape shape,
             int roadEnvelopeWidth,
             int sideClearance,

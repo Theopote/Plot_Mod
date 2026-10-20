@@ -15,6 +15,8 @@ import java.util.Optional;
  * Stamps a full cross-section at each centerline sample so adjacent bands share coverage.
  */
 public final class CrossSectionSpanRasterizer {
+    private static final double[] CELL_INSETS = {0.0, -0.25, 0.25};
+
     private CrossSectionSpanRasterizer() {
     }
 
@@ -38,15 +40,13 @@ public final class CrossSectionSpanRasterizer {
         }
         Vec2d startNormal = normalize(fromNormal);
         Vec2d endNormal = normalize(toNormal);
-        List<Vec2d> centerline = RoadVoxelRasterizer.sampleSpanPoints(fromCenter, toCenter);
-        int last = centerline.size() - 1;
-        for (int i = 0; i < centerline.size(); i++) {
-            Vec2d center = centerline.get(i);
-            double t = last == 0 ? 0.0 : (double) i / last;
+        double blockScale = scale > 1e-9 ? scale : 1.0;
+        int steps = Math.max(1, (int) Math.ceil(toCenter.subtract(fromCenter).length() / blockScale * 2));
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            Vec2d center = fromCenter.lerp(toCenter, t);
             Vec2d normal = normalize(startNormal.lerp(endNormal, t));
-            int surfaceY = last == 0
-                ? fromY
-                : (int) Math.round(fromY + (toY - fromY) * t);
+            int surfaceY = (int) Math.round(fromY + (toY - fromY) * t);
             stampCrossSection(
                 plan,
                 center,
@@ -79,7 +79,13 @@ public final class CrossSectionSpanRasterizer {
             if (band.isEmpty()) {
                 continue;
             }
-            Vec2d planPoint = center.add(normal.multiply(lateral * scale));
+            int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
+            for (double inset : CELL_INSETS) {
+            Vec2d planPoint = center.add(normal.multiply((lateral + inset) * scale));
+            int worldX = host.worldX(planPoint), worldZ = host.worldZ(planPoint);
+            if (worldX == lastX && worldZ == lastZ) continue;
+            lastX = worldX;
+            lastZ = worldZ;
             ResolvedCrossSection.SurfaceBandSpec spec = band.get();
             if (spec.materialMix() != null) {
                 BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
@@ -93,6 +99,7 @@ public final class CrossSectionSpanRasterizer {
                 RoadCorridorPlanBuilder.writeSurfaceAndClearance(
                     plan, planPoint, surfaceY, spec.layer(), materialId, host,
                     terrain, constructionType, tunnelThreshold);
+            }
             }
         }
     }

@@ -705,6 +705,7 @@ public final class RoadCorridorPlanBuilder {
     }
 
     private static RoadCorridorConstructionMode toMode(RoadConstructionType type) {
+        if (type != null && type.isRockShelter()) return RoadCorridorConstructionMode.SHELTER;
         if (type == RoadConstructionType.TUNNEL_PORTAL) {
             return RoadCorridorConstructionMode.PORTAL;
         }
@@ -726,11 +727,13 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host) {
         return switch (mode) {
             case BRIDGE -> Math.max(
-                designSurfaceY + 1,
-                Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1));
+                designSurfaceY + host.tunnelStyle().clearHeight(),
+                terrain.sampleColumnTopY(planPoint));
             case TUNNEL -> tunnelInteriorRoofTopY(host, designSurfaceY);
             case PORTAL -> portalRoofTopY(host, designSurfaceY);
-            case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1);
+            case SHELTER -> designSurfaceY + host.tunnelStyle().clearHeight();
+            case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint),
+                designSurfaceY + host.tunnelStyle().clearHeight());
         };
     }
 
