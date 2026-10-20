@@ -3,8 +3,10 @@ package com.plot.plugin.earthwork.overlay;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.manager.EarthworkPreviewIdentity;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
+import com.plot.plugin.earthwork.ui.EarthworkOverviewRenderer;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,6 +28,7 @@ public final class EarthworkRegionOverlayController {
             return List.of();
         }
         List<EarthworkRegionOverlayEntry> entries = new ArrayList<>();
+        int colorIndex = 0;
         for (GradingRegion region : project.getRegions().values()) {
             if (region == null) {
                 continue;
@@ -38,10 +41,13 @@ public final class EarthworkRegionOverlayController {
             entries.add(new EarthworkRegionOverlayEntry(
                 region.getId(),
                 region.getName(),
-                List.copyOf(points),
-                selected ? EarthworkRegionOverlayState.SELECTED : EarthworkRegionOverlayState.REGISTERED));
+                points,
+                region.getHoles(),
+                selected ? EarthworkRegionOverlayState.SELECTED : EarthworkRegionOverlayState.REGISTERED,
+                geometryVersion(region),
+                colorIndex++));
         }
-        appendCanvasEntries(entries, canvasShapes, pickSessionActive);
+        appendCanvasEntries(entries, canvasShapes, pickSessionActive, colorIndex);
         entries.sort(Comparator.comparingInt(entry -> entry.state().renderPriority()));
         return entries;
     }
@@ -49,11 +55,13 @@ public final class EarthworkRegionOverlayController {
     private static void appendCanvasEntries(
             List<EarthworkRegionOverlayEntry> entries,
             List<Shape> canvasShapes,
-            boolean pickSessionActive) {
+            boolean pickSessionActive,
+            int colorIndexStart) {
         if (canvasShapes == null || canvasShapes.isEmpty()) {
             return;
         }
         List<Shape> adoptable = EarthworkGeometryUtils.findAdoptableRegions(canvasShapes);
+        int colorIndex = colorIndexStart;
         for (Shape shape : adoptable) {
             List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(shape);
             if (points.size() < 3) {
@@ -62,14 +70,19 @@ public final class EarthworkRegionOverlayController {
             entries.add(new EarthworkRegionOverlayEntry(
                 "canvas:" + shape.getId(),
                 shape.getId(),
-                List.copyOf(points),
+                points,
+                List.of(),
                 pickSessionActive
                     ? EarthworkRegionOverlayState.PICK_ACTIVE
-                    : EarthworkRegionOverlayState.CANDIDATE));
+                    : EarthworkRegionOverlayState.CANDIDATE,
+                EarthworkPreviewIdentity.normalizedOutlineFingerprint(points),
+                colorIndex++));
         }
     }
 
-    /** 命中测试：返回面积最小的已认领区域 id。 */
+    /**
+     * 命中测试：在外轮廓内且不在孔洞内；重叠时选净面积最小的已认领区域。
+     */
     public static String hitTestAdopted(List<EarthworkRegionOverlayEntry> entries, double worldX, double worldY) {
         if (entries == null || entries.isEmpty()) {
             return null;
@@ -81,10 +94,10 @@ public final class EarthworkRegionOverlayController {
                 && entry.state() != EarthworkRegionOverlayState.SELECTED) {
                 continue;
             }
-            if (!containsPoint(entry.outerPoints(), worldX, worldY)) {
+            if (!entry.containsWorldPoint(worldX, worldY)) {
                 continue;
             }
-            double area = Math.abs(GradingRegion.signedArea(entry.outerPoints()));
+            double area = entry.absoluteArea();
             if (area < bestArea) {
                 bestArea = area;
                 best = entry.regionId();
@@ -93,21 +106,16 @@ public final class EarthworkRegionOverlayController {
         return best;
     }
 
-    private static boolean containsPoint(List<Vec2d> polygon, double x, double y) {
-        if (polygon == null || polygon.size() < 3) {
-            return false;
+    /** 与总览缩略图共用的稳定色板索引颜色。 */
+    public static int stableColor(int colorIndex) {
+        return EarthworkOverviewRenderer.regionColor(colorIndex);
+    }
+
+    private static long geometryVersion(GradingRegion region) {
+        long hash = EarthworkPreviewIdentity.normalizedOutlineFingerprint(region.getOuterPoints());
+        for (List<Vec2d> hole : region.getHoles()) {
+            hash = 31L * hash + EarthworkPreviewIdentity.normalizedOutlineFingerprint(hole);
         }
-        boolean inside = false;
-        int count = polygon.size();
-        for (int i = 0, j = count - 1; i < count; j = i++) {
-            Vec2d pi = polygon.get(i);
-            Vec2d pj = polygon.get(j);
-            boolean intersect = ((pi.y > y) != (pj.y > y))
-                && (x < (pj.x - pi.x) * (y - pi.y) / (pj.y - pi.y + 1e-12) + pi.x);
-            if (intersect) {
-                inside = !inside;
-            }
-        }
-        return inside;
+        return hash;
     }
 }

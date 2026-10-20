@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.ui.PluginUiColors;
@@ -138,8 +139,12 @@ public final class EarthworkOverviewRenderer {
         for (int i = 0; i < regions.size(); i++) {
             GradingRegion region = regions.get(i);
             boolean selected = selectedRegionIds != null && selectedRegionIds.contains(region.getId());
-            int color = selected ? PluginUiColors.ACCENT_BLUE : regionColor(i);
+            // 与画布叠加层共用色板；选中仅加粗，不换色
+            int color = regionColor(i);
             drawRegion(drawList, region.getOuterPoints(), viewport, color, selected);
+            for (List<Vec2d> hole : region.getHoles()) {
+                drawRegion(drawList, hole, viewport, color, selected);
+            }
         }
 
         ImGui.invisibleButton("##earthwork_map_hit", width, height);
@@ -170,13 +175,13 @@ public final class EarthworkOverviewRenderer {
         float y = origin.y;
 
         drawList.addRectFilled(x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT, PluginUiColors.MAP_BG);
-        int borderColor = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.PANEL_BORDER;
+        int borderColor = selected ? regionColor(colorIndex) : PluginUiColors.PANEL_BORDER;
         drawList.addRect(x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT, borderColor, 0f, 0, selected ? 2f : 1f);
 
         if (points != null && points.size() >= 3) {
             Bounds bounds = computeBoundsFromPoints(points);
             MapViewport viewport = buildViewport(bounds, x, y, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
-            int color = selected ? PluginUiColors.ACCENT_BLUE : regionColor(colorIndex);
+            int color = regionColor(colorIndex);
             drawRegion(drawList, points, viewport, color, selected);
         }
 
@@ -212,13 +217,15 @@ public final class EarthworkOverviewRenderer {
     }
 
     private static String hitTestRegion(List<GradingRegion> regions, double worldX, double worldY) {
+        Vec2d point = new Vec2d(worldX, worldY);
         String best = null;
         double bestArea = Double.MAX_VALUE;
         for (GradingRegion region : regions) {
-            if (!containsPoint(region.getOuterPoints(), worldX, worldY)) {
+            if (!PolygonRegionUtils.containsPoint(region.getOuterPoints(), region.getHoles(), point)) {
                 continue;
             }
-            double area = Math.abs(region.computeArea());
+            double area = Math.abs(PolygonRegionUtils.computeSignedArea(
+                region.getOuterPoints(), region.getHoles()));
             if (area < bestArea) {
                 bestArea = area;
                 best = region.getId();
@@ -228,13 +235,14 @@ public final class EarthworkOverviewRenderer {
     }
 
     private static int hitTestItems(List<RegionMapItem> items, double worldX, double worldY) {
+        Vec2d point = new Vec2d(worldX, worldY);
         int best = -1;
         double bestArea = Double.MAX_VALUE;
         for (RegionMapItem item : items) {
             if (item.points() == null || item.points().size() < 3) {
                 continue;
             }
-            if (!containsPoint(item.points(), worldX, worldY)) {
+            if (!PolygonRegionUtils.containsPoint(item.points(), List.of(), point)) {
                 continue;
             }
             double area = Math.abs(GradingRegion.signedArea(item.points()));
@@ -244,24 +252,6 @@ public final class EarthworkOverviewRenderer {
             }
         }
         return best;
-    }
-
-    private static boolean containsPoint(List<Vec2d> polygon, double x, double y) {
-        if (polygon == null || polygon.size() < 3) {
-            return false;
-        }
-        boolean inside = false;
-        int count = polygon.size();
-        for (int i = 0, j = count - 1; i < count; j = i++) {
-            Vec2d pi = polygon.get(i);
-            Vec2d pj = polygon.get(j);
-            boolean intersect = ((pi.y > y) != (pj.y > y))
-                && (x < (pj.x - pi.x) * (y - pi.y) / (pj.y - pi.y + 1e-12) + pi.x);
-            if (intersect) {
-                inside = !inside;
-            }
-        }
-        return inside;
     }
 
     private static Bounds computeBoundsFromItems(List<RegionMapItem> items) {

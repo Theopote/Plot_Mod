@@ -79,11 +79,9 @@ public final class EarthworkBuildManager {
         if (terrainComparison == null && world != null) {
             terrainComparison = previewManager.comparePreviewTerrainWithWorld(world);
         }
-        if (terrainComparison != null && terrainComparison.terrainChanged()) {
-            return PlotI18n.tr(
-                "plugin.earthwork.terrain_changed_since_preview",
-                terrainComparison.changedColumns(),
-                terrainComparison.totalColumns());
+        String terrainRejection = rejectIfTerrainUnsafe(world != null, terrainComparison);
+        if (terrainRejection != null) {
+            return terrainRejection;
         }
 
         PlacementReadiness readiness = host.projection().checkWorldModificationReadiness();
@@ -186,6 +184,29 @@ public final class EarthworkBuildManager {
             result.success(),
             result.total(),
             result.failed()));
+    }
+
+    /**
+     * 地形门禁：
+     * <ul>
+     *   <li>有世界且对比结果为 null → 无法校验，拒绝</li>
+     *   <li>对比结果明确显示已变化 → 拒绝（含单测注入的 override）</li>
+     *   <li>无世界且无对比结果 → 跳过（离线/单测路径）</li>
+     * </ul>
+     */
+    static String rejectIfTerrainUnsafe(
+            boolean worldPresent,
+            TerrainSnapshot.ComparisonResult terrainComparison) {
+        if (worldPresent && terrainComparison == null) {
+            return PlotI18n.tr("plugin.earthwork.build_terrain_check_unavailable");
+        }
+        if (terrainComparison != null && terrainComparison.terrainChanged()) {
+            return PlotI18n.tr(
+                "plugin.earthwork.terrain_changed_since_preview",
+                terrainComparison.changedColumns(),
+                terrainComparison.totalColumns());
+        }
+        return null;
     }
 
     private static World clientWorld() {

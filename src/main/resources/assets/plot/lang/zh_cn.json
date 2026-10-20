@@ -1385,6 +1385,7 @@
   "plugin.earthwork.preview_stale_hint": "当前预览已过期（仅供参考），请重新计算后再施工",
   "plugin.earthwork.build_preview_not_valid": "预览无效或已过期，请重新计算后再施工",
   "plugin.earthwork.build_preview_mismatch": "预览不属于当前选中区域或设计参数已变更，请重新计算后再施工",
+  "plugin.earthwork.build_terrain_check_unavailable": "无法校验现状地形是否仍与预览一致，请重新计算预览后再施工",
   "plugin.earthwork.quick.add_region": "+ 添加区域",
   "plugin.earthwork.adopt_duplicate_skipped": "已跳过 %d 个重复轮廓（同一闭合图形不可重复认领）",
   "plugin.earthwork.history.generate": "整平地形（%d 方块）",

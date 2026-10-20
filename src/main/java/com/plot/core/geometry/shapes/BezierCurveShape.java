@@ -240,7 +240,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             } else {
                 // 使用自适应采样（原有逻辑）
                 int baseSteps = (int)(MIN_SAMPLING_STEPS * Math.pow(2, complexity));
-                steps = Math.max(MIN_SAMPLING_STEPS, Math.min(MAX_SAMPLING_STEPS, baseSteps));
+                steps = Math.clamp(baseSteps, MIN_SAMPLING_STEPS, MAX_SAMPLING_STEPS);
             }
             
             // 根据视图缩放调整采样精度
@@ -1978,7 +1978,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             
             // 根据缩放级别动态调整分段数
             double zoom = camera.getZoom();
-            int baseSegments = Math.max(8, Math.min(64, (int)(8 + zoom * 10)));
+            int baseSegments = Math.clamp((int) (8 + zoom * 10), 8, 64);
             
             // 获取变换后的点
             List<Vec2d> screenPoints = new ArrayList<>();

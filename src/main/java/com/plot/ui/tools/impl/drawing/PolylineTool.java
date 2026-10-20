@@ -6,14 +6,12 @@ import com.plot.api.snap.ISnapManager;
 import com.plot.core.graphics.DrawContext;
 
 import com.plot.core.model.Shape;
-import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.drawing.helper.*;
-import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.PolylineShape;
@@ -303,7 +301,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         if (selected.size() != 1) {
             return;
         }
-        Shape shape = selected.get(0);
+        Shape shape = selected.getFirst();
         if (!(shape instanceof PolylineShape || shape instanceof BezierCurveShape)) {
             return;
         }

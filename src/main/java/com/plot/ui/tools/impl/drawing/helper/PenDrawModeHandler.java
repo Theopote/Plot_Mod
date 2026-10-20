@@ -6,8 +6,6 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
-import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
-import com.plot.ui.tools.impl.drawing.helper.DrawMeasureSettings;
 import com.plot.ui.tools.helper.SegmentNumericInputHandler;
 import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import org.slf4j.Logger;

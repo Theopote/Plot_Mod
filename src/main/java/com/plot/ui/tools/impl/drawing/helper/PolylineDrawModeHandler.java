@@ -5,8 +5,6 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
-import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
-import com.plot.ui.tools.impl.drawing.helper.DrawMeasureSettings;
 import com.plot.ui.tools.helper.SegmentNumericInputHandler;
 import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
@@ -314,7 +312,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         }
         points.clear();
         points.addAll(snapshot.getPoints());
-        isDrawing = points.size() >= 1;
+        isDrawing = !points.isEmpty();
         closeOnCommit = false;
         return true;
     }

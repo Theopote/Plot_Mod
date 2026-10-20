@@ -1385,6 +1385,7 @@
   "plugin.earthwork.preview_stale_hint": "Preview is stale (reference only) — recalculate before building",
   "plugin.earthwork.build_preview_not_valid": "Preview is missing or invalid — recalculate before building",
   "plugin.earthwork.build_preview_mismatch": "Preview does not match the selected region or design — recalculate before building",
+  "plugin.earthwork.build_terrain_check_unavailable": "Cannot verify that terrain still matches the preview — recalculate before building",
   "plugin.earthwork.quick.add_region": "+ Add region",
   "plugin.earthwork.adopt_duplicate_skipped": "Skipped %d duplicate outline(s) (same closed shape cannot be adopted twice)",
   "plugin.earthwork.history.generate": "Grade terrain (%d blocks)",

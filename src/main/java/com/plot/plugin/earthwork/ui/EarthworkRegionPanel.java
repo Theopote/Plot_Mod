@@ -215,7 +215,7 @@ public final class EarthworkRegionPanel {
         EarthworkOverviewRenderer.renderProjectMap(
             ctx.project(),
             ctx.selectedRegionId().isEmpty() ? List.of() : List.of(ctx.selectedRegionId()),
-            id -> ctx.setSelectedRegionId(id));
+                ctx::setSelectedRegionId);
 
         ImGui.spacing();
         List<GradingRegion> regions = EarthworkRegionListHelper.sorted(ctx.project(), ctx.regionSortMode());
@@ -338,8 +338,11 @@ public final class EarthworkRegionPanel {
 
         List<List<Vec2d>> toAdopt = new ArrayList<>();
         int skippedDuplicates = 0;
+        java.util.HashSet<Long> batchFingerprints = new java.util.HashSet<>();
         for (List<Vec2d> points : validOutlines) {
-            if (hasMatchingRegionOutline(ctx.project(), points)) {
+            long fingerprint = EarthworkPreviewIdentity.normalizedOutlineFingerprint(points);
+            if (hasMatchingRegionOutline(ctx.project(), points)
+                || !batchFingerprints.add(fingerprint)) {
                 skippedDuplicates++;
             } else {
                 toAdopt.add(points);
@@ -544,10 +547,12 @@ public final class EarthworkRegionPanel {
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.delete"), 100, 0)) {
                 if (!ctx.pendingDeleteRegionId().isEmpty()) {
                     ctx.projectHistory().push(ctx.project());
-                    ctx.project().removeRegion(ctx.pendingDeleteRegionId());
-                    ctx.terrainSnapshotCache().invalidateRegion(ctx.pendingDeleteRegionId());
+                    String deletedId = ctx.pendingDeleteRegionId();
+                    ctx.project().removeRegion(deletedId);
+                    ctx.terrainSnapshotCache().invalidateRegion(deletedId);
                     ctx.terrainSnapshotCache().invalidateSite(ctx.project().getActiveSiteId());
-                    if (ctx.pendingDeleteRegionId().equals(ctx.selectedRegionId())) {
+                    com.plot.plugin.earthwork.overlay.EarthworkRegionTriangulationCache.invalidate(deletedId);
+                    if (deletedId.equals(ctx.selectedRegionId())) {
                         ctx.setSelectedRegionId(ctx.project().getRegions().isEmpty()
                             ? ""
                             : ctx.project().getRegions().keySet().iterator().next());
