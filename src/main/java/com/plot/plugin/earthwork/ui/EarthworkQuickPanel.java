@@ -15,15 +15,15 @@ public final class EarthworkQuickPanel {
     private static final int HEIGHT_MAX = 320;
 
     private final EarthworkUiContext ctx;
-    private final EarthworkAdoptPanel adoptPanel;
+    private final EarthworkRegionPanel regionPanel;
     private final EarthworkGeneratePanel generatePanel;
 
     public EarthworkQuickPanel(
             EarthworkUiContext ctx,
-            EarthworkAdoptPanel adoptPanel,
+            EarthworkRegionPanel regionPanel,
             EarthworkGeneratePanel generatePanel) {
         this.ctx = ctx;
-        this.adoptPanel = adoptPanel;
+        this.regionPanel = regionPanel;
         this.generatePanel = generatePanel;
     }
 
@@ -32,7 +32,7 @@ public final class EarthworkQuickPanel {
         ImGui.separator();
 
         if (ctx.project().getRegionCount() == 0) {
-            adoptPanel.render();
+            regionPanel.renderAdoptSection();
             return;
         }
 

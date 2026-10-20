@@ -20,7 +20,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Pattern Generator** | Claim closed regions and replace surface blocks with procedural patterns or imported pixel art |
 | **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-Earthwork and Building Generator use **Overview / Adopt / Edit / Generate** tabs. **Road System** uses **Path / Edit / Generate**. Pattern Generator uses **Region / Pattern / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
+Earthwork, Building Generator, and Pattern Generator use **Region (or Footprints/Pattern) / Edit / Generate** tabs. **Road System** uses **Path / Edit / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
@@ -70,7 +70,7 @@ For builders: select the area for a house, castle, or plaza. The plugin suggests
 
 1. Draw or select a closed region for grading
 2. Open **Extension** -> **Earthwork Balance** -> enable
-3. Use the **Adopt** tab to pick/claim regions
+3. Use the **Region** tab to pick/claim regions
 4. Review the suggested height and cut/fill block counts; drag target Y if needed
 5. Choose an edge (vertical / natural slope / retaining wall), then build
 
@@ -104,7 +104,7 @@ For builders: select the area for a house, castle, or plaza. The plugin suggests
 
 1. Draw a building footprint (rectangle or polygon)
 2. Open **Extension** -> **Building Generator** -> enable
-3. Pick/adopt the footprint in **Adopt**
+3. Pick/adopt the footprint in **Footprints**
 4. Configure floors, height, foundation fill, and roof in **Edit**
 5. Generate preview and project in **Generate**
 
