@@ -686,17 +686,35 @@ public class CanvasRenderer implements EventListener {
     }
 
     private static ShapeStyle getShapeStyle(Shape shape) {
-        ShapeStyle styleToApply;
+        ShapeStyle ownStyle = shape.getStyle() instanceof ShapeStyle shapeStyle ? shapeStyle : null;
 
         if (shape.isSelected()) {
-            styleToApply = ShapeStyle.SELECTED;
-        } else if (shape.isHighlighted()) {
-            styleToApply = ShapeStyle.HIGHLIGHTED;
-        } else {
-            // 使用图形自身样式
-            styleToApply = (ShapeStyle) shape.getStyle();
+            return overlaySelectionStyle(ShapeStyle.SELECTED, ownStyle);
         }
-        return styleToApply;
+        if (shape.isHighlighted()) {
+            return overlaySelectionStyle(ShapeStyle.HIGHLIGHTED, ownStyle);
+        }
+        return ownStyle;
+    }
+
+    /**
+     * 选中/高亮只覆盖描边高亮，不强制开启填充。
+     * 否则描边图形（钢笔闭合路径等）会被 SELECTED 的黄色填充触发内部三角扇形伪影。
+     */
+    private static ShapeStyle overlaySelectionStyle(ShapeStyle overlay, ShapeStyle ownStyle) {
+        boolean fillVisible = ownStyle != null
+                && ownStyle.getFillStyle() != null
+                && ownStyle.getFillStyle().isVisible();
+        if (fillVisible) {
+            return overlay;
+        }
+        ShapeStyle strokeOnly = (ShapeStyle) overlay.clone();
+        if (strokeOnly.getFillStyle() != null) {
+            strokeOnly.getFillStyle().setVisible(false);
+            strokeOnly.getFillStyle().setOpacity(0.0f);
+            strokeOnly.setFillColor(new java.awt.Color(0, 0, 0, 0));
+        }
+        return strokeOnly;
     }
 
     /**

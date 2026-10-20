@@ -383,24 +383,29 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         if (bezierData.getControls().isEmpty()) {
             // 只有锚点，创建折线
             PolylineShape polyline = new PolylineShape(bezierData.getAnchors(), bezierData.shouldClose());
-            ShapeStyle style = getShapeStyle();
-            if (style != null) {
-                polyline.setStyle(style);
-            }
+            polyline.setStyle(strokeOnlyStyle(getShapeStyle()));
             LOGGER.debug("钢笔模式创建折线: 确定节点数={}, 闭合={}", pathNodes.size(), closed);
             return polyline;
         } else {
             // 创建贝塞尔曲线
             BezierCurveShape curve = new BezierCurveShape(bezierData.getAnchors(), bezierData.getControls(), bezierData.shouldClose());
-            ShapeStyle style = getShapeStyle();
-            if (style != null) {
-                curve.setStyle(style);
-            }
+            curve.setStyle(strokeOnlyStyle(getShapeStyle()));
             LOGGER.debug("钢笔模式创建贝塞尔曲线: 确定节点数={}, 锚点数={}, 控制点数={}, 闭合={}", 
                        pathNodes.size(), bezierData.getAnchors().size(), 
                        bezierData.getControls().size(), bezierData.shouldClose());
             return curve;
         }
+    }
+
+    /** 钢笔路径始终只描边，不带区域填充 */
+    private static ShapeStyle strokeOnlyStyle(ShapeStyle source) {
+        ShapeStyle style = source != null ? (ShapeStyle) source.clone() : new ShapeStyle();
+        style.setFillColor(new Color(0, 0, 0, 0));
+        if (style.getFillStyle() != null) {
+            style.getFillStyle().setVisible(false);
+            style.getFillStyle().setOpacity(0.0f);
+        }
+        return style;
     }
     
     /**

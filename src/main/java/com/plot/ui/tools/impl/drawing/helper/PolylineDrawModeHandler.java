@@ -240,10 +240,15 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             boolean closed = closeOnCommit && points.size() >= MIN_POINTS_FOR_CLOSE;
             // 为安全起见，传入一个副本给构造函数
             PolylineShape polyline = new PolylineShape(new ArrayList<>(points), closed);
-            ShapeStyle style = (ShapeStyle) styleHandler.getFinalStyle();
-            if (style != null) {
-                polyline.setStyle(style);
+            ShapeStyle style = styleHandler.getFinalStyle() instanceof ShapeStyle shapeStyle
+                    ? (ShapeStyle) shapeStyle.clone()
+                    : new ShapeStyle();
+            style.setFillColor(new Color(0, 0, 0, 0));
+            if (style.getFillStyle() != null) {
+                style.getFillStyle().setVisible(false);
+                style.getFillStyle().setOpacity(0.0f);
             }
+            polyline.setStyle(style);
             LOGGER.debug("折线模式创建图形: 点数={}, 闭合={}", points.size(), closed);
             return polyline;
         }

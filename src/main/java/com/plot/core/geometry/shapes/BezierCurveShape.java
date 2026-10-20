@@ -11,7 +11,6 @@ import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
-import com.plot.core.graphics.style.FillStyle;
 import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.plot.ui.tools.impl.drawing.helper.BezierUtils;
 import org.slf4j.Logger;
@@ -268,184 +267,6 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     }
     
     /**
-     * 填充闭合曲线（使用三角化算法）
-     * @param context 绘制上下文
-     * @param points 曲线点列表
-     * @param fillStyle 填充样式
-     */
-    private void fillClosedCurve(DrawContext context, List<Vec2d> points, FillStyle fillStyle) {
-        if (points.size() < 3) return;
-        
-        try {
-            // 尝试使用DrawContext的原生填充方法（如果可用）
-            // 注意：这里假设DrawContext可能有fillPolygon方法，实际需要根据具体实现调整
-            java.lang.reflect.Method fillMethod = context.getClass().getMethod("fillPolygon", List.class, int.class);
-            fillMethod.invoke(context, points, fillStyle.getColor().getRGB());
-            return;
-        } catch (Exception e) {
-            // 如果原生方法不可用，使用三角化算法
-        }
-        
-        // 使用简单的扇形三角化算法（适用于凸多边形）
-        if (isConvexPolygon(points)) {
-            fillConvexPolygon(context, points, fillStyle);
-        } else {
-            // 对于凹多边形，使用Ear Clipping算法
-            fillConcavePolygon(context, points, fillStyle);
-        }
-    }
-    
-    /**
-     * 检查是否为凸多边形
-     */
-    private boolean isConvexPolygon(List<Vec2d> points) {
-        if (points.size() < 3) return false;
-        
-        int n = points.size();
-        boolean isPositive = false;
-        boolean isNegative = false;
-        
-        for (int i = 0; i < n; i++) {
-            Vec2d p1 = points.get(i);
-            Vec2d p2 = points.get((i + 1) % n);
-            Vec2d p3 = points.get((i + 2) % n);
-            
-            double cross = (p2.x - p1.x) * (p3.y - p2.y) - (p2.y - p1.y) * (p3.x - p2.x);
-            
-            if (cross > 0) isPositive = true;
-            if (cross < 0) isNegative = true;
-            
-            if (isPositive && isNegative) return false;
-        }
-        
-        return true;
-    }
-    
-    /**
-     * 填充凸多边形（扇形三角化）
-     */
-    private void fillConvexPolygon(DrawContext context, List<Vec2d> points, FillStyle fillStyle) {
-        Vec2d center = calculateCentroid(points);
-        
-        // 从中心点到每个顶点绘制三角形
-        for (int i = 0; i < points.size(); i++) {
-            Vec2d p1 = points.get(i);
-            Vec2d p2 = points.get((i + 1) % points.size());
-            
-            // 绘制三角形
-            fillTriangle(context, center, p1, p2, fillStyle);
-        }
-    }
-    
-    /**
-     * 填充凹多边形（Ear Clipping算法简化版）
-     */
-    private void fillConcavePolygon(DrawContext context, List<Vec2d> points, FillStyle fillStyle) {
-        // 简化实现：将凹多边形分解为多个三角形
-        // 使用贪心算法找到"耳朵"（凸顶点）
-        List<Vec2d> remainingPoints = new ArrayList<>(points);
-        
-        while (remainingPoints.size() > 3) {
-            boolean earFound = false;
-            
-            for (int i = 0; i < remainingPoints.size(); i++) {
-                if (isEar(remainingPoints, i)) {
-                    // 找到耳朵，创建三角形
-                    Vec2d p1 = remainingPoints.get((i - 1 + remainingPoints.size()) % remainingPoints.size());
-                    Vec2d p2 = remainingPoints.get(i);
-                    Vec2d p3 = remainingPoints.get((i + 1) % remainingPoints.size());
-                    
-                    fillTriangle(context, p1, p2, p3, fillStyle);
-                    
-                    // 移除耳朵顶点
-                    remainingPoints.remove(i);
-                    earFound = true;
-                    break;
-                }
-            }
-            
-            if (!earFound) {
-                // 如果找不到耳朵，使用扇形三角化作为回退
-                fillConvexPolygon(context, remainingPoints, fillStyle);
-                break;
-            }
-        }
-        
-        // 处理剩余的三角形
-        if (remainingPoints.size() == 3) {
-            fillTriangle(context, remainingPoints.get(0), remainingPoints.get(1), remainingPoints.get(2), fillStyle);
-        }
-    }
-    
-    /**
-     * 检查顶点是否为"耳朵"
-     */
-    private boolean isEar(List<Vec2d> points, int index) {
-        int n = points.size();
-        Vec2d p1 = points.get((index - 1 + n) % n);
-        Vec2d p2 = points.get(index);
-        Vec2d p3 = points.get((index + 1) % n);
-        
-        // 检查是否为凸顶点
-        double cross = (p2.x - p1.x) * (p3.y - p2.y) - (p2.y - p1.y) * (p3.x - p2.x);
-        if (cross <= 0) return false;
-        
-        // 检查三角形内部是否没有其他点
-        for (int i = 0; i < n; i++) {
-            if (i == index || i == (index - 1 + n) % n || i == (index + 1) % n) continue;
-            
-            Vec2d point = points.get(i);
-            if (isPointInTriangle(point, p1, p2, p3)) {
-                return false;
-            }
-        }
-        
-        return true;
-    }
-    
-    /**
-     * 检查点是否在三角形内部
-     */
-    private boolean isPointInTriangle(Vec2d point, Vec2d p1, Vec2d p2, Vec2d p3) {
-        double alpha = ((p2.y - p3.y) * (point.x - p3.x) + (p3.x - p2.x) * (point.y - p3.y)) /
-                      ((p2.y - p3.y) * (p1.x - p3.x) + (p3.x - p2.x) * (p1.y - p3.y));
-        
-        double beta = ((p3.y - p1.y) * (point.x - p3.x) + (p1.x - p3.x) * (point.y - p3.y)) /
-                     ((p2.y - p3.y) * (p1.x - p3.x) + (p3.x - p2.x) * (p1.y - p3.y));
-        
-        double gamma = 1 - alpha - beta;
-        
-        return alpha >= 0 && beta >= 0 && gamma >= 0;
-    }
-    
-    /**
-     * 计算多边形质心
-     */
-    private Vec2d calculateCentroid(List<Vec2d> points) {
-        double sumX = 0, sumY = 0;
-        for (Vec2d point : points) {
-            sumX += point.x;
-            sumY += point.y;
-        }
-        return new Vec2d(sumX / points.size(), sumY / points.size());
-    }
-    
-    /**
-     * 填充三角形
-     */
-    private void fillTriangle(DrawContext context, Vec2d p1, Vec2d p2, Vec2d p3, FillStyle fillStyle) {
-        // 使用扫描线算法填充三角形
-        // 简化实现：绘制三角形轮廓
-        try {
-            context.drawLine(p1, p2, fillStyle.getColor());
-            context.drawLine(p2, p3, fillStyle.getColor());
-            context.drawLine(p3, p1, fillStyle.getColor());
-        } catch (Exception e) {
-            // 如果绘制失败，忽略错误
-        }
-    }
-    
-    /**
      * 增强的构造函数参数校验
      * @param anchorPoints 锚点列表
      * @param controls 控制点数组列表
@@ -547,6 +368,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         List<Vec2d> transformed = new ArrayList<>();
         for (Vec2d pt : curvePoints) transformed.add(getTransform().transform(pt));
         ShapeStyle style = context.getCurrentStyle() != null ? context.getCurrentStyle() : (ShapeStyle) getStyle();
+        // 钢笔/闭合贝塞尔只描边，不做区域填充（避免选中样式触发三角扇形放射线）
         if (style != null && style.getLineStyle() != null && style.getLineStyle().isVisible()) {
             // 使用LineStyle对象而不是只传递颜色，确保线宽等属性也被应用
             if (style.getLineStyle() instanceof LineStyle lineStyle) {
@@ -560,10 +382,6 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                     context.drawLine(transformed.get(i), transformed.get(i + 1), color);
                 }
             }
-        }
-        // 填充支持：使用三角化算法处理复杂闭合曲线
-        if (style != null && closed && style.getFillStyle() != null && style.getFillStyle().isVisible() && transformed.size() > 2) {
-            fillClosedCurve(context, transformed, (FillStyle) style.getFillStyle());
         }
         // 当被选中时，绘制控制点和辅助虚线
         if (isSelected()) {

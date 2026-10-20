@@ -267,6 +267,10 @@ public final class DefaultStyleConfig {
         TOOL_STYLE_CONFIGS.put("spiral", new StyleConfig(
             new Color(150, 0, 150), DEFAULT_FILL_COLOR, 1.5f
         ));
+        // 折线/钢笔默认描边、不填充（闭合路径也不应默认铺满内部）
+        TOOL_STYLE_CONFIGS.put("polyline", new StyleConfig(
+            DRAWING_TOOL_STROKE_COLOR, new Color(0, 0, 0, 0), DRAWING_TOOL_STROKE_WIDTH
+        ));
     }
     
     /**
@@ -279,11 +283,9 @@ public final class DefaultStyleConfig {
         if (config != null) {
             ShapeStyle style = createCustomStyle(config.strokeColor, config.fillColor, config.strokeWidth);
             
-            // 特殊处理：矩形工具使用无填充样式
-            if ("rectangle".equals(toolId)) {
-                // 设置完全透明的填充颜色
+            // 矩形、折线/钢笔默认无填充
+            if ("rectangle".equals(toolId) || "polyline".equals(toolId)) {
                 style.setFillColor(new Color(0, 0, 0, 0));
-                // 确保填充样式不可见
                 if (style.getFillStyle() != null) {
                     style.getFillStyle().setVisible(false);
                     style.getFillStyle().setOpacity(0.0f);

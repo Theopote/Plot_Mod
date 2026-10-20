@@ -1144,6 +1144,68 @@ public class DrawContext implements com.plot.api.render.IDrawContext {
     }
 
     /**
+     * 填充三角形（世界坐标）
+     */
+    public void fillTriangle(Vec2d p1, Vec2d p2, Vec2d p3, Color color) {
+        if (!checkDrawingEnvironment() || p1 == null || p2 == null || p3 == null || color == null) {
+            return;
+        }
+        try {
+            Vec2d s1 = worldToScreen(p1);
+            Vec2d s2 = worldToScreen(p2);
+            Vec2d s3 = worldToScreen(p3);
+            int imColor = getImColor(color);
+            drawList.addTriangleFilled(
+                    (float) s1.x, (float) s1.y,
+                    (float) s2.x, (float) s2.y,
+                    (float) s3.x, (float) s3.y,
+                    imColor);
+        } catch (Exception e) {
+            LOGGER.error("填充三角形失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 填充多边形（世界坐标）。优先耳切三角化；失败时回退到质心扇形（仅适合近似凸形）。
+     */
+    public void fillPolygon(List<Vec2d> points, Color color) {
+        if (!checkDrawingEnvironment() || points == null || points.size() < 3 || color == null) {
+            return;
+        }
+        if (color.getAlpha() == 0) {
+            return;
+        }
+
+        try {
+            var triangulation = com.plot.core.geometry.polygon.PolygonTriangulator.triangulate(points);
+            if (triangulation.success()) {
+                for (var triangle : triangulation.triangles()) {
+                    fillTriangle(
+                            points.get(triangle.i0()),
+                            points.get(triangle.i1()),
+                            points.get(triangle.i2()),
+                            color);
+                }
+                return;
+            }
+
+            // 回退：质心扇形（凹多边形可能溢出，但优于描边伪填充）
+            double sumX = 0;
+            double sumY = 0;
+            for (Vec2d point : points) {
+                sumX += point.x;
+                sumY += point.y;
+            }
+            Vec2d center = new Vec2d(sumX / points.size(), sumY / points.size());
+            for (int i = 0; i < points.size(); i++) {
+                fillTriangle(center, points.get(i), points.get((i + 1) % points.size()), color);
+            }
+        } catch (Exception e) {
+            LOGGER.error("填充多边形失败: {}", e.getMessage());
+        }
+    }
+
+    /**
      * 一次性绘制多个点构成的路径
      * @param points 路径点列表
      * @param color 线条颜色

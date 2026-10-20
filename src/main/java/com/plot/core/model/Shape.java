@@ -280,14 +280,8 @@ public abstract class Shape implements Cloneable, IDirty, IShape {
         context.setCamera(camera);
         context.setOpacity(opacity);
         
-        // 根据选中状态和高亮状态设置样式
-        if (isSelected()) {
-            context.setStyle(ShapeStyle.SELECTED);
-        } else if (isHighlighted()) {
-            context.setStyle(ShapeStyle.HIGHLIGHTED);
-        } else if (style != null) {
-            context.setStyle((ShapeStyle)style);
-        }
+        // 根据选中状态和高亮状态设置样式（不强制给描边图形开填充）
+        context.setStyle(resolveRenderStyle());
         
         // 调用子类的draw方法进行实际绘制
         draw(context);
@@ -305,14 +299,7 @@ public abstract class Shape implements Cloneable, IDirty, IShape {
         // 保存当前上下文样式
         ShapeStyle originalStyle = context.getCurrentStyle();
         
-        // 根据选中状态和高亮状态设置样式
-        if (isSelected()) {
-            context.setStyle(ShapeStyle.SELECTED);
-        } else if (isHighlighted()) {
-            context.setStyle(ShapeStyle.HIGHLIGHTED);
-        } else if (style != null) {
-            context.setStyle((ShapeStyle)style);
-        }
+        context.setStyle(resolveRenderStyle());
         
         // 直接调用子类的draw方法进行实际绘制
         draw(context);
@@ -321,6 +308,36 @@ public abstract class Shape implements Cloneable, IDirty, IShape {
         if (originalStyle != null) {
             context.setStyle(originalStyle);
         }
+    }
+
+    /**
+     * 选中/高亮只改描边高亮色；若自身未开启填充，则保持不填充。
+     */
+    private ShapeStyle resolveRenderStyle() {
+        ShapeStyle ownStyle = style instanceof ShapeStyle shapeStyle ? shapeStyle : null;
+        if (isSelected()) {
+            return overlayHighlightStyle(ShapeStyle.SELECTED, ownStyle);
+        }
+        if (isHighlighted()) {
+            return overlayHighlightStyle(ShapeStyle.HIGHLIGHTED, ownStyle);
+        }
+        return ownStyle;
+    }
+
+    private static ShapeStyle overlayHighlightStyle(ShapeStyle overlay, ShapeStyle ownStyle) {
+        boolean fillVisible = ownStyle != null
+                && ownStyle.getFillStyle() != null
+                && ownStyle.getFillStyle().isVisible();
+        if (fillVisible) {
+            return overlay;
+        }
+        ShapeStyle strokeOnly = (ShapeStyle) overlay.clone();
+        if (strokeOnly.getFillStyle() != null) {
+            strokeOnly.getFillStyle().setVisible(false);
+            strokeOnly.getFillStyle().setOpacity(0.0f);
+            strokeOnly.setFillColor(new java.awt.Color(0, 0, 0, 0));
+        }
+        return strokeOnly;
     }
     
     /**
