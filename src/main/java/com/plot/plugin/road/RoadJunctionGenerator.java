@@ -427,6 +427,16 @@ public class RoadJunctionGenerator {
             tunnelApproaches, footprint, generator.coordinateTransformer());
         TunnelJunctionSeedResolver.UnderpassYBand underpassBand =
             TunnelJunctionSeedResolver.resolveUnderpassYBand(tunnelApproaches);
+        // Batters can extend past the plaza polygon; their excavation must also
+        // preserve the real sloping upper deck in those world columns.
+        var constructionColumns = new java.util.HashSet<ColumnKey>();
+        if (elevatedDeckY != null) {
+            for (var primitive : blocks.getSolids().primitives()) {
+                if (!"minecraft:air".equals(primitive.materialId())) continue;
+                var column = generator.toBlockPos(primitive.planPoint(), 0);
+                constructionColumns.add(new ColumnKey(column.getX(), column.getZ()));
+            }
+        }
         List<BlockPos> expectedProtected = JunctionExpectedProtectedCollector.collect(
             network,
             node,
@@ -434,7 +444,7 @@ public class RoadJunctionGenerator {
             elevations,
             generator.getConfig(),
             generator.coordinateTransformer(),
-            (n, net) -> generator.resolveElevatedRoadId(n, net, terrain));
+            (n, net) -> generator.resolveElevatedRoadId(n, net, terrain), constructionColumns);
 
         blocks.setValidationManifest(new JunctionValidationManifest(
             node.getId(),

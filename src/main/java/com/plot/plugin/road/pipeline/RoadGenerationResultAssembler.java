@@ -34,11 +34,13 @@ public final class RoadGenerationResultAssembler {
             }
         }
         if (network == null || junctionResults == null || host == null) {
+            com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
             return aggregate;
         }
         for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
             mergeJunctionForNode(aggregate, network.getNode(entry.getKey()), entry.getValue(), network, host);
         }
+        com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
         return aggregate;
     }
 
@@ -86,7 +88,9 @@ public final class RoadGenerationResultAssembler {
             projectionHandler,
             roadBlockId,
             sidewalkBlockId,
-            markingBlockId);
+            markingBlockId,
+            junction.validationManifest() != null
+                ? new java.util.HashSet<>(junction.validationManifest().expectedProtectedBlocks()) : java.util.Set.of());
     }
 
     public static void mergeJunctionBlocks(

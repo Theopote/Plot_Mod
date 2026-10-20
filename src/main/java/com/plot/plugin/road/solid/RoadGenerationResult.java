@@ -27,6 +27,8 @@ public class RoadGenerationResult {
     public final Map<BlockPos, RoadSolidLayer> placementLayers = new LinkedHashMap<>();
     /** 与 {@link #placementRecords} 同步：记录各 BlockPos 当前生效的同层材质优先级。 */
     public final Map<BlockPos, Integer> placementMaterialPriorities = new LinkedHashMap<>();
+    /** Sparse reserved headroom above open-road surfaces; no air records for already-empty terrain. */
+    public final Map<BlockPos, Integer> openRoadClearanceTops = new LinkedHashMap<>();
     public int cutVolume;
     public int fillVolume;
     public int bridgeCount;
@@ -107,6 +109,7 @@ public class RoadGenerationResult {
         if (source == null) {
             return;
         }
+        source.openRoadClearanceTops.forEach((pos, top) -> openRoadClearanceTops.merge(pos, top, Math::max));
         roadBlocks.addAll(source.roadBlocks);
         sidewalkBlocks.addAll(source.sidewalkBlocks);
         bridgeBlocks.addAll(source.bridgeBlocks);

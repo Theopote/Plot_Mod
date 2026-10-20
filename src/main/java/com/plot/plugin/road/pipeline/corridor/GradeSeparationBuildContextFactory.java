@@ -83,7 +83,7 @@ public final class GradeSeparationBuildContextFactory {
         int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
         List<Vec2d> polygon = junctionPolygon(network, node, config, elevatedRoadId);
         if (polygon.size() >= 3) {
-            zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY));
+            zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY, underpassY));
         }
     }
 
@@ -103,7 +103,7 @@ public final class GradeSeparationBuildContextFactory {
         int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
         List<Vec2d> polygon = stackJunctionPolygon(network, node, config);
         if (polygon.size() >= 3) {
-            zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY));
+            zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY, underpassY));
         }
     }
 

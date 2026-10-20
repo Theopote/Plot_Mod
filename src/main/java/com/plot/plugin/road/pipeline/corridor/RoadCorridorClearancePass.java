@@ -146,7 +146,7 @@ public final class RoadCorridorClearancePass {
             TerrainSampler terrain,
             int y,
             GradeSeparationBuildContext gradeSeparation) {
-        if (gradeSeparation != null && gradeSeparation.protects(cell.planPoint(), y)) {
+        if (gradeSeparation != null && gradeSeparation.protectsClearance(cell.planPoint(), y)) {
             return 0;
         }
         if (!hasObstruction(terrain, key.worldX(), y, key.worldZ())) {

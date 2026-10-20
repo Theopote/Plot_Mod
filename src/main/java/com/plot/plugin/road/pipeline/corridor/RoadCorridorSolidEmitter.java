@@ -149,7 +149,7 @@ public final class RoadCorridorSolidEmitter {
                 cutFaceY = cutTopY - 1;
             }
             for (int y = cutFaceY + 1; y <= cutTopY; y++) {
-                if (gradeSeparation.protects(planPoint, y)) {
+                if (gradeSeparation.protectsClearance(planPoint, y)) {
                     continue;
                 }
                 solids.add(

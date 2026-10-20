@@ -6,6 +6,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -39,13 +40,33 @@ public final class JunctionExpectedProtectedCollector {
             RoadSystemConfig config,
             ICoordinateService coordinateTransformer,
             GradeSeparationBuildContextFactory.ElevatedRoadIdResolver elevatedRoadIdResolver) {
+        return collect(network, node, edgeResults, nodeElevations, config, coordinateTransformer,
+            elevatedRoadIdResolver, Set.of());
+    }
+
+    public static List<BlockPos> collect(
+            RoadNetwork network,
+            RoadNode node,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            GradeSeparationBuildContextFactory.ElevatedRoadIdResolver elevatedRoadIdResolver,
+            Set<ColumnKey> constructionColumns) {
         UpperRoadProtectionBounds bounds = resolveUpperRoadBounds(
             network, node, nodeElevations, config, elevatedRoadIdResolver);
         if (bounds == null || edgeResults == null || edgeResults.isEmpty()) {
             return List.of();
         }
         Set<BlockPos> protectedBlocks = new LinkedHashSet<>();
-        for (RoadGenerationResult result : edgeResults.values()) {
+        String elevatedRoadId = elevatedRoadIdResolver != null
+            ? elevatedRoadIdResolver.resolve(node, network) : node.getElevatedRoadId();
+        int underpassY = nodeElevations.get(node.getId());
+        for (var resultEntry : edgeResults.entrySet()) {
+            var edge = network.getEdge(resultEntry.getKey());
+            if (edge == null || (node.isStackGradeSeparated() ? !node.isStackUpperEdge(edge.getId())
+                    : !java.util.Objects.equals(elevatedRoadId, edge.getRoadId()))) continue;
+            RoadGenerationResult result = resultEntry.getValue();
             if (result == null || result.placementRecords == null) {
                 continue;
             }
@@ -55,7 +76,7 @@ public final class JunctionExpectedProtectedCollector {
                 if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
                     continue;
                 }
-                if (pos.getY() <= bounds.floorY()) {
+                if (pos.getY() <= underpassY) {
                     continue;
                 }
                 RoadSolidLayer layer = result.placementLayers.get(pos);
@@ -63,7 +84,8 @@ public final class JunctionExpectedProtectedCollector {
                     continue;
                 }
                 Vec2d planPoint = blockToPlan(pos, coordinateTransformer);
-                if (RoadGeometryUtils.pointInPolygon(planPoint, bounds.polygon())) {
+                if (constructionColumns.contains(new ColumnKey(pos.getX(), pos.getZ()))
+                        || RoadGeometryUtils.pointInPolygon(planPoint, bounds.polygon())) {
                     protectedBlocks.add(pos.toImmutable());
                 }
             }
@@ -140,13 +162,15 @@ public final class JunctionExpectedProtectedCollector {
         }
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
         double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));
@@ -168,13 +192,15 @@ public final class JunctionExpectedProtectedCollector {
         }
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
         double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));

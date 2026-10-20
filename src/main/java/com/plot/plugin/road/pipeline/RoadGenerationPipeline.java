@@ -181,6 +181,7 @@ public final class RoadGenerationPipeline {
             generateTunnelStructures(ctx, host);
             TunnelPortalBackfillPass.apply(ctx.solids(), plan, ctx.terrain(), planHost);
             RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
+            com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.apply(result, plan, request.tunnelStyle().clearHeight());
             RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain(), planHost);
             return result;
         } finally {

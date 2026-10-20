@@ -11,6 +11,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadVoxelRasterizerTest {
 
     @Test
+    void junctionExcavationProtectsAnActualSlopingDeckBelowNominalClearancePlane() {
+        var deck = new net.minecraft.util.math.BlockPos(3, 69, 0);
+        var aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementByLayerPriority(deck, "minecraft:stone", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        var solids = new RoadSolidModel();
+        solids.add(new Vec2d(3, 0), 69, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.CLEARANCE);
+        solids.add(new Vec2d(3, 0), 68, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.CLEARANCE);
+        RoadVoxelRasterizer.flushJunctionSolids(aggregate, solids,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance(), null, null, null, java.util.Set.of(deck));
+        assertEquals("minecraft:white_concrete", aggregate.placementRecords.get(deck).newBlockId);
+        assertEquals("minecraft:air", aggregate.placementRecords.get(deck.down()).newBlockId);
+    }
+
+    @Test
     void connectedPlanPointsFillFourConnectedDiagonal() {
         List<Vec2d> points = RoadVoxelRasterizer.sampleConnectedPlanPoints(
             new Vec2d(0, 0), new Vec2d(2, 2));

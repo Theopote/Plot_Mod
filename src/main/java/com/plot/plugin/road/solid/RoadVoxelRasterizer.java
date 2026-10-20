@@ -125,16 +125,33 @@ public final class RoadVoxelRasterizer {
             String roadBlockId,
             String sidewalkBlockId,
             String markingBlockId) {
+        flushJunctionSolids(result, solids, transformer, projectionHandler,
+            roadBlockId, sidewalkBlockId, markingBlockId, Set.of());
+    }
+
+    public static void flushJunctionSolids(
+            RoadGenerationResult result,
+            RoadSolidModel solids,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler,
+            String roadBlockId,
+            String sidewalkBlockId,
+            String markingBlockId, Set<BlockPos> upperPlacements) {
         if (result == null || solids == null || solids.isEmpty()) {
             return;
         }
         java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
 
+        Set<BlockPos> protectedPlacements = new LinkedHashSet<>(upperPlacements);
+        for (var primitive : solids.primitives()) {
+            if (isJunctionPlazaSurface(primitive.layer())) protectedPlacements.add(
+                toBlockPos(primitive.planPoint(), primitive.elevation(), transformer));
+        }
         // 提取公共逻辑：先处理非隧道，再处理隧道
         flushSolidsByLayer(result, solids, transformer, projectionHandler,
             (res, prim, trans, handler) ->
                 writeJunctionPlacementRecord(res, prim, trans, handler,
-                    roadBlockId, sidewalkBlockId, markingBlockId));
+                    roadBlockId, sidewalkBlockId, markingBlockId, protectedPlacements));
     }
 
     /**
@@ -197,7 +214,7 @@ public final class RoadVoxelRasterizer {
             IBlockProjectionService projectionHandler,
             String roadBlockId,
             String sidewalkBlockId,
-            String markingBlockId) {
+            String markingBlockId, Set<BlockPos> protectedPlacements) {
         String blockId = resolveJunctionMaterialOverride(
             primitive.layer(), roadBlockId, sidewalkBlockId, markingBlockId);
         if (blockId == null) {
@@ -216,6 +233,9 @@ public final class RoadVoxelRasterizer {
             result.placementMaterialPriorities.put(pos, primitive.materialPriority());
             return;
         }
+        // A sloping upper deck can be below the node's nominal clearance plane.
+        // Junction excavation must respect the actual road and bridge placements.
+        if ("minecraft:air".equals(blockId) && protectedPlacements.contains(pos)) return;
         result.recordPlacementByLayerPriority(
             pos,
             projectionHandler.getBlockIdAt(pos),
