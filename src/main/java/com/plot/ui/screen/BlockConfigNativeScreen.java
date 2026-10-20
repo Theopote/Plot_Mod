@@ -416,8 +416,9 @@ public class BlockConfigNativeScreen extends Screen {
         // 8. 计算侧边栏标签布局
         buildCategoryTabLayouts();
 
-        // 9. 同步调色盘数据
+        // 9. 同步调色盘数据（空时默认淡蓝色羊毛，用户仍可删除/替换）
         if (!isSingleSelectMode()) {
+            configManager.ensureDefaultPaletteIfEmpty();
             palette.clear();
             palette.addAll(configManager.getPaletteBlocksSnapshot());
         }

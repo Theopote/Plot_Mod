@@ -24,6 +24,8 @@ import java.util.List;
 public final class BlockConfigManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockConfigManager");
     private static final int MAX_PALETTE_SLOTS = 14;
+    /** 打开配置面板时，空调色盘的默认方块 */
+    public static final String DEFAULT_PALETTE_BLOCK_ID = "minecraft:light_blue_wool";
     private static volatile BlockConfigManager instance;
 
     private BlockCategoryManager categoryManager;
@@ -78,6 +80,38 @@ public final class BlockConfigManager {
 
     public synchronized List<Block> getPaletteBlocksSnapshot() {
         return new ArrayList<>(paletteBlocks);
+    }
+
+    /**
+     * 若调色盘为空，放入默认方块（淡蓝色羊毛）。可被用户清空或替换。
+     *
+     * @return 是否写入了默认方块
+     */
+    public synchronized boolean ensureDefaultPaletteIfEmpty() {
+        if (!paletteBlocks.isEmpty()) {
+            return false;
+        }
+        Block block = resolveDefaultPaletteBlock();
+        if (block == null) {
+            LOGGER.warn("无法解析默认调色盘方块: {}", DEFAULT_PALETTE_BLOCK_ID);
+            return false;
+        }
+        paletteBlocks.add(block);
+        LOGGER.info("方块调色盘为空，已放入默认方块: {}", DEFAULT_PALETTE_BLOCK_ID);
+        return true;
+    }
+
+    private static Block resolveDefaultPaletteBlock() {
+        try {
+            Block block = Registries.BLOCK.get(Identifier.of(DEFAULT_PALETTE_BLOCK_ID));
+            if (block == null) {
+                return null;
+            }
+            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+            return stack.isEmpty() ? null : block;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public synchronized void setPaletteFromBlockIds(List<String> blockIds) {
