@@ -56,6 +56,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         public static final class ConfigKeys {
             public static final String MODE = "mode";          // 绘制模式
             public static final String MULTIPLE = "multiple";  // 连续绘制模式
+            public static final String CLOSE = "close";        // 闭合绘制
             public static final String NODE_TYPE = "nodeType"; // 节点类型
             public static final String DOUBLE_CLICK_TIME = "doubleClickTime"; // 双击时间
         }
@@ -84,6 +85,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
     // ====== 工具状态 ======
     private String drawMode = Constants.Modes.POLYLINE;           // 当前绘制模式
     private boolean multipleMode = false;              // 连续绘制模式
+    private boolean closeMode = false;                 // 闭合绘制
     private String nodeType = Constants.NodeTypes.AUTO;          // 当前节点类型
     
     // ====== 适配器实例 ======
@@ -215,6 +217,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         switch (key) {
             case Constants.ConfigKeys.MODE -> updateDrawMode(value);
             case Constants.ConfigKeys.MULTIPLE -> updateMultipleMode(value);
+            case Constants.ConfigKeys.CLOSE -> updateCloseMode(value);
             case Constants.ConfigKeys.NODE_TYPE -> updateNodeType(value);
             case Constants.ConfigKeys.DOUBLE_CLICK_TIME -> {
                 try {
@@ -320,6 +323,11 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         } catch (Exception e) {
             LOGGER.warn("无效的连续绘制模式值: {}", value);
         }
+    }
+
+    private void updateCloseMode(String value) {
+        closeMode = Boolean.parseBoolean(value);
+        LOGGER.debug("闭合绘制模式更新为: {}", closeMode);
     }
 
     private void updateNodeType(String value) {
@@ -580,6 +588,11 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         @Override
         public boolean isMultipleMode() {
             return multipleMode;
+        }
+
+        @Override
+        public boolean isCloseEnabled() {
+            return closeMode;
         }
     }
 

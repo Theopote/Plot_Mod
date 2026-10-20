@@ -26,33 +26,42 @@ import static com.plot.ui.tools.impl.drawing.PolylineTool.Constants.*;
  * <p>
  * 负责处理折线模式下的所有交互逻辑，包括：
  * - 点击添加顶点
- * - 双击完成绘制
+ * - Shift 正交/45° 约束
+ * - 闭合选项下的右键闭合与点击起点自动闭合
  * - 预览渲染
  * - 最终图形生成
  */
 public class PolylineDrawModeHandler extends AbstractModeHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(PolylineDrawModeHandler.class);
-    
+
+    /** 闭合折线至少需要 3 个顶点 */
+    private static final int MIN_POINTS_FOR_CLOSE = 3;
+
     // 折线特有状态
     private final List<Vec2d> points = new ArrayList<>();
     private static final double VERTEX_HIT_TOLERANCE = 8.0;
     private int draggingVertexIndex = -1;
     private DrawingGeometrySnapshot dragBeforeSnapshot;
     private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
-    
+    /** 本次提交是否闭合（在 COMPLETE 时根据选项与条件写入） */
+    private boolean closeOnCommit = false;
+    /** 最近一次交互时的闭合选项（供预览使用） */
+    private boolean closeEnabledHint = false;
+
     public PolylineDrawModeHandler(StyleHandler styleHandler) {
         super(styleHandler);
     }
-    
+
     @Override
     public IInteractionStrategy.InteractionResult onMouseDown(Vec2d pos, int button, DrawingToolContext context) {
         LOGGER.debug("PolylineDrawModeHandler.onMouseDown: 位置={}, 按钮={}", pos, button);
-        
+
+        closeEnabledHint = context.isCloseEnabled();
         if (button != 0) { // 非左键
             if (button == 1) { // 右键
                 if (isDrawing && points.size() >= 2) {
-                    // 右键完成绘制
-                    LOGGER.debug("折线模式右键完成绘制，当前点数：{}", points.size());
+                    closeOnCommit = shouldCloseOnFinish(context);
+                    LOGGER.debug("折线模式右键完成绘制，当前点数：{}，闭合={}", points.size(), closeOnCommit);
                     return IInteractionStrategy.InteractionResult.COMPLETE;
                 } else {
                     // 点数不足，取消绘制
@@ -65,29 +74,36 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             LOGGER.debug("忽略非左键按钮: {}", button);
             return IInteractionStrategy.InteractionResult.IGNORED;
         }
-        
+
         // 处理左键点击
         return handleLeftMouseDown(pos, context);
     }
-    
+
     @Override
     protected IInteractionStrategy.InteractionResult handleLeftMouseDown(Vec2d pos, DrawingToolContext context) {
         Vec2d worldPoint = getWorldPoint(pos, context);
-        
+
         LOGGER.debug("折线模式鼠标按下: 位置={}", worldPoint);
-        
+
         if (!isDrawing) {
             // 开始新的折线
             points.clear();
+            closeOnCommit = false;
             points.add(worldPoint);
             isDrawing = true;
             context.updateStatusMessage("status.plot.draw.polyline_add_vertex");
             LOGGER.debug("折线模式：开始新的折线");
-            
+
             // 通知工具更新预览
             notifyPreviewUpdate(context);
         } else {
             int hitIndex = findVertexIndex(worldPoint);
+            // 勾选闭合且点数足够时，点击起点自动完成并闭合
+            if (hitIndex == 0 && canClose(context)) {
+                closeOnCommit = true;
+                LOGGER.debug("折线模式：点击起点自动闭合，点数={}", points.size());
+                return IInteractionStrategy.InteractionResult.COMPLETE;
+            }
             if (hitIndex >= 0) {
                 draggingVertexIndex = hitIndex;
                 dragBeforeSnapshot = captureGeometrySnapshot();
@@ -95,38 +111,32 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
                 return IInteractionStrategy.InteractionResult.CONTINUE;
             }
 
-            // 添加新点（Shift 下与预览一致的正交点）
+            // 添加新点（Shift 下与预览一致的 45° 正交点）
             boolean shiftDown = ImGui.getIO().getKeyShift();
             if (shiftDown && !points.isEmpty()) {
-                Vec2d last = points.getLast();
                 if (currentMousePoint != null) {
                     // 与预览一致
                     worldPoint = currentMousePoint;
                 } else {
-                    // 回退：现场计算正交锁定
-                    Vec2d delta = new Vec2d(worldPoint.x - last.x, worldPoint.y - last.y);
-                    if (Math.abs(delta.x) >= Math.abs(delta.y)) {
-                        worldPoint = new Vec2d(worldPoint.x, last.y);
-                    } else {
-                        worldPoint = new Vec2d(last.x, worldPoint.y);
-                    }
+                    worldPoint = OrthogonalConstraint.apply45Degree(points.getLast(), worldPoint);
                 }
             }
             points.add(worldPoint);
             LOGGER.debug("折线模式：添加新顶点，当前点数：{}", points.size());
             context.updateStatusMessage("status.plot.draw.polyline_add_vertex");
-            
+
             // 通知工具更新预览
             notifyPreviewUpdate(context);
         }
-        
+
         return IInteractionStrategy.InteractionResult.CONTINUE;
     }
-    
+
     // onMouseMove 和 onMouseUp 使用基类的默认实现
-    
+
     @Override
     public IInteractionStrategy.InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
+        closeEnabledHint = context.isCloseEnabled();
         if (draggingVertexIndex >= 0) {
             Vec2d worldPoint = getWorldPoint(pos, context);
             points.set(draggingVertexIndex, worldPoint);
@@ -138,18 +148,10 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         // 基础：获取吸附后的世界坐标
         Vec2d snapped = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
 
-        // 正交约束：按住 Shift 时，将预览点约束到与上一个点水平/垂直
+        // 正交/45° 约束：按住 Shift 时，将预览点约束到相对上一点最近的 45° 倍角
         boolean shiftDown = ImGui.getIO().getKeyShift();
         if (isDrawing && shiftDown && !points.isEmpty()) {
-            Vec2d last = points.getLast();
-            Vec2d delta = new Vec2d(snapped.x - last.x, snapped.y - last.y);
-            if (Math.abs(delta.x) >= Math.abs(delta.y)) {
-                // 更接近水平 → 锁定 Y
-                currentMousePoint = new Vec2d(snapped.x, last.y);
-            } else {
-                // 更接近垂直 → 锁定 X
-                currentMousePoint = new Vec2d(last.x, snapped.y);
-            }
+            currentMousePoint = OrthogonalConstraint.apply45Degree(points.getLast(), snapped);
         } else {
             currentMousePoint = snapped;
         }
@@ -172,19 +174,19 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         }
         return super.onMouseUp(pos, button, context);
     }
-    
+
     @Override
     public void renderPreview(DrawingAdapter adapter) {
         if (points.isEmpty()) return;
-        
+
         // 获取当前图层的颜色
         Color layerColor = getLayerColor();
-        
+
         // 绘制已确定的线段（使用图层颜色）
         for (int i = 0; i < points.size() - 1; i++) {
             adapter.drawLine(points.get(i), points.get(i + 1), layerColor, Rendering.PREVIEW_LINE_THICKNESS);
         }
-        
+
         // 绘制到当前鼠标位置的预览线（使用半透明的图层颜色）
         if (currentMousePoint != null && !points.isEmpty()) {
             Vec2d lastPoint = points.getLast();
@@ -206,42 +208,65 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
                 }
             }
         }
-        
-        // 绘制顶点（使用图层颜色）
-        for (Vec2d point : points) {
-            adapter.drawCircle(point, Rendering.POINT_SIZE, layerColor, true);
+
+        // 闭合预览：勾选闭合且点数足够时显示末点到起点的半透明闭合边
+        if (closeEnabledHint && points.size() >= MIN_POINTS_FOR_CLOSE) {
+            Color closePreview = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 90);
+            adapter.drawLine(points.getLast(), points.getFirst(), closePreview, Rendering.PREVIEW_LINE_THICKNESS);
         }
-        
+
+        // 绘制顶点（使用图层颜色）
+        for (int i = 0; i < points.size(); i++) {
+            Vec2d point = points.get(i);
+            adapter.drawCircle(point, Rendering.POINT_SIZE, layerColor, true);
+            // 可闭合时高亮起点
+            if (i == 0 && closeEnabledHint && points.size() >= MIN_POINTS_FOR_CLOSE) {
+                Color startHighlight = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 180);
+                adapter.drawCircle(point, Rendering.POINT_SIZE + 2.0f, startHighlight, false);
+            }
+        }
+
         // 绘制当前鼠标位置的预览点（使用半透明的图层颜色）
         if (currentMousePoint != null) {
             Color previewColor = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 128);
             adapter.drawCircle(currentMousePoint, Rendering.POINT_SIZE, previewColor, true);
         }
     }
-    
+
     @Override
     public Shape getFinalShape() {
         // 修复：只使用用户点击确定的points，不包含鼠标悬停位置
         if (points.size() >= 2) {
+            boolean closed = closeOnCommit && points.size() >= MIN_POINTS_FOR_CLOSE;
             // 为安全起见，传入一个副本给构造函数
-            PolylineShape polyline = new PolylineShape(new ArrayList<>(points), false);
+            PolylineShape polyline = new PolylineShape(new ArrayList<>(points), closed);
             ShapeStyle style = (ShapeStyle) styleHandler.getFinalStyle();
             if (style != null) {
                 polyline.setStyle(style);
             }
-            LOGGER.debug("折线模式创建图形: 点数={}", points.size());
+            LOGGER.debug("折线模式创建图形: 点数={}, 闭合={}", points.size(), closed);
             return polyline;
         }
         return null;
     }
-    
+
     @Override
     public void reset() {
         points.clear();
         draggingVertexIndex = -1;
         dragBeforeSnapshot = null;
+        closeOnCommit = false;
+        closeEnabledHint = false;
         segmentInput.clear();
         super.reset(); // 调用父类的 reset 方法
+    }
+
+    private boolean canClose(DrawingToolContext context) {
+        return context.isCloseEnabled() && points.size() >= MIN_POINTS_FOR_CLOSE;
+    }
+
+    private boolean shouldCloseOnFinish(DrawingToolContext context) {
+        return canClose(context);
     }
 
     private void applySegmentDistance(DrawingToolContext context) {
@@ -285,6 +310,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         points.clear();
         points.addAll(snapshot.getPoints());
         isDrawing = points.size() >= 1;
+        closeOnCommit = false;
         return true;
     }
 
@@ -300,7 +326,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         }
         return nearest;
     }
-    
+
     @Override
     public String getStatusMessage() {
         if (!isDrawing) {
@@ -311,7 +337,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             return PlotI18n.status("status.plot.draw.polyline_vertex_count", points.size());
         }
     }
-    
+
     @Override
     public IInteractionStrategy.InteractionResult onKeyDown(int key, DrawingToolContext context) {
         if (isDrawing && !points.isEmpty() && currentMousePoint != null) {
@@ -331,7 +357,8 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             return IInteractionStrategy.InteractionResult.CANCEL;
         }
         if (key == 13 && isDrawing && points.size() >= 2 && !segmentInput.hasInput()) {
-            LOGGER.debug("折线模式Enter键完成绘制，当前点数：{}", points.size());
+            closeOnCommit = shouldCloseOnFinish(context);
+            LOGGER.debug("折线模式Enter键完成绘制，当前点数：{}，闭合={}", points.size(), closeOnCommit);
             return IInteractionStrategy.InteractionResult.COMPLETE;
         }
         return IInteractionStrategy.InteractionResult.IGNORED;
@@ -354,7 +381,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     public List<Vec2d> getPoints() {
         return new ArrayList<>(points);
     }
-    
+
     /**
      * 获取当前图层的颜色
      * 优化：移除不必要的try-catch，直接进行类型检查，正确处理透明度
@@ -373,7 +400,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
                 return new Color(fillColor, true); // true 表示包含 alpha 通道
             }
         }
-        
+
         // 回退到默认颜色
         return Colors.LINE;
     }

@@ -180,6 +180,13 @@ public interface IModeHandler {
          * 获取多重绘制模式
          */
         boolean isMultipleMode();
+
+        /**
+         * 是否启用闭合绘制（完成时自动闭合为封闭图形）
+         */
+        default boolean isCloseEnabled() {
+            return false;
+        }
     }
     
     /**

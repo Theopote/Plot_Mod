@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.drawing.helper;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy.InteractionResult;
@@ -90,6 +91,52 @@ class PenDrawModeHandlerTest {
         injectPathNodes(new PathNode(new Vec2d(0, 0)));
 
         assertEquals(null, handler.getFinalShape());
+    }
+
+    @Test
+    void rightClickWithCloseEnabledProducesClosedShape() throws Exception {
+        context.setCloseEnabled(true);
+        injectPathNodes(
+                new PathNode(new Vec2d(0, 0)),
+                new PathNode(new Vec2d(10, 0)),
+                new PathNode(new Vec2d(10, 10)));
+
+        InteractionResult result = handler.onMouseDown(new Vec2d(10, 10), MOUSE_RIGHT, context);
+
+        assertEquals(InteractionResult.COMPLETE, result);
+        Shape finalShape = handler.getFinalShape();
+        assertNotNull(finalShape);
+        if (finalShape instanceof PolylineShape polyline) {
+            assertTrue(polyline.isClosed());
+        } else {
+            assertInstanceOf(BezierCurveShape.class, finalShape);
+            assertTrue(((BezierCurveShape) finalShape).isClosed());
+        }
+    }
+
+    @Test
+    void clickStartAnchorWithCloseEnabledCompletesAndCloses() throws Exception {
+        context.setCloseEnabled(true);
+        injectPathNodes(
+                new PathNode(new Vec2d(0, 0)),
+                new PathNode(new Vec2d(10, 0)),
+                new PathNode(new Vec2d(10, 10)));
+
+        InteractionResult result = handler.onMouseDown(new Vec2d(0, 0), MOUSE_LEFT, context);
+
+        assertEquals(InteractionResult.COMPLETE, result);
+        Shape finalShape = handler.getFinalShape();
+        assertNotNull(finalShape);
+        if (finalShape instanceof PolylineShape polyline) {
+            assertTrue(polyline.isClosed());
+            assertEquals(3, polyline.getPoints().size());
+        } else {
+            assertInstanceOf(BezierCurveShape.class, finalShape);
+            BezierCurveShape curve = (BezierCurveShape) finalShape;
+            assertTrue(curve.isClosed());
+            // 闭合曲线 getAnchorPoints 末尾会重复起点，去重后应为 3
+            assertEquals(3, curve.getAnchorPoints().stream().distinct().count());
+        }
     }
 
     private void injectPathNodes(PathNode... nodes) throws Exception {

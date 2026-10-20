@@ -47,6 +47,8 @@
   "option.plot.array_type": "阵列类型",
   "option.plot.break_mode": "打断模式",
   "option.plot.chamfer_distance": "倒角距离",
+  "option.plot.close_path": "闭合",
+  "option.plot.close_path_hint": "勾选后，点数≥3时右键/回车完成会自动闭合；绘制过程中点击起点也可自动闭合。",
   "option.plot.clockwise": "逆时针",
   "option.plot.column_count": "列数",
   "option.plot.column_spacing": "列间距",

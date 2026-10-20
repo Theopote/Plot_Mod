@@ -91,6 +91,66 @@ class PolylineDrawModeHandlerTest {
         assertEquals(null, handler.getFinalShape());
     }
 
+    @Test
+    void rightClickWithCloseEnabledProducesClosedPolyline() throws Exception {
+        context.setCloseEnabled(true);
+        injectDrawingPoints(
+                new Vec2d(0, 0),
+                new Vec2d(10, 0),
+                new Vec2d(10, 10));
+
+        InteractionResult result = handler.onMouseDown(new Vec2d(10, 10), MOUSE_RIGHT, context);
+
+        assertEquals(InteractionResult.COMPLETE, result);
+        Shape finalShape = handler.getFinalShape();
+        assertInstanceOf(PolylineShape.class, finalShape);
+        assertTrue(((PolylineShape) finalShape).isClosed());
+    }
+
+    @Test
+    void rightClickWithCloseEnabledButOnlyTwoPointsStaysOpen() throws Exception {
+        context.setCloseEnabled(true);
+        injectDrawingPoints(new Vec2d(0, 0), new Vec2d(10, 0));
+
+        InteractionResult result = handler.onMouseDown(new Vec2d(10, 0), MOUSE_RIGHT, context);
+
+        assertEquals(InteractionResult.COMPLETE, result);
+        Shape finalShape = handler.getFinalShape();
+        assertInstanceOf(PolylineShape.class, finalShape);
+        assertFalse(((PolylineShape) finalShape).isClosed());
+    }
+
+    @Test
+    void clickStartPointWithCloseEnabledCompletesAndCloses() throws Exception {
+        context.setCloseEnabled(true);
+        injectDrawingPoints(
+                new Vec2d(0, 0),
+                new Vec2d(10, 0),
+                new Vec2d(10, 10));
+
+        InteractionResult result = handler.onMouseDown(new Vec2d(0, 0), MOUSE_LEFT, context);
+
+        assertEquals(InteractionResult.COMPLETE, result);
+        Shape finalShape = handler.getFinalShape();
+        assertInstanceOf(PolylineShape.class, finalShape);
+        assertTrue(((PolylineShape) finalShape).isClosed());
+        assertEquals(3, ((PolylineShape) finalShape).getPoints().size());
+    }
+
+    @Test
+    void clickStartPointWithoutCloseEnabledStartsDrag() throws Exception {
+        context.setCloseEnabled(false);
+        injectDrawingPoints(
+                new Vec2d(0, 0),
+                new Vec2d(10, 0),
+                new Vec2d(10, 10));
+
+        InteractionResult result = handler.onMouseDown(new Vec2d(0, 0), MOUSE_LEFT, context);
+
+        assertEquals(InteractionResult.CONTINUE, result);
+        assertTrue(handler.isDrawing());
+    }
+
     private void injectDrawingPoints(Vec2d... points) throws Exception {
         Field pointsField = PolylineDrawModeHandler.class.getDeclaredField("points");
         pointsField.setAccessible(true);

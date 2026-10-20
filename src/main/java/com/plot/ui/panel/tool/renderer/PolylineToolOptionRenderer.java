@@ -4,17 +4,20 @@ import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.ui.tools.impl.drawing.PolylineTool;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
+import imgui.type.ImBoolean;
 import net.minecraft.util.Identifier;
 
 /**
  * 路径工具选项渲染器
- * 支持折线模式和钢笔模式
+ * 支持折线模式和钢笔模式，以及闭合选项
  */
 public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
-    private static final String CONFIG_KEY_MODE = "mode";
+    private static final String CONFIG_KEY_MODE = PolylineTool.Constants.ConfigKeys.MODE;
+    private static final String CONFIG_KEY_CLOSE = PolylineTool.Constants.ConfigKeys.CLOSE;
     
     // 模式常量
     private static final String MODE_POLYLINE = "polyline";
@@ -24,6 +27,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
     private final int penModeIconId;
 
     private String drawMode = MODE_POLYLINE;  // 默认使用折线模式
+    private final ImBoolean closePath = new ImBoolean(false);
 
     public PolylineToolOptionRenderer() {
         super("polyline");
@@ -36,6 +40,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
 
         // 初始化时发送默认模式配置
         updateToolConfig(CONFIG_KEY_MODE, MODE_POLYLINE);
+        updateToolConfig(CONFIG_KEY_CLOSE, "false");
     }
 
     @Override
@@ -108,12 +113,41 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
                 }
             }
 
-            // 恢复样式
+            // 恢复按钮样式
             ImGui.popStyleVar();
             ImGui.popStyleColor(4);
-            ImGui.popStyleVar();  // FrameRounding
 
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
+
+            // 闭合复选框
+            ImGui.tableNextRow();
+            ImGui.tableNextColumn();
+            ImGui.alignTextToFramePadding();
+            ImGui.text(PlotI18n.tr("option.plot.close_path"));
+
+            ImGui.tableNextColumn();
+            ImGui.pushItemWidth(-1);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
+            ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
+            ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
+
+            if (ImGui.checkbox("##" + CONFIG_KEY_CLOSE, closePath)) {
+                updateToolConfig(CONFIG_KEY_CLOSE, String.valueOf(closePath.get()));
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("option.plot.close_path_hint"));
+            }
+
+            ImGui.popStyleVar(2);
+            ImGui.popStyleColor(5);
+            ImGui.popItemWidth();
+            height += ImGui.getFrameHeightWithSpacing();
+
+            ImGui.popStyleVar();  // FrameRounding
 
         } finally {
             ImGui.popID();
@@ -126,6 +160,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
     @Override
     public void initialize() {
         drawMode = MODE_POLYLINE;
+        closePath.set(false);
     }
 
     @Override
@@ -134,4 +169,4 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGuiUtils.deleteTexture(polylineModeIconId);
         ImGuiUtils.deleteTexture(penModeIconId);
     }
-} 
+}

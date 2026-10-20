@@ -40,6 +40,9 @@ import static com.plot.ui.tools.impl.drawing.PolylineTool.Constants.*;
 public class PenDrawModeHandler extends AbstractModeHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(PenDrawModeHandler.class);
     
+    /** 闭合路径至少需要 3 个锚点 */
+    private static final int MIN_NODES_FOR_CLOSE = 3;
+
     // 钢笔特有状态
     private final List<PathNode> pathNodes = new ArrayList<>();
     private PenDrawingState state = PenDrawingState.IDLE;
@@ -48,6 +51,10 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     private int draggingNodeIndex = -1;
     private DrawingGeometrySnapshot dragBeforeSnapshot;
     private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
+    /** 本次提交是否闭合 */
+    private boolean closeOnCommit = false;
+    /** 最近一次交互时的闭合选项（供预览使用） */
+    private boolean closeEnabledHint = false;
     
     public PenDrawModeHandler(StyleHandler styleHandler) {
         super(styleHandler);
@@ -56,11 +63,13 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     @Override
     public IInteractionStrategy.InteractionResult onMouseDown(Vec2d pos, int button, DrawingToolContext context) {
         LOGGER.debug("PenDrawModeHandler.onMouseDown: 位置={}, 按钮={}, 状态={}", pos, button, state);
+        closeEnabledHint = context.isCloseEnabled();
         
         if (button != PenConstants.MOUSE_BUTTON_LEFT) { // 非左键
             if (button == PenConstants.MOUSE_BUTTON_RIGHT) { // 右键完成绘制
                 if (canCompleteDrawing()) {
-                    LOGGER.debug("钢笔模式右键完成绘制，当前节点数：{}", pathNodes.size());
+                    closeOnCommit = shouldCloseOnFinish(context);
+                    LOGGER.debug("钢笔模式右键完成绘制，当前节点数：{}，闭合={}", pathNodes.size(), closeOnCommit);
                     return IInteractionStrategy.InteractionResult.COMPLETE;
                 } else {
                     // 节点数不足，取消绘制
@@ -88,6 +97,7 @@ public class PenDrawModeHandler extends AbstractModeHandler {
             case IDLE:
                 // 开始绘制，添加第一个节点
                 pathNodes.clear();
+                closeOnCommit = false;
                 PathNode firstNode = new PathNode(worldPoint);
                 pathNodes.add(firstNode);
                 state = PenDrawingState.WAITING_FOR_POINT;
@@ -98,13 +108,28 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 
             case WAITING_FOR_POINT:
                 int hitIndex = findAnchorIndex(worldPoint);
+                // 勾选闭合且节点足够时，点击起点自动完成并闭合
+                if (hitIndex == 0 && canClose(context)) {
+                    closeOnCommit = true;
+                    LOGGER.debug("钢笔模式：点击起点自动闭合，节点数={}", pathNodes.size());
+                    return IInteractionStrategy.InteractionResult.COMPLETE;
+                }
                 if (hitIndex >= 0) {
                     draggingNodeIndex = hitIndex;
                     dragBeforeSnapshot = captureGeometrySnapshot();
                     LOGGER.debug("钢笔模式：开始拖拽已有锚点 {}", hitIndex);
                     break;
                 }
-                // 添加新的锚点
+                // 添加新的锚点（Shift 下与预览一致的 45° 正交点）
+                boolean shiftDown = ImGui.getIO().getKeyShift();
+                if (shiftDown && !pathNodes.isEmpty()) {
+                    if (currentMousePoint != null) {
+                        worldPoint = currentMousePoint;
+                    } else {
+                        worldPoint = OrthogonalConstraint.apply45Degree(
+                                pathNodes.getLast().getAnchor(), worldPoint);
+                    }
+                }
                 PathNode newNode = new PathNode(worldPoint);
                 pathNodes.add(newNode);
                 currentNode = newNode;
@@ -136,6 +161,7 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
+        closeEnabledHint = context.isCloseEnabled();
         if (draggingNodeIndex >= 0) {
             Vec2d worldPoint = getWorldPoint(pos, context);
             PathNode node = pathNodes.get(draggingNodeIndex);
@@ -150,8 +176,19 @@ public class PenDrawModeHandler extends AbstractModeHandler {
             return IInteractionStrategy.InteractionResult.CONTINUE;
         }
 
-        // 调用父类方法处理基础鼠标移动
+        // 调用父类方法处理基础鼠标移动（含吸附）
         IInteractionStrategy.InteractionResult result = super.onMouseMove(pos, context);
+
+        // Shift：等待下一点时将预览约束到相对上一锚点的 45° 倍角
+        boolean shiftDown = ImGui.getIO().getKeyShift();
+        if (isDrawing
+                && state == PenDrawingState.WAITING_FOR_POINT
+                && shiftDown
+                && !pathNodes.isEmpty()
+                && currentMousePoint != null) {
+            currentMousePoint = OrthogonalConstraint.apply45Degree(
+                    pathNodes.getLast().getAnchor(), currentMousePoint);
+        }
         
         // 钢笔模式特殊处理：如果鼠标按下并拖动，更新控制点
         if (isDrawing && ImGui.getIO().getMouseDown(PenConstants.MOUSE_BUTTON_LEFT)) {
@@ -283,6 +320,22 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 adapter.drawCircle(currentMousePoint, Rendering.CONTROL_POINT_SIZE, previewColor, true);
             }
         }
+
+        // 闭合预览：勾选闭合且节点足够时显示末锚点到起点的半透明边，并高亮起点
+        if (closeEnabledHint && pathNodes.size() >= MIN_NODES_FOR_CLOSE) {
+            Color closePreview = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 90);
+            adapter.drawLine(
+                    pathNodes.getLast().getAnchor(),
+                    pathNodes.getFirst().getAnchor(),
+                    closePreview,
+                    Rendering.PREVIEW_LINE_THICKNESS);
+            Color startHighlight = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 180);
+            adapter.drawCircle(
+                    pathNodes.getFirst().getAnchor(),
+                    Rendering.POINT_SIZE + 2.0f,
+                    startHighlight,
+                    false);
+        }
     }
     
     /**
@@ -316,10 +369,11 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         
         // 转换PathNode为BezierUtils格式
         List<Vec2d> bezierPoints = convertPathNodesToBezierPoints();
+
+        boolean closed = closeOnCommit && pathNodes.size() >= MIN_NODES_FOR_CLOSE;
         
-        // 使用 BezierUtils 转换贝塞尔曲线
-        // 修复：钢笔工具应该创建开放路径，不自动闭合
-        BezierUtils.BezierData bezierData = BezierUtils.convertPointsToCurveData(bezierPoints, false);
+        // 使用 BezierUtils 转换贝塞尔曲线（闭合标志由选项与闭合条件决定）
+        BezierUtils.BezierData bezierData = BezierUtils.convertPointsToCurveData(bezierPoints, closed);
         
         if (bezierData.getAnchors().size() < PenConstants.MIN_POINTS_FOR_COMPLETION) {
             LOGGER.warn("钢笔模式贝塞尔曲线转换失败，锚点数不足: {}", bezierData.getAnchors().size());
@@ -327,17 +381,16 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         }
         
         if (bezierData.getControls().isEmpty()) {
-            // 只有锚点，创建直线
+            // 只有锚点，创建折线
             PolylineShape polyline = new PolylineShape(bezierData.getAnchors(), bezierData.shouldClose());
             ShapeStyle style = getShapeStyle();
             if (style != null) {
                 polyline.setStyle(style);
             }
-            LOGGER.debug("钢笔模式创建直线: 确定节点数={}", pathNodes.size());
+            LOGGER.debug("钢笔模式创建折线: 确定节点数={}, 闭合={}", pathNodes.size(), closed);
             return polyline;
         } else {
             // 创建贝塞尔曲线
-            // 修复：bezierData.getControls()现在直接返回List<Vec2d[]>，无需转换
             BezierCurveShape curve = new BezierCurveShape(bezierData.getAnchors(), bezierData.getControls(), bezierData.shouldClose());
             ShapeStyle style = getShapeStyle();
             if (style != null) {
@@ -387,6 +440,14 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     private boolean canCompleteDrawing() {
         return isDrawing && pathNodes.size() >= PenConstants.MIN_POINTS_FOR_COMPLETION;
     }
+
+    private boolean canClose(DrawingToolContext context) {
+        return context.isCloseEnabled() && pathNodes.size() >= MIN_NODES_FOR_CLOSE;
+    }
+
+    private boolean shouldCloseOnFinish(DrawingToolContext context) {
+        return canClose(context);
+    }
     
     @Override
     public void reset() {
@@ -395,6 +456,8 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         currentNode = null;
         draggingNodeIndex = -1;
         dragBeforeSnapshot = null;
+        closeOnCommit = false;
+        closeEnabledHint = false;
         segmentInput.clear();
         super.reset(); // 调用父类的 reset 方法
     }
@@ -456,6 +519,7 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         state = pathNodes.isEmpty() ? PenDrawingState.IDLE : PenDrawingState.WAITING_FOR_POINT;
         currentNode = null;
         draggingNodeIndex = -1;
+        closeOnCommit = false;
         isDrawing = !pathNodes.isEmpty();
         return true;
     }
@@ -512,7 +576,8 @@ public class PenDrawModeHandler extends AbstractModeHandler {
             return IInteractionStrategy.InteractionResult.CANCEL;
         }
         if (key == PenConstants.KEY_ENTER && canCompleteDrawing() && !segmentInput.hasInput()) {
-            LOGGER.debug("钢笔模式Enter键完成绘制，当前节点数：{}", pathNodes.size());
+            closeOnCommit = shouldCloseOnFinish(context);
+            LOGGER.debug("钢笔模式Enter键完成绘制，当前节点数：{}，闭合={}", pathNodes.size(), closeOnCommit);
             return IInteractionStrategy.InteractionResult.COMPLETE;
         }
         return IInteractionStrategy.InteractionResult.IGNORED;

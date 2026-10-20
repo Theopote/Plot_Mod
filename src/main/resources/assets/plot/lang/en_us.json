@@ -47,6 +47,8 @@
   "option.plot.array_type": "Array Type",
   "option.plot.break_mode": "Break Mode",
   "option.plot.chamfer_distance": "Chamfer Distance",
+  "option.plot.close_path": "Close Path",
+  "option.plot.close_path_hint": "When checked, finishing with ≥3 points closes the path. Click the start point to close automatically.",
   "option.plot.clockwise": "Counter-clockwise",
   "option.plot.column_count": "Columns",
   "option.plot.column_spacing": "Column Spacing",

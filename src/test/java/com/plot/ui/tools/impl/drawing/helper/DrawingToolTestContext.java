@@ -134,11 +134,16 @@ public final class DrawingToolTestContext implements IInteractionStrategy.Drawin
         private final IModeHandler.StyleHandler styleHandler;
         private final IModeHandler.SnapHandler snapHandler = (screenPos, camera) -> screenPos;
         private final CanvasCamera camera = new CanvasCamera();
+        private boolean closeEnabled = false;
 
         ModeHandlerContext(AppState appState) {
             this.appState = appState;
             StyleHandler delegate = new StyleHandler(appState, "polyline-test");
             this.styleHandler = delegate::getFinalStyle;
+        }
+
+        public void setCloseEnabled(boolean closeEnabled) {
+            this.closeEnabled = closeEnabled;
         }
 
         @Override
@@ -178,6 +183,11 @@ public final class DrawingToolTestContext implements IInteractionStrategy.Drawin
         @Override
         public boolean isMultipleMode() {
             return false;
+        }
+
+        @Override
+        public boolean isCloseEnabled() {
+            return closeEnabled;
         }
     }
 }
