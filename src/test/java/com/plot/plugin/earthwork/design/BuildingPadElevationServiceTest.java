@@ -60,11 +60,10 @@ class BuildingPadElevationServiceTest {
         EarthworkSite site = createSite();
         GradingZone pad = createPad("pad-1", "b1", 70);
         site.addZone(pad);
-        site.setLastZoneVerticalOffsets(Map.of("pad-1", 3));
         project.addSite(site);
 
         Optional<Integer> elevation = BuildingPadElevationService.resolveEarthworkOwnedPadElevation(
-            project, "b1", footprint(), null, null);
+            project, "b1", footprint(), null, null, Map.of("pad-1", 3));
 
         assertTrue(elevation.isPresent());
         assertEquals(73, elevation.get());

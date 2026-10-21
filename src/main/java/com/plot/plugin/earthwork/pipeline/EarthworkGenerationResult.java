@@ -47,8 +47,10 @@ public class EarthworkGenerationResult {
     public EarthworkBalanceStatus balanceStatus = EarthworkBalanceStatus.NOT_REQUESTED;
     /** 统一 ΔY 搜索半幅；未运行时为 0。 */
     public int balanceSearchHalfRange;
-    /** 最优统一偏移候选。 */
+    /** 最优统一偏移候选（本次预览求解诊断，不写回工程）。 */
     public int balanceBestOffset;
+    /** 约束分区优化产生的分区 ΔY（本次预览求解诊断，不写回工程）。 */
+    public Map<String, Integer> balanceZoneVerticalOffsets = Map.of();
     /** 最优偏移是否落在搜索半幅边界（可能范围不足，非严格证明）。 */
     public boolean balanceSearchHitBoundary;
     /** 场地是否存在固定标高/道路等不可调设计面（诊断用，不等同于残余根因）。 */

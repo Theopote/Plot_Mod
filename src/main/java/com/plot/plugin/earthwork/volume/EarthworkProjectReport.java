@@ -227,28 +227,42 @@ public final class EarthworkProjectReport {
         public static EarthworkProjectReport build(
                 EarthworkSite site,
                 SiteEarthworkReport siteReport) {
-            return buildFromProject(null, site, siteReport);
+            return buildFromProject(null, site, siteReport, 0, Map.of());
         }
 
         public static EarthworkProjectReport buildFromProject(
                 EarthworkProject project,
                 EarthworkSite activeSite,
                 SiteEarthworkReport activeSiteReport) {
+            return buildFromProject(project, activeSite, activeSiteReport, 0, Map.of());
+        }
+
+        /**
+         * @param siteWideVerticalOffset 本次预览求解的统一 ΔY（不读 site 可变状态）
+         * @param zoneVerticalOffsets 本次预览求解的分区 ΔY
+         */
+        public static EarthworkProjectReport buildFromProject(
+                EarthworkProject project,
+                EarthworkSite activeSite,
+                SiteEarthworkReport activeSiteReport,
+                int siteWideVerticalOffset,
+                Map<String, Integer> zoneVerticalOffsets) {
             if (activeSiteReport == null) {
                 return empty();
             }
-            EarthworkProjectReport active = buildActiveSiteReport(activeSite, activeSiteReport);
+            EarthworkProjectReport active = buildActiveSiteReport(
+                activeSite, activeSiteReport, siteWideVerticalOffset, zoneVerticalOffsets);
+            String freshSiteId = activeSite != null ? activeSite.getId() : null;
+            ProjectGlobalBalanceAggregator.AggregatedBalance global =
+                ProjectGlobalBalanceAggregator.aggregate(
+                    project,
+                    freshSiteId,
+                    activeSiteReport,
+                    siteWideVerticalOffset,
+                    zoneVerticalOffsets);
             if (project == null || project.getSiteCount() <= 1) {
-                ProjectGlobalBalanceAggregator.AggregatedBalance global =
-                    ProjectGlobalBalanceAggregator.aggregate(
-                        project,
-                        activeSite != null ? activeSite.getId() : null,
-                        activeSiteReport);
                 return withGlobalBalance(active, global);
             }
-
-            ProjectGlobalBalanceAggregator.AggregatedBalance global =
-                ProjectGlobalBalanceAggregator.aggregate(project, activeSite.getId(), activeSiteReport);
             return new EarthworkProjectReport(
                 global.totalCut(),
                 global.totalFill(),
@@ -271,6 +285,16 @@ public final class EarthworkProjectReport {
                 EarthworkSite site,
                 String zoneId,
                 EarthworkVolumeReport zoneReport) {
+            return buildFromSingleZone(project, site, zoneId, zoneReport, 0, Map.of());
+        }
+
+        public static EarthworkProjectReport buildFromSingleZone(
+                EarthworkProject project,
+                EarthworkSite site,
+                String zoneId,
+                EarthworkVolumeReport zoneReport,
+                int siteWideVerticalOffset,
+                Map<String, Integer> zoneVerticalOffsets) {
             if (zoneReport == null) {
                 return empty();
             }
@@ -278,12 +302,15 @@ public final class EarthworkProjectReport {
                 ? Map.of(zoneId, zoneReport)
                 : Collections.emptyMap();
             SiteEarthworkReport siteReport = new SiteEarthworkReport(zoneReport, byZone);
-            return buildFromProject(project, site, siteReport);
+            return buildFromProject(
+                project, site, siteReport, siteWideVerticalOffset, zoneVerticalOffsets);
         }
 
         private static EarthworkProjectReport buildActiveSiteReport(
                 EarthworkSite site,
-                SiteEarthworkReport siteReport) {
+                SiteEarthworkReport siteReport,
+                int siteWideVerticalOffset,
+                Map<String, Integer> zoneVerticalOffsets) {
             CompositionPolicy policy = site != null
                 ? site.getCompositionPolicy()
                 : CompositionPolicy.DEFAULT;
@@ -295,10 +322,6 @@ public final class EarthworkProjectReport {
                     .toList()
                 : List.of();
             EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, site);
-            int siteWideOffset = site != null ? site.getLastSiteWideVerticalOffset() : 0;
-            Map<String, Integer> zoneOffsets = site != null
-                ? site.getLastZoneVerticalOffsets()
-                : Map.of();
             return new EarthworkProjectReport(
                 totals.geometricCutVolume(),
                 totals.geometricFillVolume(),
@@ -309,8 +332,8 @@ public final class EarthworkProjectReport {
                 overlaps,
                 matrix,
                 policy.getBalanceScope(),
-                siteWideOffset,
-                zoneOffsets,
+                siteWideVerticalOffset,
+                zoneVerticalOffsets != null ? zoneVerticalOffsets : Map.of(),
                 Map.of(),
                 EarthworkAllocationMatrix.EMPTY,
                 0);

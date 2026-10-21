@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Map;
 import java.nio.file.Path;
 
 /**
@@ -337,16 +338,21 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
                 return null;
             }
             DesignTerrainGrid previewGrid = null;
+            Map<String, Integer> zoneOffsets = Map.of();
             EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
             if (preview != null) {
                 previewGrid = preview.designTerrainGrid;
+                if (preview.balanceZoneVerticalOffsets != null) {
+                    zoneOffsets = preview.balanceZoneVerticalOffsets;
+                }
             }
             return BuildingPadElevationService.resolveEarthworkOwnedPadElevation(
                 uiContext.project(),
                 buildingId,
                 footprintPoints,
                 previewGrid,
-                ctx().coordinates()
+                ctx().coordinates(),
+                zoneOffsets
             ).orElse(null);
         }
     }
@@ -359,16 +365,21 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
                 return BuildingPadElevationStatus.none();
             }
             DesignTerrainGrid previewGrid = null;
+            Map<String, Integer> zoneOffsets = Map.of();
             EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
             if (preview != null) {
                 previewGrid = preview.designTerrainGrid;
+                if (preview.balanceZoneVerticalOffsets != null) {
+                    zoneOffsets = preview.balanceZoneVerticalOffsets;
+                }
             }
             return BuildingPadElevationService.describePadLink(
                 uiContext.project(),
                 buildingId,
                 footprintPoints,
                 previewGrid,
-                ctx().coordinates()
+                ctx().coordinates(),
+                zoneOffsets
             );
         }
     }

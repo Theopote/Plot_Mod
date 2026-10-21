@@ -1,6 +1,6 @@
 package com.plot.plugin.earthwork.pipeline;
 
-import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import java.util.Map;
 
 /**
  * {@link EarthworkGenerationResult} 复制工具。
@@ -36,6 +36,9 @@ public final class EarthworkGenerationResults {
         target.balanceStatus = source.balanceStatus;
         target.balanceSearchHalfRange = source.balanceSearchHalfRange;
         target.balanceBestOffset = source.balanceBestOffset;
+        target.balanceZoneVerticalOffsets = source.balanceZoneVerticalOffsets != null
+            ? Map.copyOf(source.balanceZoneVerticalOffsets)
+            : Map.of();
         target.balanceSearchHitBoundary = source.balanceSearchHitBoundary;
         target.balanceHasFixedElevationConstraints = source.balanceHasFixedElevationConstraints;
         target.unassignedCutChangedBlocks = source.unassignedCutChangedBlocks;

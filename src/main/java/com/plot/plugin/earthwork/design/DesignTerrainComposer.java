@@ -44,6 +44,20 @@ public final class DesignTerrainComposer {
     private DesignTerrainComposer() {
     }
 
+    /**
+     * 本次合成的求解偏移诊断（不写回 {@link EarthworkSite}）。
+     * {@code siteWideVerticalOffset} 与 {@link #balanceBestOffset} 同义。
+     */
+    public record BalanceOffsets(Map<String, Integer> zoneVerticalOffsets, int siteWideVerticalOffset) {
+        public BalanceOffsets {
+            zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
+        }
+
+        public static BalanceOffsets none() {
+            return new BalanceOffsets(Map.of(), 0);
+        }
+    }
+
     public record ComposeResult(
             DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
@@ -54,17 +68,19 @@ public final class DesignTerrainComposer {
             int balanceBestOffset,
             boolean balanceSearchHitBoundary,
             boolean hasFixedElevationConstraints,
-            List<String> warnings) {
+            List<String> warnings,
+            Map<String, Integer> zoneVerticalOffsets) {
         public ComposeResult {
             zoneEvaluators = zoneEvaluators != null ? Map.copyOf(zoneEvaluators) : Map.of();
             resolvedSurfaces = resolvedSurfaces != null ? Map.copyOf(resolvedSurfaces) : Map.of();
             balanceStatus = balanceStatus != null ? balanceStatus : EarthworkBalanceStatus.NOT_REQUESTED;
             warnings = warnings != null ? List.copyOf(warnings) : List.of();
+            zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
         }
 
         public ComposeResult(DesignTerrainGrid grid, Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
             this(grid, zoneEvaluators, Map.of(), 0L, EarthworkBalanceStatus.NOT_REQUESTED,
-                0, 0, false, false, List.of());
+                0, 0, false, false, List.of(), Map.of());
         }
 
         public ComposeResult(
@@ -72,7 +88,11 @@ public final class DesignTerrainComposer {
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
                 Map<String, ResolvedDesignSurface> resolvedSurfaces) {
             this(grid, zoneEvaluators, resolvedSurfaces, 0L, EarthworkBalanceStatus.NOT_REQUESTED,
-                0, 0, false, false, List.of());
+                0, 0, false, false, List.of(), Map.of());
+        }
+
+        public int siteWideVerticalOffset() {
+            return balanceBestOffset;
         }
     }
 
@@ -126,7 +146,7 @@ public final class DesignTerrainComposer {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(
                 new DesignTerrainGrid(), Map.of(), Map.of(), 0L,
-                EarthworkBalanceStatus.NOT_REQUESTED, 0, 0, false, false, List.of());
+                EarthworkBalanceStatus.NOT_REQUESTED, 0, 0, false, false, List.of(), Map.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
         CompositionPolicy policy = effectivePolicy != null ? effectivePolicy : site.getCompositionPolicy();
@@ -170,7 +190,8 @@ public final class DesignTerrainComposer {
             safeWorkMode,
             canvasScale,
             policy);
-        recordBalanceOffsets(site, cumulativeZoneOffsets, balanceOutcome.uniformOffset(), policy);
+        BalanceOffsets balanceOffsets = resolveBalanceOffsets(
+            site, cumulativeZoneOffsets, balanceOutcome.uniformOffset(), policy);
 
         Map<String, ResolvedDesignSurface> finalResolved =
             surfacesWithOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, balanceOutcome.uniformOffset());
@@ -203,10 +224,11 @@ public final class DesignTerrainComposer {
             residualForReport,
             status,
             balanceOutcome.searchHalfRange(),
-            balanceOutcome.uniformOffset(),
+            balanceOffsets.siteWideVerticalOffset(),
             balanceOutcome.hitSearchBoundary(),
             hasFixed,
-            warnings);
+            warnings,
+            balanceOffsets.zoneVerticalOffsets());
     }
 
     private record BalanceSearchOutcome(
@@ -581,26 +603,19 @@ public final class DesignTerrainComposer {
             canvasScale);
     }
 
-    private static void recordBalanceOffsets(
+    /** 汇总本次求解偏移；不修改 {@link EarthworkSite}。 */
+    private static BalanceOffsets resolveBalanceOffsets(
             EarthworkSite site,
             Map<String, Integer> zoneOffsets,
             int uniformOffset,
             CompositionPolicy policy) {
         if (!shouldRunSiteBalance(site, policy)) {
-            site.clearLastZoneVerticalOffsets();
-            site.clearLastSiteWideVerticalOffset();
-            return;
+            return BalanceOffsets.none();
         }
-        if (policy != null && policy.isConstrainedZoneOptimization()) {
-            site.setLastZoneVerticalOffsets(zoneOffsets);
-        } else {
-            site.clearLastZoneVerticalOffsets();
-        }
-        if (uniformOffset != 0) {
-            site.setLastSiteWideVerticalOffset(uniformOffset);
-        } else {
-            site.clearLastSiteWideVerticalOffset();
-        }
+        Map<String, Integer> zones = (policy != null && policy.isConstrainedZoneOptimization())
+            ? (zoneOffsets != null ? zoneOffsets : Map.of())
+            : Map.of();
+        return new BalanceOffsets(zones, uniformOffset);
     }
 
     private static Map<Long, CellSnapshot> snapshotCells(DesignTerrainGrid grid) {

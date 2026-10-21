@@ -111,7 +111,11 @@ public final class EarthworkVolumeCalculator {
         result.volumeReport = totals.toReport(siteMaterial);
         result.siteVolumeReport = SiteEarthworkReport.fromMetrics(site, totals, zoneMetrics);
         result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
-            null, site, result.siteVolumeReport);
+            null,
+            site,
+            result.siteVolumeReport,
+            result.balanceBestOffset,
+            result.balanceZoneVerticalOffsets);
     }
 
     private static TerrainSnapshot.Column toColumn(DesignTerrainCell cell) {

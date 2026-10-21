@@ -78,7 +78,7 @@ public final class ProjectGlobalBalanceAggregator {
     }
 
     public static AggregatedBalance aggregate(EarthworkProject project) {
-        return aggregate(project, null, null);
+        return aggregate(project, null, null, 0, Map.of());
     }
 
     /**
@@ -89,6 +89,19 @@ public final class ProjectGlobalBalanceAggregator {
             EarthworkProject project,
             String freshSiteId,
             SiteEarthworkReport freshSiteReport) {
+        return aggregate(project, freshSiteId, freshSiteReport, 0, Map.of());
+    }
+
+    /**
+     * @param freshSiteWideOffset 本次预览求解的统一 ΔY（仅挂到 fresh 场地快照）
+     * @param freshZoneOffsets    本次预览求解的分区 ΔY
+     */
+    public static AggregatedBalance aggregate(
+            EarthworkProject project,
+            String freshSiteId,
+            SiteEarthworkReport freshSiteReport,
+            int freshSiteWideOffset,
+            Map<String, Integer> freshZoneOffsets) {
         if (project == null || project.getSiteCount() == 0) {
             return empty();
         }
@@ -100,6 +113,8 @@ public final class ProjectGlobalBalanceAggregator {
         double grossExportSurplus = 0.0;
         Map<String, SiteBalanceSnapshot> bySite = new LinkedHashMap<>();
         Map<String, EarthworkVolumeReport> matrixInputs = new LinkedHashMap<>();
+        Map<String, Integer> safeFreshZones =
+            freshZoneOffsets != null ? Map.copyOf(freshZoneOffsets) : Map.of();
 
         for (EarthworkSite site : project.getSites().values()) {
             if (site == null) {
@@ -116,8 +131,8 @@ public final class ProjectGlobalBalanceAggregator {
                 site.getName(),
                 volumes,
                 site.getCompositionPolicy().getBalanceScope(),
-                site.getLastSiteWideVerticalOffset(),
-                site.getLastZoneVerticalOffsets(),
+                fresh ? freshSiteWideOffset : 0,
+                fresh ? safeFreshZones : Map.of(),
                 fresh));
             matrixInputs.put(site.getId(), volumes);
 

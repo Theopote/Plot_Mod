@@ -93,6 +93,7 @@ public final class SiteEarthworkPipeline {
         result.balanceStatus = design.balanceStatus();
         result.balanceSearchHalfRange = design.balanceSearchHalfRange();
         result.balanceBestOffset = design.balanceBestOffset();
+        result.balanceZoneVerticalOffsets = design.zoneVerticalOffsets();
         result.balanceSearchHitBoundary = design.balanceSearchHitBoundary();
         result.balanceHasFixedElevationConstraints = design.hasFixedElevationConstraints();
         if (design.warnings() != null && !design.warnings().isEmpty()) {
@@ -110,7 +111,11 @@ public final class SiteEarthworkPipeline {
         result.syncChangedBlocksFromPlacements();
         result.attachPlayerInsights(!site.hasActiveSlopeTreatment());
         result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
-            null, site, result.siteVolumeReport);
+            null,
+            site,
+            result.siteVolumeReport,
+            result.balanceBestOffset,
+            result.balanceZoneVerticalOffsets);
         operations.applyZoneLastReports(site, result);
         return result;
     }

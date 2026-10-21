@@ -30,12 +30,22 @@ public final class DesignTerrainBuilder {
             int balanceBestOffset,
             boolean balanceSearchHitBoundary,
             boolean hasFixedElevationConstraints,
-            List<String> warnings) {
+            List<String> warnings,
+            Map<String, Integer> zoneVerticalOffsets) {
+        public BuildResult {
+            zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
+            warnings = warnings != null ? List.copyOf(warnings) : List.of();
+        }
+
         public BuildResult(
                 DesignTerrainGrid grid,
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
             this(grid, zoneEvaluators, 0L, EarthworkBalanceStatus.NOT_REQUESTED,
-                0, 0, false, false, List.of());
+                0, 0, false, false, List.of(), Map.of());
+        }
+
+        public int siteWideVerticalOffset() {
+            return balanceBestOffset;
         }
     }
 
@@ -91,6 +101,7 @@ public final class DesignTerrainBuilder {
             composed.balanceBestOffset(),
             composed.balanceSearchHitBoundary(),
             composed.hasFixedElevationConstraints(),
-            composed.warnings());
+            composed.warnings(),
+            composed.zoneVerticalOffsets());
     }
 }

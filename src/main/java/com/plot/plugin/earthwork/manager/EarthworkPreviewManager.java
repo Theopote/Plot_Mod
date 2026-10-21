@@ -285,11 +285,20 @@ public final class EarthworkPreviewManager {
             EarthworkGenerationResult result) {
         if (result.siteVolumeReport.byZone().isEmpty()) {
             result.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
-                project, site, region.getId(), result.volumeReport);
+                project,
+                site,
+                region.getId(),
+                result.volumeReport,
+                result.balanceBestOffset,
+                result.balanceZoneVerticalOffsets);
         } else if (result.projectReport == null
             || result.projectReport == EarthworkProjectReport.empty()) {
             result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
-                project, site, result.siteVolumeReport);
+                project,
+                site,
+                result.siteVolumeReport,
+                result.balanceBestOffset,
+                result.balanceZoneVerticalOffsets);
         }
     }
 

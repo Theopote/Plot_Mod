@@ -18,6 +18,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -97,6 +98,16 @@ public final class BuildingPadElevationService {
             List<Vec2d> footprintPoints,
             DesignTerrainGrid previewGrid,
             ICoordinateService coordinateService) {
+        return describePadLink(project, buildingId, footprintPoints, previewGrid, coordinateService, Map.of());
+    }
+
+    public static BuildingPadElevationStatus describePadLink(
+            EarthworkProject project,
+            String buildingId,
+            List<Vec2d> footprintPoints,
+            DesignTerrainGrid previewGrid,
+            ICoordinateService coordinateService,
+            Map<String, Integer> zoneVerticalOffsets) {
         if (project == null || buildingId == null || buildingId.isBlank()) {
             return BuildingPadElevationStatus.none();
         }
@@ -120,7 +131,7 @@ public final class BuildingPadElevationService {
         }
 
         Optional<Integer> elevation = resolveEarthworkOwnedPadElevation(
-            project, buildingId, footprintPoints, previewGrid, coordinateService);
+            project, buildingId, footprintPoints, previewGrid, coordinateService, zoneVerticalOffsets);
         return new BuildingPadElevationStatus(
             BuildingPadElevationMode.EARTHWORK_OWNED,
             zoneName,
@@ -134,6 +145,20 @@ public final class BuildingPadElevationService {
             List<Vec2d> footprintPoints,
             DesignTerrainGrid previewGrid,
             ICoordinateService coordinateService) {
+        return resolveEarthworkOwnedPadElevation(
+            project, buildingId, footprintPoints, previewGrid, coordinateService, Map.of());
+    }
+
+    /**
+     * @param zoneVerticalOffsets 本次预览求解的分区 ΔY；无预览时传空 Map。
+     */
+    public static Optional<Integer> resolveEarthworkOwnedPadElevation(
+            EarthworkProject project,
+            String buildingId,
+            List<Vec2d> footprintPoints,
+            DesignTerrainGrid previewGrid,
+            ICoordinateService coordinateService,
+            Map<String, Integer> zoneVerticalOffsets) {
         if (project == null || buildingId == null || buildingId.isBlank()) {
             return Optional.empty();
         }
@@ -148,7 +173,7 @@ public final class BuildingPadElevationService {
             return Optional.empty();
         }
 
-        Optional<Integer> explicit = resolveExplicitElevation(match.site(), zone, surface);
+        Optional<Integer> explicit = resolveExplicitElevation(zone, surface, zoneVerticalOffsets);
         if (explicit.isPresent()) {
             return explicit;
         }
@@ -211,9 +236,9 @@ public final class BuildingPadElevationService {
     }
 
     private static Optional<Integer> resolveExplicitElevation(
-            EarthworkSite site,
             GradingZone zone,
-            DesignSurface surface) {
+            DesignSurface surface,
+            Map<String, Integer> zoneVerticalOffsets) {
         Integer base = surface.getElevation();
         if (base == null) {
             base = surface.getManualTargetElevation();
@@ -221,18 +246,20 @@ public final class BuildingPadElevationService {
         if (base == null) {
             return Optional.empty();
         }
-        return Optional.of(applyZoneOffsets(site, zone, surface, base));
+        return Optional.of(applyZoneOffsets(zone, surface, base, zoneVerticalOffsets));
     }
 
     private static int applyZoneOffsets(
-            EarthworkSite site,
             GradingZone zone,
             DesignSurface surface,
-            int base) {
+            int base,
+            Map<String, Integer> zoneVerticalOffsets) {
         int elevation = base + surface.getVerticalOffset();
-        Integer balanceOffset = site.getLastZoneVerticalOffsets().get(zone.getId());
-        if (balanceOffset != null) {
-            elevation += balanceOffset;
+        if (zoneVerticalOffsets != null) {
+            Integer balanceOffset = zoneVerticalOffsets.get(zone.getId());
+            if (balanceOffset != null) {
+                elevation += balanceOffset;
+            }
         }
         return elevation;
     }
