@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.joml.Vector3f;
 import com.plot.core.context.ApplicationContext;
+// ViewRangeSettings in same package
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
 
@@ -225,9 +226,11 @@ public class CameraManager {
     public void setViewDistance(float distance) {
         try {
             // 根据相机模式设置不同的最小值
-            float minDistance = isOrthographic ? OrthographicCamera.VIEW_DISTANCE_MIN : 20.0f;
             float oldDistance = this.viewDistance;
-            this.viewDistance = Math.max(minDistance, Math.min(OrthographicCamera.VIEW_DISTANCE_MAX, distance));
+            // 正交模式钳制到用户配置的滑动条区间；透视模式保留较小下限
+            this.viewDistance = isOrthographic
+                ? ViewRangeSettings.clamp(distance)
+                : Math.max(20.0f, Math.min(ViewRangeSettings.getSliderMax(), distance));
 
             boolean changed = Float.compare(this.viewDistance, oldDistance) != 0;
             

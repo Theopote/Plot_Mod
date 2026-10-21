@@ -2,6 +2,7 @@ package com.plot.ui.camera;
 
 import com.plot.camera.CameraManager;
 import com.plot.camera.OrthographicCamera;
+import com.plot.camera.ViewRangeSettings;
 import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
@@ -76,8 +77,8 @@ public class CameraSettingsManager {
                     if (ImGui.sliderFloat(
                             PlotI18n.tr("camera.plot.view_distance"),
                             viewDistance,
-                            OrthographicCamera.VIEW_DISTANCE_MIN,
-                            OrthographicCamera.VIEW_DISTANCE_MAX,
+                            ViewRangeSettings.getSliderMin(),
+                            ViewRangeSettings.getSliderMax(),
                             "%.0f")) {
                         // 通过CameraManager设置，这样会触发区块更新
                         cameraManager.setViewDistance(viewDistance[0]);

@@ -1,7 +1,7 @@
 package com.plot.ui.toolbar.group;
 
 import com.plot.camera.CameraManager;
-import com.plot.camera.OrthographicCamera;
+import com.plot.camera.ViewRangeSettings;
 import com.plot.client.WorldTimeManager;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
@@ -128,8 +128,8 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                 if (ImGui.sliderFloat(
                         sliderID1,
                         viewDistanceValue,
-                        OrthographicCamera.VIEW_DISTANCE_MIN,
-                        OrthographicCamera.VIEW_DISTANCE_MAX,
+                        ViewRangeSettings.getSliderMin(),
+                        ViewRangeSettings.getSliderMax(),
                         "%.0f")) {
                     CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
                 }
@@ -151,8 +151,8 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                 "视图范围输入_" + System.identityHashCode(viewDistanceValue),
                 PlotI18n.tr("toolbar.plot.input_view_range"),
                 viewDistanceValue[0],
-                OrthographicCamera.VIEW_DISTANCE_MIN,
-                OrthographicCamera.VIEW_DISTANCE_MAX,
+                ViewRangeSettings.getSliderMin(),
+                ViewRangeSettings.getSliderMax(),
                 newValue -> {
                     viewDistanceValue[0] = newValue;
                     CameraManager.getInstance().setViewDistance(newValue);
@@ -313,8 +313,8 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             if (ImGui.sliderFloat(
                     sliderID1,
                     viewDistanceValue,
-                    OrthographicCamera.VIEW_DISTANCE_MIN,
-                    OrthographicCamera.VIEW_DISTANCE_MAX,
+                    ViewRangeSettings.getSliderMin(),
+                    ViewRangeSettings.getSliderMax(),
                     "%.0f")) {
                 CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
             }
@@ -337,8 +337,8 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                 uniquePopupTitle1,
                 PlotI18n.tr("toolbar.plot.input_view_range"),
                 viewDistanceValue[0],
-                OrthographicCamera.VIEW_DISTANCE_MIN,
-                OrthographicCamera.VIEW_DISTANCE_MAX,
+                ViewRangeSettings.getSliderMin(),
+                ViewRangeSettings.getSliderMax(),
                 newValue -> {
             viewDistanceValue[0] = newValue;
             CameraManager.getInstance().setViewDistance(newValue);
@@ -428,8 +428,8 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         ToolbarUIUtils.renderSliderTwoRowsWithInput(
             PlotI18n.tr("panel.plot.view_range") + ":", UILayout.Toolbar.SLIDER_WIDTH,
             viewDistanceValue,
-            OrthographicCamera.VIEW_DISTANCE_MIN,
-            OrthographicCamera.VIEW_DISTANCE_MAX,
+            ViewRangeSettings.getSliderMin(),
+            ViewRangeSettings.getSliderMax(),
             "%.0f", isLocked,
             () -> CameraManager.getInstance().setViewDistance(viewDistanceValue[0]),
             () -> CameraManager.getInstance().refreshChunksForViewDistanceNow(),

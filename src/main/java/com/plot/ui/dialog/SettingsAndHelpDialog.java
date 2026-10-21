@@ -1,4 +1,6 @@
 package com.plot.ui.dialog;
+import com.plot.camera.CameraManager;
+import com.plot.camera.ViewRangeSettings;
 import com.plot.core.shortcut.KeyboardShortcutConverter;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.context.ApplicationContext;
@@ -615,6 +617,54 @@ public class SettingsAndHelpDialog {
                 }
 
                 DialogLayoutHelper.subsectionGap();
+                if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.view_range_settings") + "##view_range", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                    ImGui.indent(10);
+                    DialogLayoutHelper.helpText(PlotI18n.tr("settings.plot.view_range_hint"));
+
+                    float[] rangeMin = new float[] { ViewRangeSettings.getSliderMin() };
+                    float[] rangeMax = new float[] { ViewRangeSettings.getSliderMax() };
+                    float width = Math.min(220.0f, Math.max(160.0f, ImGui.getContentRegionAvailX() - 12.0f));
+
+                    DialogLayoutHelper.rowGap();
+                    ImGui.setNextItemWidth(width);
+                    if (ImGui.sliderFloat(
+                            PlotI18n.tr("settings.plot.view_range_min"),
+                            rangeMin,
+                            ViewRangeSettings.ABSOLUTE_MIN,
+                            ViewRangeSettings.ABSOLUTE_MAX - 10.0f,
+                            "%.0f")) {
+                        applyViewRangeLimits(rangeMin[0], Math.max(rangeMax[0], rangeMin[0] + 10.0f));
+                    }
+
+                    DialogLayoutHelper.rowGap();
+                    ImGui.setNextItemWidth(width);
+                    if (ImGui.sliderFloat(
+                            PlotI18n.tr("settings.plot.view_range_max"),
+                            rangeMax,
+                            ViewRangeSettings.ABSOLUTE_MIN + 10.0f,
+                            ViewRangeSettings.ABSOLUTE_MAX,
+                            "%.0f")) {
+                        applyViewRangeLimits(Math.min(rangeMin[0], rangeMax[0] - 10.0f), rangeMax[0]);
+                    }
+
+                    DialogLayoutHelper.rowGap();
+                    ImGui.textDisabled(PlotI18n.tr(
+                        "settings.plot.view_range_current",
+                        String.format("%.0f", ViewRangeSettings.getSliderMin()),
+                        String.format("%.0f", ViewRangeSettings.getSliderMax())));
+
+                    DialogLayoutHelper.rowGap();
+                    if (ImGui.button(PlotI18n.tr("settings.plot.view_range_reset"))) {
+                        applyViewRangeLimits(
+                            ViewRangeSettings.DEFAULT_MIN,
+                            ViewRangeSettings.DEFAULT_MAX);
+                    }
+
+                    ImGui.unindent(10);
+                    ImGui.treePop();
+                }
+
+                DialogLayoutHelper.subsectionGap();
                 if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.display_color_custom") + "##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                     ImGui.indent(10);
                     ImGui.textDisabled(PlotI18n.tr("settings.plot.display_color_hint"));
@@ -641,6 +691,20 @@ public class SettingsAndHelpDialog {
             renderBottomHintText(displayHintText);
         }
         ImGui.endChild();
+    }
+
+    /**
+     * 写入视图范围滑动条区间，并把当前正交视距钳制进新区间。
+     */
+    private void applyViewRangeLimits(float min, float max) {
+        ViewRangeSettings.setSliderRange(min, max);
+        CameraManager cameraManager = CameraManager.getInstance();
+        float current = cameraManager.getViewDistance();
+        float clamped = ViewRangeSettings.clamp(current);
+        if (Float.compare(current, clamped) != 0) {
+            cameraManager.setViewDistance(clamped);
+            cameraManager.refreshChunksForViewDistanceNow();
+        }
     }
 
     private void syncDisplayToggleStates(SnapManager snapManager) {
