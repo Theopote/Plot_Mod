@@ -29,6 +29,7 @@ class EarthworkPlacementMergeTest {
         assertEquals("minecraft:air", record.previousBlockId);
         assertEquals("minecraft:stone_bricks", record.newBlockId);
         assertEquals(result.placementRecords.keySet(), result.changeTypes.keySet());
+        assertEquals(result.placementRecords.keySet(), result.placementMeta.keySet());
     }
 
     @Test

@@ -14,18 +14,34 @@ import java.util.Map;
 public final class SiteEarthworkReport {
     public static final SiteEarthworkReport EMPTY = new SiteEarthworkReport(
         EarthworkVolumeReport.empty(),
-        Map.of());
+        Map.of(),
+        0L, 0L, 0L);
 
     private final EarthworkVolumeReport totals;
     private final Map<String, EarthworkVolumeReport> byZone;
+    private final long unassignedCutChangedBlocks;
+    private final long unassignedFillChangedBlocks;
+    private final long structureChangedBlocks;
 
     public SiteEarthworkReport(
             EarthworkVolumeReport totals,
             Map<String, EarthworkVolumeReport> byZone) {
+        this(totals, byZone, 0L, 0L, 0L);
+    }
+
+    public SiteEarthworkReport(
+            EarthworkVolumeReport totals,
+            Map<String, EarthworkVolumeReport> byZone,
+            long unassignedCutChangedBlocks,
+            long unassignedFillChangedBlocks,
+            long structureChangedBlocks) {
         this.totals = totals != null ? totals : EarthworkVolumeReport.empty();
         this.byZone = byZone != null
             ? Collections.unmodifiableMap(new LinkedHashMap<>(byZone))
             : Map.of();
+        this.unassignedCutChangedBlocks = Math.max(0L, unassignedCutChangedBlocks);
+        this.unassignedFillChangedBlocks = Math.max(0L, unassignedFillChangedBlocks);
+        this.structureChangedBlocks = Math.max(0L, structureChangedBlocks);
     }
 
     public static SiteEarthworkReport empty() {
@@ -47,8 +63,25 @@ public final class SiteEarthworkReport {
         return byZone.getOrDefault(zoneId, EarthworkVolumeReport.empty());
     }
 
+    public long unassignedCutChangedBlocks() {
+        return unassignedCutChangedBlocks;
+    }
+
+    public long unassignedFillChangedBlocks() {
+        return unassignedFillChangedBlocks;
+    }
+
+    public long structureChangedBlocks() {
+        return structureChangedBlocks;
+    }
+
     public SiteEarthworkReport withTotalsChangedBlocks(long cutChangedBlocks, long fillChangedBlocks) {
-        return new SiteEarthworkReport(totals.withChangedBlocks(cutChangedBlocks, fillChangedBlocks), byZone);
+        return new SiteEarthworkReport(
+            totals.withChangedBlocks(cutChangedBlocks, fillChangedBlocks),
+            byZone,
+            unassignedCutChangedBlocks,
+            unassignedFillChangedBlocks,
+            structureChangedBlocks);
     }
 
     /**
@@ -60,6 +93,16 @@ public final class SiteEarthworkReport {
             long cutChangedBlocks,
             long fillChangedBlocks,
             Map<String, long[]> zoneChangedBlocks) {
+        return withChangedBlocks(cutChangedBlocks, fillChangedBlocks, zoneChangedBlocks, 0L, 0L, 0L);
+    }
+
+    public SiteEarthworkReport withChangedBlocks(
+            long cutChangedBlocks,
+            long fillChangedBlocks,
+            Map<String, long[]> zoneChangedBlocks,
+            long unassignedCut,
+            long unassignedFill,
+            long structureChanged) {
         Map<String, EarthworkVolumeReport> updatedZones = new LinkedHashMap<>();
         for (Map.Entry<String, EarthworkVolumeReport> entry : byZone.entrySet()) {
             long[] counts = zoneChangedBlocks != null ? zoneChangedBlocks.get(entry.getKey()) : null;
@@ -69,7 +112,10 @@ public final class SiteEarthworkReport {
         }
         return new SiteEarthworkReport(
             totals.withChangedBlocks(cutChangedBlocks, fillChangedBlocks),
-            updatedZones);
+            updatedZones,
+            unassignedCut,
+            unassignedFill,
+            structureChanged);
     }
 
     public static SiteEarthworkReport fromMetrics(

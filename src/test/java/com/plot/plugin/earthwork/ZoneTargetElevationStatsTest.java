@@ -108,12 +108,9 @@ class ZoneTargetElevationStatsTest {
         result.designTerrainGrid = grid;
         result.volumeReport = totals;
         result.siteVolumeReport = new SiteEarthworkReport(totals, Map.of("zone-a", zoneA, "zone-b", zoneB));
-        result.placementRecords.put(new BlockPos(0, 60, 0), new BlockRecord(new BlockPos(0, 60, 0), "a", "air"));
-        result.changeTypes.put(new BlockPos(0, 60, 0), EarthworkGenerationResult.ChangeType.CUT);
-        result.placementRecords.put(new BlockPos(1, 60, 0), new BlockRecord(new BlockPos(1, 60, 0), "a", "dirt"));
-        result.changeTypes.put(new BlockPos(1, 60, 0), EarthworkGenerationResult.ChangeType.FILL);
-        result.placementRecords.put(new BlockPos(0, 61, 0), new BlockRecord(new BlockPos(0, 61, 0), "a", "bricks"));
-        result.changeTypes.put(new BlockPos(0, 61, 0), EarthworkGenerationResult.ChangeType.STRUCTURE);
+        putPlacement(result, new BlockPos(0, 60, 0), EarthworkGenerationResult.ChangeType.CUT, "zone-a");
+        putPlacement(result, new BlockPos(1, 60, 0), EarthworkGenerationResult.ChangeType.FILL, "zone-b");
+        putPlacement(result, new BlockPos(0, 61, 0), EarthworkGenerationResult.ChangeType.STRUCTURE, "zone-a");
 
         result.syncChangedBlocksFromPlacements();
 
@@ -125,9 +122,47 @@ class ZoneTargetElevationStatsTest {
         assertEquals(0L, result.siteVolumeReport.zoneReport("zone-a").fillChangedBlocks());
         assertEquals(0L, result.siteVolumeReport.zoneReport("zone-b").cutChangedBlocks());
         assertEquals(1L, result.siteVolumeReport.zoneReport("zone-b").fillChangedBlocks());
-        // 几何方量保持，仅改方块数被重算
         assertEquals(5L, result.siteVolumeReport.zoneReport("zone-a").geometricCutVolume());
         assertEquals(5L, result.siteVolumeReport.zoneReport("zone-b").geometricFillVolume());
+        assertEquals(1L, result.structureChangedBlocks);
+        assertEquals(0L, result.unassignedCutChangedBlocks);
+    }
+
+    @Test
+    void syncTracksUnassignedPlacementsSeparatelyFromZones() {
+        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(3, 2, null, 0, 0);
+        var zoneA = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(3, 0, null, 0, 0);
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
+        result.volumeReport = totals;
+        result.siteVolumeReport = new SiteEarthworkReport(totals, Map.of("zone-a", zoneA));
+        putPlacement(result, new BlockPos(0, 60, 0), EarthworkGenerationResult.ChangeType.CUT, "zone-a");
+        putPlacement(result, new BlockPos(9, 60, 0), EarthworkGenerationResult.ChangeType.CUT, null);
+        putPlacement(result, new BlockPos(9, 61, 0), EarthworkGenerationResult.ChangeType.FILL, "");
+
+        result.syncChangedBlocksFromPlacements();
+
+        assertEquals(2L, result.volumeReport.cutChangedBlocks());
+        assertEquals(1L, result.volumeReport.fillChangedBlocks());
+        assertEquals(1L, result.siteVolumeReport.zoneReport("zone-a").cutChangedBlocks());
+        assertEquals(1L, result.unassignedCutChangedBlocks);
+        assertEquals(1L, result.unassignedFillChangedBlocks);
+        assertEquals(1L, result.siteVolumeReport.unassignedCutChangedBlocks());
+        assertEquals(1L, result.siteVolumeReport.unassignedFillChangedBlocks());
+        // 全场 = 分区之和 + 未归属
+        assertEquals(
+            result.siteVolumeReport.zoneReport("zone-a").cutChangedBlocks()
+                + result.unassignedCutChangedBlocks,
+            result.volumeReport.cutChangedBlocks());
+    }
+
+    private static void putPlacement(
+            EarthworkGenerationResult result,
+            BlockPos pos,
+            EarthworkGenerationResult.ChangeType type,
+            String zoneId) {
+        result.placementRecords.put(pos, new BlockRecord(pos, "a", "b"));
+        result.changeTypes.put(pos, type);
+        result.placementMeta.put(pos, com.plot.plugin.earthwork.pipeline.PlacementMeta.ofZone(zoneId));
     }
 
     private static void putCell(DesignTerrainGrid grid, int x, int z, String zoneId, int targetY) {

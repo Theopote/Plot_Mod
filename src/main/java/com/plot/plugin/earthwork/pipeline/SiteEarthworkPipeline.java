@@ -98,6 +98,8 @@ public final class SiteEarthworkPipeline {
         result.resolvedElevation = (result.resolvedElevationMin + result.resolvedElevationMax) / 2;
         result.slopedSurface = result.resolvedElevationMin != result.resolvedElevationMax;
         result.balanceResidualImbalance = design.residualImbalance();
+        result.balanceStatus = design.balanceStatus();
+        result.balanceSearchHalfRange = design.balanceSearchHalfRange();
         if (design.warnings() != null && !design.warnings().isEmpty()) {
             result.warnings.addAll(design.warnings());
         }

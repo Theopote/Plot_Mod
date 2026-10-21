@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
 import com.plot.plugin.earthwork.solver.EarthworkElevationVolumeCurve;
 import com.plot.plugin.earthwork.solver.EarthworkSectionProfile;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
@@ -23,6 +24,8 @@ public class EarthworkGenerationResult {
     public TerrainSnapshot existingTerrainSnapshot = TerrainSnapshot.empty();
     public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
     public final Map<BlockPos, ChangeType> changeTypes = new LinkedHashMap<>();
+    /** 与 {@link #placementRecords} 一一对应的 Zone 归属。 */
+    public final Map<BlockPos, PlacementMeta> placementMeta = new LinkedHashMap<>();
     public final List<GridSample> gridSamples = new ArrayList<>();
     public EarthworkVolumeReport volumeReport = EarthworkVolumeReport.empty();
     public SiteEarthworkReport siteVolumeReport = SiteEarthworkReport.empty();
@@ -39,8 +42,16 @@ public class EarthworkGenerationResult {
     public boolean siteGeneration;
     public final List<String> warnings = new ArrayList<>();
     public int calculationCellCount;
-    /** 自动平衡搜索后残余 |Cut−Fill|；0 表示已平衡或未运行搜索。 */
+    /** 自动平衡搜索后残余 |Cut−Fill|（仅当 status ≠ NOT_REQUESTED 时有意义）。 */
     public long balanceResidualImbalance;
+    public EarthworkBalanceStatus balanceStatus = EarthworkBalanceStatus.NOT_REQUESTED;
+    /** 统一 ΔY 搜索半幅；未运行时为 0。 */
+    public int balanceSearchHalfRange;
+    /** 无法归属到任何 Zone 的挖/填改方块数（仍计入全场）。 */
+    public long unassignedCutChangedBlocks;
+    public long unassignedFillChangedBlocks;
+    /** 挡土墙等 STRUCTURE 方块数（不计入挖填改方块）。 */
+    public long structureChangedBlocks;
 
     /** 生成时绑定的区域 ID（施工前必须与当前选中区域一致）。 */
     public String sourceRegionId = "";
@@ -56,15 +67,24 @@ public class EarthworkGenerationResult {
     /**
      * 用最终 {@link #placementRecords} 回写改方块计数，使预览虚影、落地与报告使用同一份变更。
      * <p>
-     * 几何挖填方量保持不变；实际修改方块数按全场与各 Zone（经设计网格 zoneId）重新聚合。
-     * {@link ChangeType#STRUCTURE} 计入放置记录但不计入挖/填改方块数。
+     * 几何挖填方量保持不变；实际修改方块数按全场、各 Zone、未归属三类聚合。
+     * {@link ChangeType#STRUCTURE} 单独统计，不计入挖/填改方块数。
+     * <p>
+     * 不变量：{@code siteCut = Σ zoneCut + unassignedCut}（FILL 同理）。
      */
     public void syncChangedBlocksFromPlacements() {
         long cut = 0L;
         long fill = 0L;
+        long unassignedCut = 0L;
+        long unassignedFill = 0L;
+        long structure = 0L;
         Map<String, long[]> zoneChanged = new LinkedHashMap<>();
         for (BlockPos pos : placementRecords.keySet()) {
             ChangeType type = changeTypes.get(pos);
+            if (type == ChangeType.STRUCTURE) {
+                structure++;
+                continue;
+            }
             if (type != ChangeType.CUT && type != ChangeType.FILL) {
                 continue;
             }
@@ -73,8 +93,13 @@ public class EarthworkGenerationResult {
             } else {
                 fill++;
             }
-            String zoneId = resolveZoneIdForPlacement(pos);
+            String zoneId = resolveZoneId(pos);
             if (zoneId == null || zoneId.isBlank()) {
+                if (type == ChangeType.CUT) {
+                    unassignedCut++;
+                } else {
+                    unassignedFill++;
+                }
                 continue;
             }
             long[] counts = zoneChanged.computeIfAbsent(zoneId, ignored -> new long[2]);
@@ -84,11 +109,20 @@ public class EarthworkGenerationResult {
                 counts[1]++;
             }
         }
+        unassignedCutChangedBlocks = unassignedCut;
+        unassignedFillChangedBlocks = unassignedFill;
+        structureChangedBlocks = structure;
         volumeReport = volumeReport.withChangedBlocks(cut, fill);
-        siteVolumeReport = siteVolumeReport.withChangedBlocks(cut, fill, zoneChanged);
+        siteVolumeReport = siteVolumeReport.withChangedBlocks(
+            cut, fill, zoneChanged, unassignedCut, unassignedFill, structure);
     }
 
-    private String resolveZoneIdForPlacement(BlockPos pos) {
+    private String resolveZoneId(BlockPos pos) {
+        PlacementMeta meta = placementMeta.get(pos);
+        if (meta != null && meta.isAssigned()) {
+            return meta.zoneId();
+        }
+        // 兼容旧路径：无 meta 时回退网格（不应作为主路径）
         if (pos == null || designTerrainGrid == null) {
             return null;
         }

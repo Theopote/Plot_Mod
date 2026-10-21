@@ -120,6 +120,39 @@ class EarthworkGenerateCommandTest {
     }
 
     @Test
+    void partialFailureUndoThenRedoOnlyTouchesAppliedSubset() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos first = new BlockPos(0, 64, 0);
+        BlockPos second = new BlockPos(1, 64, 0);
+        BlockPos third = new BlockPos(2, 64, 0);
+        writer.seed(first, "minecraft:grass_block");
+        writer.seed(second, "minecraft:grass_block");
+        writer.seed(third, "minecraft:grass_block");
+        writer.failOn(second);
+
+        EarthworkGenerateCommand command = new EarthworkGenerateCommand(List.of(
+            new BlockRecord(first, "minecraft:grass_block", "minecraft:stone"),
+            new BlockRecord(second, "minecraft:grass_block", "minecraft:gravel"),
+            new BlockRecord(third, "minecraft:grass_block", "minecraft:dirt")
+        ), writer);
+        command.execute();
+        assertEquals(2, command.getAppliedRecordCount());
+
+        command.undo();
+        assertEquals("minecraft:grass_block", writer.get(first));
+        assertEquals("minecraft:grass_block", writer.get(second));
+        assertEquals("minecraft:grass_block", writer.get(third));
+
+        writer.failOn(second); // 失败位在 redo 中仍失败，不应被写入
+        command.redo();
+        assertEquals("minecraft:stone", writer.get(first));
+        assertEquals("minecraft:grass_block", writer.get(second),
+            "failed cell must remain untouched after redo of applied-only set");
+        assertEquals("minecraft:dirt", writer.get(third));
+        assertEquals(2, command.getAppliedRecordCount());
+    }
+
+    @Test
     void totalFailureLeavesNoAppliedRecords() {
         InMemoryBlockWriter writer = new InMemoryBlockWriter();
         BlockPos pos = new BlockPos(0, 64, 0);

@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.voxel;
 
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.PlacementMeta;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
@@ -46,6 +47,21 @@ public final class EarthworkVoxelizer {
             EarthworkGenerationResult result,
             SiteEarthworkReport.VolumeMetrics totals,
             SiteEarthworkReport.VolumeMetrics zoneMetrics) {
+        return applyColumn(
+            region, world, column, targetElevation, previewGridSize, result, totals, zoneMetrics,
+            region != null ? region.getId() : null);
+    }
+
+    public CutFillClassifier.ColumnDelta applyColumn(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot.Column column,
+            int targetElevation,
+            int previewGridSize,
+            EarthworkGenerationResult result,
+            SiteEarthworkReport.VolumeMetrics totals,
+            SiteEarthworkReport.VolumeMetrics zoneMetrics,
+            String zoneId) {
         int groundY = column.groundY();
         CutFillClassifier.Kind kind = CutFillClassifier.kind(groundY, targetElevation);
         if (kind != CutFillClassifier.Kind.NONE
@@ -61,6 +77,7 @@ public final class EarthworkVoxelizer {
             return delta;
         }
 
+        PlacementMeta meta = PlacementMeta.ofZone(zoneId);
         String fillBlockId = EarthworkGeometryUtils.resolveFillBlockId(region.getFillMaterial());
         String cutSurfaceBlockId = EarthworkGeometryUtils.resolveCutSurfaceBlockId(region.getCutExposeMaterial());
         long cutChanged = 0L;
@@ -70,20 +87,22 @@ public final class EarthworkVoxelizer {
             for (int y = targetElevation + 1; y <= groundY; y++) {
                 BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
                 if (recordBlock(result, world, pos, EarthworkGeometryUtils.EXCAVATION_BLOCK_ID,
-                    EarthworkGenerationResult.ChangeType.CUT)) {
+                    EarthworkGenerationResult.ChangeType.CUT, meta)) {
                     cutChanged++;
                 }
             }
             if (cutSurfaceBlockId != null) {
                 BlockPos surfacePos = new BlockPos(column.worldX(), targetElevation, column.worldZ());
-                if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, EarthworkGenerationResult.ChangeType.CUT)) {
+                if (recordBlock(result, world, surfacePos, cutSurfaceBlockId,
+                    EarthworkGenerationResult.ChangeType.CUT, meta)) {
                     cutChanged++;
                 }
             }
         } else if (delta.fillVolume() > 0L) {
             for (int y = groundY + 1; y <= targetElevation; y++) {
                 BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-                if (recordBlock(result, world, pos, fillBlockId, EarthworkGenerationResult.ChangeType.FILL)) {
+                if (recordBlock(result, world, pos, fillBlockId,
+                    EarthworkGenerationResult.ChangeType.FILL, meta)) {
                     fillChanged++;
                 }
             }
@@ -110,8 +129,18 @@ public final class EarthworkVoxelizer {
             BlockPos pos,
             String newBlockId,
             EarthworkGenerationResult.ChangeType changeType) {
+        return recordBlock(result, world, pos, newBlockId, changeType, PlacementMeta.UNASSIGNED);
+    }
+
+    public boolean recordBlock(
+            EarthworkGenerationResult result,
+            World world,
+            BlockPos pos,
+            String newBlockId,
+            EarthworkGenerationResult.ChangeType changeType,
+            PlacementMeta meta) {
         String previous = getBlockIdAt(world, pos);
-        return EarthworkPlacementMerge.recordOrReplace(result, pos, previous, newBlockId, changeType);
+        return EarthworkPlacementMerge.recordOrReplace(result, pos, previous, newBlockId, changeType, meta);
     }
 
     public static boolean shouldApplyBlockChange(String previousBlockId, String newBlockId) {

@@ -6,6 +6,7 @@ import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.plugin.earthwork.grading.BreaklineClassifier;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
 import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.solver.SlopeCoupledVerticalSearch;
 import com.plot.plugin.earthwork.terrain.TerrainBoundaryBlender;
@@ -48,22 +49,25 @@ public final class DesignTerrainComposer {
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
             Map<String, ResolvedDesignSurface> resolvedSurfaces,
             long residualImbalance,
+            EarthworkBalanceStatus balanceStatus,
+            int balanceSearchHalfRange,
             List<String> warnings) {
         public ComposeResult {
             zoneEvaluators = zoneEvaluators != null ? Map.copyOf(zoneEvaluators) : Map.of();
             resolvedSurfaces = resolvedSurfaces != null ? Map.copyOf(resolvedSurfaces) : Map.of();
+            balanceStatus = balanceStatus != null ? balanceStatus : EarthworkBalanceStatus.NOT_REQUESTED;
             warnings = warnings != null ? List.copyOf(warnings) : List.of();
         }
 
         public ComposeResult(DesignTerrainGrid grid, Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
-            this(grid, zoneEvaluators, Map.of(), 0L, List.of());
+            this(grid, zoneEvaluators, Map.of(), 0L, EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
         }
 
         public ComposeResult(
                 DesignTerrainGrid grid,
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
                 Map<String, ResolvedDesignSurface> resolvedSurfaces) {
-            this(grid, zoneEvaluators, resolvedSurfaces, 0L, List.of());
+            this(grid, zoneEvaluators, resolvedSurfaces, 0L, EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
         }
     }
 
@@ -99,7 +103,9 @@ public final class DesignTerrainComposer {
             RoadSurfaceLookup roadLookup,
             EarthworkWorkMode workMode) {
         if (site == null || terrain == null || terrain.isEmpty()) {
-            return new ComposeResult(new DesignTerrainGrid(), Map.of(), Map.of(), 0L, List.of());
+            return new ComposeResult(
+                new DesignTerrainGrid(), Map.of(), Map.of(), 0L,
+                EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
         Objects.requireNonNull(transformer, "transformer");
@@ -147,18 +153,57 @@ public final class DesignTerrainComposer {
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> finalEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(finalResolved);
         grid.finalizeStats();
+        EarthworkBalanceStatus status = classifyBalanceStatus(
+            balanceOutcome, hasConstraintLimitedSurfaces(resolvedSurfaces));
         List<String> warnings = new ArrayList<>();
-        if (balanceOutcome.ran() && balanceOutcome.residualImbalance() > 0L) {
+        if (status == EarthworkBalanceStatus.BEST_EFFORT
+            || status == EarthworkBalanceStatus.CONSTRAINT_LIMITED) {
             warnings.add("plugin.earthwork.warning.balance_incomplete");
         }
         return new ComposeResult(
-            grid, finalEvaluators, finalResolved, balanceOutcome.residualImbalance(), warnings);
+            grid,
+            finalEvaluators,
+            finalResolved,
+            balanceOutcome.residualImbalance(),
+            status,
+            balanceOutcome.searchHalfRange(),
+            warnings);
     }
 
-    private record BalanceSearchOutcome(int uniformOffset, long residualImbalance, boolean ran) {
+    private record BalanceSearchOutcome(
+            int uniformOffset,
+            long residualImbalance,
+            boolean ran,
+            int searchHalfRange) {
         static BalanceSearchOutcome skipped() {
-            return new BalanceSearchOutcome(0, 0L, false);
+            return new BalanceSearchOutcome(0, 0L, false, 0);
         }
+    }
+
+    private static EarthworkBalanceStatus classifyBalanceStatus(
+            BalanceSearchOutcome outcome,
+            boolean constraintLimited) {
+        if (outcome == null || !outcome.ran()) {
+            return EarthworkBalanceStatus.NOT_REQUESTED;
+        }
+        if (outcome.residualImbalance() <= 0L) {
+            return EarthworkBalanceStatus.BALANCED;
+        }
+        return constraintLimited
+            ? EarthworkBalanceStatus.CONSTRAINT_LIMITED
+            : EarthworkBalanceStatus.BEST_EFFORT;
+    }
+
+    private static boolean hasConstraintLimitedSurfaces(Map<String, ResolvedDesignSurface> surfaces) {
+        if (surfaces == null || surfaces.isEmpty()) {
+            return false;
+        }
+        for (ResolvedDesignSurface surface : surfaces.values()) {
+            if (surface != null && !surface.isSolverVariable()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<Breakline> mergeEffectiveBreaklines(EarthworkSite site) {
@@ -343,9 +388,10 @@ public final class DesignTerrainComposer {
             cumulativeUniformOffset = polish.uniformOffset();
         } else {
             long residual = SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
-            polish = new BalanceSearchOutcome(cumulativeUniformOffset, residual, true);
+            polish = new BalanceSearchOutcome(cumulativeUniformOffset, residual, true, 0);
         }
-        return new BalanceSearchOutcome(cumulativeUniformOffset, polish.residualImbalance(), true);
+        return new BalanceSearchOutcome(
+            cumulativeUniformOffset, polish.residualImbalance(), true, polish.searchHalfRange());
     }
 
     /**
@@ -389,7 +435,7 @@ public final class DesignTerrainComposer {
             effectiveBreaklines,
             canvasScale);
         long residual = search.bestObjective() == Long.MAX_VALUE ? 0L : search.bestObjective();
-        return new BalanceSearchOutcome(best, residual, true);
+        return new BalanceSearchOutcome(best, residual, true, halfRange);
     }
 
     private static int resolveUniformSearchHalfRange(

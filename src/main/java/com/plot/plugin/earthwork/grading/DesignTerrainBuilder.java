@@ -4,12 +4,13 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
-import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,11 +24,13 @@ public final class DesignTerrainBuilder {
             DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
             long residualImbalance,
-            java.util.List<String> warnings) {
+            EarthworkBalanceStatus balanceStatus,
+            int balanceSearchHalfRange,
+            List<String> warnings) {
         public BuildResult(
                 DesignTerrainGrid grid,
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
-            this(grid, zoneEvaluators, 0L, java.util.List.of());
+            this(grid, zoneEvaluators, 0L, EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
         }
     }
 
@@ -63,6 +66,8 @@ public final class DesignTerrainBuilder {
             composed.grid(),
             composed.zoneEvaluators(),
             composed.residualImbalance(),
+            composed.balanceStatus(),
+            composed.balanceSearchHalfRange(),
             composed.warnings());
     }
 }

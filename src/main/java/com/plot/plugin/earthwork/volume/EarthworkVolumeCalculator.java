@@ -104,7 +104,8 @@ public final class EarthworkVolumeCalculator {
                 previewGridSize,
                 result,
                 totals,
-                zoneVolume);
+                zoneVolume,
+                zone.getId());
         }
 
         result.volumeReport = totals.toReport(siteMaterial);

@@ -16,6 +16,7 @@ public final class EarthworkGenerationResults {
         target.existingTerrainSnapshot = source.existingTerrainSnapshot;
         target.placementRecords.putAll(source.placementRecords);
         target.changeTypes.putAll(source.changeTypes);
+        target.placementMeta.putAll(source.placementMeta);
         target.gridSamples.addAll(source.gridSamples);
         target.volumeReport = source.volumeReport;
         target.siteVolumeReport = source.siteVolumeReport;
@@ -32,6 +33,11 @@ public final class EarthworkGenerationResults {
         target.siteGeneration = source.siteGeneration;
         target.calculationCellCount = source.calculationCellCount;
         target.balanceResidualImbalance = source.balanceResidualImbalance;
+        target.balanceStatus = source.balanceStatus;
+        target.balanceSearchHalfRange = source.balanceSearchHalfRange;
+        target.unassignedCutChangedBlocks = source.unassignedCutChangedBlocks;
+        target.unassignedFillChangedBlocks = source.unassignedFillChangedBlocks;
+        target.structureChangedBlocks = source.structureChangedBlocks;
         target.warnings.addAll(source.warnings);
     }
 }

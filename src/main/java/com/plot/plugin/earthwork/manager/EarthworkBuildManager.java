@@ -26,6 +26,7 @@ public final class EarthworkBuildManager {
     private final EarthworkPreviewManager previewManager;
     private final Consumer<String> statusSink;
     private final AtomicBoolean buildInFlight = new AtomicBoolean(false);
+    private volatile BuildExecutionSummary lastExecutionSummary;
 
     public EarthworkBuildManager(
             PluginContext host,
@@ -123,6 +124,7 @@ public final class EarthworkBuildManager {
             try {
                 EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
                 BuildOutcome outcome = BuildOutcome.from(result);
+                lastExecutionSummary = BuildExecutionSummary.from(outcome, result);
                 // 仅当实际写入过方块时才入 Undo 栈，避免空失败命令污染历史
                 if (command.hasAppliedRecords()) {
                     host.commands().pushExecuted(command);
@@ -136,6 +138,10 @@ public final class EarthworkBuildManager {
                 buildInFlight.set(false);
             }
         });
+    }
+
+    public BuildExecutionSummary lastExecutionSummary() {
+        return lastExecutionSummary;
     }
 
     /**
@@ -162,6 +168,33 @@ public final class EarthworkBuildManager {
                 return FAILED;
             }
             return PARTIAL;
+        }
+    }
+
+    /**
+     * 最近一次施工摘要。预览方量报告始终是预期值；部分成功/取消时
+     * {@link #previewReportIsAsBuilt()} 为 false，需重新采样世界后再算竣工差。
+     */
+    public record BuildExecutionSummary(
+            BuildOutcome outcome,
+            int success,
+            int failed,
+            int total,
+            boolean cancelled) {
+        public static BuildExecutionSummary from(
+                BuildOutcome outcome,
+                EarthworkGenerateCommand.ExecutionResult result) {
+            BuildOutcome safe = outcome != null ? outcome : BuildOutcome.NO_WORK;
+            if (result == null) {
+                return new BuildExecutionSummary(safe, 0, 0, 0, false);
+            }
+            return new BuildExecutionSummary(
+                safe, result.success(), result.failed(), result.total(), result.cancelled());
+        }
+
+        /** 预览方量是否仍可视为竣工统计（仅完全成功时为 true）。 */
+        public boolean previewReportIsAsBuilt() {
+            return outcome == BuildOutcome.COMPLETED;
         }
     }
 
