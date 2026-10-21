@@ -10,7 +10,6 @@ import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.adopt.EarthworkAdoptDefaults;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.manager.EarthworkPreviewIdentity;
-import com.plot.plugin.earthwork.material.EarthworkMaterialScope;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -188,7 +187,6 @@ public final class EarthworkRegionPanel {
         EarthworkSite site = ctx.project().getActiveSite();
         if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
             renderProjectGlobalBalance(ctx.project());
-            renderSiteMaterialModel(site);
         }
         if (site != null && !site.getExclusionZones().isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
@@ -458,9 +456,6 @@ public final class EarthworkRegionPanel {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", balance.totalCut()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", balance.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", balance.totalCut() - balance.totalFill()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", balance.reusableCut()));
-        ImGui.spacing();
-        EarthworkUiWidgets.renderProjectMaterialBalance(balance.materialBalance());
         if (balance.sitesWithVolume() > 1) {
             ImGui.spacing();
             ImGui.text(PlotI18n.tr("plugin.earthwork.site_volume_header"));
@@ -522,7 +517,6 @@ public final class EarthworkRegionPanel {
             signature = 31 * signature + site.getId().hashCode();
             signature = 31 * signature + Long.hashCode(report.geometricCutVolume());
             signature = 31 * signature + Long.hashCode(report.geometricFillVolume());
-            signature = 31 * signature + Double.hashCode(report.reusableCutVolume());
             signature = 31 * signature + site.getZoneCount();
             for (GradingZone zone : site.getGradingZones().values()) {
                 if (zone == null || zone.getRegion() == null) {
@@ -572,20 +566,4 @@ public final class EarthworkRegionPanel {
         }
     }
 
-    private void renderSiteMaterialModel(EarthworkSite site) {
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.material.conversion_header"));
-        EarthworkUiWidgets.renderMaterialConversionSliders(ctx, site.getMaterialModel(), updated ->
-            EarthworkMaterialScope.updateSiteMaterial(ctx, site, updated));
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.apply_site_material_to_regions"), 0, 0)) {
-            ctx.projectHistory().push(ctx.project());
-            EarthworkMaterialScope.applySiteMaterialToAllRegions(ctx, ctx.project(), site);
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.save_site_material_as_adopt_default"), 0, 0)) {
-            EarthworkMaterialScope.promoteSiteMaterialToAdoptDefault(ctx, site);
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_default_material_saved"));
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.site_material_model");
-        ImGui.separator();
-    }
 }

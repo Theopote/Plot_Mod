@@ -2,7 +2,6 @@ package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
@@ -15,10 +14,11 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** 项目汇总仅几何挖填；不做跨场地调配矩阵。 */
 class ProjectGlobalBalanceAggregatorTest {
 
     @Test
-    void aggregatesMultipleSitesWithCrossSiteAllocation() {
+    void aggregatesMultipleSitesGeometricTotalsOnly() {
         EarthworkProject project = new EarthworkProject();
 
         EarthworkSite cutSite = new EarthworkSite("site-cut");
@@ -38,41 +38,12 @@ class ProjectGlobalBalanceAggregatorTest {
         assertEquals(10_000L, balance.totalCut());
         assertEquals(7_000L, balance.totalFill());
         assertEquals(2, balance.sitesWithVolume());
-        assertEquals(7_000L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", "site-fill"));
-        assertEquals(1_280L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", EarthworkAllocationMatrix.EXPORT));
+        assertTrue(balance.crossSiteAllocationMatrix().isEmpty());
         assertEquals(7_000.0, balance.grossImportDemand(), 1e-3);
-        assertEquals(8_280.0, balance.grossExportSurplus(), 1e-3);
-        assertEquals(7_000.0, balance.internalTransferVolume(), 1e-3);
-        assertEquals(1_280.0, balance.externalExportRequired(), 1e-3);
-        assertEquals(0.0, balance.externalImportRequired(), 1e-3);
-    }
-
-    @Test
-    void projectImportExportReflectsNetAfterCrossSiteTransfers() {
-        // Site A surplus 1000 / Site B deficit 800 → cross A→B 800 → external export 200
-        MaterialConversionModel unity = new MaterialConversionModel(1.0f, 1.0f);
-        EarthworkProject project = new EarthworkProject();
-
-        EarthworkSite siteA = new EarthworkSite("site-a");
-        siteA.setName("Site A");
-        siteA.setLastReport(EarthworkVolumeReport.fromMetrics(1_000L, 0L, unity, 0L, 0L));
-
-        EarthworkSite siteB = new EarthworkSite("site-b");
-        siteB.setName("Site B");
-        siteB.setLastReport(EarthworkVolumeReport.fromMetrics(0L, 800L, unity, 0L, 0L));
-
-        project.addSite(siteA);
-        project.addSite(siteB);
-
-        ProjectGlobalBalanceAggregator.AggregatedBalance balance =
-            ProjectGlobalBalanceAggregator.aggregate(project);
-
-        assertEquals(1_000.0, balance.grossExportSurplus(), 1e-6);
-        assertEquals(800.0, balance.grossImportDemand(), 1e-6);
-        assertEquals(800.0, balance.internalTransferVolume(), 1e-6);
-        assertEquals(800L, transfer(balance.crossSiteAllocationMatrix(), "site-a", "site-b"));
-        assertEquals(200.0, balance.externalExportRequired(), 1e-6);
-        assertEquals(0.0, balance.externalImportRequired(), 1e-6);
+        assertEquals(10_000.0, balance.grossExportSurplus(), 1e-3);
+        assertEquals(0.0, balance.internalTransferVolume(), 1e-3);
+        assertEquals(10_000.0, balance.externalExportRequired(), 1e-3);
+        assertEquals(7_000.0, balance.externalImportRequired(), 1e-3);
     }
 
     @Test
@@ -96,7 +67,7 @@ class ProjectGlobalBalanceAggregatorTest {
     }
 
     @Test
-    void projectReportUsesGlobalTotalsForMultiSiteProject() {
+    void projectReportUsesGlobalGeometricTotalsForMultiSiteProject() {
         EarthworkProject project = new EarthworkProject();
 
         EarthworkSite cutSite = new EarthworkSite("site-cut");
@@ -122,23 +93,14 @@ class ProjectGlobalBalanceAggregatorTest {
         assertEquals(2_500L, report.totalFill());
         assertTrue(report.hasCrossSiteBreakdown());
         assertEquals(2, report.sitesWithVolume());
-        assertEquals(2_500L, transfer(report.crossSiteAllocationMatrix(), "site-cut", "site-fill"));
-        // LEARNING factor 0.828: surplus = 4000*0.828 = 3312; after 2500 to fill → external export 812
+        assertTrue(report.allocationMatrix().isEmpty());
+        assertTrue(report.crossSiteAllocationMatrix().isEmpty());
         assertEquals(2_500.0, report.grossImportDemand(), 1e-3);
-        assertEquals(3_312.0, report.grossExportSurplus(), 1e-3);
-        assertEquals(2_500.0, report.internalTransferVolume(), 1e-3);
-        assertEquals(812.0, report.externalExportRequired(), 1e-3);
-        assertEquals(0.0, report.externalImportRequired(), 1e-3);
-    }
-
-    private static long transfer(EarthworkAllocationMatrix matrix, String source, String destination) {
-        return matrix.transfers().stream()
-            .filter(t -> t.sourceZoneId().equals(source) && t.destinationZoneId().equals(destination))
-            .mapToLong(EarthworkAllocationMatrix.Transfer::volume)
-            .sum();
+        assertEquals(4_000.0, report.grossExportSurplus(), 1e-3);
+        assertEquals(0.0, report.internalTransferVolume(), 1e-3);
     }
 
     private static EarthworkVolumeReport volume(long cut, long fill) {
-        return EarthworkVolumeReport.fromMetrics(cut, fill, MaterialConversionModel.LEARNING, 0L, 0L);
+        return EarthworkVolumeReport.fromMetrics(cut, fill, MaterialConversionModel.DEFAULT, 0L, 0L);
     }
 }

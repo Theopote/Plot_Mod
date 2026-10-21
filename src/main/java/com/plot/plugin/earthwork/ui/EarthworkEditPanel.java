@@ -6,8 +6,6 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
-import com.plot.core.material.EarthMaterialClass;
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.model.Shape;
 import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.RoadSystemPlugin;
@@ -76,10 +74,6 @@ public final class EarthworkEditPanel {
                 renderSurfaceModeSettings(region);
                 renderZoneTypeSettings(region);
                 renderZoneEdgeSettings(region);
-
-                if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
-                    renderMaterialPropertiesSettings(region);
-                }
 
                 int[] previewGridSize = {region.getPreviewGridSize()};
                 boolean previewGridChanged = ImGui.sliderInt("##preview_grid_size", previewGridSize, 1, 20,
@@ -1465,68 +1459,6 @@ public final class EarthworkEditPanel {
             zone.getDesignSurface().setSlopePitchRatio(slopePitch[0]);
             ctx.invalidatePreview();
         }
-    }
-
-    private void renderMaterialPropertiesSettings(GradingRegion region) {
-        MaterialConversionModel siteModel = ctx.project().getActiveSite().getMaterialModel();
-        if (region.usesSiteMaterialDefault()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.material_inherit_site"));
-        }
-        MaterialConversionModel display = region.resolveMaterialModel(siteModel);
-        EarthworkUiWidgets.renderMaterialConversionSliders(ctx, display, updated -> {
-            region.setMaterialProperties(updated);
-            ctx.invalidatePreview();
-        });
-
-        GradingZone zone = ctx.project().getZone(region.getId());
-        if (zone != null) {
-            renderEarthMaterialClassSettings(zone);
-        }
-    }
-
-    private void renderEarthMaterialClassSettings(GradingZone zone) {
-        EarthMaterialClass[] classes = EarthMaterialClass.values();
-        String[] labels = new String[classes.length];
-        for (int i = 0; i < classes.length; i++) {
-            labels[i] = PlotI18n.tr(classes[i].i18nKey());
-        }
-
-        int cutSelected = indexOfMaterialClass(classes, zone.getCutMaterialClass());
-        ImInt cutIndex = new ImInt(cutSelected);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.cut_material_class"), cutIndex, labels)) {
-            int picked = cutIndex.get();
-            if (picked >= 0 && picked < classes.length) {
-                ctx.projectHistory().push(ctx.project());
-                zone.setCutMaterialClass(classes[picked]);
-                ctx.invalidatePreview();
-            }
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_material_class");
-
-        int fillSelected = indexOfMaterialClass(classes, zone.getFillMaterialClass());
-        ImInt fillIndex = new ImInt(fillSelected);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.fill_material_class"), fillIndex, labels)) {
-            int picked = fillIndex.get();
-            if (picked >= 0 && picked < classes.length) {
-                ctx.projectHistory().push(ctx.project());
-                zone.setFillMaterialClass(classes[picked]);
-                ctx.invalidatePreview();
-            }
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fill_material_class");
-    }
-
-    private static int indexOfMaterialClass(EarthMaterialClass[] classes, EarthMaterialClass value) {
-        EarthMaterialClass target = value != null ? value : EarthMaterialClass.UNKNOWN;
-        for (int i = 0; i < classes.length; i++) {
-            if (classes[i] == target) {
-                return i;
-            }
-        }
-        return 0;
     }
 
     private void renderFlatSurfaceSettings(GradingRegion region) {

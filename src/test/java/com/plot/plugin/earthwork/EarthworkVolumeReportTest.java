@@ -8,56 +8,49 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** Minecraft 1:1 方块统计：挖填量不经压实/可利用率换算。 */
 class EarthworkVolumeReportTest {
 
-    private static final MaterialConversionModel LEGACY_LIKE =
-        MaterialConversionModel.fromLegacyFillFactor(1.1f);
-
     @Test
-    void materialBalanceWhenCutExceedsFillRequirement() {
-        EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(100L, 80L, LEGACY_LIKE, 50L, 40L);
+    void oneToOneWhenCutExceedsFill() {
+        EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
+            100L, 80L, MaterialConversionModel.LEARNING, 50L, 40L);
 
         assertEquals(100L, report.geometricCutVolume());
         assertEquals(80L, report.geometricFillVolume());
-        assertEquals(100.0, report.reusableCutVolume(), 1e-6);
-        assertEquals(100.0 / 1.1, report.compactedFillSupply(), 0.01);
-        assertEquals(80.0, report.compactedFillDemand(), 1e-6);
-        assertTrue(report.compactedFillSurplus() > 0.0);
-        assertEquals(12.0, report.exportVolume(), 0.01);
-        assertEquals(0.0, report.importVolume(), 0.01);
-        assertEquals(50L, report.cutChangedBlocks());
-        assertEquals(40L, report.fillChangedBlocks());
+        assertEquals(100.0, report.reusableCutVolume(), 1e-9);
+        assertEquals(100.0, report.compactedFillSupply(), 1e-9);
+        assertEquals(80.0, report.compactedFillDemand(), 1e-9);
+        assertEquals(20.0, report.exportVolume(), 1e-9);
+        assertEquals(0.0, report.importVolume(), 1e-9);
         assertEquals(90L, report.totalChangedBlocks());
     }
 
     @Test
-    void materialBalanceWhenFillRequirementExceedsCut() {
-        EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(60L, 80L, LEGACY_LIKE, 30L, 20L);
+    void oneToOneWhenFillExceedsCut() {
+        EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
+            60L, 80L, MaterialConversionModel.LEARNING, 30L, 20L);
 
-        assertEquals(80.0, report.compactedFillDemand(), 1e-6);
-        assertEquals(60.0, report.reusableCutVolume(), 1e-6);
-        assertEquals(0.0, report.exportVolume(), 1e-6);
-        assertTrue(report.importVolume() > 0.0);
+        assertEquals(0.0, report.exportVolume(), 1e-9);
+        assertEquals(20.0, report.importVolume(), 1e-9);
     }
 
     @Test
-    void defaultMaterialPropertiesMatchUserExample() {
-        EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
+    void conversionModelArgumentDoesNotChangeBalance() {
+        EarthworkVolumeReport withLearning = EarthworkVolumeReport.fromMetrics(
             1000L, 828L, MaterialConversionModel.LEARNING, 0L, 0L);
+        EarthworkVolumeReport withDefault = EarthworkVolumeReport.fromMetrics(
+            1000L, 828L, MaterialConversionModel.DEFAULT, 0L, 0L);
 
-        assertEquals(900.0, report.reusableCutVolume(), 1e-6);
-        assertEquals(828.0, report.compactedFillSupply(), 1e-4);
-        assertEquals(0.0, report.compactedFillSurplus(), 0.05);
-        assertEquals(0.0, report.compactedFillDeficit(), 0.05);
-        assertEquals(1000L, report.geometricCutForCompactedTransfer(828L));
-        assertEquals(0.0, report.importVolume(), 0.05);
-        assertEquals(0.0, report.exportVolume(), 0.05);
+        assertEquals(withDefault.reusableCutVolume(), withLearning.reusableCutVolume(), 1e-9);
+        assertEquals(withDefault.exportVolume(), withLearning.exportVolume(), 1e-9);
+        assertEquals(172.0, withLearning.exportVolume(), 1e-9);
     }
 
     @Test
     void geometricVolumeIndependentFromChangedBlocks() {
         EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
-            10L, 6L, new MaterialConversionModel(1.0f, 1.0f), 0L, 0L);
+            10L, 6L, MaterialConversionModel.DEFAULT, 0L, 0L);
 
         assertTrue(report.hasGeometricVolume());
         assertEquals(0L, report.totalChangedBlocks());

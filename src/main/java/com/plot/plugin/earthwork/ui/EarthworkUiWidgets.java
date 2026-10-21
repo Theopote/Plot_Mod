@@ -15,9 +15,7 @@ import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.volume.ProjectMaterialBalance;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -146,64 +144,6 @@ public final class EarthworkUiWidgets {
                     ImGui.sameLine();
                 }
             }
-        }
-
-        /**
-         * 渲染材料换算滑块（可利用率 + 挖转填系数）。
-         *
-         * @return 是否修改了材料参数
-         */
-        public static boolean renderMaterialConversionSliders(
-                EarthworkUiContext ctx,
-                MaterialConversionModel materials,
-                Consumer<MaterialConversionModel> onChange) {
-            MaterialConversionModel current = materials != null ? materials : MaterialConversionModel.DEFAULT;
-            float[] reusableRatio = {current.reusableRatio()};
-            boolean changed = false;
-            boolean reusableChanged = ImGui.sliderFloat("##reusable_ratio", reusableRatio, 0.50f, 1.00f,
-                PlotI18n.tr("plugin.earthwork.reusable_ratio", String.format("%.2f", reusableRatio[0])));
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
-            }
-            if (reusableChanged) {
-                onChange.accept(current.withReusableRatio(reusableRatio[0]));
-                changed = true;
-            }
-            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.reusable_ratio");
-
-            float[] cutToFillRatio = {current.cutToCompactedFillRatio()};
-            boolean cutToFillChanged = ImGui.sliderFloat("##cut_to_compacted_fill_ratio", cutToFillRatio, 0.50f, 1.00f,
-                PlotI18n.tr("plugin.earthwork.cut_to_compacted_fill_ratio", String.format("%.2f", cutToFillRatio[0])));
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
-            }
-            if (cutToFillChanged) {
-                onChange.accept(current.withCutToCompactedFillRatio(cutToFillRatio[0]));
-                changed = true;
-            }
-            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_to_compacted_fill_ratio");
-
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.earthwork.effective_cut_to_fill_ratio",
-                (materials != null ? materials : current).effectiveCutToCompactedFillRatio()));
-            return changed;
-        }
-
-        /**
-         * 渲染项目级材料平衡三层数字：毛缺量/余量、内部调配、场外净量。
-         */
-        public static void renderProjectMaterialBalance(ProjectMaterialBalance balance) {
-            ProjectMaterialBalance safe = balance != null ? balance : ProjectMaterialBalance.EMPTY;
-            ImGui.text(PlotI18n.tr("plugin.earthwork.gross_site_imbalance_header"));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.gross_import_demand", safe.grossImportDemand()));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.gross_export_surplus", safe.grossExportSurplus()));
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.internal_transfer_header"));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.internal_transfer_total", safe.internalTransferVolume()));
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.external_balance_header"));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.external_export_required", safe.externalExportRequired()));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.external_import_required", safe.externalImportRequired()));
         }
 
         public static void textWrappedSafe(String text) {

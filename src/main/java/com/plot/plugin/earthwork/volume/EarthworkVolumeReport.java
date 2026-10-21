@@ -47,7 +47,10 @@ public final class EarthworkVolumeReport {
     }
 
     /**
-     * 由几何挖填量、材料属性与实际方块变更数合成完整报告。
+     * 由几何挖填量与实际方块变更数合成报告。
+     * <p>
+     * Minecraft 1:1：挖 1 ≈ 填 1；压实/可利用字段仅作兼容别名，等于几何量。
+     * {@code materials} 参数保留签名兼容，不再参与主路径计算。
      */
     public static EarthworkVolumeReport fromMetrics(
             long geometricCutVolume,
@@ -55,19 +58,17 @@ public final class EarthworkVolumeReport {
             MaterialConversionModel materials,
             long cutChangedBlocks,
             long fillChangedBlocks) {
-        MaterialConversionModel safeMaterials = materials != null ? materials : MaterialConversionModel.DEFAULT;
-        double reusableCutVolume = geometricCutVolume * safeMaterials.reusableRatio();
-        double compactedFillSupplyFromCut = reusableCutVolume * safeMaterials.cutToCompactedFillRatio();
-        double compactedFillDemand = geometricFillVolume;
-        double importVolume = Math.max(0.0, compactedFillDemand - compactedFillSupplyFromCut);
-        double reusableCutNeededForFill = safeMaterials.cutToCompactedFillRatio() > 0.0
-            ? compactedFillDemand / safeMaterials.cutToCompactedFillRatio()
-            : 0.0;
-        double exportVolume = Math.max(0.0, reusableCutVolume - reusableCutNeededForFill);
+        long cut = Math.max(0L, geometricCutVolume);
+        long fill = Math.max(0L, geometricFillVolume);
+        double reusableCutVolume = cut;
+        double compactedFillSupplyFromCut = cut;
+        double compactedFillDemand = fill;
+        double importVolume = Math.max(0.0, fill - cut);
+        double exportVolume = Math.max(0.0, cut - fill);
         long totalChangedBlocks = cutChangedBlocks + fillChangedBlocks;
         return new EarthworkVolumeReport(
-            geometricCutVolume,
-            geometricFillVolume,
+            cut,
+            fill,
             reusableCutVolume,
             compactedFillSupplyFromCut,
             compactedFillDemand,

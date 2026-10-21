@@ -143,19 +143,13 @@ public final class ProjectGlobalBalanceAggregator {
             grossExportSurplus += volumes.compactedFillSurplus();
         }
 
-        EarthworkAllocationMatrix projectMatrix = matrixInputs.isEmpty()
-            ? EarthworkAllocationMatrix.EMPTY
-            : EarthworkAllocationMatrix.fromZoneReports(matrixInputs, projectMaterialLookup(project));
-        EarthworkAllocationMatrix crossSite = matrixInputs.size() >= 2
-            ? projectMatrix
-            : EarthworkAllocationMatrix.EMPTY;
-
+        // Minecraft 1:1：不做跨场地调配矩阵，仅汇总几何挖填与净差。
         ProjectMaterialBalance materialBalance = new ProjectMaterialBalance(
             grossImportDemand,
             grossExportSurplus,
-            projectMatrix.internalTransferVolume(),
-            projectMatrix.externalImportVolume(),
-            projectMatrix.externalExportVolume());
+            0.0,
+            grossImportDemand,
+            grossExportSurplus);
 
         return new AggregatedBalance(
             totalCut,
@@ -163,7 +157,7 @@ public final class ProjectGlobalBalanceAggregator {
             reusableCut,
             materialBalance,
             Map.copyOf(bySite),
-            crossSite,
+            EarthworkAllocationMatrix.EMPTY,
             bySite.size());
     }
 

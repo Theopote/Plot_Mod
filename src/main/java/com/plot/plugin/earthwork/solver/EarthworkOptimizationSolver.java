@@ -74,16 +74,54 @@ public final class EarthworkOptimizationSolver {
         if (flexibleByZone.isEmpty()) {
             return new BalanceResult(Map.of(), 0);
         }
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
+        // Minecraft 1:1：直接按各区几何挖填差求 ΔY，不经材料调配矩阵。
+        Map<String, Integer> zoneOffsets = computeGeometricZoneOffsets(
             flexibleByZone,
-            site);
-        Map<String, Integer> zoneOffsets = computeZoneOffsets(
-            matrix,
             countFlexibleCellsByZone(grid, site, resolvedSurfaces),
-            collectFlexibleSamplesByZone(grid, site, resolvedSurfaces),
-            site,
-            flexibleByZone);
+            collectFlexibleSamplesByZone(grid, site, resolvedSurfaces));
         return new BalanceResult(zoneOffsets, 0);
+    }
+
+    /**
+     * 按分区几何挖填净差提出竖向偏移：挖多（cut−fill&gt;0）抬升，填多则降低。
+     */
+    public static Map<String, Integer> computeGeometricZoneOffsets(
+            Map<String, EarthworkVolumeReport> byZone,
+            Map<String, Integer> cellCountByZone,
+            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone) {
+        if (byZone == null || byZone.isEmpty() || cellCountByZone == null || cellCountByZone.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Integer> offsets = new LinkedHashMap<>();
+        for (Map.Entry<String, EarthworkVolumeReport> entry : byZone.entrySet()) {
+            String zoneId = entry.getKey();
+            EarthworkVolumeReport report = entry.getValue();
+            if (report == null) {
+                continue;
+            }
+            int cellCount = cellCountByZone.getOrDefault(zoneId, 0);
+            if (cellCount <= 0) {
+                continue;
+            }
+            long intent = report.geometricCutVolume() - report.geometricFillVolume();
+            if (intent == 0L) {
+                continue;
+            }
+            int offset;
+            List<SiteWideBalanceAdjuster.CellSample> zoneSamples = samplesByZone != null
+                ? samplesByZone.get(zoneId)
+                : null;
+            if (zoneSamples != null && !zoneSamples.isEmpty()) {
+                offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
+                    zoneSamples, intent, MaterialConversionModel.DEFAULT);
+            } else {
+                offset = (int) Math.round(intent / (double) cellCount);
+            }
+            if (offset != 0) {
+                offsets.put(zoneId, offset);
+            }
+        }
+        return Map.copyOf(offsets);
     }
 
     public static BalanceResult propose(

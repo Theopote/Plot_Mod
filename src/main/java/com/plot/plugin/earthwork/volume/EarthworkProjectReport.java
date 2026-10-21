@@ -321,7 +321,7 @@ public final class EarthworkProjectReport {
                     .map(overlap -> OverlapConflict.from(overlap, policy))
                     .toList()
                 : List.of();
-            EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, site);
+            // 不再生成土方调配/运输矩阵；仅保留几何挖填与分区统计。
             return new EarthworkProjectReport(
                 totals.geometricCutVolume(),
                 totals.geometricFillVolume(),
@@ -330,7 +330,7 @@ public final class EarthworkProjectReport {
                 totals,
                 byZone,
                 overlaps,
-                matrix,
+                EarthworkAllocationMatrix.EMPTY,
                 policy.getBalanceScope(),
                 siteWideVerticalOffset,
                 zoneVerticalOffsets != null ? zoneVerticalOffsets : Map.of(),

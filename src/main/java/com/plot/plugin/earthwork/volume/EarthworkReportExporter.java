@@ -126,11 +126,7 @@ public final class EarthworkReportExporter {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("geometricCutVolume", report.geometricCutVolume());
         map.put("geometricFillVolume", report.geometricFillVolume());
-        map.put("reusableCutVolume", report.reusableCutVolume());
-        map.put("compactedFillSupply", report.compactedFillSupply());
-        map.put("compactedFillDemand", report.compactedFillDemand());
-        map.put("importVolume", report.importVolume());
-        map.put("exportVolume", report.exportVolume());
+        map.put("netBlocks", report.geometricCutVolume() - report.geometricFillVolume());
         map.put("cutChangedBlocks", report.cutChangedBlocks());
         map.put("fillChangedBlocks", report.fillChangedBlocks());
         map.put("totalChangedBlocks", report.totalChangedBlocks());
@@ -158,12 +154,6 @@ public final class EarthworkReportExporter {
         map.put("totalCut", report.totalCut());
         map.put("totalFill", report.totalFill());
         map.put("netVolume", report.netVolume());
-        map.put("reusableCut", report.reusableCut());
-        map.put("grossImportDemand", report.grossImportDemand());
-        map.put("grossExportSurplus", report.grossExportSurplus());
-        map.put("internalTransferVolume", report.internalTransferVolume());
-        map.put("externalImportRequired", report.externalImportRequired());
-        map.put("externalExportRequired", report.externalExportRequired());
         map.put("balanceScope", report.balanceScope());
         map.put("siteWideVerticalOffset", report.siteWideVerticalOffset());
         map.put("zoneVerticalOffsets", report.zoneVerticalOffsets());
@@ -177,18 +167,6 @@ public final class EarthworkReportExporter {
             zones.add(zone);
         }
         map.put("zones", zones);
-
-        List<Map<String, Object>> transfers = new ArrayList<>();
-        for (EarthworkAllocationMatrix.Transfer transfer : report.allocationMatrix().transfers()) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("sourceZoneId", transfer.sourceZoneId());
-            row.put("sourceZoneName", resolveAllocationEndpoint(project, transfer.sourceZoneId(), true));
-            row.put("destinationZoneId", transfer.destinationZoneId());
-            row.put("destinationZoneName", resolveAllocationEndpoint(project, transfer.destinationZoneId(), false));
-            row.put("volume", transfer.volume());
-            transfers.add(row);
-        }
-        map.put("allocationTransfers", transfers);
 
         List<Map<String, Object>> overlaps = new ArrayList<>();
         for (EarthworkProjectReport.OverlapConflict overlap : report.overlaps()) {
@@ -231,11 +209,7 @@ public final class EarthworkReportExporter {
         EarthworkVolumeReport volumes = preview.volumeReport;
         appendRow(csv, "volume", "geometric_cut", volumes.geometricCutVolume());
         appendRow(csv, "volume", "geometric_fill", volumes.geometricFillVolume());
-        appendRow(csv, "volume", "reusable_cut", volumes.reusableCutVolume());
-        appendRow(csv, "volume", "compacted_fill_supply", volumes.compactedFillSupply());
-        appendRow(csv, "volume", "compacted_fill_demand", volumes.compactedFillDemand());
-        appendRow(csv, "volume", "import", volumes.importVolume());
-        appendRow(csv, "volume", "export", volumes.exportVolume());
+        appendRow(csv, "volume", "net_blocks", volumes.geometricCutVolume() - volumes.geometricFillVolume());
         appendRow(csv, "volume", "cut_changed_blocks", volumes.cutChangedBlocks());
         appendRow(csv, "volume", "fill_changed_blocks", volumes.fillChangedBlocks());
         appendRow(csv, "volume", "total_changed_blocks", volumes.totalChangedBlocks());
@@ -252,19 +226,12 @@ public final class EarthworkReportExporter {
             appendRow(csv, "project_balance", "total_cut", projectReport.totalCut());
             appendRow(csv, "project_balance", "total_fill", projectReport.totalFill());
             appendRow(csv, "project_balance", "net_volume", projectReport.netVolume());
-            appendRow(csv, "project_balance", "reusable_cut", projectReport.reusableCut());
-            appendRow(csv, "project_balance", "gross_import_demand", projectReport.grossImportDemand());
-            appendRow(csv, "project_balance", "gross_export_surplus", projectReport.grossExportSurplus());
-            appendRow(csv, "project_balance", "internal_transfer_volume", projectReport.internalTransferVolume());
-            appendRow(csv, "project_balance", "external_import_required", projectReport.externalImportRequired());
-            appendRow(csv, "project_balance", "external_export_required", projectReport.externalExportRequired());
             appendRow(csv, "project_balance", "balance_scope", projectReport.balanceScope());
             appendRow(csv, "project_balance", "site_wide_vertical_offset", projectReport.siteWideVerticalOffset());
-
             appendRow(csv, "project_balance", "sites_with_volume", projectReport.sitesWithVolume());
 
             if (!projectReport.bySite().isEmpty()) {
-                csv.append("\nsection,site_id,site_name,geometric_cut,geometric_fill,reusable_cut,import,export,balance_scope,site_wide_offset\n");
+                csv.append("\nsection,site_id,site_name,geometric_cut,geometric_fill,net_blocks\n");
                 for (var entry : projectReport.bySite().entrySet()) {
                     var snapshot = entry.getValue();
                     EarthworkVolumeReport siteVolumes = snapshot.volumes();
@@ -278,20 +245,12 @@ public final class EarthworkReportExporter {
                         .append(',')
                         .append(siteVolumes.geometricFillVolume())
                         .append(',')
-                        .append(siteVolumes.reusableCutVolume())
-                        .append(',')
-                        .append(siteVolumes.importVolume())
-                        .append(',')
-                        .append(siteVolumes.exportVolume())
-                        .append(',')
-                        .append(csvCell(snapshot.balanceScope()))
-                        .append(',')
-                        .append(snapshot.siteWideVerticalOffset())
+                        .append(siteVolumes.geometricCutVolume() - siteVolumes.geometricFillVolume())
                         .append('\n');
                 }
             }
 
-            csv.append("\nsection,zone_id,zone_name,geometric_cut,geometric_fill,reusable_cut,import,export,total_changed_blocks\n");
+            csv.append("\nsection,zone_id,zone_name,geometric_cut,geometric_fill,net_blocks,total_changed_blocks\n");
             for (Map.Entry<String, EarthworkVolumeReport> entry : projectReport.byZone().entrySet()) {
                 EarthworkVolumeReport zoneReport = entry.getValue();
                 csv.append(csvCell("zone_volume"))
@@ -304,49 +263,10 @@ public final class EarthworkReportExporter {
                     .append(',')
                     .append(zoneReport.geometricFillVolume())
                     .append(',')
-                    .append(zoneReport.reusableCutVolume())
-                    .append(',')
-                    .append(zoneReport.importVolume())
-                    .append(',')
-                    .append(zoneReport.exportVolume())
+                    .append(zoneReport.geometricCutVolume() - zoneReport.geometricFillVolume())
                     .append(',')
                     .append(zoneReport.totalChangedBlocks())
                     .append('\n');
-            }
-
-            if (!projectReport.allocationMatrix().isEmpty()) {
-                csv.append("\nsection,source_zone_id,source_zone_name,destination_zone_id,destination_zone_name,volume\n");
-                for (EarthworkAllocationMatrix.Transfer transfer : projectReport.allocationMatrix().transfers()) {
-                    csv.append(csvCell("allocation"))
-                        .append(',')
-                        .append(csvCell(transfer.sourceZoneId()))
-                        .append(',')
-                        .append(csvCell(resolveAllocationEndpoint(project, transfer.sourceZoneId(), true)))
-                        .append(',')
-                        .append(csvCell(transfer.destinationZoneId()))
-                        .append(',')
-                        .append(csvCell(resolveAllocationEndpoint(project, transfer.destinationZoneId(), false)))
-                        .append(',')
-                        .append(transfer.volume())
-                        .append('\n');
-                }
-            }
-            if (!projectReport.crossSiteAllocationMatrix().isEmpty()) {
-                csv.append("\nsection,source_site_id,source_site_name,destination_site_id,destination_site_name,volume\n");
-                for (EarthworkAllocationMatrix.Transfer transfer : projectReport.crossSiteAllocationMatrix().transfers()) {
-                    csv.append(csvCell("cross_site_allocation"))
-                        .append(',')
-                        .append(csvCell(transfer.sourceZoneId()))
-                        .append(',')
-                        .append(csvCell(resolveSiteName(projectReport, transfer.sourceZoneId())))
-                        .append(',')
-                        .append(csvCell(transfer.destinationZoneId()))
-                        .append(',')
-                        .append(csvCell(resolveSiteName(projectReport, transfer.destinationZoneId())))
-                        .append(',')
-                        .append(transfer.volume())
-                        .append('\n');
-                }
             }
         }
         return csv.toString();

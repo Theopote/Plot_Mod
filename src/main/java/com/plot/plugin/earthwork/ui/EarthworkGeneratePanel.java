@@ -3,8 +3,6 @@ package com.plot.plugin.earthwork.ui;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
-import com.plot.core.material.EarthMaterialClass;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
@@ -313,30 +311,26 @@ public final class EarthworkGeneratePanel {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totalCut()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
-        if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.analysis.engineering_numbers"))) {
-            ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", report.reusableCut()));
-            EarthworkUiWidgets.renderProjectMaterialBalance(report.materialBalance());
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.project_balance_scope",
-                    PlotI18n.tr("plugin.earthwork.balance_scope." + report.balanceScope().toLowerCase())));
-            if (report.siteWideVerticalOffset() != 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.earthwork.site_wide_vertical_offset",
-                    report.siteWideVerticalOffset()));
-            }
-            if (report.hasZoneVerticalOffsets()) {
-                ImGui.text(PlotI18n.tr("plugin.earthwork.zone_vertical_offsets_header"));
-                for (Map.Entry<String, Integer> entry : report.zoneVerticalOffsets().entrySet()) {
-                    GradingRegion zoneRegion = ctx.project().getRegion(entry.getKey());
-                    String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
-                    ImGui.bulletText(PlotI18n.tr(
-                        "plugin.earthwork.zone_vertical_offset_item",
-                        zoneName,
-                        entry.getValue()));
+        if (report.siteWideVerticalOffset() != 0 || report.hasZoneVerticalOffsets()) {
+            if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.analysis.engineering_numbers"))) {
+                if (report.siteWideVerticalOffset() != 0) {
+                    ImGui.text(PlotI18n.tr(
+                        "plugin.earthwork.site_wide_vertical_offset",
+                        report.siteWideVerticalOffset()));
                 }
+                if (report.hasZoneVerticalOffsets()) {
+                    ImGui.text(PlotI18n.tr("plugin.earthwork.zone_vertical_offsets_header"));
+                    for (Map.Entry<String, Integer> entry : report.zoneVerticalOffsets().entrySet()) {
+                        GradingRegion zoneRegion = ctx.project().getRegion(entry.getKey());
+                        String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
+                        ImGui.bulletText(PlotI18n.tr(
+                            "plugin.earthwork.zone_vertical_offset_item",
+                            zoneName,
+                            entry.getValue()));
+                    }
+                }
+                ImGui.treePop();
             }
-            ImGui.treePop();
         }
 
         if (report.hasCrossSiteBreakdown()) {
@@ -364,85 +358,5 @@ public final class EarthworkGeneratePanel {
                 zoneVolumes.geometricCutVolume(),
                 zoneVolumes.geometricFillVolume()));
         }
-
-        if (!report.allocationMatrix().isEmpty()) {
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.analysis.dirt_flow_header"));
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.analysis.dirt_flow_hint"));
-            for (EarthworkAllocationMatrix.Transfer transfer : report.allocationMatrix().transfers()) {
-                ImGui.bulletText(formatAllocationTransfer(
-                    transfer,
-                    resolveAllocationEndpoint(transfer.sourceZoneId(), true),
-                    resolveAllocationEndpoint(transfer.destinationZoneId(), false)));
-            }
-        }
-
-        if (!report.crossSiteAllocationMatrix().isEmpty()) {
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.analysis.cross_site_dirt"));
-            for (EarthworkAllocationMatrix.Transfer transfer : report.crossSiteAllocationMatrix().transfers()) {
-                ImGui.bulletText(formatAllocationTransfer(
-                    transfer,
-                    resolveSiteAllocationEndpoint(transfer.sourceZoneId(), true, report),
-                    resolveSiteAllocationEndpoint(transfer.destinationZoneId(), false, report)));
-            }
-        }
-    }
-
-    private static String formatAllocationTransfer(
-            EarthworkAllocationMatrix.Transfer transfer,
-            String sourceName,
-            String destinationName) {
-        if (transfer.materialClass() != null
-            && transfer.materialClass() != EarthMaterialClass.UNKNOWN) {
-            return PlotI18n.tr(
-                "plugin.earthwork.allocation_transfer_material",
-                sourceName,
-                destinationName,
-                transfer.volume(),
-                PlotI18n.tr(transfer.materialClass().i18nKey()));
-        }
-        return PlotI18n.tr(
-            "plugin.earthwork.allocation_transfer",
-            sourceName,
-            destinationName,
-            transfer.volume());
-    }
-
-    private String resolveSiteAllocationEndpoint(
-            String siteId,
-            boolean source,
-            EarthworkProjectReport report) {
-        if (EarthworkAllocationMatrix.EXPORT.equals(siteId)) {
-            return PlotI18n.tr("plugin.earthwork.allocation_export");
-        }
-        if (EarthworkAllocationMatrix.IMPORT.equals(siteId)) {
-            return PlotI18n.tr("plugin.earthwork.allocation_import");
-        }
-        var snapshot = report.bySite().get(siteId);
-        if (snapshot != null && snapshot.siteName() != null && !snapshot.siteName().isBlank()) {
-            return snapshot.siteName();
-        }
-        EarthworkSite site = ctx.project().getSite(siteId);
-        if (site != null && site.getName() != null && !site.getName().isBlank()) {
-            return site.getName();
-        }
-        return siteId != null ? siteId : "";
-    }
-
-    private String resolveAllocationEndpoint(String zoneId, boolean source) {
-        if (EarthworkAllocationMatrix.EXPORT.equals(zoneId)) {
-            return PlotI18n.tr("plugin.earthwork.allocation_export");
-        }
-        if (EarthworkAllocationMatrix.IMPORT.equals(zoneId)) {
-            return PlotI18n.tr("plugin.earthwork.allocation_import");
-        }
-        GradingRegion region = ctx.project().getRegion(zoneId);
-        if (region != null && region.getName() != null && !region.getName().isBlank()) {
-            return region.getName();
-        }
-        return zoneId != null ? zoneId : "";
     }
 }
