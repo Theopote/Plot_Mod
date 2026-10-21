@@ -75,9 +75,16 @@ public final class NetworkNodeElevationResolver {
             }
             resolved.put(node.getId(), resolution.height());
         }
-        return JunctionFeasibleElevationResolver.refine(
+        resolved = JunctionFeasibleElevationResolver.refine(
             network,
             naturalHeightsByNode,
+            approachConstraints,
+            resolved);
+        Map<String, List<Integer>> pinnedNaturalHeights =
+            collectNaturalHeightsWithPinnedJunctions(network, terrain, resolved);
+        return JunctionFeasibleElevationResolver.refine(
+            network,
+            pinnedNaturalHeights,
             approachConstraints,
             resolved);
     }
@@ -92,6 +99,23 @@ public final class NetworkNodeElevationResolver {
     }
 
     private Map<String, List<Integer>> collectNaturalHeights(RoadNetwork network, TerrainSampler terrain) {
+        return collectNaturalHeights(network, terrain, Map.of());
+    }
+
+    /**
+     * 模拟第二遍求解：在已知路口标高下重算各边端点自然高程，供可行域二次收敛。
+     */
+    private Map<String, List<Integer>> collectNaturalHeightsWithPinnedJunctions(
+            RoadNetwork network,
+            TerrainSampler terrain,
+            Map<String, Integer> junctionHeights) {
+        return collectNaturalHeights(network, terrain, junctionHeights);
+    }
+
+    private Map<String, List<Integer>> collectNaturalHeights(
+            RoadNetwork network,
+            TerrainSampler terrain,
+            Map<String, Integer> junctionHeights) {
         Map<String, List<Integer>> naturalHeightsByNode = new LinkedHashMap<>();
         GradeSeparationPolicy.NaturalRoadHeightAtNode naturalRoadHeight =
             nodeTargetHeights.naturalRoadHeightAtNode();
@@ -119,6 +143,8 @@ public final class NetworkNodeElevationResolver {
                 continue;
             }
 
+            Integer pinnedStart = junctionHeights.get(startNode.getId());
+            Integer pinnedEnd = junctionHeights.get(endNode.getId());
             ProfileSolveResult profile = context.solveEdgeProfile(
                 segments,
                 terrain,
@@ -126,12 +152,10 @@ public final class NetworkNodeElevationResolver {
                 edge,
                 startNode,
                 endNode,
-                gradeSeparation.resolveForcedEndpointHeight(
-                    startNode, network, edge, terrain, false,
-                    naturalRoadHeight, nodeTargetHeights.naturalEdgeHeightAtNode()),
-                gradeSeparation.resolveForcedEndpointHeight(
-                    endNode, network, edge, terrain, false,
-                    naturalRoadHeight, nodeTargetHeights.naturalEdgeHeightAtNode()));
+                resolvePinnedEndpoint(
+                    startNode, network, edge, terrain, false, naturalRoadHeight, pinnedStart),
+                resolvePinnedEndpoint(
+                    endNode, network, edge, terrain, false, naturalRoadHeight, pinnedEnd));
             List<SegmentHeightInfo> heightInfos = profile.heightInfos();
             if (heightInfos.isEmpty()) {
                 continue;
@@ -144,6 +168,28 @@ public final class NetworkNodeElevationResolver {
                 network, terrain, naturalRoadHeight);
         }
         return naturalHeightsByNode;
+    }
+
+    private Integer resolvePinnedEndpoint(
+            RoadNode node,
+            RoadNetwork network,
+            RoadEdge edge,
+            TerrainSampler terrain,
+            boolean applyGradeSeparation,
+            GradeSeparationPolicy.NaturalRoadHeightAtNode naturalRoadHeight,
+            Integer pinnedJunctionHeight) {
+        Integer forced = gradeSeparation.resolveForcedEndpointHeight(
+            node,
+            network,
+            edge,
+            terrain,
+            applyGradeSeparation,
+            naturalRoadHeight,
+            nodeTargetHeights.naturalEdgeHeightAtNode());
+        if (forced != null) {
+            return forced;
+        }
+        return pinnedJunctionHeight;
     }
 
     private Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> collectApproachConstraints(

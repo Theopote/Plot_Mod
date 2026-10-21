@@ -55,10 +55,17 @@ public final class RoadPreviewManager {
      * 路网几何失效（{@link #invalidatePreview()}）时清空，使下一次计算回到地形自适应。
      */
     private final Set<String> activeManualProfileRoadIds = new LinkedHashSet<>();
+    private long lastPreviewTerrainFingerprint = 0L;
+    private Runnable onFullInvalidate;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
         this.host = Objects.requireNonNull(host, "host");
+    }
+
+    /** 预览全量失效时的附加清理（如清除 live 网上 stale junction 标高）。 */
+    public void setOnFullInvalidate(Runnable onFullInvalidate) {
+        this.onFullInvalidate = onFullInvalidate;
     }
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
@@ -112,6 +119,43 @@ public final class RoadPreviewManager {
 
     private void bumpTerrainRevision() {
         terrainRevision++;
+    }
+
+    private void invalidateManualProfilesIfTerrainChanged(RoadNetwork network) {
+        if (network == null || networkGenerator == null) {
+            return;
+        }
+        long fingerprint = terrainFingerprint(network);
+        if (lastPreviewTerrainFingerprint != 0L && fingerprint != lastPreviewTerrainFingerprint) {
+            clearActiveManualProfiles();
+            if (onFullInvalidate != null) {
+                onFullInvalidate.run();
+            }
+            LOGGER.debug("检测到地形变更，已清除手动纵断面生成标记与 stale junction 标高");
+        }
+    }
+
+    private long terrainFingerprint(RoadNetwork network) {
+        if (network == null || networkGenerator == null) {
+            return 0L;
+        }
+        net.minecraft.world.World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            return 0L;
+        }
+        var terrain = networkGenerator.createTerrainSampler(world);
+        long hash = 17L;
+        for (var node : network.getNodes().values()) {
+            if (node == null || node.getPosition() == null) {
+                continue;
+            }
+            int surfaceY = terrain.sampleSurfaceY(node.getPosition());
+            hash = 31L * hash + node.getId().hashCode();
+            hash = 31L * hash + surfaceY;
+            hash = 31L * hash + Double.hashCode(node.getPosition().x);
+            hash = 31L * hash + Double.hashCode(node.getPosition().y);
+        }
+        return hash;
     }
 
     public Integer getLastNodeElevation(String nodeId) {
@@ -233,6 +277,8 @@ public final class RoadPreviewManager {
             return false;
         }
 
+        invalidateManualProfilesIfTerrainChanged(network);
+
         RoadElevationBounds elevationBounds = validationElevationBounds();
         RoadNetworkValidationReport preflight =
             RoadNetworkEngineeringValidator.analyzePreGeneration(network, elevationBounds);
@@ -349,6 +395,8 @@ public final class RoadPreviewManager {
             return false;
         }
 
+        invalidateManualProfilesIfTerrainChanged(network);
+
         RoadElevationBounds elevationBounds = validationElevationBounds();
         RoadNetworkValidationReport preflight =
             RoadNetworkEngineeringValidator.analyzePreGeneration(network, elevationBounds);
@@ -399,6 +447,7 @@ public final class RoadPreviewManager {
         previewNetwork = network;
         applyProfileSamplingState(previewResult);
         lastNetworkGenerationResult = previewResult.networkResult();
+        lastPreviewTerrainFingerprint = terrainFingerprint(network);
         bumpTerrainRevision();
 
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
@@ -544,6 +593,10 @@ public final class RoadPreviewManager {
         clearGhostBlocksSafely();
         // 几何/拓扑变更后，下一次计算重新按地形自适应，需再次打开编辑器确认才用玩家曲线。
         clearActiveManualProfiles();
+        lastPreviewTerrainFingerprint = 0L;
+        if (onFullInvalidate != null) {
+            onFullInvalidate.run();
+        }
         if (hadPreview) {
             previewNeedsRecalc = true;
             LOGGER.debug("网络已变更，预览结果与虚影已失效");

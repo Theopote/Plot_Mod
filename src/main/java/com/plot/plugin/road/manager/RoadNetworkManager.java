@@ -335,8 +335,27 @@ public final class RoadNetworkManager {
     }
 
     public void commitNetworkChange(RoadChangeKind kind) {
-        notifyNetworkChanged(kind != null ? kind : RoadChangeKind.GENERAL);
+        RoadChangeKind effective = kind != null ? kind : RoadChangeKind.GENERAL;
+        if (effective == RoadChangeKind.GEOMETRY) {
+            clearStaleJunctionManualElevations();
+        }
+        notifyNetworkChanged(effective);
         pendingChangeKind = RoadChangeKind.GENERAL;
+    }
+
+    /**
+     * 几何变更或预览全量失效后：清除平交节点上由旧位置/profile 写入的手动标高，
+     * 避免新地形预览仍被旧 junction Y 锁定。
+     */
+    public void clearStaleJunctionManualElevations() {
+        for (RoadNode node : network.getNodes().values()) {
+            if (node == null || node.isGradeSeparated()) {
+                continue;
+            }
+            if (node.getManualElevation() != null) {
+                node.setManualElevation(null);
+            }
+        }
     }
 
     /** {@link #pushUndoSnapshot()} 的语义别名。 */

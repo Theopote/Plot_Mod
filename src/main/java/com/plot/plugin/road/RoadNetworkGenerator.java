@@ -188,6 +188,10 @@ public class RoadNetworkGenerator {
             : Set.copyOf(roadIds);
     }
 
+    public TerrainSampler createTerrainSampler(net.minecraft.world.World world) {
+        return roadGenerator.createTerrainSampler(world);
+    }
+
     public NetworkGenerationResult generateAll(RoadNetwork network, World world) {
         if (network == null || world == null) {
             return new NetworkGenerationResult();
@@ -272,7 +276,8 @@ public class RoadNetworkGenerator {
         try (var ignored = session.stationingCache().activate()) {
             int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
                 generationNetwork,
-                roadGenerator.getConfig());
+                roadGenerator.getConfig(),
+                activeManualProfileRoadIds);
             if (smoothedRoads > 0) {
                 LOGGER.info("生成前已自动平缓 {} 条道路纵断面坡度", smoothedRoads);
             }
