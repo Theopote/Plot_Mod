@@ -23,13 +23,10 @@ class SiteWideBalanceAdjusterTest {
             new SiteWideBalanceAdjuster.CellSample(68, 60),
             new SiteWideBalanceAdjuster.CellSample(55, 60),
             new SiteWideBalanceAdjuster.CellSample(53, 60));
-        int offset = SiteWideBalanceAdjuster.findBalancedVerticalOffset(
-            samples,
-            new com.plot.core.material.MaterialConversionModel(1.0f, 1.0f));
+        int offset = SiteWideBalanceAdjuster.findBalancedVerticalOffset(samples);
         assertTrue(Math.abs(EarthworkBalanceUtils.computeBalanceDiff(
             samples.stream().map(s -> s.existingGroundY() - s.rawDesignTargetY()).toList(),
-            offset,
-            new com.plot.core.material.MaterialConversionModel(1.0f, 1.0f))) <= 3L);
+            offset)) <= 3L);
     }
 
     @Test

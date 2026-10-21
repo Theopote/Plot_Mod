@@ -1,6 +1,5 @@
 package com.plot.plugin.earthwork.solver;
 
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -312,9 +311,6 @@ public final class EarthworkOptimizationSolver {
         List<SiteWideBalanceAdjuster.CellSample> flexible = new ArrayList<>();
         List<SiteWideBalanceAdjuster.CellSample> locked = new ArrayList<>();
         SiteWideBalanceAdjuster.splitSamples(grid, site, zoneOffsets, flexible, locked, resolvedSurfaces);
-        return SiteWideBalanceAdjuster.findBalancedVerticalOffset(
-            flexible,
-            locked,
-            MaterialConversionModel.DEFAULT);
+        return SiteWideBalanceAdjuster.findBalancedVerticalOffset(flexible, locked);
     }
 }

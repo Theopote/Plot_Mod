@@ -84,6 +84,13 @@ public final class EarthworkBalanceUtils {
         return bestZ;
     }
 
+    /** Minecraft 1:1 几何挖填平衡（固定残差）。 */
+    public static int findBalancedElevation(
+            List<Integer> groundHeightSamples,
+            long fixedBalanceDiff) {
+        return findBalancedElevation(groundHeightSamples, fixedBalanceDiff, MaterialConversionModel.DEFAULT);
+    }
+
     public static int findBalancedElevation(
             List<Integer> groundHeightSamples,
             long fixedBalanceDiff,

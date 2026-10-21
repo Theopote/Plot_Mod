@@ -62,6 +62,6 @@ public final class WeightedBalanceSolver {
         for (SiteWideBalanceAdjuster.CellSample sample : samples) {
             maxDepth = Math.max(maxDepth, Math.abs(sample.existingGroundY() - sample.rawDesignTargetY()));
         }
-        return Math.min(128, Math.max(16, maxDepth + 16));
+        return Math.clamp(maxDepth + 16, 16, 128);
     }
 }

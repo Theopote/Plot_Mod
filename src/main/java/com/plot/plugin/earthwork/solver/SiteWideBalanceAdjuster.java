@@ -1,15 +1,15 @@
 package com.plot.plugin.earthwork.solver;
+
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.core.material.MaterialConversionModel;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * 全场土方平衡：对合成后的设计面施加统一竖向偏移 ΔY，使挖填趋于平衡。
+ * 全场土方平衡：对合成后的设计面施加统一竖向偏移 ΔY，使几何挖填趋于平衡。
  */
 public final class SiteWideBalanceAdjuster {
 
@@ -20,24 +20,21 @@ public final class SiteWideBalanceAdjuster {
     }
 
     /**
-     * 求使全场材料挖填差最小的竖向偏移量。
+     * 求使全场几何挖填差最小的竖向偏移量。
      * <p>
      * 对每格令调整后目标 = rawDesignTargetY + ΔY，等价于对残差
      * {@code existingGroundY - rawDesignTargetY} 做一维平衡求解。
      */
-    public static int findBalancedVerticalOffset(
-            List<CellSample> samples,
-            MaterialConversionModel materials) {
-        return findBalancedVerticalOffset(samples, List.of(), materials);
+    public static int findBalancedVerticalOffset(List<CellSample> samples) {
+        return findBalancedVerticalOffset(samples, List.of());
     }
 
     /**
-     * 仅对可变格点搜索 ΔY；锁定格点的挖填作为固定材料残差。
+     * 仅对可变格点搜索 ΔY；锁定格点的挖填作为固定几何残差。
      */
     public static int findBalancedVerticalOffset(
             List<CellSample> flexibleSamples,
-            List<CellSample> lockedSamples,
-            MaterialConversionModel materials) {
+            List<CellSample> lockedSamples) {
         if (flexibleSamples == null || flexibleSamples.isEmpty()) {
             return 0;
         }
@@ -51,9 +48,9 @@ public final class SiteWideBalanceAdjuster {
             for (CellSample sample : lockedSamples) {
                 lockedResiduals.add(sample.existingGroundY() - sample.rawDesignTargetY());
             }
-            lockedDiff = EarthworkBalanceUtils.computeBalanceDiff(lockedResiduals, 0, materials);
+            lockedDiff = EarthworkBalanceUtils.computeBalanceDiff(lockedResiduals, 0);
         }
-        return EarthworkBalanceUtils.findBalancedElevation(residuals, lockedDiff, materials);
+        return EarthworkBalanceUtils.findBalancedElevation(residuals, lockedDiff);
     }
 
     public static int findBalancedVerticalOffset(DesignTerrainGrid grid, EarthworkSite site) {
@@ -70,7 +67,7 @@ public final class SiteWideBalanceAdjuster {
         List<CellSample> flexible = new ArrayList<>();
         List<CellSample> locked = new ArrayList<>();
         splitSamples(grid, site, Map.of(), flexible, locked, resolvedSurfaces);
-        return findBalancedVerticalOffset(flexible, locked, MaterialConversionModel.DEFAULT);
+        return findBalancedVerticalOffset(flexible, locked);
     }
 
     public static void splitSamples(
