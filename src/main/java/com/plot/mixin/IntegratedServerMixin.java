@@ -1,6 +1,6 @@
 package com.plot.mixin;
 
-import com.plot.camera.ChunkUpdater;
+import com.plot.camera.PlotRenderDistanceState;
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.server.integrated.IntegratedServer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,7 +24,7 @@ public class IntegratedServerMixin {
     )
     private Object plot$boostSyncedViewDistance(SimpleOption<?> option) {
         Object value = option.getValue();
-        int override = ChunkUpdater.getPlotRenderDistanceOverride();
+        int override = PlotRenderDistanceState.getOverrideChunks();
         if (override > 0 && value instanceof Integer current) {
             return Math.max(current, override);
         }

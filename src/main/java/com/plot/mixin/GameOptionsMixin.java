@@ -1,6 +1,6 @@
 package com.plot.mixin;
 
-import com.plot.camera.ChunkUpdater;
+import com.plot.camera.PlotRenderDistanceState;
 import net.minecraft.client.option.GameOptions;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class GameOptionsMixin {
     @Inject(method = "getClampedViewDistance", at = @At("RETURN"), cancellable = true)
     private void plot$boostClampedViewDistance(CallbackInfoReturnable<Integer> cir) {
-        int override = ChunkUpdater.getPlotRenderDistanceOverride();
+        int override = PlotRenderDistanceState.getOverrideChunks();
         int vanilla = cir.getReturnValueI();
         if (override > vanilla) {
             cir.setReturnValue(override);

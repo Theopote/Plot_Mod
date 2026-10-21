@@ -931,7 +931,7 @@
   "settings.plot.draw_measure_settings": "绘制测量",
   "settings.plot.draw_measure_hint": "绘制几何图形时在辅助线上显示实时方块距离（自由绘制工具除外）。",
   "settings.plot.view_range_settings": "视图范围",
-  "settings.plot.view_range_hint": "调整顶部「视图范围」滑动条的可调区间。硬限制 20–1200。Plot 打开时会临时提高渲染距离以覆盖视野（最高约 64 区块）；联机时仍受服务器视距限制。超大视距会明显增加内存与卡顿。",
+  "settings.plot.view_range_hint": "调整顶部「视图范围」滑动条的可调区间。硬限制 20–1200。Plot 打开时会临时提高 Minecraft 渲染距离，最高 32 区块（约 512 格半径）。再拉大视图只会放大空白，不会加载更多方块（原版引擎限制）。",
   "settings.plot.view_range_min": "滑动条下限",
   "settings.plot.view_range_max": "滑动条上限",
   "settings.plot.view_range_current": "当前区间：%s – %s",

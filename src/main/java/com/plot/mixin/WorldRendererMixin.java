@@ -1,6 +1,6 @@
 package com.plot.mixin;
 
-import com.plot.camera.ChunkUpdater;
+import com.plot.camera.PlotRenderDistanceState;
 import com.plot.ui.screen.PlotScreenState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
@@ -36,7 +36,7 @@ public class WorldRendererMixin {
 
     @Inject(method = "reload()V", at = @At("RETURN"))
     private void plot$logViewDistanceAfterReload(CallbackInfo ci) {
-        int override = ChunkUpdater.getPlotRenderDistanceOverride();
+        int override = PlotRenderDistanceState.getOverrideChunks();
         if (override <= 0) {
             return;
         }

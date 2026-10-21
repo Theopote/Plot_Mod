@@ -11,38 +11,54 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 正交视距变大时，临时抬高 MC 渲染距离以覆盖视野四角。
+ * 正交视距变大时，临时抬高 MC 渲染距离（最高原版 32 区块）以覆盖视野。
  * <p>
- * 原则：只升不降。开 Plot / 小视距时不得把玩家原有渲染距离压小，
- * 否则会出现「比原来更小的矩形空白区」。
+ * 只升不降；超过 32 会触发服务端 LevelPropagator 崩溃，故硬顶 32。
+ * 滑动条连续拖动时防抖，避免每档都 reload / setViewDistance。
  */
 public final class ChunkUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/ChunkUpdater");
 
-    private static final int VANILLA_OPTION_MAX = 32;
-    /** 覆盖视图宽度 1200 的四角所需约 57，取 64 */
-    public static final int MAX_PLOT_VIEW_DISTANCE_CHUNKS = 64;
+    private static final int VANILLA_OPTION_MAX = PlotRenderDistanceState.MAX_CHUNKS;
+    public static final int MAX_PLOT_VIEW_DISTANCE_CHUNKS = PlotRenderDistanceState.MAX_CHUNKS;
     private static final int PADDING_CHUNKS = 4;
+    /** 连续拖动时合并抬升，降低 reload 频率 */
+    private static final long APPLY_DEBOUNCE_MS = 250L;
 
     private static int savedClientViewDistance = -1;
     private static int savedServerViewDistanceHint = -1;
     private static int savedIntegratedServerViewDistance = -1;
     private static int savedIntegratedSimulationDistance = -1;
-    /** 仅表示「希望抬到的下限」；mixin 用 max(原版, override) */
-    private static volatile int plotRenderDistanceOverride = -1;
     private static int lastAppliedChunks = -1;
+
+    private static int pendingExpandTo = -1;
+    private static float pendingCornerRadius = 0f;
+    private static int pendingComputed = 0;
+    private static int pendingFloor = 0;
+    private static long pendingSinceMs = 0L;
 
     private ChunkUpdater() {
     }
 
     public static int getPlotRenderDistanceOverride() {
-        return plotRenderDistanceOverride;
+        return PlotRenderDistanceState.getOverrideChunks();
+    }
+
+    private static void setOverride(int chunks) {
+        PlotRenderDistanceState.setOverrideChunks(chunks);
     }
 
     /**
-     * 按正交视图全宽（方块）计算所需渲染距离并应用；不会低于玩家当前选项。
+     * 按正交视图全宽（方块）计算所需渲染距离并应用；不会低于玩家当前选项，不超过 32。
      */
     public static void applyForViewRangeBlocks(float viewRangeBlocks) {
+        applyForViewRangeBlocks(viewRangeBlocks, false);
+    }
+
+    /**
+     * @param immediate true 时跳过防抖（松手 / 打开 Plot 时）
+     */
+    public static void applyForViewRangeBlocks(float viewRangeBlocks, boolean immediate) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || client.options == null) {
             return;
@@ -63,11 +79,61 @@ public final class ChunkUpdater {
         if (savedClientViewDistance < 0) {
             savedClientViewDistance = clientOption;
         }
-        // 地板：玩家原选项与当前选项，绝不能为了「小视距」去缩小世界
         int floor = Math.max(savedClientViewDistance, clientOption);
-        int needed = Math.max(computed, floor);
+        floor = Math.min(VANILLA_OPTION_MAX, floor);
+        int needed = Math.min(VANILLA_OPTION_MAX, Math.max(computed, floor));
 
-        applyNeededChunks(client, needed, cornerRadius, computed, floor);
+        int expandTo = needed;
+        if (lastAppliedChunks > expandTo) {
+            expandTo = lastAppliedChunks;
+        }
+        if (expandTo < floor) {
+            expandTo = floor;
+        }
+        expandTo = Math.min(VANILLA_OPTION_MAX, expandTo);
+
+        // 尚未真正抬高时先记下 override，供 getClampedViewDistance 使用；落地仍走防抖
+        setOverride(expandTo);
+
+        if (!immediate && expandTo > lastAppliedChunks && lastAppliedChunks >= 0) {
+            pendingExpandTo = expandTo;
+            pendingCornerRadius = cornerRadius;
+            pendingComputed = computed;
+            pendingFloor = floor;
+            if (pendingSinceMs == 0L) {
+                pendingSinceMs = System.currentTimeMillis();
+            }
+            return;
+        }
+
+        pendingExpandTo = -1;
+        pendingSinceMs = 0L;
+        applyNeededChunks(client, expandTo, cornerRadius, computed, floor);
+    }
+
+    /**
+     * 在帧循环中调用：防抖到期后落地待定的视距抬升。
+     */
+    public static void flushPendingApplyIfDue() {
+        if (pendingExpandTo < 0 || pendingSinceMs == 0L) {
+            return;
+        }
+        if (System.currentTimeMillis() - pendingSinceMs < APPLY_DEBOUNCE_MS) {
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null || client.options == null) {
+            pendingExpandTo = -1;
+            pendingSinceMs = 0L;
+            return;
+        }
+        int expandTo = pendingExpandTo;
+        float corner = pendingCornerRadius;
+        int computed = pendingComputed;
+        int floor = pendingFloor;
+        pendingExpandTo = -1;
+        pendingSinceMs = 0L;
+        applyNeededChunks(client, expandTo, corner, computed, floor);
     }
 
     public static int forceUpdateChunksInView(OrthographicCamera camera) {
@@ -80,7 +146,7 @@ public final class ChunkUpdater {
         float viewRange = camera != null
             ? camera.getViewDistance() * Math.max(0.1f, camera.getScale())
             : CameraManager.getInstance().getViewDistance();
-        applyForViewRangeBlocks(viewRange);
+        applyForViewRangeBlocks(viewRange, true);
 
         WorldRenderer worldRenderer = client.worldRenderer;
         if (worldRenderer == null || camera == null) {
@@ -104,7 +170,7 @@ public final class ChunkUpdater {
         double centerX = playerX + panX;
         double centerZ = playerZ + panZ;
 
-        int renderChunks = Math.max(2, client.options.getClampedViewDistance());
+        int renderChunks = Math.max(2, Math.min(VANILLA_OPTION_MAX, client.options.getClampedViewDistance()));
         int playerChunkX = ChunkSectionPos.getSectionCoord(playerX);
         int playerChunkZ = ChunkSectionPos.getSectionCoord(playerZ);
         int minChunkX = Math.max(ChunkSectionPos.getSectionCoord(centerX - halfWidth), playerChunkX - renderChunks);
@@ -127,37 +193,36 @@ public final class ChunkUpdater {
             }
         }
 
-        LOGGER.info(
-            "正交视野刷新: viewRange={}, clampedVD={}, chunks X[{}..{}] Z[{}..{}], scheduled={}",
+        LOGGER.debug(
+            "正交视野刷新: viewRange={}, clampedVD={}, scheduled={}",
             String.format("%.0f", viewRange),
             renderChunks,
-            minChunkX, maxChunkX, minChunkZ, maxChunkZ,
             scheduled);
         return scheduled;
     }
 
     private static void applyNeededChunks(
         MinecraftClient client,
-        int neededChunks,
+        int expandTo,
         float cornerRadiusBlocks,
         int computedFromView,
         int floorChunks
     ) {
+        expandTo = Math.min(VANILLA_OPTION_MAX, Math.max(2, expandTo));
+
         var options = client.options;
         int clientOption = options.getViewDistance().getValue();
         int clampedBefore = options.getClampedViewDistance();
 
-        // Plot 打开期间只扩大：缩小视图范围时保持已抬高的 RD，关闭 Plot 再恢复
-        int expandTo = neededChunks;
-        if (lastAppliedChunks > expandTo) {
-            expandTo = lastAppliedChunks;
-        }
-        if (expandTo < floorChunks) {
-            expandTo = floorChunks;
+        boolean raised = expandTo > lastAppliedChunks
+            && (lastAppliedChunks < 0 || expandTo > clampedBefore || expandTo > lastAppliedChunks);
+        // 已应用过且目标未升高：不再 reload
+        if (lastAppliedChunks >= 0 && expandTo <= lastAppliedChunks) {
+            setOverride(lastAppliedChunks);
+            return;
         }
 
-        boolean raised = expandTo > clampedBefore && (lastAppliedChunks < 0 || expandTo > lastAppliedChunks);
-        plotRenderDistanceOverride = expandTo;
+        setOverride(expandTo);
 
         int optionTarget = Math.min(VANILLA_OPTION_MAX, expandTo);
         if (optionTarget > clientOption) {
@@ -177,15 +242,19 @@ public final class ChunkUpdater {
         if (server != null) {
             var playerManager = server.getPlayerManager();
             int serverVd = playerManager.getViewDistance();
-            if (expandTo > serverVd) {
-                if (savedIntegratedServerViewDistance < 0) {
-                    savedIntegratedServerViewDistance = serverVd;
-                }
-                playerManager.setViewDistance(expandTo);
-                LOGGER.info("集成服视距: {} → {}", serverVd, expandTo);
+            if (savedIntegratedServerViewDistance < 0) {
+                savedIntegratedServerViewDistance = Math.min(serverVd, VANILLA_OPTION_MAX);
             }
+            int safeVd = Math.min(VANILLA_OPTION_MAX, expandTo);
+            if (safeVd > serverVd) {
+                playerManager.setViewDistance(safeVd);
+                LOGGER.info("集成服视距: {} → {}", serverVd, safeVd);
+            }
+            // 模拟距离不得超过 32，且不必跟满视距
             int sim = playerManager.getSimulationDistance();
-            int minSim = Math.max(sim, Math.min(expandTo, Math.max(8, expandTo / 2)));
+            int minSim = Math.min(
+                VANILLA_OPTION_MAX,
+                Math.max(sim, Math.min(safeVd, Math.max(8, safeVd / 2))));
             if (minSim > sim) {
                 if (savedIntegratedSimulationDistance < 0) {
                     savedIntegratedSimulationDistance = sim;
@@ -204,7 +273,7 @@ public final class ChunkUpdater {
             }
         }
 
-        if (raised) {
+        if (raised && expandTo > clampedBefore) {
             WorldRenderer worldRenderer = client.worldRenderer;
             if (worldRenderer != null) {
                 try {
@@ -228,15 +297,19 @@ public final class ChunkUpdater {
             LOGGER.info(
                 "Plot 保持原渲染距离 {} chunks（viewCalc={} ≤ floor={}，不缩小）",
                 expandTo, computedFromView, floorChunks);
+        } else {
+            lastAppliedChunks = Math.max(lastAppliedChunks, expandTo);
         }
     }
 
     public static void restoreClientRenderDistance() {
         MinecraftClient client = MinecraftClient.getInstance();
-        boolean hadOverride = plotRenderDistanceOverride > 0;
+        boolean hadOverride = getPlotRenderDistanceOverride() > 0;
         int restoreTo = savedClientViewDistance;
-        plotRenderDistanceOverride = -1;
+        PlotRenderDistanceState.clear();
         lastAppliedChunks = -1;
+        pendingExpandTo = -1;
+        pendingSinceMs = 0L;
 
         if (client == null || client.options == null) {
             savedClientViewDistance = -1;
@@ -251,7 +324,8 @@ public final class ChunkUpdater {
             if (server != null) {
                 var playerManager = server.getPlayerManager();
                 if (savedIntegratedServerViewDistance >= 0) {
-                    playerManager.setViewDistance(savedIntegratedServerViewDistance);
+                    playerManager.setViewDistance(
+                        Math.min(VANILLA_OPTION_MAX, savedIntegratedServerViewDistance));
                     LOGGER.info("已恢复集成服视距: {}", savedIntegratedServerViewDistance);
                 }
                 if (savedIntegratedSimulationDistance >= 0) {
