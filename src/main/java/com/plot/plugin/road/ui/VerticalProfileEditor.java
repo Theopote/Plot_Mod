@@ -76,7 +76,8 @@ import java.util.function.Function;
  */
 final class VerticalProfileEditor {
 
-    private static final float MIN_EDITOR_CHART_HEIGHT = 220f;
+    private static final float MIN_EDITOR_CHART_HEIGHT = 260f;
+    private static final float EDITOR_CHART_HEIGHT_RATIO = 0.70f;
     private static final int EDITOR_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
@@ -222,9 +223,8 @@ final class VerticalProfileEditor {
                 requestEditorClose(ctx, liveNetwork, false);
                 return;
             }
-            ImGui.spacing();
-            renderRoadSummary(ctx, network, road);
-            ImGui.spacing();
+            renderEditorStatusBadge();
+            renderEditorContextCard(ctx, network, road);
             float footerHeight = ImGui.getFrameHeightWithSpacing() * 4.4f;
             if (ImGui.beginChild("##profile_editor_scroll", 0f, -footerHeight, true)) {
                 if (!RoadStationing.isStationable(network, road)) {
@@ -241,7 +241,7 @@ final class VerticalProfileEditor {
                             profileEditSession.effectiveDesignOverlay(network, road).orElse(null);
                         float chartHeight = Math.max(
                             MIN_EDITOR_CHART_HEIGHT,
-                            ImGui.getContentRegionAvail().y * 0.42f);
+                            ImGui.getContentRegionAvail().y * EDITOR_CHART_HEIGHT_RATIO);
                         renderInteractiveEditor(
                             ctx, liveNetwork, network, road, chartData, design, chartHeight, flatOverlay);
                     }
@@ -440,9 +440,18 @@ final class VerticalProfileEditor {
             requestEditorClose(ctx, liveNetwork, true);
         }
         ImGui.sameLine();
+        boolean confirmDirty = windowSession != null && windowSession.isDirty();
+        if (confirmDirty) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, PluginUiColors.INFO_BLUE);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, PluginUiColors.STATUS_INFO);
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_confirm") + "##profile_confirm",
                 buttonWidth, 0)) {
             applyWindowSessionConfirm(ctx, liveNetwork);
+        }
+        if (confirmDirty) {
+            ImGui.popStyleColor(3);
         }
     }
 
@@ -540,17 +549,103 @@ final class VerticalProfileEditor {
                 roads.size()));
     }
 
-    private void renderRoadSummary(RoadUiContext ctx, RoadNetwork network, Road road) {
-        ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, road));
-        double length = RoadStationing.isStationable(network, road)
-            ? RoadStationing.canonicalLength(network, road)
-            : RoadEdgeListHelper.computeRoadWorldLength(network, road, ctx.host().coordinates());
+    private void renderEditorStatusBadge() {
+        boolean dirty = windowSession != null && windowSession.isDirty();
+        if (dirty) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.road.profile_editor_unsaved_badge"));
+        } else {
+            ImGui.sameLine();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_editor_clean_badge"));
+        }
+    }
+
+    private void renderEditorContextCard(RoadUiContext ctx, RoadNetwork network, Road road) {
+        ImGui.spacing();
+        String roadLabel = RoadEdgeListHelper.formatRoadLabel(network, road);
+        String modeLabel = RoadVerticalStrategy.fromRoad(road).label();
+        ImGui.textColored(
+            PluginUiColors.ACCENT_BLUE,
+            PlotI18n.tr("plugin.road.profile_editor_context_editing", roadLabel));
+        ImGui.sameLine();
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.profile_editor_road_summary",
-                RoadUiFormat.formatDistance(length),
-                RoadVerticalStrategy.fromRoad(road).label()));
+            PlotI18n.tr("plugin.road.profile_editor_context_mode", modeLabel));
+
+        String selection = resolveSelectionSummary(road);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_editor_context_selection", selection));
+
+        String affecting = resolveAffectingSummary(network, road);
+        ImGui.textColored(
+            affectingAffectsOthers(network, road) ? PluginUiColors.WARNING_LIGHT : PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_editor_context_affecting", affecting));
+        ImGui.spacing();
+    }
+
+    private String resolveSelectionSummary(Road road) {
+        if (selectedIntersectionIndex >= 0) {
+            return PlotI18n.tr(
+                "plugin.road.profile_editor_selection_intersection",
+                selectedIntersectionIndex + 1);
+        }
+        if (editorState.selectedProfilePvi >= 0) {
+            RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
+            if (alignment != null
+                    && editorState.selectedProfilePvi < alignment.pviCount()) {
+                double station = alignment.getPvis().get(editorState.selectedProfilePvi).getStation();
+                return PlotI18n.tr(
+                    "plugin.road.profile_editor_selection_pvi",
+                    editorState.selectedProfilePvi + 1,
+                    RoadUiFormat.formatDistance(station));
+            }
+            return PlotI18n.tr(
+                "plugin.road.profile_editor_selection_pvi_index",
+                editorState.selectedProfilePvi + 1);
+        }
+        return PlotI18n.tr("plugin.road.profile_editor_selection_none");
+    }
+
+    private boolean affectingAffectsOthers(RoadNetwork network, Road road) {
+        if (selectedIntersectionIndex >= 0) {
+            return true;
+        }
+        if (editorState.selectedProfilePvi < 0 || network == null || road == null) {
+            return false;
+        }
+        RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
+        if (alignment == null || editorState.selectedProfilePvi >= alignment.pviCount()) {
+            return false;
+        }
+        List<ProfileControlPoint> points = VerticalProfileControlPoints.forAlignment(
+            network, road, alignment);
+        return points.stream()
+            .anyMatch(point -> point.pviIndex() == editorState.selectedProfilePvi && point.sharedJunction());
+    }
+
+    private String resolveAffectingSummary(RoadNetwork network, Road road) {
+        if (selectedIntersectionIndex >= 0) {
+            List<RoadProfileIntersection> intersections = cachedIntersections;
+            if (selectedIntersectionIndex < intersections.size()) {
+                RoadProfileIntersection intersection = intersections.get(selectedIntersectionIndex);
+                if (intersection.gradeSeparated()) {
+                    return PlotI18n.tr("plugin.road.profile_editor_affect_current_only");
+                }
+                return PlotI18n.tr(
+                    "plugin.road.profile_editor_affect_intersection",
+                    intersection.otherRoadLabel());
+            }
+            return PlotI18n.tr("plugin.road.profile_editor_affect_connected");
+        }
+        if (affectingAffectsOthers(network, road)) {
+            return PlotI18n.tr("plugin.road.profile_editor_affect_junction_pvi");
+        }
+        return PlotI18n.tr("plugin.road.profile_editor_affect_current_only");
     }
 
     private FlatElevationProfileOverlay resolveFlatOverlay(Road road) {
@@ -1264,9 +1359,17 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.profile_intersection_click_to_edit"));
         } else if (intersection.gradeSeparated()) {
             RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.profile_editor_affect_current_only"));
+            RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_intersection_drag_grade_hint"));
         } else {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr(
+                    "plugin.road.profile_editor_affect_intersection",
+                    intersection.otherRoadLabel()));
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_intersection_drag_shared_hint"));

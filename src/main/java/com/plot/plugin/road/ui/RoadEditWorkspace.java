@@ -8,7 +8,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 编辑 Tab 主工作区：预设、横断面、快速调整、材质与高级设计。 */
+/** 编辑 Tab 主工作区：概览、快速设计、高级设计。 */
 final class RoadEditWorkspace {
     private final RoadUiContext ctx;
     private final RoadDesignPanel designPanel;
@@ -24,11 +24,14 @@ final class RoadEditWorkspace {
     }
 
     void renderSingle(RoadNetwork network, Road road) {
+        RoadEditOverviewStrip.render(ctx, network, road);
         RoadEditDiagnosticsBanner.render(
             ctx,
             network,
             road,
             () -> designPanel.requestOpenDiagnostics());
+
+        RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
         ImGui.spacing();
         RoadPresetCards.renderForRoadCompact(ctx, road, ctx.networkManager()::pushHistory);
@@ -44,19 +47,20 @@ final class RoadEditWorkspace {
             renderMaterialsAndFurniture(road);
         }
 
+        RoadUiSections.domain("plugin.road.edit.advanced_design_domain");
         designPanel.renderAdvancedDesignSection(network, road);
     }
 
     void renderMulti() {
         var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
+        RoadBatchEditBanner.render(selectedRoadIds.size());
+
+        RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
         ImGui.spacing();
         RoadPresetCards.renderForRoadsCompact(ctx, selectedRoadIds, ctx.networkManager()::pushHistory);
         ImGui.spacing();
 
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.batch_edit_hint", selectedRoadIds.size()));
         RoadBatchQuickTune.render(ctx, selectedRoadIds, ctx.networkManager()::pushHistory);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit.more_cross_section_params"))) {

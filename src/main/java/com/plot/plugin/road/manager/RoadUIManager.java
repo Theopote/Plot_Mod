@@ -128,7 +128,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.clearPendingTab();
         }
 
-        refreshOverlaySnapshotIfStale();
+        ensureOverlaySnapshot();
         tickCanvasSelection();
         if (ctx.toolManager().getPathPickSession().isActive()) {
             ctx.toolManager().tick();
@@ -147,7 +147,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     /** 画布叠加层渲染前：按路网 revision / 选择态刷新 snapshot，避免晚一帧。 */
     public void refreshOverlayForCanvas() {
-        refreshOverlaySnapshotIfStale();
+        ensureOverlaySnapshot();
     }
 
     /**
@@ -157,7 +157,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (!ctx.isRoadOverlayVisible() || !CanvasAccess.isPresent()) {
             return;
         }
-        captureOverlaySnapshot();
+        ensureOverlaySnapshot();
         Canvas canvas = CanvasAccess.get();
         RoadOverlayCompositor.renderOnCanvas(
             canvas,
@@ -166,12 +166,16 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             junctionOverlayEntries);
     }
 
-    private void refreshOverlaySnapshotIfStale() {
+    /**
+     * 单一 overlay snapshot 入口：仅在 revision / 选择态 / 前景 dirty 变化时重建。
+     */
+    private void ensureOverlaySnapshot() {
         if (!ctx.isRoadOverlayVisible()) {
             overlayEntries = List.of();
             junctionOverlayEntries = List.of();
             overlaySnapshotRevision = -1L;
             overlaySelectionKey = "";
+            ctx.consumeOverlayForegroundDirty();
             return;
         }
         long revision = ctx.networkManager().getNetworkRevision();
@@ -184,6 +188,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         captureOverlaySnapshot();
         overlaySnapshotRevision = revision;
         overlaySelectionKey = selectionKey;
+        ctx.consumeOverlayForegroundDirty();
     }
 
     private void captureOverlaySnapshot() {
@@ -225,9 +230,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             return;
         }
         boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
-        if (ctx.isRoadOverlayVisible()) {
-            captureOverlaySnapshot();
-        }
+        ensureOverlaySnapshot();
+        String keyBefore = overlaySelectionKey;
         canvasSelectionController.tick(
             CanvasAccess.get(),
             ctx.host().appState(),
@@ -236,8 +240,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             junctionOverlayEntries,
             pickActive,
             ctx::isRoadOverlayVisible);
-        if (pickActive || ctx.isRoadOverlayVisible()) {
-            ctx.requestOverlayRefresh();
+        // Selection may change during tick; rebuild once if the hit-test key diverged.
+        if (!overlaySelectionKey().equals(keyBefore)) {
+            ensureOverlaySnapshot();
         }
     }
 

@@ -858,7 +858,7 @@ public final class RoadProfileChartRenderer {
                 chart.stations(),
                 chart.guideElevations(),
                 ProfileChartSeriesStyle.guideLineColor(guideSemantics),
-                1.6f,
+                mode.guideLineWidth(),
                 true);
         }
         // 绿色设计线仅来自玩家 VA overlay（编辑器）；不再用求解器 previewElevations 冒充设计线。
@@ -870,16 +870,17 @@ public final class RoadProfileChartRenderer {
                 range,
                 chart.buildSamples(),
                 buildColor,
-                Math.max(1.4f, mode.roadLineWidth() - 0.4f),
+                Math.max(1.2f, mode.roadLineWidth() - 0.4f),
                 buildProfileStale);
         } else if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
             drawPolyline(
                 drawList, layout, range, chart.stations(), chart.buildElevations(),
-                buildColor, Math.max(1.4f, mode.roadLineWidth() - 0.4f), buildProfileStale);
+                buildColor, Math.max(1.2f, mode.roadLineWidth() - 0.4f), buildProfileStale);
         }
         if (design != null && !design.isEmpty()) {
             drawPolyline(
-                drawList, layout, range, design.stations(), design.elevations(), COLOR_DESIGN, 2.6f, false);
+                drawList, layout, range, design.stations(), design.elevations(),
+                COLOR_DESIGN, mode.designLineWidth(), false);
         }
         if (flatOverlay != null && flatOverlay.showCurrent()) {
             float y = layout.plotY(flatOverlay.currentElevation(), range.minElevation(), range.maxElevation());
