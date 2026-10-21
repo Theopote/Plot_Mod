@@ -156,29 +156,6 @@ public final class EarthworkRegionTriangulationCache {
         return triangles;
     }
 
-    /** @deprecated 保留测试兼容；请改用 {@link #triangulateGeometry}。 */
-    @Deprecated
-    static TriangulationPlan planTriangulation(RegionGeometry geometry) {
-        List<WorldTriangle> triangles = triangulateGeometry(geometry);
-        if (triangles.isEmpty()) {
-            return null;
-        }
-        // 伪造一个成功 plan 供旧测试：顶点列表取自三角形展开
-        List<Vec2d> verts = new ArrayList<>();
-        List<PolygonTriangulator.Triangle> indexed = new ArrayList<>();
-        for (WorldTriangle t : triangles) {
-            int i0 = verts.size();
-            verts.add(t.a());
-            verts.add(t.b());
-            verts.add(t.c());
-            indexed.add(new PolygonTriangulator.Triangle(i0, i0 + 1, i0 + 2));
-        }
-        return new TriangulationPlan(verts, PolygonTriangulator.TriangulationResult.ok(indexed));
-    }
-
-    record TriangulationPlan(List<Vec2d> vertices, PolygonTriangulator.TriangulationResult result) {
-    }
-
     private record CachedMesh(long geometryVersion, List<WorldTriangle> worldTriangles) {
     }
 }

@@ -10,7 +10,6 @@ import java.util.List;
 import static com.plot.plugin.earthwork.EarthworkTestFixtures.rectangleOutline;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,7 +53,7 @@ class EarthworkRegionOverlayHoleTest {
     }
 
     @Test
-    void triangulationPlanSucceedsForSimpleOuter() {
+    void triangulationSucceedsForSimpleOuter() {
         EarthworkRegionTriangulationCache.clear();
         GradingRegion region = new GradingRegion("pad", rectangleOutline(0, 8, 0, 8));
         EarthworkProject project = new EarthworkProject();
@@ -64,10 +63,8 @@ class EarthworkRegionOverlayHoleTest {
             project, region.getId(), List.of(), false, true);
         EarthworkRegionOverlayEntry entry = entries.getFirst();
 
-        var plan = EarthworkRegionTriangulationCache.planTriangulation(entry.toGeometry());
-        assertNotNull(plan);
-        assertTrue(plan.result().success());
-        assertFalse(plan.result().triangles().isEmpty());
+        var triangles = EarthworkRegionTriangulationCache.triangulateGeometry(entry.toGeometry());
+        assertFalse(triangles.isEmpty());
         EarthworkRegionTriangulationCache.invalidate(region.getId());
     }
 
