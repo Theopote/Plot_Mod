@@ -36,14 +36,6 @@ public final class RoadCrossSectionEditor {
             presetName,
             resolved.carriagewayWidth,
             resolved.laneCount));
-        renderPreviewBody(road, config);
-    }
-
-    /** 仅绘制横断面预览图（不含 style summary 文案）。 */
-    public static void renderPreviewBody(Road road, RoadSystemConfig config) {
-        if (road == null) {
-            return;
-        }
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f) {
             return;
@@ -51,7 +43,6 @@ public final class RoadCrossSectionEditor {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float height = 64f;
-        String styleId = road.getStyleId();
         RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
         if (styleId != null && !styleId.isBlank()) {
             RoadStyle style = RoadStyleCatalog.findById(config, styleId);

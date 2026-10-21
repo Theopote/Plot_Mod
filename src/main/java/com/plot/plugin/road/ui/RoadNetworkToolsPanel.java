@@ -14,7 +14,7 @@ import net.minecraft.world.World;
 /**
  * 生成 Tab 高级地形工具（全网统一标高等）。
  */
-public final class RoadNetworkToolsPanel {
+final class RoadNetworkToolsPanel {
 
     private final RoadUiContext ctx;
     private final int[] uniformElevationDraft = {64};
@@ -26,7 +26,7 @@ public final class RoadNetworkToolsPanel {
         this.ctx = ctx;
     }
 
-    public void render(RoadNetwork network) {
+    void render(RoadNetwork network) {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.uniform_flat_elevation"))) {
             return;
         }
@@ -85,7 +85,7 @@ public final class RoadNetworkToolsPanel {
         ImGui.spacing();
     }
 
-    public void renderConfirmPopup() {
+    void renderConfirmPopup() {
         if (!RoadUiWidgets.beginDeferredPopupModal(
                 "##road_uniform_elevation_confirm",
                 uniformElevationConfirmPending,

@@ -22,9 +22,9 @@ import java.util.List;
 /**
  * 逻辑道路分段列表、桩号摘要、坡度 override 与标高提示。
  */
-public final class RoadSegmentEditor {
+final class RoadSegmentEditor {
 
-    public void renderSegmentList(RoadUiContext ctx, RoadNetwork network, Road road) {
+    void renderSegmentList(RoadUiContext ctx, RoadNetwork network, Road road) {
         List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(network, road);
         if (segmentIds.isEmpty()) {
             return;
@@ -56,7 +56,7 @@ public final class RoadSegmentEditor {
         ImGui.spacing();
     }
 
-    public void renderSegmentSummary(
+    void renderSegmentSummary(
             RoadNetwork network,
             Road road,
             RoadEdge edge,
@@ -82,7 +82,7 @@ public final class RoadSegmentEditor {
             RoadEdgeListHelper.formatNodeLabel(network, edge.getEndNodeId())));
     }
 
-    public void renderElevationHint(RoadUiContext ctx, RoadEdge edge) {
+    void renderElevationHint(RoadUiContext ctx, RoadEdge edge) {
         RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
         if (edgeResult == null || !edgeResult.hasProfileData()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.elevation_hint_preview_required"));
@@ -97,7 +97,7 @@ public final class RoadSegmentEditor {
         ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_end", endGround, endGuide));
     }
 
-    public static void renderSlopeOverrides(
+    static void renderSlopeOverrides(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,

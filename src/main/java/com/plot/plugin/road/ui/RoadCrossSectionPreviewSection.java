@@ -14,7 +14,7 @@ import imgui.ImVec2;
 
 import java.util.LinkedHashSet;
 
-/** 按选择状态渲染完整横断面预览（标题栏 + 关键指标 + 主视图）。 */
+/** 按选择状态渲染完整横断面预览。 */
 public final class RoadCrossSectionPreviewSection {
     private RoadCrossSectionPreviewSection() {
     }
@@ -30,8 +30,6 @@ public final class RoadCrossSectionPreviewSection {
 
     private static void renderDefault(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        ResolvedCrossSection resolved = ResolvedCrossSection.fromConfig(config);
-        renderHeader(resolved);
         RoadCrossSectionPreviewRenderer.render(config);
     }
 
@@ -40,10 +38,7 @@ public final class RoadCrossSectionPreviewSection {
         if (road == null) {
             return;
         }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
-        renderHeader(resolved);
-        RoadCrossSectionEditor.renderPreviewBody(road, config);
+        RoadCrossSectionEditor.renderPreview(road, ctx.networkManager().getConfig());
     }
 
     private static void renderMulti(RoadUiContext ctx) {
@@ -55,27 +50,7 @@ public final class RoadCrossSectionPreviewSection {
             return;
         }
         RoadNetworkManager.BatchEditDefaults draft = ctx.networkManager().loadBatchEditDefaults();
-        ResolvedCrossSection resolved = draft.toCrossSection().resolve(ctx.networkManager().getConfig());
-        renderHeader(resolved);
         renderBatchPreview(ctx, draft);
-    }
-
-    private static void renderHeader(ResolvedCrossSection resolved) {
-        ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
-        float avail = ImGui.getContentRegionAvail().x;
-        float totalWidth = RoadCrossSectionPreviewRenderer.CrossSectionLayout
-            .fromResolved(resolved, 0f)
-            .totalWidthBlocks();
-        String metrics = PlotI18n.tr(
-            "plugin.road.cross_section_preview_metrics",
-            Math.round(totalWidth),
-            resolved.laneCount,
-            resolved.carriagewayWidth,
-            resolved.fillSlopeRatio,
-            resolved.cutSlopeRatio);
-        ImGui.sameLine(Math.max(ImGui.getCursorPosX(), avail - ImGui.calcTextSize(metrics).x));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, metrics);
-        ImGui.spacing();
     }
 
     static boolean selectedRoadsShareCrossSection(RoadUiContext ctx) {
@@ -116,13 +91,14 @@ public final class RoadCrossSectionPreviewSection {
     private static void renderBatchPreview(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ResolvedCrossSection resolved = draft.toCrossSection().resolve(config);
+        ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f) {
             return;
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float height = 64f;
+        float height = 56f;
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
             RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, 0f),
@@ -131,5 +107,8 @@ public final class RoadCrossSectionPreviewSection {
             width,
             height);
         ImGui.dummy(width, height);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.lane_count_summary", resolved.laneCount, resolved.carriagewayWidth));
     }
 }

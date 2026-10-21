@@ -15,11 +15,11 @@ import imgui.ImGui;
 import java.util.List;
 
 /** Edit Tab 单路诊断横幅：仅当道路存在问题时显示。 */
-public final class RoadEditDiagnosticsBanner {
+final class RoadEditDiagnosticsBanner {
     private RoadEditDiagnosticsBanner() {
     }
 
-    public static int countIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
+    static int countIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
         if (ctx == null || network == null || road == null) {
             return 0;
         }
@@ -31,7 +31,7 @@ public final class RoadEditDiagnosticsBanner {
         return count;
     }
 
-    public static boolean render(RoadUiContext ctx, RoadNetwork network, Road road, Runnable onView) {
+    static boolean render(RoadUiContext ctx, RoadNetwork network, Road road, Runnable onView) {
         int count = countIssues(ctx, network, road);
         if (count <= 0) {
             return false;
@@ -47,7 +47,7 @@ public final class RoadEditDiagnosticsBanner {
         return true;
     }
 
-    public static void renderDetailedIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
+    static void renderDetailedIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
         List<RoadRepairIssue> repairIssues = RoadRepairDiagnosisCache.diagnose(ctx, network, road);
         if (!repairIssues.isEmpty()) {
             RoadAutoRepairUi.renderDetailed(ctx, network, road);
