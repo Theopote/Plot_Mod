@@ -226,7 +226,8 @@ final class VerticalProfileEditor {
             renderEditorStatusBadge();
             renderEditorContextCard(ctx, network, road);
             float footerHeight = ImGui.getFrameHeightWithSpacing() * 4.4f;
-            if (ImGui.beginChild("##profile_editor_scroll", 0f, -footerHeight, true)) {
+            ImGui.beginChild("##profile_editor_scroll", 0f, -footerHeight, true);
+            try {
                 if (!RoadStationing.isStationable(network, road)) {
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.HINT_GRAY,
@@ -246,6 +247,7 @@ final class VerticalProfileEditor {
                             ctx, liveNetwork, network, road, chartData, design, chartHeight, flatOverlay);
                     }
                 }
+            } finally {
                 ImGui.endChild();
             }
             handleEditorKeyboardShortcuts(ctx);

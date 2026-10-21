@@ -31,7 +31,8 @@ public final class RoadShellContextStrip {
             PluginUiColors.PANEL_BORDER);
 
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 8f, 6f);
-        if (ImGui.beginChild("##road_shell_context", width, height, false)) {
+        ImGui.beginChild("##road_shell_context", width, height, false);
+        try {
             if (roadIds.isEmpty()) {
                 ImGui.textColored(
                     PluginUiColors.HINT_GRAY,
@@ -41,9 +42,10 @@ public final class RoadShellContextStrip {
             } else {
                 renderMulti(roadIds.size());
             }
+        } finally {
             ImGui.endChild();
+            ImGui.popStyleVar();
         }
-        ImGui.popStyleVar();
         ImGui.spacing();
     }
 

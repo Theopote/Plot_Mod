@@ -65,12 +65,12 @@ public final class RoadUiSections {
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(labelKey));
     }
 
-    /** 诊断/警告区背景容器开始。 */
-    public static boolean beginDiagnosticsZone(String id, float height) {
+    /** 诊断/警告区背景容器开始；必须与 {@link #endDiagnosticsZone()} 配对。 */
+    public static void beginDiagnosticsZone(String id, float height) {
         ImGui.pushStyleColor(ImGuiCol.ChildBg, PluginUiColors.PANEL_BG_DARK);
         ImGui.pushStyleColor(ImGuiCol.Border, PluginUiColors.WARNING & 0x00FFFFFF | 0x80000000);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ChildBorderSize, 1f);
-        return ImGui.beginChild(id, 0f, height, true);
+        ImGui.beginChild(id, 0f, height, true);
     }
 
     public static void endDiagnosticsZone() {

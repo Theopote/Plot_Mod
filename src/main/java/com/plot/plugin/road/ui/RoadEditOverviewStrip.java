@@ -38,7 +38,8 @@ final class RoadEditOverviewStrip {
             PluginUiColors.PANEL_BORDER);
 
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 8f, 6f);
-        if (ImGui.beginChild("##road_edit_overview_strip", width, height, false)) {
+        ImGui.beginChild("##road_edit_overview_strip", width, height, false);
+        try {
             ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, road));
             double length = RoadStationing.isStationable(network, road)
                 ? RoadStationing.canonicalLength(network, road)
@@ -74,9 +75,10 @@ final class RoadEditOverviewStrip {
             } else {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, metrics);
             }
+        } finally {
             ImGui.endChild();
+            ImGui.popStyleVar();
         }
-        ImGui.popStyleVar();
         ImGui.spacing();
     }
 
