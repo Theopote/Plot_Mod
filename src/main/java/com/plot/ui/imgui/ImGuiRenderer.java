@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.DoubleBuffer;
 import java.nio.IntBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.TreeSet;
 
 import org.lwjgl.system.MemoryStack;
 
@@ -255,7 +257,7 @@ public class ImGuiRenderer {
             keptLatinGlyphRanges = concatGlyphRanges(
                 appendGlyphRange(io.getFonts().getGlyphRangesDefault(), (short) 0x2264, (short) 0x2265),
                 UI_SYMBOL_GLYPH_RANGES);
-            // 常用简体子集（约 2500 字）替代全量 CJK，显著缩短首次打开时的字体图集构建
+            // SimplifiedCommon + 语言包实际用字：覆盖 UI 汉字且远小于全量 CJK
             keptCjkGlyphRanges = resolveCjkGlyphRanges(io);
             keptSymbolGlyphRanges = UI_SYMBOL_GLYPH_RANGES;
             io.getFonts().setTexDesiredWidth(2048);
@@ -443,22 +445,98 @@ public class ImGuiRenderer {
     }
 
     /**
-     * 取 ImGui 内置简体常用字表，并去掉 Basic Latin，避免 merge 时覆盖西文字形。
+     * ImGui 内置 SimplifiedCommon（约 2500 字）会漏掉「馈/廓/辑」等 UI 用字。
+     * 在常用字表上去掉 Basic Latin 后，再并入 zh_cn 语言包中的实际汉字。
      */
     private static short[] resolveCjkGlyphRanges(ImGuiIO io) {
+        short[] base = null;
         try {
             short[] common = io.getFonts().getGlyphRangesChineseSimplifiedCommon();
-            short[] stripped = withoutBasicLatin(common);
-            if (stripped != null && stripped.length > 1) {
-                LOGGER.info("CJK glyph ranges: ChineseSimplifiedCommon (no Basic Latin), {} entries",
-                    stripped.length);
-                return stripped;
-            }
+            base = withoutBasicLatin(common);
         } catch (Throwable t) {
-            LOGGER.warn("ChineseSimplifiedCommon ranges unavailable, falling back to full CJK: {}",
-                t.getMessage());
+            LOGGER.warn("ChineseSimplifiedCommon ranges unavailable: {}", t.getMessage());
         }
+
+        short[] fromLang = glyphRangesFromLangPack();
+        if (base != null && base.length > 1 && fromLang != null && fromLang.length > 1) {
+            short[] merged = concatGlyphRanges(base, fromLang);
+            LOGGER.info(
+                "CJK glyph ranges: SimplifiedCommon + zh_cn lang pack (no Basic Latin), {} entries",
+                merged.length);
+            return merged;
+        }
+        if (fromLang != null && fromLang.length > 1) {
+            LOGGER.info("CJK glyph ranges: zh_cn lang pack only, {} entries", fromLang.length);
+            return fromLang;
+        }
+        if (base != null && base.length > 1) {
+            LOGGER.warn("CJK glyph ranges: SimplifiedCommon only (lang pack empty); some UI glyphs may be '?'");
+            return base;
+        }
+        LOGGER.warn("CJK glyph ranges: falling back to full CJK");
         return CJK_FULL_FALLBACK_GLYPH_RANGES;
+    }
+
+    /**
+     * 从简体语言包收集所有 ≥ U+2000 的码点，压成 ImGui glyph range（连续区间）。
+     * 覆盖「反馈/轮廓/编辑」等 SimplifiedCommon 未收录但 UI 会用到的字。
+     */
+    private static short[] glyphRangesFromLangPack() {
+        TreeSet<Integer> codepoints = new TreeSet<>();
+        collectCodepointsFromResource("/assets/plot/lang/zh_cn.json", codepoints);
+        if (codepoints.isEmpty()) {
+            return null;
+        }
+        return codepointsToGlyphRanges(codepoints);
+    }
+
+    private static void collectCodepointsFromResource(String path, TreeSet<Integer> out) {
+        try (InputStream in = ImGuiRenderer.class.getResourceAsStream(path)) {
+            if (in == null) {
+                LOGGER.warn("Lang pack not found for CJK glyph scan: {}", path);
+                return;
+            }
+            String text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            text.codePoints().forEach(cp -> {
+                if (cp >= 0x2000 && cp <= 0xFFFF) {
+                    out.add(cp);
+                }
+            });
+            LOGGER.info("Collected {} CJK/symbol codepoints from {}", out.size(), path);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to scan lang pack for CJK glyphs: {}", path, e);
+        }
+    }
+
+    /** 将有序码点集压缩为 ImGui 的 [from,to,...,0] 区间数组。 */
+    private static short[] codepointsToGlyphRanges(TreeSet<Integer> codepoints) {
+        if (codepoints == null || codepoints.isEmpty()) {
+            return new short[] {0};
+        }
+        java.util.ArrayList<Short> ranges = new java.util.ArrayList<>(codepoints.size() * 2 / 8 + 8);
+        int runStart = -1;
+        int runEnd = -1;
+        for (int cp : codepoints) {
+            if (runStart < 0) {
+                runStart = runEnd = cp;
+                continue;
+            }
+            if (cp == runEnd + 1) {
+                runEnd = cp;
+                continue;
+            }
+            ranges.add((short) runStart);
+            ranges.add((short) runEnd);
+            runStart = runEnd = cp;
+        }
+        ranges.add((short) runStart);
+        ranges.add((short) runEnd);
+        ranges.add((short) 0);
+        short[] result = new short[ranges.size()];
+        for (int i = 0; i < ranges.size(); i++) {
+            result[i] = ranges.get(i);
+        }
+        return result;
     }
 
     /** 去掉 &lt; U+2000 的区间（Basic Latin / Latin-1），保留标点与汉字。 */
