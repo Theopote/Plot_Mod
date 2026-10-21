@@ -31,6 +31,7 @@ public final class EarthworkGenerationResults {
         target.slopedSurface = source.slopedSurface;
         target.siteGeneration = source.siteGeneration;
         target.calculationCellCount = source.calculationCellCount;
+        target.balanceResidualImbalance = source.balanceResidualImbalance;
         target.warnings.addAll(source.warnings);
     }
 }

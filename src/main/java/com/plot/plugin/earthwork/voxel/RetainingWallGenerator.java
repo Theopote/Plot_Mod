@@ -7,11 +7,9 @@ import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.RetainingEdge;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -119,15 +117,9 @@ public final class RetainingWallGenerator {
             World world,
             BlockPos pos,
             String blockId) {
-        if (result.placementRecords.containsKey(pos)) {
-            return;
-        }
         String previous = Registries.BLOCK.getId(world.getBlockState(pos).getBlock()).toString();
-        if (!EarthworkVoxelizer.shouldApplyBlockChange(previous, blockId)) {
-            return;
-        }
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));
-        result.changeTypes.put(pos, EarthworkGenerationResult.ChangeType.STRUCTURE);
+        EarthworkPlacementMerge.recordOrReplace(
+            result, pos, previous, blockId, EarthworkGenerationResult.ChangeType.STRUCTURE);
     }
 
     private static String resolveWallBlockId(RetainingEdge edge, EarthworkSite site) {

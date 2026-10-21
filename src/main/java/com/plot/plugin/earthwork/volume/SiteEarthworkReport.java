@@ -51,6 +51,27 @@ public final class SiteEarthworkReport {
         return new SiteEarthworkReport(totals.withChangedBlocks(cutChangedBlocks, fillChangedBlocks), byZone);
     }
 
+    /**
+     * 用最终放置记录回写全场与各 Zone 的实际改方块数，保留几何挖填方量不变。
+     *
+     * @param zoneChangedBlocks zoneId → [cutChanged, fillChanged]
+     */
+    public SiteEarthworkReport withChangedBlocks(
+            long cutChangedBlocks,
+            long fillChangedBlocks,
+            Map<String, long[]> zoneChangedBlocks) {
+        Map<String, EarthworkVolumeReport> updatedZones = new LinkedHashMap<>();
+        for (Map.Entry<String, EarthworkVolumeReport> entry : byZone.entrySet()) {
+            long[] counts = zoneChangedBlocks != null ? zoneChangedBlocks.get(entry.getKey()) : null;
+            long cut = counts != null && counts.length > 0 ? counts[0] : 0L;
+            long fill = counts != null && counts.length > 1 ? counts[1] : 0L;
+            updatedZones.put(entry.getKey(), entry.getValue().withChangedBlocks(cut, fill));
+        }
+        return new SiteEarthworkReport(
+            totals.withChangedBlocks(cutChangedBlocks, fillChangedBlocks),
+            updatedZones);
+    }
+
     public static SiteEarthworkReport fromMetrics(
             VolumeMetrics totalsMetrics,
             Map<String, VolumeMetrics> zoneMetrics,

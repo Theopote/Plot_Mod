@@ -39,6 +39,8 @@ public class EarthworkGenerationResult {
     public boolean siteGeneration;
     public final List<String> warnings = new ArrayList<>();
     public int calculationCellCount;
+    /** 自动平衡搜索后残余 |Cut−Fill|；0 表示已平衡或未运行搜索。 */
+    public long balanceResidualImbalance;
 
     /** 生成时绑定的区域 ID（施工前必须与当前选中区域一致）。 */
     public String sourceRegionId = "";
@@ -53,20 +55,45 @@ public class EarthworkGenerationResult {
 
     /**
      * 用最终 {@link #placementRecords} 回写改方块计数，使预览虚影、落地与报告使用同一份变更。
+     * <p>
+     * 几何挖填方量保持不变；实际修改方块数按全场与各 Zone（经设计网格 zoneId）重新聚合。
+     * {@link ChangeType#STRUCTURE} 计入放置记录但不计入挖/填改方块数。
      */
     public void syncChangedBlocksFromPlacements() {
         long cut = 0L;
         long fill = 0L;
+        Map<String, long[]> zoneChanged = new LinkedHashMap<>();
         for (BlockPos pos : placementRecords.keySet()) {
             ChangeType type = changeTypes.get(pos);
+            if (type != ChangeType.CUT && type != ChangeType.FILL) {
+                continue;
+            }
             if (type == ChangeType.CUT) {
                 cut++;
-            } else if (type == ChangeType.FILL) {
+            } else {
                 fill++;
+            }
+            String zoneId = resolveZoneIdForPlacement(pos);
+            if (zoneId == null || zoneId.isBlank()) {
+                continue;
+            }
+            long[] counts = zoneChanged.computeIfAbsent(zoneId, ignored -> new long[2]);
+            if (type == ChangeType.CUT) {
+                counts[0]++;
+            } else {
+                counts[1]++;
             }
         }
         volumeReport = volumeReport.withChangedBlocks(cut, fill);
-        siteVolumeReport = siteVolumeReport.withTotalsChangedBlocks(cut, fill);
+        siteVolumeReport = siteVolumeReport.withChangedBlocks(cut, fill, zoneChanged);
+    }
+
+    private String resolveZoneIdForPlacement(BlockPos pos) {
+        if (pos == null || designTerrainGrid == null) {
+            return null;
+        }
+        var cell = designTerrainGrid.get(pos.getX(), pos.getZ());
+        return cell != null ? cell.zoneId() : null;
     }
 
     public void attachPlayerInsights() {

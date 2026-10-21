@@ -1,6 +1,5 @@
 package com.plot.plugin.earthwork.voxel;
 
-import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
@@ -111,16 +110,8 @@ public final class EarthworkVoxelizer {
             BlockPos pos,
             String newBlockId,
             EarthworkGenerationResult.ChangeType changeType) {
-        if (result.placementRecords.containsKey(pos)) {
-            return false;
-        }
         String previous = getBlockIdAt(world, pos);
-        if (!shouldApplyBlockChange(previous, newBlockId)) {
-            return false;
-        }
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
-        result.changeTypes.put(pos, changeType);
-        return true;
+        return EarthworkPlacementMerge.recordOrReplace(result, pos, previous, newBlockId, changeType);
     }
 
     public static boolean shouldApplyBlockChange(String previousBlockId, String newBlockId) {

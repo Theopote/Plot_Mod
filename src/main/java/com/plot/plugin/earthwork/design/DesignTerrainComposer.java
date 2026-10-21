@@ -46,14 +46,24 @@ public final class DesignTerrainComposer {
     public record ComposeResult(
             DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
-            Map<String, ResolvedDesignSurface> resolvedSurfaces) {
+            Map<String, ResolvedDesignSurface> resolvedSurfaces,
+            long residualImbalance,
+            List<String> warnings) {
         public ComposeResult {
             zoneEvaluators = zoneEvaluators != null ? Map.copyOf(zoneEvaluators) : Map.of();
             resolvedSurfaces = resolvedSurfaces != null ? Map.copyOf(resolvedSurfaces) : Map.of();
+            warnings = warnings != null ? List.copyOf(warnings) : List.of();
         }
 
         public ComposeResult(DesignTerrainGrid grid, Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
-            this(grid, zoneEvaluators, Map.of());
+            this(grid, zoneEvaluators, Map.of(), 0L, List.of());
+        }
+
+        public ComposeResult(
+                DesignTerrainGrid grid,
+                Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+                Map<String, ResolvedDesignSurface> resolvedSurfaces) {
+            this(grid, zoneEvaluators, resolvedSurfaces, 0L, List.of());
         }
     }
 
@@ -89,7 +99,7 @@ public final class DesignTerrainComposer {
             RoadSurfaceLookup roadLookup,
             EarthworkWorkMode workMode) {
         if (site == null || terrain == null || terrain.isEmpty()) {
-            return new ComposeResult(new DesignTerrainGrid(), Map.of(), Map.of());
+            return new ComposeResult(new DesignTerrainGrid(), Map.of(), Map.of(), 0L, List.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
         Objects.requireNonNull(transformer, "transformer");
@@ -119,7 +129,7 @@ public final class DesignTerrainComposer {
             canvasScale);
 
         Map<String, Integer> cumulativeZoneOffsets = new LinkedHashMap<>();
-        int cumulativeUniformOffset = iterateSiteBalance(
+        BalanceSearchOutcome balanceOutcome = iterateSiteBalance(
             grid,
             site,
             baseDesign,
@@ -130,14 +140,25 @@ public final class DesignTerrainComposer {
             cumulativeZoneOffsets,
             safeWorkMode,
             canvasScale);
-        recordBalanceOffsets(site, cumulativeZoneOffsets, cumulativeUniformOffset);
+        recordBalanceOffsets(site, cumulativeZoneOffsets, balanceOutcome.uniformOffset());
 
         Map<String, ResolvedDesignSurface> finalResolved =
-            surfacesWithOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, cumulativeUniformOffset);
+            surfacesWithOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, balanceOutcome.uniformOffset());
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> finalEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(finalResolved);
         grid.finalizeStats();
-        return new ComposeResult(grid, finalEvaluators, finalResolved);
+        List<String> warnings = new ArrayList<>();
+        if (balanceOutcome.ran() && balanceOutcome.residualImbalance() > 0L) {
+            warnings.add("plugin.earthwork.warning.balance_incomplete");
+        }
+        return new ComposeResult(
+            grid, finalEvaluators, finalResolved, balanceOutcome.residualImbalance(), warnings);
+    }
+
+    private record BalanceSearchOutcome(int uniformOffset, long residualImbalance, boolean ran) {
+        static BalanceSearchOutcome skipped() {
+            return new BalanceSearchOutcome(0, 0L, false);
+        }
     }
 
     private static List<Breakline> mergeEffectiveBreaklines(EarthworkSite site) {
@@ -253,7 +274,7 @@ public final class DesignTerrainComposer {
         return coverageByCellKey;
     }
 
-    private static int iterateSiteBalance(
+    private static BalanceSearchOutcome iterateSiteBalance(
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<Long, CellSnapshot> baseDesign,
@@ -265,7 +286,7 @@ public final class DesignTerrainComposer {
             EarthworkWorkMode workMode,
             EarthworkCanvasScale canvasScale) {
         if (!shouldRunSiteBalance(site)) {
-            return 0;
+            return BalanceSearchOutcome.skipped();
         }
 
         // 统一 ΔY 或单区自动平衡：每个候选完整重建坡面后再比 |Cut−Fill|。
@@ -285,6 +306,7 @@ public final class DesignTerrainComposer {
 
         // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY，再对残余统一偏移做边坡耦合离散搜索。
         int cumulativeUniformOffset = 0;
+        BalanceSearchOutcome polish = BalanceSearchOutcome.skipped();
         if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
             for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
                 EarthworkOptimizationSolver.BalanceResult proposed =
@@ -307,7 +329,7 @@ public final class DesignTerrainComposer {
         }
 
         if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
-            cumulativeUniformOffset = applySlopeCoupledUniformSearch(
+            polish = applySlopeCoupledUniformSearch(
                 grid,
                 site,
                 baseDesign,
@@ -318,15 +340,19 @@ public final class DesignTerrainComposer {
                 Map.copyOf(cumulativeZoneOffsets),
                 workMode,
                 canvasScale);
+            cumulativeUniformOffset = polish.uniformOffset();
+        } else {
+            long residual = SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
+            polish = new BalanceSearchOutcome(cumulativeUniformOffset, residual, true);
         }
-        return cumulativeUniformOffset;
+        return new BalanceSearchOutcome(cumulativeUniformOffset, polish.residualImbalance(), true);
     }
 
     /**
      * 对累计分区偏移之上的统一 ΔY 做边坡耦合离散搜索，并把网格留在最优候选状态。
      * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围，再按工作模式封顶（Quick ±8 / Builder ±16 / Learn ±32）。
      */
-    private static int applySlopeCoupledUniformSearch(
+    private static BalanceSearchOutcome applySlopeCoupledUniformSearch(
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<Long, CellSnapshot> baseDesign,
@@ -362,7 +388,8 @@ public final class DesignTerrainComposer {
             coverageWithOffsets(site, coverageByCellKey, safeZone, best),
             effectiveBreaklines,
             canvasScale);
-        return best;
+        long residual = search.bestObjective() == Long.MAX_VALUE ? 0L : search.bestObjective();
+        return new BalanceSearchOutcome(best, residual, true);
     }
 
     private static int resolveUniformSearchHalfRange(

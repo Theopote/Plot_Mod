@@ -122,26 +122,47 @@ public final class EarthworkBuildManager {
         command.executeScheduled(() -> {
             try {
                 EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
-                if (result != null && result.cancelled()) {
-                    if (command.hasAppliedRecords()) {
-                        host.commands().pushExecuted(command);
-                        invalidateTerrainAfterBuild(project, builtRegionId);
-                    }
-                    statusSink.accept(PlotI18n.tr(
-                        "plugin.earthwork.build_cancelled", result.success(), result.total()));
-                    previewManager.clearPreview();
-                    return;
+                BuildOutcome outcome = BuildOutcome.from(result);
+                // 仅当实际写入过方块时才入 Undo 栈，避免空失败命令污染历史
+                if (command.hasAppliedRecords()) {
+                    host.commands().pushExecuted(command);
                 }
-                host.commands().pushExecuted(command);
                 if (result != null && result.success() > 0) {
                     invalidateTerrainAfterBuild(project, builtRegionId);
                 }
-                applyBuildResultStatus(result);
+                applyBuildResultStatus(outcome, result);
                 previewManager.clearPreview();
             } finally {
                 buildInFlight.set(false);
             }
         });
+    }
+
+    /**
+     * 施工结果分类：完成 / 部分成功 / 失败 / 取消。
+     */
+    public enum BuildOutcome {
+        COMPLETED,
+        PARTIAL,
+        FAILED,
+        CANCELLED,
+        NO_WORK;
+
+        public static BuildOutcome from(EarthworkGenerateCommand.ExecutionResult result) {
+            if (result == null || result.total() == 0) {
+                return NO_WORK;
+            }
+            if (result.cancelled()) {
+                return CANCELLED;
+            }
+            if (result.isFullSuccess()) {
+                return COMPLETED;
+            }
+            if (result.isTotalFailure()) {
+                return FAILED;
+            }
+            return PARTIAL;
+        }
     }
 
     boolean isBuildInFlight() {
@@ -162,28 +183,27 @@ public final class EarthworkBuildManager {
         }
     }
 
-    private void applyBuildResultStatus(EarthworkGenerateCommand.ExecutionResult result) {
-        if (result == null || result.total() == 0) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.build_no_blocks"));
-            return;
+    private void applyBuildResultStatus(
+            BuildOutcome outcome,
+            EarthworkGenerateCommand.ExecutionResult result) {
+        switch (outcome) {
+            case NO_WORK -> statusSink.accept(PlotI18n.tr("plugin.earthwork.build_no_blocks"));
+            case CANCELLED -> statusSink.accept(PlotI18n.tr(
+                "plugin.earthwork.build_cancelled",
+                result != null ? result.success() : 0,
+                result != null ? result.total() : 0));
+            case COMPLETED -> statusSink.accept(PlotI18n.tr(
+                "plugin.earthwork.build_success",
+                result != null ? result.success() : 0));
+            case FAILED -> statusSink.accept(PlotI18n.tr(
+                "plugin.earthwork.build_failed",
+                result != null ? result.total() : 0));
+            case PARTIAL -> statusSink.accept(PlotI18n.tr(
+                "plugin.earthwork.build_partial",
+                result != null ? result.success() : 0,
+                result != null ? result.total() : 0,
+                result != null ? result.failed() : 0));
         }
-        if (result.cancelled()) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.build_cancelled", result.success(), result.total()));
-            return;
-        }
-        if (result.isFullSuccess()) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.build_success", result.success()));
-            return;
-        }
-        if (result.isTotalFailure()) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.build_failed", result.total()));
-            return;
-        }
-        statusSink.accept(PlotI18n.tr(
-            "plugin.earthwork.build_partial",
-            result.success(),
-            result.total(),
-            result.failed()));
     }
 
     /**

@@ -21,7 +21,14 @@ public final class DesignTerrainBuilder {
 
     public record BuildResult(
             DesignTerrainGrid grid,
-            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+            long residualImbalance,
+            java.util.List<String> warnings) {
+        public BuildResult(
+                DesignTerrainGrid grid,
+                Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
+            this(grid, zoneEvaluators, 0L, java.util.List.of());
+        }
     }
 
     private DesignTerrainBuilder() {
@@ -52,6 +59,10 @@ public final class DesignTerrainBuilder {
             EarthworkWorkMode workMode) {
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
             site, terrain, transformer, buildingLookup, roadLookup, workMode);
-        return new BuildResult(composed.grid(), composed.zoneEvaluators());
+        return new BuildResult(
+            composed.grid(),
+            composed.zoneEvaluators(),
+            composed.residualImbalance(),
+            composed.warnings());
     }
 }

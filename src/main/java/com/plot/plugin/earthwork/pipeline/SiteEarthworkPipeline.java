@@ -97,6 +97,10 @@ public final class SiteEarthworkPipeline {
         result.resolvedElevationMax = design.grid().maxTargetY();
         result.resolvedElevation = (result.resolvedElevationMin + result.resolvedElevationMax) / 2;
         result.slopedSurface = result.resolvedElevationMin != result.resolvedElevationMax;
+        result.balanceResidualImbalance = design.residualImbalance();
+        if (design.warnings() != null && !design.warnings().isEmpty()) {
+            result.warnings.addAll(design.warnings());
+        }
 
         int previewGridSize = context.previewRegion() != null
             ? context.previewRegion().getPreviewGridSize()

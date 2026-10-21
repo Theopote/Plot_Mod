@@ -94,6 +94,42 @@ class ZoneTargetElevationStatsTest {
         assertEquals(1L, result.volumeReport.fillChangedBlocks());
     }
 
+    @Test
+    void syncChangedBlocksReaggregatesPerZoneFromPlacements() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        putCell(grid, 0, 0, "zone-a", 65);
+        putCell(grid, 1, 0, "zone-b", 65);
+
+        var zoneA = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(5, 0, null, 99, 88);
+        var zoneB = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(0, 5, null, 77, 66);
+        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(5, 5, null, 50, 50);
+
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
+        result.designTerrainGrid = grid;
+        result.volumeReport = totals;
+        result.siteVolumeReport = new SiteEarthworkReport(totals, Map.of("zone-a", zoneA, "zone-b", zoneB));
+        result.placementRecords.put(new BlockPos(0, 60, 0), new BlockRecord(new BlockPos(0, 60, 0), "a", "air"));
+        result.changeTypes.put(new BlockPos(0, 60, 0), EarthworkGenerationResult.ChangeType.CUT);
+        result.placementRecords.put(new BlockPos(1, 60, 0), new BlockRecord(new BlockPos(1, 60, 0), "a", "dirt"));
+        result.changeTypes.put(new BlockPos(1, 60, 0), EarthworkGenerationResult.ChangeType.FILL);
+        result.placementRecords.put(new BlockPos(0, 61, 0), new BlockRecord(new BlockPos(0, 61, 0), "a", "bricks"));
+        result.changeTypes.put(new BlockPos(0, 61, 0), EarthworkGenerationResult.ChangeType.STRUCTURE);
+
+        result.syncChangedBlocksFromPlacements();
+
+        assertEquals(1L, result.volumeReport.cutChangedBlocks());
+        assertEquals(1L, result.volumeReport.fillChangedBlocks());
+        assertEquals(1L, result.siteVolumeReport.totals().cutChangedBlocks());
+        assertEquals(1L, result.siteVolumeReport.totals().fillChangedBlocks());
+        assertEquals(1L, result.siteVolumeReport.zoneReport("zone-a").cutChangedBlocks());
+        assertEquals(0L, result.siteVolumeReport.zoneReport("zone-a").fillChangedBlocks());
+        assertEquals(0L, result.siteVolumeReport.zoneReport("zone-b").cutChangedBlocks());
+        assertEquals(1L, result.siteVolumeReport.zoneReport("zone-b").fillChangedBlocks());
+        // 几何方量保持，仅改方块数被重算
+        assertEquals(5L, result.siteVolumeReport.zoneReport("zone-a").geometricCutVolume());
+        assertEquals(5L, result.siteVolumeReport.zoneReport("zone-b").geometricFillVolume());
+    }
+
     private static void putCell(DesignTerrainGrid grid, int x, int z, String zoneId, int targetY) {
         DesignTerrainCell cell = new DesignTerrainCell(x, z, new Vec2d(x, z), targetY - 2);
         cell.setZoneId(zoneId);
