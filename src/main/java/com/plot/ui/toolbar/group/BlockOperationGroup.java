@@ -1,5 +1,6 @@
 package com.plot.ui.toolbar.group;
 
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.core.command.commands.ProjectGhostBlocksCommand;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.model.Shape;
@@ -186,11 +187,13 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
 
         var clientServices = com.plot.client.ClientServices.getInstance();
         var ghostBlockManager = clientServices.getGhostBlockManager();
-        List<GhostBlockManager.GhostBlock> visibleGhostBlocks = ghostBlockManager.getVisibleGhostBlocks();
+        // 工具栏「投影方块」只处理线转方块预览，避免误投影道路/土方等插件 ghost
+        List<GhostBlockManager.GhostBlock> visibleGhostBlocks =
+                ghostBlockManager.getVisibleGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
         int ghostBlockCount = visibleGhostBlocks.size();
         
         if (ghostBlockCount == 0) {
-            LOGGER.warn("没有幽灵方块需要投影");
+            LOGGER.warn("没有线转方块幽灵需要投影");
             return;
         }
         

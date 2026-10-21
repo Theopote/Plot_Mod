@@ -6,6 +6,7 @@ import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.snap.SnapPriorityEvaluator;
+import com.plot.infrastructure.event.block.LineToBlockGhostSettings;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureSettings;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
 import com.plot.ui.theme.ThemeManager;
@@ -156,6 +157,7 @@ public class SettingsAndHelpDialog {
     private final ImBoolean drawMeasureShowUnitState = new ImBoolean();
     private final ImInt drawMeasureDecimalPlacesState = new ImInt();
     private final ImFloat drawMeasureLabelOpacityState = new ImFloat();
+    private final ImFloat lineToBlockGhostOpacityState = new ImFloat();
 
     private SettingsAndHelpDialog() {}
 
@@ -665,6 +667,34 @@ public class SettingsAndHelpDialog {
                 }
 
                 DialogLayoutHelper.subsectionGap();
+                if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.line_to_block_ghost_settings") + "##line_to_block_ghost", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                    ImGui.indent(10);
+                    DialogLayoutHelper.helpText(PlotI18n.tr("settings.plot.line_to_block_ghost_hint"));
+
+                    DialogLayoutHelper.rowGap();
+                    renderLineToBlockGhostColorEditor();
+
+                    DialogLayoutHelper.rowGap();
+                    float[] ghostOpacityPercent = new float[] { lineToBlockGhostOpacityState.get() * 100.0f };
+                    ImGui.setNextItemWidth(Math.min(220.0f, Math.max(160.0f, ImGui.getContentRegionAvailX() - 12.0f)));
+                    if (ImGui.sliderFloat(PlotI18n.tr("settings.plot.line_to_block_ghost_opacity"), ghostOpacityPercent, 15.0f, 95.0f, "%.0f%%")) {
+                        float opacity = ghostOpacityPercent[0] / 100.0f;
+                        lineToBlockGhostOpacityState.set(opacity);
+                        LineToBlockGhostSettings.setOpacity(opacity);
+                    }
+
+                    DialogLayoutHelper.rowGap();
+                    if (ImGui.button(PlotI18n.tr("settings.plot.line_to_block_ghost_reset"))) {
+                        LineToBlockGhostSettings.resetColor();
+                        LineToBlockGhostSettings.resetOpacity();
+                        lineToBlockGhostOpacityState.set(LineToBlockGhostSettings.getOpacity());
+                    }
+
+                    ImGui.unindent(10);
+                    ImGui.treePop();
+                }
+
+                DialogLayoutHelper.subsectionGap();
                 if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.display_color_custom") + "##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                     ImGui.indent(10);
                     ImGui.textDisabled(PlotI18n.tr("settings.plot.display_color_hint"));
@@ -719,6 +749,41 @@ public class SettingsAndHelpDialog {
         drawMeasureShowUnitState.set(DrawMeasureSettings.isShowUnit());
         drawMeasureDecimalPlacesState.set(DrawMeasureSettings.getDecimalPlaces());
         drawMeasureLabelOpacityState.set(DrawMeasureSettings.getLabelOpacity());
+        lineToBlockGhostOpacityState.set(LineToBlockGhostSettings.getOpacity());
+    }
+
+    private void renderLineToBlockGhostColorEditor() {
+        int previewArgb = LineToBlockGhostSettings.getPreviewArgb();
+        int rgb = LineToBlockGhostSettings.getColorRgb();
+        float[] colorRgb = new float[] {
+                ((rgb >> 16) & 0xFF) / 255.0f,
+                ((rgb >> 8) & 0xFF) / 255.0f,
+                (rgb & 0xFF) / 255.0f
+        };
+
+        ImGui.pushStyleColor(ImGuiCol.Button, previewArgb);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, previewArgb);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, previewArgb);
+        ImGui.button("##line_to_block_ghost_preview", 16, 16);
+        ImGui.popStyleColor(3);
+
+        ImGui.sameLine();
+        float colorEditorWidth = Math.min(200.0f, Math.max(120.0f, ImGui.getContentRegionAvailX() - 70.0f));
+        ImGui.setNextItemWidth(colorEditorWidth);
+        if (ImGui.colorEdit3(PlotI18n.tr("settings.plot.line_to_block_ghost_color") + "##line_to_block_ghost_color", colorRgb)) {
+            int r = Math.round(colorRgb[0] * 255.0f);
+            int g = Math.round(colorRgb[1] * 255.0f);
+            int b = Math.round(colorRgb[2] * 255.0f);
+            LineToBlockGhostSettings.setColorRgb((r << 16) | (g << 8) | b);
+        }
+
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("button.plot.reset") + "##line_to_block_ghost_color_reset")) {
+            LineToBlockGhostSettings.resetColor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("settings.plot.line_to_block_ghost_color_reset_tooltip"));
+        }
     }
 
     private void renderDrawMeasureLabelColorEditor() {

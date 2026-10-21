@@ -160,7 +160,7 @@ public class LineToBlockHandler {
 
             if (isPreview && totalBlocks > 0) {
                 try {
-                    var previewBlocks = ghostBlockManager.getVisibleGhostBlocks();
+                    var previewBlocks = ghostBlockManager.getVisibleGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
                     if (!previewBlocks.isEmpty()) {
                         var first = previewBlocks.getFirst();
                         var player = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().player : null;

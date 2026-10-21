@@ -220,6 +220,14 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
                 .toList();
     }
 
+    /** 仅返回指定 owner 的可见幽灵方块。 */
+    public List<GhostBlock> getVisibleGhostBlocks(String ownerId) {
+        String resolvedOwner = resolveOwner(ownerId);
+        return ghostBlocks.values().stream()
+                .filter(block -> block.isVisible() && resolvedOwner.equals(block.getOwnerId()))
+                .toList();
+    }
+
     @Override
     public int getVisibleGhostBlockCount() {
         return (int) ghostBlocks.values().stream()

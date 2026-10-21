@@ -1,5 +1,6 @@
 package com.plot.infrastructure.event.block;
 
+import com.plot.api.world.GhostBlockOwners;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.block.Blocks;
@@ -19,8 +20,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Client-side world renderer for ghost blocks created by {@link GhostBlockManager}.
- * Uses vanilla debug box drawing (visible through terrain) plus block particles as fallback.
+ * 仅渲染「线转方块」幽灵预览（{@link GhostBlockOwners#LINE_TO_BLOCK}）。
+ * 道路/土方等插件预览仍走各自画布叠加层，不进入本世界线框通道。
  */
 public final class GhostBlockWorldRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GhostBlockWorldRenderer");
@@ -60,7 +61,9 @@ public final class GhostBlockWorldRenderer {
                 return;
             }
 
-            List<GhostBlockManager.GhostBlock> blocks = ghostBlockManager.getVisibleGhostBlocks();
+            // 插件 ghost 不走世界线框；仅线转方块需要在世界中可见
+            List<GhostBlockManager.GhostBlock> blocks =
+                    ghostBlockManager.getVisibleGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
             if (blocks.isEmpty()) {
                 return;
             }
@@ -72,10 +75,10 @@ public final class GhostBlockWorldRenderer {
             }
 
             Vec3d cameraPos = resolveCameraPos(context, client);
-            float alpha = Math.clamp(ghostBlockManager.getOpacity(), 0.35f, 0.95f);
-            float r = 0.1f;
-            float g = 1.0f;
-            float b = 1.0f;
+            float alpha = Math.clamp(LineToBlockGhostSettings.getOpacity(), 0.15f, 0.95f);
+            float r = LineToBlockGhostSettings.getRed();
+            float g = LineToBlockGhostSettings.getGreen();
+            float b = LineToBlockGhostSettings.getBlue();
 
             int rendered = 0;
             GhostBlockManager.GhostBlock firstRendered = null;
