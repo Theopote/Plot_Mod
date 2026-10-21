@@ -42,4 +42,17 @@ class EarthworkTerrainGateTest {
         assertNull(EarthworkBuildManager.rejectIfTerrainUnsafe(
             true, new TerrainSnapshot.ComparisonResult(true, 0, 10)));
     }
+
+    @Test
+    void presentWorldAllowsSurfaceOnlyDriftWithoutElevationChange() {
+        // matches=true, 25 surface-only changes — must not hard-block build
+        assertNull(EarthworkBuildManager.rejectIfTerrainUnsafe(
+            true, new TerrainSnapshot.ComparisonResult(true, 25, 622644, 0, 25)));
+    }
+
+    @Test
+    void presentWorldRejectsGroundElevationChange() {
+        assertNotNull(EarthworkBuildManager.rejectIfTerrainUnsafe(
+            true, new TerrainSnapshot.ComparisonResult(false, 3, 1000, 3, 0)));
+    }
 }

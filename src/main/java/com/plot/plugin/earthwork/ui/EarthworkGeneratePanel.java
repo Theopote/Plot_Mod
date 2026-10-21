@@ -225,6 +225,16 @@ public final class EarthworkGeneratePanel {
                     ImGui.closeCurrentPopup();
                 }
                 ImGui.sameLine();
+            } else {
+                // 仅地表材质漂移：提示但不禁用生成（大场地草方块等环境噪声很常见）
+                TerrainSnapshot.ComparisonResult comparison =
+                    ctx.previewManager().comparePreviewTerrainWithWorld(EarthworkUiWidgets.getClientWorld());
+                if (comparison != null && comparison.hasCosmeticSurfaceDrift()) {
+                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                        "plugin.earthwork.terrain_surface_drift_soft",
+                        comparison.surfaceOnlyChangedColumns(),
+                        comparison.totalColumns()));
+                }
             }
             if (!canBuild) {
                 ImGui.beginDisabled();
@@ -258,7 +268,12 @@ public final class EarthworkGeneratePanel {
         if (comparison != null && comparison.terrainChanged()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
                 "plugin.earthwork.terrain_changed_since_preview",
-                comparison.changedColumns(),
+                comparison.groundElevationChangedColumns(),
+                comparison.totalColumns()));
+        } else if (comparison != null && comparison.hasCosmeticSurfaceDrift()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.earthwork.terrain_surface_drift_soft",
+                comparison.surfaceOnlyChangedColumns(),
                 comparison.totalColumns()));
         }
     }

@@ -67,6 +67,20 @@ class TerrainSnapshotTest {
     }
 
     @Test
+    void comparisonResultSurfaceOnlyDriftDoesNotCountAsTerrainChanged() {
+        TerrainSnapshot.ComparisonResult cosmetic = new TerrainSnapshot.ComparisonResult(
+            true, 25, 622644, 0, 25);
+        assertTrue(cosmetic.matches());
+        assertTrue(!cosmetic.terrainChanged());
+        assertTrue(cosmetic.hasCosmeticSurfaceDrift());
+
+        TerrainSnapshot.ComparisonResult elevation = new TerrainSnapshot.ComparisonResult(
+            false, 3, 1000, 3, 10);
+        assertTrue(elevation.terrainChanged());
+        assertTrue(!elevation.hasCosmeticSurfaceDrift());
+    }
+
+    @Test
     void matchesPreviewGridDelegatesToGeometryUtils() {
         Vec2d center = new Vec2d(10.5, 15.5);
         assertTrue(EarthworkGeometryUtils.matchesPreviewGrid(center, 1));

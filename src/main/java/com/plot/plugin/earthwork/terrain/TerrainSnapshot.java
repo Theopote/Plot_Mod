@@ -63,9 +63,36 @@ public final class TerrainSnapshot {
         }
     }
 
-    public record ComparisonResult(boolean matches, int changedColumns, int totalColumns) {
+    /**
+     * 现状对比结果。
+     * <ul>
+     *   <li>{@code groundElevationChangedColumns} — 工程地面标高变化（会使挖填量失效，硬拦截）</li>
+     *   <li>{@code surfaceOnlyChangedColumns} — 仅地表方块 ID 变化（草/雪等环境噪声，软警告）</li>
+     * </ul>
+     */
+    public record ComparisonResult(
+            boolean matches,
+            int changedColumns,
+            int totalColumns,
+            int groundElevationChangedColumns,
+            int surfaceOnlyChangedColumns) {
+        public ComparisonResult(boolean matches, int changedColumns, int totalColumns) {
+            this(
+                matches,
+                changedColumns,
+                totalColumns,
+                matches ? 0 : Math.max(0, changedColumns),
+                0);
+        }
+
+        /** 是否存在会破坏土方计算基准的标高变化。 */
         public boolean terrainChanged() {
-            return !matches;
+            return groundElevationChangedColumns > 0;
+        }
+
+        /** 仅地表材质漂移、标高未变。 */
+        public boolean hasCosmeticSurfaceDrift() {
+            return surfaceOnlyChangedColumns > 0 && groundElevationChangedColumns == 0;
         }
     }
 
@@ -275,20 +302,31 @@ public final class TerrainSnapshot {
             return new ComparisonResult(false, columnCount(), columnCount());
         }
 
-        int changed = 0;
+        int elevationChanged = 0;
+        int surfaceOnlyChanged = 0;
         for (Column column : columns) {
             if (!column.chunkLoaded()) {
                 continue;
             }
             int currentGroundY = EngineeringTerrainSampler.sampleGroundSurface(
                 world, column.worldX(), column.worldZ());
+            if (column.groundY() != currentGroundY) {
+                elevationChanged++;
+                continue;
+            }
             String currentSurfaceBlockId = resolveBlockId(world, column.worldX(), currentGroundY, column.worldZ());
-            if (column.groundY() != currentGroundY
-                || !normalizeBlockId(column.surfaceBlockId()).equals(normalizeBlockId(currentSurfaceBlockId))) {
-                changed++;
+            if (!normalizeBlockId(column.surfaceBlockId()).equals(normalizeBlockId(currentSurfaceBlockId))) {
+                surfaceOnlyChanged++;
             }
         }
-        return new ComparisonResult(changed == 0, changed, columnCount());
+        int totalChanged = elevationChanged + surfaceOnlyChanged;
+        // matches / 硬门禁只看标高；地表材质噪声不阻止施工
+        return new ComparisonResult(
+            elevationChanged == 0,
+            totalChanged,
+            columnCount(),
+            elevationChanged,
+            surfaceOnlyChanged);
     }
 
     static long computeContentFingerprint(List<Column> columns) {
