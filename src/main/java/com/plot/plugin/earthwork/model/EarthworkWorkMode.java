@@ -1,50 +1,73 @@
 package com.plot.plugin.earthwork.model;
 
 /**
- * 土方插件工作模式。默认 Quick：主路径只做框选、高度、边缘、预览。
+ * 土方插件工作模式：快速平整（任务导向）与建造（完整功能）。
+ * <p>
+ * 旧配置中的 {@code LEARN} 读入时映射为 {@link #BUILDER}，避免丢失高级设置入口。
  */
 public enum EarthworkWorkMode {
     QUICK,
-    BUILDER,
-    LEARN;
+    BUILDER;
 
     public static EarthworkWorkMode fromId(String id) {
         if (id == null || id.isBlank()) {
             return QUICK;
         }
+        String normalized = id.trim().toUpperCase();
+        // 已取消独立学习模式：旧 LEARN 配置并入建造
+        if ("LEARN".equals(normalized)) {
+            return BUILDER;
+        }
         try {
-            return valueOf(id.trim().toUpperCase());
+            return valueOf(normalized);
         } catch (IllegalArgumentException ignored) {
             return QUICK;
         }
     }
 
+    /** 建造模式使用区域/编辑/生成三标签。 */
     public boolean showsEngineeringTabs() {
-        return this == BUILDER || this == LEARN;
+        return this == BUILDER;
     }
 
+    /**
+     * 建造模式展示工程分析：方量报告、材料参数、跨场地汇总、导出等。
+     * （原 Learn 中有实际价值的计算入口，已并入建造。）
+     */
+    public boolean showsEngineeringMetrics() {
+        return this == BUILDER;
+    }
+
+    /** @deprecated 使用 {@link #showsEngineeringMetrics()} */
+    @Deprecated
     public boolean showsLearningMetrics() {
-        return this == LEARN;
+        return showsEngineeringMetrics();
     }
 
-    /** Builder/Learn：CUT/FILL、世界改动、热力图、Before/After。 */
+    /** 建造：挖填条、世界改动、热力图、Before/After。 */
     public boolean showsBuilderVisuals() {
-        return this == BUILDER || this == LEARN;
+        return this == BUILDER;
     }
 
-    /** Learn：平衡曲线、最少工作高度、剖面。Quick 仅在「查看分析」中展开。 */
+    /** 建造：平衡曲线、推荐高度、剖面等分析视图。 */
+    public boolean showsAnalysisVisuals() {
+        return this == BUILDER;
+    }
+
+    /** @deprecated 使用 {@link #showsAnalysisVisuals()} */
+    @Deprecated
     public boolean showsLearnVisuals() {
-        return this == LEARN;
+        return showsAnalysisVisuals();
     }
 
-    /** Learn：多场地 PROJECT 统计范围。 */
+    /** 建造：允许多场地 PROJECT 统计范围。 */
     public boolean allowsProjectBalanceScope() {
-        return this == LEARN;
+        return this == BUILDER;
     }
 
-    /** Learn：约束分区竖向优化（CONSTRAINED_ZONE_OPTIMIZATION）。 */
+    /** 建造：约束分区竖向优化（CONSTRAINED_ZONE_OPTIMIZATION）。 */
     public boolean allowsConstrainedZoneOptimization() {
-        return this == LEARN;
+        return this == BUILDER;
     }
 
     public String i18nKey() {

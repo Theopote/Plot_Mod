@@ -77,7 +77,7 @@ public final class EarthworkEditPanel {
                 renderZoneTypeSettings(region);
                 renderZoneEdgeSettings(region);
 
-                if (ctx.config().getWorkMode().showsLearningMetrics()) {
+                if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
                     renderMaterialPropertiesSettings(region);
                 }
 
@@ -210,7 +210,7 @@ public final class EarthworkEditPanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.earthwork.zone_type_hint." + zone.getType().name().toLowerCase()));
 
-        if (ctx.config().getWorkMode().showsLearningMetrics()) {
+        if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
             renderVerticalAdjustmentPolicy(zone);
         } else {
             renderPlayerHeightLock(zone);
@@ -602,7 +602,7 @@ public final class EarthworkEditPanel {
             selected = 0;
             ImGui.textColored(
                 PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr("plugin.earthwork.composition_learn_only_saved_scope"));
+                PlotI18n.tr("plugin.earthwork.composition_builder_only_saved_scope"));
         }
         ImInt scopeIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
@@ -621,7 +621,7 @@ public final class EarthworkEditPanel {
         if (!workMode.allowsProjectBalanceScope()) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.composition_project_scope_learn_hint"));
+                PlotI18n.tr("plugin.earthwork.composition_project_scope_builder_hint"));
         }
         ImGui.spacing();
     }
@@ -680,7 +680,7 @@ public final class EarthworkEditPanel {
             selected = 0;
             ImGui.textColored(
                 PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr("plugin.earthwork.composition_learn_only_saved_optimization"));
+                PlotI18n.tr("plugin.earthwork.composition_builder_only_saved_optimization"));
         }
         ImInt methodIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
@@ -699,7 +699,7 @@ public final class EarthworkEditPanel {
         if (!workMode.allowsConstrainedZoneOptimization()) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.composition_constrained_optimization_learn_hint"));
+                PlotI18n.tr("plugin.earthwork.composition_constrained_optimization_builder_hint"));
         }
         ImGui.spacing();
     }
@@ -1393,8 +1393,7 @@ public final class EarthworkEditPanel {
 
         if (useBuildingRef.get()) {
             DesignSurface surface = zone.getDesignSurface();
-            boolean learn = ctx.config().getWorkMode().showsLearningMetrics();
-            if (learn) {
+            if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
                 int[] basementFloorDepth = {surface.getBasementFloorDepth()};
                 if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.basement_floor_depth"), basementFloorDepth, 0, 32)) {
                     if (ImGui.isItemActivated()) {
@@ -1447,7 +1446,7 @@ public final class EarthworkEditPanel {
             }
         }
 
-        if (ctx.config().getWorkMode().showsLearningMetrics()) {
+        if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
             int[] workingMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};
             if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_margin"), workingMargin, 0, 8)) {
                 if (ImGui.isItemActivated()) {

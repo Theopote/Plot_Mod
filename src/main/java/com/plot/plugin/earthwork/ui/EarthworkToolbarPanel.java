@@ -1,6 +1,5 @@
 package com.plot.plugin.earthwork.ui;
 
-import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
@@ -79,24 +78,13 @@ public final class EarthworkToolbarPanel {
         if (ImGui.combo(PlotI18n.tr("plugin.earthwork.work_mode"), index, labels)) {
             int picked = index.get();
             if (picked >= 0 && picked < modes.length && modes[picked] != current) {
-                EarthworkWorkMode nextMode = modes[picked];
-                ctx.config().setWorkMode(nextMode);
-                clampCompositionPolicyForWorkMode(nextMode);
+                // 工作模式只切换界面与操作路径；不写回/裁剪项目内高级合成参数。
+                // 快速平整生成时由管线临时 clampedCopyForWorkMode，切回建造仍保留原设置。
+                ctx.config().setWorkMode(modes[picked]);
                 ctx.config().save();
                 ctx.invalidatePreview();
             }
         }
-    }
-
-    private void clampCompositionPolicyForWorkMode(EarthworkWorkMode workMode) {
-        CompositionPolicy policy = ctx.project().getActiveSite().getCompositionPolicy();
-        CompositionPolicy clamped = policy.clampedCopyForWorkMode(workMode);
-        if (policy.getBalanceScopeEnum() == clamped.getBalanceScopeEnum()
-            && policy.getOptimizationModeEnum() == clamped.getOptimizationModeEnum()) {
-            return;
-        }
-        ctx.projectHistory().push(ctx.project());
-        ctx.project().getActiveSite().setCompositionPolicy(clamped);
     }
 
     private void renderActivePlacementControls() {

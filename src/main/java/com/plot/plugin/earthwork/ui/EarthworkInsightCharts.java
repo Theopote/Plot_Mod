@@ -63,7 +63,7 @@ public final class EarthworkInsightCharts {
             }
             renderHeatmap(preview.designTerrainGrid);
         }
-        if (!mode.showsLearnVisuals()) {
+        if (!mode.showsAnalysisVisuals()) {
             return;
         }
         if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {

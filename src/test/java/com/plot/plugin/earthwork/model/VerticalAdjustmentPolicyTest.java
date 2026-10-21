@@ -42,7 +42,6 @@ class VerticalAdjustmentPolicyTest {
 
         assertEquals(8, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(EarthworkWorkMode.QUICK));
         assertEquals(16, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(EarthworkWorkMode.BUILDER));
-        assertEquals(32, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(EarthworkWorkMode.LEARN));
     }
 
     @Test

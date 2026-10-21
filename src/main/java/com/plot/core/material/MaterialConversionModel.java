@@ -9,7 +9,9 @@ public final class MaterialConversionModel {
     /** Minecraft 默认：挖 1 ≈ 填 1。 */
     public static final float MINECRAFT_REUSABLE_RATIO = 1.0f;
     public static final float MINECRAFT_CUT_TO_COMPACTED_FILL_RATIO = 1.0f;
-    /** 学习模式：现实可利用土 / 压实换算示例。 */
+    /**
+     * 演示用现实可利用土 / 压实换算示例（非默认施工参数，勿与 Minecraft 1:1 混用为默认）。
+     */
     public static final float LEARNING_REUSABLE_RATIO = 0.90f;
     public static final float LEARNING_CUT_TO_COMPACTED_FILL_RATIO = 0.92f;
 

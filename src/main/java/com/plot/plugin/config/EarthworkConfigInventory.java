@@ -22,7 +22,7 @@ public final class EarthworkConfigInventory {
     }
 
     public static final FieldSpec WORK_MODE =
-        new FieldSpec("workMode", FieldKind.PLUGIN_PREFERENCE, "EarthworkConfig", "Quick / Builder / Learn");
+        new FieldSpec("workMode", FieldKind.PLUGIN_PREFERENCE, "EarthworkConfig", "Quick / Builder（旧 Learn 读入映射为 Builder）");
     public static final FieldSpec SHOW_GRID =
         new FieldSpec("showGrid", FieldKind.PLUGIN_PREFERENCE, "EarthworkConfig", "预览网格显示");
     public static final FieldSpec SHOW_EDGE_OVERLAY =
@@ -32,7 +32,7 @@ public final class EarthworkConfigInventory {
     public static final FieldSpec MATERIAL_DEFAULTS =
         new FieldSpec("reusableRatio / cutToCompactedFillRatio", FieldKind.ADOPT_DEFAULT,
             "GradingRegion.materialProperties / EarthworkSite.materialModel",
-            "认领默认值；Learn 滑条也会更新插件默认");
+            "认领默认值；建造模式材料滑条可提升为认领默认");
     public static final FieldSpec AUTO_BALANCE =
         new FieldSpec("autoBalance", FieldKind.ADOPT_DEFAULT, "GradingRegion.autoBalance", "认领时复制到新区块");
     public static final FieldSpec TARGET_ELEVATION =

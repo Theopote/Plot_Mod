@@ -78,17 +78,14 @@ public final class EarthworkGeneratePanel {
                             preview.resolvedElevationMax);
                     }
                     EarthworkInsightCharts.render(ctx, region, preview);
-                    if (ctx.config().getWorkMode().showsLearningMetrics()) {
-                        EarthworkLearnWidgets.renderConversionLesson(ctx, volumes);
-                    }
 
                     if (preview.projectReport != null
                         && preview.projectReport.hasZoneBreakdown()
-                        && ctx.config().getWorkMode().showsLearningMetrics()) {
+                        && ctx.config().getWorkMode().showsEngineeringMetrics()) {
                         renderProjectBalanceReport(preview.projectReport);
                     }
 
-                    if (ctx.config().getWorkMode().showsLearningMetrics()
+                    if (ctx.config().getWorkMode().showsEngineeringMetrics()
                         && ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
                         ctx.previewManager().exportLastReport(ctx.project(), region);
                     }
@@ -316,7 +313,7 @@ public final class EarthworkGeneratePanel {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totalCut()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
-        if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.learn.engineering_numbers"))) {
+        if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.analysis.engineering_numbers"))) {
             ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", report.reusableCut()));
             EarthworkUiWidgets.renderProjectMaterialBalance(report.materialBalance());
             ImGui.textColored(
@@ -370,7 +367,10 @@ public final class EarthworkGeneratePanel {
 
         if (!report.allocationMatrix().isEmpty()) {
             ImGui.spacing();
-            EarthworkLearnWidgets.renderDirtFlowHeader();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.analysis.dirt_flow_header"));
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.analysis.dirt_flow_hint"));
             for (EarthworkAllocationMatrix.Transfer transfer : report.allocationMatrix().transfers()) {
                 ImGui.bulletText(formatAllocationTransfer(
                     transfer,
@@ -381,7 +381,7 @@ public final class EarthworkGeneratePanel {
 
         if (!report.crossSiteAllocationMatrix().isEmpty()) {
             ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.learn.cross_site_dirt"));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.analysis.cross_site_dirt"));
             for (EarthworkAllocationMatrix.Transfer transfer : report.crossSiteAllocationMatrix().transfers()) {
                 ImGui.bulletText(formatAllocationTransfer(
                     transfer,

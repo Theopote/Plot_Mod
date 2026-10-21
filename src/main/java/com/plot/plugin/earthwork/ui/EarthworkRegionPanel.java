@@ -186,7 +186,7 @@ public final class EarthworkRegionPanel {
             String.format("%.1f", ctx.project().getTotalArea())));
         renderSiteOverlapWarnings();
         EarthworkSite site = ctx.project().getActiveSite();
-        if (ctx.config().getWorkMode().showsLearningMetrics()) {
+        if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
             renderProjectGlobalBalance(ctx.project());
             renderSiteMaterialModel(site);
         }
@@ -574,12 +574,7 @@ public final class EarthworkRegionPanel {
 
     private void renderSiteMaterialModel(EarthworkSite site) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.learn.slider_header"));
-        EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.slider_hint"));
-        if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.learn.why_conversion"))) {
-            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.why_conversion_body"));
-            ImGui.treePop();
-        }
+        ImGui.text(PlotI18n.tr("plugin.earthwork.material.conversion_header"));
         EarthworkUiWidgets.renderMaterialConversionSliders(ctx, site.getMaterialModel(), updated ->
             EarthworkMaterialScope.updateSiteMaterial(ctx, site, updated));
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.apply_site_material_to_regions"), 0, 0)) {

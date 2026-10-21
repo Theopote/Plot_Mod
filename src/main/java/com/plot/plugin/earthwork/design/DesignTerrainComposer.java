@@ -410,7 +410,7 @@ public final class DesignTerrainComposer {
 
     /**
      * 对累计分区偏移之上的统一 ΔY 做边坡耦合离散搜索，并把网格留在最优候选状态。
-     * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围，再按工作模式封顶（Quick ±8 / Builder ±16 / Learn ±32）。
+     * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围，再按工作模式封顶（Quick ±8 / Builder ±16）。
      */
     private static BalanceSearchOutcome applySlopeCoupledUniformSearch(
             DesignTerrainGrid grid,

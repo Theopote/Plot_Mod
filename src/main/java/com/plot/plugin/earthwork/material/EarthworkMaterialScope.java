@@ -74,7 +74,7 @@ public final class EarthworkMaterialScope {
     }
 
     /**
-     * Learn 示例：场地 + 全分区同步，仍不写 config。
+     * 示例材料模型：场地 + 全分区同步，仍不写 config。
      */
     public static void applyExampleToProject(
             EarthworkUiContext ctx,

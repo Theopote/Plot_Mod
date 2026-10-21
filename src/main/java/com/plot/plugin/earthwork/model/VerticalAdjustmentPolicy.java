@@ -93,13 +93,12 @@ public class VerticalAdjustmentPolicy {
         };
     }
 
-    /** 按工作模式限制全场统一 ΔY 离散搜索半幅。 */
+    /** 按工作模式限制全场统一 ΔY 离散搜索半幅（建造保留更大搜索幅，快速用较短路径）。 */
     public static int maxAutoBalanceHalfRange(EarthworkWorkMode workMode) {
         EarthworkWorkMode safeMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
         return switch (safeMode) {
             case QUICK -> QUICK_AUTO_BALANCE_RANGE;
             case BUILDER -> BUILDER_AUTO_BALANCE_RANGE;
-            case LEARN -> UNBOUNDED_RANGE;
         };
     }
 

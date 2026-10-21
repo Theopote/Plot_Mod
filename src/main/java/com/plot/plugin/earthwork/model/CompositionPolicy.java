@@ -256,7 +256,9 @@ public class CompositionPolicy {
 
     /**
      * 按工作模式裁剪高级合成选项（不修改原实例）。
-     * Builder / Quick 不含 PROJECT 统计与约束分区优化。
+     * <p>
+     * 仅用于快速平整生成管线的临时策略：Quick 不含 PROJECT 统计与约束分区优化。
+     * 建造模式保留完整设置。切换工作模式<strong>不应</strong>把裁剪结果写回项目。
      */
     public CompositionPolicy clampedCopyForWorkMode(EarthworkWorkMode workMode) {
         CompositionPolicy copy = copy();
@@ -271,8 +273,15 @@ public class CompositionPolicy {
         return copy;
     }
 
-    public boolean usesLearnOnlyCompositionSettings() {
+    /** 高级合成设置：跨场地统计或约束分区优化（建造模式可用）。 */
+    public boolean usesAdvancedCompositionSettings() {
         return getBalanceScopeEnum() == BalanceScope.PROJECT
             || getOptimizationModeEnum() == OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION;
+    }
+
+    /** @deprecated 使用 {@link #usesAdvancedCompositionSettings()} */
+    @Deprecated
+    public boolean usesLearnOnlyCompositionSettings() {
+        return usesAdvancedCompositionSettings();
     }
 }

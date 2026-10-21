@@ -9,31 +9,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EarthworkWorkModeTest {
 
     @Test
-    void fromIdDefaultsToQuick() {
+    void fromIdDefaultsToQuickAndMigratesLearnToBuilder() {
         assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId(null));
         assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId(""));
         assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId("unknown"));
-        assertEquals(EarthworkWorkMode.LEARN, EarthworkWorkMode.fromId("learn"));
+        assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("learn"));
+        assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("LEARN"));
         assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("BUILDER"));
+        assertEquals(2, EarthworkWorkMode.values().length);
     }
 
     @Test
-    void quickHidesEngineeringTabsAndLearningMetrics() {
+    void quickIsTaskOrientedBuilderOwnsEngineeringCapabilities() {
         assertFalse(EarthworkWorkMode.QUICK.showsEngineeringTabs());
-        assertFalse(EarthworkWorkMode.QUICK.showsLearningMetrics());
-        assertTrue(EarthworkWorkMode.BUILDER.showsEngineeringTabs());
-        assertFalse(EarthworkWorkMode.BUILDER.showsLearningMetrics());
-        assertTrue(EarthworkWorkMode.LEARN.showsEngineeringTabs());
-        assertTrue(EarthworkWorkMode.LEARN.showsLearningMetrics());
+        assertFalse(EarthworkWorkMode.QUICK.showsEngineeringMetrics());
         assertFalse(EarthworkWorkMode.QUICK.showsBuilderVisuals());
+        assertFalse(EarthworkWorkMode.QUICK.showsAnalysisVisuals());
+        assertFalse(EarthworkWorkMode.QUICK.allowsProjectBalanceScope());
+        assertFalse(EarthworkWorkMode.QUICK.allowsConstrainedZoneOptimization());
+
+        assertTrue(EarthworkWorkMode.BUILDER.showsEngineeringTabs());
+        assertTrue(EarthworkWorkMode.BUILDER.showsEngineeringMetrics());
         assertTrue(EarthworkWorkMode.BUILDER.showsBuilderVisuals());
-        assertTrue(EarthworkWorkMode.LEARN.showsBuilderVisuals());
-        assertFalse(EarthworkWorkMode.QUICK.showsLearnVisuals());
-        assertFalse(EarthworkWorkMode.BUILDER.showsLearnVisuals());
-        assertTrue(EarthworkWorkMode.LEARN.showsLearnVisuals());
-        assertFalse(EarthworkWorkMode.BUILDER.allowsProjectBalanceScope());
-        assertFalse(EarthworkWorkMode.BUILDER.allowsConstrainedZoneOptimization());
-        assertTrue(EarthworkWorkMode.LEARN.allowsProjectBalanceScope());
-        assertTrue(EarthworkWorkMode.LEARN.allowsConstrainedZoneOptimization());
+        assertTrue(EarthworkWorkMode.BUILDER.showsAnalysisVisuals());
+        assertTrue(EarthworkWorkMode.BUILDER.allowsProjectBalanceScope());
+        assertTrue(EarthworkWorkMode.BUILDER.allowsConstrainedZoneOptimization());
     }
 }
