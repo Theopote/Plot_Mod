@@ -278,10 +278,4 @@ public class CompositionPolicy {
         return getBalanceScopeEnum() == BalanceScope.PROJECT
             || getOptimizationModeEnum() == OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION;
     }
-
-    /** @deprecated 使用 {@link #usesAdvancedCompositionSettings()} */
-    @Deprecated
-    public boolean usesLearnOnlyCompositionSettings() {
-        return usesAdvancedCompositionSettings();
-    }
 }

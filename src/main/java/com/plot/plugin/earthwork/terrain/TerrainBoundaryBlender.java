@@ -5,6 +5,7 @@ import com.plot.plugin.earthwork.grading.BreaklineClassifier;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.Breakline;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 
@@ -26,11 +27,23 @@ public final class TerrainBoundaryBlender {
             Map<Long, ZoneCoverage> coverageByCellKey,
             List<com.plot.plugin.earthwork.model.Breakline> breaklines,
             EarthworkCanvasScale canvasScale) {
+        apply(grid, site, coverageByCellKey, breaklines, canvasScale,
+            site != null ? site.getCompositionPolicy() : null);
+    }
+
+    public static void apply(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<Long, ZoneCoverage> coverageByCellKey,
+            List<com.plot.plugin.earthwork.model.Breakline> breaklines,
+            EarthworkCanvasScale canvasScale,
+            CompositionPolicy effectivePolicy) {
         if (grid == null || site == null || coverageByCellKey == null || coverageByCellKey.isEmpty()) {
             return;
         }
         EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
-        int blendWidthBlocks = site.getCompositionPolicy().getBlendWidthBlocks();
+        CompositionPolicy policy = effectivePolicy != null ? effectivePolicy : site.getCompositionPolicy();
+        int blendWidthBlocks = policy.getBlendWidthBlocks();
         if (blendWidthBlocks <= 0) {
             return;
         }

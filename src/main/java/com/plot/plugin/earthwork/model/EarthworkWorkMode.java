@@ -32,16 +32,9 @@ public enum EarthworkWorkMode {
 
     /**
      * 建造模式展示工程分析：方量报告、材料参数、跨场地汇总、导出等。
-     * （原 Learn 中有实际价值的计算入口，已并入建造。）
      */
     public boolean showsEngineeringMetrics() {
         return this == BUILDER;
-    }
-
-    /** @deprecated 使用 {@link #showsEngineeringMetrics()} */
-    @Deprecated
-    public boolean showsLearningMetrics() {
-        return showsEngineeringMetrics();
     }
 
     /** 建造：挖填条、世界改动、热力图、Before/After。 */
@@ -52,12 +45,6 @@ public enum EarthworkWorkMode {
     /** 建造：平衡曲线、推荐高度、剖面等分析视图。 */
     public boolean showsAnalysisVisuals() {
         return this == BUILDER;
-    }
-
-    /** @deprecated 使用 {@link #showsAnalysisVisuals()} */
-    @Deprecated
-    public boolean showsLearnVisuals() {
-        return showsAnalysisVisuals();
     }
 
     /** 建造：允许多场地 PROJECT 统计范围。 */

@@ -7,6 +7,7 @@ import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 
@@ -64,8 +65,23 @@ public final class DesignTerrainBuilder {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             EarthworkWorkMode workMode) {
+        CompositionPolicy policy = site != null ? site.getCompositionPolicy() : null;
+        return build(site, terrain, transformer, buildingLookup, roadLookup, workMode, policy);
+    }
+
+    /**
+     * @param effectivePolicy 本次计算采用的策略；不写回 site。
+     */
+    public static BuildResult build(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            EarthworkWorkMode workMode,
+            CompositionPolicy effectivePolicy) {
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
-            site, terrain, transformer, buildingLookup, roadLookup, workMode);
+            site, terrain, transformer, buildingLookup, roadLookup, workMode, effectivePolicy);
         return new BuildResult(
             composed.grid(),
             composed.zoneEvaluators(),

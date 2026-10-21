@@ -6,6 +6,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.adopt.EarthworkAdoptDefaults;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,6 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkConfigTest {
+
+    @Test
+    void legacyLearnWorkModeReadsAsBuilder() {
+        EarthworkConfig config = new Gson().fromJson(
+            "{\"workMode\":\"LEARN\"}", EarthworkConfig.class);
+        assertEquals(EarthworkWorkMode.BUILDER, config.getWorkMode());
+        config.setWorkMode(EarthworkWorkMode.BUILDER);
+        assertEquals(EarthworkWorkMode.BUILDER, config.getWorkMode());
+    }
 
     @Test
     void inventorySeparatesPluginPreferenceAdoptDefaultAndRuntimeLegacy() {

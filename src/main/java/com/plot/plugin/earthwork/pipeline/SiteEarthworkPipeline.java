@@ -55,27 +55,18 @@ public final class SiteEarthworkPipeline {
         }
 
         result.siteGeneration = true;
-        CompositionPolicy originalPolicy = site.getCompositionPolicy();
-        CompositionPolicy effectivePolicy = originalPolicy.clampedCopyForWorkMode(context.workMode());
-        boolean policySwapped = originalPolicy.getBalanceScopeEnum() != effectivePolicy.getBalanceScopeEnum()
-            || originalPolicy.getOptimizationModeEnum() != effectivePolicy.getOptimizationModeEnum();
-        if (policySwapped) {
-            site.setCompositionPolicy(effectivePolicy);
-        }
-        try {
-            return executeWithPolicy(context, site, siteBoundary, result);
-        } finally {
-            if (policySwapped) {
-                site.setCompositionPolicy(originalPolicy);
-            }
-        }
+        // 计算用策略与项目保存策略分离：仅传入裁剪副本，绝不临时写回 EarthworkSite。
+        CompositionPolicy effectivePolicy =
+            site.getCompositionPolicy().clampedCopyForWorkMode(context.workMode());
+        return executeWithPolicy(context, site, siteBoundary, result, effectivePolicy);
     }
 
     private EarthworkGenerationResult executeWithPolicy(
             EarthworkPipelineContext context,
             EarthworkSite site,
             List<Vec2d> siteBoundary,
-            EarthworkGenerationResult result) {
+            EarthworkGenerationResult result,
+            CompositionPolicy effectivePolicy) {
         TerrainSnapshot terrain = operations.captureSiteTerrain(
             site, context.world(), siteBoundary, context.terrainSnapshot());
         if (terrain.isEmpty()) {
@@ -91,7 +82,8 @@ public final class SiteEarthworkPipeline {
             operations.coordinateService(),
             context.buildingLookup(),
             context.roadLookup(),
-            context.workMode());
+            context.workMode(),
+            effectivePolicy);
         result.designTerrainGrid = design.grid();
         result.resolvedElevationMin = design.grid().minTargetY();
         result.resolvedElevationMax = design.grid().maxTargetY();

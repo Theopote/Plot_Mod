@@ -78,8 +78,8 @@ public final class EarthworkToolbarPanel {
         if (ImGui.combo(PlotI18n.tr("plugin.earthwork.work_mode"), index, labels)) {
             int picked = index.get();
             if (picked >= 0 && picked < modes.length && modes[picked] != current) {
-                // 工作模式只切换界面与操作路径；不写回/裁剪项目内高级合成参数。
-                // 快速平整生成时由管线临时 clampedCopyForWorkMode，切回建造仍保留原设置。
+                // 工作模式只切换界面与操作路径；不写回项目内高级合成参数。
+                // 快速平整计算时由管线传入 clamped 副本（不写 site）；切回建造仍用原设置。
                 ctx.config().setWorkMode(modes[picked]);
                 ctx.config().save();
                 ctx.invalidatePreview();

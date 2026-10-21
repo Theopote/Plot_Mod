@@ -107,12 +107,29 @@ public final class DesignTerrainComposer {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             EarthworkWorkMode workMode) {
+        CompositionPolicy policy = site != null ? site.getCompositionPolicy() : null;
+        return compose(site, terrain, transformer, buildingLookup, roadLookup, workMode, policy);
+    }
+
+    /**
+     * @param effectivePolicy 本次计算采用的合成策略（可与项目保存策略不同，例如 Quick 的裁剪副本）。
+     *                        不得写回 {@link EarthworkSite}。
+     */
+    public static ComposeResult compose(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            EarthworkWorkMode workMode,
+            CompositionPolicy effectivePolicy) {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(
                 new DesignTerrainGrid(), Map.of(), Map.of(), 0L,
                 EarthworkBalanceStatus.NOT_REQUESTED, 0, 0, false, false, List.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
+        CompositionPolicy policy = effectivePolicy != null ? effectivePolicy : site.getCompositionPolicy();
         Objects.requireNonNull(transformer, "transformer");
         EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(transformer, site.getSiteBoundary());
 
@@ -122,13 +139,13 @@ public final class DesignTerrainComposer {
         applyExclusionZones(grid, site.getExclusionZones());
         Map<String, ResolvedDesignSurface> resolvedSurfaces =
             DesignSurfaceResolver.resolveZoneSurfaces(
-                site, terrain, buildingLookup, roadLookup, transformer, canvasScale);
+                site, terrain, buildingLookup, roadLookup, transformer, canvasScale, policy);
         requireResolvableRoadCorridors(resolvedSurfaces);
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(resolvedSurfaces);
         List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
-            applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines, canvasScale);
+            applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines, canvasScale, policy);
         Map<Long, CellSnapshot> baseDesign = snapshotCells(grid);
 
         applyBoundaryConditions(
@@ -137,7 +154,8 @@ public final class DesignTerrainComposer {
             zoneEvaluators,
             coverageByCellKey,
             effectiveBreaklines,
-            canvasScale);
+            canvasScale,
+            policy);
 
         Map<String, Integer> cumulativeZoneOffsets = new LinkedHashMap<>();
         BalanceSearchOutcome balanceOutcome = iterateSiteBalance(
@@ -150,8 +168,9 @@ public final class DesignTerrainComposer {
             effectiveBreaklines,
             cumulativeZoneOffsets,
             safeWorkMode,
-            canvasScale);
-        recordBalanceOffsets(site, cumulativeZoneOffsets, balanceOutcome.uniformOffset());
+            canvasScale,
+            policy);
+        recordBalanceOffsets(site, cumulativeZoneOffsets, balanceOutcome.uniformOffset(), policy);
 
         Map<String, ResolvedDesignSurface> finalResolved =
             surfacesWithOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, balanceOutcome.uniformOffset());
@@ -287,10 +306,10 @@ public final class DesignTerrainComposer {
             EarthworkSite site,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
             List<Breakline> breaklines,
-            EarthworkCanvasScale canvasScale) {
+            EarthworkCanvasScale canvasScale,
+            CompositionPolicy policy) {
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey = new HashMap<>();
         List<ZoneCandidate> candidates = buildZoneCandidates(site);
-        CompositionPolicy policy = site.getCompositionPolicy();
         boolean applyBreaklinePrecedence = !breaklines.isEmpty()
             && CompositionPolicy.PRECEDENCE_ABSOLUTE.equals(policy.getBreaklinePrecedence());
         double breaklineInfluence = resolveBreaklineInfluenceDistance(policy);
@@ -337,13 +356,14 @@ public final class DesignTerrainComposer {
             List<Breakline> effectiveBreaklines,
             Map<String, Integer> cumulativeZoneOffsets,
             EarthworkWorkMode workMode,
-            EarthworkCanvasScale canvasScale) {
-        if (!shouldRunSiteBalance(site)) {
+            EarthworkCanvasScale canvasScale,
+            CompositionPolicy policy) {
+        if (!shouldRunSiteBalance(site, policy)) {
             return BalanceSearchOutcome.skipped();
         }
 
         // 统一 ΔY 或单区自动平衡：每个候选完整重建坡面后再比 |Cut−Fill|。
-        if (usesSlopeCoupledUniformSearch(site)) {
+        if (usesSlopeCoupledUniformSearch(site, policy)) {
             return applySlopeCoupledUniformSearch(
                 grid,
                 site,
@@ -354,13 +374,14 @@ public final class DesignTerrainComposer {
                 effectiveBreaklines,
                 Map.of(),
                 workMode,
-                canvasScale);
+                canvasScale,
+                policy);
         }
 
         // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY，再对残余统一偏移做边坡耦合离散搜索。
         int cumulativeUniformOffset = 0;
         BalanceSearchOutcome polish = BalanceSearchOutcome.skipped();
-        if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
+        if (policy.isConstrainedZoneOptimization()) {
             for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
                 EarthworkOptimizationSolver.BalanceResult proposed =
                     EarthworkOptimizationSolver.proposeZoneOffsetsOnly(grid, site, resolvedSurfaces);
@@ -377,11 +398,12 @@ public final class DesignTerrainComposer {
                     evaluatorsWithOffsets(site, zoneEvaluators, cumulativeZoneOffsets, cumulativeUniformOffset),
                     coverageWithOffsets(site, coverageByCellKey, cumulativeZoneOffsets, cumulativeUniformOffset),
                     effectiveBreaklines,
-                    canvasScale);
+                    canvasScale,
+                    policy);
             }
         }
 
-        if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
+        if (policy.isBalanceResidualUniformPolish()) {
             polish = applySlopeCoupledUniformSearch(
                 grid,
                 site,
@@ -392,7 +414,8 @@ public final class DesignTerrainComposer {
                 effectiveBreaklines,
                 Map.copyOf(cumulativeZoneOffsets),
                 workMode,
-                canvasScale);
+                canvasScale,
+                policy);
             cumulativeUniformOffset = polish.uniformOffset();
         } else {
             long residual = SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
@@ -422,7 +445,8 @@ public final class DesignTerrainComposer {
             List<Breakline> effectiveBreaklines,
             Map<String, Integer> zoneOffsets,
             EarthworkWorkMode workMode,
-            EarthworkCanvasScale canvasScale) {
+            EarthworkCanvasScale canvasScale,
+            CompositionPolicy policy) {
         Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
         int halfRange = resolveUniformSearchHalfRange(site, resolvedSurfaces, workMode);
         SlopeCoupledVerticalSearch.SearchResult search = SlopeCoupledVerticalSearch.searchUniform(halfRange, dy -> {
@@ -434,7 +458,8 @@ public final class DesignTerrainComposer {
                 evaluatorsWithOffsets(site, zoneEvaluators, safeZone, dy),
                 coverageWithOffsets(site, coverageByCellKey, safeZone, dy),
                 effectiveBreaklines,
-                canvasScale);
+                canvasScale,
+                policy);
             return SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
         });
 
@@ -447,7 +472,8 @@ public final class DesignTerrainComposer {
             evaluatorsWithOffsets(site, zoneEvaluators, safeZone, best),
             coverageWithOffsets(site, coverageByCellKey, safeZone, best),
             effectiveBreaklines,
-            canvasScale);
+            canvasScale,
+            policy);
         long residual = search.hasValidSolution()
             ? search.bestObjective()
             : SlopeCoupledVerticalSearch.INVALID_OBJECTIVE;
@@ -496,22 +522,22 @@ public final class DesignTerrainComposer {
         return true;
     }
 
-    private static boolean shouldRunSiteBalance(EarthworkSite site) {
+    private static boolean shouldRunSiteBalance(EarthworkSite site, CompositionPolicy policy) {
         if (site == null || !hasAdjustableZone(site)) {
             return false;
         }
-        if (site.getCompositionPolicy().isVerticalOptimizationEnabled()) {
+        if (policy != null && policy.isVerticalOptimizationEnabled()) {
             return true;
         }
         return site.getZoneCount() == 1 && isSingleZoneMinecraftPadBalance(site);
     }
 
-    private static boolean usesSlopeCoupledUniformSearch(EarthworkSite site) {
-        if (site.getCompositionPolicy().isUniformVerticalShift()) {
+    private static boolean usesSlopeCoupledUniformSearch(EarthworkSite site, CompositionPolicy policy) {
+        if (policy != null && policy.isUniformVerticalShift()) {
             return true;
         }
         return isSingleZoneMinecraftPadBalance(site)
-            && !site.getCompositionPolicy().isConstrainedZoneOptimization();
+            && (policy == null || !policy.isConstrainedZoneOptimization());
     }
 
     private static boolean hasAdjustableZone(EarthworkSite site) {
@@ -544,8 +570,10 @@ public final class DesignTerrainComposer {
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
             Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
             List<Breakline> effectiveBreaklines,
-            EarthworkCanvasScale canvasScale) {
-        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines, canvasScale);
+            EarthworkCanvasScale canvasScale,
+            CompositionPolicy policy) {
+        TerrainBoundaryBlender.apply(
+            grid, site, coverageByCellKey, effectiveBreaklines, canvasScale, policy);
         ZoneBoundarySlopeApplicator.apply(
             grid,
             new ArrayList<>(site.getGradingZones().values()),
@@ -556,13 +584,14 @@ public final class DesignTerrainComposer {
     private static void recordBalanceOffsets(
             EarthworkSite site,
             Map<String, Integer> zoneOffsets,
-            int uniformOffset) {
-        if (!shouldRunSiteBalance(site)) {
+            int uniformOffset,
+            CompositionPolicy policy) {
+        if (!shouldRunSiteBalance(site, policy)) {
             site.clearLastZoneVerticalOffsets();
             site.clearLastSiteWideVerticalOffset();
             return;
         }
-        if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
+        if (policy != null && policy.isConstrainedZoneOptimization()) {
             site.setLastZoneVerticalOffsets(zoneOffsets);
         } else {
             site.clearLastZoneVerticalOffsets();

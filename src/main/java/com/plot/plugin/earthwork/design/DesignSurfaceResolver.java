@@ -7,6 +7,7 @@ import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.model.BakedElevationGrid;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.DesignSurface;
 import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.earthwork.model.DesignSurfaceKind;
@@ -84,13 +85,27 @@ public final class DesignSurfaceResolver {
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer,
             EarthworkCanvasScale canvasScale) {
+        return resolveZoneSurfaces(
+            site, terrain, buildingLookup, roadLookup, transformer, canvasScale,
+            site != null ? site.getCompositionPolicy() : null);
+    }
+
+    public static Map<String, ResolvedDesignSurface> resolveZoneSurfaces(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            ICoordinateService transformer,
+            EarthworkCanvasScale canvasScale,
+            CompositionPolicy effectivePolicy) {
         Map<String, ResolvedDesignSurface> resolved = new LinkedHashMap<>();
         if (site == null || terrain == null) {
             return resolved;
         }
         EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
+        CompositionPolicy policy = effectivePolicy != null ? effectivePolicy : site.getCompositionPolicy();
         int siteDefaultElevation = resolveSiteDefaultElevation(terrain);
-        boolean deferBalanceToSite = site.getCompositionPolicy().getBalanceScopeEnum().defersPerZoneBalance()
+        boolean deferBalanceToSite = policy.getBalanceScopeEnum().defersPerZoneBalance()
             && site.getZoneCount() >= 2;
         for (GradingZone zone : site.getGradingZones().values()) {
             if (zone == null || !zone.isEnabled() || !zone.getType().isSupportedInComposer()) {
