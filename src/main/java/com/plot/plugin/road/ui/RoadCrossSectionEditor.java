@@ -139,6 +139,9 @@ public final class RoadCrossSectionEditor {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.style.advanced_cross_section_hint"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.style.quick_tune_authority_hint"));
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.engineering_cross_section"))) {
             CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
         }

@@ -33,9 +33,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -72,6 +74,8 @@ public final class RoadNetworkManager {
 
     /** 批量草稿对应的选择签名；不能复用 lastSelectedEdgeId。 */
     private String lastBatchSelectionKey = "";
+    private final EnumSet<RoadBatchEditField> batchEditDirtyFields =
+        EnumSet.noneOf(RoadBatchEditField.class);
     private int batchEditWidth = 5;
     private int batchEditLaneCount = 1;
     private MaterialMix batchEditMaterial = MaterialMix.single(com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
@@ -420,6 +424,7 @@ public final class RoadNetworkManager {
         selectedNodeId = "";
         selectedCrossingId = "";
         lastBatchSelectionKey = "";
+        batchEditDirtyFields.clear();
     }
 
     /**
@@ -1250,6 +1255,7 @@ public final class RoadNetworkManager {
             return currentBatchEditDefaults();
         }
         lastBatchSelectionKey = selectionKey;
+        batchEditDirtyFields.clear();
         RoadEdge primary = network.getEdge(getPrimarySelectedEdgeId());
         if (primary == null) {
             return currentBatchEditDefaults();
@@ -1341,6 +1347,8 @@ public final class RoadNetworkManager {
     }
 
     public void updateBatchEditDraft(BatchEditDefaults draft) {
+        BatchEditDefaults before = currentBatchEditDefaults();
+        markBatchDirtyFromDraftChange(before, draft);
         batchEditWidth = draft.width();
         batchEditLaneCount = draft.laneCount();
         batchEditMaterial = draft.material();
@@ -1365,10 +1373,23 @@ public final class RoadNetworkManager {
         batchEditMaxSlope = draft.maxSlope();
     }
 
+    public int batchEditPendingFieldCount() {
+        return batchEditDirtyFields.size();
+    }
+
+    public Set<RoadBatchEditField> batchEditDirtyFields() {
+        return Set.copyOf(batchEditDirtyFields);
+    }
+
     public void applyBatchEdit(BatchEditDefaults draft) {
         if (selectedEdgeIds.isEmpty()) {
             return;
         }
+        if (batchEditDirtyFields.isEmpty()) {
+            status.warning(PlotI18n.tr("plugin.road.batch_no_pending_changes"));
+            return;
+        }
+        EnumSet<RoadBatchEditField> fields = EnumSet.copyOf(batchEditDirtyFields);
         mutateNetwork(() -> {
             LinkedHashSet<String> updatedRoadIds = new LinkedHashSet<>();
             for (String edgeId : selectedEdgeIds) {
@@ -1383,48 +1404,154 @@ public final class RoadNetworkManager {
                 if (road == null) {
                     continue;
                 }
-                applyDraftToRoad(road, draft);
+                applyDraftToRoad(road, draft, fields);
             }
-            updateBatchEditDraft(draft);
+            batchEditDirtyFields.clear();
             status.success(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
         });
+    }
+
+    private void markBatchDirtyFromDraftChange(BatchEditDefaults before, BatchEditDefaults after) {
+        if (before.width() != after.width()) {
+            batchEditDirtyFields.add(RoadBatchEditField.WIDTH);
+        }
+        if (before.laneCount() != after.laneCount()) {
+            batchEditDirtyFields.add(RoadBatchEditField.LANE_COUNT);
+        }
+        if (!Objects.equals(before.material(), after.material())) {
+            batchEditDirtyFields.add(RoadBatchEditField.MATERIAL);
+        }
+        if (before.includeShoulder() != after.includeShoulder()) {
+            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_SHOULDER);
+        }
+        if (before.shoulderWidth() != after.shoulderWidth()) {
+            batchEditDirtyFields.add(RoadBatchEditField.SHOULDER_WIDTH);
+        }
+        if (before.includeSidewalk() != after.includeSidewalk()) {
+            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_SIDEWALK);
+        }
+        if (before.sidewalkWidth() != after.sidewalkWidth()) {
+            batchEditDirtyFields.add(RoadBatchEditField.SIDEWALK_WIDTH);
+        }
+        if (!Objects.equals(before.sidewalkMaterial(), after.sidewalkMaterial())) {
+            batchEditDirtyFields.add(RoadBatchEditField.SIDEWALK_MATERIAL);
+        }
+        if (before.includeBikeLane() != after.includeBikeLane()) {
+            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_BIKE_LANE);
+        }
+        if (before.bikeLaneWidth() != after.bikeLaneWidth()) {
+            batchEditDirtyFields.add(RoadBatchEditField.BIKE_LANE_WIDTH);
+        }
+        if (before.includeMedian() != after.includeMedian()) {
+            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_MEDIAN);
+        }
+        if (before.medianWidth() != after.medianWidth()) {
+            batchEditDirtyFields.add(RoadBatchEditField.MEDIAN_WIDTH);
+        }
+        if (before.streetlightSpacing() != after.streetlightSpacing()) {
+            batchEditDirtyFields.add(RoadBatchEditField.STREETLIGHT_SPACING);
+        }
+        if (before.laneDividers() != after.laneDividers()) {
+            batchEditDirtyFields.add(RoadBatchEditField.LANE_DIVIDERS);
+        }
+        if (before.centerLineStyle() != after.centerLineStyle()) {
+            batchEditDirtyFields.add(RoadBatchEditField.CENTER_LINE_STYLE);
+        }
+        if (!Objects.equals(before.markingMaterial(), after.markingMaterial())) {
+            batchEditDirtyFields.add(RoadBatchEditField.MARKING_MATERIAL);
+        }
+        if (before.includeSlopeBatter() != after.includeSlopeBatter()) {
+            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_SLOPE_BATTER);
+        }
+        if (before.fillSlopeRatio() != after.fillSlopeRatio()) {
+            batchEditDirtyFields.add(RoadBatchEditField.FILL_SLOPE_RATIO);
+        }
+        if (before.cutSlopeRatio() != after.cutSlopeRatio()) {
+            batchEditDirtyFields.add(RoadBatchEditField.CUT_SLOPE_RATIO);
+        }
+        if (!Objects.equals(before.fillSlopeMaterial(), after.fillSlopeMaterial())) {
+            batchEditDirtyFields.add(RoadBatchEditField.FILL_SLOPE_MATERIAL);
+        }
+        if (!Objects.equals(before.cutSlopeMaterial(), after.cutSlopeMaterial())) {
+            batchEditDirtyFields.add(RoadBatchEditField.CUT_SLOPE_MATERIAL);
+        }
+        if (before.maxSlope() != after.maxSlope()) {
+            batchEditDirtyFields.add(RoadBatchEditField.MAX_SLOPE);
+        }
     }
 
     public Road getRoadForEdge(RoadEdge edge) {
         return network.getRoadForEdge(edge);
     }
 
-    private static void applyDraftToRoad(Road road, BatchEditDefaults draft) {
-        road.setWidth(draft.width());
-        road.setLaneCount(draft.laneCount());
-        road.setMaterial(draft.material());
-        road.setIncludeShoulder(draft.includeShoulder());
-        if (draft.includeShoulder()) {
+    private static void applyDraftToRoad(
+            Road road,
+            BatchEditDefaults draft,
+            EnumSet<RoadBatchEditField> fields) {
+        if (fields.contains(RoadBatchEditField.WIDTH)) {
+            road.setWidth(draft.width());
+        }
+        if (fields.contains(RoadBatchEditField.LANE_COUNT)) {
+            road.setLaneCount(draft.laneCount());
+        }
+        if (fields.contains(RoadBatchEditField.MATERIAL)) {
+            road.setMaterial(draft.material());
+        }
+        if (fields.contains(RoadBatchEditField.INCLUDE_SHOULDER)) {
+            road.setIncludeShoulder(draft.includeShoulder());
+        }
+        if (fields.contains(RoadBatchEditField.SHOULDER_WIDTH) && draft.includeShoulder()) {
             road.setShoulderWidth(draft.shoulderWidth());
         }
-        road.setIncludeSidewalk(draft.includeSidewalk());
-        if (draft.includeSidewalk()) {
+        if (fields.contains(RoadBatchEditField.INCLUDE_SIDEWALK)) {
+            road.setIncludeSidewalk(draft.includeSidewalk());
+        }
+        if (fields.contains(RoadBatchEditField.SIDEWALK_WIDTH) && draft.includeSidewalk()) {
             road.setSidewalkWidth(draft.sidewalkWidth());
+        }
+        if (fields.contains(RoadBatchEditField.SIDEWALK_MATERIAL) && draft.includeSidewalk()) {
             road.setSidewalkMaterial(draft.sidewalkMaterial());
         }
-        road.setIncludeBikeLane(draft.includeBikeLane());
-        if (draft.includeBikeLane()) {
+        if (fields.contains(RoadBatchEditField.INCLUDE_BIKE_LANE)) {
+            road.setIncludeBikeLane(draft.includeBikeLane());
+        }
+        if (fields.contains(RoadBatchEditField.BIKE_LANE_WIDTH) && draft.includeBikeLane()) {
             road.setBikeLaneWidth(draft.bikeLaneWidth());
         }
-        road.setIncludeMedian(draft.includeMedian());
-        if (draft.includeMedian()) {
+        if (fields.contains(RoadBatchEditField.INCLUDE_MEDIAN)) {
+            road.setIncludeMedian(draft.includeMedian());
+        }
+        if (fields.contains(RoadBatchEditField.MEDIAN_WIDTH) && draft.includeMedian()) {
             road.setMedianWidth(draft.medianWidth());
         }
-        road.setStreetlightSpacing(draft.streetlightSpacing());
-        road.setLaneDividers(draft.laneDividers());
-        road.setCenterLineStyle(draft.centerLineStyle());
-        road.setMarkingMaterial(draft.markingMaterial());
-        road.setIncludeSlopeBatter(draft.includeSlopeBatter());
+        if (fields.contains(RoadBatchEditField.STREETLIGHT_SPACING)) {
+            road.setStreetlightSpacing(draft.streetlightSpacing());
+        }
+        if (fields.contains(RoadBatchEditField.LANE_DIVIDERS)) {
+            road.setLaneDividers(draft.laneDividers());
+        }
+        if (fields.contains(RoadBatchEditField.CENTER_LINE_STYLE)) {
+            road.setCenterLineStyle(draft.centerLineStyle());
+        }
+        if (fields.contains(RoadBatchEditField.MARKING_MATERIAL)) {
+            road.setMarkingMaterial(draft.markingMaterial());
+        }
+        if (fields.contains(RoadBatchEditField.INCLUDE_SLOPE_BATTER)) {
+            road.setIncludeSlopeBatter(draft.includeSlopeBatter());
+        }
         if (draft.includeSlopeBatter()) {
-            road.setFillSlopeRatio(draft.fillSlopeRatio());
-            road.setCutSlopeRatio(draft.cutSlopeRatio());
-            road.setFillSlopeMaterial(draft.fillSlopeMaterial());
-            road.setCutSlopeMaterial(draft.cutSlopeMaterial());
+            if (fields.contains(RoadBatchEditField.FILL_SLOPE_RATIO)) {
+                road.setFillSlopeRatio(draft.fillSlopeRatio());
+            }
+            if (fields.contains(RoadBatchEditField.CUT_SLOPE_RATIO)) {
+                road.setCutSlopeRatio(draft.cutSlopeRatio());
+            }
+            if (fields.contains(RoadBatchEditField.FILL_SLOPE_MATERIAL)) {
+                road.setFillSlopeMaterial(draft.fillSlopeMaterial());
+            }
+            if (fields.contains(RoadBatchEditField.CUT_SLOPE_MATERIAL)) {
+                road.setCutSlopeMaterial(draft.cutSlopeMaterial());
+            }
         }
         // 批量面板只编辑横断面和附属设施。纵坡属于路线设计，不能因为用户只想改宽度
         // 就把第一条道路的坡度覆盖到所有选中道路。

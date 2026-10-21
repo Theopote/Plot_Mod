@@ -29,9 +29,9 @@ final class RoadBatchQuickTune {
         renderWidthField(ctx, draft, state, onHistory);
         renderLaneField(ctx, draft, state, onHistory);
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {
-            ctx.networkManager().applyBatchEdit(ctx.networkManager().currentBatchEditDefaults());
-        }
+        RoadBatchCrossSectionEditor.renderApplyButton(
+            ctx,
+            ctx.networkManager().currentBatchEditDefaults());
         ImGui.spacing();
     }
 

@@ -27,9 +27,7 @@ public final class RoadEditPanel {
         }
 
         ctx.networkManager().ensureSelectionValid();
-        RoadSelectionHeader.render(ctx);
         renderJunctionSelectionHint();
-        ImGui.separator();
 
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         switch (mode) {

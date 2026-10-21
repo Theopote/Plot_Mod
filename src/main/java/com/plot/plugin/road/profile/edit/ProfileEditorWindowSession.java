@@ -126,6 +126,16 @@ public final class ProfileEditorWindowSession {
         return ProfileEditorNetworkApplier.hasVerticalStateChanges(openSnapshot, workingNetwork);
     }
 
+    /** 确认保存时可能写入 live 路网的道路数量（含平交联动）。 */
+    public int estimateConfirmAffectRoadCount() {
+        if (!isDirty()) {
+            return 0;
+        }
+        LinkedHashSet<String> affected = new LinkedHashSet<>(touchedRoadIds);
+        affected.addAll(ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, workingNetwork));
+        return affected.size();
+    }
+
     public Set<String> touchedRoadIds() {
         return Set.copyOf(touchedRoadIds);
     }

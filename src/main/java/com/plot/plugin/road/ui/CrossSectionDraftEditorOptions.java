@@ -25,7 +25,7 @@ public record CrossSectionDraftEditorOptions(
             false,
             false,
             false,
-            true,
+            false,
             true);
     }
 

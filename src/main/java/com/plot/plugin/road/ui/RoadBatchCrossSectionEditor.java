@@ -27,10 +27,7 @@ public final class RoadBatchCrossSectionEditor {
         CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
         ImGui.spacing();
         CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
-        RoadNetworkManager.BatchEditDefaults updatedDraft = sectionDraft.toBatchDefaults();
-        if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {
-            ctx.networkManager().applyBatchEdit(updatedDraft);
-        }
+        renderApplyButton(ctx, sectionDraft.toBatchDefaults());
     }
 
     public static void renderDraftFields(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
@@ -48,9 +45,28 @@ public final class RoadBatchCrossSectionEditor {
             CrossSectionDraftEditorOptions.batch(),
             () -> ctx.networkManager().updateBatchEditDraft(sectionDraft.toBatchDefaults()));
 
-        RoadNetworkManager.BatchEditDefaults updatedDraft = sectionDraft.toBatchDefaults();
+        renderApplyButton(ctx, sectionDraft.toBatchDefaults());
+    }
+
+    static void renderApplyButton(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
+        int pending = ctx.networkManager().batchEditPendingFieldCount();
+        if (pending > 0) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.batch_pending_changes", pending));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.batch_no_pending_changes"));
+        }
+        if (pending <= 0) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {
-            ctx.networkManager().applyBatchEdit(updatedDraft);
+            ctx.networkManager().applyBatchEdit(draft);
+        }
+        if (pending <= 0) {
+            ImGui.endDisabled();
         }
     }
 

@@ -422,8 +422,16 @@ final class VerticalProfileEditor {
         if (!canRedo) {
             ImGui.endDisabled();
         }
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2f) / 3f;
         boolean dirty = windowSession != null && windowSession.isDirty();
+        if (dirty) {
+            int affectCount = windowSession.estimateConfirmAffectRoadCount();
+            if (affectCount > 0) {
+                ImGui.textColored(
+                    PluginUiColors.WARNING_LIGHT,
+                    PlotI18n.tr("plugin.road.profile_editor_confirm_affect_summary", affectCount));
+            }
+        }
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2f) / 3f;
         if (!dirty) {
             ImGui.beginDisabled();
         }
@@ -467,6 +475,14 @@ final class VerticalProfileEditor {
             return;
         }
         ImGui.text(PlotI18n.tr("plugin.road.profile_editor_close_confirm_message"));
+        if (windowSession != null && windowSession.isDirty()) {
+            int affectCount = windowSession.estimateConfirmAffectRoadCount();
+            if (affectCount > 0) {
+                ImGui.textColored(
+                    PluginUiColors.WARNING_LIGHT,
+                    PlotI18n.tr("plugin.road.profile_editor_confirm_affect_summary", affectCount));
+            }
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_confirm") + "##close_apply")) {
             applyWindowSessionConfirm(ctx, liveNetwork);
             closeConfirmPending = false;

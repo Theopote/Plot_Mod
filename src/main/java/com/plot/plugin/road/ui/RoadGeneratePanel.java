@@ -70,7 +70,7 @@ public final class RoadGeneratePanel {
         com.plot.api.world.PlacementReadiness buildReadiness =
             ctx.host().projection().checkWorldModificationReadiness();
 
-        RoadSelectionHeader.render(ctx);
+        renderPreviewStatusCard();
         ImGui.separator();
         renderNetworkBuildScope(network);
         if (!network.getEdges().isEmpty()) {
@@ -106,6 +106,31 @@ public final class RoadGeneratePanel {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.generate.workflow_hint"));
+    }
+
+    private void renderPreviewStatusCard() {
+        var preview = ctx.previewManager();
+        if (preview.isPreviewJobRunning()) {
+            ImGui.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.road.preview_status_computing"));
+            return;
+        }
+        if (preview.isBuildPreviewCurrent()) {
+            ImGui.textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.road.preview_status_ready"));
+            return;
+        }
+        if (preview.needsPreviewRecalc()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.preview_status_stale"));
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.preview_status_none"));
     }
 
     private void renderProfileWorkspace(RoadNetwork network) {
@@ -296,6 +321,7 @@ public final class RoadGeneratePanel {
             || !buildReadiness.ready()
             || ctx.host().placement().isBusy()
             || ctx.previewManager().isPreviewJobRunning()
+            || !ctx.previewManager().isBuildPreviewCurrent()
             || validationReport.blocksBuild()
             || partialFailure;
         if (buildDisabled) {
@@ -385,9 +411,16 @@ public final class RoadGeneratePanel {
             }
 
             ImGui.separator();
+            boolean previewCurrent = ctx.previewManager().isBuildPreviewCurrent();
+            if (!previewCurrent) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.build_blocked_stale_preview"));
+            }
             boolean canBuild = readiness.ready()
                 && !ctx.host().placement().isBusy()
                 && !ctx.previewManager().isPreviewJobRunning()
+                && previewCurrent
                 && !validationReport.blocksBuild()
                 && !partialFailure;
             if (!canBuild) {

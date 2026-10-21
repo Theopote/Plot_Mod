@@ -22,6 +22,7 @@ import com.plot.plugin.road.ui.RoadPathOverviewPanel;
 import com.plot.plugin.road.ui.RoadIntersectionDetailPanel;
 import com.plot.plugin.road.ui.RoadIntersectionListPanel;
 import com.plot.plugin.road.ui.RoadPathPanel;
+import com.plot.plugin.road.ui.RoadShellContextStrip;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
@@ -114,6 +115,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
 
         toolbarPanel.render();
+        RoadShellContextStrip.render(ctx);
 
         RoadUiTab pendingTab = ctx.pendingTab();
 

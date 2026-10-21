@@ -498,6 +498,11 @@ public final class RoadPreviewManager {
         return lastGenerationResult != null && !lastGenerationResult.placementRecords.isEmpty();
     }
 
+    /** 当前预览可用于投影/建造：有效、未过期且不在计算中。 */
+    public boolean isBuildPreviewCurrent() {
+        return hasValidPreview() && !previewNeedsRecalc && !isPreviewJobRunning();
+    }
+
     /**
      * 按路网变更类型失效预览：纵断面编辑仅标记建造预览过期，保留地形采样。
      */
@@ -548,6 +553,10 @@ public final class RoadPreviewManager {
     }
 
     public void buildRoadInWorld() {
+        if (!isBuildPreviewCurrent()) {
+            status.error(PlotI18n.tr("plugin.road.build_blocked_stale_preview"));
+            return;
+        }
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.build_no_blocks"));
             return;
