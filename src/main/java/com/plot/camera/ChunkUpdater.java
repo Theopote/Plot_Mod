@@ -92,7 +92,7 @@ public final class ChunkUpdater {
         }
         expandTo = Math.min(VANILLA_OPTION_MAX, expandTo);
 
-        // 尚未真正抬高时先记下 override，供 getClampedViewDistance 使用；落地仍走防抖
+        // 防抖窗口内先记下目标；真正写 options / PlayerManager 仍走落地
         setOverride(expandTo);
 
         if (!immediate && expandTo > lastAppliedChunks && lastAppliedChunks >= 0) {

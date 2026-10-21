@@ -7,8 +7,6 @@
 	],
 	"client": [
 		"GameRendererMixin",
-		"GameOptionsMixin",
-		"IntegratedServerMixin",
 		"RenderSystemMixin",
 		"WorldRendererMixin",
 		"FogRendererMixin",

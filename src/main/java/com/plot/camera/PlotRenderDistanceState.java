@@ -1,10 +1,9 @@
 package com.plot.camera;
 
 /**
- * Plot 临时渲染距离状态（无客户端依赖，供集成服 mixin 读取）。
+ * Plot 临时渲染距离状态（由 {@link ChunkUpdater} 读写）。
  * <p>
- * 上限必须为原版 32：再高会撑破 {@code LevelPropagator} 内部表，导致
- * {@code ArrayIndexOutOfBoundsException} 崩服。
+ * 上限必须为原版 32：再高会撑破 {@code LevelPropagator} 内部表。
  */
 public final class PlotRenderDistanceState {
     /** 与原版 {@code ServerChunkLoadingManager.setViewDistance} 硬顶一致 */
