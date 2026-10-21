@@ -40,10 +40,32 @@ public final class EarthworkBuildManager {
     }
 
     /**
+     * UI 用资格检查（地形对比走短 TTL 缓存，避免每帧全量扫格卡死渲染线程）。
+     *
      * @return 拒绝原因（已本地化文案）；可施工时返回 null
      */
     public String validateBuildEligibility(EarthworkProject project, String builtRegionId) {
-        return validateBuildEligibility(project, builtRegionId, clientWorld(), true, null);
+        return validateBuildEligibility(project, builtRegionId, clientWorld(), true, null, false);
+    }
+
+    /**
+     * 按钮启用态：跳过地形全量对比（大场地可达数十万格），正式施工前仍会强制校验。
+     */
+    public String validateBuildEligibilityWithoutTerrain(EarthworkProject project, String builtRegionId) {
+        return validateBuildEligibility(
+            project,
+            builtRegionId,
+            clientWorld(),
+            true,
+            TerrainSnapshot.ComparisonResult.uiSkipTerrain(),
+            false);
+    }
+
+    /**
+     * 正式施工前资格检查：强制刷新地形对比。
+     */
+    public String validateBuildEligibilityFresh(EarthworkProject project, String builtRegionId) {
+        return validateBuildEligibility(project, builtRegionId, clientWorld(), true, null, true);
     }
 
     /**
@@ -58,6 +80,17 @@ public final class EarthworkBuildManager {
             World world,
             boolean requireWorld,
             TerrainSnapshot.ComparisonResult terrainComparisonOverride) {
+        return validateBuildEligibility(
+            project, builtRegionId, world, requireWorld, terrainComparisonOverride, false);
+    }
+
+    String validateBuildEligibility(
+            EarthworkProject project,
+            String builtRegionId,
+            World world,
+            boolean requireWorld,
+            TerrainSnapshot.ComparisonResult terrainComparisonOverride,
+            boolean forceTerrainRefresh) {
         if (!previewManager.hasValidPreview()) {
             return PlotI18n.tr("plugin.earthwork.build_preview_not_valid");
         }
@@ -78,7 +111,7 @@ public final class EarthworkBuildManager {
 
         TerrainSnapshot.ComparisonResult terrainComparison = terrainComparisonOverride;
         if (terrainComparison == null && world != null) {
-            terrainComparison = previewManager.comparePreviewTerrainWithWorld(world);
+            terrainComparison = previewManager.comparePreviewTerrainWithWorld(world, forceTerrainRefresh);
         }
         String terrainRejection = rejectIfTerrainUnsafe(world != null, terrainComparison);
         if (terrainRejection != null) {
@@ -103,8 +136,9 @@ public final class EarthworkBuildManager {
      * 单测入口：无 Minecraft 客户端世界时允许 {@code requireWorld=false}。
      */
     void buildInWorld(EarthworkProject project, String builtRegionId, boolean requireWorld) {
+        // 真正落地方块前强制重扫地形，不用 UI 缓存
         String rejection = validateBuildEligibility(
-            project, builtRegionId, clientWorld(), requireWorld, null);
+            project, builtRegionId, clientWorld(), requireWorld, null, true);
         if (rejection != null) {
             statusSink.accept(rejection);
             return;

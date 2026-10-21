@@ -23,6 +23,10 @@ import java.util.Map;
 /** 土方生成 Tab：预览计算、网格示意与落地确认。 */
 public final class EarthworkGeneratePanel {
     private final EarthworkUiContext ctx;
+    /** 确认弹窗内缓存，避免每帧全量地形对比卡死渲染线程。 */
+    private boolean confirmChecksReady;
+    private String confirmEligibility;
+    private TerrainSnapshot.ComparisonResult confirmTerrainComparison;
 
     public EarthworkGeneratePanel(EarthworkUiContext ctx) {
         this.ctx = ctx;
@@ -124,8 +128,10 @@ public final class EarthworkGeneratePanel {
     public void renderPreviewBuildButtons(EarthworkGenerationResult preview) {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean hasPlacements = preview != null && !preview.placementRecords.isEmpty();
+        // 按钮启用态不扫地形（大场地可达数十万格）；打开确认弹窗 / 真正生成时再校验
         boolean buildable = ctx.previewManager().hasValidPreview()
-            && ctx.buildManager().validateBuildEligibility(ctx.project(), ctx.selectedRegionId()) == null;
+            && ctx.buildManager().validateBuildEligibilityWithoutTerrain(
+                ctx.project(), ctx.selectedRegionId()) == null;
         if (!hasPlacements) {
             ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
             ImGui.beginDisabled();
@@ -195,6 +201,9 @@ public final class EarthworkGeneratePanel {
         if (ctx.buildConfirmPending()) {
             ImGui.openPopup("##earthwork_build_confirm");
             ctx.setBuildConfirmPending(false);
+            confirmChecksReady = false;
+            confirmEligibility = null;
+            confirmTerrainComparison = null;
         }
 
         if (ImGui.beginPopupModal("##earthwork_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
@@ -211,9 +220,15 @@ public final class EarthworkGeneratePanel {
             }
 
             ImGui.separator();
-            // 地形过期、身份、占用等一律由 BuildManager 统一校验；弹窗只展示原因
-            String eligibility = ctx.buildManager().validateBuildEligibility(
-                ctx.project(), ctx.selectedRegionId());
+            // 仅在弹窗打开时做一次强制地形校验并缓存，禁止每帧全量扫格
+            if (!confirmChecksReady) {
+                confirmEligibility = ctx.buildManager().validateBuildEligibilityFresh(
+                    ctx.project(), ctx.selectedRegionId());
+                confirmTerrainComparison = ctx.previewManager().comparePreviewTerrainWithWorld(
+                    EarthworkUiWidgets.getClientWorld(), false);
+                confirmChecksReady = true;
+            }
+            String eligibility = confirmEligibility;
             boolean canBuild = eligibility == null && readiness.ready();
             if (eligibility != null) {
                 ImGui.textColored(PluginUiColors.WARNING, eligibility);
@@ -222,25 +237,22 @@ public final class EarthworkGeneratePanel {
                     if (region != null) {
                         ctx.recalculatePreview();
                     }
+                    confirmChecksReady = false;
                     ImGui.closeCurrentPopup();
                 }
                 ImGui.sameLine();
-            } else {
-                // 仅地表材质漂移：提示但不禁用生成（大场地草方块等环境噪声很常见）
-                TerrainSnapshot.ComparisonResult comparison =
-                    ctx.previewManager().comparePreviewTerrainWithWorld(EarthworkUiWidgets.getClientWorld());
-                if (comparison != null && comparison.hasCosmeticSurfaceDrift()) {
-                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                        "plugin.earthwork.terrain_surface_drift_soft",
-                        comparison.surfaceOnlyChangedColumns(),
-                        comparison.totalColumns()));
-                }
+            } else if (confirmTerrainComparison != null && confirmTerrainComparison.hasCosmeticSurfaceDrift()) {
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                    "plugin.earthwork.terrain_surface_drift_soft",
+                    confirmTerrainComparison.surfaceOnlyChangedColumns(),
+                    confirmTerrainComparison.totalColumns()));
             }
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.build"), 120, 0)) {
                 ctx.buildManager().buildInWorld(ctx.project(), ctx.selectedRegionId());
+                confirmChecksReady = false;
                 ImGui.closeCurrentPopup();
             }
             if (!canBuild) {
@@ -248,9 +260,12 @@ public final class EarthworkGeneratePanel {
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                confirmChecksReady = false;
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();
+        } else {
+            confirmChecksReady = false;
         }
     }
 

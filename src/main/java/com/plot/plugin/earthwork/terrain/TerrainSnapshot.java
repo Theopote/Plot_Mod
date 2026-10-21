@@ -76,6 +76,11 @@ public final class TerrainSnapshot {
             int totalColumns,
             int groundElevationChangedColumns,
             int surfaceOnlyChangedColumns) {
+        /** UI 按钮态占位：跳过地形全量扫格，正式施工前仍会真实对比。 */
+        public static ComparisonResult uiSkipTerrain() {
+            return new ComparisonResult(true, 0, 0, 0, 0);
+        }
+
         public ComparisonResult(boolean matches, int changedColumns, int totalColumns) {
             this(
                 matches,

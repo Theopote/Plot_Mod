@@ -59,6 +59,13 @@ public final class EarthworkPreviewManager {
     private final java.util.concurrent.atomic.AtomicLong calculationGeneration =
         new java.util.concurrent.atomic.AtomicLong(0L);
 
+    /** 大场地全量对比可达数十万格；UI 每帧调用会卡死渲染线程，必须缓存。 */
+    private static final long TERRAIN_COMPARE_CACHE_TTL_MS = 5_000L;
+    private volatile TerrainSnapshot.ComparisonResult cachedTerrainComparison;
+    private volatile long cachedTerrainComparisonAtMs;
+    private volatile EarthworkGenerationResult cachedTerrainComparisonSource;
+    private volatile String cachedTerrainComparisonWorldKey;
+
     public EarthworkValidationReport getLastValidationReport() {
         return lastValidationReport;
     }
@@ -234,6 +241,7 @@ public final class EarthworkPreviewManager {
 
         lastGenerationResult = computed;
         previewState = EarthworkPreviewState.VALID;
+        invalidateTerrainComparisonCache();
 
         long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
         if (elapsedMs >= 50L) {
@@ -254,6 +262,7 @@ public final class EarthworkPreviewManager {
         clearGhostsOnly();
         lastGenerationResult = null;
         previewState = EarthworkPreviewState.FAILED;
+        invalidateTerrainComparisonCache();
         if (message != null && !message.isBlank()) {
             statusSink.accept(message);
         }
@@ -327,6 +336,7 @@ public final class EarthworkPreviewManager {
         lastGenerationResult = null;
         lastValidationReport = EarthworkValidationReport.empty();
         previewState = EarthworkPreviewState.NONE;
+        invalidateTerrainComparisonCache();
     }
 
     private void clearGhostsOnly() {
@@ -349,6 +359,7 @@ public final class EarthworkPreviewManager {
             calculationGeneration.incrementAndGet();
             previewState = EarthworkPreviewState.NONE;
         }
+        invalidateTerrainComparisonCache();
         if (project != null) {
             EarthworkSite site = project.getActiveSite();
             site.setLastReport(EarthworkVolumeReport.empty());
@@ -358,12 +369,54 @@ public final class EarthworkPreviewManager {
         }
     }
 
+    public void invalidateTerrainComparisonCache() {
+        cachedTerrainComparison = null;
+        cachedTerrainComparisonAtMs = 0L;
+        cachedTerrainComparisonSource = null;
+        cachedTerrainComparisonWorldKey = null;
+    }
+
+    /**
+     * 与当前世界对比预览快照（带短 TTL 缓存，供 UI 每帧查询）。
+     */
     public TerrainSnapshot.ComparisonResult comparePreviewTerrainWithWorld(World world) {
+        return comparePreviewTerrainWithWorld(world, false);
+    }
+
+    /**
+     * @param forceRefresh {@code true} 时忽略缓存（正式施工前必须用）
+     */
+    public TerrainSnapshot.ComparisonResult comparePreviewTerrainWithWorld(World world, boolean forceRefresh) {
         EarthworkGenerationResult result = lastGenerationResult;
         if (result == null || result.existingTerrainSnapshot.isEmpty() || world == null) {
             return null;
         }
-        return result.existingTerrainSnapshot.compareWithCurrentWorld(world);
+        String worldKey = TerrainSnapshotCache.worldKey(world);
+        long now = System.currentTimeMillis();
+        TerrainSnapshot.ComparisonResult cached = cachedTerrainComparison;
+        if (!forceRefresh
+            && cached != null
+            && cachedTerrainComparisonSource == result
+            && Objects.equals(cachedTerrainComparisonWorldKey, worldKey)
+            && now - cachedTerrainComparisonAtMs < TERRAIN_COMPARE_CACHE_TTL_MS) {
+            return cached;
+        }
+        long started = System.nanoTime();
+        TerrainSnapshot.ComparisonResult fresh = result.existingTerrainSnapshot.compareWithCurrentWorld(world);
+        long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+        if (elapsedMs >= 50L) {
+            LOGGER.info(
+                "地形对比耗时 {} ms（标高变化 {} / 地表漂移 {} / 总格 {}）",
+                elapsedMs,
+                fresh.groundElevationChangedColumns(),
+                fresh.surfaceOnlyChangedColumns(),
+                fresh.totalColumns());
+        }
+        cachedTerrainComparison = fresh;
+        cachedTerrainComparisonAtMs = now;
+        cachedTerrainComparisonSource = result;
+        cachedTerrainComparisonWorldKey = worldKey;
+        return fresh;
     }
 
     /**
