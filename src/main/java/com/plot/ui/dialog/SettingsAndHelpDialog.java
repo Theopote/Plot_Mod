@@ -850,10 +850,13 @@ public class SettingsAndHelpDialog {
 
     private void renderHelpMarkerInline(String id, String tooltip) {
         ImGui.sameLine();
-        ImGui.textDisabled("(?)##" + id);
+        // Text/TextDisabled 不会像 Button 那样隐藏 "##id"；用 PushID 区分即可
+        ImGui.pushID(id);
+        ImGui.textDisabled("(?)");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(tooltip);
         }
+        ImGui.popID();
     }
 
     private void applyCaptureSuppression(boolean captureActive) {
