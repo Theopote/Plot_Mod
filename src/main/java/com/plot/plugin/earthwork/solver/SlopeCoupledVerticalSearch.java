@@ -40,7 +40,15 @@ public final class SlopeCoupledVerticalSearch {
         long evaluateAfterRebuild(int candidateUniformOffset);
     }
 
-    public record SearchResult(int bestOffset, long bestObjective, int candidatesEvaluated) {
+    public record SearchResult(
+            int bestOffset,
+            long bestObjective,
+            int candidatesEvaluated,
+            int searchHalfRange,
+            boolean hitSearchBoundary) {
+        public SearchResult(int bestOffset, long bestObjective, int candidatesEvaluated) {
+            this(bestOffset, bestObjective, candidatesEvaluated, 0, false);
+        }
     }
 
     /**
@@ -49,7 +57,7 @@ public final class SlopeCoupledVerticalSearch {
      */
     public static SearchResult searchUniform(int halfRange, UniformCandidateEvaluator evaluator) {
         if (evaluator == null) {
-            return new SearchResult(0, 0L, 0);
+            return new SearchResult(0, 0L, 0, Math.max(0, halfRange), false);
         }
         int range = Math.max(0, halfRange);
         int bestOffset = 0;
@@ -64,7 +72,8 @@ public final class SlopeCoupledVerticalSearch {
                 bestOffset = dy;
             }
         }
-        return new SearchResult(bestOffset, bestObjective, evaluated);
+        boolean hitBoundary = range > 0 && Math.abs(bestOffset) == range;
+        return new SearchResult(bestOffset, bestObjective, evaluated, range, hitBoundary);
     }
 
     public static SearchResult searchUniform(UniformCandidateEvaluator evaluator) {

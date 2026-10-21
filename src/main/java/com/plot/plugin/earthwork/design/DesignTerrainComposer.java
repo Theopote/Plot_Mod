@@ -51,6 +51,9 @@ public final class DesignTerrainComposer {
             long residualImbalance,
             EarthworkBalanceStatus balanceStatus,
             int balanceSearchHalfRange,
+            int balanceBestOffset,
+            boolean balanceSearchHitBoundary,
+            boolean hasFixedElevationConstraints,
             List<String> warnings) {
         public ComposeResult {
             zoneEvaluators = zoneEvaluators != null ? Map.copyOf(zoneEvaluators) : Map.of();
@@ -60,14 +63,16 @@ public final class DesignTerrainComposer {
         }
 
         public ComposeResult(DesignTerrainGrid grid, Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
-            this(grid, zoneEvaluators, Map.of(), 0L, EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
+            this(grid, zoneEvaluators, Map.of(), 0L, EarthworkBalanceStatus.NOT_REQUESTED,
+                0, 0, false, false, List.of());
         }
 
         public ComposeResult(
                 DesignTerrainGrid grid,
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
                 Map<String, ResolvedDesignSurface> resolvedSurfaces) {
-            this(grid, zoneEvaluators, resolvedSurfaces, 0L, EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
+            this(grid, zoneEvaluators, resolvedSurfaces, 0L, EarthworkBalanceStatus.NOT_REQUESTED,
+                0, 0, false, false, List.of());
         }
     }
 
@@ -105,7 +110,7 @@ public final class DesignTerrainComposer {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(
                 new DesignTerrainGrid(), Map.of(), Map.of(), 0L,
-                EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
+                EarthworkBalanceStatus.NOT_REQUESTED, 0, 0, false, false, List.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
         Objects.requireNonNull(transformer, "transformer");
@@ -153,8 +158,8 @@ public final class DesignTerrainComposer {
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> finalEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(finalResolved);
         grid.finalizeStats();
-        EarthworkBalanceStatus status = classifyBalanceStatus(
-            balanceOutcome, hasConstraintLimitedSurfaces(resolvedSurfaces));
+        boolean hasFixed = hasConstraintLimitedSurfaces(resolvedSurfaces);
+        EarthworkBalanceStatus status = classifyBalanceStatus(balanceOutcome, hasFixed);
         List<String> warnings = new ArrayList<>();
         if (status == EarthworkBalanceStatus.BEST_EFFORT
             || status == EarthworkBalanceStatus.CONSTRAINT_LIMITED) {
@@ -167,6 +172,9 @@ public final class DesignTerrainComposer {
             balanceOutcome.residualImbalance(),
             status,
             balanceOutcome.searchHalfRange(),
+            balanceOutcome.uniformOffset(),
+            balanceOutcome.hitSearchBoundary(),
+            hasFixed,
             warnings);
     }
 
@@ -174,22 +182,27 @@ public final class DesignTerrainComposer {
             int uniformOffset,
             long residualImbalance,
             boolean ran,
-            int searchHalfRange) {
+            int searchHalfRange,
+            boolean hitSearchBoundary) {
         static BalanceSearchOutcome skipped() {
-            return new BalanceSearchOutcome(0, 0L, false, 0);
+            return new BalanceSearchOutcome(0, 0L, false, 0, false);
         }
     }
 
+    /**
+     * CONSTRAINT_LIMITED 仅表示「残余&gt;0 且场地存在固定标高约束」，
+     * 不证明残余就是这些约束造成的；搜索触界见 {@link BalanceSearchOutcome#hitSearchBoundary()}。
+     */
     private static EarthworkBalanceStatus classifyBalanceStatus(
             BalanceSearchOutcome outcome,
-            boolean constraintLimited) {
+            boolean hasFixedElevationConstraints) {
         if (outcome == null || !outcome.ran()) {
             return EarthworkBalanceStatus.NOT_REQUESTED;
         }
         if (outcome.residualImbalance() <= 0L) {
             return EarthworkBalanceStatus.BALANCED;
         }
-        return constraintLimited
+        return hasFixedElevationConstraints
             ? EarthworkBalanceStatus.CONSTRAINT_LIMITED
             : EarthworkBalanceStatus.BEST_EFFORT;
     }
@@ -388,10 +401,14 @@ public final class DesignTerrainComposer {
             cumulativeUniformOffset = polish.uniformOffset();
         } else {
             long residual = SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
-            polish = new BalanceSearchOutcome(cumulativeUniformOffset, residual, true, 0);
+            polish = new BalanceSearchOutcome(cumulativeUniformOffset, residual, true, 0, false);
         }
         return new BalanceSearchOutcome(
-            cumulativeUniformOffset, polish.residualImbalance(), true, polish.searchHalfRange());
+            cumulativeUniformOffset,
+            polish.residualImbalance(),
+            true,
+            polish.searchHalfRange(),
+            polish.hitSearchBoundary());
     }
 
     /**
@@ -435,7 +452,8 @@ public final class DesignTerrainComposer {
             effectiveBreaklines,
             canvasScale);
         long residual = search.bestObjective() == Long.MAX_VALUE ? 0L : search.bestObjective();
-        return new BalanceSearchOutcome(best, residual, true, halfRange);
+        return new BalanceSearchOutcome(
+            best, residual, true, halfRange, search.hitSearchBoundary());
     }
 
     private static int resolveUniformSearchHalfRange(

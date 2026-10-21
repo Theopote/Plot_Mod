@@ -155,6 +155,28 @@ class ZoneTargetElevationStatsTest {
             result.volumeReport.cutChangedBlocks());
     }
 
+    @Test
+    void explicitUnassignedMetaIsNotOverriddenByDesignGrid() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        putCell(grid, 9, 0, "zone-grid", 65);
+
+        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(1, 0, null, 0, 0);
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
+        result.designTerrainGrid = grid;
+        result.volumeReport = totals;
+        result.siteVolumeReport = new SiteEarthworkReport(totals, Map.of(
+            "zone-grid",
+            com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(1, 0, null, 0, 0)));
+        // 明确 UNASSIGNED，即使网格在 (9,0) 有 zone-grid
+        putPlacement(result, new BlockPos(9, 60, 0), EarthworkGenerationResult.ChangeType.CUT, "");
+
+        result.syncChangedBlocksFromPlacements();
+
+        assertEquals(1L, result.unassignedCutChangedBlocks);
+        assertEquals(0L, result.siteVolumeReport.zoneReport("zone-grid").cutChangedBlocks());
+        assertEquals(1L, result.volumeReport.cutChangedBlocks());
+    }
+
     private static void putPlacement(
             EarthworkGenerationResult result,
             BlockPos pos,

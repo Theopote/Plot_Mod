@@ -47,6 +47,12 @@ public class EarthworkGenerationResult {
     public EarthworkBalanceStatus balanceStatus = EarthworkBalanceStatus.NOT_REQUESTED;
     /** 统一 ΔY 搜索半幅；未运行时为 0。 */
     public int balanceSearchHalfRange;
+    /** 最优统一偏移候选。 */
+    public int balanceBestOffset;
+    /** 最优偏移是否落在搜索半幅边界（可能范围不足，非严格证明）。 */
+    public boolean balanceSearchHitBoundary;
+    /** 场地是否存在固定标高/道路等不可调设计面（诊断用，不等同于残余根因）。 */
+    public boolean balanceHasFixedElevationConstraints;
     /** 无法归属到任何 Zone 的挖/填改方块数（仍计入全场）。 */
     public long unassignedCutChangedBlocks;
     public long unassignedFillChangedBlocks;
@@ -119,10 +125,11 @@ public class EarthworkGenerationResult {
 
     private String resolveZoneId(BlockPos pos) {
         PlacementMeta meta = placementMeta.get(pos);
-        if (meta != null && meta.isAssigned()) {
+        if (meta != null) {
+            // 明确存在的 UNASSIGNED（zoneId 为空）必须尊重，不得被网格回退覆盖
             return meta.zoneId();
         }
-        // 兼容旧路径：无 meta 时回退网格（不应作为主路径）
+        // 仅真正缺失元数据时兼容旧路径回退
         if (pos == null || designTerrainGrid == null) {
             return null;
         }

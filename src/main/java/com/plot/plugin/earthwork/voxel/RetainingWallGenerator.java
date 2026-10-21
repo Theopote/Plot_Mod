@@ -21,12 +21,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 沿挡土界折线放置直立墙方块。
  * <p>
- * 共享 X/Z 列的多段墙：合并高度区间（取并集），材质保留先到达该列的墙（确定性）；
- * 仅补写尚未覆盖的 Y 层，避免整列跳过导致丢高度。
+ * 共享 X/Z 列的多段墙按<strong>逐层 Y</strong>认领，而非 min/max 包围盒：
+ * <ul>
+ *   <li>不连续区间保留中间空隙，不会填入设计中不存在的方块</li>
+ *   <li>同一 Y 被多段占用时：先到达者保留材质与 {@link PlacementMeta}（确定性）</li>
+ *   <li>后到达段只写入尚未认领的 Y</li>
+ * </ul>
  */
 public final class RetainingWallGenerator {
     public static final String DEFAULT_WALL_BLOCK = "minecraft:stone_bricks";
@@ -114,7 +119,7 @@ public final class RetainingWallGenerator {
     }
 
     /**
-     * 同列合并：高度取并集；材质保留先到达者；仅写入尚未覆盖的 Y。
+     * 同列按 Y 层认领：只写入尚未占用的高度；不连续区间不填空隙。
      */
     static void placeOrMergeColumn(
             EarthworkGenerationResult result,
@@ -127,28 +132,16 @@ public final class RetainingWallGenerator {
             int top,
             String wallBlockId,
             PlacementMeta meta) {
-        ColumnPlan existing = columnPlans.get(columnKey);
-        if (existing == null) {
-            ColumnPlan plan = new ColumnPlan(bottom, top, wallBlockId, meta);
-            columnPlans.put(columnKey, plan);
-            for (int y = bottom; y <= top; y++) {
-                recordWallBlock(result, world, new BlockPos(worldX, y, worldZ), wallBlockId, meta);
-            }
-            return;
-        }
-        int newBottom = Math.min(existing.bottom, bottom);
-        int newTop = Math.max(existing.top, top);
-        // 材质：先到达者胜（确定性，不依赖后续墙材质）
-        String blockId = existing.blockId;
-        PlacementMeta keepMeta = existing.meta;
-        for (int y = newBottom; y <= newTop; y++) {
-            if (y >= existing.bottom && y <= existing.top) {
+        ColumnPlan plan = columnPlans.computeIfAbsent(columnKey, ignored -> new ColumnPlan());
+        PlacementMeta safeMeta = meta != null ? meta : PlacementMeta.UNASSIGNED;
+        String blockId = wallBlockId != null ? wallBlockId : DEFAULT_WALL_BLOCK;
+        for (int y = bottom; y <= top; y++) {
+            if (plan.occupied.containsKey(y)) {
                 continue;
             }
-            recordWallBlock(result, world, new BlockPos(worldX, y, worldZ), blockId, keepMeta);
+            plan.occupied.put(y, new OccupiedY(blockId, safeMeta));
+            recordWallBlock(result, world, new BlockPos(worldX, y, worldZ), blockId, safeMeta);
         }
-        existing.bottom = newBottom;
-        existing.top = newTop;
     }
 
     private static void recordWallBlock(
@@ -193,18 +186,11 @@ public final class RetainingWallGenerator {
         return ((long) worldX << 32) | (worldZ & 0xFFFFFFFFL);
     }
 
-    /** 单测可见：列合并状态。 */
+    /** 单测可见：列内已占用的 Y → 材质/归属。 */
     static final class ColumnPlan {
-        int bottom;
-        int top;
-        final String blockId;
-        final PlacementMeta meta;
+        final Map<Integer, OccupiedY> occupied = new TreeMap<>();
+    }
 
-        ColumnPlan(int bottom, int top, String blockId, PlacementMeta meta) {
-            this.bottom = bottom;
-            this.top = top;
-            this.blockId = blockId;
-            this.meta = meta != null ? meta : PlacementMeta.UNASSIGNED;
-        }
+    record OccupiedY(String blockId, PlacementMeta meta) {
     }
 }

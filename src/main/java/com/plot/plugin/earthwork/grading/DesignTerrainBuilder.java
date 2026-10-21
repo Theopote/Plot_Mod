@@ -26,11 +26,15 @@ public final class DesignTerrainBuilder {
             long residualImbalance,
             EarthworkBalanceStatus balanceStatus,
             int balanceSearchHalfRange,
+            int balanceBestOffset,
+            boolean balanceSearchHitBoundary,
+            boolean hasFixedElevationConstraints,
             List<String> warnings) {
         public BuildResult(
                 DesignTerrainGrid grid,
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
-            this(grid, zoneEvaluators, 0L, EarthworkBalanceStatus.NOT_REQUESTED, 0, List.of());
+            this(grid, zoneEvaluators, 0L, EarthworkBalanceStatus.NOT_REQUESTED,
+                0, 0, false, false, List.of());
         }
     }
 
@@ -68,6 +72,9 @@ public final class DesignTerrainBuilder {
             composed.residualImbalance(),
             composed.balanceStatus(),
             composed.balanceSearchHalfRange(),
+            composed.balanceBestOffset(),
+            composed.balanceSearchHitBoundary(),
+            composed.hasFixedElevationConstraints(),
             composed.warnings());
     }
 }

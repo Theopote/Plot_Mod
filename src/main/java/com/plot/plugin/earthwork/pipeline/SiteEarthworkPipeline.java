@@ -100,6 +100,9 @@ public final class SiteEarthworkPipeline {
         result.balanceResidualImbalance = design.residualImbalance();
         result.balanceStatus = design.balanceStatus();
         result.balanceSearchHalfRange = design.balanceSearchHalfRange();
+        result.balanceBestOffset = design.balanceBestOffset();
+        result.balanceSearchHitBoundary = design.balanceSearchHitBoundary();
+        result.balanceHasFixedElevationConstraints = design.hasFixedElevationConstraints();
         if (design.warnings() != null && !design.warnings().isEmpty()) {
             result.warnings.addAll(design.warnings());
         }

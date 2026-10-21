@@ -35,6 +35,9 @@ public final class EarthworkGenerationResults {
         target.balanceResidualImbalance = source.balanceResidualImbalance;
         target.balanceStatus = source.balanceStatus;
         target.balanceSearchHalfRange = source.balanceSearchHalfRange;
+        target.balanceBestOffset = source.balanceBestOffset;
+        target.balanceSearchHitBoundary = source.balanceSearchHitBoundary;
+        target.balanceHasFixedElevationConstraints = source.balanceHasFixedElevationConstraints;
         target.unassignedCutChangedBlocks = source.unassignedCutChangedBlocks;
         target.unassignedFillChangedBlocks = source.unassignedFillChangedBlocks;
         target.structureChangedBlocks = source.structureChangedBlocks;
