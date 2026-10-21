@@ -65,12 +65,13 @@ public class PluginManager implements IPluginManager {
 
     private void registerBuiltinPlugins() {
         try {
-            installPlugin(new com.plot.plugin.EarthworkPlugin(), true);
-            installPlugin(new com.plot.plugin.RoadSystemPlugin(), true);
-            installPlugin(new com.plot.plugin.BuildingPlugin(), true);
-            installPlugin(new com.plot.plugin.PowerLinePlugin(), true);
-            installPlugin(new com.plot.plugin.PatternPlugin(), true);
-            LogManager.getInstance().info("Registered {} plugins after builtins", plugins.size());
+            // 仅 initialize，不立即 enable：首次打开 Plot 时避免同步创建各插件管线/加载项目
+            installPlugin(new com.plot.plugin.EarthworkPlugin(), false);
+            installPlugin(new com.plot.plugin.RoadSystemPlugin(), false);
+            installPlugin(new com.plot.plugin.BuildingPlugin(), false);
+            installPlugin(new com.plot.plugin.PowerLinePlugin(), false);
+            installPlugin(new com.plot.plugin.PatternPlugin(), false);
+            LogManager.getInstance().info("Registered {} plugins after builtins (lazy enable)", plugins.size());
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to register builtin plugins", e);
         }
@@ -597,6 +598,10 @@ public class PluginManager implements IPluginManager {
         deactivateActivePlugin();
         activePlugin = plugin;
         if (activePlugin != null) {
+            // 懒启用：用户首次点选插件时再走 onEnable（生成器/项目加载等）
+            if (!activePlugin.isEnabled()) {
+                enablePlugin(activePlugin);
+            }
             PluginState oldState = activePlugin.getState();
             activePlugin.onActivate();
             if (activePlugin.isEnabled()) {

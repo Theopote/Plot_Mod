@@ -204,8 +204,11 @@ public class ImGuiRenderer {
         }
     }
 
-    /** 仅合并中日韩字形，刻意排除 Basic Latin，避免中文字体把英文字母替换成字距偏大的版本 */
-    private static final short[] CJK_ONLY_GLYPH_RANGES = new short[] {
+    /**
+     * 全量 CJK 回退（约 2 万汉字）：仅当 Simplified Common 不可用时使用。
+     * 刻意排除 Basic Latin，避免中文字体覆盖西文字距。
+     */
+    private static final short[] CJK_FULL_FALLBACK_GLYPH_RANGES = new short[] {
         (short) 0x2000, (short) 0x206F, // 通用标点
         (short) 0x3000, (short) 0x30FF, // CJK 符号/假名
         (short) 0x31F0, (short) 0x31FF,
@@ -252,9 +255,10 @@ public class ImGuiRenderer {
             keptLatinGlyphRanges = concatGlyphRanges(
                 appendGlyphRange(io.getFonts().getGlyphRangesDefault(), (short) 0x2264, (short) 0x2265),
                 UI_SYMBOL_GLYPH_RANGES);
-            keptCjkGlyphRanges = CJK_ONLY_GLYPH_RANGES;
+            // 常用简体子集（约 2500 字）替代全量 CJK，显著缩短首次打开时的字体图集构建
+            keptCjkGlyphRanges = resolveCjkGlyphRanges(io);
             keptSymbolGlyphRanges = UI_SYMBOL_GLYPH_RANGES;
-            io.getFonts().setTexDesiredWidth(4096);
+            io.getFonts().setTexDesiredWidth(2048);
 
             // 1) 西文主字体：字母间距正常，字号略大（含 UI 符号区段）
             latinConfig = new ImFontConfig();
@@ -436,6 +440,56 @@ public class ImGuiRenderer {
             }
         }
         return null;
+    }
+
+    /**
+     * 取 ImGui 内置简体常用字表，并去掉 Basic Latin，避免 merge 时覆盖西文字形。
+     */
+    private static short[] resolveCjkGlyphRanges(ImGuiIO io) {
+        try {
+            short[] common = io.getFonts().getGlyphRangesChineseSimplifiedCommon();
+            short[] stripped = withoutBasicLatin(common);
+            if (stripped != null && stripped.length > 1) {
+                LOGGER.info("CJK glyph ranges: ChineseSimplifiedCommon (no Basic Latin), {} entries",
+                    stripped.length);
+                return stripped;
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("ChineseSimplifiedCommon ranges unavailable, falling back to full CJK: {}",
+                t.getMessage());
+        }
+        return CJK_FULL_FALLBACK_GLYPH_RANGES;
+    }
+
+    /** 去掉 &lt; U+2000 的区间（Basic Latin / Latin-1），保留标点与汉字。 */
+    private static short[] withoutBasicLatin(short[] ranges) {
+        if (ranges == null || ranges.length == 0) {
+            return ranges;
+        }
+        java.util.ArrayList<Short> out = new java.util.ArrayList<>(ranges.length);
+        for (int i = 0; i + 1 < ranges.length; i += 2) {
+            short from = ranges[i];
+            short to = ranges[i + 1];
+            if (from == 0) {
+                break;
+            }
+            int fromU = from & 0xFFFF;
+            int toU = to & 0xFFFF;
+            if (toU < 0x2000) {
+                continue;
+            }
+            if (fromU < 0x2000) {
+                from = (short) 0x2000;
+            }
+            out.add(from);
+            out.add(to);
+        }
+        out.add((short) 0);
+        short[] result = new short[out.size()];
+        for (int i = 0; i < out.size(); i++) {
+            result[i] = out.get(i);
+        }
+        return result;
     }
 
     /** 在 ImGui 字形范围数组末尾（终止 0 之前）追加一段 codepoint 区间。 */

@@ -48,9 +48,17 @@ public class ResourceManager {
             // 1.21.11：NativeImage/RenderSystem 的纹理上传 API 发生变化。
             // 这里改用 ImageIO -> RGBA ByteBuffer -> glTexImage2D 的纯 OpenGL 路径，避免版本耦合。
             try (InputStream in = resolvedResource.resource().getInputStream()) {
-                BufferedImage image = resolvedResource.identifier().getPath().endsWith(".svg")
-                        ? SvgUtils.readSvg(in)
-                        : ImageIO.read(in);
+                BufferedImage image;
+                if (resolvedResource.identifier().getPath().endsWith(".svg")) {
+                    try {
+                        image = SvgUtils.readSvg(in);
+                    } catch (Throwable t) {
+                        throw new RuntimeException(
+                            "SVG decode failed: " + resolvedResource.identifier() + ": " + t, t);
+                    }
+                } else {
+                    image = ImageIO.read(in);
+                }
                 if (image == null) {
                     throw new RuntimeException("Failed to decode image: " + resolvedResource.identifier());
                 }

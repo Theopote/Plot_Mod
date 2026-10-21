@@ -43,14 +43,14 @@ public class ImGuiUtils {
             return textureCache.computeIfAbsent(texture, id -> {
                 try {
                     return loadTexture(id);
-                } catch (Exception e) {
-                    LOGGER.error("Failed to load texture {}: {}", texture, e.getMessage());
-                    // 返回默认纹理ID
+                } catch (Throwable e) {
+                    // 含 NoClassDefFoundError（如缺 Batik）：必须缓存失败结果，避免每帧重试拖垮渲染
+                    LOGGER.error("Failed to load texture {}: {}", texture, e.toString());
                     return getDefaultTextureId();
                 }
             });
-        } catch (Exception e) {
-            LOGGER.error("Error getting texture ID for {}: {}", texture, e.getMessage());
+        } catch (Throwable e) {
+            LOGGER.error("Error getting texture ID for {}: {}", texture, e.toString());
             return getDefaultTextureId();
         }
     }
@@ -67,8 +67,9 @@ public class ImGuiUtils {
                 textureCache.put(texture, textureId);
             }
             return textureId;
-        } catch (Exception e) {
-            LOGGER.error("Error trying texture ID for {}: {}", texture, e.getMessage());
+        } catch (Throwable e) {
+            LOGGER.error("Error trying texture ID for {}: {}", texture, e.toString());
+            textureCache.put(texture, 0);
             return 0;
         }
     }

@@ -56,6 +56,8 @@ public class TextureManager {
             }
         } catch (IOException e) {
             LOGGER.error("Failed to load texture: {}", identifier, e);
+            // 缓存失败，避免每帧重复 IO / SVG 解码
+            textureCache.put(key, 0);
             return 0;
         }
     }
@@ -83,7 +85,17 @@ public class TextureManager {
     }
 
     private int uploadTexture(InputStream is, String path) throws IOException {
-        BufferedImage image = path.endsWith(".svg") ? SvgUtils.readSvg(is) : ImageIO.read(is);
+        BufferedImage image;
+        if (path.endsWith(".svg")) {
+            try {
+                image = SvgUtils.readSvg(is);
+            } catch (Throwable t) {
+                // Batik 缺失或栅格化失败时转为 IOException，由上层缓存失败结果
+                throw new IOException("SVG decode failed for " + path + ": " + t, t);
+            }
+        } else {
+            image = ImageIO.read(is);
+        }
         if (image == null) {
             throw new IOException("Failed to decode image stream");
         }

@@ -49,15 +49,12 @@ public class ControlPanelIcons {
     public static void loadTextures() {
         LOGGER.info("Loading control panel icon textures...");
         try {
-            // 先检查所有图标的尺寸
-            checkIconsSize();
-            
             loadTexture(LOGO);
-            
+
             // 文件操作工具组
             loadTexture(UNDO);
             loadTexture(REDO);
-            
+
             // 视图控制工具组
             loadTexture(CAMERA);
             loadTexture(LOCK_CLOSED);
@@ -65,49 +62,18 @@ public class ControlPanelIcons {
 
             // 工具设置组
             loadTexture(MAGNET);
-            loadTexture(GRID);  // 使用loadTexture方法加载网格图标
+            loadTexture(GRID);
             loadTexture(CLEAR);
             loadTexture(BLOCK_CONFIG);
             loadTexture(LINE_TO_BLOCK);
             loadTexture(PROJECTION);
-            
+
             // 关闭按钮
             loadTexture(CLOSE);
-            
+
             LOGGER.info("Control panel icon textures loaded successfully");
         } catch (Exception e) {
             LOGGER.error("Failed to load control panel icon textures", e);
-        }
-    }
-
-    /**
-     * 检查所有图标的尺寸
-     */
-    private static void checkIconsSize() {
-        LOGGER.info("检查控制面板图标尺寸...");
-        try {
-            // 获取所有图标文件的路径
-            String[] iconNames = {
-                LOGO,  UNDO, REDO,
-                CAMERA, CAMERA_ORTHO, LOCK_CLOSED, LOCK_OPEN,
-                MAGNET, GRID, CLEAR, BLOCK_CONFIG, LINE_TO_BLOCK, PROJECTION,
-                CLOSE
-            };
-            
-            for (String iconName : iconNames) {
-                try {
-                    // 资源路径在资源包中必须使用小写目录名（Minecraft Identifier 区分大小写）
-                    String path = "assets/plot/textures/gui/controlpanel/" + iconName;
-                    com.plot.utils.ImageUtils.checkImageInfo(path);
-                } catch (Exception e) {
-                    // 文件不存在时跳过，不中断整个检查流程
-                    LOGGER.debug("图标文件不存在，跳过检查: {}", iconName);
-                }
-            }
-            
-            LOGGER.info("图标尺寸检查完成");
-        } catch (Exception e) {
-            LOGGER.error("检查图标尺寸时发生错误", e);
         }
     }
 
