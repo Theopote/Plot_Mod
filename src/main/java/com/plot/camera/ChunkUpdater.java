@@ -2,6 +2,7 @@ package com.plot.camera;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.world.World;
@@ -10,19 +11,21 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 区块更新器：正交视距/投影变化后，强制 WorldRenderer 按新视锥重收集可见区块，
- * 并在需要时临时提高客户端渲染距离以覆盖正交视野。
+ * 并在需要时临时提高客户端与集成服渲染距离以覆盖正交视野（含矩形四角）。
  * <p>
- * 仅改投影矩阵时 Minecraft 不会自动 {@code applyFrustum}（需相机位移或
- * {@link WorldRenderer#scheduleTerrainUpdate()}），因此放大视图范围后外围会空白，
- * 直到中键拖动或切换相机。此外正交半宽常超过「视频设置 → 渲染距离」，
- * 超出部分本就没有 BuiltChunk，必须提升渲染距离才能显示。
+ * 原版 {@code getClampedViewDistance()} = min(客户端选项, 服务端下发距离)。
+ * 只改客户端选项时，圆形可见区仍被服务端距离卡住，看起来像「最大圆固定」。
  */
 public final class ChunkUpdater {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/ChunkUpdater");
-    /** 客户端渲染距离上限（与原版选项一致） */
+    /** 原版渲染距离选项上限（高内存 32 / 低内存 16） */
     private static final int MAX_CLIENT_VIEW_DISTANCE = 32;
-    /** Plot 打开前保存的渲染距离；&lt;0 表示未改动 */
+    private static final int RENDER_DISTANCE_PADDING_CHUNKS = 3;
+
     private static int savedClientViewDistance = -1;
+    private static int savedServerViewDistanceHint = -1;
+    private static int savedIntegratedServerViewDistance = -1;
+    private static int savedIntegratedSimulationDistance = -1;
 
     private ChunkUpdater() {
     }
@@ -58,12 +61,11 @@ public final class ChunkUpdater {
                 / (float) client.getWindow().getFramebufferHeight();
         }
         float halfHeight = halfWidth / Math.max(0.1f, aspect);
-        float halfExtent = Math.max(halfWidth, halfHeight);
+        // 矩形视锥四角到中心的距离；圆形渲染区必须盖住四角，否则边角空白
+        float cornerRadius = (float) Math.hypot(halfWidth, halfHeight);
 
-        // 正交视野半宽超出当前渲染距离时，临时提高（关闭 Plot 时恢复）
-        ensureClientRenderDistance(client, halfExtent);
+        ensureRenderDistanceCovers(client, cornerRadius);
 
-        // 关键：下一帧用新正交投影重建遮挡图并 applyFrustum
         worldRenderer.scheduleTerrainUpdate();
 
         World world = client.world;
@@ -88,7 +90,7 @@ public final class ChunkUpdater {
         maxChunkZ = Math.min(maxChunkZ, playerChunkZ + renderChunks);
 
         LOGGER.info(
-            "正在刷新正交视野区块: center=({}, {}), chunks X[{}..{}] Z[{}..{}], renderDist={}",
+            "正在刷新正交视野区块: center=({}, {}), chunks X[{}..{}] Z[{}..{}], clampedRenderDist={}",
             String.format("%.1f", centerX),
             String.format("%.1f", centerZ),
             minChunkX, maxChunkX, minChunkZ, maxChunkZ,
@@ -114,49 +116,107 @@ public final class ChunkUpdater {
     }
 
     /**
-     * 若正交半宽超过当前客户端渲染距离，临时提高渲染距离（仅升高，关闭 Plot 时恢复）。
+     * 让客户端钳制渲染距离与集成服视距足以覆盖正交矩形四角。
      */
-    private static void ensureClientRenderDistance(MinecraftClient client, float halfExtentBlocks) {
-        int neededChunks = (int) Math.ceil(halfExtentBlocks / 16.0) + 2;
+    private static void ensureRenderDistanceCovers(MinecraftClient client, float cornerRadiusBlocks) {
+        int neededChunks = (int) Math.ceil(cornerRadiusBlocks / 16.0) + RENDER_DISTANCE_PADDING_CHUNKS;
         neededChunks = Math.min(MAX_CLIENT_VIEW_DISTANCE, Math.max(2, neededChunks));
 
-        int current = client.options.getViewDistance().getValue();
-        if (neededChunks <= current) {
-            return;
+        var options = client.options;
+        int clientOption = options.getViewDistance().getValue();
+        int clampedBefore = options.getClampedViewDistance();
+
+        if (neededChunks > clientOption) {
+            if (savedClientViewDistance < 0) {
+                savedClientViewDistance = clientOption;
+            }
+            options.getViewDistance().setValue(neededChunks);
         }
 
-        if (savedClientViewDistance < 0) {
-            savedClientViewDistance = current;
+        // 抬高客户端缓存的「服务端视距」，否则 getClampedViewDistance 仍被旧值卡住
+        if (savedServerViewDistanceHint < 0) {
+            // 无法直接读私有字段；用当前钳制结果反推：clamped = min(client, server)
+            // 若 server>0 且限制了 client，则 clamped < clientOption
+            savedServerViewDistanceHint = clampedBefore;
+        }
+        // setServerViewDistance(0) 表示不钳制；我们设为至少 needed，避免 min() 压低
+        options.setServerViewDistance(Math.max(neededChunks, clampedBefore));
+
+        IntegratedServer server = client.getServer();
+        if (server != null) {
+            var playerManager = server.getPlayerManager();
+            int serverVd = playerManager.getViewDistance();
+            if (neededChunks > serverVd) {
+                if (savedIntegratedServerViewDistance < 0) {
+                    savedIntegratedServerViewDistance = serverVd;
+                }
+                playerManager.setViewDistance(neededChunks);
+                LOGGER.info("集成服视距: {} → {}", serverVd, neededChunks);
+            }
+            int sim = playerManager.getSimulationDistance();
+            // 模拟距离不必跟满视距（省 CPU），但过小会导致外围实体/方块更新异常；至少抬到视距的一半
+            int minSim = Math.max(sim, Math.min(neededChunks, Math.max(8, neededChunks / 2)));
+            if (minSim > sim) {
+                if (savedIntegratedSimulationDistance < 0) {
+                    savedIntegratedSimulationDistance = sim;
+                }
+                playerManager.setSimulationDistance(minSim);
+            }
         }
 
-        client.options.getViewDistance().setValue(neededChunks);
-        LOGGER.info(
-            "正交视野需要更大渲染距离: {} → {}（关闭 Plot 后恢复为 {}）",
-            current, neededChunks, savedClientViewDistance);
+        int clampedAfter = options.getClampedViewDistance();
+        if (clampedAfter != clampedBefore || neededChunks > clientOption) {
+            LOGGER.info(
+                "正交视野渲染距离: clientOption {}→{}, clamped {}→{}, needed≈{}（关闭 Plot 后恢复）",
+                clientOption, options.getViewDistance().getValue(),
+                clampedBefore, clampedAfter, neededChunks);
+        }
     }
 
     /**
-     * 恢复进入 Plot / 放大视图前的客户端渲染距离。
+     * 恢复进入 Plot / 放大视图前的客户端与集成服渲染距离。
      */
     public static void restoreClientRenderDistance() {
-        if (savedClientViewDistance < 0) {
-            return;
-        }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.options == null) {
             savedClientViewDistance = -1;
+            savedServerViewDistanceHint = -1;
+            savedIntegratedServerViewDistance = -1;
+            savedIntegratedSimulationDistance = -1;
             return;
         }
-        int restore = savedClientViewDistance;
-        savedClientViewDistance = -1;
+
         try {
-            int now = client.options.getViewDistance().getValue();
-            if (now != restore) {
-                client.options.getViewDistance().setValue(restore);
-                LOGGER.info("已恢复客户端渲染距离: {} → {}", now, restore);
+            IntegratedServer server = client.getServer();
+            if (server != null) {
+                var playerManager = server.getPlayerManager();
+                if (savedIntegratedServerViewDistance >= 0) {
+                    playerManager.setViewDistance(savedIntegratedServerViewDistance);
+                    LOGGER.info("已恢复集成服视距: {}", savedIntegratedServerViewDistance);
+                }
+                if (savedIntegratedSimulationDistance >= 0) {
+                    playerManager.setSimulationDistance(savedIntegratedSimulationDistance);
+                }
+            }
+
+            if (savedClientViewDistance >= 0) {
+                int now = client.options.getViewDistance().getValue();
+                if (now != savedClientViewDistance) {
+                    client.options.getViewDistance().setValue(savedClientViewDistance);
+                    LOGGER.info("已恢复客户端渲染距离: {} → {}", now, savedClientViewDistance);
+                }
+            }
+
+            if (savedServerViewDistanceHint >= 0) {
+                client.options.setServerViewDistance(savedServerViewDistanceHint);
             }
         } catch (Exception e) {
-            LOGGER.warn("恢复客户端渲染距离失败: {}", e.getMessage());
+            LOGGER.warn("恢复渲染距离失败: {}", e.getMessage());
+        } finally {
+            savedClientViewDistance = -1;
+            savedServerViewDistanceHint = -1;
+            savedIntegratedServerViewDistance = -1;
+            savedIntegratedSimulationDistance = -1;
         }
     }
 }

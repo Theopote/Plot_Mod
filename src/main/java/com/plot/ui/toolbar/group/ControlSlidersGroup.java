@@ -1,6 +1,7 @@
 package com.plot.ui.toolbar.group;
 
 import com.plot.camera.CameraManager;
+import com.plot.camera.OrthographicCamera;
 import com.plot.client.WorldTimeManager;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
@@ -124,7 +125,12 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                     ImGui.beginDisabled();
                 }
                 String sliderID1 = "##slider_viewDistance_compact_" + System.identityHashCode(viewDistanceValue);
-                if (ImGui.sliderFloat(sliderID1, viewDistanceValue, 40.0f, 600.0f, "%.0f")) {
+                if (ImGui.sliderFloat(
+                        sliderID1,
+                        viewDistanceValue,
+                        OrthographicCamera.VIEW_DISTANCE_MIN,
+                        OrthographicCamera.VIEW_DISTANCE_MAX,
+                        "%.0f")) {
                     CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
                 }
                 // 松手后立即刷新区块，避免仅依赖 500ms 节流导致新视野空白
@@ -143,7 +149,10 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             }
             ToolbarUIUtils.renderInputPopup(
                 "视图范围输入_" + System.identityHashCode(viewDistanceValue),
-                PlotI18n.tr("toolbar.plot.input_view_range"), viewDistanceValue[0], 40.0f, 600.0f,
+                PlotI18n.tr("toolbar.plot.input_view_range"),
+                viewDistanceValue[0],
+                OrthographicCamera.VIEW_DISTANCE_MIN,
+                OrthographicCamera.VIEW_DISTANCE_MAX,
                 newValue -> {
                     viewDistanceValue[0] = newValue;
                     CameraManager.getInstance().setViewDistance(newValue);
@@ -301,7 +310,12 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                 ImGui.beginDisabled();
             }
             String sliderID1 = "##slider_viewDistance_" + System.identityHashCode(viewDistanceValue);
-            if (ImGui.sliderFloat(sliderID1, viewDistanceValue, 40.0f, 600.0f, "%.0f")) {
+            if (ImGui.sliderFloat(
+                    sliderID1,
+                    viewDistanceValue,
+                    OrthographicCamera.VIEW_DISTANCE_MIN,
+                    OrthographicCamera.VIEW_DISTANCE_MAX,
+                    "%.0f")) {
                 CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
             }
             if (ImGui.isItemDeactivatedAfterEdit()) {
@@ -319,7 +333,13 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         }
         // 渲染输入弹窗
         String uniquePopupTitle1 = "视图范围输入_" + System.identityHashCode(viewDistanceValue);
-        ToolbarUIUtils.renderInputPopup(uniquePopupTitle1, PlotI18n.tr("toolbar.plot.input_view_range"), viewDistanceValue[0], 40.0f, 600.0f, newValue -> {
+        ToolbarUIUtils.renderInputPopup(
+                uniquePopupTitle1,
+                PlotI18n.tr("toolbar.plot.input_view_range"),
+                viewDistanceValue[0],
+                OrthographicCamera.VIEW_DISTANCE_MIN,
+                OrthographicCamera.VIEW_DISTANCE_MAX,
+                newValue -> {
             viewDistanceValue[0] = newValue;
             CameraManager.getInstance().setViewDistance(newValue);
             CameraManager.getInstance().refreshChunksForViewDistanceNow();
@@ -407,7 +427,10 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         float startY = ImGui.getCursorPosY();
         ToolbarUIUtils.renderSliderTwoRowsWithInput(
             PlotI18n.tr("panel.plot.view_range") + ":", UILayout.Toolbar.SLIDER_WIDTH,
-            viewDistanceValue, 40.0f, 600.0f, "%.0f", isLocked,
+            viewDistanceValue,
+            OrthographicCamera.VIEW_DISTANCE_MIN,
+            OrthographicCamera.VIEW_DISTANCE_MAX,
+            "%.0f", isLocked,
             () -> CameraManager.getInstance().setViewDistance(viewDistanceValue[0]),
             () -> CameraManager.getInstance().refreshChunksForViewDistanceNow(),
             "view_range_input", PlotI18n.tr("toolbar.plot.input_view_range")

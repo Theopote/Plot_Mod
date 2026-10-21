@@ -8,11 +8,16 @@ import org.slf4j.LoggerFactory;
 
 public class OrthographicCamera {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/OrthographicCamera");
+
+    /** Plot 正交视图范围滑动条/钳制下限（方块） */
+    public static final float VIEW_DISTANCE_MIN = 40.0f;
+    /** Plot 正交视图范围滑动条/钳制上限（方块） */
+    public static final float VIEW_DISTANCE_MAX = 700.0f;
     
     private final Matrix4f projectionMatrix;
     private final Vector3f position;  // 使用 final，通过方法修改内部值
     private float scale = 1.0f;
-    private float viewDistance = 40.0f;
+    private float viewDistance = VIEW_DISTANCE_MIN;
     private boolean enabled = false;
     private boolean locked = false; // 添加锁定状态标志
 
@@ -112,7 +117,7 @@ public class OrthographicCamera {
     public synchronized void setViewDistance(float distance) {
         try {
             if (!locked) { // 检查锁定状态
-                this.viewDistance = Math.max(40.0f, Math.min(600.0f, distance));  // 统一最大值为600
+                this.viewDistance = Math.max(VIEW_DISTANCE_MIN, Math.min(VIEW_DISTANCE_MAX, distance));
                 updateProjectionMatrix();
             }
         } catch (Exception e) {

@@ -225,9 +225,9 @@ public class CameraManager {
     public void setViewDistance(float distance) {
         try {
             // 根据相机模式设置不同的最小值
-            float minDistance = isOrthographic ? 50.0f : 20.0f;
+            float minDistance = isOrthographic ? OrthographicCamera.VIEW_DISTANCE_MIN : 20.0f;
             float oldDistance = this.viewDistance;
-            this.viewDistance = Math.max(minDistance, Math.min(600.0f, distance));  // 统一最大值为600
+            this.viewDistance = Math.max(minDistance, Math.min(OrthographicCamera.VIEW_DISTANCE_MAX, distance));
 
             boolean changed = Float.compare(this.viewDistance, oldDistance) != 0;
             
