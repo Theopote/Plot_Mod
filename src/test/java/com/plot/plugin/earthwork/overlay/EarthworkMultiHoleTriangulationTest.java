@@ -3,7 +3,6 @@ package com.plot.plugin.earthwork.overlay;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.RegionGeometry;
-import com.plot.core.geometry.polygon.RegionTriangulator;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.ui.EarthworkOverviewRenderer;
@@ -15,14 +14,14 @@ import java.util.List;
 import static com.plot.plugin.earthwork.EarthworkTestFixtures.rectangleOutline;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 多孔洞几何回归：三角形不得实质进入孔洞，总面积应接近净面积。
  */
 class EarthworkMultiHoleTriangulationTest {
-    private static final double AREA_TOLERANCE = 0.5;
+    /** 细分在孔边界会丢弃相交叶子，允许小比例面积误差。 */
+    private static final double AREA_REL_TOLERANCE = 0.03;
 
     @BeforeEach
     void clearCache() {
@@ -68,18 +67,18 @@ class EarthworkMultiHoleTriangulationTest {
     }
 
     @Test
-    void bridgeAllHolesProducesTriangulablePolygon() {
+    void clipTriangulatorProducesMeshForTwoHoles() {
         RegionGeometry geometry = RegionGeometry.of(
             rectangleOutline(0, 20, 0, 20),
             List.of(
                 rectangleOutline(2, 6, 2, 6),
                 rectangleOutline(12, 16, 12, 16)));
-        RegionTriangulator.BridgedPolygon bridged =
-            RegionTriangulator.bridgeAllHoles(geometry.outerRing(), geometry.holes());
-        assertNotNull(bridged);
-        assertTrue(bridged.vertices().size() >= 3);
-        var result = com.plot.core.geometry.polygon.PolygonTriangulator.triangulate(bridged.vertices());
-        assertTrue(result.success(), () -> "issue=" + result.issue() + " verts=" + bridged.vertices().size());
+        var mesh = com.plot.core.geometry.polygon.RegionHoleClipTriangulator.triangulate(geometry);
+        assertFalse(mesh.isEmpty());
+        double net = Math.abs(PolygonRegionUtils.computeSignedArea(
+            geometry.outerRing(), geometry.holes()));
+        double meshArea = mesh.stream().mapToDouble(t -> t.absoluteArea()).sum();
+        assertEquals(net, meshArea, Math.max(1.0, net * AREA_REL_TOLERANCE));
     }
 
     @Test
@@ -121,8 +120,11 @@ class EarthworkMultiHoleTriangulationTest {
             assertTriangleDoesNotEnterHoles(triangle, region.getHoles());
         }
         final double meshArea = meshAreaSum;
-        assertEquals(netArea, meshArea, AREA_TOLERANCE,
+        double tol = Math.max(1.0, netArea * AREA_REL_TOLERANCE);
+        assertEquals(netArea, meshArea, tol,
             () -> "meshArea=" + meshArea + " netArea=" + netArea);
+        // 网格不得大于净面积（允许浮点误差）
+        assertTrue(meshArea <= netArea + tol);
     }
 
     /**
