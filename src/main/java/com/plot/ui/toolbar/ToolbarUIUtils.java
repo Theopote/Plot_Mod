@@ -218,6 +218,22 @@ public class ToolbarUIUtils {
         
         return changed;
     }
+
+    /**
+     * 同 {@link #renderSliderTwoRows}，额外在编辑结束（松手）时回调 {@code onEditFinished}。
+     */
+    public static boolean renderSliderTwoRows(
+            String label, float sliderWidth,
+            float[] value, float min, float max, String format,
+            boolean isDisabled, Runnable onChange, Runnable onRightClick, Runnable onEditFinished) {
+        boolean changed = renderSliderTwoRows(
+            label, sliderWidth, value, min, max, format, isDisabled, onChange, onRightClick);
+        // renderSliderTwoRows 结束后 last item 仍是滑动条
+        if (onEditFinished != null && ImGui.isItemDeactivatedAfterEdit()) {
+            onEditFinished.run();
+        }
+        return changed;
+    }
     
     /**
      * 渲染分两行的滑动条（带输入弹窗）
@@ -226,20 +242,34 @@ public class ToolbarUIUtils {
                                                       float[] value, float min, float max, String format, 
                                                       boolean isDisabled, Runnable onChange, 
                                                       String popupTitle, String inputLabel) {
-        // 为弹窗生成唯一ID，避免冲突
+        return renderSliderTwoRowsWithInput(
+            label, sliderWidth, value, min, max, format, isDisabled, onChange, null, popupTitle, inputLabel);
+    }
+
+    /**
+     * 同 {@link #renderSliderTwoRowsWithInput}，可在松手 / 弹窗确认后执行 {@code onEditFinished}。
+     */
+    public static boolean renderSliderTwoRowsWithInput(
+            String label, float sliderWidth,
+            float[] value, float min, float max, String format,
+            boolean isDisabled, Runnable onChange, Runnable onEditFinished,
+            String popupTitle, String inputLabel) {
         String uniquePopupTitle = popupTitle + "_" + System.identityHashCode(value);
-        
-        boolean changed = renderSliderTwoRows(label, sliderWidth, value, min, max, format, 
-                                            isDisabled, onChange, () -> ImGui.openPopup(uniquePopupTitle));
-        
-        // 渲染输入弹窗
+
+        boolean changed = renderSliderTwoRows(
+            label, sliderWidth, value, min, max, format,
+            isDisabled, onChange, () -> ImGui.openPopup(uniquePopupTitle), onEditFinished);
+
         renderInputPopup(uniquePopupTitle, inputLabel, value[0], min, max, newValue -> {
             value[0] = newValue;
             if (onChange != null) {
                 onChange.run();
             }
+            if (onEditFinished != null) {
+                onEditFinished.run();
+            }
         });
-        
+
         return changed;
     }
     

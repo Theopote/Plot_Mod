@@ -35,6 +35,11 @@ public class CameraManager {
 
     // 添加区块更新时间戳，用于限制更新频率
     private long lastChunkUpdateTime = 0;
+
+    /** 视图范围滑动条连续拖动时，防抖后再刷新区块，避免每帧全量更新 */
+    private static final long VIEW_DISTANCE_CHUNK_DEBOUNCE_MS = 120L;
+    private boolean chunkRefreshPending = false;
+    private long chunkRefreshRequestedAt = 0L;
     
     // 标志：是否正在拖动平移（用于跳过频繁的区块更新）
     private boolean isPanning = false;
@@ -108,6 +113,7 @@ public class CameraManager {
             isOrthographic = false;
             orthographicCamera.setEnabled(false);
         }
+        ChunkUpdater.restoreClientRenderDistance();
 
         // 使用当前玩家位置，因为拖动时已经更新了玩家位置
         Vec3d currentPosition = new Vec3d(player.getX(), player.getY(), player.getZ());
@@ -222,6 +228,8 @@ public class CameraManager {
             float minDistance = isOrthographic ? 50.0f : 20.0f;
             float oldDistance = this.viewDistance;
             this.viewDistance = Math.max(minDistance, Math.min(600.0f, distance));  // 统一最大值为600
+
+            boolean changed = Float.compare(this.viewDistance, oldDistance) != 0;
             
             // 如果视图范围变小，需要相应调整平移值以避免视觉跳跃
             if (this.viewDistance < oldDistance) {
@@ -234,10 +242,46 @@ public class CameraManager {
             orthographicCamera.setViewDistance(this.viewDistance);
 
             updateCamera();
+            // 视图变大后新露出的区域需刷新区块网格；滑动条拖动时走防抖，松手后再补一次立即刷新
+            if (changed && isOrthographic) {
+                scheduleViewDistanceChunkRefresh();
+            }
             LOGGER.debug("视图范围已更新: {}, panX: {}, panY: {}", this.viewDistance, panX, panY);
         } catch (Exception e) {
             LOGGER.error("设置视图范围时发生错误", e);
         }
+    }
+
+    /**
+     * 标记需要刷新视图内区块；连续调用会重置防抖计时，在 {@link #onFrame()} 中落地执行。
+     */
+    public void scheduleViewDistanceChunkRefresh() {
+        chunkRefreshPending = true;
+        chunkRefreshRequestedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * 立即刷新正交视图内区块（滑动条松手 / 弹窗确认时调用）。
+     */
+    public void refreshChunksForViewDistanceNow() {
+        if (!isOrthographic || isPanning) {
+            chunkRefreshPending = false;
+            return;
+        }
+        chunkRefreshPending = false;
+        forceUpdateChunksInViewImmediate();
+    }
+
+    private void flushPendingChunkRefreshIfDue() {
+        if (!chunkRefreshPending || !isOrthographic || isPanning) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - chunkRefreshRequestedAt < VIEW_DISTANCE_CHUNK_DEBOUNCE_MS) {
+            return;
+        }
+        chunkRefreshPending = false;
+        forceUpdateChunksInViewImmediate();
     }
 
     public float getViewDistance() {
@@ -504,6 +548,9 @@ public class CameraManager {
             return;
         }
 
+        // 视图范围滑动条防抖结束后刷新区块
+        flushPendingChunkRefreshIfDue();
+
         try {
             // 锁定相机角度
             player.setPitch(90.0f);
@@ -542,6 +589,8 @@ public class CameraManager {
     }
     public void setToPerspective() {
         isOrthographic = false;
+        orthographicCamera.setEnabled(false);
+        ChunkUpdater.restoreClientRenderDistance();
         updateCamera();
     }
     

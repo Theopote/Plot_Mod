@@ -127,6 +127,10 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                 if (ImGui.sliderFloat(sliderID1, viewDistanceValue, 40.0f, 600.0f, "%.0f")) {
                     CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
                 }
+                // 松手后立即刷新区块，避免仅依赖 500ms 节流导致新视野空白
+                if (ImGui.isItemDeactivatedAfterEdit()) {
+                    CameraManager.getInstance().refreshChunksForViewDistanceNow();
+                }
                 if (isLocked) {
                     ImGui.endDisabled();
                 }
@@ -143,6 +147,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                 newValue -> {
                     viewDistanceValue[0] = newValue;
                     CameraManager.getInstance().setViewDistance(newValue);
+                    CameraManager.getInstance().refreshChunksForViewDistanceNow();
                 }
             );
 
@@ -299,6 +304,9 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             if (ImGui.sliderFloat(sliderID1, viewDistanceValue, 40.0f, 600.0f, "%.0f")) {
                 CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
             }
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                CameraManager.getInstance().refreshChunksForViewDistanceNow();
+            }
             if (ImGui.isItemHovered() && ImGui.isMouseClicked(1)) {
                 String uniquePopupTitle = "视图范围输入_" + System.identityHashCode(viewDistanceValue);
                 ImGui.openPopup(uniquePopupTitle);
@@ -314,6 +322,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         ToolbarUIUtils.renderInputPopup(uniquePopupTitle1, PlotI18n.tr("toolbar.plot.input_view_range"), viewDistanceValue[0], 40.0f, 600.0f, newValue -> {
             viewDistanceValue[0] = newValue;
             CameraManager.getInstance().setViewDistance(newValue);
+            CameraManager.getInstance().refreshChunksForViewDistanceNow();
         });
         
         // 第二个滑动条：画布透明度（右侧）
@@ -400,6 +409,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             PlotI18n.tr("panel.plot.view_range") + ":", UILayout.Toolbar.SLIDER_WIDTH,
             viewDistanceValue, 40.0f, 600.0f, "%.0f", isLocked,
             () -> CameraManager.getInstance().setViewDistance(viewDistanceValue[0]),
+            () -> CameraManager.getInstance().refreshChunksForViewDistanceNow(),
             "view_range_input", PlotI18n.tr("toolbar.plot.input_view_range")
         );
         

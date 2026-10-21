@@ -78,6 +78,9 @@ public class CameraSettingsManager {
                         cameraManager.setViewDistance(viewDistance[0]);
                         settingsChanged = true;
                     }
+                    if (ImGui.isItemDeactivatedAfterEdit()) {
+                        cameraManager.refreshChunksForViewDistanceNow();
+                    }
 
                     // 近平面设置
                     float[] near = {camera.getNear()};
