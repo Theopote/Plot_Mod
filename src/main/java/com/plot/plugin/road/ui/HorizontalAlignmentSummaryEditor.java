@@ -17,11 +17,11 @@ import imgui.ImGui;
 /**
  * 平面线形摘要与物化入口。
  */
-final class HorizontalAlignmentSummaryEditor {
+public final class HorizontalAlignmentSummaryEditor {
 
     private String lastHorizontalAlignmentMessage = "";
 
-    void render(
+    public void render(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,

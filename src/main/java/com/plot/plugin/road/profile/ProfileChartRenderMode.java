@@ -60,10 +60,23 @@ public enum ProfileChartRenderMode {
     }
 
     public float groundLineWidth() {
-        return this == MINI ? 1.4f : 2.2f;
+        return switch (this) {
+            case MINI -> 1.4f;
+            case OVERVIEW -> 2.0f;
+            case EDITOR -> 1.6f;
+        };
     }
 
     public float roadLineWidth() {
-        return 2.4f;
+        return this == EDITOR ? 2.0f : 2.4f;
+    }
+
+    /** Design (intent) line thickness; editor emphasizes the editable design profile. */
+    public float designLineWidth() {
+        return this == EDITOR ? 3.2f : 2.6f;
+    }
+
+    public float guideLineWidth() {
+        return this == EDITOR ? 1.2f : 1.6f;
     }
 }

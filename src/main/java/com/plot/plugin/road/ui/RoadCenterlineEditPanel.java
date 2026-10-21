@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * 分段中心线编辑工具（插入 PI、分割、圆角、合并等）。
  */
-final class RoadCenterlineEditPanel {
+public final class RoadCenterlineEditPanel {
 
     private float centerlineEditDistance = 10f;
     private float centerlineFilletRadius = 2f;
@@ -25,11 +25,11 @@ final class RoadCenterlineEditPanel {
         return lastCenterlineEditMessage;
     }
 
-    void recordMessage(CenterlineEditResult result) {
+    public void recordMessage(CenterlineEditResult result) {
         lastCenterlineEditMessage = CenterlineEditMessages.format(result);
     }
 
-    void render(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
+    public void render(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.centerline_edit_hint"));
