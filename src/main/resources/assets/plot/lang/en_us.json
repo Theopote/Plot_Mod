@@ -1034,7 +1034,6 @@
   "plugin.earthwork.work_mode": "Work mode",
   "plugin.earthwork.work_mode.quick": "Quick flatten",
   "plugin.earthwork.work_mode.builder": "Builder",
-  "plugin.earthwork.work_mode.learn": "Builder",
   "plugin.earthwork.quick.hint": "Select area → choose height and edge → preview → build",
   "plugin.earthwork.quick.view_analysis": "View analysis",
   "plugin.earthwork.quick.summary_y": "Recommended height Y%d",
