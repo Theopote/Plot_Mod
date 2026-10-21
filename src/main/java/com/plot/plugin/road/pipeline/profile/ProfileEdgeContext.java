@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -31,6 +32,24 @@ public interface ProfileEdgeContext {
     double defaultCrossingClearance();
 
     RoadSystemConfig roadConfig();
+
+    /** 边中心线长度（方块），供路口坡度可行域计算。 */
+    default double edgeLengthBlocks(RoadNetwork network, RoadEdge edge) {
+        if (network == null || edge == null) {
+            return 0.0;
+        }
+        List<PathSegment> segments = samplePath(RoadPlanGeometry.resolveEdgeCenterline(network, edge));
+        if (segments.isEmpty()) {
+            return 0.0;
+        }
+        double canvasUnits = segments.stream().mapToDouble(segment -> segment.distance).sum();
+        double unitsPerBlock = estimateCanvasUnitsPerBlock(segments);
+        return unitsPerBlock > 0.0 ? canvasUnits / unitsPerBlock : 0.0;
+    }
+
+    default double estimateCanvasUnitsPerBlock(List<PathSegment> segments) {
+        return 1.0;
+    }
 
     default com.plot.plugin.road.RoadGradeSeparationEvaluation evaluateGradeSeparation(
             RoadNode node,

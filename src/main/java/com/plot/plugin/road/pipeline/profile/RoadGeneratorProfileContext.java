@@ -150,6 +150,11 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
     return canvasUnitsPerBlock.estimate(pathPoints, segments);
   }
 
+  @Override
+  public double estimateCanvasUnitsPerBlock(List<PathSegment> segments) {
+    return canvasUnitsPerBlock.estimate(null, segments);
+  }
+
   @FunctionalInterface
   public interface CanvasUnitsPerBlockEstimator {
     double estimate(List<Vec2d> pathPoints, List<PathSegment> segments);

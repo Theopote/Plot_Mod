@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
@@ -50,6 +51,8 @@ public final class NetworkNodeElevationResolver {
         }
 
         Map<String, List<Integer>> naturalHeightsByNode = collectNaturalHeights(network, terrain);
+        Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> approachConstraints =
+            collectApproachConstraints(network);
 
         for (RoadNode node : network.getNodes().values()) {
             if (node.getManualElevation() != null) {
@@ -72,7 +75,11 @@ public final class NetworkNodeElevationResolver {
             }
             resolved.put(node.getId(), resolution.height());
         }
-        return resolved;
+        return JunctionFeasibleElevationResolver.refine(
+            network,
+            naturalHeightsByNode,
+            approachConstraints,
+            resolved);
     }
 
     public int junctionTargetHeight(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
@@ -137,6 +144,45 @@ public final class NetworkNodeElevationResolver {
                 network, terrain, naturalRoadHeight);
         }
         return naturalHeightsByNode;
+    }
+
+    private Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> collectApproachConstraints(
+            RoadNetwork network) {
+        Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> constraints =
+            new LinkedHashMap<>();
+        if (network == null) {
+            return constraints;
+        }
+        var config = context.roadConfig();
+        for (RoadEdge edge : network.getEdges().values()) {
+            RoadNode startNode = network.getNode(edge.getStartNodeId());
+            RoadNode endNode = network.getNode(edge.getEndNodeId());
+            if (startNode == null || endNode == null) {
+                continue;
+            }
+            double lengthBlocks = context.edgeLengthBlocks(network, edge);
+            if (lengthBlocks <= 0.0) {
+                continue;
+            }
+            float maxSlope = RoadModelUtils.getEffectiveMaxSlope(network, edge, config);
+            addApproachConstraint(constraints, startNode.getId(), endNode.getId(), lengthBlocks, maxSlope);
+            addApproachConstraint(constraints, endNode.getId(), startNode.getId(), lengthBlocks, maxSlope);
+        }
+        return constraints;
+    }
+
+    private static void addApproachConstraint(
+            Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> constraints,
+            String nodeId,
+            String oppositeNodeId,
+            double lengthBlocks,
+            float maxSlope) {
+        constraints
+            .computeIfAbsent(nodeId, id -> new ArrayList<>())
+            .add(new JunctionFeasibleElevationResolver.ApproachConstraint(
+                oppositeNodeId,
+                lengthBlocks,
+                maxSlope));
     }
 
     private void collectNaturalHeightSample(

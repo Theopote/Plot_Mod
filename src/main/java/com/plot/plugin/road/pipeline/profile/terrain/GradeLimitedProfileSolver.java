@@ -124,12 +124,15 @@ public final class GradeLimitedProfileSolver {
         int profileStart = manualStartHeight != null
             ? manualStartHeight
             : (int) Math.round(stations[0]);
-        boolean endpointsFeasible = areManualEndpointsFeasible(
-            manualStartHeight,
-            manualEndHeight,
+        EndpointLockTargets endpointLocks = resolveEndpointLockTargets(
+            stations[0],
+            stations[stations.length - 1],
             segmentDistances,
             maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight,
             profileStart);
+        boolean endpointsFeasible = endpointLocks.exactEndpointsFeasible();
         RoadHeightRasterizer.RasterizationResult raster = BuildHeightRasterPostProcessor.smooth(
             RoadHeightRasterizer.rasterize(
                 designElevations,
@@ -206,10 +209,21 @@ public final class GradeLimitedProfileSolver {
         }
         TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
         double[] elevations = designElevations.stream().mapToDouble(Double::doubleValue).toArray();
-        boolean lockStart = manualStartHeight != null;
-        boolean lockEnd = manualEndHeight != null && manualEndpointsFeasible;
-        double startLock = lockStart ? manualStartHeight.doubleValue() : elevations[0];
-        double endLock = lockEnd ? manualEndHeight.doubleValue() : elevations[elevations.length - 1];
+        int profileStart = manualStartHeight != null
+            ? manualStartHeight
+            : (int) Math.round(elevations[0]);
+        EndpointLockTargets endpointLocks = resolveEndpointLockTargets(
+            elevations[0],
+            elevations[elevations.length - 1],
+            segmentDistances,
+            maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight,
+            profileStart);
+        boolean lockStart = endpointLocks.lockStart();
+        boolean lockEnd = endpointLocks.lockEnd();
+        double startLock = endpointLocks.startTarget();
+        double endLock = endpointLocks.endTarget();
         double[] minElevations = elevationBounds != null ? elevationBounds.minimumElevations() : null;
         double[] maxElevations = elevationBounds != null ? elevationBounds.maximumElevations() : null;
         applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
@@ -364,20 +378,19 @@ public final class GradeLimitedProfileSolver {
         int profileStart = manualStartHeight != null
             ? manualStartHeight
             : (int) Math.round(trendElevations.getFirst());
-        boolean endpointsFeasible = areManualEndpointsFeasible(
-            manualStartHeight,
-            manualEndHeight,
+        EndpointLockTargets endpointLocks = resolveEndpointLockTargets(
+            trendElevations.getFirst(),
+            trendElevations.getLast(),
             segmentDistances,
             maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight,
             profileStart);
-        boolean lockStart = manualStartHeight != null;
-        boolean lockEnd = manualEndHeight != null && endpointsFeasible;
-        double startTarget = lockStart
-            ? manualStartHeight.doubleValue()
-            : trendElevations.getFirst();
-        double endTarget = lockEnd
-            ? manualEndHeight.doubleValue()
-            : trendElevations.getLast();
+        boolean endpointsFeasible = endpointLocks.exactEndpointsFeasible();
+        boolean lockStart = endpointLocks.lockStart();
+        boolean lockEnd = endpointLocks.lockEnd();
+        double startTarget = endpointLocks.startTarget();
+        double endTarget = endpointLocks.endTarget();
 
         double[] forward = singlePass(
             trendElevations, segmentDistances, maxSlopePercents, startTarget, endTarget, true);
@@ -1235,6 +1248,39 @@ public final class GradeLimitedProfileSolver {
 
     private static double maxRise(double segmentDistance, float maxSlopePercent) {
         return segmentDistance * maxSlopePercent / 100.0;
+    }
+
+    private record EndpointLockTargets(
+            boolean lockStart,
+            boolean lockEnd,
+            double startTarget,
+            double endTarget,
+            boolean exactEndpointsFeasible) {
+    }
+
+    private static EndpointLockTargets resolveEndpointLockTargets(
+            double naturalStart,
+            double naturalEnd,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            int profileStartHeight) {
+        boolean exactFeasible = areManualEndpointsFeasible(
+            manualStartHeight,
+            manualEndHeight,
+            segmentDistances,
+            maxSlopePercents,
+            profileStartHeight);
+        boolean lockStart = manualStartHeight != null;
+        boolean lockEnd = manualEndHeight != null;
+        double startTarget = lockStart ? manualStartHeight.doubleValue() : naturalStart;
+        double endTarget = lockEnd ? manualEndHeight.doubleValue() : naturalEnd;
+        if (lockEnd && !exactFeasible) {
+            double maxTotalRise = totalMaxRise(segmentDistances, maxSlopePercents);
+            endTarget = clampToward(startTarget, manualEndHeight.doubleValue(), maxTotalRise);
+        }
+        return new EndpointLockTargets(lockStart, lockEnd, startTarget, endTarget, exactFeasible);
     }
 
     static double clampToward(double from, double target, double maxDelta) {
