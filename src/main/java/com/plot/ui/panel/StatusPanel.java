@@ -270,7 +270,18 @@ public class StatusPanel implements UIComponent {
                 boolean isLocked = orthoCamera != null && orthoCamera.isLocked();
                 float viewDistance = cameraManager.getViewDistance();
                 String lockState = isLocked ? PlotI18n.tr("status.plot.locked") : PlotI18n.tr("status.plot.unlocked");
-                return String.format(PlotI18n.tr("status.plot.view_status_format"), lockState, viewDistance);
+                int rd = -1;
+                try {
+                    var client = net.minecraft.client.MinecraftClient.getInstance();
+                    if (client != null && client.options != null) {
+                        rd = client.options.getClampedViewDistance();
+                    }
+                } catch (Exception ignored) {
+                }
+                return String.format(
+                    PlotI18n.tr("status.plot.view_status_format"),
+                    lockState,
+                    viewDistance) + (rd > 0 ? String.format(" | RD %d", rd) : "");
             }
         } catch (Exception e) {
             LOGGER.debug("获取视图状态失败: {}", e.getMessage());

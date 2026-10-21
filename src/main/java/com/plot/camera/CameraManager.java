@@ -202,6 +202,12 @@ public class CameraManager {
             isOrthographic = !isOrthographic;
             orthographicCamera.setEnabled(isOrthographic);
 
+            if (isOrthographic) {
+                ChunkUpdater.applyForViewRangeBlocks(viewDistance);
+            } else {
+                ChunkUpdater.restoreClientRenderDistance();
+            }
+
             PlayerEntity player = client.player;
             if (player != null) {
                 // 无论是正交还是透视模式，都设置为俯视图
@@ -243,6 +249,11 @@ public class CameraManager {
             
             // 同时更新正交相机的视图距离
             orthographicCamera.setViewDistance(this.viewDistance);
+
+            // 正交模式下立刻抬高 MC 渲染距离（不等待松手/防抖），否则大视距只会放大空白
+            if (isOrthographic) {
+                ChunkUpdater.applyForViewRangeBlocks(this.viewDistance);
+            }
 
             updateCamera();
             // 视图变大后新露出的区域需刷新区块网格；滑动条拖动时走防抖，松手后再补一次立即刷新

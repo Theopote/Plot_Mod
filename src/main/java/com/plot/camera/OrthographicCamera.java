@@ -24,7 +24,8 @@ public class OrthographicCamera {
     private boolean locked = false; // 添加锁定状态标志
 
     private float near = 0.05f;
-    private float far = 1000.0f;
+    /** 需大于相机离地高度 + 地形起伏；大视距时一并抬高 */
+    private float far = 2000.0f;
     
     // 标志：是否正在拖动（用于跳过投影矩阵更新以提高性能）
     private boolean isPanning = false;
@@ -67,9 +68,10 @@ public class OrthographicCamera {
     public synchronized void setPosition(Vector3f newPosition, boolean skipUpdate) {
         try {
             if (newPosition != null && !locked) { // 检查锁定状态
-                // 限制X和Y的范围在-50到50之间
-                this.position.x = Math.max(-50.0f, Math.min(50.0f, newPosition.x));
-                this.position.y = Math.max(-50.0f, Math.min(50.0f, newPosition.y));
+                // 平移上限随视距放大（旧硬编码 ±50 会在大视图下卡住投影偏移）
+                float maxPan = Math.max(50.0f, viewDistance * 0.5f);
+                this.position.x = Math.max(-maxPan, Math.min(maxPan, newPosition.x));
+                this.position.y = Math.max(-maxPan, Math.min(maxPan, newPosition.y));
                 // Z轴位置由viewDistance控制
                 this.position.z = newPosition.z;
                 if (!skipUpdate) {
@@ -120,6 +122,8 @@ public class OrthographicCamera {
         try {
             if (!locked) { // 检查锁定状态
                 this.viewDistance = ViewRangeSettings.clampAbsolute(distance);
+                // 远裁剪面随视距略增，避免超大正交视野深度裁切
+                this.far = Math.max(2000.0f, this.viewDistance + 500.0f);
                 updateProjectionMatrix();
             }
         } catch (Exception e) {

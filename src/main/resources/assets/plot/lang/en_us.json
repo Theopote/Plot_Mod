@@ -931,7 +931,7 @@
   "settings.plot.draw_measure_settings": "Drawing Measurements",
   "settings.plot.draw_measure_hint": "Show live block distances on guide lines while drawing (except Free Draw).",
   "settings.plot.view_range_settings": "View Range",
-  "settings.plot.view_range_hint": "Configure the min/max of the top View Range slider. Hard limits: 20–1200. Note: Minecraft render distance caps at ~32 chunks (~512 blocks); beyond that outer terrain may stay empty.",
+  "settings.plot.view_range_hint": "Configure the min/max of the top View Range slider. Hard limits: 20–1200. While Plot is open, render distance is temporarily raised to cover the view (up to ~64 chunks). On multiplayer, the server view distance still applies. Very large ranges use more memory and may stutter.",
   "settings.plot.view_range_min": "Slider minimum",
   "settings.plot.view_range_max": "Slider maximum",
   "settings.plot.view_range_current": "Current range: %s – %s",
