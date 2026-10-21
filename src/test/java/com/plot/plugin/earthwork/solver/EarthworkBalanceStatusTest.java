@@ -4,6 +4,7 @@ import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.model.OptimizationMode;
+import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
 import com.plot.test.world.IdentityCoordinateService;
@@ -13,10 +14,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkBalanceStatusTest {
+
+    @Test
+    void classifyDistinguishesInvalidSearchFromBalancedZero() {
+        assertEquals(
+            EarthworkBalanceStatus.NOT_REQUESTED,
+            EarthworkBalanceStatus.classify(false, false, 0L, false));
+        assertEquals(
+            EarthworkBalanceStatus.SEARCH_FAILED,
+            EarthworkBalanceStatus.classify(true, false, 0L, false),
+            "invalid objective must not become BALANCED via residual 0");
+        assertEquals(
+            EarthworkBalanceStatus.SEARCH_FAILED,
+            EarthworkBalanceStatus.classify(
+                true, false, SlopeCoupledVerticalSearch.INVALID_OBJECTIVE, true));
+        assertEquals(
+            EarthworkBalanceStatus.BALANCED,
+            EarthworkBalanceStatus.classify(true, true, 0L, false));
+        assertEquals(
+            EarthworkBalanceStatus.BEST_EFFORT,
+            EarthworkBalanceStatus.classify(true, true, 12L, false));
+        assertEquals(
+            EarthworkBalanceStatus.CONSTRAINT_LIMITED,
+            EarthworkBalanceStatus.classify(true, true, 12L, true));
+    }
 
     @Test
     void notRequestedWhenAutoBalanceAndOptimizationDisabled() {
@@ -34,6 +60,21 @@ class EarthworkBalanceStatusTest {
     }
 
     @Test
+    void notRequestedWhenAllDesignElevationsLocked() {
+        EarthworkSite site = baseSite();
+        GradingZone pad = site.getGradingZones().values().iterator().next();
+        pad.getRegion().setAutoBalance(true);
+        pad.getRegion().setManualTargetElevation(70);
+        pad.setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy.locked());
+        site.getCompositionPolicy().setOptimizationMode(OptimizationMode.UNIFORM_VERTICAL_SHIFT);
+
+        DesignTerrainComposer.ComposeResult result = DesignTerrainComposer.compose(
+            site, flatTerrain(64), IdentityCoordinateService.INSTANCE);
+        assertEquals(EarthworkBalanceStatus.NOT_REQUESTED, result.balanceStatus());
+        assertFalse(result.balanceSearchHitBoundary());
+    }
+
+    @Test
     void balancedWhenFlatPadAlreadyMatchesGround() {
         EarthworkSite site = baseSite();
         GradingZone pad = site.getGradingZones().values().iterator().next();
@@ -43,6 +84,7 @@ class EarthworkBalanceStatusTest {
         DesignTerrainComposer.ComposeResult result = DesignTerrainComposer.compose(
             site, flatTerrain(64), IdentityCoordinateService.INSTANCE);
         assertNotEquals(EarthworkBalanceStatus.NOT_REQUESTED, result.balanceStatus());
+        assertNotEquals(EarthworkBalanceStatus.SEARCH_FAILED, result.balanceStatus());
         assertEquals(0L, result.residualImbalance());
         assertEquals(EarthworkBalanceStatus.BALANCED, result.balanceStatus());
         assertTrue(result.balanceSearchHalfRange() >= 0);

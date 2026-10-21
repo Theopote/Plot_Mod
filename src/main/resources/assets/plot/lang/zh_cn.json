@@ -1375,6 +1375,7 @@
   "plugin.earthwork.build_partial": "部分成功：已放置 %d / %d（%d 失败）。地形可能未达设计标高，请重新采样并生成预览后再施工。",
   "plugin.earthwork.build_cancelled": "放置已取消（完成 %d / %d）。如有改动，请重新采样地形后再施工。",
   "plugin.earthwork.warning.balance_incomplete": "自动平衡在搜索范围内未能完全抹平挖填差（固定标高/道路可能限制求解）。报告中的残余不平衡并非施工已完成。",
+  "plugin.earthwork.warning.balance_search_failed": "自动平衡搜索未得到有效候选解，不能视为已平衡。请检查设计约束或扩大允许偏移后再试。",
   "plugin.earthwork.default_name": "区域 %d",
   "plugin.earthwork.grid_preview_legend": "红=挖方，蓝=填方（网格采样预览）",
   "plugin.earthwork.project.loaded": "已加载土方项目: %s",

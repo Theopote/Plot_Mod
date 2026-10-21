@@ -1375,6 +1375,7 @@
   "plugin.earthwork.build_partial": "Partial success: placed %d / %d (%d failed). Terrain may not match design — re-sample and regenerate preview before building again.",
   "plugin.earthwork.build_cancelled": "Placement cancelled (%d / %d completed). If anything changed, re-sample terrain before building again.",
   "plugin.earthwork.warning.balance_incomplete": "Auto-balance could not fully zero cut/fill within the search range (locked pads/roads may limit the solver). Residual imbalance in the report does not mean construction finished.",
+  "plugin.earthwork.warning.balance_search_failed": "Auto-balance search found no valid candidate — this is not a balanced result. Check design constraints or widen the allowed offset range.",
   "plugin.earthwork.default_name": "Region %d",
   "plugin.earthwork.grid_preview_legend": "Red = cut, Blue = fill (grid sample preview)",
   "plugin.earthwork.project.loaded": "Earthwork project loaded for %s",

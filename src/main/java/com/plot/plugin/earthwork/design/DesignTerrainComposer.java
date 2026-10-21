@@ -159,17 +159,29 @@ public final class DesignTerrainComposer {
             ResolvedDesignSurface.toEvaluatorMap(finalResolved);
         grid.finalizeStats();
         boolean hasFixed = hasConstraintLimitedSurfaces(resolvedSurfaces);
-        EarthworkBalanceStatus status = classifyBalanceStatus(balanceOutcome, hasFixed);
+        EarthworkBalanceStatus status = EarthworkBalanceStatus.classify(
+            balanceOutcome.ran(),
+            balanceOutcome.hasValidSolution(),
+            balanceOutcome.residualImbalance(),
+            hasFixed);
         List<String> warnings = new ArrayList<>();
         if (status == EarthworkBalanceStatus.BEST_EFFORT
             || status == EarthworkBalanceStatus.CONSTRAINT_LIMITED) {
             warnings.add("plugin.earthwork.warning.balance_incomplete");
+        } else if (status == EarthworkBalanceStatus.SEARCH_FAILED) {
+            warnings.add("plugin.earthwork.warning.balance_search_failed");
         }
+        // 未运行 → 残余 0；已运行但无有效解 → INVALID（禁止伪装成已平衡的 0）
+        long residualForReport = !balanceOutcome.ran()
+            ? 0L
+            : (balanceOutcome.hasValidSolution()
+                ? balanceOutcome.residualImbalance()
+                : SlopeCoupledVerticalSearch.INVALID_OBJECTIVE);
         return new ComposeResult(
             grid,
             finalEvaluators,
             finalResolved,
-            balanceOutcome.residualImbalance(),
+            residualForReport,
             status,
             balanceOutcome.searchHalfRange(),
             balanceOutcome.uniformOffset(),
@@ -183,28 +195,11 @@ public final class DesignTerrainComposer {
             long residualImbalance,
             boolean ran,
             int searchHalfRange,
-            boolean hitSearchBoundary) {
+            boolean hitSearchBoundary,
+            boolean hasValidSolution) {
         static BalanceSearchOutcome skipped() {
-            return new BalanceSearchOutcome(0, 0L, false, 0, false);
+            return new BalanceSearchOutcome(0, 0L, false, 0, false, false);
         }
-    }
-
-    /**
-     * CONSTRAINT_LIMITED 仅表示「残余&gt;0 且场地存在固定标高约束」，
-     * 不证明残余就是这些约束造成的；搜索触界见 {@link BalanceSearchOutcome#hitSearchBoundary()}。
-     */
-    private static EarthworkBalanceStatus classifyBalanceStatus(
-            BalanceSearchOutcome outcome,
-            boolean hasFixedElevationConstraints) {
-        if (outcome == null || !outcome.ran()) {
-            return EarthworkBalanceStatus.NOT_REQUESTED;
-        }
-        if (outcome.residualImbalance() <= 0L) {
-            return EarthworkBalanceStatus.BALANCED;
-        }
-        return hasFixedElevationConstraints
-            ? EarthworkBalanceStatus.CONSTRAINT_LIMITED
-            : EarthworkBalanceStatus.BEST_EFFORT;
     }
 
     private static boolean hasConstraintLimitedSurfaces(Map<String, ResolvedDesignSurface> surfaces) {
@@ -401,14 +396,16 @@ public final class DesignTerrainComposer {
             cumulativeUniformOffset = polish.uniformOffset();
         } else {
             long residual = SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
-            polish = new BalanceSearchOutcome(cumulativeUniformOffset, residual, true, 0, false);
+            polish = new BalanceSearchOutcome(
+                cumulativeUniformOffset, residual, true, 0, false, true);
         }
         return new BalanceSearchOutcome(
             cumulativeUniformOffset,
             polish.residualImbalance(),
             true,
             polish.searchHalfRange(),
-            polish.hitSearchBoundary());
+            polish.hitSearchBoundary(),
+            polish.hasValidSolution());
     }
 
     /**
@@ -441,7 +438,7 @@ public final class DesignTerrainComposer {
             return SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
         });
 
-        int best = search.bestOffset();
+        int best = search.hasValidSolution() ? search.bestOffset() : 0;
         restoreCells(grid, baseDesign);
         applyAccumulatedOffsets(grid, site, safeZone, best);
         applyBoundaryConditions(
@@ -451,9 +448,16 @@ public final class DesignTerrainComposer {
             coverageWithOffsets(site, coverageByCellKey, safeZone, best),
             effectiveBreaklines,
             canvasScale);
-        long residual = search.bestObjective() == Long.MAX_VALUE ? 0L : search.bestObjective();
+        long residual = search.hasValidSolution()
+            ? search.bestObjective()
+            : SlopeCoupledVerticalSearch.INVALID_OBJECTIVE;
         return new BalanceSearchOutcome(
-            best, residual, true, halfRange, search.hitSearchBoundary());
+            best,
+            residual,
+            true,
+            halfRange,
+            search.hitSearchBoundary(),
+            search.hasValidSolution());
     }
 
     private static int resolveUniformSearchHalfRange(

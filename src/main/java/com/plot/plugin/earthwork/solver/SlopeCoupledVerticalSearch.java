@@ -23,17 +23,24 @@ import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
  * </pre>
  * MVP：对 Minecraft 体素尺度枚举 {@code ΔY ∈ [-halfRange, +halfRange]}（默认 7 档），
  * 每个候选由调用方完整重建坡面后再评估目标。
+ * <p>
+ * 候选可返回 {@link Long#MAX_VALUE} 表示无效；若全部无效则 {@link SearchResult#hasValidSolution()} 为 false，
+ * 不得把无效目标改写为 0 并冒充已平衡。
  */
 public final class SlopeCoupledVerticalSearch {
 
     /** MVP 默认半幅：ΔY = -3 … +3（共 7 个候选）。 */
     public static final int DEFAULT_HALF_RANGE = 3;
 
+    /** 评估器返回此值表示该候选无效（跳过，不参与最优比较）。 */
+    public static final long INVALID_OBJECTIVE = Long.MAX_VALUE;
+
     private SlopeCoupledVerticalSearch() {
     }
 
     /**
      * 对给定统一竖向偏移重建整场设计面（含坡面/日照）后返回目标值；越小越好。
+     * 返回 {@link #INVALID_OBJECTIVE} 表示该候选无效。
      */
     @FunctionalInterface
     public interface UniformCandidateEvaluator {
@@ -45,35 +52,55 @@ public final class SlopeCoupledVerticalSearch {
             long bestObjective,
             int candidatesEvaluated,
             int searchHalfRange,
-            boolean hitSearchBoundary) {
+            boolean hitSearchBoundary,
+            boolean hasValidSolution) {
         public SearchResult(int bestOffset, long bestObjective, int candidatesEvaluated) {
-            this(bestOffset, bestObjective, candidatesEvaluated, 0, false);
+            this(
+                bestOffset,
+                bestObjective,
+                candidatesEvaluated,
+                0,
+                false,
+                bestObjective != INVALID_OBJECTIVE);
         }
     }
 
     /**
      * 枚举 {@code [-halfRange, +halfRange]}，每个候选经 {@code evaluator} 完整重建后比较目标。
      * 目标相同时偏好 |ΔY| 更小；再相同偏好 ΔY 更接近 0 的非负侧（先扫到的）。
+     * {@link #INVALID_OBJECTIVE} 候选被跳过。
      */
     public static SearchResult searchUniform(int halfRange, UniformCandidateEvaluator evaluator) {
-        if (evaluator == null) {
-            return new SearchResult(0, 0L, 0, Math.max(0, halfRange), false);
-        }
         int range = Math.max(0, halfRange);
+        if (evaluator == null) {
+            return new SearchResult(0, INVALID_OBJECTIVE, 0, range, false, false);
+        }
         int bestOffset = 0;
-        long bestObjective = Long.MAX_VALUE;
+        long bestObjective = INVALID_OBJECTIVE;
+        boolean hasValid = false;
         int evaluated = 0;
         for (int dy = -range; dy <= range; dy++) {
             long objective = evaluator.evaluateAfterRebuild(dy);
             evaluated++;
-            if (objective < bestObjective
+            if (objective == INVALID_OBJECTIVE) {
+                continue;
+            }
+            if (!hasValid
+                || objective < bestObjective
                 || (objective == bestObjective && Math.abs(dy) < Math.abs(bestOffset))) {
                 bestObjective = objective;
                 bestOffset = dy;
+                hasValid = true;
             }
         }
-        boolean hitBoundary = range > 0 && Math.abs(bestOffset) == range;
-        return new SearchResult(bestOffset, bestObjective, evaluated, range, hitBoundary);
+        boolean hitBoundary = hasValid && range > 0 && Math.abs(bestOffset) == range;
+        return new SearchResult(
+            hasValid ? bestOffset : 0,
+            hasValid ? bestObjective : INVALID_OBJECTIVE,
+            evaluated,
+            range,
+            hitBoundary,
+            hasValid);
     }
 
     public static SearchResult searchUniform(UniformCandidateEvaluator evaluator) {
