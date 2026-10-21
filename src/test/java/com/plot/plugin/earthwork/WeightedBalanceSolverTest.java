@@ -6,7 +6,6 @@ import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.solver.SiteWideBalanceAdjuster;
 import com.plot.plugin.earthwork.solver.WeightedBalanceSolver;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
-import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -27,8 +26,7 @@ class WeightedBalanceSolverTest {
         for (int i = 0; i < 1000; i++) {
             samples.add(new SiteWideBalanceAdjuster.CellSample(70, 60));
         }
-        int offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
-            samples, 10_000L, MaterialConversionModel.DEFAULT);
+        int offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(samples, 10_000L);
         assertEquals(10, offset);
     }
 
@@ -40,8 +38,7 @@ class WeightedBalanceSolverTest {
         }
         long volumeIntent = 550L;
         int uniform = (int) Math.round(volumeIntent / (double) samples.size());
-        int weighted = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
-            samples, volumeIntent, MaterialConversionModel.DEFAULT);
+        int weighted = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(samples, volumeIntent);
         long weightedError = Math.abs(
             WeightedBalanceSolver.computeGeometricNetChange(samples, weighted) + volumeIntent);
         long uniformError = Math.abs(

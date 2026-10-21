@@ -1,9 +1,7 @@
 package com.plot.plugin.earthwork;
 
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
@@ -18,15 +16,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EarthworkOptimizationSolverTest {
 
     @Test
-    void computeZoneOffsetsFromAllocationMatrix() {
+    void computeGeometricZoneOffsetsFromCutFillIntent() {
         Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
         byZone.put("a", report(10_000L, 0L));
         byZone.put("b", report(0L, 6_000L));
         byZone.put("c", report(0L, 3_000L));
 
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone);
         Map<String, Integer> cellCounts = Map.of("a", 1000, "b", 600, "c", 300);
-        Map<String, Integer> offsets = EarthworkOptimizationSolver.computeZoneOffsets(matrix, cellCounts);
+        Map<String, Integer> offsets = EarthworkOptimizationSolver.computeGeometricZoneOffsets(
+            byZone, cellCounts, null);
 
         assertEquals(10, offsets.get("a"));
         assertEquals(-10, offsets.get("b"));
@@ -82,47 +80,30 @@ class EarthworkOptimizationSolverTest {
 
         Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
         byZone.put("a", report(550L, 0L));
-        byZone.put("b", report(0L, 330L));
-        byZone.put("c", report(0L, 220L));
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone);
 
-        Map<String, Integer> uniform = EarthworkOptimizationSolver.computeZoneOffsets(
-            matrix, Map.of("a", 100, "b", 60, "c", 40));
-        Map<String, Integer> weighted = EarthworkOptimizationSolver.computeZoneOffsets(
-            matrix,
-            Map.of("a", 100, "b", 60, "c", 40),
-            EarthworkOptimizationSolver.collectSamplesByZone(grid),
-            MaterialConversionModel.DEFAULT);
+        Map<String, Integer> uniform = EarthworkOptimizationSolver.computeGeometricZoneOffsets(
+            byZone, Map.of("a", 100), null);
+        Map<String, Integer> weighted = EarthworkOptimizationSolver.computeGeometricZoneOffsets(
+            byZone,
+            Map.of("a", 100),
+            EarthworkOptimizationSolver.collectSamplesByZone(grid));
 
         assertEquals(6, uniform.get("a"));
         assertEquals(5, weighted.get("a"));
     }
 
     @Test
-    void zoneOffsetsConvertCompactedFillBackToGeometricCut() {
-        MaterialConversionModel halfReuse = new MaterialConversionModel(0.50f, 1.0f);
-        Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
-        byZone.put("a", report(10_000L, 0L, halfReuse));
-        byZone.put("b", report(0L, 5_000L, halfReuse));
-
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone);
-        Map<String, Integer> offsets = EarthworkOptimizationSolver.computeZoneOffsets(
-            matrix,
-            Map.of("a", 1000, "b", 500),
-            null,
-            null,
-            byZone,
-            halfReuse);
-
-        assertEquals(10, offsets.get("a"));
-        assertEquals(-10, offsets.get("b"));
+    void geometricOffsetClampsBeyondMax() {
+        assertEquals(
+            EarthworkOptimizationSolver.MAX_GEOMETRIC_ZONE_OFFSET,
+            EarthworkOptimizationSolver.clampGeometricOffset(10_000L));
+        assertEquals(
+            -EarthworkOptimizationSolver.MAX_GEOMETRIC_ZONE_OFFSET,
+            EarthworkOptimizationSolver.clampGeometricOffset(-10_000L));
+        assertEquals(12, EarthworkOptimizationSolver.clampGeometricOffset(12L));
     }
 
     private static EarthworkVolumeReport report(long cut, long fill) {
-        return report(cut, fill, MaterialConversionModel.DEFAULT);
-    }
-
-    private static EarthworkVolumeReport report(long cut, long fill, MaterialConversionModel materials) {
-        return EarthworkVolumeReport.fromMetrics(cut, fill, materials, 0L, 0L);
+        return EarthworkVolumeReport.fromMetrics(cut, fill, 0L, 0L);
     }
 }

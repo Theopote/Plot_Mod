@@ -6,7 +6,6 @@ import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
-import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -37,13 +36,8 @@ class ProjectGlobalBalanceAggregatorTest {
 
         assertEquals(10_000L, balance.totalCut());
         assertEquals(7_000L, balance.totalFill());
+        assertEquals(3_000L, balance.netVolume());
         assertEquals(2, balance.sitesWithVolume());
-        assertTrue(balance.crossSiteAllocationMatrix().isEmpty());
-        assertEquals(7_000.0, balance.grossImportDemand(), 1e-3);
-        assertEquals(10_000.0, balance.grossExportSurplus(), 1e-3);
-        assertEquals(0.0, balance.internalTransferVolume(), 1e-3);
-        assertEquals(10_000.0, balance.externalExportRequired(), 1e-3);
-        assertEquals(7_000.0, balance.externalImportRequired(), 1e-3);
     }
 
     @Test
@@ -93,14 +87,10 @@ class ProjectGlobalBalanceAggregatorTest {
         assertEquals(2_500L, report.totalFill());
         assertTrue(report.hasCrossSiteBreakdown());
         assertEquals(2, report.sitesWithVolume());
-        assertTrue(report.allocationMatrix().isEmpty());
-        assertTrue(report.crossSiteAllocationMatrix().isEmpty());
-        assertEquals(2_500.0, report.grossImportDemand(), 1e-3);
-        assertEquals(4_000.0, report.grossExportSurplus(), 1e-3);
-        assertEquals(0.0, report.internalTransferVolume(), 1e-3);
+        assertEquals(1_500L, report.netVolume());
     }
 
     private static EarthworkVolumeReport volume(long cut, long fill) {
-        return EarthworkVolumeReport.fromMetrics(cut, fill, MaterialConversionModel.DEFAULT, 0L, 0L);
+        return EarthworkVolumeReport.fromMetrics(cut, fill, 0L, 0L);
     }
 }

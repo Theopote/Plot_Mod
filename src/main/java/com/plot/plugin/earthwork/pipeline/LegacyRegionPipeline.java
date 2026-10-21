@@ -3,7 +3,6 @@ package com.plot.plugin.earthwork.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.material.MaterialConversionModel;
-import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
@@ -95,8 +94,7 @@ public final class LegacyRegionPipeline {
         result.slopedSurface = !plane.isFlat();
 
         volumeCalculator.computeFromPlane(
-            region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, balanceMaterials,
-            canvasScale);
+            region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, canvasScale);
         result.syncChangedBlocksFromPlacements();
         boolean allowLegacyShiftCurve = edgeSettings == null || !edgeSettings.hasActiveTreatment();
         result.attachPlayerInsights(allowLegacyShiftCurve);

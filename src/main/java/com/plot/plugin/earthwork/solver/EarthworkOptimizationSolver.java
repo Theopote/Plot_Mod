@@ -4,7 +4,6 @@ import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 
@@ -15,13 +14,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Mode B — 土方竖向优化求解器。
+ * 土方竖向优化求解器：按分区几何挖填净差提出 ΔY，再由边坡耦合搜索校验。
  * <p>
- * 在 {@link com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy} 约束下，
- * 调整可调分区标高以减少外运/外进。与 {@link EarthworkAllocationMatrix}（Mode A：仅报告土方怎么搬）
- * 不同，本求解器会提出分区 ΔY / 统一 ΔY。
+ * 计量为 Minecraft 方块 1:1，不经材料调配矩阵。
  */
 public final class EarthworkOptimizationSolver {
+
+    /** 粗略几何偏移建议的绝对值上限（最终仍由边坡耦合搜索收敛）。 */
+    public static final int MAX_GEOMETRIC_ZONE_OFFSET = 64;
 
     private EarthworkOptimizationSolver() {
     }
@@ -55,10 +55,6 @@ public final class EarthworkOptimizationSolver {
     }
 
     /**
-     * @param resolvedSurfaces 可选；有则按 {@link com.plot.plugin.earthwork.design.ResolvedDesignSurface#isSolverVariable()}
-     *                         划分可调分区，避免把 LOCKED/DERIVED/引用失败面当成同质变量。
-     */
-    /**
      * 仅提出分区 ΔY，不做残余统一抛光（抛光应由边坡耦合离散搜索完成）。
      */
     public static BalanceResult proposeZoneOffsetsOnly(
@@ -74,7 +70,6 @@ public final class EarthworkOptimizationSolver {
         if (flexibleByZone.isEmpty()) {
             return new BalanceResult(Map.of(), 0);
         }
-        // Minecraft 1:1：直接按各区几何挖填差求 ΔY，不经材料调配矩阵。
         Map<String, Integer> zoneOffsets = computeGeometricZoneOffsets(
             flexibleByZone,
             countFlexibleCellsByZone(grid, site, resolvedSurfaces),
@@ -84,6 +79,7 @@ public final class EarthworkOptimizationSolver {
 
     /**
      * 按分区几何挖填净差提出竖向偏移：挖多（cut−fill&gt;0）抬升，填多则降低。
+     * 结果钳制在 {@link #MAX_GEOMETRIC_ZONE_OFFSET} 内，仅作候选建议。
      */
     public static Map<String, Integer> computeGeometricZoneOffsets(
             Map<String, EarthworkVolumeReport> byZone,
@@ -103,7 +99,7 @@ public final class EarthworkOptimizationSolver {
             if (cellCount <= 0) {
                 continue;
             }
-            long intent = report.geometricCutVolume() - report.geometricFillVolume();
+            long intent = report.netGeometricVolume();
             if (intent == 0L) {
                 continue;
             }
@@ -112,16 +108,26 @@ public final class EarthworkOptimizationSolver {
                 ? samplesByZone.get(zoneId)
                 : null;
             if (zoneSamples != null && !zoneSamples.isEmpty()) {
-                offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
-                    zoneSamples, intent, MaterialConversionModel.DEFAULT);
+                offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(zoneSamples, intent);
             } else {
-                offset = (int) Math.round(intent / (double) cellCount);
+                offset = clampGeometricOffset(Math.round(intent / (double) cellCount));
             }
+            offset = clampGeometricOffset(offset);
             if (offset != 0) {
                 offsets.put(zoneId, offset);
             }
         }
         return Map.copyOf(offsets);
+    }
+
+    public static int clampGeometricOffset(long raw) {
+        if (raw > MAX_GEOMETRIC_ZONE_OFFSET) {
+            return MAX_GEOMETRIC_ZONE_OFFSET;
+        }
+        if (raw < -MAX_GEOMETRIC_ZONE_OFFSET) {
+            return -MAX_GEOMETRIC_ZONE_OFFSET;
+        }
+        return (int) raw;
     }
 
     public static BalanceResult propose(
@@ -131,7 +137,6 @@ public final class EarthworkOptimizationSolver {
         BalanceResult zoneOnly = proposeZoneOffsetsOnly(grid, site, resolvedSurfaces);
         int residual = 0;
         if (site != null && site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
-            // 线性残差估计仅作无坡面场景的快速启发；合成主路径用 SlopeCoupledVerticalSearch。
             residual = proposeResidualUniformOffset(
                 grid, site, zoneOnly.zoneOffsets(), resolvedSurfaces);
         }
@@ -147,104 +152,6 @@ public final class EarthworkOptimizationSolver {
             SiteWideBalanceAdjuster.applyOffset(grid, result.residualUniformOffset(), site);
         }
         return result;
-    }
-
-    public static Map<String, Integer> computeZoneOffsets(
-            EarthworkAllocationMatrix matrix,
-            Map<String, Integer> cellCountByZone) {
-        return computeZoneOffsets(matrix, cellCountByZone, null, null, null);
-    }
-
-    public static Map<String, Integer> computeZoneOffsets(
-            EarthworkAllocationMatrix matrix,
-            Map<String, Integer> cellCountByZone,
-            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
-            MaterialConversionModel materials) {
-        return computeZoneOffsets(matrix, cellCountByZone, samplesByZone, null, null, materials);
-    }
-
-    public static Map<String, Integer> computeZoneOffsets(
-            EarthworkAllocationMatrix matrix,
-            Map<String, Integer> cellCountByZone,
-            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
-            EarthworkSite site,
-            Map<String, EarthworkVolumeReport> byZone) {
-        return computeZoneOffsets(
-            matrix,
-            cellCountByZone,
-            samplesByZone,
-            site,
-            byZone,
-            site != null ? site.getMaterialModel() : MaterialConversionModel.DEFAULT);
-    }
-
-    public static Map<String, Integer> computeZoneOffsets(
-            EarthworkAllocationMatrix matrix,
-            Map<String, Integer> cellCountByZone,
-            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
-            EarthworkSite site,
-            Map<String, EarthworkVolumeReport> byZone,
-            MaterialConversionModel fallbackMaterials) {
-        if (matrix == null || matrix.isEmpty() || cellCountByZone == null || cellCountByZone.isEmpty()) {
-            return Map.of();
-        }
-        MaterialConversionModel safeFallback = fallbackMaterials != null
-            ? fallbackMaterials
-            : MaterialConversionModel.DEFAULT;
-        Map<String, Long> volumeIntent = new LinkedHashMap<>();
-        for (EarthworkAllocationMatrix.Transfer transfer : matrix.transfers()) {
-            if (transfer.volume() <= 0L) {
-                continue;
-            }
-            if (transfer.isExport()) {
-                long geometric = toGeometricExportIntent(
-                    transfer.sourceZoneId(),
-                    transfer.volume(),
-                    site,
-                    byZone,
-                    safeFallback);
-                addVolumeIntent(volumeIntent, transfer.sourceZoneId(), geometric);
-            } else if (transfer.isImport()) {
-                addVolumeIntent(volumeIntent, transfer.destinationZoneId(), -transfer.volume());
-            } else {
-                long sourceGeometric = toGeometricExportIntent(
-                    transfer.sourceZoneId(),
-                    transfer.volume(),
-                    site,
-                    byZone,
-                    safeFallback);
-                addVolumeIntent(volumeIntent, transfer.sourceZoneId(), sourceGeometric);
-                addVolumeIntent(volumeIntent, transfer.destinationZoneId(), -transfer.volume());
-            }
-        }
-
-        Map<String, Integer> offsets = new LinkedHashMap<>();
-        for (Map.Entry<String, Long> entry : volumeIntent.entrySet()) {
-            String zoneId = entry.getKey();
-            int cellCount = cellCountByZone.getOrDefault(zoneId, 0);
-            if (cellCount <= 0) {
-                continue;
-            }
-            long intent = entry.getValue();
-            int offset;
-            List<SiteWideBalanceAdjuster.CellSample> zoneSamples = samplesByZone != null
-                ? samplesByZone.get(zoneId)
-                : null;
-            MaterialConversionModel zoneMaterials = resolveZoneMaterials(
-                site,
-                zoneId,
-                safeFallback);
-            if (zoneSamples != null && !zoneSamples.isEmpty()) {
-                offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
-                    zoneSamples, intent, zoneMaterials);
-            } else {
-                offset = (int) Math.round(intent / (double) cellCount);
-            }
-            if (offset != 0) {
-                offsets.put(zoneId, offset);
-            }
-        }
-        return Map.copyOf(offsets);
     }
 
     public static Map<String, List<SiteWideBalanceAdjuster.CellSample>> collectSamplesByZone(
@@ -408,46 +315,6 @@ public final class EarthworkOptimizationSolver {
         return SiteWideBalanceAdjuster.findBalancedVerticalOffset(
             flexible,
             locked,
-            site != null ? site.getMaterialModel() : MaterialConversionModel.DEFAULT);
-    }
-
-    private static void addVolumeIntent(Map<String, Long> volumeIntent, String zoneId, long delta) {
-        if (zoneId == null || zoneId.isBlank() || delta == 0L) {
-            return;
-        }
-        volumeIntent.merge(zoneId, delta, Long::sum);
-    }
-
-    private static long toGeometricExportIntent(
-            String zoneId,
-            long compactedFill,
-            EarthworkSite site,
-            Map<String, EarthworkVolumeReport> byZone,
-            MaterialConversionModel fallback) {
-        EarthworkVolumeReport report = byZone != null ? byZone.get(zoneId) : null;
-        if (report != null) {
-            long geometric = report.geometricCutForCompactedTransfer(compactedFill);
-            if (geometric > 0L) {
-                return geometric;
-            }
-        }
-        return resolveZoneMaterials(site, zoneId, fallback).geometricCutForCompactedFill(compactedFill);
-    }
-
-    private static MaterialConversionModel resolveZoneMaterials(
-            EarthworkSite site,
-            String zoneId,
-            MaterialConversionModel fallback) {
-        if (site == null || zoneId == null || zoneId.isBlank()) {
-            return fallback != null ? fallback : MaterialConversionModel.DEFAULT;
-        }
-        GradingZone zone = site.getZone(zoneId);
-        MaterialConversionModel siteDefault = site.getMaterialModel() != null
-            ? site.getMaterialModel()
-            : MaterialConversionModel.DEFAULT;
-        if (zone == null) {
-            return siteDefault;
-        }
-        return zone.resolveMaterialModel(siteDefault);
+            MaterialConversionModel.DEFAULT);
     }
 }

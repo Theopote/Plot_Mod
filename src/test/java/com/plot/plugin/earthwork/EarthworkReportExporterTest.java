@@ -1,6 +1,5 @@
 package com.plot.plugin.earthwork;
 
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -18,9 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkReportExporterTest {
 
-    private static final MaterialConversionModel LEGACY_LIKE =
-        MaterialConversionModel.fromLegacyFillFactor(1.1f);
-
     @Test
     void exportsCsvAndJson(@TempDir Path dir) throws Exception {
         EarthworkProject project = new EarthworkProject();
@@ -28,7 +24,7 @@ class EarthworkReportExporterTest {
         project.addRegion(region);
 
         EarthworkGenerationResult preview = new EarthworkGenerationResult();
-        preview.volumeReport = EarthworkVolumeReport.fromMetrics(12L, 8L, LEGACY_LIKE, 4L, 3L);
+        preview.volumeReport = EarthworkVolumeReport.fromMetrics(12L, 8L, 4L, 3L);
         preview.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
             project, project.getActiveSite(), region.getId(), preview.volumeReport);
         preview.calculationCellCount = 16;
@@ -54,7 +50,7 @@ class EarthworkReportExporterTest {
         GradingRegion region = levelPadRegion(0, 1, 0, 1, 66, false);
 
         EarthworkGenerationResult preview = new EarthworkGenerationResult();
-        preview.volumeReport = EarthworkVolumeReport.fromMetrics(10L, 5L, region.getMaterialProperties(), 3L, 2L);
+        preview.volumeReport = EarthworkVolumeReport.fromMetrics(10L, 5L, 3L, 2L);
 
         EarthworkReportExporter.ExportResult result =
             EarthworkReportExporter.exportPreview(preview, null, region, dir);

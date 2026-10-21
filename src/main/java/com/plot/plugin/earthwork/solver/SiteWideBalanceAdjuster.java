@@ -70,8 +70,7 @@ public final class SiteWideBalanceAdjuster {
         List<CellSample> flexible = new ArrayList<>();
         List<CellSample> locked = new ArrayList<>();
         splitSamples(grid, site, Map.of(), flexible, locked, resolvedSurfaces);
-        MaterialConversionModel materials = site != null ? site.getMaterialModel() : MaterialConversionModel.DEFAULT;
-        return findBalancedVerticalOffset(flexible, locked, materials);
+        return findBalancedVerticalOffset(flexible, locked, MaterialConversionModel.DEFAULT);
     }
 
     public static void splitSamples(

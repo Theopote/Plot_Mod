@@ -82,7 +82,7 @@ class EarthworkConfigTest {
     }
 
     @Test
-    void adoptDefaultsSeedsSiteAndRegionInheritsSiteMaterial() {
+    void adoptDefaultsForcesMinecraftOneToOneMaterialModel() {
         EarthworkConfig config = new EarthworkConfig("earthwork_balance");
         config.setDefaultMaterialProperties(new MaterialConversionModel(0.75f, 0.85f));
         EarthworkSite site = new EarthworkSite();
@@ -95,9 +95,10 @@ class EarthworkConfigTest {
 
         EarthworkAdoptDefaults.applyToNewRegion(region, config, site, null, null);
 
-        assertEquals(0.75f, site.getMaterialModel().reusableRatio(), 1e-6f);
+        // 认领不再把工程材料换算写入场地；区域固定为 Minecraft 1:1 DEFAULT。
+        assertEquals(MaterialConversionModel.DEFAULT, site.getMaterialModel());
+        assertEquals(MaterialConversionModel.DEFAULT, region.getMaterialProperties());
         assertTrue(region.usesSiteMaterialDefault());
-        assertEquals(0.75f, region.resolveMaterialModel(site.getMaterialModel()).reusableRatio(), 1e-6f);
     }
 
     @Test

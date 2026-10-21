@@ -6,7 +6,6 @@ import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.solver.SlopeCoupledVerticalSearch;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
@@ -229,8 +228,8 @@ class DesignTerrainComposerTest {
         assertTrue(composed.zoneVerticalOffsets().isEmpty());
 
         SiteEarthworkReport volumes = EarthworkOptimizationSolver.collectZoneVolumes(grid, site);
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(volumes.byZone(), site);
-        assertFalse(matrix.isEmpty());
+        assertTrue(volumes.totals().hasGeometricVolume());
+        assertTrue(Math.abs(volumes.totals().netGeometricVolume()) > 0L);
     }
 
     @Test
@@ -415,10 +414,8 @@ class DesignTerrainComposerTest {
         DesignTerrainGrid siteWideGrid = DesignTerrainComposer.compose(siteWide, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         SiteEarthworkReport siteWideVolumes = EarthworkOptimizationSolver.collectZoneVolumes(siteWideGrid, siteWide);
 
-        double perZoneResidual = Math.abs(
-            perZoneVolumes.totals().compactedFillSupply() - perZoneVolumes.totals().compactedFillDemand());
-        double siteWideResidual = Math.abs(
-            siteWideVolumes.totals().compactedFillSupply() - siteWideVolumes.totals().compactedFillDemand());
+        long perZoneResidual = Math.abs(perZoneVolumes.totals().netGeometricVolume());
+        long siteWideResidual = Math.abs(siteWideVolumes.totals().netGeometricVolume());
         assertTrue(siteWideResidual < perZoneResidual,
             () -> "site-wide residual=" + siteWideResidual + " per-zone residual=" + perZoneResidual);
     }

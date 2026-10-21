@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -273,12 +272,6 @@ public final class EarthworkReportExporter {
     }
 
     private static String resolveSiteName(EarthworkProjectReport report, String siteId) {
-        if (EarthworkAllocationMatrix.EXPORT.equals(siteId)) {
-            return "EXPORT";
-        }
-        if (EarthworkAllocationMatrix.IMPORT.equals(siteId)) {
-            return "IMPORT";
-        }
         var snapshot = report.bySite().get(siteId);
         return snapshot != null ? snapshot.siteName() : siteId;
     }
@@ -315,15 +308,5 @@ public final class EarthworkReportExporter {
             return region.getName();
         }
         return zoneId;
-    }
-
-    private static String resolveAllocationEndpoint(EarthworkProject project, String zoneId, boolean source) {
-        if (EarthworkAllocationMatrix.EXPORT.equals(zoneId)) {
-            return "EXPORT";
-        }
-        if (EarthworkAllocationMatrix.IMPORT.equals(zoneId)) {
-            return "IMPORT";
-        }
-        return resolveZoneName(project, zoneId);
     }
 }

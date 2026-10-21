@@ -4,7 +4,6 @@ import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 
 import java.util.Collections;
@@ -12,68 +11,51 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 项目级土方平衡报告：全场挖填合计、材料调配与分区重叠摘要。
+ * 项目级土方报告：几何挖填合计、分区明细与重叠摘要（无材料运输台账）。
  */
 public final class EarthworkProjectReport {
     public static final EarthworkProjectReport EMPTY = new EarthworkProjectReport(
-        0L, 0L, 0.0,
-        ProjectMaterialBalance.EMPTY,
+        0L, 0L,
         EarthworkVolumeReport.empty(),
         Map.of(),
         List.of(),
-        EarthworkAllocationMatrix.EMPTY,
         CompositionPolicy.BALANCE_SCOPE_SITE,
         0,
         Map.of(),
         Map.of(),
-        EarthworkAllocationMatrix.EMPTY,
         0);
 
     private final long totalCut;
     private final long totalFill;
-    private final double reusableCut;
-    private final ProjectMaterialBalance materialBalance;
     private final EarthworkVolumeReport volumeReport;
     private final Map<String, EarthworkVolumeReport> byZone;
     private final List<OverlapConflict> overlaps;
-    private final EarthworkAllocationMatrix allocationMatrix;
     private final String balanceScope;
     private final int siteWideVerticalOffset;
     private final Map<String, Integer> zoneVerticalOffsets;
     private final Map<String, ProjectGlobalBalanceAggregator.SiteBalanceSnapshot> bySite;
-    private final EarthworkAllocationMatrix crossSiteAllocationMatrix;
     private final int sitesWithVolume;
 
     public EarthworkProjectReport(
             long totalCut,
             long totalFill,
-            double reusableCut,
-            ProjectMaterialBalance materialBalance,
             EarthworkVolumeReport volumeReport,
             Map<String, EarthworkVolumeReport> byZone,
             List<OverlapConflict> overlaps,
-            EarthworkAllocationMatrix allocationMatrix,
             String balanceScope,
             int siteWideVerticalOffset,
             Map<String, Integer> zoneVerticalOffsets,
             Map<String, ProjectGlobalBalanceAggregator.SiteBalanceSnapshot> bySite,
-            EarthworkAllocationMatrix crossSiteAllocationMatrix,
             int sitesWithVolume) {
         this.totalCut = Math.max(0L, totalCut);
         this.totalFill = Math.max(0L, totalFill);
-        this.reusableCut = Math.max(0.0, reusableCut);
-        this.materialBalance = materialBalance != null ? materialBalance : ProjectMaterialBalance.EMPTY;
         this.volumeReport = volumeReport != null ? volumeReport : EarthworkVolumeReport.empty();
         this.byZone = byZone != null ? Map.copyOf(byZone) : Map.of();
         this.overlaps = overlaps != null ? List.copyOf(overlaps) : List.of();
-        this.allocationMatrix = allocationMatrix != null ? allocationMatrix : EarthworkAllocationMatrix.EMPTY;
         this.balanceScope = balanceScope != null ? balanceScope : CompositionPolicy.BALANCE_SCOPE_SITE;
         this.siteWideVerticalOffset = siteWideVerticalOffset;
         this.zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
         this.bySite = bySite != null ? Map.copyOf(bySite) : Map.of();
-        this.crossSiteAllocationMatrix = crossSiteAllocationMatrix != null
-            ? crossSiteAllocationMatrix
-            : EarthworkAllocationMatrix.EMPTY;
         this.sitesWithVolume = Math.max(0, sitesWithVolume);
     }
 
@@ -93,50 +75,6 @@ public final class EarthworkProjectReport {
         return totalCut - totalFill;
     }
 
-    public double reusableCut() {
-        return reusableCut;
-    }
-
-    public ProjectMaterialBalance materialBalance() {
-        return materialBalance;
-    }
-
-    public double grossImportDemand() {
-        return materialBalance.grossImportDemand();
-    }
-
-    public double grossExportSurplus() {
-        return materialBalance.grossExportSurplus();
-    }
-
-    public double internalTransferVolume() {
-        return materialBalance.internalTransferVolume();
-    }
-
-    public double externalImportRequired() {
-        return materialBalance.externalImportRequired();
-    }
-
-    public double externalExportRequired() {
-        return materialBalance.externalExportRequired();
-    }
-
-    /**
-     * @deprecated 使用 {@link #externalImportRequired()}
-     */
-    @Deprecated
-    public double importRequired() {
-        return externalImportRequired();
-    }
-
-    /**
-     * @deprecated 使用 {@link #externalExportRequired()}
-     */
-    @Deprecated
-    public double exportRequired() {
-        return externalExportRequired();
-    }
-
     public EarthworkVolumeReport volumeReport() {
         return volumeReport;
     }
@@ -147,10 +85,6 @@ public final class EarthworkProjectReport {
 
     public List<OverlapConflict> overlaps() {
         return overlaps;
-    }
-
-    public EarthworkAllocationMatrix allocationMatrix() {
-        return allocationMatrix;
     }
 
     public String balanceScope() {
@@ -167,10 +101,6 @@ public final class EarthworkProjectReport {
 
     public Map<String, ProjectGlobalBalanceAggregator.SiteBalanceSnapshot> bySite() {
         return bySite;
-    }
-
-    public EarthworkAllocationMatrix crossSiteAllocationMatrix() {
-        return crossSiteAllocationMatrix;
     }
 
     public int sitesWithVolume() {
@@ -237,10 +167,6 @@ public final class EarthworkProjectReport {
             return buildFromProject(project, activeSite, activeSiteReport, 0, Map.of());
         }
 
-        /**
-         * @param siteWideVerticalOffset 本次预览求解的统一 ΔY（不读 site 可变状态）
-         * @param zoneVerticalOffsets 本次预览求解的分区 ΔY
-         */
         public static EarthworkProjectReport buildFromProject(
                 EarthworkProject project,
                 EarthworkSite activeSite,
@@ -266,17 +192,13 @@ public final class EarthworkProjectReport {
             return new EarthworkProjectReport(
                 global.totalCut(),
                 global.totalFill(),
-                global.reusableCut(),
-                global.materialBalance(),
                 active.volumeReport(),
                 active.byZone(),
                 active.overlaps(),
-                active.allocationMatrix(),
                 active.balanceScope(),
                 active.siteWideVerticalOffset(),
                 active.zoneVerticalOffsets(),
                 global.bySite(),
-                global.crossSiteAllocationMatrix(),
                 global.sitesWithVolume());
         }
 
@@ -321,21 +243,16 @@ public final class EarthworkProjectReport {
                     .map(overlap -> OverlapConflict.from(overlap, policy))
                     .toList()
                 : List.of();
-            // 不再生成土方调配/运输矩阵；仅保留几何挖填与分区统计。
             return new EarthworkProjectReport(
                 totals.geometricCutVolume(),
                 totals.geometricFillVolume(),
-                totals.reusableCutVolume(),
-                ProjectMaterialBalance.fromSiteVolumes(totals),
                 totals,
                 byZone,
                 overlaps,
-                EarthworkAllocationMatrix.EMPTY,
                 policy.getBalanceScope(),
                 siteWideVerticalOffset,
                 zoneVerticalOffsets != null ? zoneVerticalOffsets : Map.of(),
                 Map.of(),
-                EarthworkAllocationMatrix.EMPTY,
                 0);
         }
 
@@ -348,17 +265,13 @@ public final class EarthworkProjectReport {
             return new EarthworkProjectReport(
                 global.totalCut(),
                 global.totalFill(),
-                global.reusableCut(),
-                global.materialBalance(),
                 active.volumeReport(),
                 active.byZone(),
                 active.overlaps(),
-                active.allocationMatrix(),
                 active.balanceScope(),
                 active.siteWideVerticalOffset(),
                 active.zoneVerticalOffsets(),
                 global.bySite(),
-                global.crossSiteAllocationMatrix(),
                 global.sitesWithVolume());
         }
     }

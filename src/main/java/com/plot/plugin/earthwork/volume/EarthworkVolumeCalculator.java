@@ -4,13 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.grading.GradingPlane;
-import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
@@ -41,11 +38,7 @@ public final class EarthworkVolumeCalculator {
             EarthworkGenerationResult result,
             int previewGridSize,
             ZoneEdgeSettings edgeSettings,
-            MaterialConversionModel balanceMaterials,
             EarthworkCanvasScale canvasScale) {
-        MaterialConversionModel materials = balanceMaterials != null
-            ? balanceMaterials
-            : region.getMaterialProperties();
         EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
         List<Vec2d> regionOutline = region.getOuterPoints();
@@ -68,7 +61,7 @@ public final class EarthworkVolumeCalculator {
                 totals,
                 null);
         }
-        result.volumeReport = totals.toReport(materials);
+        result.volumeReport = totals.toReport();
         result.siteVolumeReport = new SiteEarthworkReport(result.volumeReport, Map.of());
     }
 
@@ -81,7 +74,6 @@ public final class EarthworkVolumeCalculator {
         Map<String, GradingZone> zonesById = site.getGradingZones();
         Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new HashMap<>();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
-        MaterialConversionModel siteMaterial = site.getMaterialModel();
 
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork()) {
@@ -108,7 +100,7 @@ public final class EarthworkVolumeCalculator {
                 zone.getId());
         }
 
-        result.volumeReport = totals.toReport(siteMaterial);
+        result.volumeReport = totals.toReport();
         result.siteVolumeReport = SiteEarthworkReport.fromMetrics(site, totals, zoneMetrics);
         result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
             null,

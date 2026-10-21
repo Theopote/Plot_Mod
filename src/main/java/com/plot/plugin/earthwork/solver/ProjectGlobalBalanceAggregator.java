@@ -1,20 +1,15 @@
 package com.plot.plugin.earthwork.solver;
 
-import com.plot.core.material.EarthMaterialClassLookup;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.volume.ProjectMaterialBalance;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 项目级土方平衡汇总：合并多场地挖填量，并生成跨场地调配矩阵。
- * <p>
- * 材料数字分三层：场地毛缺量/余量、跨场地内部调配、场外净进出口（均为压实填方）。
+ * 项目级土方汇总：合并多场地几何挖填量（无材料调配矩阵）。
  */
 public final class ProjectGlobalBalanceAggregator {
 
@@ -31,46 +26,10 @@ public final class ProjectGlobalBalanceAggregator {
     public record AggregatedBalance(
             long totalCut,
             long totalFill,
-            double reusableCut,
-            ProjectMaterialBalance materialBalance,
             Map<String, SiteBalanceSnapshot> bySite,
-            EarthworkAllocationMatrix crossSiteAllocationMatrix,
             int sitesWithVolume) {
-
-        public double grossImportDemand() {
-            return materialBalance.grossImportDemand();
-        }
-
-        public double grossExportSurplus() {
-            return materialBalance.grossExportSurplus();
-        }
-
-        public double internalTransferVolume() {
-            return materialBalance.internalTransferVolume();
-        }
-
-        public double externalImportRequired() {
-            return materialBalance.externalImportRequired();
-        }
-
-        public double externalExportRequired() {
-            return materialBalance.externalExportRequired();
-        }
-
-        /**
-         * @deprecated 使用 {@link #externalImportRequired()}
-         */
-        @Deprecated
-        public double importRequired() {
-            return externalImportRequired();
-        }
-
-        /**
-         * @deprecated 使用 {@link #externalExportRequired()}
-         */
-        @Deprecated
-        public double exportRequired() {
-            return externalExportRequired();
+        public long netVolume() {
+            return totalCut - totalFill;
         }
     }
 
@@ -108,11 +67,7 @@ public final class ProjectGlobalBalanceAggregator {
 
         long totalCut = 0L;
         long totalFill = 0L;
-        double reusableCut = 0.0;
-        double grossImportDemand = 0.0;
-        double grossExportSurplus = 0.0;
         Map<String, SiteBalanceSnapshot> bySite = new LinkedHashMap<>();
-        Map<String, EarthworkVolumeReport> matrixInputs = new LinkedHashMap<>();
         Map<String, Integer> safeFreshZones =
             freshZoneOffsets != null ? Map.copyOf(freshZoneOffsets) : Map.of();
 
@@ -134,57 +89,16 @@ public final class ProjectGlobalBalanceAggregator {
                 fresh ? freshSiteWideOffset : 0,
                 fresh ? safeFreshZones : Map.of(),
                 fresh));
-            matrixInputs.put(site.getId(), volumes);
 
             totalCut += volumes.geometricCutVolume();
             totalFill += volumes.geometricFillVolume();
-            reusableCut += volumes.reusableCutVolume();
-            grossImportDemand += volumes.compactedFillDeficit();
-            grossExportSurplus += volumes.compactedFillSurplus();
         }
-
-        // Minecraft 1:1：不做跨场地调配矩阵，仅汇总几何挖填与净差。
-        ProjectMaterialBalance materialBalance = new ProjectMaterialBalance(
-            grossImportDemand,
-            grossExportSurplus,
-            0.0,
-            grossImportDemand,
-            grossExportSurplus);
 
         return new AggregatedBalance(
             totalCut,
             totalFill,
-            reusableCut,
-            materialBalance,
             Map.copyOf(bySite),
-            EarthworkAllocationMatrix.EMPTY,
             bySite.size());
-    }
-
-    private static EarthMaterialClassLookup projectMaterialLookup(EarthworkProject project) {
-        if (project == null) {
-            return EarthMaterialClassLookup.UNKNOWN;
-        }
-        return id -> {
-            EarthworkSite site = project.getSite(id);
-            if (site != null) {
-                return new EarthMaterialClassLookup.Classes(
-                    site.getCutMaterialClass(),
-                    site.getFillMaterialClass());
-            }
-            for (EarthworkSite candidate : project.getSites().values()) {
-                if (candidate == null) {
-                    continue;
-                }
-                GradingZone zone = candidate.getZone(id);
-                if (zone != null) {
-                    return new EarthMaterialClassLookup.Classes(
-                        zone.getCutMaterialClass(),
-                        zone.getFillMaterialClass());
-                }
-            }
-            return EarthMaterialClassLookup.Classes.DEFAULT;
-        };
     }
 
     private static EarthworkVolumeReport resolveSiteVolumes(
@@ -198,13 +112,6 @@ public final class ProjectGlobalBalanceAggregator {
     }
 
     private static AggregatedBalance empty() {
-        return new AggregatedBalance(
-            0L,
-            0L,
-            0.0,
-            ProjectMaterialBalance.EMPTY,
-            Map.of(),
-            EarthworkAllocationMatrix.EMPTY,
-            0);
+        return new AggregatedBalance(0L, 0L, Map.of(), 0);
     }
 }

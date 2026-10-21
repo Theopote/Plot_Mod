@@ -1,7 +1,5 @@
 package com.plot.plugin.earthwork.solver;
 
-import com.plot.core.material.MaterialConversionModel;
-
 import java.util.List;
 
 /**
@@ -20,8 +18,7 @@ public final class WeightedBalanceSolver {
      */
     public static int findVerticalOffsetForVolumeIntent(
             List<SiteWideBalanceAdjuster.CellSample> samples,
-            long volumeIntent,
-            MaterialConversionModel materials) {
+            long volumeIntent) {
         if (samples == null || samples.isEmpty() || volumeIntent == 0L) {
             return 0;
         }

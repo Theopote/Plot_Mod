@@ -86,7 +86,7 @@ class ZoneTargetElevationStatsTest {
         result.placementRecords.put(new BlockPos(2, 60, 0), new BlockRecord(new BlockPos(2, 60, 0), "a", "b"));
         result.changeTypes.put(new BlockPos(2, 60, 0), EarthworkGenerationResult.ChangeType.STRUCTURE);
         result.volumeReport = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(
-            10, 10, null, 0, 0);
+            10, 10, 0, 0);
 
         result.syncChangedBlocksFromPlacements();
 
@@ -100,9 +100,9 @@ class ZoneTargetElevationStatsTest {
         putCell(grid, 0, 0, "zone-a", 65);
         putCell(grid, 1, 0, "zone-b", 65);
 
-        var zoneA = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(5, 0, null, 99, 88);
-        var zoneB = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(0, 5, null, 77, 66);
-        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(5, 5, null, 50, 50);
+        var zoneA = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(5, 0, 99, 88);
+        var zoneB = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(0, 5, 77, 66);
+        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(5, 5, 50, 50);
 
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         result.designTerrainGrid = grid;
@@ -130,8 +130,8 @@ class ZoneTargetElevationStatsTest {
 
     @Test
     void syncTracksUnassignedPlacementsSeparatelyFromZones() {
-        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(3, 2, null, 0, 0);
-        var zoneA = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(3, 0, null, 0, 0);
+        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(3, 2, 0, 0);
+        var zoneA = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(3, 0, 0, 0);
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         result.volumeReport = totals;
         result.siteVolumeReport = new SiteEarthworkReport(totals, Map.of("zone-a", zoneA));
@@ -160,13 +160,13 @@ class ZoneTargetElevationStatsTest {
         DesignTerrainGrid grid = new DesignTerrainGrid();
         putCell(grid, 9, 0, "zone-grid", 65);
 
-        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(1, 0, null, 0, 0);
+        var totals = com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(1, 0, 0, 0);
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         result.designTerrainGrid = grid;
         result.volumeReport = totals;
         result.siteVolumeReport = new SiteEarthworkReport(totals, Map.of(
             "zone-grid",
-            com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(1, 0, null, 0, 0)));
+            com.plot.plugin.earthwork.volume.EarthworkVolumeReport.fromMetrics(1, 0, 0, 0)));
         // 明确 UNASSIGNED，即使网格在 (9,0) 有 zone-grid
         putPlacement(result, new BlockPos(9, 60, 0), EarthworkGenerationResult.ChangeType.CUT, "");
 

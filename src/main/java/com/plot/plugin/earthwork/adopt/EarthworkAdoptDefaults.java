@@ -6,7 +6,6 @@ import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.terrain.EngineeringTerrainSampler;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
-import com.plot.plugin.earthwork.material.EarthworkMaterialScope;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.util.math.BlockPos;
@@ -32,9 +31,6 @@ public final class EarthworkAdoptDefaults {
             ICoordinateService transformer) {
         if (region == null || config == null) {
             return;
-        }
-        if (site != null && EarthworkMaterialScope.usesDefaultMaterialModel(site)) {
-            site.setMaterialModel(config.getDefaultMaterialProperties());
         }
         region.setAutoBalance(config.isAdoptDefaultAutoBalance());
         region.setMaterialProperties(MaterialConversionModel.DEFAULT);
