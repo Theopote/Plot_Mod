@@ -471,8 +471,6 @@
   "plugin.road.preview_status_ready": "预览：可建造",
   "plugin.road.preview_status_stale": "预览：已过期，请先重新计算",
   "plugin.road.preview_status_none": "预览：尚未计算",
-  "plugin.road.shell.no_selection": "未选择道路",
-  "plugin.road.shell.single_stats": "%d 段 · %.1f m",
   "plugin.road.build_confirm_validation_header": "工程警告（仍可继续落地）：",
   "plugin.road.preview_refreshed_after_reconcile": "交叉口拓扑对齐后已重新计算预览",
   "plugin.road.validation.topology_issues": "检测到 %d 处拓扑异常",

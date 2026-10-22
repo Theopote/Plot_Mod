@@ -471,8 +471,6 @@
   "plugin.road.preview_status_ready": "Preview: ready to build",
   "plugin.road.preview_status_stale": "Preview: stale — recalculate before building",
   "plugin.road.preview_status_none": "Preview: not calculated yet",
-  "plugin.road.shell.no_selection": "No road selected",
-  "plugin.road.shell.single_stats": "%d segment(s) · %.1f m",
   "plugin.road.build_confirm_validation_header": "Engineering warnings (build can proceed):",
   "plugin.road.preview_refreshed_after_reconcile": "Preview recalculated after intersection reconcile",
   "plugin.road.validation.topology_issues": "%d topology issue(s) detected",
