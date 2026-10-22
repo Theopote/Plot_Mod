@@ -75,6 +75,28 @@ public final class ResolvedProfileAuthority {
         return alignment != null && !alignment.isEmpty();
     }
 
+    /**
+     * 保存的编辑曲线是否已与当前路径几何绑定，可在不进入编辑器的情况下切回 EDITED 来源。
+     */
+    public static boolean canActivateEditedProfile(RoadNetwork network, Road road) {
+        if (road == null || network == null) {
+            return false;
+        }
+        if (!hasStoredEditedCurve(road)) {
+            return false;
+        }
+        if (!RoadStationing.isStationable(network, road)) {
+            return false;
+        }
+        if (!VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+            return false;
+        }
+        return EditedProfileGeometry.matches(
+            network,
+            road,
+            road.getEditedGeometrySignature());
+    }
+
     /** 确认编辑曲线后写入来源与几何签名。 */
     public static void markEditedProfileConfirmed(RoadNetwork network, Road road) {
         if (road == null || network == null) {

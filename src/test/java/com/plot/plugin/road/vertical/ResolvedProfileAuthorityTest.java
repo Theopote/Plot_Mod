@@ -60,6 +60,38 @@ class ResolvedProfileAuthorityTest {
             network, network.getRoad("r1")));
     }
 
+    @Test
+    void canActivateEditedProfileWhenSignatureMatches() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        road.setProfileSource(ProfileSource.AUTO);
+
+        assertTrue(ResolvedProfileAuthority.canActivateEditedProfile(network, road));
+    }
+
+    @Test
+    void cannotActivateEditedProfileAfterGeometryChangeWithoutEditorConfirm() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        int staleSignature = road.getEditedGeometrySignature();
+
+        RoadNode end = network.getNodes().values().stream()
+            .filter(node -> node.getPosition().x > 0)
+            .findFirst()
+            .orElseThrow();
+        end.setPosition(new Vec2d(80, 0));
+        road.setProfileSource(ProfileSource.AUTO);
+
+        assertFalse(ResolvedProfileAuthority.canActivateEditedProfile(network, road));
+        assertFalse(EditedProfileGeometry.matches(network, road, staleSignature));
+
+        road.setProfileSource(ProfileSource.EDITED);
+        assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        assertFalse(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
+    }
+
     private static RoadNetwork buildRoadWithAlignment(ProfileSource source) {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");

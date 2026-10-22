@@ -163,7 +163,8 @@ public final class RoadGeneratePanel {
             network,
             road,
             ctx.networkManager().getConfig(),
-            this::requireTerrainOrNull);
+            this::requireTerrainOrNull,
+            () -> profileEditor.openEditorForRoad(ctx, road.getId()));
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {

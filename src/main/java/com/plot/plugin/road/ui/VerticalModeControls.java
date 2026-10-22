@@ -23,7 +23,8 @@ final class VerticalModeControls {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Supplier<TerrainSampler> terrainSupplier) {
+            Supplier<TerrainSampler> terrainSupplier,
+            Runnable openProfileEditor) {
         if (road == null || network == null) {
             return;
         }
@@ -44,7 +45,7 @@ final class VerticalModeControls {
                 terrainSupplier);
             return;
         }
-        ProfileSourceControls.render(ctx, network, road);
+        ProfileSourceControls.renderGenerateSummary(ctx, network, road, openProfileEditor);
     }
 
     FlatElevationProfileOverlay flatElevationProfileOverlay(

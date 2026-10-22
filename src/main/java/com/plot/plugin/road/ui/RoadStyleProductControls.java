@@ -28,7 +28,7 @@ public final class RoadStyleProductControls {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         float effective = road.getEffectiveMaxSlope(config);
-        ImGui.text(PlotI18n.tr("plugin.road.style.max_slope"));
+        ImGui.text(PlotI18n.tr("plugin.road.style.max_slope_road"));
         renderSlopePresetButtons(
             effective,
             value -> {
@@ -37,6 +37,17 @@ public final class RoadStyleProductControls {
                 }
                 road.setMaxSlope(value);
             });
+        if (road.getMaxSlope() != null) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.style.max_slope_reset_default") + "##road_slope_reset")) {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setMaxSlope(null);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.style.max_slope_reset_default.hint"));
+            }
+        }
         ImGui.spacing();
     }
 
@@ -45,7 +56,7 @@ public final class RoadStyleProductControls {
         if (config == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.style.max_slope"));
+        ImGui.text(PlotI18n.tr("plugin.road.style.max_slope_default"));
         renderSlopePresetButtons(
             config.getMaxSlope(),
             value -> {
@@ -66,7 +77,6 @@ public final class RoadStyleProductControls {
                 config.setTerrainStyle(style);
                 markConfigChanged(ctx);
             });
-        renderGlobalOscillationReductionToggle(ctx, config);
     }
 
     public static void renderRoadTerrainStylePresets(RoadUiContext ctx, Road road, Runnable onHistory) {
@@ -83,12 +93,14 @@ public final class RoadStyleProductControls {
                 road.setTerrainStyle(style);
                 ctx.onGenerationConfigChanged();
             });
-        renderRoadOscillationReductionControls(ctx, road, config, onHistory);
     }
 
-    private static void renderGlobalOscillationReductionToggle(
-            RoadUiContext ctx,
-            RoadSystemConfig config) {
+    /** 实验性纵断面算法开关（开发调试，非普通用户选项）。 */
+    public static void renderExperimentalProfileSettings(RoadUiContext ctx) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        if (config == null) {
+            return;
+        }
         imgui.type.ImBoolean enabled = new imgui.type.ImBoolean(config.isOscillationReductionEnabled());
         if (imgui.ImGui.checkbox(
                 com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled"),
@@ -99,51 +111,6 @@ public final class RoadStyleProductControls {
         if (imgui.ImGui.isItemHovered()) {
             imgui.ImGui.setTooltip(
                 com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled.hint"));
-        }
-        imgui.ImGui.spacing();
-    }
-
-    private static void renderRoadOscillationReductionControls(
-            RoadUiContext ctx,
-            Road road,
-            RoadSystemConfig config,
-            Runnable onHistory) {
-        Boolean stored = road.getStoredOscillationReductionEnabled();
-        imgui.type.ImBoolean inheritGlobal = new imgui.type.ImBoolean(stored == null);
-        if (imgui.ImGui.checkbox(
-                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_inherit_global"),
-                inheritGlobal)) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
-            if (inheritGlobal.get()) {
-                road.setOscillationReductionEnabled(null);
-            } else {
-                road.setOscillationReductionEnabled(config.isOscillationReductionEnabled());
-            }
-            ctx.onGenerationConfigChanged();
-        }
-        if (imgui.ImGui.isItemHovered()) {
-            imgui.ImGui.setTooltip(
-                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_inherit_global.hint"));
-        }
-        if (!inheritGlobal.get()) {
-            imgui.ImGui.indent();
-            imgui.type.ImBoolean enabled = new imgui.type.ImBoolean(road.isOscillationReductionEnabled(config));
-            if (imgui.ImGui.checkbox(
-                    com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled"),
-                    enabled)) {
-                if (onHistory != null) {
-                    onHistory.run();
-                }
-                road.setOscillationReductionEnabled(enabled.get());
-                ctx.onGenerationConfigChanged();
-            }
-            if (imgui.ImGui.isItemHovered()) {
-                imgui.ImGui.setTooltip(
-                    com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled.hint"));
-            }
-            imgui.ImGui.unindent();
         }
         imgui.ImGui.spacing();
     }

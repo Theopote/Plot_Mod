@@ -74,6 +74,15 @@ public final class RoadGenerationSettingsPanel {
         ImGui.indent();
         TunnelStyleControls.renderGlobal(ctx);
         ImGui.unindent();
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.experimental_settings"))) {
+            RoadUiWidgets.textWrappedColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.generate.experimental_settings.hint"));
+            ImGui.indent();
+            RoadStyleProductControls.renderExperimentalProfileSettings(ctx);
+            ImGui.unindent();
+        }
     }
 
     /** 单选道路时可在纵断面工作区展示道路级隧道覆盖。 */
