@@ -47,8 +47,18 @@ public enum ProfileChartRenderMode {
         return false;
     }
 
+    /**
+     * 地形趋势 / 自动引导线（亮蓝或橙色虚线）。编辑器只编辑 VA 绿线，不叠加求解器引导。
+     */
     public boolean showGuideLine() {
-        return this == EDITOR;
+        return false;
+    }
+
+    /**
+     * 方块铺设台阶：Generate 概览展示预览结果；编辑器仅在用户显式更新体素纵断面后展示。
+     */
+    public boolean showBuildProfileLine() {
+        return this != EDITOR;
     }
 
     public boolean showIntersectionLabels() {

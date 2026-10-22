@@ -35,9 +35,17 @@ class ProfileChartRenderModeTest {
         ProfileChartRenderMode mode = ProfileChartRenderMode.EDITOR;
         assertTrue(mode.showElevationAxisLabels());
         assertTrue(mode.showIntersectionLabels());
-        assertTrue(mode.showGuideLine());
+        assertFalse(mode.showGuideLine());
+        assertFalse(mode.showBuildProfileLine());
         assertTrue(mode.showIntersectionConnectors());
         // 求解器 design 采样不再画绿线；绿线来自 VerticalAlignmentProfileOverlay。
         assertFalse(mode.showDesignProfileLine());
+    }
+
+    @Test
+    void overviewModeShowsBuildProfileNotGuideLine() {
+        ProfileChartRenderMode mode = ProfileChartRenderMode.OVERVIEW;
+        assertTrue(mode.showBuildProfileLine());
+        assertFalse(mode.showGuideLine());
     }
 }

@@ -764,12 +764,14 @@ final class VerticalProfileEditor {
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
-            boolean flatMode) {
+            boolean flatMode,
+            boolean showBuildProfileLine) {
         ProfileChartLegend.renderCompact(
             ProfileChartRenderMode.EDITOR,
             road != null ? road.getVerticalMode() : null,
             flatMode,
-            isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc());
+            isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc(),
+            showBuildProfileLine);
         ProfileChartLegend.renderIntersectionLegend(intersections);
         renderVoxelProfileControls(ctx, road);
     }
@@ -937,6 +939,9 @@ final class VerticalProfileEditor {
         RoadVerticalAlignment effectiveAlignment = profileEditSession.effectiveAlignment(road);
         RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
         boolean buildProfileStale = isChartDerivedDataStale(road);
+        VoxelProfilePreviewSlot voxelSlot =
+            windowSession != null ? windowSession.voxelPreview(road.getId()) : null;
+        boolean showBuildProfileLine = voxelSlot != null && voxelSlot.hasLastGoodSamples();
         List<ProfileControlPoint> points = flatMode
             ? List.of()
             : VerticalProfileControlPoints.forAlignment(editingNetwork, road, effectiveAlignment);
@@ -986,7 +991,8 @@ final class VerticalProfileEditor {
                 road.getVerticalMode(),
                 elevationBounds,
                 effectiveAlignment,
-                buildProfileStale);
+                buildProfileStale,
+                showBuildProfileLine);
         if (interaction.intersectionDragStarted()) {
             recordUndoPointBeforeEdit();
             profileEditSession.beginIntersectionEdit(baseIntersections);
@@ -1103,7 +1109,7 @@ final class VerticalProfileEditor {
                 ProfileChartInteraction.IntersectionDragTarget.NONE;
         }
         selectedIntersectionIndex = interaction.selectedIntersectionIndex();
-        renderEditorLegend(ctx, road, design, intersections, flatOverlay, flatMode);
+        renderEditorLegend(ctx, road, design, intersections, flatOverlay, flatMode, showBuildProfileLine);
         ProfileQualitySummary.render(
             effectiveChart,
             road,

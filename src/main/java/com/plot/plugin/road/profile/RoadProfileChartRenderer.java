@@ -89,7 +89,9 @@ public final class RoadProfileChartRenderer {
         drawAxesAndGrid(drawList, layout, range, mode);
         drawSeries(
             drawList, layout, range, chart, design, flatOverlay, mode,
-            ProfileChartGuideSemantics.fromVerticalMode(verticalMode));
+            ProfileChartGuideSemantics.fromVerticalMode(verticalMode),
+            false,
+            mode.showBuildProfileLine());
         ProfileChartIntersectionSupport.drawIntersectionMarkers(
             drawList, intersections, -1, layout,
             range.totalStation(), range.minElevation(), range.maxElevation(), mode);
@@ -181,7 +183,7 @@ public final class RoadProfileChartRenderer {
             activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
             curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
             activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
-            elevationBounds, insertAlignment, false);
+            elevationBounds, insertAlignment, false, mode.showBuildProfileLine());
     }
 
     public static ProfileChartInteraction.ControlInteraction renderInteractive(
@@ -209,6 +211,41 @@ public final class RoadProfileChartRenderer {
             RoadElevationBounds elevationBounds,
             RoadVerticalAlignment insertAlignment,
             boolean buildProfileStale) {
+        return renderInteractive(
+            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
+            intersections, selectedIntersectionIndex, chartHeight,
+            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
+            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
+            activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
+            elevationBounds, insertAlignment, buildProfileStale, mode.showBuildProfileLine());
+    }
+
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            List<ProfileControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            FlatElevationProfileOverlay flatOverlay,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartRenderMode mode,
+            ProfileRenderCache renderCache,
+            RoadVerticalMode verticalMode,
+            RoadElevationBounds elevationBounds,
+            RoadVerticalAlignment insertAlignment,
+            boolean buildProfileStale,
+            boolean showBuildProfileLine) {
         if (chart == null || !chart.hasProfileData()) {
             return new ProfileChartInteraction.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
@@ -229,7 +266,8 @@ public final class RoadProfileChartRenderer {
         drawSeries(
             drawList, layout, range, chart, design, flatOverlay, mode,
             ProfileChartGuideSemantics.fromVerticalMode(verticalMode),
-            buildProfileStale);
+            buildProfileStale,
+            showBuildProfileLine);
         if (mode == ProfileChartRenderMode.EDITOR) {
             drawWorldElevationBounds(drawList, layout, range, elevationBounds);
         }
@@ -819,7 +857,8 @@ public final class RoadProfileChartRenderer {
             ProfileChartRenderMode mode,
             ProfileChartGuideSemantics guideSemantics) {
         drawSeries(
-            drawList, layout, range, chart, design, flatOverlay, mode, guideSemantics, false);
+            drawList, layout, range, chart, design, flatOverlay, mode, guideSemantics,
+            false, mode.showBuildProfileLine());
     }
 
     private static void drawSeries(
@@ -831,7 +870,8 @@ public final class RoadProfileChartRenderer {
             FlatElevationProfileOverlay flatOverlay,
             ProfileChartRenderMode mode,
             ProfileChartGuideSemantics guideSemantics,
-            boolean buildProfileStale) {
+            boolean buildProfileStale,
+            boolean showBuildProfileLine) {
         drawPolyline(
             drawList, layout, range, chart.stations(), chart.groundElevations(),
             COLOR_GROUND, mode.groundLineWidth(), false);
@@ -862,20 +902,22 @@ public final class RoadProfileChartRenderer {
                 true);
         }
         // 绿色设计线仅来自玩家 VA overlay（编辑器）；不再用求解器 previewElevations 冒充设计线。
-        int buildColor = buildProfileStale ? COLOR_BUILD_STALE : COLOR_BUILD;
-        if (mode == ProfileChartRenderMode.EDITOR && chart.hasBuildSamples()) {
-            drawBuildStairStep(
-                drawList,
-                layout,
-                range,
-                chart.buildSamples(),
-                buildColor,
-                Math.max(1.2f, mode.roadLineWidth() - 0.4f),
-                buildProfileStale);
-        } else if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
-            drawPolyline(
-                drawList, layout, range, chart.stations(), chart.buildElevations(),
-                buildColor, Math.max(1.2f, mode.roadLineWidth() - 0.4f), buildProfileStale);
+        if (showBuildProfileLine) {
+            int buildColor = buildProfileStale ? COLOR_BUILD_STALE : COLOR_BUILD;
+            if (mode == ProfileChartRenderMode.EDITOR && chart.hasBuildSamples()) {
+                drawBuildStairStep(
+                    drawList,
+                    layout,
+                    range,
+                    chart.buildSamples(),
+                    buildColor,
+                    Math.max(1.2f, mode.roadLineWidth() - 0.4f),
+                    buildProfileStale);
+            } else if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
+                drawPolyline(
+                    drawList, layout, range, chart.stations(), chart.buildElevations(),
+                    buildColor, Math.max(1.2f, mode.roadLineWidth() - 0.4f), buildProfileStale);
+            }
         }
         if (design != null && !design.isEmpty()) {
             drawPolyline(

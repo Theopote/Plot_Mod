@@ -1,6 +1,7 @@
 package com.plot.infrastructure.event.block;
 
 import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -93,6 +94,7 @@ class BlockPlacementSchedulerTest {
         scheduler.tickForTest();
         assertTrue(scheduler.isBusy());
         com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
+        Assertions.assertNotNull(progress);
         assertEquals(40, progress.processed());
         assertEquals(80, progress.total());
 

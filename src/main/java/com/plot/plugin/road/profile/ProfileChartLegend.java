@@ -14,18 +14,27 @@ public final class ProfileChartLegend {
     private ProfileChartLegend() {
     }
 
-    /** 紧凑卡片单行图例：Overview 为地形+建造，Editor 为地形+设计+建造。 */
+    /** 紧凑卡片单行图例：Overview 为地形+建造，Editor 为地形+设计（体素预览后可选建造）。 */
     public static void renderCompact(
             ProfileChartRenderMode chartMode,
             RoadVerticalMode verticalMode,
             boolean flatMode,
             boolean buildPreviewStale) {
+        renderCompact(chartMode, verticalMode, flatMode, buildPreviewStale, chartMode.showBuildProfileLine());
+    }
+
+    public static void renderCompact(
+            ProfileChartRenderMode chartMode,
+            RoadVerticalMode verticalMode,
+            boolean flatMode,
+            boolean buildPreviewStale,
+            boolean showBuildProfile) {
         if (flatMode) {
-            renderFlatCompactLegend(buildPreviewStale);
+            renderFlatCompactLegend(buildPreviewStale, showBuildProfile);
             return;
         }
         if (chartMode == ProfileChartRenderMode.EDITOR) {
-            renderCompactEditorLegend(buildPreviewStale);
+            renderCompactEditorLegend(buildPreviewStale, showBuildProfile);
             return;
         }
         renderCompactOverviewLegend(buildPreviewStale);
@@ -41,7 +50,7 @@ public final class ProfileChartLegend {
             "\u25A0 " + buildProfileLabel(buildPreviewStale));
     }
 
-    private static void renderCompactEditorLegend(boolean buildPreviewStale) {
+    private static void renderCompactEditorLegend(boolean buildPreviewStale, boolean showBuildProfile) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
@@ -49,20 +58,24 @@ public final class ProfileChartLegend {
         ImGui.textColored(
             ProfileChartSeriesStyle.DESIGN_PROFILE,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
-        ImGui.sameLine();
-        ImGui.textColored(
-            ProfileChartSeriesStyle.BUILD_PROFILE,
-            "\u25A0 " + buildProfileLabel(buildPreviewStale));
+        if (showBuildProfile) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                ProfileChartSeriesStyle.BUILD_PROFILE,
+                "\u25A0 " + buildProfileLabel(buildPreviewStale));
+        }
     }
 
-    private static void renderFlatCompactLegend(boolean buildPreviewStale) {
+    private static void renderFlatCompactLegend(boolean buildPreviewStale, boolean showBuildProfile) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
-        ImGui.sameLine();
-        ImGui.textColored(
-            ProfileChartSeriesStyle.BUILD_PROFILE,
-            "\u25A0 " + buildProfileLabel(buildPreviewStale));
+        if (showBuildProfile) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                ProfileChartSeriesStyle.BUILD_PROFILE,
+                "\u25A0 " + buildProfileLabel(buildPreviewStale));
+        }
     }
 
     public static void renderSeriesLegend(
