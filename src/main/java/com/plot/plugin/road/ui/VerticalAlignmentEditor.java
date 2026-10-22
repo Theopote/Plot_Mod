@@ -49,9 +49,7 @@ public final class VerticalAlignmentEditor {
         if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             flatProfileControls.renderPath(
                 ctx, network, road, profileHooks, terrainSupplier);
-            return;
         }
-        ProfileSourceControls.render(ctx, network, road);
     }
 
     private void renderVerticalStrategy(

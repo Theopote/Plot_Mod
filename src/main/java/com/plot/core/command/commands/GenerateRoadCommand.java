@@ -32,6 +32,13 @@ import java.util.function.Function;
 public class GenerateRoadCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenerateRoadCommand.class);
 
+    enum BuildCommandState {
+        NOT_EXECUTED,
+        APPLIED,
+        PARTIALLY_UNDONE,
+        UNDONE
+    }
+
     public record ExecutionResult(
             int success,
             int failed,
@@ -58,6 +65,7 @@ public class GenerateRoadCommand implements Command {
     private final List<BlockRecord> requestedRecords;
     private List<BlockRecord> appliedRecords = List.of();
     private List<BlockRecord> originalAppliedRecords = List.of();
+    private BuildCommandState buildState = BuildCommandState.NOT_EXECUTED;
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final Function<BlockPos, String> blockReader;
@@ -145,7 +153,7 @@ public class GenerateRoadCommand implements Command {
     public void undo() {
         List<BlockRecord> toUndo = recordsForUndo();
         if (toUndo.isEmpty()) {
-            LOGGER.debug("道路撤销跳过：无已应用记录");
+            LOGGER.debug("道路撤销跳过：state={} applied={}", buildState, appliedRecords.size());
             return;
         }
         if (schedulePlacement) {
@@ -153,15 +161,20 @@ public class GenerateRoadCommand implements Command {
             return;
         }
         lastExecutionResult = applySyncUndo(toUndo);
-        LOGGER.info("道路撤销完成: {}/{}（remaining {}）",
+        LOGGER.info("道路撤销完成: {}/{}（remaining {} state={}）",
             lastExecutionResult.success(),
             lastExecutionResult.total(),
-            appliedRecords.size());
+            appliedRecords.size(),
+            buildState);
     }
 
     @Override
     public void redo() {
         List<BlockRecord> toApply = recordsForRedo();
+        if (toApply.isEmpty()) {
+            LOGGER.debug("道路重做跳过：state={}", buildState);
+            return;
+        }
         if (schedulePlacement) {
             enqueueWrites(toApply, true, result -> { });
             return;
@@ -192,13 +205,15 @@ public class GenerateRoadCommand implements Command {
         return requestedRecords.size();
     }
 
-    /** 实际成功写入的记录数。 */
+    /** 当前仍待撤销的成功写入数。 */
     public int getAppliedRecordCount() {
         return appliedRecords.size();
     }
 
     public boolean hasAppliedRecords() {
-        return !appliedRecords.isEmpty() || !originalAppliedRecords.isEmpty();
+        return buildState == BuildCommandState.APPLIED
+            || buildState == BuildCommandState.PARTIALLY_UNDONE
+            || !originalAppliedRecords.isEmpty();
     }
 
     public List<BlockRecord> getAppliedRecords() {
@@ -217,11 +232,21 @@ public class GenerateRoadCommand implements Command {
         return lastExecutionResult;
     }
 
+    BuildCommandState buildStateForTest() {
+        return buildState;
+    }
+
     private List<BlockRecord> recordsForUndo() {
-        return !appliedRecords.isEmpty() ? appliedRecords : originalAppliedRecords;
+        return switch (buildState) {
+            case APPLIED, PARTIALLY_UNDONE -> appliedRecords;
+            case NOT_EXECUTED, UNDONE -> List.of();
+        };
     }
 
     private List<BlockRecord> recordsForRedo() {
+        if (buildState != BuildCommandState.UNDONE) {
+            return List.of();
+        }
         return !originalAppliedRecords.isEmpty() ? originalAppliedRecords : requestedRecords;
     }
 
@@ -246,12 +271,13 @@ public class GenerateRoadCommand implements Command {
                         recordsWithWriteTimeBaselines(plans, result.capturedBaselinesAtWriteTime()),
                         lastExecutionResult.successfulWriteIndices());
                 }
-                LOGGER.info("道路{}完成: {}/{} 成功, {} 失败（applied {}）",
+                LOGGER.info("道路{}完成: {}/{} 成功, {} 失败（applied {} state={}）",
                     applyNewBlocks ? "落地" : "撤销",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
                     lastExecutionResult.failed(),
-                    appliedRecords.size());
+                    appliedRecords.size(),
+                    buildState);
                 if (onComplete != null) {
                     onComplete.accept(lastExecutionResult);
                 }
@@ -278,12 +304,17 @@ public class GenerateRoadCommand implements Command {
         if (schedulePlacement) {
             placementScheduler.enqueue(writes, null, result -> {
                 lastExecutionResult = toExecutionResult(result);
-                finalizeUndoAppliedRecords(plans, lastExecutionResult.successfulWriteIndices());
-                LOGGER.info("道路撤销完成: {}/{} 成功, {} 失败（remaining {}）",
+                finalizeUndoAppliedRecords(
+                    plans,
+                    mapReverseWriteIndicesToSourceIndices(
+                        plans.size(),
+                        lastExecutionResult.successfulWriteIndices()));
+                LOGGER.info("道路撤销完成: {}/{} 成功, {} 失败（remaining {} state={}）",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
                     lastExecutionResult.failed(),
-                    appliedRecords.size());
+                    appliedRecords.size(),
+                    buildState);
                 if (onComplete != null) {
                     onComplete.accept(lastExecutionResult);
                 }
@@ -295,6 +326,20 @@ public class GenerateRoadCommand implements Command {
         if (onComplete != null) {
             onComplete.accept(lastExecutionResult);
         }
+    }
+
+    static List<Integer> mapReverseWriteIndicesToSourceIndices(int sourceSize, List<Integer> writeIndices) {
+        if (writeIndices == null || writeIndices.isEmpty() || sourceSize <= 0) {
+            return List.of();
+        }
+        List<Integer> sourceIndices = new ArrayList<>(writeIndices.size());
+        for (int writeIndex : writeIndices) {
+            if (writeIndex < 0 || writeIndex >= sourceSize) {
+                continue;
+            }
+            sourceIndices.add(sourceSize - 1 - writeIndex);
+        }
+        return List.copyOf(sourceIndices);
     }
 
     private List<BlockRecord> recordsWithWriteTimeBaselines(
@@ -331,6 +376,9 @@ public class GenerateRoadCommand implements Command {
             List<Integer> successfulWriteIndices) {
         if (successfulWriteIndices == null || successfulWriteIndices.isEmpty() || executedSource.isEmpty()) {
             appliedRecords = List.of();
+            if (originalAppliedRecords.isEmpty()) {
+                buildState = BuildCommandState.NOT_EXECUTED;
+            }
             return;
         }
         List<BlockRecord> applied = new ArrayList<>(successfulWriteIndices.size());
@@ -343,21 +391,26 @@ public class GenerateRoadCommand implements Command {
         if (originalAppliedRecords.isEmpty() && !appliedRecords.isEmpty()) {
             originalAppliedRecords = List.copyOf(appliedRecords);
         }
+        if (!appliedRecords.isEmpty()) {
+            buildState = BuildCommandState.APPLIED;
+        }
     }
 
-    private void finalizeUndoAppliedRecords(List<BlockRecord> source, List<Integer> successfulWriteIndices) {
+    private void finalizeUndoAppliedRecords(List<BlockRecord> source, List<Integer> successfulSourceIndices) {
         if (source == null || source.isEmpty()) {
             appliedRecords = List.of();
+            buildState = BuildCommandState.UNDONE;
             return;
         }
-        if (successfulWriteIndices == null || successfulWriteIndices.isEmpty()) {
+        if (successfulSourceIndices == null || successfulSourceIndices.isEmpty()) {
             return;
         }
-        if (successfulWriteIndices.size() == source.size()) {
+        if (successfulSourceIndices.size() == source.size()) {
             appliedRecords = List.of();
+            buildState = BuildCommandState.UNDONE;
             return;
         }
-        Set<Integer> restored = new HashSet<>(successfulWriteIndices);
+        Set<Integer> restored = new HashSet<>(successfulSourceIndices);
         List<BlockRecord> remaining = new ArrayList<>();
         for (int i = 0; i < source.size(); i++) {
             if (!restored.contains(i)) {
@@ -365,6 +418,7 @@ public class GenerateRoadCommand implements Command {
             }
         }
         appliedRecords = List.copyOf(remaining);
+        buildState = BuildCommandState.PARTIALLY_UNDONE;
     }
 
     private ExecutionResult applySync(List<BlockRecord> source, boolean applyNewBlocks) {

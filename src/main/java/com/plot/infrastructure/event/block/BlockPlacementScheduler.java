@@ -23,7 +23,7 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
     private static BlockPlacementScheduler instance;
 
     @FunctionalInterface
-    interface BlockWriter {
+    public interface BlockWriter {
         boolean setBlockAt(BlockPos pos, String blockId);
     }
 
@@ -149,9 +149,7 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
     }
 
     private void completeJob(PlacementJob job, boolean cancelled) {
-        List<String> capturedBaselines = job.capturedBaselines.isEmpty()
-            ? List.of()
-            : List.copyOf(job.capturedBaselines);
+        List<String> capturedBaselines = sanitizeCapturedBaselines(job.capturedBaselines);
         ExecutionResult result = cancelled
             ? new ExecutionResult(
                 job.success,
@@ -179,20 +177,31 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
         }
     }
 
-    void setBlockWriterForTest(BlockWriter writer) {
+    public void setBlockWriterForTest(BlockWriter writer) {
         this.blockWriter = writer != null
             ? writer
             : (pos, blockId) -> BlockProjectionHandler.getInstance().setBlockAt(pos, blockId);
     }
 
-    void resetForTest() {
+    public void resetForTest() {
         activeJob = null;
         jobQueue.clear();
         blockWriter = (pos, blockId) -> BlockProjectionHandler.getInstance().setBlockAt(pos, blockId);
     }
 
-    void tickForTest() {
+    public void tickForTest() {
         tick();
+    }
+
+    private static List<String> sanitizeCapturedBaselines(List<String> capturedBaselines) {
+        if (capturedBaselines == null || capturedBaselines.isEmpty()) {
+            return List.of();
+        }
+        List<String> sanitized = new ArrayList<>(capturedBaselines.size());
+        for (String captured : capturedBaselines) {
+            sanitized.add(captured != null ? captured : "");
+        }
+        return List.copyOf(sanitized);
     }
 
     private static final class PlacementJob {
@@ -221,7 +230,8 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
             if (baselineReaderBeforeWrite == null || writeIndex < 0 || writeIndex >= capturedBaselines.size()) {
                 return;
             }
-            capturedBaselines.set(writeIndex, baselineReaderBeforeWrite.apply(pos));
+            String captured = baselineReaderBeforeWrite.apply(pos);
+            capturedBaselines.set(writeIndex, captured != null ? captured : "");
         }
 
         private boolean hasNext() {

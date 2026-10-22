@@ -14,8 +14,8 @@ final class ProfileSourceControls {
     private ProfileSourceControls() {
     }
 
-    /** 路径 Tab：完整可编辑来源控件。 */
-    static void render(RoadUiContext ctx, RoadNetwork network, Road road) {
+    /** 生成 Tab：地形适应预设下方的可编辑来源控件。 */
+    static void render(RoadUiContext ctx, RoadNetwork network, Road road, Runnable openProfileEditor) {
         if (road == null || network == null) {
             return;
         }
@@ -59,23 +59,6 @@ final class ProfileSourceControls {
 
         ImGui.spacing();
         renderStatus(network, road, hasStoredCurve, canActivateEdited);
-    }
-
-    /**
-     * 生成 Tab：只读来源摘要与跳转入口（不在此页编辑来源）。
-     */
-    static void renderGenerateSummary(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            Runnable openProfileEditor) {
-        if (road == null || network == null) {
-            return;
-        }
-        boolean hasStoredCurve = ResolvedProfileAuthority.hasStoredEditedCurve(road);
-        boolean canActivateEdited = ResolvedProfileAuthority.canActivateEditedProfile(network, road);
-        renderGenerateSummaryLine(network, road, hasStoredCurve, canActivateEdited);
-
         if (hasStoredCurve && !canActivateEdited) {
             ImGui.spacing();
             RoadUiWidgets.textWrappedColored(
@@ -85,42 +68,6 @@ final class ProfileSourceControls {
                     && ImGui.button(PlotI18n.tr("plugin.road.profile_source_open_editor") + "##gen_profile_src")) {
                 openProfileEditor.run();
             }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.profile_source_goto_path_tab") + "##gen_profile_src_path")) {
-                ctx.requestTab(RoadUiTab.PATH);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_goto_path_tab_hint"));
-            }
-        }
-    }
-
-    private static void renderGenerateSummaryLine(
-            RoadNetwork network,
-            Road road,
-            boolean hasStoredCurve,
-            boolean canActivateEdited) {
-        ProfileSource current = road.getEffectiveProfileSource();
-        if (current == ProfileSource.EDITED) {
-            if (ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
-                ImGui.textColored(
-                    PluginUiColors.STATUS_OK,
-                    PlotI18n.tr("plugin.road.profile_source_generate_line_edited"));
-            } else {
-                ImGui.textColored(
-                    PluginUiColors.WARNING,
-                    PlotI18n.tr("plugin.road.profile_source_generate_line_stale"));
-            }
-            return;
-        }
-        if (hasStoredCurve && !canActivateEdited) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_source_generate_line_auto_stale_saved"));
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_source_generate_line_auto"));
         }
     }
 

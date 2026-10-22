@@ -11,7 +11,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import java.util.function.Supplier;
 
-/** Generate-tab vertical mode controls: strategy summary and flat base Y only (no PVI editing). */
+/** 生成 Tab 水平道路基准高程控件。 */
 final class VerticalModeControls {
 
     private final FlatProfileControls flatProfileControls = new FlatProfileControls();
@@ -23,8 +23,7 @@ final class VerticalModeControls {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Supplier<TerrainSampler> terrainSupplier,
-            Runnable openProfileEditor) {
+            Supplier<TerrainSampler> terrainSupplier) {
         if (road == null || network == null) {
             return;
         }
@@ -35,17 +34,15 @@ final class VerticalModeControls {
             return;
         }
 
-        RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
-        if (strategy == RoadVerticalStrategy.FLAT) {
-            flatProfileControls.render(
-                ctx,
-                network,
-                road,
-                FlatElevationEditHooks.forLiveNetwork(ctx),
-                terrainSupplier);
+        if (RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return;
         }
-        ProfileSourceControls.renderGenerateSummary(ctx, network, road, openProfileEditor);
+        flatProfileControls.render(
+            ctx,
+            network,
+            road,
+            FlatElevationEditHooks.forLiveNetwork(ctx),
+            terrainSupplier);
     }
 
     FlatElevationProfileOverlay flatElevationProfileOverlay(

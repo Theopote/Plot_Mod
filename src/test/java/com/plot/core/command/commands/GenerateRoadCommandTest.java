@@ -1,7 +1,9 @@
 package com.plot.core.command.commands;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -15,6 +17,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GenerateRoadCommandTest {
+
+    private BlockPlacementScheduler scheduler;
+
+    @BeforeEach
+    void setUpScheduler() {
+        scheduler = BlockPlacementScheduler.getInstance();
+        scheduler.resetForTest();
+    }
 
     @Test
     void executeThenUndoRestoresOriginalBlockIds() {
@@ -266,7 +276,75 @@ class GenerateRoadCommandTest {
         writer.seed(first, "minecraft:stone");
         command.undo();
         assertEquals(0, command.getAppliedRecordCount());
+        assertEquals(GenerateRoadCommand.BuildCommandState.UNDONE, command.buildStateForTest());
         assertEquals("minecraft:grass_block", writer.get(first));
+    }
+
+    @Test
+    void repeatedUndoAfterFullUndoDoesNotTouchWorld() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos pos = new BlockPos(4, 64, 0);
+        writer.seed(pos, "minecraft:grass_block");
+
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            List.of(new BlockRecord(pos, "minecraft:grass_block", "minecraft:stone")),
+            writer);
+        command.execute();
+        command.undo();
+
+        assertEquals(GenerateRoadCommand.BuildCommandState.UNDONE, command.buildStateForTest());
+        writer.seed(pos, "minecraft:player_build");
+        command.undo();
+
+        assertEquals("minecraft:player_build", writer.get(pos));
+        assertEquals(GenerateRoadCommand.BuildCommandState.UNDONE, command.buildStateForTest());
+    }
+
+    @Test
+    void asyncPartialUndoMapsReverseWriteIndicesToRemainingRecords() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos a = new BlockPos(0, 64, 0);
+        BlockPos b = new BlockPos(1, 64, 0);
+        BlockPos c = new BlockPos(2, 64, 0);
+        writer.seed(a, "minecraft:grass_a");
+        writer.seed(b, "minecraft:grass_b");
+        writer.seed(c, "minecraft:grass_c");
+
+        List<BlockRecord> records = List.of(
+            new BlockRecord(a, "minecraft:grass_a", "minecraft:road_a"),
+            new BlockRecord(b, "minecraft:grass_b", "minecraft:road_b"),
+            new BlockRecord(c, "minecraft:grass_c", "minecraft:road_c"));
+
+        scheduler.setBlockWriterForTest(writer::setBlockAt);
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            records, writer, writer::get, true, scheduler);
+
+        command.execute();
+        drainScheduler();
+
+        writer.failOn(a);
+        writer.failOn(b);
+        command.undo();
+        drainScheduler();
+
+        assertEquals(GenerateRoadCommand.BuildCommandState.PARTIALLY_UNDONE, command.buildStateForTest());
+        assertEquals(2, command.getAppliedRecordCount());
+        assertEquals("minecraft:grass_c", writer.get(c));
+        assertEquals("minecraft:road_a", writer.get(a));
+        assertEquals("minecraft:road_b", writer.get(b));
+        assertTrue(command.getAppliedRecords().stream().anyMatch(record -> record.pos.equals(a)));
+        assertTrue(command.getAppliedRecords().stream().anyMatch(record -> record.pos.equals(b)));
+        assertFalse(command.getAppliedRecords().stream().anyMatch(record -> record.pos.equals(c)));
+    }
+
+    @Test
+    void mapReverseWriteIndicesToSourceIndices() {
+        assertEquals(
+            List.of(2),
+            GenerateRoadCommand.mapReverseWriteIndicesToSourceIndices(3, List.of(0)));
+        assertEquals(
+            List.of(1, 0),
+            GenerateRoadCommand.mapReverseWriteIndicesToSourceIndices(3, List.of(1, 2)));
     }
 
     @Test
@@ -288,6 +366,12 @@ class GenerateRoadCommandTest {
 
         command.undo();
         assertEquals("minecraft:grass_block", writer.get(pos));
+    }
+
+    private void drainScheduler() {
+        while (scheduler.isBusy()) {
+            scheduler.tickForTest();
+        }
     }
 
     private static final class InMemoryBlockWriter implements GenerateRoadCommand.BlockWriter {

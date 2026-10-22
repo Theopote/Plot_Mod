@@ -66,6 +66,21 @@ class BlockPlacementSchedulerTest {
     }
 
     @Test
+    void nullBaselineReaderCompletesWithoutCrashing() {
+        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>();
+        writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(
+            new BlockPos(0, 64, 0), "minecraft:stone"));
+
+        java.util.concurrent.atomic.AtomicReference<com.plot.api.world.IBlockPlacementService.ExecutionResult> result =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        scheduler.enqueue(writes, ignored -> null, result::set);
+        scheduler.tickForTest();
+
+        assertEquals(1, result.get().success());
+        assertEquals("", result.get().capturedBaselinesAtWriteTime().getFirst());
+    }
+
+    @Test
     void cancelActiveJobReportsPartialProgress() {
         List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>();
         for (int i = 0; i < 80; i++) {

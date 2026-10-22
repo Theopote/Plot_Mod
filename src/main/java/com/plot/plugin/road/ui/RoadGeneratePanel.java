@@ -153,18 +153,27 @@ public final class RoadGeneratePanel {
             RoadStyleProductControls.renderRoadTerrainStylePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
         }
+        if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE) {
+            ImGui.spacing();
+            ProfileSourceControls.render(
+                ctx,
+                network,
+                road,
+                () -> profileEditor.openEditorForRoad(ctx, road.getId()));
+        }
+        if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
+            ImGui.spacing();
+            verticalModeControls.render(
+                ctx,
+                network,
+                road,
+                ctx.networkManager().getConfig(),
+                this::requireTerrainOrNull);
+        }
         if (ctx.networkManager().getSelectedRoadIds().size() == 1) {
             RoadGenerationSettingsPanel.renderRoadTunnelOverride(
                 ctx, road, ctx.networkManager()::pushHistory);
         }
-        ImGui.spacing();
-        verticalModeControls.render(
-            ctx,
-            network,
-            road,
-            ctx.networkManager().getConfig(),
-            this::requireTerrainOrNull,
-            () -> profileEditor.openEditorForRoad(ctx, road.getId()));
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
