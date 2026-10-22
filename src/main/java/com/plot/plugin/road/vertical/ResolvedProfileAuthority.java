@@ -49,13 +49,16 @@ public final class ResolvedProfileAuthority {
         if (road == null || network == null) {
             return false;
         }
-        if (road.getEffectiveProfileSource() != ProfileSource.EDITED) {
-            return false;
-        }
         if (!RoadStationing.isStationable(network, road)) {
             return false;
         }
         if (!VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+            return false;
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
+            return true;
+        }
+        if (road.getEffectiveProfileSource() != ProfileSource.EDITED) {
             return false;
         }
         return EditedProfileGeometry.matches(

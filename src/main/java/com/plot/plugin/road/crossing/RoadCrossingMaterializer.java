@@ -72,7 +72,9 @@ public final class RoadCrossingMaterializer {
                 crossing.crossingClearance());
         }
         if (crossing.sharedElevation() != null) {
-            junction.setManualElevation(crossing.sharedElevation());
+            junction.setManualElevation(
+                crossing.sharedElevation(),
+                com.plot.plugin.road.model.ManualElevationOrigin.CROSSING);
         }
     }
 

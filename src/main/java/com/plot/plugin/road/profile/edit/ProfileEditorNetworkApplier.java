@@ -84,7 +84,7 @@ public final class ProfileEditorNetworkApplier {
         if (source == null || target == null) {
             return;
         }
-        target.setManualElevation(source.getManualElevation());
+        target.setManualElevation(source.getManualElevation(), source.getManualElevationOrigin());
         if (source.isGradeSeparated()) {
             target.setGradeSeparated(true);
             target.setElevatedRoadId(source.getElevatedRoadId());

@@ -7,7 +7,7 @@ import com.plot.plugin.road.pipeline.profile.ProfileCompileInputsFingerprint;
 /** 编辑曲线与道路平面几何的关联签名。 */
 public final class EditedProfileGeometry {
 
-    /** 未绑定几何（迁移遗留）；几何变更前视为有效。 */
+    /** 未绑定几何（迁移遗留）；须用户重新确认后才可用于生成。 */
     public static final int UNBOUND_SIGNATURE = 0;
 
     private EditedProfileGeometry() {
@@ -19,7 +19,7 @@ public final class EditedProfileGeometry {
 
     public static boolean matches(RoadNetwork network, Road road, int storedSignature) {
         if (storedSignature == UNBOUND_SIGNATURE) {
-            return true;
+            return false;
         }
         return storedSignature == signature(network, road);
     }

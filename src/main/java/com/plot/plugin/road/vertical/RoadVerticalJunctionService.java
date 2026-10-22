@@ -3,6 +3,7 @@ package com.plot.plugin.road.vertical;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -43,7 +44,7 @@ public final class RoadVerticalJunctionService {
         if (node == null || node.isGradeSeparated()) {
             return 0;
         }
-        node.setManualElevation(elevation);
+        node.setManualElevation(elevation, ManualElevationOrigin.USER);
         int changed = 0;
         for (String roadId : network.getDistinctRoadIdsAtNode(nodeId)) {
             Road road = network.getRoad(roadId);

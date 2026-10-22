@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -84,7 +85,7 @@ class VerticalProfileGenerationPolicyTest {
             PointOfVerticalIntersection.of(40.0, 74.0))));
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode junction = network.createNode(new Vec2d(40, 0));
-        junction.setManualElevation(88.0);
+        junction.setManualElevation(88.0, ManualElevationOrigin.USER);
         network.createEdge(
             start.getId(),
             junction.getId(),
@@ -95,6 +96,29 @@ class VerticalProfileGenerationPolicyTest {
         VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
 
         assertEquals(88.0, junction.getManualElevation());
+    }
+
+    @Test
+    void clearsPropagatedJunctionElevationButPreservesUserLock() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("auto");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.AUTO);
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode propagated = network.createNode(new Vec2d(40, 0));
+        RoadNode userLocked = network.createNode(new Vec2d(80, 0));
+        propagated.setManualElevation(88.0, ManualElevationOrigin.PROFILE_PROPAGATED);
+        userLocked.setManualElevation(72.0, ManualElevationOrigin.USER);
+        network.createEdge(
+            start.getId(),
+            userLocked.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(80, 0)),
+            road.getId());
+
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
+
+        assertTrue(propagated.getManualElevation() == null);
+        assertEquals(72.0, userLocked.getManualElevation());
     }
 
     @Test

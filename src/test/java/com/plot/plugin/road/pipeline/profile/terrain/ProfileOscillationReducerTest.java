@@ -145,7 +145,7 @@ class ProfileOscillationReducerTest {
     }
 
     @Test
-    void integratedSolverReducesOscillationOnThreeHills() {
+    void defaultSolverSkipsOscillationReducerUnlessExplicitlyForced() {
         List<Double> trend = List.of(
             64.0, 67.0, 65.0, 68.0, 66.0, 69.0, 64.0);
         List<Double> distances = constantDistances(trend.size() - 1, 7.0);
@@ -153,13 +153,9 @@ class ProfileOscillationReducerTest {
 
         double[] solved = GradeLimitedProfileSolver.solveStationElevations(
             trend, distances, slopes, TerrainFollowPreset.STANDARD);
-        int solvedReversals = ProfileOscillationReducer.countGradeSignReversals(solved, distances);
-
-        int rawReversals = ProfileOscillationReducer.countGradeSignReversals(
-            trend.stream().mapToDouble(Double::doubleValue).toArray(), distances);
-        assertTrue(solvedReversals < rawReversals,
-            () -> "solver should reduce oscillation reversals from "
-                + rawReversals + " to " + solvedReversals);
+        OscillationReductionSummary result = GradeLimitedProfileSolver.lastOscillationReduction();
+        assertTrue(!result.attempted(),
+            "oscillation reducer should be disabled by default on all presets");
 
         FitTerrainProfileInvariants.assertDesignProfileInvariants(
             toList(solved),
@@ -173,7 +169,26 @@ class ProfileOscillationReducerTest {
     }
 
     @Test
-    void projectOntoFeasibleDomainAppliesOscillationReducer() {
+    void forcedCandidateMergeReducesOscillationOnThreeHills() {
+        List<Double> trend = List.of(
+            64.0, 67.0, 65.0, 68.0, 66.0, 69.0, 64.0);
+        List<Double> distances = constantDistances(trend.size() - 1, 7.0);
+        List<Float> slopes = constantSlopes(distances.size(), 12.0f);
+        double[] elevations = trend.stream().mapToDouble(Double::doubleValue).toArray();
+        int before = ProfileOscillationReducer.countGradeSignReversals(elevations, distances);
+
+        ProfileOscillationReducer.reduceIfBeneficial(
+            elevations, distances, slopes, TerrainFollowPreset.STANDARD,
+            false, false, elevations[0], elevations[elevations.length - 1],
+            null, null, trend);
+
+        int after = ProfileOscillationReducer.countGradeSignReversals(elevations, distances);
+        assertTrue(after < before,
+            () -> "forced merge should reduce oscillation: " + before + " -> " + after);
+    }
+
+    @Test
+    void projectOntoFeasibleDomainDoesNotApplyOscillationReducer() {
         List<Double> zigzag = List.of(
             64.0, 66.0, 64.5, 66.5, 65.0, 67.0, 64.0);
         List<Double> distances = constantDistances(zigzag.size() - 1, 7.0);
@@ -192,9 +207,8 @@ class ProfileOscillationReducerTest {
             bounds,
             true);
         int after = countGradeSignReversals(projected, distances);
-        assertTrue(after < before,
-            () -> "feasible projection should merge short oscillations: "
-                + before + " -> " + after);
+        assertTrue(after <= before,
+            "feasible projection must not run oscillation merge; dampening may still help");
     }
 
     private static List<Double> constantDistances(int count, double distance) {

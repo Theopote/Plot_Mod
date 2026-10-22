@@ -49,6 +49,7 @@ class NetworkNodeElevationResolverTest {
     void endpointHeightRespectsSegmentChainDirection() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("design");
+        road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.MANUAL_PROFILE);
         road.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
             PointOfVerticalIntersection.of(0.0, 80.0),
             PointOfVerticalIntersection.of(100.0, 100.0)
@@ -79,6 +80,7 @@ class NetworkNodeElevationResolverTest {
     private static RoadNetwork buildTwoSegmentRoad() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("design");
+        road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.MANUAL_PROFILE);
         road.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
             PointOfVerticalIntersection.of(0.0, 80.0),
             PointOfVerticalIntersection.of(100.0, 100.0)

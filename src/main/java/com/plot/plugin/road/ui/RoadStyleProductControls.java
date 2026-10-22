@@ -66,6 +66,7 @@ public final class RoadStyleProductControls {
                 config.setTerrainStyle(style);
                 markConfigChanged(ctx);
             });
+        renderGlobalOscillationReductionToggle(ctx, config);
     }
 
     public static void renderRoadTerrainStylePresets(RoadUiContext ctx, Road road, Runnable onHistory) {
@@ -82,6 +83,69 @@ public final class RoadStyleProductControls {
                 road.setTerrainStyle(style);
                 ctx.onGenerationConfigChanged();
             });
+        renderRoadOscillationReductionControls(ctx, road, config, onHistory);
+    }
+
+    private static void renderGlobalOscillationReductionToggle(
+            RoadUiContext ctx,
+            RoadSystemConfig config) {
+        imgui.type.ImBoolean enabled = new imgui.type.ImBoolean(config.isOscillationReductionEnabled());
+        if (imgui.ImGui.checkbox(
+                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled"),
+                enabled)) {
+            config.setOscillationReductionEnabled(enabled.get());
+            markConfigChanged(ctx);
+        }
+        if (imgui.ImGui.isItemHovered()) {
+            imgui.ImGui.setTooltip(
+                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled.hint"));
+        }
+        imgui.ImGui.spacing();
+    }
+
+    private static void renderRoadOscillationReductionControls(
+            RoadUiContext ctx,
+            Road road,
+            RoadSystemConfig config,
+            Runnable onHistory) {
+        Boolean stored = road.getStoredOscillationReductionEnabled();
+        imgui.type.ImBoolean inheritGlobal = new imgui.type.ImBoolean(stored == null);
+        if (imgui.ImGui.checkbox(
+                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_inherit_global"),
+                inheritGlobal)) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            if (inheritGlobal.get()) {
+                road.setOscillationReductionEnabled(null);
+            } else {
+                road.setOscillationReductionEnabled(config.isOscillationReductionEnabled());
+            }
+            ctx.onGenerationConfigChanged();
+        }
+        if (imgui.ImGui.isItemHovered()) {
+            imgui.ImGui.setTooltip(
+                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_inherit_global.hint"));
+        }
+        if (!inheritGlobal.get()) {
+            imgui.ImGui.indent();
+            imgui.type.ImBoolean enabled = new imgui.type.ImBoolean(road.isOscillationReductionEnabled(config));
+            if (imgui.ImGui.checkbox(
+                    com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled"),
+                    enabled)) {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setOscillationReductionEnabled(enabled.get());
+                ctx.onGenerationConfigChanged();
+            }
+            if (imgui.ImGui.isItemHovered()) {
+                imgui.ImGui.setTooltip(
+                    com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled.hint"));
+            }
+            imgui.ImGui.unindent();
+        }
+        imgui.ImGui.spacing();
     }
 
     private static void renderTerrainStyleButtons(

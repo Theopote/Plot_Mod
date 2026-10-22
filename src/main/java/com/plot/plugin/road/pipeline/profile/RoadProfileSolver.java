@@ -20,11 +20,14 @@ import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingClassifier
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingDetector;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings;
 import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
+import com.plot.plugin.road.pipeline.profile.terrain.OscillationReductionSummary;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainProfileSampleChain;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendBuilder;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendResult;
 import com.plot.plugin.road.profile.WaterCrossingChartMarker;
+import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
@@ -66,6 +69,7 @@ public final class RoadProfileSolver {
             support,
             RoadVerticalMode.AUTO_SMOOTH,
             TerrainFollowPreset.STANDARD,
+            false,
             null,
             collectDenseEnvironment(segments, terrain, halfWidth, null, support));
     }
@@ -91,6 +95,7 @@ public final class RoadProfileSolver {
             support,
             RoadVerticalMode.AUTO_SMOOTH,
             TerrainFollowPreset.STANDARD,
+            false,
             null,
             collectDenseEnvironment(segments, terrain, halfWidth, null, support));
     }
@@ -123,7 +128,11 @@ public final class RoadProfileSolver {
         }
 
         Road owningRoad = network.getRoadForEdge(edge);
-        return buildSegmentHeights(
+        boolean oscillationReductionEnabled = owningRoad != null
+            ? owningRoad.isOscillationReductionEnabled(config)
+            : config != null && config.isOscillationReductionEnabled();
+        GradeLimitedProfileSolver.clearOscillationReductionState();
+        ProfileSolveResult result = buildSegmentHeights(
             segments,
             sampleData,
             maxSlopes,
@@ -141,8 +150,38 @@ public final class RoadProfileSolver {
             owningRoad != null
                 ? owningRoad.getEffectiveTerrainFollowPreset(config)
                 : config.getTerrainStyle().followPreset(),
+            oscillationReductionEnabled,
             config,
             environment);
+        recordDiagnostics(network, owningRoad, result);
+        return result;
+    }
+
+    private static void recordDiagnostics(
+            RoadNetwork network,
+            Road road,
+            ProfileSolveResult result) {
+        if (road == null) {
+            return;
+        }
+        ResolvedProfileAuthority.Resolution authority = ResolvedProfileAuthority.resolve(network, road);
+        OscillationReductionSummary oscillation = GradeLimitedProfileSolver.lastOscillationReduction();
+        ProfileSolveDiagnosticsCollector.record(new ProfileSolveDiagnostics(
+            road.getId(),
+            road.getEffectiveProfileSource(),
+            authority.kind(),
+            !authority.usesEditedProfile() && ResolvedProfileAuthority.hasStoredEditedCurve(road),
+            VerticalProfileGenerationPolicy.countRetainedManualNodeLocks(network),
+            VerticalProfileGenerationPolicy.countRetainedCrossingLocks(network),
+            0,
+            oscillation.gradeReversalsBefore(),
+            oscillation.gradeReversalsAfter(),
+            oscillation.totalAbsoluteGradeChangeBefore(),
+            oscillation.totalAbsoluteGradeChangeAfter(),
+            oscillation.attempted(),
+            oscillation.accepted(),
+            oscillation.finalConstraintsSatisfied() && result.waterConstraintFeasible()));
+        GradeLimitedProfileSolver.clearOscillationReductionState();
     }
 
     public static RoadGenerationResult toProfileSnapshot(ProfileSolveResult result) {
@@ -186,6 +225,7 @@ public final class RoadProfileSolver {
             ProfileSolveSupport support,
             RoadVerticalMode verticalMode,
             TerrainFollowPreset terrainFollowPreset,
+            boolean oscillationReductionEnabled,
             RoadSystemConfig config,
             EnvironmentProfile environment) {
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
@@ -261,7 +301,8 @@ public final class RoadProfileSolver {
                     manualStartHeight,
                     manualEndHeight,
                     effectiveTerrainPreset,
-                    elevationBounds);
+                    elevationBounds,
+                    oscillationReductionEnabled);
             designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
             waterConstraintFeasible = EnvironmentFeasibilityProjector.evaluateWaterFeasibility(

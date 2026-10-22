@@ -66,11 +66,11 @@ class VerticalAlignmentGradeSmootherTest {
             PointOfVerticalIntersection.of(50.0, 10.0)
         )));
         road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.EDITED);
-        com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
         var a = network.createNode(new Vec2d(0, 0));
         var b = network.createNode(new Vec2d(50, 0));
         network.createEdge(
             a.getId(), b.getId(), java.util.List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
+        com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
 
         assertEquals(1, VerticalAlignmentGradeSmoother.smoothAllExceeding(network, config));
     }

@@ -5,18 +5,26 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
+import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 
 /**
  * 生成快照上的纵断面策略：仅保留当前权威来源（自动或编辑曲线），
  * 剥离非权威的 dormant VA；live 网路上保存的编辑曲线供编辑器显示。
  */
 public final class VerticalProfileGenerationPolicy {
+
+    private static final double STATION_TOLERANCE = 0.26;
 
     private VerticalProfileGenerationPolicy() {
     }
@@ -48,7 +56,7 @@ public final class VerticalProfileGenerationPolicy {
 
     /**
      * 生成快照上清除由旧编辑曲线写入、但当前不应参与求解的节点手动标高。
-     * FLAT、EDITED 权威以及交叉口 sharedElevation 锁定不受影响。
+     * 用户锁定、交叉口 sharedElevation、立体交叉及 EDITED 道路 junction 固定点不受影响。
      */
     public static int clearStaleManualJunctionLocksOnSnapshot(RoadNetwork generationNetwork) {
         if (generationNetwork == null) {
@@ -56,10 +64,10 @@ public final class VerticalProfileGenerationPolicy {
         }
         int cleared = 0;
         for (RoadNode node : generationNetwork.getNodes().values()) {
-            if (node == null
-                    || node.isGradeSeparated()
-                    || node.getManualElevation() == null
-                    || shouldPreserveManualElevationAtNode(node, generationNetwork)) {
+            if (node == null || node.getManualElevation() == null) {
+                continue;
+            }
+            if (shouldPreserveManualElevationAtNode(node, generationNetwork)) {
                 continue;
             }
             node.setManualElevation(null);
@@ -68,10 +76,51 @@ public final class VerticalProfileGenerationPolicy {
         return cleared;
     }
 
+    /** 统计生成快照上仍保留的手动节点锁数量（诊断用）。 */
+    public static int countRetainedManualNodeLocks(RoadNetwork generationNetwork) {
+        if (generationNetwork == null) {
+            return 0;
+        }
+        int count = 0;
+        for (RoadNode node : generationNetwork.getNodes().values()) {
+            if (node != null && node.getManualElevation() != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** 统计生成快照上仍保留的交叉口 sharedElevation 锁数量（诊断用）。 */
+    public static int countRetainedCrossingLocks(RoadNetwork generationNetwork) {
+        if (generationNetwork == null) {
+            return 0;
+        }
+        int count = 0;
+        double tolerance = RoadNetworkBuilder.NODE_TOLERANCE;
+        for (RoadNode node : generationNetwork.getNodes().values()) {
+            if (node != null && hasCrossingSharedElevationLock(node, generationNetwork, tolerance)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private static boolean shouldPreserveManualElevationAtNode(
             RoadNode node,
             RoadNetwork network) {
+        if (node.isGradeSeparated()) {
+            return true;
+        }
+        ManualElevationOrigin origin = node.getManualElevationOrigin();
+        if (origin == ManualElevationOrigin.USER
+                || origin == ManualElevationOrigin.CROSSING
+                || origin == ManualElevationOrigin.GRADE_SEPARATED) {
+            return true;
+        }
         if (hasCrossingSharedElevationLock(node, network)) {
+            return true;
+        }
+        if (isEditedJunctionFixedLockAtNode(node, network)) {
             return true;
         }
         for (String edgeId : node.getConnectedEdgeIds()) {
@@ -80,25 +129,69 @@ public final class VerticalProfileGenerationPolicy {
                 continue;
             }
             Road road = network.getRoad(edge.getRoadId());
-            if (road == null) {
-                continue;
-            }
-            if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-                return true;
-            }
-            if (ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)) {
+            if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT) {
                 return true;
             }
         }
         return false;
     }
 
+    private static boolean isEditedJunctionFixedLockAtNode(RoadNode node, RoadNetwork network) {
+        Double manualElevation = node.getManualElevation();
+        if (manualElevation == null) {
+            return false;
+        }
+        for (String roadId : network.getDistinctRoadIdsAtNode(node.getId())) {
+            Road road = network.getRoad(roadId);
+            if (road == null
+                    || !ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)) {
+                continue;
+            }
+            if (!RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            Double station = junctionStationForNode(network, road, node.getId());
+            if (station == null || road.getVerticalAlignment() == null) {
+                continue;
+            }
+            var pvis = road.getVerticalAlignment().getPvis();
+            for (int i = 0; i < pvis.size(); i++) {
+                if (Math.abs(pvis.get(i).getStation() - station) > STATION_TOLERANCE) {
+                    continue;
+                }
+                if (pvis.get(i).getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED) {
+                    continue;
+                }
+                var elevationAtStation = VerticalAlignmentGeometry.elevationAt(
+                    road.getVerticalAlignment(), station);
+                return elevationAtStation.isPresent()
+                    && Math.abs(elevationAtStation.getAsDouble() - manualElevation) <= 1e-6;
+            }
+        }
+        return false;
+    }
+
+    private static Double junctionStationForNode(RoadNetwork network, Road road, String nodeId) {
+        for (var entry : VerticalAlignmentJunctionSynchronizer.junctionStations(network, road).entrySet()) {
+            if (entry.getKey().equals(nodeId)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     private static boolean hasCrossingSharedElevationLock(RoadNode node, RoadNetwork network) {
+        return hasCrossingSharedElevationLock(node, network, RoadNetworkBuilder.NODE_TOLERANCE);
+    }
+
+    private static boolean hasCrossingSharedElevationLock(
+            RoadNode node,
+            RoadNetwork network,
+            double tolerance) {
         Vec2d position = node.getPosition();
         if (position == null) {
             return false;
         }
-        double tolerance = RoadNetworkBuilder.NODE_TOLERANCE;
         for (RoadCrossing crossing : network.getCrossings().values()) {
             if (crossing.sharedElevation() == null || crossing.position() == null) {
                 continue;

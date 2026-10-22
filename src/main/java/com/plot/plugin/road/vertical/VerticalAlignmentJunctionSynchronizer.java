@@ -1,5 +1,6 @@
 package com.plot.plugin.road.vertical;
 
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -50,7 +51,9 @@ public final class VerticalAlignmentJunctionSynchronizer {
                 RoadNode node = network.getNode(entry.getKey());
                 if (node == null) continue;
                 Double previous = node.getManualElevation();
-                node.setManualElevation(VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), entry.getValue()).orElseThrow());
+                node.setManualElevation(
+                    VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), entry.getValue()).orElseThrow(),
+                    ManualElevationOrigin.PROFILE_PROPAGATED);
                 if (previous == null || Math.abs(previous - node.getManualElevation()) > 1e-6) {
                     changedNodeIds.add(node.getId());
                 }

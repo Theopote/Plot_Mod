@@ -3,8 +3,9 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 import java.util.List;
 
 /**
- * Merges short-distance grade sign-reversal clusters into monotonic ramps when the
- * composite score improves and hard slope / elevation constraints remain satisfied.
+ * Experimental short-distance oscillation merge. Produces a candidate profile and
+ * replaces the baseline only when hard constraints pass and the composite score
+ * improves by the preset benefit threshold.
  */
 final class ProfileOscillationReducer {
 
@@ -13,9 +14,128 @@ final class ProfileOscillationReducer {
     private static final double GRADE_CHANGE_WEIGHT = 1.0;
     private static final double TERRAIN_DEVIATION_WEIGHT = 0.25;
 
+    record ReductionResult(
+            boolean attempted,
+            boolean accepted,
+            int gradeReversalsBefore,
+            int gradeReversalsAfter,
+            double totalAbsoluteGradeChangeBefore,
+            double totalAbsoluteGradeChangeAfter,
+            boolean finalConstraintsSatisfied) {
+
+        static ReductionResult skipped(double[] baseline, List<Double> segmentDistances) {
+            return new ReductionResult(
+                false,
+                false,
+                countGradeSignReversals(baseline, segmentDistances),
+                countGradeSignReversals(baseline, segmentDistances),
+                GradeLimitedProfileSolver.totalAbsoluteGradeChange(baseline, segmentDistances),
+                GradeLimitedProfileSolver.totalAbsoluteGradeChange(baseline, segmentDistances),
+                true);
+        }
+    }
+
+    private static final ThreadLocal<ReductionResult> LAST_RESULT = new ThreadLocal<>();
+
     private ProfileOscillationReducer() {
     }
 
+    static void recordLastResult(ReductionResult result) {
+        if (result != null) {
+            LAST_RESULT.set(result);
+        }
+    }
+
+    static ReductionResult lastResult() {
+        return LAST_RESULT.get();
+    }
+
+    static void clearLastResult() {
+        LAST_RESULT.remove();
+    }
+
+    /**
+     * Compare baseline against an oscillation-reduced candidate; write back only when accepted.
+     * Disabled unless {@code oscillationReductionEnabled} or {@code forceEnable}.
+     */
+    static ReductionResult tryApplyCandidate(
+            double[] baseline,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations,
+            List<Double> trendElevations,
+            boolean oscillationReductionEnabled,
+            boolean forceEnable) {
+        if (baseline == null || baseline.length < 4 || segmentDistances == null
+                || segmentDistances.isEmpty()) {
+            return ReductionResult.skipped(baseline, segmentDistances);
+        }
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        if (!forceEnable && !oscillationReductionEnabled) {
+            return ReductionResult.skipped(baseline, segmentDistances);
+        }
+
+        int reversalsBefore = countGradeSignReversals(baseline, segmentDistances);
+        double gradeChangeBefore = GradeLimitedProfileSolver.totalAbsoluteGradeChange(
+            baseline, segmentDistances);
+        double scoreBefore = score(baseline, segmentDistances, trendElevations);
+
+        double[] candidate = baseline.clone();
+        applyClusterMerges(
+            candidate,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations,
+            trendElevations);
+
+        boolean constraintsOk = GradeLimitedProfileSolver.satisfiesFullFeasibility(
+            candidate,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
+        int reversalsAfter = countGradeSignReversals(candidate, segmentDistances);
+        double gradeChangeAfter = GradeLimitedProfileSolver.totalAbsoluteGradeChange(
+            candidate, segmentDistances);
+        double scoreAfter = score(candidate, segmentDistances, trendElevations);
+
+        boolean accepted = constraintsOk
+            && scoreAfter < scoreBefore * (1.0 - effectivePreset.minOscillationMergeBenefit());
+        if (accepted) {
+            System.arraycopy(candidate, 0, baseline, 0, baseline.length);
+        } else {
+            reversalsAfter = reversalsBefore;
+            gradeChangeAfter = gradeChangeBefore;
+        }
+
+        return new ReductionResult(
+            true,
+            accepted,
+            reversalsBefore,
+            reversalsAfter,
+            gradeChangeBefore,
+            gradeChangeAfter,
+            constraintsOk);
+    }
+
+    /** Package-visible for unit tests that exercise merge logic directly. */
     static void reduceIfBeneficial(
             double[] elevations,
             List<Double> segmentDistances,
@@ -28,81 +148,18 @@ final class ProfileOscillationReducer {
             double[] minElevations,
             double[] maxElevations,
             List<Double> trendElevations) {
-        if (elevations == null || elevations.length < 4 || segmentDistances == null
-                || segmentDistances.isEmpty()) {
-            return;
-        }
-        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
-        double maxSpan = effectivePreset.maxOscillationSpanMeters();
-        double maxAmplitude = effectivePreset.maxOscillationAmplitudeBlocks();
-        double minBenefit = effectivePreset.minOscillationMergeBenefit();
-        if (maxSpan <= EPSILON || maxAmplitude <= EPSILON) {
-            return;
-        }
-
-        double[] chainage = buildChainage(segmentDistances);
-        int maxRightAnchor = lockEnd ? elevations.length - 1 : elevations.length - 2;
-        int leftAnchor = 0;
-        while (leftAnchor <= maxRightAnchor - 2) {
-            int bestRight = -1;
-            double bestTrialScore = Double.POSITIVE_INFINITY;
-            double[] bestTrial = null;
-            double baselineScore = score(
-                elevations, segmentDistances, trendElevations, effectivePreset);
-
-            for (int rightAnchor = leftAnchor + 2; rightAnchor <= maxRightAnchor; rightAnchor++) {
-                if (chainage[rightAnchor] - chainage[leftAnchor] > maxSpan + EPSILON) {
-                    break;
-                }
-                if (!isEligibleCluster(
-                        elevations,
-                        segmentDistances,
-                        leftAnchor,
-                        rightAnchor,
-                        maxAmplitude,
-                        lockStart,
-                        lockEnd)) {
-                    continue;
-                }
-                double[] trial = elevations.clone();
-                applyMonotonicReplacement(trial, chainage, leftAnchor, rightAnchor);
-                GradeLimitedProfileSolver.reprojectFeasible(
-                    trial,
-                    segmentDistances,
-                    maxSlopePercents,
-                    effectivePreset,
-                    lockStart,
-                    lockEnd,
-                    startLock,
-                    endLock,
-                    minElevations,
-                    maxElevations);
-                if (!satisfiesHardConstraints(
-                        trial,
-                        lockStart,
-                        lockEnd,
-                        startLock,
-                        endLock,
-                        minElevations)) {
-                    continue;
-                }
-                double trialScore = score(trial, segmentDistances, trendElevations, effectivePreset);
-                if (trialScore < bestTrialScore) {
-                    bestTrialScore = trialScore;
-                    bestRight = rightAnchor;
-                    bestTrial = trial;
-                }
-            }
-
-            if (bestRight >= 0
-                    && bestTrial != null
-                    && bestTrialScore < baselineScore * (1.0 - minBenefit)) {
-                System.arraycopy(bestTrial, 0, elevations, 0, elevations.length);
-                leftAnchor = bestRight;
-            } else {
-                leftAnchor++;
-            }
-        }
+        applyClusterMerges(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            preset != null ? preset : TerrainFollowPreset.STANDARD,
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations,
+            trendElevations);
     }
 
     static int countGradeSignReversals(double[] elevations, List<Double> segmentDistances) {
@@ -124,6 +181,90 @@ final class ProfileOscillationReducer {
             previousSign = sign;
         }
         return reversals;
+    }
+
+    private static void applyClusterMerges(
+            double[] elevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations,
+            List<Double> trendElevations) {
+        double maxSpan = preset.maxOscillationSpanMeters();
+        double maxAmplitude = preset.maxOscillationAmplitudeBlocks();
+        double minBenefit = preset.minOscillationMergeBenefit();
+        if (maxSpan <= EPSILON || maxAmplitude <= EPSILON) {
+            return;
+        }
+
+        double[] chainage = buildChainage(segmentDistances);
+        int maxRightAnchor = lockEnd ? elevations.length - 1 : elevations.length - 2;
+        int leftAnchor = 0;
+        while (leftAnchor <= maxRightAnchor - 2) {
+            int bestRight = -1;
+            double bestTrialScore = Double.POSITIVE_INFINITY;
+            double[] bestTrial = null;
+            double baselineScore = score(elevations, segmentDistances, trendElevations);
+
+            for (int rightAnchor = leftAnchor + 2; rightAnchor <= maxRightAnchor; rightAnchor++) {
+                if (chainage[rightAnchor] - chainage[leftAnchor] > maxSpan + EPSILON) {
+                    break;
+                }
+                if (!isEligibleCluster(
+                        elevations,
+                        segmentDistances,
+                        leftAnchor,
+                        rightAnchor,
+                        maxAmplitude,
+                        lockStart,
+                        lockEnd)) {
+                    continue;
+                }
+                double[] trial = elevations.clone();
+                applyMonotonicReplacement(trial, chainage, leftAnchor, rightAnchor);
+                GradeLimitedProfileSolver.reprojectFeasible(
+                    trial,
+                    segmentDistances,
+                    maxSlopePercents,
+                    preset,
+                    lockStart,
+                    lockEnd,
+                    startLock,
+                    endLock,
+                    minElevations,
+                    maxElevations);
+                if (!satisfiesClusterHardConstraints(
+                        trial,
+                        lockStart,
+                        lockEnd,
+                        startLock,
+                        endLock,
+                        minElevations,
+                        maxElevations)) {
+                    continue;
+                }
+                double trialScore = score(trial, segmentDistances, trendElevations);
+                if (trialScore < bestTrialScore) {
+                    bestTrialScore = trialScore;
+                    bestRight = rightAnchor;
+                    bestTrial = trial;
+                }
+            }
+
+            if (bestRight >= 0
+                    && bestTrial != null
+                    && bestTrialScore < baselineScore * (1.0 - minBenefit)) {
+                System.arraycopy(bestTrial, 0, elevations, 0, elevations.length);
+                leftAnchor = bestRight;
+            } else {
+                leftAnchor++;
+            }
+        }
     }
 
     private static boolean isEligibleCluster(
@@ -207,14 +348,15 @@ final class ProfileOscillationReducer {
     private static double score(
             double[] elevations,
             List<Double> segmentDistances,
-            List<Double> trendElevations,
-            TerrainFollowPreset preset) {
+            List<Double> trendElevations) {
         double reversalCount = countGradeSignReversals(elevations, segmentDistances);
         double gradeChange = GradeLimitedProfileSolver.totalAbsoluteGradeChange(
             elevations, segmentDistances);
+        int interiorCount = Math.max(1, elevations.length - 2);
+        double normalizedGradeChange = gradeChange / interiorCount;
         double terrainDeviation = meanAbsDevFromTrend(elevations, trendElevations);
         return REVERSAL_WEIGHT * reversalCount
-            + GRADE_CHANGE_WEIGHT * gradeChange
+            + GRADE_CHANGE_WEIGHT * normalizedGradeChange
             + TERRAIN_DEVIATION_WEIGHT * terrainDeviation;
     }
 
@@ -229,26 +371,34 @@ final class ProfileOscillationReducer {
         return sum / elevations.length;
     }
 
-    private static boolean satisfiesHardConstraints(
+    private static boolean satisfiesClusterHardConstraints(
             double[] elevations,
             boolean lockStart,
             boolean lockEnd,
             double startLock,
             double endLock,
-            double[] minElevations) {
+            double[] minElevations,
+            double[] maxElevations) {
         if (lockStart && Math.abs(elevations[0] - startLock) > EPSILON) {
             return false;
         }
         if (lockEnd && Math.abs(elevations[elevations.length - 1] - endLock) > EPSILON) {
             return false;
         }
-        if (minElevations == null) {
-            return true;
+        if (minElevations != null) {
+            for (int i = 0; i < elevations.length; i++) {
+                double min = minElevations[i];
+                if (!Double.isNaN(min) && elevations[i] < min - EPSILON) {
+                    return false;
+                }
+            }
         }
-        for (int i = 0; i < elevations.length; i++) {
-            double min = minElevations[i];
-            if (!Double.isNaN(min) && elevations[i] < min - EPSILON) {
-                return false;
+        if (maxElevations != null) {
+            for (int i = 0; i < elevations.length; i++) {
+                double max = maxElevations[i];
+                if (!Double.isNaN(max) && elevations[i] > max + EPSILON) {
+                    return false;
+                }
             }
         }
         return true;

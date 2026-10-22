@@ -45,6 +45,8 @@ public class RoadSystemConfig {
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private RoadTerrainStyle terrainStyle = RoadTerrainStyle.BALANCED;
+    /** Experimental short-distance profile oscillation merge for FIT_TERRAIN auto design. */
+    private boolean oscillationReductionEnabled = false;
     private boolean generateBridgePillars = true;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
@@ -296,6 +298,14 @@ public class RoadSystemConfig {
 
     public void setTerrainStyle(RoadTerrainStyle terrainStyle) {
         this.terrainStyle = terrainStyle != null ? terrainStyle : RoadTerrainStyle.BALANCED;
+    }
+
+    public boolean isOscillationReductionEnabled() {
+        return oscillationReductionEnabled;
+    }
+
+    public void setOscillationReductionEnabled(boolean oscillationReductionEnabled) {
+        this.oscillationReductionEnabled = oscillationReductionEnabled;
     }
 
     public boolean isGenerateBridgePillars() {

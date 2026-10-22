@@ -163,7 +163,8 @@ public final class RoadProfileConstraintSynchronizer {
             if (link.separated) continue;
             double value = groups.get(root(parents, link.a)).elevation;
             if (link.id.startsWith("node:")) {
-                network.getNode(link.id.substring(5)).setManualElevation(value);
+                network.getNode(link.id.substring(5)).setManualElevation(
+                    value, com.plot.plugin.road.model.ManualElevationOrigin.PROFILE_PROPAGATED);
             } else if (link.id.startsWith("crossing:")) {
                 network.setCrossingSharedElevation(link.id.substring(9), value);
             } else if (link.id.startsWith("stack:")) {

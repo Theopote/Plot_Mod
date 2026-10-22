@@ -19,6 +19,8 @@ public class RoadNode {
     private final String id;
     private Vec2d position;
     private Double manualElevation;
+    /** 手动标高来源；null 表示遗留数据或未设置。 */
+    private ManualElevationOrigin manualElevationOrigin;
     /** 是否标记为立体交叉（false 时忽略 elevatedRoadId/crossingClearance） */
     private boolean gradeSeparated;
     /** 跨越方道路 ID；null 表示由程序自动判断 */
@@ -79,8 +81,27 @@ public class RoadNode {
         return manualElevation;
     }
 
+    public ManualElevationOrigin getManualElevationOrigin() {
+        return manualElevationOrigin;
+    }
+
     public void setManualElevation(Double manualElevation) {
+        if (manualElevation == null) {
+            this.manualElevation = null;
+            this.manualElevationOrigin = null;
+            return;
+        }
         this.manualElevation = RoadParameterLimits.clampManualElevation(manualElevation);
+    }
+
+    public void setManualElevation(Double manualElevation, ManualElevationOrigin origin) {
+        if (manualElevation == null) {
+            this.manualElevation = null;
+            this.manualElevationOrigin = null;
+            return;
+        }
+        this.manualElevation = RoadParameterLimits.clampManualElevation(manualElevation);
+        this.manualElevationOrigin = origin;
     }
 
     public boolean isGradeSeparated() {
@@ -242,6 +263,7 @@ public class RoadNode {
 
     RoadNode copy() {
         RoadNode copy = new RoadNode(id, position, manualElevation, cornerRadius, connectedEdgeIds);
+        copy.manualElevationOrigin = manualElevationOrigin;
         copy.gradeSeparated = gradeSeparated;
         copy.elevatedRoadId = elevatedRoadId;
         copy.crossingClearance = crossingClearance;

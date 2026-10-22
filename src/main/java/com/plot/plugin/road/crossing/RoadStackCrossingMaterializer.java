@@ -162,7 +162,9 @@ public final class RoadStackCrossingMaterializer {
             RoadNode junction) {
         junction.clearStackCrossingMetadata();
         if (stackCrossing.sharedElevation() != null) {
-            junction.setManualElevation(stackCrossing.sharedElevation());
+            junction.setManualElevation(
+                stackCrossing.sharedElevation(),
+                com.plot.plugin.road.model.ManualElevationOrigin.CROSSING);
         }
         if (!stackCrossing.isGradeSeparated()) {
             return;

@@ -890,6 +890,7 @@ public class RoadNetwork {
         String id;
         Vec2dData position;
         Double manualElevation;
+        String manualElevationOrigin;
         Boolean gradeSeparated;
         String elevatedRoadId;
         Double crossingClearance;
@@ -1160,6 +1161,7 @@ public class RoadNetwork {
         String profileSource;
         Integer editedGeometrySignature;
         String terrainStyle;
+        Boolean oscillationReductionEnabled;
         TunnelStylePersistence tunnelStyle;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
@@ -1210,6 +1212,9 @@ public class RoadNetwork {
                 nodeData.id = node.getId();
                 nodeData.position = new Vec2dData(node.getPosition());
                 nodeData.manualElevation = node.getManualElevation();
+                if (node.getManualElevationOrigin() != null) {
+                    nodeData.manualElevationOrigin = node.getManualElevationOrigin().name();
+                }
                 if (node.isGradeSeparated()) {
                     nodeData.gradeSeparated = true;
                 }
@@ -1263,6 +1268,9 @@ public class RoadNetwork {
                 }
                 if (road.getStoredTerrainStyle() != null) {
                     roadData.terrainStyle = road.getStoredTerrainStyle().name();
+                }
+                if (road.getStoredOscillationReductionEnabled() != null) {
+                    roadData.oscillationReductionEnabled = road.getStoredOscillationReductionEnabled();
                 }
                 roadData.tunnelStyle = TunnelStylePersistence.from(road.getStoredTunnelStyle());
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
@@ -1340,6 +1348,10 @@ public class RoadNetwork {
                 node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
                 node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));
                 node.setTurnArrows(JunctionMarkingSetting.fromString(nodeData.turnArrows));
+                ManualElevationOrigin origin = ManualElevationOrigin.fromStored(nodeData.manualElevationOrigin);
+                if (nodeData.manualElevation != null) {
+                    node.setManualElevation(nodeData.manualElevation, origin);
+                }
                 if (Boolean.TRUE.equals(nodeData.gradeSeparated)) {
                     node.setGradeSeparated(true);
                     node.setElevatedRoadId(nodeData.elevatedRoadId);
@@ -1387,6 +1399,7 @@ public class RoadNetwork {
                         road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
                             .fromStored(roadData.terrainStyle));
                     }
+                    road.setOscillationReductionEnabled(roadData.oscillationReductionEnabled);
                     road.setTunnelStyle(TunnelStylePersistence.fromData(roadData.tunnelStyle));
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
