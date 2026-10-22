@@ -31,9 +31,11 @@ class VerticalAlignmentJunctionSynchronizerTest {
             PointOfVerticalIntersection.of(0, 70),
             PointOfVerticalIntersection.of(20, 76),
             PointOfVerticalIntersection.of(40, 72))));
+        eastWest.setProfileSource(ProfileSource.EDITED);
         northSouth.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 68),
             PointOfVerticalIntersection.of(40, 69))));
+        northSouth.setProfileSource(ProfileSource.EDITED);
         var west = network.createNode(new Vec2d(-20, 0));
         var junction = network.createNode(new Vec2d(0, 0));
         var east = network.createNode(new Vec2d(20, 0));
@@ -73,6 +75,7 @@ class VerticalAlignmentJunctionSynchronizerTest {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 76.0),
             PointOfVerticalIntersection.of(20.0, 78.0))));
+        road.setProfileSource(ProfileSource.EDITED);
         RoadNode junction = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(20, 0));
         RoadNode north = network.createNode(new Vec2d(0, 20));

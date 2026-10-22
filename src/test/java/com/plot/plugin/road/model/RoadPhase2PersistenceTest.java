@@ -37,7 +37,7 @@ class RoadPhase2PersistenceTest {
         assertTrue(json.contains("\"topologyMode\": \"LOOP\""));
         assertTrue(json.contains("\"horizontalAlignment\""));
         assertTrue(json.contains("\"verticalAlignment\""));
-        assertTrue(json.contains("\"verticalMode\": \"MANUAL_PROFILE\""));
+        assertTrue(json.contains("\"profileSource\": \"EDITED\""));
         assertTrue(json.contains("\"variableCrossSections\""));
         assertTrue(json.contains("\"stationFacilities\""));
         assertTrue(json.contains("\"segmentIds\""));
@@ -95,7 +95,8 @@ class RoadPhase2PersistenceTest {
         road.setWidth(6);
         road.setHorizontalAlignment(sampleHorizontalAlignment());
         road.setVerticalAlignment(sampleVerticalAlignment());
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.EDITED);
         road.setVariableCrossSections(sampleVariableCrossSections());
         road.setStationFacilities(sampleStationFacilities());
 
@@ -114,6 +115,7 @@ class RoadPhase2PersistenceTest {
     private static void assertPhase2RoadEngineeringEquals(Road expected, Road actual) {
         assertEquals(expected.getTopologyMode(), actual.getTopologyMode());
         assertEquals(expected.getVerticalMode(), actual.getVerticalMode());
+        assertEquals(expected.getEffectiveProfileSource(), actual.getEffectiveProfileSource());
         assertEquals(expected.getOrderedSegmentIds(), actual.getOrderedSegmentIds());
 
         assertHorizontalAlignmentEquals(expected.getHorizontalAlignment(), actual.getHorizontalAlignment());

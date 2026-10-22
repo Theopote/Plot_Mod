@@ -170,22 +170,9 @@ public class RoadNetworkGenerator {
 
     private final RoadGenerator roadGenerator;
     private final RoadJunctionGenerator junctionGenerator;
-    /** 本会话已确认、生成快照上仍按 MANUAL_PROFILE 求解的道路。 */
-    private Set<String> activeManualProfileRoadIds = Set.of();
-
     public RoadNetworkGenerator(RoadGenerator roadGenerator) {
         this.roadGenerator = roadGenerator;
         this.junctionGenerator = new RoadJunctionGenerator(roadGenerator);
-    }
-
-    /**
-     * 设置本会话已确认的手动纵断面道路；未在集合内的 MANUAL_PROFILE
-     * 在生成快照上会被降为 FIT_TERRAIN（首次预览按地形自适应）。
-     */
-    public void setActiveManualProfileRoadIds(Collection<String> roadIds) {
-        this.activeManualProfileRoadIds = roadIds == null || roadIds.isEmpty()
-            ? Set.of()
-            : Set.copyOf(roadIds);
     }
 
     public TerrainSampler createTerrainSampler(net.minecraft.world.World world) {
@@ -261,11 +248,10 @@ public class RoadNetworkGenerator {
             return;
         }
         RoadNetwork generationNetwork = session.generationNetwork();
-        int demotedManual = VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(
-            generationNetwork,
-            activeManualProfileRoadIds);
-        if (demotedManual > 0) {
-            LOGGER.debug("生成快照已将 {} 条未确认 MANUAL_PROFILE 降为 FIT_TERRAIN", demotedManual);
+        int strippedProfiles = VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(
+            generationNetwork);
+        if (strippedProfiles > 0) {
+            LOGGER.debug("生成快照已剥离 {} 条道路的非权威设计纵断面", strippedProfiles);
         }
         int synchronizedRoads = DerivedCenterlineSynchronizer.synchronizeAll(
             generationNetwork,
@@ -276,8 +262,7 @@ public class RoadNetworkGenerator {
         try (var ignored = session.stationingCache().activate()) {
             int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
                 generationNetwork,
-                roadGenerator.getConfig(),
-                activeManualProfileRoadIds);
+                roadGenerator.getConfig());
             if (smoothedRoads > 0) {
                 LOGGER.info("生成前已自动平缓 {} 条道路纵断面坡度", smoothedRoads);
             }

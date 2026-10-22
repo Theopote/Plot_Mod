@@ -51,11 +51,7 @@ public final class VerticalAlignmentEditor {
                 ctx, network, road, profileHooks, terrainSupplier);
             return;
         }
-        if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_path_manual_profile_hint"));
-        }
+        ProfileSourceControls.render(ctx, network, road);
     }
 
     private void renderVerticalStrategy(

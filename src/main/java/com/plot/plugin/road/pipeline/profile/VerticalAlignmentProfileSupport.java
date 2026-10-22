@@ -4,8 +4,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
-import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 
 /**
@@ -20,15 +19,13 @@ public final class VerticalAlignmentProfileSupport {
         if (road == null || network == null) {
             return false;
         }
-        RoadVerticalMode mode = road.getVerticalMode();
         if (!RoadStationing.isStationable(network, road)) {
             return false;
         }
+        RoadVerticalMode mode = road.getVerticalMode();
         if (mode == RoadVerticalMode.FLAT) {
             return FlatVerticalIntentSupport.resolveIntent(network, road) != null;
         }
-        RoadVerticalAlignment alignment = road.getVerticalAlignment();
-        return mode == RoadVerticalMode.MANUAL_PROFILE
-            && VerticalAlignmentGeometry.isEvaluable(alignment);
+        return ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
     }
 }

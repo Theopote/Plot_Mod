@@ -5,75 +5,60 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VerticalProfileGenerationPolicyTest {
 
     @Test
-    void demotesInactiveManualProfileToFitTerrainAndDetachesDesignProfile() {
-        RoadNetwork network = new RoadNetwork();
-        Road road = network.createRoad("manual");
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
-            PointOfVerticalIntersection.of(0.0, 70.0),
-            PointOfVerticalIntersection.of(40.0, 74.0))));
-        addStraightEdge(network, road, 40.0);
-
-        int demoted = VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(network);
-
-        assertEquals(1, demoted);
-        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
-        assertTrue(road.getVerticalAlignment() == null || road.getVerticalAlignment().isEmpty());
-    }
-
-    @Test
-    void detachesDormantDesignProfileFromFitTerrainRoads() {
+    void stripsNonAuthoritativeDesignProfileFromAutoSource() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("terrain");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.AUTO);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 70.0),
             PointOfVerticalIntersection.of(40.0, 74.0))));
         addStraightEdge(network, road, 40.0);
 
-        int demoted = VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(network);
+        int stripped = VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
 
-        assertEquals(0, demoted);
+        assertEquals(1, stripped);
         assertTrue(road.getVerticalAlignment() == null || road.getVerticalAlignment().isEmpty());
     }
 
     @Test
-    void keepsActiveManualProfileForGeneration() {
+    void keepsEditedProfileOnGenerationSnapshot() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("confirmed");
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 70.0),
             PointOfVerticalIntersection.of(40.0, 74.0))));
         addStraightEdge(network, road, 40.0);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
 
-        int demoted = VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(
-            network, Set.of(road.getId()));
+        int stripped = VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
 
-        assertEquals(0, demoted);
-        assertEquals(RoadVerticalMode.MANUAL_PROFILE, road.getVerticalMode());
+        assertEquals(0, stripped);
         assertTrue(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road));
     }
 
     @Test
-    void clearsStaleJunctionManualElevationWhenManualProfileInactive() {
+    void clearsStaleJunctionManualElevationWhenNotEditedAuthority() {
         RoadNetwork network = new RoadNetwork();
-        Road road = network.createRoad("manual");
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        Road road = network.createRoad("auto");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.AUTO);
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode junction = network.createNode(new Vec2d(40, 0));
         junction.setManualElevation(88.0);
@@ -83,17 +68,20 @@ class VerticalProfileGenerationPolicyTest {
             List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
             road.getId());
 
-        VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(network);
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
 
-        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
         assertTrue(junction.getManualElevation() == null);
     }
 
     @Test
-    void preservesJunctionManualElevationForActiveManualProfile() {
+    void preservesJunctionManualElevationForEditedAuthority() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("confirmed");
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(40.0, 74.0))));
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode junction = network.createNode(new Vec2d(40, 0));
         junction.setManualElevation(88.0);
@@ -102,10 +90,10 @@ class VerticalProfileGenerationPolicyTest {
             junction.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
             road.getId());
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
 
-        VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(network, Set.of(road.getId()));
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
 
-        assertEquals(RoadVerticalMode.MANUAL_PROFILE, road.getVerticalMode());
         assertEquals(88.0, junction.getManualElevation());
     }
 
@@ -123,23 +111,10 @@ class VerticalProfileGenerationPolicyTest {
             List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
             road.getId());
 
-        VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(network);
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
 
         assertEquals(RoadVerticalMode.FLAT, road.getVerticalMode());
         assertEquals(72.0, junction.getManualElevation());
-    }
-
-    @Test
-    void leavesFitTerrainUnchanged() {
-        RoadNetwork network = new RoadNetwork();
-        Road road = network.createRoad("terrain");
-        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
-        addStraightEdge(network, road, 40.0);
-
-        int demoted = VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(network);
-
-        assertEquals(0, demoted);
-        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
     }
 
     private static void addStraightEdge(RoadNetwork network, Road road, double length) {

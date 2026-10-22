@@ -124,11 +124,12 @@ class RoadNetworkVerticalModeMigrationTest {
             }
             """);
 
-        assertEquals(RoadVerticalMode.AUTO_SMOOTH, road.getVerticalMode());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+        assertEquals(com.plot.plugin.road.vertical.ProfileSource.AUTO, road.getEffectiveProfileSource());
     }
 
     @Test
-    void omittedVerticalModeWithAlignmentNormalizesToManualProfile() throws Exception {
+    void omittedVerticalModeWithAlignmentNormalizesToEditedFitTerrain() throws Exception {
         Road road = loadSingleRoad("""
             {
               "schemaVersion": 2,
@@ -157,7 +158,8 @@ class RoadNetworkVerticalModeMigrationTest {
             }
             """);
 
-        assertEquals(RoadVerticalMode.MANUAL_PROFILE, road.getVerticalMode());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+        assertEquals(com.plot.plugin.road.vertical.ProfileSource.EDITED, road.getEffectiveProfileSource());
     }
 
     @Test
@@ -231,7 +233,7 @@ class RoadNetworkVerticalModeMigrationTest {
             }
             """);
         String saved = network.toJson();
-        assertTrue(saved.contains("\"schemaVersion\": 2"));
+        assertTrue(saved.contains("\"schemaVersion\": 3"));
         assertTrue(saved.contains("\"verticalMode\": \"FIT_TERRAIN\""));
     }
 

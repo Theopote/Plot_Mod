@@ -39,7 +39,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
     /** Publishes matching manual-profile PVIs into shared at-grade junction constraints. */
     public static List<String> publishJunctionElevations(RoadNetwork network, Road road) {
         if (!canSynchronize(network, road)
-                || road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
+                || road.getEffectiveProfileSource() != ProfileSource.EDITED) {
             return List.of();
         }
         Map<String, Double> junctionStations = junctionStations(network, road);
@@ -60,7 +60,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
     }
 
     public static int applySharedJunctionConstraints(RoadNetwork network, Road road) {
-        if (!canSynchronize(network, road) || road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
+        if (!canSynchronize(network, road) || road.getEffectiveProfileSource() != ProfileSource.EDITED) {
             return 0;
         }
         Map<Double, Double> targets = new LinkedHashMap<>();

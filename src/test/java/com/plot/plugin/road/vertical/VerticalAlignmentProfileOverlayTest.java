@@ -28,6 +28,8 @@ class VerticalAlignmentProfileOverlayTest {
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
         network.createEdge(
             n2.getId(), n3.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+        road.setProfileSource(ProfileSource.EDITED);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
 
         VerticalAlignmentProfileOverlay overlay = VerticalAlignmentProfileOverlay
             .forRoad(network, road)
@@ -54,6 +56,8 @@ class VerticalAlignmentProfileOverlayTest {
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
         network.createEdge(
             n2.getId(), n3.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+        road.setProfileSource(ProfileSource.EDITED);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
 
         VerticalAlignmentProfileOverlay overlay = VerticalAlignmentProfileOverlay
             .forRoad(network, road)

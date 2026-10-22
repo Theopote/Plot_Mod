@@ -80,7 +80,7 @@ public final class ProfileEditorWindowSession {
     public void seedSampledProfiles(RoadSystemConfig config, Map<String, RoadGenerationResult> edgeResults) {
         for (Road road : workingNetwork.getRoads().values()) {
             if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
-                    || road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE
+                    || road.getEffectiveProfileSource() == com.plot.plugin.road.vertical.ProfileSource.EDITED
                     || road.getVerticalMode() == RoadVerticalMode.FLAT) continue;
             RoadProfileChartAssembler.assemble(workingNetwork, road, config, edgeResults).ifPresent(chart -> {
                 var points = new java.util.ArrayList<PointOfVerticalIntersection>();
@@ -324,9 +324,15 @@ public final class ProfileEditorWindowSession {
             diff.roadIds(),
             diff.nodeIds(),
             diff.crossingIds());
+        for (String roadId : diff.roadIds()) {
+            com.plot.plugin.road.model.Road road = live.getRoad(roadId);
+            if (road != null) {
+                com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    live, road);
+            }
+        }
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
-            ctx.previewManager().activateManualProfilesForGeneration(diff.roadIds());
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
         touchedRoadIds.clear();

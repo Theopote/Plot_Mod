@@ -265,7 +265,7 @@ public final class ProfileEditSession {
                 if (draft.kind() == ProfileEditDraft.Kind.CURVE) {
                     RoadProfileConstraintSynchronizer.preserveCrossingElevations(network, road, before, config);
                 }
-                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+                com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
             }
             case INTERSECTION -> commitIntersectionDraft(network, road, config);
             case NONE -> {

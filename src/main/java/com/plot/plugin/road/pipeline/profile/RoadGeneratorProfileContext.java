@@ -14,6 +14,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalAlignmentResolver;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.core.terrain.TerrainSampler;
 
@@ -66,6 +67,7 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, maxGrade);
       }
       RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolve(network, road, maxGrade);
+      RoadVerticalMode solverMode = verticalAlignmentSolverMode(network, road);
       return RoadStationing.orientedSegment(network, road, edge.getId())
           .map(oriented -> VerticalAlignmentProfileSolver.solveForEdge(
               alignment,
@@ -77,7 +79,7 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
               manualEndHeight,
               profileSupport,
               config,
-              road.getVerticalMode(),
+              solverMode,
               road.getEffectiveTerrainFollowPreset(config)))
           .orElseGet(() -> RoadProfileSolver.solveForEdge(
               segments,
@@ -153,6 +155,20 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
   @Override
   public double estimateCanvasUnitsPerBlock(List<PathSegment> segments) {
     return canvasUnitsPerBlock.estimate(null, segments);
+  }
+
+  /**
+   * VA 编译器仍用 {@link RoadVerticalMode#MANUAL_PROFILE} 表示「按设计线直接求解」；
+   * 产品层纵向方式可为 FIT_TERRAIN + EDITED。
+   */
+  private static RoadVerticalMode verticalAlignmentSolverMode(RoadNetwork network, Road road) {
+    if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+      return RoadVerticalMode.FLAT;
+    }
+    if (ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)) {
+      return RoadVerticalMode.MANUAL_PROFILE;
+    }
+    return road.getVerticalMode();
   }
 
   @FunctionalInterface

@@ -84,7 +84,7 @@ final class AdaptiveProfileControls {
                 road.getVerticalAlignment(), state.selectedProfilePvi,
                 RoadStationing.canonicalLength(network, road), maxGrade);
             road.setVerticalAlignment(fixed.alignment());
-            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+            com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
             if (windowSession != null) {
                 windowSession.markTouched(road);
             }
@@ -100,7 +100,7 @@ final class AdaptiveProfileControls {
             VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
                 road.getVerticalAlignment(), state.selectedProfilePvi);
             road.setVerticalAlignment(fitted.alignment());
-            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+            com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
             if (windowSession != null) {
                 windowSession.markTouched(road);
             }

@@ -1333,7 +1333,7 @@ final class VerticalProfileEditor {
                 editorState.profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
                     ? "plugin.road.vertical_alignment_auto_smooth_success" : "plugin.road.vertical_alignment_auto_smooth_no_space");
                 road.setVerticalAlignment(fitted.alignment());
-                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+                com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
                 com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
                     network, road, before, config, resolveElevationBounds(ctx));
                 editorState.selectedProfilePvi = pvi;
@@ -1637,7 +1637,7 @@ final class VerticalProfileEditor {
             return;
         }
         road.setVerticalAlignment(result.alignment());
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
         if (windowSession != null) {
             windowSession.markTouched(road);
         }
@@ -1672,7 +1672,7 @@ final class VerticalProfileEditor {
         recordUndoPointBeforeEdit();
         road.setVerticalAlignment(VerticalProfileControlPoints.removeAt(
             road.getVerticalAlignment(), pviIndex));
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
         if (windowSession != null) {
             windowSession.markTouched(road);
         }

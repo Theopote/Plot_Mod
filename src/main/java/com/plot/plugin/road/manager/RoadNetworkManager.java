@@ -338,6 +338,7 @@ public final class RoadNetworkManager {
         RoadChangeKind effective = kind != null ? kind : RoadChangeKind.GENERAL;
         if (effective == RoadChangeKind.GEOMETRY) {
             clearStaleJunctionManualElevations();
+            invalidateEditedProfilesIfGeometryChanged();
         }
         notifyNetworkChanged(effective);
         pendingChangeKind = RoadChangeKind.GENERAL;
@@ -355,6 +356,27 @@ public final class RoadNetworkManager {
             if (node.getManualElevation() != null) {
                 node.setManualElevation(null);
             }
+        }
+    }
+
+    /**
+     * 路径几何变更后：使不再匹配当前路径的 EDITED 纵断面切回 AUTO（保留保存的曲线）。
+     */
+    public void invalidateEditedProfilesIfGeometryChanged() {
+        int invalidated = 0;
+        for (Road road : network.getRoads().values()) {
+            if (road == null) {
+                continue;
+            }
+            if (com.plot.plugin.road.vertical.ResolvedProfileAuthority.invalidateEditedProfileIfStale(
+                    network, road)) {
+                invalidated++;
+            }
+        }
+        if (invalidated > 0) {
+            status.info(com.plot.utils.PlotI18n.tr(
+                "plugin.road.profile_source_invalidated_geometry",
+                invalidated));
         }
     }
 
@@ -925,7 +947,8 @@ public final class RoadNetworkManager {
                 for (Road candidate : network.getRoads().values()) {
                     var alignment = candidate.getVerticalAlignment();
                     if ((candidate.getVerticalMode() == RoadVerticalMode.FLAT
-                            || candidate.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
+                            || candidate.getEffectiveProfileSource()
+                                == com.plot.plugin.road.vertical.ProfileSource.EDITED)
                             && RoadStationing.isStationable(network, candidate)
                             && VerticalAlignmentGeometry.isEvaluable(alignment)
                             && !VerticalProfileDesignRules.slopeAllowed(

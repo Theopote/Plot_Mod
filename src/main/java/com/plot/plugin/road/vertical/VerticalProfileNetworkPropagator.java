@@ -99,7 +99,7 @@ public final class VerticalProfileNetworkPropagator {
                 RoadResult result = resolveRoad(network, road, node, maxGradeResolver);
                 if (result == null) continue;
                 results.add(result);
-                if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
+                if (road.getEffectiveProfileSource() == ProfileSource.EDITED) {
                     for (String changedNodeId : VerticalAlignmentJunctionSynchronizer
                             .publishJunctionElevations(network, road)) {
                         if (!changedNodeId.equals(nodeId)) {
@@ -127,9 +127,6 @@ public final class VerticalProfileNetworkPropagator {
             ToDoubleFunction<Road> maxGradeResolver) {
         if (road == null) return null;
         RoadVerticalMode mode = road.getVerticalMode();
-        if (mode == RoadVerticalMode.AUTO_SMOOTH || mode == RoadVerticalMode.FIT_TERRAIN) {
-            return new RoadResult(road.getId(), changedNode.getId(), mode, false, true, true);
-        }
         if (mode == RoadVerticalMode.FLAT) {
             FlatVerticalIntentSupport.applyJunctionElevation(
                 network,
@@ -142,8 +139,22 @@ public final class VerticalProfileNetworkPropagator {
             return new RoadResult(
                 road.getId(), changedNode.getId(), mode, true, false, !conflict);
         }
-        if (mode != RoadVerticalMode.MANUAL_PROFILE || road.getVerticalAlignment() == null) return null;
+        if (road.getEffectiveProfileSource() == ProfileSource.EDITED
+                && road.getVerticalAlignment() != null) {
+            return resolveEditedProfileRoad(network, road, changedNode, maxGradeResolver, mode);
+        }
+        if (mode == RoadVerticalMode.AUTO_SMOOTH || mode == RoadVerticalMode.FIT_TERRAIN) {
+            return new RoadResult(road.getId(), changedNode.getId(), mode, false, true, true);
+        }
+        return null;
+    }
 
+    private static RoadResult resolveEditedProfileRoad(
+            RoadNetwork network,
+            Road road,
+            RoadNode changedNode,
+            ToDoubleFunction<Road> maxGradeResolver,
+            RoadVerticalMode mode) {
         int synchronizedPvis = VerticalAlignmentJunctionSynchronizer
             .applySharedJunctionConstraints(network, road);
         boolean changed = synchronizedPvis > 0;

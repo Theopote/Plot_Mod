@@ -557,7 +557,8 @@ public final class RoadNetworkEngineeringValidator {
         int count = 0;
         for (Road road : network.getRoads().values()) {
             RoadVerticalMode mode = road.getVerticalMode();
-            if (mode != RoadVerticalMode.FLAT && mode != RoadVerticalMode.MANUAL_PROFILE) {
+            if (mode != RoadVerticalMode.FLAT
+                    && road.getEffectiveProfileSource() != com.plot.plugin.road.vertical.ProfileSource.EDITED) {
                 continue;
             }
             RoadVerticalAlignment alignment = road.getVerticalAlignment();
@@ -679,7 +680,10 @@ public final class RoadNetworkEngineeringValidator {
         int count = 0;
         for (Road road : network.getRoads().values()) {
             RoadVerticalMode mode = road.getVerticalMode();
-            if (mode != RoadVerticalMode.FLAT && mode != RoadVerticalMode.MANUAL_PROFILE) continue;
+            if (mode != RoadVerticalMode.FLAT
+                    && road.getEffectiveProfileSource() != com.plot.plugin.road.vertical.ProfileSource.EDITED) {
+                continue;
+            }
             RoadVerticalAlignment alignment = road.getVerticalAlignment();
             if (!VerticalAlignmentGeometry.isEvaluable(alignment)
                     || !RoadStationing.isStationable(network, road)) continue;

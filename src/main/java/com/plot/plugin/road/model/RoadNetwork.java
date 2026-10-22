@@ -77,7 +77,7 @@ import java.util.stream.Collectors;
 public class RoadNetwork {
 
     /** 路网 sidecar JSON 格式版本（{@link NetworkData#schemaVersion}）。 */
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -227,6 +227,7 @@ public class RoadNetwork {
         Road road = createRoad();
         RoadParameterInheritance.snapshotGlobalDefaults(road, defaults);
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);
         return road;
     }
 
@@ -784,6 +785,7 @@ public class RoadNetwork {
             data = switch (version) {
                 case 0 -> migrateV0ToV1(data);
                 case 1 -> RoadNetworkVerticalModeMigration.migrateV1ToV2(data);
+                case 2 -> RoadNetworkProfileSourceMigration.migrateV2ToV3(data);
                 default -> throw new RoadNetworkFormatException(
                     RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
                     PlotI18n.error(
@@ -794,6 +796,7 @@ public class RoadNetwork {
             version = data.schemaVersion;
         }
         RoadNetworkVerticalModeMigration.normalizeLoadedVerticalModes(data);
+        RoadNetworkProfileSourceMigration.normalizeLoadedProfileSources(data);
         return data;
     }
 
@@ -1154,6 +1157,8 @@ public class RoadNetwork {
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
+        String profileSource;
+        Integer editedGeometrySignature;
         String terrainStyle;
         TunnelStylePersistence tunnelStyle;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
@@ -1249,6 +1254,12 @@ public class RoadNetwork {
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
                 if (road.getStoredVerticalMode() != null) {
                     roadData.verticalMode = road.getStoredVerticalMode().name();
+                }
+                if (road.getStoredProfileSource() != null) {
+                    roadData.profileSource = road.getStoredProfileSource().name();
+                }
+                if (road.getEditedGeometrySignature() != 0) {
+                    roadData.editedGeometrySignature = road.getEditedGeometrySignature();
                 }
                 if (road.getStoredTerrainStyle() != null) {
                     roadData.terrainStyle = road.getStoredTerrainStyle().name();
@@ -1367,6 +1378,11 @@ public class RoadNetwork {
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.fromStored(
                         roadData.verticalMode));
+                    road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.fromStored(
+                        roadData.profileSource));
+                    if (roadData.editedGeometrySignature != null) {
+                        road.setEditedGeometrySignature(roadData.editedGeometrySignature);
+                    }
                     if (roadData.terrainStyle != null && !roadData.terrainStyle.isBlank()) {
                         road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
                             .fromStored(roadData.terrainStyle));

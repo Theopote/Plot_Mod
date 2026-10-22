@@ -11,6 +11,7 @@ import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -59,6 +60,8 @@ public class Road {
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
     private RoadVerticalMode verticalMode;
+    private ProfileSource profileSource;
+    private int editedGeometrySignature;
     private RoadTerrainStyle terrainStyle;
     private TunnelStyle tunnelStyle;
     private FlatVerticalIntent flatVerticalIntent;
@@ -473,9 +476,7 @@ public class Road {
         if (verticalMode != null) {
             return verticalMode;
         }
-        return verticalAlignment != null && !verticalAlignment.isEmpty()
-            ? RoadVerticalMode.MANUAL_PROFILE
-            : RoadVerticalMode.AUTO_SMOOTH;
+        return RoadVerticalMode.FIT_TERRAIN;
     }
 
     /** 持久化字段；{@code null} 表示未显式设置（加载时由迁移逻辑决议）。 */
@@ -485,6 +486,34 @@ public class Road {
 
     public void setVerticalMode(RoadVerticalMode verticalMode) {
         this.verticalMode = verticalMode;
+    }
+
+    /** 持久化字段；{@code null} 表示未显式设置（加载时由迁移逻辑决议）。 */
+    public ProfileSource getStoredProfileSource() {
+        return profileSource;
+    }
+
+    public void setProfileSource(ProfileSource profileSource) {
+        this.profileSource = profileSource;
+    }
+
+    /** 有效纵断面来源；适应地形下默认自动设计。 */
+    public ProfileSource getEffectiveProfileSource() {
+        if (profileSource != null) {
+            return profileSource;
+        }
+        if (verticalMode == RoadVerticalMode.MANUAL_PROFILE) {
+            return ProfileSource.EDITED;
+        }
+        return ProfileSource.AUTO;
+    }
+
+    public int getEditedGeometrySignature() {
+        return editedGeometrySignature;
+    }
+
+    public void setEditedGeometrySignature(int editedGeometrySignature) {
+        this.editedGeometrySignature = editedGeometrySignature;
     }
 
     public RoadTerrainStyle getEffectiveTerrainStyle(RoadSystemConfig config) {
@@ -681,6 +710,8 @@ public class Road {
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         copy.verticalMode = verticalMode;
+        copy.profileSource = profileSource;
+        copy.editedGeometrySignature = editedGeometrySignature;
         copy.terrainStyle = terrainStyle;
         copy.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
         copy.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;

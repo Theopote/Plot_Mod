@@ -67,7 +67,12 @@ class CrossingPavementContinuityTest {
         RoadGenerator generator = new RoadGenerator(config, IdentityCoordinateService.INSTANCE,
             BlockProjectionHandler.getInstance());
         RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
-        networkGenerator.setActiveManualProfileRoadIds(Set.of(ns.getId(), ew.getId()));
+        for (String roadId : Set.of(ns.getId(), ew.getId())) {
+            var road = network.getRoad(roadId);
+            road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.FIT_TERRAIN);
+            road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.EDITED);
+            com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        }
         com.plot.core.terrain.TerrainSampler terrain = terrainY >= 0 ? new FlatTerrainSampler(terrainY)
             : new com.plot.core.terrain.TerrainSampler() {
                 private int ground(double x, double z) { return Math.abs(x) >= 5 && Math.abs(z) <= 3 ? 50 : 80; }

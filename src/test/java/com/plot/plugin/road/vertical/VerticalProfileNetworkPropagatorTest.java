@@ -32,11 +32,11 @@ class VerticalProfileNetworkPropagatorTest {
                 bridgeJ1 < bridgeJ2 ? 70 : 75),
             PointOfVerticalIntersection.of(Math.max(bridgeJ1, bridgeJ2),
                 bridgeJ1 < bridgeJ2 ? 75 : 70))));
-        bridge.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        bridge.setProfileSource(ProfileSource.EDITED);
 
         Road downstream = roadFromJunction(network, j2, "downstream", new Vec2d(200, 0));
         downstream.setVerticalAlignment(VerticalProfileDesignRules.flatAlignment(100, 70));
-        downstream.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        downstream.setProfileSource(ProfileSource.EDITED);
 
         VerticalProfileNetworkPropagator.Result result =
             VerticalProfileNetworkPropagator.propagateNode(network, j1, ignored -> 20.0);
@@ -64,7 +64,7 @@ class VerticalProfileNetworkPropagatorTest {
         var junction = network.createNode(new Vec2d(0, 0));
 
         Road source = roadFromJunction(network, junction, "source", new Vec2d(100, 0));
-        source.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        source.setProfileSource(ProfileSource.EDITED);
         source.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 76),
             PointOfVerticalIntersection.of(100, 76))));
@@ -124,11 +124,13 @@ class VerticalProfileNetworkPropagatorTest {
             PointOfVerticalIntersection.of(0, 70),
             PointOfVerticalIntersection.of(100, 76),
             PointOfVerticalIntersection.of(200, 70))));
+        eastWest.setProfileSource(ProfileSource.EDITED);
         northSouth.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 70),
             PointOfVerticalIntersection.of(60, 70),
             PointOfVerticalIntersection.of(140, 70),
             PointOfVerticalIntersection.of(200, 70))));
+        northSouth.setProfileSource(ProfileSource.EDITED);
         var west = network.createNode(new Vec2d(-100, 0));
         var junction = network.createNode(new Vec2d(0, 0));
         var east = network.createNode(new Vec2d(100, 0));
@@ -162,6 +164,7 @@ class VerticalProfileNetworkPropagatorTest {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 70),
             PointOfVerticalIntersection.of(20, 80))));
+        road.setProfileSource(ProfileSource.EDITED);
         var junction = network.createNode(new Vec2d(0, 0));
         var end = network.createNode(new Vec2d(20, 0));
         var n = network.createNode(new Vec2d(0, 10));

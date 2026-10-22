@@ -42,6 +42,10 @@ public final class RoadVerticalIntentTransforms {
         if (source.getFlatVerticalIntent() != null) {
             target.setFlatVerticalIntent(source.getFlatVerticalIntent());
         }
+        if (source.getStoredProfileSource() != null) {
+            target.setProfileSource(source.getStoredProfileSource());
+        }
+        target.setEditedGeometrySignature(source.getEditedGeometrySignature());
     }
 
     /**

@@ -91,27 +91,17 @@ public final class VerticalAlignmentGradeSmoother {
         return result.changed();
     }
 
+    /** 仅平滑将按编辑曲线生成的道路。 */
     public static int smoothAllExceeding(RoadNetwork network, RoadSystemConfig config) {
-        return smoothAllExceeding(network, config, null);
-    }
-
-    /** 仅平滑本会话已确认、将按 MANUAL_PROFILE 生成的道路。 */
-    public static int smoothAllExceeding(
-            RoadNetwork network,
-            RoadSystemConfig config,
-            java.util.Collection<String> activeManualRoadIds) {
         if (network == null || config == null) {
             return 0;
         }
-        java.util.Set<String> active = activeManualRoadIds == null || activeManualRoadIds.isEmpty()
-            ? java.util.Set.of()
-            : java.util.Set.copyOf(activeManualRoadIds);
         int count = 0;
         for (Road road : network.getRoads().values()) {
-            if (road == null || !active.contains(road.getId())) {
+            if (road == null) {
                 continue;
             }
-            if (road.getVerticalMode() != com.plot.plugin.road.vertical.RoadVerticalMode.MANUAL_PROFILE) {
+            if (!ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)) {
                 continue;
             }
             if (smoothRoad(network, road, config)) {

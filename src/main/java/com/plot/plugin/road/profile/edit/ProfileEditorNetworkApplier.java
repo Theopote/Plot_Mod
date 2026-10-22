@@ -74,6 +74,8 @@ public final class ProfileEditorNetworkApplier {
         RoadVerticalAlignment alignment = source.getVerticalAlignment();
         target.setVerticalAlignment(alignment != null ? alignment.copy() : null);
         target.setVerticalMode(source.getVerticalMode());
+        target.setProfileSource(source.getStoredProfileSource());
+        target.setEditedGeometrySignature(source.getEditedGeometrySignature());
         FlatVerticalIntent intent = source.getFlatVerticalIntent();
         target.setFlatVerticalIntent(intent != null ? intent.copy() : null);
     }

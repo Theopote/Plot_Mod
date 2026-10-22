@@ -6,7 +6,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -45,15 +44,7 @@ final class VerticalModeControls {
                 terrainSupplier);
             return;
         }
-        if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_mode_manual_profile_generate_hint"));
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.vertical_alignment_terrain_adaptive_generate_hint"));
+        ProfileSourceControls.render(ctx, network, road);
     }
 
     FlatElevationProfileOverlay flatElevationProfileOverlay(

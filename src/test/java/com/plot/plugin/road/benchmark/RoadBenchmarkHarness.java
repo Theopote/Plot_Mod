@@ -87,12 +87,16 @@ public final class RoadBenchmarkHarness {
             TerrainSampler terrain) {
         long generationStart = System.nanoTime();
         RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
-        // Fixtures provide an explicit design, equivalent to confirming the manual
-        // profile in the editor before previewing it.
-        networkGenerator.setActiveManualProfileRoadIds(network.getRoads().values().stream()
-            .filter(road -> road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
-            .map(Road::getId)
-            .toList());
+        for (Road road : network.getRoads().values()) {
+            if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE
+                    || road.getEffectiveProfileSource()
+                        == com.plot.plugin.road.vertical.ProfileSource.EDITED) {
+                road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+                road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.EDITED);
+                com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    network, road);
+            }
+        }
         RoadNetworkGenerator.PreviewResult preview =
             networkGenerator.generatePreview(network, terrain);
         long generationNanos = System.nanoTime() - generationStart;

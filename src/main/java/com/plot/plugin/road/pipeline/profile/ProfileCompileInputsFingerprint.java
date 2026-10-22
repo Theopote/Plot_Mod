@@ -13,6 +13,7 @@ import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 
 import java.util.List;
@@ -67,12 +68,14 @@ public record ProfileCompileInputsFingerprint(
             worldBoundsHash(elevationBounds),
             effective.algorithmVersion(),
             Objects.hash(
+                road.getEffectiveProfileSource(),
+                road.getEditedGeometrySignature(),
                 effective.minEffectiveRunBlocks(),
                 effective.maxReversalSpanBlocks(),
                 effective.algorithmVersion()));
     }
 
-    static int geometryHash(RoadNetwork network, Road road) {
+    public static int geometryHash(RoadNetwork network, Road road) {
         if (road == null || !RoadStationing.isStationable(network, road)) {
             return 0;
         }

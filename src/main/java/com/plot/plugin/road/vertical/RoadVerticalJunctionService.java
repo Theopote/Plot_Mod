@@ -58,7 +58,7 @@ public final class RoadVerticalJunctionService {
                     elevation,
                     effectiveMaxGrade(road, config));
                 changed++;
-            } else if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
+            } else if (road.getEffectiveProfileSource() == ProfileSource.EDITED) {
                 if (syncManualProfileJunctionElevation(network, road, nodeId, elevation)) {
                     changed++;
                 }
@@ -189,7 +189,7 @@ public final class RoadVerticalJunctionService {
             return false;
         }
         RoadProfileConstraintSynchronizer.setElevation(road, station, elevation);
-        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        ProfileSourceEdits.markWorkingCopyEdited(road);
         return true;
     }
 
