@@ -15,6 +15,7 @@ public final class JsonSnapshotHistory<T> {
     private final int maxHistory;
     private final Deque<String> undoStack = new ArrayDeque<>();
     private final Deque<String> redoStack = new ArrayDeque<>();
+    private String stagedUndoSnapshot;
 
     public JsonSnapshotHistory(Function<T, String> toJson, Function<String, T> fromJson) {
         this(toJson, fromJson, DEFAULT_MAX_HISTORY);
@@ -26,14 +27,41 @@ public final class JsonSnapshotHistory<T> {
         this.maxHistory = Math.max(1, maxHistory);
     }
 
+    /** 推入撤销帧并立即清空 redo（一次性 API，Building 等模块仍可使用）。 */
     public void push(T current) {
-        if (current != null) {
-            undoStack.push(toJson.apply(current));
+        stagePush(current);
+        commitStagedPush();
+    }
+
+    /** 暂存 mutation 前快照；成功 {@link #commitStagedPush()} 前不清空 redo。 */
+    public void stagePush(T current) {
+        stagedUndoSnapshot = current != null ? toJson.apply(current) : null;
+    }
+
+    /** 将暂存快照写入 undo 栈并清空 redo。 */
+    public void commitStagedPush() {
+        if (stagedUndoSnapshot != null) {
+            undoStack.push(stagedUndoSnapshot);
             while (undoStack.size() > maxHistory) {
                 undoStack.removeLast();
             }
+            stagedUndoSnapshot = null;
         }
         redoStack.clear();
+    }
+
+    /** 放弃暂存快照并恢复到 mutation 前状态；redo 栈不变。 */
+    public T discardStagedPush(T current) {
+        if (stagedUndoSnapshot == null) {
+            return current;
+        }
+        T restored = fromJson.apply(stagedUndoSnapshot);
+        stagedUndoSnapshot = null;
+        return restored;
+    }
+
+    public boolean hasStagedPush() {
+        return stagedUndoSnapshot != null;
     }
 
     public T undo(T current) {
@@ -67,11 +95,12 @@ public final class JsonSnapshotHistory<T> {
     public void clear() {
         undoStack.clear();
         redoStack.clear();
+        stagedUndoSnapshot = null;
     }
 
     /**
-     * 丢弃最近一次 {@link #push} 写入的撤销帧，并将 {@code current} 恢复为该帧快照。
-     * 用于 mutation 未提交（失败 / no-op）时避免空撤销步。
+     * 丢弃 undo 栈顶帧并恢复（legacy：已 commit 的帧）。
+     * 道路 mutation 失败应优先 {@link #discardStagedPush}。
      */
     public T discardLatestUndoSnapshot(T current) {
         if (undoStack.isEmpty()) {

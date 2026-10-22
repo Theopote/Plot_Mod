@@ -162,6 +162,59 @@ class GenerateRoadCommandTest {
     }
 
     @Test
+    void undoRestoresExecuteTimeBaselineNotPreviewBaseline() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos pos = new BlockPos(0, 64, 0);
+        writer.seed(pos, "minecraft:grass_block");
+
+        List<BlockRecord> records = List.of(
+            new BlockRecord(pos, "minecraft:dirt", "minecraft:stone"));
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            records,
+            writer::setBlockAt,
+            writer::get,
+            false,
+            null);
+
+        writer.seed(pos, "minecraft:gold_block");
+        command.execute();
+
+        assertEquals("minecraft:stone", writer.get(pos));
+        command.undo();
+        assertEquals("minecraft:gold_block", writer.get(pos),
+            "undo must restore execute-time world state, not preview previousBlockId");
+    }
+
+    @Test
+    void failedRedoKeepsOriginalAppliedScope() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos first = new BlockPos(0, 64, 0);
+        BlockPos second = new BlockPos(1, 64, 0);
+        writer.seed(first, "minecraft:grass_block");
+        writer.seed(second, "minecraft:grass_block");
+
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            List.of(
+                new BlockRecord(first, "minecraft:grass_block", "minecraft:stone"),
+                new BlockRecord(second, "minecraft:grass_block", "minecraft:gravel")),
+            writer);
+
+        command.execute();
+        assertEquals(2, command.getOriginalAppliedRecords().size());
+
+        command.undo();
+        writer.failOn(second);
+        command.redo();
+        assertEquals(1, command.getAppliedRecordCount());
+        assertEquals(2, command.getOriginalAppliedRecords().size());
+
+        writer.failOn(second);
+        command.redo();
+        assertEquals(2, command.getOriginalAppliedRecords().size(),
+            "redo scope must stay on originally applied records");
+    }
+
+    @Test
     void totalFailureLeavesNoAppliedRecords() {
         InMemoryBlockWriter writer = new InMemoryBlockWriter();
         BlockPos pos = new BlockPos(0, 64, 0);

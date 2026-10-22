@@ -185,6 +185,12 @@ public final class ProfileEditorNetworkApplier {
         if (!Objects.equals(baseline.getFlatVerticalIntent(), working.getFlatVerticalIntent())) {
             return true;
         }
+        if (!Objects.equals(baseline.getEffectiveProfileSource(), working.getEffectiveProfileSource())) {
+            return true;
+        }
+        if (baseline.getEditedGeometrySignature() != working.getEditedGeometrySignature()) {
+            return true;
+        }
         return !alignmentPvisEqual(baseline.getVerticalAlignment(), working.getVerticalAlignment());
     }
 
@@ -193,6 +199,9 @@ public final class ProfileEditorNetworkApplier {
             return baseline != working;
         }
         if (!Objects.equals(baseline.getManualElevation(), working.getManualElevation())) {
+            return true;
+        }
+        if (!Objects.equals(baseline.getManualElevationOrigin(), working.getManualElevationOrigin())) {
             return true;
         }
         if (baseline.isGradeSeparated() != working.isGradeSeparated()) {

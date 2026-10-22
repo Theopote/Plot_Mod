@@ -62,6 +62,23 @@ class RoadNetworkMutationTransactionTest {
     }
 
     @Test
+    void failedCenterlineEditPreservesRedoStack() {
+        RoadNetwork network = manager.getNetwork();
+        Road road = network.createRoad("main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        manager.mutateNetwork(() -> network.getRoad(road.getId()).setName("first"));
+        manager.undo();
+        assertTrue(manager.canRedo());
+
+        CenterlineEditResult result = manager.insertPiAtLocalDistance("missing-edge", 1.0);
+        assertFalse(result.isSuccess());
+        assertTrue(manager.canRedo(), "rejected edit must not clear redo");
+    }
+
+    @Test
     void failedCenterlineEditDoesNotCreateUndoFrame() {
         long before = manager.getNetworkRevision();
         CenterlineEditResult result = manager.insertPiAtLocalDistance("missing-edge", 1.0);

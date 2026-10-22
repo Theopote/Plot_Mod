@@ -466,6 +466,7 @@
   "plugin.road.build_blocked_validation": "Resolve blocking validation issues before building",
   "plugin.road.build_blocked_partial_generation": "Preview has roads that failed to generate. Fix issues and recalculate preview before building.",
   "plugin.road.build_blocked_stale_preview": "Preview is out of date — recalculate preview before building",
+  "plugin.road.build_blocked_world_changed": "Preview was computed in a different world — recalculate preview before building",
   "plugin.road.preview_status_computing": "Preview: calculating…",
   "plugin.road.preview_status_ready": "Preview: ready to build",
   "plugin.road.preview_status_stale": "Preview: stale — recalculate before building",

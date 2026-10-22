@@ -2,6 +2,7 @@ package com.plot.plugin.road.golden;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -121,8 +122,8 @@ public final class RoadGoldenScenarioFactory {
         Road road = network.createRoad("r09");
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(30, 0));
-        a.setManualElevation(64.0);
-        b.setManualElevation(64.0);
+        a.setManualElevation(64.0, ManualElevationOrigin.USER);
+        b.setManualElevation(64.0, ManualElevationOrigin.USER);
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
         TerrainSampler mountain = new TerrainSampler() {
             @Override public int sampleSurfaceY(Vec2d p) { return 72; }
@@ -138,8 +139,8 @@ public final class RoadGoldenScenarioFactory {
         Road road = network.createRoad("r10");
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(30, 0));
-        a.setManualElevation(64.0);
-        b.setManualElevation(64.0);
+        a.setManualElevation(64.0, ManualElevationOrigin.USER);
+        b.setManualElevation(64.0, ManualElevationOrigin.USER);
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
         TerrainSampler water = new TerrainSampler() {
             @Override public int sampleSurfaceY(Vec2d p) { return 50; }

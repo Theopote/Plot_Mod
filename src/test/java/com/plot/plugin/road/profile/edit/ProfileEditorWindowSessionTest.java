@@ -20,6 +20,8 @@ import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
@@ -408,6 +410,32 @@ class ProfileEditorWindowSessionTest {
 
         assertEquals(originalCount, live.getRoad(road.getId()).getVerticalAlignment().pviCount());
         assertEquals(originalCount, session.editingNetwork().getRoad(road.getId()).getVerticalAlignment().pviCount());
+    }
+
+    @Test
+    void confirmWithoutPviChangesRebindsStaleEditedProfile() {
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+
+        RoadNode end = live.getNodes().values().stream()
+            .filter(node -> node.getPosition().x > 0)
+            .findFirst()
+            .orElseThrow();
+        end.setPosition(new Vec2d(120, 0));
+        live.getEdges().values().iterator().next()
+            .setCenterlinePoints(List.of(new Vec2d(0, 0), new Vec2d(120, 0)));
+        ResolvedProfileAuthority.invalidateEditedProfileIfStale(live, road);
+
+        ProfileEditorWindowSession session = openSession();
+        session.markTouched(session.editingNetwork().getRoad(road.getId()));
+
+        ProfileEditorWindowSession.ConfirmResult result =
+            session.confirm(testContext(), live, config);
+
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.APPLIED, result);
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+        assertTrue(ResolvedProfileAuthority.canActivateEditedProfile(live, road));
     }
 
     private ProfileEditorWindowSession openSession() {

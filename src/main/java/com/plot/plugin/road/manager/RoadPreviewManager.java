@@ -51,16 +51,10 @@ public final class RoadPreviewManager {
     private boolean previewNeedsRecalc = false;
     private RoadNetworkPreviewJob previewJob;
     private long lastPreviewTerrainFingerprint = 0L;
-    private Runnable onFullInvalidate;
-
+    private String previewWorldKey = "";
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
         this.host = Objects.requireNonNull(host, "host");
-    }
-
-    /** 预览全量失效时的附加清理（如清除 live 网上 stale junction 标高）。 */
-    public void setOnFullInvalidate(Runnable onFullInvalidate) {
-        this.onFullInvalidate = onFullInvalidate;
     }
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
@@ -96,10 +90,7 @@ public final class RoadPreviewManager {
         }
         long fingerprint = terrainFingerprint(network);
         if (lastPreviewTerrainFingerprint != 0L && fingerprint != lastPreviewTerrainFingerprint) {
-            if (onFullInvalidate != null) {
-                onFullInvalidate.run();
-            }
-            LOGGER.debug("检测到地形变更，已清除 stale junction 标高");
+            LOGGER.debug("检测到地形变更，预览将重新采样");
         }
     }
 
@@ -416,6 +407,7 @@ public final class RoadPreviewManager {
         applyProfileSamplingState(previewResult);
         lastNetworkGenerationResult = previewResult.networkResult();
         lastPreviewTerrainFingerprint = terrainFingerprint(network);
+        previewWorldKey = currentWorldKey();
         bumpTerrainRevision();
 
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
@@ -515,9 +507,24 @@ public final class RoadPreviewManager {
         return lastGenerationResult != null && !lastGenerationResult.placementRecords.isEmpty();
     }
 
-    /** 当前预览可用于投影/建造：有效、未过期且不在计算中。 */
+    /** 当前预览可用于投影/建造：有效、未过期、世界一致且不在计算中。 */
     public boolean isBuildPreviewCurrent() {
-        return hasValidPreview() && !previewNeedsRecalc && !isPreviewJobRunning();
+        return hasValidPreview()
+            && !previewNeedsRecalc
+            && !isPreviewJobRunning()
+            && previewWorldMatchesCurrent();
+    }
+
+    private boolean previewWorldMatchesCurrent() {
+        return previewWorldKey.isEmpty() || previewWorldKey.equals(currentWorldKey());
+    }
+
+    private static String currentWorldKey() {
+        net.minecraft.world.World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            return "";
+        }
+        return world.getRegistryKey().getValue().toString();
     }
 
     /**
@@ -560,9 +567,7 @@ public final class RoadPreviewManager {
         previewNetwork = null;
         clearGhostBlocksSafely();
         lastPreviewTerrainFingerprint = 0L;
-        if (onFullInvalidate != null) {
-            onFullInvalidate.run();
-        }
+        previewWorldKey = "";
         if (hadPreview) {
             previewNeedsRecalc = true;
             LOGGER.debug("网络已变更，预览结果与虚影已失效");
@@ -601,6 +606,11 @@ public final class RoadPreviewManager {
 
         if (host.placement().isBusy()) {
             status.warning(PlotI18n.tr("plugin.road.build_in_progress_wait"));
+            return;
+        }
+        if (!previewWorldMatchesCurrent()) {
+            invalidatePreview();
+            status.error(PlotI18n.tr("plugin.road.build_blocked_world_changed"));
             return;
         }
 

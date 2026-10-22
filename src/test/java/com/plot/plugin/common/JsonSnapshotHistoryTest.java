@@ -79,6 +79,30 @@ class JsonSnapshotHistoryTest {
     }
 
     @Test
+    void abortedStagedPushPreservesRedoStack() {
+        JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
+            RoadNetwork::toJson,
+            RoadNetwork::parseSnapshot
+        );
+
+        RoadNetwork a = new RoadNetwork();
+        a.createNode(new Vec2d(1, 1));
+        RoadNetwork b = new RoadNetwork();
+        b.createNode(new Vec2d(2, 2));
+
+        history.push(a);
+        history.undo(b);
+        assertTrue(history.canRedo());
+
+        RoadNetwork mutated = new RoadNetwork();
+        mutated.createNode(new Vec2d(9, 9));
+        history.stagePush(b);
+        history.discardStagedPush(mutated);
+
+        assertTrue(history.canRedo(), "failed/no-op edit must not clear redo");
+    }
+
+    @Test
     void discardLatestUndoSnapshotRestoresPushedStateAndRemovesUndoFrame() {
         JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
             RoadNetwork::toJson,

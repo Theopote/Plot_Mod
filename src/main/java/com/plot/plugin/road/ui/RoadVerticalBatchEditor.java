@@ -26,6 +26,7 @@ final class RoadVerticalBatchEditor {
 
     private float unifiedElevationDraft = 64f;
     private String syncedSelectionKey = "";
+    private boolean elevationDraftDirty = false;
 
     void render(
             RoadUiContext ctx,
@@ -74,22 +75,25 @@ final class RoadVerticalBatchEditor {
         String elevationLabel = summary.mixed()
             ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed")
             : PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation");
-        if (!summary.mixed() && summary.flatRoadCount() > 0) {
+        if (!elevationDraftDirty && !summary.mixed() && summary.flatRoadCount() > 0) {
             unifiedElevationDraft = (float) summary.commonElevation();
         }
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
         float[] elevation = {unifiedElevationDraft};
-        ImGui.dragFloat(
+        if (ImGui.dragFloat(
             elevationLabel,
             elevation,
             0.5f,
             com.plot.plugin.road.RoadParameterLimits.ELEVATION_MIN,
             com.plot.plugin.road.RoadParameterLimits.ELEVATION_MAX,
-            summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.1f");
-        unifiedElevationDraft = elevation[0];
+            summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.1f")) {
+            unifiedElevationDraft = elevation[0];
+            elevationDraftDirty = true;
+        }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.vertical_batch_apply_uniform_y"))) {
             switchDialog.requestBatchToFlatUniform(stationableRoadIds, unifiedElevationDraft);
+            elevationDraftDirty = false;
         }
 
         RoadUiWidgets.textWrappedColored(
@@ -110,6 +114,7 @@ final class RoadVerticalBatchEditor {
             return;
         }
         syncedSelectionKey = key;
+        elevationDraftDirty = false;
         FlatVerticalIntentSupport.BatchElevationSummary summary =
             FlatVerticalIntentSupport.summarizeFlatBaseElevations(network, stationableRoadIds);
         if (!summary.mixed() && summary.flatRoadCount() > 0) {

@@ -10,9 +10,11 @@ public enum RoadChangeKind {
     VERTICAL_PROFILE,
     /** 交叉口高程关系：同 {@link #VERTICAL_PROFILE}。 */
     JUNCTION,
-    GENERATION_SETTINGS;
+    GENERATION_SETTINGS,
+    /** Undo / redo：标记预览过期，但不修改 live 网上的设计权威数据。 */
+    HISTORY;
 
     public boolean preservesProfileSampling() {
-        return this == VERTICAL_PROFILE || this == JUNCTION;
+        return this == VERTICAL_PROFILE || this == JUNCTION || this == HISTORY;
     }
 }

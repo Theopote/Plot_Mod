@@ -324,7 +324,7 @@ public final class RoadNetworkManager {
      * 与 {@link #commitNetworkChange()} 配对：一次用户编辑 = 一次快照 + 一次 revision。
      */
     public void pushUndoSnapshot() {
-        history.push(network);
+        history.stagePush(network);
     }
 
     /**
@@ -335,6 +335,7 @@ public final class RoadNetworkManager {
     }
 
     public void commitNetworkChange(RoadChangeKind kind) {
+        history.commitStagedPush();
         RoadChangeKind effective = kind != null ? kind : RoadChangeKind.GENERAL;
         if (effective == RoadChangeKind.GEOMETRY) {
             clearStaleJunctionManualElevations();
@@ -345,18 +346,12 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 几何变更或预览全量失效后：清除平交节点上由旧位置/profile 写入的手动标高，
-     * 避免新地形预览仍被旧 junction Y 锁定。
+     * 几何变更后：清除 live 网上不应再参与求解的派生节点标高；
+     * 用户锁定、交叉口与立交属性不受影响（与生成快照策略一致）。
      */
     public void clearStaleJunctionManualElevations() {
-        for (RoadNode node : network.getNodes().values()) {
-            if (node == null || node.isGradeSeparated()) {
-                continue;
-            }
-            if (node.getManualElevation() != null) {
-                node.setManualElevation(null);
-            }
-        }
+        com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy
+            .clearStaleManualJunctionLocksOnSnapshot(network);
     }
 
     /**
@@ -402,8 +397,13 @@ public final class RoadNetworkManager {
     public void mutateNetwork(Runnable mutation) {
         Objects.requireNonNull(mutation, "mutation");
         pushUndoSnapshot();
-        mutation.run();
-        commitNetworkChange();
+        try {
+            mutation.run();
+            commitNetworkChange();
+        } catch (RuntimeException ex) {
+            abortPendingNetworkEdit();
+            throw ex;
+        }
     }
 
     /**
@@ -424,7 +424,7 @@ public final class RoadNetworkManager {
 
     /** 丢弃未提交的撤销帧，并将 live 网络恢复为 mutation 前快照。 */
     private void abortPendingNetworkEdit() {
-        network = history.discardLatestUndoSnapshot(network);
+        network = history.discardStagedPush(network);
         network.assertInvariants();
         ensureSelectionValid();
     }
@@ -448,7 +448,7 @@ public final class RoadNetworkManager {
         network.assertInvariants();
         ensureSelectionValid();
         lastBatchSelectionKey = "";
-        notifyNetworkChanged();
+        notifyNetworkChanged(RoadChangeKind.HISTORY);
     }
 
     public void redo() {
@@ -456,7 +456,7 @@ public final class RoadNetworkManager {
         network.assertInvariants();
         ensureSelectionValid();
         lastBatchSelectionKey = "";
-        notifyNetworkChanged();
+        notifyNetworkChanged(RoadChangeKind.HISTORY);
     }
 
     public void resetSelection() {

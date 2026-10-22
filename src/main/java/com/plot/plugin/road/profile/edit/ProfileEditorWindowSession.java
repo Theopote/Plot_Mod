@@ -288,11 +288,15 @@ public final class ProfileEditorWindowSession {
     public ConfirmResult confirm(RoadUiContext ctx, RoadNetwork live, RoadSystemConfig config) {
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(live, "live");
-        if (!isDirty()) {
-            return ConfirmResult.NO_CHANGES;
-        }
         if (ctx.networkManager().getNetworkRevision() != openRevision) {
             return ConfirmResult.CONFLICT;
+        }
+        ConfirmResult rebindOnly = tryConfirmStaleProfileRebind(ctx, live);
+        if (rebindOnly != null) {
+            return rebindOnly;
+        }
+        if (!isDirty()) {
+            return ConfirmResult.NO_CHANGES;
         }
         Set<String> changedRoadIds = ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, workingNetwork);
         Set<String> propagateSeeds = new LinkedHashSet<>(changedRoadIds);
@@ -339,6 +343,46 @@ public final class ProfileEditorWindowSession {
         touchedNodeIds.clear();
         touchedCrossingIds.clear();
         undoHistory.clear();
+        return ConfirmResult.APPLIED;
+    }
+
+    /**
+     * 曲线数值未变但几何签名过期时，允许用户仅重新确认绑定，无需拖动 PVI。
+     */
+    private ConfirmResult tryConfirmStaleProfileRebind(RoadUiContext ctx, RoadNetwork live) {
+        if (isDirty()) {
+            return null;
+        }
+        Set<String> rebindRoadIds = new LinkedHashSet<>();
+        for (String roadId : touchedRoadIds) {
+            com.plot.plugin.road.model.Road workingRoad = workingNetwork.getRoad(roadId);
+            com.plot.plugin.road.model.Road liveRoad = live.getRoad(roadId);
+            if (workingRoad == null || liveRoad == null) {
+                continue;
+            }
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasStoredEditedCurve(workingRoad)) {
+                continue;
+            }
+            if (com.plot.plugin.road.vertical.ResolvedProfileAuthority.canActivateEditedProfile(
+                    workingNetwork, workingRoad)) {
+                continue;
+            }
+            rebindRoadIds.add(roadId);
+        }
+        if (rebindRoadIds.isEmpty()) {
+            return null;
+        }
+        ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
+        for (String roadId : rebindRoadIds) {
+            com.plot.plugin.road.model.Road road = live.getRoad(roadId);
+            if (road != null) {
+                com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+            }
+        }
+        ctx.finishNetworkEdit();
+        if (ctx.previewManager() != null) {
+            ctx.previewManager().markBuildPreviewStalePreservingProfile();
+        }
         return ConfirmResult.APPLIED;
     }
 

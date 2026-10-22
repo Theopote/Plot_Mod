@@ -154,16 +154,18 @@ public final class RoadProfileIntersectionResolver {
             double clearance = stack.crossingClearance() != null
                 ? stack.crossingClearance()
                 : config.getDefaultCrossingClearance();
-            ResolvedCrossSection otherSection =
+            ResolvedCrossSection sectionAtA =
+                VariableCrossSectionResolver.resolve(network, currentRoad, stack.stationA(), config);
+            ResolvedCrossSection sectionAtB =
                 VariableCrossSectionResolver.resolve(network, currentRoad, stack.stationB(), config);
             String selfLabel = RoadEdgeListHelper.formatRoadLabel(network, currentRoad);
             addStackStation(
                 out, stack, currentRoad.getId(), selfLabel, stack.stationA(),
-                elevationA.getAsDouble(), elevationB.getAsDouble(), otherSection,
+                elevationA.getAsDouble(), elevationB.getAsDouble(), sectionAtB,
                 gradeSeparated, clearance);
             addStackStation(
                 out, stack, currentRoad.getId(), selfLabel, stack.stationB(),
-                elevationB.getAsDouble(), elevationA.getAsDouble(), otherSection,
+                elevationB.getAsDouble(), elevationA.getAsDouble(), sectionAtA,
                 gradeSeparated, clearance);
         }
     }

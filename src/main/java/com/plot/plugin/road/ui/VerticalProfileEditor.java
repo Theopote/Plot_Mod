@@ -383,6 +383,15 @@ final class VerticalProfileEditor {
         invalidateIntersectionCache();
         cachedChartData = null;
         cachedChartRoadId = "";
+        if (windowSession != null) {
+            Road road = windowSession.editingNetwork().getRoad(roadId);
+            if (road != null
+                    && com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasStoredEditedCurve(road)
+                    && !com.plot.plugin.road.vertical.ResolvedProfileAuthority.canActivateEditedProfile(
+                        windowSession.editingNetwork(), road)) {
+                windowSession.markTouched(road);
+            }
+        }
         if (syncSelection) {
             ctx.networkManager().selectRoad(roadId, false);
             ctx.requestOverlayRefresh();
