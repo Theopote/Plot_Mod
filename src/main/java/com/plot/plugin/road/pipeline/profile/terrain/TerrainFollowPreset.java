@@ -3,11 +3,11 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 /** 地形跟随强度：控制纵断面趋势滤波的窗口大小（与 maxSlope 解耦）。 */
 public enum TerrainFollowPreset {
     /** median ~15 m, moving average ~40 m, 5 relaxation passes, strong grade smoothing */
-    GENTLE(15.0, 40.0, 50.0, 16.0, 0.70, 5, 0.35, 0.55, 3, 2.5),
+    GENTLE(15.0, 40.0, 50.0, 16.0, 0.70, 5, 0.35, 0.55, 3, 2.5, 55.0, 4.0, 0.10),
     /** median ~10 m, moving average ~30 m, 4 relaxation passes */
-    STANDARD(10.0, 30.0, 35.0, 12.0, 0.50, 4, 0.50, 0.40, 2, 4.0),
+    STANDARD(10.0, 30.0, 35.0, 12.0, 0.50, 4, 0.50, 0.40, 2, 4.0, 45.0, 3.0, 0.15),
     /** median ~5 m, moving average ~20 m, 3 relaxation passes, lighter grade smoothing */
-    TIGHT(5.0, 20.0, 25.0, 8.0, 0.25, 3, 0.65, 0.25, 1, 6.0);
+    TIGHT(5.0, 20.0, 25.0, 8.0, 0.25, 3, 0.65, 0.25, 1, 6.0, 30.0, 2.0, 0.25);
 
     private final double medianWindowMeters;
     private final double movingAverageWindowMeters;
@@ -23,6 +23,12 @@ public enum TerrainFollowPreset {
     private final int gradeChangeSmoothingIterations;
     /** Hard cap on adjacent-segment grade delta (percent points); {@code 0} disables. */
     private final double maxGradeChangePercent;
+    /** Maximum horizontal span for short oscillation merge clusters. */
+    private final double maxOscillationSpanMeters;
+    /** Maximum peak-to-trough amplitude (blocks) eligible for oscillation merge. */
+    private final double maxOscillationAmplitudeBlocks;
+    /** Minimum relative score improvement required to accept a merge. */
+    private final double minOscillationMergeBenefit;
 
     TerrainFollowPreset(
             double medianWindowMeters,
@@ -34,7 +40,10 @@ public enum TerrainFollowPreset {
             double trendBlendWeight,
             double gradeChangeSmoothingWeight,
             int gradeChangeSmoothingIterations,
-            double maxGradeChangePercent) {
+            double maxGradeChangePercent,
+            double maxOscillationSpanMeters,
+            double maxOscillationAmplitudeBlocks,
+            double minOscillationMergeBenefit) {
         this.medianWindowMeters = medianWindowMeters;
         this.movingAverageWindowMeters = movingAverageWindowMeters;
         this.stepTransitionMeters = stepTransitionMeters;
@@ -45,6 +54,9 @@ public enum TerrainFollowPreset {
         this.gradeChangeSmoothingWeight = gradeChangeSmoothingWeight;
         this.gradeChangeSmoothingIterations = gradeChangeSmoothingIterations;
         this.maxGradeChangePercent = maxGradeChangePercent;
+        this.maxOscillationSpanMeters = maxOscillationSpanMeters;
+        this.maxOscillationAmplitudeBlocks = maxOscillationAmplitudeBlocks;
+        this.minOscillationMergeBenefit = minOscillationMergeBenefit;
     }
 
     public double medianWindowMeters() {
@@ -87,6 +99,18 @@ public enum TerrainFollowPreset {
 
     public double maxGradeChangePercent() {
         return maxGradeChangePercent;
+    }
+
+    public double maxOscillationSpanMeters() {
+        return maxOscillationSpanMeters;
+    }
+
+    public double maxOscillationAmplitudeBlocks() {
+        return maxOscillationAmplitudeBlocks;
+    }
+
+    public double minOscillationMergeBenefit() {
+        return minOscillationMergeBenefit;
     }
 
     public static TerrainFollowPreset fromStored(String value) {

@@ -238,6 +238,18 @@ public final class GradeLimitedProfileSolver {
             endLock,
             minElevations,
             maxElevations);
+        ProfileOscillationReducer.reduceIfBeneficial(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations,
+            null);
         if (!hasActiveElevationBounds(minElevations, maxElevations)) {
             projectFeasible(
                 elevations,
@@ -416,6 +428,18 @@ public final class GradeLimitedProfileSolver {
             endTarget,
             minElevations,
             maxElevations);
+        ProfileOscillationReducer.reduceIfBeneficial(
+            current,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget,
+            minElevations,
+            maxElevations,
+            trendElevations);
         smoothGradeChanges(
             current,
             segmentDistances,
@@ -957,6 +981,33 @@ public final class GradeLimitedProfileSolver {
             chainage[i + 1] = chainage[i] + segmentDistances.get(i);
         }
         return chainage;
+    }
+
+    /** Re-apply endpoint locks and project onto slope / grade / elevation bounds. */
+    static void reprojectFeasible(
+            double[] elevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations) {
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
+        projectFeasible(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
     }
 
     /** Elevation at vertex {@code i} that makes grades on both adjacent segments equal. */

@@ -54,6 +54,20 @@ class TerrainAdaptiveSolverIntegrationTest {
         // pathological flat-then-large-jump chains (run of 5+ followed by a >2 step).
         assertFalse(hasFlatThenLargeJump(targets, 5, 2),
             "long mountain road should not show flat-then-large-jump target pattern");
+
+        List<Double> segmentDistances = constantDistances(targets.size() - 1, 10.0);
+        int targetReversals = ProfileOscillationReducer.countGradeSignReversals(
+            toDoubles(targets), segmentDistances);
+        int guideReversals = ProfileOscillationReducer.countGradeSignReversals(
+            toDoubles(guide), segmentDistances);
+        int groundReversals = ProfileOscillationReducer.countGradeSignReversals(
+            toDoubles(ground), segmentDistances);
+        assertTrue(targetReversals <= guideReversals,
+            () -> "build targets should not add grade reversals beyond trend: "
+                + targetReversals + " vs guide " + guideReversals);
+        assertTrue(targetReversals <= groundReversals,
+            () -> "oscillation reducer should not leave more reversals than raw terrain: "
+                + targetReversals + " vs ground " + groundReversals);
     }
 
     @Test
@@ -364,6 +378,18 @@ class TerrainAdaptiveSolverIntegrationTest {
             sum += Math.abs(actual.get(i) - reference.get(i));
         }
         return count > 0 ? sum / count : Double.POSITIVE_INFINITY;
+    }
+
+    private static List<Double> constantDistances(int count, double distance) {
+        List<Double> distances = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            distances.add(distance);
+        }
+        return distances;
+    }
+
+    private static double[] toDoubles(List<Integer> values) {
+        return values.stream().mapToDouble(Integer::doubleValue).toArray();
     }
 
     private record Fixture(

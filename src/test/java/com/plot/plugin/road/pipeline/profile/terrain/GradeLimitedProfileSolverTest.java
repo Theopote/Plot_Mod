@@ -111,11 +111,16 @@ class GradeLimitedProfileSolverTest {
 
         double gentleVariation = GradeLimitedProfileSolver.totalAbsoluteGradeChange(gentle, distances);
         double tightVariation = GradeLimitedProfileSolver.totalAbsoluteGradeChange(tight, distances);
+        int gentleReversals = ProfileOscillationReducer.countGradeSignReversals(gentle, distances);
+        int tightReversals = ProfileOscillationReducer.countGradeSignReversals(tight, distances);
         assertTrue(gentleVariation < tightVariation,
             () -> "gentle should reduce grade reversals more than tight: "
                 + gentleVariation + " vs " + tightVariation);
         assertTrue(gentleVariation < tightVariation * 0.85,
             () -> "grade smoothing should materially reduce oscillation, got " + gentleVariation);
+        assertTrue(gentleReversals <= tightReversals,
+            () -> "gentle should merge at least as many oscillations as tight: "
+                + gentleReversals + " vs " + tightReversals);
     }
 
     @Test
