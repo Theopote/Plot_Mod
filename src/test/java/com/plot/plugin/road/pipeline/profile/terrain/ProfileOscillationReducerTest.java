@@ -41,6 +41,32 @@ class ProfileOscillationReducerTest {
     }
 
     @Test
+    void mergesTerminalOscillationWhenEndIsUnlocked() {
+        double[] elevations = {64.0, 64.0, 64.0, 64.0, 64.0, 66.0, 64.0, 66.0, 64.0};
+        List<Double> distances = constantDistances(elevations.length - 1, 7.0);
+        List<Float> slopes = constantSlopes(distances.size(), 12.0f);
+        int before = ProfileOscillationReducer.countGradeSignReversals(elevations, distances);
+
+        ProfileOscillationReducer.reduceIfBeneficial(
+            elevations,
+            distances,
+            slopes,
+            TerrainFollowPreset.STANDARD,
+            false,
+            false,
+            elevations[0],
+            elevations[elevations.length - 1],
+            null,
+            null,
+            null);
+
+        int after = ProfileOscillationReducer.countGradeSignReversals(elevations, distances);
+        assertTrue(after < before,
+            () -> "terminal zig-zag should merge when end is unlocked: "
+                + before + " -> " + after);
+    }
+
+    @Test
     void doesNotMergeLargeValley() {
         double[] elevations = {80.0, 78.0, 74.0, 68.0, 65.0, 68.0, 74.0, 78.0, 80.0};
         double[] original = elevations.clone();

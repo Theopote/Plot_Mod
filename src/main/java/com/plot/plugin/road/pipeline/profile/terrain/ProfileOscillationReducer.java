@@ -1,5 +1,10 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
+import com.plot.plugin.road.pipeline.profile.BuildHeightRasterPostProcessor;
+import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
+import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -116,8 +121,13 @@ final class ProfileOscillationReducer {
             candidate, segmentDistances);
         double scoreAfter = score(candidate, segmentDistances, trendElevations);
 
+        double buildDeltaBefore = maxBuildAdjacentDelta(
+            baseline, segmentDistances, maxSlopePercents);
+        double buildDeltaAfter = maxBuildAdjacentDelta(
+            candidate, segmentDistances, maxSlopePercents);
         boolean accepted = constraintsOk
-            && scoreAfter < scoreBefore * (1.0 - effectivePreset.minOscillationMergeBenefit());
+            && scoreAfter < scoreBefore * (1.0 - effectivePreset.minOscillationMergeBenefit())
+            && buildDeltaAfter <= buildDeltaBefore + EPSILON;
         if (accepted) {
             System.arraycopy(candidate, 0, baseline, 0, baseline.length);
         } else {
@@ -203,7 +213,7 @@ final class ProfileOscillationReducer {
         }
 
         double[] chainage = buildChainage(segmentDistances);
-        int maxRightAnchor = lockEnd ? elevations.length - 1 : elevations.length - 2;
+        int maxRightAnchor = resolveMaxRightAnchor(elevations.length);
         int leftAnchor = 0;
         while (leftAnchor <= maxRightAnchor - 2) {
             int bestRight = -1;
@@ -402,6 +412,35 @@ final class ProfileOscillationReducer {
             }
         }
         return true;
+    }
+
+    /** Last station index eligible as a merge anchor (locked endpoints remain valid anchors). */
+    private static int resolveMaxRightAnchor(int stationCount) {
+        return Math.max(0, stationCount - 1);
+    }
+
+    private static double maxBuildAdjacentDelta(
+            double[] design,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents) {
+        if (design == null || design.length < 2) {
+            return 0.0;
+        }
+        List<Double> designList = new ArrayList<>(design.length);
+        for (double value : design) {
+            designList.add(value);
+        }
+        RoadHeightRasterizer.RasterizationResult raster = BuildHeightRasterPostProcessor.smooth(
+            RoadHeightRasterizer.rasterize(
+                designList, segmentDistances, maxSlopePercents, null),
+            segmentDistances,
+            ProfileCompileOptions.defaults());
+        List<Integer> build = raster.buildHeights();
+        double max = 0.0;
+        for (int i = 1; i < build.size(); i++) {
+            max = Math.max(max, Math.abs(build.get(i) - build.get(i - 1)));
+        }
+        return max;
     }
 
     private static boolean isLockedVertex(

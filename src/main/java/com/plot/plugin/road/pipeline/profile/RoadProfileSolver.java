@@ -173,7 +173,7 @@ public final class RoadProfileSolver {
             !authority.usesEditedProfile() && ResolvedProfileAuthority.hasStoredEditedCurve(road),
             VerticalProfileGenerationPolicy.countRetainedManualNodeLocks(network),
             VerticalProfileGenerationPolicy.countRetainedCrossingLocks(network),
-            0,
+            VerticalProfileGenerationPolicy.lastClearedPropagatedNodeLocks(),
             oscillation.gradeReversalsBefore(),
             oscillation.gradeReversalsAfter(),
             oscillation.totalAbsoluteGradeChangeBefore(),

@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class AutoDesignIgnoresStoredEditedCurveTest {
 
@@ -45,22 +47,74 @@ class AutoDesignIgnoresStoredEditedCurveTest {
         assertEquals(resultA.profileBuildHeights(), resultB.profileBuildHeights());
     }
 
+    @Test
+    void autoDesignMatchesAfterPropagatedNodeElevationIsCleared() {
+        RoadNetwork networkA = createRoadNetwork();
+        RoadNetwork networkB = networkA.snapshot();
+
+        RoadNode endB = findEndNode(networkB);
+        endB.setManualElevation(88.0, ManualElevationOrigin.PROFILE_PROPAGATED);
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(networkB);
+
+        ProfileSolveResult resultA = solveAuto(networkA);
+        ProfileSolveResult resultB = solveAuto(networkB);
+
+        assertEquals(resultA.profileDesignElevations(), resultB.profileDesignElevations());
+        assertEquals(resultA.profileBuildHeights(), resultB.profileBuildHeights());
+    }
+
+    @Test
+    void autoDesignDiffersWhenUserLockedNodeElevationPresent() {
+        RoadNetwork networkA = createRoadNetwork();
+        RoadNetwork networkB = networkA.snapshot();
+
+        findEndNode(networkB).setManualElevation(72.0, ManualElevationOrigin.USER);
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(networkB);
+
+        ProfileSolveResult resultA = solveAuto(networkA);
+        ProfileSolveResult resultB = solveAuto(networkB);
+
+        assertNotEquals(resultA.profileDesignElevations(), resultB.profileDesignElevations());
+        assertEquals(72.0, resultB.profileDesignElevations().getLast(), 1e-6);
+    }
+
     private static ProfileSolveResult solveAuto(RoadNetwork network) {
-        Road road = network.getRoad(ROAD_ID);
-        RoadEdge edge = network.getEdges().values().iterator().next();
+        RoadNetwork generationSnapshot = network.snapshot();
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(generationSnapshot);
+
+        Road road = generationSnapshot.getRoad(ROAD_ID);
+        RoadEdge edge = generationSnapshot.getEdges().values().iterator().next();
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(10.0f);
         List<PathSegment> segments = sampledSegments(100.0, 10.0);
+        RoadNode start = generationSnapshot.getNode(edge.getStartNodeId());
+        RoadNode end = generationSnapshot.getNode(edge.getEndNodeId());
         return RoadProfileSolver.solveForEdge(
             segments,
             flatTerrain(),
-            network,
+            generationSnapshot,
             edge,
             config,
             2.5,
-            null,
-            null,
+            userLockedHeight(start),
+            userLockedHeight(end),
             ProfileSolveSupport.fromConfig(config, ignored -> 1.0));
+    }
+
+    private static Integer userLockedHeight(RoadNode node) {
+        if (node == null
+                || node.getManualElevation() == null
+                || node.getManualElevationOrigin() != ManualElevationOrigin.USER) {
+            return null;
+        }
+        return node.getManualElevation().intValue();
+    }
+
+    private static RoadNode findEndNode(RoadNetwork network) {
+        return network.getNodes().values().stream()
+            .filter(node -> node.getPosition().x > 0)
+            .findFirst()
+            .orElseThrow();
     }
 
     private static RoadNetwork createRoadNetwork() {

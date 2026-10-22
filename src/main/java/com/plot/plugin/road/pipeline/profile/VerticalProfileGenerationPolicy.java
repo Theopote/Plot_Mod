@@ -25,6 +25,7 @@ import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 public final class VerticalProfileGenerationPolicy {
 
     private static final double STATION_TOLERANCE = 0.26;
+    private static int lastClearedPropagatedNodeLocks = 0;
 
     private VerticalProfileGenerationPolicy() {
     }
@@ -60,9 +61,11 @@ public final class VerticalProfileGenerationPolicy {
      */
     public static int clearStaleManualJunctionLocksOnSnapshot(RoadNetwork generationNetwork) {
         if (generationNetwork == null) {
+            lastClearedPropagatedNodeLocks = 0;
             return 0;
         }
         int cleared = 0;
+        int clearedPropagated = 0;
         for (RoadNode node : generationNetwork.getNodes().values()) {
             if (node == null || node.getManualElevation() == null) {
                 continue;
@@ -70,10 +73,23 @@ public final class VerticalProfileGenerationPolicy {
             if (shouldPreserveManualElevationAtNode(node, generationNetwork)) {
                 continue;
             }
+            if (isPropagatedManualElevationOrigin(node.getManualElevationOrigin())) {
+                clearedPropagated++;
+            }
             node.setManualElevation(null);
             cleared++;
         }
+        lastClearedPropagatedNodeLocks = clearedPropagated;
         return cleared;
+    }
+
+    /** 最近一次生成快照清除的传播型节点标高锁数量（诊断用）。 */
+    public static int lastClearedPropagatedNodeLocks() {
+        return lastClearedPropagatedNodeLocks;
+    }
+
+    private static boolean isPropagatedManualElevationOrigin(ManualElevationOrigin origin) {
+        return origin == null || origin == ManualElevationOrigin.PROFILE_PROPAGATED;
     }
 
     /** 统计生成快照上仍保留的手动节点锁数量（诊断用）。 */

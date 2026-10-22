@@ -119,6 +119,7 @@ class VerticalProfileGenerationPolicyTest {
 
         assertTrue(propagated.getManualElevation() == null);
         assertEquals(72.0, userLocked.getManualElevation());
+        assertEquals(1, VerticalProfileGenerationPolicy.lastClearedPropagatedNodeLocks());
     }
 
     @Test
