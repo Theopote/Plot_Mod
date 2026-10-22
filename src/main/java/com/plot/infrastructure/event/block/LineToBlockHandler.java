@@ -106,10 +106,6 @@ public class LineToBlockHandler {
 
         // 每次转换前清理坐标缓存，避免相机平移/缩放后复用旧结果导致坐标偏移
         clearCoordinateCache();
-        activeProjection = CoordinateTransformer.getInstance().captureProjection();
-        if (activeProjection == null || !activeProjection.isValid()) {
-            LOGGER.warn("World projection snapshot invalid; canvas→world conversion may fail");
-        }
 
         try {
             // 获取要转换的图形
@@ -132,6 +128,12 @@ public class LineToBlockHandler {
                 eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
                         PlotI18n.status("status.plot.line_to_block.no_palette")));
                 return;
+            }
+
+            // 校验通过后再捕获投影（无客户端/ImGui 时不应在早退路径触发）
+            activeProjection = CoordinateTransformer.getInstance().captureProjection();
+            if (activeProjection == null || !activeProjection.isValid()) {
+                LOGGER.warn("World projection snapshot invalid; canvas→world conversion may fail");
             }
 
             // 获取转换参数

@@ -62,7 +62,8 @@ class VerticalProfileGenerationPolicyTest {
         road.setProfileSource(ProfileSource.AUTO);
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode junction = network.createNode(new Vec2d(40, 0));
-        junction.setManualElevation(88.0);
+        // 无来源的便捷 API 现视为 USER；传播残留应被清除
+        junction.setManualElevation(88.0, ManualElevationOrigin.PROFILE_PROPAGATED);
         network.createEdge(
             start.getId(),
             junction.getId(),

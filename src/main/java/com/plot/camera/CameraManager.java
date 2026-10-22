@@ -69,8 +69,8 @@ public class CameraManager {
     }
 
     private CameraManager() {
-        // 在构造函数中初始化默认状态
-        PlayerEntity player = client.player;
+        // 单元测试等无 Minecraft 客户端场景下 getInstance() 可能为 null
+        PlayerEntity player = client != null ? client.player : null;
         if (player != null) {
             savedState = new CameraState(
                     player.getPitch(),

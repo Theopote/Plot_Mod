@@ -33,8 +33,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
         239, 36, 0, 0, 0, 0, 0, 0, 36, 239, 0, 0, List.of());
 
+    // Oscillation reduction / FIT_TERRAIN auto profile changes surface and earthwork counts.
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
-        176, 9, 58, 0, 0, 42, 0, 58, 9, 218, 0, 0, List.of());
+        197, 18, 51, 0, 0, 37, 0, 51, 18, 234, 0, 0, List.of());
 
     // Portal roof sealing and exposed-batter excavation are covered by semantic regressions.
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
@@ -46,8 +47,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         265, 0, 0, 0, 380, 0, 0, 0, 0, 635, 1, 0, List.of());
 
+    // Grade-separated plaza seam retention after profile authority / clearance resolution.
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        546, 21, 0, 0, 13, 36, 147, 0, 21, 571, 1, 0, List.of());
+        549, 24, 0, 0, 13, 60, 171, 0, 24, 598, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

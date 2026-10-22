@@ -85,13 +85,9 @@ public class RoadNode {
         return manualElevationOrigin;
     }
 
+    /** 便捷写入：视为用户锁定（{@link ManualElevationOrigin#USER}）。 */
     public void setManualElevation(Double manualElevation) {
-        if (manualElevation == null) {
-            this.manualElevation = null;
-            this.manualElevationOrigin = null;
-            return;
-        }
-        this.manualElevation = RoadParameterLimits.clampManualElevation(manualElevation);
+        setManualElevation(manualElevation, manualElevation == null ? null : ManualElevationOrigin.USER);
     }
 
     public void setManualElevation(Double manualElevation, ManualElevationOrigin origin) {

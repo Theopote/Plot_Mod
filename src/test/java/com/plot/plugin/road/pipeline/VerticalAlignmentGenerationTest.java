@@ -10,7 +10,10 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -49,6 +52,7 @@ class VerticalAlignmentGenerationTest {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("design");
         road.setWidth(6);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, startElevation),
             PointOfVerticalIntersection.of(100.0, endElevation)
@@ -57,6 +61,8 @@ class VerticalAlignmentGenerationTest {
         RoadNode n2 = network.createNode(new Vec2d(100, 0));
         network.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
         return network;
     }
 

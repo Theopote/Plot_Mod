@@ -217,21 +217,23 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
      */
     private float getWindowWidth() {
         try {
-            // 优先从ImGui获取窗口尺寸
-            return imgui.ImGui.getIO().getDisplaySizeX();
+            // Dear ImGui 无上下文时 getIO() 会原生断言，不能依赖 catch
+            if (imgui.ImGui.getCurrentContext() != null) {
+                return imgui.ImGui.getIO().getDisplaySizeX();
+            }
         } catch (Exception e) {
             LOGGER.debug("无法从ImGui获取窗口宽度，尝试从MinecraftClient获取");
-            try {
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client != null && client.getWindow() != null) {
-                    return client.getWindow().getFramebufferWidth();
-                }
-            } catch (Exception ex) {
-                LOGGER.debug("无法从MinecraftClient获取窗口宽度: {}", ex.getMessage());
-            }
-            LOGGER.warn("使用默认窗口宽度: 1200");
-            return 1200.0f; // 默认窗口宽度
         }
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.getWindow() != null) {
+                return client.getWindow().getFramebufferWidth();
+            }
+        } catch (Exception ex) {
+            LOGGER.debug("无法从MinecraftClient获取窗口宽度: {}", ex.getMessage());
+        }
+        LOGGER.warn("使用默认窗口宽度: 1200");
+        return 1200.0f; // 默认窗口宽度
     }
     
     /**
@@ -240,21 +242,22 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
      */
     private float getWindowHeight() {
         try {
-            // 优先从ImGui获取窗口尺寸
-            return imgui.ImGui.getIO().getDisplaySizeY();
+            if (imgui.ImGui.getCurrentContext() != null) {
+                return imgui.ImGui.getIO().getDisplaySizeY();
+            }
         } catch (Exception e) {
             LOGGER.debug("无法从ImGui获取窗口高度，尝试从MinecraftClient获取");
-            try {
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client != null && client.getWindow() != null) {
-                    return client.getWindow().getFramebufferHeight();
-                }
-            } catch (Exception ex) {
-                LOGGER.debug("无法从MinecraftClient获取窗口高度: {}", ex.getMessage());
-            }
-            LOGGER.warn("使用默认窗口高度: 800");
-            return 800.0f; // 默认窗口高度
         }
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.getWindow() != null) {
+                return client.getWindow().getFramebufferHeight();
+            }
+        } catch (Exception ex) {
+            LOGGER.debug("无法从MinecraftClient获取窗口高度: {}", ex.getMessage());
+        }
+        LOGGER.warn("使用默认窗口高度: 800");
+        return 800.0f; // 默认窗口高度
     }
 
     /**
@@ -456,9 +459,12 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
     @Override
     public com.plot.api.world.WorldProjectionSnapshot captureProjection() {
         CameraViewBounds relative = getCameraViewBounds();
+        if (relative == null) {
+            return com.plot.api.world.WorldProjectionSnapshot.UNKNOWN;
+        }
         CanvasRegion canvasRegion = getCanvasRegion();
         com.plot.api.world.WorldViewBounds bounds = getMinecraftWorldViewBounds();
-        if (relative == null || canvasRegion == null || bounds == null) {
+        if (canvasRegion == null || bounds == null) {
             return com.plot.api.world.WorldProjectionSnapshot.UNKNOWN;
         }
         return new com.plot.api.world.WorldProjectionSnapshot(

@@ -1427,6 +1427,10 @@ public final class RoadNetworkManager {
         if (selectedEdgeIds.isEmpty()) {
             return;
         }
+        // 程序化调用可直接传入完整 draft；无脏字段时按与当前默认值的差异推导
+        if (batchEditDirtyFields.isEmpty() && draft != null) {
+            markBatchDirtyFromDraftChange(currentBatchEditDefaults(), draft);
+        }
         if (batchEditDirtyFields.isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.batch_no_pending_changes"));
             return;

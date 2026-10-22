@@ -7,7 +7,9 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -26,12 +28,12 @@ class RoadProfileIntersectionResolverTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         Road roadA = network.createRoad("Main");
         Road roadB = network.createRoad("Side");
-        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+        markEdited(roadA, List.of(
             PointOfVerticalIntersection.of(0, 72),
-            PointOfVerticalIntersection.of(100, 72))));
-        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(100, 72)));
+        markEdited(roadB, List.of(
             PointOfVerticalIntersection.of(0, 68),
-            PointOfVerticalIntersection.of(50, 68))));
+            PointOfVerticalIntersection.of(50, 68)));
 
         var west = network.createNode(new Vec2d(0, 0));
         var center = network.createNode(new Vec2d(100, 0));
@@ -43,11 +45,11 @@ class RoadProfileIntersectionResolverTest {
             center.getId(), north.getId(),
             List.of(new Vec2d(100, 0), new Vec2d(100, 50)), roadB.getId());
 
-        RoadGenerationResult profile = new RoadGenerationResult(100);
-        profile.profileDistances = List.of(0.0, 50.0, 100.0);
-        profile.profileGroundHeights = List.of(70, 70, 70);
-        profile.profileGuideLine = List.of(71, 71, 71);
-        profile.profileBuildHeights = List.of(72, 72, 72);
+        RoadGenerationResult profile = profileSeries(
+            List.of(0.0, 50.0, 100.0),
+            List.of(70, 70, 70),
+            List.of(71, 71, 71),
+            List.of(72, 72, 72));
 
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         edgeResults.put(mainWest.getId(), profile);
@@ -66,12 +68,12 @@ class RoadProfileIntersectionResolverTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         Road roadA = network.createRoad("Main");
         Road roadB = network.createRoad("Side");
-        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+        markEdited(roadA, List.of(
             PointOfVerticalIntersection.of(0, 72),
-            PointOfVerticalIntersection.of(100, 72))));
-        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(100, 72)));
+        markEdited(roadB, List.of(
             PointOfVerticalIntersection.of(0, 68),
-            PointOfVerticalIntersection.of(50, 68))));
+            PointOfVerticalIntersection.of(50, 68)));
 
         var west = network.createNode(new Vec2d(0, 0));
         var center = network.createNode(new Vec2d(100, 0));
@@ -83,11 +85,11 @@ class RoadProfileIntersectionResolverTest {
             center.getId(), north.getId(),
             List.of(new Vec2d(100, 0), new Vec2d(100, 50)), roadB.getId());
 
-        RoadGenerationResult profile = new RoadGenerationResult(100);
-        profile.profileDistances = List.of(0.0, 50.0, 100.0);
-        profile.profileGroundHeights = List.of(70, 70, 70);
-        profile.profileGuideLine = List.of(71, 71, 71);
-        profile.profileBuildHeights = List.of(72, 72, 72);
+        RoadGenerationResult profile = profileSeries(
+            List.of(0.0, 50.0, 100.0),
+            List.of(70, 70, 70),
+            List.of(71, 71, 71),
+            List.of(72, 72, 72));
 
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         edgeResults.put(mainWest.getId(), profile);
@@ -109,12 +111,12 @@ class RoadProfileIntersectionResolverTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         Road roadA = network.createRoad("Highway");
         Road roadB = network.createRoad("Local");
-        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+        markEdited(roadA, List.of(
             PointOfVerticalIntersection.of(0, 76),
-            PointOfVerticalIntersection.of(100, 76))));
-        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(100, 76)));
+        markEdited(roadB, List.of(
             PointOfVerticalIntersection.of(0, 68),
-            PointOfVerticalIntersection.of(50, 68))));
+            PointOfVerticalIntersection.of(50, 68)));
 
         var west = network.createNode(new Vec2d(0, 0));
         var center = network.createNode(new Vec2d(50, 0));
@@ -135,16 +137,16 @@ class RoadProfileIntersectionResolverTest {
             List.of(new Vec2d(50, 0), new Vec2d(50, -50)), roadB.getId());
         assertTrue(network.setNodeGradeSeparation(center.getId(), true, roadA.getId(), 4.0));
 
-        RoadGenerationResult westProfile = new RoadGenerationResult(50);
-        westProfile.profileDistances = List.of(0.0, 50.0);
-        westProfile.profileGroundHeights = List.of(70, 70);
-        westProfile.profileGuideLine = List.of(71, 71);
-        westProfile.profileBuildHeights = List.of(76, 76);
-        RoadGenerationResult eastProfile = new RoadGenerationResult(50);
-        eastProfile.profileDistances = List.of(0.0, 50.0);
-        eastProfile.profileGroundHeights = List.of(70, 70);
-        eastProfile.profileGuideLine = List.of(71, 71);
-        eastProfile.profileBuildHeights = List.of(76, 76);
+        RoadGenerationResult westProfile = profileSeries(
+            List.of(0.0, 50.0),
+            List.of(70, 70),
+            List.of(71, 71),
+            List.of(76, 76));
+        RoadGenerationResult eastProfile = profileSeries(
+            List.of(0.0, 50.0),
+            List.of(70, 70),
+            List.of(71, 71),
+            List.of(76, 76));
 
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         edgeResults.put(mainWest.getId(), westProfile);
@@ -159,5 +161,25 @@ class RoadProfileIntersectionResolverTest {
         assertTrue(crossing.gradeSeparated());
         assertTrue(crossing.currentRoadElevated());
         assertEquals(4.0, crossing.clearance(), 1e-6);
+    }
+
+    private static void markEdited(Road road, List<PointOfVerticalIntersection> pvis) {
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setVerticalAlignment(new RoadVerticalAlignment(pvis));
+    }
+
+    private static RoadGenerationResult profileSeries(
+            List<Double> distances,
+            List<Integer> ground,
+            List<Integer> guide,
+            List<Integer> build) {
+        RoadGenerationResult profile = new RoadGenerationResult(100);
+        profile.profileDistances = distances;
+        profile.profileGroundHeights = ground;
+        profile.profileGuideLine = guide;
+        profile.profileBuildHeights = build;
+        profile.profileDesignElevations = build.stream().map(Integer::doubleValue).toList();
+        return profile;
     }
 }

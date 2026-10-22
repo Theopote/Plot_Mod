@@ -11,6 +11,7 @@ import com.plot.plugin.road.pipeline.profile.ProfileSolveSupport;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -44,7 +45,7 @@ class RoadVerticalDesignWorkflowTest {
         assertEquals(78, fixture.junctionElevation(), 1e-6);
         assertTrue(propagation.roads().stream().anyMatch(result ->
             result.roadId().equals(fixture.roadA.getId())
-                && result.mode() == RoadVerticalMode.AUTO_SMOOTH
+                && result.mode() == RoadVerticalMode.FIT_TERRAIN
                 && result.regenerationRequired()));
 
         List<PointOfVerticalIntersection> manualPvis = fixture.roadB.getVerticalAlignment().getPvis();
@@ -119,7 +120,8 @@ class RoadVerticalDesignWorkflowTest {
             pvis.add(PointOfVerticalIntersection.of(
                 result.profileDistances().get(i), result.profileBuildHeights().get(i)));
         }
-        assertEquals(RoadVerticalMode.AUTO_SMOOTH, road.getVerticalMode());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
         return new RoadVerticalAlignment(pvis);
     }
 
@@ -164,7 +166,8 @@ class RoadVerticalDesignWorkflowTest {
         var north = network.createNode(new Vec2d(0, 100));
 
         Road roadA = network.createRoad("road-a-auto");
-        roadA.setVerticalMode(RoadVerticalMode.AUTO_SMOOTH);
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadA.setProfileSource(ProfileSource.AUTO);
         roadA.setMaxSlope(8f);
         RoadEdge westEdge = network.createEdge(west.getId(), junction.getId(),
             List.of(west.getPosition(), junction.getPosition()), roadA.getId());
@@ -172,7 +175,8 @@ class RoadVerticalDesignWorkflowTest {
             List.of(junction.getPosition(), east.getPosition()), roadA.getId());
 
         Road roadB = network.createRoad("road-b-manual");
-        roadB.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setProfileSource(ProfileSource.EDITED);
         roadB.setMaxSlope(8f);
         roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 70),

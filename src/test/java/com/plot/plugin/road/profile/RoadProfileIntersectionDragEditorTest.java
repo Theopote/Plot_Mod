@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -25,24 +26,27 @@ class RoadProfileIntersectionDragEditorTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         Road roadA = network.createRoad("Highway");
         Road roadB = network.createRoad("Local");
-        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+        markEdited(roadA, List.of(
             PointOfVerticalIntersection.of(0, 76),
-            PointOfVerticalIntersection.of(100, 76))));
-        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(100, 76)));
+        markEdited(roadB, List.of(
             PointOfVerticalIntersection.of(0, 68),
-            PointOfVerticalIntersection.of(50, 68))));
+            PointOfVerticalIntersection.of(100, 68)));
 
         var west = network.createNode(new Vec2d(0, 0));
         var center = network.createNode(new Vec2d(50, 0));
         var east = network.createNode(new Vec2d(100, 0));
         var north = network.createNode(new Vec2d(50, 50));
+        var south = network.createNode(new Vec2d(50, -50));
         network.createEdge(west.getId(), center.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(50, 0)), roadA.getId());
         network.createEdge(center.getId(), east.getId(),
             List.of(new Vec2d(50, 0), new Vec2d(100, 0)), roadA.getId());
         network.createEdge(center.getId(), north.getId(),
             List.of(new Vec2d(50, 0), new Vec2d(50, 50)), roadB.getId());
-        network.setNodeGradeSeparation(center.getId(), true, roadA.getId(), 4.0);
+        network.createEdge(center.getId(), south.getId(),
+            List.of(new Vec2d(50, 0), new Vec2d(50, -50)), roadB.getId());
+        assertTrue(network.setNodeGradeSeparation(center.getId(), true, roadA.getId(), 4.0));
 
         RoadProfileIntersection intersection = gradeSeparatedIntersection(
             config, center.getId(), roadA.getId(), roadB.getId(), 76.0, 68.0);
@@ -55,9 +59,10 @@ class RoadProfileIntersectionDragEditorTest {
 
         assertEquals(
             70.0,
-            VerticalAlignmentGeometry.elevationAt(roadB.getVerticalAlignment(), 0.0).orElse(Double.NaN),
+            VerticalAlignmentGeometry.elevationAt(roadB.getVerticalAlignment(), 50.0).orElse(Double.NaN),
             1e-6);
-        assertEquals(RoadVerticalMode.MANUAL_PROFILE, roadB.getVerticalMode());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, roadB.getVerticalMode());
+        assertEquals(ProfileSource.EDITED, roadB.getEffectiveProfileSource());
     }
 
     @Test
@@ -66,23 +71,26 @@ class RoadProfileIntersectionDragEditorTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         Road roadA = network.createRoad("Highway");
         Road roadB = network.createRoad("Local");
-        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+        markEdited(roadA, List.of(
             PointOfVerticalIntersection.of(0, 80),
-            PointOfVerticalIntersection.of(100, 80))));
-        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(100, 80)));
+        markEdited(roadB, List.of(
             PointOfVerticalIntersection.of(0, 70),
-            PointOfVerticalIntersection.of(50, 70))));
+            PointOfVerticalIntersection.of(100, 70)));
 
         var west = network.createNode(new Vec2d(0, 0));
         var center = network.createNode(new Vec2d(50, 0));
         var east = network.createNode(new Vec2d(100, 0));
         var north = network.createNode(new Vec2d(50, 50));
+        var south = network.createNode(new Vec2d(50, -50));
         network.createEdge(west.getId(), center.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(50, 0)), roadA.getId());
         network.createEdge(center.getId(), east.getId(),
             List.of(new Vec2d(50, 0), new Vec2d(100, 0)), roadA.getId());
         network.createEdge(center.getId(), north.getId(),
             List.of(new Vec2d(50, 0), new Vec2d(50, 50)), roadB.getId());
+        network.createEdge(center.getId(), south.getId(),
+            List.of(new Vec2d(50, 0), new Vec2d(50, -50)), roadB.getId());
         RoadNode centerNode = network.getNode(center.getId());
         centerNode.setGradeSeparated(true);
         centerNode.setElevatedRoadId(roadA.getId());
@@ -100,8 +108,14 @@ class RoadProfileIntersectionDragEditorTest {
 
         assertEquals(4.0, centerNode.getCrossingClearance(), 1e-6);
         assertEquals(72.0,
-            VerticalAlignmentGeometry.elevationAt(roadB.getVerticalAlignment(), 0.0).orElse(Double.NaN),
+            VerticalAlignmentGeometry.elevationAt(roadB.getVerticalAlignment(), 50.0).orElse(Double.NaN),
             1e-6);
+    }
+
+    private static void markEdited(Road road, List<PointOfVerticalIntersection> pvis) {
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setVerticalAlignment(new RoadVerticalAlignment(pvis));
     }
 
     @Test
