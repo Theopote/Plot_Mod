@@ -72,14 +72,12 @@ final class ProfileSourceControls {
         if (road == null || network == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.profile_source_generate_summary"));
-        ImGui.spacing();
-
         boolean hasStoredCurve = ResolvedProfileAuthority.hasStoredEditedCurve(road);
         boolean canActivateEdited = ResolvedProfileAuthority.canActivateEditedProfile(network, road);
-        renderStatus(network, road, hasStoredCurve, canActivateEdited);
+        renderGenerateSummaryLine(network, road, hasStoredCurve, canActivateEdited);
 
         if (hasStoredCurve && !canActivateEdited) {
+            ImGui.spacing();
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
@@ -87,14 +85,42 @@ final class ProfileSourceControls {
                     && ImGui.button(PlotI18n.tr("plugin.road.profile_source_open_editor") + "##gen_profile_src")) {
                 openProfileEditor.run();
             }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.profile_source_goto_path_tab") + "##gen_profile_src_path")) {
+                ctx.requestTab(RoadUiTab.PATH);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_goto_path_tab_hint"));
+            }
         }
+    }
 
-        ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_source_goto_path_tab") + "##gen_profile_src_path")) {
-            ctx.requestTab(RoadUiTab.PATH);
+    private static void renderGenerateSummaryLine(
+            RoadNetwork network,
+            Road road,
+            boolean hasStoredCurve,
+            boolean canActivateEdited) {
+        ProfileSource current = road.getEffectiveProfileSource();
+        if (current == ProfileSource.EDITED) {
+            if (ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
+                ImGui.textColored(
+                    PluginUiColors.STATUS_OK,
+                    PlotI18n.tr("plugin.road.profile_source_generate_line_edited"));
+            } else {
+                ImGui.textColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.profile_source_generate_line_stale"));
+            }
+            return;
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_goto_path_tab_hint"));
+        if (hasStoredCurve && !canActivateEdited) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_source_generate_line_auto_stale_saved"));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_source_generate_line_auto"));
         }
     }
 

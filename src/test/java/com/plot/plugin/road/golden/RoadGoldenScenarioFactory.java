@@ -85,6 +85,7 @@ public final class RoadGoldenScenarioFactory {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 64),
             PointOfVerticalIntersection.of(30, 72))));
+        com.plot.plugin.road.RoadTestFixtures.confirmEditedProfileGeometry(network, road);
         RoadSystemConfig config = baseConfig();
         config.setMaxSlope(8.0f);
         return scenario("R06", "sloped road", network, flat(64), config);

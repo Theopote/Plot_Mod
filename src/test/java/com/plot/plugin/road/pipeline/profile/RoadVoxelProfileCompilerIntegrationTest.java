@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.benchmark.RoadBenchmarkHarness;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -44,6 +45,7 @@ class RoadVoxelProfileCompilerIntegrationTest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(120, 0));
         network.createEdge(a.getId(), b.getId(), java.util.List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = new RoadSystemConfig("manual-flat");
         config.setRoadWidth(5);
@@ -90,6 +92,7 @@ class RoadVoxelProfileCompilerIntegrationTest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(30, 0));
         network.createEdge(a.getId(), b.getId(), java.util.List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = new RoadSystemConfig("voxel-match");
         config.setRoadWidth(5);

@@ -262,17 +262,22 @@ public class BlockProjectionHandler implements IBlockProjectionService {
 
     @Override
     public String getBlockIdAt(BlockPos pos) {
+        return com.plot.core.block.BlockSpec.parse(getSetBlockArgumentAt(pos)).blockId();
+    }
+
+    @Override
+    public String getSetBlockArgumentAt(BlockPos pos) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || pos == null) {
             return "minecraft:air";
         }
 
         try {
-            Block block = client.world.getBlockState(pos).getBlock();
-            Identifier id = Registries.BLOCK.getId(block);
-            return id.toString();
+            return com.plot.core.block.BlockStateSanitizer
+                .specFromBlockState(client.world.getBlockState(pos))
+                .toSetBlockArgument();
         } catch (Exception e) {
-            LOGGER.warn("读取方块ID失败: {}", pos, e);
+            LOGGER.warn("读取方块状态失败: {}", pos, e);
             return "minecraft:air";
         }
     }

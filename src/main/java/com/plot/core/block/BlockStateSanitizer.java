@@ -34,6 +34,14 @@ public final class BlockStateSanitizer {
         return sanitize(BlockSpec.parse(argument)).toSetBlockArgument();
     }
 
+    /** 将世界 {@link BlockState} 转为可 /setblock 还原的 {@link BlockSpec}（仅非默认属性）。 */
+    public static BlockSpec specFromBlockState(BlockState state) {
+        if (state == null || state.isAir()) {
+            return BlockSpec.of("minecraft:air");
+        }
+        return fromBlockState(state);
+    }
+
     public static BlockSpec sanitize(BlockSpec spec) {
         if (spec == null) {
             return BlockSpec.of("minecraft:air");

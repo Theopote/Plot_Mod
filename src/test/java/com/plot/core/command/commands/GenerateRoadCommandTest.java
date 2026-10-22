@@ -215,6 +215,61 @@ class GenerateRoadCommandTest {
     }
 
     @Test
+    void undoRestoresFullBlockStateNotJustBlockId() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos pos = new BlockPos(0, 64, 0);
+        String originalState = "minecraft:oak_stairs[facing=east,half=bottom]";
+        writer.seed(pos, originalState);
+
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            List.of(new BlockRecord(pos, "minecraft:oak_stairs", "minecraft:stone")),
+            writer::setBlockAt,
+            writer::get,
+            false,
+            null);
+        command.execute();
+        assertEquals("minecraft:stone", writer.get(pos));
+
+        command.undo();
+        assertEquals(originalState, writer.get(pos));
+    }
+
+    @Test
+    void partialUndoRetryOnlyRemainingRecords() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos first = new BlockPos(0, 64, 0);
+        BlockPos second = new BlockPos(1, 64, 0);
+        writer.seed(first, "minecraft:grass_block");
+        writer.seed(second, "minecraft:grass_block");
+
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            List.of(
+                new BlockRecord(first, "minecraft:grass_block", "minecraft:stone"),
+                new BlockRecord(second, "minecraft:grass_block", "minecraft:gravel")),
+            writer);
+
+        command.execute();
+        assertEquals(2, command.getAppliedRecordCount());
+
+        writer.failOn(first);
+        command.undo();
+        assertEquals(1, command.getAppliedRecordCount(),
+            "failed undo positions must remain in appliedRecords for retry");
+        assertEquals("minecraft:grass_block", writer.get(second));
+        assertEquals("minecraft:stone", writer.get(first));
+
+        writer.failOn(first);
+        command.undo();
+        assertEquals(1, command.getAppliedRecordCount());
+
+        writer.clearFailOn(first);
+        writer.seed(first, "minecraft:stone");
+        command.undo();
+        assertEquals(0, command.getAppliedRecordCount());
+        assertEquals("minecraft:grass_block", writer.get(first));
+    }
+
+    @Test
     void totalFailureLeavesNoAppliedRecords() {
         InMemoryBlockWriter writer = new InMemoryBlockWriter();
         BlockPos pos = new BlockPos(0, 64, 0);
@@ -245,6 +300,10 @@ class GenerateRoadCommandTest {
 
         void failOn(BlockPos pos) {
             failPositions.add(pos);
+        }
+
+        void clearFailOn(BlockPos pos) {
+            failPositions.remove(pos);
         }
 
         String get(BlockPos pos) {

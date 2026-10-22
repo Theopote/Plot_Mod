@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * 分帧发送 setblock 指令，避免单帧内堆积大量网络包。
@@ -62,6 +63,14 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
 
     @Override
     public void enqueue(List<BlockWrite> writes, Consumer<ExecutionResult> onComplete) {
+        enqueue(writes, null, onComplete);
+    }
+
+    @Override
+    public void enqueue(
+            List<BlockWrite> writes,
+            Function<BlockPos, String> baselineReaderBeforeWrite,
+            Consumer<ExecutionResult> onComplete) {
         if (writes == null || writes.isEmpty()) {
             if (onComplete != null) {
                 onComplete.accept(new ExecutionResult(0, 0, 0));
@@ -69,7 +78,10 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
             return;
         }
 
-        jobQueue.addLast(new PlacementJob(new ArrayList<>(writes), onComplete));
+        jobQueue.addLast(new PlacementJob(
+            new ArrayList<>(writes),
+            baselineReaderBeforeWrite,
+            onComplete));
         ensureTickRegistered();
     }
 
@@ -120,6 +132,7 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
         while (budget > 0 && activeJob.hasNext()) {
             int writeIndex = activeJob.index;
             BlockWrite write = activeJob.next();
+            activeJob.captureBaselineBeforeWrite(writeIndex, write.pos());
             if (blockWriter.setBlockAt(write.pos(), write.blockId())) {
                 activeJob.success++;
                 activeJob.successfulWriteIndices.add(writeIndex);
@@ -136,11 +149,24 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
     }
 
     private void completeJob(PlacementJob job, boolean cancelled) {
+        List<String> capturedBaselines = job.capturedBaselines.isEmpty()
+            ? List.of()
+            : List.copyOf(job.capturedBaselines);
         ExecutionResult result = cancelled
-            ? ExecutionResult.cancelled(
-                job.success, job.failed, job.writes.size(), List.copyOf(job.successfulWriteIndices))
+            ? new ExecutionResult(
+                job.success,
+                job.failed,
+                job.writes.size(),
+                true,
+                List.copyOf(job.successfulWriteIndices),
+                capturedBaselines)
             : new ExecutionResult(
-                job.success, job.failed, job.writes.size(), false, List.copyOf(job.successfulWriteIndices));
+                job.success,
+                job.failed,
+                job.writes.size(),
+                false,
+                List.copyOf(job.successfulWriteIndices),
+                capturedBaselines);
         if (!cancelled) {
             LOGGER.info("方块放置批次完成: {}/{} 成功, {} 失败",
                 result.success(), result.total(), result.failed());
@@ -171,15 +197,31 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
 
     private static final class PlacementJob {
         private final List<BlockWrite> writes;
+        private final Function<BlockPos, String> baselineReaderBeforeWrite;
         private final Consumer<ExecutionResult> onComplete;
         private int index;
         private int success;
         private int failed;
         private final List<Integer> successfulWriteIndices = new ArrayList<>();
+        private final List<String> capturedBaselines;
 
-        private PlacementJob(List<BlockWrite> writes, Consumer<ExecutionResult> onComplete) {
+        private PlacementJob(
+                List<BlockWrite> writes,
+                Function<BlockPos, String> baselineReaderBeforeWrite,
+                Consumer<ExecutionResult> onComplete) {
             this.writes = writes;
+            this.baselineReaderBeforeWrite = baselineReaderBeforeWrite;
             this.onComplete = onComplete;
+            this.capturedBaselines = baselineReaderBeforeWrite != null
+                ? new ArrayList<>(java.util.Collections.nCopies(writes.size(), null))
+                : List.of();
+        }
+
+        private void captureBaselineBeforeWrite(int writeIndex, BlockPos pos) {
+            if (baselineReaderBeforeWrite == null || writeIndex < 0 || writeIndex >= capturedBaselines.size()) {
+                return;
+            }
+            capturedBaselines.set(writeIndex, baselineReaderBeforeWrite.apply(pos));
         }
 
         private boolean hasNext() {

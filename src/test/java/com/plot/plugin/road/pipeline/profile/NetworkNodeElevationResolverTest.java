@@ -5,6 +5,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.RoadTestFixtures;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.core.terrain.FlatTerrainSampler;
@@ -61,6 +63,7 @@ class NetworkNodeElevationResolverTest {
             n1.getId(), n2.getId(), java.util.List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
         RoadEdge reversedTail = network.createEdge(
             n3.getId(), n2.getId(), java.util.List.of(new Vec2d(100, 0), new Vec2d(50, 0)), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         assertFalse(RoadStationing.segmentFlowsWithGeometry(network, road, reversedTail.getId()));
         RoadNode junction = network.getNode(n2.getId());
@@ -92,6 +95,7 @@ class NetworkNodeElevationResolverTest {
             n1.getId(), n2.getId(), java.util.List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
         network.createEdge(
             n2.getId(), n3.getId(), java.util.List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
         return network;
     }
 }

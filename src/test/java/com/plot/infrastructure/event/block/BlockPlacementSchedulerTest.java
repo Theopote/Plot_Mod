@@ -39,6 +39,33 @@ class BlockPlacementSchedulerTest {
     }
 
     @Test
+    void capturesBaselineAtWriteTimeWhenReaderProvided() {
+        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>();
+        BlockPos pos = new BlockPos(3, 64, 0);
+        writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(pos, "minecraft:stone"));
+
+        java.util.concurrent.atomic.AtomicReference<String> baselineAtWrite = new java.util.concurrent.atomic.AtomicReference<>();
+        scheduler.setBlockWriterForTest((writePos, blockId) -> {
+            baselineAtWrite.set("minecraft:gold_block[facing=north]");
+            return true;
+        });
+
+        java.util.concurrent.atomic.AtomicReference<com.plot.api.world.IBlockPlacementService.ExecutionResult> result =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        scheduler.enqueue(
+            writes,
+            ignored -> "minecraft:grass_block[facing=west]",
+            result::set);
+        scheduler.tickForTest();
+
+        assertEquals(1, result.get().success());
+        assertEquals(
+            "minecraft:grass_block[facing=west]",
+            result.get().capturedBaselinesAtWriteTime().getFirst());
+        assertEquals("minecraft:gold_block[facing=north]", baselineAtWrite.get());
+    }
+
+    @Test
     void cancelActiveJobReportsPartialProgress() {
         List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>();
         for (int i = 0; i < 80; i++) {

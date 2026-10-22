@@ -3,6 +3,8 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.RoadTestFixtures;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -27,6 +29,7 @@ class VerticalAlignmentProfileSupportTest {
         RoadNode end = network.createNode(new Vec2d(18, 0));
         network.createEdge(start.getId(), end.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(18, 0)), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         assertTrue(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road));
     }

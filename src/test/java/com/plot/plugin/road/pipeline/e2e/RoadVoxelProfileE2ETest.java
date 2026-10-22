@@ -6,6 +6,8 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.benchmark.RoadBenchmarkHarness;
+import com.plot.plugin.road.RoadTestFixtures;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -48,6 +50,7 @@ class RoadVoxelProfileE2ETest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(120, 0));
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = new RoadSystemConfig("voxel-e2e");
         config.setRoadWidth(5);
@@ -109,6 +112,7 @@ class RoadVoxelProfileE2ETest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(80, 0));
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = new RoadSystemConfig("voxel-slope-e2e");
         config.setRoadWidth(5);

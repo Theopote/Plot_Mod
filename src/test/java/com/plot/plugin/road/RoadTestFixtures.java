@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.vertical.EditedProfileGeometry;
+import com.plot.plugin.road.vertical.ProfileSource;
 
 import java.util.List;
 
@@ -35,5 +37,14 @@ public final class RoadTestFixtures {
             String endNodeId,
             List<Vec2d> centerline) {
         return geometryEdge(network, id, startNodeId, endNodeId, centerline, null);
+    }
+
+    /** 绑定编辑纵断面几何签名，使生成管线认可 EDITED 来源。 */
+    public static void confirmEditedProfileGeometry(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return;
+        }
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
     }
 }

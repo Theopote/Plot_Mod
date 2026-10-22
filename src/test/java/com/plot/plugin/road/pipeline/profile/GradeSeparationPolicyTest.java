@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -42,6 +43,7 @@ class GradeSeparationPolicyTest {
         upper.setVerticalAlignment(new com.plot.plugin.road.vertical.RoadVerticalAlignment(List.of(
             com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(0, 88),
             com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(40, 88))));
+        RoadTestFixtures.confirmEditedProfileGeometry(network, upper);
         assertEquals(88, policy.resolveElevatedCrossingHeight(edge, junction, network, terrain,
             (n, net, t, roadId) -> 64, (e, n, net, t) -> 64, 64));
     }

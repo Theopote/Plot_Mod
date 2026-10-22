@@ -55,9 +55,6 @@ public final class ResolvedProfileAuthority {
         if (!VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
             return false;
         }
-        if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
-            return true;
-        }
         if (road.getEffectiveProfileSource() != ProfileSource.EDITED) {
             return false;
         }
