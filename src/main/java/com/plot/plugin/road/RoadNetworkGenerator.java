@@ -346,6 +346,10 @@ public class RoadNetworkGenerator {
                         networkResult.getEdgeResults());
                 if (!junctionBlocks.isEmpty()) {
                     networkResult.junctionResults.put(node.getId(), junctionBlocks);
+                } else {
+                    networkResult.recordSkippedJunction(
+                        node.getId(),
+                        "no plaza generated");
                 }
                 if (junctionBlocks.report() != null) {
                     networkResult.mergeJunctionReport(junctionBlocks.report());

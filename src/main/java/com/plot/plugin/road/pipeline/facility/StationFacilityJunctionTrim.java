@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.facility;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -125,17 +126,16 @@ public final class StationFacilityJunctionTrim {
 
         if (node.isJunction()) {
             List<RoadEdge> connected = connectedEdges(network, node);
-            double maxHalfWidth = 0.0;
-            for (RoadEdge connectedEdge : connected) {
-                maxHalfWidth = Math.max(
-                    maxHalfWidth,
-                    RoadModelUtils.getEffectiveWidth(network, connectedEdge, config) / 2.0);
+            if (!connected.isEmpty()) {
+                baseSkipBlocks = Math.max(
+                    baseSkipBlocks,
+                    RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+                        connected,
+                        connectedEdge -> RoadDimensionUtils.halfExtentFromCenter(
+                            RoadModelUtils.resolveCrossSection(network, connectedEdge, config)
+                                .totalHardSurfaceWidthBlocks()),
+                        RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
             }
-            double junctionRadiusBlocks = Math.max(
-                RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
-                maxHalfWidth + 1.0);
-            double cornerBlocks = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-            baseSkipBlocks = Math.max(baseSkipBlocks, junctionRadiusBlocks + cornerBlocks + 1.0);
         }
 
         return baseSkipBlocks * scale;

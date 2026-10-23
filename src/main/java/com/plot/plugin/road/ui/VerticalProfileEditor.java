@@ -657,12 +657,15 @@ final class VerticalProfileEditor {
         if (roads.isEmpty()) {
             return;
         }
-        Road primary = ctx.networkManager().getPrimarySelectedRoad();
-        if (primary != null
-                && RoadStationing.isStationable(network, primary)
-                && !Objects.equals(editorRoadId, primary.getId())) {
-            selectEditorRoad(ctx, primary.getId(), false);
-            return;
+        boolean keepEditorRoad = windowSession != null && windowSession.isDirty();
+        if (!keepEditorRoad) {
+            Road primary = ctx.networkManager().getPrimarySelectedRoad();
+            if (primary != null
+                    && RoadStationing.isStationable(network, primary)
+                    && !Objects.equals(editorRoadId, primary.getId())) {
+                selectEditorRoad(ctx, primary.getId(), false);
+                return;
+            }
         }
         String normalized = RoadProfileRoadNavigator.normalizeRoadId(roads, editorRoadId);
         if (normalized != null && !Objects.equals(editorRoadId, normalized)) {

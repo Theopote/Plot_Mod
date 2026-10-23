@@ -65,11 +65,17 @@ public final class RoadCrossingMaterializer {
             RoadCrossing crossing,
             RoadNode junction) {
         if (crossing.type() == CrossingType.GRADE_SEPARATED) {
-            network.setNodeGradeSeparation(
+            boolean applied = network.setNodeGradeSeparation(
                 junction.getId(),
                 true,
                 crossing.elevatedRoadId(),
                 crossing.crossingClearance());
+            if (!applied) {
+                network.applyCrossingGradeSeparation(
+                    junction.getId(),
+                    crossing.elevatedRoadId(),
+                    crossing.crossingClearance());
+            }
         }
         if (crossing.sharedElevation() != null) {
             junction.setManualElevation(

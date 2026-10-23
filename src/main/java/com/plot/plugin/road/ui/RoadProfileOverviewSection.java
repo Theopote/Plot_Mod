@@ -6,7 +6,9 @@ import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.ProfileQualitySummary;
 import com.plot.plugin.road.profile.RoadProfileCompactCard;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
+import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
@@ -101,20 +103,26 @@ public final class RoadProfileOverviewSection {
             if (chartData == null || !chartData.hasProfileData()) {
                 profileEditor.renderCompactMissingProfile(ctx, network, road);
             } else {
-                // Generate 概览不显示绿色设计线；玩家曲线仅在纵断面编辑器中出现。
                 List<RoadProfileIntersection> intersections = chartData.intersections();
                 ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
                 boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
+                boolean showDesign = !flatMode
+                    && (road.getEffectiveProfileSource() == ProfileSource.EDITED
+                        || profileEditor.hasUnconfirmedEditsForRoad(road.getId()));
+                VerticalAlignmentProfileOverlay design = showDesign
+                    ? VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null)
+                    : null;
                 RoadProfileCompactCard.renderOverview(
                     chartData,
-                    null,
+                    design,
                     intersections,
                     chartHeight,
                     flatOverlay,
                     mode,
                     road.getVerticalMode(),
                     flatMode,
-                    ctx.previewManager().needsPreviewRecalc());
+                    ctx.previewManager().needsPreviewRecalc(),
+                    showDesign && design != null);
                 if (active) {
                     String qualityLine = ProfileQualitySummary.compactLine(
                         chartData,

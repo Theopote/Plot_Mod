@@ -705,12 +705,28 @@ public class RoadNetwork {
         if (!RoadGraphQueries.isSimpleCrossing(node, this)) {
             return false;
         }
+        return applyCrossingGradeSeparation(nodeId, elevatedRoadId, crossingClearance);
+    }
+
+    /**
+     * Applies grade-separation flags from a registered crossing without requiring a simple
+     * four-arm topology. Used after materialize, when the registry is already GRADE_SEPARATED.
+     */
+    public boolean applyCrossingGradeSeparation(
+            String nodeId,
+            String elevatedRoadId,
+            Double crossingClearance) {
+        RoadNode node = nodes.get(nodeId);
+        if (node == null) {
+            return false;
+        }
         if (elevatedRoadId != null && !elevatedRoadId.isBlank()) {
             Set<String> roadIds = getDistinctRoadIdsAtNode(nodeId);
-            if (roadIds.size() != 2 || !roadIds.contains(elevatedRoadId)) {
-                return false;
+            if (roadIds.contains(elevatedRoadId)) {
+                node.setElevatedRoadId(elevatedRoadId);
+            } else {
+                node.setElevatedRoadId(null);
             }
-            node.setElevatedRoadId(elevatedRoadId);
         } else {
             node.setElevatedRoadId(null);
         }

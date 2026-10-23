@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
-import com.plot.plugin.road.pipeline.corridor.JunctionCellElevationResolver;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
 import com.plot.plugin.road.pipeline.corridor.JunctionExpectedProtectedCollector;
@@ -311,12 +310,8 @@ public class RoadJunctionGenerator {
                 }
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
-        Vec2d nodeCenter = node.getPosition();
         Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, generator.getConfig());
         Integer maxClearY = elevatedDeckY != null ? elevatedDeckY - 1 : null;
-        double elevationBlendRadius = elevatedDeckY != null
-            ? 0.0
-            : resolveJunctionElevationBlendRadius(network, node, edges, unitsPerBlock);
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
@@ -325,17 +320,7 @@ public class RoadJunctionGenerator {
         for (Vec2d point : cells) {
             ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
             surfaceMask.expectColumn(columnKey);
-            int cellY = JunctionCellElevationResolver.resolve(
-                point,
-                nodeCenter,
-                node.getId(),
-                junctionY,
-                edges,
-                network,
-                generator.getConfig(),
-                edgeResults,
-                unitsPerBlock,
-                elevationBlendRadius);
+            int cellY = junctionY;
             boolean stamped = JunctionCrossSectionFill.fillCell(
                 blocks.getSolids(),
                 point,
@@ -456,23 +441,6 @@ public class RoadJunctionGenerator {
             elevatedDeckY,
             underpassBand.minY(),
             underpassBand.maxY()));
-    }
-
-    private double resolveJunctionElevationBlendRadius(
-            RoadNetwork network,
-            RoadNode node,
-            List<RoadEdge> edges,
-            double unitsPerBlock) {
-        if (node == null || edges == null || edges.isEmpty()) {
-            return 0.0;
-        }
-        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            edges,
-            edge -> hardSurfaceHalfExtent(network, edge),
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
-        return Math.max(junctionRadius + cornerRadius, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale;
     }
 
     private List<RoadEdge> collectUnderpassJunctionEdges(

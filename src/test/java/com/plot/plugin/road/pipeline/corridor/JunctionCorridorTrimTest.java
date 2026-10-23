@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +43,39 @@ class JunctionCorridorTrimTest {
 
         assertTrue(context.endpointTrim().skipStart() > 0.0 || context.endpointTrim().skipEnd() > 0.0);
         assertFalse(context.exclusionPolygons().isEmpty());
+    }
+
+    @Test
+    void skipDistanceMatchesFillPolygonRadius() {
+        RoadNetwork network = tJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        RoadEdge approach = network.getEdges().values().stream()
+            .filter(edge -> edge.getStartNodeId().equals(junction.getId())
+                || edge.getEndNodeId().equals(junction.getId()))
+            .filter(edge -> edge.getLength() > 50.0)
+            .findFirst()
+            .orElseThrow();
+
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        JunctionCorridorBuildContext context = JunctionCorridorTrim.forEdge(
+            network, approach, crossSection, config, 1.0);
+
+        double skip = Math.max(context.endpointTrim().skipStart(), context.endpointTrim().skipEnd());
+        double expected = com.plot.plugin.road.RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            network.getEdges().values().stream()
+                .filter(edge -> edge.getStartNodeId().equals(junction.getId())
+                    || edge.getEndNodeId().equals(junction.getId()))
+                .toList(),
+            edge -> com.plot.plugin.road.RoadDimensionUtils.halfExtentFromCenter(
+                com.plot.plugin.road.model.RoadModelUtils.resolveCrossSection(network, edge, config)
+                    .totalHardSurfaceWidthBlocks()),
+            com.plot.plugin.road.RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+        assertEquals(expected, skip, 1e-6);
+        assertTrue(skip < expected + 0.5);
     }
 
     @Test

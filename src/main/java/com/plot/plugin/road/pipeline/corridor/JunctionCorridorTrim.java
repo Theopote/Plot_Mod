@@ -113,24 +113,20 @@ public final class JunctionCorridorTrim {
             RoadNode node,
             ResolvedCrossSection crossSection,
             RoadSystemConfig config) {
-        double baseSkipBlocks = Math.max(
-            1.0,
-            crossSection.carriagewayWidth + crossSection.outerBandBlockCount() + 0.5);
         List<RoadEdge> connected = connectedEdges(
             network,
             node,
             node.isGradeSeparated() ? node.getElevatedRoadId() : null);
-        double maxHalfWidth = 0.0;
-        for (RoadEdge connectedEdge : connected) {
-            maxHalfWidth = Math.max(
-                maxHalfWidth,
-                RoadModelUtils.getEffectiveWidth(network, connectedEdge, config) / 2.0);
+        if (connected.isEmpty()) {
+            return Math.max(
+                1.0,
+                crossSection.carriagewayWidth + crossSection.outerBandBlockCount() + 0.5);
         }
-        double junctionRadiusBlocks = Math.max(
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
-            maxHalfWidth + 1.0);
-        double cornerBlocks = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-        return Math.max(baseSkipBlocks, junctionRadiusBlocks + cornerBlocks + 1.0);
+        return RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            connected,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
     }
 
     private static List<RoadEdge> connectedEdges(

@@ -28,12 +28,16 @@ public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
     private final VerticalModeControls verticalModeControls = new VerticalModeControls();
+    private final RoadIntersectionListPanel intersectionListPanel;
+    private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
+        this.intersectionListPanel = new RoadIntersectionListPanel(ctx);
+        this.intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
         profileEditor.setOnAlignmentCommitted(this::recomputePreviewAfterProfileConfirm);
     }
@@ -84,15 +88,18 @@ public final class RoadGeneratePanel {
 
         renderPreviewActions(network, preflight, buildReadiness);
 
+        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+        if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
+            renderCompactPreviewSummary(lastGenerationResult);
+            renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
+        }
+
         if (!network.getEdges().isEmpty()) {
             renderProfileWorkspace(network);
             renderIntersectionCheckSection(network, preflight);
         }
 
-        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
-            renderCompactPreviewSummary(lastGenerationResult);
-            renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
             renderPreviewDetailsCollapsible(network, lastGenerationResult);
         }
     }
@@ -205,7 +212,9 @@ public final class RoadGeneratePanel {
     private void renderIntersectionCheckSection(
             RoadNetwork network,
             RoadNetworkValidationReport preflight) {
-        if (network.getJunctionCount() <= 0) {
+        if (network.getJunctionCount() <= 0
+                && network.getCrossings().isEmpty()
+                && network.getStackCrossings().isEmpty()) {
             return;
         }
         ImGui.separator();
@@ -224,8 +233,24 @@ public final class RoadGeneratePanel {
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.generate.intersection_ok", junctionCount));
         }
+        intersectionListPanel.render();
+        renderSelectedIntersection(network);
         if (ImGui.button(PlotI18n.tr("plugin.road.generate.goto_intersections"))) {
             ctx.requestTab(RoadUiTab.PATH);
+        }
+    }
+
+    private void renderSelectedIntersection(RoadNetwork network) {
+        com.plot.plugin.road.crossing.RoadCrossing selectedCrossing =
+            ctx.networkManager().getSelectedCrossing();
+        if (selectedCrossing != null) {
+            intersectionDetailPanel.renderCrossing(network, selectedCrossing);
+            return;
+        }
+        com.plot.plugin.road.crossing.RoadStackCrossing selectedStack =
+            ctx.networkManager().getSelectedStackCrossing();
+        if (selectedStack != null) {
+            intersectionDetailPanel.renderStackCrossing(network, selectedStack);
         }
     }
 

@@ -65,7 +65,7 @@ class JunctionCellElevationResolverTest {
     }
 
     @Test
-    void peripheralCellBlendsApproachProfileTowardCenterElevation() {
+    void peripheralCellStaysOnConsensusJunctionElevation() {
         CrossFixture fixture = simpleCross();
         RoadNetwork network = fixture.network();
         RoadNode junction = fixture.junction();
@@ -84,8 +84,7 @@ class JunctionCellElevationResolverTest {
             1.0,
             10.0);
 
-        assertTrue(y >= 68 && y <= 72,
-            "peripheral cell should follow approach profile while center stays at junctionY");
+        assertEquals(68, y, "plaza cells stay on the consensus plane");
     }
 
     @Test
@@ -154,8 +153,7 @@ class JunctionCellElevationResolverTest {
             1.0,
             4.0);
 
-        assertTrue(y >= 58 && y <= 64,
-            "cell near end-node junction must follow near-junction profile (~62), not far start (80), y=" + y);
+        assertEquals(60, y, "plaza cells stay on junctionY even on end-node approaches");
     }
 
     private record CrossFixture(RoadNetwork network, RoadNode junction, RoadEdge eastEdge) {

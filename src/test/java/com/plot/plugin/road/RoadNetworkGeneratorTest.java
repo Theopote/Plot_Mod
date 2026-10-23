@@ -88,6 +88,36 @@ class RoadNetworkGeneratorTest {
     }
 
     @Test
+    void emptyPlazaIsRecordedAsSkippedJunction() {
+        RoadSystemConfig config = new RoadSystemConfig("empty-plaza");
+        RoadNetworkGenerator generator = new RoadNetworkGenerator(new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance()));
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("only");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 20));
+        RoadNode east = network.createNode(new Vec2d(20, 0));
+        RoadNode west = network.createNode(new Vec2d(-20, 0));
+        network.createEdge(junction.getId(), north.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 20)), road.getId());
+        network.createEdge(junction.getId(), east.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(junction.getId(), west.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(-20, 0)), road.getId());
+        junction.setGradeSeparated(true);
+        junction.setElevatedRoadId(road.getId());
+
+        RoadNetworkGenerator.NetworkGenerationResult result =
+            generator.generateAll(network, new FlatTerrainSampler(64));
+        assertTrue(result.getSkippedJunctionIds().contains(junction.getId()));
+        assertTrue(result.hasPartialFailure());
+        assertTrue(result.getJunctionResults().isEmpty());
+    }
+
+    @Test
     void networkResultSeparatesFailedEdgesFromSuccessfulGeometry() {
         var networkResult = new RoadNetworkGenerator.NetworkGenerationResult();
         networkResult.recordEdgeOutcome("ok", EdgeGenerationResult.success(new com.plot.plugin.road.solid.RoadGenerationResult(10)));
