@@ -65,7 +65,7 @@ public final class RoadToolbarPanel {
         float avail = ImGui.getContentRegionAvailX();
         float spacing = ImGui.getStyle().getItemSpacingX();
         float buttonWidth = generateTab
-            ? Math.min(168f, Math.max(96f, (avail - spacing) / 2.0f))
+            ? Math.clamp((avail - spacing) / 2.0f, 96f, 168f)
             : (avail - spacing) / 2.0f;
         if (generateTab) {
             RoadUiWidgets.textWrappedColored(

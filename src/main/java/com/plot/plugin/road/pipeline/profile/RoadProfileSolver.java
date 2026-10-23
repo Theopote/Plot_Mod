@@ -26,7 +26,6 @@ import com.plot.plugin.road.pipeline.profile.terrain.TerrainProfileSampleChain;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendBuilder;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendResult;
 import com.plot.plugin.road.profile.WaterCrossingChartMarker;
-import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
@@ -132,27 +131,30 @@ public final class RoadProfileSolver {
             ? owningRoad.isOscillationReductionEnabled(config)
             : config != null && config.isOscillationReductionEnabled();
         GradeLimitedProfileSolver.clearOscillationReductionState();
-        ProfileSolveResult result = buildSegmentHeights(
-            segments,
-            sampleData,
-            maxSlopes,
-            manualStartHeight,
-            manualEndHeight,
-            segmentIndex -> RoadModelUtils.getEffectiveMaxSlope(
-                network,
-                edge,
+        ProfileSolveResult result = null;
+        if (config != null) {
+            result = buildSegmentHeights(
+                segments,
+                sampleData,
+                maxSlopes,
+                manualStartHeight,
+                manualEndHeight,
+                segmentIndex -> RoadModelUtils.getEffectiveMaxSlope(
+                    network,
+                    edge,
+                    config,
+                    profileDistanceAtSegmentStart(sampleData, segmentIndex, canvasUnitsPerBlock)),
+                support,
+                owningRoad != null
+                    ? owningRoad.getVerticalMode()
+                    : RoadVerticalMode.AUTO_SMOOTH,
+                owningRoad != null
+                    ? owningRoad.getEffectiveTerrainFollowPreset(config)
+                    : config.getTerrainStyle().followPreset(),
+                oscillationReductionEnabled,
                 config,
-                profileDistanceAtSegmentStart(sampleData, segmentIndex, canvasUnitsPerBlock)),
-            support,
-            owningRoad != null
-                ? owningRoad.getVerticalMode()
-                : RoadVerticalMode.AUTO_SMOOTH,
-            owningRoad != null
-                ? owningRoad.getEffectiveTerrainFollowPreset(config)
-                : config.getTerrainStyle().followPreset(),
-            oscillationReductionEnabled,
-            config,
-            environment);
+                environment);
+        }
         recordDiagnostics(network, owningRoad, result);
         return result;
     }
