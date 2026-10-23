@@ -11,6 +11,10 @@ import java.util.List;
 /** 纵断面图分层图例（raw / trend / road / design）。 */
 public final class ProfileChartLegend {
 
+    private static final int COLOR_INTERSECTION_AT_GRADE = 0xFF66CCFF;
+    private static final int COLOR_INTERSECTION_CURRENT = 0xFFFF9966;
+    private static final int COLOR_INTERSECTION_OTHER = 0xFFCC99FF;
+
     private ProfileChartLegend() {
     }
 
@@ -45,13 +49,36 @@ public final class ProfileChartLegend {
             boolean buildPreviewStale,
             boolean showBuildProfile,
             RoadProfileChartData chart) {
+        renderCompact(
+            chartMode,
+            verticalMode,
+            flatMode,
+            buildPreviewStale,
+            showBuildProfile,
+            chart,
+            List.of());
+    }
+
+    /**
+     * 编辑器 / 概览紧凑图例（单行）。
+     * 编辑器顺序：地形 → 设计 →（可选）建造 → 当前道路/立交/平交 → 水面。
+     */
+    public static void renderCompact(
+            ProfileChartRenderMode chartMode,
+            RoadVerticalMode verticalMode,
+            boolean flatMode,
+            boolean buildPreviewStale,
+            boolean showBuildProfile,
+            RoadProfileChartData chart,
+            List<RoadProfileIntersection> intersections) {
         boolean showWaterSurface = chart != null && chart.hasWaterElevations();
         if (flatMode) {
-            renderFlatCompactLegend(buildPreviewStale, showBuildProfile, showWaterSurface);
+            renderFlatCompactLegend(buildPreviewStale, showBuildProfile, showWaterSurface, intersections);
             return;
         }
         if (chartMode == ProfileChartRenderMode.EDITOR) {
-            renderCompactEditorLegend(buildPreviewStale, showBuildProfile, showWaterSurface);
+            renderCompactEditorLegend(
+                buildPreviewStale, showBuildProfile, showWaterSurface, intersections);
             return;
         }
         renderCompactOverviewLegend(buildPreviewStale, showWaterSurface);
@@ -71,11 +98,11 @@ public final class ProfileChartLegend {
     private static void renderCompactEditorLegend(
             boolean buildPreviewStale,
             boolean showBuildProfile,
-            boolean showWaterSurface) {
+            boolean showWaterSurface,
+            List<RoadProfileIntersection> intersections) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
-        appendWaterSurfaceLegend(showWaterSurface);
         ImGui.sameLine();
         ImGui.textColored(
             ProfileChartSeriesStyle.DESIGN_PROFILE,
@@ -86,22 +113,26 @@ public final class ProfileChartLegend {
                 ProfileChartSeriesStyle.BUILD_PROFILE,
                 "\u25A0 " + buildProfileLabel(buildPreviewStale));
         }
+        appendIntersectionLegendInline(intersections);
+        appendWaterSurfaceLegend(showWaterSurface);
     }
 
     private static void renderFlatCompactLegend(
             boolean buildPreviewStale,
             boolean showBuildProfile,
-            boolean showWaterSurface) {
+            boolean showWaterSurface,
+            List<RoadProfileIntersection> intersections) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
-        appendWaterSurfaceLegend(showWaterSurface);
         if (showBuildProfile) {
             ImGui.sameLine();
             ImGui.textColored(
                 ProfileChartSeriesStyle.BUILD_PROFILE,
                 "\u25A0 " + buildProfileLabel(buildPreviewStale));
         }
+        appendIntersectionLegendInline(intersections);
+        appendWaterSurfaceLegend(showWaterSurface);
     }
 
     private static void appendWaterSurfaceLegend(boolean showWaterSurface) {
@@ -112,6 +143,41 @@ public final class ProfileChartLegend {
         ImGui.textColored(
             ProfileChartSeriesStyle.WATER_SURFACE,
             "--- " + PlotI18n.tr("plugin.road.profile_water_surface"));
+    }
+
+    /**
+     * 将路口图示接在当前行末尾（sameLine），避免另起一行。
+     * 立交：当前道路 ○ + 相交道路 ◇；平交：平交交叉 ●。
+     */
+    private static void appendIntersectionLegendInline(List<RoadProfileIntersection> intersections) {
+        if (intersections == null || intersections.isEmpty()) {
+            return;
+        }
+        boolean hasGradeSeparated = false;
+        boolean hasAtGrade = false;
+        for (RoadProfileIntersection intersection : intersections) {
+            if (intersection.gradeSeparated()) {
+                hasGradeSeparated = true;
+            } else {
+                hasAtGrade = true;
+            }
+        }
+        if (hasGradeSeparated) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                COLOR_INTERSECTION_CURRENT,
+                "\u25CE " + PlotI18n.tr("plugin.road.profile_intersection_marker_current"));
+            ImGui.sameLine();
+            ImGui.textColored(
+                COLOR_INTERSECTION_OTHER,
+                "\u25C7 " + PlotI18n.tr("plugin.road.profile_intersection_marker_grade"));
+        }
+        if (hasAtGrade) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                COLOR_INTERSECTION_AT_GRADE,
+                "\u25CF " + PlotI18n.tr("plugin.road.profile_intersection_marker"));
+        }
     }
 
     public static void renderSeriesLegend(
@@ -202,19 +268,36 @@ public final class ProfileChartLegend {
         }
     }
 
+    /** @deprecated 请用 {@link #renderCompact} 的 intersections 参数，保证图例单行。 */
+    @Deprecated
     public static void renderIntersectionLegend(List<RoadProfileIntersection> intersections) {
         if (intersections == null || intersections.isEmpty()) {
             return;
         }
         boolean hasGradeSeparated = intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated);
-        if (!hasGradeSeparated) {
+        boolean hasAtGrade = intersections.stream().anyMatch(i -> !i.gradeSeparated());
+        if (!hasGradeSeparated && !hasAtGrade) {
             return;
         }
-        ImGui.textColored(0xFFFF9966, "\u25CE " + PlotI18n.tr(
-            "plugin.road.profile_intersection_marker_current"));
-        ImGui.sameLine();
-        ImGui.textColored(0xFFCC99FF, "\u25C7 " + PlotI18n.tr(
-            "plugin.road.profile_intersection_marker_grade"));
+        boolean first = true;
+        if (hasGradeSeparated) {
+            ImGui.textColored(
+                COLOR_INTERSECTION_CURRENT,
+                "\u25CE " + PlotI18n.tr("plugin.road.profile_intersection_marker_current"));
+            first = false;
+            ImGui.sameLine();
+            ImGui.textColored(
+                COLOR_INTERSECTION_OTHER,
+                "\u25C7 " + PlotI18n.tr("plugin.road.profile_intersection_marker_grade"));
+        }
+        if (hasAtGrade) {
+            if (!first) {
+                ImGui.sameLine();
+            }
+            ImGui.textColored(
+                COLOR_INTERSECTION_AT_GRADE,
+                "\u25CF " + PlotI18n.tr("plugin.road.profile_intersection_marker"));
+        }
     }
 
     private static String buildProfileLabel(boolean buildPreviewStale) {

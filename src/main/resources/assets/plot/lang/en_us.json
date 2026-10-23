@@ -1646,7 +1646,7 @@
   "plugin.road.profile_flat_editor_section": "Flat road",
   "plugin.road.profile_advanced_display": "Advanced display",
   "plugin.road.profile_editor_road_summary": "Length %1$s · %2$s",
-  "plugin.road.profile_intersection_marker": "At-grade crossing",
+  "plugin.road.profile_intersection_marker": "At-grade junction",
   "plugin.road.profile_intersection_marker_current": "Current road",
   "plugin.road.profile_intersection_at_grade_elevation": "Shared elevation: Y=%s",
   "plugin.road.profile_flat_junction_transition_warning": "A local junction transition occurs here; the actual road deviates from the flat base.",

@@ -78,7 +78,11 @@ final class VerticalProfileEditor {
 
     private static final float MIN_EDITOR_CHART_HEIGHT = 260f;
     private static final float EDITOR_CHART_HEIGHT_RATIO = 0.70f;
-    private static final int EDITOR_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
+    /** 独立浮动面板：不参与 DockSpace，不恢复上次停靠布局。 */
+    private static final int EDITOR_WINDOW_FLAGS =
+        ImGuiWindowFlags.NoCollapse
+            | ImGuiWindowFlags.NoDocking
+            | ImGuiWindowFlags.NoSavedSettings;
 
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
     private String editorRoadId = "";
@@ -192,6 +196,8 @@ final class VerticalProfileEditor {
         ensureEditorRoadSelection(ctx, network);
 
         if (focusEditorOnOpen) {
+            // 强制脱离任何既有 Dock 节点，保证始终为独立浮动面板。
+            ImGui.setNextWindowDockID(0, ImGuiCond.Appearing);
             var center = ImGui.getMainViewport().getCenter();
             ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
             float viewportWidth = ImGui.getIO().getDisplaySizeX();
@@ -225,7 +231,7 @@ final class VerticalProfileEditor {
             }
             renderEditorStatusBadge();
             renderEditorContextCard(ctx, network, road);
-            float footerHeight = ImGui.getFrameHeightWithSpacing() * 4.4f;
+            float footerHeight = ImGui.getFrameHeightWithSpacing() * 6.2f;
             ImGui.beginChild("##profile_editor_scroll", 0f, -footerHeight, true);
             try {
                 if (!RoadStationing.isStationable(network, road)) {
@@ -251,7 +257,7 @@ final class VerticalProfileEditor {
                 ImGui.endChild();
             }
             handleEditorKeyboardShortcuts(ctx);
-            renderEditorFooter(ctx, liveNetwork);
+            renderEditorFooter(ctx, liveNetwork, road);
             renderEditorDialogs(ctx, liveNetwork);
         } finally {
             if (!editorWindowOpen.get()) {
@@ -398,7 +404,7 @@ final class VerticalProfileEditor {
         }
     }
 
-    private void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork) {
+    private void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
         ImGui.separator();
         if (windowSession != null && windowSession.isDirty()) {
             ImGui.textColored(
@@ -409,6 +415,8 @@ final class VerticalProfileEditor {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_editor_clean_status"));
         }
+        renderFooterVoxelStatus(road);
+        renderFooterActionRow(ctx, liveNetwork, road);
         boolean canUndo = windowSession != null && windowSession.canUndo();
         boolean canRedo = windowSession != null && windowSession.canRedo();
         float undoRedoWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2f;
@@ -471,6 +479,82 @@ final class VerticalProfileEditor {
         }
         if (confirmDirty) {
             ImGui.popStyleColor(3);
+        }
+    }
+
+    private void renderFooterVoxelStatus(Road road) {
+        if (windowSession == null || road == null) {
+            return;
+        }
+        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
+        String statusKey = switch (slot.state()) {
+            case READY -> "plugin.road.voxel_profile_ready";
+            case STALE, NOT_COMPUTED -> "plugin.road.voxel_profile_stale";
+            case COMPUTING -> "plugin.road.voxel_profile_computing";
+            case FAILED -> "plugin.road.voxel_profile_failed";
+        };
+        int statusColor = slot.state() == VoxelProfilePreviewState.READY
+            ? PluginUiColors.STATUS_OK
+            : slot.state() == VoxelProfilePreviewState.FAILED
+                ? PluginUiColors.WARNING
+                : PluginUiColors.HINT_GRAY;
+        ImGui.sameLine();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, "·");
+        ImGui.sameLine();
+        ImGui.textColored(statusColor, PlotI18n.tr(statusKey));
+    }
+
+    private void renderFooterActionRow(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
+        boolean computing = windowSession != null
+            && road != null
+            && windowSession.voxelPreview(road.getId()).state() == VoxelProfilePreviewState.COMPUTING;
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float halfWidth = (ImGui.getContentRegionAvailX() - spacing) / 2f;
+        if (computing || road == null || windowSession == null) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(
+                PlotI18n.tr("plugin.road.update_voxel_profile") + "##update_voxel_profile",
+                halfWidth,
+                0)
+                && road != null) {
+            requestVoxelProfilePreview(ctx, road);
+        }
+        if (computing || road == null || windowSession == null) {
+            ImGui.endDisabled();
+        }
+        ImGui.sameLine();
+        boolean previewStale = (windowSession != null && windowSession.isDirty())
+            || profileEditSession.isDirty()
+            || ctx.previewManager().needsPreviewRecalc();
+        if (!previewStale) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(
+                PlotI18n.tr("plugin.road.update_road_preview") + "##profile_editor_update_preview",
+                halfWidth,
+                0)) {
+            boolean dirty = windowSession != null && windowSession.isDirty() || profileEditSession.isDirty();
+            if (dirty && windowSession != null) {
+                Road current = windowSession.editingNetwork().getRoad(editorRoadId);
+                if (current != null) {
+                    profileEditSession.commitEdit(
+                        windowSession.editingNetwork(),
+                        current,
+                        ctx.networkManager().getConfig(),
+                        windowSession,
+                        null,
+                        this::notifyWorkingProfileChanged);
+                }
+                if (confirmWindowSession(ctx, liveNetwork, true)) {
+                    reopenWindowSession(ctx, liveNetwork);
+                }
+            } else {
+                ctx.previewManager().startNetworkPreview(liveNetwork);
+            }
+        }
+        if (!previewStale) {
+            ImGui.endDisabled();
         }
     }
 
@@ -761,9 +845,7 @@ final class VerticalProfileEditor {
     private void renderEditorLegend(
             RoadUiContext ctx,
             Road road,
-            VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
-            FlatElevationProfileOverlay flatOverlay,
             boolean flatMode,
             boolean showBuildProfileLine,
             RoadProfileChartData chart) {
@@ -773,43 +855,8 @@ final class VerticalProfileEditor {
             flatMode,
             isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc(),
             showBuildProfileLine,
-            chart);
-        ProfileChartLegend.renderIntersectionLegend(intersections);
-        renderVoxelProfileControls(ctx, road);
-    }
-
-    private void renderVoxelProfileControls(RoadUiContext ctx, Road road) {
-        if (windowSession == null || road == null) {
-            return;
-        }
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
-        ImGui.spacing();
-        String statusKey = switch (slot.state()) {
-            case READY -> "plugin.road.voxel_profile_ready";
-            case STALE, NOT_COMPUTED -> "plugin.road.voxel_profile_stale";
-            case COMPUTING -> "plugin.road.voxel_profile_computing";
-            case FAILED -> "plugin.road.voxel_profile_failed";
-        };
-        int statusColor = slot.state() == VoxelProfilePreviewState.READY
-            ? PluginUiColors.STATUS_OK
-            : slot.state() == VoxelProfilePreviewState.FAILED
-                ? PluginUiColors.WARNING
-                : PluginUiColors.HINT_GRAY;
-        ImGui.textColored(statusColor, PlotI18n.tr(statusKey));
-        if (slot.state() == VoxelProfilePreviewState.FAILED && !slot.failureReason().isBlank()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, slot.failureReason());
-        }
-        boolean computing = slot.state() == VoxelProfilePreviewState.COMPUTING;
-        if (computing) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.update_voxel_profile") + "##update_voxel_profile")) {
-            requestVoxelProfilePreview(ctx, road);
-        }
-        if (computing) {
-            ImGui.endDisabled();
-        }
+            chart,
+            intersections);
     }
 
     private void requestVoxelProfilePreview(RoadUiContext ctx, Road road) {
@@ -1112,7 +1159,7 @@ final class VerticalProfileEditor {
         }
         selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         renderEditorLegend(
-            ctx, road, design, intersections, flatOverlay, flatMode, showBuildProfileLine, effectiveChart);
+            ctx, road, intersections, flatMode, showBuildProfileLine, effectiveChart);
         ProfileQualitySummary.render(
             effectiveChart,
             road,
@@ -1154,7 +1201,7 @@ final class VerticalProfileEditor {
                 this::notifyWorkingProfileChanged,
                 () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi));
         }
-        renderBuildPreviewStaleBar(ctx, liveNetwork);
+        renderBuildPreviewStaleHint(ctx);
     }
 
     private void renderAlignmentViolations(RoadNetwork network, Road road, boolean flatMode) {
@@ -1210,7 +1257,8 @@ final class VerticalProfileEditor {
             PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible_hint"));
     }
 
-    private void renderBuildPreviewStaleBar(RoadUiContext ctx, RoadNetwork network) {
+    /** 预览过期提示保留在内容区；操作按钮已集中到面板底部。 */
+    private void renderBuildPreviewStaleHint(RoadUiContext ctx) {
         boolean dirty = windowSession != null && windowSession.isDirty() || profileEditSession.isDirty();
         if (!dirty && !ctx.previewManager().needsPreviewRecalc()) {
             return;
@@ -1222,19 +1270,6 @@ final class VerticalProfileEditor {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.profile_build_preview_stale_hint"));
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.update_road_preview") + "##profile_editor_update_preview",
-                ImGui.getContentRegionAvailX(),
-                0)) {
-            if (dirty && windowSession != null) {
-                Road current = windowSession.editingNetwork().getRoad(editorRoadId);
-                if (current != null) profileEditSession.commitEdit(windowSession.editingNetwork(), current,
-                    ctx.networkManager().getConfig(), windowSession, null, this::notifyWorkingProfileChanged);
-                if (confirmWindowSession(ctx, network, true)) reopenWindowSession(ctx, network);
-            } else {
-                ctx.previewManager().startNetworkPreview(network);
-            }
-        }
     }
 
     private void applyIntersectionDrag(

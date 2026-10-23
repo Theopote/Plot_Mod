@@ -1646,7 +1646,7 @@
   "plugin.road.profile_flat_editor_section": "水平道路",
   "plugin.road.profile_advanced_display": "高级显示",
   "plugin.road.profile_editor_road_summary": "总长 %1$s · %2$s",
-  "plugin.road.profile_intersection_marker": "平交交叉",
+  "plugin.road.profile_intersection_marker": "平交路口",
   "plugin.road.profile_intersection_marker_current": "当前道路",
   "plugin.road.profile_intersection_at_grade_elevation": "共用标高：Y=%s",
   "plugin.road.profile_flat_junction_transition_warning": "此处存在局部交叉过渡，实际道路会偏离水平基准。",
