@@ -45,7 +45,6 @@ import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
@@ -76,9 +75,13 @@ import java.util.function.Function;
  */
 final class VerticalProfileEditor {
 
-    private static final float MIN_EDITOR_CHART_HEIGHT = 260f;
-    private static final float EDITOR_CHART_HEIGHT_RATIO = 0.82f;
-    private static final float MIN_FOOTER_HEIGHT = 72f;
+    /** 打开时面板宽度 / 屏幕宽度；高度按同比例缩放，保持与屏幕相同宽高比。 */
+    private static final float EDITOR_SIZE_OF_SCREEN = 0.6f;
+    private static final float EDITOR_MIN_SIZE_OF_SCREEN = 0.4f;
+    private static final float EDITOR_MAX_SIZE_OF_SCREEN = 0.9f;
+    /** 图表占滚动内容区可用高度的固定比例。 */
+    private static final float EDITOR_CHART_OF_CONTENT = 0.72f;
+    private static final float MIN_EDITOR_CHART_HEIGHT = 220f;
     /** 独立浮动面板：不参与 DockSpace，不恢复上次停靠布局。 */
     private static final int EDITOR_WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse
@@ -88,8 +91,8 @@ final class VerticalProfileEditor {
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
     private String editorRoadId = "";
     private boolean focusEditorOnOpen = false;
-    /** 上一帧实测底部高度，避免固定倍数预留导致裁切或空白。 */
-    private float lastFooterHeight = MIN_FOOTER_HEIGHT;
+    /** 上一帧实测底部高度；首帧用 estimateMinFooterHeight()。 */
+    private float lastFooterHeight;
 
     private RoadProfileChartData cachedChartData;
     private String cachedChartRoadId = "";
@@ -198,21 +201,25 @@ final class VerticalProfileEditor {
         RoadNetwork network = windowSession.editingNetwork();
         ensureEditorRoadSelection(ctx, network);
 
+        float displayW = ImGui.getIO().getDisplaySizeX();
+        float displayH = ImGui.getIO().getDisplaySizeY();
+        // 与屏幕同宽高比：宽 = 0.6·屏宽，高 = 0.6·屏高。
+        float editorW = displayW * EDITOR_SIZE_OF_SCREEN;
+        float editorH = displayH * EDITOR_SIZE_OF_SCREEN;
         if (focusEditorOnOpen) {
             // 强制脱离任何既有 Dock 节点，保证始终为独立浮动面板。
             ImGui.setNextWindowDockID(0, ImGuiCond.Appearing);
             var center = ImGui.getMainViewport().getCenter();
             ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-            float viewportWidth = ImGui.getIO().getDisplaySizeX();
-            float viewportHeight = ImGui.getIO().getDisplaySizeY();
-            ImGui.setNextWindowSize(
-                Math.min(viewportWidth * 0.88f, 920f),
-                Math.min(viewportHeight * 0.72f, 580f),
-                ImGuiCond.Appearing);
+            ImGui.setNextWindowSize(editorW, editorH, ImGuiCond.Appearing);
             ImGui.setNextWindowFocus();
             focusEditorOnOpen = false;
         }
-        ImGui.setNextWindowSizeConstraints(480f, 380f, Float.MAX_VALUE, Float.MAX_VALUE);
+        ImGui.setNextWindowSizeConstraints(
+            displayW * EDITOR_MIN_SIZE_OF_SCREEN,
+            displayH * EDITOR_MIN_SIZE_OF_SCREEN,
+            displayW * EDITOR_MAX_SIZE_OF_SCREEN,
+            displayH * EDITOR_MAX_SIZE_OF_SCREEN);
 
         String windowTitle = PlotI18n.tr("plugin.road.vertical_alignment_editor_window");
         if (!ImGui.begin(windowTitle + "###road_profile_editor", editorWindowOpen, EDITOR_WINDOW_FLAGS)) {
@@ -229,8 +236,8 @@ final class VerticalProfileEditor {
                 return;
             }
             renderEditorHeader(ctx, network, road);
-            float footerReserve = Math.max(MIN_FOOTER_HEIGHT, lastFooterHeight);
-            ImGui.beginChild("##profile_editor_scroll", 0f, -footerReserve, true);
+            float footerReserve = resolveFooterReserve();
+            ImGui.beginChild("##profile_editor_scroll", 0f, -footerReserve, false);
             try {
                 if (!RoadStationing.isStationable(network, road)) {
                     RoadUiWidgets.textWrappedColored(
@@ -244,9 +251,7 @@ final class VerticalProfileEditor {
                         FlatElevationProfileOverlay flatOverlay = resolveFlatOverlay(road);
                         VerticalAlignmentProfileOverlay design =
                             profileEditSession.effectiveDesignOverlay(network, road).orElse(null);
-                        float chartHeight = Math.max(
-                            MIN_EDITOR_CHART_HEIGHT,
-                            ImGui.getContentRegionAvail().y * EDITOR_CHART_HEIGHT_RATIO);
+                        float chartHeight = resolveEditorChartHeight();
                         renderInteractiveEditor(
                             ctx, liveNetwork, network, road, chartData, design, chartHeight, flatOverlay);
                     }
@@ -257,9 +262,10 @@ final class VerticalProfileEditor {
             handleEditorKeyboardShortcuts(ctx);
             float footerTop = ImGui.getCursorPosY();
             renderEditorFooter(ctx, liveNetwork, road);
+            // 多留一行间距，避免下一帧底部按钮贴边或被窗口裁剪。
             lastFooterHeight = Math.max(
-                MIN_FOOTER_HEIGHT,
-                ImGui.getCursorPosY() - footerTop + ImGui.getStyle().getItemSpacingY());
+                estimateMinFooterHeight(),
+                ImGui.getCursorPosY() - footerTop + ImGui.getStyle().getItemSpacingY() * 2f);
             renderEditorDialogs(ctx, liveNetwork);
         } finally {
             if (!editorWindowOpen.get()) {
@@ -406,16 +412,27 @@ final class VerticalProfileEditor {
         }
     }
 
+    private float resolveFooterReserve() {
+        return Math.max(estimateMinFooterHeight(), lastFooterHeight);
+    }
+
+    /** 按实际控件行高估算底部最小预留，避免首帧或窄窗口裁剪按钮。 */
+    private static float estimateMinFooterHeight() {
+        float row = ImGui.getFrameHeightWithSpacing();
+        // separator + 工具行(+可能换行) + 状态行 + 提交行 + 余量
+        return row * 4.2f + ImGui.getStyle().getItemSpacingY();
+    }
+
     /**
-     * 底部两行操作：
-     * 1) 撤销 / 重做 / 更新方块线 / 确定并计算建造预览
-     * 2) 左侧状态 · 右侧 恢复本次编辑 / 取消并关闭 / 保存纵断面
+     * 底部操作（防裁剪）：
+     * 1) 工具按钮按宽度自动 4 列或 2×2
+     * 2) 状态单独一行
+     * 3) 恢复 / 取消 / 保存单独一行，不再与状态挤在同一行
      */
     private void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
         ImGui.separator();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float rowWidth = ImGui.getContentRegionAvailX();
-        float toolWidth = (rowWidth - spacing * 3f) / 4f;
+        float rowWidth = Math.max(1f, ImGui.getContentRegionAvailX());
 
         boolean canUndo = windowSession != null && windowSession.canUndo();
         boolean canRedo = windowSession != null && windowSession.canRedo();
@@ -426,10 +443,23 @@ final class VerticalProfileEditor {
             || profileEditSession.isDirty()
             || ctx.previewManager().needsPreviewRecalc();
 
+        String undoLabel = PlotI18n.tr("plugin.road.profile_editor_undo");
+        String redoLabel = PlotI18n.tr("plugin.road.profile_editor_redo");
+        String voxelLabel = PlotI18n.tr("plugin.road.update_voxel_profile");
+        String previewLabel = PlotI18n.tr("plugin.road.update_road_preview");
+        float pad = ImGui.getStyle().getFramePaddingX() * 2f;
+        float minFourWide = Math.max(
+            ImGui.calcTextSize(previewLabel).x,
+            Math.max(ImGui.calcTextSize(voxelLabel).x, 64f)) + pad;
+        boolean twoColumns = (rowWidth - spacing * 3f) / 4f < minFourWide;
+        float toolWidth = twoColumns
+            ? (rowWidth - spacing) / 2f
+            : (rowWidth - spacing * 3f) / 4f;
+
         if (!canUndo) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_undo") + "##profile_undo", toolWidth, 0)) {
+        if (ImGui.button(undoLabel + "##profile_undo", toolWidth, 0)) {
             undoEditorSession(ctx);
         }
         if (!canUndo) {
@@ -439,21 +469,19 @@ final class VerticalProfileEditor {
         if (!canRedo) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_redo") + "##profile_redo", toolWidth, 0)) {
+        if (ImGui.button(redoLabel + "##profile_redo", toolWidth, 0)) {
             redoEditorSession(ctx);
         }
         if (!canRedo) {
             ImGui.endDisabled();
         }
-        ImGui.sameLine();
+        if (!twoColumns) {
+            ImGui.sameLine();
+        }
         if (computing || road == null || windowSession == null) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.update_voxel_profile") + "##update_voxel_profile",
-                toolWidth,
-                0)
-                && road != null) {
+        if (ImGui.button(voxelLabel + "##update_voxel_profile", toolWidth, 0) && road != null) {
             requestVoxelProfilePreview(ctx, road);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
@@ -466,10 +494,7 @@ final class VerticalProfileEditor {
         if (!previewStale) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.update_road_preview") + "##profile_editor_update_preview",
-                toolWidth,
-                0)) {
+        if (ImGui.button(previewLabel + "##profile_editor_update_preview", toolWidth, 0)) {
             runConfirmAndBuildPreview(ctx, liveNetwork);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
@@ -480,9 +505,6 @@ final class VerticalProfileEditor {
         }
 
         boolean dirty = windowSession != null && windowSession.isDirty();
-        float commitWidth = Math.min(120f, (rowWidth - spacing * 2f) / 3f);
-        float commitTotal = commitWidth * 3f + spacing * 2f;
-
         if (dirty) {
             ImGui.textColored(
                 PluginUiColors.WARNING_LIGHT,
@@ -490,9 +512,7 @@ final class VerticalProfileEditor {
             int affectCount = windowSession.estimateConfirmAffectRoadCount();
             if (affectCount > 0) {
                 ImGui.sameLine();
-                ImGui.textColored(
-                    PluginUiColors.HINT_GRAY,
-                    "(" + affectCount + ")");
+                ImGui.textColored(PluginUiColors.HINT_GRAY, "(" + affectCount + ")");
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(PlotI18n.tr(
                         "plugin.road.profile_editor_confirm_affect_summary", affectCount));
@@ -505,12 +525,7 @@ final class VerticalProfileEditor {
         }
         renderFooterVoxelStatusInline(road);
 
-        float remaining = ImGui.getContentRegionAvailX();
-        if (remaining > commitTotal + spacing) {
-            ImGui.sameLine(0f, remaining - commitTotal);
-        } else {
-            // 窄窗口：提交按钮换行，避免与状态挤在一起。
-        }
+        float commitWidth = (rowWidth - spacing * 2f) / 3f;
         if (!dirty) {
             ImGui.beginDisabled();
         }
@@ -655,6 +670,12 @@ final class VerticalProfileEditor {
         }
     }
 
+    /** 图表高度：内容区可用高度的固定比例，并设下限避免过扁。 */
+    private static float resolveEditorChartHeight() {
+        float available = ImGui.getContentRegionAvail().y;
+        return Math.max(MIN_EDITOR_CHART_HEIGHT, available * EDITOR_CHART_OF_CONTENT);
+    }
+
     /**
      * 紧凑顶部：道路选择一行 +（有选中时）动态上下文一行。
      * 标题栏已含「纵断面编辑器」，此处不再重复道路名称卡片。
@@ -795,16 +816,6 @@ final class VerticalProfileEditor {
 
     private FlatElevationProfileOverlay resolveFlatOverlay(Road road) {
         return flatOverlayResolver.apply(road);
-    }
-
-    private ProfileRenderCache resolveRenderCache(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            RoadProfileChartData chartData,
-            FlatElevationProfileOverlay flatOverlay,
-            List<RoadProfileIntersection> intersections) {
-        return resolveRenderCache(ctx, network, road, chartData, flatOverlay, intersections, null);
     }
 
     private ProfileRenderCache resolveRenderCache(
@@ -1369,8 +1380,13 @@ final class VerticalProfileEditor {
         if (intersections == null || intersections.isEmpty()) {
             return;
         }
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(Math.min(220f, ImGui.getContentRegionAvailX()));
+        float locatorWidth = Math.min(220f, ImGui.getContentRegionAvailX());
+        // 图例同行放得下再 sameLine，否则换行，避免右侧被裁剪。
+        if (locatorWidth >= 120f) {
+            ImGui.sameLine();
+            locatorWidth = Math.min(220f, ImGui.getContentRegionAvailX());
+        }
+        ImGui.setNextItemWidth(Math.max(80f, locatorWidth));
         String preview = selectedIntersectionIndex >= 0 && selectedIntersectionIndex < intersections.size()
             ? intersectionLabel(intersections.get(selectedIntersectionIndex))
             : PlotI18n.tr("plugin.road.profile_editor_intersection_locator");

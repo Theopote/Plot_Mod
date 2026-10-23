@@ -1705,7 +1705,7 @@
   "plugin.road.profile_quality_abnormal_steps": "异常台阶 %d",
   "plugin.road.profile_quality_design_deviation": "设计/建造偏差 %.1f",
   "plugin.road.profile_quality_compact_line": "坡%1$.1f%% 变%2$.1f%% · 挖%3$d 填%4$d · %5$d阶",
-  "plugin.road.update_road_preview": "确定并计算建造预览",
+  "plugin.road.update_road_preview": "保存并预览建造",
   "plugin.road.update_voxel_profile": "更新方块线",
   "plugin.road.voxel_profile_ready": "方块纵断面已更新",
   "plugin.road.voxel_profile_stale": "方块纵断面待更新",

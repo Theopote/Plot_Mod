@@ -1705,7 +1705,7 @@
   "plugin.road.profile_quality_abnormal_steps": "Abnormal steps %d",
   "plugin.road.profile_quality_design_deviation": "Design/build Δ %.1f",
   "plugin.road.profile_quality_compact_line": "G %1$.1f%% \u0394 %2$.1f%% \u00b7 C %3$d F %4$d \u00b7 %5$d stp",
-  "plugin.road.update_road_preview": "Save & compute build preview",
+  "plugin.road.update_road_preview": "Save & preview build",
   "plugin.road.update_voxel_profile": "Update block line",
   "plugin.road.voxel_profile_ready": "Voxel profile up to date",
   "plugin.road.voxel_profile_stale": "Voxel profile needs update",
