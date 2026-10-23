@@ -24,36 +24,8 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-
-        boolean undoDisabled = !ctx.networkManager().canUndo();
-        if (undoDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.undo_network"), buttonWidth, 0)) {
-            ctx.networkManager().undo();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.undo_network"));
-        }
-        if (undoDisabled) {
-            ImGui.endDisabled();
-        }
-        ImGui.sameLine();
-        boolean redoDisabled = !ctx.networkManager().canRedo();
-        if (redoDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.redo_network"), buttonWidth, 0)) {
-            ctx.networkManager().redo();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.redo_network"));
-        }
-        if (redoDisabled) {
-            ImGui.endDisabled();
-        }
-
+        boolean generateTab = ctx.activeTab() == RoadUiTab.GENERATE;
+        renderNetworkUndoRedo(generateTab);
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
 
         if (canUndoWorldPlacement()) {
@@ -86,6 +58,46 @@ public final class RoadToolbarPanel {
                 ImGui.getContentRegionAvailX(),
                 "plugin.road.cancel_preview",
                 ctx::cancelPreviewJob);
+        }
+    }
+
+    private void renderNetworkUndoRedo(boolean generateTab) {
+        float avail = ImGui.getContentRegionAvailX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float buttonWidth = generateTab
+            ? Math.min(168f, Math.max(96f, (avail - spacing) / 2.0f))
+            : (avail - spacing) / 2.0f;
+        if (generateTab) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_network_section"));
+        }
+
+        boolean undoDisabled = !ctx.networkManager().canUndo();
+        if (undoDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.undo_network"), buttonWidth, 0)) {
+            ctx.networkManager().undo();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.undo_network"));
+        }
+        if (undoDisabled) {
+            ImGui.endDisabled();
+        }
+        ImGui.sameLine();
+        boolean redoDisabled = !ctx.networkManager().canRedo();
+        if (redoDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.redo_network"), buttonWidth, 0)) {
+            ctx.networkManager().redo();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.redo_network"));
+        }
+        if (redoDisabled) {
+            ImGui.endDisabled();
         }
     }
 

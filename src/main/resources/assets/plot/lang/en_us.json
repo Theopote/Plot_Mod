@@ -1785,6 +1785,7 @@
   "plugin.road.edit_furniture": "Furniture",
   "plugin.road.undo_network": "Undo Road Edit",
   "plugin.road.redo_network": "Redo Road Edit",
+  "plugin.road.undo_network_section": "Road edit history",
   "plugin.road.undo_world": "Undo World Placement",
   "plugin.road.undo_world_section": "World placement history",
   "plugin.road.undo_scope_hint": "Road topology and parameters (separate from placed blocks). World blocks use the section below or Ctrl+Z.",

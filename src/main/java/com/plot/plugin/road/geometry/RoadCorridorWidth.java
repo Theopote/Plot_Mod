@@ -66,8 +66,11 @@ public final class RoadCorridorWidth {
         return RoadDimensionUtils.halfExtentFromCenter(bridgeDeckWidthBlocks(section));
     }
 
-    /** 路基挖填包络总宽（方块数）。 */
-    public static int gradingEnvelopeWidthBlocks(ResolvedCrossSection section) {
+    /**
+     * 硬质路面包络总宽（行车道 + 外侧条带）。
+     * OPEN 走廊清场、隧道/洞门截面必须用此宽度，不得叠边坡裕量。
+     */
+    public static int pavementEnvelopeWidthBlocks(ResolvedCrossSection section) {
         if (section == null) {
             return 0;
         }
@@ -75,19 +78,38 @@ public final class RoadCorridorWidth {
     }
 
     /**
-     * 植被/附着物清理包络总宽（方块数）。
-     * 仅用于 {@link com.plot.plugin.road.RoadRoadbedGradingUtils#clearRoadDecorations} 等装饰清理，
-     * 不得作为 {@link com.plot.plugin.road.pipeline.corridor.ClearanceCell} 的横向挖方依据。
+     * 硬质路面包络总宽。OPEN 清场与隧道截面走这里；边坡外缘见
+     * {@link #earthworkEnvelopeWidthBlocks(ResolvedCrossSection, RoadSystemConfig)}。
      */
-    public static int decorationClearWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
-        int width = gradingEnvelopeWidthBlocks(section);
-        if (section != null && section.includeSlopeBatter) {
-            width += slopeBatterMarginBlocks(section, config) * 2;
-        }
-        return Math.max(1, width);
+    public static int gradingEnvelopeWidthBlocks(ResolvedCrossSection section) {
+        return pavementEnvelopeWidthBlocks(section);
     }
 
-    static int slopeBatterMarginBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
+    /**
+     * 挖填包络总宽：硬质路面 + 启用边坡时的外缘裕量。
+     * 城市预设 {@code includeSlopeBatter == false} 时与路面包络相同。
+     */
+    public static int earthworkEnvelopeWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
+        int width = pavementEnvelopeWidthBlocks(section);
+        if (width <= 0) {
+            return 0;
+        }
+        if (section.includeSlopeBatter) {
+            width += slopeBatterMarginBlocks(section, config) * 2;
+        }
+        return width;
+    }
+
+    /**
+     * 植被/附着物清理包络总宽（方块数）。
+     * 与挖填包络对齐；不得作为 OPEN {@link com.plot.plugin.road.pipeline.corridor.ClearanceCell}
+     * 的横向挖方依据（坡面清场由边坡列自己的坡面标高封顶）。
+     */
+    public static int decorationClearWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
+        return earthworkEnvelopeWidthBlocks(section, config);
+    }
+
+    public static int slopeBatterMarginBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
         int maxCutHeight = config != null
             ? Math.max(1, RoadConstructionHeuristics.tunnelThreshold(config))
             : RoadConstructionHeuristics.tunnelThreshold(RoadTerrainStyle.BALANCED);

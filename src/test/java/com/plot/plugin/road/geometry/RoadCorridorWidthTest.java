@@ -77,7 +77,26 @@ class RoadCorridorWidthTest {
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
 
         assertEquals(9, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
+        assertEquals(9, RoadCorridorWidth.pavementEnvelopeWidthBlocks(section));
+        assertEquals(21, RoadCorridorWidth.earthworkEnvelopeWidthBlocks(section, config));
         assertEquals(21, RoadCorridorWidth.decorationClearWidthBlocks(section, config));
+    }
+
+    @Test
+    void earthworkEnvelopeStaysPavementWhenSlopeBatterDisabled() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(1);
+        config.setIncludeSlopeBatter(false);
+
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+
+        assertEquals(9, RoadCorridorWidth.pavementEnvelopeWidthBlocks(section));
+        assertEquals(9, RoadCorridorWidth.earthworkEnvelopeWidthBlocks(section, config));
+        assertEquals(9, RoadCorridorWidth.decorationClearWidthBlocks(section, config));
     }
 
     @Test
@@ -96,6 +115,7 @@ class RoadCorridorWidthTest {
 
         assertEquals(18, RoadCorridorWidth.slopeBatterMarginBlocks(section, config));
         assertEquals(9, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
+        assertEquals(45, RoadCorridorWidth.earthworkEnvelopeWidthBlocks(section, config));
         assertEquals(45, RoadCorridorWidth.decorationClearWidthBlocks(section, config));
     }
 }

@@ -1785,6 +1785,7 @@
   "plugin.road.edit_furniture": "附属设施",
   "plugin.road.undo_network": "撤销道路编辑",
   "plugin.road.redo_network": "重做道路编辑",
+  "plugin.road.undo_network_section": "道路编辑历史",
   "plugin.road.undo_world": "撤销世界落地",
   "plugin.road.undo_world_section": "世界落地历史",
   "plugin.road.undo_scope_hint": "道路拓扑与参数（与已落地方块分开）。已写入世界的方块请用下方按钮或 Ctrl+Z。",

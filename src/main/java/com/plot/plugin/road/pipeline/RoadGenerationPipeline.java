@@ -27,14 +27,20 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  * RoadEdgeBuildOrchestrator (profile solve + build request)
  * └─ RoadGenerationPipeline
  *    ├─ RoadGeometrySampler
- *    ├─ RoadConstructionClassifier
+ *    ├─ RoadConstructionClassifier + WaterCrossingConstructionResolver
+ *    ├─ RoadCorridorPlanBuilder
+ *    ├─ RoadCorridorClearancePass
+ *    ├─ TunnelInteriorClearancePass
+ *    ├─ RoadCorridorSolidEmitter
  *    ├─ RoadCrossSectionBuilder
  *    ├─ RoadMarkingGenerator
  *    ├─ RoadFurnitureGenerator
  *    ├─ RoadStationFacilityGenerator
- *    ├─ RoadTerrainGrader
  *    ├─ TunnelStructureGenerator
- *    └─ RoadVoxelRasterizerPass
+ *    ├─ TunnelPortalBackfillPass
+ *    ├─ RoadVoxelRasterizerPass
+ *    ├─ RoadSurfacePlacementPass
+ *    └─ RoadGenerationIntegrityValidator
  * </pre>
  *
  * <p>Profile solving runs upstream via {@link com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator}.

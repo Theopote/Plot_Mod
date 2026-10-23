@@ -5,6 +5,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.CommandService;
+import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
 import com.plot.infrastructure.event.EventBus;
@@ -14,8 +15,8 @@ import java.util.Objects;
 /**
  * 宿主注入给插件的服务句柄。插件应通过本对象访问 Core/infra，而不是 {@code *.getInstance()}。
  * <p>
- * 逻辑侧服务始终可用；世界服务以 api 接口注入，由客户端 {@code ClientServices} 组装，
- * 不携带 MinecraftClient 具体类型，dedicated server 加载链路保持干净。
+ * 逻辑侧服务始终可用（含 {@link #shortcuts()}）；世界服务以 api 接口注入，由客户端
+ * {@code ClientServices} 组装，不携带 MinecraftClient 具体类型，dedicated server 加载链路保持干净。
  *
  * @see ApplicationContext#createPluginContext()
  * @see PluginContextFactory
@@ -25,6 +26,7 @@ public final class PluginContext {
     private final CommandService commandService;
     private final EventBus eventBus;
     private final ToolManager toolManager;
+    private final ShortcutManager shortcutManager;
     private final ICoordinateService coordinateService;
     private final IGhostBlockService ghostBlockService;
     private final IBlockPlacementService placementService;
@@ -39,10 +41,33 @@ public final class PluginContext {
             IGhostBlockService ghostBlockService,
             IBlockPlacementService placementService,
             IBlockProjectionService projectionService) {
+        this(
+            appState,
+            commandService,
+            eventBus,
+            toolManager,
+            coordinateService,
+            ghostBlockService,
+            placementService,
+            projectionService,
+            ShortcutManager.getInstance());
+    }
+
+    public PluginContext(
+            AppState appState,
+            CommandService commandService,
+            EventBus eventBus,
+            ToolManager toolManager,
+            ICoordinateService coordinateService,
+            IGhostBlockService ghostBlockService,
+            IBlockPlacementService placementService,
+            IBlockProjectionService projectionService,
+            ShortcutManager shortcutManager) {
         this.appState = Objects.requireNonNull(appState, "appState");
         this.commandService = Objects.requireNonNull(commandService, "commandService");
         this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
         this.toolManager = Objects.requireNonNull(toolManager, "toolManager");
+        this.shortcutManager = shortcutManager != null ? shortcutManager : ShortcutManager.getInstance();
         this.coordinateService = coordinateService;
         this.ghostBlockService = ghostBlockService;
         this.placementService = placementService;
@@ -80,6 +105,11 @@ public final class PluginContext {
 
     public ToolManager tools() {
         return toolManager;
+    }
+
+    /** 快捷键分发。插件经此注册监听器，不要再调 {@code ShortcutManager.getInstance()}。 */
+    public ShortcutManager shortcuts() {
+        return shortcutManager;
     }
 
     public ICoordinateService coordinates() {

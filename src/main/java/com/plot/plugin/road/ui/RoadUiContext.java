@@ -44,6 +44,7 @@ public final class RoadUiContext {
     private boolean buildConfirmPending = false;
 
     private RoadUiTab pendingTab = null;
+    private RoadUiTab activeTab = RoadUiTab.PATH;
     private String pendingProfileEdgeId = "";
     private Runnable pathsAdoptedListener;
     private boolean overlayForegroundDirty;
@@ -419,10 +420,21 @@ public final class RoadUiContext {
 
     public void requestTab(RoadUiTab tab) {
         pendingTab = tab;
+        setActiveTab(tab);
     }
 
     public RoadUiTab pendingTab() {
         return pendingTab;
+    }
+
+    public RoadUiTab activeTab() {
+        return activeTab;
+    }
+
+    public void setActiveTab(RoadUiTab tab) {
+        if (tab != null) {
+            activeTab = tab;
+        }
     }
 
     public void clearPendingTab() {
@@ -431,7 +443,7 @@ public final class RoadUiContext {
 
     /** 跳转到建造 Tab 并聚焦指定边的纵断面。 */
     public void requestViewProfile(String edgeId) {
-        pendingTab = RoadUiTab.GENERATE;
+        requestTab(RoadUiTab.GENERATE);
         pendingProfileEdgeId = edgeId != null ? edgeId : "";
     }
 

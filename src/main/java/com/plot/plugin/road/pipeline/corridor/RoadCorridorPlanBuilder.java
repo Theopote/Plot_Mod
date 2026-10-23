@@ -103,6 +103,7 @@ public final class RoadCorridorPlanBuilder {
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
+        SlopeEnvelopeClearancePass.apply(plan, terrain);
         // Exact polygon ownership, rather than also skipping an entire endpoint
         // length, keeps the approach pavement connected to the plaza boundary.
         JunctionCorridorPlanFilter.apply(plan, junctionCorridor);
@@ -259,8 +260,9 @@ public final class RoadCorridorPlanBuilder {
         if (!RoadEarthworkPolicy.of(constructionType).allowsOpenCorridorClearance()) {
             return;
         }
-        // Hard-surface envelope only; cut/fill beyond shoulder is handled by slope batter rays.
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        // Hard-surface envelope only. Slope laterals get their own floor-at-batter
+        // clearance in SlopeEnvelopeClearancePass; do not punch OPEN from road Y.
+        int envelopeWidth = RoadCorridorWidth.pavementEnvelopeWidthBlocks(crossSection);
         if (constructionType == RoadConstructionType.TUNNEL_PORTAL
                 || constructionType == RoadConstructionType.BRIDGE_ABUTMENT) {
             envelopeWidth = Math.min(envelopeWidth, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
@@ -665,20 +667,57 @@ public final class RoadCorridorPlanBuilder {
         SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
         String materialId = isFill ? fillBlockId : cutBlockId;
 
+        Vec2d previousPoint = null;
+        Integer previousHeight = null;
+        Integer previousOffset = null;
         for (int step = 0; step < profile.size(); step++) {
             int[] point = profile.get(step);
             int horizontalOffset = point[0];
             int slopeHeight = point[1];
             Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
-            if (!terrain.isChunkLoaded(samplePoint)) {
-                continue;
+            if (previousPoint != null) {
+                List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(previousPoint, samplePoint);
+                int last = span.size() - 1;
+                for (int i = 0; i < span.size(); i++) {
+                    double t = last <= 0 ? 1.0 : (double) i / last;
+                    int y = (int) Math.round(previousHeight + (slopeHeight - previousHeight) * t);
+                    int offset = (int) Math.round(previousOffset + (horizontalOffset - previousOffset) * t);
+                    addSlopeSample(
+                        samples, span.get(i), y, isFill, materialId, rayId, offset, slopeRatio, outcome,
+                        terrain, host);
+                }
+            } else {
+                addSlopeSample(
+                    samples, samplePoint, slopeHeight, isFill, materialId, rayId,
+                    horizontalOffset, slopeRatio, outcome, terrain, host);
             }
-            ColumnKey key = new ColumnKey(host.worldX(samplePoint), host.worldZ(samplePoint));
-            samples.add(new SlopeProfileSample(
-                key, samplePoint, slopeHeight, isFill, materialId, rayId,
-                horizontalOffset, slopeRatio, outcome));
+            previousPoint = samplePoint;
+            previousHeight = slopeHeight;
+            previousOffset = horizontalOffset;
         }
         return samples;
+    }
+
+    private static void addSlopeSample(
+            List<SlopeProfileSample> samples,
+            Vec2d samplePoint,
+            int slopeHeight,
+            boolean isFill,
+            String materialId,
+            SlopeRayId rayId,
+            int horizontalOffset,
+            float slopeRatio,
+            SlopeConstructionOutcome outcome,
+            TerrainSampler terrain,
+            PlanHost host) {
+        if (samplePoint == null || !terrain.isChunkLoaded(samplePoint)) {
+            return;
+        }
+        Vec2d planPoint = host.canonicalColumnPoint(samplePoint);
+        ColumnKey key = new ColumnKey(host.worldX(planPoint), host.worldZ(planPoint));
+        samples.add(new SlopeProfileSample(
+            key, planPoint, slopeHeight, isFill, materialId, rayId,
+            horizontalOffset, slopeRatio, outcome));
     }
 
     private static boolean slopeProfileMeetsTerrain(

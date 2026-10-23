@@ -1,9 +1,7 @@
 package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.api.plugin.IPlugin;
-import com.plot.core.plugin.PluginManager;
-import com.plot.core.shortcut.ShortcutManager;
+import com.plot.api.plugin.PluginState;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
@@ -74,7 +72,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         networkManager.setOnNetworkChanged(previewManager::handleNetworkChanged);
         toolManager = new RoadToolManager(status, ctx());
         pathPickEscapeListener = new RoadPathPickEscapeShortcutListener(toolManager);
-        ShortcutManager.getInstance().addListener(pathPickEscapeListener);
+        ctx().shortcuts().addListener(pathPickEscapeListener);
         uiManager = new RoadUIManager(
             networkManager, previewManager, persistenceManager, toolManager, status, ctx());
         toolManager.setPathsPickedHandler(paths -> {
@@ -129,7 +127,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             toolManager.cancel();
         }
         if (pathPickEscapeListener != null) {
-            ShortcutManager.getInstance().removeListener(pathPickEscapeListener);
+            ctx().shortcuts().removeListener(pathPickEscapeListener);
             pathPickEscapeListener = null;
         }
 
@@ -153,11 +151,8 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             return;
         }
         uiManager.renderDeferredModals();
-        if (isEnabled() && uiManager != null) {
-            IPlugin active = PluginManager.getInstance().getActivePlugin();
-            if (active == this) {
-                uiManager.renderCanvasOverlay();
-            }
+        if (isEnabled() && uiManager != null && getState() == PluginState.ACTIVE) {
+            uiManager.renderCanvasOverlay();
         }
     }
 

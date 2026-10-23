@@ -113,9 +113,11 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
         buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
 
-        toolbarPanel.render();
-
         RoadUiTab pendingTab = ctx.pendingTab();
+        if (pendingTab != null) {
+            ctx.setActiveTab(pendingTab);
+        }
+        toolbarPanel.render();
 
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
             renderTab(RoadUiTab.PATH, "plugin.road.tab.path", pendingTab, pathPanel::render);
@@ -248,7 +250,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     private void renderTab(RoadUiTab tab, String labelKey, RoadUiTab pendingTab, Runnable body) {
         int flags = pendingTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-        PluginTabScrollUi.renderTab(labelKey, flags, "##road_tab_" + tab.name().toLowerCase(), body);
+        if (PluginTabScrollUi.renderTab(labelKey, flags, "##road_tab_" + tab.name().toLowerCase(), body)) {
+            ctx.setActiveTab(tab);
+        }
     }
 
     private void renderBuildTab() {
