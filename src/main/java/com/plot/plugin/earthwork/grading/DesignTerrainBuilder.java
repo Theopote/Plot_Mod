@@ -6,6 +6,7 @@ import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
+import com.plot.plugin.earthwork.solver.EarthworkElevationVolumeCurve;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -31,17 +32,19 @@ public final class DesignTerrainBuilder {
             boolean balanceSearchHitBoundary,
             boolean hasFixedElevationConstraints,
             List<String> warnings,
-            Map<String, Integer> zoneVerticalOffsets) {
+            Map<String, Integer> zoneVerticalOffsets,
+            EarthworkElevationVolumeCurve slopeCoupledCurve) {
         public BuildResult {
             zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
             warnings = warnings != null ? List.copyOf(warnings) : List.of();
+            slopeCoupledCurve = slopeCoupledCurve != null ? slopeCoupledCurve : EarthworkElevationVolumeCurve.EMPTY;
         }
 
         public BuildResult(
                 DesignTerrainGrid grid,
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
             this(grid, zoneEvaluators, 0L, EarthworkBalanceStatus.NOT_REQUESTED,
-                0, 0, false, false, List.of(), Map.of());
+                0, 0, false, false, List.of(), Map.of(), EarthworkElevationVolumeCurve.EMPTY);
         }
 
         public int siteWideVerticalOffset() {
@@ -102,6 +105,7 @@ public final class DesignTerrainBuilder {
             composed.balanceSearchHitBoundary(),
             composed.hasFixedElevationConstraints(),
             composed.warnings(),
-            composed.zoneVerticalOffsets());
+            composed.zoneVerticalOffsets(),
+            composed.slopeCoupledCurve());
     }
 }

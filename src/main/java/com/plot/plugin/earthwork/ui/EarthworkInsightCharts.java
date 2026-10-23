@@ -52,7 +52,7 @@ public final class EarthworkInsightCharts {
         EarthworkElevationVolumeCurve curve = preview.elevationVolumeCurve;
 
         if (mode == EarthworkWorkMode.QUICK) {
-            renderQuickAnalysis(preview, curve);
+            renderQuickAnalysis(ctx, region, preview, curve);
             return;
         }
 
@@ -78,15 +78,20 @@ public final class EarthworkInsightCharts {
     }
 
     /** Quick：默认收起；展开后才显示热力图、曲线、剖面。 */
-    static void renderQuickAnalysis(EarthworkGenerationResult preview, EarthworkElevationVolumeCurve curve) {
+    static void renderQuickAnalysis(
+            EarthworkUiContext ctx,
+            GradingRegion region,
+            EarthworkGenerationResult preview,
+            EarthworkElevationVolumeCurve curve) {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.quick.view_analysis"))) {
             return;
         }
         renderHeatmap(preview.designTerrainGrid);
-        if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
-            renderSlopeCoupledCurveHint(preview);
-        } else if (curve != null && !curve.isEmpty()) {
+        if (curve != null && !curve.isEmpty()) {
+            renderRecommendations(ctx, region, preview, curve);
             renderCurve(curve, preview.resolvedElevation);
+        } else if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
+            renderSlopeCoupledCurveHint(preview);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
             renderProfile(preview.sectionProfile);

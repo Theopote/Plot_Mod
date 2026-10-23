@@ -240,6 +240,54 @@ public final class TerrainSnapshot {
         return columns.size();
     }
 
+    public int unloadedColumnCount() {
+        int count = 0;
+        for (Column column : columns) {
+            if (!column.chunkLoaded()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int loadedColumnCount() {
+        return columnCount() - unloadedColumnCount();
+    }
+
+    /** 与图案插件一致：未加载列过多时拒绝预览/落地。 */
+    public boolean exceedsUnloadedThreshold() {
+        return exceedsUnloadedThreshold(unloadedColumnCount(), columnCount());
+    }
+
+    public static boolean exceedsUnloadedThreshold(int unloadedCount, int totalCount) {
+        if (unloadedCount <= 0 || totalCount <= 0) {
+            return false;
+        }
+        return unloadedCount >= 10 || unloadedCount > totalCount * 0.05;
+    }
+
+    /** 已加载列的工程地面标高范围；无已加载列时返回 null。 */
+    public LoadedGroundExtents loadedGroundExtents() {
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        int count = 0;
+        for (Column column : columns) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
+            min = Math.min(min, column.groundY());
+            max = Math.max(max, column.groundY());
+            count++;
+        }
+        if (count == 0) {
+            return null;
+        }
+        return new LoadedGroundExtents(min, max, count);
+    }
+
+    public record LoadedGroundExtents(int minY, int maxY, int loadedCount) {
+    }
+
     public long contentFingerprint() {
         return metadata.contentFingerprint;
     }
@@ -255,6 +303,9 @@ public final class TerrainSnapshot {
     public List<Integer> groundHeights() {
         List<Integer> heights = new ArrayList<>(columns.size());
         for (Column column : columns) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             heights.add(column.groundY());
         }
         return heights;
@@ -263,6 +314,9 @@ public final class TerrainSnapshot {
     public List<GradingSurfaceResolver.HeightSample> heightSamples() {
         List<GradingSurfaceResolver.HeightSample> samples = new ArrayList<>(columns.size());
         for (Column column : columns) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             samples.add(new GradingSurfaceResolver.HeightSample(
                 column.worldX(), column.worldZ(), column.groundY()));
         }
@@ -275,6 +329,9 @@ public final class TerrainSnapshot {
         }
         List<Column> preview = new ArrayList<>();
         for (Column column : columns) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             if (EarthworkGeometryUtils.matchesPreviewGrid(column.center(), previewGridSize)) {
                 preview.add(column);
             }
@@ -310,16 +367,21 @@ public final class TerrainSnapshot {
         int elevationChanged = 0;
         int surfaceOnlyChanged = 0;
         for (Column column : columns) {
+            int worldX = column.worldX();
+            int worldZ = column.worldZ();
             if (!column.chunkLoaded()) {
+                if (terrainService.isChunkLoaded(worldX, worldZ)) {
+                    elevationChanged++;
+                }
                 continue;
             }
             int currentGroundY = EngineeringTerrainSampler.sampleGroundSurface(
-                world, column.worldX(), column.worldZ());
+                world, worldX, worldZ);
             if (column.groundY() != currentGroundY) {
                 elevationChanged++;
                 continue;
             }
-            String currentSurfaceBlockId = resolveBlockId(world, column.worldX(), currentGroundY, column.worldZ());
+            String currentSurfaceBlockId = resolveBlockId(world, worldX, currentGroundY, worldZ);
             if (!normalizeBlockId(column.surfaceBlockId()).equals(normalizeBlockId(currentSurfaceBlockId))) {
                 surfaceOnlyChanged++;
             }

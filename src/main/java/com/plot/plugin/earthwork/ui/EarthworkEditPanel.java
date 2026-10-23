@@ -221,107 +221,35 @@ public final class EarthworkEditPanel {
     }
 
     private void renderVerticalAdjustmentPolicy(GradingZone zone) {
-        VerticalAdjustmentPolicy policy = zone.getVerticalAdjustmentPolicy();
-        VerticalAdjustmentPolicy.Mode[] modes = VerticalAdjustmentPolicy.Mode.values();
-        String[] labels = new String[modes.length];
-        int selectedIndex = 0;
-        for (int i = 0; i < modes.length; i++) {
-            labels[i] = PlotI18n.tr("plugin.earthwork.vertical_adjustment." + modes[i].name().toLowerCase());
-            if (modes[i] == policy.getMode()) {
-                selectedIndex = i;
-            }
-        }
-        ImInt modeIndex = new ImInt(selectedIndex);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.vertical_adjustment_policy"), modeIndex, labels)) {
-            int picked = modeIndex.get();
-            if (picked >= 0 && picked < modes.length && modes[picked] != policy.getMode()) {
-                ctx.projectHistory().push(ctx.project());
-                VerticalAdjustmentPolicy next = policy.copy();
-                applyVerticalAdjustmentModeDefaults(next, modes[picked], zone);
-                zone.setVerticalAdjustmentPolicy(next);
-                ctx.invalidatePreview();
-            }
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.vertical_adjustment_policy");
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.earthwork.vertical_adjustment_hint." + policy.getMode().name().toLowerCase()));
-
-        if (!policy.allowsVerticalAdjustment()) {
+        if (zone.getType().locksDesignElevation() || !zone.allowsVerticalAdjustment()) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.vertical_adjustment_locked_by_type"));
             return;
         }
 
-        int[] minOffset = {policy.getMinOffset()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.vertical_adjustment_min"), minOffset, -32, 32)) {
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
-            }
-            VerticalAdjustmentPolicy next = zone.getVerticalAdjustmentPolicy().copy();
-            next.setMinOffset(minOffset[0]);
-            zone.setVerticalAdjustmentPolicy(next);
-            ctx.invalidatePreview();
-        }
-
-        int[] maxOffset = {policy.getMaxOffset()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.vertical_adjustment_max"), maxOffset, -32, 32)) {
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
-            }
-            VerticalAdjustmentPolicy next = zone.getVerticalAdjustmentPolicy().copy();
-            next.setMaxOffset(maxOffset[0]);
-            zone.setVerticalAdjustmentPolicy(next);
-            ctx.invalidatePreview();
-        }
-
-        float[] weight = {policy.getWeight()};
-        boolean weightChanged = ImGui.sliderFloat("##vertical_adjustment_weight", weight, 0.0f, 2.0f,
-            PlotI18n.tr("plugin.earthwork.vertical_adjustment_weight", weight[0]));
-        if (ImGui.isItemActivated()) {
+        ImBoolean autoAdjust = new ImBoolean(zone.isAutoAdjustElevation());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.auto_adjust_elevation"), autoAdjust)) {
             ctx.projectHistory().push(ctx.project());
-        }
-        if (weightChanged) {
-            VerticalAdjustmentPolicy next = zone.getVerticalAdjustmentPolicy().copy();
-            next.setWeight(weight[0]);
-            zone.setVerticalAdjustmentPolicy(next);
+            int range = Math.max(0, zone.getMaxAutoAdjustment());
+            zone.setAutoAdjustElevation(autoAdjust.get(), range);
             ctx.invalidatePreview();
         }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.vertical_adjustment_weight");
-    }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.auto_adjust_elevation");
 
-    private static void applyVerticalAdjustmentModeDefaults(
-            VerticalAdjustmentPolicy next,
-            VerticalAdjustmentPolicy.Mode mode,
-            GradingZone zone) {
-        next.setMode(mode);
-        if (mode == VerticalAdjustmentPolicy.Mode.LOCKED || mode == VerticalAdjustmentPolicy.Mode.DERIVED) {
-            next.setMinOffset(0);
-            next.setMaxOffset(0);
-            next.setWeight(VerticalAdjustmentPolicy.DEFAULT_WEIGHT);
+        if (!zone.isAutoAdjustElevation()) {
             return;
         }
-        if (next.getMinOffset() != 0 || next.getMaxOffset() != 0) {
-            return;
+
+        int[] maxAdjustment = {Math.max(0, zone.getMaxAutoAdjustment())};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.max_auto_adjustment"), maxAdjustment, 0, 32)) {
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            zone.setAutoAdjustElevation(true, maxAdjustment[0]);
+            ctx.invalidatePreview();
         }
-        if (mode == VerticalAdjustmentPolicy.Mode.BOUNDED) {
-            next.setMinOffset(-VerticalAdjustmentPolicy.ROAD_BOUNDED_RANGE);
-            next.setMaxOffset(VerticalAdjustmentPolicy.ROAD_BOUNDED_RANGE);
-            next.setWeight(VerticalAdjustmentPolicy.DEFAULT_WEIGHT);
-            return;
-        }
-        VerticalAdjustmentPolicy seed = VerticalAdjustmentPolicy.defaultFor(
-            zone.getType(),
-            true,
-            zone.getDesignSurface().getKind());
-        if (seed.allowsVerticalAdjustment() && (seed.getMinOffset() != 0 || seed.getMaxOffset() != 0)) {
-            next.setMinOffset(seed.getMinOffset());
-            next.setMaxOffset(seed.getMaxOffset());
-            next.setWeight(seed.getWeight());
-            return;
-        }
-        next.setMinOffset(-VerticalAdjustmentPolicy.LANDSCAPE_RANGE);
-        next.setMaxOffset(VerticalAdjustmentPolicy.LANDSCAPE_RANGE);
-        next.setWeight(VerticalAdjustmentPolicy.LANDSCAPE_WEIGHT);
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.max_auto_adjustment");
     }
 
     private void renderPlayerHeightLock(GradingZone zone) {

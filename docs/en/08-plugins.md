@@ -20,7 +20,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Pattern Generator** | Claim closed regions and replace surface blocks with procedural patterns or imported pixel art |
 | **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-Earthwork, Building Generator, and Pattern Generator use **Region (or Footprints/Pattern) / Edit / Generate** tabs. **Road System** uses **Path / Edit / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
+Earthwork defaults to a **Quick** single page (claim, target height, edge, preview, build); the **Region / Edit / Generate** tabs appear only in Builder mode. Building Generator and Pattern Generator use **Region (or Footprints/Pattern) / Edit / Generate**. **Road System** uses **Path / Edit / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
@@ -66,13 +66,20 @@ When a road node is selected, the **Property** tab shows an extra **Road Node Pr
 
 For builders: select the area for a house, castle, or plaza. The plugin suggests a sensible pad height, previews cut (red) and fill (blue) as ghost blocks, then you adjust and apply. Default math is one dug block ≈ one fill block — compaction factors and haul matrices are not part of the main flow.
 
+### Work modes
+
+| Mode | Description |
+|------|-------------|
+| **Quick (default)** | Single page: claim region, auto/manual target height, edge, preview and build |
+| **Builder** | Full three tabs: Region / Edit / Generate (zones, slope detail, pads, road tie-in) |
+
 ### Typical Workflow
 
 1. Draw or select a closed region for grading
-2. Open **Extension** -> **Earthwork Balance** -> enable
-3. Use the **Region** tab to pick/claim regions
-4. Review the suggested height and cut/fill block counts; drag target Y if needed
-5. Choose an edge (vertical / natural slope / retaining wall), then build
+2. Open **Extension** -> **Earthwork Balance** -> enable (defaults to Quick)
+3. Claim the region, review suggested height and cut/fill; switch to manual target Y if needed
+4. Choose an edge (vertical / natural / gentle / retaining), then build
+5. For zones, pits, or road tie-in, switch to **Builder** and use the three tabs
 
 ### Grading Surface Modes
 
@@ -85,10 +92,10 @@ For builders: select the area for a house, castle, or plaza. The plugin suggests
 
 ### Features
 
-- Suggested balanced height and cut/fill block counts
+- Suggested balanced height and cut/fill block counts (including slope-coupled search)
 - Ghost preview (cut: red, fill: light blue)
-- Natural slopes or retaining walls at edges
-- Region list with plugin-local undo/redo
+- Edges: vertical / natural / gentle / retaining wall
+- Region list with plugin-local scheme undo/redo
 - Optional building pads, basement pits, and road tie-in (builder tools, not cost estimating)
 
 ### Data

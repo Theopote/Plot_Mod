@@ -7,6 +7,8 @@ import java.util.List;
  * 土方平衡纯函数工具（不依赖 World）
  */
 public final class EarthworkBalanceUtils {
+    /** 无样本时的失败哨兵；不得当作推荐标高展示或写入设计面。 */
+    public static final int UNRESOLVED_ELEVATION = Integer.MIN_VALUE;
     private static final int DEFAULT_ELEVATION = 64;
 
     /**
@@ -25,6 +27,10 @@ public final class EarthworkBalanceUtils {
     }
 
     private EarthworkBalanceUtils() {
+    }
+
+    public static boolean isResolved(int elevation) {
+        return elevation != UNRESOLVED_ELEVATION;
     }
 
     public static int findBalancedElevation(List<Integer> groundHeightSamples, MaterialConversionModel materials) {
@@ -52,7 +58,7 @@ public final class EarthworkBalanceUtils {
             MaterialConversionModel materials) {
         MaterialConversionModel safeMaterials = materials != null ? materials : MaterialConversionModel.DEFAULT;
         if (samples == null || samples.isEmpty()) {
-            return DEFAULT_ELEVATION;
+            return UNRESOLVED_ELEVATION;
         }
 
         int minZ = Integer.MAX_VALUE;

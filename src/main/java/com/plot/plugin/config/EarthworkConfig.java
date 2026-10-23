@@ -2,8 +2,9 @@ package com.plot.plugin.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.plot.core.log.LogManager;
 import com.plot.core.material.MaterialConversionModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import java.io.*;
@@ -18,6 +19,7 @@ import java.nio.file.*;
  * 不得写入本文件。
  */
 public class EarthworkConfig {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkConfig");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final String pluginId;
 
@@ -62,7 +64,7 @@ public class EarthworkConfig {
         try {
             Files.createDirectories(configDir);
         } catch (IOException e) {
-            LogManager.getInstance().error("Failed to create config directory", e);
+            LOGGER.error("Failed to create config directory", e);
         }
         return configDir;
     }
@@ -81,7 +83,7 @@ public class EarthworkConfig {
                 }
                 return loaded;
             } catch (IOException e) {
-                LogManager.getInstance().error("Failed to load config: " + configPath, e);
+                LOGGER.error("Failed to load config: {}", configPath, e);
             }
         }
         return null;
@@ -98,7 +100,7 @@ public class EarthworkConfig {
             String json = GSON.toJson(this);
             Files.write(configPath, json.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            LogManager.getInstance().error("Failed to save config: " + resolveConfigPath(), e);
+            LOGGER.error("Failed to save config: {}", resolveConfigPath(), e);
         }
     }
 

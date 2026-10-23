@@ -14,11 +14,25 @@ class EarthworkQuickEdgeTest {
         assertEquals(EarthworkQuickEdge.VERTICAL, EarthworkQuickEdge.fromSettings(settings));
 
         settings.setDefaultTreatment(EdgeTreatment.CUT_FILL_SLOPE);
+        settings.setCutSlopePitchRatio(1);
+        settings.setFillSlopePitchNumerator(1);
+        settings.setFillSlopePitchDenominator(1);
         assertEquals(EarthworkQuickEdge.NATURAL, EarthworkQuickEdge.fromSettings(settings));
 
         settings.setDefaultTreatment(EdgeTreatment.RETAINING_WALL);
         assertEquals(EarthworkQuickEdge.RETAINING, EarthworkQuickEdge.fromSettings(settings));
         assertEquals(EarthworkQuickEdge.VERTICAL, EarthworkQuickEdge.fromSettings(null));
+    }
+
+    @Test
+    void gentleMapsFromOneToTwoSlope() {
+        ZoneEdgeSettings settings = new ZoneEdgeSettings();
+        EarthworkQuickEdge.GENTLE.applyTo(settings);
+        assertEquals(EdgeTreatment.CUT_FILL_SLOPE, settings.getDefaultTreatment());
+        assertEquals(2, settings.getCutSlopePitchRatio());
+        assertEquals(1, settings.getFillSlopePitchNumerator());
+        assertEquals(2, settings.getFillSlopePitchDenominator());
+        assertEquals(EarthworkQuickEdge.GENTLE, EarthworkQuickEdge.fromSettings(settings));
     }
 
     @Test
@@ -34,6 +48,7 @@ class EarthworkQuickEdgeTest {
         assertEquals(1, settings.getFillSlopePitchNumerator());
         assertEquals(1, settings.getFillSlopePitchDenominator());
         assertTrue(settings.getMaximumReachBlocks() >= 8);
+        assertEquals(EarthworkQuickEdge.NATURAL, EarthworkQuickEdge.fromSettings(settings));
     }
 
     @Test

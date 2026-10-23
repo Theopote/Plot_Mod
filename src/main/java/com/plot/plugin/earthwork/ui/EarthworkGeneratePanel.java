@@ -75,6 +75,9 @@ public final class EarthworkGeneratePanel {
                             preview.resolvedElevationMin,
                             preview.resolvedElevationMax);
                     }
+
+                    renderPreviewBuildButtons(preview);
+
                     EarthworkInsightCharts.render(ctx, region, preview);
 
                     if (preview.projectReport != null
@@ -91,8 +94,6 @@ public final class EarthworkGeneratePanel {
                     for (String warningKey : preview.warnings) {
                         ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
                     }
-
-                    renderPreviewBuildButtons(preview);
                 }
     }
 
@@ -273,6 +274,12 @@ public final class EarthworkGeneratePanel {
             "plugin.earthwork.terrain_snapshot_info",
             formatTerrainSnapshotTime(metadata.capturedAtEpochMs()),
             metadata.columnCount()));
+        int unloaded = snapshot.unloadedColumnCount();
+        if (unloaded > 0) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.earthwork.unloaded_columns_hint", unloaded));
+        }
         TerrainSnapshot.ComparisonResult comparison =
             ctx.previewManager().comparePreviewTerrainWithWorld(EarthworkUiWidgets.getClientWorld());
         if (comparison != null && comparison.terrainChanged()) {

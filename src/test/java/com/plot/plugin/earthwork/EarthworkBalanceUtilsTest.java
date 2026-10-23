@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkBalanceUtilsTest {
@@ -78,8 +80,9 @@ class EarthworkBalanceUtilsTest {
     }
 
     @Test
-    void emptySamplesReturnDefaultElevation() {
+    void emptySamplesReturnUnresolvedSentinel() {
         int balanced = EarthworkBalanceUtils.findBalancedElevation(List.of(), DEFAULT_MATERIALS);
-        assertTrue(balanced >= -64 && balanced <= 320);
+        assertEquals(EarthworkBalanceUtils.UNRESOLVED_ELEVATION, balanced);
+        assertFalse(EarthworkBalanceUtils.isResolved(balanced));
     }
 }

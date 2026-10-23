@@ -122,7 +122,9 @@ public final class GradingSurfaceResolver {
             MaterialConversionModel materials) {
         int elevation;
         if (region.isAutoBalance() && !deferBalanceToSite) {
+            requireSamples(samples);
             elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), materials);
+            requireResolvedElevation(elevation);
         } else if (region.isAutoBalance() && deferBalanceToSite) {
             elevation = region.getManualTargetElevation() != null
                 ? region.getManualTargetElevation()
@@ -130,9 +132,13 @@ public final class GradingSurfaceResolver {
         } else if (region.getManualTargetElevation() != null) {
             elevation = region.getManualTargetElevation();
         } else {
-            elevation = deferBalanceToSite
-                ? averageGroundElevation(samples)
-                : EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), materials);
+            if (deferBalanceToSite) {
+                elevation = averageGroundElevation(samples);
+            } else {
+                requireSamples(samples);
+                elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), materials);
+                requireResolvedElevation(elevation);
+            }
         }
         return GradingPlane.flat(elevation);
     }
@@ -144,9 +150,21 @@ public final class GradingSurfaceResolver {
         return resolveFlat(region, samples, deferBalanceToSite, region.getMaterialProperties());
     }
 
+    private static void requireSamples(List<HeightSample> samples) {
+        if (samples == null || samples.isEmpty()) {
+            throw new InsufficientTerrainSamplesException();
+        }
+    }
+
+    private static void requireResolvedElevation(int elevation) {
+        if (!EarthworkBalanceUtils.isResolved(elevation)) {
+            throw new InsufficientTerrainSamplesException();
+        }
+    }
+
     private static int averageGroundElevation(List<HeightSample> samples) {
         if (samples == null || samples.isEmpty()) {
-            return 64;
+            throw new InsufficientTerrainSamplesException();
         }
         long sum = 0L;
         for (HeightSample sample : samples) {
@@ -213,7 +231,7 @@ public final class GradingSurfaceResolver {
             boolean deferBalanceToSite,
             MaterialConversionModel materials) {
         if (samples.isEmpty()) {
-            return GradingPlane.flat(64);
+            throw new InsufficientTerrainSamplesException();
         }
         GradingPlane leastSquares = fitLeastSquaresPlane(samples);
         if (!region.isFitSlopeBalanceCutFill() || deferBalanceToSite) {

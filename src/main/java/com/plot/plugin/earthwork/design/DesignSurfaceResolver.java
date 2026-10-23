@@ -316,22 +316,31 @@ public final class DesignSurfaceResolver {
     }
 
     private static int resolveSiteDefaultElevation(TerrainSnapshot terrain) {
-        if (terrain == null || terrain.isEmpty()) {
-            return 64;
+        if (terrain == null || terrain.isEmpty() || terrain.loadedColumnCount() <= 0) {
+            throw new InsufficientTerrainSamplesException();
         }
         long sum = 0L;
         int count = 0;
         for (TerrainSnapshot.Column column : terrain.columns()) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             sum += column.groundY();
             count++;
         }
-        return count > 0 ? (int) Math.round(sum / (double) count) : 64;
+        if (count <= 0) {
+            throw new InsufficientTerrainSamplesException();
+        }
+        return (int) Math.round(sum / (double) count);
     }
 
     private static ZoneSamples collectZoneSamples(TerrainSnapshot terrain, RegionGeometry zoneGeometry) {
         List<com.plot.api.geometry.Vec2d> centers = new java.util.ArrayList<>();
         List<Integer> heights = new java.util.ArrayList<>();
         for (TerrainSnapshot.Column column : terrain.columns()) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             if (!EarthworkGeometryUtils.containsCanvasPoint(zoneGeometry, column.center())) {
                 continue;
             }

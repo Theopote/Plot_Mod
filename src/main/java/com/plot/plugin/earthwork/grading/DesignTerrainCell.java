@@ -13,17 +13,28 @@ public final class DesignTerrainCell {
     private String zoneId;
     private boolean excluded;
     private boolean noTouch;
+    private final boolean chunkLoaded;
 
     public DesignTerrainCell(
             int worldX,
             int worldZ,
             Vec2d center,
             int existingGroundY) {
+        this(worldX, worldZ, center, existingGroundY, true);
+    }
+
+    public DesignTerrainCell(
+            int worldX,
+            int worldZ,
+            Vec2d center,
+            int existingGroundY,
+            boolean chunkLoaded) {
         this.worldX = worldX;
         this.worldZ = worldZ;
         this.center = center;
         this.existingGroundY = existingGroundY;
         this.targetY = existingGroundY;
+        this.chunkLoaded = chunkLoaded;
     }
 
     public int worldX() {
@@ -78,7 +89,11 @@ public final class DesignTerrainCell {
         return targetY - existingGroundY;
     }
 
+    public boolean chunkLoaded() {
+        return chunkLoaded;
+    }
+
     public boolean participatesInEarthwork() {
-        return !excluded && !noTouch;
+        return chunkLoaded && !excluded && !noTouch;
     }
 }

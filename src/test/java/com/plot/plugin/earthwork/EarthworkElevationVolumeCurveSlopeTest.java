@@ -7,10 +7,12 @@ import com.plot.plugin.earthwork.model.EdgeTreatment;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.solver.EarthworkElevationVolumeCurve;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,6 +29,27 @@ class EarthworkElevationVolumeCurveSlopeTest {
         assertTrue(result.elevationVolumeCurveRequiresSlopeCoupledSolver);
         assertTrue(result.elevationVolumeCurve.isEmpty());
         assertFalse(result.sectionProfile.isEmpty());
+    }
+
+    @Test
+    void attachPlayerInsightsPrefersSlopeCoupledCurveOverLegacySkip() {
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
+        result.resolvedElevation = 64;
+        result.designTerrainGrid = mixedGrid();
+        EarthworkElevationVolumeCurve coupled = EarthworkElevationVolumeCurve.fromSlopeCoupledSamples(
+            List.of(
+                new EarthworkElevationVolumeCurve.Sample(62, 10, 2),
+                new EarthworkElevationVolumeCurve.Sample(64, 6, 6),
+                new EarthworkElevationVolumeCurve.Sample(66, 2, 10)
+            ),
+            64,
+            result.designTerrainGrid);
+
+        result.attachPlayerInsights(false, coupled);
+
+        assertFalse(result.elevationVolumeCurveRequiresSlopeCoupledSolver);
+        assertFalse(result.elevationVolumeCurve.isEmpty());
+        assertEquals(64, result.elevationVolumeCurve.balanceY());
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerrainSnapshotTest {
@@ -42,13 +43,38 @@ class TerrainSnapshotTest {
     }
 
     @Test
-    void captureWithoutWorldUsesDefaultElevation() {
+    void captureWithoutWorldMarksColumnsUnloaded() {
         List<Vec2d> triangle = List.of(new Vec2d(0, 0), new Vec2d(6, 0), new Vec2d(0, 6));
         Polygon polygon = EarthworkGeometryUtils.toPolygon(triangle);
         TerrainSnapshot snapshot = TerrainSnapshot.capture(null, polygon, triangle, null);
 
         assertTrue(snapshot.columnCount() > 0);
-        assertTrue(snapshot.groundHeights().stream().allMatch(height -> height == 64));
+        assertEquals(snapshot.columnCount(), snapshot.unloadedColumnCount());
+        assertTrue(snapshot.groundHeights().isEmpty());
+        assertTrue(snapshot.exceedsUnloadedThreshold());
+    }
+
+    @Test
+    void unloadedColumnsExcludedFromGroundHeightsAndVolumes() {
+        TerrainSnapshot snapshot = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(0.5, 0.5), 0, 0, 70, "minecraft:grass_block", true),
+            new TerrainSnapshot.Column(new Vec2d(1.5, 0.5), 1, 0, 64, "", false),
+            new TerrainSnapshot.Column(new Vec2d(2.5, 0.5), 2, 0, 72, "minecraft:grass_block", true)
+        ));
+        assertEquals(List.of(70, 72), snapshot.groundHeights());
+        assertEquals(1, snapshot.unloadedColumnCount());
+        assertEquals(2, snapshot.loadedColumnCount());
+        // 1/3 > 5% → 超过门禁
+        assertTrue(snapshot.exceedsUnloadedThreshold());
+    }
+
+    @Test
+    void exceedsUnloadedThresholdMatchesPatternGate() {
+        assertFalse(TerrainSnapshot.exceedsUnloadedThreshold(0, 100));
+        assertFalse(TerrainSnapshot.exceedsUnloadedThreshold(4, 100));
+        assertTrue(TerrainSnapshot.exceedsUnloadedThreshold(10, 100));
+        assertTrue(TerrainSnapshot.exceedsUnloadedThreshold(6, 100));
+        assertFalse(TerrainSnapshot.exceedsUnloadedThreshold(1, 100));
     }
 
     @Test

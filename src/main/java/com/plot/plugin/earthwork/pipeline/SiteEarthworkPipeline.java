@@ -74,7 +74,8 @@ public final class SiteEarthworkPipeline {
             return result;
         }
         result.existingTerrainSnapshot = terrain;
-        result.calculationCellCount = terrain.columnCount();
+        result.unloadedColumnCount = terrain.unloadedColumnCount();
+        result.calculationCellCount = terrain.loadedColumnCount();
 
         DesignTerrainBuilder.BuildResult design = DesignTerrainBuilder.build(
             site,
@@ -109,7 +110,7 @@ public final class SiteEarthworkPipeline {
             site, context.world(), result, design.grid(), design.zoneEvaluators());
 
         result.syncChangedBlocksFromPlacements();
-        result.attachPlayerInsights(!site.hasActiveSlopeTreatment());
+        result.attachPlayerInsights(!site.hasActiveSlopeTreatment(), design.slopeCoupledCurve());
         result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
             null,
             site,

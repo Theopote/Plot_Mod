@@ -115,6 +115,8 @@ public final class EarthworkVolumeCalculator {
             cell.center(),
             cell.worldX(),
             cell.worldZ(),
-            cell.existingGroundY());
+            cell.existingGroundY(),
+            "",
+            cell.chunkLoaded());
     }
 }

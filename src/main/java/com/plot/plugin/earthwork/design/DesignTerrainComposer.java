@@ -7,8 +7,11 @@ import com.plot.plugin.earthwork.grading.BreaklineClassifier;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
+import com.plot.plugin.earthwork.solver.EarthworkElevationVolumeCurve;
 import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.solver.SlopeCoupledVerticalSearch;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.terrain.TerrainBoundaryBlender;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
@@ -69,18 +72,20 @@ public final class DesignTerrainComposer {
             boolean balanceSearchHitBoundary,
             boolean hasFixedElevationConstraints,
             List<String> warnings,
-            Map<String, Integer> zoneVerticalOffsets) {
+            Map<String, Integer> zoneVerticalOffsets,
+            EarthworkElevationVolumeCurve slopeCoupledCurve) {
         public ComposeResult {
             zoneEvaluators = zoneEvaluators != null ? Map.copyOf(zoneEvaluators) : Map.of();
             resolvedSurfaces = resolvedSurfaces != null ? Map.copyOf(resolvedSurfaces) : Map.of();
             balanceStatus = balanceStatus != null ? balanceStatus : EarthworkBalanceStatus.NOT_REQUESTED;
             warnings = warnings != null ? List.copyOf(warnings) : List.of();
             zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
+            slopeCoupledCurve = slopeCoupledCurve != null ? slopeCoupledCurve : EarthworkElevationVolumeCurve.EMPTY;
         }
 
         public ComposeResult(DesignTerrainGrid grid, Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
             this(grid, zoneEvaluators, Map.of(), 0L, EarthworkBalanceStatus.NOT_REQUESTED,
-                0, 0, false, false, List.of(), Map.of());
+                0, 0, false, false, List.of(), Map.of(), EarthworkElevationVolumeCurve.EMPTY);
         }
 
         public ComposeResult(
@@ -88,7 +93,7 @@ public final class DesignTerrainComposer {
                 Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
                 Map<String, ResolvedDesignSurface> resolvedSurfaces) {
             this(grid, zoneEvaluators, resolvedSurfaces, 0L, EarthworkBalanceStatus.NOT_REQUESTED,
-                0, 0, false, false, List.of(), Map.of());
+                0, 0, false, false, List.of(), Map.of(), EarthworkElevationVolumeCurve.EMPTY);
         }
 
         public int siteWideVerticalOffset() {
@@ -146,7 +151,8 @@ public final class DesignTerrainComposer {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(
                 new DesignTerrainGrid(), Map.of(), Map.of(), 0L,
-                EarthworkBalanceStatus.NOT_REQUESTED, 0, 0, false, false, List.of(), Map.of());
+                EarthworkBalanceStatus.NOT_REQUESTED, 0, 0, false, false, List.of(), Map.of(),
+                EarthworkElevationVolumeCurve.EMPTY);
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
         CompositionPolicy policy = effectivePolicy != null ? effectivePolicy : site.getCompositionPolicy();
@@ -211,6 +217,9 @@ public final class DesignTerrainComposer {
         } else if (status == EarthworkBalanceStatus.SEARCH_FAILED) {
             warnings.add("plugin.earthwork.warning.balance_search_failed");
         }
+        if (balanceOutcome.hitSearchBoundary()) {
+            warnings.add("plugin.earthwork.warning.balance_search_boundary");
+        }
         // 未运行 → 残余 0；已运行但无有效解 → INVALID（禁止伪装成已平衡的 0）
         long residualForReport = !balanceOutcome.ran()
             ? 0L
@@ -228,7 +237,8 @@ public final class DesignTerrainComposer {
             balanceOutcome.hitSearchBoundary(),
             hasFixed,
             warnings,
-            balanceOffsets.zoneVerticalOffsets());
+            balanceOffsets.zoneVerticalOffsets(),
+            balanceOutcome.slopeCoupledCurve());
     }
 
     private record BalanceSearchOutcome(
@@ -237,9 +247,11 @@ public final class DesignTerrainComposer {
             boolean ran,
             int searchHalfRange,
             boolean hitSearchBoundary,
-            boolean hasValidSolution) {
+            boolean hasValidSolution,
+            EarthworkElevationVolumeCurve slopeCoupledCurve) {
         static BalanceSearchOutcome skipped() {
-            return new BalanceSearchOutcome(0, 0L, false, 0, false, false);
+            return new BalanceSearchOutcome(
+                0, 0L, false, 0, false, false, EarthworkElevationVolumeCurve.EMPTY);
         }
     }
 
@@ -286,7 +298,8 @@ public final class DesignTerrainComposer {
                 column.worldX(),
                 column.worldZ(),
                 column.center(),
-                column.groundY());
+                column.groundY(),
+                column.chunkLoaded());
             grid.put(column.worldX(), column.worldZ(), cell);
         }
     }
@@ -442,7 +455,8 @@ public final class DesignTerrainComposer {
         } else {
             long residual = SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
             polish = new BalanceSearchOutcome(
-                cumulativeUniformOffset, residual, true, 0, false, true);
+                cumulativeUniformOffset, residual, true, 0, false, true,
+                EarthworkElevationVolumeCurve.EMPTY);
         }
         return new BalanceSearchOutcome(
             cumulativeUniformOffset,
@@ -450,12 +464,13 @@ public final class DesignTerrainComposer {
             true,
             polish.searchHalfRange(),
             polish.hitSearchBoundary(),
-            polish.hasValidSolution());
+            polish.hasValidSolution(),
+            polish.slopeCoupledCurve());
     }
 
     /**
      * 对累计分区偏移之上的统一 ΔY 做边坡耦合离散搜索，并把网格留在最优候选状态。
-     * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围，再按工作模式封顶（Quick ±8 / Builder ±16）。
+     * Quick：半幅覆盖已加载地面 [minY, maxY]；Builder：策略范围 + ±16 封顶。
      */
     private static BalanceSearchOutcome applySlopeCoupledUniformSearch(
             DesignTerrainGrid grid,
@@ -470,7 +485,9 @@ public final class DesignTerrainComposer {
             EarthworkCanvasScale canvasScale,
             CompositionPolicy policy) {
         Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
-        int halfRange = resolveUniformSearchHalfRange(site, resolvedSurfaces, workMode);
+        int referenceY = resolveUniformReferenceElevation(grid);
+        int halfRange = resolveUniformSearchHalfRange(grid, site, resolvedSurfaces, workMode);
+        List<EarthworkElevationVolumeCurve.Sample> curveSamples = new ArrayList<>();
         SlopeCoupledVerticalSearch.SearchResult search = SlopeCoupledVerticalSearch.searchUniform(halfRange, dy -> {
             restoreCells(grid, baseDesign);
             applyAccumulatedOffsets(grid, site, safeZone, dy);
@@ -482,7 +499,12 @@ public final class DesignTerrainComposer {
                 effectiveBreaklines,
                 canvasScale,
                 policy);
-            return SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
+            SiteEarthworkReport report = EarthworkOptimizationSolver.collectZoneVolumes(grid, site);
+            EarthworkVolumeReport totals = report.totals();
+            long cut = totals != null ? totals.geometricCutVolume() : 0L;
+            long fill = totals != null ? totals.geometricFillVolume() : 0L;
+            curveSamples.add(new EarthworkElevationVolumeCurve.Sample(referenceY + dy, cut, fill));
+            return Math.abs(cut - fill);
         });
 
         int best = search.hasValidSolution() ? search.bestOffset() : 0;
@@ -499,22 +521,65 @@ public final class DesignTerrainComposer {
         long residual = search.hasValidSolution()
             ? search.bestObjective()
             : SlopeCoupledVerticalSearch.INVALID_OBJECTIVE;
+        EarthworkElevationVolumeCurve curve = EarthworkElevationVolumeCurve.fromSlopeCoupledSamples(
+            curveSamples, referenceY, grid);
         return new BalanceSearchOutcome(
             best,
             residual,
             true,
             halfRange,
             search.hitSearchBoundary(),
-            search.hasValidSolution());
+            search.hasValidSolution(),
+            curve);
+    }
+
+    private static int resolveUniformReferenceElevation(DesignTerrainGrid grid) {
+        if (grid == null) {
+            return 64;
+        }
+        long sum = 0L;
+        int count = 0;
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork()) {
+                continue;
+            }
+            sum += cell.targetY();
+            count++;
+        }
+        return count > 0 ? (int) Math.round(sum / (double) count) : 64;
     }
 
     private static int resolveUniformSearchHalfRange(
+            DesignTerrainGrid grid,
             EarthworkSite site,
             Map<String, ResolvedDesignSurface> resolvedSurfaces,
             EarthworkWorkMode workMode) {
+        EarthworkWorkMode safeMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
+        if (safeMode == EarthworkWorkMode.QUICK && grid != null) {
+            int loadedMin = Integer.MAX_VALUE;
+            int loadedMax = Integer.MIN_VALUE;
+            int loadedCount = 0;
+            for (DesignTerrainCell cell : grid.cells().values()) {
+                if (!cell.chunkLoaded()) {
+                    continue;
+                }
+                loadedMin = Math.min(loadedMin, cell.existingGroundY());
+                loadedMax = Math.max(loadedMax, cell.existingGroundY());
+                loadedCount++;
+            }
+            if (loadedCount > 0) {
+                int referenceY = resolveUniformReferenceElevation(grid);
+                int halfRange = Math.max(
+                    Math.abs(referenceY - loadedMin),
+                    Math.abs(loadedMax - referenceY));
+                halfRange = Math.max(halfRange + 2, SlopeCoupledVerticalSearch.DEFAULT_HALF_RANGE);
+                return Math.min(halfRange, 64);
+            }
+        }
+
         int halfRange = SlopeCoupledVerticalSearch.DEFAULT_HALF_RANGE;
         if (site == null) {
-            return Math.min(halfRange, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(workMode));
+            return Math.min(halfRange, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(safeMode));
         }
         for (GradingZone zone : site.getGradingZones().values()) {
             if (zone == null || !zone.isEnabled()) {
@@ -528,11 +593,11 @@ public final class DesignTerrainComposer {
             } else if (zone.isElevationLocked()) {
                 continue;
             }
-            var policy = zone.getVerticalAdjustmentPolicy();
-            halfRange = Math.max(halfRange, Math.abs(policy.getMinOffset()));
-            halfRange = Math.max(halfRange, Math.abs(policy.getMaxOffset()));
+            var zonePolicy = zone.getVerticalAdjustmentPolicy();
+            halfRange = Math.max(halfRange, Math.abs(zonePolicy.getMinOffset()));
+            halfRange = Math.max(halfRange, Math.abs(zonePolicy.getMaxOffset()));
         }
-        return Math.min(halfRange, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(workMode));
+        return Math.min(halfRange, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(safeMode));
     }
 
     private static boolean allZero(Map<String, Integer> offsets) {

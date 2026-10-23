@@ -84,8 +84,11 @@ public final class EarthworkQuickPanel {
         }
         if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.quick.target_manual"), !auto)) {
             if (auto) {
+                Integer seed = resolveManualSeed(region);
+                if (seed == null) {
+                    return;
+                }
                 ctx.projectHistory().push(ctx.project());
-                int seed = resolveCurrentHeight(region);
                 region.setAutoBalance(false);
                 region.setManualTargetElevation(seed);
                 syncAutoPolicy(region);
@@ -99,17 +102,29 @@ public final class EarthworkQuickPanel {
                 ImGui.textColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr("plugin.earthwork.quick.recommended_y", preview.resolvedElevation));
+                if (preview.unloadedColumnCount > 0) {
+                    ImGui.textColored(
+                        PluginUiColors.WARNING,
+                        PlotI18n.tr(
+                            "plugin.earthwork.unloaded_columns_hint",
+                            preview.unloadedColumnCount));
+                }
             } else {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.quick.auto_pending"));
             }
             return;
         }
 
-        int current = region.getManualTargetElevation() != null
+        Integer seed = region.getManualTargetElevation() != null
             ? region.getManualTargetElevation()
-            : resolveCurrentHeight(region);
-        int[] elevation = {current};
+            : resolveManualSeed(region);
         int[] range = sliderRange();
+        if (seed == null || range == null) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.earthwork.no_loaded_terrain_samples"));
+            return;
+        }
+        int current = seed;
+        int[] elevation = {current};
         boolean changed = ImGui.sliderInt(
             "##quick_target_y",
             elevation,
@@ -149,7 +164,8 @@ public final class EarthworkQuickPanel {
         }
     }
 
-    private int resolveCurrentHeight(GradingRegion region) {
+    /** 有预览/已加载样本时返回种子标高；否则 null（不静默用 Y64）。 */
+    private Integer resolveManualSeed(GradingRegion region) {
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (preview != null) {
             return preview.resolvedElevation;
@@ -157,22 +173,26 @@ public final class EarthworkQuickPanel {
         if (region.getManualTargetElevation() != null) {
             return region.getManualTargetElevation();
         }
-        return 64;
+        return null;
     }
 
+    /** @return [min, max]，无已加载样本时 null */
     private int[] sliderRange() {
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (preview == null || preview.existingTerrainSnapshot.isEmpty()) {
-            return new int[] {HEIGHT_MIN, HEIGHT_MAX};
+            return null;
         }
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         for (var column : preview.existingTerrainSnapshot.columns()) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             min = Math.min(min, column.groundY());
             max = Math.max(max, column.groundY());
         }
         if (min == Integer.MAX_VALUE) {
-            return new int[] {HEIGHT_MIN, HEIGHT_MAX};
+            return null;
         }
         return new int[] {
             Math.max(HEIGHT_MIN, min - 8),

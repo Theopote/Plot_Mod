@@ -6,6 +6,7 @@ import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -87,6 +88,62 @@ public final class EarthworkElevationVolumeCurve {
             columns.add(new Column(column.groundY(), referenceY));
         }
         return fromColumns(columns, referenceY);
+    }
+
+    /** 边坡耦合搜索候选 → 高度—方量曲线（含坡面重建后的真实 cut/fill）。 */
+    public static EarthworkElevationVolumeCurve fromSlopeCoupledSamples(
+            List<Sample> samples,
+            int referenceY,
+            DesignTerrainGrid grid) {
+        if (samples == null || samples.isEmpty() || grid == null || grid.cellCount() == 0) {
+            return EMPTY;
+        }
+        int existingMin = Integer.MAX_VALUE;
+        int existingMax = Integer.MIN_VALUE;
+        int designMin = Integer.MAX_VALUE;
+        int designMax = Integer.MIN_VALUE;
+        List<Integer> existingHeights = new ArrayList<>();
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork()) {
+                continue;
+            }
+            existingMin = Math.min(existingMin, cell.existingGroundY());
+            existingMax = Math.max(existingMax, cell.existingGroundY());
+            designMin = Math.min(designMin, cell.targetY());
+            designMax = Math.max(designMax, cell.targetY());
+            existingHeights.add(cell.existingGroundY());
+        }
+        if (existingHeights.isEmpty()) {
+            return EMPTY;
+        }
+        Collections.sort(existingHeights);
+        int existingMedian = existingHeights.get(existingHeights.size() / 2);
+        Sample bestBalance = null;
+        Sample bestWork = null;
+        for (Sample sample : samples) {
+            if (isBetterBalance(sample, bestBalance, referenceY)) {
+                bestBalance = sample;
+            }
+            if (isBetterMinWork(sample, bestWork, referenceY)) {
+                bestWork = sample;
+            }
+        }
+        if (bestBalance == null || bestWork == null) {
+            return EMPTY;
+        }
+        List<Sample> sorted = samples.stream()
+            .sorted(Comparator.comparingInt(Sample::y))
+            .toList();
+        return new EarthworkElevationVolumeCurve(
+            sorted,
+            referenceY,
+            bestBalance.y(),
+            bestWork.y(),
+            existingMin,
+            existingMax,
+            existingMedian,
+            designMin,
+            designMax);
     }
 
     public static EarthworkElevationVolumeCurve fromColumns(List<Column> columns, int referenceY) {

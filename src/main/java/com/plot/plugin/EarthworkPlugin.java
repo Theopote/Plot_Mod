@@ -13,8 +13,10 @@ import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.EarthworkRegionGeometryCanvasRenderer;
+import com.plot.plugin.earthwork.EarthworkPickEscapeShortcutListener;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import com.plot.api.plugin.PluginState;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayController;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayEntry;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayRenderer;
@@ -72,6 +74,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
     };
 
     private final CanvasOverlayRegistry.Overlay edgeTreatmentOverlay = this::renderEdgeTreatmentOverlay;
+    private EarthworkPickEscapeShortcutListener pickEscapeListener;
 
     public EarthworkPlugin() {
         super(
@@ -133,6 +136,8 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
+        pickEscapeListener = new EarthworkPickEscapeShortcutListener(pickSession, threePointPickSession);
+        ctx().shortcuts().addListener(pickEscapeListener);
         CanvasOverlayRegistry.register(edgeTreatmentOverlay);
         loadProjectForCurrentProject();
     }
@@ -158,6 +163,10 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
             ctx().events().unsubscribeOwner(this);
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
+        }
+        if (pickEscapeListener != null) {
+            ctx().shortcuts().removeListener(pickEscapeListener);
+            pickEscapeListener = null;
         }
         CanvasOverlayRegistry.unregister(edgeTreatmentOverlay);
     }
@@ -185,8 +194,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         if (!isEnabled() || config == null || uiContext == null) {
             return;
         }
-        com.plot.api.plugin.IPlugin active = com.plot.core.plugin.PluginManager.getInstance().getActivePlugin();
-        if (active != this) {
+        if (getState() != PluginState.ACTIVE) {
             return;
         }
         synchronized (projectLock) {

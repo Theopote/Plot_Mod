@@ -5,6 +5,7 @@ import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.design.InsufficientTerrainSamplesException;
 import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.design.RoadCorridorSurfaceResolver;
@@ -192,6 +193,19 @@ public final class EarthworkPreviewManager {
         TerrainSnapshot terrain;
         try {
             terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
+            if (terrain.exceedsUnloadedThreshold()) {
+                failPreview(
+                    generation,
+                    PlotI18n.tr(
+                        "plugin.earthwork.unloaded_chunks_blocked",
+                        terrain.unloadedColumnCount(),
+                        terrain.columnCount()));
+                return false;
+            }
+            if (terrain.loadedColumnCount() <= 0) {
+                failPreview(generation, PlotI18n.tr("plugin.earthwork.no_loaded_terrain_samples"));
+                return false;
+            }
             computed = sitePipeline.execute(
                 com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext.of(
                     site, world, terrain, region, buildingLookup, roadLookup, workMode));
@@ -202,6 +216,9 @@ public final class EarthworkPreviewManager {
         } catch (RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException e) {
             LOGGER.error("土方预览被道路设计面阻断: {}", e.getMessage());
             failPreview(generation, e.getMessage());
+            return false;
+        } catch (InsufficientTerrainSamplesException e) {
+            failPreview(generation, PlotI18n.tr("plugin.earthwork.no_loaded_terrain_samples"));
             return false;
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);

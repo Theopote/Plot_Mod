@@ -42,6 +42,8 @@ public class EarthworkGenerationResult {
     public boolean siteGeneration;
     public final List<String> warnings = new ArrayList<>();
     public int calculationCellCount;
+    /** 快照中未加载区块格点数（不参与挖填，过多时阻断预览/落地）。 */
+    public int unloadedColumnCount;
     /** 自动平衡搜索后残余 |Cut−Fill|（仅当 status ≠ NOT_REQUESTED 时有意义）。 */
     public long balanceResidualImbalance;
     public EarthworkBalanceStatus balanceStatus = EarthworkBalanceStatus.NOT_REQUESTED;
@@ -140,19 +142,31 @@ public class EarthworkGenerationResult {
     }
 
     public void attachPlayerInsights() {
-        attachPlayerInsights(true);
+        attachPlayerInsights(true, null);
+    }
+
+    public void attachPlayerInsights(boolean allowLegacyShiftCurve) {
+        attachPlayerInsights(allowLegacyShiftCurve, null);
     }
 
     /**
-     * @param allowLegacyShiftCurve 为 {@code false} 时跳过整网 ΔY 平移近似曲线（自然边坡需逐候选重建坡面）。
+     * @param allowLegacyShiftCurve 无边坡耦合曲线时是否允许整网 ΔY 平移近似。
+     * @param slopeCoupledCurve 边坡耦合搜索采样的真实 cut/fill 曲线（优先于平移近似）。
      */
-    public void attachPlayerInsights(boolean allowLegacyShiftCurve) {
-        elevationVolumeCurveRequiresSlopeCoupledSolver = !allowLegacyShiftCurve;
+    public void attachPlayerInsights(
+            boolean allowLegacyShiftCurve,
+            EarthworkElevationVolumeCurve slopeCoupledCurve) {
         if (designTerrainGrid != null && designTerrainGrid.cellCount() > 0) {
             sectionProfile = EarthworkSectionProfile.fromGrid(designTerrainGrid);
         } else {
             sectionProfile = EarthworkSectionProfile.EMPTY;
         }
+        if (slopeCoupledCurve != null && !slopeCoupledCurve.isEmpty()) {
+            elevationVolumeCurve = slopeCoupledCurve;
+            elevationVolumeCurveRequiresSlopeCoupledSolver = false;
+            return;
+        }
+        elevationVolumeCurveRequiresSlopeCoupledSolver = !allowLegacyShiftCurve;
         if (!allowLegacyShiftCurve) {
             elevationVolumeCurve = EarthworkElevationVolumeCurve.EMPTY;
             return;

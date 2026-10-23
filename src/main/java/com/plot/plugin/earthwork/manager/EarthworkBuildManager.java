@@ -98,6 +98,13 @@ public final class EarthworkBuildManager {
         if (result == null || result.placementRecords.isEmpty()) {
             return PlotI18n.tr("plugin.earthwork.build_no_blocks");
         }
+        if (result.existingTerrainSnapshot != null
+            && result.existingTerrainSnapshot.exceedsUnloadedThreshold()) {
+            return PlotI18n.tr(
+                "plugin.earthwork.unloaded_chunks_blocked",
+                result.unloadedColumnCount,
+                result.existingTerrainSnapshot.columnCount());
+        }
         if (requireWorld && world == null) {
             return PlotI18n.tr("plugin.earthwork.generate_world_unavailable");
         }

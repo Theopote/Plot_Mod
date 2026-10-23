@@ -23,7 +23,7 @@ public class EarthworkSite {
     private EarthMaterialClass cutMaterialClass = EarthMaterialClass.UNKNOWN;
     private EarthMaterialClass fillMaterialClass = EarthMaterialClass.COMMON_FILL;
     private ExistingTerrainRef existingTerrainRef = new ExistingTerrainRef();
-    private CompositionPolicy compositionPolicy = CompositionPolicy.DEFAULT;
+    private CompositionPolicy compositionPolicy = new CompositionPolicy();
     private final Map<String, GradingZone> gradingZones = new LinkedHashMap<>();
     private final List<Breakline> breaklines = new ArrayList<>();
     private final List<RetainingEdge> retainingEdges = new ArrayList<>();
@@ -96,11 +96,17 @@ public class EarthworkSite {
     }
 
     public CompositionPolicy getCompositionPolicy() {
-        return compositionPolicy != null ? compositionPolicy : CompositionPolicy.DEFAULT;
+        if (compositionPolicy == null || compositionPolicy == CompositionPolicy.DEFAULT) {
+            // 不得把共享 DEFAULT 当可变实例；每站持有独立副本
+            compositionPolicy = new CompositionPolicy();
+        }
+        return compositionPolicy;
     }
 
     public void setCompositionPolicy(CompositionPolicy compositionPolicy) {
-        this.compositionPolicy = compositionPolicy != null ? compositionPolicy : CompositionPolicy.DEFAULT;
+        this.compositionPolicy = compositionPolicy != null
+            ? compositionPolicy.copy()
+            : new CompositionPolicy();
     }
 
     public Map<String, GradingZone> getGradingZones() {
