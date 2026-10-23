@@ -39,6 +39,38 @@ final class AdaptiveProfileControls {
             Runnable propagateJunctionGrades,
             Runnable onWorkingProfileChanged,
             Runnable deleteSelectedPvi) {
+        render(
+            ctx,
+            network,
+            road,
+            config,
+            session,
+            windowSession,
+            points,
+            maxGrade,
+            state,
+            recordUndoPointBeforeEdit,
+            propagateJunctionGrades,
+            onWorkingProfileChanged,
+            deleteSelectedPvi,
+            null);
+    }
+
+    void render(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            ProfileEditSession session,
+            ProfileEditorWindowSession windowSession,
+            List<VerticalProfileControlPoints.ControlPoint> points,
+            float maxGrade,
+            ProfileEditorState state,
+            Runnable recordUndoPointBeforeEdit,
+            Runnable propagateJunctionGrades,
+            Runnable onWorkingProfileChanged,
+            Runnable deleteSelectedPvi,
+            Runnable onPviPicked) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             return;
         }
@@ -58,14 +90,12 @@ final class AdaptiveProfileControls {
                     PlotI18n.tr("plugin.road.profile_control_points_collapsed", points.size())
                         + "##profile_control_points_advanced")) {
             for (VerticalProfileControlPoints.ControlPoint point : points) {
-                renderControlPointSelectable(point, maxGrade, state);
+                renderControlPointSelectable(point, maxGrade, state, onPviPicked);
             }
         }
         if (state.selectedProfilePvi < 0 || road.getVerticalAlignment() == null
                 || state.selectedProfilePvi >= road.getVerticalAlignment().pviCount()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_select_pvi_hint"));
+            // 未选中时由编辑器隐藏本面板，不占图表下方空间。
             return;
         }
         VerticalProfileControlPoints.ControlPoint selectedPoint = points.stream()
@@ -169,7 +199,8 @@ final class AdaptiveProfileControls {
     private static void renderControlPointSelectable(
             VerticalProfileControlPoints.ControlPoint point,
             float maxGrade,
-            ProfileEditorState state) {
+            ProfileEditorState state,
+            Runnable onPviPicked) {
         boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
         String grades = formatControlPointGrades(point);
         if (point.sharedJunction()) {
@@ -188,6 +219,9 @@ final class AdaptiveProfileControls {
                 state.selectedProfilePvi == point.pviIndex())) {
             state.selectedProfilePvi = point.pviIndex();
             state.selectedProfileElevation[0] = (float) point.elevation();
+            if (onPviPicked != null) {
+                onPviPicked.run();
+            }
         }
         if (invalid) {
             ImGui.popStyleColor();
