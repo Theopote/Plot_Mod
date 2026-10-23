@@ -12,7 +12,8 @@ import com.plot.plugin.road.terrain.RoadTerrainStyle;
 public final class RoadConstructionHeuristics {
 
     public static final double MIN_CONSIDERATION_HEIGHT = 2.0;
-    public static final double MIN_STRUCTURE_RUN = 3.0;
+    /** 软评分桥隧最短保留长度（格）；硬阈值桥隧不受此限制。 */
+    public static final double MIN_STRUCTURE_RUN = 1.0;
 
     public static final double CUT_WEIGHT = 1.0;
     public static final double FILL_WEIGHT = 1.0;

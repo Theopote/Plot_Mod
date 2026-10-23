@@ -47,6 +47,27 @@ public record RoadCrossing(
             null);
     }
 
+    public static RoadCrossing gradeSeparated(
+            String roadAId,
+            double stationA,
+            String roadBId,
+            double stationB,
+            Vec2d position,
+            String elevatedRoadId,
+            double crossingClearance) {
+        return new RoadCrossing(
+            UUID.randomUUID().toString(),
+            roadAId,
+            stationA,
+            roadBId,
+            stationB,
+            position,
+            CrossingType.GRADE_SEPARATED,
+            elevatedRoadId,
+            crossingClearance,
+            null);
+    }
+
     public boolean involvesRoad(String roadId) {
         return roadAId.equals(roadId) || roadBId.equals(roadId);
     }

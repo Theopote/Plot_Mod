@@ -12,6 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadHeightRasterizerTest {
 
     @Test
+    void followDesignLimitsAdjacentBuildStepsToOneBlock() {
+        List<Double> design = List.of(64.4, 65.6);
+        List<Double> distances = List.of(1.0);
+
+        RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.followDesign(
+            design, distances, 64);
+
+        assertEquals(64, result.samples().getFirst().buildY());
+        assertEquals(65, result.samples().get(1).buildY(),
+            "independent rounding would jump 64→66; step-limit keeps one block");
+        for (int i = 1; i < result.samples().size(); i++) {
+            assertTrue(Math.abs(result.samples().get(i).buildY() - result.samples().get(i - 1).buildY()) <= 1);
+        }
+    }
+
+    @Test
     void fractionalSlopeBudgetDoesNotCeilToFullBlockStep() {
         List<Double> design = List.of(60.0, 60.5, 61.0, 61.5, 62.0);
         List<Double> distances = constantDistances(4, 10.0);

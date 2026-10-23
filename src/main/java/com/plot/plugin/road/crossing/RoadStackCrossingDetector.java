@@ -75,7 +75,8 @@ public final class RoadStackCrossingDetector {
                     if (chainageA.isEmpty() || chainageB.isEmpty()) {
                         continue;
                     }
-                    detected.add(RoadStackCrossing.atGrade(
+                    detected.add(CrossingGradeClassifier.classifyStack(
+                        session.network,
                         road.getId(),
                         chainageA.getAsDouble(),
                         chainageB.getAsDouble(),

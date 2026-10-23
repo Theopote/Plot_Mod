@@ -209,23 +209,13 @@ public class RoadJunctionGenerator {
             .orElse(5);
         int radius = maxWidth + 2;
 
-        List<Vec2d> envelopePoints = RoadJunctionGeometry.collectSimpleEnvelopePoints(center, radius);
-        // 再次保护：如果包络点为空，至少生成中心点
-        if (envelopePoints.isEmpty()) {
-            LOGGER.warn("路口简单包络点为空，回退到中心点");
-            fillJunctionCells(
-                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults,
-                networkNodeElevations);
-            return;
-        }
-
-        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
-            approximateCirclePolygon(center, radius),
-            generator.coordinateTransformer());
         List<Vec2d> circle = approximateCirclePolygon(center, radius);
+        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            circle, generator.coordinateTransformer());
         if (cells.isEmpty()) {
+            LOGGER.warn("路口世界格扫描为空，回退到中心点");
             fillJunctionCells(
-                blocks, envelopePoints, circle, node, network, edges, junctionY, terrain, edgeResults,
+                blocks, List.of(center), circle, node, network, edges, junctionY, terrain, edgeResults,
                 networkNodeElevations);
             return;
         }

@@ -17,7 +17,8 @@ public final class ProfileGroundSampler {
             List<Integer> groundSamples,
             List<Double> cumulativeDistances,
             List<Integer> groundStarts,
-            List<Integer> groundEnds) {
+            List<Integer> groundEnds,
+            boolean fullyUnloaded) {
     }
 
     private ProfileGroundSampler() {
@@ -48,6 +49,13 @@ public final class ProfileGroundSampler {
             cumulativeDistances.add(accumulatedDistance);
         }
 
+        boolean fullyUnloaded = true;
+        for (OptionalInt sample : stationSamples) {
+            if (sample != null && sample.isPresent()) {
+                fullyUnloaded = false;
+                break;
+            }
+        }
         List<Integer> filled = fillLoadedGaps(stationSamples);
         for (int i = 0; i < segments.size(); i++) {
             int groundStart = filled.get(i);
@@ -60,7 +68,8 @@ public final class ProfileGroundSampler {
             groundSamples.add(groundEnds.getLast());
         }
 
-        return new SampleData(groundSamples, cumulativeDistances, groundStarts, groundEnds);
+        return new SampleData(
+            groundSamples, cumulativeDistances, groundStarts, groundEnds, fullyUnloaded);
     }
 
     /**

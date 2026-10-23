@@ -205,7 +205,7 @@ public final class RoadCrossSectionBuilder {
                 int maxOffset = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
                 for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
                     Vec2d planPoint = center.add(normal.multiply(lateral * scale));
-                    if (targetY - terrain.sampleSurfaceY(planPoint) > host.bridgeThreshold()) {
+                    if (shouldPlaceDeckUnderlay(targetY, terrain.sampleSurfaceY(planPoint))) {
                         solids.add(
                             planPoint,
                             targetY - 1,
@@ -216,6 +216,11 @@ public final class RoadCrossSectionBuilder {
             }
             geometryLocalBase += segment.distance;
         }
+    }
+
+    /** 桥段已判定为桥时，路面下只要还有空隙就铺桥面板，不再用桥阈值二次过滤浅跨。 */
+    static boolean shouldPlaceDeckUnderlay(int targetY, int groundY) {
+        return groundY < targetY - 1;
     }
 
     private static void generateMedianBlocks(

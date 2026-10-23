@@ -147,9 +147,11 @@ public final class RoadCrossingDetector {
         String aId = roadA.getId();
         String bId = roadB.getId();
         if (aId.compareTo(bId) > 0) {
-            return RoadCrossing.atGrade(bId, stationB, aId, stationA, position);
+            return CrossingGradeClassifier.classifyTwoRoad(
+                session.network, bId, stationB, aId, stationA, position);
         }
-        return RoadCrossing.atGrade(aId, stationA, bId, stationB, position);
+        return CrossingGradeClassifier.classifyTwoRoad(
+            session.network, aId, stationA, bId, stationB, position);
     }
 
     private static String dedupeKey(RoadCrossing crossing) {

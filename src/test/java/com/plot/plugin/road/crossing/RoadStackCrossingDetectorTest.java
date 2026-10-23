@@ -41,6 +41,24 @@ class RoadStackCrossingDetectorTest {
 
         assertFalse(network.getStackCrossings().isEmpty());
         assertEquals(1, network.getStackCrossings().size());
+        assertEquals(CrossingType.AT_GRADE, network.getStackCrossings().values().iterator().next().type());
+    }
+
+    @Test
+    void stackedFigureEightProfilesRegisterGradeSeparated() {
+        RoadNetwork network = figureEightNetwork();
+        var road = network.getRoads().values().iterator().next();
+        road.setVerticalAlignment(new com.plot.plugin.road.vertical.RoadVerticalAlignment(java.util.List.of(
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(0.0, 64.0),
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(10.0, 64.0),
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(20.0, 72.0),
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(40.0, 72.0))));
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+
+        assertEquals(1, network.getStackCrossings().size());
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+        assertEquals(CrossingType.GRADE_SEPARATED, stack.type());
+        assertTrue(stack.resolvedUpperStation() > stack.resolvedLowerStation());
     }
 
     private static RoadNetwork figureEightNetwork() {

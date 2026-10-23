@@ -1,5 +1,6 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -119,6 +120,22 @@ class RoadConstructionEvaluatorTest {
         assertEquals(RoadConstructionType.FILL, types.get(0));
         assertEquals(RoadConstructionType.FILL, types.get(1));
         assertEquals(RoadConstructionType.FILL, types.get(2));
+    }
+
+    @Test
+    void shortScoredBridgeRunStaysWhenAtLeastOneBlockLong() {
+        RoadConstructionEvaluator.RoadConstructionScoreConfig cheapBridge =
+            new RoadConstructionEvaluator.RoadConstructionScoreConfig(
+                1.0, 1.0, 0.01, 1.2, 25.0, 1.5, 2.0, 100, 100);
+
+        List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
+            List.of(2.0),
+            List.of(64),
+            List.of(68),
+            cheapBridge,
+            RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
+
+        assertEquals(RoadConstructionType.BRIDGE, types.getFirst());
     }
 
     @Test

@@ -15,6 +15,7 @@ class RoadConstructionHeuristicsTest {
 
         assertEquals(3, RoadConstructionHeuristics.bridgeThreshold(config));
         assertEquals(4, RoadConstructionHeuristics.tunnelThreshold(config));
+        assertEquals(1.0, RoadConstructionHeuristics.MIN_STRUCTURE_RUN, 1e-9);
     }
 
     @Test

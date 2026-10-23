@@ -205,14 +205,16 @@ public final class RoadProfileSolver {
             sampleData.groundSamples(),
             sampleData.cumulativeDistances(),
             sampleData.groundStarts(),
-            sampleData.groundEnds());
+            sampleData.groundEnds(),
+            sampleData.fullyUnloaded());
     }
 
     private record HeightSampleData(
             List<Integer> groundSamples,
             List<Double> cumulativeDistances,
             List<Integer> groundStarts,
-            List<Integer> groundEnds) {
+            List<Integer> groundEnds,
+            boolean fullyUnloaded) {
     }
 
     private static ProfileSolveResult buildSegmentHeights(
@@ -248,6 +250,7 @@ public final class RoadProfileSolver {
         List<Integer> guideLine;
         TerrainTrendResult terrainTrend = null;
         boolean useTerrainAdaptiveSolver = verticalMode == RoadVerticalMode.FIT_TERRAIN
+            && !sampleData.fullyUnloaded()
             && VerticalProfileDesignRules.slopeAllowed(worldCumulativeDistances.getLast());
         TerrainFollowPreset effectiveTerrainPreset = terrainFollowPreset != null
             ? terrainFollowPreset
@@ -418,10 +421,12 @@ public final class RoadProfileSolver {
             double designStart = designElevations.get(i);
             double designEnd = designElevations.get(i + 1);
             double segmentDistanceWorld = segment.distance / canvasUnitsPerBlock;
+            int groundStart = sampleData.fullyUnloaded() ? buildStart : sampleData.groundStarts().get(i);
+            int groundEnd = sampleData.fullyUnloaded() ? buildEnd : sampleData.groundEnds().get(i);
             heightInfos.add(new SegmentHeightInfo(
                 segment,
-                sampleData.groundStarts().get(i),
-                sampleData.groundEnds().get(i),
+                groundStart,
+                groundEnd,
                 waterHeightAt(waterHeights, i),
                 waterHeightAt(waterHeights, i + 1),
                 buildStart,

@@ -171,7 +171,9 @@ public final class VerticalAlignmentProfileSolver {
         boolean manualEndpointConstraintFeasible;
         boolean waterConstraintFeasible;
         RoadHeightRasterizer.RasterizationResult raster;
-        if (effectiveMode == RoadVerticalMode.MANUAL_PROFILE) {
+        boolean followDesign = effectiveMode == RoadVerticalMode.MANUAL_PROFILE
+            || sampleData.fullyUnloaded();
+        if (followDesign) {
             designElevations = candidateDesign;
             waterConstraintFeasible = EnvironmentFeasibilityProjector.evaluateWaterFeasibility(
                 designElevations,
@@ -222,10 +224,12 @@ public final class VerticalAlignmentProfileSolver {
             double designStart = designElevations.get(i);
             double designEnd = designElevations.get(i + 1);
             double segmentDistanceWorld = segment.distance / canvasUnitsPerBlock;
+            int groundStart = sampleData.fullyUnloaded() ? buildStart : sampleData.groundStarts().get(i);
+            int groundEnd = sampleData.fullyUnloaded() ? buildEnd : sampleData.groundEnds().get(i);
             heightInfos.add(new SegmentHeightInfo(
                 segment,
-                sampleData.groundStarts().get(i),
-                sampleData.groundEnds().get(i),
+                groundStart,
+                groundEnd,
                 waterHeightAt(waterHeights, i),
                 waterHeightAt(waterHeights, i + 1),
                 buildStart,

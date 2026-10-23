@@ -62,5 +62,37 @@ class ProfileGroundSamplerTest {
         assertEquals(100, data.groundEnds().getLast());
         assertEquals(90, data.groundEnds().getFirst());
         assertTrue(data.groundSamples().stream().noneMatch(y -> y == 64));
+        assertEquals(false, data.fullyUnloaded());
+    }
+
+    @Test
+    void collectMarksFullyUnloadedWhenNoChunksAreLoaded() {
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return false;
+            }
+
+            @Override
+            public java.util.OptionalInt sampleLoadedSurfaceY(Vec2d planPoint) {
+                return java.util.OptionalInt.empty();
+            }
+        };
+
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0)));
+        ProfileGroundSampler.SampleData data = ProfileGroundSampler.collect(segments, terrain, 0);
+
+        assertTrue(data.fullyUnloaded());
+        assertEquals(TerrainSampler.DEFAULT_SEA_LEVEL, data.groundStarts().getFirst());
     }
 }

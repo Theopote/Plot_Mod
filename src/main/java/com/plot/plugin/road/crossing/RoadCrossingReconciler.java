@@ -118,9 +118,9 @@ public final class RoadCrossingReconciler {
             detected.roadBId(),
             detected.stationB(),
             detected.position(),
-            CrossingType.AT_GRADE,
-            null,
-            null,
-            null);
+            detected.type(),
+            detected.elevatedRoadId(),
+            detected.crossingClearance(),
+            detected.sharedElevation());
     }
 }

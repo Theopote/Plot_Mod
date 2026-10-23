@@ -1,5 +1,6 @@
 package com.plot.plugin.road.pipeline.profile;
 
+import com.plot.core.geometry.VoxelElevationDiscretizer;
 import com.plot.plugin.road.RoadSlopeUtils;
 
 import java.util.ArrayList;
@@ -154,18 +155,27 @@ public final class RoadHeightRasterizer {
         samples.add(new BuildHeightSample(0.0, designAtStart, startHeight));
 
         int wholeBlocks = (int) Math.floor(totalLength + EPSILON);
+        int currentBuild = startHeight;
         for (int block = 1; block <= wholeBlocks; block++) {
             double designY = interpolateDesignElevation(
                 block, designElevations, segmentDistances, cumulativeDistances);
-            samples.add(new BuildHeightSample(block, designY, (int) Math.round(designY)));
+            currentBuild = stepLimitedBuildY(currentBuild, designY);
+            samples.add(new BuildHeightSample(block, designY, currentBuild));
         }
 
         if (totalLength - wholeBlocks > EPSILON) {
             double designY = interpolateDesignElevation(
                 totalLength, designElevations, segmentDistances, cumulativeDistances);
-            samples.add(new BuildHeightSample(totalLength, designY, (int) Math.round(designY)));
+            currentBuild = stepLimitedBuildY(currentBuild, designY);
+            samples.add(new BuildHeightSample(totalLength, designY, currentBuild));
         }
         return List.copyOf(samples);
+    }
+
+    /** 相邻格建造 Y 最多差 1，避免逐格 {@code Math.round} 跳出两格台阶。 */
+    static int stepLimitedBuildY(int currentBuild, double designY) {
+        int desired = VoxelElevationDiscretizer.quantizeContinuous(designY);
+        return Math.max(currentBuild - 1, Math.min(currentBuild + 1, desired));
     }
 
     private static RasterizationResult emptyResult() {

@@ -88,10 +88,10 @@ public final class RoadStackCrossingReconciler {
             detected.position(),
             detected.stationA(),
             detected.stationB(),
-            CrossingType.AT_GRADE,
-            null,
-            null,
-            null,
-            null);
+            detected.type(),
+            detected.lowerStation(),
+            detected.upperStation(),
+            detected.crossingClearance(),
+            detected.sharedElevation());
     }
 }
