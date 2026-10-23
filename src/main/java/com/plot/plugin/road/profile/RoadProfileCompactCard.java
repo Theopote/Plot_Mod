@@ -73,13 +73,15 @@ public final class RoadProfileCompactCard {
                 ProfileChartRenderMode.EDITOR,
                 verticalMode,
                 flatMode,
-                buildPreviewStale);
+                buildPreviewStale,
+                chart);
         } else {
             ProfileChartLegend.renderCompact(
                 chartMode,
                 verticalMode,
                 flatMode,
-                buildPreviewStale);
+                buildPreviewStale,
+                chart);
         }
     }
 }

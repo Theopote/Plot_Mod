@@ -765,13 +765,15 @@ final class VerticalProfileEditor {
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
             boolean flatMode,
-            boolean showBuildProfileLine) {
+            boolean showBuildProfileLine,
+            RoadProfileChartData chart) {
         ProfileChartLegend.renderCompact(
             ProfileChartRenderMode.EDITOR,
             road != null ? road.getVerticalMode() : null,
             flatMode,
             isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc(),
-            showBuildProfileLine);
+            showBuildProfileLine,
+            chart);
         ProfileChartLegend.renderIntersectionLegend(intersections);
         renderVoxelProfileControls(ctx, road);
     }
@@ -1109,7 +1111,8 @@ final class VerticalProfileEditor {
                 ProfileChartInteraction.IntersectionDragTarget.NONE;
         }
         selectedIntersectionIndex = interaction.selectedIntersectionIndex();
-        renderEditorLegend(ctx, road, design, intersections, flatOverlay, flatMode, showBuildProfileLine);
+        renderEditorLegend(
+            ctx, road, design, intersections, flatOverlay, flatMode, showBuildProfileLine, effectiveChart);
         ProfileQualitySummary.render(
             effectiveChart,
             road,

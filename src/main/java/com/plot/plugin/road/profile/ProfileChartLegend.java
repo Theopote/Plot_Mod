@@ -20,7 +20,7 @@ public final class ProfileChartLegend {
             RoadVerticalMode verticalMode,
             boolean flatMode,
             boolean buildPreviewStale) {
-        renderCompact(chartMode, verticalMode, flatMode, buildPreviewStale, chartMode.showBuildProfileLine());
+        renderCompact(chartMode, verticalMode, flatMode, buildPreviewStale, null);
     }
 
     public static void renderCompact(
@@ -28,32 +28,54 @@ public final class ProfileChartLegend {
             RoadVerticalMode verticalMode,
             boolean flatMode,
             boolean buildPreviewStale,
-            boolean showBuildProfile) {
+            RoadProfileChartData chart) {
+        renderCompact(
+            chartMode,
+            verticalMode,
+            flatMode,
+            buildPreviewStale,
+            chartMode.showBuildProfileLine(),
+            chart);
+    }
+
+    public static void renderCompact(
+            ProfileChartRenderMode chartMode,
+            RoadVerticalMode verticalMode,
+            boolean flatMode,
+            boolean buildPreviewStale,
+            boolean showBuildProfile,
+            RoadProfileChartData chart) {
+        boolean showWaterSurface = chart != null && chart.hasWaterElevations();
         if (flatMode) {
-            renderFlatCompactLegend(buildPreviewStale, showBuildProfile);
+            renderFlatCompactLegend(buildPreviewStale, showBuildProfile, showWaterSurface);
             return;
         }
         if (chartMode == ProfileChartRenderMode.EDITOR) {
-            renderCompactEditorLegend(buildPreviewStale, showBuildProfile);
+            renderCompactEditorLegend(buildPreviewStale, showBuildProfile, showWaterSurface);
             return;
         }
-        renderCompactOverviewLegend(buildPreviewStale);
+        renderCompactOverviewLegend(buildPreviewStale, showWaterSurface);
     }
 
-    private static void renderCompactOverviewLegend(boolean buildPreviewStale) {
+    private static void renderCompactOverviewLegend(boolean buildPreviewStale, boolean showWaterSurface) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        appendWaterSurfaceLegend(showWaterSurface);
         ImGui.sameLine();
         ImGui.textColored(
             ProfileChartSeriesStyle.BUILD_PROFILE,
             "\u25A0 " + buildProfileLabel(buildPreviewStale));
     }
 
-    private static void renderCompactEditorLegend(boolean buildPreviewStale, boolean showBuildProfile) {
+    private static void renderCompactEditorLegend(
+            boolean buildPreviewStale,
+            boolean showBuildProfile,
+            boolean showWaterSurface) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        appendWaterSurfaceLegend(showWaterSurface);
         ImGui.sameLine();
         ImGui.textColored(
             ProfileChartSeriesStyle.DESIGN_PROFILE,
@@ -66,16 +88,30 @@ public final class ProfileChartLegend {
         }
     }
 
-    private static void renderFlatCompactLegend(boolean buildPreviewStale, boolean showBuildProfile) {
+    private static void renderFlatCompactLegend(
+            boolean buildPreviewStale,
+            boolean showBuildProfile,
+            boolean showWaterSurface) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        appendWaterSurfaceLegend(showWaterSurface);
         if (showBuildProfile) {
             ImGui.sameLine();
             ImGui.textColored(
                 ProfileChartSeriesStyle.BUILD_PROFILE,
                 "\u25A0 " + buildProfileLabel(buildPreviewStale));
         }
+    }
+
+    private static void appendWaterSurfaceLegend(boolean showWaterSurface) {
+        if (!showWaterSurface) {
+            return;
+        }
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.WATER_SURFACE,
+            "--- " + PlotI18n.tr("plugin.road.profile_water_surface"));
     }
 
     public static void renderSeriesLegend(
