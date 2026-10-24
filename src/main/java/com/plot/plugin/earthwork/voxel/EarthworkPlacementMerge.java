@@ -8,7 +8,8 @@ import net.minecraft.util.math.BlockPos;
 /**
  * 统一放置记录合并规则：同位置冲突按施工来源优先级决定，而不是依赖生成步骤的偶然顺序。
  * <p>
- * 优先级：{@code STRUCTURE}（挡土墙）&gt; {@code CUT}/{@code FILL}（整平/边坡）。
+ * 优先级：{@code STRUCTURE}（挡土墙）&gt; {@code CUT}/{@code FILL}（整平/边坡）
+ * &gt; {@code CLEARANCE}（清树/清草）。
  * <p>
  * <b>同级冲突设计约束：</b>CUT 与 FILL 同级时保留先写入者。设计地形合成阶段每个
  * 网格单元只归属一个 Zone，体素阶段不应出现同格双 Zone 挖填；若仍发生，视为
@@ -24,8 +25,9 @@ public final class EarthworkPlacementMerge {
             return 0;
         }
         return switch (type) {
-            case STRUCTURE -> 2;
-            case CUT, FILL -> 1;
+            case STRUCTURE -> 3;
+            case CUT, FILL -> 2;
+            case CLEARANCE -> 1;
         };
     }
 

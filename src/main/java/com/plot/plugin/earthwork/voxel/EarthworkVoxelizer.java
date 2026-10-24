@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork.voxel;
 
+import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.PlacementMeta;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
@@ -14,6 +15,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Set;
 
 /**
  * 将单列挖填决策落地为 {@link BlockRecord}，并累加方量指标。
@@ -49,7 +52,7 @@ public final class EarthworkVoxelizer {
             SiteEarthworkReport.VolumeMetrics zoneMetrics) {
         return applyColumn(
             region, world, column, targetElevation, previewGridSize, result, totals, zoneMetrics,
-            region != null ? region.getId() : null);
+            region != null ? region.getId() : null, null);
     }
 
     public CutFillClassifier.ColumnDelta applyColumn(
@@ -62,6 +65,22 @@ public final class EarthworkVoxelizer {
             SiteEarthworkReport.VolumeMetrics totals,
             SiteEarthworkReport.VolumeMetrics zoneMetrics,
             String zoneId) {
+        return applyColumn(
+            region, world, column, targetElevation, previewGridSize, result, totals, zoneMetrics,
+            zoneId, null);
+    }
+
+    public CutFillClassifier.ColumnDelta applyColumn(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot.Column column,
+            int targetElevation,
+            int previewGridSize,
+            EarthworkGenerationResult result,
+            SiteEarthworkReport.VolumeMetrics totals,
+            SiteEarthworkReport.VolumeMetrics zoneMetrics,
+            String zoneId,
+            Set<Long> decorationCleared) {
         int groundY = column.groundY();
         CutFillClassifier.Kind kind = CutFillClassifier.kind(groundY, targetElevation);
         if (kind != CutFillClassifier.Kind.NONE
@@ -72,12 +91,15 @@ public final class EarthworkVoxelizer {
                 toLegacyChangeType(kind)));
         }
 
+        PlacementMeta meta = PlacementMeta.ofZone(zoneId);
+        // 先清附着物：平衡列（无挖填）也会残留树木，必须始终清理
+        EarthworkDecorationClearer.clearColumn(this, world, column, result, meta, decorationCleared);
+
         CutFillClassifier.ColumnDelta delta = CutFillClassifier.delta(groundY, targetElevation);
         if (delta.isNoOp()) {
             return delta;
         }
 
-        PlacementMeta meta = PlacementMeta.ofZone(zoneId);
         String fillBlockId = EarthworkGeometryUtils.resolveFillBlockId(region.getFillMaterial());
         String cutSurfaceBlockId = EarthworkGeometryUtils.resolveCutSurfaceBlockId(region.getCutExposeMaterial());
         long cutChanged = 0L;

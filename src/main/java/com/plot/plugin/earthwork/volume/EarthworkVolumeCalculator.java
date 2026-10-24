@@ -16,9 +16,11 @@ import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 遍历设计地形或平面目标，委托 {@link EarthworkVoxelizer} 累计几何方量与落地方块。
@@ -41,8 +43,12 @@ public final class EarthworkVolumeCalculator {
             EarthworkCanvasScale canvasScale) {
         EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
+        Set<Long> decorationCleared = new HashSet<>();
         List<Vec2d> regionOutline = region.getOuterPoints();
         for (TerrainSnapshot.Column column : terrain.columns()) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             int designTarget = plane.evaluateAt(column.worldX(), column.worldZ());
             int targetElevation = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
                 column.center(),
@@ -59,7 +65,9 @@ public final class EarthworkVolumeCalculator {
                 previewGridSize,
                 result,
                 totals,
-                null);
+                null,
+                region != null ? region.getId() : null,
+                decorationCleared);
         }
         result.volumeReport = totals.toReport();
         result.siteVolumeReport = new SiteEarthworkReport(result.volumeReport, Map.of());
@@ -74,6 +82,7 @@ public final class EarthworkVolumeCalculator {
         Map<String, GradingZone> zonesById = site.getGradingZones();
         Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new HashMap<>();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
+        Set<Long> decorationCleared = new HashSet<>();
 
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork()) {
@@ -97,7 +106,8 @@ public final class EarthworkVolumeCalculator {
                 result,
                 totals,
                 zoneVolume,
-                zone.getId());
+                zone.getId(),
+                decorationCleared);
         }
 
         result.volumeReport = totals.toReport();

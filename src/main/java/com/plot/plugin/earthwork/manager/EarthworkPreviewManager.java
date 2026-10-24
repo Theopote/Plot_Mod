@@ -52,6 +52,17 @@ public final class EarthworkPreviewManager {
     private final SiteEarthworkPipeline sitePipeline;
     private final TerrainSnapshotCache terrainCache;
     private final Consumer<String> statusSink;
+    private volatile com.plot.plugin.earthwork.model.EarthworkStatusLevel lastStatusLevel =
+        com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO;
+
+    public com.plot.plugin.earthwork.model.EarthworkStatusLevel lastStatusLevel() {
+        return lastStatusLevel;
+    }
+
+    private void publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel level, String message) {
+        lastStatusLevel = level;
+        statusSink.accept(message);
+    }
 
     private volatile EarthworkGenerationResult lastGenerationResult;
     private volatile EarthworkValidationReport lastValidationReport = EarthworkValidationReport.empty();
@@ -140,7 +151,8 @@ public final class EarthworkPreviewManager {
             boolean wasBuildable = previewState.allowsBuild();
             previewState = EarthworkPreviewState.DIRTY;
             if (wasBuildable) {
-                statusSink.accept(PlotI18n.tr("plugin.earthwork.preview_invalidated"));
+                publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING,
+                    PlotI18n.tr("plugin.earthwork.preview_invalidated"));
             }
         } else if (previewState != EarthworkPreviewState.NONE
             && previewState != EarthworkPreviewState.DIRTY) {
@@ -268,7 +280,8 @@ public final class EarthworkPreviewManager {
                 lastGenerationResult.calculationCellCount,
                 lastGenerationResult.placementRecords.size());
         }
-        statusSink.accept(resolvePreviewReadyMessage(projectPreview()));
+        publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS,
+            resolvePreviewReadyMessage(projectPreview()));
         return true;
     }
 
@@ -281,7 +294,7 @@ public final class EarthworkPreviewManager {
         previewState = EarthworkPreviewState.FAILED;
         invalidateTerrainComparisonCache();
         if (message != null && !message.isBlank()) {
-            statusSink.accept(message);
+            publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.ERROR, message);
         }
     }
 
@@ -347,7 +360,8 @@ public final class EarthworkPreviewManager {
     }
 
     private static String ghostBlockFor(EarthworkGenerationResult.ChangeType changeType) {
-        if (changeType == EarthworkGenerationResult.ChangeType.CUT) {
+        if (changeType == EarthworkGenerationResult.ChangeType.CUT
+            || changeType == EarthworkGenerationResult.ChangeType.CLEARANCE) {
             return CUT_GHOST_BLOCK;
         }
         if (changeType == EarthworkGenerationResult.ChangeType.STRUCTURE) {
@@ -453,20 +467,22 @@ public final class EarthworkPreviewManager {
     public boolean exportLastReport(EarthworkProject project, GradingRegion region) {
         EarthworkGenerationResult result = lastGenerationResult;
         if (result == null || result.volumeReport == null || !result.volumeReport.hasGeometricVolume()) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.export_report_no_preview"));
+            publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING,
+                PlotI18n.tr("plugin.earthwork.export_report_no_preview"));
             return false;
         }
         try {
             EarthworkReportExporter.ExportResult paths =
                 EarthworkReportExporter.exportPreview(result, project, region);
-            statusSink.accept(PlotI18n.tr(
+            publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS, PlotI18n.tr(
                 "plugin.earthwork.export_report_success",
                 paths.csvPath().getFileName().toString(),
                 paths.csvPath().getParent().toString()));
             return true;
         } catch (Exception e) {
             LOGGER.error("土方报表导出失败: {}", e.getMessage(), e);
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.export_report_failed", e.getMessage()));
+            publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.ERROR,
+                PlotI18n.tr("plugin.earthwork.export_report_failed", e.getMessage()));
             return false;
         }
     }

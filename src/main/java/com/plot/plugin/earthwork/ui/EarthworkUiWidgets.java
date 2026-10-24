@@ -78,13 +78,21 @@ public final class EarthworkUiWidgets {
                 int yMin,
                 int yMax,
                 boolean compact) {
+            renderPlayerCutFill(volumes, platformY, sloped, yMin, yMax, compact, true);
+        }
+
+        public static void renderPlayerCutFill(
+                EarthworkVolumeReport volumes, int platformY, boolean sloped, int yMin, int yMax,
+                boolean compact, boolean showElevation) {
             EarthworkVolumeReport safe = volumes != null ? volumes : EarthworkVolumeReport.empty();
             long cut = safe.geometricCutVolume();
             long fill = safe.geometricFillVolume();
             long net = cut - fill;
             long work = cut + fill;
             double balance = work <= 0L ? 100.0 : 100.0 * (1.0 - (Math.abs(net) / (double) work));
-            if (sloped) {
+            if (!showElevation) {
+                // 标高由调用方结合自动/手动与预览状态标注。
+            } else if (sloped) {
                 ImGui.text(PlotI18n.tr("plugin.earthwork.resolved_elevation_slope_result", yMin, yMax));
             } else if (compact) {
                 ImGui.text(PlotI18n.tr("plugin.earthwork.quick.summary_y", platformY));
@@ -158,6 +166,12 @@ public final class EarthworkUiWidgets {
             ImGui.pushTextWrapPos(ImGui.getCursorPosX() + avail);
             ImGui.textUnformatted(text);
             ImGui.popTextWrapPos();
+        }
+
+        public static void textWrappedColored(int color, String text) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, color);
+            textWrappedSafe(text);
+            ImGui.popStyleColor();
         }
 
         public static void locateRegion(EarthworkUiContext ctx, GradingRegion region) {

@@ -106,14 +106,14 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
             ctx(), pipelines, terrainSnapshotCache,
             msg -> {
                 if (contextHolder[0] != null) {
-                    contextHolder[0].setProjectStatus(msg);
+                    contextHolder[0].setProjectStatus(msg, contextHolder[0].previewManager().lastStatusLevel());
                 }
             });
         EarthworkBuildManager buildManager = new EarthworkBuildManager(
             ctx(), terrainSnapshotCache, previewManager,
             msg -> {
                 if (contextHolder[0] != null) {
-                    contextHolder[0].setProjectStatus(msg);
+                    contextHolder[0].setProjectStatus(msg, contextHolder[0].buildManager().lastStatusLevel());
                 }
             });
 

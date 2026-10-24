@@ -11,8 +11,9 @@ import imgui.ImGui;
 
 /** Quick Mode：框选区域、目标高度、边缘、预览施工。 */
 public final class EarthworkQuickPanel {
-    private static final int HEIGHT_MIN = -64;
-    private static final int HEIGHT_MAX = 320;
+    private final imgui.type.ImString heightInput = new imgui.type.ImString(16);
+    private String heightInputRegion = "";
+    private Integer displayedHeight;
 
     private final EarthworkUiContext ctx;
     private final EarthworkRegionPanel regionPanel;
@@ -37,7 +38,8 @@ public final class EarthworkQuickPanel {
         }
 
         EarthworkUiWidgets.renderRegionSelector(ctx);
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.quick.add_region"))) {
+        if (ctx.pickSession().isActive()
+            || ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.quick.add_region"))) {
             regionPanel.renderAdoptSection();
         }
 
@@ -56,16 +58,16 @@ public final class EarthworkQuickPanel {
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (preview != null) {
             ImGui.separator();
-            if (!ctx.previewManager().hasValidPreview()) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.earthwork.preview_stale_hint"));
-            }
+            generatePanel.renderPreviewStatus(preview);
+            ImGui.text(PlotI18n.tr(EarthworkUiPresentation.elevationLabel(
+                region.isAutoBalance(), ctx.previewManager().hasValidPreview()), preview.resolvedElevation));
             EarthworkUiWidgets.renderPlayerCutFill(
                 preview.volumeReport,
                 preview.resolvedElevation,
                 preview.slopedSurface,
                 preview.resolvedElevationMin,
                 preview.resolvedElevationMax,
-                true);
+                true, false);
             generatePanel.renderPreviewBuildButtons(preview);
             EarthworkInsightCharts.render(ctx, region, preview);
         }
@@ -85,45 +87,60 @@ public final class EarthworkQuickPanel {
         if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.quick.target_manual"), !auto)) {
             if (auto) {
                 Integer seed = resolveManualSeed(region);
-                if (seed == null) {
-                    return;
-                }
                 ctx.projectHistory().push(ctx.project());
                 region.setAutoBalance(false);
                 region.setManualTargetElevation(seed);
                 syncAutoPolicy(region);
-                ctx.scheduleRecalculatePreview();
+                if (seed != null) {
+                    ctx.scheduleRecalculatePreview();
+                } else {
+                    ctx.invalidatePreview();
+                }
             }
         }
 
         if (auto) {
             EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
-            if (preview != null) {
+            if (EarthworkUiPresentation.belongsTo(preview, region)) {
                 ImGui.textColored(
                     PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.earthwork.quick.recommended_y", preview.resolvedElevation));
-                if (preview.unloadedColumnCount > 0) {
-                    ImGui.textColored(
-                        PluginUiColors.WARNING,
-                        PlotI18n.tr(
-                            "plugin.earthwork.unloaded_columns_hint",
-                            preview.unloadedColumnCount));
-                }
+                    PlotI18n.tr(EarthworkUiPresentation.elevationLabel(true,
+                        ctx.previewManager().hasValidPreview()), preview.resolvedElevation));
             } else {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.quick.auto_pending"));
             }
             return;
         }
 
-        Integer seed = region.getManualTargetElevation() != null
-            ? region.getManualTargetElevation()
-            : resolveManualSeed(region);
-        int[] range = sliderRange();
-        if (seed == null || range == null) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.earthwork.no_loaded_terrain_samples"));
+        int[] range = heightRange();
+        Integer current = region.getManualTargetElevation();
+        if (!region.getId().equals(heightInputRegion)
+            || (!java.util.Objects.equals(current, displayedHeight) && !ImGui.isAnyItemActive())) {
+            heightInput.set(current != null ? current.toString() : "");
+            heightInputRegion = region.getId();
+            displayedHeight = current;
+        }
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        boolean inputChanged = ImGui.inputText(PlotI18n.tr("plugin.earthwork.ui.target_input"), heightInput);
+        if (ImGui.isItemActivated()) {
+            ctx.projectHistory().push(ctx.project());
+        }
+        if (inputChanged) {
+            Integer value = EarthworkUiPresentation.parseHeight(heightInput.get(), range[0], range[1]);
+            region.setManualTargetElevation(value);
+            displayedHeight = value;
+            if (value == null) {
+                ctx.invalidatePreview();
+            } else {
+                ctx.scheduleRecalculatePreview();
+            }
+        }
+        current = region.getManualTargetElevation();
+        if (current == null) {
+            EarthworkUiWidgets.textWrappedColored(PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.earthwork.ui.height_required", range[0], range[1]));
             return;
         }
-        int current = seed;
         int[] elevation = {current};
         boolean changed = ImGui.sliderInt(
             "##quick_target_y",
@@ -164,39 +181,29 @@ public final class EarthworkQuickPanel {
         }
     }
 
-    /** 有预览/已加载样本时返回种子标高；否则 null（不静默用 Y64）。 */
+    /** 切换时采样一次，不依赖用户先生成预览。 */
     private Integer resolveManualSeed(GradingRegion region) {
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
-        if (preview != null) {
-            return preview.resolvedElevation;
+        com.plot.plugin.earthwork.terrain.TerrainSnapshot terrain =
+            com.plot.plugin.earthwork.terrain.TerrainSnapshot.empty();
+        var world = EarthworkUiWidgets.getClientWorld();
+        if (world != null && region.getManualTargetElevation() == null
+            && !(ctx.previewManager().hasValidPreview() && EarthworkUiPresentation.belongsTo(preview, region))) {
+            try {
+                terrain = ctx.terrainSnapshotCache().captureFresh(region, world, ctx.host().coordinates());
+            } catch (RuntimeException e) {
+                ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.no_loaded_terrain_samples"),
+                    com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
+            }
         }
-        if (region.getManualTargetElevation() != null) {
-            return region.getManualTargetElevation();
-        }
-        return null;
+        return EarthworkUiPresentation.initialManualHeight(region, preview,
+            ctx.previewManager().hasValidPreview(), terrain);
     }
 
-    /** @return [min, max]，无已加载样本时 null */
-    private int[] sliderRange() {
-        EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
-        if (preview == null || preview.existingTerrainSnapshot.isEmpty()) {
-            return null;
-        }
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-        for (var column : preview.existingTerrainSnapshot.columns()) {
-            if (!column.chunkLoaded()) {
-                continue;
-            }
-            min = Math.min(min, column.groundY());
-            max = Math.max(max, column.groundY());
-        }
-        if (min == Integer.MAX_VALUE) {
-            return null;
-        }
-        return new int[] {
-            Math.max(HEIGHT_MIN, min - 8),
-            Math.min(HEIGHT_MAX, max + 8)
-        };
+    private int[] heightRange() {
+        var world = EarthworkUiWidgets.getClientWorld();
+        return world != null
+            ? new int[] {world.getBottomY(), world.getBottomY() + world.getHeight() - 1}
+            : new int[] {-64, 319};
     }
 }

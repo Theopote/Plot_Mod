@@ -91,7 +91,7 @@ public class EarthworkGenerationResult {
         Map<String, long[]> zoneChanged = new LinkedHashMap<>();
         for (BlockPos pos : placementRecords.keySet()) {
             ChangeType type = changeTypes.get(pos);
-            if (type == ChangeType.STRUCTURE) {
+            if (type == ChangeType.STRUCTURE || type == ChangeType.CLEARANCE) {
                 structure++;
                 continue;
             }
@@ -182,8 +182,10 @@ public class EarthworkGenerationResult {
     public enum ChangeType {
         CUT,
         FILL,
-        /** 挡土墙等结构体，不计入填方施工量。 */
-        STRUCTURE
+        /** 挡土墙等结构体，不计入挖填施工量。 */
+        STRUCTURE,
+        /** 清理树木/草花等自然附着物，不计入挖填方量。 */
+        CLEARANCE
     }
 
     public static class GridSample {

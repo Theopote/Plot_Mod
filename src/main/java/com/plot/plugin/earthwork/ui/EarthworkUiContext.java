@@ -39,6 +39,8 @@ public final class EarthworkUiContext {
 
     private volatile String selectedRegionId = "";
     private volatile String projectStatus = "";
+    private volatile com.plot.plugin.earthwork.model.EarthworkStatusLevel projectStatusLevel =
+        com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO;
 
     private String regionNameEditingRegionId = "";
     private String pendingDeleteRegionId = "";
@@ -153,6 +155,16 @@ public final class EarthworkUiContext {
     }
 
     public void setProjectStatus(String projectStatus) {
+        setProjectStatus(projectStatus, com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO);
+    }
+
+    public com.plot.plugin.earthwork.model.EarthworkStatusLevel projectStatusLevel() {
+        return projectStatusLevel;
+    }
+
+    public void setProjectStatus(String projectStatus,
+            com.plot.plugin.earthwork.model.EarthworkStatusLevel level) {
+        this.projectStatusLevel = Objects.requireNonNull(level, "level");
         this.projectStatus = projectStatus != null ? projectStatus : "";
     }
 

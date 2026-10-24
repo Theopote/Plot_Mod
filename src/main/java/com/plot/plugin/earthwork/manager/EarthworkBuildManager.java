@@ -27,6 +27,17 @@ public final class EarthworkBuildManager {
     private final Consumer<String> statusSink;
     private final AtomicBoolean buildInFlight = new AtomicBoolean(false);
     private volatile BuildExecutionSummary lastExecutionSummary;
+    private volatile com.plot.plugin.earthwork.model.EarthworkStatusLevel lastStatusLevel =
+        com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO;
+
+    public com.plot.plugin.earthwork.model.EarthworkStatusLevel lastStatusLevel() {
+        return lastStatusLevel;
+    }
+
+    private void publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel level, String message) {
+        lastStatusLevel = level;
+        statusSink.accept(message);
+    }
 
     public EarthworkBuildManager(
             PluginContext host,
@@ -147,20 +158,22 @@ public final class EarthworkBuildManager {
         String rejection = validateBuildEligibility(
             project, builtRegionId, clientWorld(), requireWorld, null, true);
         if (rejection != null) {
-            statusSink.accept(rejection);
+            publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING, rejection);
             return;
         }
 
         EarthworkGenerationResult resultSnapshot = previewManager.getLastGenerationResult();
         if (!buildInFlight.compareAndSet(false, true)) {
-            statusSink.accept(PlotI18n.tr("plugin.earthwork.build_in_progress_wait"));
+            publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO,
+                PlotI18n.tr("plugin.earthwork.build_in_progress_wait"));
             return;
         }
 
         List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
         EarthworkGenerateCommand command = new EarthworkGenerateCommand(
             records, host.projection(), host.placement());
-        statusSink.accept(PlotI18n.tr("plugin.earthwork.build_in_progress", records.size()));
+        publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO,
+            PlotI18n.tr("plugin.earthwork.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             try {
                 EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
@@ -260,6 +273,7 @@ public final class EarthworkBuildManager {
     private void applyBuildResultStatus(
             BuildOutcome outcome,
             EarthworkGenerateCommand.ExecutionResult result) {
+        lastStatusLevel = statusLevelFor(outcome);
         switch (outcome) {
             case NO_WORK -> statusSink.accept(PlotI18n.tr("plugin.earthwork.build_no_blocks"));
             case CANCELLED -> statusSink.accept(PlotI18n.tr(
@@ -278,6 +292,14 @@ public final class EarthworkBuildManager {
                 result != null ? result.total() : 0,
                 result != null ? result.failed() : 0));
         }
+    }
+
+    public static com.plot.plugin.earthwork.model.EarthworkStatusLevel statusLevelFor(BuildOutcome outcome) {
+        return switch (outcome) {
+            case COMPLETED -> com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS;
+            case FAILED -> com.plot.plugin.earthwork.model.EarthworkStatusLevel.ERROR;
+            case PARTIAL, CANCELLED, NO_WORK -> com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING;
+        };
     }
 
     /**
