@@ -165,13 +165,17 @@ public final class EarthworkInsightCharts {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         EarthworkElevationVolumeCurve.Sample balance = curve.sampleAt(curve.balanceY());
         EarthworkElevationVolumeCurve.Sample minWork = curve.sampleAt(curve.minWorkY());
+        // 绝对标高按钮只适用于单一平整区域；斜面/多分区的统一偏移不能写成某一区域的 Y。
+        boolean canApplyElevation = canApplyRecommendedElevation(ctx.project().getActiveSite(), region);
+        ImGui.beginDisabled(!canApplyElevation);
         if (ImGui.button(
                 PlotI18n.tr("plugin.earthwork.recommend.balance", curve.balanceY()),
                 half,
                 0)
             && region != null) {
             ctx.projectHistory().push(ctx.project());
-            region.setAutoBalance(true);
+            region.setAutoBalance(false);
+            region.setManualTargetElevation(curve.balanceY());
             syncAutoPolicy(ctx, region);
             ctx.recalculatePreview();
         }
@@ -186,6 +190,10 @@ public final class EarthworkInsightCharts {
             region.setManualTargetElevation(curve.minWorkY());
             syncAutoPolicy(ctx, region);
             ctx.recalculatePreview();
+        }
+        ImGui.endDisabled();
+        if (!canApplyElevation) {
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.recommend.single_flat_only"));
         }
         if (balance != null) {
             ImGui.textColored(
@@ -474,6 +482,17 @@ public final class EarthworkInsightCharts {
             stars = 5;
         }
         return "★".repeat(stars) + "☆".repeat(5 - stars);
+    }
+
+    static boolean canApplyRecommendedElevation(
+            com.plot.plugin.earthwork.model.EarthworkSite site, GradingRegion region) {
+        if (site == null || region == null || site.getZoneCount() != 1) {
+            return false;
+        }
+        GradingZone zone = site.getGradingZones().get(region.getId());
+        return zone != null && zone.getType() == com.plot.plugin.earthwork.model.GradingZoneType.FLAT
+            && !zone.getDesignSurface().hasBakedElevation()
+            && region.getSurfaceMode() == com.plot.plugin.earthwork.model.GradingSurfaceMode.LEVEL_PAD;
     }
 
     private static void syncAutoPolicy(EarthworkUiContext ctx, GradingRegion region) {

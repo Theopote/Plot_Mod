@@ -85,6 +85,9 @@ public final class EarthworkElevationVolumeCurve {
         }
         List<Column> columns = new ArrayList<>();
         for (TerrainSnapshot.Column column : terrain.columns()) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             columns.add(new Column(column.groundY(), referenceY));
         }
         return fromColumns(columns, referenceY);

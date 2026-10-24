@@ -485,10 +485,19 @@ public final class DesignTerrainComposer {
             EarthworkCanvasScale canvasScale,
             CompositionPolicy policy) {
         Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
-        int referenceY = resolveUniformReferenceElevation(grid);
+        int referenceY = resolveBaseReferenceElevation(grid, baseDesign);
         int halfRange = resolveUniformSearchHalfRange(grid, site, resolvedSurfaces, workMode);
-        List<EarthworkElevationVolumeCurve.Sample> curveSamples = new ArrayList<>();
+        Map<Integer, EarthworkElevationVolumeCurve.Sample> curveSamples = new java.util.TreeMap<>();
+        Map<Map<String, Integer>, Long> objectives = new HashMap<>();
         SlopeCoupledVerticalSearch.SearchResult search = SlopeCoupledVerticalSearch.searchUniform(halfRange, dy -> {
+            Map<String, Integer> appliedOffsets = new LinkedHashMap<>();
+            for (GradingZone zone : site.getGradingZones().values()) {
+                appliedOffsets.put(zone.getId(), offsetDelta(site, zone.getId(), safeZone, dy));
+            }
+            Long cached = objectives.get(appliedOffsets);
+            if (cached != null) {
+                return cached;
+            }
             restoreCells(grid, baseDesign);
             applyAccumulatedOffsets(grid, site, safeZone, dy);
             applyBoundaryConditions(
@@ -503,8 +512,15 @@ public final class DesignTerrainComposer {
             EarthworkVolumeReport totals = report.totals();
             long cut = totals != null ? totals.geometricCutVolume() : 0L;
             long fill = totals != null ? totals.geometricFillVolume() : 0L;
-            curveSamples.add(new EarthworkElevationVolumeCurve.Sample(referenceY + dy, cut, fill));
-            return Math.abs(cut - fill);
+            // 只有实际统一平移才可用单一标高作横轴；限幅/权重后的偏移才是有效高度。
+            if (appliedOffsets.values().stream().distinct().count() == 1) {
+                int actualOffset = appliedOffsets.values().iterator().next();
+                int elevation = referenceY + actualOffset;
+                curveSamples.put(elevation, new EarthworkElevationVolumeCurve.Sample(elevation, cut, fill));
+            }
+            long objective = Math.abs(cut - fill);
+            objectives.put(Map.copyOf(appliedOffsets), objective);
+            return objective;
         });
 
         int best = search.hasValidSolution() ? search.bestOffset() : 0;
@@ -522,7 +538,7 @@ public final class DesignTerrainComposer {
             ? search.bestObjective()
             : SlopeCoupledVerticalSearch.INVALID_OBJECTIVE;
         EarthworkElevationVolumeCurve curve = EarthworkElevationVolumeCurve.fromSlopeCoupledSamples(
-            curveSamples, referenceY, grid);
+            new ArrayList<>(curveSamples.values()), referenceY, grid);
         return new BalanceSearchOutcome(
             best,
             residual,
@@ -531,6 +547,21 @@ public final class DesignTerrainComposer {
             search.hitSearchBoundary(),
             search.hasValidSolution(),
             curve);
+    }
+
+    private static int resolveBaseReferenceElevation(
+            DesignTerrainGrid grid, Map<Long, CellSnapshot> baseDesign) {
+        long sum = 0;
+        int count = 0;
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            CellSnapshot base = baseDesign.get(DesignTerrainGrid.cellKey(cell.worldX(), cell.worldZ()));
+            if (cell.participatesInEarthwork() && base != null && base.zoneId() != null
+                    && !base.zoneId().isBlank()) {
+                sum += base.targetY();
+                count++;
+            }
+        }
+        return count > 0 ? (int) Math.round(sum / (double) count) : 64;
     }
 
     private static int resolveUniformReferenceElevation(DesignTerrainGrid grid) {

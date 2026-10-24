@@ -295,6 +295,9 @@ public final class TerrainSnapshot {
     public List<Vec2d> centers() {
         List<Vec2d> centers = new ArrayList<>(columns.size());
         for (Column column : columns) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
             centers.add(column.center());
         }
         return centers;
@@ -324,8 +327,9 @@ public final class TerrainSnapshot {
     }
 
     public List<Column> previewColumns(int previewGridSize) {
+        List<Column> loaded = columns.stream().filter(Column::chunkLoaded).toList();
         if (previewGridSize <= 1) {
-            return columns;
+            return loaded;
         }
         List<Column> preview = new ArrayList<>();
         for (Column column : columns) {
@@ -336,7 +340,7 @@ public final class TerrainSnapshot {
                 preview.add(column);
             }
         }
-        return preview.isEmpty() ? columns : preview;
+        return preview.isEmpty() ? loaded : preview;
     }
 
     public List<GradingSurfaceResolver.HeightSample> previewHeightSamples(int previewGridSize) {
@@ -360,29 +364,40 @@ public final class TerrainSnapshot {
             return new ComparisonResult(true, 0, 0);
         }
         EngineeringTerrainService terrainService = EngineeringTerrainService.of(world);
-        if (!metadata.worldKey.equals(TerrainSnapshotCache.worldKey(world))) {
+        return compareWithCurrentTerrain(TerrainSnapshotCache.worldKey(world), column -> {
+            boolean loaded = terrainService.isChunkLoaded(column.worldX(), column.worldZ());
+            int groundY = loaded
+                ? EngineeringTerrainSampler.sampleGroundSurface(world, column.worldX(), column.worldZ())
+                : 0;
+            String surface = loaded
+                ? resolveBlockId(world, column.worldX(), groundY, column.worldZ()) : "";
+            return new Column(column.center(), column.worldX(), column.worldZ(), groundY, surface, loaded);
+        });
+    }
+
+    /** 采样适配层与对比规则分离，确保加载状态变化不被 Y64 占位掩盖。 */
+    ComparisonResult compareWithCurrentTerrain(
+            String worldKey, java.util.function.Function<Column, Column> sampleCurrent) {
+        if (!metadata.worldKey.equals(worldKey)) {
             return new ComparisonResult(false, columnCount(), columnCount());
         }
 
         int elevationChanged = 0;
         int surfaceOnlyChanged = 0;
         for (Column column : columns) {
-            int worldX = column.worldX();
-            int worldZ = column.worldZ();
-            if (!column.chunkLoaded()) {
-                if (terrainService.isChunkLoaded(worldX, worldZ)) {
-                    elevationChanged++;
-                }
-                continue;
-            }
-            int currentGroundY = EngineeringTerrainSampler.sampleGroundSurface(
-                world, worldX, worldZ);
-            if (column.groundY() != currentGroundY) {
+            Column current = sampleCurrent.apply(column);
+            if (column.chunkLoaded() != current.chunkLoaded()) {
                 elevationChanged++;
                 continue;
             }
-            String currentSurfaceBlockId = resolveBlockId(world, worldX, currentGroundY, worldZ);
-            if (!normalizeBlockId(column.surfaceBlockId()).equals(normalizeBlockId(currentSurfaceBlockId))) {
+            if (!column.chunkLoaded()) {
+                continue;
+            }
+            if (column.groundY() != current.groundY()) {
+                elevationChanged++;
+                continue;
+            }
+            if (!normalizeBlockId(column.surfaceBlockId()).equals(normalizeBlockId(current.surfaceBlockId()))) {
                 surfaceOnlyChanged++;
             }
         }

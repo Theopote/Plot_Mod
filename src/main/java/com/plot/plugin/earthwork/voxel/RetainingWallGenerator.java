@@ -69,7 +69,7 @@ public final class RetainingWallGenerator {
         }
     }
 
-    private static void generateWall(
+    static void generateWall(
             RetainingEdge edge,
             EarthworkSite site,
             World world,
@@ -86,6 +86,8 @@ public final class RetainingWallGenerator {
         int fallbackTop = Math.max(edge.getBottomElevation(), edge.getTopElevation());
         String wallBlockId = resolveWallBlockId(edge, site);
         PlacementMeta meta = PlacementMeta.ofZone(edge.getLinkedZoneId());
+        ICoordinateService coordinates = canvasScale.resolveCoordinates(transformer);
+        List<com.plot.plugin.earthwork.model.ExclusionZone> exclusions = site.getExclusionZones();
 
         for (int segmentIndex = 0; segmentIndex < polyline.size() - 1; segmentIndex++) {
             Vec2d start = polyline.get(segmentIndex);
@@ -97,16 +99,25 @@ public final class RetainingWallGenerator {
             for (int step = 0; step <= steps; step++) {
                 double ratio = step / (double) steps;
                 Vec2d canvasPoint = start.lerp(end, ratio);
-                BlockPos column = EarthworkGeometryUtils.canvasToBlockXZ(canvasPoint, transformer);
+                BlockPos column = EarthworkGeometryUtils.canvasToBlockXZ(canvasPoint, coordinates);
+                if (world != null && !world.isChunkLoaded(column.getX() >> 4, column.getZ() >> 4)) {
+                    continue;
+                }
+                if (exclusions.stream().anyMatch(exclusion ->
+                        exclusion != null && exclusion.containsCanvasPoint(canvasPoint))) {
+                    continue;
+                }
                 long columnKey = columnKey(column.getX(), column.getZ());
                 int bottom = fallbackBottom;
                 int top = fallbackTop;
                 if (grid != null) {
-                    DesignTerrainCell cell = grid.get(column.getX(), column.getZ());
-                    if (cell != null) {
-                        bottom = Math.min(cell.existingGroundY(), cell.targetY());
-                        top = Math.max(cell.existingGroundY(), cell.targetY());
+                    DesignTerrainCell cell = ZoneBoundaryRetainingEdgeAdapter.findBoundaryCell(
+                        grid, coordinates.canvasToMinecraftWorld(canvasPoint));
+                    if (cell == null || !cell.participatesInEarthwork()) {
+                        continue;
                     }
+                    bottom = Math.min(cell.existingGroundY(), cell.targetY());
+                    top = Math.max(cell.existingGroundY(), cell.targetY());
                 }
                 if (top < bottom) {
                     continue;

@@ -51,6 +51,9 @@ class TerrainSnapshotTest {
         assertTrue(snapshot.columnCount() > 0);
         assertEquals(snapshot.columnCount(), snapshot.unloadedColumnCount());
         assertTrue(snapshot.groundHeights().isEmpty());
+        assertTrue(snapshot.centers().isEmpty());
+        assertTrue(snapshot.previewColumns(1).isEmpty());
+        assertTrue(snapshot.previewHeightSamples(100).isEmpty());
         assertTrue(snapshot.exceedsUnloadedThreshold());
     }
 
@@ -63,6 +66,10 @@ class TerrainSnapshotTest {
         ));
         assertEquals(List.of(70, 72), snapshot.groundHeights());
         assertEquals(1, snapshot.unloadedColumnCount());
+        assertEquals(List.of(new Vec2d(0.5, 0.5), new Vec2d(2.5, 0.5)), snapshot.centers());
+        assertEquals(2, snapshot.previewColumns(1).size());
+        assertTrue(snapshot.previewHeightSamples(100).stream().noneMatch(sample -> sample.groundY() == 64));
+        assertTrue(snapshot.previewColumns(100).stream().allMatch(TerrainSnapshot.Column::chunkLoaded));
         assertEquals(2, snapshot.loadedColumnCount());
         // 1/3 > 5% → 超过门禁
         assertTrue(snapshot.exceedsUnloadedThreshold());

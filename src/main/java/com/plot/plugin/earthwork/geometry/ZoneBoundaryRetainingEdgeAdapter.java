@@ -72,13 +72,15 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
                 edge.setLinkedZoneId(segment.zoneId());
                 edge.setUseLinkedZoneFillMaterial(settings.isUseLinkedZoneFillMaterial());
                 edge.setWallMaterial(settings.getWallMaterial());
-                sampleSegmentElevations(
+                boolean hasBounds = sampleSegmentElevations(
                     edge,
                     segment,
                     grid,
                     evaluators != null ? evaluators.get(segment.zoneId()) : null,
                     scale);
-                edges.add(edge);
+                if (hasBounds) {
+                    edges.add(edge);
+                }
             }
         }
         return edges;
@@ -153,7 +155,7 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
         return id != null && id.startsWith(VIRTUAL_ID_PREFIX + zoneId + ":");
     }
 
-    private static void sampleSegmentElevations(
+    private static boolean sampleSegmentElevations(
             RetainingEdge edge,
             BoundarySegment segment,
             DesignTerrainGrid grid,
@@ -165,7 +167,7 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
         for (int step = 0; step <= steps; step++) {
             double ratio = step / (double) steps;
             Vec2d canvasPoint = segment.start().lerp(segment.end(), ratio);
-            int[] bounds = resolveWallBounds(canvasPoint, grid, evaluator);
+            int[] bounds = resolveWallBounds(canvasPoint, grid, evaluator, canvasScale);
             if (bounds == null) {
                 continue;
             }
@@ -173,23 +175,38 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
             maxTop = Math.max(maxTop, bounds[1]);
         }
         if (minBottom == Integer.MAX_VALUE || maxTop == Integer.MIN_VALUE) {
-            edge.setBottomElevation(0);
-            edge.setTopElevation(0);
-            return;
+            return false;
         }
         edge.setBottomElevation(minBottom);
         edge.setTopElevation(maxTop);
+        return true;
     }
 
     public static int[] resolveWallBounds(
             Vec2d canvasPoint,
             DesignTerrainGrid grid,
             DesignSurfaceResolver.ZoneTargetEvaluator evaluator) {
-        if (grid == null) {
+        return resolveWallBoundsAtWorld(canvasPoint, grid, evaluator);
+    }
+
+    public static int[] resolveWallBounds(
+            Vec2d canvasPoint,
+            DesignTerrainGrid grid,
+            DesignSurfaceResolver.ZoneTargetEvaluator evaluator,
+            EarthworkCanvasScale canvasScale) {
+        return resolveWallBoundsAtWorld(
+            canvasScale.resolveCoordinates(null).canvasToMinecraftWorld(canvasPoint), grid, evaluator);
+    }
+
+    private static int[] resolveWallBoundsAtWorld(
+            Vec2d worldPoint,
+            DesignTerrainGrid grid,
+            DesignSurfaceResolver.ZoneTargetEvaluator evaluator) {
+        if (grid == null || worldPoint == null) {
             return null;
         }
-        DesignTerrainCell nearest = findNearestCell(grid, canvasPoint);
-        if (nearest == null) {
+        DesignTerrainCell nearest = findBoundaryCell(grid, worldPoint);
+        if (nearest == null || !nearest.participatesInEarthwork()) {
             return null;
         }
         int existing = nearest.existingGroundY();
@@ -205,14 +222,32 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
         return new int[] {bottom, top};
     }
 
-    private static DesignTerrainCell findNearestCell(DesignTerrainGrid grid, Vec2d canvasPoint) {
+    /** 边界可落在 footprint 外一格；只查相邻九格，不跨越未知地形或保护格。 */
+    public static DesignTerrainCell findBoundaryCell(DesignTerrainGrid grid, Vec2d worldPoint) {
+        if (grid == null || worldPoint == null) {
+            return null;
+        }
+        int x = (int) Math.floor(worldPoint.x);
+        int z = (int) Math.floor(worldPoint.y);
+        DesignTerrainCell exact = grid.get(x, z);
+        if (exact != null) {
+            return exact;
+        }
         DesignTerrainCell nearest = null;
         double minDistance = Double.MAX_VALUE;
-        for (DesignTerrainCell cell : grid.cells().values()) {
-            double distance = cell.center().distance(canvasPoint);
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = cell;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                DesignTerrainCell cell = grid.get(x + dx, z + dz);
+                if (cell == null) {
+                    continue;
+                }
+                double offsetX = cell.worldX() + 0.5 - worldPoint.x;
+                double offsetZ = cell.worldZ() + 0.5 - worldPoint.y;
+                double distance = offsetX * offsetX + offsetZ * offsetZ;
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = cell;
+                }
             }
         }
         return nearest;

@@ -1088,6 +1088,7 @@
   "plugin.earthwork.recommend.reason": "当前 Y%d：挖 %d / 填 %d，差值 %d。比 Y%d 少搬运 %d，比 Y%d 少搬运 %d。",
   "plugin.earthwork.curve.header": "标高—方量",
   "plugin.earthwork.curve.legend": "红=挖  蓝=填  黄线=工作量  黄竖=平衡  紫竖=最少施工  白竖=当前",
+  "plugin.earthwork.recommend.single_flat_only": "推荐高度可直接应用于单个平整区域；当前设计请在编辑页调整。",
   "plugin.earthwork.curve_slope_coupled_only": "当前使用自然边坡：方量曲线需在每个候选标高重建边坡，因此不显示整网平移近似曲线，仅展示耦合求解的最终挖填方量。",
   "plugin.earthwork.curve_slope_coupled_resolved": "耦合求解设计标高：Y=%1$d ~ %2$d",
   "plugin.earthwork.curve_slope_coupled_resolved_flat": "耦合求解平衡标高：Y=%1$d",

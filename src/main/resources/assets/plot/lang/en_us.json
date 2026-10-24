@@ -1088,6 +1088,7 @@
   "plugin.earthwork.recommend.reason": "At Y%d: cut %d / fill %d, difference %d. Compared with Y%d, %d less hauling; compared with Y%d, %d less.",
   "plugin.earthwork.curve.header": "Height vs volume",
   "plugin.earthwork.curve.legend": "Red=cut  Blue=fill  Yellow=work  Gold=balance  Purple=least work  White=current",
+  "plugin.earthwork.recommend.single_flat_only": "Recommended heights can be applied directly to a single level pad. Adjust this design in the Edit tab.",
   "plugin.earthwork.curve_slope_coupled_only": "Natural slope edges are active. The height–volume curve needs slope rebuild at each candidate Y, so only the coupled solver result is shown (not a uniform shift approximation).",
   "plugin.earthwork.curve_slope_coupled_resolved": "Coupled solver design elevation: Y=%1$d ~ %2$d",
   "plugin.earthwork.curve_slope_coupled_resolved_flat": "Coupled solver balanced elevation: Y=%1$d",
