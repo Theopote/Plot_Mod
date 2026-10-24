@@ -1130,7 +1130,7 @@ final class VerticalProfileEditor {
             activeIntersectionDragIndex = interaction.activeIntersectionDragIndex();
             activeIntersectionDragTarget = interaction.activeIntersectionDragTarget();
         }
-        applyIntersectionDrag(config, intersections, interaction);
+        applyIntersectionDrag(ctx, editingNetwork, road, config, flatMode, intersections, interaction);
         if (!flatMode
                 && interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
                 && editorState.selectedProfilePvi >= 0
@@ -1235,6 +1235,7 @@ final class VerticalProfileEditor {
             config,
             isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc());
         renderAlignmentViolations(editingNetwork, road, flatMode);
+        renderFlatRoadConstraintWarnings(editingNetwork, road, intersections, flatMode);
         if (profileEditSession.isActive() && !profileEditSession.constraintResult().unresolvedConstraints().isEmpty()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr(
                 "plugin.road.vertical_alignment_network_unresolved",
@@ -1285,6 +1286,33 @@ final class VerticalProfileEditor {
             return;
         }
         ProfileQualitySummary.render(chart, road, config, previewStale);
+    }
+
+    private void renderFlatRoadConstraintWarnings(
+            RoadNetwork network,
+            Road road,
+            List<RoadProfileIntersection> intersections,
+            boolean flatMode) {
+        if (!flatMode || road == null || network == null) {
+            return;
+        }
+        if (FlatVerticalIntentSupport.hasLocalJunctionBends(road)) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.road.profile_flat_local_bend_warning"));
+        }
+        if (intersections == null || intersections.size() < 2) {
+            return;
+        }
+        double reference = intersections.getFirst().currentRoadElevation();
+        for (RoadProfileIntersection intersection : intersections) {
+            if (Math.abs(intersection.currentRoadElevation() - reference) > 0.05) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.profile_flat_multi_junction_conflict"));
+                return;
+            }
+        }
     }
 
     private void renderAlignmentViolations(RoadNetwork network, Road road, boolean flatMode) {
@@ -1341,7 +1369,11 @@ final class VerticalProfileEditor {
     }
 
     private void applyIntersectionDrag(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
             RoadSystemConfig config,
+            boolean flatMode,
             List<RoadProfileIntersection> intersections,
             ProfileChartInteraction.ControlInteraction interaction) {
         if (interaction.draggedIntersectionElevation() == null
@@ -1354,10 +1386,22 @@ final class VerticalProfileEditor {
         if (dragTarget == null) {
             return;
         }
-        profileEditSession.updateIntersectionDrag(
-            activeIntersectionDragIndex,
-            dragTarget,
-            interaction.draggedIntersectionElevation());
+        if (flatMode
+                && dragTarget != RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            profileEditSession.updateFlatRoadWholeLineDrag(
+                network,
+                road,
+                config,
+                activeIntersectionDragIndex,
+                dragTarget,
+                interaction.draggedIntersectionElevation(),
+                intersections);
+        } else {
+            profileEditSession.updateIntersectionDrag(
+                activeIntersectionDragIndex,
+                dragTarget,
+                interaction.draggedIntersectionElevation());
+        }
     }
 
     private void updateProfileCurveHandleDraft(
@@ -1513,6 +1557,13 @@ final class VerticalProfileEditor {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_intersection_drag_grade_hint"));
+        } else if (flatMode) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.profile_flat_whole_line_drag_hint"));
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_intersection_drag_shared_hint"));
         } else {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.WARNING_LIGHT,
@@ -1555,13 +1606,14 @@ final class VerticalProfileEditor {
         } else if (!editable) {
             ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_at_grade"));
         }
-        if (flatMode && intersection.steepGradeWarning()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.profile_flat_junction_transition_warning"));
-        }
         if (editable) {
-            renderIntersectionHeightEdit(ctx, network, road, intersections, detailIndex, config, flatMode);
+            if (flatMode) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.profile_flat_intersection_edit_hint"));
+            } else {
+                renderIntersectionHeightEdit(ctx, network, road, intersections, detailIndex, config, flatMode);
+            }
             boolean crossingChanged = false;
             if (gradeSeparationControls == null) {
                 gradeSeparationControls = new RoadGradeSeparationControls(ctx);

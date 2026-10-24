@@ -65,6 +65,14 @@ public final class FlatVerticalIntent {
         }
     }
 
+    public void clearIntersectionOverrides() {
+        intersectionOverrides.clear();
+    }
+
+    public boolean hasIntersectionOverrides() {
+        return !intersectionOverrides.isEmpty();
+    }
+
     public FlatVerticalIntent copy() {
         return new FlatVerticalIntent(baseElevation, intersectionOverrides);
     }

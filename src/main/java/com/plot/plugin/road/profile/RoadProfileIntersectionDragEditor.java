@@ -65,11 +65,8 @@ public final class RoadProfileIntersectionDragEditor {
     private static boolean setStackElevation(RoadNetwork network, Road road, String stackId,
             double station, double elevation, RoadSystemConfig config) {
         if (road.getVerticalMode() == com.plot.plugin.road.vertical.RoadVerticalMode.FLAT) {
-            var intent = com.plot.plugin.road.vertical.FlatVerticalIntentSupport.resolveIntent(network, road);
-            if (intent == null) return false;
-            intent.setIntersectionOverride("stack:" + stackId + ":" + Double.toString(station), elevation);
-            com.plot.plugin.road.vertical.FlatVerticalIntentSupport.syncCompiledAlignment(
-                network, road, road.getEffectiveMaxSlope(config));
+            com.plot.plugin.road.vertical.FlatVerticalIntentSupport.setWholeRoadElevation(
+                network, road, elevation, road.getEffectiveMaxSlope(config));
             return true;
         }
         return RoadVerticalJunctionService.syncManualProfileElevationAtStation(network, road, station, elevation);

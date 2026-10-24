@@ -9,6 +9,8 @@ import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatProfileCompiler;
+import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -161,6 +163,44 @@ public final class ProfileEditSession {
             RoadProfileIntersectionDragEditor.DragTarget target,
             double elevation) {
         draft.updateIntersectionDraft(index, target, elevationBounds.clamp(elevation));
+        draftRevision++;
+    }
+
+    /**
+     * 水平道路：拖动任一交点时，整条设计线同步抬升/降低，并预览所有交点 Y 联动。
+     */
+    public void updateFlatRoadWholeLineDrag(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            int index,
+            RoadProfileIntersectionDragEditor.DragTarget target,
+            double elevation,
+            List<RoadProfileIntersection> intersections) {
+        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT || intersections == null) {
+            updateIntersectionDrag(index, target, elevation);
+            return;
+        }
+        if (!draft.isActive() || draft.kind() != ProfileEditDraft.Kind.INTERSECTION) {
+            beginIntersectionEdit(intersections);
+        }
+        double clamped = elevationBounds.clamp(elevation);
+        double maxGrade = road.getEffectiveMaxSlope(config);
+        FlatVerticalIntent previewIntent = new FlatVerticalIntent(clamped);
+        RoadVerticalAlignment preview = FlatProfileCompiler.compile(
+            network, road, previewIntent, maxGrade);
+        draft.setDraftAlignment(preview);
+        if (target == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            draft.updateIntersectionDraft(index, target, clamped);
+        } else {
+            for (int i = 0; i < draft.draftIntersections().size(); i++) {
+                draft.updateIntersectionDraft(
+                    i,
+                    RoadProfileIntersectionDragEditor.DragTarget.CURRENT,
+                    clamped);
+            }
+            draft.forceIntersectionTarget(index, target);
+        }
         draftRevision++;
     }
 

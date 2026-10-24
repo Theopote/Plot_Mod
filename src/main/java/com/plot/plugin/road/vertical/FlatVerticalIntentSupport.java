@@ -66,6 +66,32 @@ public final class FlatVerticalIntentSupport {
         syncCompiledAlignment(network, road, maxGradePercent);
     }
 
+    /**
+     * 水平道路整体抬升/降低：清除所有局部交叉 override，整条绿线保持水平。
+     * 纵断面编辑器拖动任意交点时使用。
+     */
+    public static void setWholeRoadElevation(
+            RoadNetwork network,
+            Road road,
+            double baseElevation,
+            double maxGradePercent) {
+        FlatVerticalIntent intent = resolveIntent(network, road);
+        if (intent == null || !Double.isFinite(baseElevation)) {
+            return;
+        }
+        intent.setBaseElevation(baseElevation);
+        intent.clearIntersectionOverrides();
+        syncCompiledAlignment(network, road, maxGradePercent);
+    }
+
+    public static boolean hasLocalJunctionBends(Road road) {
+        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
+            return false;
+        }
+        FlatVerticalIntent intent = road.getFlatVerticalIntent();
+        return intent != null && intent.hasIntersectionOverrides();
+    }
+
     public static void applyJunctionElevation(
             RoadNetwork network,
             Road road,

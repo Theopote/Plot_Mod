@@ -35,8 +35,8 @@ class FlatRoadJunctionConflictResolverTest {
             network, nodeId, roadA.getId()));
 
         FlatVerticalIntent intentB = FlatVerticalIntentSupport.resolveIntent(network, roadB);
-        assertEquals(76.0, intentB.getBaseElevation(), 1e-6);
-        assertEquals(70.0, intentB.getIntersectionOverride(nodeId), 1e-6);
+        assertEquals(70.0, intentB.getBaseElevation(), 1e-6);
+        assertFalse(intentB.hasIntersectionOverrides());
         assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(network).blocksBuild());
     }
 
@@ -59,7 +59,8 @@ class FlatRoadJunctionConflictResolverTest {
 
         assertEquals(1, FlatRoadJunctionConflictResolver.allowConflictingRoadsToSlope(network));
         assertEquals(RoadVerticalMode.FLAT, flat.getVerticalMode());
-        assertEquals(76.0, intent.getIntersectionOverride(junction.getId()), 1e-6);
+        assertEquals(76.0, intent.getBaseElevation(), 1e-6);
+        assertFalse(intent.hasIntersectionOverrides());
         assertTrue(FlatRoadJunctionConflictResolver.find(network).isEmpty());
     }
 

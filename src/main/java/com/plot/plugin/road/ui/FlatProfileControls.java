@@ -146,7 +146,7 @@ final class FlatProfileControls {
         if (windowSession != null) {
             windowSession.markTouched(road);
         }
-        FlatVerticalIntentSupport.setBaseElevation(
+        FlatVerticalIntentSupport.setWholeRoadElevation(
             network,
             road,
             elevation,

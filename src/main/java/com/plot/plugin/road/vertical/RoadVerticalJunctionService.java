@@ -52,10 +52,9 @@ public final class RoadVerticalJunctionService {
                 continue;
             }
             if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-                FlatVerticalIntentSupport.applyJunctionElevation(
+                FlatVerticalIntentSupport.setWholeRoadElevation(
                     network,
                     road,
-                    nodeId,
                     elevation,
                     effectiveMaxGrade(road, config));
                 changed++;
@@ -103,10 +102,8 @@ public final class RoadVerticalJunctionService {
         }
         double station = crossing.stationOn(road.getId());
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            var intent = FlatVerticalIntentSupport.resolveIntent(network, road);
-            if (intent == null) return false;
-            intent.setIntersectionOverride("crossing:" + crossing.id(), elevation);
-            FlatVerticalIntentSupport.syncCompiledAlignment(network, road, effectiveMaxGrade(road, config));
+            FlatVerticalIntentSupport.setWholeRoadElevation(
+                network, road, elevation, effectiveMaxGrade(road, config));
             return true;
         }
         return syncManualProfileElevationAtStation(network, road, station, elevation);
@@ -128,10 +125,9 @@ public final class RoadVerticalJunctionService {
         }
         if (node.isGradeSeparated()) {
             if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-                FlatVerticalIntentSupport.applyJunctionElevation(
+                FlatVerticalIntentSupport.setWholeRoadElevation(
                     network,
                     road,
-                    nodeId,
                     elevation,
                     effectiveMaxGrade(road, config));
                 return true;

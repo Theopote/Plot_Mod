@@ -120,6 +120,13 @@ final class ProfileEditDraft {
         return intersectionTarget;
     }
 
+    void forceIntersectionTarget(
+            int index,
+            RoadProfileIntersectionDragEditor.DragTarget target) {
+        intersectionIndex = index;
+        intersectionTarget = target;
+    }
+
     private static RoadVerticalAlignment copyAlignment(RoadVerticalAlignment source) {
         if (source == null) {
             return new RoadVerticalAlignment();
