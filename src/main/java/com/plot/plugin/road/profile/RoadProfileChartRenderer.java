@@ -573,7 +573,7 @@ public final class RoadProfileChartRenderer {
         return toPlotRange(chart.totalStation(), bounds);
     }
 
-    static RoadProfilePlotRange resolvePlotRange(
+    public static RoadProfilePlotRange resolvePlotRange(
             ProfileRenderCache cache,
             RoadProfileChartData chart,
             VerticalAlignmentProfileOverlay design,

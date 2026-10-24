@@ -10,7 +10,9 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.profile.ProfileChartLayout;
 import com.plot.plugin.road.profile.ProfileChartRenderMode;
+import com.plot.plugin.road.profile.RoadProfilePlotRange;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.ProfileChartLegend;
@@ -1030,12 +1032,13 @@ final class VerticalProfileEditor {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
         Road displayRoad = displayNetwork.getRoad(road.getId());
-        design = displayNetwork == editingNetwork
-            ? profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(null)
-            : VerticalAlignmentProfileOverlay.forAlignment(displayNetwork, displayRoad,
-                displayRoad.getVerticalAlignment()).orElse(null);
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
         RoadVerticalAlignment effectiveAlignment = profileEditSession.effectiveAlignment(road);
+        design = profileEditSession.effectiveDesignOverlay(editingNetwork, road)
+            .orElseGet(() -> VerticalAlignmentProfileOverlay.forAlignment(
+                displayNetwork,
+                displayRoad,
+                displayRoad != null ? displayRoad.getVerticalAlignment() : null).orElse(null));
         RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
         boolean buildProfileStale = isChartDerivedDataStale(road);
         VoxelProfilePreviewSlot voxelSlot =
@@ -1077,6 +1080,23 @@ final class VerticalProfileEditor {
         renderWaterConstraintWarning(effectiveChart);
         RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
         profileEditSession.setElevationBounds(elevationBounds);
+        if (flatMode) {
+            preApplyFlatIntersectionDrag(
+                editingNetwork,
+                road,
+                config,
+                baseIntersections,
+                chartHeight,
+                effectiveChart,
+                design,
+                points,
+                flatOverlay,
+                renderCache,
+                elevationBounds);
+            intersections = profileEditSession.effectiveIntersections(baseIntersections);
+            effectiveAlignment = profileEditSession.effectiveAlignment(road);
+            design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(design);
+        }
         ProfileChartInteraction.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 effectiveChart, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -1374,6 +1394,56 @@ final class VerticalProfileEditor {
             PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible_hint"));
     }
 
+    private void preApplyFlatIntersectionDrag(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            List<RoadProfileIntersection> baseIntersections,
+            float chartHeight,
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay designOverlay,
+            List<ProfileControlPoint> controlPoints,
+            FlatElevationProfileOverlay flatOverlay,
+            ProfileRenderCache renderCache,
+            RoadElevationBounds elevationBounds) {
+        if (activeIntersectionDragIndex < 0 || !ImGui.isMouseDown(0)) {
+            return;
+        }
+        RoadProfileIntersectionDragEditor.DragTarget dragTarget =
+            mapIntersectionDragTarget(activeIntersectionDragTarget);
+        if (dragTarget == null
+                || dragTarget == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            return;
+        }
+        float chartWidth = ImGui.getContentRegionAvailX();
+        float chartX = ImGui.getCursorScreenPosX();
+        float chartY = ImGui.getCursorScreenPosY();
+        List<RoadProfileIntersection> previewIntersections =
+            profileEditSession.effectiveIntersections(baseIntersections);
+        RoadProfilePlotRange range = RoadProfileChartRenderer.resolvePlotRange(
+            renderCache,
+            chart,
+            designOverlay,
+            controlPoints,
+            previewIntersections,
+            flatOverlay);
+        ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(
+            chartX, chartY, chartWidth, chartHeight, ProfileChartRenderMode.EDITOR);
+        double elevation = layout.elevationAtMouseY(
+            ImGui.getMousePosY(), range.minElevation(), range.maxElevation());
+        if (!Double.isFinite(elevation)) {
+            return;
+        }
+        profileEditSession.updateFlatRoadWholeLineDrag(
+            network,
+            road,
+            config,
+            activeIntersectionDragIndex,
+            dragTarget,
+            elevationBounds.clamp(elevation),
+            baseIntersections);
+    }
+
     private void applyIntersectionDrag(
             RoadUiContext ctx,
             RoadNetwork network,
@@ -1382,13 +1452,21 @@ final class VerticalProfileEditor {
             boolean flatMode,
             List<RoadProfileIntersection> intersections,
             ProfileChartInteraction.ControlInteraction interaction) {
+        int dragIndex = interaction.activeIntersectionDragIndex() >= 0
+            ? interaction.activeIntersectionDragIndex()
+            : activeIntersectionDragIndex;
+        ProfileChartInteraction.IntersectionDragTarget dragTargetEnum =
+            interaction.activeIntersectionDragTarget()
+                    != ProfileChartInteraction.IntersectionDragTarget.NONE
+                ? interaction.activeIntersectionDragTarget()
+                : activeIntersectionDragTarget;
         if (interaction.draggedIntersectionElevation() == null
-                || activeIntersectionDragIndex < 0
-                || activeIntersectionDragIndex >= intersections.size()) {
+                || dragIndex < 0
+                || dragIndex >= intersections.size()) {
             return;
         }
-        RoadProfileIntersectionDragEditor.DragTarget dragTarget = mapIntersectionDragTarget(
-            activeIntersectionDragTarget);
+        RoadProfileIntersectionDragEditor.DragTarget dragTarget =
+            mapIntersectionDragTarget(dragTargetEnum);
         if (dragTarget == null) {
             return;
         }
@@ -1398,13 +1476,13 @@ final class VerticalProfileEditor {
                 network,
                 road,
                 config,
-                activeIntersectionDragIndex,
+                dragIndex,
                 dragTarget,
                 interaction.draggedIntersectionElevation(),
                 intersections);
         } else {
             profileEditSession.updateIntersectionDrag(
-                activeIntersectionDragIndex,
+                dragIndex,
                 dragTarget,
                 interaction.draggedIntersectionElevation());
         }

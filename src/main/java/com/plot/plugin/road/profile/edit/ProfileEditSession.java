@@ -46,10 +46,39 @@ public final class ProfileEditSession {
         if (previewNetwork == null || previewRevision != draftRevision) {
             previewNetwork = working.snapshot();
             Road previewRoad = previewNetwork.getRoad(road.getId());
-            applyAndSynchronize(previewNetwork, previewRoad, config);
+            if (isFlatWholeLineIntersectionDraft(previewRoad)) {
+                applyFlatWholeLinePreview(previewNetwork, previewRoad, config);
+            } else {
+                applyAndSynchronize(previewNetwork, previewRoad, config);
+            }
             previewRevision = draftRevision;
         }
         return previewNetwork;
+    }
+
+    private boolean isFlatWholeLineIntersectionDraft(Road road) {
+        return road != null
+            && road.getVerticalMode() == RoadVerticalMode.FLAT
+            && draft.kind() == ProfileEditDraft.Kind.INTERSECTION
+            && draft.draftAlignment() != null
+            && draft.intersectionTarget() != RoadProfileIntersectionDragEditor.DragTarget.OTHER;
+    }
+
+    private void applyFlatWholeLinePreview(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        RoadVerticalAlignment preview = draft.draftAlignment();
+        if (preview == null || preview.isEmpty()) {
+            applyAndSynchronize(network, road, config);
+            return;
+        }
+        double base = preview.getPvis().getFirst().getElevation();
+        FlatVerticalIntentSupport.setWholeRoadElevation(
+            network,
+            road,
+            base,
+            road.getEffectiveMaxSlope(config));
     }
 
     public void setElevationBounds(RoadElevationBounds bounds) {

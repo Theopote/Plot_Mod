@@ -146,9 +146,23 @@ public final class RoadProfileConstraintSynchronizer {
         // An infeasible cycle or missing sampled profile must not partially rewrite its neighbours.
         if (!unresolved.isEmpty()) return new Result(Set.of(), unresolved);
         Set<String> changedRoads = new LinkedHashSet<>();
-        for (Link link : links) {
-            saveFlatOverride(network, link.a, flatKey(link, link.a), groups.get(root(parents, link.a)).elevation);
-            saveFlatOverride(network, link.b, flatKey(link, link.b), groups.get(root(parents, link.b)).elevation);
+        Map<String, Double> flatRoadElevations = new LinkedHashMap<>();
+        Map<String, Double> flatRoadPriorities = new LinkedHashMap<>();
+        for (Point point : parents.keySet()) {
+            accumulateFlatRoadElevation(
+                network, point, groups, parents, source, flatRoadElevations, flatRoadPriorities);
+        }
+        for (Map.Entry<String, Double> entry : flatRoadElevations.entrySet()) {
+            Road flatRoad = network.getRoad(entry.getKey());
+            if (flatRoad == null) {
+                continue;
+            }
+            FlatVerticalIntentSupport.setWholeRoadElevation(
+                network,
+                flatRoad,
+                entry.getValue(),
+                effectiveMaxGrade(flatRoad, config));
+            changedRoads.add(entry.getKey());
         }
         Map<String, Map<Double, Double>> targets = new LinkedHashMap<>();
         for (Point point : parents.keySet()) {
@@ -157,7 +171,13 @@ public final class RoadProfileConstraintSynchronizer {
                 .put(point.station, group.elevation);
         }
         targets.forEach((roadId, elevations) -> {
-            if (setElevations(network.getRoad(roadId), elevations)) changedRoads.add(roadId);
+            Road targetRoad = network.getRoad(roadId);
+            if (targetRoad == null || targetRoad.getVerticalMode() == RoadVerticalMode.FLAT) {
+                return;
+            }
+            if (setElevations(targetRoad, elevations)) {
+                changedRoads.add(roadId);
+            }
         });
         for (Link link : links) {
             if (link.separated) continue;
@@ -174,17 +194,35 @@ public final class RoadProfileConstraintSynchronizer {
         return new Result(changedRoads, unresolved);
     }
 
-    private static String flatKey(Link link, Point point) {
-        if (link.id.startsWith("node:")) return link.id.substring(5);
-        if (!link.id.startsWith("stack:")) return link.id;
-        return link.id + ":" + Double.toString(point.station);
+    private static double effectiveMaxGrade(Road road, RoadSystemConfig config) {
+        if (road != null && road.getMaxSlope() != null) {
+            return road.getMaxSlope();
+        }
+        return config != null ? config.getMaxSlope() : 8.0;
     }
 
-    private static void saveFlatOverride(RoadNetwork network, Point point, String key, double elevation) {
+    /** 水平道路在约束求解后保持单一基准高程，不再写入 per-junction override。 */
+    private static void accumulateFlatRoadElevation(
+            RoadNetwork network,
+            Point point,
+            Map<Point, Group> groups,
+            Map<Point, Point> parents,
+            Road source,
+            Map<String, Double> elevations,
+            Map<String, Double> priorities) {
         Road road = network.getRoad(point.roadId);
-        if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            var intent = FlatVerticalIntentSupport.resolveIntent(network, road);
-            if (intent != null) intent.setIntersectionOverride(key, elevation);
+        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
+            return;
+        }
+        Group group = groups.get(root(parents, point));
+        if (group == null || !Double.isFinite(group.elevation)) {
+            return;
+        }
+        double priority = source.getId().equals(point.roadId) ? (group.pinned ? 3.0 : 2.0) : 1.0;
+        Double existing = priorities.get(point.roadId);
+        if (existing == null || priority > existing) {
+            elevations.put(point.roadId, group.elevation);
+            priorities.put(point.roadId, priority);
         }
     }
 
