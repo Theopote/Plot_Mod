@@ -1,8 +1,6 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
-import com.plot.core.terrain.MinecraftTerrainSampler;
-import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
@@ -17,7 +15,6 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import net.minecraft.world.World;
 
 import java.util.List;
 
@@ -28,6 +25,8 @@ public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
     private final VerticalModeControls verticalModeControls = new VerticalModeControls();
+    private final RoadPathVerticalPropertyPanel pathPropertyPanel =
+        new RoadPathVerticalPropertyPanel(new RoadVerticalStrategySwitchDialog());
     private final RoadIntersectionListPanel intersectionListPanel;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private String profileEdgeId = "";
@@ -85,6 +84,7 @@ public final class RoadGeneratePanel {
         RoadUiSections.section("plugin.road.section.generation_settings");
         RoadGenerationSettingsPanel.renderPrimary(
             ctx,
+            pathPropertyPanel,
             () -> {
                 Road road = resolveActiveProfileRoad(network);
                 if (road != null) {
@@ -156,19 +156,6 @@ public final class RoadGeneratePanel {
             profileEditor,
             road -> resolveFlatProfileOverlay(network, road));
 
-        Road road = resolveActiveProfileRoad(network);
-        if (road == null) {
-            return;
-        }
-        if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
-            ImGui.spacing();
-            verticalModeControls.render(
-                ctx,
-                network,
-                road,
-                ctx.networkManager().getConfig(),
-                this::requireTerrainOrNull);
-        }
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
@@ -182,15 +169,6 @@ public final class RoadGeneratePanel {
         }
         return verticalModeControls.flatElevationProfileOverlay(
             network, road, ctx.networkManager().getConfig());
-    }
-
-    private TerrainSampler requireTerrainOrNull() {
-        World world = RoadNetworkGenerator.getClientWorld();
-        if (world == null) {
-            ctx.status().error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
-            return null;
-        }
-        return MinecraftTerrainSampler.of(world, ctx.host().coordinates());
     }
 
     private Road resolveActiveProfileRoad(RoadNetwork network) {
@@ -385,6 +363,10 @@ public final class RoadGeneratePanel {
             cachedValidationKey = key;
         }
         return cachedValidationReport;
+    }
+
+    public void renderDeferredModals() {
+        pathPropertyPanel.renderDeferredModals(ctx);
     }
 
     public void renderBuildConfirmPopup() {

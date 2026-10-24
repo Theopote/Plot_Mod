@@ -20,6 +20,10 @@ public final class RoadBuildPanel {
         generatePanel.openProfileForEdge(edgeId);
     }
 
+    public void renderDeferredModals() {
+        generatePanel.renderDeferredModals();
+    }
+
     public void renderBuildConfirmPopup() {
         generatePanel.renderBuildConfirmPopup();
     }

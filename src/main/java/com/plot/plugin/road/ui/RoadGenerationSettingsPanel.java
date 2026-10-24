@@ -35,14 +35,26 @@ public final class RoadGenerationSettingsPanel {
             && showsTerrainAdaptiveControls(ctx);
     }
 
-    /** 建造 Tab 主界面：坡度/地形/纵断面来源、桥梁选项。 */
-    public static void renderPrimary(RoadUiContext ctx, Runnable openProfileEditorForSelectedRoad) {
+    /** 建造 Tab 主界面：目标道路、路径属性、坡度/地形/纵断面来源、桥梁选项。 */
+    public static void renderPrimary(
+            RoadUiContext ctx,
+            RoadPathVerticalPropertyPanel pathPropertyPanel,
+            Runnable openProfileEditorForSelectedRoad) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (config == null) {
             return;
         }
 
         RoadNetwork network = ctx.networkManager().getNetwork();
+        if (!network.getEdges().isEmpty()) {
+            RoadGenerateTargetBar.render(ctx, network);
+            ImGui.spacing();
+            if (pathPropertyPanel != null) {
+                pathPropertyPanel.renderGenerationSettings(ctx);
+                ImGui.spacing();
+            }
+        }
+
         Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
         if (showsPerRoadTerrainControls(ctx, activeRoad)) {
             RoadStyleProductControls.renderRoadMaxSlopePresets(

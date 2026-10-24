@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * 路径 Tab 纵向方式与水平道路基准高程。
+ * 生成 Tab 路径属性：纵向方式与水平道路基准高程。
  * <p>
  * PVI / 纵断面详细编辑在 {@link VerticalProfileEditor} + {@link com.plot.plugin.road.profile.edit.ProfileEditSession}。
  */
@@ -23,7 +23,7 @@ public final class VerticalAlignmentEditor {
 
     private final FlatProfileControls flatProfileControls = new FlatProfileControls();
 
-    /** 路径 Tab：纵向方式与水平道路基准高程。 */
+    /** 生成 Tab 路径属性：纵向方式与水平道路基准高程。 */
     public void renderPathProperty(
             RoadUiContext ctx,
             RoadNetwork network,

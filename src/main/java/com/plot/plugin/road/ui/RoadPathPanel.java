@@ -16,9 +16,6 @@ public final class RoadPathPanel {
     private final RoadPathOverviewPanel overviewPanel;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private final RoadIntersectionListPanel intersectionListPanel;
-    private final RoadPathVerticalPropertyPanel verticalPropertyPanel =
-        new RoadPathVerticalPropertyPanel(new RoadVerticalStrategySwitchDialog());
-
     public RoadPathPanel(
             RoadUiContext ctx,
             RoadAdoptPanel adoptPanel,
@@ -36,7 +33,6 @@ public final class RoadPathPanel {
 
     public void render() {
         RoadPathHeader.render(ctx, adoptPanel);
-        verticalPropertyPanel.render(ctx);
 
         ImGui.separator();
         renderRoadList();
@@ -100,10 +96,6 @@ public final class RoadPathPanel {
 
         RoadUiSections.section("plugin.road.path.road_list");
         edgeListPanel.renderPathList("path_edge_list");
-    }
-
-    public void renderDeferredModals() {
-        verticalPropertyPanel.renderDeferredModals(ctx);
     }
 
 }

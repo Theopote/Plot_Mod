@@ -2,17 +2,15 @@ package com.plot.plugin.road.ui;
 
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
-import imgui.ImGui;
 import net.minecraft.world.World;
 
 /**
- * 路径 Tab：当前选中道路的路径属性（纵向方式、水平道路基准高程；多选批量纵向）。
+ * 生成 Tab 生成设置：路径属性（纵向方式、水平道路基准高程；多选批量纵向）。
  */
 final class RoadPathVerticalPropertyPanel {
     private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
@@ -23,15 +21,14 @@ final class RoadPathVerticalPropertyPanel {
         this.strategySwitchDialog = strategySwitchDialog;
     }
 
-    void render(RoadUiContext ctx) {
+    void renderGenerationSettings(RoadUiContext ctx) {
         RoadNetwork network = ctx.networkManager().getNetwork();
         if (network.getEdges().isEmpty()) {
             return;
         }
         ctx.networkManager().ensureSelectionValid();
 
-        ImGui.separator();
-        RoadUiSections.section("plugin.road.path.road_property");
+        RoadUiSections.group("plugin.road.path.road_property");
 
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         switch (mode) {
@@ -60,10 +57,6 @@ final class RoadPathVerticalPropertyPanel {
         if (road == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.path.current_road"));
-        ImGui.sameLine();
-        ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, road));
-        ImGui.spacing();
         verticalAlignmentEditor.renderPathProperty(
             ctx,
             network,
