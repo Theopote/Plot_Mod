@@ -1054,9 +1054,10 @@ final class VerticalProfileEditor {
         List<RoadProfileIntersection> baseIntersections = resolveIntersections(
             ctx, displayNetwork, displayRoad, config, effectiveChart,
             !profileEditSession.isActive() && activeIntersectionDragIndex < 0);
-        List<RoadProfileIntersection> intersections = baseIntersections;
+        List<RoadProfileIntersection> intersections =
+            profileEditSession.effectiveIntersections(baseIntersections);
         ProfileRenderCache renderCache = resolveRenderCache(
-            ctx, liveNetwork, road, effectiveChart, flatOverlay, baseIntersections,
+            ctx, liveNetwork, road, effectiveChart, flatOverlay, intersections,
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
         int chartSelectedPvi = flatMode ? -1 : editorState.selectedProfilePvi;
         int chartActivePvi = flatMode ? -1 : editorState.activeProfilePvi;
@@ -1130,7 +1131,12 @@ final class VerticalProfileEditor {
             activeIntersectionDragIndex = interaction.activeIntersectionDragIndex();
             activeIntersectionDragTarget = interaction.activeIntersectionDragTarget();
         }
-        applyIntersectionDrag(ctx, editingNetwork, road, config, flatMode, intersections, interaction);
+        applyIntersectionDrag(ctx, editingNetwork, road, config, flatMode, baseIntersections, interaction);
+        intersections = profileEditSession.effectiveIntersections(baseIntersections);
+        if (flatMode && profileEditSession.isActive()) {
+            effectiveAlignment = profileEditSession.effectiveAlignment(road);
+            design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(design);
+        }
         if (!flatMode
                 && interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
                 && editorState.selectedProfilePvi >= 0

@@ -11,6 +11,7 @@ import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatProfileCompiler;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -328,6 +329,14 @@ public final class ProfileEditSession {
             case SHARED -> patched.currentRoadElevation();
             case CURRENT -> patched.currentRoadElevation();
         };
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT
+                && target != RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            FlatVerticalIntentSupport.setWholeRoadElevation(
+                network,
+                road,
+                requested,
+                road.getEffectiveMaxSlope(config));
+        }
         RoadProfileIntersectionDragEditor.applyDraggedElevation(
             network, road, patched, target, requested, config);
     }
