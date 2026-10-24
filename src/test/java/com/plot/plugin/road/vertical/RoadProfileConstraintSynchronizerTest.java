@@ -203,7 +203,7 @@ class RoadProfileConstraintSynchronizerTest {
     }
 
     @Test
-    void flatNeighbourRetainsCrossingLockAfterRecompilation() {
+    void flatNeighbourMovesAsOnePlaneAfterCrossingEdit() {
         Road a = road("a", 64);
         Road b = road("b", 64);
         b.setVerticalMode(RoadVerticalMode.FLAT);
@@ -215,7 +215,8 @@ class RoadProfileConstraintSynchronizerTest {
         FlatVerticalIntentSupport.syncCompiledAlignment(network, b, 8);
         assertEquals(RoadVerticalMode.FLAT, b.getVerticalMode());
         assertEquals(70, at(b, 50), 1e-6);
-        assertEquals(64, b.getFlatVerticalIntent().getBaseElevation());
+        assertEquals(70, b.getFlatVerticalIntent().getBaseElevation());
+        for (double station = 0; station <= 100; station++) assertEquals(70, at(b, station), 1e-6);
     }
 
     @Test

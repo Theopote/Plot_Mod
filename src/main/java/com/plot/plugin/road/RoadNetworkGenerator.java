@@ -236,6 +236,12 @@ public class RoadNetworkGenerator {
             return;
         }
         RoadNetwork generationNetwork = session.generationNetwork();
+        Set<String> confirmedProfiles = new LinkedHashSet<>();
+        for (var road : generationNetwork.getRoads().values()) {
+            if (com.plot.plugin.road.vertical.ResolvedProfileAuthority.usesEditedProfileForGeneration(generationNetwork, road)) {
+                confirmedProfiles.add(road.getId());
+            }
+        }
         int strippedProfiles = VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(
             generationNetwork);
         if (strippedProfiles > 0) {
@@ -245,6 +251,12 @@ public class RoadNetworkGenerator {
             generationNetwork,
             roadGenerator.getConfig().getPathSampleDistance());
         if (synchronizedRoads > 0) {
+            // Rebuilding a derived polyline cache from the same horizontal design
+            // must not demote a previously confirmed vertical design on this snapshot.
+            for (String id : confirmedProfiles) {
+                var road = generationNetwork.getRoad(id);
+                road.setEditedGeometrySignature(com.plot.plugin.road.vertical.EditedProfileGeometry.signature(generationNetwork, road));
+            }
             LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
         try (var ignored = session.stationingCache().activate()) {

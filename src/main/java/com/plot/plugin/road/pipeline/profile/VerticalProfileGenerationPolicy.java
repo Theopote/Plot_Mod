@@ -43,6 +43,11 @@ public final class VerticalProfileGenerationPolicy {
             if (road == null) {
                 continue;
             }
+            // Legacy FLAT roads may store their only elevation in the derived VA.
+            // Migrate that intent before clearing any non-authoritative cache.
+            if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+                com.plot.plugin.road.vertical.FlatVerticalIntentSupport.resolveIntent(generationNetwork, road);
+            }
             if (ResolvedProfileAuthority.usesEditedProfileForGeneration(generationNetwork, road)) {
                 continue;
             }

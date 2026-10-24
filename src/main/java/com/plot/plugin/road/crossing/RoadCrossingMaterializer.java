@@ -36,7 +36,32 @@ public final class RoadCrossingMaterializer {
             materializeCrossing(snapshot, crossing);
         }
         RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
+        preserveEditedProfilesAcrossSplits(source, snapshot);
         return snapshot;
+    }
+
+    /** Splitting instance edges at a crossing does not edit the logical road path. */
+    private static void preserveEditedProfilesAcrossSplits(RoadNetwork source, RoadNetwork snapshot) {
+        for (Road road : source.getRoads().values()) {
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.usesEditedProfileForGeneration(source, road)) continue;
+            Road copy = snapshot.getRoad(road.getId());
+            if (copy == null || !RoadStationing.isStationable(snapshot, copy)) continue;
+            double length = RoadStationing.canonicalLength(source, road);
+            if (Math.abs(length - RoadStationing.canonicalLength(snapshot, copy)) > 1e-5) continue;
+            boolean samePath = true;
+            for (double fraction : new double[] {0, 0.25, 0.5, 0.75, 1}) {
+                var before = com.plot.plugin.road.alignment.RoadPlanGeometry.pointAtStation(source, road, length * fraction);
+                var after = com.plot.plugin.road.alignment.RoadPlanGeometry.pointAtStation(snapshot, copy, length * fraction);
+                if (before.isEmpty() || after.isEmpty() || before.get().distance(after.get()) > 1e-5) {
+                    samePath = false;
+                    break;
+                }
+            }
+            if (!samePath) continue;
+            copy.setVerticalAlignment(road.getVerticalAlignment().copy());
+            copy.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.EDITED);
+            copy.setEditedGeometrySignature(com.plot.plugin.road.vertical.EditedProfileGeometry.signature(snapshot, copy));
+        }
     }
 
     public static IntersectionResult materializeInPlace(RoadNetwork network) {

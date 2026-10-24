@@ -91,7 +91,7 @@ public final class NodeTargetHeightResolver {
             RoadNetwork network,
             TerrainSampler terrain,
             boolean applyGradeSeparation) {
-        OptionalInt designHeight = VerticalAlignmentEndpointHeight.atNode(network, edge, node);
+        OptionalInt designHeight = VerticalAlignmentEndpointHeight.atNode(network, edge, node, context.roadConfig());
         if (designHeight.isPresent()) {
             return designHeight.getAsInt();
         }

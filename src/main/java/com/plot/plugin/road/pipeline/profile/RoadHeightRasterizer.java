@@ -256,11 +256,17 @@ public final class RoadHeightRasterizer {
             RoadSlopeUtils.ElevationAccumulator accumulator) {
         double maxRise = distance * maxSlopePercent / 100.0;
         double delta = targetElevation - currentBuild;
+        int desired = VoxelElevationDiscretizer.quantizeContinuous(targetElevation);
+        int next;
         if (Math.abs(delta) <= maxRise + EPSILON) {
-            return accumulator.advance(currentBuild, delta);
+            next = accumulator.advance(currentBuild, delta);
+        } else {
+            double continuousStep = delta > 0.0 ? maxRise : -maxRise;
+            next = accumulator.advance(currentBuild, continuousStep);
         }
-        double continuousStep = delta > 0.0 ? maxRise : -maxRise;
-        return accumulator.advance(currentBuild, continuousStep);
+        // Retain fractional grade budget, but never step beyond the rounded design
+        // or away from it. Otherwise a constant Y=64.5 endlessly oscillates 64/65.
+        return Math.clamp(next, Math.min(currentBuild, desired), Math.max(currentBuild, desired));
     }
 
     private static int buildYAtStation(List<BuildHeightSample> samples, double station) {

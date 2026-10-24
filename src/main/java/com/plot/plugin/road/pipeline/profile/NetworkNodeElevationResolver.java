@@ -51,6 +51,8 @@ public final class NetworkNodeElevationResolver {
         }
 
         Map<String, List<Integer>> naturalHeightsByNode = collectNaturalHeights(network, terrain);
+        Map<String, Integer> designedTargets = collectDesignedTargets(network, terrain);
+        designedTargets.forEach((id, y) -> naturalHeightsByNode.put(id, List.of(y)));
         Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> approachConstraints =
             collectApproachConstraints(network);
 
@@ -79,14 +81,39 @@ public final class NetworkNodeElevationResolver {
             network,
             naturalHeightsByNode,
             approachConstraints,
-            resolved);
+            resolved,
+            designedTargets.keySet());
         Map<String, List<Integer>> pinnedNaturalHeights =
             collectNaturalHeightsWithPinnedJunctions(network, terrain, resolved);
-        return JunctionFeasibleElevationResolver.refine(
+        designedTargets.forEach((id, y) -> pinnedNaturalHeights.put(id, List.of(y)));
+        Map<String, Integer> refined = JunctionFeasibleElevationResolver.refine(
             network,
             pinnedNaturalHeights,
             approachConstraints,
-            resolved);
+            resolved,
+            designedTargets.keySet());
+        return AutomaticNodeElevationContinuity.project(network, approachConstraints, refined);
+    }
+
+    /** A saved design is a constraint; an AUTO terrain estimate is only a preference. */
+    private Map<String, Integer> collectDesignedTargets(RoadNetwork network, TerrainSampler terrain) {
+        Map<String, List<Integer>> samples = new LinkedHashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            for (String id : List.of(edge.getStartNodeId(), edge.getEndNodeId())) {
+                RoadNode node = network.getNode(id);
+                if (node == null || gradeSeparation.shouldExcludeElevatedRoadFromNaturalConsensus(
+                        node, edge, network, terrain, nodeTargetHeights.naturalRoadHeightAtNode())) continue;
+                var height = VerticalAlignmentEndpointHeight.atNode(network, edge, node, context.roadConfig());
+                if (height.isPresent()) samples.computeIfAbsent(id, ignored -> new ArrayList<>()).add(height.getAsInt());
+            }
+        }
+        Map<String, Integer> targets = new LinkedHashMap<>();
+        samples.forEach((id, values) -> {
+            int target = values.getFirst();
+            // Contradictory explicit designs retain the existing conflict diagnostics.
+            if (values.stream().allMatch(y -> y == target)) targets.put(id, target);
+        });
+        return targets;
     }
 
     public int junctionTargetHeight(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
@@ -131,8 +158,8 @@ public final class NetworkNodeElevationResolver {
             if (segments.isEmpty()) {
                 continue;
             }
-            OptionalInt startDesign = VerticalAlignmentEndpointHeight.atNode(network, edge, startNode);
-            OptionalInt endDesign = VerticalAlignmentEndpointHeight.atNode(network, edge, endNode);
+            OptionalInt startDesign = VerticalAlignmentEndpointHeight.atNode(network, edge, startNode, context.roadConfig());
+            OptionalInt endDesign = VerticalAlignmentEndpointHeight.atNode(network, edge, endNode, context.roadConfig());
             if (startDesign.isPresent() && endDesign.isPresent()) {
                 collectNaturalHeightSample(
                     naturalHeightsByNode, startNode, edge, startDesign.getAsInt(),

@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadNode;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 路口统一标高的坡度可行域决议：避免简单算术平均导致第二遍纵断面无法到达 junction Y 而出现断崖。
@@ -30,6 +31,15 @@ public final class JunctionFeasibleElevationResolver {
             Map<String, List<Integer>> naturalSamplesByNode,
             Map<String, List<ApproachConstraint>> constraintsByNode,
             Map<String, Integer> initialHeights) {
+        return refine(network, naturalSamplesByNode, constraintsByNode, initialHeights, Set.of());
+    }
+
+    static Map<String, Integer> refine(
+            RoadNetwork network,
+            Map<String, List<Integer>> naturalSamplesByNode,
+            Map<String, List<ApproachConstraint>> constraintsByNode,
+            Map<String, Integer> initialHeights,
+            Set<String> designedNodes) {
         Map<String, Integer> current = new LinkedHashMap<>(initialHeights);
         if (network == null || constraintsByNode.isEmpty()) {
             return current;
@@ -37,7 +47,7 @@ public final class JunctionFeasibleElevationResolver {
         for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             boolean changed = false;
             for (RoadNode node : network.getNodes().values()) {
-                if (node == null || node.getManualElevation() != null) {
+                if (node == null || node.getManualElevation() != null || designedNodes.contains(node.getId())) {
                     continue;
                 }
                 String nodeId = node.getId();

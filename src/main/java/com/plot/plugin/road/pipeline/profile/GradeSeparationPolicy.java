@@ -114,9 +114,9 @@ public final class GradeSeparationPolicy {
             baseHeight + (int) Math.ceil(resolveCrossingClearance(node)));
     }
 
-    private static int retainDesignedUpperHeight(
+    private int retainDesignedUpperHeight(
             RoadNetwork network, RoadEdge edge, RoadNode node, int minimumHeight) {
-        var designed = VerticalAlignmentEndpointHeight.atNode(network, edge, node);
+        var designed = VerticalAlignmentEndpointHeight.atNode(network, edge, node, context.roadConfig());
         return designed.isPresent() ? Math.max(minimumHeight, designed.getAsInt()) : minimumHeight;
     }
 
