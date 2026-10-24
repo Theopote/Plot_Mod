@@ -1084,24 +1084,6 @@ final class VerticalProfileEditor {
         renderWaterConstraintWarning(effectiveChart);
         RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
         profileEditSession.setElevationBounds(elevationBounds);
-        if (flatMode) {
-            preApplyFlatWholeLineDrag(
-                editingNetwork,
-                road,
-                config,
-                baseIntersections,
-                chartHeight,
-                effectiveChart,
-                design,
-                points,
-                flatOverlay,
-                renderCache,
-                elevationBounds,
-                editorState.activeProfilePvi);
-            intersections = profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
-            effectiveAlignment = profileEditSession.effectiveAlignment(editingNetwork, road);
-            design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(design);
-        }
         ProfileChartInteraction.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 effectiveChart, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -1122,8 +1104,12 @@ final class VerticalProfileEditor {
                 showBuildProfileLine);
         if (interaction.intersectionDragStarted()) {
             recordUndoPointBeforeEdit();
-            profileEditSession.beginFlatWholeLineEdit(
-                editingNetwork, road, baseIntersections);
+            if (flatMode) {
+                profileEditSession.beginFlatWholeLineEdit(
+                    editingNetwork, road, baseIntersections);
+            } else {
+                profileEditSession.beginIntersectionEdit(baseIntersections);
+            }
         }
         if (interaction.curveHandleDragStarted()) {
             recordUndoPointBeforeEdit();
@@ -1149,12 +1135,9 @@ final class VerticalProfileEditor {
             editorState.pendingProfilePvi = interaction.pendingPviIndex();
             editorState.pendingClickX = interaction.pendingClickX();
             editorState.pendingClickY = interaction.pendingClickY();
-            int activeEndpointPvi = interaction.activePviIndex() >= 0
-                ? interaction.activePviIndex()
-                : editorState.activeProfilePvi;
             if (interaction.draggedElevation() != null
-                    && activeEndpointPvi >= 0
-                    && activeEndpointPvi <= 1) {
+                    && interaction.activePviIndex() >= 0
+                    && interaction.activePviIndex() <= 1) {
                 profileEditSession.updateFlatRoadWholeLineDrag(
                     editingNetwork,
                     road,
@@ -1187,6 +1170,14 @@ final class VerticalProfileEditor {
         if (interaction.activeIntersectionDragIndex() >= 0) {
             activeIntersectionDragIndex = interaction.activeIntersectionDragIndex();
             activeIntersectionDragTarget = interaction.activeIntersectionDragTarget();
+        } else if (!ImGui.isMouseDown(0)) {
+            activeIntersectionDragIndex = -1;
+            activeIntersectionDragTarget =
+                ProfileChartInteraction.IntersectionDragTarget.NONE;
+        }
+        if (interaction.intersectionDragFinished() || interaction.dragFinished()) {
+            editorState.activeProfilePvi = -1;
+            editorState.pendingProfilePvi = -1;
         }
         applyIntersectionDrag(ctx, editingNetwork, road, config, flatMode, baseIntersections, interaction);
         intersections = profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
@@ -1449,63 +1440,6 @@ final class VerticalProfileEditor {
         return pviIndex >= 0 && pviIndex <= 1 ? pviIndex : -1;
     }
 
-    private void preApplyFlatWholeLineDrag(
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config,
-            List<RoadProfileIntersection> baseIntersections,
-            float chartHeight,
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay designOverlay,
-            List<ProfileControlPoint> controlPoints,
-            FlatElevationProfileOverlay flatOverlay,
-            ProfileRenderCache renderCache,
-            RoadElevationBounds elevationBounds,
-            int activeEndpointPvi) {
-        if (!ImGui.isMouseDown(0)) {
-            return;
-        }
-        boolean endpointDrag = activeEndpointPvi >= 0 && activeEndpointPvi <= 1;
-        if (!endpointDrag && activeIntersectionDragIndex < 0) {
-            return;
-        }
-        RoadProfileIntersectionDragEditor.DragTarget dragTarget =
-            endpointDrag
-                ? RoadProfileIntersectionDragEditor.DragTarget.CURRENT
-                : mapIntersectionDragTarget(activeIntersectionDragTarget);
-        if (dragTarget == null
-                || dragTarget == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
-            return;
-        }
-        float chartWidth = ImGui.getContentRegionAvailX();
-        float chartX = ImGui.getCursorScreenPosX();
-        float chartY = ImGui.getCursorScreenPosY();
-        List<RoadProfileIntersection> previewIntersections =
-            profileEditSession.effectiveIntersections(network, road, baseIntersections);
-        RoadProfilePlotRange range = RoadProfileChartRenderer.resolvePlotRange(
-            renderCache,
-            chart,
-            designOverlay,
-            controlPoints,
-            previewIntersections,
-            flatOverlay);
-        ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(
-            chartX, chartY, chartWidth, chartHeight, ProfileChartRenderMode.EDITOR);
-        double elevation = layout.elevationAtMouseY(
-            ImGui.getMousePosY(), range.minElevation(), range.maxElevation());
-        if (!Double.isFinite(elevation)) {
-            return;
-        }
-        profileEditSession.updateFlatRoadWholeLineDrag(
-            network,
-            road,
-            config,
-            endpointDrag ? 0 : activeIntersectionDragIndex,
-            dragTarget,
-            elevationBounds.clamp(elevation),
-            baseIntersections);
-    }
-
     private void applyIntersectionDrag(
             RoadUiContext ctx,
             RoadNetwork network,
@@ -1535,6 +1469,16 @@ final class VerticalProfileEditor {
         if (flatMode
                 && dragTarget != RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
             profileEditSession.updateFlatRoadWholeLineDrag(
+                network,
+                road,
+                config,
+                dragIndex,
+                dragTarget,
+                interaction.draggedIntersectionElevation(),
+                intersections);
+        } else if (profileEditSession.shouldLinkFlatPartnerDrag(
+                network, road, intersections, dragIndex, dragTarget)) {
+            profileEditSession.updateFlatPartnerIntersectionDrag(
                 network,
                 road,
                 config,

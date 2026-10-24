@@ -359,7 +359,7 @@ public final class RoadProfileChartRenderer {
                 active, activeIntersectionDrag, activeCurvePvi);
         }
 
-        if (activeCurvePvi >= 0 && ImGui.isMouseDown(0)) {
+        if (activeCurvePvi >= 0 && ImGui.isMouseDown(0) && ImGui.isItemActive()) {
             ProfileControlPoint pvi = findControlPoint(controls, activeCurvePvi);
             if (pvi != null) {
                 double handleStation = layout.stationAtMouseX(mouseX, range.totalStation());
@@ -462,7 +462,8 @@ public final class RoadProfileChartRenderer {
             }
         }
 
-        if (pending >= 0 && active < 0 && activeCurvePvi < 0 && ImGui.isMouseDown(0)) {
+        if (pending >= 0 && active < 0 && activeCurvePvi < 0
+                && ImGui.isMouseDown(0) && ImGui.isItemActive()) {
             double dx = mouseX - pendingX;
             double dy = mouseY - pendingY;
             if (dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX
@@ -475,7 +476,7 @@ public final class RoadProfileChartRenderer {
             pending = -1;
         }
 
-        if (activeIntersectionDrag >= 0 && ImGui.isMouseDown(0)) {
+        if (activeIntersectionDrag >= 0 && ImGui.isMouseDown(0) && ImGui.isItemActive()) {
             intersectionElevation = clampElevation(
                 layout.elevationAtMouseY(mouseY, range.minElevation(), range.maxElevation()),
                 elevationBounds);
@@ -486,7 +487,7 @@ public final class RoadProfileChartRenderer {
             activeIntersectionTarget =
                 ProfileChartInteraction.IntersectionDragTarget.NONE;
         }
-        if (active >= 0 && ImGui.isMouseDown(0)) {
+        if (active >= 0 && ImGui.isMouseDown(0) && ImGui.isItemActive()) {
             ProfileControlPoint activePoint = findControlPoint(controls, active);
             if (activePoint != null && activePoint.elevationEditable()) {
                 elevation = clampElevation(

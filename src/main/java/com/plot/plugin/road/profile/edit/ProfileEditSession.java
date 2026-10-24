@@ -270,6 +270,79 @@ public final class ProfileEditSession {
         draftRevision++;
     }
 
+    /** 适应地形路径与水平道路平交：拖动任一交点时联动同一路径上所有与该水平路相交的点。 */
+    public boolean shouldLinkFlatPartnerDrag(
+            RoadNetwork network,
+            Road road,
+            List<RoadProfileIntersection> intersections,
+            int index,
+            RoadProfileIntersectionDragEditor.DragTarget target) {
+        if (road == null
+                || network == null
+                || intersections == null
+                || index < 0
+                || index >= intersections.size()
+                || road.getVerticalMode() == RoadVerticalMode.FLAT
+                || target == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            return false;
+        }
+        RoadProfileIntersection intersection = intersections.get(index);
+        if (intersection.gradeSeparated()) {
+            return false;
+        }
+        Road flatPartner = network.getRoad(intersection.otherRoadId());
+        return flatPartner != null && flatPartner.getVerticalMode() == RoadVerticalMode.FLAT;
+    }
+
+    public void updateFlatPartnerIntersectionDrag(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            int index,
+            RoadProfileIntersectionDragEditor.DragTarget target,
+            double elevation,
+            List<RoadProfileIntersection> intersections) {
+        if (road == null || intersections == null || index < 0 || index >= intersections.size()) {
+            updateIntersectionDrag(index, target, elevation);
+            return;
+        }
+        if (!draft.isActive() || draft.kind() != ProfileEditDraft.Kind.INTERSECTION) {
+            beginIntersectionEdit(intersections);
+        }
+        double clamped = elevationBounds.clamp(elevation);
+        RoadProfileIntersection anchor = intersections.get(index);
+        String flatRoadId = anchor.otherRoadId();
+        if (target == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            draft.updateIntersectionDraft(index, target, clamped);
+            draftRevision++;
+            return;
+        }
+        for (int i = 0; i < draft.draftIntersections().size(); i++) {
+            RoadProfileIntersection original = draft.draftIntersections().get(i);
+            if (!flatRoadId.equals(original.otherRoadId()) || original.gradeSeparated()) {
+                continue;
+            }
+            draft.updateIntersectionDraft(
+                i,
+                RoadProfileIntersectionDragEditor.DragTarget.SHARED,
+                clamped);
+        }
+        int resolvedIndex = -1;
+        for (int i = 0; i < draft.draftIntersections().size(); i++) {
+            if (draft.draftIntersections().get(i).nodeId().equals(anchor.nodeId())) {
+                resolvedIndex = i;
+                break;
+            }
+        }
+        if (resolvedIndex < 0) {
+            resolvedIndex = Math.min(index, draft.draftIntersections().size() - 1);
+        }
+        draft.forceIntersectionTarget(
+            resolvedIndex,
+            RoadProfileIntersectionDragEditor.DragTarget.SHARED);
+        draftRevision++;
+    }
+
     public RoadVerticalAlignment effectiveAlignment(Road road) {
         return effectiveAlignment(null, road);
     }
@@ -342,7 +415,8 @@ public final class ProfileEditSession {
                 windowSession.markTouched(workingNetwork.getRoad(changedId));
             }
             if (draft.kind() == ProfileEditDraft.Kind.INTERSECTION) {
-                if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+                if (road.getVerticalMode() == RoadVerticalMode.FLAT
+                        || isFlatPartnerIntersectionCommit(workingNetwork, road)) {
                     markFlatIntersectionsTouched(windowSession, workingNetwork);
                 } else {
                     markIntersectionTouched(windowSession, workingNetwork, road);
@@ -459,7 +533,48 @@ public final class ProfileEditSession {
             }
             return;
         }
+        Road flatPartner = network.getRoad(patched.otherRoadId());
+        if (flatPartner != null
+                && flatPartner.getVerticalMode() == RoadVerticalMode.FLAT
+                && !patched.gradeSeparated()
+                && target != RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            FlatVerticalIntentSupport.setWholeRoadElevation(
+                network,
+                flatPartner,
+                requested,
+                flatPartner.getEffectiveMaxSlope(config));
+            for (RoadProfileIntersection intersection : draft.draftIntersections()) {
+                if (!flatPartner.getId().equals(intersection.otherRoadId())
+                        || intersection.gradeSeparated()) {
+                    continue;
+                }
+                RoadProfileIntersectionDragEditor.applyDraggedElevation(
+                    network,
+                    road,
+                    intersection,
+                    RoadProfileIntersectionDragEditor.DragTarget.SHARED,
+                    requested,
+                    config);
+            }
+            return;
+        }
         RoadProfileIntersectionDragEditor.applyDraggedElevation(
             network, road, patched, target, requested, config);
+    }
+
+    private boolean isFlatPartnerIntersectionCommit(RoadNetwork network, Road road) {
+        if (road == null
+                || road.getVerticalMode() == RoadVerticalMode.FLAT
+                || draft.intersectionIndex() < 0
+                || draft.intersectionIndex() >= draft.draftIntersections().size()) {
+            return false;
+        }
+        RoadProfileIntersection patched = draft.draftIntersections().get(draft.intersectionIndex());
+        if (patched.gradeSeparated()
+                || draft.intersectionTarget() == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
+            return false;
+        }
+        Road flatPartner = network.getRoad(patched.otherRoadId());
+        return flatPartner != null && flatPartner.getVerticalMode() == RoadVerticalMode.FLAT;
     }
 }
