@@ -116,128 +116,6 @@ public final class RoadProfileChartRenderer {
             float pendingClickX,
             float pendingClickY,
             int activeCurveHandlePvi,
-            ProfileChartInteraction.CurveHandleSide activeCurveHandle) {
-        return renderInteractive(
-            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
-            intersections, selectedIntersectionIndex, chartHeight,
-            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
-            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
-            activeCurveHandlePvi, activeCurveHandle, null);
-    }
-
-    public static ProfileChartInteraction.ControlInteraction renderInteractive(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<ProfileControlPoint> controls,
-            int selectedPviIndex,
-            int activePviIndex,
-            double maxGradePercent,
-            List<RoadProfileIntersection> intersections,
-            int selectedIntersectionIndex,
-            float chartHeight,
-            int activeIntersectionDragIndex,
-            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
-            FlatElevationProfileOverlay flatOverlay,
-            List<ProfileChartInteraction.CurveHandle> curveHandles,
-            int pendingPviIndex,
-            float pendingClickX,
-            float pendingClickY,
-            int activeCurveHandlePvi,
-            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
-            ProfileRenderCache renderCache) {
-        return renderInteractive(
-            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
-            intersections, selectedIntersectionIndex, chartHeight,
-            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
-            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
-            activeCurveHandlePvi, activeCurveHandle, ProfileChartRenderMode.EDITOR, renderCache, null, null, null);
-    }
-
-    public static ProfileChartInteraction.ControlInteraction renderInteractive(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<ProfileControlPoint> controls,
-            int selectedPviIndex,
-            int activePviIndex,
-            double maxGradePercent,
-            List<RoadProfileIntersection> intersections,
-            int selectedIntersectionIndex,
-            float chartHeight,
-            int activeIntersectionDragIndex,
-            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
-            FlatElevationProfileOverlay flatOverlay,
-            List<ProfileChartInteraction.CurveHandle> curveHandles,
-            int pendingPviIndex,
-            float pendingClickX,
-            float pendingClickY,
-            int activeCurveHandlePvi,
-            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
-            ProfileChartRenderMode mode,
-            ProfileRenderCache renderCache,
-            RoadVerticalMode verticalMode,
-            RoadElevationBounds elevationBounds,
-            RoadVerticalAlignment insertAlignment) {
-        return renderInteractive(
-            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
-            intersections, selectedIntersectionIndex, chartHeight,
-            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
-            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
-            activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
-            elevationBounds, insertAlignment, false, mode.showBuildProfileLine());
-    }
-
-    public static ProfileChartInteraction.ControlInteraction renderInteractive(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<ProfileControlPoint> controls,
-            int selectedPviIndex,
-            int activePviIndex,
-            double maxGradePercent,
-            List<RoadProfileIntersection> intersections,
-            int selectedIntersectionIndex,
-            float chartHeight,
-            int activeIntersectionDragIndex,
-            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
-            FlatElevationProfileOverlay flatOverlay,
-            List<ProfileChartInteraction.CurveHandle> curveHandles,
-            int pendingPviIndex,
-            float pendingClickX,
-            float pendingClickY,
-            int activeCurveHandlePvi,
-            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
-            ProfileChartRenderMode mode,
-            ProfileRenderCache renderCache,
-            RoadVerticalMode verticalMode,
-            RoadElevationBounds elevationBounds,
-            RoadVerticalAlignment insertAlignment,
-            boolean buildProfileStale) {
-        return renderInteractive(
-            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
-            intersections, selectedIntersectionIndex, chartHeight,
-            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
-            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
-            activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
-            elevationBounds, insertAlignment, buildProfileStale, mode.showBuildProfileLine());
-    }
-
-    public static ProfileChartInteraction.ControlInteraction renderInteractive(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<ProfileControlPoint> controls,
-            int selectedPviIndex,
-            int activePviIndex,
-            double maxGradePercent,
-            List<RoadProfileIntersection> intersections,
-            int selectedIntersectionIndex,
-            float chartHeight,
-            int activeIntersectionDragIndex,
-            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
-            FlatElevationProfileOverlay flatOverlay,
-            List<ProfileChartInteraction.CurveHandle> curveHandles,
-            int pendingPviIndex,
-            float pendingClickX,
-            float pendingClickY,
-            int activeCurveHandlePvi,
             ProfileChartInteraction.CurveHandleSide activeCurveHandle,
             ProfileChartRenderMode mode,
             ProfileRenderCache renderCache,
@@ -856,20 +734,6 @@ public final class RoadProfileChartRenderer {
             VerticalAlignmentProfileOverlay design,
             FlatElevationProfileOverlay flatOverlay,
             ProfileChartRenderMode mode,
-            ProfileChartGuideSemantics guideSemantics) {
-        drawSeries(
-            drawList, layout, range, chart, design, flatOverlay, mode, guideSemantics,
-            false, mode.showBuildProfileLine());
-    }
-
-    private static void drawSeries(
-            ImDrawList drawList,
-            ProfileChartLayout layout,
-            RoadProfilePlotRange range,
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            FlatElevationProfileOverlay flatOverlay,
-            ProfileChartRenderMode mode,
             ProfileChartGuideSemantics guideSemantics,
             boolean buildProfileStale,
             boolean showBuildProfileLine) {
@@ -936,32 +800,6 @@ public final class RoadProfileChartRenderer {
             float y = layout.plotY(flatOverlay.suggestedElevation(), range.minElevation(), range.maxElevation());
             drawList.addLine(layout.plotLeft(), y, layout.plotRight(), y, 0xFFFFB84D, 1.8f);
         }
-    }
-
-    private static void drawSeries(
-            ImDrawList drawList,
-            ProfileChartLayout layout,
-            RoadProfilePlotRange range,
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            FlatElevationProfileOverlay flatOverlay) {
-        drawSeries(
-            drawList, layout, range, chart, design, flatOverlay,
-            ProfileChartRenderMode.EDITOR, ProfileChartGuideSemantics.NONE);
-    }
-
-    private static void drawAxesAndGrid(ImDrawList drawList, ProfileChartLayout layout, RoadProfilePlotRange range) {
-        drawAxesAndGrid(drawList, layout, range, ProfileChartRenderMode.EDITOR);
-    }
-
-    private static void drawBuildStairStep(
-            ImDrawList drawList,
-            ProfileChartLayout layout,
-            RoadProfilePlotRange range,
-            List<BuildHeightSample> samples,
-            int color,
-            float thickness) {
-        drawBuildStairStep(drawList, layout, range, samples, color, thickness, false);
     }
 
     private static void drawBuildStairStep(
@@ -1207,28 +1045,5 @@ public final class RoadProfileChartRenderer {
             }
         }
         return bestPoint;
-    }
-
-    private static int nearestControl(
-            List<ProfileControlPoint> controls,
-            ProfileChartLayout layout,
-            RoadProfilePlotRange range,
-            float mouseX,
-            float mouseY) {
-        if (controls == null || controls.isEmpty()) {
-            return -1;
-        }
-        double best = 12.0 * 12.0;
-        int bestIndex = -1;
-        for (ProfileControlPoint point : controls) {
-            float x = layout.plotX(point.roadStation(), range.totalStation());
-            float y = layout.plotY(point.elevation(), range.minElevation(), range.maxElevation());
-            double dist = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
-            if (dist <= best) {
-                best = dist;
-                bestIndex = point.pviIndex();
-            }
-        }
-        return bestIndex;
     }
 }

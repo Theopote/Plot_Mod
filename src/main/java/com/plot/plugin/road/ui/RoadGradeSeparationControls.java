@@ -127,6 +127,8 @@ public final class RoadGradeSeparationControls {
         if (current != null && current.isGradeSeparated()) {
             changed |= renderPassModeForStack(current, network, config, layout);
             changed |= renderClearanceSliderForStack(current, network, config, layout == Layout.INLINE);
+        } else if (current != null) {
+            changed |= renderAtGradeProfileHintForStack(current, network, config);
         }
 
         ImGui.popID();
@@ -240,6 +242,31 @@ public final class RoadGradeSeparationControls {
             PlotI18n.tr("plugin.road.crossing_at_grade_profile_suggests_grade_sep"));
         if (ImGui.button(PlotI18n.tr("plugin.road.crossing_apply_detected_grade_sep") + "##node_at_grade_apply")) {
             applyGradeSeparatedAuto(node, network, config);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean renderAtGradeProfileHintForStack(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        RoadStackCrossing classified = CrossingGradeClassifier.classifyStack(
+            network, stack.roadId(), stack.stationA(), stack.stationB(), stack.position());
+        if (stack.type() != CrossingType.AT_GRADE
+                || classified.type() != CrossingType.GRADE_SEPARATED) {
+            return false;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING_LIGHT,
+            PlotI18n.tr("plugin.road.crossing_at_grade_profile_suggests_grade_sep"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.crossing_apply_detected_grade_sep") + "##stack_at_grade_apply")) {
+            applyStackGradeSeparated(
+                stack,
+                network,
+                config,
+                classified.resolvedLowerStation(),
+                classified.resolvedUpperStation());
             return true;
         }
         return false;

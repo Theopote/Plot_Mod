@@ -20,7 +20,7 @@ import net.minecraft.world.World;
 import java.util.Map;
 
 /**
- * 画布属性侧栏：节点标高、平交/立交关系与路口几何（圆角/标线）。
+ * 画布属性侧栏：交叉关系、平交标高与路口几何（圆角/标线）。
  */
 public final class RoadNodePropertyPanel {
 
@@ -32,32 +32,40 @@ public final class RoadNodePropertyPanel {
         this.intersectionDetailPanel = intersectionDetailPanel;
     }
 
-    /** PropertyPanel 侧栏：节点标高、交叉关系与路口几何。 */
+    /** PropertyPanel 侧栏：交叉关系、标高与路口几何。 */
     public void renderPropertySection(RoadJunctionPanel junctionPanel) {
-        RoadNode node = ctx.networkManager().getSelectedNode();
-        if (node == null) {
+        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
             return;
         }
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, formatNodeLabel(node));
-
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        if (node.isGradeSeparated()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.node_grade_separated_elevation_hint"));
-        } else {
-            renderNodeElevationControls(node, network, config);
+        RoadNode junctionNode = RoadIntersectionPropertySupport.resolveJunctionNode(
+            network, ctx.networkManager());
+
+        if (junctionNode != null) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, formatNodeLabel(junctionNode));
         }
 
-        if (intersectionDetailPanel != null
-                && intersectionDetailPanel.renderFocusedSelection(
-                    network, RoadGradeSeparationControls.Layout.INLINE)) {
-            ImGui.spacing();
+        if (intersectionDetailPanel != null) {
+            intersectionDetailPanel.renderFocusedSelection(
+                network, RoadGradeSeparationControls.Layout.BLOCK);
         }
 
-        junctionPanel.renderPropertySection();
+        if (junctionNode != null) {
+            ImGui.separator();
+            if (RoadIntersectionPropertySupport.isGradeSeparatedSelection(ctx.networkManager())
+                    || junctionNode.isGradeSeparated()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.node_grade_separated_elevation_hint"));
+            } else {
+                renderNodeElevationControls(junctionNode, network, config);
+            }
+
+            ImGui.separator();
+            junctionPanel.renderForNode(junctionNode, true);
+        }
     }
 
     private void renderNodeElevationControls(

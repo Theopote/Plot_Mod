@@ -14,19 +14,23 @@ public final class RoadPathPanel {
     private final RoadPathOverviewPanel overviewPanel;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private final RoadIntersectionListPanel intersectionListPanel;
+    private final RoadJunctionPanel junctionPanel;
+
     public RoadPathPanel(
             RoadUiContext ctx,
             RoadAdoptPanel adoptPanel,
             RoadEdgeListPanel edgeListPanel,
             RoadPathOverviewPanel overviewPanel,
             RoadIntersectionDetailPanel intersectionDetailPanel,
-            RoadIntersectionListPanel intersectionListPanel) {
+            RoadIntersectionListPanel intersectionListPanel,
+            RoadJunctionPanel junctionPanel) {
         this.ctx = ctx;
         this.adoptPanel = adoptPanel;
         this.edgeListPanel = edgeListPanel;
         this.overviewPanel = overviewPanel;
         this.intersectionDetailPanel = intersectionDetailPanel;
         this.intersectionListPanel = intersectionListPanel;
+        this.junctionPanel = junctionPanel;
     }
 
     public void render() {
@@ -45,14 +49,16 @@ public final class RoadPathPanel {
     }
 
     private void renderSelectedIntersection(RoadNetwork network) {
-        if (intersectionDetailPanel.renderFocusedSelection(
-                network, RoadGradeSeparationControls.Layout.BLOCK)) {
+        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
+            RoadUiWidgets.textWrappedColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.path.intersection_select_hint"));
             ImGui.spacing();
             return;
         }
-        RoadUiWidgets.textWrappedColored(
-            com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.path.intersection_select_hint"));
+        intersectionDetailPanel.renderFocusedSelection(
+            network, RoadGradeSeparationControls.Layout.BLOCK);
+        RoadIntersectionGeometrySection.render(ctx, network, junctionPanel);
         ImGui.spacing();
     }
 

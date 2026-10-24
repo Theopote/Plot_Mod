@@ -2040,6 +2040,7 @@
   "plugin.road.junction_marking.auto": "自动",
   "plugin.road.junction_marking.on": "强制开启",
   "plugin.road.junction_marking.off": "强制关闭",
+  "plugin.road.junction_geometry_section": "路口几何",
   "plugin.road.default_corner_radius": "默认路缘石圆角: %.1f 米",
   "panel.plot.road_junction": "道路交叉口",
   "panel.plot.road_node": "道路节点",

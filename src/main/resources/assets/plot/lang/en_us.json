@@ -2040,6 +2040,7 @@
   "plugin.road.junction_marking.auto": "Auto",
   "plugin.road.junction_marking.on": "Force on",
   "plugin.road.junction_marking.off": "Force off",
+  "plugin.road.junction_geometry_section": "Junction geometry",
   "plugin.road.default_corner_radius": "Default curb radius: %.1f m",
   "panel.plot.road_junction": "Road Junction",
   "panel.plot.road_node": "Road Node",

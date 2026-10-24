@@ -183,6 +183,18 @@ public final class RoadDefaultParamsPanel {
             markCustom();
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.default_corner_radius");
+
+        int[] defaultClearance = {(int) Math.round(config.getDefaultCrossingClearance())};
+        if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.default_crossing_clearance", defaultClearance[0]),
+                defaultClearance,
+                RoadParameterLimits.MIN_CROSSING_CLEARANCE,
+                RoadParameterLimits.MAX_CROSSING_CLEARANCE,
+                "%d")) {
+            config.setDefaultCrossingClearance(defaultClearance[0]);
+            markCustom();
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.default_crossing_clearance");
     }
 
     private void markCustom() {

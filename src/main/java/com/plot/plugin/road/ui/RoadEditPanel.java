@@ -13,15 +13,18 @@ public final class RoadEditPanel {
     private final RoadDesignPanel designPanel;
     private final RoadEditWorkspace editWorkspace;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
+    private final RoadJunctionPanel junctionPanel;
 
     public RoadEditPanel(
             RoadUiContext ctx,
             RoadDefaultParamsPanel defaultParamsPanel,
-            RoadIntersectionDetailPanel intersectionDetailPanel) {
+            RoadIntersectionDetailPanel intersectionDetailPanel,
+            RoadJunctionPanel junctionPanel) {
         this.ctx = ctx;
         this.designPanel = new RoadDesignPanel(ctx);
         this.editWorkspace = new RoadEditWorkspace(ctx, designPanel, defaultParamsPanel);
         this.intersectionDetailPanel = intersectionDetailPanel;
+        this.junctionPanel = junctionPanel;
     }
 
     public void render() {
@@ -56,13 +59,14 @@ public final class RoadEditPanel {
     }
 
     private void renderFocusedIntersection(RoadNetwork network) {
-        if (intersectionDetailPanel == null) {
+        if (intersectionDetailPanel == null
+                || !RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
             return;
         }
-        if (intersectionDetailPanel.renderFocusedSelection(
-                network, RoadGradeSeparationControls.Layout.BLOCK)) {
-            ImGui.separator();
-            ImGui.spacing();
-        }
+        intersectionDetailPanel.renderFocusedSelection(
+            network, RoadGradeSeparationControls.Layout.BLOCK);
+        RoadIntersectionGeometrySection.render(ctx, network, junctionPanel);
+        ImGui.separator();
+        ImGui.spacing();
     }
 }

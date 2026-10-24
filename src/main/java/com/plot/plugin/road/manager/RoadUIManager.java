@@ -21,6 +21,7 @@ import com.plot.plugin.road.ui.RoadNodePropertyPanel;
 import com.plot.plugin.road.ui.RoadPathOverviewPanel;
 import com.plot.plugin.road.ui.RoadIntersectionDetailPanel;
 import com.plot.plugin.road.ui.RoadIntersectionListPanel;
+import com.plot.plugin.road.ui.RoadIntersectionPropertySupport;
 import com.plot.plugin.road.ui.RoadPathPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
@@ -76,7 +77,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadIntersectionListPanel intersectionListPanel = new RoadIntersectionListPanel(ctx);
         RoadIntersectionDetailPanel intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
         this.nodePropertyPanel = new RoadNodePropertyPanel(ctx, intersectionDetailPanel);
-        this.editPanel = new RoadEditPanel(ctx, defaultParamsPanel, intersectionDetailPanel);
+        this.editPanel = new RoadEditPanel(
+            ctx, defaultParamsPanel, intersectionDetailPanel, junctionPanel);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);
@@ -86,7 +88,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             edgeListPanel,
             overviewPanel,
             intersectionDetailPanel,
-            intersectionListPanel);
+            intersectionListPanel,
+            junctionPanel);
         this.buildPanel = new RoadBuildPanel(generatePanel);
     }
 
@@ -285,7 +288,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     @Override
     public boolean hasJunctionPropertyContent() {
-        return ctx.networkManager().getSelectedNode() != null;
+        return RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager());
     }
 
     @Override
@@ -295,6 +298,10 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     @Override
     public String getPropertySectionTitleKey() {
+        if (ctx.networkManager().getSelectedCrossing() != null
+                || ctx.networkManager().getSelectedStackCrossing() != null) {
+            return "panel.plot.road_junction";
+        }
         RoadNode node = ctx.networkManager().getSelectedNode();
         if (node != null && node.isJunction()) {
             return "panel.plot.road_junction";

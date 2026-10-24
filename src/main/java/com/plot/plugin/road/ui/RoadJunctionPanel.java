@@ -23,29 +23,34 @@ public final class RoadJunctionPanel {
     }
 
     public void renderSummary() {
-        RoadNode node = ctx.networkManager().getSelectedJunctionNode();
-        if (node == null) {
-            return;
-        }
-        ImGui.spacing();
-        renderControls(node, false);
+        renderForNode(resolveSelectedJunctionNode(), false);
     }
 
     public void renderEditor() {
-        RoadNode node = ctx.networkManager().getSelectedJunctionNode();
+        RoadNode node = resolveSelectedJunctionNode();
         if (node == null) {
             return;
         }
         ImGui.separator();
-        renderControls(node, false);
+        renderForNode(node, false);
     }
 
     public void renderPropertySection() {
-        RoadNode node = ctx.networkManager().getSelectedJunctionNode();
+        renderForNode(resolveSelectedJunctionNode(), true);
+    }
+
+    private RoadNode resolveSelectedJunctionNode() {
+        return RoadIntersectionPropertySupport.resolveJunctionNode(
+            ctx.networkManager().getNetwork(),
+            ctx.networkManager());
+    }
+
+    /** 指定节点的路口几何（圆角/标线）；编辑 Tab 与 Crossing 选中时复用。 */
+    public void renderForNode(RoadNode node, boolean compact) {
         if (node == null) {
             return;
         }
-        renderControls(node, true);
+        renderControls(node, compact);
     }
 
     private void renderControls(RoadNode node, boolean compact) {
