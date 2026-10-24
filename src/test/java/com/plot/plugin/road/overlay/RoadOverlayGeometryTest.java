@@ -40,7 +40,7 @@ class RoadOverlayGeometryTest {
     }
 
     @Test
-    void resolveConfigCorridorHalfWidth_includesTraversableBandsButNotShoulder() {
+    void resolveConfigCorridorHalfWidth_matchesPavementEnvelopeByDefault() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(7);
         config.setIncludeShoulder(true);
@@ -50,14 +50,37 @@ class RoadOverlayGeometryTest {
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
         config.setIncludeSlopeBatter(true);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        config.setCutSlopeRatio(1.0f);
 
         double corridorHalfWidth = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(
             config, CENTERLINE, IdentityCoordinateService.INSTANCE);
         double pavementHalfWidth = RoadOverlayGeometry.resolveConfigPavementHalfWidthBlocks(config);
 
-        assertEquals(7.5, corridorHalfWidth, 0.01);
+        assertEquals(8.5, corridorHalfWidth, 0.01);
         assertEquals(8.5, pavementHalfWidth, 0.01);
-        assertTrue(pavementHalfWidth > corridorHalfWidth);
+    }
+
+    @Test
+    void resolveConfigCorridorHalfWidth_extendsWithSlopeBatterWhenRequested() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeBikeLane(true);
+        config.setBikeLaneWidth(2);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(2);
+        config.setIncludeSlopeBatter(true);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        config.setCutSlopeRatio(1.0f);
+
+        double pavementHalfWidth = RoadOverlayGeometry.resolveConfigPavementHalfWidthBlocks(config);
+        double slopeHalfWidth = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(
+            config, CENTERLINE, IdentityCoordinateService.INSTANCE, true);
+
+        assertEquals(8.5, pavementHalfWidth, 0.01);
+        assertTrue(slopeHalfWidth > pavementHalfWidth);
     }
 
     @Test

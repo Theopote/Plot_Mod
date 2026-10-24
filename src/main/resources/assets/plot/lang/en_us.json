@@ -1462,6 +1462,8 @@
   "plugin.road.rename": "Rename",
   "plugin.road.path.cancel_pick_escape": "Cancel road path pick with Esc",
   "plugin.road.overlay.show_paths": "Show road paths",
+  "plugin.road.overlay.show_slope_batter": "Show slope batter width",
+  "plugin.road.overlay.show_slope_batter_hint": "Extend the overlay beyond hard pavement to the estimated cut/fill slope envelope.",
   "plugin.road.path.road_list": "Road list",
   "plugin.road.path.thumbnail_hint": "Click preview to select road",
   "plugin.road.path.road_summary": "%d lanes / %d blocks · %d segments, length %s blocks",

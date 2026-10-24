@@ -26,7 +26,10 @@ public final class RoadCorridorWidth {
         return Math.max(0.5, section.carriagewayHalfWidth() + section.outerBandWidth());
     }
 
-    /** 画布路径预览半宽：行车道 + 自行车道/人行道（如有），不含路肩/排水沟/边坡。 */
+    /**
+     * 仅可行走条带半宽：行车道 + 自行车道/人行道（如有），不含路肩/边坡。
+     * 画布叠加层默认改用 {@link #pavementHalfWidthBlocks}；边坡见 {@link #overlayHalfWidthBlocks}。
+     */
     public static double canvasPreviewHalfWidthBlocks(ResolvedCrossSection section) {
         if (section == null) {
             return 0.0;

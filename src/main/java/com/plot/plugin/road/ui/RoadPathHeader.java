@@ -34,7 +34,19 @@ public final class RoadPathHeader {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.pick_path_hint"));
         }
         ImGui.sameLine();
-        ImGui.checkbox(PlotI18n.tr("plugin.road.overlay.show_paths"), ctx.showRoadOverlay());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.overlay.show_paths"), ctx.showRoadOverlay())) {
+            ctx.requestOverlayRefresh();
+        }
+        if (ctx.showRoadOverlay().get()) {
+            if (ImGui.checkbox(
+                    PlotI18n.tr("plugin.road.overlay.show_slope_batter"),
+                    ctx.showSlopeBatterOverlay())) {
+                ctx.requestOverlayRefresh();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
+            }
+        }
 
         renderProjectStats(ctx);
         adoptPanel.renderIntersectionRepairPrompt();

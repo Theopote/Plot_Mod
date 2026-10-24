@@ -208,7 +208,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             primaryRoadId,
             candidates,
             pickActive,
-            Set.of());
+            Set.of(),
+            ctx.showSlopeBatterOverlay().get());
         junctionOverlayEntries = RoadJunctionOverlayController.snapshot(
             network,
             ctx.networkManager().getNetworkBuilder(),
@@ -223,7 +224,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             + ctx.networkManager().getSelectedNodeId() + "|"
             + ctx.networkManager().getSelectedCrossingId() + "|"
             + pickActive + "|"
-            + ctx.toolManager().getPickOverlayPaths().size();
+            + ctx.toolManager().getPickOverlayPaths().size() + "|"
+            + ctx.showSlopeBatterOverlay().get();
     }
 
     private void tickCanvasSelection() {

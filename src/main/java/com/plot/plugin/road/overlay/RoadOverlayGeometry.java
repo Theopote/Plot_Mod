@@ -38,7 +38,7 @@ public final class RoadOverlayGeometry {
             Road road,
             RoadSystemConfig config,
             ICoordinateService coordinates) {
-        return resolveRoadCorridorGeometry(network, road, config, coordinates).primaryFillContour();
+        return resolveRoadCorridorGeometry(network, road, config, coordinates, false).primaryFillContour();
     }
 
     public static RoadCorridorGeometry resolveRoadCorridorGeometry(
@@ -46,6 +46,15 @@ public final class RoadOverlayGeometry {
             Road road,
             RoadSystemConfig config,
             ICoordinateService coordinates) {
+        return resolveRoadCorridorGeometry(network, road, config, coordinates, false);
+    }
+
+    public static RoadCorridorGeometry resolveRoadCorridorGeometry(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            boolean includeSlopeBatterOverlay) {
         List<Vec2d> centerline = resolvePlanCenterline(network, road);
         if (centerline.size() < 2) {
             centerline = resolveRoadCenterline(network, road);
@@ -53,7 +62,8 @@ public final class RoadOverlayGeometry {
         if (centerline.size() < 2 || road == null) {
             return new RoadCorridorGeometry(List.of(), List.of(), List.of(), List.of(), false, List.of());
         }
-        double halfWidth = resolveRoadHalfWidth(network, road, config, centerline, coordinates);
+        double halfWidth = resolveRoadHalfWidth(
+            network, road, config, centerline, coordinates, includeSlopeBatterOverlay);
         if (halfWidth <= 0.0) {
             return new RoadCorridorGeometry(centerline, List.of(), List.of(), List.of(), false, List.of());
         }
@@ -66,18 +76,27 @@ public final class RoadOverlayGeometry {
             Shape path,
             RoadSystemConfig config,
             ICoordinateService coordinates) {
-        return resolvePathCorridorGeometry(path, config, coordinates).primaryFillContour();
+        return resolvePathCorridorGeometry(path, config, coordinates, false).primaryFillContour();
     }
 
     public static RoadCorridorGeometry resolvePathCorridorGeometry(
             Shape path,
             RoadSystemConfig config,
             ICoordinateService coordinates) {
+        return resolvePathCorridorGeometry(path, config, coordinates, false);
+    }
+
+    public static RoadCorridorGeometry resolvePathCorridorGeometry(
+            Shape path,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            boolean includeSlopeBatterOverlay) {
         List<Vec2d> centerline = RoadGeometryUtils.extractShapePoints(path);
         if (centerline.size() < 2 || config == null) {
             return new RoadCorridorGeometry(List.of(), List.of(), List.of(), List.of(), false, List.of());
         }
-        double halfWidth = resolveConfigCorridorHalfWidth(config, centerline, coordinates);
+        double halfWidth = resolveConfigCorridorHalfWidth(
+            config, centerline, coordinates, includeSlopeBatterOverlay);
         if (halfWidth <= 0.0) {
             return new RoadCorridorGeometry(centerline, List.of(), List.of(), List.of(), false, List.of());
         }
@@ -98,17 +117,39 @@ public final class RoadOverlayGeometry {
         };
     }
 
-    /** 认领候选路径走廊半宽（画布坐标，行车道 + 可行走外侧条带）。 */
+    /** 认领候选路径走廊半宽（画布坐标，默认硬质路面；可选含边坡外缘）。 */
     public static double resolveConfigCorridorHalfWidth(
             RoadSystemConfig config,
             List<Vec2d> centerline,
             ICoordinateService coordinates) {
+        return resolveConfigCorridorHalfWidth(config, centerline, coordinates, false);
+    }
+
+    public static double resolveConfigCorridorHalfWidth(
+            RoadSystemConfig config,
+            List<Vec2d> centerline,
+            ICoordinateService coordinates,
+            boolean includeSlopeBatterOverlay) {
         if (config == null) {
             return 0.0;
         }
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
-        double halfWidthBlocks = RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section);
+        double halfWidthBlocks = resolveOverlayHalfWidthBlocks(section, config, includeSlopeBatterOverlay);
         return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
+    }
+
+    /** 画布叠加层半宽（方块数）：硬质路面，或含边坡外缘估计。 */
+    public static double resolveOverlayHalfWidthBlocks(
+            ResolvedCrossSection section,
+            RoadSystemConfig config,
+            boolean includeSlopeBatterOverlay) {
+        if (section == null) {
+            return 0.0;
+        }
+        if (includeSlopeBatterOverlay) {
+            return RoadCorridorWidth.overlayHalfWidthBlocks(section, config);
+        }
+        return RoadCorridorWidth.pavementHalfWidthBlocks(section);
     }
 
     /** 硬质路面半宽（方块数，不含画布缩放）。 */
@@ -132,6 +173,16 @@ public final class RoadOverlayGeometry {
             RoadSystemConfig config,
             List<Vec2d> centerline,
             ICoordinateService coordinates) {
+        return resolveRoadHalfWidth(network, road, config, centerline, coordinates, false);
+    }
+
+    public static double resolveRoadHalfWidth(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            List<Vec2d> centerline,
+            ICoordinateService coordinates,
+            boolean includeSlopeBatterOverlay) {
         if (network == null || road == null || config == null) {
             return 0.0;
         }
@@ -140,11 +191,13 @@ public final class RoadOverlayGeometry {
             RoadEdge edge = network.getEdge(segmentId);
             if (edge != null) {
                 ResolvedCrossSection section = RoadModelUtils.resolveCrossSection(network, edge, config);
-                double halfWidthBlocks = RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section);
+                double halfWidthBlocks = resolveOverlayHalfWidthBlocks(
+                    section, config, includeSlopeBatterOverlay);
                 return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
             }
         }
-        return resolveConfigCorridorHalfWidth(config, centerline, coordinates);
+        return resolveConfigCorridorHalfWidth(
+            config, centerline, coordinates, includeSlopeBatterOverlay);
     }
 
     private static double scaleHalfWidthToCanvas(

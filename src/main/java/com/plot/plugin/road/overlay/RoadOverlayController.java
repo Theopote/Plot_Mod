@@ -30,7 +30,8 @@ public final class RoadOverlayController {
             String primaryRoadId,
             List<Shape> pickCandidatePaths,
             boolean pickSessionActive,
-            Set<String> previewedRoadIds) {
+            Set<String> previewedRoadIds,
+            boolean includeSlopeBatterOverlay) {
         if (network == null || config == null) {
             return List.of();
         }
@@ -43,7 +44,8 @@ public final class RoadOverlayController {
                 continue;
             }
             com.plot.plugin.road.geometry.RoadCorridorGeometry corridor =
-                RoadOverlayGeometry.resolveRoadCorridorGeometry(network, road, config, coordinates);
+                RoadOverlayGeometry.resolveRoadCorridorGeometry(
+                    network, road, config, coordinates, includeSlopeBatterOverlay);
             if (corridor.primaryFillContour().size() < 3) {
                 continue;
             }
@@ -68,7 +70,8 @@ public final class RoadOverlayController {
                 profileSeam));
         }
 
-        appendPickCandidates(entries, pickCandidatePaths, config, coordinates, pickSessionActive);
+        appendPickCandidates(
+            entries, pickCandidatePaths, config, coordinates, pickSessionActive, includeSlopeBatterOverlay);
         entries.sort(Comparator.comparingInt(entry -> entry.state().renderPriority()));
         return entries;
     }
@@ -78,7 +81,8 @@ public final class RoadOverlayController {
             List<Shape> pickCandidatePaths,
             RoadSystemConfig config,
             ICoordinateService coordinates,
-            boolean pickSessionActive) {
+            boolean pickSessionActive,
+            boolean includeSlopeBatterOverlay) {
         if (pickCandidatePaths == null || pickCandidatePaths.isEmpty()) {
             return;
         }
@@ -90,7 +94,8 @@ public final class RoadOverlayController {
                 continue;
             }
             com.plot.plugin.road.geometry.RoadCorridorGeometry corridor =
-                RoadOverlayGeometry.resolvePathCorridorGeometry(path, config, coordinates);
+                RoadOverlayGeometry.resolvePathCorridorGeometry(
+                    path, config, coordinates, includeSlopeBatterOverlay);
             if (corridor.primaryFillContour().size() < 3) {
                 continue;
             }
