@@ -1038,7 +1038,8 @@ final class VerticalProfileEditor {
         boolean buildProfileStale = isChartDerivedDataStale(road);
         VoxelProfilePreviewSlot voxelSlot =
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null;
-        boolean showBuildProfileLine = voxelSlot != null && voxelSlot.hasLastGoodSamples();
+        // 与生成页缩略图一致：始终可显示预览拟合建造线；有体素结果时用台阶采样覆盖。
+        boolean showBuildProfileLine = ProfileChartRenderMode.EDITOR.showBuildProfileLine();
         List<ProfileControlPoint> points = flatMode
             ? List.of()
             : VerticalProfileControlPoints.forAlignment(editingNetwork, road, effectiveAlignment);

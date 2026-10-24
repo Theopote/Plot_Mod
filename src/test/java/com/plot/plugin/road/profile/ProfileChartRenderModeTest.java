@@ -36,7 +36,7 @@ class ProfileChartRenderModeTest {
         assertTrue(mode.showElevationAxisLabels());
         assertTrue(mode.showIntersectionLabels());
         assertFalse(mode.showGuideLine());
-        assertFalse(mode.showBuildProfileLine());
+        assertTrue(mode.showBuildProfileLine());
         assertTrue(mode.showIntersectionConnectors());
         // 求解器 design 采样不再画绿线；绿线来自 VerticalAlignmentProfileOverlay。
         assertFalse(mode.showDesignProfileLine());

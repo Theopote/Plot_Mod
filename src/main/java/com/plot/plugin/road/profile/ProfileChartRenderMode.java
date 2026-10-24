@@ -55,10 +55,12 @@ public enum ProfileChartRenderMode {
     }
 
     /**
-     * 方块铺设台阶：Generate 概览展示预览结果；编辑器仅在用户显式更新体素纵断面后展示。
+     * 方块铺设 / 预览拟合道路线。
+     * 生成页缩略图与编辑器均显示最近一次预览的建造标高，便于对照设计线；
+     * 编辑器在「更新方块线」后改用体素台阶采样。
      */
     public boolean showBuildProfileLine() {
-        return this != EDITOR;
+        return true;
     }
 
     public boolean showIntersectionLabels() {

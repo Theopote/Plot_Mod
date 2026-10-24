@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 紧凑纵断面卡片：约 80–88px 图表 + 单行精简图例。
  * <p>
- * Overview：地形 + 建造台阶；Editor：地形 + 设计线（体素预览后可选建造台阶）。
+ * Overview / Editor：地形 + 建造（预览拟合）；Editor 另叠加设计线。
  */
 public final class RoadProfileCompactCard {
 
