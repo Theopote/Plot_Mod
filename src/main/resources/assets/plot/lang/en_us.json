@@ -1555,6 +1555,7 @@
   "plugin.road.profile_overview_select_road": "Set as active road",
   "plugin.road.profile_overview_edit": "Edit",
   "plugin.road.profile_overview_empty": "No stationable roads in the network; profiles cannot be shown.",
+  "plugin.road.profile_overview_no_preview": "No preview yet. Use Calculate Preview above.",
   "plugin.road.profile_road_summary_line": "%1$s · %2$s · %3$s",
   "plugin.road.profile_editor_road_selector": "Road",
   "plugin.road.profile_editor_road_nav_prev": "◀",

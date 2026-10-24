@@ -10,7 +10,7 @@ import imgui.ImGui;
 import imgui.type.ImBoolean;
 
 /**
- * Compact tunnel style entry points for Generate and profile workspace panels.
+ * Compact tunnel style entry points for Edit tab cross-section panels.
  */
 public final class TunnelStyleControls {
     private static final String GLOBAL_POPUP = "##tunnel_style_editor_global";

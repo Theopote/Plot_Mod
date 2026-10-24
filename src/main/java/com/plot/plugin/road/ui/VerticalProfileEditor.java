@@ -172,7 +172,9 @@ final class VerticalProfileEditor {
     }
 
     void renderCompactMissingProfile(RoadUiContext ctx, RoadNetwork network, Road road) {
-        renderMissingProfileActions(ctx, network, road);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_overview_no_preview"));
     }
 
     void setOnAlignmentCommitted(Runnable onProfileConfirmed) {

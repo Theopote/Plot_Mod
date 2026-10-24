@@ -904,6 +904,9 @@ public final class RoadProfileChartRenderer {
         // 绿色设计线仅来自玩家 VA overlay（编辑器）；不再用求解器 previewElevations 冒充设计线。
         if (showBuildProfileLine) {
             int buildColor = buildProfileStale ? COLOR_BUILD_STALE : COLOR_BUILD;
+            float buildThickness = mode == ProfileChartRenderMode.EDITOR
+                ? Math.max(1.8f, mode.roadLineWidth())
+                : Math.max(1.2f, mode.roadLineWidth() - 0.4f);
             if (mode == ProfileChartRenderMode.EDITOR && chart.hasBuildSamples()) {
                 drawBuildStairStep(
                     drawList,
@@ -911,12 +914,12 @@ public final class RoadProfileChartRenderer {
                     range,
                     chart.buildSamples(),
                     buildColor,
-                    Math.max(1.2f, mode.roadLineWidth() - 0.4f),
+                    buildThickness,
                     buildProfileStale);
             } else if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
                 drawPolyline(
                     drawList, layout, range, chart.stations(), chart.buildElevations(),
-                    buildColor, Math.max(1.2f, mode.roadLineWidth() - 0.4f), buildProfileStale);
+                    buildColor, buildThickness, buildProfileStale);
             }
         }
         if (design != null && !design.isEmpty()) {

@@ -83,7 +83,14 @@ public final class RoadGeneratePanel {
         ImGui.separator();
 
         RoadUiSections.section("plugin.road.section.generation_settings");
-        RoadGenerationSettingsPanel.renderPrimary(ctx);
+        RoadGenerationSettingsPanel.renderPrimary(
+            ctx,
+            () -> {
+                Road road = resolveActiveProfileRoad(network);
+                if (road != null) {
+                    profileEditor.openEditorForRoad(ctx, road.getId());
+                }
+            });
         ImGui.separator();
 
         renderPreviewActions(network, preflight, buildReadiness);
@@ -153,21 +160,6 @@ public final class RoadGeneratePanel {
         if (road == null) {
             return;
         }
-        if (RoadGenerationSettingsPanel.showsPerRoadTerrainControls(ctx, road)) {
-            ImGui.spacing();
-            RoadStyleProductControls.renderRoadMaxSlopePresets(
-                ctx, road, ctx.networkManager()::pushHistory);
-            RoadStyleProductControls.renderRoadTerrainStylePresets(
-                ctx, road, ctx.networkManager()::pushHistory);
-        }
-        if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE) {
-            ImGui.spacing();
-            ProfileSourceControls.render(
-                ctx,
-                network,
-                road,
-                () -> profileEditor.openEditorForRoad(ctx, road.getId()));
-        }
         if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             ImGui.spacing();
             verticalModeControls.render(
@@ -176,10 +168,6 @@ public final class RoadGeneratePanel {
                 road,
                 ctx.networkManager().getConfig(),
                 this::requireTerrainOrNull);
-        }
-        if (ctx.networkManager().getSelectedRoadIds().size() == 1) {
-            RoadGenerationSettingsPanel.renderRoadTunnelOverride(
-                ctx, road, ctx.networkManager()::pushHistory);
         }
     }
 

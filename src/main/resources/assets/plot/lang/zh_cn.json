@@ -1555,6 +1555,7 @@
   "plugin.road.profile_overview_select_road": "设为当前道路",
   "plugin.road.profile_overview_edit": "编辑",
   "plugin.road.profile_overview_empty": "当前路网中没有可桩号化的道路，无法显示纵断面。",
+  "plugin.road.profile_overview_no_preview": "尚未计算预览，请使用上方「计算预览」。",
   "plugin.road.profile_road_summary_line": "%1$s · %2$s · %3$s",
   "plugin.road.profile_editor_road_selector": "道路",
   "plugin.road.profile_editor_road_nav_prev": "◀",

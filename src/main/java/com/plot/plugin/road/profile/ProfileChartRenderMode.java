@@ -83,9 +83,9 @@ public enum ProfileChartRenderMode {
         return this == EDITOR ? 2.0f : 2.4f;
     }
 
-    /** Design (intent) line thickness; editor emphasizes the editable design profile. */
+    /** Design (intent) line thickness; editor keeps it thinner than the build stair line. */
     public float designLineWidth() {
-        return this == EDITOR ? 3.2f : 2.6f;
+        return this == EDITOR ? 1.8f : 2.2f;
     }
 
     public float guideLineWidth() {

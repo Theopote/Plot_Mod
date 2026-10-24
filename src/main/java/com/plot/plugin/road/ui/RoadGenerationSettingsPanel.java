@@ -28,30 +28,35 @@ public final class RoadGenerationSettingsPanel {
         return RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT;
     }
 
-    /** 纵断面工作区已为当前道路展示坡度/地形预设时，生成设置区不再重复全局预设。 */
+    /** 单选地形适应道路时，生成设置展示道路级坡度/地形/纵断面来源。 */
     public static boolean showsPerRoadTerrainControls(RoadUiContext ctx, Road road) {
         return road != null
             && RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE
             && showsTerrainAdaptiveControls(ctx);
     }
 
-    public static boolean defersTerrainControlsToProfileWorkspace(RoadUiContext ctx) {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        return showsPerRoadTerrainControls(ctx, RoadProfileRoadList.resolveActiveRoad(network, ctx));
-    }
-
-    /** 建造 Tab 主界面：地形适应、坡度预设、桥梁选项。 */
-    public static void renderPrimary(RoadUiContext ctx) {
+    /** 建造 Tab 主界面：坡度/地形/纵断面来源、桥梁选项。 */
+    public static void renderPrimary(RoadUiContext ctx, Runnable openProfileEditorForSelectedRoad) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (config == null) {
             return;
         }
 
-        if (showsTerrainAdaptiveControls(ctx)) {
-            if (!defersTerrainControlsToProfileWorkspace(ctx)) {
-                RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
-                RoadStyleProductControls.renderTerrainStylePresets(ctx);
-            }
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
+        if (showsPerRoadTerrainControls(ctx, activeRoad)) {
+            RoadStyleProductControls.renderRoadMaxSlopePresets(
+                ctx, activeRoad, ctx.networkManager()::pushHistory);
+            RoadStyleProductControls.renderRoadTerrainStylePresets(
+                ctx, activeRoad, ctx.networkManager()::pushHistory);
+            ProfileSourceControls.render(
+                ctx,
+                network,
+                activeRoad,
+                openProfileEditorForSelectedRoad);
+        } else if (showsTerrainAdaptiveControls(ctx)) {
+            RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
+            RoadStyleProductControls.renderTerrainStylePresets(ctx);
         } else {
             RoadUiWidgets.textWrappedColored(
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
@@ -69,12 +74,6 @@ public final class RoadGenerationSettingsPanel {
             markChanged(ctx);
         }
 
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.section.structure"));
-        ImGui.indent();
-        TunnelStyleControls.renderGlobal(ctx);
-        ImGui.unindent();
-
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.experimental_settings"))) {
             RoadUiWidgets.textWrappedColored(
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
@@ -83,18 +82,6 @@ public final class RoadGenerationSettingsPanel {
             RoadStyleProductControls.renderExperimentalProfileSettings(ctx);
             ImGui.unindent();
         }
-    }
-
-    /** 单选道路时可在纵断面工作区展示道路级隧道覆盖。 */
-    public static void renderRoadTunnelOverride(RoadUiContext ctx, Road road, Runnable onHistory) {
-        if (road == null) {
-            return;
-        }
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.tunnel.road_override_section"));
-        ImGui.indent();
-        TunnelStyleControls.renderRoadOverride(ctx, road, onHistory);
-        ImGui.unindent();
     }
 
     private static void markChanged(RoadUiContext ctx) {

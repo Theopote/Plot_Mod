@@ -84,6 +84,9 @@ final class RoadEditWorkspace {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
             defaultParamsPanel.renderAdvancedDefaultsCollapsible();
         }
+        ImGui.spacing();
+        RoadUiSections.group("plugin.road.section.structure");
+        TunnelStyleControls.renderGlobal(ctx);
     }
 
     private void renderCrossSectionAppearance(Road road) {
@@ -93,6 +96,9 @@ final class RoadEditWorkspace {
         CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAppearance();
         RoadUiSections.section("plugin.road.edit.cross_section");
         CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
+        ImGui.spacing();
+        RoadUiSections.group("plugin.road.section.structure");
+        TunnelStyleControls.renderRoadOverride(ctx, road, ctx::pushRoadEditHistory);
     }
 
     private void renderMaterialsAndFurniture(Road road) {

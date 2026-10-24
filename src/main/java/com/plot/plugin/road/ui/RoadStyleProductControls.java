@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -37,6 +38,17 @@ public final class RoadStyleProductControls {
                 }
                 road.setMaxSlope(value);
             });
+        float[] slope = {effective};
+        if (EngineeringSlopeInput.render(
+                "road_max_slope_" + road.getId(),
+                PlotI18n.tr("plugin.road.max_slope_label"),
+                slope,
+                EngineeringSlopeInput.ValueKind.GRADE)) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.setMaxSlope(slope[0]);
+        }
         if (road.getMaxSlope() != null) {
             if (ImGui.button(PlotI18n.tr("plugin.road.style.max_slope_reset_default") + "##road_slope_reset")) {
                 if (onHistory != null) {
@@ -63,6 +75,15 @@ public final class RoadStyleProductControls {
                 config.setMaxSlope(value);
                 markConfigChanged(ctx);
             });
+        float[] slope = {config.getMaxSlope()};
+        if (EngineeringSlopeInput.render(
+                "config_max_slope",
+                PlotI18n.tr("plugin.road.max_slope_label"),
+                slope,
+                EngineeringSlopeInput.ValueKind.GRADE)) {
+            config.setMaxSlope(slope[0]);
+            markConfigChanged(ctx);
+        }
         ImGui.spacing();
     }
 
