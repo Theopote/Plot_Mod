@@ -198,8 +198,8 @@ public final class FlatProfileCompiler {
             stations.put("crossing:" + crossing.id(), crossing.stationOn(road.getId()));
         }
         for (var stack : network.stackCrossingsForRoad(road.getId())) {
-            stations.put("stack:" + stack.id() + ":" + Double.toString(stack.stationA()), stack.stationA());
-            stations.put("stack:" + stack.id() + ":" + Double.toString(stack.stationB()), stack.stationB());
+            stations.put("stack:" + stack.id() + ":" + stack.stationA(), stack.stationA());
+            stations.put("stack:" + stack.id() + ":" + stack.stationB(), stack.stationB());
         }
         if (intent != null) {
             for (String nodeId : intent.getIntersectionOverrides().keySet()) {
@@ -260,7 +260,7 @@ public final class FlatProfileCompiler {
         double suggested = VerticalProfileDesignRules.suggestedTransitionLength(incomingRun, outgoingRun);
         double length = Math.max(suggested, required);
         if (!Double.isFinite(length) || length <= EPSILON) {
-            return Math.min(incomingRun, Math.max(required, 0.0));
+            return Math.clamp(required, 0.0, incomingRun);
         }
         return Math.min(length, incomingRun);
     }

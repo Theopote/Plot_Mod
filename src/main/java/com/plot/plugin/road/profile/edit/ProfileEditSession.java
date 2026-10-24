@@ -46,7 +46,7 @@ public final class ProfileEditSession {
         if (previewNetwork == null || previewRevision != draftRevision) {
             previewNetwork = working.snapshot();
             Road previewRoad = previewNetwork.getRoad(road.getId());
-            if (isFlatWholeLineIntersectionDraft(previewRoad)) {
+            if (isFlatWholeLineDraft(previewRoad)) {
                 applyFlatWholeLinePreview(previewNetwork, previewRoad, config);
             } else {
                 applyAndSynchronize(previewNetwork, previewRoad, config);
@@ -56,11 +56,16 @@ public final class ProfileEditSession {
         return previewNetwork;
     }
 
-    private boolean isFlatWholeLineIntersectionDraft(Road road) {
-        return road != null
-            && road.getVerticalMode() == RoadVerticalMode.FLAT
-            && draft.kind() == ProfileEditDraft.Kind.INTERSECTION
-            && draft.draftAlignment() != null
+    private boolean isFlatWholeLineDraft(Road road) {
+        if (road == null
+                || road.getVerticalMode() != RoadVerticalMode.FLAT
+                || draft.draftAlignment() == null) {
+            return false;
+        }
+        if (draft.kind() == ProfileEditDraft.Kind.PVI) {
+            return true;
+        }
+        return draft.kind() == ProfileEditDraft.Kind.INTERSECTION
             && draft.intersectionTarget() != RoadProfileIntersectionDragEditor.DragTarget.OTHER;
     }
 
@@ -149,6 +154,26 @@ public final class ProfileEditSession {
         draft.beginIntersectionEdit(intersections);
     }
 
+    /** 水平道路整体抬升编辑：有交点走交点草稿，无端点交点时走 PVI 草稿。 */
+    public void beginFlatWholeLineEdit(
+            RoadNetwork network,
+            Road road,
+            List<RoadProfileIntersection> intersections) {
+        if (intersections != null && !intersections.isEmpty()) {
+            beginIntersectionEdit(intersections);
+            return;
+        }
+        Objects.requireNonNull(road, "road");
+        if (!draft.isActive()) {
+            draft.beginAlignmentEdit(road, ProfileEditDraft.Kind.PVI);
+        }
+        double length = RoadStationing.canonicalLength(network, road);
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        double base = intent != null ? intent.getBaseElevation() : 64.0;
+        draft.setDraftAlignment(VerticalProfileDesignRules.flatAlignment(length, base));
+        draftRevision++;
+    }
+
     public void updatePviDrag(
             RoadNetwork network,
             Road road,
@@ -208,27 +233,39 @@ public final class ProfileEditSession {
             RoadProfileIntersectionDragEditor.DragTarget target,
             double elevation,
             List<RoadProfileIntersection> intersections) {
-        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT || intersections == null) {
+        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
             updateIntersectionDrag(index, target, elevation);
             return;
         }
-        if (!draft.isActive() || draft.kind() != ProfileEditDraft.Kind.INTERSECTION) {
-            beginIntersectionEdit(intersections);
+        List<RoadProfileIntersection> working =
+            intersections != null ? intersections : List.of();
+        if (!draft.isActive()) {
+            beginFlatWholeLineEdit(network, road, working);
         }
         double clamped = elevationBounds.clamp(elevation);
         double roadLength = RoadStationing.canonicalLength(network, road);
         RoadVerticalAlignment preview = VerticalProfileDesignRules.flatAlignment(roadLength, clamped);
         draft.setDraftAlignment(preview);
         if (target == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
-            draft.updateIntersectionDraft(index, target, clamped);
-        } else {
-            for (int i = 0; i < draft.draftIntersections().size(); i++) {
-                draft.updateIntersectionDraft(
-                    i,
-                    RoadProfileIntersectionDragEditor.DragTarget.CURRENT,
-                    clamped);
+            if (index >= 0 && index < draft.draftIntersections().size()) {
+                draft.updateIntersectionDraft(index, target, clamped);
             }
-            draft.forceIntersectionTarget(index, target);
+        } else if (!draft.draftIntersections().isEmpty()) {
+            for (int i = 0; i < draft.draftIntersections().size(); i++) {
+                RoadProfileIntersection original = draft.draftIntersections().get(i);
+                RoadProfileIntersectionDragEditor.DragTarget perTarget =
+                    original.gradeSeparated()
+                        ? RoadProfileIntersectionDragEditor.DragTarget.CURRENT
+                        : RoadProfileIntersectionDragEditor.DragTarget.SHARED;
+                draft.updateIntersectionDraft(i, perTarget, clamped);
+            }
+            int resolvedIndex = Math.min(Math.max(index, 0), draft.draftIntersections().size() - 1);
+            RoadProfileIntersection resolved = draft.draftIntersections().get(resolvedIndex);
+            draft.forceIntersectionTarget(
+                resolvedIndex,
+                resolved.gradeSeparated()
+                    ? RoadProfileIntersectionDragEditor.DragTarget.CURRENT
+                    : RoadProfileIntersectionDragEditor.DragTarget.SHARED);
         }
         draftRevision++;
     }
@@ -305,7 +342,11 @@ public final class ProfileEditSession {
                 windowSession.markTouched(workingNetwork.getRoad(changedId));
             }
             if (draft.kind() == ProfileEditDraft.Kind.INTERSECTION) {
-                markIntersectionTouched(windowSession, workingNetwork, road);
+                if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+                    markFlatIntersectionsTouched(windowSession, workingNetwork);
+                } else {
+                    markIntersectionTouched(windowSession, workingNetwork, road);
+                }
             }
         }
         if (propagatePrimary != null) {
@@ -331,6 +372,18 @@ public final class ProfileEditSession {
             network, driver, before, config, elevationBounds);
     }
 
+    private void markFlatIntersectionsTouched(
+            ProfileEditorWindowSession windowSession,
+            RoadNetwork network) {
+        for (RoadProfileIntersection intersection : draft.draftIntersections()) {
+            windowSession.markTouchedIntersection(intersection);
+            Road otherRoad = network.getRoad(intersection.otherRoadId());
+            if (otherRoad != null) {
+                windowSession.markTouched(otherRoad);
+            }
+        }
+    }
+
     private void markIntersectionTouched(
             ProfileEditorWindowSession windowSession,
             RoadNetwork network,
@@ -350,10 +403,17 @@ public final class ProfileEditSession {
     private void applyDraftToNetwork(RoadNetwork network, Road road, RoadSystemConfig config) {
         switch (draft.kind()) {
             case PVI, CURVE -> {
-                RoadVerticalAlignment before = road.getVerticalAlignment();
-                road.setVerticalAlignment(draft.draftAlignment());
-                if (draft.kind() == ProfileEditDraft.Kind.CURVE) {
-                    RoadProfileConstraintSynchronizer.preserveCrossingElevations(network, road, before, config);
+                if (road.getVerticalMode() == RoadVerticalMode.FLAT && draft.draftAlignment() != null) {
+                    double base = draft.draftAlignment().getPvis().getFirst().getElevation();
+                    FlatVerticalIntentSupport.setWholeRoadElevation(
+                        network, road, base, road.getEffectiveMaxSlope(config));
+                } else {
+                    RoadVerticalAlignment before = road.getVerticalAlignment();
+                    road.setVerticalAlignment(draft.draftAlignment());
+                    if (draft.kind() == ProfileEditDraft.Kind.CURVE) {
+                        RoadProfileConstraintSynchronizer.preserveCrossingElevations(
+                            network, road, before, config);
+                    }
                 }
                 com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
             }
@@ -385,6 +445,19 @@ public final class ProfileEditSession {
                 road,
                 requested,
                 road.getEffectiveMaxSlope(config));
+            for (RoadProfileIntersection intersection : draft.draftIntersections()) {
+                RoadProfileIntersectionDragEditor.DragTarget applyTarget =
+                    intersection.gradeSeparated()
+                        ? target
+                        : RoadProfileIntersectionDragEditor.DragTarget.SHARED;
+                double elevation = applyTarget
+                        == RoadProfileIntersectionDragEditor.DragTarget.OTHER
+                    ? intersection.otherRoadElevation()
+                    : requested;
+                RoadProfileIntersectionDragEditor.applyDraggedElevation(
+                    network, road, intersection, applyTarget, elevation, config);
+            }
+            return;
         }
         RoadProfileIntersectionDragEditor.applyDraggedElevation(
             network, road, patched, target, requested, config);

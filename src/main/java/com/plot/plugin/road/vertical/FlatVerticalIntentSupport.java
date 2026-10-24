@@ -125,7 +125,12 @@ public final class FlatVerticalIntentSupport {
         double base = intent.getBaseElevation();
         List<RoadProfileIntersection> aligned = new ArrayList<>(intersections.size());
         for (RoadProfileIntersection intersection : intersections) {
-            if (Math.abs(intersection.currentRoadElevation() - base) <= EPSILON) {
+            double current = base;
+            double other = intersection.gradeSeparated()
+                ? intersection.otherRoadElevation()
+                : base;
+            if (Math.abs(intersection.currentRoadElevation() - current) <= EPSILON
+                    && Math.abs(intersection.otherRoadElevation() - other) <= EPSILON) {
                 aligned.add(intersection);
                 continue;
             }
@@ -136,8 +141,8 @@ public final class FlatVerticalIntentSupport {
                 intersection.otherRoadLabel(),
                 intersection.localDistance(),
                 intersection.roadStation(),
-                base,
-                intersection.otherRoadElevation(),
+                current,
+                other,
                 intersection.otherCrossSection(),
                 intersection.gradeSeparated(),
                 intersection.currentRoadElevated(),

@@ -90,7 +90,7 @@ class VerticalProfileControlPointsTest {
         assertEquals(72, endpoint.getPvis().getFirst().getElevation(), 1e-6);
     }
 
-    @Test void flatRoadProducesNoEditableControlPoints() {
+    @Test void flatRoadProducesEndpointControlPointsOnly() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road");
         road.setVerticalMode(RoadVerticalMode.FLAT);
@@ -100,7 +100,10 @@ class VerticalProfileControlPointsTest {
         network.createEdge(a.getId(), b.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
 
-        assertTrue(VerticalProfileControlPoints.forRoad(network, road).isEmpty());
+        var points = VerticalProfileControlPoints.forRoad(network, road);
+        assertEquals(2, points.size());
+        assertTrue(points.stream().allMatch(ProfileControlPoint::endpoint));
+        assertTrue(points.stream().allMatch(ProfileControlPoint::elevationEditable));
     }
 
     @Test void simpleEndpointPviIsEditable() {

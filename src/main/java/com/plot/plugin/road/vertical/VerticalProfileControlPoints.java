@@ -47,7 +47,7 @@ public final class VerticalProfileControlPoints {
             return List.of();
         }
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            return List.of();
+            return forFlatEditor(network, road, alignment);
         }
         List<PointOfVerticalIntersection> pvis = alignment.getPvis();
         List<ProfileControlPoint> result = new ArrayList<>();
@@ -73,6 +73,28 @@ public final class VerticalProfileControlPoints {
                 elevationEditable(road, pvi, sharedJunction, i, pvis.size())));
         }
         return List.copyOf(result);
+    }
+
+    /**
+     * 水平道路纵断面：绿线两端端点，仅允许竖向拖动以整体抬升/降低。
+     */
+    public static List<ProfileControlPoint> forFlatEditor(
+            RoadNetwork network,
+            Road road,
+            RoadVerticalAlignment alignment) {
+        if (network == null || road == null || alignment == null || alignment.isEmpty()) {
+            return List.of();
+        }
+        double length = RoadStationing.canonicalLength(network, road);
+        if (!Double.isFinite(length) || length <= EPSILON) {
+            return List.of();
+        }
+        double elevation = alignment.getPvis().getFirst().getElevation();
+        return List.of(
+            new ProfileControlPoint(
+                0, 0.0, elevation, ProfilePointRole.START_ENDPOINT, null, null, false, true),
+            new ProfileControlPoint(
+                1, length, elevation, ProfilePointRole.END_ENDPOINT, null, null, false, true));
     }
 
     private static ProfilePointRole resolveRole(

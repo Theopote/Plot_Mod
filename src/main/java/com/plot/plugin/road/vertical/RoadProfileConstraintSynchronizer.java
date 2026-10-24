@@ -2,6 +2,8 @@ package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
@@ -84,10 +86,13 @@ public final class RoadProfileConstraintSynchronizer {
             double delta = old.isPresent() ? Math.abs(value - old.getAsDouble()) : 0;
             double priority = driving ? 1 + delta : 0;
             Group group = groups.computeIfAbsent(root(parents, point), ignored -> new Group());
-            boolean locked = road.getVerticalAlignment().getPvis().stream().anyMatch(pvi ->
-                Math.abs(pvi.getStation() - point.station) <= EPSILON
-                    && (pvi.getConstraint() == VerticalControlPointConstraint.USER_LOCKED
-                        || pvi.getConstraint() == VerticalControlPointConstraint.ENDPOINT_FIXED));
+            boolean locked = false;
+            if (road != null) {
+                locked = road.getVerticalAlignment().getPvis().stream().anyMatch(pvi ->
+                    Math.abs(pvi.getStation() - point.station) <= EPSILON
+                        && (pvi.getConstraint() == VerticalControlPointConstraint.USER_LOCKED
+                            || pvi.getConstraint() == VerticalControlPointConstraint.ENDPOINT_FIXED));
+            }
             if (locked) {
                 if (group.lockedElevation != null && Math.abs(group.lockedElevation - value) > EPSILON) {
                     unresolved.add("conflicting-lock:" + point.roadId + ":" + point.station);
@@ -410,7 +415,7 @@ public final class RoadProfileConstraintSynchronizer {
             return sampledElevation(network, point);
         };
         List<Link> links = new ArrayList<>();
-        network.getCrossings().values().stream().sorted(Comparator.comparing(c -> c.id())).forEach(c -> {
+        network.getCrossings().values().stream().sorted(Comparator.comparing(RoadCrossing::id)).forEach(c -> {
             Point a = new Point(c.roadAId(), c.stationA());
             Point b = new Point(c.roadBId(), c.stationB());
             boolean separated = c.type() == CrossingType.GRADE_SEPARATED;
@@ -420,7 +425,7 @@ public final class RoadProfileConstraintSynchronizer {
                 separated && aUpper ? a : b, separated,
                 c.crossingClearance() != null ? c.crossingClearance() : config.getDefaultCrossingClearance()));
         });
-        network.getStackCrossings().values().stream().sorted(Comparator.comparing(c -> c.id())).forEach(c ->
+        network.getStackCrossings().values().stream().sorted(Comparator.comparing(RoadStackCrossing::id)).forEach(c ->
             links.add(new Link("stack:" + c.id(),
                 new Point(c.roadId(), c.isGradeSeparated() ? c.resolvedLowerStation() : c.stationA()),
                 new Point(c.roadId(), c.isGradeSeparated() ? c.resolvedUpperStation() : c.stationB()),
