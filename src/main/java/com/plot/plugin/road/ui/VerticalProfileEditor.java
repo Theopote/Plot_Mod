@@ -1643,11 +1643,13 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.profile_intersection_click_to_edit"));
         } else if (intersection.gradeSeparated()) {
             RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr("plugin.road.profile_editor_affect_current_only"));
-            RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_intersection_drag_grade_hint"));
+                PlotI18n.tr("plugin.road.profile_grade_sep_edit_hint"));
+            if (flatMode) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.profile_flat_grade_sep_hint"));
+            }
         } else if (flatMode) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.WARNING_LIGHT,
@@ -1698,37 +1700,15 @@ final class VerticalProfileEditor {
             ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_at_grade"));
         }
         if (editable) {
-            if (flatMode) {
+            RoadUiSections.section("plugin.road.profile_intersection_grade_edit");
+            boolean crossingChanged = renderProfileGradeSeparationControls(
+                ctx, network, road, intersection, config);
+            if (!flatMode) {
+                renderIntersectionHeightEdit(ctx, network, road, intersections, detailIndex, config, flatMode);
+            } else if (!intersection.gradeSeparated()) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr("plugin.road.profile_flat_intersection_edit_hint"));
-            } else {
-                renderIntersectionHeightEdit(ctx, network, road, intersections, detailIndex, config, flatMode);
-            }
-            boolean crossingChanged = false;
-            if (gradeSeparationControls == null) {
-                gradeSeparationControls = new RoadGradeSeparationControls(ctx);
-            }
-            if (com.plot.plugin.road.crossing.RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
-                com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
-                    com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
-                if (crossing != null) {
-                    crossingChanged = gradeSeparationControls.renderCrossing(
-                        crossing, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
-                }
-            } else if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
-                com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(
-                    com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
-                if (stack != null) {
-                    crossingChanged = gradeSeparationControls.renderStackCrossing(
-                        stack, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
-                }
-            } else {
-                RoadNode node = network.getNode(intersection.nodeId());
-                if (node != null) {
-                    crossingChanged = gradeSeparationControls.renderLegacyJunction(
-                        node, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
-                }
             }
             if (crossingChanged) {
                 var result = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
@@ -1739,6 +1719,9 @@ final class VerticalProfileEditor {
                         "plugin.road.vertical_alignment_network_unresolved", result.unresolvedConstraints().size());
                 }
                 notifyWorkingProfileChanged();
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr("plugin.road.profile_intersection_recalculate_hint"));
             }
         }
         if (ImGui.collapsingHeader(
@@ -1767,6 +1750,52 @@ final class VerticalProfileEditor {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_intersection_cross_section_hint"));
         }
+    }
+
+    private boolean renderProfileGradeSeparationControls(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadProfileIntersection intersection,
+            RoadSystemConfig config) {
+        if (gradeSeparationControls == null) {
+            gradeSeparationControls = new RoadGradeSeparationControls(ctx);
+        }
+        String profileRoadId = road.getId();
+        if (com.plot.plugin.road.crossing.RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
+            com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
+                com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
+            if (crossing != null) {
+                return gradeSeparationControls.renderCrossing(
+                    crossing,
+                    network,
+                    config,
+                    RoadGradeSeparationControls.Layout.PROFILE,
+                    windowSession,
+                    profileRoadId);
+            }
+            return false;
+        }
+        if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
+            com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(
+                com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
+            if (stack != null) {
+                return gradeSeparationControls.renderStackCrossing(
+                    stack, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
+            }
+            return false;
+        }
+        RoadNode node = network.getNode(intersection.nodeId());
+        if (node != null) {
+            return gradeSeparationControls.renderLegacyJunction(
+                node,
+                network,
+                config,
+                RoadGradeSeparationControls.Layout.PROFILE,
+                windowSession,
+                profileRoadId);
+        }
+        return false;
     }
 
     private static double requiredClearanceForIntersection(

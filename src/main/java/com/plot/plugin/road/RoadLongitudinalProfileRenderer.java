@@ -292,10 +292,6 @@ public final class RoadLongitudinalProfileRenderer {
                 geometryToProfileScale = 1.0;
             }
         }
-
-        double chartDistance(double geometryLocal) {
-            return geometryLocal * geometryToProfileScale;
-        }
     }
 
     private static PlotRange plotRange(
@@ -479,29 +475,6 @@ public final class RoadLongitudinalProfileRenderer {
             return new IntersectionHit(
                 hit.index(),
                 ControlInteraction.IntersectionDragTarget.valueOf(hit.target().name()));
-        }
-    }
-
-    private static void drawControlPoints(
-            ImDrawList drawList,
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            int selected,
-            double maxGrade,
-            PlotRange range,
-            float x0, float y0, float width, float height) {
-        if (controls == null) return;
-        float padding = 10f;
-        for (VerticalProfileControlPoints.ControlPoint point : controls) {
-            float x = toPlotX(
-                range.chartDistance(point.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float y = toPlotY((int) Math.round(point.elevation()), range.minHeight(), range.maxHeight(),
-                y0 + padding, height - 2 * padding);
-            int color = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade)
-                ? COLOR_CONTROL_INVALID
-                : point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_CONTROL;
-            float radius = point.sharedJunction() ? 6f : point.endpoint() ? 5f : 4f;
-            drawList.addCircleFilled(x, y, radius, color);
-            drawList.addCircle(x, y, radius + 1f, COLOR_BG, 12, 1.5f);
         }
     }
 

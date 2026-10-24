@@ -1551,7 +1551,7 @@ public final class EarthworkEditPanel {
     private void initializeSurfaceDefaults(GradingRegion region, GradingSurfaceMode mode) {
         com.plot.api.world.ICoordinateService transformer = ctx.host().coordinates();
         World world = EarthworkUiWidgets.getClientWorld();
-        if (world == null || transformer == null) {
+        if (world == null) {
             return;
         }
         TerrainSnapshot terrain = ctx.terrainSnapshotCache().getOrCapture(region, world, transformer);

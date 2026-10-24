@@ -61,6 +61,16 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             Layout layout,
             ProfileEditorWindowSession windowSession) {
+        return renderCrossing(crossing, network, config, layout, windowSession, null);
+    }
+
+    public boolean renderCrossing(
+            RoadCrossing crossing,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout,
+            ProfileEditorWindowSession windowSession,
+            String profileContextRoadId) {
         if (crossing == null || network == null || config == null) {
             return false;
         }
@@ -69,15 +79,15 @@ public final class RoadGradeSeparationControls {
 
         ImGui.pushID(crossing.id());
         boolean changed = false;
-        if (layout == Layout.PROFILE) {
-            ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_grade_edit"));
-        }
 
         changed |= renderCrossingTypeForRegistry(crossing, network, config, layout);
         if (crossing.type() == CrossingType.GRADE_SEPARATED) {
-            changed |= renderPassModeForRegistry(crossing, network, config, roadIds, layout);
+            changed |= renderPassModeForRegistry(
+                crossing, network, config, roadIds, layout, profileContextRoadId);
             changed |= renderClearanceSliderForRegistry(crossing, network, config, layout == Layout.INLINE);
-            renderRecommendationForRegistry(crossing, network, config);
+            if (layout != Layout.PROFILE) {
+                renderRecommendationForRegistry(crossing, network, config);
+            }
         } else {
             changed |= renderAtGradeProfileHint(crossing, network, config);
         }
@@ -118,10 +128,6 @@ public final class RoadGradeSeparationControls {
         deferredSession = windowSession;
         ImGui.pushID(stack.id());
         boolean changed = false;
-        if (layout == Layout.PROFILE) {
-            ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_grade_edit"));
-        }
-
         changed |= renderCrossingTypeForStack(stack, network, config, layout);
         RoadStackCrossing current = network.getStackCrossing(stack.id());
         if (current != null && current.isGradeSeparated()) {
@@ -156,11 +162,25 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             Layout layout,
             ProfileEditorWindowSession windowSession) {
+        return renderLegacyJunction(node, network, config, layout, windowSession, null);
+    }
+
+    public boolean renderLegacyJunction(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout,
+            ProfileEditorWindowSession windowSession,
+            String profileContextRoadId) {
         if (node == null || network == null || config == null) {
             return false;
         }
         deferredSession = windowSession;
-        if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
+        List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
+        boolean profileGradeSepEdit = layout == Layout.PROFILE
+            && node.isGradeSeparated()
+            && roadIds.size() == 2;
+        if (!RoadGraphQueries.isSimpleCrossing(node, network) && !profileGradeSepEdit) {
             if (layout == Layout.PROFILE) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
@@ -168,22 +188,21 @@ public final class RoadGradeSeparationControls {
             }
             return false;
         }
-        List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
         if (roadIds.size() != 2) {
             return false;
         }
 
         ImGui.pushID(node.getId());
         boolean changed = false;
-        if (layout == Layout.PROFILE) {
-            ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_grade_edit"));
-        }
 
         changed |= renderCrossingTypeForNode(node, network, config, layout);
         if (node.isGradeSeparated()) {
-            changed |= renderPassModeForNode(node, network, config, roadIds, layout);
+            changed |= renderPassModeForNode(
+                node, network, config, roadIds, layout, profileContextRoadId);
             changed |= renderClearanceSliderForNode(node, network, config, layout == Layout.INLINE);
-            renderRecommendationForNode(node, network, config);
+            if (layout != Layout.PROFILE) {
+                renderRecommendationForNode(node, network, config);
+            }
         } else if (roadIds.size() == 2) {
             changed |= renderAtGradeProfileHintForNode(node, network, config, roadIds);
         }
@@ -345,6 +364,28 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             List<String> roadIds,
             Layout layout) {
+        return renderPassModeForRegistry(
+            crossing, network, config, roadIds, layout, null);
+    }
+
+    private boolean renderPassModeForRegistry(
+            RoadCrossing crossing,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            List<String> roadIds,
+            Layout layout,
+            String profileContextRoadId) {
+        if (layout == Layout.PROFILE
+                && profileContextRoadId != null
+                && roadIds.size() == 2
+                && roadIds.contains(profileContextRoadId)) {
+            return renderProfileVerticalOrder(
+                profileContextRoadId,
+                roadIds,
+                network,
+                crossing.elevatedRoadId(),
+                index -> applyPassModeSelection(crossing, network, config, roadIds, index));
+        }
         String[] labels = buildPassModeLabels(roadIds, network);
         int currentIndex = passModeIndex(crossing.elevatedRoadId(), roadIds);
         if (layout == Layout.INLINE) {
@@ -364,6 +405,27 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             List<String> roadIds,
             Layout layout) {
+        return renderPassModeForNode(node, network, config, roadIds, layout, null);
+    }
+
+    private boolean renderPassModeForNode(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            List<String> roadIds,
+            Layout layout,
+            String profileContextRoadId) {
+        if (layout == Layout.PROFILE
+                && profileContextRoadId != null
+                && roadIds.size() == 2
+                && roadIds.contains(profileContextRoadId)) {
+            return renderProfileVerticalOrder(
+                profileContextRoadId,
+                roadIds,
+                network,
+                node.getElevatedRoadId(),
+                index -> applyPassModeSelection(node, network, config, roadIds, index));
+        }
         String[] labels = buildPassModeLabels(roadIds, network);
         int currentIndex = passModeIndex(node.getElevatedRoadId(), roadIds);
         if (layout == Layout.INLINE) {
@@ -373,6 +435,51 @@ public final class RoadGradeSeparationControls {
         if (ImGui.combo(PlotI18n.tr("plugin.road.crossing_pass_mode") + "##pass_mode", index, labels)) {
             applyPassModeSelection(node, network, config, roadIds, index.get());
             return true;
+        }
+        return false;
+    }
+
+    private interface PassModeIndexApplier {
+        void apply(int index);
+    }
+
+    private boolean renderProfileVerticalOrder(
+            String currentRoadId,
+            List<String> roadIds,
+            RoadNetwork network,
+            String elevatedRoadId,
+            PassModeIndexApplier applyIndex) {
+        String otherRoadId = currentRoadId.equals(roadIds.get(0)) ? roadIds.get(1) : roadIds.get(0);
+        boolean auto = elevatedRoadId == null || elevatedRoadId.isBlank();
+        boolean currentAbove = currentRoadId.equals(elevatedRoadId);
+        boolean otherAbove = otherRoadId.equals(elevatedRoadId);
+
+        ImGui.text(PlotI18n.tr("plugin.road.profile_grade_vertical_order"));
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.road.profile_current_road_above") + "##profile_current_above",
+                currentAbove)) {
+            if (!currentAbove) {
+                applyIndex.apply(roadIds.indexOf(currentRoadId) + 1);
+                return true;
+            }
+        }
+        if (ImGui.radioButton(
+                PlotI18n.tr(
+                    "plugin.road.profile_other_road_above",
+                    formatRoadLabel(network, otherRoadId)) + "##profile_other_above",
+                otherAbove)) {
+            if (!otherAbove) {
+                applyIndex.apply(roadIds.indexOf(otherRoadId) + 1);
+                return true;
+            }
+        }
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.road.crossing_pass_auto") + "##profile_auto_above",
+                auto)) {
+            if (!auto) {
+                applyIndex.apply(0);
+                return true;
+            }
         }
         return false;
     }

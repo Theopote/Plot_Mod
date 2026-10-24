@@ -16,7 +16,6 @@ import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 import com.plot.plugin.ui.PluginUiColors;
-import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;

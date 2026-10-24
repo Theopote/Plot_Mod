@@ -2,7 +2,6 @@ package com.plot.plugin.earthwork.ui;
 
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.ui.PluginJobProgressUi;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImInt;
