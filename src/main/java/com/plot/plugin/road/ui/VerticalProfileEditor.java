@@ -1033,7 +1033,8 @@ final class VerticalProfileEditor {
         RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
         Road displayRoad = displayNetwork.getRoad(road.getId());
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
-        RoadVerticalAlignment effectiveAlignment = profileEditSession.effectiveAlignment(road);
+        RoadVerticalAlignment effectiveAlignment =
+            profileEditSession.effectiveAlignment(editingNetwork, road);
         design = profileEditSession.effectiveDesignOverlay(editingNetwork, road)
             .orElseGet(() -> VerticalAlignmentProfileOverlay.forAlignment(
                 displayNetwork,
@@ -1058,7 +1059,7 @@ final class VerticalProfileEditor {
             ctx, displayNetwork, displayRoad, config, effectiveChart,
             !profileEditSession.isActive() && activeIntersectionDragIndex < 0);
         List<RoadProfileIntersection> intersections =
-            profileEditSession.effectiveIntersections(baseIntersections);
+            profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
         ProfileRenderCache renderCache = resolveRenderCache(
             ctx, liveNetwork, road, effectiveChart, flatOverlay, intersections,
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
@@ -1093,8 +1094,8 @@ final class VerticalProfileEditor {
                 flatOverlay,
                 renderCache,
                 elevationBounds);
-            intersections = profileEditSession.effectiveIntersections(baseIntersections);
-            effectiveAlignment = profileEditSession.effectiveAlignment(road);
+            intersections = profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
+            effectiveAlignment = profileEditSession.effectiveAlignment(editingNetwork, road);
             design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(design);
         }
         ProfileChartInteraction.ControlInteraction interaction =
@@ -1152,9 +1153,9 @@ final class VerticalProfileEditor {
             activeIntersectionDragTarget = interaction.activeIntersectionDragTarget();
         }
         applyIntersectionDrag(ctx, editingNetwork, road, config, flatMode, baseIntersections, interaction);
-        intersections = profileEditSession.effectiveIntersections(baseIntersections);
+        intersections = profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
         if (flatMode && profileEditSession.isActive()) {
-            effectiveAlignment = profileEditSession.effectiveAlignment(road);
+            effectiveAlignment = profileEditSession.effectiveAlignment(editingNetwork, road);
             design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(design);
         }
         if (!flatMode
@@ -1419,7 +1420,7 @@ final class VerticalProfileEditor {
         float chartX = ImGui.getCursorScreenPosX();
         float chartY = ImGui.getCursorScreenPosY();
         List<RoadProfileIntersection> previewIntersections =
-            profileEditSession.effectiveIntersections(baseIntersections);
+            profileEditSession.effectiveIntersections(network, road, baseIntersections);
         RoadProfilePlotRange range = RoadProfileChartRenderer.resolvePlotRange(
             renderCache,
             chart,

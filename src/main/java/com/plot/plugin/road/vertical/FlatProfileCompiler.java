@@ -39,6 +39,10 @@ public final class FlatProfileCompiler {
         }
 
         double base = intent.getBaseElevation();
+        // 无局部 override 时保持严格水平；节点 manualElevation 不再把绿线拉弯。
+        if (!intent.hasIntersectionOverrides()) {
+            return VerticalProfileDesignRules.flatAlignment(roadLength, base);
+        }
         Map<String, Double> junctionStations = collectJunctionStations(network, road, intent);
         List<JunctionConstraint> constraints = new ArrayList<>();
         for (Map.Entry<String, Double> entry : junctionStations.entrySet()) {

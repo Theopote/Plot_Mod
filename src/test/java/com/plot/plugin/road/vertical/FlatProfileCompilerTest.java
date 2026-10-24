@@ -16,6 +16,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FlatProfileCompilerTest {
 
     @Test
+    void nodeManualElevationWithoutOverrideDoesNotBendFlatRoad() {
+        RoadNetwork network = roadWithJunction(100.0, 50.0);
+        Road road = network.getRoad("main");
+        RoadNode center = network.getNodes().values().stream()
+            .filter(RoadNode::isJunction)
+            .findFirst()
+            .orElseThrow();
+        center.setManualElevation(73.0);
+        FlatVerticalIntent intent = new FlatVerticalIntent(70.0);
+
+        RoadVerticalAlignment alignment = FlatProfileCompiler.compile(network, road, intent, 8.0);
+        assertTrue(VerticalProfileDesignRules.isFlat(alignment));
+        assertEquals(70.0, alignment.getPvis().getFirst().getElevation(), 1e-6);
+        assertEquals(70.0, alignment.getPvis().getLast().getElevation(), 1e-6);
+    }
+
+    @Test
     void flatRoadWithoutOverridesStaysConstant() {
         RoadNetwork network = straightRoad(100.0);
         Road road = network.getRoads().values().iterator().next();

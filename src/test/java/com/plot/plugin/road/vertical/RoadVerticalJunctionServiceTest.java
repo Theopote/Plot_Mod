@@ -34,7 +34,8 @@ class RoadVerticalJunctionServiceTest {
         RoadNode node = network.getNode(nodeId);
         assertEquals(76.0, node.getManualElevation(), 1e-6);
         FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, flat);
-        assertEquals(76.0, intent.getIntersectionOverride(nodeId), 1e-6);
+        assertEquals(76.0, intent.getBaseElevation(), 1e-6);
+        assertTrue(intent.getIntersectionOverrides().isEmpty());
         assertEquals(RoadVerticalMode.FLAT, flat.getVerticalMode());
     }
 

@@ -9,7 +9,6 @@ import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.FlatProfileCompiler;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
@@ -19,6 +18,7 @@ import com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer;
 import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
 import java.util.List;
 import java.util.Objects;
@@ -74,11 +74,12 @@ public final class ProfileEditSession {
             return;
         }
         double base = preview.getPvis().getFirst().getElevation();
-        FlatVerticalIntentSupport.setWholeRoadElevation(
-            network,
-            road,
-            base,
-            road.getEffectiveMaxSlope(config));
+        road.setVerticalAlignment(preview);
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        if (intent != null) {
+            intent.setBaseElevation(base);
+            intent.clearIntersectionOverrides();
+        }
     }
 
     public void setElevationBounds(RoadElevationBounds bounds) {
@@ -215,10 +216,8 @@ public final class ProfileEditSession {
             beginIntersectionEdit(intersections);
         }
         double clamped = elevationBounds.clamp(elevation);
-        double maxGrade = road.getEffectiveMaxSlope(config);
-        FlatVerticalIntent previewIntent = new FlatVerticalIntent(clamped);
-        RoadVerticalAlignment preview = FlatProfileCompiler.compile(
-            network, road, previewIntent, maxGrade);
+        double roadLength = RoadStationing.canonicalLength(network, road);
+        RoadVerticalAlignment preview = VerticalProfileDesignRules.flatAlignment(roadLength, clamped);
         draft.setDraftAlignment(preview);
         if (target == RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
             draft.updateIntersectionDraft(index, target, clamped);
@@ -235,8 +234,15 @@ public final class ProfileEditSession {
     }
 
     public RoadVerticalAlignment effectiveAlignment(Road road) {
+        return effectiveAlignment(null, road);
+    }
+
+    public RoadVerticalAlignment effectiveAlignment(RoadNetwork network, Road road) {
         if (draft.draftAlignment() != null) {
             return draft.draftAlignment();
+        }
+        if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT && network != null) {
+            return FlatVerticalIntentSupport.strictEditorAlignment(network, road);
         }
         return road != null ? road.getVerticalAlignment() : null;
     }
@@ -246,6 +252,10 @@ public final class ProfileEditSession {
             Road road) {
         if (draft.draftAlignment() != null) {
             return VerticalAlignmentProfileOverlay.forAlignment(network, road, draft.draftAlignment());
+        }
+        if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT && network != null) {
+            RoadVerticalAlignment flat = FlatVerticalIntentSupport.strictEditorAlignment(network, road);
+            return VerticalAlignmentProfileOverlay.forAlignment(network, road, flat);
         }
         Optional<VerticalAlignmentProfileOverlay> active =
             VerticalAlignmentProfileOverlay.forRoad(network, road);
@@ -258,8 +268,18 @@ public final class ProfileEditSession {
     }
 
     public List<RoadProfileIntersection> effectiveIntersections(List<RoadProfileIntersection> base) {
+        return effectiveIntersections(null, null, base);
+    }
+
+    public List<RoadProfileIntersection> effectiveIntersections(
+            RoadNetwork network,
+            Road road,
+            List<RoadProfileIntersection> base) {
         if (draft.kind() == ProfileEditDraft.Kind.INTERSECTION && !draft.draftIntersections().isEmpty()) {
             return draft.draftIntersections();
+        }
+        if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT && network != null) {
+            return FlatVerticalIntentSupport.alignIntersectionsForEditor(network, road, base);
         }
         return base != null ? base : List.of();
     }

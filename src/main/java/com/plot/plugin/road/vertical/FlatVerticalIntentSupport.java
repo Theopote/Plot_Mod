@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.core.terrain.TerrainSampler;
 
@@ -90,6 +91,60 @@ public final class FlatVerticalIntentSupport {
         }
         FlatVerticalIntent intent = road.getFlatVerticalIntent();
         return intent != null && intent.hasIntersectionOverrides();
+    }
+
+    /** 纵断面编辑器绿线：始终为 intent 基准高程的严格水平线。 */
+    public static RoadVerticalAlignment strictEditorAlignment(RoadNetwork network, Road road) {
+        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
+            return road != null ? road.getVerticalAlignment() : null;
+        }
+        FlatVerticalIntent intent = resolveIntent(network, road);
+        if (intent == null || !RoadStationing.isStationable(network, road)) {
+            return road.getVerticalAlignment();
+        }
+        return VerticalProfileDesignRules.flatAlignment(
+            RoadStationing.canonicalLength(network, road),
+            intent.getBaseElevation());
+    }
+
+    /** 水平道路交点标记与绿线一致：本路标高统一为基准 Y。 */
+    public static List<RoadProfileIntersection> alignIntersectionsForEditor(
+            RoadNetwork network,
+            Road road,
+            List<RoadProfileIntersection> intersections) {
+        if (road == null
+                || road.getVerticalMode() != RoadVerticalMode.FLAT
+                || intersections == null
+                || intersections.isEmpty()) {
+            return intersections != null ? intersections : List.of();
+        }
+        FlatVerticalIntent intent = resolveIntent(network, road);
+        if (intent == null) {
+            return intersections;
+        }
+        double base = intent.getBaseElevation();
+        List<RoadProfileIntersection> aligned = new ArrayList<>(intersections.size());
+        for (RoadProfileIntersection intersection : intersections) {
+            if (Math.abs(intersection.currentRoadElevation() - base) <= EPSILON) {
+                aligned.add(intersection);
+                continue;
+            }
+            aligned.add(new RoadProfileIntersection(
+                intersection.nodeId(),
+                intersection.currentRoadId(),
+                intersection.otherRoadId(),
+                intersection.otherRoadLabel(),
+                intersection.localDistance(),
+                intersection.roadStation(),
+                base,
+                intersection.otherRoadElevation(),
+                intersection.otherCrossSection(),
+                intersection.gradeSeparated(),
+                intersection.currentRoadElevated(),
+                intersection.clearance(),
+                intersection.steepGradeWarning()));
+        }
+        return aligned;
     }
 
     public static void applyJunctionElevation(
