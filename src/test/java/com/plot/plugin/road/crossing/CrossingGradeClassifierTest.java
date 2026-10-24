@@ -8,7 +8,9 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CrossingGradeClassifierTest {
 
@@ -29,6 +31,16 @@ class CrossingGradeClassifierTest {
         RoadCrossing crossing = CrossingGradeClassifier.classifyTwoRoad(
             network, "a", 5.0, "b", 5.0, new Vec2d(5, 5));
         assertEquals(CrossingType.AT_GRADE, crossing.type());
+    }
+
+    @Test
+    void profileSuggestsGradeSeparationMatchesClassifierThreshold() {
+        RoadNetwork network = twoRoads();
+        setFlatProfile(network, "a", 64.0);
+        setFlatProfile(network, "b", 72.0);
+        assertTrue(CrossingGradeClassifier.profileSuggestsGradeSeparation(network, "a", 5.0, "b", 5.0));
+        setFlatProfile(network, "b", 65.0);
+        assertFalse(CrossingGradeClassifier.profileSuggestsGradeSeparation(network, "a", 5.0, "b", 5.0));
     }
 
     @Test

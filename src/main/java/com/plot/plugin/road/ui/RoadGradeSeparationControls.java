@@ -6,6 +6,7 @@ import com.plot.plugin.road.AutoGradeSeparationRecommendationCache;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.crossing.CrossingGradeClassifier;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
@@ -77,6 +78,8 @@ public final class RoadGradeSeparationControls {
             changed |= renderPassModeForRegistry(crossing, network, config, roadIds, layout);
             changed |= renderClearanceSliderForRegistry(crossing, network, config, layout == Layout.INLINE);
             renderRecommendationForRegistry(crossing, network, config);
+        } else {
+            changed |= renderAtGradeProfileHint(crossing, network, config);
         }
 
         if (crossing.sharedElevation() != null && crossing.type() == CrossingType.GRADE_SEPARATED) {
@@ -179,6 +182,8 @@ public final class RoadGradeSeparationControls {
             changed |= renderPassModeForNode(node, network, config, roadIds, layout);
             changed |= renderClearanceSliderForNode(node, network, config, layout == Layout.INLINE);
             renderRecommendationForNode(node, network, config);
+        } else if (roadIds.size() == 2) {
+            changed |= renderAtGradeProfileHintForNode(node, network, config, roadIds);
         }
 
         if (node.getManualElevation() != null && node.isGradeSeparated()) {
@@ -194,10 +199,65 @@ public final class RoadGradeSeparationControls {
         return changed;
     }
 
-    /** @deprecated 使用 {@link #renderCrossing} 或 {@link #renderLegacyJunction} */
-    @Deprecated
-    public boolean render(RoadNode node, RoadNetwork network, RoadSystemConfig config, Layout layout) {
-        return renderLegacyJunction(node, network, config, layout);
+    private boolean renderAtGradeProfileHint(
+            RoadCrossing crossing,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        if (!CrossingGradeClassifier.profileSuggestsGradeSeparation(
+                network,
+                crossing.roadAId(),
+                crossing.stationA(),
+                crossing.roadBId(),
+                crossing.stationB())) {
+            return false;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING_LIGHT,
+            PlotI18n.tr("plugin.road.crossing_at_grade_profile_suggests_grade_sep"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.crossing_apply_detected_grade_sep") + "##at_grade_apply")) {
+            applyGradeSeparatedAuto(crossing, network, config);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean renderAtGradeProfileHintForNode(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            List<String> roadIds) {
+        if (roadIds.size() != 2) {
+            return false;
+        }
+        double stationA = resolveNodeStationOnRoad(network, node, roadIds.get(0));
+        double stationB = resolveNodeStationOnRoad(network, node, roadIds.get(1));
+        if (!CrossingGradeClassifier.profileSuggestsGradeSeparation(
+                network, roadIds.get(0), stationA, roadIds.get(1), stationB)) {
+            return false;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING_LIGHT,
+            PlotI18n.tr("plugin.road.crossing_at_grade_profile_suggests_grade_sep"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.crossing_apply_detected_grade_sep") + "##node_at_grade_apply")) {
+            applyGradeSeparatedAuto(node, network, config);
+            return true;
+        }
+        return false;
+    }
+
+    private static double resolveNodeStationOnRoad(RoadNetwork network, RoadNode node, String roadId) {
+        com.plot.plugin.road.model.Road road = network.getRoad(roadId);
+        if (road == null || node == null) {
+            return 0.0;
+        }
+        for (com.plot.plugin.road.station.OrientedRoadSegment segment
+                : com.plot.plugin.road.station.RoadStationing.orientedSegments(network, road)) {
+            java.util.OptionalDouble station = segment.roadStationAtNode(node.getId());
+            if (station.isPresent()) {
+                return station.getAsDouble();
+            }
+        }
+        return 0.0;
     }
 
     private boolean renderCrossingTypeForRegistry(

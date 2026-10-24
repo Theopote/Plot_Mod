@@ -61,6 +61,22 @@ public final class CrossingGradeClassifier {
             roadId, lowerStation, upperStation, position, DEFAULT_CLEARANCE);
     }
 
+    /** 两路在交点处设计高差是否达到立交净空。 */
+    public static boolean profileSuggestsGradeSeparation(
+            RoadNetwork network,
+            String roadAId,
+            double stationA,
+            String roadBId,
+            double stationB) {
+        OptionalDouble elevationA = designedElevation(network, roadAId, stationA);
+        OptionalDouble elevationB = designedElevation(network, roadBId, stationB);
+        if (elevationA.isEmpty() || elevationB.isEmpty()) {
+            return false;
+        }
+        return Math.abs(elevationA.getAsDouble() - elevationB.getAsDouble()) + EPSILON
+            >= DEFAULT_CLEARANCE;
+    }
+
     static OptionalDouble designedElevation(RoadNetwork network, String roadId, double station) {
         if (network == null || roadId == null) {
             return OptionalDouble.empty();

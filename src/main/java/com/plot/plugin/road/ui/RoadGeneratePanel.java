@@ -207,17 +207,8 @@ public final class RoadGeneratePanel {
     }
 
     private void renderSelectedIntersection(RoadNetwork network) {
-        com.plot.plugin.road.crossing.RoadCrossing selectedCrossing =
-            ctx.networkManager().getSelectedCrossing();
-        if (selectedCrossing != null) {
-            intersectionDetailPanel.renderCrossing(network, selectedCrossing);
-            return;
-        }
-        com.plot.plugin.road.crossing.RoadStackCrossing selectedStack =
-            ctx.networkManager().getSelectedStackCrossing();
-        if (selectedStack != null) {
-            intersectionDetailPanel.renderStackCrossing(network, selectedStack);
-        }
+        intersectionDetailPanel.renderFocusedSelection(
+            network, RoadGradeSeparationControls.Layout.BLOCK);
     }
 
     private void renderNetworkBuildScope(RoadNetwork network) {

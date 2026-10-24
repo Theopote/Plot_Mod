@@ -12,11 +12,16 @@ public final class RoadEditPanel {
     private final RoadUiContext ctx;
     private final RoadDesignPanel designPanel;
     private final RoadEditWorkspace editWorkspace;
+    private final RoadIntersectionDetailPanel intersectionDetailPanel;
 
-    public RoadEditPanel(RoadUiContext ctx, RoadDefaultParamsPanel defaultParamsPanel) {
+    public RoadEditPanel(
+            RoadUiContext ctx,
+            RoadDefaultParamsPanel defaultParamsPanel,
+            RoadIntersectionDetailPanel intersectionDetailPanel) {
         this.ctx = ctx;
         this.designPanel = new RoadDesignPanel(ctx);
         this.editWorkspace = new RoadEditWorkspace(ctx, designPanel, defaultParamsPanel);
+        this.intersectionDetailPanel = intersectionDetailPanel;
     }
 
     public void render() {
@@ -27,7 +32,7 @@ public final class RoadEditPanel {
         }
 
         ctx.networkManager().ensureSelectionValid();
-        renderJunctionSelectionHint();
+        renderFocusedIntersection(network);
 
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         switch (mode) {
@@ -50,17 +55,14 @@ public final class RoadEditPanel {
         designPanel.renderUniformElevationConfirmPopup();
     }
 
-    private void renderJunctionSelectionHint() {
-        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        if (selectedNodeId == null || selectedNodeId.isBlank()) {
+    private void renderFocusedIntersection(RoadNetwork network) {
+        if (intersectionDetailPanel == null) {
             return;
         }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.edit.junction_selected_hint"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.edit.goto_intersections"))) {
-            ctx.requestTab(RoadUiTab.PATH);
+        if (intersectionDetailPanel.renderFocusedSelection(
+                network, RoadGradeSeparationControls.Layout.BLOCK)) {
+            ImGui.separator();
+            ImGui.spacing();
         }
-        ImGui.spacing();
     }
 }

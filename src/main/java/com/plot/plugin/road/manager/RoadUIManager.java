@@ -71,12 +71,12 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadDefaultParamsPanel defaultParamsPanel = new RoadDefaultParamsPanel(ctx);
         this.edgeListPanel = new RoadEdgeListPanel(ctx);
         this.junctionPanel = new RoadJunctionPanel(ctx);
-        this.nodePropertyPanel = new RoadNodePropertyPanel(ctx);
         RoadPathOverviewPanel overviewPanel = new RoadPathOverviewPanel(ctx);
         RoadAdoptPanel adoptPanel = new RoadAdoptPanel(ctx);
         RoadIntersectionListPanel intersectionListPanel = new RoadIntersectionListPanel(ctx);
         RoadIntersectionDetailPanel intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
-        this.editPanel = new RoadEditPanel(ctx, defaultParamsPanel);
+        this.nodePropertyPanel = new RoadNodePropertyPanel(ctx, intersectionDetailPanel);
+        this.editPanel = new RoadEditPanel(ctx, defaultParamsPanel, intersectionDetailPanel);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);

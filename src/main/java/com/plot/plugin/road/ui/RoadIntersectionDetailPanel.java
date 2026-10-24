@@ -13,7 +13,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 路径 Tab：当前选中交叉点的属性编辑（注册表 Crossing 为主）。 */
+/** 交叉点属性编辑（路径 / 编辑 / 生成 Tab 与属性侧栏共用）。 */
 public final class RoadIntersectionDetailPanel {
     private final RoadUiContext ctx;
     private final RoadGradeSeparationControls gradeSeparationControls;
@@ -25,78 +25,137 @@ public final class RoadIntersectionDetailPanel {
         this.complexJunctionGuide = new ComplexJunctionGuidePanel(ctx);
     }
 
+    /**
+     * 渲染当前选中的交叉点（注册表 Crossing / Stack / 遗留拓扑节点）。
+     *
+     * @return 是否渲染了交叉点内容
+     */
+    public boolean renderFocusedSelection(
+            RoadNetwork network,
+            RoadGradeSeparationControls.Layout layout) {
+        if (network == null || layout == null) {
+            return false;
+        }
+        RoadCrossing crossing = ctx.networkManager().getSelectedCrossing();
+        if (crossing != null) {
+            renderCrossing(network, crossing, layout);
+            return true;
+        }
+        RoadStackCrossing stack = ctx.networkManager().getSelectedStackCrossing();
+        if (stack != null) {
+            renderStackCrossing(network, stack, layout);
+            return true;
+        }
+        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
+        if (selectedNodeId == null || selectedNodeId.isBlank()) {
+            return false;
+        }
+        RoadNode node = network.getNode(selectedNodeId);
+        if (node == null || node.getDegree() < 2) {
+            return false;
+        }
+        if (!node.isJunction() && !RoadGraphQueries.isSimpleCrossing(node, network)) {
+            return false;
+        }
+        renderLegacyJunction(network, node, layout);
+        return true;
+    }
+
     public void renderCrossing(RoadNetwork network, RoadCrossing crossing) {
-        if (network == null || crossing == null) {
+        renderCrossing(network, crossing, RoadGradeSeparationControls.Layout.BLOCK);
+    }
+
+    public void renderCrossing(
+            RoadNetwork network,
+            RoadCrossing crossing,
+            RoadGradeSeparationControls.Layout layout) {
+        if (network == null || crossing == null || layout == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
-        ImGui.textColored(
-            PluginUiColors.ACCENT_BLUE,
-            formatCrossingTitle(network, crossing));
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.path.crossing_registry_hint"));
+        if (layout != RoadGradeSeparationControls.Layout.INLINE) {
+            ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
+            ImGui.textColored(
+                PluginUiColors.ACCENT_BLUE,
+                formatCrossingTitle(network, crossing));
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.path.crossing_registry_hint"));
+        }
 
         gradeSeparationControls.renderCrossing(
             crossing,
             network,
             ctx.networkManager().getConfig(),
-            RoadGradeSeparationControls.Layout.BLOCK);
+            layout);
     }
 
     public void renderStackCrossing(RoadNetwork network, RoadStackCrossing stack) {
-        if (network == null || stack == null) {
+        renderStackCrossing(network, stack, RoadGradeSeparationControls.Layout.BLOCK);
+    }
+
+    public void renderStackCrossing(
+            RoadNetwork network,
+            RoadStackCrossing stack,
+            RoadGradeSeparationControls.Layout layout) {
+        if (network == null || stack == null || layout == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
-        ImGui.textColored(
-            PluginUiColors.ACCENT_BLUE,
-            PlotI18n.tr(
-                "plugin.road.path.stack_crossing_title",
-                formatRoadLabel(network, stack.roadId())));
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.path.stack_crossing_hint"));
+        if (layout != RoadGradeSeparationControls.Layout.INLINE) {
+            ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
+            ImGui.textColored(
+                PluginUiColors.ACCENT_BLUE,
+                PlotI18n.tr(
+                    "plugin.road.path.stack_crossing_title",
+                    formatRoadLabel(network, stack.roadId())));
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.path.stack_crossing_hint"));
+        }
 
         gradeSeparationControls.renderStackCrossing(
             stack,
             network,
             ctx.networkManager().getConfig(),
-            RoadGradeSeparationControls.Layout.BLOCK);
+            layout);
     }
 
     public void renderLegacyJunction(RoadNetwork network, RoadNode node) {
-        if (network == null || node == null) {
+        renderLegacyJunction(network, node, RoadGradeSeparationControls.Layout.BLOCK);
+    }
+
+    public void renderLegacyJunction(
+            RoadNetwork network,
+            RoadNode node,
+            RoadGradeSeparationControls.Layout layout) {
+        if (network == null || node == null || layout == null) {
             return;
         }
         RoadNetworkBuilder.JunctionType type =
             ctx.networkManager().getNetworkBuilder().classify(node);
-        ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, formatJunctionTitle(network, node, type));
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.junction_topology_type", RoadNetworkManager.junctionTypeLabel(type)));
+        if (layout != RoadGradeSeparationControls.Layout.INLINE) {
+            ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
+            ImGui.textColored(PluginUiColors.ACCENT_BLUE, formatJunctionTitle(network, node, type));
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.junction_topology_type", RoadNetworkManager.junctionTypeLabel(type)));
+        }
 
         if (RoadGraphQueries.isSimpleCrossing(node, network)) {
             gradeSeparationControls.renderLegacyJunction(
                 node,
                 network,
                 ctx.networkManager().getConfig(),
-                RoadGradeSeparationControls.Layout.BLOCK);
+                layout);
         } else {
             if (node.isGradeSeparated()) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.WARNING,
                     PlotI18n.tr("plugin.road.path.complex_grade_separation_hint"));
             }
-            complexJunctionGuide.render(network, node);
+            if (layout != RoadGradeSeparationControls.Layout.INLINE) {
+                complexJunctionGuide.render(network, node);
+            }
         }
-    }
-
-    /** @deprecated 使用 {@link #renderCrossing} 或 {@link #renderLegacyJunction} */
-    @Deprecated
-    public void render(RoadNetwork network, RoadNode node) {
-        renderLegacyJunction(network, node);
     }
 
     private String formatCrossingTitle(RoadNetwork network, RoadCrossing crossing) {

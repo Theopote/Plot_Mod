@@ -20,18 +20,19 @@ import net.minecraft.world.World;
 import java.util.Map;
 
 /**
- * 画布属性侧栏：节点标高与路口几何（圆角/标线）。
- * 立交关系在路径 Tab 编辑。
+ * 画布属性侧栏：节点标高、平交/立交关系与路口几何（圆角/标线）。
  */
 public final class RoadNodePropertyPanel {
 
     private final RoadUiContext ctx;
+    private final RoadIntersectionDetailPanel intersectionDetailPanel;
 
-    public RoadNodePropertyPanel(RoadUiContext ctx) {
+    public RoadNodePropertyPanel(RoadUiContext ctx, RoadIntersectionDetailPanel intersectionDetailPanel) {
         this.ctx = ctx;
+        this.intersectionDetailPanel = intersectionDetailPanel;
     }
 
-    /** PropertyPanel 侧栏：节点标高与路口几何；立交关系在路径 Tab 编辑。 */
+    /** PropertyPanel 侧栏：节点标高、交叉关系与路口几何。 */
     public void renderPropertySection(RoadJunctionPanel junctionPanel) {
         RoadNode node = ctx.networkManager().getSelectedNode();
         if (node == null) {
@@ -49,9 +50,12 @@ public final class RoadNodePropertyPanel {
         } else {
             renderNodeElevationControls(node, network, config);
         }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.node_grade_separation_in_path_hint"));
+
+        if (intersectionDetailPanel != null
+                && intersectionDetailPanel.renderFocusedSelection(
+                    network, RoadGradeSeparationControls.Layout.INLINE)) {
+            ImGui.spacing();
+        }
 
         junctionPanel.renderPropertySection();
     }

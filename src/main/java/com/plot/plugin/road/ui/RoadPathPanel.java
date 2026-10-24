@@ -1,8 +1,6 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -47,37 +45,14 @@ public final class RoadPathPanel {
     }
 
     private void renderSelectedIntersection(RoadNetwork network) {
-        com.plot.plugin.road.crossing.RoadCrossing selectedCrossing =
-            ctx.networkManager().getSelectedCrossing();
-        if (selectedCrossing != null) {
-            intersectionDetailPanel.renderCrossing(network, selectedCrossing);
+        if (intersectionDetailPanel.renderFocusedSelection(
+                network, RoadGradeSeparationControls.Layout.BLOCK)) {
             ImGui.spacing();
             return;
         }
-        com.plot.plugin.road.crossing.RoadStackCrossing selectedStack =
-            ctx.networkManager().getSelectedStackCrossing();
-        if (selectedStack != null) {
-            intersectionDetailPanel.renderStackCrossing(network, selectedStack);
-            ImGui.spacing();
-            return;
-        }
-
-        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        if (selectedNodeId == null || selectedNodeId.isBlank()) {
-            RoadUiWidgets.textWrappedColored(
-                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.path.intersection_select_hint"));
-            ImGui.spacing();
-            return;
-        }
-        RoadNode node = network.getNode(selectedNodeId);
-        if (node == null || node.getDegree() < 2) {
-            return;
-        }
-        if (!node.isJunction() && !RoadGraphQueries.isSimpleCrossing(node, network)) {
-            return;
-        }
-        intersectionDetailPanel.renderLegacyJunction(network, node);
+        RoadUiWidgets.textWrappedColored(
+            com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.path.intersection_select_hint"));
         ImGui.spacing();
     }
 

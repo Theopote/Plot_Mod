@@ -100,7 +100,6 @@ final class VerticalProfileEditor {
     private String cachedChartRoadId = "";
     private final ProfileEditorState editorState = new ProfileEditorState();
     private final ProfileEditSession profileEditSession = new ProfileEditSession();
-    private final FlatProfileControls flatProfileControls = new FlatProfileControls();
     private final AdaptiveProfileControls adaptiveProfileControls = new AdaptiveProfileControls();
     private ProfileEditorWindowSession windowSession;
     private boolean closeConfirmPending;
@@ -1313,18 +1312,7 @@ final class VerticalProfileEditor {
             renderIntersectionDetail(
                 ctx, editingNetwork, road, intersections, interaction, config, flatMode);
         } else if (flatMode) {
-            flatProfileControls.render(
-                ctx,
-                editingNetwork,
-                road,
-                windowSession,
-                FlatElevationEditHooks.forProfileEditor(
-                    this::recordUndoPointBeforeEdit,
-                    () -> {
-                        propagateJunctionGrades(ctx, editingNetwork, road);
-                        notifyWorkingProfileChanged();
-                    }),
-                FlatElevationRecommendationUi.terrainSupplier(ctx));
+            renderFlatModeGenerationSettingsHint(editingNetwork, road);
         } else if (editorState.selectedProfilePvi >= 0) {
             adaptiveProfileControls.render(
                 ctx,
@@ -1341,6 +1329,19 @@ final class VerticalProfileEditor {
                 this::notifyWorkingProfileChanged,
                 () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi),
                 () -> selectedIntersectionIndex = -1);
+        }
+    }
+
+    private void renderFlatModeGenerationSettingsHint(RoadNetwork network, Road road) {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_flat_edit_in_generation_settings"));
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        if (intent != null) {
+            ImGui.text(String.format(
+                "%s: %.1f",
+                PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
+                intent.getBaseElevation()));
         }
     }
 
