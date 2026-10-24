@@ -59,8 +59,7 @@ public final class EarthworkQuickPanel {
         if (preview != null) {
             ImGui.separator();
             generatePanel.renderPreviewStatus(preview);
-            ImGui.text(PlotI18n.tr(EarthworkUiPresentation.elevationLabel(
-                region.isAutoBalance(), ctx.previewManager().hasValidPreview()), preview.resolvedElevation));
+            generatePanel.renderResultElevation(region, preview);
             EarthworkUiWidgets.renderPlayerCutFill(
                 preview.volumeReport,
                 preview.resolvedElevation,
@@ -120,8 +119,9 @@ public final class EarthworkQuickPanel {
             heightInputRegion = region.getId();
             displayedHeight = current;
         }
+        ImGui.text(PlotI18n.tr("plugin.earthwork.ui.target_input"));
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        boolean inputChanged = ImGui.inputText(PlotI18n.tr("plugin.earthwork.ui.target_input"), heightInput);
+        boolean inputChanged = ImGui.inputText("##quick_target_input", heightInput);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }

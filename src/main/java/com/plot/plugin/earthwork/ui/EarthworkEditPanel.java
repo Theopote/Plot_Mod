@@ -44,10 +44,6 @@ public final class EarthworkEditPanel {
     public void render() {
         EarthworkUiWidgets.renderRegionSelector(ctx);
                 ImGui.separator();
-                renderGlobalGridSettings();
-                ImGui.separator();
-                renderCompositionSettings();
-                ImGui.separator();
 
                 GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
                 if (region == null) {
@@ -69,12 +65,16 @@ public final class EarthworkEditPanel {
                 }
 
                 renderSelectedZoneOverlapWarnings(region.getId());
-                renderRegionGeometrySettings(region);
-
                 renderSurfaceModeSettings(region);
                 renderZoneTypeSettings(region);
                 renderZoneEdgeSettings(region);
 
+                renderMaterials(region);
+                if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.region_geometry"))) {
+                    renderRegionGeometrySettings(region);
+                }
+                if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.preview_settings"))) {
+                renderGlobalGridSettings();
                 int[] previewGridSize = {region.getPreviewGridSize()};
                 boolean previewGridChanged = ImGui.sliderInt("##preview_grid_size", previewGridSize, 1, 20,
                     PlotI18n.tr("plugin.earthwork.preview_grid_size", previewGridSize[0]));
@@ -86,7 +86,13 @@ public final class EarthworkEditPanel {
                     ctx.invalidatePreview();
                 }
                 UIUtils.renderEngineeringTooltip("hint.plot.earthwork.preview_grid_size");
+                }
+                if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.site_settings"))) {
+                    renderCompositionSettings();
+                }
+    }
 
+    private void renderMaterials(GradingRegion region) {
                 EarthworkUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.earthwork.cut_material"), region.getCutExposeMaterial(),
                     blockId -> {
                         ctx.projectHistory().push(ctx.project());

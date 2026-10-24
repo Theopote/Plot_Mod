@@ -28,6 +28,9 @@ public final class EarthworkUiPresentation {
     }
 
     public static Integer parseHeight(String text, int min, int max) {
+        if (text == null) {
+            return null;
+        }
         try {
             int value = Integer.parseInt(text.trim());
             return value >= min && value <= max ? value : null;
@@ -56,5 +59,11 @@ public final class EarthworkUiPresentation {
 
     public static int plannedChanges(EarthworkGenerationResult preview) {
         return preview != null ? preview.placementRecords.size() : 0;
+    }
+
+    public static boolean missingManualHeight(GradingRegion region) {
+        return region != null && !region.isAutoBalance()
+            && region.getSurfaceMode() == com.plot.plugin.earthwork.model.GradingSurfaceMode.LEVEL_PAD
+            && region.getManualTargetElevation() == null;
     }
 }

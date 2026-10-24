@@ -229,14 +229,6 @@ public class RoadGenerator {
         return gradeSeparationEvaluator.evaluate(node, network, terrain);
     }
 
-    int getTargetHeightAtNodeIgnoringGradeSeparation(
-            RoadEdge edge,
-            RoadNode node,
-            RoadNetwork network,
-            TerrainSampler terrain) {
-        return nodeTargetHeightResolver.targetHeightIgnoringGradeSeparation(edge, node, network, terrain);
-    }
-
     public BlockPos toBlockPos(Vec2d canvasPos, int y) {
         return pipelineHost.toBlockPos(canvasPos, y);
     }

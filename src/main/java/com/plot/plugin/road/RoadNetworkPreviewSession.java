@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.manager.RoadNetworkPreviewJob;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -86,22 +87,6 @@ public final class RoadNetworkPreviewSession {
 
     void markPrepared() {
         prepared = true;
-    }
-
-    int totalEdgeCount() {
-        return edges.size();
-    }
-
-    int totalJunctionCount() {
-        return junctionNodes.size();
-    }
-
-    int processedEdgeCount() {
-        return edgeIndex;
-    }
-
-    int processedJunctionCount() {
-        return junctionIndex;
     }
 
     public int totalWorkUnits() {

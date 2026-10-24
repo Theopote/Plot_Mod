@@ -280,7 +280,9 @@ public final class EarthworkPreviewManager {
                 lastGenerationResult.calculationCellCount,
                 lastGenerationResult.placementRecords.size());
         }
-        publishStatus(com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS,
+        publishStatus(lastGenerationResult.warnings.isEmpty()
+                ? com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS
+                : com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING,
             resolvePreviewReadyMessage(projectPreview()));
         return true;
     }

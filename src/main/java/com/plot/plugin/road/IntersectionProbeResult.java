@@ -11,10 +11,6 @@ public record IntersectionProbeResult(
         return new IntersectionProbeResult(IntersectionResult.COMPLETE, false);
     }
 
-    public boolean isFullyResolved() {
-        return result == IntersectionResult.COMPLETE && !topologyWouldChange;
-    }
-
     public boolean hasPendingWork() {
         return topologyWouldChange && result == IntersectionResult.COMPLETE;
     }

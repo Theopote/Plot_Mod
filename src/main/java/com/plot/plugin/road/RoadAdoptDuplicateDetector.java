@@ -95,7 +95,7 @@ public final class RoadAdoptDuplicateDetector {
             return point.distance(start);
         }
         double t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
-        t = Math.max(0.0, Math.min(1.0, t));
+        t = Math.clamp(t, 0.0, 1.0);
         Vec2d projection = new Vec2d(start.x + t * dx, start.y + t * dy);
         return point.distance(projection);
     }

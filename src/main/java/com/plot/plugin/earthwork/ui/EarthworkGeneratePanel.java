@@ -32,65 +32,54 @@ public final class EarthworkGeneratePanel {
 
     public void render() {
         GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
-                boolean hasRegion = region != null;
+        EarthworkUiWidgets.renderRegionSelector(ctx);
+        if (region == null) {
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.select_region_hint"));
+            return;
+        }
+        ImGui.spacing();
+        renderPreviewActions(region);
 
-                if (!hasRegion) {
-                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
-                    EarthworkUiWidgets.renderRegionSelector(ctx);
-                    return;
-                }
+        EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
+        if (preview == null) {
+            return;
+        }
+        renderPreviewStatus(preview);
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
+        renderResultElevation(region, preview);
+        EarthworkUiWidgets.renderPlayerCutFill(
+            preview.volumeReport, preview.resolvedElevation, preview.slopedSurface,
+            preview.resolvedElevationMin, preview.resolvedElevationMax, false, false);
+        renderPreviewBuildButtons(preview);
 
-                EarthworkUiWidgets.renderRegionSelector(ctx);
-                ImGui.spacing();
-                renderPreviewActions(region);
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.analysis"))) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
+            renderTerrainSnapshotInfo(preview.existingTerrainSnapshot);
+            if (ctx.config().isShowGrid()) {
+                renderGridPreview(region, preview);
+            }
+            EarthworkInsightCharts.render(ctx, region, preview);
+        }
+        if (ctx.config().getWorkMode().showsEngineeringMetrics()
+            && ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.report"))) {
+            if (preview.projectReport != null && preview.projectReport.hasZoneBreakdown()) {
+                renderProjectBalanceReport(preview.projectReport);
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
+                ctx.previewManager().exportLastReport(ctx.project(), region);
+            }
+        }
+    }
 
-                com.plot.api.world.PlacementReadiness buildReadiness =
-                    ctx.host().projection().checkWorldModificationReadiness();
-                if (!buildReadiness.ready()) {
-                    ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
-                }
-
-                EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
-                if (ctx.config().isShowGrid() && preview != null) {
-                    renderGridPreview(region, preview);
-                }
-
-                if (preview != null) {
-                    renderPreviewStatus(preview);
-                    ImGui.separator();
-                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
-                    EarthworkVolumeReport volumes = preview.volumeReport;
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
-                    renderTerrainSnapshotInfo(preview.existingTerrainSnapshot);
-                    EarthworkWorkMode workMode = ctx.config().getWorkMode();
-                    {
-                        ImGui.text(PlotI18n.tr(EarthworkUiPresentation.elevationLabel(
-                            region.isAutoBalance(), ctx.previewManager().hasValidPreview()), preview.resolvedElevation));
-                        EarthworkUiWidgets.renderPlayerCutFill(
-                            volumes,
-                            preview.resolvedElevation,
-                            preview.slopedSurface,
-                            preview.resolvedElevationMin,
-                            preview.resolvedElevationMax, false, false);
-                    }
-
-                    renderPreviewBuildButtons(preview);
-
-                    EarthworkInsightCharts.render(ctx, region, preview);
-
-                    if (preview.projectReport != null
-                        && preview.projectReport.hasZoneBreakdown()
-                        && ctx.config().getWorkMode().showsEngineeringMetrics()) {
-                        renderProjectBalanceReport(preview.projectReport);
-                    }
-
-                    if (ctx.config().getWorkMode().showsEngineeringMetrics()
-                        && ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
-                        ctx.previewManager().exportLastReport(ctx.project(), region);
-                    }
-
-                }
+    public void renderResultElevation(GradingRegion region, EarthworkGenerationResult preview) {
+        if (preview.slopedSurface) {
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.resolved_elevation_slope_result",
+                preview.resolvedElevationMin, preview.resolvedElevationMax));
+        } else {
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr(EarthworkUiPresentation.elevationLabel(
+                region.isAutoBalance(), ctx.previewManager().hasValidPreview()), preview.resolvedElevation));
+        }
     }
 
     public void renderPreviewActions(GradingRegion region) {
@@ -121,9 +110,7 @@ public final class EarthworkGeneratePanel {
         boolean busy = ctx.host().placement().isBusy()
             || ctx.previewManager().getPreviewState() == com.plot.plugin.earthwork.manager.EarthworkPreviewState.CALCULATING;
         String rejection = busy ? PlotI18n.tr("plugin.earthwork.build_in_progress_wait") : null;
-        if (rejection == null && region != null && !region.isAutoBalance()
-            && region.getSurfaceMode() == GradingSurfaceMode.LEVEL_PAD
-            && region.getManualTargetElevation() == null) {
+        if (rejection == null && EarthworkUiPresentation.missingManualHeight(region)) {
             rejection = PlotI18n.tr("plugin.earthwork.ui.enter_height");
         }
         if (rejection == null && valid) {
@@ -135,7 +122,7 @@ public final class EarthworkGeneratePanel {
         ImGui.beginDisabled(rejection != null || region == null);
         if (ImGui.button(PlotI18n.tr(key), ImGui.getContentRegionAvailX(), 0)) {
             if (valid) {
-            ctx.setBuildConfirmPending(true);
+                ctx.setBuildConfirmPending(true);
             } else {
                 ctx.recalculatePreview();
             }
@@ -154,10 +141,21 @@ public final class EarthworkGeneratePanel {
             EarthworkUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.earthwork.preview_stale_hint"));
         }
         if (preview.balanceStatus != null) {
+            String balanceText = PlotI18n.tr("plugin.earthwork.ui.balance."
+                + preview.balanceStatus.name().toLowerCase(java.util.Locale.ROOT));
             EarthworkUiWidgets.textWrappedColored(
-                preview.balanceStatus == com.plot.plugin.earthwork.solver.EarthworkBalanceStatus.BALANCED
-                    ? PluginUiColors.STATUS_OK : PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.earthwork.ui.balance." + preview.balanceStatus.name().toLowerCase(java.util.Locale.ROOT)));
+                !valid ? PluginUiColors.WARNING
+                    : preview.balanceStatus == com.plot.plugin.earthwork.solver.EarthworkBalanceStatus.BALANCED
+                        ? PluginUiColors.STATUS_OK
+                        : preview.balanceStatus == com.plot.plugin.earthwork.solver.EarthworkBalanceStatus.NOT_REQUESTED
+                            ? PluginUiColors.STATUS_INFO : PluginUiColors.WARNING,
+                valid ? balanceText : PlotI18n.tr("plugin.earthwork.ui.last_result", balanceText));
+        }
+        if (!ctx.selectedRegionId().equals(preview.sourceRegionId)) {
+            GradingRegion source = ctx.project().getRegion(preview.sourceRegionId);
+            EarthworkUiWidgets.textWrappedColored(PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.earthwork.ui.other_region",
+                    source != null ? source.getName() : preview.sourceRegionId));
         }
         if (preview.unloadedColumnCount > 0) {
             EarthworkUiWidgets.textWrappedColored(PluginUiColors.WARNING,

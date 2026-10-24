@@ -53,8 +53,20 @@ public final class EarthworkToolbarPanel {
             ImGui.endDisabled();
         }
 
+        if (ctx.host().commands().peekUndoCommand() instanceof com.plot.core.command.commands.EarthworkGenerateCommand) {
+            ImGui.beginDisabled(ctx.host().placement().isBusy());
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.ui.undo_world"), ImGui.getContentRegionAvailX(), 0)) {
+                if (ctx.host().commands().undo()) {
+                    ctx.terrainSnapshotCache().clear();
+                    ctx.clearPreview();
+                }
+            }
+            ImGui.endDisabled();
+        }
+
         if (!ctx.projectStatus().isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, ctx.projectStatus());
+            EarthworkUiWidgets.textWrappedColored(
+                EarthworkUiPresentation.statusColor(ctx.projectStatusLevel()), ctx.projectStatus());
         }
         ImGui.separator();
         renderWorkMode();

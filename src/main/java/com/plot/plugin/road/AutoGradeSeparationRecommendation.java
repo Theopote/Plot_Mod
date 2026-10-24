@@ -38,10 +38,6 @@ public record AutoGradeSeparationRecommendation(
         return elevatedRoadId != null && !elevatedRoadId.isBlank();
     }
 
-    public boolean warnsLockedChoice(RoadNode node) {
-        return node != null && warnsLockedChoice(node.getElevatedRoadId());
-    }
-
     public boolean warnsLockedChoice(String lockedElevatedRoadId) {
         return evaluation != null && evaluation.isLockedChoiceSteep(lockedElevatedRoadId);
     }

@@ -42,6 +42,7 @@ class EarthworkManagerTest {
             project, region, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE);
 
         assertFalse(ok);
+        assertEquals(com.plot.plugin.earthwork.model.EarthworkStatusLevel.ERROR, previewManager.lastStatusLevel());
         assertFalse(previewManager.hasValidPreview());
         assertNull(previewManager.getLastGenerationResult());
         assertFalse(status.isEmpty());
@@ -75,6 +76,7 @@ class EarthworkManagerTest {
         buildManager.buildInWorld(new EarthworkProject(), "region-1");
 
         assertFalse(status.isEmpty());
+        assertEquals(com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING, buildManager.lastStatusLevel());
         assertFalse(previewManager.hasValidPreview());
     }
 

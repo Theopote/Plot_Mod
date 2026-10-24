@@ -50,7 +50,12 @@ public final class EarthworkRegionPanel {
 
     /** Quick 模式无区域时仅显示认领区。 */
     public void renderAdoptSection() {
-        renderPickControls(true);
+        if (ctx.pickSession().isActive()) {
+            renderPickSessionState();
+            renderCanvasPreview();
+        } else {
+            renderPickControls(true);
+        }
     }
 
     private void renderCanvasSection() {

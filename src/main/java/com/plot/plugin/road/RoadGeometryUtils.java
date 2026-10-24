@@ -80,11 +80,6 @@ public final class RoadGeometryUtils {
             || shape instanceof CableShape;
     }
 
-    public static Shape findFirstAdoptablePath(List<Shape> shapes) {
-        List<Shape> paths = findAdoptablePaths(shapes);
-        return paths.isEmpty() ? null : paths.getFirst();
-    }
-
     public static List<Shape> findAdoptablePaths(List<Shape> shapes) {
         if (shapes == null || shapes.isEmpty()) {
             return List.of();
@@ -302,37 +297,12 @@ public final class RoadGeometryUtils {
             return p.distance(a);
         }
         double t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
-        t = Math.max(0.0, Math.min(1.0, t));
+        t = Math.clamp(t, 0.0, 1.0);
         double projX = a.x + t * dx;
         double projY = a.y + t * dy;
         double ex = p.x - projX;
         double ey = p.y - projY;
         return Math.sqrt(ex * ex + ey * ey);
-    }
-
-    /**
-     * 若相邻点间距超过 {@code maxSpacing}，在中间线性插值补点。
-     */
-    public static List<Vec2d> densifyPolyline(List<Vec2d> points, double maxSpacing) {
-        if (points == null || points.size() < 2 || maxSpacing <= 0) {
-            return points == null ? List.of() : new ArrayList<>(points);
-        }
-        List<Vec2d> result = new ArrayList<>();
-        result.add(points.getFirst().copy());
-        for (int i = 0; i < points.size() - 1; i++) {
-            Vec2d a = points.get(i);
-            Vec2d b = points.get(i + 1);
-            double dist = a.distance(b);
-            if (dist > maxSpacing) {
-                int steps = (int) Math.ceil(dist / maxSpacing);
-                for (int s = 1; s < steps; s++) {
-                    double t = (double) s / steps;
-                    result.add(a.lerp(b, t));
-                }
-            }
-            result.add(b.copy());
-        }
-        return result;
     }
 
     public static double calculatePathLength(List<Vec2d> points) {
@@ -472,25 +442,6 @@ public final class RoadGeometryUtils {
     }
 
     /**
-     * 最近内部顶点索引（排除首尾），无匹配返回 -1。
-     */
-    public static int nearestInteriorVertexIndex(List<Vec2d> points, Vec2d query) {
-        if (points == null || points.size() < 3 || query == null) {
-            return -1;
-        }
-        int bestIndex = -1;
-        double bestDistance = Double.MAX_VALUE;
-        for (int i = 1; i < points.size() - 1; i++) {
-            double distance = points.get(i).distance(query);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestIndex = i;
-            }
-        }
-        return bestIndex;
-    }
-
-    /**
      * 按归一化弧长（0~1）在折线上插值取点
      */
     public static Vec2d interpolatePolylineByNormalizedDistance(List<Vec2d> polyline, double normalizedDistance) {
@@ -500,7 +451,7 @@ public final class RoadGeometryUtils {
         if (polyline.size() == 1) {
             return polyline.getFirst().copy();
         }
-        double clamped = Math.max(0.0, Math.min(1.0, normalizedDistance));
+        double clamped = Math.clamp(normalizedDistance, 0.0, 1.0);
         double totalLength = calculatePathLength(polyline);
         if (totalLength <= 1e-9) {
             return polyline.getFirst().copy();
@@ -565,7 +516,7 @@ public final class RoadGeometryUtils {
         if (lengthSquared < 1e-12) {
             return start.copy();
         }
-        double t = Math.max(0.0, Math.min(1.0, point.subtract(start).dot(direction) / lengthSquared));
+        double t = Math.clamp(point.subtract(start).dot(direction) / lengthSquared, 0.0, 1.0);
         return start.lerp(end, t);
     }
 

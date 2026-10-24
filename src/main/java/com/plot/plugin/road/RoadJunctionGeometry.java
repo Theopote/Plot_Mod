@@ -375,8 +375,8 @@ public final class RoadJunctionGeometry {
 
         List<Vec2d> lower = new ArrayList<>();
         for (Vec2d point : sorted) {
-            while (lower.size() >= 2 && cross(lower.get(lower.size() - 2), lower.get(lower.size() - 1), point) <= 0) {
-                lower.remove(lower.size() - 1);
+            while (lower.size() >= 2 && cross(lower.get(lower.size() - 2), lower.getLast(), point) <= 0) {
+                lower.removeLast();
             }
             lower.add(point);
         }
@@ -384,14 +384,14 @@ public final class RoadJunctionGeometry {
         List<Vec2d> upper = new ArrayList<>();
         for (int i = sorted.size() - 1; i >= 0; i--) {
             Vec2d point = sorted.get(i);
-            while (upper.size() >= 2 && cross(upper.get(upper.size() - 2), upper.get(upper.size() - 1), point) <= 0) {
-                upper.remove(upper.size() - 1);
+            while (upper.size() >= 2 && cross(upper.get(upper.size() - 2), upper.getLast(), point) <= 0) {
+                upper.removeLast();
             }
             upper.add(point);
         }
 
-        lower.remove(lower.size() - 1);
-        upper.remove(upper.size() - 1);
+        lower.removeLast();
+        upper.removeLast();
         lower.addAll(upper);
         return lower;
     }

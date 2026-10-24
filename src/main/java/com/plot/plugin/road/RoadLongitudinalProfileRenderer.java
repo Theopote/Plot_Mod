@@ -28,7 +28,6 @@ import java.util.List;
  */
 public final class RoadLongitudinalProfileRenderer {
     public static final float DEFAULT_PREVIEW_HEIGHT = 120f;
-    private static final float PREVIEW_HEIGHT = DEFAULT_PREVIEW_HEIGHT;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_AXIS = 0xFF888888;
@@ -121,10 +120,6 @@ public final class RoadLongitudinalProfileRenderer {
                 false, null, null, -1, -1, 0f, 0f, -1, CurveHandleSide.NONE, null, false, false);
         }
     }
-
-    private static final float DRAG_THRESHOLD_PX = 5f;
-    private static final int COLOR_CURVE_HANDLE = 0xFF88DDFF;
-    private static final int COLOR_CURVE_HANDLE_SELECTED = 0xFFFFFFFF;
 
     private RoadLongitudinalProfileRenderer() {
     }
@@ -301,32 +296,6 @@ public final class RoadLongitudinalProfileRenderer {
         double chartDistance(double geometryLocal) {
             return geometryLocal * geometryToProfileScale;
         }
-    }
-
-    private static PlotRange plotRange(
-            RoadGenerationResult result,
-            VerticalAlignmentProfileOverlay overlay,
-            List<VerticalProfileControlPoints.ControlPoint> controls) {
-        return plotRange(
-            result, overlay, controls, List.of(), FlatElevationProfileOverlay.EMPTY, 1.0);
-    }
-
-    private static PlotRange plotRange(
-            RoadGenerationResult result,
-            VerticalAlignmentProfileOverlay overlay,
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            List<RoadProfileIntersection> intersections) {
-        return plotRange(
-            result, overlay, controls, intersections, FlatElevationProfileOverlay.EMPTY, 1.0);
-    }
-
-    private static PlotRange plotRange(
-            RoadGenerationResult result,
-            VerticalAlignmentProfileOverlay overlay,
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            List<RoadProfileIntersection> intersections,
-            FlatElevationProfileOverlay flatOverlay) {
-        return plotRange(result, overlay, controls, intersections, flatOverlay, 1.0);
     }
 
     private static PlotRange plotRange(
@@ -534,219 +503,6 @@ public final class RoadLongitudinalProfileRenderer {
             drawList.addCircleFilled(x, y, radius, color);
             drawList.addCircle(x, y, radius + 1f, COLOR_BG, 12, 1.5f);
         }
-    }
-
-    private static boolean isElevationEditableControl(
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            int pviIndex) {
-        if (controls == null) {
-            return false;
-        }
-        for (VerticalProfileControlPoints.ControlPoint point : controls) {
-            if (point.pviIndex() == pviIndex) {
-                return point.elevationEditable();
-            }
-        }
-        return false;
-    }
-
-    private static VerticalProfileControlPoints.ControlPoint findControlPoint(
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            int pviIndex) {
-        if (controls == null) {
-            return null;
-        }
-        for (VerticalProfileControlPoints.ControlPoint point : controls) {
-            if (point.pviIndex() == pviIndex) {
-                return point;
-            }
-        }
-        return null;
-    }
-
-    private record CurveHandleHit(int pviIndex, ControlInteraction.CurveHandleSide side) { }
-
-    private static void drawCurveHandles(
-            ImDrawList drawList,
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            List<CurveHandle> handles,
-            int activeCurveHandlePvi,
-            ControlInteraction.CurveHandleSide activeCurveHandle,
-            PlotRange range,
-            float x0,
-            float y0,
-            float width,
-            float height) {
-        if (drawList == null || handles == null || handles.isEmpty()) {
-            return;
-        }
-        float padding = 10f;
-        for (CurveHandle handle : handles) {
-            VerticalProfileControlPoints.ControlPoint pvi = findControlPoint(controls, handle.pviIndex());
-            if (pvi == null) {
-                continue;
-            }
-            float handleX = toPlotX(
-                range.chartDistance(handle.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float handleY = toPlotY(
-                (int) Math.round(handle.elevation()),
-                range.minHeight(),
-                range.maxHeight(),
-                y0 + padding,
-                height - 2 * padding);
-            float pviX = toPlotX(
-                range.chartDistance(pvi.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float pviY = toPlotY(
-                (int) Math.round(pvi.elevation()),
-                range.minHeight(),
-                range.maxHeight(),
-                y0 + padding,
-                height - 2 * padding);
-            boolean active = handle.pviIndex() == activeCurveHandlePvi
-                && ((handle.leftSide()
-                        && activeCurveHandle == ControlInteraction.CurveHandleSide.LEFT)
-                    || (!handle.leftSide()
-                        && activeCurveHandle == ControlInteraction.CurveHandleSide.RIGHT));
-            int color = active ? COLOR_CURVE_HANDLE_SELECTED : COLOR_CURVE_HANDLE;
-            drawList.addLine(pviX, pviY, handleX, handleY, color, 1.2f);
-            drawList.addRectFilled(handleX - 3f, handleY - 3f, handleX + 3f, handleY + 3f, color);
-        }
-        CurveHandle left = findCurveHandle(handles, handles.getFirst().pviIndex(),
-            ControlInteraction.CurveHandleSide.LEFT);
-        CurveHandle right = findCurveHandle(handles, handles.getFirst().pviIndex(),
-            ControlInteraction.CurveHandleSide.RIGHT);
-        if (left != null && right != null) {
-            float leftX = toPlotX(
-                range.chartDistance(left.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float rightX = toPlotX(
-                range.chartDistance(right.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float midY = toPlotY(
-                (int) Math.round((left.elevation() + right.elevation()) * 0.5),
-                range.minHeight(),
-                range.maxHeight(),
-                y0 + padding,
-                height - 2 * padding);
-            drawList.addLine(leftX, midY, rightX, midY, COLOR_CURVE_HANDLE, 1.0f);
-        }
-    }
-
-    private static CurveHandle findCurveHandle(
-            List<CurveHandle> handles,
-            int pviIndex,
-            ControlInteraction.CurveHandleSide side) {
-        if (handles == null || side == ControlInteraction.CurveHandleSide.NONE) {
-            return null;
-        }
-        for (CurveHandle handle : handles) {
-            if (handle.pviIndex() == pviIndex
-                    && ((side == ControlInteraction.CurveHandleSide.LEFT && handle.leftSide())
-                        || (side == ControlInteraction.CurveHandleSide.RIGHT && !handle.leftSide()))) {
-                return handle;
-            }
-        }
-        return null;
-    }
-
-    private static CurveHandleHit hitCurveHandle(
-            List<CurveHandle> handles,
-            PlotRange range,
-            float x0,
-            float y0,
-            float width,
-            float height,
-            float mouseX,
-            float mouseY) {
-        if (handles == null || handles.isEmpty()) {
-            return null;
-        }
-        float padding = 10f;
-        double best = 8.0 * 8.0;
-        CurveHandleHit nearest = null;
-        for (CurveHandle handle : handles) {
-            float x = toPlotX(
-                range.chartDistance(handle.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float y = toPlotY(
-                (int) Math.round(handle.elevation()),
-                range.minHeight(),
-                range.maxHeight(),
-                y0 + padding,
-                height - 2 * padding);
-            double distance = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
-            if (distance <= best) {
-                best = distance;
-                nearest = new CurveHandleHit(
-                    handle.pviIndex(),
-                    handle.leftSide()
-                        ? ControlInteraction.CurveHandleSide.LEFT
-                        : ControlInteraction.CurveHandleSide.RIGHT);
-            }
-        }
-        return nearest;
-    }
-
-    private static VerticalProfileControlPoints.ControlPoint findHoveredControl(
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            PlotRange range,
-            float x0,
-            float y0,
-            float width,
-            float height,
-            float mouseX,
-            float mouseY) {
-        int nearest = nearestControl(controls, range, x0, y0, width, height, mouseX, mouseY);
-        return nearest >= 0 ? findControlPoint(controls, nearest) : null;
-    }
-
-    private static void renderControlPointElevationTooltip(
-            VerticalProfileControlPoints.ControlPoint point) {
-        if (point == null) {
-            return;
-        }
-        ImGui.beginTooltip();
-        ImGui.text(PlotI18n.tr(
-            "plugin.road.profile_control_elevation_tooltip",
-            String.format("%.1f", point.elevation())));
-        ImGui.endTooltip();
-    }
-
-    private static int nearestControl(
-            List<VerticalProfileControlPoints.ControlPoint> controls,
-            PlotRange range,
-            float x0, float y0, float width, float height,
-            float mouseX, float mouseY) {
-        if (controls == null) return -1;
-        float padding = 10f;
-        double best = 9.0 * 9.0;
-        int nearest = -1;
-        for (VerticalProfileControlPoints.ControlPoint point : controls) {
-            float x = toPlotX(
-                range.chartDistance(point.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float y = toPlotY((int) Math.round(point.elevation()), range.minHeight(), range.maxHeight(),
-                y0 + padding, height - 2 * padding);
-            double distance = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
-            if (distance <= best) {
-                best = distance;
-                nearest = point.pviIndex();
-            }
-        }
-        return nearest;
-    }
-
-    private static double elevationAtMouseY(float mouseY, PlotRange range, float y0, float height) {
-        float padding = 10f;
-        float top = y0 + padding;
-        float plotHeight = height - 2 * padding;
-        double ratio = 1.0 - Math.max(0.0, Math.min(1.0, (mouseY - top) / plotHeight));
-        double raw = range.minHeight() + ratio * (range.maxHeight() - range.minHeight());
-        return Math.rint(raw * 4.0) / 4.0;
-    }
-
-    private static double distanceAtMouseX(float mouseX, PlotRange range, float x0, float width) {
-        float padding = 10f;
-        float left = x0 + padding;
-        float plotWidth = width - 2 * padding;
-        double ratio = Math.max(0.0, Math.min(1.0, (mouseX - left) / plotWidth));
-        return Math.rint(ratio * range.maxDistance() * 4.0) / 4.0;
     }
 
     /** @deprecated Edge-local 绘制辅助，仅供本类废弃路径内部使用。 */

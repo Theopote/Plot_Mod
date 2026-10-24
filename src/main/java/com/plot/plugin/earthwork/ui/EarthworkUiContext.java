@@ -243,6 +243,17 @@ public final class EarthworkUiContext {
         if (region == null) {
             return false;
         }
+        if (host.placement().isBusy()) {
+            setProjectStatus(com.plot.utils.PlotI18n.tr("plugin.earthwork.build_in_progress_wait"),
+                com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO);
+            return false;
+        }
+        if (EarthworkUiPresentation.missingManualHeight(region)) {
+            previewManager.markDirty();
+            setProjectStatus(com.plot.utils.PlotI18n.tr("plugin.earthwork.ui.enter_height"),
+                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
+            return false;
+        }
         return previewManager.calculatePreview(
             project,
             region,
@@ -254,10 +265,17 @@ public final class EarthworkUiContext {
     /** 选项拖动/切换时合并到下一次渲染线程计算，避免每帧同步跑完整管线。 */
     public void scheduleRecalculatePreview() {
         previewManager.markDirty();
+        long generation = previewManager.getPreviewGeneration();
+        String regionId = selectedRegionId;
         DebouncedTasks.publishDebounced("earthwork.preview.recalculate", () -> {
             net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
             if (client != null) {
-                client.execute(this::recalculatePreview);
+                client.execute(() -> {
+                    if (generation == previewManager.getPreviewGeneration()
+                        && Objects.equals(regionId, selectedRegionId)) {
+                        recalculatePreview();
+                    }
+                });
             }
         }, 280);
     }

@@ -8,6 +8,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class EarthworkBuildOutcomeTest {
 
     @Test
+    void partialAndFailedConstructionCannotShowSuccessStatus() {
+        assertEquals(com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS,
+            EarthworkBuildManager.statusLevelFor(EarthworkBuildManager.BuildOutcome.COMPLETED));
+        assertEquals(com.plot.plugin.earthwork.model.EarthworkStatusLevel.ERROR,
+            EarthworkBuildManager.statusLevelFor(EarthworkBuildManager.BuildOutcome.FAILED));
+        assertEquals(com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING,
+            EarthworkBuildManager.statusLevelFor(EarthworkBuildManager.BuildOutcome.PARTIAL));
+        assertEquals(com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING,
+            EarthworkBuildManager.statusLevelFor(EarthworkBuildManager.BuildOutcome.CANCELLED));
+    }
+
+    @Test
     void classifiesCompletedPartialFailedCancelled() {
         assertEquals(
             EarthworkBuildManager.BuildOutcome.COMPLETED,

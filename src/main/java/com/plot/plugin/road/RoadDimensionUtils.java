@@ -11,9 +11,6 @@ public final class RoadDimensionUtils {
         return Math.max(1, (int) Math.round(meters));
     }
 
-    public static int metersToBlocksNonNegative(double meters) {
-        return Math.max(0, (int) Math.round(meters));
-    }
 
     /** 中心线左侧（含）到右侧（含）的横向方块偏移下界。 */
     public static int minLateralOffset(int blockWidth) {

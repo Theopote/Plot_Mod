@@ -16,7 +16,6 @@ import com.plot.plugin.road.pipeline.corridor.TunnelPortalSeed;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -484,7 +483,7 @@ public class RoadJunctionGenerator {
         for (RoadEdge edge : edges) {
             List<Vec2d> centerline = RoadJunctionCenterlineResolver.forNetwork(network).apply(edge);
             if (centerline != null && centerline.size() >= 2) {
-                double units = generator.estimateCanvasUnitsPerBlock(centerline, List.<PathSegment>of());
+                double units = generator.estimateCanvasUnitsPerBlock(centerline, List.of());
                 if (Double.isFinite(units) && units > 1e-9) {
                     return units;
                 }

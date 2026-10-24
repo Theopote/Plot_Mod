@@ -135,7 +135,7 @@ public final class RoadCrossSectionPreviewRenderer {
         drawRoadMarkings(drawList, layout, roadStartX, roadWidthPx, deckY, deckH);
         cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
         cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
-        cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
+        drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
 
         if (layout.includeSlopeBatter) {
             float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
@@ -560,50 +560,6 @@ public final class RoadCrossSectionPreviewRenderer {
             this.markingColor = markingColor;
         }
 
-        private static CrossSectionLayout create(
-                float roadBlocks,
-                float leftShoulderBlocks,
-                float rightShoulderBlocks,
-                float leftSidewalkBlocks,
-                float rightSidewalkBlocks,
-                float leftBikeBlocks,
-                float rightBikeBlocks,
-                boolean includeShoulder,
-                float shoulderBlocks,
-                float fillSlopeRatio,
-                float cutSlopeRatio,
-                float maxSlopePercent,
-                int roadColor,
-                int sidewalkColor,
-                int bikeColor,
-                int shoulderColor) {
-            return new CrossSectionLayout(
-                roadBlocks,
-                leftShoulderBlocks,
-                rightShoulderBlocks,
-                leftSidewalkBlocks,
-                rightSidewalkBlocks,
-                leftBikeBlocks,
-                rightBikeBlocks,
-                includeShoulder,
-                shoulderBlocks,
-                fillSlopeRatio,
-                cutSlopeRatio,
-                fillSlopeRatio > 0f || cutSlopeRatio > 0f,
-                maxSlopePercent,
-                roadColor,
-                sidewalkColor,
-                bikeColor,
-                shoulderColor,
-                shoulderColor,
-                shoulderColor,
-                0f,
-                0,
-                List.of(),
-                0
-            );
-        }
-
         public static CrossSectionLayout fromResolved(ResolvedCrossSection section, float maxSlopePercent) {
             float road = Math.max(1, section.carriagewayWidth);
             float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
@@ -686,11 +642,6 @@ public final class RoadCrossSectionPreviewRenderer {
 
         public float totalWidthBlocks() {
             return leftDisplayedFromCenterBlocks() + rightDisplayedFromCenterBlocks();
-        }
-
-        public float centerOffsetBlocks(float scale) {
-            float left = leftSidewalkBlocks + leftBikeBlocks + leftShoulderBlocks;
-            return left * scale;
         }
 
         /** 从道路中心到左侧最外侧硬质路面外缘的横向距离（方块）。 */

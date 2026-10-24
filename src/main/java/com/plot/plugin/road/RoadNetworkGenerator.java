@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -55,10 +54,6 @@ public class RoadNetworkGenerator {
         private final List<String> warnings = new ArrayList<>();
         private final List<String> errors = new ArrayList<>();
         private Map<String, Integer> nodeElevations = Map.of();
-
-        public Map<String, EdgeGenerationResult> getEdgeOutcomes() {
-            return Collections.unmodifiableMap(edgeOutcomes);
-        }
 
         public Map<String, RoadGenerationResult> getEdgeResults() {
             return Collections.unmodifiableMap(edgeResults);
@@ -177,13 +172,6 @@ public class RoadNetworkGenerator {
 
     public TerrainSampler createTerrainSampler(net.minecraft.world.World world) {
         return roadGenerator.createTerrainSampler(world);
-    }
-
-    public NetworkGenerationResult generateAll(RoadNetwork network, World world) {
-        if (network == null || world == null) {
-            return new NetworkGenerationResult();
-        }
-        return generateAll(network, roadGenerator.createTerrainSampler(world));
     }
 
     /**
@@ -392,10 +380,6 @@ public class RoadNetworkGenerator {
             }
         }
         return true;
-    }
-
-    public RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
-        return generatePreview(network, world).aggregate();
     }
 
     public PreviewResult generatePreview(RoadNetwork network, World world) {

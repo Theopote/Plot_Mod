@@ -10,7 +10,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.overlay.IntersectionHit;
-import com.plot.plugin.road.overlay.IntersectionOverlaySource;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayController;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayEntry;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayKind;
@@ -634,7 +633,7 @@ public final class RoadNetworkOverviewRenderer {
             return Math.hypot(px - a.x, py - a.y);
         }
         double t = ((px - a.x) * abx + (py - a.y) * aby) / abLenSq;
-        t = Math.max(0.0, Math.min(1.0, t));
+        t = Math.clamp(t, 0.0, 1.0);
         double cx = a.x + t * abx;
         double cy = a.y + t * aby;
         return Math.hypot(px - cx, py - cy);
