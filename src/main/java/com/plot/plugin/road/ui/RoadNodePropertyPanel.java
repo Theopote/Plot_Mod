@@ -15,6 +15,7 @@ import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.world.World;
 
 import java.util.Map;
@@ -38,6 +39,23 @@ public final class RoadNodePropertyPanel {
             return;
         }
 
+        float scrollHeight = Math.min(320f, Math.max(120f, ImGui.getContentRegionAvailY() * 0.45f));
+        boolean scroll = ImGui.beginChild(
+            "##road_junction_property_scroll",
+            0f,
+            scrollHeight,
+            false,
+            ImGuiWindowFlags.AlwaysVerticalScrollbar);
+        try {
+            if (scroll) {
+                renderPropertyContent(junctionPanel);
+            }
+        } finally {
+            ImGui.endChild();
+        }
+    }
+
+    private void renderPropertyContent(RoadJunctionPanel junctionPanel) {
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
         RoadNode junctionNode = RoadIntersectionPropertySupport.resolveJunctionNode(
@@ -122,7 +140,7 @@ public final class RoadNodePropertyPanel {
 
     private static String formatNodeLabel(RoadNode node) {
         Vec2d pos = node.getPosition();
-        return String.format("(%.0f, %.0f) deg=%d", pos.x, pos.y, node.getDegree());
+        return PlotI18n.tr("plugin.road.node_position_label", pos.x, pos.y, node.getDegree());
     }
 
     private int resolveManualLockElevation(RoadNode node, RoadNetwork network, RoadSystemConfig config) {

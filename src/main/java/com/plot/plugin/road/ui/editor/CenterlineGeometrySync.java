@@ -11,7 +11,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** 将工作副本中某条逻辑道路的平面几何同步到 live 路网。 */
+/**
+ * 将工作副本中某条逻辑道路的平面几何与沿桩号工程数据同步到 live 路网。
+ * <p>
+ * 纵断面（VA）须与 {@link com.plot.plugin.road.station.CenterlineEditStationPolicy} 在工作副本上的
+ * 变换结果一并写回，否则几何反向/重参数化后 live 仍保留旧桩号标高，体素预览与生成会偏离。
+ */
 final class CenterlineGeometrySync {
 
     private CenterlineGeometrySync() {
@@ -67,6 +72,11 @@ final class CenterlineGeometrySync {
         }
         liveRoad.setStationFacilities(workingRoad.getStationFacilities());
         liveRoad.setVariableCrossSections(workingRoad.getVariableCrossSections());
+        if (workingRoad.getVerticalAlignment() != null) {
+            liveRoad.setVerticalAlignment(workingRoad.getVerticalAlignment().copy());
+        } else {
+            liveRoad.setVerticalAlignment(null);
+        }
     }
 
     private static void ensureNode(RoadNetwork live, RoadNetwork working, String nodeId) {

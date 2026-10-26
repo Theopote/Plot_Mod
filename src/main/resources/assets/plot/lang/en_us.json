@@ -1674,6 +1674,8 @@
   "plugin.road.generate.workflow_hint": "Workflow: calculate preview → adjust profile → check intersections → recalculate → build",
   "plugin.road.generate.flat_terrain_controls_hidden": "The selected road is flat: terrain adaptation and max slope presets do not apply. Junction transitions still use the global slope limit; validation warns if a transition cannot fit.",
   "plugin.road.generate.no_stationable_roads": "No stationable roads in the network; generation settings cannot be edited.",
+  "plugin.road.generate.intersection_detail": "Selected intersection details",
+  "plugin.road.node_position_label": "Position (%.0f, %.0f) · degree %d",
   "plugin.road.generate.intersection_check": "Intersections",
   "plugin.road.generate.intersection_ok": "✓ %d intersections passed checks",
   "plugin.road.generate.intersection_issues": "⚠ %d intersection issue(s) (%d junctions total)",

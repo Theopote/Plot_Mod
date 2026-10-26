@@ -15,6 +15,7 @@ import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiSections;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiWindowFlags;
 
 /** 中心线 / 平面线形浮动编辑器。 */
 public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
@@ -91,7 +92,17 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         ImGui.spacing();
 
         RoadUiSections.section("plugin.road.floating_editor.centerline.tab.segments");
+        float segmentListHeight = Math.min(
+            140f,
+            Math.max(72f, ImGui.getContentRegionAvailY() * 0.22f));
+        ImGui.beginChild(
+            "##centerline_segment_list",
+            0f,
+            segmentListHeight,
+            false,
+            ImGuiWindowFlags.AlwaysVerticalScrollbar);
         segmentEditor.renderSegmentList(ctx, working, road);
+        ImGui.endChild();
         segmentEditor.renderSegmentSummary(working, road, primaryEdge, chainageDisplay);
         centerlineEditPanel.renderWorkingNetwork(ctx, working, road, primaryEdge);
         segmentEditor.renderElevationHint(ctx, primaryEdge);

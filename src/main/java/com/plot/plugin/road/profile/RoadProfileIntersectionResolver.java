@@ -346,6 +346,14 @@ public final class RoadProfileIntersectionResolver {
             RoadSystemConfig config,
             Map<String, RoadGenerationResult> edgeResults,
             boolean designOnly) {
+        // Profile editor / draft preview: use stored VA before generation authority gates.
+        if (designOnly && VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+            OptionalDouble designElevation =
+                VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), roadStation);
+            if (designElevation.isPresent()) {
+                return designElevation;
+            }
+        }
         if (designOnly && VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), roadStation);
         }

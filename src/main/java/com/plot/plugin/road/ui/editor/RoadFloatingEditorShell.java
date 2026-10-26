@@ -20,6 +20,10 @@ public final class RoadFloatingEditorShell {
     private static final float WINDOW_MAX_SIZE_OF_SCREEN = 0.85f;
     /** 为页脚按钮预留高度，避免内容区挤占确认/取消。 */
     static final float FOOTER_RESERVE_HEIGHT = 56f;
+    /** 版本冲突横幅额外占用（中文标签较长时需两行）。 */
+    static final float CONFLICT_BANNER_RESERVE = 52f;
+    /** 窄面板阈值：低于此宽度时页脚按钮换行排列。 */
+    static final float NARROW_PANEL_WIDTH = 420f;
 
     static final int WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse
@@ -47,6 +51,11 @@ public final class RoadFloatingEditorShell {
             ImGui.getIO().getDisplaySizeY() * WINDOW_MAX_SIZE_OF_SCREEN);
     }
 
+    public static float footerReserveHeight(boolean revisionConflictPending) {
+        return FOOTER_RESERVE_HEIGHT
+            + (revisionConflictPending ? CONFLICT_BANNER_RESERVE : 0f);
+    }
+
     public static void renderFooter(
             RoadUiContext ctx,
             boolean dirty,
@@ -54,17 +63,22 @@ public final class RoadFloatingEditorShell {
             Runnable onCancel,
             Runnable onConfirm) {
         ImGui.separator();
+        boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
         if (dirty && onRestore != null) {
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.restore") + "##restore")) {
                 onRestore.run();
             }
-            ImGui.sameLine();
+            if (!narrow) {
+                ImGui.sameLine();
+            }
         }
         if (onCancel != null) {
             if (ImGui.button(PlotI18n.tr("button.plot.cancel") + "##cancel")) {
                 onCancel.run();
             }
-            ImGui.sameLine();
+            if (!narrow) {
+                ImGui.sameLine();
+            }
         }
         if (onConfirm != null) {
             if (!dirty) {
@@ -78,8 +92,12 @@ public final class RoadFloatingEditorShell {
             }
         }
         if (dirty) {
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.floating_editor.unsaved_hint"));
+            if (!narrow) {
+                ImGui.sameLine();
+            }
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.road.floating_editor.unsaved_hint"));
         }
     }
 
@@ -96,18 +114,24 @@ public final class RoadFloatingEditorShell {
         try {
             ImGui.textWrapped(PlotI18n.tr("plugin.road.floating_editor.close_confirm_message"));
             ImGui.separator();
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.confirm") + "##close_apply", 120, 0)) {
+            boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
+            float buttonWidth = narrow ? -1f : 120f;
+            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.confirm") + "##close_apply", buttonWidth, 0)) {
                 if (onApplyAndClose.getAsBoolean()) {
                     ImGui.closeCurrentPopup();
                 }
             }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.discard") + "##close_discard", 120, 0)) {
+            if (!narrow) {
+                ImGui.sameLine();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.discard") + "##close_discard", buttonWidth, 0)) {
                 onDiscardAndClose.run();
                 ImGui.closeCurrentPopup();
             }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##close_continue", 120, 0)) {
+            if (!narrow) {
+                ImGui.sameLine();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##close_continue", buttonWidth, 0)) {
                 onContinueEditing.run();
                 ImGui.closeCurrentPopup();
             }

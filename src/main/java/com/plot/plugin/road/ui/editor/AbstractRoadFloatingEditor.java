@@ -2,9 +2,11 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 /**
@@ -95,10 +97,15 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             RoadFloatingEditorShell.WINDOW_FLAGS);
         try {
             if (visible) {
-                float bodyHeight = Math.max(
-                    80f,
-                    ImGui.getContentRegionAvailY() - RoadFloatingEditorShell.FOOTER_RESERVE_HEIGHT);
-                ImGui.beginChild("##floating_editor_body", 0f, bodyHeight, false);
+                float footerReserve =
+                    RoadFloatingEditorShell.footerReserveHeight(revisionConflictPending);
+                float bodyHeight = Math.max(80f, ImGui.getContentRegionAvailY() - footerReserve);
+                ImGui.beginChild(
+                    "##floating_editor_body",
+                    0f,
+                    bodyHeight,
+                    false,
+                    ImGuiWindowFlags.AlwaysVerticalScrollbar);
                 renderRevisionConflictBanner(ctx);
                 renderWindowBody(ctx);
                 ImGui.endChild();
@@ -249,7 +256,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         if (!revisionConflictPending) {
             return;
         }
-        ImGui.textColored(
+        RoadUiWidgets.textWrappedColored(
             PluginUiColors.WARNING,
             PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
         if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live") + "##reload_live")) {

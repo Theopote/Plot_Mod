@@ -12,6 +12,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
+import imgui.flag.ImGuiWindowFlags;
 
 /** 横断面 / 材质设计器浮动窗口。 */
 public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor {
@@ -74,7 +75,12 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         ImGui.endChild();
 
         ImGui.sameLine();
-        ImGui.beginChild("##xs_params", paramsWidth, 0, true);
+        ImGui.beginChild(
+            "##xs_params",
+            paramsWidth,
+            0,
+            true,
+            ImGuiWindowFlags.AlwaysVerticalScrollbar);
         CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(
             road,
             config,

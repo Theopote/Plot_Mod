@@ -211,8 +211,15 @@ public final class RoadGeneratePanel {
     }
 
     private void renderSelectedIntersection(RoadNetwork network) {
-        intersectionDetailPanel.renderFocusedSelection(
-            network, RoadGradeSeparationControls.Layout.BLOCK);
+        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
+            return;
+        }
+        if (ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.road.generate.intersection_detail"),
+                imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+            intersectionDetailPanel.renderFocusedSelection(
+                network, RoadGradeSeparationControls.Layout.BLOCK);
+        }
     }
 
     private void renderNetworkBuildScope(RoadNetwork network) {
