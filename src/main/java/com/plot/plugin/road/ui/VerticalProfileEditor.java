@@ -1369,7 +1369,7 @@ final class VerticalProfileEditor {
         }
         if (selectedIntersectionIndex >= 0) {
             renderIntersectionDetail(
-                ctx, editingNetwork, road, intersections, interaction, config, flatMode);
+                ctx, editingNetwork, road, intersections, config, flatMode);
         } else if (flatMode) {
             renderFlatModeGenerationSettingsHint(editingNetwork, road);
         } else if (editorState.selectedProfilePvi >= 0) {
@@ -1680,27 +1680,15 @@ final class VerticalProfileEditor {
             RoadNetwork network,
             Road road,
             List<RoadProfileIntersection> intersections,
-            ProfileChartInteraction.ControlInteraction interaction,
             RoadSystemConfig config,
             boolean flatMode) {
-        int detailIndex = selectedIntersectionIndex >= 0
-            ? selectedIntersectionIndex
-            : interaction.hoveredIntersectionIndex();
-        if (detailIndex < 0 || detailIndex >= intersections.size()) {
+        if (selectedIntersectionIndex < 0 || selectedIntersectionIndex >= intersections.size()) {
             return;
         }
-        boolean editable = selectedIntersectionIndex >= 0;
-        RoadProfileIntersection intersection = intersections.get(detailIndex);
+        RoadProfileIntersection intersection = intersections.get(selectedIntersectionIndex);
         ImGui.spacing();
         ImGui.separator();
         renderIntersectionTitleRow(network, road, intersection);
-        if (!editable) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_intersection_click_to_edit"));
-            renderIntersectionMetricsRow(intersection, network, config);
-            return;
-        }
         boolean crossingChanged = renderProfileGradeSeparationControls(
             ctx, network, road, intersection, config);
         renderIntersectionMetricsRow(intersection, network, config);
@@ -1718,8 +1706,9 @@ final class VerticalProfileEditor {
         if (!flatMode
                 && ImGui.collapsingHeader(
                     PlotI18n.tr("plugin.road.profile_intersection_height_edit_section")
-                        + "##profile_intersection_height_" + detailIndex)) {
-            renderIntersectionHeightEdit(ctx, network, road, intersections, detailIndex, config, flatMode);
+                        + "##profile_intersection_height_" + selectedIntersectionIndex)) {
+            renderIntersectionHeightEdit(
+                ctx, network, road, intersections, selectedIntersectionIndex, config, flatMode);
         }
         if (crossingChanged) {
             var result = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
@@ -1736,7 +1725,7 @@ final class VerticalProfileEditor {
         }
         if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.road.profile_intersection_detail")
-                    + "##profile_intersection_detail_" + detailIndex)) {
+                    + "##profile_intersection_detail_" + selectedIntersectionIndex)) {
             ImGui.text(PlotI18n.tr(
                 "plugin.road.profile_intersection_other_section",
                 intersection.otherCrossSection().laneCount,

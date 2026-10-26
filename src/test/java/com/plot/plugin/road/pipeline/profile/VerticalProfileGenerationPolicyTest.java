@@ -124,7 +124,7 @@ class VerticalProfileGenerationPolicyTest {
     }
 
     @Test
-    void prepareLiveNetworkForPreviewDemotesStaleEditedAndClearsPropagatedLocks() {
+    void explicitAutoSelectionClearsPropagatedLocksWithoutDemotingEditedSource() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("stale-edited");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
@@ -141,11 +141,30 @@ class VerticalProfileGenerationPolicyTest {
             List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
             road.getId());
 
-        VerticalProfileGenerationPolicy.prepareLiveNetworkForPreview(network);
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network);
 
-        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
         assertTrue(end.getManualElevation() == null);
         assertTrue(road.getVerticalAlignment() != null && !road.getVerticalAlignment().isEmpty());
+    }
+
+    @Test
+    void generationSnapshotDemotesStaleEditedWithoutMutatingLiveCopy() {
+        RoadNetwork live = new RoadNetwork();
+        Road road = live.createRoad("stale-edited");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(40.0, 74.0))));
+        addStraightEdge(live, road, 40.0);
+        road.setProfileSource(ProfileSource.EDITED);
+
+        RoadNetwork snapshot = live.snapshot();
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(snapshot);
+
+        assertEquals(ProfileSource.AUTO, snapshot.getRoad("stale-edited").getEffectiveProfileSource());
+        assertEquals(ProfileSource.EDITED, live.getRoad("stale-edited").getEffectiveProfileSource());
     }
 
     @Test

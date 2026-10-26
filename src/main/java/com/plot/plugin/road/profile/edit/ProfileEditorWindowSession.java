@@ -13,6 +13,7 @@ import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.EditedProfileRebindValidator;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -396,7 +397,7 @@ public final class ProfileEditorWindowSession {
         if (ctx.networkManager().getNetworkRevision() != openRevision) {
             return ConfirmResult.CONFLICT;
         }
-        ConfirmResult rebindOnly = tryConfirmStaleProfileRebind(ctx, live);
+        ConfirmResult rebindOnly = tryConfirmStaleProfileRebind(ctx, live, config);
         if (rebindOnly != null) {
             return rebindOnly;
         }
@@ -454,7 +455,10 @@ public final class ProfileEditorWindowSession {
     /**
      * 曲线数值未变但几何签名过期时，允许用户仅重新确认绑定，无需拖动 PVI。
      */
-    private ConfirmResult tryConfirmStaleProfileRebind(RoadUiContext ctx, RoadNetwork live) {
+    private ConfirmResult tryConfirmStaleProfileRebind(
+            RoadUiContext ctx,
+            RoadNetwork live,
+            RoadSystemConfig config) {
         if (isDirty()) {
             return null;
         }
@@ -476,6 +480,12 @@ public final class ProfileEditorWindowSession {
         }
         if (rebindRoadIds.isEmpty()) {
             return null;
+        }
+        for (String roadId : rebindRoadIds) {
+            com.plot.plugin.road.model.Road workingRoad = workingNetwork.getRoad(roadId);
+            if (EditedProfileRebindValidator.validate(workingNetwork, workingRoad, config) != null) {
+                return ConfirmResult.CONSTRAINT_CONFLICT;
+            }
         }
         ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
         for (String roadId : rebindRoadIds) {

@@ -413,7 +413,7 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
-    void confirmWithoutPviChangesRebindsStaleEditedProfile() {
+    void confirmWithoutPviChangesRejectsRebindWhenCurveNoLongerCoversPath() {
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         road.setProfileSource(ProfileSource.EDITED);
         ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
@@ -426,6 +426,24 @@ class ProfileEditorWindowSessionTest {
         live.getEdges().values().iterator().next()
             .setCenterlinePoints(List.of(new Vec2d(0, 0), new Vec2d(120, 0)));
         ResolvedProfileAuthority.invalidateEditedProfileIfStale(live, road);
+
+        ProfileEditorWindowSession session = openSession();
+        session.markTouched(session.editingNetwork().getRoad(road.getId()));
+
+        ProfileEditorWindowSession.ConfirmResult result =
+            session.confirm(testContext(), live, config);
+
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT, result);
+        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+        assertFalse(ResolvedProfileAuthority.canActivateEditedProfile(live, road));
+    }
+
+    @Test
+    void confirmWithoutPviChangesRebindsWhenCurveStillFitsPath() {
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setProfileSource(ProfileSource.EDITED);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+        road.setEditedGeometrySignature(com.plot.plugin.road.vertical.EditedProfileGeometry.UNBOUND_SIGNATURE);
 
         ProfileEditorWindowSession session = openSession();
         session.markTouched(session.editingNetwork().getRoad(road.getId()));

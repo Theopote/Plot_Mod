@@ -31,10 +31,10 @@ public final class VerticalProfileGenerationPolicy {
     }
 
     /**
-     * 预览/采样前在 live 路网上归一化纵断面权威：失效的 EDITED 切回 AUTO，
-     * 并清除不应参与自动求解的 stale 节点标高锁。保留 dormant VA 供编辑器使用。
+     * 用户显式切换到「自动设计」时在 live 路网上应用：清除传播型节点锁，
+     * 归一化 legacy 纵向模式。须在 {@code beginNetworkEdit} 事务内调用。
      */
-    public static void prepareLiveNetworkForPreview(RoadNetwork network) {
+    public static void applyExplicitAutoProfileSelection(RoadNetwork network) {
         if (network == null) {
             return;
         }
@@ -42,7 +42,6 @@ public final class VerticalProfileGenerationPolicy {
             if (road == null) {
                 continue;
             }
-            ResolvedProfileAuthority.invalidateEditedProfileIfStale(network, road);
             if (road.getEffectiveProfileSource() == ProfileSource.AUTO
                     && road.getStoredVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
                 road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
@@ -63,6 +62,11 @@ public final class VerticalProfileGenerationPolicy {
         for (Road road : generationNetwork.getRoads().values()) {
             if (road == null) {
                 continue;
+            }
+            ResolvedProfileAuthority.invalidateEditedProfileIfStale(generationNetwork, road);
+            if (road.getEffectiveProfileSource() == ProfileSource.AUTO
+                    && road.getStoredVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
+                road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
             }
             // Legacy FLAT roads may store their only elevation in the derived VA.
             // Migrate that intent before clearing any non-authoritative cache.
