@@ -261,6 +261,19 @@ public class RoadNetwork {
     }
 
     /**
+     * 将已有节点重新挂回网络（用于图编辑失败回滚或工作副本写回）。
+     */
+    public void attachExistingNode(RoadNode node) {
+        if (node == null || node.getId() == null || node.getId().isBlank()) {
+            return;
+        }
+        if (nodes.containsKey(node.getId())) {
+            return;
+        }
+        nodes.put(node.getId(), node);
+    }
+
+    /**
      * 将已有边重新挂回网络（用于图编辑失败回滚）。
      */
     public void attachExistingEdge(RoadEdge edge) {

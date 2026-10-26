@@ -126,7 +126,7 @@ public final class RoadEarthworkSurfaceSampler {
         if (totalLength <= 1e-6) {
             return startY;
         }
-        double ratio = Math.max(0.0, Math.min(1.0, localDistance / totalLength));
+        double ratio = Math.clamp(localDistance / totalLength, 0.0, 1.0);
         return (int) Math.round(startY + ratio * (endY - startY));
     }
 

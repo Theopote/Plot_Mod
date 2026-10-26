@@ -70,7 +70,7 @@ public final class RoadBatchCrossSectionEditor {
         }
     }
 
-    private static void renderDraftPreview(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
+    public static void renderDraftPreview(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ResolvedCrossSection resolved = draft.toCrossSection().resolve(config);
         ImGui.separator();

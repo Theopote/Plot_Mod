@@ -26,6 +26,7 @@ import com.plot.plugin.road.ui.RoadPathPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.ui.PluginTabScrollUi;
@@ -57,6 +58,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private long overlaySnapshotRevision = -1L;
     private String overlaySelectionKey = "";
     private final RoadCanvasSelectionController canvasSelectionController = new RoadCanvasSelectionController();
+    private final RoadFloatingEditorHost floatingEditorHost = new RoadFloatingEditorHost();
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -78,7 +80,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadIntersectionDetailPanel intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
         this.nodePropertyPanel = new RoadNodePropertyPanel(ctx, intersectionDetailPanel);
         this.editPanel = new RoadEditPanel(
-            ctx, defaultParamsPanel, intersectionDetailPanel, junctionPanel);
+            ctx, defaultParamsPanel, intersectionDetailPanel, junctionPanel, floatingEditorHost);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);
@@ -108,6 +110,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.previewManager().tickPreviewJob();
 
         buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
+        floatingEditorHost.renderAll(ctx);
 
         RoadUiTab pendingTab = ctx.pendingTab();
         if (pendingTab != null) {

@@ -1,26 +1,26 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 编辑 Tab 主工作区：概览、快速设计、高级设计。 */
+/** 编辑 Tab 主工作区：概览、快速设计、专业工具启动器。 */
 final class RoadEditWorkspace {
     private final RoadUiContext ctx;
-    private final RoadDesignPanel designPanel;
     private final RoadDefaultParamsPanel defaultParamsPanel;
+    private final RoadFloatingEditorHost floatingEditorHost;
 
     RoadEditWorkspace(
             RoadUiContext ctx,
-            RoadDesignPanel designPanel,
-            RoadDefaultParamsPanel defaultParamsPanel) {
+            RoadDefaultParamsPanel defaultParamsPanel,
+            RoadFloatingEditorHost floatingEditorHost) {
         this.ctx = ctx;
-        this.designPanel = designPanel;
         this.defaultParamsPanel = defaultParamsPanel;
+        this.floatingEditorHost = floatingEditorHost;
     }
 
     void renderSingle(RoadNetwork network, Road road) {
@@ -29,7 +29,7 @@ final class RoadEditWorkspace {
             ctx,
             network,
             road,
-            () -> designPanel.requestOpenDiagnostics());
+            () -> floatingEditorHost.openOrFocus(ctx, RoadFloatingEditorKind.DIAGNOSTICS, road.getId()));
 
         RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
@@ -41,14 +41,11 @@ final class RoadEditWorkspace {
         RoadRouteQuickTune.renderForRoad(ctx, road, ctx::pushRoadEditHistory);
         ImGui.spacing();
 
-        renderCrossSectionAppearance(road);
+        RoadEditToolLauncher.renderSingle(ctx, floatingEditorHost, road.getId());
+        ImGui.spacing();
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit.materials_facilities"))) {
-            renderMaterialsAndFurniture(road);
-        }
-
-        RoadUiSections.domain("plugin.road.edit.advanced_design_domain");
-        designPanel.renderAdvancedDesignSection(network, road);
+        RoadUiSections.group("plugin.road.section.structure");
+        TunnelStyleControls.renderRoadOverride(ctx, road, ctx::pushRoadEditHistory);
     }
 
     void renderMulti() {
@@ -62,11 +59,9 @@ final class RoadEditWorkspace {
         ImGui.spacing();
 
         RoadBatchQuickTune.render(ctx, selectedRoadIds, ctx::pushRoadEditHistory);
+        ImGui.spacing();
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit.more_cross_section_params"))) {
-            RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();
-            RoadBatchCrossSectionEditor.renderDraftFieldsWithoutPreview(ctx, synced);
-        }
+        RoadEditToolLauncher.renderMulti(ctx, floatingEditorHost, selectedRoadIds);
     }
 
     void renderNoSelectionDefaults() {
@@ -87,29 +82,5 @@ final class RoadEditWorkspace {
         ImGui.spacing();
         RoadUiSections.group("plugin.road.section.structure");
         TunnelStyleControls.renderGlobal(ctx);
-    }
-
-    private void renderCrossSectionAppearance(Road road) {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(
-            road, config, ctx::pushRoadEditHistory);
-        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAppearance();
-        RoadUiSections.section("plugin.road.edit.cross_section");
-        CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
-        ImGui.spacing();
-        RoadUiSections.group("plugin.road.section.structure");
-        TunnelStyleControls.renderRoadOverride(ctx, road, ctx::pushRoadEditHistory);
-    }
-
-    private void renderMaterialsAndFurniture(Road road) {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(
-            road, config, ctx::pushRoadEditHistory);
-        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAppearance();
-        RoadUiSections.group("plugin.road.edit.materials_group");
-        CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
-        ImGui.spacing();
-        RoadUiSections.group("plugin.road.edit.facilities_group");
-        CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
     }
 }

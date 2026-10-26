@@ -3,7 +3,6 @@ package com.plot.plugin.road.centerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
-import com.plot.plugin.road.alignment.HorizontalAlignmentElementType;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.TurnDirection;

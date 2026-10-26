@@ -67,10 +67,6 @@ public final class RoadEarthworkCorridorResolver {
         return RoadCorridorGeometryBuilder.build(centerline, halfWidth, closed);
     }
 
-    public static RoadCorridorGeometry buildCorridorGeometry(List<Vec2d> centerline, double halfWidth) {
-        return RoadCorridorGeometryBuilder.build(centerline, halfWidth);
-    }
-
     public static List<Vec2d> buildCorridorPolygon(List<Vec2d> centerline, double halfWidth) {
         return buildCorridorPolygon(centerline, halfWidth, RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline));
     }

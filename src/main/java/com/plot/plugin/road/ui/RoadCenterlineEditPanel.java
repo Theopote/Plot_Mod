@@ -30,6 +30,62 @@ public final class RoadCenterlineEditPanel {
     }
 
     public void render(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
+        renderControls(
+            ctx,
+            network,
+            edge,
+            (targetNetwork, edgeId, distance) ->
+                ctx.networkManager().insertPiAtLocalDistance(edgeId, distance),
+            (targetNetwork, edgeId, distance) ->
+                ctx.networkManager().splitEdgeAtLocalDistance(edgeId, distance),
+            (targetNetwork, edgeId, vertexIndex, radius) ->
+                ctx.networkManager().filletCenterlineVertex(edgeId, vertexIndex, radius),
+            (targetNetwork, edgeId) -> ctx.networkManager().reverseEdge(edgeId),
+            (targetNetwork, nodeId) -> ctx.networkManager().mergeSegmentsAtNode(nodeId));
+    }
+
+    /** 浮动编辑器工作副本：直接写入 {@code network}，确认时再一次性写回 live。 */
+    public void renderWorkingNetwork(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
+        renderControls(
+            ctx,
+            network,
+            edge,
+            RoadCenterlineEditor::insertPiAtLocalDistance,
+            RoadCenterlineEditor::splitAtLocalDistance,
+            RoadCenterlineEditor::filletVertex,
+            RoadCenterlineEditor::reverseEdge,
+            RoadCenterlineEditor::mergeThroughNode);
+    }
+
+    @FunctionalInterface
+    private interface PiAction {
+        CenterlineEditResult run(RoadNetwork network, String edgeId, double distance);
+    }
+
+    @FunctionalInterface
+    private interface FilletAction {
+        CenterlineEditResult run(RoadNetwork network, String edgeId, int vertexIndex, double radius);
+    }
+
+    @FunctionalInterface
+    private interface EdgeAction {
+        CenterlineEditResult run(RoadNetwork network, String edgeId);
+    }
+
+    @FunctionalInterface
+    private interface NodeAction {
+        CenterlineEditResult run(RoadNetwork network, String nodeId);
+    }
+
+    private void renderControls(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            RoadEdge edge,
+            PiAction insertPi,
+            PiAction splitEdge,
+            FilletAction filletVertex,
+            EdgeAction reverseEdge,
+            NodeAction mergeAtNode) {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.centerline_edit_hint"));
@@ -46,11 +102,11 @@ public final class RoadCenterlineEditPanel {
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_insert_pi") + "##cl_pi")) {
-            recordMessage(ctx.networkManager().insertPiAtLocalDistance(edge.getId(), centerlineEditDistance));
+            recordMessage(insertPi.run(network, edge.getId(), centerlineEditDistance));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_split") + "##cl_split")) {
-            recordMessage(ctx.networkManager().splitEdgeAtLocalDistance(edge.getId(), centerlineEditDistance));
+            recordMessage(splitEdge.run(network, edge.getId(), centerlineEditDistance));
         }
 
         List<com.plot.api.geometry.Vec2d> points = edge.getCenterlinePoints();
@@ -69,22 +125,22 @@ public final class RoadCenterlineEditPanel {
                 centerlineFilletRadius = radius[0];
             }
             if (ImGui.button(PlotI18n.tr("plugin.road.centerline_fillet") + "##cl_fillet")) {
-                recordMessage(ctx.networkManager().filletCenterlineVertex(
+                recordMessage(filletVertex.run(
+                    network,
                     edge.getId(),
                     centerlineVertexIndex,
-                    centerlineFilletRadius
-                ));
+                    centerlineFilletRadius));
             }
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_segment") + "##cl_rev_seg")) {
-            recordMessage(ctx.networkManager().reverseEdge(edge.getId()));
+            recordMessage(reverseEdge.run(network, edge.getId()));
         }
 
-        renderMergeButtons(ctx, network, edge);
+        renderMergeButtons(network, edge, mergeAtNode);
     }
 
-    private void renderMergeButtons(RoadUiContext ctx, RoadNetwork network, RoadEdge edge) {
+    private void renderMergeButtons(RoadNetwork network, RoadEdge edge, NodeAction mergeAtNode) {
         String startNodeId = edge.getStartNodeId();
         String endNodeId = edge.getEndNodeId();
         boolean canMergeStart = RoadCenterlineEditor.canMergeAtNode(network, startNodeId);
@@ -93,13 +149,13 @@ public final class RoadCenterlineEditPanel {
             return;
         }
         if (canMergeStart && ImGui.button(PlotI18n.tr("plugin.road.centerline_merge_start") + "##cl_m_s")) {
-            recordMessage(ctx.networkManager().mergeSegmentsAtNode(startNodeId));
+            recordMessage(mergeAtNode.run(network, startNodeId));
         }
         if (canMergeStart && canMergeEnd) {
             ImGui.sameLine();
         }
         if (canMergeEnd && ImGui.button(PlotI18n.tr("plugin.road.centerline_merge_end") + "##cl_m_e")) {
-            recordMessage(ctx.networkManager().mergeSegmentsAtNode(endNodeId));
+            recordMessage(mergeAtNode.run(network, endNodeId));
         }
     }
 }

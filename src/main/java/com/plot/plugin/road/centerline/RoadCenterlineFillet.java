@@ -34,7 +34,7 @@ final class RoadCenterlineFillet {
             return null;
         }
 
-        double dot = Math.max(-1.0, Math.min(1.0, dir1.x * dir2.x + dir1.y * dir2.y));
+        double dot = Math.clamp(dir1.x * dir2.x + dir1.y * dir2.y, -1.0, 1.0);
         double angle = Math.acos(dot);
         if (angle < 0.05 || angle > Math.PI - 0.1) {
             return null;
