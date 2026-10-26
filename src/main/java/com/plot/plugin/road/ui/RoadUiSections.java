@@ -28,29 +28,14 @@ public final class RoadUiSections {
         ImGui.spacing();
     }
 
-    /** 编辑层级标签（ROAD-LEVEL / SEGMENT-LEVEL）。 */
-    public static void level(String labelKey) {
-        ImGui.spacing();
-        RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr(labelKey));
-        ImGui.spacing();
-    }
-
-    /** 选中道路后的设计栈顶栏（ROAD）。 */
-    public static void roadHeader() {
-        ImGui.spacing();
-        RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.design_stack.road_header"));
-        ImGui.separator();
-        ImGui.spacing();
-    }
-
-    /** 设计栈分组标题（Identity / Alignment / …）。 */
+    /** 分组标题（材质 / 结构等）。 */
     public static void group(String labelKey) {
         ImGui.spacing();
         RoadUiWidgets.textWrapped(PlotI18n.tr(labelKey));
         ImGui.spacing();
     }
 
-    /** 一级工作域（快速设计 / 高级设计）。 */
+    /** 一级工作域（快速设计 / 专业工具等）。 */
     public static void domain(String labelKey) {
         ImGui.spacing();
         ImGui.separator();
