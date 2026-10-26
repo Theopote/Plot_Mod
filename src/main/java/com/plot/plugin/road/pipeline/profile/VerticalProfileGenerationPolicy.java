@@ -11,7 +11,6 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -240,17 +239,4 @@ public final class VerticalProfileGenerationPolicy {
         road.setVerticalAlignment(null);
     }
 
-    /** @deprecated 使用 {@link #applyGenerationProfileAuthority(RoadNetwork)} */
-    @Deprecated
-    public static int applyTerrainFirstUnlessActive(
-            RoadNetwork generationNetwork,
-            java.util.Collection<String> ignoredActiveManualRoadIds) {
-        return applyGenerationProfileAuthority(generationNetwork);
-    }
-
-    /** @deprecated 使用 {@link #applyGenerationProfileAuthority(RoadNetwork)} */
-    @Deprecated
-    public static int applyTerrainFirstUnlessActive(RoadNetwork generationNetwork) {
-        return applyGenerationProfileAuthority(generationNetwork);
-    }
 }

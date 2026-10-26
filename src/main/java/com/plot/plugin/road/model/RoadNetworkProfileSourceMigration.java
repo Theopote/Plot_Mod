@@ -29,15 +29,6 @@ final class RoadNetworkProfileSourceMigration {
         }
     }
 
-    private static void migrateProfileSources(RoadNetwork.NetworkData data) {
-        if (data.roads == null) {
-            return;
-        }
-        for (RoadNetwork.RoadData road : data.roads) {
-            normalizeRoadProfileSource(road);
-        }
-    }
-
     static void normalizeRoadProfileSource(RoadNetwork.RoadData road) {
         if (road == null) {
             return;

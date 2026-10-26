@@ -31,30 +31,6 @@ public final class RoadConstructionEvaluator {
         }
     }
 
-    /**
-     * 单段评估：硬阈值与小高度差走即时判定；显著高度差按单段区间做复杂度比较。
-     */
-    public static RoadConstructionType evaluateSegment(
-            double segmentDistance,
-            int groundHeight,
-            int targetHeight,
-            RoadConstructionScoreConfig scoreConfig) {
-        int heightDifference = targetHeight - groundHeight;
-        RoadConstructionType immediate = classifyImmediate(heightDifference, scoreConfig);
-        if (immediate != null) {
-            return immediate;
-        }
-
-        double earthworkScore = computeEarthworkScore(
-            heightDifference, segmentDistance, scoreConfig);
-        return decideInterval(
-            Integer.signum(heightDifference),
-            segmentDistance,
-            earthworkScore,
-            scoreConfig,
-            0.0);
-    }
-
     public static List<RoadConstructionType> evaluatePath(
             List<Double> segmentDistances,
             List<Integer> groundHeights,

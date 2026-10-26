@@ -14,12 +14,6 @@ public record ProfileSolveDiagnostics(
         int retainedManualNodeLocks,
         int retainedCrossingLocks,
         int clearedPropagatedNodeLocks,
-        int gradeReversalsBefore,
-        int gradeReversalsAfter,
-        double totalAbsoluteGradeChangeBefore,
-        double totalAbsoluteGradeChangeAfter,
-        boolean oscillationReductionAttempted,
-        boolean oscillationReductionAccepted,
         boolean finalConstraintsSatisfied) {
 
     public static ProfileSolveDiagnostics empty(String roadId) {
@@ -31,12 +25,6 @@ public record ProfileSolveDiagnostics(
             0,
             0,
             0,
-            0,
-            0,
-            0.0,
-            0.0,
-            false,
-            false,
             true);
     }
 }

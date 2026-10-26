@@ -8,12 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RoadParameterLimitsTest {
 
     @Test
-    void continuousSlopeLengthSupportsPreferredAndWarningRange() {
-        assertEquals(180.0, RoadParameterLimits.clampMaxContinuousSlopeLength(180.0), 0.001);
-        assertEquals(300.0, RoadParameterLimits.clampMaxContinuousSlopeLength(500.0), 0.001);
-    }
-
-    @Test
     void clampCarriagewayWidth() {
         assertEquals(3, RoadParameterLimits.clampCarriagewayWidth(1));
         assertEquals(24, RoadParameterLimits.clampCarriagewayWidth(99));
@@ -31,17 +25,6 @@ class RoadParameterLimitsTest {
     void clampLaneWidth() {
         assertEquals(6, RoadParameterLimits.clampLaneWidth(20, 24, 4));
         assertEquals(1, RoadParameterLimits.clampLaneWidth(0, 8, 4));
-    }
-
-    @Test
-    void clampRelaxedSlopeLengthRespectsContinuousCap() {
-        // continuous=5 时 relaxed 上限被压到 5
-        assertEquals(5.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 5.0), 0.001);
-        // continuous=10 时 relaxed 上限为 min(MAX_RELAXED=30, 10)=10
-        assertEquals(10.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 10.0), 0.001);
-        // continuous>=MAX_RELAXED 时取 MAX_RELAXED=30
-        assertEquals(30.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 30.0), 0.001);
-        assertEquals(1.0, RoadParameterLimits.clampRelaxedSlopeLength(0.5, 30.0), 0.001);
     }
 
     @Test

@@ -100,45 +100,6 @@ public final class RoadDefaultParamsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
 
-        float[] maxContinuousLength = {(float) config.getMaxContinuousSlopeLength()};
-        if (ImGui.sliderFloat(
-            "##max_continuous_slope_length",
-            maxContinuousLength,
-            (float) RoadParameterLimits.MIN_CONTINUOUS_SLOPE_LENGTH,
-            (float) RoadParameterLimits.MAX_CONTINUOUS_SLOPE_LENGTH,
-            PlotI18n.tr("plugin.road.max_continuous_slope_length", maxContinuousLength[0])
-        )) {
-            config.setMaxContinuousSlopeLength(maxContinuousLength[0]);
-            markCustom();
-        }
-
-        float relaxedMax = (float) Math.min(
-            RoadParameterLimits.MAX_RELAXED_SLOPE_LENGTH,
-            config.getMaxContinuousSlopeLength());
-        float[] relaxedLength = {(float) config.getRelaxedSlopeLength()};
-        if (ImGui.sliderFloat(
-            "##relaxed_slope_length",
-            relaxedLength,
-            (float) RoadParameterLimits.MIN_RELAXED_SLOPE_LENGTH,
-            relaxedMax,
-            PlotI18n.tr("plugin.road.relaxed_slope_length", relaxedLength[0])
-        )) {
-            config.setRelaxedSlopeLength(relaxedLength[0]);
-            markCustom();
-        }
-
-        float[] relaxedSlope = {config.getRelaxedSlopePercent()};
-        if (EngineeringSlopeInput.render(
-            "default_relaxed_slope",
-            PlotI18n.tr("plugin.road.relaxed_slope_percent_label"),
-            relaxedSlope,
-            EngineeringSlopeInput.ValueKind.GRADE
-        )) {
-            config.setRelaxedSlopePercent(relaxedSlope[0]);
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.relaxed_slope_percent");
-
         renderDefaultJunctionSettings();
     }
 

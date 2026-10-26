@@ -11,7 +11,6 @@ import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.List;
-import java.util.OptionalInt;
 
 /**
  * Unified junction elevation writes for at-grade and grade-separated crossings.
@@ -19,7 +18,6 @@ import java.util.OptionalInt;
  */
 public final class RoadVerticalJunctionService {
 
-    private static final double STATION_TOLERANCE = 0.26;
 
     private RoadVerticalJunctionService() {
     }
@@ -188,43 +186,6 @@ public final class RoadVerticalJunctionService {
         RoadProfileConstraintSynchronizer.setElevation(road, station, elevation);
         ProfileSourceEdits.markWorkingCopyEdited(road);
         return true;
-    }
-
-    private static OptionalInt pviIndexNearStation(Road road, double station) {
-        if (road == null || road.getVerticalAlignment() == null) {
-            return OptionalInt.empty();
-        }
-        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
-        for (int i = 0; i < pvis.size(); i++) {
-            if (Math.abs(pvis.get(i).getStation() - station) <= STATION_TOLERANCE) {
-                return OptionalInt.of(i);
-            }
-        }
-        return OptionalInt.empty();
-    }
-
-    private static OptionalInt junctionPviIndex(RoadNetwork network, Road road, String nodeId) {
-        if (network == null || road == null || nodeId == null) {
-            return OptionalInt.empty();
-        }
-        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            FlatVerticalIntentSupport.syncCompiledAlignment(
-                network, road, road.getMaxSlope() != null ? road.getMaxSlope() : 8.0);
-        }
-        if (road.getVerticalAlignment() == null) {
-            return OptionalInt.empty();
-        }
-        Double station = stationAtNode(network, road, nodeId);
-        if (station == null) {
-            return OptionalInt.empty();
-        }
-        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
-        for (int i = 0; i < pvis.size(); i++) {
-            if (Math.abs(pvis.get(i).getStation() - station) <= STATION_TOLERANCE) {
-                return OptionalInt.of(i);
-            }
-        }
-        return OptionalInt.empty();
     }
 
     private static Double stationAtNode(RoadNetwork network, Road road, String nodeId) {

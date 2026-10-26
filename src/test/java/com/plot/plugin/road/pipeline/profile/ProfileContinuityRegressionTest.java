@@ -156,8 +156,9 @@ class ProfileContinuityRegressionTest {
         assertEquals(82, road.getFlatVerticalIntent().getBaseElevation());
     }
 
-    @Test
-    void flatRoadKeepsOneHeightAcrossSplitAndReversedPhysicalEdges() {
+    @ParameterizedTest
+    @ValueSource(ints = {-32, -1, 0, 82})
+    void flatRoadKeepsOneHeightAcrossSplitAndReversedPhysicalEdges(int elevation) {
         var network = new RoadNetwork();
         var road = network.createRoad("flat");
         var a = network.createNode(new Vec2d(0, 0));
@@ -166,14 +167,14 @@ class ProfileContinuityRegressionTest {
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
         network.createEdge(c.getId(), b.getId(), List.of(c.getPosition(), b.getPosition()), road.getId());
         road.setVerticalMode(RoadVerticalMode.FLAT);
-        road.setFlatVerticalIntent(new FlatVerticalIntent(82));
+        road.setFlatVerticalIntent(new FlatVerticalIntent(elevation));
         var config = new RoadSystemConfig("continuity");
         var generator = new RoadNetworkGenerator(new RoadGenerator(config, IdentityCoordinateService.INSTANCE,
             BlockProjectionHandler.getInstance()));
-        var preview = generator.generatePreview(network, new FlatTerrainSampler(76));
+        var preview = generator.generatePreview(network, new FlatTerrainSampler(elevation - 6));
         assertEquals(2, preview.edgeResults().size());
         preview.edgeResults().values().forEach(result -> {
-            assertTrue(result.profileBuildHeights.stream().allMatch(y -> y == 82), "every edge must honor the same flat design");
+            assertTrue(result.profileBuildHeights.stream().allMatch(y -> y == elevation), "every edge must honor the same flat design");
             assertTrue(result.manualEndpointConstraintFeasible);
         });
     }

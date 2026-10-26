@@ -47,7 +47,7 @@ public final class GradeLimitedProfileSolver {
     }
 
     /**
-     * @return 每段末端建造高程（与 {@link com.plot.plugin.road.RoadSlopeUtils#computeChainedTargetHeights} 契约一致）
+     * @return 每段末端建造高程
      */
     public static List<Integer> solveSegmentEnds(
             List<Double> trendElevations,
@@ -111,28 +111,6 @@ public final class GradeLimitedProfileSolver {
             Integer manualEndHeight,
             TerrainFollowPreset preset,
             VerticalStationConstraints.StationElevationBounds elevationBounds) {
-        return solveDesignProfile(
-            trendElevations,
-            groundSamples,
-            segmentDistances,
-            maxSlopePercents,
-            manualStartHeight,
-            manualEndHeight,
-            preset,
-            elevationBounds,
-            false);
-    }
-
-    public static DesignSolveResult solveDesignProfile(
-            List<Double> trendElevations,
-            List<Integer> groundSamples,
-            List<Double> segmentDistances,
-            List<Float> maxSlopePercents,
-            Integer manualStartHeight,
-            Integer manualEndHeight,
-            TerrainFollowPreset preset,
-            VerticalStationConstraints.StationElevationBounds elevationBounds,
-            boolean oscillationReductionEnabled) {
         double[] stations = solveStationElevations(
             trendElevations,
             groundSamples,
@@ -141,8 +119,7 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            elevationBounds,
-            oscillationReductionEnabled);
+            elevationBounds);
         List<Double> designElevations = toDesignList(stations);
         int profileStart = manualStartHeight != null
             ? manualStartHeight
@@ -190,7 +167,6 @@ public final class GradeLimitedProfileSolver {
             solved.designElevations(),
             solved.manualEndpointsFeasible());
     }
-
 
     public static boolean areManualEndpointsFeasible(
             Integer manualStartHeight,
@@ -381,28 +357,6 @@ public final class GradeLimitedProfileSolver {
             Integer manualEndHeight,
             TerrainFollowPreset preset,
             VerticalStationConstraints.StationElevationBounds elevationBounds) {
-        return solveStationElevations(
-            trendElevations,
-            groundSamples,
-            segmentDistances,
-            maxSlopePercents,
-            manualStartHeight,
-            manualEndHeight,
-            preset,
-            elevationBounds,
-            false);
-    }
-
-    static double[] solveStationElevations(
-            List<Double> trendElevations,
-            List<Integer> groundSamples,
-            List<Double> segmentDistances,
-            List<Float> maxSlopePercents,
-            Integer manualStartHeight,
-            Integer manualEndHeight,
-            TerrainFollowPreset preset,
-            VerticalStationConstraints.StationElevationBounds elevationBounds,
-            boolean oscillationReductionEnabled) {
         double[] minElevations = elevationMinArray(elevationBounds);
         double[] maxElevations = elevationMaxArray(elevationBounds);
         Objects.requireNonNull(trendElevations, "trendElevations");
@@ -541,22 +495,6 @@ public final class GradeLimitedProfileSolver {
                 minElevations,
                 maxElevations);
         }
-        ProfileOscillationReducer.ReductionResult oscillationResult =
-            ProfileOscillationReducer.tryApplyCandidate(
-                current,
-                segmentDistances,
-                maxSlopePercents,
-                effectivePreset,
-                lockStart,
-                lockEnd,
-                startTarget,
-                endTarget,
-                minElevations,
-                maxElevations,
-                trendElevations,
-                oscillationReductionEnabled,
-                false);
-        ProfileOscillationReducer.recordLastResult(oscillationResult);
         return current;
     }
 
@@ -1020,41 +958,6 @@ public final class GradeLimitedProfileSolver {
         return chainage;
     }
 
-    public static void clearOscillationReductionState() {
-        ProfileOscillationReducer.clearLastResult();
-    }
-
-    public static OscillationReductionSummary lastOscillationReduction() {
-        return OscillationReductionSummary.from(ProfileOscillationReducer.lastResult());
-    }
-
-    /** Re-apply endpoint locks and project onto slope / grade / elevation bounds. */
-    static void reprojectFeasible(
-            double[] elevations,
-            List<Double> segmentDistances,
-            List<Float> maxSlopePercents,
-            TerrainFollowPreset preset,
-            boolean lockStart,
-            boolean lockEnd,
-            double startLock,
-            double endLock,
-            double[] minElevations,
-            double[] maxElevations) {
-        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
-        applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
-        projectFeasible(
-            elevations,
-            segmentDistances,
-            maxSlopePercents,
-            effectivePreset.maxGradeChangePercent(),
-            lockStart,
-            lockEnd,
-            startLock,
-            endLock,
-            minElevations,
-            maxElevations);
-    }
-
     /** Elevation at vertex {@code i} that makes grades on both adjacent segments equal. */
     static double equalGradeElevationAt(
             double leftElevation,
@@ -1320,63 +1223,6 @@ public final class GradeLimitedProfileSolver {
             total += Math.abs(rightGrade - leftGrade);
         }
         return total;
-    }
-
-    /** Validates endpoint locks, elevation bounds, segment slopes, and grade-change cap. */
-    static boolean satisfiesFullFeasibility(
-            double[] elevations,
-            List<Double> segmentDistances,
-            List<Float> maxSlopePercents,
-            double maxGradeChangePercent,
-            boolean lockStart,
-            boolean lockEnd,
-            double startLock,
-            double endLock,
-            double[] minElevations,
-            double[] maxElevations) {
-        if (elevations == null || segmentDistances == null || maxSlopePercents == null) {
-            return false;
-        }
-        if (lockStart && Math.abs(elevations[0] - startLock) > EPSILON) {
-            return false;
-        }
-        if (lockEnd && Math.abs(elevations[elevations.length - 1] - endLock) > EPSILON) {
-            return false;
-        }
-        int last = elevations.length - 1;
-        for (int i = 0; i < elevations.length; i++) {
-            if (minElevations != null
-                    && i < minElevations.length
-                    && !Double.isNaN(minElevations[i])
-                    && elevations[i] < minElevations[i] - EPSILON) {
-                return false;
-            }
-            if (maxElevations != null
-                    && i < maxElevations.length
-                    && !Double.isNaN(maxElevations[i])
-                    && elevations[i] > maxElevations[i] + EPSILON) {
-                return false;
-            }
-        }
-        for (int i = 0; i < segmentDistances.size(); i++) {
-            double grade = Math.abs(gradeAtSegment(
-                elevations[i], elevations[i + 1], segmentDistances.get(i)));
-            if (grade > maxSlopePercents.get(i) + EPSILON) {
-                return false;
-            }
-        }
-        if (maxGradeChangePercent > EPSILON && elevations.length >= 3) {
-            for (int i = 1; i < elevations.length - 1; i++) {
-                double leftGrade = gradeAtSegment(
-                    elevations[i - 1], elevations[i], segmentDistances.get(i - 1));
-                double rightGrade = gradeAtSegment(
-                    elevations[i], elevations[i + 1], segmentDistances.get(i));
-                if (Math.abs(rightGrade - leftGrade) > maxGradeChangePercent + EPSILON) {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     private static double clampToSlopeBracket(double anchor, double value, double maxRise) {

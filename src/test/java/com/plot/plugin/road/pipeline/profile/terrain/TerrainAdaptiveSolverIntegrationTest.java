@@ -56,17 +56,17 @@ class TerrainAdaptiveSolverIntegrationTest {
             "long mountain road should not show flat-then-large-jump target pattern");
 
         List<Double> segmentDistances = constantDistances(targets.size() - 1, 10.0);
-        int targetReversals = ProfileOscillationReducer.countGradeSignReversals(
+        int targetReversals = ProfileTestMetrics.countGradeSignReversals(
             toDoubles(targets), segmentDistances);
-        int guideReversals = ProfileOscillationReducer.countGradeSignReversals(
+        int guideReversals = ProfileTestMetrics.countGradeSignReversals(
             toDoubles(guide), segmentDistances);
-        int groundReversals = ProfileOscillationReducer.countGradeSignReversals(
+        int groundReversals = ProfileTestMetrics.countGradeSignReversals(
             toDoubles(ground), segmentDistances);
         assertTrue(targetReversals <= guideReversals,
             () -> "build targets should not add grade reversals beyond trend: "
                 + targetReversals + " vs guide " + guideReversals);
         assertTrue(targetReversals <= groundReversals,
-            () -> "oscillation reducer should not leave more reversals than raw terrain: "
+            () -> "terrain solver should not leave more reversals than raw terrain: "
                 + targetReversals + " vs ground " + groundReversals);
     }
 

@@ -20,7 +20,6 @@ import com.plot.plugin.road.vertical.VerticalAlignmentPersistence;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignmentData;
 import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossSectionsData;
 import com.plot.plugin.road.model.StationFacilityPersistence.StationFacilitiesData;
-import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationing;
@@ -1177,7 +1176,6 @@ public class RoadNetwork {
         String profileSource;
         Integer editedGeometrySignature;
         String terrainStyle;
-        Boolean oscillationReductionEnabled;
         TunnelStylePersistence tunnelStyle;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
@@ -1284,9 +1282,6 @@ public class RoadNetwork {
                 }
                 if (road.getStoredTerrainStyle() != null) {
                     roadData.terrainStyle = road.getStoredTerrainStyle().name();
-                }
-                if (road.getStoredOscillationReductionEnabled() != null) {
-                    roadData.oscillationReductionEnabled = road.getStoredOscillationReductionEnabled();
                 }
                 roadData.tunnelStyle = TunnelStylePersistence.from(road.getStoredTunnelStyle());
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
@@ -1415,7 +1410,6 @@ public class RoadNetwork {
                         road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
                             .fromStored(roadData.terrainStyle));
                     }
-                    road.setOscillationReductionEnabled(roadData.oscillationReductionEnabled);
                     road.setTunnelStyle(TunnelStylePersistence.fromData(roadData.tunnelStyle));
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));

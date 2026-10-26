@@ -29,10 +29,6 @@ public final class RoadParameterLimits {
     public static final int MAX_TUNNEL_THRESHOLD = 30;
     public static final double MIN_PATH_SAMPLE_DISTANCE = 0.5;
     public static final double MAX_PATH_SAMPLE_DISTANCE = 5.0;
-    public static final double MIN_CONTINUOUS_SLOPE_LENGTH = 5.0;
-    public static final double MAX_CONTINUOUS_SLOPE_LENGTH = 300.0;
-    public static final double MIN_RELAXED_SLOPE_LENGTH = 1.0;
-    public static final double MAX_RELAXED_SLOPE_LENGTH = 30.0;
 
     private RoadParameterLimits() {
     }
@@ -99,13 +95,4 @@ public final class RoadParameterLimits {
         return Math.max(MIN_STREETLIGHT_SPACING, Math.min(MAX_STREETLIGHT_SPACING, spacing));
     }
 
-    public static double clampMaxContinuousSlopeLength(double length) {
-        return Math.max(MIN_CONTINUOUS_SLOPE_LENGTH, Math.min(MAX_CONTINUOUS_SLOPE_LENGTH, length));
-    }
-
-    public static double clampRelaxedSlopeLength(double length, double maxContinuousLength) {
-        double continuous = clampMaxContinuousSlopeLength(maxContinuousLength);
-        double upper = Math.min(MAX_RELAXED_SLOPE_LENGTH, continuous);
-        return Math.max(MIN_RELAXED_SLOPE_LENGTH, Math.min(upper, length));
-    }
 }

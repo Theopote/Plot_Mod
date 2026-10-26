@@ -23,8 +23,8 @@ public final class ProfileSolveDiagnosticsCollector {
             LOGGER.debug(
                 "profile solve roadId={} requestedSource={} resolvedAuthority={} "
                     + "editedDetached={} retainedManualLocks={} retainedCrossingLocks={} "
-                    + "clearedPropagatedLocks={} gradeReversals={}->{} gradeChange={}->{} "
-                    + "oscAttempted={} oscAccepted={} constraintsOk={}",
+                    + "clearedPropagatedLocks={} "
+                    + "constraintsOk={}",
                 diagnostics.roadId(),
                 diagnostics.requestedSource(),
                 diagnostics.resolvedAuthority(),
@@ -32,12 +32,6 @@ public final class ProfileSolveDiagnosticsCollector {
                 diagnostics.retainedManualNodeLocks(),
                 diagnostics.retainedCrossingLocks(),
                 diagnostics.clearedPropagatedNodeLocks(),
-                diagnostics.gradeReversalsBefore(),
-                diagnostics.gradeReversalsAfter(),
-                diagnostics.totalAbsoluteGradeChangeBefore(),
-                diagnostics.totalAbsoluteGradeChangeAfter(),
-                diagnostics.oscillationReductionAttempted(),
-                diagnostics.oscillationReductionAccepted(),
                 diagnostics.finalConstraintsSatisfied());
         }
     }

@@ -116,26 +116,6 @@ public final class RoadStyleProductControls {
             });
     }
 
-    /** 实验性纵断面算法开关（开发调试，非普通用户选项）。 */
-    public static void renderExperimentalProfileSettings(RoadUiContext ctx) {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        if (config == null) {
-            return;
-        }
-        imgui.type.ImBoolean enabled = new imgui.type.ImBoolean(config.isOscillationReductionEnabled());
-        if (imgui.ImGui.checkbox(
-                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled"),
-                enabled)) {
-            config.setOscillationReductionEnabled(enabled.get());
-            markConfigChanged(ctx);
-        }
-        if (imgui.ImGui.isItemHovered()) {
-            imgui.ImGui.setTooltip(
-                com.plot.utils.PlotI18n.tr("plugin.road.oscillation_reduction_enabled.hint"));
-        }
-        imgui.ImGui.spacing();
-    }
-
     private static void renderTerrainStyleButtons(
             RoadTerrainStyle active,
             java.util.function.Consumer<RoadTerrainStyle> onSelect) {

@@ -150,49 +150,6 @@ class ProfileChartIntersectionSupportTest {
     }
 
     @Test
-    void edgeLocalHitUsesLocalDistanceMapping() {
-        RoadSystemConfig config = new RoadSystemConfig("test");
-        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
-        RoadProfileIntersection intersection = new RoadProfileIntersection(
-            "node",
-            "roadA",
-            "roadB",
-            "Road B",
-            50.0,
-            999.0,
-            76.0,
-            68.0,
-            section,
-            true,
-            true,
-            4.0,
-            false);
-
-        ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(0f, 0f, 400f, 200f);
-        float plotX = layout.plotX(50.0, 100.0);
-        float currentY = layout.plotY(76.0, 60.0, 80.0);
-
-        ProfileChartInteraction.IntersectionHit hit =
-            ProfileChartIntersectionSupport.hitIntersectionEdgeLocal(
-                List.of(intersection),
-                100.0,
-                1.0,
-                60,
-                80,
-                0f,
-                0f,
-                400f,
-                200f,
-                plotX,
-                currentY);
-        assertNotNull(hit);
-        assertEquals(0, hit.index());
-        assertEquals(
-            ProfileChartInteraction.IntersectionDragTarget.CURRENT,
-            hit.target());
-    }
-
-    @Test
     void atGradeElevationConflictWhenRoadsDisagree() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);

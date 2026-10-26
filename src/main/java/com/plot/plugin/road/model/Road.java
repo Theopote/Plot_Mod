@@ -64,7 +64,6 @@ public class Road {
     private int editedGeometrySignature;
     private RoadTerrainStyle terrainStyle;
     /** {@code null} 表示继承全局 {@link com.plot.plugin.config.RoadSystemConfig}。 */
-    private Boolean oscillationReductionEnabled;
     private TunnelStyle tunnelStyle;
     private FlatVerticalIntent flatVerticalIntent;
     private RoadVariableCrossSections variableCrossSections;
@@ -526,22 +525,6 @@ public class Road {
         return getEffectiveTerrainStyle(config).followPreset();
     }
 
-    public boolean isOscillationReductionEnabled(RoadSystemConfig config) {
-        if (oscillationReductionEnabled != null) {
-            return oscillationReductionEnabled;
-        }
-        return config != null && config.isOscillationReductionEnabled();
-    }
-
-    /** 持久化字段；{@code null} 表示继承全局默认。 */
-    public Boolean getStoredOscillationReductionEnabled() {
-        return oscillationReductionEnabled;
-    }
-
-    public void setOscillationReductionEnabled(Boolean oscillationReductionEnabled) {
-        this.oscillationReductionEnabled = oscillationReductionEnabled;
-    }
-
     /** 持久化字段；{@code null} 表示继承全局默认地形风格。 */
     public RoadTerrainStyle getStoredTerrainStyle() {
         return terrainStyle;
@@ -731,7 +714,6 @@ public class Road {
         copy.profileSource = profileSource;
         copy.editedGeometrySignature = editedGeometrySignature;
         copy.terrainStyle = terrainStyle;
-        copy.oscillationReductionEnabled = oscillationReductionEnabled;
         copy.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
         copy.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;
         copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
@@ -749,7 +731,6 @@ public class Road {
         styleId = source.styleId;
         themeId = source.themeId;
         terrainStyle = source.terrainStyle;
-        oscillationReductionEnabled = source.oscillationReductionEnabled;
         tunnelStyle = source.tunnelStyle != null ? source.tunnelStyle.copy() : null;
         RoadVerticalIntentTransforms.copyIntentFrom(this, source);
     }

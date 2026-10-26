@@ -16,8 +16,8 @@ class RoadConstructionEvaluatorTest {
 
     @Test
     void smallHeightDifferenceReturnsRoad() {
-        RoadConstructionType type = RoadConstructionEvaluator.evaluateSegment(
-            1.0, 64, 65, DEFAULT_CONFIG);
+        RoadConstructionType type = RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(64), List.of(65), DEFAULT_CONFIG, 0.0).getFirst();
         assertEquals(RoadConstructionType.ROAD, type);
     }
 
@@ -81,22 +81,22 @@ class RoadConstructionEvaluatorTest {
         RoadConstructionEvaluator.RoadConstructionScoreConfig cheapBridge =
             new RoadConstructionEvaluator.RoadConstructionScoreConfig(
                 1.0, 1.0, 0.01, 1.2, 25.0, 1.5, 2.0, 100, 100);
-        RoadConstructionType type = RoadConstructionEvaluator.evaluateSegment(
-            5.0, 64, 68, cheapBridge);
+        RoadConstructionType type = RoadConstructionEvaluator.evaluatePath(
+            List.of(5.0), List.of(64), List.of(68), cheapBridge, 0.0).getFirst();
         assertEquals(RoadConstructionType.BRIDGE, type);
     }
 
     @Test
     void extremeHeightDifferenceForcesBridgeRegardlessOfCost() {
-        RoadConstructionType type = RoadConstructionEvaluator.evaluateSegment(
-            1.0, 64, 80, DEFAULT_CONFIG);
+        RoadConstructionType type = RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(64), List.of(80), DEFAULT_CONFIG, 0.0).getFirst();
         assertEquals(RoadConstructionType.BRIDGE, type);
     }
 
     @Test
     void extremeDepthDifferenceForcesTunnelRegardlessOfCost() {
-        RoadConstructionType type = RoadConstructionEvaluator.evaluateSegment(
-            1.0, 80, 64, DEFAULT_CONFIG);
+        RoadConstructionType type = RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(80), List.of(64), DEFAULT_CONFIG, 0.0).getFirst();
         assertEquals(RoadConstructionType.TUNNEL, type);
     }
 
@@ -157,15 +157,19 @@ class RoadConstructionEvaluatorTest {
 
         assertEquals(
             RoadConstructionType.FILL,
-            RoadConstructionEvaluator.evaluateSegment(1.0, 64, 69, oldEquivalent));
+            RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(64), List.of(69), oldEquivalent, 0.0).getFirst());
         assertEquals(
             RoadConstructionType.BRIDGE,
-            RoadConstructionEvaluator.evaluateSegment(1.0, 64, 70, oldEquivalent));
+            RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(64), List.of(70), oldEquivalent, 0.0).getFirst());
         assertEquals(
             RoadConstructionType.CUT,
-            RoadConstructionEvaluator.evaluateSegment(1.0, 72, 64, oldEquivalent));
+            RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(72), List.of(64), oldEquivalent, 0.0).getFirst());
         assertEquals(
             RoadConstructionType.TUNNEL,
-            RoadConstructionEvaluator.evaluateSegment(1.0, 73, 64, oldEquivalent));
+            RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0), List.of(73), List.of(64), oldEquivalent, 0.0).getFirst());
     }
 }

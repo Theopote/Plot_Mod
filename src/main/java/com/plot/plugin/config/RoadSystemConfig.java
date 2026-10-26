@@ -45,8 +45,6 @@ public class RoadSystemConfig {
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private RoadTerrainStyle terrainStyle = RoadTerrainStyle.BALANCED;
-    /** Experimental short-distance profile oscillation merge for FIT_TERRAIN auto design. */
-    private boolean oscillationReductionEnabled = false;
     private boolean generateBridgePillars = true;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
@@ -68,17 +66,12 @@ public class RoadSystemConfig {
     private String markingMaterial = "material.plot.white_concrete";
     private int streetlightSpacing = 0;
     private boolean includeSlopeBatter = true;
-    private double pathLength = 0.0; // 当前路径长度（米）
     private double pathSampleDistance = 1.0; // 路径采样密度（米/点），用于控制路径细分精度
 
     private float fillSlopeRatio = 1.0f;
     private float cutSlopeRatio = 1.0f;
     private String fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
     private String cutSlopeMaterial = "";
-    /** AUTO_SMOOTH v1 preferred continuous grade run; 300 m remains a manual-design warning. */
-    private double maxContinuousSlopeLength = 180.0;
-    private double relaxedSlopeLength = 5.0;
-    private float relaxedSlopePercent = 1.0f;
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
     private double defaultCrossingClearance = 3.0;
 
@@ -300,14 +293,6 @@ public class RoadSystemConfig {
         this.terrainStyle = terrainStyle != null ? terrainStyle : RoadTerrainStyle.BALANCED;
     }
 
-    public boolean isOscillationReductionEnabled() {
-        return oscillationReductionEnabled;
-    }
-
-    public void setOscillationReductionEnabled(boolean oscillationReductionEnabled) {
-        this.oscillationReductionEnabled = oscillationReductionEnabled;
-    }
-
     public boolean isGenerateBridgePillars() {
         return generateBridgePillars;
     }
@@ -496,14 +481,6 @@ public class RoadSystemConfig {
         this.includeSlopeBatter = includeSlopeBatter;
     }
 
-    public double getPathLength() {
-        return pathLength;
-    }
-    
-    public void setPathLength(double pathLength) {
-        this.pathLength = Math.max(0.0, pathLength);
-    }
-
     public float getFillSlopeRatio() {
         return fillSlopeRatio;
     }
@@ -541,39 +518,6 @@ public class RoadSystemConfig {
         this.cutSlopeMaterial = cutSlopeMaterial != null ? cutSlopeMaterial : "";
     }
 
-    public double getMaxContinuousSlopeLength() {
-        return maxContinuousSlopeLength;
-    }
-
-    public void setMaxContinuousSlopeLength(double maxContinuousSlopeLength) {
-        this.maxContinuousSlopeLength = RoadParameterLimits.clampMaxContinuousSlopeLength(maxContinuousSlopeLength);
-        this.relaxedSlopeLength = RoadParameterLimits.clampRelaxedSlopeLength(
-            this.relaxedSlopeLength,
-            this.maxContinuousSlopeLength);
-    }
-
-    public double getRelaxedSlopeLength() {
-        return relaxedSlopeLength;
-    }
-
-    public void setRelaxedSlopeLength(double relaxedSlopeLength) {
-        this.relaxedSlopeLength = RoadParameterLimits.clampRelaxedSlopeLength(
-            relaxedSlopeLength,
-            this.maxContinuousSlopeLength);
-    }
-
-    public float getRelaxedSlopePercent() {
-        return relaxedSlopePercent;
-    }
-
-    public void setRelaxedSlopePercent(float relaxedSlopePercent) {
-        float upperBound = maxSlope > 0 ? maxSlope : 45.0f;
-        if (relaxedSlopePercent >= upperBound) {
-            relaxedSlopePercent = upperBound / 2.0f;
-        }
-        this.relaxedSlopePercent = Math.max(0.0f, relaxedSlopePercent);
-    }
-
     public float getDefaultCornerRadius() {
         return defaultCornerRadius;
     }
@@ -599,9 +543,6 @@ public class RoadSystemConfig {
             maxSlope,
             terrainStyle,
             pathSampleDistance,
-            maxContinuousSlopeLength,
-            relaxedSlopeLength,
-            relaxedSlopePercent,
             getTunnelStyle());
     }
     

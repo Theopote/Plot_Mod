@@ -86,14 +86,6 @@ public final class RoadGenerationSettingsPanel {
             markChanged(ctx);
         }
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.experimental_settings"))) {
-            RoadUiWidgets.textWrappedColored(
-                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.generate.experimental_settings.hint"));
-            ImGui.indent();
-            RoadStyleProductControls.renderExperimentalProfileSettings(ctx);
-            ImGui.unindent();
-        }
     }
 
     private static void markChanged(RoadUiContext ctx) {

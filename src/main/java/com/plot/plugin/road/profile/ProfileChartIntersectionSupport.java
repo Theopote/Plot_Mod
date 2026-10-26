@@ -12,7 +12,6 @@ public final class ProfileChartIntersectionSupport {
     public static final double AT_GRADE_ELEVATION_TOLERANCE = 0.26;
     private static final double HIT_RADIUS_PX = 12.0;
     private static final double HIT_RADIUS_SQ = HIT_RADIUS_PX * HIT_RADIUS_PX;
-    private static final float EDGE_LOCAL_PADDING_PX = 10f;
 
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_INTERSECTION = 0xFF66CCFF;
@@ -87,34 +86,6 @@ public final class ProfileChartIntersectionSupport {
             mouseY);
     }
 
-    /** Edge-local chart distance mapping used by deprecated {@code RoadLongitudinalProfileRenderer}. */
-    public static ProfileChartInteraction.IntersectionHit hitIntersectionEdgeLocal(
-            List<RoadProfileIntersection> intersections,
-            double maxChartDistance,
-            double geometryToProfileScale,
-            int minHeight,
-            int maxHeight,
-            float outerX,
-            float outerY,
-            float outerWidth,
-            float outerHeight,
-            float mouseX,
-            float mouseY) {
-        return hitIntersection(
-            intersections,
-            coordinatesForEdgeLocal(
-                maxChartDistance,
-                geometryToProfileScale,
-                minHeight,
-                maxHeight,
-                outerX,
-                outerY,
-                outerWidth,
-                outerHeight),
-            mouseX,
-            mouseY);
-    }
-
     public static void drawIntersectionMarkers(
             ImDrawList drawList,
             List<RoadProfileIntersection> intersections,
@@ -132,36 +103,6 @@ public final class ProfileChartIntersectionSupport {
             mode);
     }
 
-    /** Edge-local chart distance mapping used by deprecated {@code RoadLongitudinalProfileRenderer}. */
-    public static void drawIntersectionMarkersEdgeLocal(
-            ImDrawList drawList,
-            List<RoadProfileIntersection> intersections,
-            int selectedIndex,
-            double maxChartDistance,
-            double geometryToProfileScale,
-            int minHeight,
-            int maxHeight,
-            float outerX,
-            float outerY,
-            float outerWidth,
-            float outerHeight,
-            ProfileChartRenderMode mode) {
-        drawIntersectionMarkers(
-            drawList,
-            intersections,
-            selectedIndex,
-            coordinatesForEdgeLocal(
-                maxChartDistance,
-                geometryToProfileScale,
-                minHeight,
-                maxHeight,
-                outerX,
-                outerY,
-                outerWidth,
-                outerHeight),
-            mode);
-    }
-
     private static IntersectionMarkerCoordinates coordinatesForLayout(
             ProfileChartLayout layout,
             double totalStation,
@@ -170,28 +111,6 @@ public final class ProfileChartIntersectionSupport {
         return new IntersectionMarkerCoordinates(
             intersection -> layout.plotX(intersection.roadStation(), totalStation),
             elevation -> layout.plotY(elevation, minElevation, maxElevation));
-    }
-
-    private static IntersectionMarkerCoordinates coordinatesForEdgeLocal(
-            double maxChartDistance,
-            double geometryToProfileScale,
-            int minHeight,
-            int maxHeight,
-            float outerX,
-            float outerY,
-            float outerWidth,
-            float outerHeight) {
-        double scale = geometryToProfileScale <= 0.0 || !Double.isFinite(geometryToProfileScale)
-            ? 1.0
-            : geometryToProfileScale;
-        float plotX0 = outerX + EDGE_LOCAL_PADDING_PX;
-        float plotY0 = outerY + EDGE_LOCAL_PADDING_PX;
-        float plotWidth = outerWidth - 2f * EDGE_LOCAL_PADDING_PX;
-        float plotHeight = outerHeight - 2f * EDGE_LOCAL_PADDING_PX;
-        return new IntersectionMarkerCoordinates(
-            intersection -> edgeLocalPlotX(
-                intersection.localDistance() * scale, maxChartDistance, plotX0, plotWidth),
-            elevation -> edgeLocalPlotY(elevation, minHeight, maxHeight, plotY0, plotHeight));
     }
 
     private static ProfileChartInteraction.IntersectionHit hitIntersection(
@@ -316,31 +235,6 @@ public final class ProfileChartIntersectionSupport {
                 }
             }
         }
-    }
-
-    private static float edgeLocalPlotX(
-            double chartDistance,
-            double maxChartDistance,
-            float plotX0,
-            float plotWidth) {
-        if (maxChartDistance <= 1e-9) {
-            return plotX0;
-        }
-        return plotX0 + (float) (chartDistance / maxChartDistance) * plotWidth;
-    }
-
-    private static float edgeLocalPlotY(
-            double elevation,
-            int minHeight,
-            int maxHeight,
-            float plotY0,
-            float plotHeight) {
-        int height = (int) Math.round(elevation);
-        if (maxHeight <= minHeight) {
-            return plotY0 + plotHeight * 0.5f;
-        }
-        float ratio = (height - minHeight) / (float) (maxHeight - minHeight);
-        return plotY0 + plotHeight * (1f - ratio);
     }
 
     private static double distanceSquared(float mouseX, float mouseY, float x, float y) {
