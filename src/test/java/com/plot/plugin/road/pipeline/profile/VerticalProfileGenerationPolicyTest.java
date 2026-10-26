@@ -142,9 +142,10 @@ class VerticalProfileGenerationPolicyTest {
             List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
             road.getId());
 
-        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network);
+        road.setProfileSource(ProfileSource.AUTO);
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, road.getId());
 
-        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
         assertTrue(end.getManualElevation() == null);
         assertTrue(road.getVerticalAlignment() != null && !road.getVerticalAlignment().isEmpty());
     }
@@ -200,19 +201,93 @@ class VerticalProfileGenerationPolicyTest {
     }
 
     @Test
-    void explicitAutoSelectionClearsDormantDesignProfile() {
+    void explicitAutoSelectionPreservesStoredEditedCurveForRoundTrip() {
         RoadNetwork network = new RoadNetwork();
-        Road road = network.createRoad("auto");
+        Road road = network.createRoad("main");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        RoadVerticalAlignment edited = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(20.0, 74.0),
+            PointOfVerticalIntersection.of(40.0, 72.0)));
+        road.setVerticalAlignment(edited);
+        addStraightEdge(network, road, 40.0);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        int signature = road.getEditedGeometrySignature();
+
         road.setProfileSource(ProfileSource.AUTO);
-        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, road.getId());
+
+        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+        assertEquals(3, road.getVerticalAlignment().getPvis().size());
+        assertEquals(70.0, road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-6);
+        assertEquals(signature, road.getEditedGeometrySignature());
+
+        road.setProfileSource(ProfileSource.EDITED);
+        assertTrue(ResolvedProfileAuthority.canActivateEditedProfile(network, road));
+        assertEquals(3, road.getVerticalAlignment().getPvis().size());
+        assertEquals(74.0, road.getVerticalAlignment().getPvis().get(1).getElevation(), 1e-6);
+    }
+
+    @Test
+    void explicitAutoSelectionOnOneRoadDoesNotClearOtherRoadsStoredCurve() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        Road roadB = network.createRoad("b");
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadA.setProfileSource(ProfileSource.EDITED);
+        roadB.setProfileSource(ProfileSource.AUTO);
+        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 70.0),
             PointOfVerticalIntersection.of(40.0, 74.0))));
-        addStraightEdge(network, road, 40.0);
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 68.0),
+            PointOfVerticalIntersection.of(40.0, 69.0))));
+        addStraightEdge(network, roadA, 40.0);
+        addStraightEdge(network, roadB, 40.0);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, roadA);
 
-        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network);
+        roadA.setProfileSource(ProfileSource.AUTO);
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, roadA.getId());
 
-        assertTrue(road.getVerticalAlignment() == null || road.getVerticalAlignment().isEmpty());
+        assertEquals(2, roadA.getVerticalAlignment().getPvis().size());
+        assertEquals(2, roadB.getVerticalAlignment().getPvis().size());
+        assertEquals(69.0, roadB.getVerticalAlignment().getPvis().getLast().getElevation(), 1e-6);
+    }
+
+    @Test
+    void preservesUserLockedCrossingElevationWhenOneRoadIsAuto() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("auto");
+        Road roadB = network.createRoad("edited");
+        roadA.setProfileSource(ProfileSource.AUTO);
+        roadB.setProfileSource(ProfileSource.EDITED);
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(60.0, 75.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, roadB);
+
+        Vec2d crossingPos = new Vec2d(30, 0);
+        network.registerCrossing(new RoadCrossing(
+            "user-lock",
+            roadA.getId(),
+            30.0,
+            roadB.getId(),
+            30.0,
+            crossingPos,
+            null,
+            null,
+            null,
+            75.0));
+        RoadNode junction = network.createNode(crossingPos);
+        junction.setManualElevation(75.0, ManualElevationOrigin.USER);
+
+        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(network);
+
+        assertEquals(75.0, network.getCrossing("user-lock").sharedElevation());
+        assertEquals(75.0, junction.getManualElevation());
     }
 
     @Test

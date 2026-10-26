@@ -84,7 +84,7 @@ final class ProfileSourceControls {
         ctx.beginNetworkEdit(com.plot.plugin.road.manager.RoadChangeKind.VERTICAL_PROFILE);
         road.setProfileSource(source);
         if (source == ProfileSource.AUTO) {
-            VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network);
+            VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, road.getId());
         }
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {

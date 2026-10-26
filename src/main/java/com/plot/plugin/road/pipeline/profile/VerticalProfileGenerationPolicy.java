@@ -33,25 +33,23 @@ public final class VerticalProfileGenerationPolicy {
     /**
      * 用户显式切换到「自动设计」时在 live 路网上应用：清除传播型节点锁，
      * 归一化 legacy 纵向模式。须在 {@code beginNetworkEdit} 事务内调用。
+     * <p>
+     * 不得删除 live 上保存的编辑曲线；仅改变当前生成权威来源，dormant VA 保留供切回 EDITED。
      */
-    public static void applyExplicitAutoProfileSelection(RoadNetwork network) {
-        if (network == null) {
+    public static void applyExplicitAutoProfileSelection(RoadNetwork network, String switchedRoadId) {
+        if (network == null || switchedRoadId == null) {
             return;
         }
-        for (Road road : network.getRoads().values()) {
-            if (road == null) {
-                continue;
-            }
-            if (road.getEffectiveProfileSource() == ProfileSource.AUTO
-                    && road.getStoredVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
-                road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
-            }
-            if (road.getEffectiveProfileSource() == ProfileSource.AUTO) {
-                detachNonAuthoritativeDesignProfile(road);
-            }
+        Road switchedRoad = network.getRoad(switchedRoadId);
+        if (switchedRoad == null) {
+            return;
         }
-        clearNonAuthoritativeCrossingSharedElevations(network);
-        clearStaleManualJunctionLocksOnSnapshot(network);
+        if (switchedRoad.getEffectiveProfileSource() == ProfileSource.AUTO
+                && switchedRoad.getStoredVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
+            switchedRoad.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        }
+        clearNonAuthoritativeCrossingSharedElevations(network, switchedRoadId);
+        clearStaleManualJunctionLocksForRoad(network, switchedRoadId);
     }
 
     /**
@@ -100,12 +98,39 @@ public final class VerticalProfileGenerationPolicy {
         if (network == null || crossing == null || crossing.sharedElevation() == null) {
             return false;
         }
+        if (hasUserLockedCrossingElevation(network, crossing)) {
+            return true;
+        }
         Road roadA = network.getRoad(crossing.roadAId());
         Road roadB = network.getRoad(crossing.roadBId());
         return roadA != null
                 && roadB != null
                 && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, roadA)
                 && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, roadB);
+    }
+
+    /** 节点 USER 锁与 crossing sharedElevation 一致时视为用户明确锁定的平交标高。 */
+    private static boolean hasUserLockedCrossingElevation(
+            RoadNetwork network,
+            RoadCrossing crossing) {
+        if (crossing.position() == null) {
+            return false;
+        }
+        double shared = crossing.sharedElevation();
+        double tolerance = RoadNetworkBuilder.NODE_TOLERANCE;
+        for (RoadNode node : network.getNodes().values()) {
+            if (node == null
+                    || node.getPosition() == null
+                    || node.getManualElevation() == null
+                    || node.getManualElevationOrigin() != ManualElevationOrigin.USER) {
+                continue;
+            }
+            if (!RoadGeometryUtils.pointsNear(node.getPosition(), crossing.position(), tolerance)) {
+                continue;
+            }
+            return Math.abs(node.getManualElevation() - shared) <= 1e-6;
+        }
+        return false;
     }
 
     public static boolean isStackCrossingSharedElevationAuthoritative(
@@ -119,13 +144,28 @@ public final class VerticalProfileGenerationPolicy {
                 && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
     }
 
-    /** 清除非 EDITED 权威交叉口上的 stale sharedElevation（live 与生成快照均可调用）。 */
+    /** 清除非 EDITED 权威交叉口上的 stale sharedElevation（生成快照全量清理）。 */
     public static int clearNonAuthoritativeCrossingSharedElevations(RoadNetwork network) {
+        return clearNonAuthoritativeCrossingSharedElevations(network, null);
+    }
+
+    /**
+     * 清除 stale sharedElevation。
+     *
+     * @param involvedRoadId 非 null 时仅处理涉及该道路的交叉口（live 单路切换 AUTO）；
+     *     null 时处理全网（生成快照）。
+     */
+    public static int clearNonAuthoritativeCrossingSharedElevations(
+            RoadNetwork network,
+            String involvedRoadId) {
         if (network == null) {
             return 0;
         }
         int cleared = 0;
         for (RoadCrossing crossing : network.getCrossings().values()) {
+            if (involvedRoadId != null && !crossing.involvesRoad(involvedRoadId)) {
+                continue;
+            }
             if (crossing.sharedElevation() != null
                     && !isCrossingSharedElevationAuthoritative(network, crossing)) {
                 network.setCrossingSharedElevation(crossing.id(), null);
@@ -133,6 +173,9 @@ public final class VerticalProfileGenerationPolicy {
             }
         }
         for (RoadStackCrossing stack : network.getStackCrossings().values()) {
+            if (involvedRoadId != null && !stack.roadId().equals(involvedRoadId)) {
+                continue;
+            }
             if (stack.sharedElevation() != null
                     && !isStackCrossingSharedElevationAuthoritative(network, stack)) {
                 network.setStackCrossingSharedElevation(stack.id(), null);
@@ -147,17 +190,30 @@ public final class VerticalProfileGenerationPolicy {
      * 用户锁定、交叉口 sharedElevation、立体交叉及 EDITED 道路 junction 固定点不受影响。
      */
     public static int clearStaleManualJunctionLocksOnSnapshot(RoadNetwork generationNetwork) {
-        if (generationNetwork == null) {
+        return clearStaleManualJunctionLocksForRoad(generationNetwork, null);
+    }
+
+    /**
+     * 清除 stale 传播型节点标高锁。
+     *
+     * @param roadId 非 null 时仅处理与该道路相连的节点（live 单路切换 AUTO）；
+     *     null 时处理全网（生成快照）。
+     */
+    public static int clearStaleManualJunctionLocksForRoad(RoadNetwork network, String roadId) {
+        if (network == null) {
             lastClearedPropagatedNodeLocks = 0;
             return 0;
         }
         int cleared = 0;
         int clearedPropagated = 0;
-        for (RoadNode node : generationNetwork.getNodes().values()) {
+        for (RoadNode node : network.getNodes().values()) {
             if (node == null || node.getManualElevation() == null) {
                 continue;
             }
-            if (shouldPreserveManualElevationAtNode(node, generationNetwork)) {
+            if (roadId != null && !nodeTouchesRoad(network, node, roadId)) {
+                continue;
+            }
+            if (shouldPreserveManualElevationAtNode(node, network)) {
                 continue;
             }
             if (isPropagatedManualElevationOrigin(node.getManualElevationOrigin())) {
@@ -168,6 +224,16 @@ public final class VerticalProfileGenerationPolicy {
         }
         lastClearedPropagatedNodeLocks = clearedPropagated;
         return cleared;
+    }
+
+    private static boolean nodeTouchesRoad(RoadNetwork network, RoadNode node, String roadId) {
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && roadId.equals(edge.getRoadId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 最近一次生成快照清除的传播型节点标高锁数量（诊断用）。 */
