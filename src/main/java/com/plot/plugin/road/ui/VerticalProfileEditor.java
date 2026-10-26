@@ -412,11 +412,34 @@ final class VerticalProfileEditor {
                         windowSession.editingNetwork(), road)) {
                 windowSession.markTouched(road);
             }
+            if (road != null) {
+                RoadProfileChartData chart = ctx.previewManager().getRoadProfileChart(roadId);
+                windowSession.ensureRoadEditorAlignment(
+                    road,
+                    ctx.networkManager().getConfig(),
+                    ctx.previewManager().getLastEdgeResults(),
+                    chart);
+            }
         }
         if (syncSelection) {
             ctx.networkManager().selectRoad(roadId, false);
             ctx.requestOverlayRefresh();
         }
+    }
+
+    private void ensureEditorRoadAlignment(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadProfileChartData chartData) {
+        if (windowSession == null || road == null || network == null) {
+            return;
+        }
+        windowSession.ensureRoadEditorAlignment(
+            road,
+            ctx.networkManager().getConfig(),
+            ctx.previewManager().getLastEdgeResults(),
+            chartData);
     }
 
     private float resolveFooterReserve() {
@@ -1071,13 +1094,10 @@ final class VerticalProfileEditor {
         RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
         Road displayRoad = displayNetwork.getRoad(road.getId());
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
+        ensureEditorRoadAlignment(ctx, editingNetwork, road, chartData);
         RoadVerticalAlignment effectiveAlignment =
             profileEditSession.effectiveAlignment(editingNetwork, road);
-        design = profileEditSession.effectiveDesignOverlay(editingNetwork, road)
-            .orElseGet(() -> VerticalAlignmentProfileOverlay.forAlignment(
-                displayNetwork,
-                displayRoad,
-                displayRoad != null ? displayRoad.getVerticalAlignment() : null).orElse(null));
+        design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(null);
         RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
         boolean buildProfileStale = isChartDerivedDataStale(road);
         VoxelProfilePreviewSlot voxelSlot =

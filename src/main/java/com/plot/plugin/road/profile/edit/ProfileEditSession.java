@@ -367,14 +367,13 @@ public final class ProfileEditSession {
             RoadVerticalAlignment flat = FlatVerticalIntentSupport.strictEditorAlignment(network, road);
             return VerticalAlignmentProfileOverlay.forAlignment(network, road, flat);
         }
-        Optional<VerticalAlignmentProfileOverlay> active =
-            VerticalAlignmentProfileOverlay.forRoad(network, road);
-        if (active.isPresent()) {
-            return active;
+        RoadVerticalAlignment alignment = effectiveAlignment(network, road);
+        Optional<VerticalAlignmentProfileOverlay> fromEffective =
+            VerticalAlignmentProfileOverlay.forAlignment(network, road, alignment);
+        if (fromEffective.isPresent()) {
+            return fromEffective;
         }
-        // FIT_TERRAIN 下保留的 dormant VA：打开编辑器时显示绿线，确认前不参与生成。
-        return VerticalAlignmentProfileOverlay.forAlignment(
-            network, road, road != null ? road.getVerticalAlignment() : null);
+        return VerticalAlignmentProfileOverlay.forRoad(network, road);
     }
 
     public List<RoadProfileIntersection> effectiveIntersections(List<RoadProfileIntersection> base) {

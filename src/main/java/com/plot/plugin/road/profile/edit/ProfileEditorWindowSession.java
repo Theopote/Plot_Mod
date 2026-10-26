@@ -7,19 +7,25 @@ import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
+import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -79,46 +85,145 @@ public final class ProfileEditorWindowSession {
     /** Adopt existing terrain samples as derived editor data, without making the window dirty. */
     public void seedSampledProfiles(RoadSystemConfig config, Map<String, RoadGenerationResult> edgeResults) {
         for (Road road : workingNetwork.getRoads().values()) {
-            if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
-                    || road.getEffectiveProfileSource() == com.plot.plugin.road.vertical.ProfileSource.EDITED
-                    || road.getVerticalMode() == RoadVerticalMode.FLAT) continue;
-            RoadProfileChartAssembler.assemble(workingNetwork, road, config, edgeResults).ifPresent(chart -> {
-                var points = new java.util.ArrayList<PointOfVerticalIntersection>();
-                for (int i = 0; i < chart.stations().size(); i++) {
-                    double elevation = chart.previewElevationAt(chart.stations().get(i));
-                    if (Double.isFinite(elevation)) {
-                        double station = chart.stations().get(i);
-                        // Drop exact collinear terrain samples; preserve the sampled profile
-                        // while avoiding thousands of indistinguishable editor anchors.
-                        while (points.size() >= 2) {
-                            var a = points.get(points.size() - 2);
-                            var b = points.getLast();
-                            double expected = a.getElevation() + (elevation - a.getElevation())
-                                * (b.getStation() - a.getStation()) / (station - a.getStation());
-                            if (Math.abs(expected - b.getElevation()) > 1e-8) break;
-                            points.removeLast();
-                        }
-                        points.add(PointOfVerticalIntersection.of(station, elevation));
-                    }
-                }
-                var alignment = new RoadVerticalAlignment(points);
-                if (VerticalAlignmentGeometry.isEvaluable(alignment)) {
-                    RoadVerticalMode mode = road.getVerticalMode();
-                    road.setVerticalAlignment(alignment);
-                    road.setVerticalMode(mode);
-                    openSnapshot.getRoad(road.getId()).setVerticalAlignment(alignment.copy());
-                    openSnapshot.getRoad(road.getId()).setVerticalMode(mode);
-                }
-            });
+            seedRoadEditorAlignment(road, config, edgeResults, null);
         }
+        syncCrossingAnchorsToSnapshot(config);
+    }
+
+    /**
+     * Ensure the working copy has an evaluable alignment for editor display.
+     * Does not mark the window dirty.
+     */
+    public void ensureRoadEditorAlignment(
+            Road road,
+            RoadSystemConfig config,
+            Map<String, RoadGenerationResult> edgeResults,
+            RoadProfileChartData fallbackChart) {
+        if (road == null || config == null) {
+            return;
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            float maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
+            FlatVerticalIntentSupport.syncCompiledAlignment(workingNetwork, road, maxGrade);
+            return;
+        }
+        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+            return;
+        }
+        if (seedRoadEditorAlignment(road, config, edgeResults, fallbackChart)) {
+            syncCrossingAnchorsToSnapshot(config);
+        }
+    }
+
+    /** @return true when a new evaluable alignment was written to the working copy */
+    public boolean seedRoadEditorAlignment(
+            Road road,
+            RoadSystemConfig config,
+            Map<String, RoadGenerationResult> edgeResults,
+            RoadProfileChartData fallbackChart) {
+        if (road == null || config == null) {
+            return false;
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return false;
+        }
+        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+            return false;
+        }
+        Optional<RoadProfileChartData> chart = RoadProfileChartAssembler.assemble(
+            workingNetwork, road, config, edgeResults);
+        if (chart.isEmpty() && fallbackChart != null && fallbackChart.hasProfileData()) {
+            chart = Optional.of(fallbackChart);
+        }
+        if (chart.isPresent() && applyChartToRoadAlignment(road, chart.get())) {
+            return true;
+        }
+        if (fallbackChart != null && fallbackChart.hasProfileData()) {
+            return bootstrapEndpointAlignmentFromChart(road, fallbackChart);
+        }
+        return false;
+    }
+
+    private boolean applyChartToRoadAlignment(Road road, RoadProfileChartData chart) {
+        List<PointOfVerticalIntersection> points = buildPvisFromChart(chart);
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(points);
+        if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
+            return bootstrapEndpointAlignmentFromChart(road, chart);
+        }
+        applyAlignmentToWorkingAndSnapshot(road, alignment);
+        return true;
+    }
+
+    private static List<PointOfVerticalIntersection> buildPvisFromChart(RoadProfileChartData chart) {
+        var points = new ArrayList<PointOfVerticalIntersection>();
+        for (int i = 0; i < chart.stations().size(); i++) {
+            double elevation = chart.previewElevationAt(chart.stations().get(i));
+            if (Double.isFinite(elevation)) {
+                double station = chart.stations().get(i);
+                while (points.size() >= 2) {
+                    var a = points.get(points.size() - 2);
+                    var b = points.getLast();
+                    double expected = a.getElevation() + (elevation - a.getElevation())
+                        * (b.getStation() - a.getStation()) / (station - a.getStation());
+                    if (Math.abs(expected - b.getElevation()) > 1e-8) {
+                        break;
+                    }
+                    points.removeLast();
+                }
+                points.add(PointOfVerticalIntersection.of(station, elevation));
+            }
+        }
+        return points;
+    }
+
+    private boolean bootstrapEndpointAlignmentFromChart(Road road, RoadProfileChartData chart) {
+        if (!RoadStationing.isStationable(workingNetwork, road) || !chart.hasProfileData()) {
+            return false;
+        }
+        double length = RoadStationing.canonicalLength(workingNetwork, road);
+        if (!Double.isFinite(length) || length <= 1e-6) {
+            return false;
+        }
+        double start = chart.previewElevationAt(0.0);
+        double end = chart.previewElevationAt(length);
+        if (!Double.isFinite(start)) {
+            start = chart.groundElevationAt(0.0);
+        }
+        if (!Double.isFinite(end)) {
+            end = chart.groundElevationAt(length);
+        }
+        if (!Double.isFinite(start) || !Double.isFinite(end)) {
+            return false;
+        }
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, start),
+            PointOfVerticalIntersection.of(length, end)));
+        applyAlignmentToWorkingAndSnapshot(road, alignment);
+        return true;
+    }
+
+    private void applyAlignmentToWorkingAndSnapshot(Road road, RoadVerticalAlignment alignment) {
+        RoadVerticalMode mode = road.getVerticalMode();
+        road.setVerticalAlignment(alignment);
+        road.setVerticalMode(mode);
+        Road snapshotRoad = openSnapshot.getRoad(road.getId());
+        if (snapshotRoad != null) {
+            snapshotRoad.setVerticalAlignment(alignment.copy());
+            snapshotRoad.setVerticalMode(mode);
+        }
+    }
+
+    private void syncCrossingAnchorsToSnapshot(RoadSystemConfig config) {
         var anchored = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer
             .seedCrossingAnchors(workingNetwork, config);
         for (String roadId : anchored) {
-            var derived = workingNetwork.getRoad(roadId);
-            var original = openSnapshot.getRoad(roadId);
-            var mode = original.getVerticalMode();
+            Road derived = workingNetwork.getRoad(roadId);
+            Road original = openSnapshot.getRoad(roadId);
+            if (derived == null || original == null) {
+                continue;
+            }
             original.setVerticalAlignment(derived.getVerticalAlignment().copy());
-            original.setVerticalMode(mode);
+            original.setVerticalMode(derived.getVerticalMode());
         }
     }
 
