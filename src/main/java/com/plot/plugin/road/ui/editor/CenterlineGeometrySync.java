@@ -26,12 +26,7 @@ final class CenterlineGeometrySync {
         List<String> targetSegments = workingRoad.getOrderedSegmentIds();
         Set<String> targetSet = new LinkedHashSet<>(targetSegments);
 
-        for (String edgeId : new ArrayList<>(liveRoad.getOrderedSegmentIds())) {
-            if (!targetSet.contains(edgeId)) {
-                live.removeEdge(edgeId);
-            }
-        }
-
+        // 先挂接/更新目标分段，避免删光旧分段时 live Road 被 removeEdge 连带移除。
         for (String edgeId : targetSegments) {
             RoadEdge workingEdge = working.getEdge(edgeId);
             if (workingEdge == null) {
@@ -55,6 +50,12 @@ final class CenterlineGeometrySync {
                 liveEdge.setEndNodeId(workingEdge.getEndNodeId());
                 liveEdge.setCenterlinePoints(copyPoints(workingEdge.getCenterlinePoints()));
                 liveEdge.setSlopeOverrides(workingEdge.getSlopeOverrides());
+            }
+        }
+
+        for (String edgeId : new ArrayList<>(liveRoad.getOrderedSegmentIds())) {
+            if (!targetSet.contains(edgeId)) {
+                live.removeEdge(edgeId);
             }
         }
 
