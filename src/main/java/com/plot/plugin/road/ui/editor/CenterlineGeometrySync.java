@@ -65,6 +65,8 @@ final class CenterlineGeometrySync {
         } else {
             liveRoad.setHorizontalAlignment(null);
         }
+        liveRoad.setStationFacilities(workingRoad.getStationFacilities());
+        liveRoad.setVariableCrossSections(workingRoad.getVariableCrossSections());
     }
 
     private static void ensureNode(RoadNetwork live, RoadNetwork working, String nodeId) {

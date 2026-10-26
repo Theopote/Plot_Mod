@@ -99,10 +99,10 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
     @Override
     protected void applySessionToLive(RoadUiContext ctx) {
-        CenterlineEditorApplier.applyToLive(
-            ctx.networkManager().getNetwork(),
-            session.workingNetwork(),
-            roadId);
+        var live = ctx.networkManager().getNetwork();
+        CenterlineEditorApplier.applyToLive(live, session.workingNetwork(), roadId);
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(live);
+        com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(live);
         ctx.networkManager().invalidateEditedProfilesIfGeometryChanged();
     }
 
