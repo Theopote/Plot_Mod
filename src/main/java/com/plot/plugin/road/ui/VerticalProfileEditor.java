@@ -2082,11 +2082,16 @@ final class VerticalProfileEditor {
             return;
         }
         var point = alignment.getPvis().get(pviIndex);
+        var profilePoint = VerticalProfileControlPoints.forRoad(network, road).stream()
+            .filter(control -> control.pviIndex() == pviIndex)
+            .findFirst()
+            .orElse(null);
         var bounds = resolveElevationBounds(ctx);
         if (ImGui.isWindowAppearing()) pviHeightInput.set((float) VerticalAlignmentGeometry
             .elevationAt(alignment, point.getStation()).orElse(point.getElevation()));
         boolean locked = point.getConstraint() == com.plot.plugin.road.vertical.VerticalControlPointConstraint.USER_LOCKED;
-        ImGui.beginDisabled(locked);
+        boolean elevationEditable = profilePoint != null && profilePoint.elevationEditable();
+        ImGui.beginDisabled(locked || !elevationEditable);
         ImGui.inputFloat(PlotI18n.tr("plugin.road.profile_pvi_elevation_input"), pviHeightInput, 0.1f, 1f, "%.2f");
         ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_elevation_range", bounds.minY(), bounds.maxY()));
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_apply_height")) && Float.isFinite(pviHeightInput.get())) {
@@ -2100,10 +2105,17 @@ final class VerticalProfileEditor {
             ctx.requestOverlayRefresh();
         }
         ImGui.endDisabled();
+        if (!elevationEditable && profilePoint != null) {
+            String hintKey = profilePoint.sharedJunction()
+                ? "plugin.road.profile_pvi_shared_junction_hint"
+                : "plugin.road.profile_pvi_junction_fixed_hint";
+            ImGui.textWrapped(PlotI18n.tr(hintKey));
+        }
         ImGui.separator();
         boolean canDelete = canDeleteProfilePvi(network, road, pviIndex);
         if (!canDelete) {
-            ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_delete_disabled"));
+            ImGui.textWrapped(PlotI18n.tr(
+                VerticalProfileControlPoints.deleteDisabledMessageKey(network, road, pviIndex)));
         } else if (ImGui.menuItem(PlotI18n.tr("plugin.road.profile_pvi_delete"))) {
             deleteProfilePvi(ctx, network, road, pviIndex);
         }

@@ -35,10 +35,22 @@ final class ProfileChartInteractionTooltips {
         if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGradePercent)) {
             ImGui.textColored(PluginUiColors.ERROR, PlotI18n.tr("plugin.road.profile_pvi_grade_exceeds_hint"));
         }
-        ImGui.separator();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_y"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_shift"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_right_click"));
+        if (point.role() == ProfilePointRole.JUNCTION_FIXED || point.sharedJunction()) {
+            ImGui.separator();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_pvi_junction_fixed_hint"));
+        } else if (!point.elevationEditable()) {
+            ImGui.separator();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_pvi_not_editable_hint"));
+        } else {
+            ImGui.separator();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_y"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_shift"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_right_click"));
+        }
         ImGui.endTooltip();
     }
 }

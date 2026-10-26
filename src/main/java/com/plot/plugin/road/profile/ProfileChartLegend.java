@@ -14,6 +14,8 @@ public final class ProfileChartLegend {
     private static final int COLOR_INTERSECTION_AT_GRADE = 0xFF66CCFF;
     private static final int COLOR_INTERSECTION_CURRENT = 0xFFFF9966;
     private static final int COLOR_INTERSECTION_OTHER = 0xFFCC99FF;
+    /** 与 {@link RoadProfileChartRenderer} 中 JUNCTION_FIXED 控制点一致。 */
+    private static final int COLOR_JUNCTION_FIXED_ANCHOR = 0xFF9AA0A6;
 
     private ProfileChartLegend() {
     }
@@ -114,6 +116,7 @@ public final class ProfileChartLegend {
                 "\u25A0 " + buildProfileLabel(buildPreviewStale));
         }
         appendIntersectionLegendInline(intersections);
+        appendJunctionFixedAnchorLegend();
         appendWaterSurfaceLegend(showWaterSurface);
     }
 
@@ -178,6 +181,13 @@ public final class ProfileChartLegend {
                 COLOR_INTERSECTION_AT_GRADE,
                 "\u25CF " + PlotI18n.tr("plugin.road.profile_intersection_marker"));
         }
+    }
+
+    private static void appendJunctionFixedAnchorLegend() {
+        ImGui.sameLine();
+        ImGui.textColored(
+            COLOR_JUNCTION_FIXED_ANCHOR,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_junction_fixed_anchor"));
     }
 
     public static void renderSeriesLegend(

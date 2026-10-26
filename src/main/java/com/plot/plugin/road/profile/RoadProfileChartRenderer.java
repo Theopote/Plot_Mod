@@ -329,6 +329,10 @@ public final class RoadProfileChartRenderer {
                 pendingX = mouseX;
                 pendingY = mouseY;
                 selectedIntersection = -1;
+            } else if (nearest >= 0) {
+                selected = nearest;
+                pending = -1;
+                selectedIntersection = -1;
             } else if (hit != null) {
                 selectedIntersection = hit.index();
                 selected = -1;

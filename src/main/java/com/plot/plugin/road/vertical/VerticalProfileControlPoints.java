@@ -587,6 +587,40 @@ public final class VerticalProfileControlPoints {
             .orElse(false);
     }
 
+    /** i18n key explaining why {@link #canDelete} is false for this PVI index. */
+    public static String deleteDisabledMessageKey(RoadNetwork network, Road road, int pviIndex) {
+        if (network == null || road == null || pviIndex < 0) {
+            return "plugin.road.profile_pvi_delete_disabled";
+        }
+        return forRoad(network, road).stream()
+            .filter(point -> point.pviIndex() == pviIndex)
+            .findFirst()
+            .map(point -> deleteDisabledMessageKey(network, road, point))
+            .orElse("plugin.road.profile_pvi_delete_disabled");
+    }
+
+    public static String deleteDisabledMessageKey(
+            RoadNetwork network,
+            Road road,
+            ProfileControlPoint point) {
+        if (canDelete(network, road, point)) {
+            return "plugin.road.profile_pvi_delete_disabled";
+        }
+        if (point != null
+                && (point.role() == ProfilePointRole.JUNCTION_FIXED || point.sharedJunction())) {
+            return "plugin.road.profile_pvi_delete_junction_fixed";
+        }
+        RoadVerticalAlignment alignment = road != null ? road.getVerticalAlignment() : null;
+        if (alignment != null && point != null && point.pviIndex() >= 0
+                && point.pviIndex() < alignment.pviCount()) {
+            PointOfVerticalIntersection pvi = alignment.getPvis().get(point.pviIndex());
+            if (pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+                return "plugin.road.profile_pvi_delete_junction_fixed";
+            }
+        }
+        return "plugin.road.profile_pvi_delete_disabled";
+    }
+
     /** 删除变坡点，至少保留两个端点。 */
     public static RoadVerticalAlignment removeAt(RoadVerticalAlignment source, int pviIndex) {
         if (source == null || source.pviCount() <= 2

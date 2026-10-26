@@ -241,6 +241,9 @@ class VerticalProfileControlPointsTest {
             .findFirst()
             .orElseThrow();
         assertFalse(VerticalProfileControlPoints.canDelete(network, road, middle));
+        assertEquals(
+            "plugin.road.profile_pvi_delete_junction_fixed",
+            VerticalProfileControlPoints.deleteDisabledMessageKey(network, road, middle));
         assertThrows(IllegalArgumentException.class, () ->
             VerticalProfileControlPoints.removeAt(road.getVerticalAlignment(), 1));
     }
