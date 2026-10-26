@@ -18,6 +18,7 @@ import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalAlignmentChartSeeding;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
 import java.util.ArrayList;
@@ -108,7 +109,8 @@ public final class ProfileEditorWindowSession {
             FlatVerticalIntentSupport.syncCompiledAlignment(workingNetwork, road, maxGrade);
             return;
         }
-        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
+                && !VerticalAlignmentChartSeeding.isOverdenseAutoSeed(road)) {
             return;
         }
         if (seedRoadEditorAlignment(road, config, edgeResults, fallbackChart)) {
@@ -128,7 +130,8 @@ public final class ProfileEditorWindowSession {
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
             return false;
         }
-        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
+                && !VerticalAlignmentChartSeeding.isOverdenseAutoSeed(road)) {
             return false;
         }
         Optional<RoadProfileChartData> chart = RoadProfileChartAssembler.assemble(
@@ -136,7 +139,7 @@ public final class ProfileEditorWindowSession {
         if (chart.isEmpty() && fallbackChart != null && fallbackChart.hasProfileData()) {
             chart = Optional.of(fallbackChart);
         }
-        if (chart.isPresent() && applyChartToRoadAlignment(road, chart.get())) {
+        if (chart.isPresent() && applyChartToRoadAlignment(road, chart.get(), config)) {
             return true;
         }
         if (fallbackChart != null && fallbackChart.hasProfileData()) {
@@ -145,36 +148,18 @@ public final class ProfileEditorWindowSession {
         return false;
     }
 
-    private boolean applyChartToRoadAlignment(Road road, RoadProfileChartData chart) {
-        List<PointOfVerticalIntersection> points = buildPvisFromChart(chart);
+    private boolean applyChartToRoadAlignment(
+            Road road,
+            RoadProfileChartData chart,
+            RoadSystemConfig config) {
+        List<PointOfVerticalIntersection> points = VerticalAlignmentChartSeeding.buildEditorPvisFromChart(
+            chart, workingNetwork, road, config);
         RoadVerticalAlignment alignment = new RoadVerticalAlignment(points);
         if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return bootstrapEndpointAlignmentFromChart(road, chart);
         }
         applyAlignmentToWorkingAndSnapshot(road, alignment);
         return true;
-    }
-
-    private static List<PointOfVerticalIntersection> buildPvisFromChart(RoadProfileChartData chart) {
-        var points = new ArrayList<PointOfVerticalIntersection>();
-        for (int i = 0; i < chart.stations().size(); i++) {
-            double elevation = chart.previewElevationAt(chart.stations().get(i));
-            if (Double.isFinite(elevation)) {
-                double station = chart.stations().get(i);
-                while (points.size() >= 2) {
-                    var a = points.get(points.size() - 2);
-                    var b = points.getLast();
-                    double expected = a.getElevation() + (elevation - a.getElevation())
-                        * (b.getStation() - a.getStation()) / (station - a.getStation());
-                    if (Math.abs(expected - b.getElevation()) > 1e-8) {
-                        break;
-                    }
-                    points.removeLast();
-                }
-                points.add(PointOfVerticalIntersection.of(station, elevation));
-            }
-        }
-        return points;
     }
 
     private boolean bootstrapEndpointAlignmentFromChart(Road road, RoadProfileChartData chart) {
