@@ -2,6 +2,8 @@ package com.plot.plugin.road.profile;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -103,6 +105,59 @@ class RoadProfileIntersectionResolverTest {
         assertEquals(100.0, crossing.roadStation(), 1e-6);
         assertEquals(72.0, crossing.currentRoadElevation(), 1e-6);
         assertFalse(crossing.gradeSeparated());
+    }
+
+    @Test
+    void registryCrossingUsesGeneratedProfileNotDormantAlignmentForAutoRoads() {
+        RoadNetwork network = new RoadNetwork();
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        Road roadA = network.createRoad("Main");
+        Road roadB = network.createRoad("Cross");
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadA.setProfileSource(ProfileSource.AUTO);
+        roadB.setProfileSource(ProfileSource.AUTO);
+        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 50),
+            PointOfVerticalIntersection.of(100, 50))));
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 40),
+            PointOfVerticalIntersection.of(50, 40))));
+
+        var west = network.createNode(new Vec2d(0, 0));
+        var center = network.createNode(new Vec2d(50, 0));
+        var north = network.createNode(new Vec2d(50, 50));
+        RoadEdge mainWest = network.createEdge(
+            west.getId(), center.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(50, 0)), roadA.getId());
+        network.createEdge(
+            center.getId(), north.getId(),
+            List.of(new Vec2d(50, 0), new Vec2d(50, 50)), roadB.getId());
+        network.registerCrossing(new RoadCrossing(
+            "c1",
+            roadA.getId(),
+            50.0,
+            roadB.getId(),
+            0.0,
+            new Vec2d(50, 0),
+            CrossingType.AT_GRADE,
+            null,
+            null,
+            50.0));
+
+        RoadGenerationResult profile = profileSeries(
+            List.of(0.0, 50.0),
+            List.of(70, 70),
+            List.of(71, 71),
+            List.of(72, 72));
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(mainWest.getId(), profile);
+
+        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
+            network, roadA, config, edgeResults);
+
+        assertEquals(1, intersections.size());
+        assertEquals(72.0, intersections.getFirst().currentRoadElevation(), 1e-6);
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.SegmentStation;
@@ -161,7 +162,9 @@ public final class RoadStackCrossingMaterializer {
             RoadStackCrossing stackCrossing,
             RoadNode junction) {
         junction.clearStackCrossingMetadata();
-        if (stackCrossing.sharedElevation() != null) {
+        if (stackCrossing.sharedElevation() != null
+                && VerticalProfileGenerationPolicy.isStackCrossingSharedElevationAuthoritative(
+                    network, stackCrossing)) {
             junction.setManualElevation(
                 stackCrossing.sharedElevation(),
                 com.plot.plugin.road.model.ManualElevationOrigin.CROSSING);

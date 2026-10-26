@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.SegmentStation;
 
@@ -102,7 +103,9 @@ public final class RoadCrossingMaterializer {
                     crossing.crossingClearance());
             }
         }
-        if (crossing.sharedElevation() != null) {
+        if (crossing.sharedElevation() != null
+                && VerticalProfileGenerationPolicy.isCrossingSharedElevationAuthoritative(
+                    network, crossing)) {
             junction.setManualElevation(
                 crossing.sharedElevation(),
                 com.plot.plugin.road.model.ManualElevationOrigin.CROSSING);

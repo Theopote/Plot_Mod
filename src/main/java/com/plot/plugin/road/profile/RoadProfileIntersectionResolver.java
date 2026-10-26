@@ -79,8 +79,8 @@ public final class RoadProfileIntersectionResolver {
                     config, edgeResult, intersections, designOnly);
             }
         }
-        collectFromCrossings(network, road, config, intersections);
-        collectFromStackCrossings(network, road, config, intersections);
+        collectFromCrossings(network, road, config, edgeResults, intersections, designOnly);
+        collectFromStackCrossings(network, road, config, edgeResults, intersections, designOnly);
         intersections.sort(Comparator.comparingDouble(RoadProfileIntersection::roadStation));
         return List.copyOf(intersections);
     }
@@ -89,7 +89,9 @@ public final class RoadProfileIntersectionResolver {
             RoadNetwork network,
             Road currentRoad,
             RoadSystemConfig config,
-            List<RoadProfileIntersection> out) {
+            Map<String, RoadGenerationResult> edgeResults,
+            List<RoadProfileIntersection> out,
+            boolean designOnly) {
         for (RoadCrossing crossing : network.crossingsForRoad(currentRoad.getId())) {
             String otherRoadId = crossing.otherRoadId(currentRoad.getId());
             if (otherRoadId == null) {
@@ -101,10 +103,10 @@ public final class RoadProfileIntersectionResolver {
             }
             double roadStation = crossing.stationOn(currentRoad.getId());
             double otherStation = crossing.stationOn(otherRoadId);
-            OptionalDouble currentElevation = VerticalAlignmentGeometry.elevationAt(
-                currentRoad.getVerticalAlignment(), roadStation);
-            OptionalDouble otherElevation = VerticalAlignmentGeometry.elevationAt(
-                otherRoad.getVerticalAlignment(), otherStation);
+            OptionalDouble currentElevation = resolveElevationAtRoadStation(
+                network, currentRoad, roadStation, config, edgeResults, designOnly);
+            OptionalDouble otherElevation = resolveElevationAtRoadStation(
+                network, otherRoad, otherStation, config, edgeResults, designOnly);
             if (currentElevation.isEmpty() || otherElevation.isEmpty()) {
                 continue;
             }
@@ -141,12 +143,14 @@ public final class RoadProfileIntersectionResolver {
             RoadNetwork network,
             Road currentRoad,
             RoadSystemConfig config,
-            List<RoadProfileIntersection> out) {
+            Map<String, RoadGenerationResult> edgeResults,
+            List<RoadProfileIntersection> out,
+            boolean designOnly) {
         for (RoadStackCrossing stack : network.stackCrossingsForRoad(currentRoad.getId())) {
-            OptionalDouble elevationA = VerticalAlignmentGeometry.elevationAt(
-                currentRoad.getVerticalAlignment(), stack.stationA());
-            OptionalDouble elevationB = VerticalAlignmentGeometry.elevationAt(
-                currentRoad.getVerticalAlignment(), stack.stationB());
+            OptionalDouble elevationA = resolveElevationAtRoadStation(
+                network, currentRoad, stack.stationA(), config, edgeResults, designOnly);
+            OptionalDouble elevationB = resolveElevationAtRoadStation(
+                network, currentRoad, stack.stationB(), config, edgeResults, designOnly);
             if (elevationA.isEmpty() || elevationB.isEmpty()) {
                 continue;
             }
@@ -333,6 +337,41 @@ public final class RoadProfileIntersectionResolver {
                 clearance,
                 false));
         }
+    }
+
+    private static OptionalDouble resolveElevationAtRoadStation(
+            RoadNetwork network,
+            Road road,
+            double roadStation,
+            RoadSystemConfig config,
+            Map<String, RoadGenerationResult> edgeResults,
+            boolean designOnly) {
+        if (designOnly && VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
+            return VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), roadStation);
+        }
+        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+            if (roadStation < segment.startStation() - STATION_TOLERANCE
+                    || roadStation > segment.endStation() + STATION_TOLERANCE) {
+                continue;
+            }
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge == null) {
+                continue;
+            }
+            OptionalDouble geometryLocal = segment.geometryLocalAtRoadStation(roadStation);
+            if (geometryLocal.isEmpty()) {
+                continue;
+            }
+            OptionalDouble fromProfile = interpolateProfile(
+                edgeResults.get(segment.edgeId()), edge, geometryLocal.getAsDouble());
+            if (fromProfile.isPresent()) {
+                return fromProfile;
+            }
+        }
+        if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
+            return VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), roadStation);
+        }
+        return OptionalDouble.empty();
     }
 
     private static OptionalDouble resolveCurrentElevation(

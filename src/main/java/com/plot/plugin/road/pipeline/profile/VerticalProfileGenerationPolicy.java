@@ -46,7 +46,11 @@ public final class VerticalProfileGenerationPolicy {
                     && road.getStoredVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
                 road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
             }
+            if (road.getEffectiveProfileSource() == ProfileSource.AUTO) {
+                detachNonAuthoritativeDesignProfile(road);
+            }
         }
+        clearNonAuthoritativeCrossingSharedElevations(network);
         clearStaleManualJunctionLocksOnSnapshot(network);
     }
 
@@ -81,8 +85,61 @@ public final class VerticalProfileGenerationPolicy {
             }
             detachNonAuthoritativeDesignProfile(road);
         }
+        clearNonAuthoritativeCrossingSharedElevations(generationNetwork);
         clearStaleManualJunctionLocksOnSnapshot(generationNetwork);
         return stripped;
+    }
+
+    /**
+     * 平交/叠交 sharedElevation 仅当参与道路均以 EDITED 权威生成时保留；
+     * AUTO 自动设计不得沿用旧编辑曲线传播出的交叉口标高锁。
+     */
+    public static boolean isCrossingSharedElevationAuthoritative(
+            RoadNetwork network,
+            RoadCrossing crossing) {
+        if (network == null || crossing == null || crossing.sharedElevation() == null) {
+            return false;
+        }
+        Road roadA = network.getRoad(crossing.roadAId());
+        Road roadB = network.getRoad(crossing.roadBId());
+        return roadA != null
+                && roadB != null
+                && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, roadA)
+                && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, roadB);
+    }
+
+    public static boolean isStackCrossingSharedElevationAuthoritative(
+            RoadNetwork network,
+            RoadStackCrossing stack) {
+        if (network == null || stack == null || stack.sharedElevation() == null) {
+            return false;
+        }
+        Road road = network.getRoad(stack.roadId());
+        return road != null
+                && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
+    }
+
+    /** 清除非 EDITED 权威交叉口上的 stale sharedElevation（live 与生成快照均可调用）。 */
+    public static int clearNonAuthoritativeCrossingSharedElevations(RoadNetwork network) {
+        if (network == null) {
+            return 0;
+        }
+        int cleared = 0;
+        for (RoadCrossing crossing : network.getCrossings().values()) {
+            if (crossing.sharedElevation() != null
+                    && !isCrossingSharedElevationAuthoritative(network, crossing)) {
+                network.setCrossingSharedElevation(crossing.id(), null);
+                cleared++;
+            }
+        }
+        for (RoadStackCrossing stack : network.getStackCrossings().values()) {
+            if (stack.sharedElevation() != null
+                    && !isStackCrossingSharedElevationAuthoritative(network, stack)) {
+                network.setStackCrossingSharedElevation(stack.id(), null);
+                cleared++;
+            }
+        }
+        return cleared;
     }
 
     /**
@@ -144,7 +201,7 @@ public final class VerticalProfileGenerationPolicy {
         int count = 0;
         double tolerance = RoadNetworkBuilder.NODE_TOLERANCE;
         for (RoadNode node : generationNetwork.getNodes().values()) {
-            if (node != null && hasCrossingSharedElevationLock(node, generationNetwork, tolerance)) {
+            if (node != null && hasAuthoritativeCrossingSharedElevationLock(node, generationNetwork, tolerance)) {
                 count++;
             }
         }
@@ -159,11 +216,10 @@ public final class VerticalProfileGenerationPolicy {
         }
         ManualElevationOrigin origin = node.getManualElevationOrigin();
         if (origin == ManualElevationOrigin.USER
-                || origin == ManualElevationOrigin.CROSSING
                 || origin == ManualElevationOrigin.GRADE_SEPARATED) {
             return true;
         }
-        if (hasCrossingSharedElevationLock(node, network)) {
+        if (hasAuthoritativeCrossingSharedElevationLock(node, network)) {
             return true;
         }
         if (isEditedJunctionFixedLockAtNode(node, network)) {
@@ -226,11 +282,14 @@ public final class VerticalProfileGenerationPolicy {
         return null;
     }
 
-    private static boolean hasCrossingSharedElevationLock(RoadNode node, RoadNetwork network) {
-        return hasCrossingSharedElevationLock(node, network, RoadNetworkBuilder.NODE_TOLERANCE);
+    private static boolean hasAuthoritativeCrossingSharedElevationLock(
+            RoadNode node,
+            RoadNetwork network) {
+        return hasAuthoritativeCrossingSharedElevationLock(
+            node, network, RoadNetworkBuilder.NODE_TOLERANCE);
     }
 
-    private static boolean hasCrossingSharedElevationLock(
+    private static boolean hasAuthoritativeCrossingSharedElevationLock(
             RoadNode node,
             RoadNetwork network,
             double tolerance) {
@@ -242,15 +301,17 @@ public final class VerticalProfileGenerationPolicy {
             if (crossing.sharedElevation() == null || crossing.position() == null) {
                 continue;
             }
-            if (RoadGeometryUtils.pointsNear(position, crossing.position(), tolerance)) {
+            if (RoadGeometryUtils.pointsNear(position, crossing.position(), tolerance)
+                    && isCrossingSharedElevationAuthoritative(network, crossing)) {
                 return true;
             }
         }
-        for (RoadStackCrossing crossing : network.getStackCrossings().values()) {
-            if (crossing.sharedElevation() == null || crossing.position() == null) {
+        for (RoadStackCrossing stack : network.getStackCrossings().values()) {
+            if (stack.sharedElevation() == null || stack.position() == null) {
                 continue;
             }
-            if (RoadGeometryUtils.pointsNear(position, crossing.position(), tolerance)) {
+            if (RoadGeometryUtils.pointsNear(position, stack.position(), tolerance)
+                    && isStackCrossingSharedElevationAuthoritative(network, stack)) {
                 return true;
             }
         }

@@ -6,6 +6,7 @@ import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.*;
@@ -237,7 +238,11 @@ public final class RoadProfileConstraintSynchronizer {
         for (var link : collectLinks(network, config)) {
             for (var crossing : List.of(link.a, link.b)) {
                 Road road = network.getRoad(crossing.roadId);
-                if (road == null || road.getVerticalMode() == RoadVerticalMode.FLAT) continue;
+                if (road == null
+                        || road.getVerticalMode() == RoadVerticalMode.FLAT
+                        || road.getEffectiveProfileSource() != ProfileSource.EDITED) {
+                    continue;
+                }
                 var alignment = road.getVerticalAlignment();
                 var height = VerticalAlignmentGeometry.elevationAt(alignment, crossing.station);
                 if (height.isEmpty()) continue;
