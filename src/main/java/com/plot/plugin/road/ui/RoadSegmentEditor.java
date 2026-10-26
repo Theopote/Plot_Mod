@@ -36,6 +36,7 @@ public final class RoadSegmentEditor {
 
         String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
         if (!segmentIds.contains(primaryId)) {
+            finishOrCancelSlopeOverrideEdit(ctx);
             ctx.networkManager().setPrimarySelectedEdge(segmentIds.getFirst());
             primaryId = segmentIds.getFirst();
         }
@@ -48,7 +49,8 @@ public final class RoadSegmentEditor {
             boolean selected = segmentId.equals(primaryId);
             String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
                 + " · " + PlotI18n.tr("plugin.road.segment_length", edge.getLength());
-            if (ImGui.selectable(label + "##seg_pick_" + i, selected)) {
+            if (ImGui.selectable(label + "##seg_pick_" + i, selected) && !selected) {
+                finishOrCancelSlopeOverrideEdit(ctx);
                 ctx.networkManager().setPrimarySelectedEdge(segmentId);
             }
             if (selected && segmentIds.size() > 1) {
@@ -113,7 +115,7 @@ public final class RoadSegmentEditor {
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_override_segment_hint"));
 
         if (!slopeOverrideEditEdgeId.isEmpty() && !slopeOverrideEditEdgeId.equals(edge.getId())) {
-            resetSlopeOverrideEditSession();
+            finishOrCancelSlopeOverrideEdit(ctx);
         }
         List<RoadEdge.SlopeOverride> overrides = overridesForEdit(edge);
         boolean editDeactivated = false;
@@ -183,9 +185,9 @@ public final class RoadSegmentEditor {
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
             if (ImGui.smallButton(deleteLabel + "##rm")) {
                 final int removeIndex = i;
+                finishOrCancelSlopeOverrideEdit(ctx);
                 List<RoadEdge.SlopeOverride> next = new ArrayList<>(edge.getSlopeOverrides());
                 next.remove(removeIndex);
-                resetSlopeOverrideEditSession();
                 ctx.networkManager().updateRoadSlopeOverrides(edge.getId(), next);
                 ImGui.popStyleColor(3);
                 ImGui.popID();
@@ -238,7 +240,7 @@ public final class RoadSegmentEditor {
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.add_slope_override"))) {
-            resetSlopeOverrideEditSession();
+            finishOrCancelSlopeOverrideEdit(ctx);
             List<RoadEdge.SlopeOverride> next = new ArrayList<>(edge.getSlopeOverrides());
             next.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
             ctx.networkManager().updateRoadSlopeOverrides(edge.getId(), next);
@@ -262,6 +264,17 @@ public final class RoadSegmentEditor {
         slopeOverrideEditEdgeId = edge.getId();
         slopeOverrideEditDraft = new ArrayList<>(overrides);
         ctx.beginNetworkEdit(RoadChangeKind.GENERATION_SETTINGS);
+    }
+
+    /** 切换分段、折叠面板或离开编辑区时提交或取消 Manager 侧未完成的拖动事务。 */
+    public void finishOrCancelSlopeOverrideEdit(RoadUiContext ctx) {
+        if (slopeOverrideEditEdgeId.isEmpty() || slopeOverrideEditDraft == null) {
+            return;
+        }
+        String edgeId = slopeOverrideEditEdgeId;
+        List<RoadEdge.SlopeOverride> draft = slopeOverrideEditDraft;
+        resetSlopeOverrideEditSession();
+        ctx.networkManager().finishOrCancelRoadSlopeOverrides(edgeId, draft);
     }
 
     private void resetSlopeOverrideEditSession() {

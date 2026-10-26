@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadEditSlopeOverrideInvalidationTest {
@@ -92,6 +93,33 @@ class RoadEditSlopeOverrideInvalidationTest {
         current = manager.getNetwork().getEdge(edge.getId());
         assertEquals(1, current.getSlopeOverrides().size());
         assertEquals(40.0, current.getSlopeOverrides().getFirst().endDistance, 1e-3);
+    }
+
+    @Test
+    void cancelPendingNetworkEditDiscardsStagedUndoWithoutRevisionBump() {
+        long before = manager.getNetworkRevision();
+        manager.beginNetworkEdit(RoadChangeKind.GENERATION_SETTINGS);
+
+        assertTrue(manager.hasPendingNetworkEdit());
+        manager.cancelPendingNetworkEdit();
+
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(before, manager.getNetworkRevision());
+        assertFalse(manager.canUndo());
+    }
+
+    @Test
+    void unchangedDraftCommitCancelsPendingEditWithoutRevisionBump() {
+        List<RoadEdge.SlopeOverride> existing = List.of(
+            new RoadEdge.SlopeOverride(0, 50, 5.0f));
+        manager.updateRoadSlopeOverrides(edge.getId(), existing);
+        long before = manager.getNetworkRevision();
+
+        manager.beginNetworkEdit(RoadChangeKind.GENERATION_SETTINGS);
+        manager.commitRoadSlopeOverrides(edge.getId(), existing);
+
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(before, manager.getNetworkRevision());
     }
 
     @Test

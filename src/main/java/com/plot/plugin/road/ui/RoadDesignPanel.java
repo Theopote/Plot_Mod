@@ -29,6 +29,9 @@ final class RoadDesignPanel {
     private final RoadDiagnosticsSection diagnosticsSection = new RoadDiagnosticsSection();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     private boolean forceOpenAdvancedDesign;
+    private boolean advancedDesignOpen;
+    private String lastAdvancedDesignRoadId = "";
+    private String lastAdvancedDesignEdgeId = "";
 
     RoadDesignPanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -39,17 +42,35 @@ final class RoadDesignPanel {
         diagnosticsSection.requestOpen();
     }
 
+    void finishPendingEdits() {
+        segmentSection.finishPendingEdits(ctx);
+        lastAdvancedDesignRoadId = "";
+        lastAdvancedDesignEdgeId = "";
+    }
+
     void renderAdvancedDesignSection(RoadNetwork network, Road road) {
         int headerFlags = forceOpenAdvancedDesign ? ImGuiTreeNodeFlags.DefaultOpen : 0;
         if (forceOpenAdvancedDesign) {
             forceOpenAdvancedDesign = false;
         }
-        if (!ImGui.collapsingHeader(
+        boolean open = ImGui.collapsingHeader(
             PlotI18n.tr("plugin.road.style.advanced_design"),
-            headerFlags)) {
+            headerFlags);
+        if (advancedDesignOpen && !open) {
+            finishPendingEdits();
+        }
+        advancedDesignOpen = open;
+        if (!open) {
             return;
         }
         String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
+        if (!lastAdvancedDesignRoadId.isEmpty()
+                && (!lastAdvancedDesignRoadId.equals(road.getId())
+                    || !lastAdvancedDesignEdgeId.equals(primaryId))) {
+            finishPendingEdits();
+        }
+        lastAdvancedDesignRoadId = road.getId();
+        lastAdvancedDesignEdgeId = primaryId;
         RoadEdge current = network.getEdge(primaryId);
         if (current == null) {
             return;

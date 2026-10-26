@@ -97,20 +97,13 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         return ctx;
     }
 
-    public List<RoadOverlayEntry> overlayEntries() {
-        return overlayEntries;
-    }
-
-    public List<RoadJunctionOverlayEntry> junctionOverlayEntries() {
-        return junctionOverlayEntries;
-    }
-
     public void render() {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (config == null) {
             return;
         }
 
+        RoadUiTab tabAtFrameStart = ctx.activeTab();
         ctx.roadListRename().tickFrame();
         ctx.previewManager().tickPreviewJob();
 
@@ -133,6 +126,10 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.clearPendingTab();
         }
 
+        if (tabAtFrameStart == RoadUiTab.EDIT && ctx.activeTab() != RoadUiTab.EDIT) {
+            editPanel.finishPendingEdits();
+        }
+
         ensureOverlaySnapshot();
         tickCanvasSelection();
         if (ctx.toolManager().getPathPickSession().isActive()) {
@@ -148,11 +145,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.networkManager().selectRoad(roadIds.getFirst(), false);
         }
         ctx.requestOverlayRefresh();
-    }
-
-    /** 画布叠加层渲染前：按路网 revision / 选择态刷新 snapshot，避免晚一帧。 */
-    public void refreshOverlayForCanvas() {
-        ensureOverlaySnapshot();
     }
 
     /**
@@ -278,6 +270,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
      * 离开道路插件 Tab 时清理瞬时 UI 状态（不持久化路网）。
      */
     public void onDeactivate() {
+        editPanel.finishPendingEdits();
         ctx.toolManager().cancel();
         ctx.cancelPreviewJobSilently();
         ctx.previewManager().clearPreview();

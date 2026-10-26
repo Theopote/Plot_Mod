@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui.design;
 
 import com.plot.plugin.road.ui.RoadCenterlineEditPanel;
 import com.plot.plugin.road.ui.RoadSegmentEditor;
+import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiSections;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -10,9 +11,19 @@ import imgui.ImGui;
 public final class RoadSegmentSection {
     private final RoadCenterlineEditPanel centerlineEditPanel = new RoadCenterlineEditPanel();
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
+    private boolean segmentsHeaderOpen;
+
+    public void finishPendingEdits(RoadUiContext ui) {
+        segmentEditor.finishOrCancelSlopeOverrideEdit(ui);
+    }
 
     public void render(RoadDesignSectionContext ctx) {
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.segments"))) {
+        boolean open = ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.segments"));
+        if (segmentsHeaderOpen && !open) {
+            finishPendingEdits(ctx.ui);
+        }
+        segmentsHeaderOpen = open;
+        if (!open) {
             return;
         }
         RoadUiSections.level("plugin.road.design_stack.segment_level_hint");

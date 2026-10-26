@@ -14,6 +14,7 @@ public final class RoadEditPanel {
     private final RoadEditWorkspace editWorkspace;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private final RoadJunctionPanel junctionPanel;
+    private String lastRenderedRoadScopeKey = "";
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -38,6 +39,19 @@ public final class RoadEditPanel {
         renderFocusedIntersection(network);
 
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        String scopeKey = switch (mode) {
+            case NONE -> "none";
+            case SINGLE -> {
+                var road = ctx.networkManager().getPrimarySelectedRoad();
+                yield road != null ? "single:" + road.getId() : "single:none";
+            }
+            case MULTI -> "multi:" + String.join(",", ctx.networkManager().getSelectedRoadIds());
+        };
+        if (!lastRenderedRoadScopeKey.isEmpty() && !lastRenderedRoadScopeKey.equals(scopeKey)) {
+            finishPendingEdits();
+        }
+        lastRenderedRoadScopeKey = scopeKey;
+
         switch (mode) {
             case NONE -> editWorkspace.renderNoSelectionDefaults();
             case SINGLE -> {
@@ -50,8 +64,8 @@ public final class RoadEditPanel {
         }
     }
 
-    RoadDesignPanel designPanel() {
-        return designPanel;
+    public void finishPendingEdits() {
+        designPanel.finishPendingEdits();
     }
 
     private void renderFocusedIntersection(RoadNetwork network) {

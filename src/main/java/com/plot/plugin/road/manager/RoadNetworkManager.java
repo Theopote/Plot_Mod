@@ -307,10 +307,6 @@ public final class RoadNetworkManager {
         ensureSelectionValid();
     }
 
-    public String getLastSelectedEdgeId() {
-        return lastSelectedEdgeId;
-    }
-
     public boolean canUndo() {
         return history.canUndo();
     }
@@ -826,11 +822,6 @@ public final class RoadNetworkManager {
         }
         return mutateCenterlineGeometry(
             () -> RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, localDistance));
-    }
-
-    public CenterlineEditResult insertPiAtRoadStation(Road road, String edgeId, double roadStation) {
-        return mutateCenterlineGeometry(
-            () -> RoadCenterlineEditor.insertPiAtRoadStation(network, road, edgeId, roadStation));
     }
 
     public CenterlineEditResult splitEdgeAtLocalDistance(String edgeId, double localDistance) {
@@ -1668,6 +1659,39 @@ public final class RoadNetworkManager {
         finishNetworkEdit();
     }
 
+    /**
+     * 结束坡度覆盖拖动：草稿与 live 一致则取消撤销帧，否则提交草稿。
+     * 与 {@link #beginNetworkEdit(RoadChangeKind)} 配对，用于切换分段或离开编辑区。
+     */
+    public void finishOrCancelRoadSlopeOverrides(String edgeId, List<RoadEdge.SlopeOverride> draftOverrides) {
+        if (edgeId == null || edgeId.isBlank() || draftOverrides == null) {
+            if (hasPendingNetworkEdit()) {
+                cancelPendingNetworkEdit();
+            }
+            return;
+        }
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            if (hasPendingNetworkEdit()) {
+                cancelPendingNetworkEdit();
+            }
+            return;
+        }
+        List<RoadEdge.SlopeOverride> normalized = normalizeSlopeOverrides(draftOverrides, edge.getLength());
+        if (slopeOverridesEqual(normalized, edge.getSlopeOverrides())) {
+            if (hasPendingNetworkEdit()) {
+                cancelPendingNetworkEdit();
+            }
+        } else {
+            commitRoadSlopeOverrides(edgeId, draftOverrides);
+        }
+    }
+
+    /** 是否存在尚未 {@link #commitNetworkChange()} 的撤销快照（如 ImGui 拖动中途）。 */
+    public boolean hasPendingNetworkEdit() {
+        return history.hasStagedPush();
+    }
+
     /** 丢弃未提交的撤销帧（如拖动后数值未变化）。 */
     public void cancelPendingNetworkEdit() {
         network = history.discardStagedPush(network);
@@ -1717,15 +1741,6 @@ public final class RoadNetworkManager {
         if (failure != null) {
             road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);
         }
-    }
-
-    public static List<RoadEdge.SlopeOverride> snapshotSlopeOverrides(List<RoadEdge.SlopeOverride> overrides) {
-        List<RoadEdge.SlopeOverride> copy = new ArrayList<>(overrides.size());
-        for (RoadEdge.SlopeOverride override : overrides) {
-            copy.add(new RoadEdge.SlopeOverride(
-                override.startDistance, override.endDistance, override.maxSlope));
-        }
-        return copy;
     }
 
     public static boolean slopeOverridesEqual(
