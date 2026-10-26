@@ -141,9 +141,6 @@ public final class EarthworkInsightCharts {
         drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + barH, COLOR_BORDER);
         ImGui.dummy(width, barH + 2f);
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.work_scale", work, changed));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.earthwork.difficulty_stars",
-            difficultyStars(work, cellCount)));
     }
 
     static void renderBeforeAfter(EarthworkElevationVolumeCurve curve) {
@@ -465,23 +462,6 @@ public final class EarthworkInsightCharts {
     private static float elevToY(int elev, int elevMin, int elevMax, float y0, float y1, float pad) {
         float t = (elev - elevMin) / (float) (elevMax - elevMin);
         return y1 - pad - t * (y1 - y0 - 2 * pad);
-    }
-
-    static String difficultyStars(long work, int cellCount) {
-        double load = cellCount <= 0 ? 0.0 : work / (double) cellCount;
-        int stars;
-        if (load < 1.0) {
-            stars = 1;
-        } else if (load < 2.0) {
-            stars = 2;
-        } else if (load < 4.0) {
-            stars = 3;
-        } else if (load < 8.0) {
-            stars = 4;
-        } else {
-            stars = 5;
-        }
-        return "★".repeat(stars) + "☆".repeat(5 - stars);
     }
 
     static boolean canApplyRecommendedElevation(

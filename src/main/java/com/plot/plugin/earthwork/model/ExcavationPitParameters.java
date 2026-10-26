@@ -75,12 +75,14 @@ public class ExcavationPitParameters {
     }
 
     /**
-     * Minecraft 主路径：往下挖 N 格。结构厚度与施工超挖清零，全部算进开挖深度。
+     * Minecraft 主路径只编辑合计深度。旧三字段仍用于持久化；超过单字段上限时分段存储，
+     * 避免编辑旧方案的合计深度时被静默截断到 64。
      */
     public void setDigDownBlocks(int blocks) {
-        setBasementFloorDepth(blocks);
-        setFoundationDepth(0);
-        setWorkingAllowance(0);
+        int total = Math.max(0, Math.min(192, blocks));
+        setBasementFloorDepth(Math.min(64, total));
+        setFoundationDepth(Math.min(64, Math.max(0, total - 64)));
+        setWorkingAllowance(Math.max(0, total - 128));
     }
 
     public int getDigDownBlocks() {

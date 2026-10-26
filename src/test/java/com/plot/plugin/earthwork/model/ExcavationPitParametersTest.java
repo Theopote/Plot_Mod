@@ -7,6 +7,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ExcavationPitParametersTest {
 
     @Test
+    void editingCombinedDepthDoesNotTruncateLegacyDeepPits() {
+        var pit = new ExcavationPitParameters(64, 40, 20);
+        int originalBottom = pit.pitBottomFrom(180);
+        pit.setDigDownBlocks(pit.getDigDownBlocks());
+        assertEquals(124, pit.totalExcavationDepth());
+        assertEquals(originalBottom, pit.pitBottomFrom(180));
+        pit.setDigDownBlocks(192);
+        assertEquals(192, pit.totalExcavationDepth());
+        pit.setDigDownBlocks(Integer.MAX_VALUE);
+        assertEquals(192, pit.totalExcavationDepth());
+        pit.setDigDownBlocks(-1);
+        assertEquals(0, pit.totalExcavationDepth());
+    }
+
+    @Test
     void pitBottomSubtractsFloorPlusStructuralAllowance() {
         ExcavationPitParameters pit = new ExcavationPitParameters(4, 2, 1);
         assertEquals(7, pit.totalExcavationDepth());

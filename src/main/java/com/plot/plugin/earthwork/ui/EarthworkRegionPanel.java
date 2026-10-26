@@ -14,7 +14,6 @@ import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
-import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -33,9 +32,6 @@ public final class EarthworkRegionPanel {
     private EarthworkSite cachedOverlapSite;
     private int cachedOverlapSignature;
     private List<ZoneOverlapAnalyzer.ZoneOverlap> cachedOverlaps = List.of();
-    private EarthworkProject cachedBalanceProject;
-    private int cachedBalanceSignature;
-    private ProjectGlobalBalanceAggregator.AggregatedBalance cachedBalance;
 
     public EarthworkRegionPanel(EarthworkUiContext ctx) {
         this.ctx = ctx;
@@ -189,9 +185,6 @@ public final class EarthworkRegionPanel {
             String.format("%.1f", ctx.project().getTotalArea())));
         renderSiteOverlapWarnings();
         EarthworkSite site = ctx.project().getActiveSite();
-        if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
-            renderProjectGlobalBalance(ctx.project());
-        }
         if (site != null && !site.getExclusionZones().isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.earthwork.exclusions_count",
@@ -442,38 +435,6 @@ public final class EarthworkRegionPanel {
         ImGui.spacing();
     }
 
-    private void renderProjectGlobalBalance(EarthworkProject project) {
-        if (project == null || project.getSiteCount() == 0) {
-            return;
-        }
-        ProjectGlobalBalanceAggregator.AggregatedBalance balance = resolveProjectBalance(project);
-        if (balance.sitesWithVolume() == 0) {
-            return;
-        }
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_global_balance_header"));
-        if (balance.sitesWithVolume() > 1) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.project_global_balance_sites", balance.sitesWithVolume()));
-        }
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", balance.totalCut()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", balance.totalFill()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", balance.totalCut() - balance.totalFill()));
-        if (balance.sitesWithVolume() > 1) {
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.site_volume_header"));
-            for (var snapshot : balance.bySite().values()) {
-                ImGui.bulletText(PlotI18n.tr(
-                    "plugin.earthwork.site_volume_item",
-                    snapshot.siteName(),
-                    snapshot.volumes().geometricCutVolume(),
-                    snapshot.volumes().geometricFillVolume()));
-            }
-        }
-        ImGui.spacing();
-    }
-
     private List<ZoneOverlapAnalyzer.ZoneOverlap> resolveOverlaps(EarthworkSite site) {
         int signature = overlapSignature(site);
         if (site != cachedOverlapSite || signature != cachedOverlapSignature) {
@@ -482,16 +443,6 @@ public final class EarthworkRegionPanel {
             cachedOverlaps = Collections.unmodifiableList(ZoneOverlapAnalyzer.findOverlaps(site));
         }
         return cachedOverlaps;
-    }
-
-    private ProjectGlobalBalanceAggregator.AggregatedBalance resolveProjectBalance(EarthworkProject project) {
-        int signature = projectBalanceSignature(project);
-        if (project != cachedBalanceProject || signature != cachedBalanceSignature || cachedBalance == null) {
-            cachedBalanceProject = project;
-            cachedBalanceSignature = signature;
-            cachedBalance = ProjectGlobalBalanceAggregator.aggregate(project);
-        }
-        return cachedBalance;
     }
 
     private static int overlapSignature(EarthworkSite site) {
@@ -506,29 +457,6 @@ public final class EarthworkRegionPanel {
             for (var point : zone.getOuterPoints()) {
                 signature = 31 * signature + Double.hashCode(point.x);
                 signature = 31 * signature + Double.hashCode(point.y);
-            }
-        }
-        return signature;
-    }
-
-    private static int projectBalanceSignature(EarthworkProject project) {
-        int signature = 1;
-        for (EarthworkSite site : project.getSites().values()) {
-            if (site == null) {
-                continue;
-            }
-            var report = site.getLastReport();
-            signature = 31 * signature + site.getId().hashCode();
-            signature = 31 * signature + Long.hashCode(report.geometricCutVolume());
-            signature = 31 * signature + Long.hashCode(report.geometricFillVolume());
-            signature = 31 * signature + site.getZoneCount();
-            for (GradingZone zone : site.getGradingZones().values()) {
-                if (zone == null || zone.getRegion() == null) {
-                    continue;
-                }
-                signature = 31 * signature + zone.getId().hashCode();
-                signature = 31 * signature + Long.hashCode(
-                    EarthworkPreviewIdentity.designRevision(project, zone.getRegion()));
             }
         }
         return signature;

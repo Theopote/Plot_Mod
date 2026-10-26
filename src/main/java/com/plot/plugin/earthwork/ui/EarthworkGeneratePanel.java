@@ -4,7 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
-import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -63,8 +63,8 @@ public final class EarthworkGeneratePanel {
         }
         if (ctx.config().getWorkMode().showsEngineeringMetrics()
             && ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.report"))) {
-            if (preview.projectReport != null && preview.projectReport.hasZoneBreakdown()) {
-                renderProjectBalanceReport(preview.projectReport);
+            if (preview.siteVolumeReport != null && !preview.siteVolumeReport.byZone().isEmpty()) {
+                renderSiteReport(preview.siteVolumeReport);
             }
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
                 ctx.previewManager().exportLastReport(ctx.project(), region);
@@ -326,66 +326,16 @@ public final class EarthworkGeneratePanel {
             .format(java.time.Instant.ofEpochMilli(epochMs));
     }
 
-    private void renderProjectBalanceReport(EarthworkProjectReport report) {
-        ImGui.separator();
-        String headerKey = report.hasCrossSiteBreakdown()
-            ? "plugin.earthwork.project_global_balance_header"
-            : "plugin.earthwork.project_balance_header";
-        ImGui.text(PlotI18n.tr(headerKey));
-        if (report.hasCrossSiteBreakdown()) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.earthwork.project_global_balance_sites", report.sitesWithVolume()));
-        }
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totalCut()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
-        if (report.siteWideVerticalOffset() != 0 || report.hasZoneVerticalOffsets()) {
-            if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.analysis.engineering_numbers"))) {
-                if (report.siteWideVerticalOffset() != 0) {
-                    ImGui.text(PlotI18n.tr(
-                        "plugin.earthwork.site_wide_vertical_offset",
-                        report.siteWideVerticalOffset()));
-                }
-                if (report.hasZoneVerticalOffsets()) {
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.zone_vertical_offsets_header"));
-                    for (Map.Entry<String, Integer> entry : report.zoneVerticalOffsets().entrySet()) {
-                        GradingRegion zoneRegion = ctx.project().getRegion(entry.getKey());
-                        String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
-                        ImGui.bulletText(PlotI18n.tr(
-                            "plugin.earthwork.zone_vertical_offset_item",
-                            zoneName,
-                            entry.getValue()));
-                    }
-                }
-                ImGui.treePop();
-            }
-        }
-
-        if (report.hasCrossSiteBreakdown()) {
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.site_volume_header"));
-            for (var entry : report.bySite().entrySet()) {
-                var snapshot = entry.getValue();
-                ImGui.text(PlotI18n.tr(
-                    "plugin.earthwork.site_volume_item",
-                    snapshot.siteName(),
-                    snapshot.volumes().geometricCutVolume(),
-                    snapshot.volumes().geometricFillVolume()));
-            }
-        }
-
-        ImGui.spacing();
+    private void renderSiteReport(SiteEarthworkReport report) {
+        ImGui.text(PlotI18n.tr("plugin.earthwork.current_site_report"));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totals().geometricCutVolume()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totals().geometricFillVolume()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
         for (Map.Entry<String, EarthworkVolumeReport> entry : report.byZone().entrySet()) {
-            GradingRegion zoneRegion = ctx.project().getRegion(entry.getKey());
-            String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
-            EarthworkVolumeReport zoneVolumes = entry.getValue();
-            ImGui.text(PlotI18n.tr(
-                "plugin.earthwork.zone_volume_item",
-                zoneName,
-                zoneVolumes.geometricCutVolume(),
-                zoneVolumes.geometricFillVolume()));
+            GradingRegion region = ctx.project().getRegion(entry.getKey());
+            ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_item",
+                region != null ? region.getName() : entry.getKey(),
+                entry.getValue().geometricCutVolume(), entry.getValue().geometricFillVolume()));
         }
     }
 }

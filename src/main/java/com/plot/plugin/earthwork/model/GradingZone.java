@@ -299,7 +299,10 @@ public class GradingZone {
      */
     public void syncDesignSurfaceToRegion() {
         getDesignSurface().applyTo(region);
-        type = GradingZoneType.fromSurfaceMode(region.getSurfaceMode());
+        // 平台、基坑、道路与旧景观类型携带联动/锁高语义，不能由兼容载体的曲面枚举反推覆盖。
+        if (getType().isSupportedInMvp()) {
+            type = GradingZoneType.fromSurfaceMode(region.getSurfaceMode());
+        }
     }
 
     /**
