@@ -11,6 +11,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -27,6 +28,27 @@ public final class VerticalProfileGenerationPolicy {
     private static int lastClearedPropagatedNodeLocks = 0;
 
     private VerticalProfileGenerationPolicy() {
+    }
+
+    /**
+     * 预览/采样前在 live 路网上归一化纵断面权威：失效的 EDITED 切回 AUTO，
+     * 并清除不应参与自动求解的 stale 节点标高锁。保留 dormant VA 供编辑器使用。
+     */
+    public static void prepareLiveNetworkForPreview(RoadNetwork network) {
+        if (network == null) {
+            return;
+        }
+        for (Road road : network.getRoads().values()) {
+            if (road == null) {
+                continue;
+            }
+            ResolvedProfileAuthority.invalidateEditedProfileIfStale(network, road);
+            if (road.getEffectiveProfileSource() == ProfileSource.AUTO
+                    && road.getStoredVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
+                road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+            }
+        }
+        clearStaleManualJunctionLocksOnSnapshot(network);
     }
 
     /**

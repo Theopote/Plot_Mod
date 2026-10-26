@@ -8,6 +8,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.RoadPlacementVisibility;
@@ -214,6 +215,7 @@ public final class RoadPreviewManager {
         }
 
         cancelPreviewJobSilently();
+        VerticalProfileGenerationPolicy.prepareLiveNetworkForPreview(network);
         try {
             RoadNetworkGenerator.ProfileSamplingResult sampling =
                 networkGenerator.calculateProfileSampling(network, world);
@@ -237,6 +239,7 @@ public final class RoadPreviewManager {
         }
 
         invalidateManualProfilesIfTerrainChanged(network);
+        VerticalProfileGenerationPolicy.prepareLiveNetworkForPreview(network);
 
         RoadElevationBounds elevationBounds = validationElevationBounds();
         RoadNetworkValidationReport preflight =
@@ -355,6 +358,7 @@ public final class RoadPreviewManager {
         }
 
         invalidateManualProfilesIfTerrainChanged(network);
+        VerticalProfileGenerationPolicy.prepareLiveNetworkForPreview(network);
 
         RoadElevationBounds elevationBounds = validationElevationBounds();
         RoadNetworkValidationReport preflight =

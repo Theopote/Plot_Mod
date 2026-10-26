@@ -106,10 +106,14 @@ public final class RoadCrossingReconciler {
 
     private static RoadCrossing mergeWithExisting(RoadCrossing detected, RoadCrossing existing) {
         if (existing != null) {
-            return existing.withRefreshedGeometry(
+            RoadCrossing refreshed = existing.withRefreshedGeometry(
                 detected.stationA(),
                 detected.stationB(),
                 detected.position());
+            if (geometryChanged(existing, refreshed) && refreshed.sharedElevation() != null) {
+                return refreshed.withSharedElevation(null);
+            }
+            return refreshed;
         }
         return new RoadCrossing(
             UUID.randomUUID().toString(),

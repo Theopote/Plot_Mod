@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.ui.PluginUiColors;
@@ -82,6 +83,9 @@ final class ProfileSourceControls {
         }
         ctx.beginNetworkEdit(com.plot.plugin.road.manager.RoadChangeKind.VERTICAL_PROFILE);
         road.setProfileSource(source);
+        if (source == ProfileSource.AUTO) {
+            VerticalProfileGenerationPolicy.prepareLiveNetworkForPreview(network);
+        }
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
