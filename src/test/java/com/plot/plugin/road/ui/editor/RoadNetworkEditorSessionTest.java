@@ -75,6 +75,46 @@ class RoadNetworkEditorSessionTest {
     }
 
     @Test
+    void resyncedSessionUsesCurrentLiveAsBaseline() {
+        var staleSnapshot = live.snapshot();
+        long staleRevision = manager.getNetworkRevision();
+        RoadNetworkEditorSession session = RoadNetworkEditorSession.open(
+            live,
+            staleRevision,
+            working -> CrossSectionEditorApplier.hasChanges(
+                staleSnapshot, working, roadId, manager.getConfig()));
+        session.workingNetwork().getRoad(roadId).setWidth(22);
+        assertTrue(session.isDirty());
+
+        live.getRoad(roadId).setWidth(15);
+        manager.pushHistory();
+
+        var resyncSnapshot = live.snapshot();
+        long resyncRevision = manager.getNetworkRevision();
+        RoadNetworkEditorSession resynced = RoadNetworkEditorSession.open(
+            live,
+            resyncRevision,
+            working -> CrossSectionEditorApplier.hasChanges(
+                resyncSnapshot, working, roadId, manager.getConfig()));
+
+        assertFalse(resynced.isDirty());
+        assertEquals(15, resynced.workingNetwork().getRoad(roadId).getWidth());
+
+        resynced.workingNetwork().getRoad(roadId).setWidth(18);
+        AtomicBoolean applied = new AtomicBoolean(false);
+        RoadNetworkEditorSession.ConfirmResult result = resynced.confirm(
+            resyncRevision,
+            (open, working) -> {
+                CrossSectionEditorApplier.applyToLive(live, working, roadId, manager.getConfig());
+                applied.set(true);
+            });
+
+        assertEquals(RoadNetworkEditorSession.ConfirmResult.APPLIED, result);
+        assertTrue(applied.get());
+        assertEquals(18, live.getRoad(roadId).getWidth());
+    }
+
+    @Test
     void confirmAppliesChangesWhenRevisionMatches() {
         var openSnapshot = live.snapshot();
         long revision = manager.getNetworkRevision();

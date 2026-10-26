@@ -82,6 +82,24 @@ class FloatingEditorCommitTest {
     }
 
     @Test
+    void commitNetworkEditRollsBackWhenFinishFails() {
+        long revisionBefore = manager.getNetworkRevision();
+        AtomicInteger revisionNotifications = new AtomicInteger();
+        manager.setOnNetworkChanged(kind -> revisionNotifications.incrementAndGet());
+
+        assertThrows(IllegalStateException.class, () -> commitNetworkEditSimulatingFinishFailure(
+            ctx,
+            RoadChangeKind.CROSS_SECTION,
+            () -> manager.getNetwork().getRoad(roadId).setWidth(99)));
+
+        assertEquals(widthBeforeFailure, manager.getNetwork().getRoad(roadId).getWidth());
+        assertEquals(revisionBefore, manager.getNetworkRevision());
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(0, revisionNotifications.get());
+        assertTrue(manager.getNetwork().validateInvariants().isValid());
+    }
+
+    @Test
     void commitNetworkEditCommitsOnSuccess() {
         long revisionBefore = manager.getNetworkRevision();
 
@@ -92,5 +110,20 @@ class FloatingEditorCommitTest {
         assertEquals(14, manager.getNetwork().getRoad(roadId).getWidth());
         assertEquals(revisionBefore + 1, manager.getNetworkRevision());
         assertFalse(manager.hasPendingNetworkEdit());
+    }
+
+    /** Mirrors {@link RoadUiContext#commitNetworkEdit} when {@code finishNetworkEdit()} throws. */
+    private static void commitNetworkEditSimulatingFinishFailure(
+            RoadUiContext ctx,
+            RoadChangeKind kind,
+            Runnable mutation) {
+        ctx.networkManager().beginNetworkEdit(kind);
+        try {
+            mutation.run();
+            throw new IllegalStateException("finish failed");
+        } catch (RuntimeException ex) {
+            ctx.networkManager().cancelPendingNetworkEdit();
+            throw ex;
+        }
     }
 }

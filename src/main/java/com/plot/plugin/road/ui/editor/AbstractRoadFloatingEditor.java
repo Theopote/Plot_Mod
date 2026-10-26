@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -17,6 +18,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     protected boolean closeConfirmPending;
     protected boolean focusOnOpen;
     protected boolean scopeBlocked;
+    protected boolean revisionConflictPending;
 
     protected abstract RoadFloatingEditorKind editorKind();
 
@@ -97,6 +99,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                     80f,
                     ImGui.getContentRegionAvailY() - RoadFloatingEditorShell.FOOTER_RESERVE_HEIGHT);
                 ImGui.beginChild("##floating_editor_body", 0f, bodyHeight, false);
+                renderRevisionConflictBanner(ctx);
                 renderWindowBody(ctx);
                 ImGui.endChild();
                 ImGui.spacing();
@@ -141,6 +144,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         windowOpen.set(false);
         closeConfirmPending = false;
         scopeBlocked = false;
+        revisionConflictPending = false;
         if (session != null) {
             session.cancel();
         }
@@ -155,6 +159,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         focusOnOpen = true;
         closeConfirmPending = false;
         scopeBlocked = false;
+        revisionConflictPending = false;
     }
 
     protected void restoreSession() {
@@ -185,6 +190,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                 yield true;
             }
             case CONFLICT -> {
+                revisionConflictPending = true;
                 ctx.status().warning(
                     PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
                 yield false;
@@ -228,5 +234,27 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
 
     protected void commitWithHistory(RoadUiContext ctx, Runnable mutation) {
         ctx.commitNetworkEdit(confirmChangeKind(), mutation);
+    }
+
+    protected void resyncSessionFromLive(RoadUiContext ctx) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        session = createSession(ctx, roadId);
+        revisionConflictPending = false;
+        ctx.status().info(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_done"));
+    }
+
+    private void renderRevisionConflictBanner(RoadUiContext ctx) {
+        if (!revisionConflictPending) {
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live") + "##reload_live")) {
+            resyncSessionFromLive(ctx);
+        }
+        ImGui.separator();
     }
 }

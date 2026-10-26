@@ -15,6 +15,10 @@ import com.plot.plugin.road.model.facility.RoadFacilityKind;
 import com.plot.plugin.road.model.facility.RoadFacilitySide;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.station.RoadStationing;
 import org.junit.jupiter.api.Test;
 
@@ -56,6 +60,64 @@ class CenterlineEditorCrossingAndFacilityTest {
         assertTrue(live.validateInvariants().isValid(), live.validateInvariants().violations().toString());
         IntersectionProbeResult probe = RoadCrossingReconciler.probeRegistryCompleteness(live);
         assertFalse(probe.hasPendingWork(), "crossing registry should match geometry after apply");
+    }
+
+    @Test
+    void applyToLivePreservesCrossingAfterSplitMergeAndReconcile() {
+        RoadNetwork live = new RoadNetwork();
+        CrossingFixture fixture = createPerpendicularCrossing(live);
+        RoadCrossing original = live.getCrossings().values().iterator().next();
+        String originalId = original.id();
+        double stationOnHorizontalBefore = original.stationOn(fixture.horizontalRoadId());
+
+        RoadNetwork working = live.snapshot().snapshot();
+        String horizontalEdgeId = working.getRoad(fixture.horizontalRoadId()).getOrderedSegmentIds().getFirst();
+        CenterlineEditResult split =
+            RoadCenterlineEditor.splitAtLocalDistance(working, horizontalEdgeId, 5.0);
+        assertTrue(split.isSuccess());
+        assertTrue(RoadCenterlineEditor.mergeThroughNode(working, split.nodeId()).isSuccess());
+
+        applyCenterlineWithCrossingRefresh(live, working, fixture.horizontalRoadId());
+
+        RoadCrossing updated = live.getCrossing(originalId);
+        assertNotNull(updated);
+        assertEquals(originalId, updated.id());
+        assertEquals(stationOnHorizontalBefore, updated.stationOn(fixture.horizontalRoadId()), 0.5);
+        assertEquals(1.0, updated.position().x, EPS);
+        assertEquals(5.0, updated.position().y, EPS);
+        assertEquals(1, live.getRoad(fixture.horizontalRoadId()).getOrderedSegmentIds().size());
+        assertTrue(live.validateInvariants().isValid(), live.validateInvariants().violations().toString());
+        assertFalse(RoadCrossingReconciler.probeRegistryCompleteness(live).hasPendingWork());
+    }
+
+    @Test
+    void applyToLivePropagatesMirroredVariableCrossSectionsAfterReverse() {
+        RoadNetwork live = new RoadNetwork();
+        RoadNode start = live.createNode(new Vec2d(0, 0));
+        RoadNode end = live.createNode(new Vec2d(100, 0));
+        Road road = live.createRoad("reverse-vcs");
+        String roadId = road.getId();
+        live.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)),
+            roadId);
+        RoadCrossSection roadDefault = sectionWithWidth(6);
+        road.setCrossSection(roadDefault);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(80.0, sectionWithWidth(12))
+        )));
+
+        RoadNetwork working = live.snapshot().snapshot();
+        assertTrue(RoadCenterlineEditor.reverseRoad(working, working.getRoad(roadId)).isSuccess());
+
+        applyCenterlineWithCrossingRefresh(live, working, roadId);
+
+        Road liveRoad = live.getRoad(roadId);
+        assertNotNull(liveRoad.getVariableCrossSections());
+        assertEquals(12, widthOf(VariableCrossSectionResolver.resolveTemplate(liveRoad, 10.0)));
+        assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(liveRoad, 50.0)));
+        assertTrue(live.validateInvariants().isValid(), live.validateInvariants().violations().toString());
     }
 
     @Test
@@ -126,5 +188,15 @@ class CenterlineEditorCrossingAndFacilityTest {
     }
 
     private record CrossingFixture(String horizontalRoadId, String verticalRoadId) {
+    }
+
+    private static RoadCrossSection sectionWithWidth(int width) {
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setWidth(width);
+        return section;
+    }
+
+    private static int widthOf(RoadCrossSection section) {
+        return section.getCarriageway().getWidth();
     }
 }
