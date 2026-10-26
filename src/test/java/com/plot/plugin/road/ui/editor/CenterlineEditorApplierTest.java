@@ -6,6 +6,10 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -20,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class CenterlineEditorApplierTest {
 
@@ -95,6 +100,39 @@ class CenterlineEditorApplierTest {
         assertNotNull(live.getEdge(split.secondEdgeId()));
         assertEquals(40.0, live.getEdge(split.firstEdgeId()).getLength(), 1e-6);
         assertEquals(60.0, live.getEdge(split.secondEdgeId()).getLength(), 1e-6);
+        assertTrue(live.validateInvariants().isValid(), live.validateInvariants().violations().toString());
+        assertNotNull(live.getNode(split.nodeId()));
+    }
+
+    @Test
+    void applyToLiveSyncsMergeTopologyAndPreservesInvariants() {
+        RoadNetwork mergeLive = new RoadNetwork();
+        Road mergeRoad = mergeLive.createRoad("merge");
+        String mergeRoadId = mergeRoad.getId();
+        RoadNode n1 = mergeLive.createNode(new Vec2d(0, 0));
+        RoadNode n2 = mergeLive.createNode(new Vec2d(50, 0));
+        RoadNode n3 = mergeLive.createNode(new Vec2d(100, 0));
+        mergeLive.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), mergeRoadId);
+        mergeLive.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), mergeRoadId);
+
+        RoadNetwork openSnapshot = mergeLive.snapshot();
+        RoadNetwork working = openSnapshot.snapshot();
+
+        CenterlineEditResult merge = RoadCenterlineEditor.mergeThroughNode(working, n2.getId());
+        assertTrue(merge.isSuccess());
+        assertEquals(1, working.getRoad(mergeRoadId).getOrderedSegmentIds().size());
+
+        CenterlineEditorApplier.applyToLive(mergeLive, working, mergeRoadId);
+
+        assertEquals(1, mergeLive.getRoad(mergeRoadId).getOrderedSegmentIds().size());
+        assertEquals(
+            100.0,
+            mergeLive.getEdge(mergeLive.getRoad(mergeRoadId).getOrderedSegmentIds().getFirst()).getLength(),
+            1e-6);
+        assertTrue(mergeLive.validateInvariants().isValid(), mergeLive.validateInvariants().violations().toString());
+        assertDoesNotThrow(() -> mergeLive.getNode(n2.getId()));
     }
 
     @Test
@@ -133,6 +171,75 @@ class CenterlineEditorApplierTest {
         assertEquals(RoadNetworkEditorSession.ConfirmResult.APPLIED, result);
         assertTrue(applied.get());
         assertEquals(3, live.getEdge(edgeId).getCenterlinePoints().size());
+    }
+
+    @Test
+    void applyToLivePreservesEditedProfileAfterPiInsert() {
+        RoadNetworkManager manager = new RoadNetworkManager(new RoadSystemConfig("test"), new RoadProjectStatus());
+        live = manager.getNetwork();
+        Road road = live.createRoad("profile");
+        roadId = road.getId();
+        RoadNode start = live.createNode(new Vec2d(0, 0));
+        RoadNode end = live.createNode(new Vec2d(100, 0));
+        RoadEdge edge = live.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)),
+            roadId);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(100.0, 66.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+
+        RoadNetwork working = live.snapshot().snapshot();
+        assertTrue(RoadCenterlineEditor.insertPiAtLocalDistance(working, edge.getId(), 40.0).isSuccess());
+
+        ctxCommitCenterline(manager, working, roadId);
+        manager.invalidateEditedProfilesIfGeometryChanged();
+
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+        assertEquals(2, road.getVerticalAlignment().pviCount());
+        assertEquals(0.0, road.getVerticalAlignment().getPvis().getFirst().getStation(), 1e-6);
+        assertEquals(100.0, road.getVerticalAlignment().getPvis().get(1).getStation(), 1e-6);
+    }
+
+    @Test
+    void applyToLiveInvalidatesEditedProfileAfterSplit() {
+        RoadNetworkManager manager = new RoadNetworkManager(new RoadSystemConfig("test"), new RoadProjectStatus());
+        live = manager.getNetwork();
+        Road road = live.createRoad("split-profile");
+        roadId = road.getId();
+        RoadNode start = live.createNode(new Vec2d(0, 0));
+        RoadNode end = live.createNode(new Vec2d(100, 0));
+        RoadEdge edge = live.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)),
+            roadId);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(100.0, 66.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+
+        RoadNetwork working = live.snapshot().snapshot();
+        assertTrue(RoadCenterlineEditor.splitAtLocalDistance(working, edge.getId(), 40.0).isSuccess());
+
+        ctxCommitCenterline(manager, working, roadId);
+        manager.invalidateEditedProfilesIfGeometryChanged();
+
+        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+        assertEquals(2, road.getOrderedSegmentIds().size());
+    }
+
+    private static void ctxCommitCenterline(RoadNetworkManager manager, RoadNetwork working, String roadId) {
+        manager.beginNetworkEdit(com.plot.plugin.road.manager.RoadChangeKind.GEOMETRY);
+        try {
+            CenterlineEditorApplier.applyToLive(manager.getNetwork(), working, roadId);
+            manager.finishNetworkEdit();
+        } catch (RuntimeException ex) {
+            manager.cancelPendingNetworkEdit();
+            throw ex;
+        }
     }
 
     @Test

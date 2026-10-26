@@ -86,27 +86,37 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         }
         RoadFloatingEditorShell.prepareWindow(windowImGuiId(), windowOpen, focusOnOpen);
         focusOnOpen = false;
-        if (!ImGui.begin(
-                PlotI18n.tr(windowTitleKey()) + windowImGuiId(),
-                windowOpen,
-                RoadFloatingEditorShell.WINDOW_FLAGS)) {
-            handleWindowCloseRequest(ctx);
-            session = null;
-            return;
-        }
+
+        boolean visible = ImGui.begin(
+            PlotI18n.tr(windowTitleKey()) + windowImGuiId(),
+            windowOpen,
+            RoadFloatingEditorShell.WINDOW_FLAGS);
         try {
-            renderWindowBody(ctx);
-            ImGui.spacing();
-            RoadFloatingEditorShell.renderFooter(
-                ctx,
-                isDirty(),
-                () -> restoreSession(),
-                () -> discard(ctx),
-                () -> confirm(ctx));
+            if (visible) {
+                float bodyHeight = Math.max(
+                    80f,
+                    ImGui.getContentRegionAvailY() - RoadFloatingEditorShell.FOOTER_RESERVE_HEIGHT);
+                ImGui.beginChild("##floating_editor_body", 0f, bodyHeight, false);
+                renderWindowBody(ctx);
+                ImGui.endChild();
+                ImGui.spacing();
+                RoadFloatingEditorShell.renderFooter(
+                    ctx,
+                    isDirty(),
+                    () -> restoreSession(),
+                    () -> discard(ctx),
+                    () -> confirm(ctx));
+            }
         } finally {
             ImGui.end();
         }
+
+        if (!visible) {
+            handleWindowCloseRequest(ctx);
+        }
+
         renderCloseConfirmDialog(ctx);
+
         if (!windowOpen.get()) {
             session = null;
         }
@@ -153,30 +163,40 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         }
     }
 
-    protected void confirm(RoadUiContext ctx) {
+    /**
+     * @return true 若已应用、无变更关闭，或成功丢弃；false 若版本冲突等导致未写回
+     */
+    protected boolean confirm(RoadUiContext ctx) {
         if (session == null) {
-            return;
+            return false;
         }
         long liveRevision = ctx.networkManager().getNetworkRevision();
         RoadNetworkEditorSession.ConfirmResult result = session.confirm(
             liveRevision,
             (open, working) -> commitWithHistory(ctx, () -> applySessionToLive(ctx)));
-        switch (result) {
-            case NO_CHANGES -> discard(ctx);
+        return switch (result) {
+            case NO_CHANGES -> {
+                discard(ctx);
+                yield true;
+            }
             case APPLIED -> {
                 ctx.requestOverlayRefresh();
                 discard(ctx);
+                yield true;
             }
-            case CONFLICT -> ctx.status().warning(
-                PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
-            default -> { }
-        }
+            case CONFLICT -> {
+                ctx.status().warning(
+                    PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
+                yield false;
+            }
+        };
     }
 
     private void handleWindowCloseRequest(RoadUiContext ctx) {
         if (session != null && session.isDirty()) {
             windowOpen.set(true);
             closeConfirmPending = true;
+            scopeBlocked = true;
             return;
         }
         discard(ctx);
@@ -188,9 +208,12 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             closeConfirmPending,
             () -> closeConfirmPending = false,
             () -> {
-                confirm(ctx);
-                closeConfirmPending = false;
-                scopeBlocked = false;
+                boolean applied = confirm(ctx);
+                if (applied) {
+                    closeConfirmPending = false;
+                    scopeBlocked = false;
+                }
+                return applied;
             },
             () -> {
                 discard(ctx);
@@ -204,8 +227,6 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     }
 
     protected void commitWithHistory(RoadUiContext ctx, Runnable mutation) {
-        ctx.beginNetworkEdit(confirmChangeKind());
-        mutation.run();
-        ctx.finishNetworkEdit();
+        ctx.commitNetworkEdit(confirmChangeKind(), mutation);
     }
 }

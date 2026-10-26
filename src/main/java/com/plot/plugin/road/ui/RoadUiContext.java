@@ -346,6 +346,21 @@ public final class RoadUiContext {
         networkManager.finishNetworkEdit();
     }
 
+    /**
+     * 浮动编辑器确认写回：begin → mutation → finish；异常时取消未提交快照。
+     */
+    public void commitNetworkEdit(RoadChangeKind kind, Runnable mutation) {
+        Objects.requireNonNull(mutation, "mutation");
+        networkManager.beginNetworkEdit(kind);
+        try {
+            mutation.run();
+            networkManager.finishNetworkEdit();
+        } catch (RuntimeException ex) {
+            networkManager.cancelPendingNetworkEdit();
+            throw ex;
+        }
+    }
+
     /** {@link RoadNetworkManager#mutateNetwork(Runnable)} */
     public void editNetwork(Runnable mutation) {
         networkManager.mutateNetwork(mutation);

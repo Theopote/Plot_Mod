@@ -16,16 +16,6 @@ import imgui.flag.ImGuiTabItemFlags;
 /** 横断面 / 材质设计器浮动窗口。 */
 public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor {
 
-    private enum ParamTab {
-        STRUCTURE,
-        SIDEWALKS,
-        SLOPE,
-        MATERIALS,
-        FURNITURE
-    }
-
-    private ParamTab activeTab = ParamTab.STRUCTURE;
-
     @Override
     protected RoadFloatingEditorKind editorKind() {
         return RoadFloatingEditorKind.CROSS_SECTION;
@@ -94,50 +84,45 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.structure"),
                 ImGuiTabItemFlags.None)) {
-                activeTab = ParamTab.STRUCTURE;
                 CrossSectionDraftEditor.renderCrossSection(
                     ctx,
                     mutator,
-                    CrossSectionDraftEditorOptions.styleAdvanced());
+                    CrossSectionDraftEditorOptions.styleFloatingStructure());
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.sidewalks"),
                 ImGuiTabItemFlags.None)) {
-                activeTab = ParamTab.SIDEWALKS;
                 CrossSectionDraftEditor.renderCrossSection(
                     ctx,
                     mutator,
-                    CrossSectionDraftEditorOptions.styleAppearance());
+                    CrossSectionDraftEditorOptions.styleFloatingStrips());
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.slope"),
                 ImGuiTabItemFlags.None)) {
-                activeTab = ParamTab.SLOPE;
                 CrossSectionDraftEditorOptions slopeOpts = new CrossSectionDraftEditorOptions(
-                    "xs_slope", false, null, false, true, true, false, false);
+                    "xs_slope", false, null, false, false, true, false, false);
                 CrossSectionDraftEditor.renderCrossSection(ctx, mutator, slopeOpts);
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.materials"),
                 ImGuiTabItemFlags.None)) {
-                activeTab = ParamTab.MATERIALS;
                 CrossSectionDraftEditor.renderMaterials(
                     ctx,
                     mutator,
-                    CrossSectionDraftEditorOptions.styleAppearance());
+                    CrossSectionDraftEditorOptions.styleBatch());
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.furniture"),
                 ImGuiTabItemFlags.None)) {
-                activeTab = ParamTab.FURNITURE;
                 CrossSectionDraftEditor.renderFurniture(
                     ctx,
                     mutator,
-                    CrossSectionDraftEditorOptions.styleAppearance());
+                    CrossSectionDraftEditorOptions.styleBatch());
                 ImGui.endTabItem();
             }
             ImGui.endTabBar();

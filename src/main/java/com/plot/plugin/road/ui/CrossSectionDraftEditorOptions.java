@@ -43,6 +43,18 @@ public record CrossSectionDraftEditorOptions(
         return new CrossSectionDraftEditorOptions("style_adv", false, null, true, false, true, false, false);
     }
 
+    /** 浮动横断面设计器 · 结构：行车道宽度、车道数、分车道宽（不含边坡与路肩条带）。 */
+    public static CrossSectionDraftEditorOptions styleFloatingStructure() {
+        return new CrossSectionDraftEditorOptions(
+            "xs_structure", false, null, true, false, false, true, false);
+    }
+
+    /** 浮动横断面设计器 · 路肩/人行道/中央分隔等条带（不含行车道核心与边坡）。 */
+    public static CrossSectionDraftEditorOptions styleFloatingStrips() {
+        return new CrossSectionDraftEditorOptions(
+            "xs_strips", false, null, false, false, false, false, true);
+    }
+
     /** 样式 Tab 批量编辑：材质与附属设施。 */
     public static CrossSectionDraftEditorOptions styleBatch() {
         return new CrossSectionDraftEditorOptions("style_batch", false, null, false, false, false, false, false);

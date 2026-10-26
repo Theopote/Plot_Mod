@@ -9,6 +9,8 @@ import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * 共享 ImGui 浮动编辑器壳：窗口尺寸、页脚与关闭确认弹窗。
  */
@@ -16,6 +18,8 @@ public final class RoadFloatingEditorShell {
     private static final float WINDOW_SIZE_OF_SCREEN = 0.55f;
     private static final float WINDOW_MIN_SIZE_OF_SCREEN = 0.35f;
     private static final float WINDOW_MAX_SIZE_OF_SCREEN = 0.85f;
+    /** 为页脚按钮预留高度，避免内容区挤占确认/取消。 */
+    static final float FOOTER_RESERVE_HEIGHT = 56f;
 
     static final int WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse
@@ -43,7 +47,7 @@ public final class RoadFloatingEditorShell {
             ImGui.getIO().getDisplaySizeY() * WINDOW_MAX_SIZE_OF_SCREEN);
     }
 
-    public static boolean renderFooter(
+    public static void renderFooter(
             RoadUiContext ctx,
             boolean dirty,
             Runnable onRestore,
@@ -77,14 +81,13 @@ public final class RoadFloatingEditorShell {
             ImGui.sameLine();
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.floating_editor.unsaved_hint"));
         }
-        return false;
     }
 
     public static boolean renderCloseConfirmDialog(
             String popupId,
             boolean pending,
             Runnable clearPending,
-            Runnable onApplyAndClose,
+            BooleanSupplier onApplyAndClose,
             Runnable onDiscardAndClose,
             Runnable onContinueEditing) {
         if (!RoadUiWidgets.beginDeferredPopupModal(popupId, pending, clearPending)) {
@@ -94,8 +97,9 @@ public final class RoadFloatingEditorShell {
             ImGui.textWrapped(PlotI18n.tr("plugin.road.floating_editor.close_confirm_message"));
             ImGui.separator();
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.confirm") + "##close_apply", 120, 0)) {
-                onApplyAndClose.run();
-                ImGui.closeCurrentPopup();
+                if (onApplyAndClose.getAsBoolean()) {
+                    ImGui.closeCurrentPopup();
+                }
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.discard") + "##close_discard", 120, 0)) {
