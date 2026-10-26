@@ -18,6 +18,8 @@ import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 
+import java.util.List;
+
 /**
  * 生成快照上的纵断面策略：仅保留当前权威来源（自动或编辑曲线），
  * 剥离非权威的 dormant VA；live 网路上保存的编辑曲线供编辑器显示。
@@ -89,8 +91,8 @@ public final class VerticalProfileGenerationPolicy {
     }
 
     /**
-     * 平交/叠交 sharedElevation 仅当参与道路均以 EDITED 权威生成时保留；
-     * AUTO 自动设计不得沿用旧编辑曲线传播出的交叉口标高锁。
+     * 生成物化时是否将 crossing sharedElevation 写入节点锁。
+     * 严格条件：双路 EDITED 或用户 USER 锁；混合 AUTO 不参与物化，避免锁死自动道路。
      */
     public static boolean isCrossingSharedElevationAuthoritative(
             RoadNetwork network,
@@ -107,6 +109,24 @@ public final class VerticalProfileGenerationPolicy {
                 && roadB != null
                 && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, roadA)
                 && ResolvedProfileAuthority.usesEditedProfileForGeneration(network, roadB);
+    }
+
+    /**
+     * live 注册表是否保留 sharedElevation（单路切 AUTO 清理 stale 时不误伤 partner 约束）。
+     */
+    static boolean shouldPreserveCrossingSharedElevationInRegistry(
+            RoadNetwork network,
+            RoadCrossing crossing) {
+        if (network == null || crossing == null || crossing.sharedElevation() == null) {
+            return false;
+        }
+        if (isCrossingSharedElevationAuthoritative(network, crossing)) {
+            return true;
+        }
+        if (sharedElevationRequiredByEditedPartner(network, crossing)) {
+            return true;
+        }
+        return involvesFlatPartner(network, crossing);
     }
 
     /** 节点 USER 锁与 crossing sharedElevation 一致时视为用户明确锁定的平交标高。 */
@@ -129,6 +149,58 @@ public final class VerticalProfileGenerationPolicy {
                 continue;
             }
             return Math.abs(node.getManualElevation() - shared) <= 1e-6;
+        }
+        return false;
+    }
+
+    private static boolean sharedElevationRequiredByEditedPartner(
+            RoadNetwork network,
+            RoadCrossing crossing) {
+        Double shared = crossing.sharedElevation();
+        for (String roadId : List.of(crossing.roadAId(), crossing.roadBId())) {
+            Road road = network.getRoad(roadId);
+            if (road == null || !editedPartnerMayRequireSharedElevation(road)) {
+                continue;
+            }
+            double station = crossing.stationOn(roadId);
+            if (hasJunctionFixedElevationAtStation(road, station, shared)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** live 注册表：partner 保存的 EDITED 曲线约束，不要求其当前为生成权威。 */
+    private static boolean editedPartnerMayRequireSharedElevation(Road road) {
+        return road.getEffectiveProfileSource() == ProfileSource.EDITED
+                || ResolvedProfileAuthority.hasStoredEditedCurve(road);
+    }
+
+    private static boolean hasJunctionFixedElevationAtStation(
+            Road road,
+            double station,
+            Double expectedElevation) {
+        if (road.getVerticalAlignment() == null || expectedElevation == null) {
+            return false;
+        }
+        for (var pvi : road.getVerticalAlignment().getPvis()) {
+            if (Math.abs(pvi.getStation() - station) > STATION_TOLERANCE) {
+                continue;
+            }
+            if (pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED) {
+                continue;
+            }
+            return Math.abs(pvi.getElevation() - expectedElevation) <= 1e-6;
+        }
+        return false;
+    }
+
+    private static boolean involvesFlatPartner(RoadNetwork network, RoadCrossing crossing) {
+        for (String roadId : List.of(crossing.roadAId(), crossing.roadBId())) {
+            Road road = network.getRoad(roadId);
+            if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT) {
+                return true;
+            }
         }
         return false;
     }
@@ -167,7 +239,7 @@ public final class VerticalProfileGenerationPolicy {
                 continue;
             }
             if (crossing.sharedElevation() != null
-                    && !isCrossingSharedElevationAuthoritative(network, crossing)) {
+                    && !shouldPreserveCrossingSharedElevationInRegistry(network, crossing)) {
                 network.setCrossingSharedElevation(crossing.id(), null);
                 cleared++;
             }

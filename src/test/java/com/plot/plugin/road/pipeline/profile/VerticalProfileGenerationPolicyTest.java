@@ -11,6 +11,7 @@ import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -291,6 +292,174 @@ class VerticalProfileGenerationPolicyTest {
     }
 
     @Test
+    void explicitAutoOnMixedCrossingPreservesEditedPartnerJunctionFixedElevation() {
+        RoadNetwork network = new RoadNetwork();
+        Road autoRoad = network.createRoad("auto");
+        Road editedRoad = network.createRoad("edited");
+        autoRoad.setProfileSource(ProfileSource.EDITED);
+        autoRoad.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        editedRoad.setProfileSource(ProfileSource.EDITED);
+        editedRoad.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        autoRoad.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(50.0, 75.0))));
+        editedRoad.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 68.0),
+            new PointOfVerticalIntersection(
+                30.0, 75.0, null, VerticalControlPointConstraint.JUNCTION_FIXED),
+            PointOfVerticalIntersection.of(60.0, 72.0))));
+        addCrossingEdges(network, autoRoad, editedRoad, 50.0, 30.0);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, autoRoad);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, editedRoad);
+
+        network.registerCrossing(new RoadCrossing(
+            "mixed",
+            autoRoad.getId(),
+            50.0,
+            editedRoad.getId(),
+            30.0,
+            new Vec2d(50, 0),
+            null,
+            null,
+            null,
+            75.0));
+
+        autoRoad.setProfileSource(ProfileSource.AUTO);
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, autoRoad.getId());
+
+        assertEquals(75.0, network.getCrossing("mixed").sharedElevation());
+        assertEquals(
+            VerticalControlPointConstraint.JUNCTION_FIXED,
+            editedRoad.getVerticalAlignment().getPvis().get(1).getConstraint());
+    }
+
+    @Test
+    void explicitAutoOnMixedCrossingPreservesFlatPartnerSharedElevation() {
+        RoadNetwork network = new RoadNetwork();
+        Road autoRoad = network.createRoad("auto");
+        Road flatRoad = network.createRoad("flat");
+        autoRoad.setProfileSource(ProfileSource.AUTO);
+        autoRoad.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        flatRoad.setVerticalMode(RoadVerticalMode.FLAT);
+        addCrossingEdges(network, autoRoad, flatRoad, 50.0, 30.0);
+
+        network.registerCrossing(new RoadCrossing(
+            "flat-mix",
+            autoRoad.getId(),
+            50.0,
+            flatRoad.getId(),
+            30.0,
+            new Vec2d(50, 0),
+            null,
+            null,
+            null,
+            72.0));
+
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, autoRoad.getId());
+
+        assertEquals(72.0, network.getCrossing("flat-mix").sharedElevation());
+    }
+
+    @Test
+    void explicitAutoOnOneRoadDoesNotClearUnrelatedEditedCrossing() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        Road roadB = network.createRoad("b");
+        Road roadC = network.createRoad("c");
+        for (Road road : List.of(roadA, roadB, roadC)) {
+            road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+            road.setProfileSource(ProfileSource.EDITED);
+            road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+                PointOfVerticalIntersection.of(0.0, 70.0),
+                PointOfVerticalIntersection.of(100.0, 70.0))));
+        }
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, roadA);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, roadB);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, roadC);
+
+        network.registerCrossing(new RoadCrossing(
+            "bc",
+            roadB.getId(),
+            50.0,
+            roadC.getId(),
+            50.0,
+            new Vec2d(100, 50),
+            null,
+            null,
+            null,
+            70.0));
+
+        roadA.setProfileSource(ProfileSource.AUTO);
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, roadA.getId());
+
+        assertEquals(70.0, network.getCrossing("bc").sharedElevation());
+    }
+
+    @Test
+    void preservedMixedCrossingRemainsOutOfGenerationMaterialization() {
+        RoadNetwork network = new RoadNetwork();
+        Road autoRoad = network.createRoad("auto");
+        Road editedRoad = network.createRoad("edited");
+        autoRoad.setProfileSource(ProfileSource.AUTO);
+        autoRoad.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        editedRoad.setProfileSource(ProfileSource.EDITED);
+        editedRoad.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        editedRoad.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 68.0),
+            new PointOfVerticalIntersection(
+                30.0, 75.0, null, VerticalControlPointConstraint.JUNCTION_FIXED),
+            PointOfVerticalIntersection.of(60.0, 72.0))));
+        addCrossingEdges(network, autoRoad, editedRoad, 50.0, 30.0);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, editedRoad);
+
+        RoadCrossing crossing = new RoadCrossing(
+            "mixed-gen",
+            autoRoad.getId(),
+            50.0,
+            editedRoad.getId(),
+            30.0,
+            new Vec2d(50, 0),
+            null,
+            null,
+            null,
+            75.0);
+        network.registerCrossing(crossing);
+
+        assertTrue(VerticalProfileGenerationPolicy
+            .shouldPreserveCrossingSharedElevationInRegistry(network, crossing));
+        assertTrue(!VerticalProfileGenerationPolicy
+            .isCrossingSharedElevationAuthoritative(network, crossing));
+    }
+
+    @Test
+    void explicitAutoClearsStalePropagationOnlyCrossingBetweenAutoRoads() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        Road roadB = network.createRoad("b");
+        roadA.setProfileSource(ProfileSource.AUTO);
+        roadB.setProfileSource(ProfileSource.AUTO);
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        addCrossingEdges(network, roadA, roadB, 50.0, 30.0);
+
+        network.registerCrossing(new RoadCrossing(
+            "stale",
+            roadA.getId(),
+            50.0,
+            roadB.getId(),
+            30.0,
+            new Vec2d(50, 0),
+            null,
+            null,
+            null,
+            88.0));
+
+        VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, roadA.getId());
+
+        assertTrue(network.getCrossing("stale").sharedElevation() == null);
+    }
+
+    @Test
     void preservesJunctionManualElevationForFlatRoad() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("flat");
@@ -318,5 +487,41 @@ class VerticalProfileGenerationPolicyTest {
             end.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(length, 0)),
             road.getId());
+    }
+
+    /** T 形平交：roadA 沿 x 轴，roadB 沿 y 轴，交汇于 (50,0)。 */
+    private static void addCrossingEdges(
+            RoadNetwork network,
+            Road roadA,
+            Road roadB,
+            double stationA,
+            double stationB) {
+        double junctionX = stationA;
+        double junctionY = 0.0;
+        var west = network.createNode(new Vec2d(0, junctionY));
+        var junction = network.createNode(new Vec2d(junctionX, junctionY));
+        var east = network.createNode(new Vec2d(100, junctionY));
+        var south = network.createNode(new Vec2d(junctionX, junctionY - stationB));
+        var north = network.createNode(new Vec2d(junctionX, 60));
+        network.createEdge(
+            west.getId(),
+            junction.getId(),
+            List.of(new Vec2d(0, junctionY), new Vec2d(junctionX, junctionY)),
+            roadA.getId());
+        network.createEdge(
+            junction.getId(),
+            east.getId(),
+            List.of(new Vec2d(junctionX, junctionY), new Vec2d(100, junctionY)),
+            roadA.getId());
+        network.createEdge(
+            south.getId(),
+            junction.getId(),
+            List.of(new Vec2d(junctionX, junctionY - stationB), new Vec2d(junctionX, junctionY)),
+            roadB.getId());
+        network.createEdge(
+            junction.getId(),
+            north.getId(),
+            List.of(new Vec2d(junctionX, junctionY), new Vec2d(junctionX, 60)),
+            roadB.getId());
     }
 }
