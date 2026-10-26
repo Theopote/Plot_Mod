@@ -53,6 +53,29 @@ public final class RoadUiWidgets {
         return ImGui.calcTextSize(text, false, width).y;
     }
 
+    /** Truncate label to fit ImGui text width, appending ellipsis when needed. */
+    public static String truncateToWidth(String text, float maxWidth) {
+        if (text == null || text.isBlank() || maxWidth <= 0f) {
+            return text != null ? text : "";
+        }
+        if (ImGui.calcTextSize(text).x <= maxWidth) {
+            return text;
+        }
+        String ellipsis = "...";
+        float ellipsisWidth = ImGui.calcTextSize(ellipsis).x;
+        if (ellipsisWidth >= maxWidth) {
+            return ellipsis;
+        }
+        int end = text.length();
+        while (end > 0) {
+            end--;
+            if (ImGui.calcTextSize(text.substring(0, end) + ellipsis).x <= maxWidth) {
+                return text.substring(0, end) + ellipsis;
+            }
+        }
+        return ellipsis;
+    }
+
     @FunctionalInterface
     public interface MaterialSetter {
         void set(String material);

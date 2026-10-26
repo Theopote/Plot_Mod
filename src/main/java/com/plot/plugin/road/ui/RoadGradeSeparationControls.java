@@ -88,11 +88,13 @@ public final class RoadGradeSeparationControls {
             if (layout != Layout.PROFILE) {
                 renderRecommendationForRegistry(crossing, network, config);
             }
-        } else {
+        } else if (layout != Layout.PROFILE) {
             changed |= renderAtGradeProfileHint(crossing, network, config);
         }
 
-        if (crossing.sharedElevation() != null && crossing.type() == CrossingType.GRADE_SEPARATED) {
+        if (layout != Layout.PROFILE
+                && crossing.sharedElevation() != null
+                && crossing.type() == CrossingType.GRADE_SEPARATED) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
@@ -203,11 +205,13 @@ public final class RoadGradeSeparationControls {
             if (layout != Layout.PROFILE) {
                 renderRecommendationForNode(node, network, config);
             }
-        } else if (roadIds.size() == 2) {
+        } else if (layout != Layout.PROFILE && roadIds.size() == 2) {
             changed |= renderAtGradeProfileHintForNode(node, network, config, roadIds);
         }
 
-        if (node.getManualElevation() != null && node.isGradeSeparated()) {
+        if (layout != Layout.PROFILE
+                && node.getManualElevation() != null
+                && node.isGradeSeparated()) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
@@ -311,7 +315,7 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             Layout layout) {
-        if (layout != Layout.INLINE) {
+        if (layout == Layout.BLOCK) {
             ImGui.text(PlotI18n.tr("plugin.road.crossing_type"));
         }
         boolean atGrade = crossing.type() == CrossingType.AT_GRADE;
@@ -337,7 +341,7 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             Layout layout) {
-        if (layout != Layout.INLINE) {
+        if (layout == Layout.BLOCK) {
             ImGui.text(PlotI18n.tr("plugin.road.crossing_type"));
         }
         boolean atGrade = !node.isGradeSeparated();
@@ -454,7 +458,6 @@ public final class RoadGradeSeparationControls {
         boolean currentAbove = currentRoadId.equals(elevatedRoadId);
         boolean otherAbove = otherRoadId.equals(elevatedRoadId);
 
-        ImGui.text(PlotI18n.tr("plugin.road.profile_grade_vertical_order"));
         if (ImGui.radioButton(
                 PlotI18n.tr("plugin.road.profile_current_road_above") + "##profile_current_above",
                 currentAbove)) {
@@ -463,6 +466,7 @@ public final class RoadGradeSeparationControls {
                 return true;
             }
         }
+        ImGui.sameLine();
         if (ImGui.radioButton(
                 PlotI18n.tr(
                     "plugin.road.profile_other_road_above",
@@ -473,6 +477,7 @@ public final class RoadGradeSeparationControls {
                 return true;
             }
         }
+        ImGui.sameLine();
         if (ImGui.radioButton(
                 PlotI18n.tr("plugin.road.crossing_pass_auto") + "##profile_auto_above",
                 auto)) {

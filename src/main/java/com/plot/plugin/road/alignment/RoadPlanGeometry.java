@@ -105,16 +105,6 @@ public final class RoadPlanGeometry {
         return instancePointAtStation(network, road, chainageMeters);
     }
 
-    public static Optional<AlignmentPose> poseAtStation(RoadNetwork network, Road road, double chainageMeters) {
-        if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.poseAt(
-                road.getHorizontalAlignment(),
-                haNativeStation(network, road, chainageMeters));
-        }
-        return instancePointAtStation(network, road, chainageMeters)
-            .flatMap(point -> instanceBearingAtStation(network, road, chainageMeters)
-                .map(bearing -> new AlignmentPose(point.x, point.y, bearing, 0.0)));
-    }
 
     public static Optional<Double> bearingAtStation(RoadNetwork network, Road road, double chainageMeters) {
         if (hasDesignAlignment(network, road)) {
@@ -136,18 +126,6 @@ public final class RoadPlanGeometry {
                 road,
                 segment.segmentId(),
                 segment.localDistance()));
-    }
-
-    public static Optional<Vec2d> pointAtEdgeLocal(
-            RoadNetwork network,
-            Road road,
-            String edgeId,
-            double geometryLocalDistance) {
-        if (usesDesignAlignment(network, network != null ? network.getEdge(edgeId) : null)) {
-            return RoadStationing.stationAt(network, road, edgeId, geometryLocalDistance)
-                .flatMap(station -> pointAtStation(network, road, station.chainageMeters()));
-        }
-        return instancePointAtEdgeLocal(network, road, edgeId, geometryLocalDistance);
     }
 
     public static Optional<Vec2d> instancePointAtEdgeLocal(
