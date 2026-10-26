@@ -54,10 +54,6 @@ public final class RoadEditPanel {
         return designPanel;
     }
 
-    public void renderUniformElevationConfirmPopup() {
-        designPanel.renderUniformElevationConfirmPopup();
-    }
-
     private void renderFocusedIntersection(RoadNetwork network) {
         if (intersectionDetailPanel == null
                 || !RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {

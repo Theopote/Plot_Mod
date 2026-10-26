@@ -399,7 +399,7 @@ public final class RoadUiContext {
 
     /** 道路横断面等会改变 overlay 几何的编辑：推入撤销并标记当帧前景补绘。 */
     public void pushRoadEditHistory() {
-        networkManager.pushHistory();
+        networkManager.pushHistory(RoadChangeKind.CROSS_SECTION);
         requestOverlayRefresh();
     }
 

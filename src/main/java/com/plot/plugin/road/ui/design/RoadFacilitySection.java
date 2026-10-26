@@ -13,6 +13,6 @@ public final class RoadFacilitySection {
             return;
         }
         stationFacilityEditor.render(
-            ctx.network, ctx.road, ctx.chainageDisplay(), ctx.ui.networkManager()::pushHistory);
+            ctx.network, ctx.road, ctx.chainageDisplay(), ctx.ui::pushRoadEditHistory);
     }
 }

@@ -880,20 +880,40 @@ public final class RoadNetworkManager {
 
     private CenterlineEditResult mutateCenterlineGeometry(
             java.util.function.Supplier<CenterlineEditResult> mutation) {
-        return mutateNetwork(() -> {
-            CenterlineEditResult result = mutation.get();
-            if (result.isSuccess()) {
-                reconcileCrossingsInPlace();
-            }
-            return result;
-        }, CenterlineEditResult::isSuccess);
+        return mutateNetworkWithKind(
+            () -> {
+                CenterlineEditResult result = mutation.get();
+                if (result.isSuccess()) {
+                    reconcileCrossingsInPlace();
+                }
+                return result;
+            },
+            CenterlineEditResult::isSuccess,
+            RoadChangeKind.GEOMETRY);
+    }
+
+    private <T> T mutateNetworkWithKind(
+            Supplier<T> mutation,
+            java.util.function.Predicate<T> commitWhen,
+            RoadChangeKind kind) {
+        Objects.requireNonNull(mutation, "mutation");
+        Objects.requireNonNull(commitWhen, "commitWhen");
+        pushUndoSnapshot();
+        pendingChangeKind = kind != null ? kind : RoadChangeKind.GENERAL;
+        T result = mutation.get();
+        if (commitWhen.test(result)) {
+            commitNetworkChange(kind);
+        } else {
+            cancelPendingNetworkEdit();
+        }
+        return result;
     }
 
     public CenterlineEditResult materializeHorizontalAlignment(Road road) {
         if (road == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
-        return mutateNetwork(
+        return mutateNetworkWithKind(
             () -> {
                 CenterlineEditResult result =
                     HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
@@ -902,7 +922,8 @@ public final class RoadNetworkManager {
                 }
                 return result;
             },
-            CenterlineEditResult::isSuccess);
+            CenterlineEditResult::isSuccess,
+            RoadChangeKind.GEOMETRY);
     }
 
     /** 内联刷新 Crossing 注册表（不推入额外 Undo 帧）。 */
@@ -1601,6 +1622,101 @@ public final class RoadNetworkManager {
         }
         // 批量面板只编辑横断面和附属设施。纵坡属于路线设计，不能因为用户只想改宽度
         // 就把第一条道路的坡度覆盖到所有选中道路。
+    }
+
+    /**
+     * 单次提交局部坡度覆盖（含撤销快照、预览失效、EDITED 曲线校验）。
+     */
+    public boolean updateRoadSlopeOverrides(String edgeId, List<RoadEdge.SlopeOverride> draftOverrides) {
+        if (edgeId == null || edgeId.isBlank() || draftOverrides == null) {
+            return false;
+        }
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            return false;
+        }
+        List<RoadEdge.SlopeOverride> normalized = normalizeSlopeOverrides(draftOverrides, edge.getLength());
+        if (slopeOverridesEqual(normalized, edge.getSlopeOverrides())) {
+            return false;
+        }
+        pushUndoSnapshot();
+        pendingChangeKind = RoadChangeKind.GENERATION_SETTINGS;
+        applyNormalizedSlopeOverrides(edge, normalized);
+        commitNetworkChange(RoadChangeKind.GENERATION_SETTINGS);
+        return true;
+    }
+
+    /**
+     * 与 {@link #beginNetworkEdit(RoadChangeKind)} 配对：拖动结束时提交草稿，不重复推撤销帧。
+     */
+    public void commitRoadSlopeOverrides(String edgeId, List<RoadEdge.SlopeOverride> draftOverrides) {
+        if (edgeId == null || edgeId.isBlank() || draftOverrides == null) {
+            cancelPendingNetworkEdit();
+            return;
+        }
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            cancelPendingNetworkEdit();
+            return;
+        }
+        List<RoadEdge.SlopeOverride> normalized = normalizeSlopeOverrides(draftOverrides, edge.getLength());
+        if (slopeOverridesEqual(normalized, edge.getSlopeOverrides())) {
+            cancelPendingNetworkEdit();
+            return;
+        }
+        applyNormalizedSlopeOverrides(edge, normalized);
+        finishNetworkEdit();
+    }
+
+    /** 丢弃未提交的撤销帧（如拖动后数值未变化）。 */
+    public void cancelPendingNetworkEdit() {
+        network = history.discardStagedPush(network);
+        network.assertInvariants();
+        ensureSelectionValid();
+        pendingChangeKind = RoadChangeKind.GENERAL;
+    }
+
+    static List<RoadEdge.SlopeOverride> normalizeSlopeOverrides(
+            List<RoadEdge.SlopeOverride> draftOverrides,
+            double edgeLength) {
+        List<RoadEdge.SlopeOverride> normalized = new ArrayList<>(draftOverrides.size());
+        if (edgeLength <= 0.0) {
+            return normalized;
+        }
+        for (RoadEdge.SlopeOverride override : draftOverrides) {
+            if (override == null) {
+                continue;
+            }
+            double start = Math.clamp(override.startDistance, 0.0, edgeLength);
+            double end = Math.clamp(override.endDistance, 0.0, edgeLength);
+            if (start > end) {
+                end = start;
+            }
+            float maxSlope = RoadParameterLimits.clampGradePercent(override.maxSlope);
+            normalized.add(new RoadEdge.SlopeOverride(start, end, maxSlope));
+        }
+        return normalized;
+    }
+
+    private void applyNormalizedSlopeOverrides(
+            RoadEdge edge,
+            List<RoadEdge.SlopeOverride> normalized) {
+        edge.setSlopeOverrides(normalized);
+        Road road = network.getRoadForEdge(edge);
+        if (road != null) {
+            invalidateEditedProfileIfGenerationConstraintsViolated(road);
+        }
+    }
+
+    private void invalidateEditedProfileIfGenerationConstraintsViolated(Road road) {
+        if (road.getEffectiveProfileSource() != com.plot.plugin.road.vertical.ProfileSource.EDITED) {
+            return;
+        }
+        var failure = com.plot.plugin.road.vertical.EditedProfileRebindValidator.validate(
+            network, road, config);
+        if (failure != null) {
+            road.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);
+        }
     }
 
     public static List<RoadEdge.SlopeOverride> snapshotSlopeOverrides(List<RoadEdge.SlopeOverride> overrides) {

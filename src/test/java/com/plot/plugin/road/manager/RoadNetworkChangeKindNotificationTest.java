@@ -43,4 +43,10 @@ class RoadNetworkChangeKindNotificationTest {
         manager.pushHistory();
         assertEquals(RoadChangeKind.GENERAL, receivedKind.get());
     }
+
+    @Test
+    void pushHistoryCrossSectionNotifiesCrossSectionKind() {
+        manager.pushHistory(RoadChangeKind.CROSS_SECTION);
+        assertEquals(RoadChangeKind.CROSS_SECTION, receivedKind.get());
+    }
 }

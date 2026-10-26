@@ -29,6 +29,7 @@ public final class RoadGeneratePanel {
         new RoadPathVerticalPropertyPanel(new RoadVerticalStrategySwitchDialog());
     private final RoadIntersectionListPanel intersectionListPanel;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
+    private final RoadNetworkToolsPanel networkToolsPanel;
     private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
@@ -37,6 +38,7 @@ public final class RoadGeneratePanel {
         this.ctx = ctx;
         this.intersectionListPanel = new RoadIntersectionListPanel(ctx);
         this.intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
+        this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
         profileEditor.setOnAlignmentCommitted(this::recomputePreviewAfterProfileConfirm);
     }
@@ -104,6 +106,8 @@ public final class RoadGeneratePanel {
         if (!network.getEdges().isEmpty()) {
             renderProfileWorkspace(network);
             renderIntersectionCheckSection(network, preflight);
+            ImGui.separator();
+            networkToolsPanel.render(network);
         }
 
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
@@ -358,6 +362,11 @@ public final class RoadGeneratePanel {
 
     public void renderDeferredModals() {
         pathPropertyPanel.renderDeferredModals(ctx);
+        networkToolsPanel.renderConfirmPopup();
+    }
+
+    public void renderUniformElevationConfirmPopup() {
+        networkToolsPanel.renderConfirmPopup();
     }
 
     public void renderBuildConfirmPopup() {

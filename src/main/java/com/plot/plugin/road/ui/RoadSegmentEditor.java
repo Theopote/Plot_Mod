@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -23,6 +24,9 @@ import java.util.List;
  * 逻辑道路分段列表、桩号摘要、坡度 override 与标高提示。
  */
 public final class RoadSegmentEditor {
+
+    private String slopeOverrideEditEdgeId = "";
+    private List<RoadEdge.SlopeOverride> slopeOverrideEditDraft = null;
 
     public void renderSegmentList(RoadUiContext ctx, RoadNetwork network, Road road) {
         List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(network, road);
@@ -97,7 +101,7 @@ public final class RoadSegmentEditor {
         ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_end", endGround, endGuide));
     }
 
-    public static void renderSlopeOverrides(
+    public void renderSlopeOverrides(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
@@ -107,14 +111,17 @@ public final class RoadSegmentEditor {
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_override_segment_hint"));
-        List<RoadEdge.SlopeOverride> overrides = new ArrayList<>(edge.getSlopeOverrides());
-        List<RoadEdge.SlopeOverride> originalOverrides = RoadNetworkManager.snapshotSlopeOverrides(overrides);
+
+        if (!slopeOverrideEditEdgeId.isEmpty() && !slopeOverrideEditEdgeId.equals(edge.getId())) {
+            resetSlopeOverrideEditSession();
+        }
+        List<RoadEdge.SlopeOverride> overrides = overridesForEdit(edge);
+        boolean editDeactivated = false;
 
         for (int i = 0; i < overrides.size(); i++) {
-            RoadEdge.SlopeOverride override = overrides.get(i);
-            float[] start = {(float) override.startDistance};
-            float[] end = {(float) override.endDistance};
-            float[] slope = {override.maxSlope};
+            float[] start = {(float) overrides.get(i).startDistance};
+            float[] end = {(float) overrides.get(i).endDistance};
+            float[] slope = {overrides.get(i).maxSlope};
             ImGui.pushID(i);
 
             float rowWidth = ImGui.getContentRegionAvailX();
@@ -134,12 +141,18 @@ public final class RoadSegmentEditor {
                 ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, "%.1fm");
             }
             if (ImGui.isItemActivated()) {
-                ctx.networkManager().pushHistory();
+                beginSlopeOverrideEditIfNeeded(ctx, edge, overrides);
+                overrides = overridesForEdit(edge);
+                start[0] = (float) overrides.get(i).startDistance;
+                end[0] = (float) overrides.get(i).endDistance;
             }
-            override.startDistance = start[0];
-            if (override.startDistance > override.endDistance) {
-                override.endDistance = override.startDistance;
-                end[0] = (float) override.endDistance;
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                editDeactivated = true;
+            }
+            overrides.get(i).startDistance = start[0];
+            if (overrides.get(i).startDistance > overrides.get(i).endDistance) {
+                overrides.get(i).endDistance = overrides.get(i).startDistance;
+                end[0] = (float) overrides.get(i).endDistance;
             }
 
             if (stackRangeSliders) {
@@ -152,9 +165,15 @@ public final class RoadSegmentEditor {
                 ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, "%.1fm");
             }
             if (ImGui.isItemActivated()) {
-                ctx.networkManager().pushHistory();
+                beginSlopeOverrideEditIfNeeded(ctx, edge, overrides);
+                overrides = overridesForEdit(edge);
+                start[0] = (float) overrides.get(i).startDistance;
+                end[0] = (float) overrides.get(i).endDistance;
             }
-            override.endDistance = end[0];
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                editDeactivated = true;
+            }
+            overrides.get(i).endDistance = end[0];
 
             if (!stackRangeSliders) {
                 ImGui.sameLine();
@@ -164,10 +183,10 @@ public final class RoadSegmentEditor {
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
             if (ImGui.smallButton(deleteLabel + "##rm")) {
                 final int removeIndex = i;
-                ctx.editNetwork(() -> {
-                    overrides.remove(removeIndex);
-                    edge.setSlopeOverrides(overrides);
-                });
+                List<RoadEdge.SlopeOverride> next = new ArrayList<>(edge.getSlopeOverrides());
+                next.remove(removeIndex);
+                resetSlopeOverrideEditSession();
+                ctx.networkManager().updateRoadSlopeOverrides(edge.getId(), next);
                 ImGui.popStyleColor(3);
                 ImGui.popID();
                 return;
@@ -180,13 +199,22 @@ public final class RoadSegmentEditor {
                 slope,
                 com.plot.ui.component.EngineeringSlopeInput.ValueKind.GRADE
             )) {
-                ctx.networkManager().pushHistory();
+                if (ImGui.isItemActivated()) {
+                    beginSlopeOverrideEditIfNeeded(ctx, edge, overrides);
+                    overrides = overridesForEdit(edge);
+                    slope[0] = overrides.get(i).maxSlope;
+                }
             }
-            override.maxSlope = RoadParameterLimits.clampGradePercent(slope[0]);
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                editDeactivated = true;
+            }
+            overrides.get(i).maxSlope = RoadParameterLimits.clampGradePercent(slope[0]);
 
             if (RoadStationing.isStationable(network, road)) {
-                RoadStationing.stationAt(network, road, edge.getId(), override.startDistance)
-                    .ifPresent(startStation -> RoadStationing.stationAt(network, road, edge.getId(), override.endDistance)
+                final double startDistance = overrides.get(i).startDistance;
+                final double endDistance = overrides.get(i).endDistance;
+                RoadStationing.stationAt(network, road, edge.getId(), startDistance)
+                    .ifPresent(startStation -> RoadStationing.stationAt(network, road, edge.getId(), endDistance)
                         .ifPresent(endStation -> RoadUiWidgets.textWrappedColored(
                             PluginUiColors.HINT_GRAY,
                             PlotI18n.tr(
@@ -195,7 +223,7 @@ public final class RoadSegmentEditor {
                                 formatChainage(chainageDisplay, endStation.chainageMeters())))));
             }
 
-            if (override.startDistance > override.endDistance) {
+            if (overrides.get(i).startDistance > overrides.get(i).endDistance) {
                 RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.slope_range_invalid"));
             } else if (RoadNetworkManager.hasOverlappingOverride(overrides, i)) {
                 RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING_OVERLAP, PlotI18n.tr("plugin.road.slope_range_overlap"));
@@ -204,16 +232,41 @@ public final class RoadSegmentEditor {
             ImGui.popID();
         }
 
-        if (!RoadNetworkManager.slopeOverridesEqual(overrides, originalOverrides)) {
-            edge.setSlopeOverrides(overrides);
+        if (slopeOverrideEditEdgeId.equals(edge.getId()) && editDeactivated) {
+            ctx.networkManager().commitRoadSlopeOverrides(edge.getId(), overrides);
+            resetSlopeOverrideEditSession();
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.add_slope_override"))) {
-            ctx.editNetwork(() -> {
-                overrides.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
-                edge.setSlopeOverrides(overrides);
-            });
+            resetSlopeOverrideEditSession();
+            List<RoadEdge.SlopeOverride> next = new ArrayList<>(edge.getSlopeOverrides());
+            next.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
+            ctx.networkManager().updateRoadSlopeOverrides(edge.getId(), next);
         }
+    }
+
+    private List<RoadEdge.SlopeOverride> overridesForEdit(RoadEdge edge) {
+        if (slopeOverrideEditEdgeId.equals(edge.getId()) && slopeOverrideEditDraft != null) {
+            return slopeOverrideEditDraft;
+        }
+        return new ArrayList<>(edge.getSlopeOverrides());
+    }
+
+    private void beginSlopeOverrideEditIfNeeded(
+            RoadUiContext ctx,
+            RoadEdge edge,
+            List<RoadEdge.SlopeOverride> overrides) {
+        if (!slopeOverrideEditEdgeId.isEmpty()) {
+            return;
+        }
+        slopeOverrideEditEdgeId = edge.getId();
+        slopeOverrideEditDraft = new ArrayList<>(overrides);
+        ctx.beginNetworkEdit(RoadChangeKind.GENERATION_SETTINGS);
+    }
+
+    private void resetSlopeOverrideEditSession() {
+        slopeOverrideEditEdgeId = "";
+        slopeOverrideEditDraft = null;
     }
 
     private static String formatChainage(ChainageDisplayContext display, double chainageMeters) {

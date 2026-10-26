@@ -34,11 +34,11 @@ final class RoadEditWorkspace {
         RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
         ImGui.spacing();
-        RoadPresetCards.renderForRoadCompact(ctx, road, ctx.networkManager()::pushHistory);
+        RoadPresetCards.renderForRoadCompact(ctx, road, ctx::pushRoadEditHistory);
         ImGui.spacing();
 
         RoadUiSections.section("plugin.road.edit.quick_tune");
-        RoadRouteQuickTune.renderForRoad(ctx, road, ctx.networkManager()::pushHistory);
+        RoadRouteQuickTune.renderForRoad(ctx, road, ctx::pushRoadEditHistory);
         ImGui.spacing();
 
         renderCrossSectionAppearance(road);
@@ -58,10 +58,10 @@ final class RoadEditWorkspace {
         RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
         ImGui.spacing();
-        RoadPresetCards.renderForRoadsCompact(ctx, selectedRoadIds, ctx.networkManager()::pushHistory);
+        RoadPresetCards.renderForRoadsCompact(ctx, selectedRoadIds, ctx::pushRoadEditHistory);
         ImGui.spacing();
 
-        RoadBatchQuickTune.render(ctx, selectedRoadIds, ctx.networkManager()::pushHistory);
+        RoadBatchQuickTune.render(ctx, selectedRoadIds, ctx::pushRoadEditHistory);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit.more_cross_section_params"))) {
             RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();

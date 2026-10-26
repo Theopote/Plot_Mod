@@ -20,17 +20,5 @@ public final class RoadSegmentSection {
         segmentEditor.renderSegmentSummary(ctx.network, ctx.road, ctx.primaryEdge, ctx.chainageDisplay());
         centerlineEditPanel.render(ctx.ui, ctx.network, ctx.road, ctx.primaryEdge);
         segmentEditor.renderElevationHint(ctx.ui, ctx.primaryEdge);
-        if (ctx.chainageDisplay() != null) {
-            renderSlopeOverrides(ctx);
-        }
-    }
-
-    private void renderSlopeOverrides(RoadDesignSectionContext ctx) {
-        ImGui.spacing();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.slope_overrides"))) {
-            return;
-        }
-        RoadSegmentEditor.renderSlopeOverrides(
-            ctx.ui, ctx.network, ctx.road, ctx.primaryEdge, ctx.chainageDisplay());
     }
 }

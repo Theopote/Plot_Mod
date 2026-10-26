@@ -10,7 +10,6 @@ import com.plot.plugin.road.ui.design.RoadDiagnosticsSection;
 import com.plot.plugin.road.ui.design.RoadFacilitySection;
 import com.plot.plugin.road.ui.design.RoadIdentitySection;
 import com.plot.plugin.road.ui.design.RoadSegmentSection;
-import com.plot.plugin.road.ui.design.RoadTerrainToolsSection;
 import com.plot.plugin.road.ui.design.RoadVariableSectionSection;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -27,23 +26,17 @@ final class RoadDesignPanel {
     private final RoadVariableSectionSection variableSectionSection = new RoadVariableSectionSection();
     private final RoadFacilitySection facilitySection = new RoadFacilitySection();
     private final RoadSegmentSection segmentSection = new RoadSegmentSection();
-    private final RoadTerrainToolsSection terrainToolsSection;
     private final RoadDiagnosticsSection diagnosticsSection = new RoadDiagnosticsSection();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     private boolean forceOpenAdvancedDesign;
 
     RoadDesignPanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.terrainToolsSection = new RoadTerrainToolsSection(new RoadNetworkToolsPanel(ctx));
     }
 
     void requestOpenDiagnostics() {
         forceOpenAdvancedDesign = true;
         diagnosticsSection.requestOpen();
-    }
-
-    void renderUniformElevationConfirmPopup() {
-        terrainToolsSection.renderConfirmPopup();
     }
 
     void renderAdvancedDesignSection(RoadNetwork network, Road road) {
@@ -76,6 +69,5 @@ final class RoadDesignPanel {
         variableSectionSection.render(sectionCtx);
         facilitySection.render(sectionCtx);
         segmentSection.render(sectionCtx);
-        terrainToolsSection.render(sectionCtx);
     }
 }

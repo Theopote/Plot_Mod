@@ -13,6 +13,6 @@ public final class RoadVariableSectionSection {
             return;
         }
         variableCrossSectionEditor.render(
-            ctx.ui, ctx.network, ctx.road, ctx.chainageDisplay(), ctx.ui.networkManager()::pushHistory);
+            ctx.ui, ctx.network, ctx.road, ctx.chainageDisplay(), ctx.ui::pushRoadEditHistory);
     }
 }

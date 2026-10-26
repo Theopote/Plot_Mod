@@ -60,6 +60,16 @@ class RoadPreviewChangeKindTest {
         assertTrue(previewManager.needsPreviewRecalc());
     }
 
+    @Test
+    void generationSettingsChangeClearsProfileSampling() throws Exception {
+        seedProfileSampling(previewManager);
+
+        previewManager.handleNetworkChanged(RoadChangeKind.GENERATION_SETTINGS);
+
+        assertFalse(previewManager.hasProfileSampling());
+        assertTrue(previewManager.needsPreviewRecalc());
+    }
+
     private static void seedProfileSampling(RoadPreviewManager previewManager) throws Exception {
         RoadGenerationResult edgeResult = new RoadGenerationResult(100.0);
         edgeResult.profileDistances = List.of(0.0, 100.0);
