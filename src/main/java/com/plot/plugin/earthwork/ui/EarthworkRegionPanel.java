@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.adopt.EarthworkAdoptDefaults;
@@ -196,25 +195,13 @@ public final class EarthworkRegionPanel {
             return;
         }
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo("##earthwork_region_sort", ctx.regionSortMode().label())) {
-            for (EarthworkRegionListHelper.SortMode mode : EarthworkRegionListHelper.SortMode.values()) {
-                boolean selected = mode == ctx.regionSortMode();
-                if (ImGui.selectable(mode.label(), selected)) {
-                    ctx.setRegionSortMode(mode);
-                }
-            }
-            ImGui.endCombo();
-        }
-
         EarthworkOverviewRenderer.renderProjectMap(
             ctx.project(),
             ctx.selectedRegionId().isEmpty() ? List.of() : List.of(ctx.selectedRegionId()),
                 ctx::setSelectedRegionId);
 
         ImGui.spacing();
-        List<GradingRegion> regions = EarthworkRegionListHelper.sorted(ctx.project(), ctx.regionSortMode());
-        for (GradingRegion region : regions) {
+        for (GradingRegion region : ctx.project().getRegions().values()) {
             renderAdoptedRegionRow(region);
         }
     }

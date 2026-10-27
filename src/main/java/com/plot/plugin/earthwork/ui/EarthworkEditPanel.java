@@ -20,7 +20,6 @@ import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
-import com.plot.ui.utils.ImStringUtf8;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -48,19 +47,6 @@ public final class EarthworkEditPanel {
                 if (region == null) {
                     ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
                     return;
-                }
-
-                if (!region.getId().equals(ctx.regionNameEditingRegionId())) {
-                    ctx.regionNameBuffer().set(region.getName());
-                    ctx.setRegionNameEditingRegionId(region.getId());
-                }
-                boolean regionNameChanged = ImGui.inputText(
-                    PlotI18n.tr("plugin.earthwork.region_name"), ctx.regionNameBuffer());
-                if (ImGui.isItemActivated()) {
-                    ctx.projectHistory().push(ctx.project());
-                }
-                if (regionNameChanged) {
-                    region.setName(ImStringUtf8.read(ctx.regionNameBuffer()));
                 }
 
                 renderSelectedZoneOverlapWarnings(region.getId());

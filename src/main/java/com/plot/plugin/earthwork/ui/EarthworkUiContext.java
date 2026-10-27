@@ -5,7 +5,6 @@ import com.plot.core.state.DebouncedTasks;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
-import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.manager.EarthworkBuildManager;
@@ -15,7 +14,6 @@ import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import imgui.type.ImBoolean;
-import imgui.type.ImString;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,28 +40,16 @@ public final class EarthworkUiContext {
     private volatile com.plot.plugin.earthwork.model.EarthworkStatusLevel projectStatusLevel =
         com.plot.plugin.earthwork.model.EarthworkStatusLevel.INFO;
 
-    private String regionNameEditingRegionId = "";
     private String pendingDeleteRegionId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
-
-    private EarthworkRegionListHelper.SortMode regionSortMode =
-        EarthworkRegionListHelper.SortMode.INSERTION;
 
     private final ImBoolean autoBalanceRef = new ImBoolean(true);
     private final ImBoolean showGridRef = new ImBoolean(true);
     private final ImBoolean showEdgeTreatmentOverlayRef = new ImBoolean(true);
     private final ImBoolean showRegionOverlayRef = new ImBoolean(true);
-    private final ImString regionNameBuffer = createRegionNameBuffer();
     private final imgui.type.ImInt workModeIndex = new imgui.type.ImInt(0);
     private final imgui.type.ImInt regionIndex = new imgui.type.ImInt(0);
-
-    private static ImString createRegionNameBuffer() {
-        ImString buffer = new ImString(256);
-        buffer.inputData.isResizable = true;
-        buffer.inputData.resizeFactor = 256;
-        return buffer;
-    }
 
     public EarthworkUiContext(
             PluginContext host,
@@ -168,14 +154,6 @@ public final class EarthworkUiContext {
         this.projectStatus = projectStatus != null ? projectStatus : "";
     }
 
-    public String regionNameEditingRegionId() {
-        return regionNameEditingRegionId;
-    }
-
-    public void setRegionNameEditingRegionId(String regionNameEditingRegionId) {
-        this.regionNameEditingRegionId = regionNameEditingRegionId != null ? regionNameEditingRegionId : "";
-    }
-
     public String pendingDeleteRegionId() {
         return pendingDeleteRegionId;
     }
@@ -200,16 +178,6 @@ public final class EarthworkUiContext {
         this.buildConfirmPending = buildConfirmPending;
     }
 
-    public EarthworkRegionListHelper.SortMode regionSortMode() {
-        return regionSortMode;
-    }
-
-    public void setRegionSortMode(EarthworkRegionListHelper.SortMode regionSortMode) {
-        this.regionSortMode = regionSortMode != null
-            ? regionSortMode
-            : EarthworkRegionListHelper.SortMode.INSERTION;
-    }
-
     public ImBoolean autoBalanceRef() {
         return autoBalanceRef;
     }
@@ -224,10 +192,6 @@ public final class EarthworkUiContext {
 
     public ImBoolean showRegionOverlayRef() {
         return showRegionOverlayRef;
-    }
-
-    public ImString regionNameBuffer() {
-        return regionNameBuffer;
     }
 
     public imgui.type.ImInt workModeIndex() {
@@ -289,7 +253,6 @@ public final class EarthworkUiContext {
     }
 
     public void resetAfterProjectLoad(String firstRegionId) {
-        regionNameEditingRegionId = "";
         pickSession.cancel();
         threePointPickSession.cancel();
         selectedRegions.clear();

@@ -209,7 +209,6 @@ public final class EarthworkUiWidgets {
                 ctx.setSelectedRegionId(ctx.project().getRegions().isEmpty()
                     ? ""
                     : ctx.project().getRegions().keySet().iterator().next());
-                ctx.setRegionNameEditingRegionId("");
             }
         }
 

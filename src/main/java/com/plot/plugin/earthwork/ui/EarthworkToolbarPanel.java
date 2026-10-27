@@ -30,7 +30,6 @@ public final class EarthworkToolbarPanel {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.undo"), buttonWidth, 0)) {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             EarthworkUiWidgets.syncSelectedRegionAfterHistory(ctx);
-            ctx.setRegionNameEditingRegionId("");
             ctx.clearPreview();
         }
         if (undoDisabled) {
@@ -45,7 +44,6 @@ public final class EarthworkToolbarPanel {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.redo"), buttonWidth, 0)) {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             EarthworkUiWidgets.syncSelectedRegionAfterHistory(ctx);
-            ctx.setRegionNameEditingRegionId("");
             ctx.clearPreview();
         }
         if (redoDisabled) {
