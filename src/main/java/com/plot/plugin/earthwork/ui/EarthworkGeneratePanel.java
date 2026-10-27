@@ -29,8 +29,8 @@ public final class EarthworkGeneratePanel {
     }
 
     public void render() {
-        GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
-        EarthworkUiWidgets.renderRegionSelector(ctx);
+        // 建造模式预览/施工按整场合成，不按选中分区裁剪；分区选择只在区域/编辑 Tab 有意义。
+        GradingRegion region = ensureFocusRegion();
         if (region == null) {
             EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.select_region_hint"));
             return;
@@ -322,5 +322,32 @@ public final class EarthworkGeneratePanel {
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(java.time.ZoneId.systemDefault())
             .format(java.time.Instant.ofEpochMilli(epochMs));
+    }
+
+    /**
+     * 生成 Tab 不再展示分区选择；仍需一个焦点分区用于预览网格密度与身份戳。
+     * 有缓存预览时优先对齐 {@code sourceRegionId}，避免切换 Tab 后误报不匹配。
+     */
+    private GradingRegion ensureFocusRegion() {
+        EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
+        if (preview != null && preview.sourceRegionId != null && !preview.sourceRegionId.isBlank()) {
+            GradingRegion fromPreview = ctx.project().getRegion(preview.sourceRegionId);
+            if (fromPreview != null) {
+                if (!preview.sourceRegionId.equals(ctx.selectedRegionId())) {
+                    ctx.setSelectedRegionId(preview.sourceRegionId);
+                }
+                return fromPreview;
+            }
+        }
+        GradingRegion selected = ctx.project().getRegion(ctx.selectedRegionId());
+        if (selected != null) {
+            return selected;
+        }
+        if (ctx.project().getRegionCount() == 0) {
+            return null;
+        }
+        String firstId = ctx.project().getRegions().keySet().iterator().next();
+        ctx.setSelectedRegionId(firstId);
+        return ctx.project().getRegion(firstId);
     }
 }
