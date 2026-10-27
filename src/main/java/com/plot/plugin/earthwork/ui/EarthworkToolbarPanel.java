@@ -53,6 +53,7 @@ public final class EarthworkToolbarPanel {
         }
 
         if (ctx.host().commands().peekUndoCommand() instanceof com.plot.core.command.commands.EarthworkGenerateCommand) {
+            ImGui.textDisabled(PlotI18n.tr("plugin.earthwork.ui.undo_world_section"));
             ImGui.beginDisabled(ctx.host().placement().isBusy());
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.ui.undo_world"), ImGui.getContentRegionAvailX(), 0)) {
                 if (ctx.host().commands().undo()) {
@@ -69,7 +70,6 @@ public final class EarthworkToolbarPanel {
         }
         ImGui.separator();
         renderWorkMode();
-        ImGui.separator();
     }
 
     private void renderWorkMode() {

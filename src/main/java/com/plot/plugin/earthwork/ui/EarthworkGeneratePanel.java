@@ -9,6 +9,7 @@ import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -94,15 +95,20 @@ public final class EarthworkGeneratePanel {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.preview_tools"))) {
             return;
         }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.ui.reproject"), ImGui.getContentRegionAvailX(), 0)) {
+        boolean narrow = EarthworkUiLayout.isNarrowPanel();
+        float half = Math.max(1f, (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2f);
+        float full = ImGui.getContentRegionAvailX();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.ui.reproject"), narrow ? full : half, 0)) {
             ctx.previewManager().projectPreview();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), ImGui.getContentRegionAvailX(), 0)) {
-            ctx.recalculatePreview();
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.reproject");
+        if (!narrow) {
+            ImGui.sameLine();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), ImGui.getContentRegionAvailX(), 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), narrow ? full : half, 0)) {
             ctx.clearPreview();
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.clear_preview");
     }
 
     private void renderPrimaryAction(GradingRegion region) {
@@ -168,8 +174,12 @@ public final class EarthworkGeneratePanel {
 
     private void renderChangeCounts(EarthworkGenerationResult preview) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.ui.change_total", EarthworkUiPresentation.plannedChanges(preview)));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.ui.change_details",
-            preview.volumeReport.cutChangedBlocks(), preview.volumeReport.fillChangedBlocks(), preview.structureChangedBlocks));
+        if (ctx.config().getWorkMode().showsEngineeringMetrics()) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.ui.change_details",
+                preview.volumeReport.cutChangedBlocks(),
+                preview.volumeReport.fillChangedBlocks(),
+                preview.structureChangedBlocks));
+        }
     }
 
     private void renderGridPreview(GradingRegion region, EarthworkGenerationResult result) {

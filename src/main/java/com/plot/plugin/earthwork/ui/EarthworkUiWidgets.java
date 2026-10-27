@@ -116,6 +116,26 @@ public final class EarthworkUiWidgets {
                 safe.fillChangedBlocks()));
         }
 
+        /** 默认一行摘要：Y · 挖 · 填 · 差；斜坡时用区间代替单点 Y。 */
+        public static void renderPlayerCutFillSummary(
+                EarthworkVolumeReport volumes,
+                int platformY,
+                boolean sloped,
+                int yMin,
+                int yMax) {
+            EarthworkUiPresentation.CutFillSummary summary =
+                EarthworkUiPresentation.CutFillSummary.of(volumes, platformY);
+            if (sloped) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.quick.summary_line_slope",
+                    yMin, yMax, summary.cut(), summary.fill(), summary.diff()));
+            } else {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.quick.summary_line",
+                    summary.platformY(), summary.cut(), summary.fill(), summary.diff()));
+            }
+        }
+
         public static void renderMaterialButton(EarthworkUiContext ctx, String label, String currentBlockId, Consumer<String> onSelected) {
             ImGui.text(label);
             ImGui.sameLine();

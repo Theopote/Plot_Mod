@@ -94,4 +94,18 @@ class EarthworkUiPresentationTest {
         region.setAutoBalance(true);
         assertFalse(EarthworkUiPresentation.missingManualHeight(region));
     }
+
+    @Test void cutFillSummaryUsesAbsoluteDiffFromGeometricVolumes() {
+        var summary = EarthworkUiPresentation.CutFillSummary.of(
+            new EarthworkVolumeReport(320, 185, 0, 0), 72);
+        assertEquals(72, summary.platformY());
+        assertEquals(320, summary.cut());
+        assertEquals(185, summary.fill());
+        assertEquals(135, summary.diff());
+        var empty = EarthworkUiPresentation.CutFillSummary.of(null, 64);
+        assertEquals(64, empty.platformY());
+        assertEquals(0, empty.cut());
+        assertEquals(0, empty.fill());
+        assertEquals(0, empty.diff());
+    }
 }

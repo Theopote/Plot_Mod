@@ -5,11 +5,22 @@ import com.plot.plugin.earthwork.model.EarthworkStatusLevel;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.ui.PluginUiColors;
 
 /** 可独立验证的展示规则。 */
 public final class EarthworkUiPresentation {
     private EarthworkUiPresentation() { }
+
+    /** 挖填摘要：Y · 挖 · 填 · 差（不含 i18n 格式化以外的展示逻辑）。 */
+    public record CutFillSummary(int platformY, long cut, long fill, long diff) {
+        public static CutFillSummary of(EarthworkVolumeReport volumes, int platformY) {
+            EarthworkVolumeReport safe = volumes != null ? volumes : EarthworkVolumeReport.empty();
+            long cut = safe.geometricCutVolume();
+            long fill = safe.geometricFillVolume();
+            return new CutFillSummary(platformY, cut, fill, Math.abs(cut - fill));
+        }
+    }
 
     public static boolean belongsTo(EarthworkGenerationResult preview, GradingRegion region) {
         return preview != null && region != null && region.getId().equals(preview.sourceRegionId);

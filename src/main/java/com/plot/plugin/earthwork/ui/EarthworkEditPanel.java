@@ -287,6 +287,10 @@ public final class EarthworkEditPanel {
             }
         }
 
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.edge_details"))) {
+            return;
+        }
+
         int[] cutPitch = {settings.getCutSlopePitchRatio()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.edge_cut_slope_pitch"), cutPitch, 1, 16)) {
             if (ImGui.isItemActivated()) {
@@ -367,10 +371,11 @@ public final class EarthworkEditPanel {
     }
 
     private void renderEdgeTreatmentLegend() {
+        boolean narrow = EarthworkUiLayout.isNarrowPanel();
         EdgeTreatment[] treatments = EdgeTreatment.values();
         for (int i = 0; i < treatments.length; i++) {
             EdgeTreatment treatment = treatments[i];
-            if (i > 0) {
+            if (i > 0 && !narrow) {
                 ImGui.sameLine();
             }
             ImGui.textColored(

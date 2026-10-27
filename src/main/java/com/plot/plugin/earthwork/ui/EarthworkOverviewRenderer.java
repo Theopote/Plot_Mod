@@ -26,6 +26,14 @@ public final class EarthworkOverviewRenderer {
     private static final float PADDING = 8f;
     private static final float THUMBNAIL_WIDTH = 104f;
     private static final float THUMBNAIL_HEIGHT = 68f;
+
+    public static float thumbnailWidth() {
+        return THUMBNAIL_WIDTH;
+    }
+
+    public static float thumbnailHeight() {
+        return THUMBNAIL_HEIGHT;
+    }
     private static final float PATH_THICKNESS = 1.8f;
     private static final float SELECTED_PATH_THICKNESS = 2.8f;
 
