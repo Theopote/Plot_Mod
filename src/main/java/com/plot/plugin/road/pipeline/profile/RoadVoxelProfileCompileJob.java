@@ -109,7 +109,13 @@ public final class RoadVoxelProfileCompileJob {
         }
         boolean bound = ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
         DerivedCenterlineSynchronizer.synchronizeRoad(network, road, config.getPathSampleDistance());
-        if (bound) road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
+        if (alignment != null) {
+            // The explicit editor override is authoritative only in this disposable snapshot.
+            road.setVerticalAlignment(alignment.copy());
+            ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        } else if (bound) {
+            road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
+        }
         stationingCache = new RoadStationingReadCache(network);
         try (var ignored = stationingCache.activate()) {
             segments = List.copyOf(RoadStationing.orientedSegments(network, road));

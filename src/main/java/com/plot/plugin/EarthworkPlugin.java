@@ -13,6 +13,7 @@ import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.EarthworkRegionGeometryCanvasRenderer;
+import com.plot.plugin.earthwork.EarthworkSlopeDirectionCanvasRenderer;
 import com.plot.plugin.earthwork.EarthworkPickEscapeShortcutListener;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
@@ -228,6 +229,8 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
             }
             if (uiContext.project().getRegionCount() > 0) {
                 EarthworkRegionGeometryCanvasRenderer.render(
+                    drawList, camera, uiContext.project(), uiContext.selectedRegionId());
+                EarthworkSlopeDirectionCanvasRenderer.render(
                     drawList, camera, uiContext.project(), uiContext.selectedRegionId());
             }
         }

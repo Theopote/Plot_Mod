@@ -161,6 +161,19 @@ class ProfileEditorVoxelPreviewSessionTest {
     }
 
     @Test
+    void compilingKeepsTheLastGoodLineVisibleWithoutMarkingItReady() {
+        var network = networkWithRoad("running");
+        var key = keyFor(network, network.getRoad("running"));
+        var slot = new VoxelProfilePreviewSlot();
+        slot.markReady(key, readyResult());
+        var previous = slot.displayOverlay();
+        slot.markComputing(key);
+        assertEquals(VoxelProfilePreviewState.COMPUTING, slot.state());
+        assertFalse(slot.isReady());
+        assertEquals(previous, slot.displayOverlay());
+    }
+
+    @Test
     void editingWhileCompileIsPendingInvalidatesTheOldRequest() {
         var network = networkWithRoad("pending");
         var slot = new VoxelProfilePreviewSlot();

@@ -1822,6 +1822,7 @@
   "plugin.road.voxel_profile_ready": "方块纵断面已更新",
   "plugin.road.voxel_profile_stale": "方块纵断面待更新",
   "plugin.road.voxel_profile_computing": "正在计算……",
+  "plugin.road.voxel_profile_progress": "已处理路段 %d / %d",
   "plugin.road.voxel_profile_failed": "无法完成方块纵断面计算",
   "plugin.road.profile_intersection_marker_grade": "相交道路（立交）",
   "plugin.road.style.no_roads_hint": "请在「路线」Tab 拾取路径以创建第一条道路。",

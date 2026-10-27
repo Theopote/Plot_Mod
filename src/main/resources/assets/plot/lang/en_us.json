@@ -1822,6 +1822,7 @@
   "plugin.road.voxel_profile_ready": "Voxel profile up to date",
   "plugin.road.voxel_profile_stale": "Voxel profile needs update",
   "plugin.road.voxel_profile_computing": "Computing voxel profile…",
+  "plugin.road.voxel_profile_progress": "Segments processed: %d / %d",
   "plugin.road.voxel_profile_failed": "Unable to compute voxel profile",
   "plugin.road.profile_intersection_marker_grade": "Crossing road (grade-separated)",
   "plugin.road.style.no_roads_hint": "Pick a path on the Route tab to create your first road.",

@@ -57,6 +57,7 @@ public final class VoxelProfilePreviewSlot {
         }
         if (state != VoxelProfilePreviewState.READY
                 && state != VoxelProfilePreviewState.STALE
+                && state != VoxelProfilePreviewState.COMPUTING
                 && state != VoxelProfilePreviewState.FAILED) {
             return null;
         }

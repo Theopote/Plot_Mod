@@ -106,7 +106,13 @@ public final class ProfileEditorWindowSession {
         }
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
             float maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
+            Road original = openSnapshot.getRoad(road.getId());
+            boolean unchanged = original != null
+                && !ProfileEditorNetworkApplier.roadVerticalStateDiffers(original, road);
             FlatVerticalIntentSupport.syncCompiledAlignment(workingNetwork, road, maxGrade);
+            if (unchanged) {
+                FlatVerticalIntentSupport.syncCompiledAlignment(openSnapshot, original, maxGrade);
+            }
             return;
         }
         if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
@@ -200,17 +206,9 @@ public final class ProfileEditorWindowSession {
     }
 
     private void syncCrossingAnchorsToSnapshot(RoadSystemConfig config) {
-        var anchored = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer
-            .seedCrossingAnchors(workingNetwork, config);
-        for (String roadId : anchored) {
-            Road derived = workingNetwork.getRoad(roadId);
-            Road original = openSnapshot.getRoad(roadId);
-            if (derived == null || original == null) {
-                continue;
-            }
-            original.setVerticalAlignment(derived.getVerticalAlignment().copy());
-            original.setVerticalMode(derived.getVerticalMode());
-        }
+        // Derive anchors from each curve independently; edited heights must not enter the restore baseline.
+        com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.seedCrossingAnchors(workingNetwork, config);
+        com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.seedCrossingAnchors(openSnapshot, config);
     }
 
     public boolean isDirty() {

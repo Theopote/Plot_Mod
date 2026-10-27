@@ -30,8 +30,7 @@ import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.profile.RoadProfileIntersectionWarningResolver;
 import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
-import com.plot.plugin.road.pipeline.profile.RoadVoxelProfileCompiler;
-import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
+import com.plot.plugin.road.pipeline.profile.RoadVoxelProfileCompileJob;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewCompileRequest;
@@ -125,6 +124,12 @@ final class VerticalProfileEditor {
     private ProfileRenderCache profileRenderCache;
     private Function<Road, FlatElevationProfileOverlay> flatOverlayResolver = road -> null;
     private VoxelProfilePreviewCompileRequest pendingVoxelCompile;
+    private RoadVoxelProfileCompileJob activeVoxelCompile;
+    private ProfileEditorWindowSession voxelCompileOwner;
+    private VoxelProfilePreviewSlot voxelCompileSlot;
+    private long voxelCompileNetworkRevision;
+    private World voxelCompileWorld;
+    private static final long VOXEL_COMPILE_TICK_BUDGET_NANOS = 8_000_000L;
     private boolean profileDesignSyncedNotice;
 
     void clearCache() {
@@ -140,7 +145,7 @@ final class VerticalProfileEditor {
             ProfileChartInteraction.IntersectionDragTarget.NONE;
         windowSession = null;
         closeConfirmPending = false;
-        pendingVoxelCompile = null;
+        cancelVoxelCompile();
         profileDesignSyncedNotice = false;
         invalidateIntersectionCache();
     }
@@ -298,7 +303,7 @@ final class VerticalProfileEditor {
         windowSession = null;
         profileEditSession.cancelEdit();
         closeConfirmPending = false;
-        pendingVoxelCompile = null;
+        cancelVoxelCompile();
     }
 
     private void handleEditorCloseRequest(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -357,6 +362,7 @@ final class VerticalProfileEditor {
     }
 
     private void reopenWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork) {
+        cancelVoxelCompile();
         windowSession = ProfileEditorWindowSession.open(
             liveNetwork, ctx.networkManager().getNetworkRevision());
         profileEditSession.cancelEdit();
@@ -370,6 +376,7 @@ final class VerticalProfileEditor {
         if (windowSession == null) {
             return;
         }
+        cancelVoxelCompile();
         windowSession.restore();
         profileEditSession.cancelEdit();
         profileRenderCache = null;
@@ -627,6 +634,13 @@ final class VerticalProfileEditor {
             }
         };
         ImGui.textColored(voxelColor, PlotI18n.tr(voxelKey));
+        if (slot.state() == VoxelProfilePreviewState.COMPUTING && activeVoxelCompile != null
+                && activeVoxelCompile.totalEdges() > 0 && pendingVoxelCompile != null
+                && road.getId().equals(pendingVoxelCompile.roadId())) {
+            ImGui.sameLine();
+            ImGui.textDisabled(PlotI18n.tr("plugin.road.voxel_profile_progress",
+                activeVoxelCompile.completedEdges(), activeVoxelCompile.totalEdges()));
+        }
 
         boolean buildStale = ctx.previewManager().needsPreviewRecalc()
             || windowSession.isDirty()
@@ -998,7 +1012,6 @@ final class VerticalProfileEditor {
         RoadProfileChartData baseChart = resolveChartData(ctx, editingNetwork, editingRoad);
         List<RoadProfileIntersection> intersections = resolveIntersections(
             ctx, compileNetwork, compileRoad, config, baseChart, true);
-        intersections = profileEditSession.effectiveIntersections(intersections);
         VoxelProfilePreviewKey key = VoxelProfilePreviewKey.of(
             compileNetwork,
             compileRoad,
@@ -1010,6 +1023,7 @@ final class VerticalProfileEditor {
             config,
             options);
         VoxelProfilePreviewSlot slot = windowSession.voxelPreview(editingRoad.getId());
+        cancelVoxelCompile();
         slot.markComputing(key);
         long generatorCacheKey = System.identityHashCode(config) ^ editingRoad.getId().hashCode();
         pendingVoxelCompile = new VoxelProfilePreviewCompileRequest(
@@ -1020,6 +1034,24 @@ final class VerticalProfileEditor {
             options,
             elevationBounds,
             generatorCacheKey);
+        voxelCompileOwner = windowSession;
+        voxelCompileSlot = slot;
+        voxelCompileNetworkRevision = ctx.networkManager().getNetworkRevision();
+        voxelCompileWorld = RoadNetworkGenerator.getClientWorld();
+    }
+
+    private void cancelVoxelCompile() {
+        if (activeVoxelCompile != null) activeVoxelCompile.cancel();
+        if (voxelCompileSlot != null && pendingVoxelCompile != null
+                && Objects.equals(voxelCompileSlot.key(), pendingVoxelCompile.key())
+                && voxelCompileSlot.state() == VoxelProfilePreviewState.COMPUTING) {
+            voxelCompileSlot.markStale();
+        }
+        activeVoxelCompile = null;
+        pendingVoxelCompile = null;
+        voxelCompileOwner = null;
+        voxelCompileSlot = null;
+        voxelCompileWorld = null;
     }
 
     private void tickPendingVoxelCompile(RoadUiContext ctx) {
@@ -1027,34 +1059,40 @@ final class VerticalProfileEditor {
             return;
         }
         VoxelProfilePreviewCompileRequest request = pendingVoxelCompile;
-        pendingVoxelCompile = null;
         Road compileRoad = request.compileNetwork().getRoad(request.roadId());
         if (compileRoad == null) {
+            cancelVoxelCompile();
             return;
         }
         VoxelProfilePreviewSlot slot = windowSession.voxelPreview(request.roadId());
-        if (slot.state() != VoxelProfilePreviewState.COMPUTING) {
+        if (voxelCompileOwner != windowSession || slot != voxelCompileSlot
+                || slot.state() != VoxelProfilePreviewState.COMPUTING
+                || !Objects.equals(slot.key(), request.key())
+                || ctx.networkManager().getNetworkRevision() != voxelCompileNetworkRevision
+                || ctx.previewManager().getTerrainRevision() != request.key().fingerprint().terrainRevision()
+                || voxelCompileWorld != RoadNetworkGenerator.getClientWorld()
+                || !Objects.equals(request.elevationBounds(), resolveElevationBounds(ctx))) {
+            cancelVoxelCompile();
             return;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         try {
-            RoadGenerator generator = gradeSeparationGenerator(
-                ctx, config, request.generatorCacheKey());
-            TerrainSampler terrain = resolveTerrainSampler(generator);
-            VoxelProfileCompileResult result = RoadVoxelProfileCompiler.compile(
-                request.compileNetwork(),
-                compileRoad,
-                config,
-                generator,
-                terrain,
-                ctx.previewManager().getLastNodeElevations(),
-                request.options(),
-                request.elevationBounds(),
-                request.alignmentOverride());
-            windowSession.storeVoxelPreview(request.roadId(), request.key(), result);
-            profileRenderCache = null;
+            if (activeVoxelCompile == null) {
+                RoadGenerator generator = gradeSeparationGenerator(ctx, config, request.generatorCacheKey());
+                activeVoxelCompile = new RoadVoxelProfileCompileJob(
+                    request.compileNetwork(), compileRoad, config, generator, resolveTerrainSampler(generator),
+                    ctx.previewManager().getLastNodeElevations(), request.options(),
+                    request.elevationBounds(), request.alignmentOverride());
+            }
+            activeVoxelCompile.advance(VOXEL_COMPILE_TICK_BUDGET_NANOS);
+            if (activeVoxelCompile.isDone()) {
+                windowSession.storeVoxelPreview(request.roadId(), request.key(), activeVoxelCompile.result());
+                profileRenderCache = null;
+                cancelVoxelCompile();
+            }
         } catch (RuntimeException ex) {
             slot.markFailed(request.key(), ex.getMessage() != null ? ex.getMessage() : "compile error");
+            cancelVoxelCompile();
         }
     }
 
@@ -1161,6 +1199,7 @@ final class VerticalProfileEditor {
                 buildProfileStale,
                 showBuildProfileLine);
         if (interaction.intersectionDragStarted()) {
+            cancelVoxelCompile();
             recordUndoPointBeforeEdit();
             if (flatMode) {
                 profileEditSession.beginFlatWholeLineEdit(
@@ -1170,10 +1209,12 @@ final class VerticalProfileEditor {
             }
         }
         if (interaction.curveHandleDragStarted()) {
+            cancelVoxelCompile();
             recordUndoPointBeforeEdit();
             profileEditSession.beginCurveEdit(road, interaction.activeCurveHandlePvi());
         }
         if (interaction.dragStarted()) {
+            cancelVoxelCompile();
             recordUndoPointBeforeEdit();
             if (flatMode) {
                 profileEditSession.beginFlatWholeLineEdit(
@@ -2269,6 +2310,7 @@ final class VerticalProfileEditor {
     }
 
     private void notifyWorkingProfileChanged() {
+        cancelVoxelCompile();
         profileRenderCache = null;
         invalidateIntersectionCache();
         if (windowSession != null && editorRoadId != null && !editorRoadId.isBlank()) {
