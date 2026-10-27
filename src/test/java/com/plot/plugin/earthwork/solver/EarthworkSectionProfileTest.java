@@ -36,6 +36,32 @@ class EarthworkSectionProfileTest {
         assertEquals(0, line.primaryMin());
         assertEquals(4, line.primaryMax());
         assertEquals(3, line.crossMid());
+        assertEquals(3, profile.crossAxisCoordinate());
+        for (EarthworkSectionProfile.Station station : profile.stations()) {
+            assertEquals(3, station.worldZ());
+        }
+    }
+
+    @Test
+    void picksParallelCutLineInsteadOfMixingColumns() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        for (int x = 0; x < 5; x++) {
+            DesignTerrainCell cell = new DesignTerrainCell(x, 4, new Vec2d(x + 0.5, 4.5), 64);
+            cell.setTargetY(64);
+            cell.setZoneId("pad");
+            grid.put(x, 4, cell);
+        }
+        DesignTerrainCell lone = new DesignTerrainCell(0, 3, new Vec2d(0.5, 3.5), 64);
+        lone.setTargetY(64);
+        lone.setZoneId("pad");
+        grid.put(0, 3, lone);
+
+        EarthworkSectionProfile profile = EarthworkSectionProfile.fromGrid(grid);
+        assertEquals(5, profile.stations().size());
+        assertEquals(4, profile.crossAxisCoordinate());
+        for (EarthworkSectionProfile.Station station : profile.stations()) {
+            assertEquals(4, station.worldZ());
+        }
     }
 
     @Test

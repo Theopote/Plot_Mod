@@ -5,16 +5,22 @@ import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 沿场地较长方向取一列格点，对比现状地面与设计面（剖面 / Before-After）。
+ * <p>
+ * 采样严格落在一条世界方块截线上（固定 X 或固定 Z），不混合相邻列。
  */
 public final class EarthworkSectionProfile {
-    public static final EarthworkSectionProfile EMPTY = new EarthworkSectionProfile(List.of(), true);
+    public static final EarthworkSectionProfile EMPTY = new EarthworkSectionProfile(List.of(), true, 0);
 
     private final List<Station> stations;
     private final boolean alongX;
+    /** 截线在世界 XZ 上的固定坐标：沿 X 剖面时为 worldZ，沿 Z 剖面时为 worldX。 */
+    private final int crossAxisCoordinate;
 
     public record Station(int worldX, int worldZ, int existingY, int designY) {
         public int cut() {
@@ -26,9 +32,10 @@ public final class EarthworkSectionProfile {
         }
     }
 
-    private EarthworkSectionProfile(List<Station> stations, boolean alongX) {
+    private EarthworkSectionProfile(List<Station> stations, boolean alongX, int crossAxisCoordinate) {
         this.stations = List.copyOf(stations);
         this.alongX = alongX;
+        this.crossAxisCoordinate = crossAxisCoordinate;
     }
 
     public static EarthworkSectionProfile fromGrid(DesignTerrainGrid grid) {
@@ -54,15 +61,13 @@ public final class EarthworkSectionProfile {
             return EMPTY;
         }
         boolean alongX = (maxX - minX) >= (maxZ - minZ);
-        int mid = alongX ? (minZ + maxZ) / 2 : (minX + maxX) / 2;
-        List<Station> stations = slice(cells, alongX, mid, 0);
-        if (stations.size() < 2) {
-            stations = slice(cells, alongX, mid, 1);
-        }
+        int midCross = alongX ? (minZ + maxZ) / 2 : (minX + maxX) / 2;
+        int crossCoord = chooseCutLineCoordinate(cells, alongX, midCross);
+        List<Station> stations = sliceExact(cells, alongX, crossCoord);
         stations.sort(alongX
             ? Comparator.comparingInt(Station::worldX).thenComparingInt(Station::worldZ)
             : Comparator.comparingInt(Station::worldZ).thenComparingInt(Station::worldX));
-        return new EarthworkSectionProfile(stations, alongX);
+        return new EarthworkSectionProfile(stations, alongX, crossCoord);
     }
 
     public boolean isEmpty() {
@@ -75,6 +80,10 @@ public final class EarthworkSectionProfile {
 
     public boolean alongX() {
         return alongX;
+    }
+
+    public int crossAxisCoordinate() {
+        return crossAxisCoordinate;
     }
 
     /** 沿剖面方向的方块距离（首站为 0）。 */
@@ -108,34 +117,61 @@ public final class EarthworkSectionProfile {
     /** 世界 XZ 上的剖面截线端点（方块中心），供画布叠加。 */
     public SectionCutLine sectionCutLine() {
         if (stations.isEmpty()) {
-            return new SectionCutLine(0, 0, 0, alongX);
+            return new SectionCutLine(0, 0, crossAxisCoordinate, alongX);
         }
         int primaryMin = Integer.MAX_VALUE;
         int primaryMax = Integer.MIN_VALUE;
-        int crossSum = 0;
         for (Station station : stations) {
             int primary = alongX ? station.worldX() : station.worldZ();
-            int cross = alongX ? station.worldZ() : station.worldX();
             primaryMin = Math.min(primaryMin, primary);
             primaryMax = Math.max(primaryMax, primary);
-            crossSum += cross;
         }
-        int crossMid = crossSum / stations.size();
-        return new SectionCutLine(primaryMin, primaryMax, crossMid, alongX);
+        return new SectionCutLine(primaryMin, primaryMax, crossAxisCoordinate, alongX);
     }
 
     public record SectionCutLine(int primaryMin, int primaryMax, int crossMid, boolean alongX) {
     }
 
-    private static List<Station> slice(
-            List<DesignTerrainCell> cells,
-            boolean alongX,
-            int mid,
-            int tolerance) {
+    private static int chooseCutLineCoordinate(List<DesignTerrainCell> cells, boolean alongX, int preferredCross) {
+        Set<Integer> crossValues = new HashSet<>();
+        for (DesignTerrainCell cell : cells) {
+            crossValues.add(alongX ? cell.worldZ() : cell.worldX());
+        }
+        int bestCross = preferredCross;
+        int bestCount = -1;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int cross : crossValues) {
+            int count = sliceExact(cells, alongX, cross).size();
+            if (count < 2) {
+                continue;
+            }
+            int distance = Math.abs(cross - preferredCross);
+            if (count > bestCount || (count == bestCount && distance < bestDistance)) {
+                bestCount = count;
+                bestDistance = distance;
+                bestCross = cross;
+            }
+        }
+        if (bestCount >= 2) {
+            return bestCross;
+        }
+        for (int cross : crossValues) {
+            int count = sliceExact(cells, alongX, cross).size();
+            int distance = Math.abs(cross - preferredCross);
+            if (count > bestCount || (count == bestCount && distance < bestDistance)) {
+                bestCount = count;
+                bestDistance = distance;
+                bestCross = cross;
+            }
+        }
+        return bestCross;
+    }
+
+    private static List<Station> sliceExact(List<DesignTerrainCell> cells, boolean alongX, int crossCoord) {
         List<Station> stations = new ArrayList<>();
         for (DesignTerrainCell cell : cells) {
-            int axis = alongX ? cell.worldZ() : cell.worldX();
-            if (Math.abs(axis - mid) > tolerance) {
+            int cross = alongX ? cell.worldZ() : cell.worldX();
+            if (cross != crossCoord) {
                 continue;
             }
             stations.add(new Station(cell.worldX(), cell.worldZ(), cell.existingGroundY(), cell.targetY()));

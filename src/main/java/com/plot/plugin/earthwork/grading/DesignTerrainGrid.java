@@ -82,4 +82,22 @@ public final class DesignTerrainGrid {
     public static long cellKey(int worldX, int worldZ) {
         return ((long) worldX << 32) | (worldZ & 0xFFFFFFFFL);
     }
+
+    /** 参与土方格点的内容指纹，用于图表缓存失效。 */
+    public static long earthworkContentFingerprint(DesignTerrainGrid grid) {
+        if (grid == null || grid.cellCount() == 0) {
+            return 0L;
+        }
+        long hash = 17L + grid.cellCount();
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (cell == null || !cell.participatesInEarthwork()) {
+                continue;
+            }
+            hash = 31L * hash + cell.worldX();
+            hash = 31L * hash + cell.worldZ();
+            hash = 31L * hash + cell.existingGroundY();
+            hash = 31L * hash + cell.targetY();
+        }
+        return hash;
+    }
 }

@@ -66,7 +66,7 @@ public final class EarthworkInsightCharts {
         renderChangeOverview(volumes);
 
         if (mode.showsBuilderVisuals()) {
-            renderHeatmap(preview.designTerrainGrid);
+            renderHeatmap(ctx, preview, preview.designTerrainGrid);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
             renderProfile(preview.sectionProfile);
@@ -101,7 +101,7 @@ public final class EarthworkInsightCharts {
             return;
         }
         renderChangeOverview(preview.volumeReport != null ? preview.volumeReport : EarthworkVolumeReport.empty());
-        renderHeatmap(preview.designTerrainGrid);
+        renderHeatmap(ctx, preview, preview.designTerrainGrid);
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
             renderProfile(preview.sectionProfile);
         }
@@ -390,7 +390,10 @@ public final class EarthworkInsightCharts {
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.profile.legend"));
     }
 
-    static void renderHeatmap(DesignTerrainGrid grid) {
+    static void renderHeatmap(
+            EarthworkUiContext ctx,
+            EarthworkGenerationResult preview,
+            DesignTerrainGrid grid) {
         if (grid == null || grid.cellCount() == 0) {
             return;
         }
@@ -401,7 +404,10 @@ public final class EarthworkInsightCharts {
         int gridCols = Math.max(8, Math.min(64, (int) (innerW / 4f)));
         int gridRows = Math.max(6, Math.min(48, (int) (innerH / 4f)));
         EarthworkCutFillHeatmap.Bucket[][] buckets =
-            EarthworkCutFillHeatmap.aggregate(grid, gridCols, gridRows);
+            ctx.cutFillHeatmapCache().resolve(preview, grid, gridCols, gridRows);
+        if (buckets == null) {
+            return;
+        }
 
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();

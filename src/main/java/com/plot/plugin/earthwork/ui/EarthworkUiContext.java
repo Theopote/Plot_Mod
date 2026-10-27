@@ -35,6 +35,7 @@ public final class EarthworkUiContext {
     private final EarthworkPreviewManager previewManager;
     private final EarthworkBuildManager buildManager;
     private final EarthworkRegionBlockCountCache regionBlockCountCache = new EarthworkRegionBlockCountCache();
+    private final EarthworkCutFillHeatmapCache cutFillHeatmapCache = new EarthworkCutFillHeatmapCache();
     private final List<Shape> selectedRegions = new ArrayList<>();
 
     private int projectionCaptureFrame = -1;
@@ -104,6 +105,10 @@ public final class EarthworkUiContext {
 
     public EarthworkRegionBlockCountCache regionBlockCountCache() {
         return regionBlockCountCache;
+    }
+
+    EarthworkCutFillHeatmapCache cutFillHeatmapCache() {
+        return cutFillHeatmapCache;
     }
 
     public EarthworkConfig config() {

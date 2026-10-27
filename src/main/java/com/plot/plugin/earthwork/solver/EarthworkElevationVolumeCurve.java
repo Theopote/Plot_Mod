@@ -299,8 +299,9 @@ public final class EarthworkElevationVolumeCurve {
         return null;
     }
 
+    /** 是否具备按列重算任意整数 Y 的挖填量（非边坡耦合近似曲线）。 */
     public boolean canCompareAdjacentHeights() {
-        return sampleStep <= 1 && !sourceColumns.isEmpty();
+        return !sourceColumns.isEmpty();
     }
 
     public long maxWork() {

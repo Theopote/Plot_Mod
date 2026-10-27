@@ -52,7 +52,7 @@ class EarthworkElevationVolumeCurveTest {
         }
         EarthworkElevationVolumeCurve curve = EarthworkElevationVolumeCurve.fromColumns(columns, 64);
         assertTrue(curve.sampleStep() > 1);
-        assertFalse(curve.canCompareAdjacentHeights());
+        assertTrue(curve.canCompareAdjacentHeights());
 
         EarthworkElevationVolumeCurve.Sample at65 = curve.sampleAtExact(65);
         assertEquals(65, at65.y());
