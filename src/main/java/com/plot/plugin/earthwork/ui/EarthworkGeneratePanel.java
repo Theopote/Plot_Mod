@@ -37,6 +37,7 @@ public final class EarthworkGeneratePanel {
         }
         ImGui.spacing();
         renderPreviewActions(region);
+        EarthworkUiWidgets.renderPreviewDisplaySettings(ctx, region);
 
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (preview == null) {
