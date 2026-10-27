@@ -4,8 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
-import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
-import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
@@ -16,7 +14,6 @@ import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.List;
-import java.util.Map;
 
 
 /** 土方生成 Tab：预览计算、网格示意与落地确认。 */
@@ -61,15 +58,6 @@ public final class EarthworkGeneratePanel {
                 renderGridPreview(region, preview);
             }
             EarthworkInsightCharts.render(ctx, region, preview);
-        }
-        if (ctx.config().getWorkMode().showsEngineeringMetrics()
-            && ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.report"))) {
-            if (preview.siteVolumeReport != null && !preview.siteVolumeReport.byZone().isEmpty()) {
-                renderSiteReport(preview.siteVolumeReport);
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
-                ctx.previewManager().exportLastReport(ctx.project(), region);
-            }
         }
     }
 
@@ -334,18 +322,5 @@ public final class EarthworkGeneratePanel {
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(java.time.ZoneId.systemDefault())
             .format(java.time.Instant.ofEpochMilli(epochMs));
-    }
-
-    private void renderSiteReport(SiteEarthworkReport report) {
-        ImGui.text(PlotI18n.tr("plugin.earthwork.current_site_report"));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totals().geometricCutVolume()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totals().geometricFillVolume()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
-        for (Map.Entry<String, EarthworkVolumeReport> entry : report.byZone().entrySet()) {
-            GradingRegion region = ctx.project().getRegion(entry.getKey());
-            ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_item",
-                region != null ? region.getName() : entry.getKey(),
-                entry.getValue().geometricCutVolume(), entry.getValue().geometricFillVolume()));
-        }
     }
 }
