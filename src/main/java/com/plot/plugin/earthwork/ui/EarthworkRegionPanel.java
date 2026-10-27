@@ -70,30 +70,23 @@ public final class EarthworkRegionPanel {
                 ctx.showRegionOverlayRef());
             ImGui.sameLine();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.pick_region"), 0, 0)) {
-            startPickSession();
-        }
-        ImGui.sameLine();
         if (!ctx.pickSession().isActive()) {
             updateSelectedRegionsIfNeeded();
         }
-        boolean adoptDisabled = ctx.selectedRegions().isEmpty();
-        if (adoptDisabled) {
-            ImGui.beginDisabled();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.pick_region"), 0, 0)) {
+            if (!ctx.selectedRegions().isEmpty()) {
+                adoptSelectedRegions();
+            } else {
+                startPickSession();
+            }
         }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.adopt_region"), 0, 0)) {
-            adoptSelectedRegions();
-        }
-        if (adoptDisabled) {
-            ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.earthwork.pick_region"));
         }
 
         if (quickMode) {
             ImGui.spacing();
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.adopt_hint"));
-        } else {
-            ImGui.spacing();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.draw_region_hint"));
         }
 
         if (!ctx.selectedRegions().isEmpty()) {
