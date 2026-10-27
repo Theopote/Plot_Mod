@@ -80,20 +80,7 @@ public final class EarthworkGeneratePanel {
     public void renderPreviewBuildButtons(EarthworkGenerationResult preview) {
         renderChangeCounts(preview);
         renderPrimaryAction(ctx.project().getRegion(ctx.selectedRegionId()));
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.preview_tools"))) {
-            return;
-        }
-        boolean narrow = EarthworkUiLayout.isNarrowPanel();
-        float half = Math.max(1f, (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2f);
-        float full = ImGui.getContentRegionAvailX();
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.ui.reproject"), narrow ? full : half, 0)) {
-            ctx.previewManager().projectPreview();
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.reproject");
-        if (!narrow) {
-            ImGui.sameLine();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), narrow ? full : half, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), ImGui.getContentRegionAvailX(), 0)) {
             ctx.clearPreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.clear_preview");
