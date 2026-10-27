@@ -708,7 +708,11 @@ public final class RoadNetworkManager {
         if (edgeId == null || edgeId.isBlank() || network.getEdge(edgeId) == null) {
             return;
         }
+        if (!selectedEdgeIds.contains(edgeId)) {
+            selectedEdgeIds.add(edgeId);
+        }
         lastSelectedEdgeId = edgeId;
+        ensureSelectionValid();
     }
 
     public Road getPrimarySelectedRoad() {
@@ -904,10 +908,25 @@ public final class RoadNetworkManager {
         if (road == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
+        return materializeHorizontalAlignment(road.getId());
+    }
+
+    /**
+     * 将正式路网中指定道路的平面线形实体化到中心线。
+     * 仅接受 live 路网中的 {@code roadId}，避免误传入工作副本 {@link Road}。
+     */
+    public CenterlineEditResult materializeHorizontalAlignment(String roadId) {
+        if (roadId == null || roadId.isBlank()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
+        }
+        Road liveRoad = network.getRoad(roadId);
+        if (liveRoad == null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
+        }
         return mutateNetworkWithKind(
             () -> {
                 CenterlineEditResult result =
-                    HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+                    HorizontalAlignmentCenterlineMaterializer.materialize(network, liveRoad);
                 if (result.isSuccess()) {
                     reconcileCrossingsInPlace();
                 }

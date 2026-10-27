@@ -71,7 +71,10 @@ public final class HorizontalAlignmentSummaryEditor {
         if (RoadStationing.isStationable(network, road)
             && HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road)) {
             if (ImGui.button(PlotI18n.tr("plugin.road.horizontal_alignment_materialize") + "##ha_mat")) {
-                CenterlineEditResult result = ctx.networkManager().materializeHorizontalAlignment(road);
+                // 始终对传入的 network 物化（浮动编辑器为 workingNetwork），
+                // 禁止经 Manager 写入 live，以免绕过窗口级事务。
+                CenterlineEditResult result =
+                    HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
                 lastHorizontalAlignmentMessage = CenterlineEditMessages.format(result);
             }
             ImGui.sameLine();

@@ -40,6 +40,43 @@ public final class RoadSegmentEditor {
             ctx.networkManager().setPrimarySelectedEdge(segmentIds.getFirst());
             primaryId = segmentIds.getFirst();
         }
+        renderSegmentListRows(
+            network,
+            segmentIds,
+            primaryId,
+            segmentId -> {
+                finishOrCancelSlopeOverrideEdit(ctx);
+                ctx.networkManager().setPrimarySelectedEdge(segmentId);
+            });
+    }
+
+    /**
+     * 浮动编辑器草稿分段列表：选择仅写入调用方维护的 working edge id，不改全局选中。
+     */
+    public void renderWorkingSegmentList(
+            RoadNetwork network,
+            Road road,
+            String selectedEdgeId,
+            java.util.function.Consumer<String> onSelect) {
+        List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(network, road);
+        if (segmentIds.isEmpty()) {
+            return;
+        }
+        String primaryId = selectedEdgeId;
+        if (primaryId == null || primaryId.isBlank() || !segmentIds.contains(primaryId)) {
+            primaryId = segmentIds.getFirst();
+            if (onSelect != null) {
+                onSelect.accept(primaryId);
+            }
+        }
+        renderSegmentListRows(network, segmentIds, primaryId, onSelect);
+    }
+
+    private void renderSegmentListRows(
+            RoadNetwork network,
+            List<String> segmentIds,
+            String primaryId,
+            java.util.function.Consumer<String> onSelect) {
         for (int i = 0; i < segmentIds.size(); i++) {
             String segmentId = segmentIds.get(i);
             RoadEdge edge = network.getEdge(segmentId);
@@ -50,8 +87,9 @@ public final class RoadSegmentEditor {
             String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
                 + " · " + PlotI18n.tr("plugin.road.segment_length", edge.getLength());
             if (ImGui.selectable(label + "##seg_pick_" + i, selected) && !selected) {
-                finishOrCancelSlopeOverrideEdit(ctx);
-                ctx.networkManager().setPrimarySelectedEdge(segmentId);
+                if (onSelect != null) {
+                    onSelect.accept(segmentId);
+                }
             }
             if (selected && segmentIds.size() > 1) {
                 RoadUiWidgets.textWrappedColored(

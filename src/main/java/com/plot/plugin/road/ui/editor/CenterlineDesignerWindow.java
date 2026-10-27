@@ -25,6 +25,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     private final RoadCenterlineEditPanel centerlineEditPanel = new RoadCenterlineEditPanel();
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
+    /** 窗口内草稿分段选择；确认成功前不写入全局选中。 */
+    private String selectedWorkingEdgeId = "";
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -55,10 +57,17 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
         var live = ctx.networkManager().getNetwork();
         var openSnapshot = live.snapshot();
+        selectedWorkingEdgeId = resolveInitialWorkingEdgeId(ctx, live.getRoad(roadId));
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
             working -> CenterlineEditorApplier.hasChanges(openSnapshot, working, roadId));
+    }
+
+    @Override
+    public void discard(RoadUiContext ctx) {
+        selectedWorkingEdgeId = "";
+        super.discard(ctx);
     }
 
     @Override
@@ -72,8 +81,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
             return;
         }
-        String primaryEdgeId = resolvePrimaryEdgeId(ctx, working, road);
-        RoadEdge primaryEdge = working.getEdge(primaryEdgeId);
+        selectedWorkingEdgeId = resolveWorkingEdgeId(working, road, selectedWorkingEdgeId);
+        RoadEdge primaryEdge = working.getEdge(selectedWorkingEdgeId);
         if (primaryEdge == null) {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.edge_missing"));
             return;
@@ -101,7 +110,11 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             segmentListHeight,
             false,
             ImGuiWindowFlags.AlwaysVerticalScrollbar);
-        segmentEditor.renderSegmentList(ctx, working, road);
+        segmentEditor.renderWorkingSegmentList(
+            working,
+            road,
+            selectedWorkingEdgeId,
+            edgeId -> selectedWorkingEdgeId = edgeId);
         ImGui.endChild();
         segmentEditor.renderSegmentSummary(working, road, primaryEdge, chainageDisplay);
         centerlineEditPanel.renderWorkingNetwork(ctx, working, road, primaryEdge);
@@ -115,6 +128,15 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(live);
         com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(live);
         ctx.networkManager().invalidateEditedProfilesIfGeometryChanged();
+        // 拓扑可能已变：先按 road 刷新选择集，再落到草稿中选中的 live Edge。
+        if (live.getRoad(roadId) != null) {
+            ctx.networkManager().selectRoad(roadId, false);
+        }
+        if (selectedWorkingEdgeId != null
+            && !selectedWorkingEdgeId.isBlank()
+            && live.getEdge(selectedWorkingEdgeId) != null) {
+            ctx.networkManager().setPrimarySelectedEdge(selectedWorkingEdgeId);
+        }
     }
 
     @Override
@@ -123,12 +145,36 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         return super.finishOrPrompt(ctx);
     }
 
-    private static String resolvePrimaryEdgeId(RoadUiContext ctx, RoadNetwork working, Road road) {
+    /** 包内测试：当前草稿选中的分段。 */
+    String selectedWorkingEdgeId() {
+        return selectedWorkingEdgeId;
+    }
+
+    /** 包内测试：切换草稿分段选择。 */
+    void selectWorkingEdge(String edgeId) {
+        selectedWorkingEdgeId = edgeId != null ? edgeId : "";
+    }
+
+    private static String resolveInitialWorkingEdgeId(RoadUiContext ctx, Road liveRoad) {
+        if (liveRoad == null) {
+            return "";
+        }
         String selected = ctx.networkManager().getPrimarySelectedEdgeId();
-        if (selected != null && !selected.isBlank() && working.getEdge(selected) != null) {
-            String roadIdForEdge = working.getEdge(selected).getRoadId();
+        if (selected != null
+            && !selected.isBlank()
+            && liveRoad.getOrderedSegmentIds().contains(selected)) {
+            return selected;
+        }
+        return liveRoad.getOrderedSegmentIds().isEmpty()
+            ? ""
+            : liveRoad.getOrderedSegmentIds().getFirst();
+    }
+
+    private static String resolveWorkingEdgeId(RoadNetwork working, Road road, String preferred) {
+        if (preferred != null && !preferred.isBlank() && working.getEdge(preferred) != null) {
+            String roadIdForEdge = working.getEdge(preferred).getRoadId();
             if (road.getId().equals(roadIdForEdge)) {
-                return selected;
+                return preferred;
             }
         }
         return road.getOrderedSegmentIds().isEmpty()
