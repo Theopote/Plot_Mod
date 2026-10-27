@@ -140,4 +140,34 @@ public final class RoadFloatingEditorShell {
         }
         return true;
     }
+
+    public static void renderReloadConfirmDialog(
+            String popupId,
+            boolean pending,
+            Runnable clearPending,
+            Runnable onReload,
+            Runnable onContinueEditing) {
+        if (!RoadUiWidgets.beginDeferredPopupModal(popupId, pending, clearPending)) {
+            return;
+        }
+        try {
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_confirm"));
+            ImGui.separator();
+            boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
+            float buttonWidth = narrow ? -1f : 140f;
+            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live") + "##reload_confirm", buttonWidth, 0)) {
+                onReload.run();
+                ImGui.closeCurrentPopup();
+            }
+            if (!narrow) {
+                ImGui.sameLine();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##reload_continue", buttonWidth, 0)) {
+                onContinueEditing.run();
+                ImGui.closeCurrentPopup();
+            }
+        } finally {
+            ImGui.endPopup();
+        }
+    }
 }

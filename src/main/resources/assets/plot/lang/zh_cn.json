@@ -1601,6 +1601,7 @@
   "plugin.road.floating_editor.close_confirm_message": "关闭前是否应用未保存的修改？",
   "plugin.road.floating_editor.confirm_conflict": "路网已在别处变更，本地修改无法保存。",
   "plugin.road.floating_editor.reload_from_live": "从当前路网重新加载",
+  "plugin.road.floating_editor.reload_from_live_confirm": "重新加载将丢弃此窗口尚未保存的修改，是否继续？",
   "plugin.road.floating_editor.reload_from_live_done": "已从当前路网重新加载，未保存的修改已丢弃。",
   "plugin.road.floating_editor.road_missing": "所选道路已不存在。",
   "plugin.road.floating_editor.cross_section.title": "横断面设计器",

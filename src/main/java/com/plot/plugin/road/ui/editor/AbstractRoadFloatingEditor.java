@@ -21,6 +21,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     protected boolean focusOnOpen;
     protected boolean scopeBlocked;
     protected boolean revisionConflictPending;
+    protected boolean reloadConfirmPending;
 
     protected abstract RoadFloatingEditorKind editorKind();
 
@@ -126,6 +127,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         }
 
         renderCloseConfirmDialog(ctx);
+        renderReloadConfirmDialog(ctx);
 
         if (!windowOpen.get()) {
             session = null;
@@ -152,6 +154,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         closeConfirmPending = false;
         scopeBlocked = false;
         revisionConflictPending = false;
+        reloadConfirmPending = false;
         if (session != null) {
             session.cancel();
         }
@@ -167,6 +170,12 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         closeConfirmPending = false;
         scopeBlocked = false;
         revisionConflictPending = false;
+        reloadConfirmPending = false;
+    }
+
+    /** 作用域切换等场景：是否有未保存确认或版本冲突待处理。 */
+    boolean isInteractionBlocked() {
+        return scopeBlocked || closeConfirmPending || revisionConflictPending || reloadConfirmPending;
     }
 
     protected void restoreSession() {
@@ -260,8 +269,39 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             PluginUiColors.WARNING,
             PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
         if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live") + "##reload_live")) {
-            resyncSessionFromLive(ctx);
+            reloadConfirmPending = true;
         }
         ImGui.separator();
+    }
+
+    private void renderReloadConfirmDialog(RoadUiContext ctx) {
+        RoadFloatingEditorShell.renderReloadConfirmDialog(
+            windowImGuiId() + "##reload_confirm",
+            reloadConfirmPending,
+            () -> reloadConfirmPending = false,
+            () -> {
+                resyncSessionFromLive(ctx);
+                reloadConfirmPending = false;
+            },
+            () -> reloadConfirmPending = false);
+    }
+
+    /** 包内测试：确认写回 live。 */
+    boolean confirmEdits(RoadUiContext ctx) {
+        return confirm(ctx);
+    }
+
+    /** 包内测试：从 live 重建 session。 */
+    void resyncFromLive(RoadUiContext ctx) {
+        resyncSessionFromLive(ctx);
+    }
+
+    /** 包内测试：当前 session。 */
+    RoadNetworkEditorSession editorSession() {
+        return session;
+    }
+
+    boolean hasRevisionConflict() {
+        return revisionConflictPending;
     }
 }

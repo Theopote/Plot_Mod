@@ -6,7 +6,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.benchmark.RoadBenchmarkHarness;
-import com.plot.plugin.road.RoadTestFixtures;
+import com.plot.plugin.road.ProfilePlacementTestSupport;
 import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -95,6 +95,44 @@ class RoadVoxelProfileE2ETest {
             compared++;
         }
         assertTrue(compared >= 20, "expected many station comparisons along 120-block road");
+    }
+
+    @Test
+    void designBlockPlacementChainOnFlatManualProfile() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("design-chain");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setMaxSlope(40.0f);
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            new PointOfVerticalIntersection(0.0, 77.0),
+            new PointOfVerticalIntersection(100.0, 77.0)));
+        road.setVerticalAlignment(alignment);
+
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(100, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
+
+        RoadSystemConfig config = new RoadSystemConfig("design-chain");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(false);
+        config.setIncludeSlopeBatter(false);
+        config.setMaxSlope(40.0f);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+
+        VoxelProfileCompileResult compiled = RoadVoxelProfileCompiler.compile(
+            network, road, config, generator, terrain,
+            Map.of(), ProfileCompileOptions.defaults(), null, alignment);
+        RoadBenchmarkHarness.PreviewRun preview =
+            RoadBenchmarkHarness.generatePreview(network, generator, terrain);
+
+        ProfilePlacementTestSupport.assertDesignBlockPlacementChain(
+            alignment, compiled, preview, 1e-3, 1);
     }
 
     @Test

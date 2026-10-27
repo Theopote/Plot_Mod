@@ -1439,34 +1439,55 @@ public final class RoadNetworkManager {
         if (selectedEdgeIds.isEmpty()) {
             return;
         }
-        // 程序化调用可直接传入完整 draft；无脏字段时按与当前默认值的差异推导
-        if (batchEditDirtyFields.isEmpty() && draft != null) {
-            markBatchDirtyFromDraftChange(currentBatchEditDefaults(), draft);
-        }
+        prepareBatchEditFields(draft);
         if (batchEditDirtyFields.isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.batch_no_pending_changes"));
             return;
         }
+        mutateNetwork(() -> applyBatchEditToSelectedRoads(draft, true));
+    }
+
+    /**
+     * 在已 {@link #beginNetworkEdit} 的 mutation 内调用，避免重复 push undo 帧。
+     */
+    public void applyBatchEditWithinPendingEdit(BatchEditDefaults draft) {
+        if (selectedEdgeIds.isEmpty()) {
+            return;
+        }
+        prepareBatchEditFields(draft);
+        if (batchEditDirtyFields.isEmpty()) {
+            return;
+        }
+        applyBatchEditToSelectedRoads(draft, false);
+    }
+
+    private void prepareBatchEditFields(BatchEditDefaults draft) {
+        if (batchEditDirtyFields.isEmpty() && draft != null) {
+            markBatchDirtyFromDraftChange(currentBatchEditDefaults(), draft);
+        }
+    }
+
+    private void applyBatchEditToSelectedRoads(BatchEditDefaults draft, boolean notifySuccess) {
         EnumSet<RoadBatchEditField> fields = EnumSet.copyOf(batchEditDirtyFields);
-        mutateNetwork(() -> {
-            LinkedHashSet<String> updatedRoadIds = new LinkedHashSet<>();
-            for (String edgeId : selectedEdgeIds) {
-                RoadEdge edge = network.getEdge(edgeId);
-                if (edge == null || edge.getRoadId() == null) {
-                    continue;
-                }
-                if (!updatedRoadIds.add(edge.getRoadId())) {
-                    continue;
-                }
-                Road road = network.getRoadForEdge(edge);
-                if (road == null) {
-                    continue;
-                }
-                applyDraftToRoad(road, draft, fields);
+        LinkedHashSet<String> updatedRoadIds = new LinkedHashSet<>();
+        for (String edgeId : selectedEdgeIds) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null || edge.getRoadId() == null) {
+                continue;
             }
-            batchEditDirtyFields.clear();
+            if (!updatedRoadIds.add(edge.getRoadId())) {
+                continue;
+            }
+            Road road = network.getRoadForEdge(edge);
+            if (road == null) {
+                continue;
+            }
+            applyDraftToRoad(road, draft, fields);
+        }
+        batchEditDirtyFields.clear();
+        if (notifySuccess) {
             status.success(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
-        });
+        }
     }
 
     private void markBatchDirtyFromDraftChange(BatchEditDefaults before, BatchEditDefaults after) {

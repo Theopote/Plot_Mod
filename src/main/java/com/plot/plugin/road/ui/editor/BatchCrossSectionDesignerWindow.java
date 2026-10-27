@@ -79,7 +79,12 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
             return;
         }
         ctx.networkManager().updateBatchEditDraft(workingBatchDefaults);
-        ctx.networkManager().applyBatchEdit(workingBatchDefaults);
+        ctx.networkManager().applyBatchEditWithinPendingEdit(workingBatchDefaults);
+    }
+
+    /** 包内测试：替换工作副本批量默认值。 */
+    void replaceWorkingBatchDefaults(RoadNetworkManager.BatchEditDefaults defaults) {
+        workingBatchDefaults = defaults;
     }
 
     private boolean batchDirty() {

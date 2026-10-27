@@ -94,6 +94,21 @@ public final class RoadFloatingEditorHost {
         }
     }
 
+    /** 包内测试：按类型取编辑器实例。 */
+    RoadFloatingEditor editorForKind(RoadFloatingEditorKind kind) {
+        return editors.get(kind);
+    }
+
+    /** 是否有浮动编辑器正在等待未保存或版本冲突处理。 */
+    public boolean hasInteractionBlocked() {
+        for (RoadFloatingEditor editor : editors.values()) {
+            if (editor instanceof AbstractRoadFloatingEditor floating && floating.isInteractionBlocked()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private List<RoadFloatingEditor> activeEditors() {
         List<RoadFloatingEditor> active = new ArrayList<>();
         for (RoadFloatingEditor editor : editors.values()) {
