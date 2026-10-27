@@ -87,10 +87,6 @@ public final class EarthworkUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.earthwork.net_blocks", net));
             ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
             ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
-            ImGui.text(PlotI18n.tr(
-                "plugin.earthwork.block_change_breakdown",
-                safe.cutChangedBlocks(),
-                safe.fillChangedBlocks()));
         }
 
         /** 默认一行摘要：Y · 挖 · 填 · 差；斜坡时用区间代替单点 Y。 */

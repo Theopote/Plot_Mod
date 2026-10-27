@@ -19,15 +19,22 @@ import imgui.flag.ImGuiTreeNodeFlags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * 沿桩号可变横断面 CRUD：桩号 + {@link CrossSectionDraft} 模板。
  */
 public final class VariableCrossSectionEditor {
 
-    private String syncedRoadId = "";
+    private Road syncedRoad;
+    private RoadVariableCrossSections syncedSections;
+    private double validationLength = Double.POSITIVE_INFINITY;
     private final List<StationDraft> drafts = new ArrayList<>();
+
+    public void reset() {
+        syncedRoad = null;
+        syncedSections = null;
+        drafts.clear();
+    }
 
     public void render(
             RoadUiContext ctx,
@@ -47,8 +54,9 @@ public final class VariableCrossSectionEditor {
         }
 
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        syncDrafts(road, config);
         double roadLength = RoadStationing.canonicalLength(network, road);
+        validationLength = roadLength;
+        syncDrafts(road, config);
 
         if (drafts.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -145,10 +153,11 @@ public final class VariableCrossSectionEditor {
     }
 
     private void syncDrafts(Road road, RoadSystemConfig config) {
-        if (Objects.equals(syncedRoadId, road.getId())) {
+        if (syncedRoad == road && syncedSections == road.getVariableCrossSections()) {
             return;
         }
-        syncedRoadId = road.getId();
+        syncedRoad = road;
+        syncedSections = road.getVariableCrossSections();
         drafts.clear();
         if (road.getVariableCrossSections() == null) {
             return;
@@ -163,6 +172,7 @@ public final class VariableCrossSectionEditor {
     }
 
     private void applyDraftsIfChanged(Road road, RoadSystemConfig config) {
+        if (hasInvalidDrafts()) return;
         List<StationCrossSection> built = buildStations(drafts, config);
         List<StationCrossSection> current = road.getVariableCrossSections() != null
             ? road.getVariableCrossSections().sortedStations()
@@ -171,10 +181,18 @@ public final class VariableCrossSectionEditor {
             return;
         }
         road.setVariableCrossSections(built.isEmpty() ? null : new RoadVariableCrossSections(built));
+        syncedSections = road.getVariableCrossSections();
+    }
+
+    public boolean hasInvalidDrafts() {
+        for (int i = 0; i < drafts.size(); i++) {
+            if (validateDraft(drafts.get(i), drafts, i, (float) validationLength) != null) return true;
+        }
+        return false;
     }
 
     private static String validateDraft(StationDraft draft, List<StationDraft> all, int index, float roadLength) {
-        if (draft.station < 0.0f || draft.station > roadLength + 1e-6f) {
+        if (!Float.isFinite(draft.station) || draft.station < 0.0f || draft.station > roadLength + 1e-6f) {
             return PlotI18n.tr("plugin.road.variable_cross_section_station_invalid");
         }
         for (int i = 0; i < all.size(); i++) {
@@ -198,7 +216,10 @@ public final class VariableCrossSectionEditor {
         List<StationCrossSection> stations = new ArrayList<>();
         for (StationDraft draft : valid) {
             try {
-                stations.add(StationCrossSection.at(draft.station, draft.crossSectionDraft.toCrossSection()));
+                double station = draft.originalStation != null
+                    && Float.compare(draft.station, draft.originalStation.floatValue()) == 0
+                    ? draft.originalStation : draft.station;
+                stations.add(StationCrossSection.at(station, draft.crossSectionDraft.toCrossSection()));
             } catch (IllegalArgumentException ignored) {
                 // Skip invalid draft rows until user fixes them.
             }
@@ -244,33 +265,25 @@ public final class VariableCrossSectionEditor {
         if (left == null || right == null) {
             return false;
         }
-        return left.width() == right.width()
-            && left.laneCount() == right.laneCount()
-            && left.includeShoulder() == right.includeShoulder()
-            && left.shoulderWidth() == right.shoulderWidth()
-            && left.includeSidewalk() == right.includeSidewalk()
-            && left.sidewalkWidth() == right.sidewalkWidth()
-            && Objects.equals(left.sidewalkMaterial(), right.sidewalkMaterial())
-            && left.includeBikeLane() == right.includeBikeLane()
-            && left.bikeLaneWidth() == right.bikeLaneWidth()
-            && left.includeMedian() == right.includeMedian()
-            && left.medianWidth() == right.medianWidth();
+        return com.plot.plugin.road.ui.editor.CrossSectionDraftComparer.equals(left, right);
     }
 
     static final class StationDraft {
         float station;
+        Double originalStation;
         CrossSectionDraft crossSectionDraft;
 
         static StationDraft from(StationCrossSection entry, RoadSystemConfig config) {
             StationDraft draft = new StationDraft();
             draft.station = (float) entry.getStation();
+            draft.originalStation = entry.getStation();
             draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(entry.getCrossSection(), config);
             return draft;
         }
 
         static StationDraft defaultEntry(Road road, RoadSystemConfig config, double roadLength) {
             StationDraft draft = new StationDraft();
-            draft.station = (float) Math.clamp(roadLength * 0.25, 10.0, roadLength);
+            draft.station = (float) Math.min(roadLength, Math.max(10.0, roadLength * 0.25));
             draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(road.getCrossSection(), config);
             return draft;
         }

@@ -17,6 +17,7 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
 
     private RoadNetworkManager.BatchEditDefaults openBatchDefaults;
     private RoadNetworkManager.BatchEditDefaults workingBatchDefaults;
+    private java.util.Set<String> targetRoadIds = java.util.Set.of();
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -45,6 +46,8 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
 
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
+        targetRoadIds = java.util.Set.copyOf(ctx.networkManager().getSelectedRoadIds());
+        if (targetRoadIds.isEmpty()) targetRoadIds = java.util.Set.of(roadId);
         openBatchDefaults = ctx.networkManager().loadBatchEditDefaults();
         workingBatchDefaults = openBatchDefaults;
         var live = ctx.networkManager().getNetwork();
@@ -59,7 +62,7 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         if (workingBatchDefaults == null) {
             return;
         }
-        int roadCount = ctx.networkManager().getSelectedRoadIds().size();
+        int roadCount = targetRoadIds.size();
         ImGui.text(PlotI18n.tr("plugin.road.floating_editor.batch_cross_section.scope", roadCount));
         ImGui.spacing();
         CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(workingBatchDefaults);
@@ -78,8 +81,18 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         if (workingBatchDefaults == null) {
             return;
         }
-        ctx.networkManager().updateBatchEditDraft(workingBatchDefaults);
-        ctx.networkManager().applyBatchEditWithinPendingEdit(workingBatchDefaults);
+        ctx.networkManager().applyBatchEditWithinPendingEdit(openBatchDefaults, workingBatchDefaults, targetRoadIds);
+    }
+
+    @Override
+    public boolean matchesScope(java.util.Set<String> selectedRoadIds) {
+        return targetRoadIds.equals(selectedRoadIds);
+    }
+
+    @Override
+    protected void restoreSession() {
+        super.restoreSession();
+        workingBatchDefaults = openBatchDefaults;
     }
 
     /** 包内测试：替换工作副本批量默认值。 */

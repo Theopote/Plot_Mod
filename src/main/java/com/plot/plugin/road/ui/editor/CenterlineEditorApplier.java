@@ -22,7 +22,7 @@ public final class CenterlineEditorApplier {
         if (!Objects.equals(original.getOrderedSegmentIds(), working.getOrderedSegmentIds())) {
             return true;
         }
-        if (!Objects.equals(
+        if (!alignmentsEqual(
             original.getHorizontalAlignment(),
             working.getHorizontalAlignment())) {
             return true;
@@ -48,6 +48,25 @@ public final class CenterlineEditorApplier {
 
     public static void applyToLive(RoadNetwork live, RoadNetwork workingNetwork, String roadId) {
         CenterlineGeometrySync.applyRoadFromWorking(live, workingNetwork, roadId);
+    }
+
+    private static boolean alignmentsEqual(com.plot.plugin.road.alignment.RoadHorizontalAlignment a,
+            com.plot.plugin.road.alignment.RoadHorizontalAlignment b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        var left = a.getElements();
+        var right = b.getElements();
+        if (a.getOrigin().x != b.getOrigin().x || a.getOrigin().y != b.getOrigin().y
+                || a.getStartBearingRadians() != b.getStartBearingRadians()
+                || left.size() != right.size()) return false;
+        for (int i = 0; i < left.size(); i++) {
+            var x = left.get(i);
+            var y = right.get(i);
+            if (x.getType() != y.getType() || x.getLength() != y.getLength()
+                    || !Objects.equals(x.getRadius(), y.getRadius()) || x.getDirection() != y.getDirection()
+                    || !Objects.equals(x.getSpiralParameterA(), y.getSpiralParameterA())) return false;
+        }
+        return true;
     }
 
     private static boolean pointsEqual(

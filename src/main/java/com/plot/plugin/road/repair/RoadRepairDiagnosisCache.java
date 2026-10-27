@@ -19,6 +19,7 @@ public final class RoadRepairDiagnosisCache {
     private static String cachedRoadId = "";
     private static boolean cachedAdoptPending;
     private static List<RoadRepairIssue> cachedIssues = List.of();
+    private static RoadNetwork cachedNetwork;
 
     private RoadRepairDiagnosisCache() {
     }
@@ -26,6 +27,7 @@ public final class RoadRepairDiagnosisCache {
     public static void invalidate() {
         cachedRevision = Long.MIN_VALUE;
         cachedRoadId = "";
+        cachedNetwork = null;
         RoadOverlayWarningCache.invalidate();
     }
 
@@ -36,7 +38,8 @@ public final class RoadRepairDiagnosisCache {
         long revision = ctx.networkManager().getNetworkRevision();
         boolean adoptPending = ctx.networkManager().isAdoptIntersectionRepairPending();
         String roadId = road.getId();
-        if (revision == cachedRevision
+        boolean cacheable = network == ctx.networkManager().getNetwork();
+        if (cacheable && cachedNetwork == network && revision == cachedRevision
                 && roadId.equals(cachedRoadId)
                 && adoptPending == cachedAdoptPending) {
             return cachedIssues;
@@ -50,10 +53,13 @@ public final class RoadRepairDiagnosisCache {
             probe,
             adoptPending);
 
-        cachedRevision = revision;
-        cachedRoadId = roadId;
-        cachedAdoptPending = adoptPending;
-        cachedIssues = issues;
+        if (cacheable) {
+            cachedNetwork = network;
+            cachedRevision = revision;
+            cachedRoadId = roadId;
+            cachedAdoptPending = adoptPending;
+            cachedIssues = issues;
+        }
         return issues;
     }
 

@@ -77,7 +77,7 @@ public final class RoadFloatingEditorHost {
             if (boundRoadId == null || boundRoadId.isBlank()) {
                 continue;
             }
-            if (selectedRoadIds.contains(boundRoadId)) {
+            if (editor.matchesScope(selectedRoadIds)) {
                 continue;
             }
             RoadFloatingEditor.FinishResult result = editor.finishOrPrompt(ctx);

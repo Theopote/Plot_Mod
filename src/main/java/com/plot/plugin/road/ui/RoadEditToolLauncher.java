@@ -43,9 +43,9 @@ final class RoadEditToolLauncher {
             String primaryRoadId,
             List<ToolSpec> tools) {
         float avail = ImGui.getContentRegionAvailX();
-        int columns = 2;
         float gap = ImGui.getStyle().getItemSpacingX();
-        float cardWidth = Math.max(CARD_MIN_WIDTH, (avail - gap) / columns);
+        int columns = avail >= CARD_MIN_WIDTH * 2f + gap ? 2 : 1;
+        float cardWidth = Math.max(1f, (avail - gap * (columns - 1)) / columns);
 
         for (int i = 0; i < tools.size(); i++) {
             if (i > 0 && i % columns != 0) {

@@ -32,8 +32,16 @@ public final class StationFacilityEditor {
     private static final RoadFacilityKind[] KINDS = RoadFacilityKind.values();
     private static final RoadFacilitySide[] SIDES = RoadFacilitySide.values();
 
-    private String syncedRoadId = "";
+    private Road syncedRoad;
+    private RoadStationFacilities syncedFacilities;
+    private double validationLength = Double.POSITIVE_INFINITY;
     private final List<FacilityRunDraft> drafts = new ArrayList<>();
+
+    public void reset() {
+        syncedRoad = null;
+        syncedFacilities = null;
+        drafts.clear();
+    }
 
     public void render(
             RoadNetwork network,
@@ -51,8 +59,9 @@ public final class StationFacilityEditor {
             return;
         }
 
-        syncDrafts(road);
         double roadLength = RoadStationing.canonicalLength(network, road);
+        validationLength = roadLength;
+        syncDrafts(road);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.station_facility_hint"));
@@ -86,7 +95,8 @@ public final class StationFacilityEditor {
 
         float[] start = {draft.startStation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat(PlotI18n.tr("plugin.road.station_facility_start") + "##start", start, 0, roadLength, "%.1fm");
+        ImGui.sliderFloat(PlotI18n.tr("plugin.road.station_facility_start") + "##start", start,
+            0, Math.max(0f, roadLength - 0.1f), "%.1fm");
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
@@ -109,7 +119,7 @@ public final class StationFacilityEditor {
             ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.station_facility_end") + "##end",
                 end,
-                Math.max(0.1f, draft.startStation + 0.1f),
+                Math.min(roadLength, draft.startStation + Math.min(0.1f, roadLength)),
                 roadLength,
                 "%.1fm");
             if (ImGui.isItemActivated() && onHistory != null) {
@@ -197,10 +207,11 @@ public final class StationFacilityEditor {
     }
 
     private void syncDrafts(Road road) {
-        if (Objects.equals(syncedRoadId, road.getId())) {
+        if (syncedRoad == road && syncedFacilities == road.getStationFacilities()) {
             return;
         }
-        syncedRoadId = road.getId();
+        syncedRoad = road;
+        syncedFacilities = road.getStationFacilities();
         drafts.clear();
         if (road.getStationFacilities() == null) {
             return;
@@ -211,6 +222,7 @@ public final class StationFacilityEditor {
     }
 
     private void applyDraftsIfChanged(Road road) {
+        if (hasInvalidDrafts()) return;
         List<StationFacilityRun> built = buildRuns(drafts);
         List<StationFacilityRun> current = road.getStationFacilities() != null
             ? road.getStationFacilities().sortedRuns()
@@ -219,6 +231,14 @@ public final class StationFacilityEditor {
             return;
         }
         road.setStationFacilities(built.isEmpty() ? null : new RoadStationFacilities(built));
+        syncedFacilities = road.getStationFacilities();
+    }
+
+    public boolean hasInvalidDrafts() {
+        for (var draft : drafts) {
+            if (validateDraft(draft, (float) validationLength) != null) return true;
+        }
+        return false;
     }
 
     private static String[] kindLabels() {
@@ -237,7 +257,9 @@ public final class StationFacilityEditor {
     }
 
     private static String validateDraft(FacilityRunDraft draft, float roadLength) {
-        if (draft.startStation < 0.0f || draft.startStation > roadLength + 1e-6f) {
+        if (!Float.isFinite(draft.startStation) || (!draft.openEnded && !Float.isFinite(draft.endStation))
+                || draft.startStation < 0.0f
+                || draft.startStation > roadLength + 1e-6f) {
             return PlotI18n.tr("plugin.road.station_facility_range_invalid");
         }
         if (!draft.openEnded && draft.endStation <= draft.startStation + 1e-6f) {
@@ -245,6 +267,10 @@ public final class StationFacilityEditor {
         }
         if (!draft.openEnded && draft.endStation > roadLength + 1e-6f) {
             return PlotI18n.tr("plugin.road.station_facility_range_invalid");
+        }
+        if (draft.kind == RoadFacilityKind.RETAINING_WALL
+                && (!Float.isFinite(draft.height) || draft.height < 1f || draft.height > 8f)) {
+            return PlotI18n.tr("plugin.road.station_facility_height_invalid");
         }
         return null;
     }
@@ -268,16 +294,21 @@ public final class StationFacilityEditor {
     }
 
     static StationFacilityRun toRun(FacilityRunDraft draft) {
-        Double endStation = draft.openEnded ? null : (double) draft.endStation;
-        Double height = draft.kind == RoadFacilityKind.RETAINING_WALL ? (double) draft.height : null;
+        Double endStation = draft.openEnded ? null : originalOrEdited(draft.endStation, draft.originalEndStation);
+        Double height = draft.kind == RoadFacilityKind.RETAINING_WALL
+            ? originalOrEdited(draft.height, draft.originalHeight) : null;
         String material = normalizeMaterial(draft.materialBuffer.get());
         return new StationFacilityRun(
-            draft.startStation,
+            originalOrEdited(draft.startStation, draft.originalStartStation),
             endStation,
             draft.kind,
             draft.side,
             material,
             height);
+    }
+
+    private static double originalOrEdited(float value, Double original) {
+        return original != null && Float.compare(value, original.floatValue()) == 0 ? original : value;
     }
 
     static boolean runsEqual(List<StationFacilityRun> left, List<StationFacilityRun> right) {
@@ -321,11 +352,17 @@ public final class StationFacilityEditor {
         RoadFacilityKind kind = RoadFacilityKind.GUARDRAIL;
         RoadFacilitySide side = RoadFacilitySide.BOTH;
         float height = 2f;
+        Double originalStartStation;
+        Double originalEndStation;
+        Double originalHeight;
         final ImString materialBuffer = new ImString(MAX_MATERIAL_LENGTH);
 
         static FacilityRunDraft fromRun(StationFacilityRun run) {
             FacilityRunDraft draft = new FacilityRunDraft();
             draft.startStation = (float) run.getStartStation();
+            draft.originalStartStation = run.getStartStation();
+            draft.originalEndStation = run.getEndStation();
+            draft.originalHeight = run.getHeight();
             draft.openEnded = run.getEndStation() == null;
             draft.endStation = draft.openEnded ? draft.startStation + 10f : run.getEndStation().floatValue();
             draft.kind = run.getKind();
@@ -342,7 +379,7 @@ public final class StationFacilityEditor {
         static FacilityRunDraft defaultRun(double roadLength) {
             FacilityRunDraft draft = new FacilityRunDraft();
             draft.startStation = 0f;
-            draft.endStation = (float) Math.clamp(roadLength * 0.25, 10.0, roadLength);
+            draft.endStation = (float) Math.min(roadLength, Math.max(10.0, roadLength * 0.25));
             draft.openEnded = false;
             draft.kind = RoadFacilityKind.GUARDRAIL;
             draft.side = RoadFacilitySide.BOTH;

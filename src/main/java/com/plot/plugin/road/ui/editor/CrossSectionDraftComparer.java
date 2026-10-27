@@ -5,12 +5,12 @@ import com.plot.plugin.road.model.section.CrossSectionDraft;
 import java.util.Objects;
 
 /** 比较两条道路的横断面草稿是否等价。 */
-final class CrossSectionDraftComparer {
+public final class CrossSectionDraftComparer {
 
     private CrossSectionDraftComparer() {
     }
 
-    static boolean equals(CrossSectionDraft left, CrossSectionDraft right) {
+    public static boolean equals(CrossSectionDraft left, CrossSectionDraft right) {
         if (left == right) {
             return true;
         }
@@ -20,7 +20,7 @@ final class CrossSectionDraftComparer {
         return left.width() == right.width()
             && left.laneCount() == right.laneCount()
             && Objects.equals(left.laneWidths(), right.laneWidths())
-            && Objects.equals(left.material(), right.material())
+            && materialsEqual(left.material(), right.material())
             && left.includeShoulder() == right.includeShoulder()
             && left.shoulderWidth() == right.shoulderWidth()
             && left.includeSidewalk() == right.includeSidewalk()
@@ -40,5 +40,12 @@ final class CrossSectionDraftComparer {
             && Objects.equals(left.fillSlopeMaterial(), right.fillSlopeMaterial())
             && Objects.equals(left.cutSlopeMaterial(), right.cutSlopeMaterial())
             && left.maxSlope() == right.maxSlope();
+    }
+
+    private static boolean materialsEqual(com.plot.core.material.MaterialMix a, com.plot.core.material.MaterialMix b) {
+        if (a == b) return true;
+        return a != null && b != null && Objects.equals(a.getPrimaryMaterial(), b.getPrimaryMaterial())
+            && Objects.equals(a.getAccentMaterial(), b.getAccentMaterial())
+            && Float.compare(a.getAccentRatio(), b.getAccentRatio()) == 0;
     }
 }

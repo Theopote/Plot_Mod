@@ -18,6 +18,10 @@ public interface RoadFloatingEditor {
 
     String roadId();
 
+    default boolean matchesScope(java.util.Set<String> selectedRoadIds) {
+        return selectedRoadIds.contains(roadId());
+    }
+
     boolean isOpen();
 
     boolean isDirty();

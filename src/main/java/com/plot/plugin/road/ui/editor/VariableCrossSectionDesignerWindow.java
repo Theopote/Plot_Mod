@@ -43,7 +43,11 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
     }
 
     @Override
+    protected boolean hasInvalidDrafts() { return editor.hasInvalidDrafts(); }
+
+    @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
+        editor.reset();
         var live = ctx.networkManager().getNetwork();
         var openSnapshot = live.snapshot();
         return RoadNetworkEditorSession.open(
@@ -83,5 +87,11 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
             ctx.networkManager().getNetwork(),
             session.workingNetwork(),
             roadId);
+    }
+
+    @Override
+    protected void restoreSession() {
+        super.restoreSession();
+        editor.reset();
     }
 }

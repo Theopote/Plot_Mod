@@ -65,11 +65,11 @@ public final class RoadNetworkEditorSession {
 
     public ConfirmResult confirm(long liveRevision, RoadNetworkApplier applier) {
         Objects.requireNonNull(applier, "applier");
-        if (liveRevision != openRevision) {
-            return ConfirmResult.CONFLICT;
-        }
         if (!isDirty()) {
             return ConfirmResult.NO_CHANGES;
+        }
+        if (liveRevision != openRevision) {
+            return ConfirmResult.CONFLICT;
         }
         applier.apply(openSnapshot, workingNetwork);
         return ConfirmResult.APPLIED;

@@ -51,12 +51,14 @@ public final class DiagnosticsDesignerWindow extends AbstractRoadFloatingEditor 
         if (session == null) {
             return;
         }
-        Road road = session.workingNetwork().getRoad(roadId);
+        // Diagnostics actions operate on the live manager: do not pass them a stale snapshot Road.
+        var network = ctx.networkManager().getNetwork();
+        Road road = network.getRoad(roadId);
         if (road == null) {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
             return;
         }
-        int issueCount = RoadEditDiagnosticsBanner.countIssues(ctx, session.workingNetwork(), road);
+        int issueCount = RoadEditDiagnosticsBanner.countIssues(ctx, network, road);
         if (issueCount > 0) {
             ImGui.textColored(
                 PluginUiColors.WARNING,
@@ -72,7 +74,7 @@ public final class DiagnosticsDesignerWindow extends AbstractRoadFloatingEditor 
         float width = ImGui.getContentRegionAvail().x;
         float startY = ImGui.getCursorPosY();
         ImGui.indent(6f);
-        RoadEditDiagnosticsBanner.renderDetailedIssues(ctx, session.workingNetwork(), road);
+        RoadEditDiagnosticsBanner.renderDetailedIssues(ctx, network, road);
         ImGui.unindent(6f);
         float endY = ImGui.getCursorPosY();
         float height = Math.max(ImGui.getFrameHeight(), endY - startY);

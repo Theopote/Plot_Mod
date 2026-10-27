@@ -1480,6 +1480,16 @@ public final class RoadNetworkManager {
         applyBatchEditToSelectedRoads(draft, false);
     }
 
+    /** Applies only this window's changed fields to its captured road scope. */
+    public void applyBatchEditWithinPendingEdit(BatchEditDefaults before, BatchEditDefaults after, Set<String> roadIds) {
+        EnumSet<RoadBatchEditField> fields = changedBatchFields(before, after);
+        for (String roadId : roadIds) {
+            Road road = network.getRoad(roadId);
+            if (road != null) applyDraftToRoad(road, after, fields);
+        }
+        lastBatchSelectionKey = "";
+    }
+
     private void prepareBatchEditFields(BatchEditDefaults draft) {
         if (batchEditDirtyFields.isEmpty() && draft != null) {
             markBatchDirtyFromDraftChange(currentBatchEditDefaults(), draft);
@@ -1510,72 +1520,78 @@ public final class RoadNetworkManager {
     }
 
     private void markBatchDirtyFromDraftChange(BatchEditDefaults before, BatchEditDefaults after) {
+        batchEditDirtyFields.addAll(changedBatchFields(before, after));
+    }
+
+    private static EnumSet<RoadBatchEditField> changedBatchFields(BatchEditDefaults before, BatchEditDefaults after) {
+        EnumSet<RoadBatchEditField> fields = EnumSet.noneOf(RoadBatchEditField.class);
         if (before.width() != after.width()) {
-            batchEditDirtyFields.add(RoadBatchEditField.WIDTH);
+            fields.add(RoadBatchEditField.WIDTH);
         }
         if (before.laneCount() != after.laneCount()) {
-            batchEditDirtyFields.add(RoadBatchEditField.LANE_COUNT);
+            fields.add(RoadBatchEditField.LANE_COUNT);
         }
         if (!Objects.equals(before.material(), after.material())) {
-            batchEditDirtyFields.add(RoadBatchEditField.MATERIAL);
+            fields.add(RoadBatchEditField.MATERIAL);
         }
         if (before.includeShoulder() != after.includeShoulder()) {
-            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_SHOULDER);
+            fields.add(RoadBatchEditField.INCLUDE_SHOULDER);
         }
         if (before.shoulderWidth() != after.shoulderWidth()) {
-            batchEditDirtyFields.add(RoadBatchEditField.SHOULDER_WIDTH);
+            fields.add(RoadBatchEditField.SHOULDER_WIDTH);
         }
         if (before.includeSidewalk() != after.includeSidewalk()) {
-            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_SIDEWALK);
+            fields.add(RoadBatchEditField.INCLUDE_SIDEWALK);
         }
         if (before.sidewalkWidth() != after.sidewalkWidth()) {
-            batchEditDirtyFields.add(RoadBatchEditField.SIDEWALK_WIDTH);
+            fields.add(RoadBatchEditField.SIDEWALK_WIDTH);
         }
         if (!Objects.equals(before.sidewalkMaterial(), after.sidewalkMaterial())) {
-            batchEditDirtyFields.add(RoadBatchEditField.SIDEWALK_MATERIAL);
+            fields.add(RoadBatchEditField.SIDEWALK_MATERIAL);
         }
         if (before.includeBikeLane() != after.includeBikeLane()) {
-            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_BIKE_LANE);
+            fields.add(RoadBatchEditField.INCLUDE_BIKE_LANE);
         }
         if (before.bikeLaneWidth() != after.bikeLaneWidth()) {
-            batchEditDirtyFields.add(RoadBatchEditField.BIKE_LANE_WIDTH);
+            fields.add(RoadBatchEditField.BIKE_LANE_WIDTH);
         }
         if (before.includeMedian() != after.includeMedian()) {
-            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_MEDIAN);
+            fields.add(RoadBatchEditField.INCLUDE_MEDIAN);
         }
         if (before.medianWidth() != after.medianWidth()) {
-            batchEditDirtyFields.add(RoadBatchEditField.MEDIAN_WIDTH);
+            fields.add(RoadBatchEditField.MEDIAN_WIDTH);
         }
         if (before.streetlightSpacing() != after.streetlightSpacing()) {
-            batchEditDirtyFields.add(RoadBatchEditField.STREETLIGHT_SPACING);
+            fields.add(RoadBatchEditField.STREETLIGHT_SPACING);
         }
         if (before.laneDividers() != after.laneDividers()) {
-            batchEditDirtyFields.add(RoadBatchEditField.LANE_DIVIDERS);
+            fields.add(RoadBatchEditField.LANE_DIVIDERS);
         }
         if (before.centerLineStyle() != after.centerLineStyle()) {
-            batchEditDirtyFields.add(RoadBatchEditField.CENTER_LINE_STYLE);
+            fields.add(RoadBatchEditField.CENTER_LINE_STYLE);
         }
         if (!Objects.equals(before.markingMaterial(), after.markingMaterial())) {
-            batchEditDirtyFields.add(RoadBatchEditField.MARKING_MATERIAL);
+            fields.add(RoadBatchEditField.MARKING_MATERIAL);
         }
         if (before.includeSlopeBatter() != after.includeSlopeBatter()) {
-            batchEditDirtyFields.add(RoadBatchEditField.INCLUDE_SLOPE_BATTER);
+            fields.add(RoadBatchEditField.INCLUDE_SLOPE_BATTER);
         }
         if (before.fillSlopeRatio() != after.fillSlopeRatio()) {
-            batchEditDirtyFields.add(RoadBatchEditField.FILL_SLOPE_RATIO);
+            fields.add(RoadBatchEditField.FILL_SLOPE_RATIO);
         }
         if (before.cutSlopeRatio() != after.cutSlopeRatio()) {
-            batchEditDirtyFields.add(RoadBatchEditField.CUT_SLOPE_RATIO);
+            fields.add(RoadBatchEditField.CUT_SLOPE_RATIO);
         }
         if (!Objects.equals(before.fillSlopeMaterial(), after.fillSlopeMaterial())) {
-            batchEditDirtyFields.add(RoadBatchEditField.FILL_SLOPE_MATERIAL);
+            fields.add(RoadBatchEditField.FILL_SLOPE_MATERIAL);
         }
         if (!Objects.equals(before.cutSlopeMaterial(), after.cutSlopeMaterial())) {
-            batchEditDirtyFields.add(RoadBatchEditField.CUT_SLOPE_MATERIAL);
+            fields.add(RoadBatchEditField.CUT_SLOPE_MATERIAL);
         }
         if (before.maxSlope() != after.maxSlope()) {
-            batchEditDirtyFields.add(RoadBatchEditField.MAX_SLOPE);
+            fields.add(RoadBatchEditField.MAX_SLOPE);
         }
+        return fields;
     }
 
     public Road getRoadForEdge(RoadEdge edge) {

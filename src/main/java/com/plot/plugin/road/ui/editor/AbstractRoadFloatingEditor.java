@@ -56,8 +56,10 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
 
     @Override
     public final boolean isDirty() {
-        return session != null && session.isDirty();
+        return session != null && (session.isDirty() || hasInvalidDrafts());
     }
+
+    protected boolean hasInvalidDrafts() { return false; }
 
     @Override
     public void open(RoadUiContext ctx, String roadId) {
@@ -68,7 +70,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             focus();
             return;
         }
-        if (windowOpen.get() && session != null && session.isDirty()) {
+        if (windowOpen.get() && isDirty()) {
             closeConfirmPending = true;
             scopeBlocked = true;
             return;
@@ -89,6 +91,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         if (session == null) {
             session = createSession(ctx, roadId);
         }
+        refreshCleanSession(ctx);
         RoadFloatingEditorShell.prepareWindow(windowImGuiId(), windowOpen, focusOnOpen);
         focusOnOpen = false;
 
@@ -122,7 +125,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             ImGui.end();
         }
 
-        if (!visible) {
+        if (!windowOpen.get()) {
             handleWindowCloseRequest(ctx);
         }
 
@@ -139,7 +142,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         if (!windowOpen.get()) {
             return FinishResult.CLOSED;
         }
-        if (session != null && session.isDirty()) {
+        if (isDirty()) {
             closeConfirmPending = true;
             scopeBlocked = true;
             return FinishResult.PROMPT_SHOWN;
@@ -191,6 +194,10 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         if (session == null) {
             return false;
         }
+        if (hasInvalidDrafts()) {
+            ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.invalid_draft"));
+            return false;
+        }
         long liveRevision = ctx.networkManager().getNetworkRevision();
         RoadNetworkEditorSession.ConfirmResult result = session.confirm(
             liveRevision,
@@ -215,7 +222,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     }
 
     private void handleWindowCloseRequest(RoadUiContext ctx) {
-        if (session != null && session.isDirty()) {
+        if (isDirty()) {
             windowOpen.set(true);
             closeConfirmPending = true;
             scopeBlocked = true;
@@ -259,6 +266,14 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         session = createSession(ctx, roadId);
         revisionConflictPending = false;
         ctx.status().info(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_done"));
+    }
+
+    /** Read-only/unchanged windows follow live edits; dirty windows retain their conflict protection. */
+    void refreshCleanSession(RoadUiContext ctx) {
+        if (session != null && session.openRevision() != ctx.networkManager().getNetworkRevision() && !isDirty()) {
+            session = createSession(ctx, roadId);
+            revisionConflictPending = false;
+        }
     }
 
     private void renderRevisionConflictBanner(RoadUiContext ctx) {
