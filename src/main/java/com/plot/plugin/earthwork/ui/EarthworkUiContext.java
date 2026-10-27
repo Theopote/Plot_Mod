@@ -1,11 +1,15 @@
 package com.plot.plugin.earthwork.ui;
 
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.context.PluginContext;
 import com.plot.core.state.DebouncedTasks;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.EarthworkConfig;
+import com.plot.plugin.earthwork.EarthworkRegionBlockCountCache;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import imgui.ImGui;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.manager.EarthworkBuildManager;
 import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
@@ -30,7 +34,11 @@ public final class EarthworkUiContext {
     private final TerrainSnapshotCache terrainSnapshotCache;
     private final EarthworkPreviewManager previewManager;
     private final EarthworkBuildManager buildManager;
+    private final EarthworkRegionBlockCountCache regionBlockCountCache = new EarthworkRegionBlockCountCache();
     private final List<Shape> selectedRegions = new ArrayList<>();
+
+    private int projectionCaptureFrame = -1;
+    private WorldProjectionSnapshot projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
 
     private EarthworkConfig config;
     private EarthworkProject project;
@@ -74,6 +82,28 @@ public final class EarthworkUiContext {
 
     public PluginContext host() {
         return host;
+    }
+
+    public ICoordinateService coordinates() {
+        return host.coordinates();
+    }
+
+    /** 每帧捕获一次视图投影，供区域 Tab 占地方块数统计复用。 */
+    public WorldProjectionSnapshot currentProjection() {
+        int frame = ImGui.getFrameCount();
+        if (frame != projectionCaptureFrame) {
+            projectionCaptureFrame = frame;
+            try {
+                projectionSnapshot = host.coordinates().captureProjection();
+            } catch (RuntimeException ignored) {
+                projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
+            }
+        }
+        return projectionSnapshot;
+    }
+
+    public EarthworkRegionBlockCountCache regionBlockCountCache() {
+        return regionBlockCountCache;
     }
 
     public EarthworkConfig config() {

@@ -15,6 +15,7 @@ import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import com.plot.api.world.WorldProjectionSnapshot;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.client.MinecraftClient;
@@ -179,9 +180,14 @@ public final class EarthworkRegionPanel {
     }
 
     private void renderAdoptedSection() {
+        WorldProjectionSnapshot projection = ctx.currentProjection();
+        ctx.regionBlockCountCache().retainOnly(ctx.project().getRegions().keySet());
+        int totalBlocks = ctx.regionBlockCountCache().totalBlockCount(
+            ctx.project().getRegions().values(),
+            projection);
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_stats",
             ctx.project().getRegionCount(),
-            String.format("%.1f", ctx.project().getTotalArea())));
+            totalBlocks));
         renderSiteOverlapWarnings();
         EarthworkSite site = ctx.project().getActiveSite();
         if (site != null && !site.getExclusionZones().isEmpty()) {
@@ -236,14 +242,13 @@ public final class EarthworkRegionPanel {
                 region.getLastVolumeReport().geometricFillVolume(),
                 region.getLastResolvedElevation())
             : PlotI18n.tr("plugin.earthwork.overview_no_stats");
-        String areaText = String.format("%.1f", region.computeArea());
+        WorldProjectionSnapshot projection = ctx.currentProjection();
+        int footprintBlocks = ctx.regionBlockCountCache().blockCount(region, projection);
+        String footprintLine = PlotI18n.tr("plugin.earthwork.overview_item", footprintBlocks, stats);
         if (!region.getHoles().isEmpty()) {
-            areaText += PlotI18n.tr("plugin.earthwork.overview_holes_suffix", region.getHoles().size());
+            footprintLine += PlotI18n.tr("plugin.earthwork.overview_holes_suffix", region.getHoles().size());
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.earthwork.overview_item",
-            areaText,
-            stats));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, footprintLine);
 
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.locate"), 60, 0)) {
             EarthworkUiWidgets.locateRegion(ctx, region);
