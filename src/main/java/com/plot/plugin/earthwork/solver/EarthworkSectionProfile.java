@@ -91,7 +91,7 @@ public final class EarthworkSectionProfile {
         if (stations.isEmpty() || station == null) {
             return 0;
         }
-        Station origin = stations.get(0);
+        Station origin = stations.getFirst();
         return alongX
             ? station.worldX() - origin.worldX()
             : station.worldZ() - origin.worldZ();
@@ -101,7 +101,7 @@ public final class EarthworkSectionProfile {
         if (stations.size() < 2) {
             return 1;
         }
-        return Math.max(1, axisDistance(stations.get(stations.size() - 1)));
+        return Math.max(1, axisDistance(stations.getLast()));
     }
 
     /** 相邻采样点在剖面轴向上的间距（格）；大于 1 表示应断线。 */

@@ -42,11 +42,6 @@ public final class DesignTerrainGrid {
         return unchangedCells;
     }
 
-    public DesignTerrainCell getOrCreate(int worldX, int worldZ, DesignTerrainCell template) {
-        long key = cellKey(worldX, worldZ);
-        return cells.computeIfAbsent(key, ignored -> template);
-    }
-
     public void put(int worldX, int worldZ, DesignTerrainCell cell) {
         cells.put(cellKey(worldX, worldZ), cell);
     }

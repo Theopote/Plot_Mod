@@ -347,11 +347,58 @@ public final class GradingSurfaceResolver {
         };
         double[] rhs = {sumXY, sumZY, sumY};
         double[] solution = solveSymmetric3x3(matrix, rhs);
-        if (solution == null) {
-            int average = (int) Math.round(sumY / n);
-            return GradingPlane.flat(average);
+        if (solution != null) {
+            return new GradingPlane(solution[0], solution[1], solution[2]);
         }
-        return new GradingPlane(solution[0], solution[1], solution[2]);
+        GradingPlane alongX = fitAlongAxis(samples, true);
+        if (alongX != null) {
+            return alongX;
+        }
+        GradingPlane alongZ = fitAlongAxis(samples, false);
+        if (alongZ != null) {
+            return alongZ;
+        }
+        int average = (int) Math.round(sumY / n);
+        return GradingPlane.flat(average);
+    }
+
+    /**
+     * 样本近似落在一条南北或东西截线上时，用一元线性回归代替退化的 3×3 拟合。
+     */
+    private static GradingPlane fitAlongAxis(List<HeightSample> samples, boolean alongX) {
+        if (samples == null || samples.size() < 2) {
+            return null;
+        }
+        double cross0 = alongX ? samples.get(0).worldZ() : samples.get(0).worldX();
+        for (HeightSample sample : samples) {
+            double cross = alongX ? sample.worldZ() : sample.worldX();
+            if (Math.abs(cross - cross0) > 0.01) {
+                return null;
+            }
+        }
+        double sumPrimary = 0;
+        double sumPrimaryPrimary = 0;
+        double sumY = 0;
+        double sumPrimaryY = 0;
+        int n = samples.size();
+        for (HeightSample sample : samples) {
+            double primary = alongX ? sample.worldX() : sample.worldZ();
+            double y = sample.groundY();
+            sumPrimary += primary;
+            sumPrimaryPrimary += primary * primary;
+            sumY += y;
+            sumPrimaryY += primary * y;
+        }
+        double denom = n * sumPrimaryPrimary - sumPrimary * sumPrimary;
+        if (Math.abs(denom) < 1e-6) {
+            return null;
+        }
+        double slope = (n * sumPrimaryY - sumPrimary * sumY) / denom;
+        double intercept = (sumY - slope * sumPrimary) / n;
+        if (alongX) {
+            return new GradingPlane(slope, 0.0, intercept);
+        }
+        return new GradingPlane(0.0, slope, intercept);
     }
 
     /**

@@ -102,6 +102,27 @@ class GradingSurfaceResolverTest {
     }
 
     @Test
+    void bestFitAlongSingleCrossLineUsesOneDimensionalRegression() {
+        GradingRegion region = new GradingRegion(square(10));
+        region.setSurfaceMode(GradingSurfaceMode.BEST_FIT_PLANE);
+        region.setFitSlopeBalanceCutFill(false);
+
+        List<Vec2d> centers = List.of(
+            new Vec2d(1.5, 5.5),
+            new Vec2d(5.5, 5.5),
+            new Vec2d(9.5, 5.5));
+        List<Integer> heights = List.of(60, 64, 68);
+
+        GradingSurfaceResolver.ResolvedSurface surface = GradingSurfaceResolver.resolve(
+            region, centers, heights, null);
+
+        assertFalse(surface.plane().isFlat());
+        assertEquals(60, surface.plane().evaluateAt(1, 5));
+        assertEquals(64, surface.plane().evaluateAt(5, 5));
+        assertEquals(68, surface.plane().evaluateAt(9, 5));
+    }
+
+    @Test
     void balancePlaneInterceptUsesGroundResidualsNotPlaneTargets() {
         // 平面 y=64 平坦；地面有高有低 → 残差非零，平衡后 intercept 应移动
         GradingPlane base = GradingPlane.flat(64);

@@ -163,31 +163,6 @@ public final class EarthworkInsightCharts {
         }
     }
 
-    static void renderWorkAndWorld(EarthworkVolumeReport volumes, int cellCount) {
-        long cut = volumes.geometricCutVolume();
-        long fill = volumes.geometricFillVolume();
-        long work = cut + fill;
-        long changed = volumes.totalChangedBlocks();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.earth_calc", cut, fill));
-        ImGui.text(PlotI18n.tr(
-            "plugin.earthwork.world_edits",
-            volumes.cutChangedBlocks(),
-            volumes.fillChangedBlocks()));
-        float scale = Math.max(1f, (float) Math.max(work, changed));
-        ImVec2 origin = ImGui.getCursorScreenPos();
-        float width = ImGui.getContentRegionAvailX();
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        float barH = 10f;
-        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + barH, COLOR_BG);
-        float cutW = width * (cut / scale);
-        float fillW = width * (fill / scale);
-        drawList.addRectFilled(origin.x, origin.y, origin.x + cutW, origin.y + barH, COLOR_CUT);
-        drawList.addRectFilled(origin.x + cutW, origin.y, origin.x + cutW + fillW, origin.y + barH, COLOR_FILL);
-        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + barH, COLOR_BORDER);
-        ImGui.dummy(width, barH + 2f);
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.work_scale", work, changed));
-    }
-
     static void renderBeforeAfter(EarthworkElevationVolumeCurve curve) {
         ImGui.text(PlotI18n.tr(
             "plugin.earthwork.before_after",
@@ -307,8 +282,8 @@ public final class EarthworkInsightCharts {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
 
-        int yMin = curve.samples().get(0).y();
-        int yMax = curve.samples().get(curve.samples().size() - 1).y();
+        int yMin = curve.samples().getFirst().y();
+        int yMax = curve.samples().getLast().y();
         long maxWork = Math.max(1L, curve.maxWork());
         float pad = 6f;
         plotPolyline(drawList, curve, yMin, yMax, maxWork, x0, y0, x1, y1, pad, true, COLOR_CUT);
@@ -401,7 +376,7 @@ public final class EarthworkInsightCharts {
         float width = Math.max(40f, ImGui.getContentRegionAvailX());
         float innerW = width - 8f;
         float innerH = HEATMAP_HEIGHT - 8f;
-        int gridCols = Math.max(8, Math.min(64, (int) (innerW / 4f)));
+        int gridCols = Math.clamp((int) (innerW / 4f), 8, 64);
         int gridRows = Math.max(6, Math.min(48, (int) (innerH / 4f)));
         EarthworkCutFillHeatmap.Bucket[][] buckets =
             ctx.cutFillHeatmapCache().resolve(preview, grid, gridCols, gridRows);

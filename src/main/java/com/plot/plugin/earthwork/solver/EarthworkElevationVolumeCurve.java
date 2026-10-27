@@ -197,7 +197,7 @@ public final class EarthworkElevationVolumeCurve {
                 bestWork = sample;
             }
         }
-        if (yMax >= yMin && (samples.isEmpty() || samples.get(samples.size() - 1).y() != yMax)) {
+        if (yMax >= yMin && (samples.isEmpty() || samples.getLast().y() != yMax)) {
             Sample last = volumeAt(columns, referenceY, yMax);
             samples.add(last);
             if (isBetterBalance(last, bestBalance, referenceY)) {
