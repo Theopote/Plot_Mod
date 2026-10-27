@@ -246,21 +246,14 @@ public class GradingZone {
             return;
         }
         switch (zoneType) {
-            case BUILDING_PAD, ROAD_CORRIDOR -> {
-                fillMaterialClass = EarthMaterialClass.STRUCTURAL_FILL;
-            }
-            case EXCAVATION_PIT -> {
-                fillMaterialClass = EarthMaterialClass.STRUCTURAL_FILL;
-            }
+            case BUILDING_PAD, ROAD_CORRIDOR, EXCAVATION_PIT -> fillMaterialClass = EarthMaterialClass.STRUCTURAL_FILL;
             case LANDSCAPE -> {
                 fillMaterialClass = EarthMaterialClass.TOPSOIL;
                 if (cutMaterialClass == null || cutMaterialClass == EarthMaterialClass.UNKNOWN) {
                     cutMaterialClass = EarthMaterialClass.TOPSOIL;
                 }
             }
-            case TERRAIN_FIT -> {
-                fillMaterialClass = EarthMaterialClass.COMMON_FILL;
-            }
+            case TERRAIN_FIT -> fillMaterialClass = EarthMaterialClass.COMMON_FILL;
             case FLAT, SLOPED -> {
                 if (fillMaterialClass == null) {
                     fillMaterialClass = EarthMaterialClass.COMMON_FILL;

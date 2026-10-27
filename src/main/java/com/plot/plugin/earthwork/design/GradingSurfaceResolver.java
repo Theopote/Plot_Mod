@@ -200,23 +200,47 @@ public final class GradingSurfaceResolver {
         return new GradingPlane(coeffX, coeffZ, intercept);
     }
 
-    private static GradingPlane resolveThreePoint(GradingRegion region, ICoordinateService transformer) {
-        var block1 = EarthworkGeometryUtils.canvasToBlockXZ(
-            new Vec2d(region.getThreePointCanvasX(0), region.getThreePointCanvasY(0)), transformer);
-        var block2 = EarthworkGeometryUtils.canvasToBlockXZ(
-            new Vec2d(region.getThreePointCanvasX(1), region.getThreePointCanvasY(1)), transformer);
-        var block3 = EarthworkGeometryUtils.canvasToBlockXZ(
-            new Vec2d(region.getThreePointCanvasX(2), region.getThreePointCanvasY(2)), transformer);
+    private record ThreePointBlockControl(double x, double z, int y) {
+    }
 
-        double x1 = block1.getX();
-        double z1 = block1.getZ();
-        int y1 = region.getThreePointElevation(0);
-        double x2 = block2.getX();
-        double z2 = block2.getZ();
-        int y2 = region.getThreePointElevation(1);
-        double x3 = block3.getX();
-        double z3 = block3.getZ();
-        int y3 = region.getThreePointElevation(2);
+    private static ThreePointBlockControl[] threePointBlockControls(
+            GradingRegion region,
+            ICoordinateService transformer) {
+        ThreePointBlockControl[] controls = new ThreePointBlockControl[3];
+        for (int i = 0; i < 3; i++) {
+            var block = EarthworkGeometryUtils.canvasToBlockXZ(
+                new Vec2d(region.getThreePointCanvasX(i), region.getThreePointCanvasY(i)),
+                transformer);
+            controls[i] = new ThreePointBlockControl(
+                block.getX(),
+                block.getZ(),
+                region.getThreePointElevation(i));
+        }
+        return controls;
+    }
+
+    /** 画布点先落世界方块 XZ（与三点定面求解一致），再判共线/近共线。 */
+    public static boolean areThreePointControlsDegenerate(
+            GradingRegion region,
+            ICoordinateService transformer) {
+        ThreePointBlockControl[] controls = threePointBlockControls(region, transformer);
+        return isThreePointControlDegenerate(
+            controls[0].x, controls[0].z,
+            controls[1].x, controls[1].z,
+            controls[2].x, controls[2].z);
+    }
+
+    private static GradingPlane resolveThreePoint(GradingRegion region, ICoordinateService transformer) {
+        ThreePointBlockControl[] controls = threePointBlockControls(region, transformer);
+        double x1 = controls[0].x;
+        double z1 = controls[0].z;
+        int y1 = controls[0].y;
+        double x2 = controls[1].x;
+        double z2 = controls[1].z;
+        int y2 = controls[1].y;
+        double x3 = controls[2].x;
+        double z3 = controls[2].z;
+        int y3 = controls[2].y;
 
         if (isThreePointControlDegenerate(x1, z1, x2, z2, x3, z3)) {
             throw new InvalidThreePointPlaneException();

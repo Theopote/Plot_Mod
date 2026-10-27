@@ -73,6 +73,22 @@ class GradingSurfaceResolverTest {
     }
 
     @Test
+    void canvasThreePointTriangleCanCollapseAfterBlockQuantization() {
+        GradingRegion region = new GradingRegion(square(10));
+        region.setSurfaceMode(GradingSurfaceMode.THREE_POINT_PLANE);
+        region.setThreePointControl(0, new Vec2d(0.2, 0.2), 64);
+        region.setThreePointControl(1, new Vec2d(0.8, 0.3), 65);
+        region.setThreePointControl(2, new Vec2d(5.0, 5.0), 70);
+
+        assertFalse(GradingSurfaceResolver.isThreePointControlDegenerate(
+            0.2, 0.2, 0.8, 0.3, 5.0, 5.0));
+        assertTrue(GradingSurfaceResolver.areThreePointControlsDegenerate(region, null));
+
+        assertThrows(InvalidThreePointPlaneException.class, () -> GradingSurfaceResolver.resolve(
+            region, List.of(), List.of(), null));
+    }
+
+    @Test
     void threePointPlanePassesThroughControls() {
         GradingPlane plane = GradingSurfaceResolver.solveThreePointPlane(
             0, 0, 60,

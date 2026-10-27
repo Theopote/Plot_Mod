@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.validation;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
@@ -56,6 +57,18 @@ public final class EarthworkValidator {
             GradingRegion previewRegion,
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
+        return analyzePrePreview(project, previewRegion, buildingLookup, roadLookup, null);
+    }
+
+    /**
+     * @param coordinateTransformer 与预览/求解一致的坐标服务；用于三点斜坡落格后的退化检测。
+     */
+    public static EarthworkValidationReport analyzePrePreview(
+            EarthworkProject project,
+            GradingRegion previewRegion,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            ICoordinateService coordinateTransformer) {
         List<EarthworkValidationReport.Item> items = new ArrayList<>();
         if (project == null) {
             items.add(EarthworkValidationReport.Item.error("plugin.earthwork.validation.project_missing"));
@@ -66,13 +79,16 @@ public final class EarthworkValidator {
             return new EarthworkValidationReport(items);
         }
 
-        validateRegion(previewRegion, items);
+        validateRegion(previewRegion, coordinateTransformer, items);
         EarthworkSite site = project.getActiveSite();
         validateSite(site, previewRegion, buildingLookup, roadLookup, items);
         return new EarthworkValidationReport(items);
     }
 
-    private static void validateRegion(GradingRegion region, List<EarthworkValidationReport.Item> items) {
+    private static void validateRegion(
+            GradingRegion region,
+            ICoordinateService coordinateTransformer,
+            List<EarthworkValidationReport.Item> items) {
         if (region.getOuterPoints().size() < 3) {
             items.add(EarthworkValidationReport.Item.error(
                 "plugin.earthwork.validation.region_outline_insufficient",
@@ -98,11 +114,14 @@ public final class EarthworkValidator {
                 region.getName()));
         }
 
-        validateSurfaceMode(region, items);
+        validateSurfaceMode(region, coordinateTransformer, items);
         validateHoles(region, items);
     }
 
-    private static void validateSurfaceMode(GradingRegion region, List<EarthworkValidationReport.Item> items) {
+    private static void validateSurfaceMode(
+            GradingRegion region,
+            ICoordinateService coordinateTransformer,
+            List<EarthworkValidationReport.Item> items) {
         GradingSurfaceMode mode = region.getSurfaceMode();
         if (mode == null) {
             return;
@@ -116,7 +135,7 @@ public final class EarthworkValidator {
                 }
             }
             case THREE_POINT_PLANE -> {
-                if (areThreePointsCollinear(region)) {
+                if (GradingSurfaceResolver.areThreePointControlsDegenerate(region, coordinateTransformer)) {
                     items.add(EarthworkValidationReport.Item.error(
                         "plugin.earthwork.validation.three_point_collinear",
                         region.getName()));
@@ -308,13 +327,6 @@ public final class EarthworkValidator {
                 zone.getName(),
                 ref));
         }
-    }
-
-    private static boolean areThreePointsCollinear(GradingRegion region) {
-        return GradingSurfaceResolver.isThreePointControlDegenerate(
-            region.getThreePointCanvasX(0), region.getThreePointCanvasY(0),
-            region.getThreePointCanvasX(1), region.getThreePointCanvasY(1),
-            region.getThreePointCanvasX(2), region.getThreePointCanvasY(2));
     }
 
     private static boolean isBlank(String value) {

@@ -192,7 +192,7 @@ public final class EarthworkPreviewManager {
         }
 
         EarthworkValidationReport validation = EarthworkValidator.analyzePrePreview(
-            project, region, buildingLookup, roadLookup);
+            project, region, buildingLookup, roadLookup, host.coordinates());
         lastValidationReport = validation;
         if (validation.blocksPreview()) {
             failPreview(generation, validation.firstBlockingMessage());
