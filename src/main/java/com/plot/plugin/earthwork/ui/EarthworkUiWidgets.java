@@ -109,16 +109,95 @@ public final class EarthworkUiWidgets {
             }
         }
 
+        /** 生成 Tab：预览网格示意与采样密度（与 {@link com.plot.plugin.earthwork.ui.EarthworkGeneratePanel} 内图表一致）。 */
+        public static void renderPreviewDisplaySettings(EarthworkUiContext ctx, GradingRegion region) {
+            if (region == null) {
+                return;
+            }
+            if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.preview_settings"))) {
+                return;
+            }
+            ImGui.text(PlotI18n.tr("plugin.earthwork.grid_settings"));
+            ctx.showGridRef().set(ctx.config().isShowGrid());
+            if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.show_grid"), ctx.showGridRef())) {
+                ctx.config().setShowGrid(ctx.showGridRef().get());
+                ctx.config().save();
+            }
+            int[] previewGridSize = {region.getPreviewGridSize()};
+            boolean previewGridChanged = ImGui.sliderInt("##preview_grid_size", previewGridSize, 1, 20,
+                PlotI18n.tr("plugin.earthwork.preview_grid_size", previewGridSize[0]));
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            if (previewGridChanged) {
+                region.setPreviewGridSize(previewGridSize[0]);
+                ctx.invalidatePreview();
+            }
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.preview_grid_size");
+        }
+
+        private static final String DEFAULT_CUT_SURFACE_REPLACE_BLOCK = "minecraft:stone";
+
+        /** 挖方设计面：保留原方块，或替换为指定材质（仅替换时写入 {@link GradingRegion#setCutExposeMaterial}）。 */
+        public static void renderCutExposeMaterialSettings(EarthworkUiContext ctx, GradingRegion region) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.cut_surface_header"));
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_surface");
+
+            ImGui.pushID("cut_surface_mode");
+            boolean replace = region.getCutExposeMaterial() != null && !region.getCutExposeMaterial().isBlank();
+            if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.cut_surface_keep"), !replace) && replace) {
+                ctx.projectHistory().push(ctx.project());
+                region.setCutExposeMaterial("");
+                ctx.invalidatePreview();
+            }
+            if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.cut_surface_replace"), replace)) {
+                if (!replace) {
+                    ctx.projectHistory().push(ctx.project());
+                    region.setCutExposeMaterial(DEFAULT_CUT_SURFACE_REPLACE_BLOCK);
+                    ctx.invalidatePreview();
+                }
+            }
+            ImGui.popID();
+
+            if (replace) {
+                renderMaterialButton(
+                    ctx,
+                    PlotI18n.tr("plugin.earthwork.cut_surface_material"),
+                    region.getCutExposeMaterial(),
+                    blockId -> {
+                        ctx.projectHistory().push(ctx.project());
+                        region.setCutExposeMaterial(blockId);
+                        ctx.invalidatePreview();
+                    },
+                    region.getCutExposeMaterial());
+            }
+        }
+
         public static void renderMaterialButton(EarthworkUiContext ctx, String label, String currentBlockId, Consumer<String> onSelected) {
+            renderMaterialButton(
+                ctx,
+                label,
+                currentBlockId,
+                onSelected,
+                PlotI18n.tr("plugin.earthwork.cut_material_air"));
+        }
+
+        public static void renderMaterialButton(
+                EarthworkUiContext ctx,
+                String label,
+                String currentBlockId,
+                Consumer<String> onSelected,
+                String blankDisplay) {
             ImGui.text(label);
             ImGui.sameLine();
             String display = currentBlockId == null || currentBlockId.isBlank()
-                ? PlotI18n.tr("plugin.earthwork.cut_material_air")
+                ? blankDisplay
+                : currentBlockId;
+            String pickerSeed = currentBlockId == null || currentBlockId.isBlank()
+                ? "minecraft:stone"
                 : currentBlockId;
             if (ImGui.button(display + "##" + label, 0, 0)) {
-                UIUtils.openBlockPicker(
-                    currentBlockId == null || currentBlockId.isBlank() ? "minecraft:air" : currentBlockId,
-                    onSelected);
+                UIUtils.openBlockPicker(pickerSeed, onSelected);
             }
         }
 

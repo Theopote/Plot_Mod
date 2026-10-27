@@ -58,38 +58,23 @@ public final class EarthworkEditPanel {
                 if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.region_geometry"))) {
                     renderRegionGeometrySettings(region);
                 }
-                if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.preview_settings"))) {
-                renderGlobalGridSettings();
-                int[] previewGridSize = {region.getPreviewGridSize()};
-                boolean previewGridChanged = ImGui.sliderInt("##preview_grid_size", previewGridSize, 1, 20,
-                    PlotI18n.tr("plugin.earthwork.preview_grid_size", previewGridSize[0]));
-                if (ImGui.isItemActivated()) {
-                    ctx.projectHistory().push(ctx.project());
-                }
-                if (previewGridChanged) {
-                    region.setPreviewGridSize(previewGridSize[0]);
-                    ctx.invalidatePreview();
-                }
-                UIUtils.renderEngineeringTooltip("hint.plot.earthwork.preview_grid_size");
-                }
                 if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.site_settings"))) {
                     renderCompositionSettings();
                 }
     }
 
     private void renderMaterials(GradingRegion region) {
-                EarthworkUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.earthwork.cut_material"), region.getCutExposeMaterial(),
-                    blockId -> {
-                        ctx.projectHistory().push(ctx.project());
-                        region.setCutExposeMaterial(blockId);
-                        ctx.invalidatePreview();
-                    });
-                EarthworkUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.earthwork.fill_material"), region.getFillMaterial(),
+                EarthworkUiWidgets.renderCutExposeMaterialSettings(ctx, region);
+                EarthworkUiWidgets.renderMaterialButton(
+                    ctx,
+                    PlotI18n.tr("plugin.earthwork.fill_material"),
+                    region.getFillMaterial(),
                     blockId -> {
                         ctx.projectHistory().push(ctx.project());
                         region.setFillMaterial(blockId);
                         ctx.invalidatePreview();
-                    });
+                    },
+                    GradingRegion.DEFAULT_FILL_MATERIAL);
     }
 
     private void renderSurfaceModeSettings(GradingRegion region) {
@@ -1385,15 +1370,6 @@ public final class EarthworkEditPanel {
         } else if (mode == GradingSurfaceMode.SINGLE_SLOPE_PLANE) {
             GradingSurfaceResolver.initializeFixedSlopeDefaults(
                 region, terrain.centers(), terrain.groundHeights(), transformer);
-        }
-    }
-
-    private void renderGlobalGridSettings() {
-        ImGui.text(PlotI18n.tr("plugin.earthwork.grid_settings"));
-        ctx.showGridRef().set(ctx.config().isShowGrid());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.show_grid"), ctx.showGridRef())) {
-            ctx.config().setShowGrid(ctx.showGridRef().get());
-            ctx.config().save();
         }
     }
 
