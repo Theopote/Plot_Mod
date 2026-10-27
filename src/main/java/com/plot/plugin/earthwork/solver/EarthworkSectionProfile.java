@@ -77,6 +77,56 @@ public final class EarthworkSectionProfile {
         return alongX;
     }
 
+    /** 沿剖面方向的方块距离（首站为 0）。 */
+    public int axisDistance(Station station) {
+        if (stations.isEmpty() || station == null) {
+            return 0;
+        }
+        Station origin = stations.get(0);
+        return alongX
+            ? station.worldX() - origin.worldX()
+            : station.worldZ() - origin.worldZ();
+    }
+
+    public int axisSpan() {
+        if (stations.size() < 2) {
+            return 1;
+        }
+        return Math.max(1, axisDistance(stations.get(stations.size() - 1)));
+    }
+
+    /** 相邻采样点在剖面轴向上的间距（格）；大于 1 表示应断线。 */
+    public int axisGap(Station a, Station b) {
+        if (a == null || b == null) {
+            return Integer.MAX_VALUE;
+        }
+        return alongX
+            ? Math.abs(b.worldX() - a.worldX())
+            : Math.abs(b.worldZ() - a.worldZ());
+    }
+
+    /** 世界 XZ 上的剖面截线端点（方块中心），供画布叠加。 */
+    public SectionCutLine sectionCutLine() {
+        if (stations.isEmpty()) {
+            return new SectionCutLine(0, 0, 0, alongX);
+        }
+        int primaryMin = Integer.MAX_VALUE;
+        int primaryMax = Integer.MIN_VALUE;
+        int crossSum = 0;
+        for (Station station : stations) {
+            int primary = alongX ? station.worldX() : station.worldZ();
+            int cross = alongX ? station.worldZ() : station.worldX();
+            primaryMin = Math.min(primaryMin, primary);
+            primaryMax = Math.max(primaryMax, primary);
+            crossSum += cross;
+        }
+        int crossMid = crossSum / stations.size();
+        return new SectionCutLine(primaryMin, primaryMax, crossMid, alongX);
+    }
+
+    public record SectionCutLine(int primaryMin, int primaryMax, int crossMid, boolean alongX) {
+    }
+
     private static List<Station> slice(
             List<DesignTerrainCell> cells,
             boolean alongX,

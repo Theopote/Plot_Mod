@@ -16,12 +16,14 @@ import java.util.List;
  */
 public final class EarthworkElevationVolumeCurve {
     public static final EarthworkElevationVolumeCurve EMPTY = new EarthworkElevationVolumeCurve(
-        List.of(), 0, 0, 0, 0, 0, 0, 0, 0);
+        List.of(), List.of(), 1, 0, 0, 0, 0, 0, 0, 0, 0);
 
     private static final int Y_PAD = 2;
     private static final int MAX_SAMPLES = 48;
 
     private final List<Sample> samples;
+    private final List<Column> sourceColumns;
+    private final int sampleStep;
     private final int referenceY;
     private final int balanceY;
     private final int minWorkY;
@@ -46,6 +48,8 @@ public final class EarthworkElevationVolumeCurve {
 
     private EarthworkElevationVolumeCurve(
             List<Sample> samples,
+            List<Column> sourceColumns,
+            int sampleStep,
             int referenceY,
             int balanceY,
             int minWorkY,
@@ -55,6 +59,8 @@ public final class EarthworkElevationVolumeCurve {
             int designMin,
             int designMax) {
         this.samples = List.copyOf(samples);
+        this.sourceColumns = sourceColumns != null ? List.copyOf(sourceColumns) : List.of();
+        this.sampleStep = Math.max(1, sampleStep);
         this.referenceY = referenceY;
         this.balanceY = balanceY;
         this.minWorkY = minWorkY;
@@ -139,6 +145,8 @@ public final class EarthworkElevationVolumeCurve {
             .toList();
         return new EarthworkElevationVolumeCurve(
             sorted,
+            List.of(),
+            1,
             referenceY,
             bestBalance.y(),
             bestWork.y(),
@@ -204,6 +212,8 @@ public final class EarthworkElevationVolumeCurve {
         }
         return new EarthworkElevationVolumeCurve(
             samples,
+            columns,
+            step,
             referenceY,
             bestBalance.y(),
             bestWork.y(),
@@ -258,6 +268,7 @@ public final class EarthworkElevationVolumeCurve {
         return designMax;
     }
 
+    /** 稀疏曲线上的最近邻采样（图表标点用，不可当作精确 Y 高度数据）。 */
     public Sample sampleAt(int y) {
         Sample nearest = null;
         int bestDist = Integer.MAX_VALUE;
@@ -269,6 +280,27 @@ public final class EarthworkElevationVolumeCurve {
             }
         }
         return nearest;
+    }
+
+    public int sampleStep() {
+        return sampleStep;
+    }
+
+    /** 精确高度上的挖填量；有源列时按列重算，否则仅当该 Y 在采样列表中存在时返回。 */
+    public Sample sampleAtExact(int y) {
+        for (Sample sample : samples) {
+            if (sample.y() == y) {
+                return sample;
+            }
+        }
+        if (!sourceColumns.isEmpty()) {
+            return volumeAt(sourceColumns, referenceY, y);
+        }
+        return null;
+    }
+
+    public boolean canCompareAdjacentHeights() {
+        return sampleStep <= 1 && !sourceColumns.isEmpty();
     }
 
     public long maxWork() {

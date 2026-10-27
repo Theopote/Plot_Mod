@@ -1,20 +1,13 @@
 package com.plot.plugin.earthwork.ui;
 
-import com.plot.api.geometry.Vec2d;
-import com.plot.core.geometry.PolygonRegionUtils;
-import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
-import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
-
-import java.util.List;
-
 
 /** 土方生成 Tab：预览计算、网格示意与落地确认。 */
 public final class EarthworkGeneratePanel {
@@ -53,11 +46,6 @@ public final class EarthworkGeneratePanel {
         renderPreviewBuildButtons(preview);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.analysis"))) {
-            ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
-            renderTerrainSnapshotInfo(preview.existingTerrainSnapshot);
-            if (ctx.config().isShowGrid()) {
-                renderGridPreview(region, preview);
-            }
             EarthworkInsightCharts.render(ctx, region, preview);
         }
     }
@@ -158,48 +146,6 @@ public final class EarthworkGeneratePanel {
         }
     }
 
-    private void renderGridPreview(GradingRegion region, EarthworkGenerationResult result) {
-        List<Vec2d> points = region.getOuterPoints();
-        if (points.size() < 3 || result.gridSamples.isEmpty()) {
-            return;
-        }
-
-        PolygonRegionUtils.RectBounds bounds = EarthworkGeometryUtils.computeBounds(points);
-        float availWidth = ImGui.getContentRegionAvailX();
-        float previewHeight = 140.0f;
-        float originX = ImGui.getCursorScreenPosX();
-        float originY = ImGui.getCursorScreenPosY();
-
-        ImGui.dummy(availWidth, previewHeight);
-        ImDrawList drawList = ImGui.getWindowDrawList();
-
-        double spanX = Math.max(bounds.width(), 1.0);
-        double spanZ = Math.max(bounds.depth(), 1.0);
-        float scale = (float) Math.min(
-            (availWidth - 16.0f) / spanX,
-            (previewHeight - 16.0f) / spanZ);
-
-        int cutColor = 0x80FF4040;
-        int fillColor = 0x804040FF;
-        int borderColor = 0xFF606060;
-
-        for (EarthworkGenerationResult.GridSample sample : result.gridSamples) {
-            float cellX = originX + 8.0f + (float) ((sample.center.x - bounds.minX()) * scale);
-            float cellY = originY + 8.0f + (float) ((sample.center.y - bounds.minZ()) * scale);
-            float cellSize = Math.max(3.0f, scale * 0.8f);
-            int color = sample.changeType == EarthworkGenerationResult.ChangeType.CUT ? cutColor : fillColor;
-            drawList.addRectFilled(cellX, cellY, cellX + cellSize, cellY + cellSize, color);
-        }
-
-        float bx1 = originX + 8.0f;
-        float by1 = originY + 8.0f;
-        float bx2 = bx1 + (float) (spanX * scale);
-        float by2 = by1 + (float) (spanZ * scale);
-        drawList.addRect(bx1, by1, bx2, by2, borderColor);
-
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.grid_preview_legend"));
-    }
-
     public void renderBuildConfirmPopup() {
         if (ctx.buildConfirmPending()) {
             ImGui.openPopup("##earthwork_build_confirm");
@@ -271,45 +217,6 @@ public final class EarthworkGeneratePanel {
         } else {
             confirmChecksReady = false;
         }
-    }
-
-    private void renderTerrainSnapshotInfo(TerrainSnapshot snapshot) {
-        if (snapshot == null || snapshot.isEmpty()) {
-            return;
-        }
-        TerrainSnapshot.Metadata metadata = snapshot.metadata();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.earthwork.terrain_snapshot_info",
-            formatTerrainSnapshotTime(metadata.capturedAtEpochMs()),
-            metadata.columnCount()));
-        int unloaded = snapshot.unloadedColumnCount();
-        if (unloaded > 0) {
-            ImGui.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.earthwork.unloaded_columns_hint", unloaded));
-        }
-        TerrainSnapshot.ComparisonResult comparison =
-            ctx.previewManager().comparePreviewTerrainWithWorld(EarthworkUiWidgets.getClientWorld());
-        if (comparison != null && comparison.terrainChanged()) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.earthwork.terrain_changed_since_preview",
-                comparison.groundElevationChangedColumns(),
-                comparison.totalColumns()));
-        } else if (comparison != null && comparison.hasCosmeticSurfaceDrift()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.earthwork.terrain_surface_drift_soft",
-                comparison.surfaceOnlyChangedColumns(),
-                comparison.totalColumns()));
-        }
-    }
-
-    private static String formatTerrainSnapshotTime(long epochMs) {
-        if (epochMs <= 0L) {
-            return "-";
-        }
-        return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-            .withZone(java.time.ZoneId.systemDefault())
-            .format(java.time.Instant.ofEpochMilli(epochMs));
     }
 
     /**

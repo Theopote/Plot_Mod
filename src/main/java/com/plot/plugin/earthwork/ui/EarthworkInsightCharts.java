@@ -1,6 +1,5 @@
 package com.plot.plugin.earthwork.ui;
 
-import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -43,6 +42,14 @@ public final class EarthworkInsightCharts {
         if (preview == null) {
             return;
         }
+        boolean validPreview = ctx.previewManager().hasValidPreview()
+            && EarthworkUiPresentation.belongsTo(preview, region);
+        if (!validPreview) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.earthwork.analysis_stale_hint"));
+        }
+
         EarthworkVolumeReport volumes = preview.volumeReport != null
             ? preview.volumeReport
             : EarthworkVolumeReport.empty();
@@ -52,28 +59,34 @@ public final class EarthworkInsightCharts {
         EarthworkElevationVolumeCurve curve = preview.elevationVolumeCurve;
 
         if (mode == EarthworkWorkMode.QUICK) {
-            renderQuickAnalysis(ctx, region, preview, curve);
+            renderQuickAnalysis(ctx, region, preview, curve, validPreview);
             return;
         }
 
+        renderChangeOverview(volumes);
+
         if (mode.showsBuilderVisuals()) {
-            renderWorkAndWorld(volumes, preview.calculationCellCount);
-            if (curve != null && !curve.isEmpty()) {
-                renderBeforeAfter(curve);
-            }
             renderHeatmap(preview.designTerrainGrid);
-        }
-        if (!mode.showsAnalysisVisuals()) {
-            return;
-        }
-        if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
-            renderSlopeCoupledCurveHint(preview);
-        } else if (curve != null && !curve.isEmpty()) {
-            renderRecommendations(ctx, region, preview, curve);
-            renderCurve(curve, preview.resolvedElevation);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
             renderProfile(preview.sectionProfile);
+        }
+        if (mode.showsAnalysisVisuals()) {
+            if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
+                renderSlopeCoupledCurveHint(preview);
+            } else if (curve != null && !curve.isEmpty()) {
+                renderRecommendations(ctx, region, preview, curve, validPreview);
+            }
+        }
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.analysis_advanced"))) {
+            if (curve != null && !curve.isEmpty()) {
+                renderBeforeAfter(curve);
+                if (mode.showsAnalysisVisuals() && !preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
+                    renderCurve(curve, preview.resolvedElevation);
+                }
+            }
+            renderDiagnostics(preview);
         }
     }
 
@@ -82,19 +95,51 @@ public final class EarthworkInsightCharts {
             EarthworkUiContext ctx,
             GradingRegion region,
             EarthworkGenerationResult preview,
-            EarthworkElevationVolumeCurve curve) {
+            EarthworkElevationVolumeCurve curve,
+            boolean validPreview) {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.quick.view_analysis"))) {
             return;
         }
+        renderChangeOverview(preview.volumeReport != null ? preview.volumeReport : EarthworkVolumeReport.empty());
         renderHeatmap(preview.designTerrainGrid);
+        if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
+            renderProfile(preview.sectionProfile);
+        }
         if (curve != null && !curve.isEmpty()) {
-            renderRecommendations(ctx, region, preview, curve);
-            renderCurve(curve, preview.resolvedElevation);
+            renderRecommendations(ctx, region, preview, curve, validPreview);
         } else if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
             renderSlopeCoupledCurveHint(preview);
         }
-        if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
-            renderProfile(preview.sectionProfile);
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.analysis_advanced"))) {
+            if (curve != null && !curve.isEmpty()) {
+                renderCurve(curve, preview.resolvedElevation);
+            }
+            renderDiagnostics(preview);
+        }
+    }
+
+    static void renderChangeOverview(EarthworkVolumeReport volumes) {
+        long cut = volumes.geometricCutVolume();
+        long fill = volumes.geometricFillVolume();
+        long net = cut - fill;
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_overview_header"));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_cut", cut));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_fill", fill));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_net", net));
+    }
+
+    static void renderDiagnostics(EarthworkGenerationResult preview) {
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
+        if (preview.existingTerrainSnapshot != null) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.earthwork.terrain_snapshot_summary",
+                    preview.existingTerrainSnapshot.columnCount(),
+                    preview.existingTerrainSnapshot.loadedColumnCount(),
+                    preview.existingTerrainSnapshot.unloadedColumnCount()));
         }
     }
 
@@ -157,13 +202,14 @@ public final class EarthworkInsightCharts {
             EarthworkUiContext ctx,
             GradingRegion region,
             EarthworkGenerationResult preview,
-            EarthworkElevationVolumeCurve curve) {
+            EarthworkElevationVolumeCurve curve,
+            boolean validPreview) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.recommend.header"));
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         EarthworkElevationVolumeCurve.Sample balance = curve.sampleAt(curve.balanceY());
         EarthworkElevationVolumeCurve.Sample minWork = curve.sampleAt(curve.minWorkY());
-        // 绝对标高按钮只适用于单一平整区域；斜面/多分区的统一偏移不能写成某一区域的 Y。
-        boolean canApplyElevation = canApplyRecommendedElevation(ctx.project().getActiveSite(), region);
+        boolean canApplyElevation = validPreview
+            && canApplyRecommendedElevation(ctx.project().getActiveSite(), region);
         ImGui.beginDisabled(!canApplyElevation);
         if (ImGui.button(
                 PlotI18n.tr("plugin.earthwork.recommend.balance", curve.balanceY()),
@@ -189,7 +235,9 @@ public final class EarthworkInsightCharts {
             ctx.recalculatePreview();
         }
         ImGui.endDisabled();
-        if (!canApplyElevation) {
+        if (!validPreview) {
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.recommend.preview_stale"));
+        } else if (!canApplyRecommendedElevation(ctx.project().getActiveSite(), region)) {
             EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.recommend.single_flat_only"));
         }
         if (balance != null) {
@@ -217,9 +265,18 @@ public final class EarthworkInsightCharts {
         long cut = preview.volumeReport.geometricCutVolume();
         long fill = preview.volumeReport.geometricFillVolume();
         int y = preview.resolvedElevation;
-        EarthworkElevationVolumeCurve.Sample lower = curve.sampleAt(y - 1);
-        EarthworkElevationVolumeCurve.Sample here = curve.sampleAt(y);
-        EarthworkElevationVolumeCurve.Sample upper = curve.sampleAt(y + 1);
+        if (!curve.canCompareAdjacentHeights()) {
+            return PlotI18n.tr(
+                "plugin.earthwork.recommend.reason_sparse",
+                y,
+                cut,
+                fill,
+                Math.abs(cut - fill),
+                curve.sampleStep());
+        }
+        EarthworkElevationVolumeCurve.Sample lower = curve.sampleAtExact(y - 1);
+        EarthworkElevationVolumeCurve.Sample here = curve.sampleAtExact(y);
+        EarthworkElevationVolumeCurve.Sample upper = curve.sampleAtExact(y + 1);
         long hereWork = here != null ? here.work() : cut + fill;
         long vsLower = lower != null ? Math.max(0L, lower.work() - hereWork) : 0L;
         long vsUpper = upper != null ? Math.max(0L, upper.work() - hereWork) : 0L;
@@ -289,12 +346,15 @@ public final class EarthworkInsightCharts {
             elevMax = elevMin + 1;
         }
         float pad = 8f;
-        int n = profile.stations().size();
-        for (int i = 0; i < n - 1; i++) {
+        int span = profile.axisSpan();
+        for (int i = 0; i < profile.stations().size() - 1; i++) {
             EarthworkSectionProfile.Station a = profile.stations().get(i);
             EarthworkSectionProfile.Station b = profile.stations().get(i + 1);
-            float ax = x0 + pad + (x1 - x0 - 2 * pad) * (i / (float) (n - 1));
-            float bx = x0 + pad + (x1 - x0 - 2 * pad) * ((i + 1) / (float) (n - 1));
+            if (profile.axisGap(a, b) > 1) {
+                continue;
+            }
+            float ax = x0 + pad + (x1 - x0 - 2 * pad) * (profile.axisDistance(a) / (float) span);
+            float bx = x0 + pad + (x1 - x0 - 2 * pad) * (profile.axisDistance(b) / (float) span);
             drawList.addLine(
                 ax, elevToY(a.existingY(), elevMin, elevMax, y0, y1, pad),
                 bx, elevToY(b.existingY(), elevMin, elevMax, y0, y1, pad),
@@ -335,49 +395,36 @@ public final class EarthworkInsightCharts {
             return;
         }
         ImGui.text(PlotI18n.tr("plugin.earthwork.heatmap.header"));
-        int minX = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxZ = Integer.MIN_VALUE;
-        for (DesignTerrainCell cell : grid.cells().values()) {
-            if (cell == null || !cell.participatesInEarthwork()) {
-                continue;
-            }
-            minX = Math.min(minX, cell.worldX());
-            maxX = Math.max(maxX, cell.worldX());
-            minZ = Math.min(minZ, cell.worldZ());
-            maxZ = Math.max(maxZ, cell.worldZ());
-        }
-        if (minX == Integer.MAX_VALUE) {
-            return;
-        }
-        float width = ImGui.getContentRegionAvailX();
+        float width = Math.max(40f, ImGui.getContentRegionAvailX());
+        float innerW = width - 8f;
+        float innerH = HEATMAP_HEIGHT - 8f;
+        int gridCols = Math.max(8, Math.min(64, (int) (innerW / 4f)));
+        int gridRows = Math.max(6, Math.min(48, (int) (innerH / 4f)));
+        EarthworkCutFillHeatmap.Bucket[][] buckets =
+            EarthworkCutFillHeatmap.aggregate(grid, gridCols, gridRows);
+
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + HEATMAP_HEIGHT, COLOR_BG);
-        float spanX = Math.max(1, maxX - minX + 1);
-        float spanZ = Math.max(1, maxZ - minZ + 1);
-        float scale = Math.min((width - 8f) / spanX, (HEATMAP_HEIGHT - 8f) / spanZ);
-        float cell = Math.max(2f, scale * 0.9f);
-        int count = grid.cellCount();
-        int stride = count > 1200 ? (int) Math.ceil(count / 1200.0) : 1;
-        int index = 0;
-        for (DesignTerrainCell terrainCell : grid.cells().values()) {
-            if (terrainCell == null || !terrainCell.participatesInEarthwork()) {
-                continue;
+        float cellW = innerW / gridCols;
+        float cellH = innerH / gridRows;
+        for (int x = 0; x < gridCols; x++) {
+            for (int z = 0; z < gridRows; z++) {
+                EarthworkCutFillHeatmap.Bucket bucket = buckets[x][z];
+                if (bucket.cutCount() == 0 && bucket.fillCount() == 0 && bucket.unchangedCount() == 0) {
+                    continue;
+                }
+                float px = origin.x + 4f + x * cellW;
+                float py = origin.y + 4f + z * cellH;
+                int color = switch (bucket.dominant()) {
+                    case CUT -> ImColor.rgba(220, 64, 64, 210);
+                    case FILL -> ImColor.rgba(64, 140, 230, 210);
+                    case UNCHANGED -> ImColor.rgba(72, 176, 96, 140);
+                };
+                drawList.addRectFilled(px, py, px + cellW - 0.5f, py + cellH - 0.5f, color);
             }
-            if ((index++ % stride) != 0) {
-                continue;
-            }
-            float px = origin.x + 4f + (terrainCell.worldX() - minX) * scale;
-            float py = origin.y + 4f + (terrainCell.worldZ() - minZ) * scale;
-            int color = terrainCell.deltaY() > 0
-                ? ImColor.rgba(64, 140, 230, 200)
-                : terrainCell.deltaY() < 0
-                    ? ImColor.rgba(220, 64, 64, 200)
-                    : ImColor.rgba(72, 176, 96, 120);
-            drawList.addRectFilled(px, py, px + cell, py + cell, color);
         }
+        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + HEATMAP_HEIGHT, COLOR_BORDER);
         ImGui.dummy(width, HEATMAP_HEIGHT);
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.heatmap.legend"));
     }

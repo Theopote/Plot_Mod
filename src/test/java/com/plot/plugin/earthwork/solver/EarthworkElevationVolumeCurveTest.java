@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkElevationVolumeCurveTest {
@@ -40,5 +42,50 @@ class EarthworkElevationVolumeCurveTest {
         assertEquals(0L, raised.cut());
         assertEquals(7L, raised.fill());
         assertEquals(2L, raised.fill() - atRef.fill());
+    }
+
+    @Test
+    void sampleAtExactRecomputesBetweenSparseSamples() {
+        List<EarthworkElevationVolumeCurve.Column> columns = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            columns.add(new EarthworkElevationVolumeCurve.Column(64 + (i % 50), 64));
+        }
+        EarthworkElevationVolumeCurve curve = EarthworkElevationVolumeCurve.fromColumns(columns, 64);
+        assertTrue(curve.sampleStep() > 1);
+        assertFalse(curve.canCompareAdjacentHeights());
+
+        EarthworkElevationVolumeCurve.Sample at65 = curve.sampleAtExact(65);
+        assertEquals(65, at65.y());
+        assertTrue(at65.work() >= 0L);
+    }
+
+    @Test
+    void denseCurveAllowsAdjacentHeightComparison() {
+        List<EarthworkElevationVolumeCurve.Column> columns = List.of(
+            new EarthworkElevationVolumeCurve.Column(64, 64),
+            new EarthworkElevationVolumeCurve.Column(66, 64));
+        EarthworkElevationVolumeCurve curve = EarthworkElevationVolumeCurve.fromColumns(columns, 64);
+        assertEquals(1, curve.sampleStep());
+        assertTrue(curve.canCompareAdjacentHeights());
+        assertNotNull(curve.sampleAtExact(64));
+        assertNotNull(curve.sampleAtExact(65));
+    }
+
+    @Test
+    void slopeCoupledCurveCannotCompareAdjacentHeights() {
+        List<EarthworkElevationVolumeCurve.Sample> samples = List.of(
+            new EarthworkElevationVolumeCurve.Sample(64, 10, 5),
+            new EarthworkElevationVolumeCurve.Sample(65, 8, 8));
+        com.plot.plugin.earthwork.grading.DesignTerrainGrid grid =
+            new com.plot.plugin.earthwork.grading.DesignTerrainGrid();
+        com.plot.api.geometry.Vec2d center = new com.plot.api.geometry.Vec2d(0.5, 0.5);
+        com.plot.plugin.earthwork.grading.DesignTerrainCell cell =
+            new com.plot.plugin.earthwork.grading.DesignTerrainCell(0, 0, center, 64);
+        cell.setTargetY(64);
+        cell.setZoneId("pad");
+        grid.put(0, 0, cell);
+        EarthworkElevationVolumeCurve curve =
+            EarthworkElevationVolumeCurve.fromSlopeCoupledSamples(samples, 64, grid);
+        assertFalse(curve.canCompareAdjacentHeights());
     }
 }

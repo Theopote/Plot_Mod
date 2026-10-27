@@ -28,5 +28,27 @@ class EarthworkSectionProfileTest {
         assertTrue(profile.stations().get(0).cut() > 0);
         assertTrue(profile.stations().get(4).fill() > 0);
         assertNotEquals(profile.stations().get(0).existingY(), profile.stations().get(0).designY());
+        assertEquals(0, profile.axisDistance(profile.stations().get(0)));
+        assertEquals(4, profile.axisDistance(profile.stations().get(4)));
+        assertEquals(4, profile.axisSpan());
+        assertEquals(1, profile.axisGap(profile.stations().get(0), profile.stations().get(1)));
+        EarthworkSectionProfile.SectionCutLine line = profile.sectionCutLine();
+        assertEquals(0, line.primaryMin());
+        assertEquals(4, line.primaryMax());
+        assertEquals(3, line.crossMid());
+    }
+
+    @Test
+    void axisGapBreaksWhenStationsAreNotAdjacent() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        for (int x : new int[] {0, 2, 5}) {
+            DesignTerrainCell cell = new DesignTerrainCell(x, 3, new Vec2d(x + 0.5, 3.5), 64);
+            cell.setTargetY(64);
+            cell.setZoneId("pad");
+            grid.put(x, 3, cell);
+        }
+        EarthworkSectionProfile profile = EarthworkSectionProfile.fromGrid(grid);
+        assertEquals(3, profile.stations().size());
+        assertEquals(2, profile.axisGap(profile.stations().get(0), profile.stations().get(1)));
     }
 }
