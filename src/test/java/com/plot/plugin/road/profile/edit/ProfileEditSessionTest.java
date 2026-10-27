@@ -48,6 +48,21 @@ class ProfileEditSessionTest {
     }
 
     @Test
+    void lockedPviCannotBeDraggedOrChangedNumerically() {
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64).withConstraint(
+                com.plot.plugin.road.vertical.VerticalControlPointConstraint.USER_LOCKED),
+            PointOfVerticalIntersection.of(100, 66))));
+        var point = com.plot.plugin.road.vertical.VerticalProfileControlPoints.forRoad(network, road).getFirst();
+        assertFalse(point.elevationEditable());
+        session.beginPviEdit(road);
+        session.updatePviDrag(network, road, point, 0, 0, 80);
+        session.updatePviElevation(network, road, 0, 90);
+        assertEquals(64, session.effectiveAlignment(road).getPvis().getFirst().getElevation());
+        assertFalse(session.isDirty());
+    }
+
+    @Test
     void numericEditKeepsShortRoadFlatAndPreservesLoopSeam() {
         var shortNetwork = new RoadNetwork();
         var shortRoad = shortNetwork.createRoad("short");

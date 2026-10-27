@@ -57,7 +57,7 @@ public record ProfileCompileInputsFingerprint(
             : (config != null ? config.getMaxSlope() : null);
         return new ProfileCompileInputsFingerprint(
             road.getId() != null ? road.getId() : "",
-            geometryHash(network, road),
+            previewGeometryHash(network, road),
             alignmentHash(alignment),
             intersectionHash(intersections),
             constraints != null ? constraints.contentHash() : 0,
@@ -75,6 +75,7 @@ public record ProfileCompileInputsFingerprint(
                 effective.algorithmVersion()));
     }
 
+    /** Existing persisted edited-profile bindings use this signature; keep its format stable. */
     public static int geometryHash(RoadNetwork network, Road road) {
         if (road == null || !RoadStationing.isStationable(network, road)) {
             return 0;
@@ -89,6 +90,30 @@ public record ProfileCompileInputsFingerprint(
             RoadNode start = network.getNode(edge.getStartNodeId());
             RoadNode end = network.getNode(edge.getEndNodeId());
             hash = 31 * hash + nodeHash(start) + 17 * nodeHash(end);
+        }
+        return hash;
+    }
+
+    private static int previewGeometryHash(RoadNetwork network, Road road) {
+        int hash = geometryHash(network, road);
+        if (road == null || !RoadStationing.isStationable(network, road)) return hash;
+        hash = 31 * hash + Objects.hashCode(road.getTopologyMode());
+        var alignment = road.getHorizontalAlignment();
+        if (alignment != null && !alignment.isEmpty()) {
+            Vec2d origin = alignment.getOrigin();
+            hash = 31 * hash + Objects.hash(origin.x, origin.y, alignment.getStartBearingRadians());
+            for (var element : alignment.getElements()) {
+                hash = 31 * hash + Objects.hash(element.getType(), element.getLength(),
+                    element.getRadius(), element.getDirection(), element.getSpiralParameterA());
+            }
+        } else {
+            for (var segment : RoadStationing.orientedSegments(network, road)) {
+                RoadEdge edge = network.getEdge(segment.edgeId());
+                if (edge == null || edge.getCenterlinePoints() == null) continue;
+                for (Vec2d point : edge.getCenterlinePoints()) {
+                    hash = 31 * hash + Objects.hash(point.x, point.y);
+                }
+            }
         }
         return hash;
     }
@@ -116,11 +141,13 @@ public record ProfileCompileInputsFingerprint(
         for (RoadProfileIntersection intersection : intersections) {
             hash = 31 * hash + Objects.hash(
                 intersection.nodeId(),
+                intersection.currentRoadId(),
                 intersection.otherRoadId(),
                 intersection.roadStation(),
                 intersection.currentRoadElevation(),
                 intersection.otherRoadElevation(),
                 intersection.gradeSeparated(),
+                intersection.currentRoadElevated(),
                 intersection.clearance());
         }
         return hash;

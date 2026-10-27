@@ -69,9 +69,7 @@ public final class VoxelProfilePreviewSlot {
     }
 
     public void markStale() {
-        if (state == VoxelProfilePreviewState.READY || state == VoxelProfilePreviewState.FAILED) {
-            state = VoxelProfilePreviewState.STALE;
-        } else if (state == VoxelProfilePreviewState.NOT_COMPUTED) {
+        if (state != VoxelProfilePreviewState.STALE) {
             state = VoxelProfilePreviewState.STALE;
         }
     }

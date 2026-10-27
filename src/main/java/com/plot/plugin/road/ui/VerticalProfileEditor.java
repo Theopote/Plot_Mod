@@ -1091,13 +1091,13 @@ final class VerticalProfileEditor {
             float chartHeight,
             FlatElevationProfileOverlay flatOverlay) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
-        Road displayRoad = displayNetwork.getRoad(road.getId());
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
         ensureEditorRoadAlignment(ctx, editingNetwork, road, chartData);
+        RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
+        Road displayRoad = displayNetwork.getRoad(road.getId());
         RoadVerticalAlignment effectiveAlignment =
-            profileEditSession.effectiveAlignment(editingNetwork, road);
-        design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(null);
+            profileEditSession.effectiveAlignment(displayNetwork, displayRoad);
+        design = profileEditSession.effectiveDesignOverlay(displayNetwork, displayRoad).orElse(null);
         RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
         boolean buildProfileStale = isChartDerivedDataStale(road);
         VoxelProfilePreviewSlot voxelSlot =
@@ -1105,7 +1105,7 @@ final class VerticalProfileEditor {
         // 与生成页缩略图一致：始终可显示预览拟合建造线；有体素结果时用台阶采样覆盖。
         boolean showBuildProfileLine = ProfileChartRenderMode.EDITOR.showBuildProfileLine();
         List<ProfileControlPoint> points =
-            VerticalProfileControlPoints.forAlignment(editingNetwork, road, effectiveAlignment);
+            VerticalProfileControlPoints.forAlignment(displayNetwork, displayRoad, effectiveAlignment);
         List<VerticalProfileControlPoints.ControlPoint> legacyPoints = points.stream()
             .map(VerticalProfileControlPoints::toLegacyControlPoint)
             .toList();
@@ -1116,7 +1116,7 @@ final class VerticalProfileEditor {
             ctx, displayNetwork, displayRoad, config, effectiveChart,
             !profileEditSession.isActive() && activeIntersectionDragIndex < 0);
         List<RoadProfileIntersection> intersections =
-            profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
+            profileEditSession.effectiveIntersections(displayNetwork, displayRoad, baseIntersections);
         ProfileRenderCache renderCache = resolveRenderCache(
             ctx, liveNetwork, road, effectiveChart, flatOverlay, intersections,
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
@@ -2087,8 +2087,8 @@ final class VerticalProfileEditor {
             .findFirst()
             .orElse(null);
         var bounds = resolveElevationBounds(ctx);
-        if (ImGui.isWindowAppearing()) pviHeightInput.set((float) VerticalAlignmentGeometry
-            .elevationAt(alignment, point.getStation()).orElse(point.getElevation()));
+        // This popup edits the drawn PVI (tangent vertex), not a different point on its curve.
+        if (ImGui.isWindowAppearing()) pviHeightInput.set((float) point.getElevation());
         boolean locked = point.getConstraint() == com.plot.plugin.road.vertical.VerticalControlPointConstraint.USER_LOCKED;
         boolean elevationEditable = profilePoint != null && profilePoint.elevationEditable();
         ImGui.beginDisabled(locked || !elevationEditable);

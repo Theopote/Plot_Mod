@@ -8,8 +8,8 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import java.util.Objects;
 
 /**
- * Deferred voxel compile payload: captured on the UI click frame, executed on the next editor tick
- * so ImGui does not block on {@link com.plot.plugin.road.pipeline.profile.RoadVoxelProfileCompiler}.
+ * Immutable request metadata captured on click. The disposable network is consumed by a
+ * main-thread {@link com.plot.plugin.road.pipeline.profile.RoadVoxelProfileCompileJob} across ticks.
  */
 public final class VoxelProfilePreviewCompileRequest {
 

@@ -45,11 +45,26 @@ public final class RoadProfileIntersectionResolver {
             Road road,
             RoadSystemConfig config,
             Map<String, RoadGenerationResult> edgeResults) {
+        return forGeneration(network, road, config, edgeResults);
+    }
+
+    /** 生成态交叉标记（{@link ProfileElevationReadMode#GENERATION}）。 */
+    public static List<RoadProfileIntersection> forGeneration(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            Map<String, RoadGenerationResult> edgeResults) {
         return forRoad(network, road, config, edgeResults, false);
     }
 
     /** Working-copy heights for live editor overlays, independent of the last voxel build. */
     public static List<RoadProfileIntersection> forRoadDesign(
+            RoadNetwork network, Road road, RoadSystemConfig config) {
+        return forDesignOverlay(network, road, config);
+    }
+
+    /** 设计态交叉标记（{@link ProfileElevationReadMode#DESIGN_WORKING_COPY}）。 */
+    public static List<RoadProfileIntersection> forDesignOverlay(
             RoadNetwork network, Road road, RoadSystemConfig config) {
         return forRoad(network, road, config, Map.of(), true);
     }

@@ -307,7 +307,8 @@ public final class VerticalProfileControlPoints {
             boolean sharedJunction,
             int index,
             int count) {
-        if (road == null || pvi == null || road.getVerticalMode() == RoadVerticalMode.FLAT) {
+        if (road == null || pvi == null || road.getVerticalMode() == RoadVerticalMode.FLAT
+                || pvi.getConstraint() == VerticalControlPointConstraint.USER_LOCKED) {
             return false;
         }
         if (index == 0 || index == count - 1) {

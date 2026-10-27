@@ -29,10 +29,33 @@ class ProfileSamplingVoxelParityTest {
     @Test
     void manualProfileSamplingBuildSamplesMatchVoxelCompile() {
         RoadNetwork network = manualStraightRoad(80.0, 72.0);
+        assertSamplingMatchesCompile(network, "sampling-parity-manual", 2, 78);
+    }
+
+    @Test
+    void slopedEditedProfileSamplingMatchesVoxelCompile() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("slope-parity");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(40.0, 72.0),
+            PointOfVerticalIntersection.of(80.0, 64.0))));
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(80, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        assertSamplingMatchesCompile(network, "sampling-parity-slope", 5, 75);
+    }
+
+    private static void assertSamplingMatchesCompile(
+            RoadNetwork network,
+            String configId,
+            double minStation,
+            double maxStation) {
         Road road = network.getRoads().values().iterator().next();
         RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
-        RoadSystemConfig config = baseConfig("sampling-parity-manual");
+        RoadSystemConfig config = baseConfig(configId);
         RoadGenerator generator = generator(config);
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
 
@@ -55,7 +78,7 @@ class ProfileSamplingVoxelParityTest {
 
         assertFalse(samplingEdge.profileBuildSamples.isEmpty());
         for (BuildHeightSample sample : compile.samples()) {
-            if (sample.station() < 2 || sample.station() > 78) {
+            if (sample.station() < minStation || sample.station() > maxStation) {
                 continue;
             }
             int buildY = nearestBuildSampleY(samplingEdge, sample.station());

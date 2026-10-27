@@ -160,6 +160,26 @@ class ProfileEditorVoxelPreviewSessionTest {
         assertNotEquals(before, after);
     }
 
+    @Test
+    void editingWhileCompileIsPendingInvalidatesTheOldRequest() {
+        var network = networkWithRoad("pending");
+        var slot = new VoxelProfilePreviewSlot();
+        slot.markComputing(keyFor(network, network.getRoad("pending")));
+        slot.markStale();
+        assertEquals(VoxelProfilePreviewState.STALE, slot.state());
+    }
+
+    @Test
+    void equalLengthMirroredPathInvalidatesPreview() {
+        var network = networkWithRoad("shape");
+        var road = network.getRoad("shape");
+        var edge = network.getEdges().values().iterator().next();
+        edge.setCenterlinePoints(List.of(new Vec2d(0, 0), new Vec2d(15, 10), new Vec2d(30, 0)));
+        var before = keyFor(network, road);
+        edge.setCenterlinePoints(List.of(new Vec2d(0, 0), new Vec2d(15, -10), new Vec2d(30, 0)));
+        assertNotEquals(before, keyFor(network, road));
+    }
+
     private static VoxelProfilePreviewKey keyFor(RoadNetwork network, Road road) {
         return VoxelProfilePreviewKey.of(
             network,

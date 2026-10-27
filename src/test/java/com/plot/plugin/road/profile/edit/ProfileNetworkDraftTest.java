@@ -23,6 +23,86 @@ class ProfileNetworkDraftTest {
     private final RoadSystemConfig config = new RoadSystemConfig("network-draft");
 
     @Test
+    void openingFlatRoadWithoutDerivedAlignmentDoesNotCreateAnEdit() {
+        var network = new RoadNetwork();
+        var flat = road(network, "flat");
+        flat.setVerticalMode(RoadVerticalMode.FLAT);
+        flat.setFlatVerticalIntent(new FlatVerticalIntent(72));
+        flat.setVerticalAlignment(null);
+        var window = ProfileEditorWindowSession.open(network, 0);
+        var working = window.editingNetwork().getRoad("flat");
+        window.ensureRoadEditorAlignment(working, config, java.util.Map.of(), null);
+        assertNotNull(working.getVerticalAlignment());
+        assertFalse(window.isDirty(), "display-only compilation is not a user edit");
+        assertNull(flat.getVerticalAlignment());
+    }
+
+    @Test
+    void seedingAnotherRoadMustNotMoveTheRestoreBaselineToEditedHeights() {
+        var network = new RoadNetwork();
+        var a = road(network, "a");
+        var b = road(network, "b");
+        a.setProfileSource(ProfileSource.EDITED);
+        b.setProfileSource(ProfileSource.EDITED);
+        network.registerCrossing(RoadCrossing.atGrade("a", 50, "b", 50, new Vec2d(50, 0)));
+        var window = ProfileEditorWindowSession.open(network, 0);
+        var working = window.editingNetwork().getRoad("a");
+        working.setVerticalAlignment(VerticalProfileControlPoints.withElevation(working.getVerticalAlignment(), 1, 74));
+        window.seedSampledProfiles(config, java.util.Map.of());
+        assertTrue(window.isDirty());
+        window.restore();
+        assertEquals(64, at(window.editingNetwork().getRoad("a"), 50), 1e-6);
+    }
+
+    @Test
+    void flatDragPreviewSynchronizesCrossingAndMatchesCommit() {
+        RoadNetwork network = new RoadNetwork();
+        Road flat = road(network, "flat");
+        road(network, "partner");
+        flat.setVerticalMode(RoadVerticalMode.FLAT);
+        flat.setFlatVerticalIntent(new FlatVerticalIntent(64));
+        network.registerCrossing(RoadCrossing.atGrade("flat", 50, "partner", 50, new Vec2d(50, 0)));
+        var edit = new ProfileEditSession();
+        var markers = RoadProfileIntersectionResolver.forRoadDesign(network, flat, config);
+        edit.beginFlatWholeLineEdit(network, flat, markers);
+        edit.updateFlatRoadWholeLineDrag(network, flat, config, 0,
+            RoadProfileIntersectionDragEditor.DragTarget.CURRENT, 74, markers);
+
+        var preview = edit.previewNetwork(network, flat, config);
+        assertEquals(74, at(preview.getRoad("partner"), 50), 1e-6);
+        assertEquals(64, at(network.getRoad("partner"), 50), 1e-6);
+        edit.commitEdit(network, flat, config, null, null, null);
+        assertEquals(at(preview.getRoad("partner"), 50), at(network.getRoad("partner"), 50), 1e-6);
+    }
+
+    @Test
+    void otherLayerDragShowsTheCurrentRoadPushedByClearance() {
+        RoadNetwork network = new RoadNetwork();
+        Road upper = road(network, "upper");
+        road(network, "lower");
+        upper.setVerticalMode(RoadVerticalMode.FLAT);
+        upper.setFlatVerticalIntent(new FlatVerticalIntent(88));
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, upper, 10);
+        network.registerCrossing(new RoadCrossing("lu", "upper", 50, "lower", 50,
+            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, "upper", 6.0, null));
+        var markers = RoadProfileIntersectionResolver.forRoadDesign(network, upper, config);
+        var edit = new ProfileEditSession();
+        edit.beginFlatWholeLineEdit(network, upper, markers);
+        edit.updateFlatRoadWholeLineDrag(network, upper, config, 0,
+            RoadProfileIntersectionDragEditor.DragTarget.OTHER, 90, markers);
+        var preview = edit.previewNetwork(network, upper, config);
+        var shownRoad = preview.getRoad("upper");
+        assertEquals(96, at(shownRoad, 50), 1e-6);
+        assertEquals(96, VerticalAlignmentGeometry.elevationAt(
+            edit.effectiveAlignment(preview, shownRoad), 50).orElseThrow(), 1e-6);
+        var shownMarkers = edit.effectiveIntersections(preview, shownRoad,
+            RoadProfileIntersectionResolver.forRoadDesign(preview, shownRoad, config));
+        assertEquals(96, shownMarkers.getFirst().currentRoadElevation(), 1e-6);
+        assertEquals(90, shownMarkers.getFirst().otherRoadElevation(), 1e-6);
+        assertEquals(88, at(upper, 50), 1e-6);
+    }
+
+    @Test
     void firstCurveEditAtRegistryCrossingKeepsActualHeightInLiveDraftAndCommit() {
         RoadNetwork network = new RoadNetwork();
         Road a = road(network, "a");
