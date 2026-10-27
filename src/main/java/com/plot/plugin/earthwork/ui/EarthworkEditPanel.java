@@ -128,6 +128,11 @@ public final class EarthworkEditPanel {
                 }
                 ImGui.endCombo();
             }
+            if (current == EarthworkTerrainTask.FOLLOW_TERRAIN) {
+                EarthworkUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("hint.plot.earthwork.follow_terrain_method"));
+            }
         }
         if (!zone.getType().isSupportedInMvp()) {
             renderPhaseCZoneSettings(zone);

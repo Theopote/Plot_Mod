@@ -53,7 +53,7 @@ class EarthworkValidatorTest {
     }
 
     @Test
-    void warnsOnCollinearThreePointPlane() {
+    void blocksOnCollinearThreePointPlane() {
         EarthworkProject project = new EarthworkProject();
         GradingRegion region = new GradingRegion(rectangleOutline(0, 3, 0, 3));
         region.setSurfaceMode(GradingSurfaceMode.THREE_POINT_PLANE);
@@ -64,8 +64,8 @@ class EarthworkValidatorTest {
 
         EarthworkValidationReport report = EarthworkValidator.analyzePrePreview(project, region);
 
-        assertFalse(report.blocksPreview());
-        assertTrue(report.warnings().stream()
+        assertTrue(report.blocksPreview());
+        assertTrue(report.errors().stream()
             .anyMatch(item -> "plugin.earthwork.validation.three_point_collinear".equals(item.messageKey())));
     }
 

@@ -22,6 +22,47 @@ class EarthworkTerrainTaskTest {
         }
     }
 
+    @Test void switchingTasksClearsExternalRefs() {
+        var zone = new GradingZone("pad", OUTLINE);
+        zone.setRoadEdgeRef("road-edge-1");
+        EarthworkTerrainTask.FLATTEN.applyTo(zone);
+        assertEquals("", zone.getRoadEdgeRef());
+        assertEquals("", zone.getDesignSurface().getRoadEdgeRef());
+
+        zone.setBuildingFootprintRef("building-1");
+        EarthworkTerrainTask.EXCAVATE.applyTo(zone);
+        assertEquals("", zone.getBuildingFootprintRef());
+        assertEquals(GradingZoneType.EXCAVATION_PIT, zone.getType());
+    }
+
+    @Test void switchingAwayFromThreePointSlopeClearsControlCoordinates() {
+        var zone = new GradingZone("pad", OUTLINE);
+        EarthworkTerrainTask.applySurfaceMode(zone, GradingSurfaceMode.THREE_POINT_PLANE);
+        zone.getRegion().setThreePointControl(0, new Vec2d(9, 9), 80);
+        zone.getRegion().setThreePointControl(1, new Vec2d(10, 9), 81);
+        zone.getRegion().setThreePointControl(2, new Vec2d(11, 9), 82);
+
+        EarthworkTerrainTask.FLATTEN.applyTo(zone);
+        EarthworkTerrainTask.SLOPE.applyTo(zone);
+
+        assertEquals(GradingSurfaceMode.SINGLE_SLOPE_PLANE, zone.getRegion().getSurfaceMode());
+        assertEquals(0.0, zone.getRegion().getThreePointCanvasX(0));
+        assertEquals(0.0, zone.getRegion().getThreePointCanvasY(0));
+    }
+
+    @Test void switchingTerrainTaskResetsVerticalOffset() {
+        var zone = new GradingZone("pad", OUTLINE);
+        EarthworkTerrainTask.FOLLOW_TERRAIN.applyTo(zone);
+        zone.getDesignSurface().setVerticalOffset(12);
+        EarthworkTerrainTask.applySurfaceMode(zone, GradingSurfaceMode.MATCH_EXISTING);
+
+        EarthworkTerrainTask.FLATTEN.applyTo(zone);
+        EarthworkTerrainTask.FOLLOW_TERRAIN.applyTo(zone);
+
+        assertEquals(0, zone.getDesignSurface().getVerticalOffset());
+        assertEquals(GradingSurfaceMode.MATCH_EXISTING, zone.getRegion().getSurfaceMode());
+    }
+
     @Test void changingTasksClearsBakedSurfaceAndKeepsSpecialTaskTypes() {
         var zone = new GradingZone("pad", OUTLINE);
         zone.getDesignSurface().getBakedElevationGrid().put(0, 0, 95);

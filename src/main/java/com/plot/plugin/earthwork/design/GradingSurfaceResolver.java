@@ -218,11 +218,14 @@ public final class GradingSurfaceResolver {
         double z3 = block3.getZ();
         int y3 = region.getThreePointElevation(2);
 
-        GradingPlane plane = solveThreePointPlane(x1, z1, y1, x2, z2, y2, x3, z3, y3);
-        if (plane != null) {
-            return plane;
+        if (isThreePointControlDegenerate(x1, z1, x2, z2, x3, z3)) {
+            throw new InvalidThreePointPlaneException();
         }
-        return GradingPlane.flat(Math.round((y1 + y2 + y3) / 3.0f));
+        GradingPlane plane = solveThreePointPlane(x1, z1, y1, x2, z2, y2, x3, z3, y3);
+        if (plane == null) {
+            throw new InvalidThreePointPlaneException();
+        }
+        return plane;
     }
 
     private static GradingPlane resolveFitSlope(
@@ -251,6 +254,21 @@ public final class GradingSurfaceResolver {
         return resolveFitSlope(region, samples, false);
     }
 
+    /** XZ 平面三角形有向面积的两倍；相对尺度下过小视为共线/近共线。 */
+    public static boolean isThreePointControlDegenerate(
+            double x1, double z1,
+            double x2, double z2,
+            double x3, double z3) {
+        double det = x1 * (z2 - z3) + x2 * (z3 - z1) + x3 * (z1 - z2);
+        double spanX = Math.max(Math.max(x1, x2), x3) - Math.min(Math.min(x1, x2), x3);
+        double spanZ = Math.max(Math.max(z1, z2), z3) - Math.min(Math.min(z1, z2), z3);
+        double scale = Math.max(spanX * spanX + spanZ * spanZ, 1.0);
+        if (Math.abs(det) < scale * 1e-8) {
+            return true;
+        }
+        return solveThreePointPlane(x1, z1, 0, x2, z2, 0, x3, z3, 0) == null;
+    }
+
     public static GradingPlane solveThreePointPlane(
             double x1, double z1, int y1,
             double x2, double z2, int y2,
@@ -262,7 +280,10 @@ public final class GradingSurfaceResolver {
         double b31 = x1 - x3;
         double b12 = x2 - x1;
         double det = x1 * a23 + x2 * a31 + x3 * a12;
-        if (Math.abs(det) < 1e-6) {
+        double spanX = Math.max(Math.max(x1, x2), x3) - Math.min(Math.min(x1, x2), x3);
+        double spanZ = Math.max(Math.max(z1, z2), z3) - Math.min(Math.min(z1, z2), z3);
+        double scale = Math.max(spanX * spanX + spanZ * spanZ, 1.0);
+        if (Math.abs(det) < scale * 1e-8) {
             return null;
         }
         double coeffX = (y1 * a23 + y2 * a31 + y3 * a12) / det;

@@ -35,6 +35,7 @@ public enum EarthworkTerrainTask {
 
     /** 仅在玩家明确更改任务时调用；不把烘焙的旧设计面带入新任务。 */
     public void applyTo(GradingZone zone) {
+        zone.resetTaskSpecificState();
         zone.getDesignSurface().setBakedElevationGrid(new BakedElevationGrid());
         switch (this) {
             case BUILDING_PAD -> zone.setType(GradingZoneType.BUILDING_PAD);

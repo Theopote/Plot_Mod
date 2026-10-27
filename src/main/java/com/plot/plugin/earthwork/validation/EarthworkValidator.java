@@ -26,8 +26,6 @@ import java.util.List;
  */
 public final class EarthworkValidator {
 
-    private static final double COLLINEAR_TOLERANCE = 1e-4;
-
     private EarthworkValidator() {
     }
 
@@ -119,7 +117,7 @@ public final class EarthworkValidator {
             }
             case THREE_POINT_PLANE -> {
                 if (areThreePointsCollinear(region)) {
-                    items.add(EarthworkValidationReport.Item.warning(
+                    items.add(EarthworkValidationReport.Item.error(
                         "plugin.earthwork.validation.three_point_collinear",
                         region.getName()));
                 }
@@ -313,21 +311,10 @@ public final class EarthworkValidator {
     }
 
     private static boolean areThreePointsCollinear(GradingRegion region) {
-        double x1 = region.getThreePointCanvasX(0);
-        double z1 = region.getThreePointCanvasY(0);
-        double x2 = region.getThreePointCanvasX(1);
-        double z2 = region.getThreePointCanvasY(1);
-        double x3 = region.getThreePointCanvasX(2);
-        double z3 = region.getThreePointCanvasY(2);
-        double det = x1 * (z2 - z3) + x2 * (z3 - z1) + x3 * (z1 - z2);
-        if (Math.abs(det) < COLLINEAR_TOLERANCE) {
-            return true;
-        }
-        int y1 = region.getThreePointElevation(0);
-        int y2 = region.getThreePointElevation(1);
-        int y3 = region.getThreePointElevation(2);
-        return GradingSurfaceResolver.solveThreePointPlane(
-            x1, z1, y1, x2, z2, y2, x3, z3, y3) == null;
+        return GradingSurfaceResolver.isThreePointControlDegenerate(
+            region.getThreePointCanvasX(0), region.getThreePointCanvasY(0),
+            region.getThreePointCanvasX(1), region.getThreePointCanvasY(1),
+            region.getThreePointCanvasX(2), region.getThreePointCanvasY(2));
     }
 
     private static boolean isBlank(String value) {

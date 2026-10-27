@@ -6,6 +6,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.InsufficientTerrainSamplesException;
+import com.plot.plugin.earthwork.design.InvalidThreePointPlaneException;
 import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.design.RoadCorridorSurfaceResolver;
@@ -230,6 +231,11 @@ public final class EarthworkPreviewManager {
             return false;
         } catch (InsufficientTerrainSamplesException e) {
             failPreview(generation, PlotI18n.tr("plugin.earthwork.no_loaded_terrain_samples"));
+            return false;
+        } catch (InvalidThreePointPlaneException e) {
+            failPreview(generation, PlotI18n.tr(
+                "plugin.earthwork.validation.three_point_collinear",
+                region.getName()));
             return false;
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);

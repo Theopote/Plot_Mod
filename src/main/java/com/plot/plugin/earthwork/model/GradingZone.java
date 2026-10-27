@@ -5,6 +5,7 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.material.EarthMaterialClass;
 import com.plot.core.material.MaterialConversionModel;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -122,6 +123,32 @@ public class GradingZone {
         this.roadEdgeRef = roadEdgeRef != null ? roadEdgeRef.trim() : "";
         if (!this.roadEdgeRef.isBlank()) {
             getDesignSurface().setRoadEdgeRef(this.roadEdgeRef);
+        }
+    }
+
+    /**
+     * 切换地形任务时清除专用参数；区域几何、材料与边缘设置保留。
+     */
+    public void resetTaskSpecificState() {
+        buildingFootprintRef = "";
+        roadEdgeRef = "";
+        DesignSurface surface = getDesignSurface();
+        surface.setBuildingFootprintRef("");
+        surface.setRoadEdgeRef("");
+        surface.setVerticalOffset(0);
+        surface.setElevation(null);
+        surface.setBottomElevation(null);
+        surface.setElevationSource(DesignSurfaceElevationSource.MANUAL);
+        surface.setFacets(new ArrayList<>());
+        surface.setExcavationPit(new ExcavationPitParameters());
+
+        region.setSlopeDirectionDegrees(0.0);
+        region.setSlopePitchRatio(GradingRegion.DEFAULT_SLOPE_PITCH_RATIO);
+        region.setSlopeAnchorCanvas(null);
+        region.setSlopeAnchorElevation(null);
+        region.setFitSlopeBalanceCutFill(true);
+        for (int i = 0; i < 3; i++) {
+            region.setThreePointControl(i, new Vec2d(0.0, 0.0), 64);
         }
     }
 
