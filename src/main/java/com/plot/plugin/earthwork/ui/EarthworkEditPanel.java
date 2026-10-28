@@ -1303,8 +1303,9 @@ public final class EarthworkEditPanel {
 
     private void renderFixedSlopeSettings(GradingRegion region) {
         float[] direction = {(float) region.getSlopeDirectionDegrees()};
-        boolean directionChanged = ImGui.sliderFloat("##slope_direction", direction, 0.0f, 359.0f,
-            PlotI18n.tr("plugin.earthwork.slope_direction", String.format("%.0f", direction[0])));
+        boolean directionChanged = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.earthwork.slope_direction"),
+            direction, 0.0f, 359.0f, "%.0f°");
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -1315,8 +1316,9 @@ public final class EarthworkEditPanel {
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_direction");
 
         int[] pitch = {region.getSlopePitchRatio()};
-        boolean pitchChanged = ImGui.sliderInt("##slope_pitch", pitch, 1, 32,
-            PlotI18n.tr("plugin.earthwork.slope_pitch", pitch[0]));
+        boolean pitchChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.earthwork.slope_pitch"),
+            pitch, 1, 32, "%d:1");
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -1328,8 +1330,9 @@ public final class EarthworkEditPanel {
 
         int anchorInitial = region.getSlopeAnchorElevation() != null ? region.getSlopeAnchorElevation() : 64;
         int[] anchorElevation = {anchorInitial};
-        boolean anchorChanged = ImGui.sliderInt("##slope_anchor_elevation", anchorElevation, -64, 320,
-            PlotI18n.tr("plugin.earthwork.slope_anchor_elevation", anchorElevation[0]));
+        boolean anchorChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.earthwork.slope_anchor_elevation"),
+            anchorElevation, -64, 320, "Y=%d");
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
