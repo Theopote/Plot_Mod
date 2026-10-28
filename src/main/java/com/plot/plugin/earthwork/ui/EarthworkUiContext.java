@@ -7,6 +7,7 @@ import com.plot.core.state.DebouncedTasks;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkRegionBlockCountCache;
+import com.plot.plugin.earthwork.EarthworkHolePickSession;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import imgui.ImGui;
