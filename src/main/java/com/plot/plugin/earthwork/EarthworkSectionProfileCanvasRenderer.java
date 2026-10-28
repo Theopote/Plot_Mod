@@ -13,9 +13,12 @@ import imgui.ImDrawList;
  */
 public final class EarthworkSectionProfileCanvasRenderer {
 
-    private static final int LINE_COLOR = 0xFF00D7FF; // amber ABGR
-    private static final float LINE_THICKNESS = 2.0f;
-    private static final float HEAD_THICKNESS = 3.5f;
+    private static final int LINE_COLOR_SELECTED = 0xFF00D7FF; // amber ABGR
+    private static final int LINE_COLOR_OTHER = 0x8800D7FF; // semi-transparent
+    private static final float LINE_THICKNESS_SELECTED = 2.5f;
+    private static final float LINE_THICKNESS_OTHER = 1.4f;
+    private static final float HEAD_THICKNESS_SELECTED = 3.5f;
+    private static final float HEAD_THICKNESS_OTHER = 2.2f;
     private static final float HEAD_LENGTH = 14f;
     private static final float TRI_SIZE = 9f;
 
@@ -27,6 +30,15 @@ public final class EarthworkSectionProfileCanvasRenderer {
             CanvasCamera camera,
             EarthworkSectionProfile profile,
             ICoordinateService coordinates) {
+        render(drawList, camera, profile, coordinates, true);
+    }
+
+    public static void render(
+            ImDrawList drawList,
+            CanvasCamera camera,
+            EarthworkSectionProfile profile,
+            ICoordinateService coordinates,
+            boolean selected) {
         if (drawList == null || camera == null || profile == null || !profile.hasDrawableCutLine()) {
             return;
         }
@@ -72,7 +84,6 @@ public final class EarthworkSectionProfileCanvasRenderer {
                 vnx = vx / vlen;
                 vny = vy / vlen;
             } else {
-                // 屏幕上截线左侧
                 vnx = -uy;
                 vny = ux;
             }
@@ -81,14 +92,21 @@ public final class EarthworkSectionProfileCanvasRenderer {
             vny = ux;
         }
 
-        drawList.addLine(x0, y0, x1, y1, LINE_COLOR, LINE_THICKNESS);
-        drawSectionHead(drawList, x0, y0, ux, uy, vnx, vny);
-        drawSectionHead(drawList, x1, y1, -ux, -uy, vnx, vny);
-        drawViewTriangle(drawList, x0 + ux * HEAD_LENGTH * 0.55f, y0 + uy * HEAD_LENGTH * 0.55f, vnx, vny);
-        drawViewTriangle(drawList, x1 - ux * HEAD_LENGTH * 0.55f, y1 - uy * HEAD_LENGTH * 0.55f, vnx, vny);
+        int color = selected ? LINE_COLOR_SELECTED : LINE_COLOR_OTHER;
+        float lineThickness = selected ? LINE_THICKNESS_SELECTED : LINE_THICKNESS_OTHER;
+        float headThickness = selected ? HEAD_THICKNESS_SELECTED : HEAD_THICKNESS_OTHER;
+        float headLen = selected ? HEAD_LENGTH : HEAD_LENGTH * 0.75f;
+        float triSize = selected ? TRI_SIZE : TRI_SIZE * 0.7f;
+
+        drawList.addLine(x0, y0, x1, y1, color, lineThickness);
+        drawSectionHead(drawList, x0, y0, ux, uy, vnx, vny, color, headThickness, headLen);
+        drawSectionHead(drawList, x1, y1, -ux, -uy, vnx, vny, color, headThickness, headLen);
+        drawViewTriangle(
+            drawList, x0 + ux * headLen * 0.55f, y0 + uy * headLen * 0.55f, vnx, vny, color, triSize);
+        drawViewTriangle(
+            drawList, x1 - ux * headLen * 0.55f, y1 - uy * headLen * 0.55f, vnx, vny, color, triSize);
     }
 
-    /** 端头短粗标：沿截线向内一段粗线，再向看向侧伸出一小段。 */
     private static void drawSectionHead(
             ImDrawList drawList,
             float ex,
@@ -96,18 +114,21 @@ public final class EarthworkSectionProfileCanvasRenderer {
             float inwardUx,
             float inwardUy,
             float vnx,
-            float vny) {
-        float hx = ex + inwardUx * HEAD_LENGTH;
-        float hy = ey + inwardUy * HEAD_LENGTH;
-        drawList.addLine(ex, ey, hx, hy, LINE_COLOR, HEAD_THICKNESS);
+            float vny,
+            int color,
+            float thickness,
+            float headLen) {
+        float hx = ex + inwardUx * headLen;
+        float hy = ey + inwardUy * headLen;
+        drawList.addLine(ex, ey, hx, hy, color, thickness);
         drawList.addLine(
             ex,
             ey,
-            ex + vnx * (HEAD_LENGTH * 0.55f),
-            ey + vny * (HEAD_LENGTH * 0.55f),
-            LINE_COLOR,
-            HEAD_THICKNESS);
-        drawList.addCircleFilled(ex, ey, 2.2f, LINE_COLOR);
+            ex + vnx * (headLen * 0.55f),
+            ey + vny * (headLen * 0.55f),
+            color,
+            thickness);
+        drawList.addCircleFilled(ex, ey, 2.2f, color);
         drawList.addCircle(ex, ey, 2.2f, PluginUiColors.RING_DARK, 0, 1.0f);
     }
 
@@ -116,12 +137,14 @@ public final class EarthworkSectionProfileCanvasRenderer {
             float baseX,
             float baseY,
             float vnx,
-            float vny) {
-        float tipX = baseX + vnx * TRI_SIZE;
-        float tipY = baseY + vny * TRI_SIZE;
+            float vny,
+            int color,
+            float triSize) {
+        float tipX = baseX + vnx * triSize;
+        float tipY = baseY + vny * triSize;
         float px = -vny;
         float py = vnx;
-        float half = TRI_SIZE * 0.45f;
+        float half = triSize * 0.45f;
         drawList.addTriangleFilled(
             tipX,
             tipY,
@@ -129,7 +152,7 @@ public final class EarthworkSectionProfileCanvasRenderer {
             baseY + py * half,
             baseX - px * half,
             baseY - py * half,
-            LINE_COLOR);
+            color);
     }
 
     private static Vec2d worldToCanvas(double worldX, double worldZ, ICoordinateService coordinates) {

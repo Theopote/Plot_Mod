@@ -59,7 +59,7 @@ public final class EarthworkQuickPanel {
         generatePanel.renderPreviewActions(region);
 
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
-        if (preview == null || !EarthworkUiPresentation.belongsTo(preview, region)) {
+        if (preview == null || !EarthworkUiPresentation.sharesSitePreview(preview, ctx.project(), region)) {
             return;
         }
 
@@ -113,7 +113,7 @@ public final class EarthworkQuickPanel {
 
         if (auto) {
             EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
-            if (!EarthworkUiPresentation.belongsTo(preview, region)) {
+            if (!EarthworkUiPresentation.sharesSitePreview(preview, ctx.project(), region)) {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.quick.auto_pending"));
             }
             return;

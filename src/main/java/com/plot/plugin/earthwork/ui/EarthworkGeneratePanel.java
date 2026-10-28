@@ -84,7 +84,8 @@ public final class EarthworkGeneratePanel {
             rejection = PlotI18n.tr("plugin.earthwork.ui.enter_height");
         }
         if (rejection == null && valid) {
-            rejection = ctx.buildManager().validateBuildEligibilityWithoutTerrain(ctx.project(), ctx.selectedRegionId());
+            rejection = ctx.buildManager().validateBuildEligibilityWithoutTerrain(
+                ctx.project(), previewBuildRegionId(ctx.previewManager().getLastGenerationResult()));
         }
         String key = valid ? "plugin.earthwork.ui.confirm_build"
             : ctx.previewManager().hasCachedPreview() ? "plugin.earthwork.recalculate_preview"
@@ -121,12 +122,7 @@ public final class EarthworkGeneratePanel {
                             ? PluginUiColors.STATUS_INFO : PluginUiColors.WARNING,
                 valid ? balanceText : PlotI18n.tr("plugin.earthwork.ui.last_result", balanceText));
         }
-        if (!ctx.selectedRegionId().equals(preview.sourceRegionId)) {
-            GradingRegion source = ctx.project().getRegion(preview.sourceRegionId);
-            EarthworkUiWidgets.textWrappedColored(PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.earthwork.ui.other_region",
-                    source != null ? source.getName() : preview.sourceRegionId));
-        }
+        // 同场换区只切换剖面焦点，不提示「请重新计算」
         if (preview.unloadedColumnCount > 0) {
             EarthworkUiWidgets.textWrappedColored(PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.earthwork.unloaded_columns_hint", preview.unloadedColumnCount));
@@ -171,9 +167,10 @@ public final class EarthworkGeneratePanel {
 
             ImGui.separator();
             // 仅在弹窗打开时做一次强制地形校验并缓存，禁止每帧全量扫格
+            String buildRegionId = previewBuildRegionId(preview);
             if (!confirmChecksReady) {
                 confirmEligibility = ctx.buildManager().validateBuildEligibilityFresh(
-                    ctx.project(), ctx.selectedRegionId());
+                    ctx.project(), buildRegionId);
                 confirmTerrainComparison = ctx.previewManager().comparePreviewTerrainWithWorld(
                     EarthworkUiWidgets.getClientWorld(), false);
                 confirmChecksReady = true;
@@ -183,7 +180,10 @@ public final class EarthworkGeneratePanel {
             if (eligibility != null) {
                 ImGui.textColored(PluginUiColors.WARNING, eligibility);
                 if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), 180, 0)) {
-                    GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
+                    GradingRegion region = ctx.project().getRegion(buildRegionId);
+                    if (region == null) {
+                        region = ctx.project().getRegion(ctx.selectedRegionId());
+                    }
                     if (region != null) {
                         ctx.recalculatePreview();
                     }
@@ -201,7 +201,7 @@ public final class EarthworkGeneratePanel {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.build"), 120, 0)) {
-                ctx.buildManager().buildInWorld(ctx.project(), ctx.selectedRegionId());
+                ctx.buildManager().buildInWorld(ctx.project(), buildRegionId);
                 confirmChecksReady = false;
                 ImGui.closeCurrentPopup();
             }
@@ -219,24 +219,30 @@ public final class EarthworkGeneratePanel {
         }
     }
 
+    /** 落地校验/建造使用预览戳分区，避免画布换区导致 mismatch。 */
+    private String previewBuildRegionId(EarthworkGenerationResult preview) {
+        if (preview != null && preview.sourceRegionId != null && !preview.sourceRegionId.isBlank()) {
+            return preview.sourceRegionId;
+        }
+        return ctx.selectedRegionId();
+    }
+
     /**
-     * 生成 Tab 不再展示分区选择；仍需一个焦点分区用于预览网格密度与身份戳。
-     * 有缓存预览时优先对齐 {@code sourceRegionId}，避免切换 Tab 后误报不匹配。
+     * 生成 Tab 焦点分区：优先画布当前选中区（可自由切换看各区剖面）；
+     * 无选中时回退到预览戳或首个分区。不强制改写选中，避免锁死画布点选。
      */
     private GradingRegion ensureFocusRegion() {
+        GradingRegion selected = ctx.project().getRegion(ctx.selectedRegionId());
+        if (selected != null) {
+            return selected;
+        }
         EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (preview != null && preview.sourceRegionId != null && !preview.sourceRegionId.isBlank()) {
             GradingRegion fromPreview = ctx.project().getRegion(preview.sourceRegionId);
             if (fromPreview != null) {
-                if (!preview.sourceRegionId.equals(ctx.selectedRegionId())) {
-                    ctx.setSelectedRegionId(preview.sourceRegionId);
-                }
+                ctx.setSelectedRegionId(preview.sourceRegionId);
                 return fromPreview;
             }
-        }
-        GradingRegion selected = ctx.project().getRegion(ctx.selectedRegionId());
-        if (selected != null) {
-            return selected;
         }
         if (ctx.project().getRegionCount() == 0) {
             return null;

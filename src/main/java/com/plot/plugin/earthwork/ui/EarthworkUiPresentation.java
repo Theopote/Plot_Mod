@@ -22,8 +22,33 @@ public final class EarthworkUiPresentation {
         }
     }
 
+    /** 预览是否由该分区触发（用于种子高度等「分区私有」语义）。 */
     public static boolean belongsTo(EarthworkGenerationResult preview, GradingRegion region) {
         return preview != null && region != null && region.getId().equals(preview.sourceRegionId);
+    }
+
+    /**
+     * 整场合成预览是否可用于该分区的分析/剖面展示（同站点任意启用分区）。
+     */
+    public static boolean sharesSitePreview(
+            EarthworkGenerationResult preview,
+            com.plot.plugin.earthwork.model.EarthworkProject project,
+            GradingRegion region) {
+        if (preview == null || region == null || project == null) {
+            return false;
+        }
+        if (belongsTo(preview, region)) {
+            return true;
+        }
+        String siteId = preview.sourceSiteId;
+        if (siteId == null || siteId.isBlank()) {
+            return false;
+        }
+        var site = project.getActiveSite();
+        if (site == null || !siteId.equals(site.getId())) {
+            return false;
+        }
+        return site.getZone(region.getId()) != null;
     }
 
     public static Integer initialManualHeight(GradingRegion region, EarthworkGenerationResult preview,

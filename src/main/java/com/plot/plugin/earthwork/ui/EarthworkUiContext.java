@@ -23,7 +23,10 @@ import com.plot.plugin.earthwork.solver.EarthworkSectionProfile;
 import imgui.type.ImBoolean;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -64,8 +67,10 @@ public final class EarthworkUiContext {
     private final imgui.type.ImInt workModeIndex = new imgui.type.ImInt(0);
     private final imgui.type.ImInt regionIndex = new imgui.type.ImInt(0);
 
-    /** 会话级剖面截线；非 manual 时预览使用自动截线。 */
-    private EarthworkSectionCutSpec sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
+    /** 会话级：各分区剖面截线；缺省或非 manual 时该区自动取线。 */
+    private final Map<String, EarthworkSectionCutSpec> sectionCutByZone = new LinkedHashMap<>();
+    /** 会话级：各分区剖面结果（预览就绪后重建）。 */
+    private final Map<String, EarthworkSectionProfile> sectionProfileByZone = new LinkedHashMap<>();
 
     public EarthworkUiContext(
             PluginContext host,
@@ -176,12 +181,34 @@ public final class EarthworkUiContext {
         String next = selectedRegionId != null ? selectedRegionId : "";
         String previous = this.selectedRegionId;
         this.selectedRegionId = next;
-        if (!Objects.equals(previous, next)) {
-            EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
-            if (preview != null && !next.equals(preview.sourceRegionId)) {
-                invalidatePreview();
-            }
+        if (Objects.equals(previous, next)) {
+            return;
         }
+        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        if (preview != null && !previewSharesActiveSite(preview, next)) {
+            // 整场预览：同站换区保留；离开预览所属站点或选中无效时才弄脏
+            invalidatePreview();
+        } else if (preview != null) {
+            syncSelectedSectionToPreview(preview);
+        }
+    }
+
+    /** 选中分区是否仍属于当前缓存预览的同一场地（空选中视为不共享）。 */
+    private boolean previewSharesActiveSite(EarthworkGenerationResult preview, String regionId) {
+        if (preview == null || regionId == null || regionId.isBlank()) {
+            return false;
+        }
+        if (regionId.equals(preview.sourceRegionId)) {
+            return true;
+        }
+        var site = project.getActiveSite();
+        if (site == null || preview.sourceSiteId == null || preview.sourceSiteId.isBlank()) {
+            return false;
+        }
+        if (!preview.sourceSiteId.equals(site.getId())) {
+            return false;
+        }
+        return site.getZone(regionId) != null;
     }
 
     public String projectStatus() {
@@ -250,62 +277,145 @@ public final class EarthworkUiContext {
         return regionIndex;
     }
 
+    public EarthworkSectionCutSpec sectionCutSpec(String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return EarthworkSectionCutSpec.AUTOMATIC;
+        }
+        return sectionCutByZone.getOrDefault(zoneId, EarthworkSectionCutSpec.AUTOMATIC);
+    }
+
+    /** 当前选中分区的截线规格。 */
     public EarthworkSectionCutSpec sectionCutSpec() {
-        return sectionCutSpec;
+        return sectionCutSpec(selectedRegionId);
+    }
+
+    public EarthworkSectionProfile sectionProfileForZone(String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return EarthworkSectionProfile.EMPTY;
+        }
+        return sectionProfileByZone.getOrDefault(zoneId, EarthworkSectionProfile.EMPTY);
+    }
+
+    public Map<String, EarthworkSectionProfile> sectionProfilesByZone() {
+        return Collections.unmodifiableMap(sectionProfileByZone);
     }
 
     public void setSectionHorizontal() {
-        mutateSectionCut(center -> EarthworkSectionCutSpec.horizontal(center[0], center[1]));
+        mutateSelectedZoneCut(center -> EarthworkSectionCutSpec.horizontal(center[0], center[1]));
     }
 
     public void setSectionVertical() {
-        mutateSectionCut(center -> EarthworkSectionCutSpec.vertical(center[0], center[1]));
+        mutateSelectedZoneCut(center -> EarthworkSectionCutSpec.vertical(center[0], center[1]));
     }
 
     public void rotateSectionDegrees(double deltaDegrees) {
-        mutateSectionCut(center -> ensureManualSpec(center).rotateDegrees(deltaDegrees));
+        mutateSelectedZoneCut(center -> ensureManualSpec(selectedRegionId, center).rotateDegrees(deltaDegrees));
     }
 
     public void nudgeSectionBlocks(double blocks) {
-        mutateSectionCut(center -> ensureManualSpec(center).nudgeBlocks(blocks));
+        mutateSelectedZoneCut(center -> ensureManualSpec(selectedRegionId, center).nudgeBlocks(blocks));
     }
 
     public void flipSectionView() {
-        mutateSectionCut(center -> ensureManualSpec(center).flipView());
+        mutateSelectedZoneCut(center -> ensureManualSpec(selectedRegionId, center).flipView());
     }
 
     public void resetSectionCut() {
-        sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
-        applySectionCutToPreview();
+        String zoneId = selectedRegionId;
+        if (zoneId == null || zoneId.isBlank()) {
+            return;
+        }
+        sectionCutByZone.put(zoneId, EarthworkSectionCutSpec.AUTOMATIC);
+        rebuildZoneSectionProfile(zoneId);
     }
 
-    /** 预览算完后若用户已手动设截线，用同一规格重切剖面。 */
-    public void applySectionCutToPreview() {
+    /** 预览算完后按启用分区重建全部剖面；兼容字段写入当前选中区。 */
+    public void applyAllZoneSectionProfiles() {
         EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        sectionProfileByZone.clear();
+        if (preview == null || preview.designTerrainGrid == null || preview.designTerrainGrid.cellCount() == 0) {
+            if (preview != null) {
+                preview.sectionProfile = EarthworkSectionProfile.EMPTY;
+            }
+            return;
+        }
+        var grid = preview.designTerrainGrid;
+        for (String zoneId : collectEnabledZoneIds(grid)) {
+            EarthworkSectionCutSpec spec = sectionCutByZone.getOrDefault(zoneId, EarthworkSectionCutSpec.AUTOMATIC);
+            sectionProfileByZone.put(zoneId, EarthworkSectionProfile.fromGridForZone(grid, zoneId, spec));
+        }
+        syncSelectedSectionToPreview(preview);
+    }
+
+    /** 兼容旧调用：等同 {@link #applyAllZoneSectionProfiles()}。 */
+    public void applySectionCutToPreview() {
+        applyAllZoneSectionProfiles();
+    }
+
+    private void mutateSelectedZoneCut(java.util.function.Function<double[], EarthworkSectionCutSpec> factory) {
+        String zoneId = selectedRegionId;
+        if (zoneId == null || zoneId.isBlank()) {
+            return;
+        }
+        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        double[] center = preview != null && preview.designTerrainGrid != null
+            ? EarthworkSectionProfile.gridCenterForZone(preview.designTerrainGrid, zoneId)
+            : new double[] {0.5, 0.5};
+        sectionCutByZone.put(zoneId, factory.apply(center));
+        rebuildZoneSectionProfile(zoneId);
+    }
+
+    private void rebuildZoneSectionProfile(String zoneId) {
+        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        if (preview == null || preview.designTerrainGrid == null) {
+            return;
+        }
+        EarthworkSectionCutSpec spec = sectionCutByZone.getOrDefault(zoneId, EarthworkSectionCutSpec.AUTOMATIC);
+        sectionProfileByZone.put(
+            zoneId,
+            EarthworkSectionProfile.fromGridForZone(preview.designTerrainGrid, zoneId, spec));
+        syncSelectedSectionToPreview(preview);
+    }
+
+    private void syncSelectedSectionToPreview(EarthworkGenerationResult preview) {
         if (preview == null) {
             return;
         }
-        preview.applySectionProfile(sectionCutSpec.manual() ? sectionCutSpec : null);
+        preview.sectionProfile = sectionProfileForZone(selectedRegionId);
     }
 
-    private void mutateSectionCut(java.util.function.Function<double[], EarthworkSectionCutSpec> factory) {
-        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
-        double[] center = preview != null && preview.designTerrainGrid != null
-            ? EarthworkSectionProfile.gridCenter(preview.designTerrainGrid)
-            : new double[] {0.5, 0.5};
-        sectionCutSpec = factory.apply(center);
-        applySectionCutToPreview();
-    }
-
-    private EarthworkSectionCutSpec ensureManualSpec(double[] center) {
-        if (sectionCutSpec.manual()) {
-            return sectionCutSpec;
+    private List<String> collectEnabledZoneIds(com.plot.plugin.earthwork.grading.DesignTerrainGrid grid) {
+        LinkedHashMap<String, Boolean> ids = new LinkedHashMap<>();
+        var site = project.getActiveSite();
+        if (site != null) {
+            for (var zone : site.getGradingZones().values()) {
+                if (zone != null && zone.isEnabled() && zone.getId() != null && !zone.getId().isBlank()) {
+                    ids.put(zone.getId(), Boolean.TRUE);
+                }
+            }
         }
-        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
-        if (preview != null
-            && preview.sectionProfile != null
-            && !preview.sectionProfile.isEmpty()) {
-            return preview.sectionProfile.toEditableSpec();
+        if (grid != null) {
+            for (var cell : grid.cells().values()) {
+                if (cell == null || !cell.participatesInEarthwork()) {
+                    continue;
+                }
+                String zid = cell.zoneId();
+                if (zid != null && !zid.isBlank()) {
+                    ids.putIfAbsent(zid, Boolean.TRUE);
+                }
+            }
+        }
+        return new ArrayList<>(ids.keySet());
+    }
+
+    private EarthworkSectionCutSpec ensureManualSpec(String zoneId, double[] center) {
+        EarthworkSectionCutSpec current = sectionCutSpec(zoneId);
+        if (current.manual()) {
+            return current;
+        }
+        EarthworkSectionProfile profile = sectionProfileForZone(zoneId);
+        if (profile != null && !profile.isEmpty()) {
+            return profile.toEditableSpec();
         }
         return EarthworkSectionCutSpec.horizontal(center[0], center[1]);
     }
@@ -333,7 +443,7 @@ public final class EarthworkUiContext {
             EarthworkUiLookups.createRoadSurfaceLookup(),
             config.getWorkMode());
         if (ok) {
-            applySectionCutToPreview();
+            applyAllZoneSectionProfiles();
         }
         return ok;
     }
@@ -358,7 +468,8 @@ public final class EarthworkUiContext {
 
     public void clearPreview() {
         previewManager.clearPreview();
-        sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
+        sectionCutByZone.clear();
+        sectionProfileByZone.clear();
     }
 
     public void invalidatePreview() {
@@ -371,7 +482,8 @@ public final class EarthworkUiContext {
         holePickSession.cancel();
         selectedRegions.clear();
         terrainSnapshotCache.clear();
-        sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
+        sectionCutByZone.clear();
+        sectionProfileByZone.clear();
         clearPreview();
         setSelectedRegionId(firstRegionId);
     }

@@ -54,7 +54,7 @@ public final class EarthworkInsightCharts {
             return;
         }
         boolean validPreview = ctx.previewManager().hasValidPreview()
-            && EarthworkUiPresentation.belongsTo(preview, region);
+            && EarthworkUiPresentation.sharesSitePreview(preview, ctx.project(), region);
         if (!validPreview) {
             ImGui.textColored(
                 PluginUiColors.WARNING,
@@ -76,9 +76,7 @@ public final class EarthworkInsightCharts {
         if (mode.showsBuilderVisuals()) {
             renderHeatmap(ctx, preview, preview.designTerrainGrid);
         }
-        if (preview.sectionProfile != null && preview.sectionProfile.hasDrawableCutLine()) {
-            renderProfile(ctx, preview.sectionProfile);
-        }
+        renderSelectedZoneProfile(ctx, region);
         if (mode.showsAnalysisVisuals()) {
             if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
                 renderSlopeCoupledCurveHint(preview);
@@ -110,9 +108,7 @@ public final class EarthworkInsightCharts {
         }
         renderChangeOverview(preview.volumeReport != null ? preview.volumeReport : EarthworkVolumeReport.empty());
         renderHeatmap(ctx, preview, preview.designTerrainGrid);
-        if (preview.sectionProfile != null && preview.sectionProfile.hasDrawableCutLine()) {
-            renderProfile(ctx, preview.sectionProfile);
-        }
+        renderSelectedZoneProfile(ctx, region);
         if (curve != null && !curve.isEmpty()) {
             renderRecommendations(ctx, region, preview, curve, validPreview);
         } else if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
@@ -309,8 +305,27 @@ public final class EarthworkInsightCharts {
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.curve.legend"));
     }
 
-    static void renderProfile(EarthworkUiContext ctx, EarthworkSectionProfile profile) {
-        ImGui.text(PlotI18n.tr("plugin.earthwork.profile.header"));
+    /** 面板只渲染当前选中分区的剖面与方向按钮。 */
+    static void renderSelectedZoneProfile(EarthworkUiContext ctx, GradingRegion region) {
+        if (ctx == null || !ctx.previewManager().hasCachedPreview()) {
+            return;
+        }
+        String zoneId = region != null ? region.getId() : ctx.selectedRegionId();
+        if (zoneId == null || zoneId.isBlank()) {
+            return;
+        }
+        EarthworkSectionProfile profile = ctx.sectionProfileForZone(zoneId);
+        if (profile == null || !profile.hasDrawableCutLine()) {
+            return;
+        }
+        String zoneName = region != null && region.getName() != null && !region.getName().isBlank()
+            ? region.getName()
+            : zoneId;
+        renderProfile(ctx, profile, zoneName);
+    }
+
+    static void renderProfile(EarthworkUiContext ctx, EarthworkSectionProfile profile, String zoneName) {
+        ImGui.text(PlotI18n.tr("plugin.earthwork.profile.header_zone", zoneName));
         // 控件始终显示：即使截线未与分区相交，也要能继续旋转/平移
         renderProfileControls(ctx);
         if (profile == null || profile.isEmpty()) {
@@ -344,25 +359,32 @@ public final class EarthworkInsightCharts {
         float pad = 8f;
         double span = profile.axisSpanExact();
         float innerW = x1 - x0 - 2 * pad;
-        // 先画挖填色带与折线；区间/换区处断开并画分隔，保证多区各自可见
+        // 折线照常；区内/区外交界画竖线；区外不画挖填色带
         for (int i = 0; i < profile.stations().size() - 1; i++) {
             EarthworkSectionProfile.Station a = profile.stations().get(i);
             EarthworkSectionProfile.Station b = profile.stations().get(i + 1);
             float ax = x0 + pad + innerW * (float) (profile.axisDistanceExact(a) / span);
             float bx = x0 + pad + innerW * (float) (profile.axisDistanceExact(b) / span);
-            boolean zoneChange = a.zoned() && b.zoned() && !java.util.Objects.equals(a.zoneId(), b.zoneId());
-            if (profile.shouldBreakPolyline(a, b) || zoneChange) {
+            boolean enterExit = a.zoned() != b.zoned()
+                || (a.zoned() && b.zoned() && !java.util.Objects.equals(a.zoneId(), b.zoneId()));
+            if (profile.shouldBreakPolyline(a, b)) {
                 float sepX = (ax + bx) * 0.5f;
                 drawList.addLine(sepX, y0 + 4f, sepX, y1 - 4f, COLOR_ZONE_SEP, 1.5f);
                 continue;
+            }
+            if (enterExit) {
+                float sepX = (ax + bx) * 0.5f;
+                drawList.addLine(sepX, y0 + 4f, sepX, y1 - 4f, COLOR_ZONE_SEP, 1.2f);
             }
             float aExist = elevToY(a.existingY(), elevMin, elevMax, y0, y1, pad);
             float bExist = elevToY(b.existingY(), elevMin, elevMax, y0, y1, pad);
             float aDesign = elevToY(a.designY(), elevMin, elevMax, y0, y1, pad);
             float bDesign = elevToY(b.designY(), elevMin, elevMax, y0, y1, pad);
-            int band = (a.cut() + b.cut()) >= (a.fill() + b.fill()) && (a.cut() + b.cut()) > 0
+            boolean bothInZone = a.zoned() && b.zoned();
+            int band = bothInZone
+                && (a.cut() + b.cut()) >= (a.fill() + b.fill()) && (a.cut() + b.cut()) > 0
                 ? COLOR_CUT_BAND
-                : ((a.fill() + b.fill()) > 0 ? COLOR_FILL_BAND : 0);
+                : (bothInZone && (a.fill() + b.fill()) > 0 ? COLOR_FILL_BAND : 0);
             if (band != 0 && (Math.abs(a.existingY() - a.designY()) > 0 || Math.abs(b.existingY() - b.designY()) > 0)) {
                 drawList.addQuadFilled(ax, aExist, bx, bExist, bx, bDesign, ax, aDesign, band);
             }
@@ -370,6 +392,9 @@ public final class EarthworkInsightCharts {
             drawList.addLine(ax, aDesign, bx, bDesign, COLOR_DESIGN, 2f);
         }
         for (EarthworkSectionProfile.Station station : profile.stations()) {
+            if (!station.zoned()) {
+                continue; // 区外不画挖填竖条
+            }
             int cut = station.cut();
             int fill = station.fill();
             if (cut <= 0 && fill <= 0) {

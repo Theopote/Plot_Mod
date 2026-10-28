@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork.ui;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.manager.EarthworkPreviewState;
+import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkStatusLevel;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -93,6 +94,24 @@ class EarthworkUiPresentationTest {
         region.setManualTargetElevation(null);
         region.setAutoBalance(true);
         assertFalse(EarthworkUiPresentation.missingManualHeight(region));
+    }
+
+    @Test void sharesSitePreviewAllowsSiblingZoneOnSameSite() {
+        EarthworkProject project = new EarthworkProject();
+        project.ensureActiveSite();
+        GradingRegion a = new GradingRegion("zone-a", List.of(
+            new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(4, 4), new Vec2d(0, 4)));
+        GradingRegion b = new GradingRegion("zone-b", List.of(
+            new Vec2d(6, 0), new Vec2d(10, 0), new Vec2d(10, 4), new Vec2d(6, 4)));
+        project.addRegion(a);
+        project.addRegion(b);
+        var preview = new EarthworkGenerationResult();
+        preview.sourceRegionId = a.getId();
+        preview.sourceSiteId = project.getActiveSite().getId();
+        assertTrue(EarthworkUiPresentation.belongsTo(preview, a));
+        assertFalse(EarthworkUiPresentation.belongsTo(preview, b));
+        assertTrue(EarthworkUiPresentation.sharesSitePreview(preview, project, a));
+        assertTrue(EarthworkUiPresentation.sharesSitePreview(preview, project, b));
     }
 
     @Test void cutFillSummaryUsesAbsoluteDiffFromGeometricVolumes() {

@@ -25,6 +25,8 @@ public final class EarthworkSectionProfile {
     static final double POLYLINE_BREAK_GAP = 1.75;
     /** 画布剖切线最短半长（格）；无交点或跨度过短时仍保持可视长度。 */
     static final double MIN_CUT_LINE_HALF_LENGTH = 12.0;
+    /** 分区剖面沿程外扩下限（格）。 */
+    public static final int ZONE_SECTION_MARGIN_BLOCKS = 16;
 
     private final List<Station> stations;
     private final boolean alongX;
@@ -119,6 +121,54 @@ public final class EarthworkSectionProfile {
             return fromSpec(grid, spec);
         }
         return fromAutomatic(grid);
+    }
+
+    /**
+     * 单分区剖面：沿截线覆盖该区格点，并向外扩 {@code max(16, 沿程跨度×25%)}；
+     * 扩边取无归属格（现状），排除其他分区格。
+     */
+    public static EarthworkSectionProfile fromGridForZone(
+            DesignTerrainGrid grid,
+            String zoneId,
+            EarthworkSectionCutSpec spec) {
+        if (grid == null || grid.cellCount() == 0 || zoneId == null || zoneId.isBlank()) {
+            return EMPTY;
+        }
+        List<DesignTerrainCell> zoneCells = collectZoneCells(grid, zoneId);
+        if (zoneCells.isEmpty()) {
+            return EMPTY;
+        }
+        EarthworkSectionCutSpec effective = (spec != null && spec.manual())
+            ? spec
+            : deriveAutoSpecForZone(zoneCells);
+        return sliceZoneWithMargin(grid, zoneId, effective);
+    }
+
+    /** 分区格 AABB 中心，供剖面控件锚定。 */
+    public static double[] gridCenterForZone(DesignTerrainGrid grid, String zoneId) {
+        if (grid == null || zoneId == null || zoneId.isBlank()) {
+            return new double[] {0.5, 0.5};
+        }
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        boolean any = false;
+        for (DesignTerrainCell cell : collectZoneCells(grid, zoneId)) {
+            minX = Math.min(minX, cell.worldX());
+            maxX = Math.max(maxX, cell.worldX());
+            minZ = Math.min(minZ, cell.worldZ());
+            maxZ = Math.max(maxZ, cell.worldZ());
+            any = true;
+        }
+        if (!any) {
+            return new double[] {0.5, 0.5};
+        }
+        return new double[] {(minX + maxX) * 0.5 + 0.5, (minZ + maxZ) * 0.5 + 0.5};
+    }
+
+    public static double zoneSectionMargin(double zoneAlongSpan) {
+        return Math.max(ZONE_SECTION_MARGIN_BLOCKS, Math.abs(zoneAlongSpan) * 0.25);
     }
 
     private static EarthworkSectionProfile fromAutomatic(DesignTerrainGrid grid) {
@@ -270,9 +320,158 @@ public final class EarthworkSectionProfile {
             spec.viewSign());
     }
 
+    private static List<DesignTerrainCell> collectZoneCells(DesignTerrainGrid grid, String zoneId) {
+        List<DesignTerrainCell> cells = new ArrayList<>();
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (cell == null || !cell.participatesInEarthwork()) {
+                continue;
+            }
+            if (zoneId.equals(cell.zoneId())) {
+                cells.add(cell);
+            }
+        }
+        return cells;
+    }
+
+    /** 沿分区较长方向取轴对齐截线（非 manual，每次按当前格重算）。 */
+    private static EarthworkSectionCutSpec deriveAutoSpecForZone(List<DesignTerrainCell> zoneCells) {
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (DesignTerrainCell cell : zoneCells) {
+            minX = Math.min(minX, cell.worldX());
+            maxX = Math.max(maxX, cell.worldX());
+            minZ = Math.min(minZ, cell.worldZ());
+            maxZ = Math.max(maxZ, cell.worldZ());
+        }
+        boolean alongX = (maxX - minX) >= (maxZ - minZ);
+        int midCross = alongX ? (minZ + maxZ) / 2 : (minX + maxX) / 2;
+        int crossCoord = chooseCutLineCoordinate(zoneCells, alongX, midCross);
+        double originX = alongX ? (minX + maxX) * 0.5 + 0.5 : crossCoord + 0.5;
+        double originZ = alongX ? crossCoord + 0.5 : (minZ + maxZ) * 0.5 + 0.5;
+        double angle = alongX ? 0.0 : Math.PI / 2.0;
+        return new EarthworkSectionCutSpec(originX, originZ, angle, 1, false);
+    }
+
+    private static EarthworkSectionProfile sliceZoneWithMargin(
+            DesignTerrainGrid grid,
+            String zoneId,
+            EarthworkSectionCutSpec spec) {
+        double dirX = spec.dirX();
+        double dirZ = spec.dirZ();
+        double originX = spec.originX();
+        double originZ = spec.originZ();
+        List<ScoredStation> scored = new ArrayList<>();
+        double zoneMinAlong = Double.POSITIVE_INFINITY;
+        double zoneMaxAlong = Double.NEGATIVE_INFINITY;
+        boolean anyZone = false;
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (cell == null || !cell.participatesInEarthwork()) {
+                continue;
+            }
+            String cellZone = cell.zoneId() != null ? cell.zoneId() : "";
+            boolean own = zoneId.equals(cellZone);
+            boolean exterior = cellZone.isBlank();
+            if (!own && !exterior) {
+                continue;
+            }
+            double cx = cell.worldX() + 0.5;
+            double cz = cell.worldZ() + 0.5;
+            double relX = cx - originX;
+            double relZ = cz - originZ;
+            double along = relX * dirX + relZ * dirZ;
+            double perp = relX * (-dirZ) + relZ * dirX;
+            if (own) {
+                zoneMinAlong = Math.min(zoneMinAlong, along);
+                zoneMaxAlong = Math.max(zoneMaxAlong, along);
+                anyZone = true;
+            }
+            if (Math.abs(perp) > MAX_PERP_DISTANCE) {
+                continue;
+            }
+            int existing = cell.existingGroundY();
+            // 区外：无设计，绿=灰
+            int design = own ? cell.targetY() : existing;
+            String stationZone = own ? zoneId : "";
+            scored.add(new ScoredStation(
+                new Station(cell.worldX(), cell.worldZ(), existing, design, stationZone),
+                along,
+                Math.abs(perp),
+                own));
+        }
+        if (!anyZone) {
+            return guideFromSpec(spec);
+        }
+        double margin = zoneSectionMargin(zoneMaxAlong - zoneMinAlong);
+        double rangeMin = zoneMinAlong - margin;
+        double rangeMax = zoneMaxAlong + margin;
+        boolean anyOwnOnCorridor = false;
+        for (ScoredStation s : scored) {
+            if (s.zoned() && s.along() >= rangeMin && s.along() <= rangeMax) {
+                anyOwnOnCorridor = true;
+                break;
+            }
+        }
+        if (!anyOwnOnCorridor) {
+            return guideFromSpec(spec);
+        }
+        List<Station> stations = new ArrayList<>();
+        int stepStart = (int) Math.floor(rangeMin);
+        int stepEnd = (int) Math.ceil(rangeMax);
+        for (int step = stepStart; step <= stepEnd; step++) {
+            double t = step;
+            ScoredStation best = null;
+            for (ScoredStation candidate : scored) {
+                if (candidate.along() < rangeMin || candidate.along() > rangeMax) {
+                    continue;
+                }
+                if (Math.abs(candidate.along() - t) > 0.55) {
+                    continue;
+                }
+                if (best == null
+                    || (candidate.zoned() && !best.zoned())
+                    || (candidate.zoned() == best.zoned() && candidate.perpAbs() < best.perpAbs())
+                    || (candidate.zoned() == best.zoned()
+                        && Math.abs(candidate.perpAbs() - best.perpAbs()) < 1e-9
+                        && Math.abs(candidate.along() - t) < Math.abs(best.along() - t))) {
+                    best = candidate;
+                }
+            }
+            if (best == null) {
+                continue;
+            }
+            if (!stations.isEmpty()) {
+                Station prev = stations.getLast();
+                if (prev.worldX() == best.station().worldX() && prev.worldZ() == best.station().worldZ()) {
+                    continue;
+                }
+            }
+            stations.add(best.station());
+        }
+        if (stations.size() < 2) {
+            return guideFromSpec(spec);
+        }
+        boolean alongX = Math.abs(dirX) >= Math.abs(dirZ);
+        int crossCoord = alongX
+            ? (int) Math.floor(spec.originZ())
+            : (int) Math.floor(spec.originX());
+        return new EarthworkSectionProfile(
+            stations,
+            alongX,
+            crossCoord,
+            originX,
+            originZ,
+            dirX,
+            dirZ,
+            spec.viewNx(),
+            spec.viewNz(),
+            spec.viewSign());
+    }
+
     /** 无交点时仍保留走向与最短可视剖切线，方便继续旋转/平移。 */
     static EarthworkSectionProfile guideFromSpec(EarthworkSectionCutSpec spec) {
-        if (spec == null || !spec.manual()) {
+        if (spec == null) {
             return EMPTY;
         }
         boolean alongX = Math.abs(spec.dirX()) >= Math.abs(spec.dirZ());
