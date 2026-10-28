@@ -22,20 +22,28 @@ final class EarthworkCutFillHeatmap {
         }
     }
 
+    /** 参与挖填格点的世界 XZ 包围盒（含两端），用于面板示意比例。 */
+    record WorldExtents(int minX, int maxX, int minZ, int maxZ) {
+        int spanX() {
+            return Math.max(1, maxX - minX + 1);
+        }
+
+        int spanZ() {
+            return Math.max(1, maxZ - minZ + 1);
+        }
+
+        /** 宽/高（X/Z）；无有效格点时视为正方形。 */
+        double aspectWidthOverHeight() {
+            return spanX() / (double) spanZ();
+        }
+    }
+
     private EarthworkCutFillHeatmap() {
     }
 
-    static Bucket[][] aggregate(DesignTerrainGrid grid, int gridWidth, int gridHeight) {
-        int cols = Math.max(1, gridWidth);
-        int rows = Math.max(1, gridHeight);
-        Bucket[][] buckets = new Bucket[cols][rows];
-        for (int x = 0; x < cols; x++) {
-            for (int z = 0; z < rows; z++) {
-                buckets[x][z] = new Bucket(0, 0, 0);
-            }
-        }
+    static WorldExtents worldExtents(DesignTerrainGrid grid) {
         if (grid == null || grid.cellCount() == 0) {
-            return buckets;
+            return null;
         }
         int minX = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
@@ -51,10 +59,28 @@ final class EarthworkCutFillHeatmap {
             maxZ = Math.max(maxZ, cell.worldZ());
         }
         if (minX == Integer.MAX_VALUE) {
+            return null;
+        }
+        return new WorldExtents(minX, maxX, minZ, maxZ);
+    }
+
+    static Bucket[][] aggregate(DesignTerrainGrid grid, int gridWidth, int gridHeight) {
+        int cols = Math.max(1, gridWidth);
+        int rows = Math.max(1, gridHeight);
+        Bucket[][] buckets = new Bucket[cols][rows];
+        for (int x = 0; x < cols; x++) {
+            for (int z = 0; z < rows; z++) {
+                buckets[x][z] = new Bucket(0, 0, 0);
+            }
+        }
+        WorldExtents extents = worldExtents(grid);
+        if (extents == null) {
             return buckets;
         }
-        double spanX = Math.max(1, maxX - minX + 1);
-        double spanZ = Math.max(1, maxZ - minZ + 1);
+        int minX = extents.minX();
+        int minZ = extents.minZ();
+        double spanX = extents.spanX();
+        double spanZ = extents.spanZ();
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (cell == null || !cell.participatesInEarthwork()) {
                 continue;

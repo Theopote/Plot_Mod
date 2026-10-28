@@ -20,7 +20,9 @@ import imgui.ImVec2;
  */
 public final class EarthworkInsightCharts {
     private static final float CHART_HEIGHT = 92f;
-    private static final float HEATMAP_HEIGHT = 120f;
+    /** 挖填平面示意：短边下限 / 长边上限，具体尺寸按场地 XZ 比例适配。 */
+    private static final float HEATMAP_MIN_SIDE = 72f;
+    private static final float HEATMAP_MAX_SIDE = 220f;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_CUT = ImColor.rgba(220, 80, 80, 255);
@@ -374,12 +376,23 @@ public final class EarthworkInsightCharts {
         if (grid == null || grid.cellCount() == 0) {
             return;
         }
+        EarthworkCutFillHeatmap.WorldExtents extents = EarthworkCutFillHeatmap.worldExtents(grid);
+        if (extents == null) {
+            return;
+        }
         ImGui.text(PlotI18n.tr("plugin.earthwork.heatmap.header"));
-        float width = Math.max(40f, ImGui.getContentRegionAvailX());
-        float innerW = width - 8f;
-        float innerH = HEATMAP_HEIGHT - 8f;
-        int gridCols = Math.clamp((int) (innerW / 4f), 8, 64);
-        int gridRows = Math.max(6, Math.min(48, (int) (innerH / 4f)));
+        float availW = Math.max(40f, ImGui.getContentRegionAvailX());
+        float[] size = heatmapDisplaySize(availW, extents.aspectWidthOverHeight());
+        float width = size[0];
+        float height = size[1];
+        float innerW = Math.max(1f, width - 8f);
+        float innerH = Math.max(1f, height - 8f);
+        // 栅格列/行按世界跨度配比，使示意格在平面上接近正方形
+        int gridCols = Math.clamp((int) Math.round(innerW / 4f), 8, 64);
+        int gridRows = Math.clamp(
+            (int) Math.round(gridCols * (extents.spanZ() / (double) extents.spanX())),
+            6,
+            64);
         EarthworkCutFillHeatmap.Bucket[][] buckets =
             ctx.cutFillHeatmapCache().resolve(preview, grid, gridCols, gridRows);
         if (buckets == null) {
@@ -388,7 +401,7 @@ public final class EarthworkInsightCharts {
 
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + HEATMAP_HEIGHT, COLOR_BG);
+        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, COLOR_BG);
         float cellW = innerW / gridCols;
         float cellH = innerH / gridRows;
         for (int x = 0; x < gridCols; x++) {
@@ -407,9 +420,43 @@ public final class EarthworkInsightCharts {
                 drawList.addRectFilled(px, py, px + cellW - 0.5f, py + cellH - 0.5f, color);
             }
         }
-        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + HEATMAP_HEIGHT, COLOR_BORDER);
-        ImGui.dummy(width, HEATMAP_HEIGHT);
+        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + height, COLOR_BORDER);
+        ImGui.dummy(width, height);
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.heatmap.legend"));
+    }
+
+    /**
+     * 在面板可用宽度内按场地 X/Z 比例排版挖填平面示意框。
+     * @return {@code {width, height}}
+     */
+    static float[] heatmapDisplaySize(float availWidth, double aspectWidthOverHeight) {
+        double aspect = Double.isFinite(aspectWidthOverHeight) && aspectWidthOverHeight > 1e-6
+            ? aspectWidthOverHeight
+            : 1.0;
+        float maxW = Math.max(HEATMAP_MIN_SIDE, Math.min(availWidth, HEATMAP_MAX_SIDE * Math.max(1f, (float) aspect)));
+        float maxH = HEATMAP_MAX_SIDE;
+        float width;
+        float height;
+        if (maxW / maxH > aspect) {
+            height = Math.max(HEATMAP_MIN_SIDE, maxH);
+            width = (float) (height * aspect);
+        } else {
+            width = Math.max(HEATMAP_MIN_SIDE, maxW);
+            height = (float) (width / aspect);
+        }
+        if (height < HEATMAP_MIN_SIDE) {
+            height = HEATMAP_MIN_SIDE;
+            width = (float) (height * aspect);
+            if (width > availWidth && availWidth >= HEATMAP_MIN_SIDE) {
+                width = availWidth;
+                height = (float) (width / aspect);
+            }
+        }
+        if (width > availWidth && availWidth > 0f) {
+            width = availWidth;
+            height = (float) (width / aspect);
+        }
+        return new float[] {Math.max(1f, width), Math.max(1f, height)};
     }
 
     private static void plotPolyline(

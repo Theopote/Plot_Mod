@@ -6,8 +6,23 @@ import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class EarthworkCutFillHeatmapTest {
+
+    @Test
+    void worldExtentsMatchOccupiedFootprintAspect() {
+        DesignTerrainGrid grid = gridWithCells(
+            cell(0, 0, 0),
+            cell(9, 0, 0),
+            cell(0, 4, 0),
+            cell(9, 4, 0));
+        EarthworkCutFillHeatmap.WorldExtents extents = EarthworkCutFillHeatmap.worldExtents(grid);
+        assertNotNull(extents);
+        assertEquals(10, extents.spanX());
+        assertEquals(5, extents.spanZ());
+        assertEquals(2.0, extents.aspectWidthOverHeight(), 1e-9);
+    }
 
     @Test
     void aggregationIsOrderIndependent() {
