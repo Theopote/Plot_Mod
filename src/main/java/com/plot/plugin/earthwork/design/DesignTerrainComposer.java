@@ -203,6 +203,19 @@ public final class DesignTerrainComposer {
             surfacesWithOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, balanceOutcome.uniformOffset());
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> finalEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(finalResolved);
+        if (balanceOutcome.ran()) {
+            // 边坡耦合搜索在格点上做统一 ΔY；最后用带偏移的求值器重铺分区面（保留 BEST_FIT 等坡面系数），再重建自然边坡。
+            coverageByCellKey = applyZoneCoverage(
+                grid, site, finalEvaluators, effectiveBreaklines, canvasScale, policy);
+            applyBoundaryConditions(
+                grid,
+                site,
+                finalEvaluators,
+                coverageByCellKey,
+                effectiveBreaklines,
+                canvasScale,
+                policy);
+        }
         grid.finalizeStats();
         boolean hasFixed = hasConstraintLimitedSurfaces(resolvedSurfaces);
         EarthworkBalanceStatus status = EarthworkBalanceStatus.classify(

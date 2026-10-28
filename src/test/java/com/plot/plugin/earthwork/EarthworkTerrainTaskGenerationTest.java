@@ -4,11 +4,16 @@ import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.model.BalanceScope;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkTerrainTask;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
+import com.plot.plugin.earthwork.model.EdgeTreatment;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.OptimizationMode;
+import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
@@ -158,6 +163,108 @@ class EarthworkTerrainTaskGenerationTest {
         int corner = grid.get(0, 0).targetY();
         assertEquals(58, center);
         assertTrue(corner > center, () -> "corner=" + corner + " center=" + center);
+    }
+
+    @Test
+    void siteWideSlopeCoupledBalancePreservesBestFitTrend() {
+        EarthworkSite site = new EarthworkSite();
+        site.setSiteBoundary(List.of(
+            new Vec2d(0, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(0, 10)));
+
+        GradingZone pad = new GradingZone("pad", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        pad.getRegion().setAutoBalance(true);
+        pad.getRegion().setManualTargetElevation(70);
+        pad.getEdgeSettings().setDefaultTreatment(EdgeTreatment.CUT_FILL_SLOPE);
+        pad.getEdgeSettings().setCutSlopePitchRatio(1);
+        pad.getEdgeSettings().setMaximumReachBlocks(12);
+        pad.setVerticalAdjustmentPolicy(
+            VerticalAdjustmentPolicy.adjustable(VerticalAdjustmentPolicy.UNBOUNDED_RANGE, 1.0f));
+
+        GradingZone fit = new GradingZone("landscape", List.of(
+            new Vec2d(10, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(10, 10)));
+        EarthworkTerrainTask.FOLLOW_TERRAIN.applyTo(fit);
+        EarthworkTerrainTask.applySurfaceMode(fit, GradingSurfaceMode.BEST_FIT_PLANE);
+        fit.getRegion().setAutoBalance(true);
+        // 任务切换后默认 true；场级边坡耦合平衡后仍须保留沿 X 的趋势
+        fit.getRegion().setFitSlopeBalanceCutFill(true);
+        fit.getEdgeSettings().setDefaultTreatment(EdgeTreatment.CUT_FILL_SLOPE);
+        fit.getEdgeSettings().setMaximumReachBlocks(12);
+        fit.setVerticalAdjustmentPolicy(
+            VerticalAdjustmentPolicy.adjustable(VerticalAdjustmentPolicy.UNBOUNDED_RANGE, 1.0f));
+
+        site.addZone(pad);
+        site.addZone(fit);
+        site.getCompositionPolicy().setBalanceScope(BalanceScope.SITE);
+        site.getCompositionPolicy().setOptimizationMode(OptimizationMode.UNIFORM_VERTICAL_SHIFT);
+        site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
+
+        TerrainSnapshot terrain = EarthworkTestFixtures.rectangleTerrain(
+            0, 29, 0, 9, (x, z) -> 58 + x / 2);
+
+        DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
+            site,
+            terrain,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BuildingFootprintLookup.NONE,
+            RoadSurfaceLookup.NONE,
+            EarthworkWorkMode.BUILDER);
+        DesignTerrainGrid grid = composed.grid();
+
+        assertNotEquals(0, composed.siteWideVerticalOffset(), "expected site-wide balance to run");
+
+        int lowX = grid.get(14, 5).targetY();
+        int midX = grid.get(20, 5).targetY();
+        int highX = grid.get(26, 5).targetY();
+        assertTrue(
+            lowX < midX && midX < highX && highX - lowX >= 4,
+            () -> "best-fit trend flattened: lowX=" + lowX + " midX=" + midX + " highX=" + highX
+                + " uniform=" + composed.siteWideVerticalOffset());
+        assertEquals("landscape", grid.get(20, 5).zoneId());
+
+        // 返回的求值器与网格一致：统一 ΔY 是刚性平移，不是重拟合成平地
+        var fitEval = composed.zoneEvaluators().get("landscape");
+        assertEquals(lowX, fitEval.evaluateAt(grid.get(14, 5)));
+        assertEquals(highX, fitEval.evaluateAt(grid.get(26, 5)));
+        assertEquals(highX - lowX, fitEval.evaluateAt(grid.get(26, 5)) - fitEval.evaluateAt(grid.get(14, 5)));
+    }
+
+    @Test
+    void singleZoneBestFitAutoBalanceWithSlopesKeepsInteriorTrend() {
+        EarthworkSite site = siteWithBoundary();
+        GradingZone zone = new GradingZone("strip", PAD);
+        EarthworkTerrainTask.FOLLOW_TERRAIN.applyTo(zone);
+        EarthworkTerrainTask.applySurfaceMode(zone, GradingSurfaceMode.BEST_FIT_PLANE);
+        zone.getRegion().setAutoBalance(true);
+        zone.getRegion().setFitSlopeBalanceCutFill(false);
+        zone.getEdgeSettings().setDefaultTreatment(EdgeTreatment.CUT_FILL_SLOPE);
+        zone.getEdgeSettings().setCutSlopePitchRatio(1);
+        zone.getEdgeSettings().setMaximumReachBlocks(10);
+        zone.setVerticalAdjustmentPolicy(
+            VerticalAdjustmentPolicy.adjustable(VerticalAdjustmentPolicy.BUILDER_AUTO_BALANCE_RANGE, 1.0f));
+        site.addZone(zone);
+
+        TerrainSnapshot terrain = EarthworkTestFixtures.rectangleTerrain(
+            0, 9, 0, 9, (x, z) -> 56 + x);
+
+        DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
+            site,
+            terrain,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BuildingFootprintLookup.NONE,
+            RoadSurfaceLookup.NONE,
+            EarthworkWorkMode.BUILDER);
+        DesignTerrainGrid grid = composed.grid();
+
+        int west = grid.get(2, 5).targetY();
+        int east = grid.get(8, 5).targetY();
+        assertTrue(
+            east - west >= 4,
+            () -> "interior trend lost after slope-coupled single-zone balance: west=" + west
+                + " east=" + east + " offset=" + composed.siteWideVerticalOffset());
+        var stripEval = composed.zoneEvaluators().get("strip");
+        assertEquals(west, stripEval.evaluateAt(grid.get(2, 5)));
+        assertEquals(east, stripEval.evaluateAt(grid.get(8, 5)));
     }
 
     @Test
