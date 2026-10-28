@@ -1105,6 +1105,8 @@
   "plugin.earthwork.profile.header": "Section (existing vs design)",
   "plugin.earthwork.profile.legend": "Gray=existing  Green=design  Red=cut  Blue=fill",
   "plugin.earthwork.profile.view_hint": "Yellow cut line; triangles point to view side",
+  "plugin.earthwork.profile.zone_sep_hint": "Yellow tick = zone boundary; each crossed zone is a segment",
+  "plugin.earthwork.profile.no_intersection_hint": "Cut line misses zones — rotate or nudge until it intersects",
   "plugin.earthwork.profile.horizontal": "Horizontal",
   "plugin.earthwork.profile.vertical": "Vertical",
   "plugin.earthwork.profile.rotate_ccw": "Rot +15°",

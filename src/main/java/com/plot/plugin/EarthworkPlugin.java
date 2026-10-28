@@ -239,10 +239,11 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
                 EarthworkSlopeDirectionCanvasRenderer.render(
                     drawList, camera, uiContext.project(), uiContext.selectedRegionId());
             }
+            // 与挖填热力一致：DIRTY 旧预览仍画剖切线，避免点选画布后线消失
             if (preview != null
                 && preview.sectionProfile != null
-                && !preview.sectionProfile.isEmpty()
-                && uiContext.previewManager().hasValidPreview()) {
+                && preview.sectionProfile.hasDrawableCutLine()
+                && uiContext.previewManager().hasCachedPreview()) {
                 EarthworkSectionProfileCanvasRenderer.render(
                     drawList, camera, preview.sectionProfile, uiContext.host().coordinates());
             }

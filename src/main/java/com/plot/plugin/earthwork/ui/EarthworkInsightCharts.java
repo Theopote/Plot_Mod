@@ -33,6 +33,9 @@ public final class EarthworkInsightCharts {
     private static final int COLOR_ZONE_OUTLINE = ImColor.rgba(220, 220, 220, 160);
     private static final int COLOR_CUT = ImColor.rgba(220, 80, 80, 255);
     private static final int COLOR_FILL = ImColor.rgba(80, 150, 240, 255);
+    private static final int COLOR_CUT_BAND = ImColor.rgba(220, 80, 80, 90);
+    private static final int COLOR_FILL_BAND = ImColor.rgba(80, 150, 240, 90);
+    private static final int COLOR_ZONE_SEP = ImColor.rgba(255, 220, 120, 200);
     private static final int COLOR_WORK = ImColor.rgba(200, 200, 120, 220);
     private static final int COLOR_EXISTING = ImColor.rgba(160, 160, 160, 255);
     private static final int COLOR_DESIGN = ImColor.rgba(90, 210, 140, 255);
@@ -73,7 +76,7 @@ public final class EarthworkInsightCharts {
         if (mode.showsBuilderVisuals()) {
             renderHeatmap(ctx, preview, preview.designTerrainGrid);
         }
-        if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
+        if (preview.sectionProfile != null && preview.sectionProfile.hasDrawableCutLine()) {
             renderProfile(ctx, preview.sectionProfile);
         }
         if (mode.showsAnalysisVisuals()) {
@@ -107,7 +110,7 @@ public final class EarthworkInsightCharts {
         }
         renderChangeOverview(preview.volumeReport != null ? preview.volumeReport : EarthworkVolumeReport.empty());
         renderHeatmap(ctx, preview, preview.designTerrainGrid);
-        if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
+        if (preview.sectionProfile != null && preview.sectionProfile.hasDrawableCutLine()) {
             renderProfile(ctx, preview.sectionProfile);
         }
         if (curve != null && !curve.isEmpty()) {
@@ -308,7 +311,14 @@ public final class EarthworkInsightCharts {
 
     static void renderProfile(EarthworkUiContext ctx, EarthworkSectionProfile profile) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.profile.header"));
+        // 控件始终显示：即使截线未与分区相交，也要能继续旋转/平移
         renderProfileControls(ctx);
+        if (profile == null || profile.isEmpty()) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.earthwork.profile.no_intersection_hint"));
+            return;
+        }
         float width = ImGui.getContentRegionAvailX();
         if (width < 40f) {
             return;
@@ -332,49 +342,53 @@ public final class EarthworkInsightCharts {
             elevMax = elevMin + 1;
         }
         float pad = 8f;
-        int span = profile.axisSpan();
+        double span = profile.axisSpanExact();
+        float innerW = x1 - x0 - 2 * pad;
+        // 先画挖填色带与折线；区间/换区处断开并画分隔，保证多区各自可见
         for (int i = 0; i < profile.stations().size() - 1; i++) {
             EarthworkSectionProfile.Station a = profile.stations().get(i);
             EarthworkSectionProfile.Station b = profile.stations().get(i + 1);
-            if (profile.axisGap(a, b) > 1) {
+            float ax = x0 + pad + innerW * (float) (profile.axisDistanceExact(a) / span);
+            float bx = x0 + pad + innerW * (float) (profile.axisDistanceExact(b) / span);
+            boolean zoneChange = a.zoned() && b.zoned() && !java.util.Objects.equals(a.zoneId(), b.zoneId());
+            if (profile.shouldBreakPolyline(a, b) || zoneChange) {
+                float sepX = (ax + bx) * 0.5f;
+                drawList.addLine(sepX, y0 + 4f, sepX, y1 - 4f, COLOR_ZONE_SEP, 1.5f);
                 continue;
             }
-            float ax = x0 + pad + (x1 - x0 - 2 * pad) * (profile.axisDistance(a) / (float) span);
-            float bx = x0 + pad + (x1 - x0 - 2 * pad) * (profile.axisDistance(b) / (float) span);
-            drawList.addLine(
-                ax, elevToY(a.existingY(), elevMin, elevMax, y0, y1, pad),
-                bx, elevToY(b.existingY(), elevMin, elevMax, y0, y1, pad),
-                COLOR_EXISTING,
-                2f);
-            drawList.addLine(
-                ax, elevToY(a.designY(), elevMin, elevMax, y0, y1, pad),
-                bx, elevToY(b.designY(), elevMin, elevMax, y0, y1, pad),
-                COLOR_DESIGN,
-                2f);
-            float midX = (ax + bx) * 0.5f;
-            int cut = Math.max(a.cut(), b.cut());
-            int fill = Math.max(a.fill(), b.fill());
-            if (cut > fill && cut > 0) {
-                drawList.addLine(
-                    midX,
-                    elevToY(Math.max(a.existingY(), a.designY()), elevMin, elevMax, y0, y1, pad),
-                    midX,
-                    elevToY(Math.min(a.existingY(), a.designY()), elevMin, elevMax, y0, y1, pad),
-                    COLOR_CUT,
-                    1.5f);
-            } else if (fill > 0) {
-                drawList.addLine(
-                    midX,
-                    elevToY(Math.max(a.existingY(), a.designY()), elevMin, elevMax, y0, y1, pad),
-                    midX,
-                    elevToY(Math.min(a.existingY(), a.designY()), elevMin, elevMax, y0, y1, pad),
-                    COLOR_FILL,
-                    1.5f);
+            float aExist = elevToY(a.existingY(), elevMin, elevMax, y0, y1, pad);
+            float bExist = elevToY(b.existingY(), elevMin, elevMax, y0, y1, pad);
+            float aDesign = elevToY(a.designY(), elevMin, elevMax, y0, y1, pad);
+            float bDesign = elevToY(b.designY(), elevMin, elevMax, y0, y1, pad);
+            int band = (a.cut() + b.cut()) >= (a.fill() + b.fill()) && (a.cut() + b.cut()) > 0
+                ? COLOR_CUT_BAND
+                : ((a.fill() + b.fill()) > 0 ? COLOR_FILL_BAND : 0);
+            if (band != 0 && (Math.abs(a.existingY() - a.designY()) > 0 || Math.abs(b.existingY() - b.designY()) > 0)) {
+                drawList.addQuadFilled(ax, aExist, bx, bExist, bx, bDesign, ax, aDesign, band);
             }
+            drawList.addLine(ax, aExist, bx, bExist, COLOR_EXISTING, 2f);
+            drawList.addLine(ax, aDesign, bx, bDesign, COLOR_DESIGN, 2f);
+        }
+        for (EarthworkSectionProfile.Station station : profile.stations()) {
+            int cut = station.cut();
+            int fill = station.fill();
+            if (cut <= 0 && fill <= 0) {
+                continue;
+            }
+            float sx = x0 + pad + innerW * (float) (profile.axisDistanceExact(station) / span);
+            int color = cut >= fill ? COLOR_CUT : COLOR_FILL;
+            drawList.addLine(
+                sx,
+                elevToY(Math.max(station.existingY(), station.designY()), elevMin, elevMax, y0, y1, pad),
+                sx,
+                elevToY(Math.min(station.existingY(), station.designY()), elevMin, elevMax, y0, y1, pad),
+                color,
+                1.5f);
         }
         ImGui.dummy(width, CHART_HEIGHT);
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.profile.legend"));
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.profile.view_hint"));
+        ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.profile.zone_sep_hint"));
     }
 
     private static void renderProfileControls(EarthworkUiContext ctx) {

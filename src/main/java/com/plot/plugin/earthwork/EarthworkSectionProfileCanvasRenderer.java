@@ -27,7 +27,7 @@ public final class EarthworkSectionProfileCanvasRenderer {
             CanvasCamera camera,
             EarthworkSectionProfile profile,
             ICoordinateService coordinates) {
-        if (drawList == null || camera == null || profile == null || profile.isEmpty()) {
+        if (drawList == null || camera == null || profile == null || !profile.hasDrawableCutLine()) {
             return;
         }
         EarthworkSectionProfile.SectionCutLine line = profile.sectionCutLine();
