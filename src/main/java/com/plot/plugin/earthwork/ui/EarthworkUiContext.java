@@ -18,6 +18,8 @@ import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.solver.EarthworkSectionCutSpec;
+import com.plot.plugin.earthwork.solver.EarthworkSectionProfile;
 import imgui.type.ImBoolean;
 
 import java.util.ArrayList;
@@ -61,6 +63,9 @@ public final class EarthworkUiContext {
     private final ImBoolean showRegionOverlayRef = new ImBoolean(true);
     private final imgui.type.ImInt workModeIndex = new imgui.type.ImInt(0);
     private final imgui.type.ImInt regionIndex = new imgui.type.ImInt(0);
+
+    /** 会话级剖面截线；非 manual 时预览使用自动截线。 */
+    private EarthworkSectionCutSpec sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
 
     public EarthworkUiContext(
             PluginContext host,
@@ -245,6 +250,66 @@ public final class EarthworkUiContext {
         return regionIndex;
     }
 
+    public EarthworkSectionCutSpec sectionCutSpec() {
+        return sectionCutSpec;
+    }
+
+    public void setSectionHorizontal() {
+        mutateSectionCut(center -> EarthworkSectionCutSpec.horizontal(center[0], center[1]));
+    }
+
+    public void setSectionVertical() {
+        mutateSectionCut(center -> EarthworkSectionCutSpec.vertical(center[0], center[1]));
+    }
+
+    public void rotateSectionDegrees(double deltaDegrees) {
+        mutateSectionCut(center -> ensureManualSpec(center).rotateDegrees(deltaDegrees));
+    }
+
+    public void nudgeSectionBlocks(double blocks) {
+        mutateSectionCut(center -> ensureManualSpec(center).nudgeBlocks(blocks));
+    }
+
+    public void flipSectionView() {
+        mutateSectionCut(center -> ensureManualSpec(center).flipView());
+    }
+
+    public void resetSectionCut() {
+        sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
+        applySectionCutToPreview();
+    }
+
+    /** 预览算完后若用户已手动设截线，用同一规格重切剖面。 */
+    public void applySectionCutToPreview() {
+        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        if (preview == null) {
+            return;
+        }
+        preview.applySectionProfile(sectionCutSpec.manual() ? sectionCutSpec : null);
+    }
+
+    private void mutateSectionCut(java.util.function.Function<double[], EarthworkSectionCutSpec> factory) {
+        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        double[] center = preview != null && preview.designTerrainGrid != null
+            ? EarthworkSectionProfile.gridCenter(preview.designTerrainGrid)
+            : new double[] {0.5, 0.5};
+        sectionCutSpec = factory.apply(center);
+        applySectionCutToPreview();
+    }
+
+    private EarthworkSectionCutSpec ensureManualSpec(double[] center) {
+        if (sectionCutSpec.manual()) {
+            return sectionCutSpec;
+        }
+        EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        if (preview != null
+            && preview.sectionProfile != null
+            && !preview.sectionProfile.isEmpty()) {
+            return preview.sectionProfile.toEditableSpec();
+        }
+        return EarthworkSectionCutSpec.horizontal(center[0], center[1]);
+    }
+
     public boolean recalculatePreview() {
         GradingRegion region = project.getRegion(selectedRegionId);
         if (region == null) {
@@ -261,12 +326,16 @@ public final class EarthworkUiContext {
                 com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
             return false;
         }
-        return previewManager.calculatePreview(
+        boolean ok = previewManager.calculatePreview(
             project,
             region,
             EarthworkUiLookups.createBuildingFootprintLookup(),
             EarthworkUiLookups.createRoadSurfaceLookup(),
             config.getWorkMode());
+        if (ok) {
+            applySectionCutToPreview();
+        }
+        return ok;
     }
 
     /** 选项拖动/切换时合并到下一次渲染线程计算，避免每帧同步跑完整管线。 */
@@ -289,6 +358,7 @@ public final class EarthworkUiContext {
 
     public void clearPreview() {
         previewManager.clearPreview();
+        sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
     }
 
     public void invalidatePreview() {
@@ -301,6 +371,7 @@ public final class EarthworkUiContext {
         holePickSession.cancel();
         selectedRegions.clear();
         terrainSnapshotCache.clear();
+        sectionCutSpec = EarthworkSectionCutSpec.AUTOMATIC;
         clearPreview();
         setSelectedRegionId(firstRegionId);
     }

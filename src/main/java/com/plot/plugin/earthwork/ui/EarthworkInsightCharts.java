@@ -74,7 +74,7 @@ public final class EarthworkInsightCharts {
             renderHeatmap(ctx, preview, preview.designTerrainGrid);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
-            renderProfile(preview.sectionProfile);
+            renderProfile(ctx, preview.sectionProfile);
         }
         if (mode.showsAnalysisVisuals()) {
             if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
@@ -108,7 +108,7 @@ public final class EarthworkInsightCharts {
         renderChangeOverview(preview.volumeReport != null ? preview.volumeReport : EarthworkVolumeReport.empty());
         renderHeatmap(ctx, preview, preview.designTerrainGrid);
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
-            renderProfile(preview.sectionProfile);
+            renderProfile(ctx, preview.sectionProfile);
         }
         if (curve != null && !curve.isEmpty()) {
             renderRecommendations(ctx, region, preview, curve, validPreview);
@@ -306,8 +306,9 @@ public final class EarthworkInsightCharts {
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.curve.legend"));
     }
 
-    static void renderProfile(EarthworkSectionProfile profile) {
+    static void renderProfile(EarthworkUiContext ctx, EarthworkSectionProfile profile) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.profile.header"));
+        renderProfileControls(ctx);
         float width = ImGui.getContentRegionAvailX();
         if (width < 40f) {
             return;
@@ -373,6 +374,43 @@ public final class EarthworkInsightCharts {
         }
         ImGui.dummy(width, CHART_HEIGHT);
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.profile.legend"));
+        ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.profile.view_hint"));
+    }
+
+    private static void renderProfileControls(EarthworkUiContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.horizontal"))) {
+            ctx.setSectionHorizontal();
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.vertical"))) {
+            ctx.setSectionVertical();
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.rotate_ccw"))) {
+            ctx.rotateSectionDegrees(15.0);
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.rotate_cw"))) {
+            ctx.rotateSectionDegrees(-15.0);
+        }
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.nudge_view"))) {
+            ctx.nudgeSectionBlocks(1.0);
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.nudge_back"))) {
+            ctx.nudgeSectionBlocks(-1.0);
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.flip_view"))) {
+            ctx.flipSectionView();
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.profile.reset_auto"))) {
+            ctx.resetSectionCut();
+        }
     }
 
     static void renderHeatmap(

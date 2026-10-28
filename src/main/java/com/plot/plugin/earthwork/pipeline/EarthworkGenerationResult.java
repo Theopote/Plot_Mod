@@ -5,6 +5,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.solver.EarthworkBalanceStatus;
 import com.plot.plugin.earthwork.solver.EarthworkElevationVolumeCurve;
+import com.plot.plugin.earthwork.solver.EarthworkSectionCutSpec;
 import com.plot.plugin.earthwork.solver.EarthworkSectionProfile;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
@@ -156,11 +157,7 @@ public class EarthworkGenerationResult {
     public void attachPlayerInsights(
             boolean allowLegacyShiftCurve,
             EarthworkElevationVolumeCurve slopeCoupledCurve) {
-        if (designTerrainGrid != null && designTerrainGrid.cellCount() > 0) {
-            sectionProfile = EarthworkSectionProfile.fromGrid(designTerrainGrid);
-        } else {
-            sectionProfile = EarthworkSectionProfile.EMPTY;
-        }
+        applySectionProfile(null);
         if (slopeCoupledCurve != null && !slopeCoupledCurve.isEmpty()) {
             elevationVolumeCurve = slopeCoupledCurve;
             elevationVolumeCurveRequiresSlopeCoupledSolver = false;
@@ -177,6 +174,15 @@ public class EarthworkGenerationResult {
         }
         elevationVolumeCurve = EarthworkElevationVolumeCurve.fromTerrain(
             existingTerrainSnapshot, resolvedElevation);
+    }
+
+    /** 仅重切剖面（不重跑 compose）；{@code spec} 为 null 或非 manual 时走自动截线。 */
+    public void applySectionProfile(EarthworkSectionCutSpec spec) {
+        if (designTerrainGrid != null && designTerrainGrid.cellCount() > 0) {
+            sectionProfile = EarthworkSectionProfile.fromGrid(designTerrainGrid, spec);
+        } else {
+            sectionProfile = EarthworkSectionProfile.EMPTY;
+        }
     }
 
     public enum ChangeType {
