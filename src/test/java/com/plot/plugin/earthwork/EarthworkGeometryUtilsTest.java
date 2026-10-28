@@ -119,4 +119,45 @@ class EarthworkGeometryUtilsTest {
         assertFalse(sampled.isEmpty());
         assertTrue(sampled.size() < EarthworkGeometryUtils.collectFootprintCellCenters(rectangle).size());
     }
+
+    @Test
+    void findBestHolePrefersInnerRingWhenOuterAlsoSelected() {
+        Shape outer = new RectangleShape(new Vec2d(0, 0), 20, 20, 0);
+        Shape inner = new RectangleShape(new Vec2d(5, 5), 4, 4, 0);
+        List<Vec2d> outerPoints = EarthworkGeometryUtils.extractRegionPoints(outer);
+
+        // 旧逻辑只取第一个封闭图形时会拿到外环本身；新逻辑应选用内环
+        List<Vec2d> hole = EarthworkGeometryUtils.findBestHoleFromSelection(
+            List.of(outer, inner), outerPoints, List.of());
+
+        assertEquals(4, hole.size());
+        assertTrue(Math.abs(com.plot.plugin.earthwork.model.GradingRegion.signedArea(hole)) < 20.0);
+        assertEquals(
+            EarthworkGeometryUtils.HoleAddIssue.NONE,
+            EarthworkGeometryUtils.validateHoleForRegion(outerPoints, List.of(), hole));
+    }
+
+    @Test
+    void diagnoseReportsTooLargeWhenOnlyOuterSelected() {
+        Shape outer = new RectangleShape(new Vec2d(0, 0), 10, 10, 0);
+        List<Vec2d> outerPoints = EarthworkGeometryUtils.extractRegionPoints(outer);
+
+        assertEquals(
+            EarthworkGeometryUtils.HoleAddIssue.TOO_LARGE,
+            EarthworkGeometryUtils.diagnoseHoleSelection(List.of(outer), outerPoints, List.of()));
+        assertTrue(EarthworkGeometryUtils.findBestHoleFromSelection(
+            List.of(outer), outerPoints, List.of()).isEmpty());
+    }
+
+    @Test
+    void validateHoleRejectsVerticesOutsideOuter() {
+        List<Vec2d> outer = List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10));
+        List<Vec2d> hole = List.of(
+            new Vec2d(8, 8), new Vec2d(12, 8), new Vec2d(12, 12), new Vec2d(8, 12));
+
+        assertEquals(
+            EarthworkGeometryUtils.HoleAddIssue.OUTSIDE_OUTER,
+            EarthworkGeometryUtils.validateHoleForRegion(outer, List.of(), hole));
+    }
 }

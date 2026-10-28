@@ -119,6 +119,108 @@ public final class EarthworkGeometryUtils {
         return Math.abs(GradingRegion.signedArea(points)) > MIN_REGION_AREA;
     }
 
+    /** 孔洞添加校验结果。 */
+    public enum HoleAddIssue {
+        NONE(""),
+        NO_VALID_SELECTION("plugin.earthwork.geometry_no_valid_selection"),
+        OUTSIDE_OUTER("plugin.earthwork.geometry_hole_outside_outer"),
+        TOO_SMALL("plugin.earthwork.geometry_hole_too_small"),
+        TOO_LARGE("plugin.earthwork.geometry_hole_too_large");
+
+        private final String statusKey;
+
+        HoleAddIssue(String statusKey) {
+            this.statusKey = statusKey;
+        }
+
+        public String statusKey() {
+            return statusKey;
+        }
+    }
+
+    /**
+     * 校验孔洞是否可加入外环：全部顶点须落在外环内（且不落在已有孔洞内），
+     * 面积不能过小，也不能接近吞掉整个外环。
+     */
+    public static HoleAddIssue validateHoleForRegion(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> existingHoles,
+            List<Vec2d> holePoints) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return HoleAddIssue.NO_VALID_SELECTION;
+        }
+        if (holePoints == null || holePoints.size() < 3) {
+            return HoleAddIssue.NO_VALID_SELECTION;
+        }
+        if (!hasMeaningfulArea(holePoints)) {
+            return HoleAddIssue.TOO_SMALL;
+        }
+        double outerArea = Math.abs(GradingRegion.signedArea(outerPoints));
+        double holeArea = Math.abs(GradingRegion.signedArea(holePoints));
+        if (holeArea >= outerArea * 0.95) {
+            return HoleAddIssue.TOO_LARGE;
+        }
+        List<List<Vec2d>> holes = existingHoles != null ? existingHoles : List.of();
+        for (Vec2d point : holePoints) {
+            if (point == null || !PolygonRegionUtils.containsPoint(outerPoints, holes, point)) {
+                return HoleAddIssue.OUTSIDE_OUTER;
+            }
+        }
+        return HoleAddIssue.NONE;
+    }
+
+    /**
+     * 从画布多选中挑选最合适的孔洞轮廓：在全部合法候选里取面积最小者。
+     * 避免「第一个封闭图形是外环/区外图形」时直接失败、忽略真正的内环选区。
+     */
+    public static List<Vec2d> findBestHoleFromSelection(
+            List<Shape> selectedShapes,
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> existingHoles) {
+        if (selectedShapes == null || selectedShapes.isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> best = List.of();
+        double bestArea = Double.POSITIVE_INFINITY;
+        for (Shape shape : selectedShapes) {
+            List<Vec2d> hole = extractRegionPoints(shape);
+            if (validateHoleForRegion(outerPoints, existingHoles, hole) != HoleAddIssue.NONE) {
+                continue;
+            }
+            double area = Math.abs(GradingRegion.signedArea(hole));
+            if (area < bestArea) {
+                bestArea = area;
+                best = hole;
+            }
+        }
+        return best;
+    }
+
+    /** 解释为何选区未能生成孔洞（用于状态栏）。 */
+    public static HoleAddIssue diagnoseHoleSelection(
+            List<Shape> selectedShapes,
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> existingHoles) {
+        if (selectedShapes == null || selectedShapes.isEmpty()) {
+            return HoleAddIssue.NO_VALID_SELECTION;
+        }
+        HoleAddIssue fallback = HoleAddIssue.NO_VALID_SELECTION;
+        boolean sawClosed = false;
+        for (Shape shape : selectedShapes) {
+            List<Vec2d> hole = extractRegionPoints(shape);
+            if (hole.size() < 3) {
+                continue;
+            }
+            sawClosed = true;
+            HoleAddIssue issue = validateHoleForRegion(outerPoints, existingHoles, hole);
+            if (issue == HoleAddIssue.NONE) {
+                return HoleAddIssue.NONE;
+            }
+            fallback = issue;
+        }
+        return sawClosed ? fallback : HoleAddIssue.NO_VALID_SELECTION;
+    }
+
     public static Polygon toPolygon(List<Vec2d> points) {
         return PolygonRegionUtils.toPolygon(points);
     }

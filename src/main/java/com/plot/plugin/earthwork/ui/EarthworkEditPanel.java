@@ -700,7 +700,7 @@ public final class EarthworkEditPanel {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.earthwork.geometry_outer_summary",
             geometry.outerRing().size(),
-            geometry.area()));
+            String.format(java.util.Locale.ROOT, "%.1f", geometry.area())));
         if (geometry.hasHoles()) {
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_hole_count", geometry.holes().size()));
         }
@@ -721,6 +721,7 @@ public final class EarthworkEditPanel {
         if (clearDisabled) {
             ImGui.endDisabled();
         }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.geometry_hole_hint"));
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.geometry_holes");
 
         if (!geometry.hasHoles()) {
@@ -736,7 +737,7 @@ public final class EarthworkEditPanel {
                 "plugin.earthwork.geometry_hole_item",
                 i + 1,
                 hole.size(),
-                holeArea));
+                String.format(java.util.Locale.ROOT, "%.1f", holeArea)));
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.delete"))) {
                 ctx.projectHistory().push(ctx.project());
@@ -810,20 +811,21 @@ public final class EarthworkEditPanel {
             "plugin.earthwork.exclusion_geometry_summary",
             geometry.outerRing().size(),
             geometry.holes().size(),
-            geometry.area()));
+            String.format(java.util.Locale.ROOT, "%.1f", geometry.area())));
         ImGui.popID();
     }
 
     private void addHoleToRegion(GradingRegion region) {
-        List<Vec2d> hole = extractRegionOutlineFromSelection();
-        if (hole.size() < 3) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection"));
-            return;
-        }
         RegionGeometry geometry = region.getGeometry();
-        Vec2d centroid = PolygonRegionUtils.computeCentroid(hole);
-        if (!geometry.contains(centroid)) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_hole_outside_outer"));
+        List<Shape> selected = ctx.host().appState().getSelectedShapes();
+        List<Vec2d> hole = EarthworkGeometryUtils.findBestHoleFromSelection(
+            selected, geometry.outerRing(), geometry.holes());
+        if (hole.size() < 3) {
+            EarthworkGeometryUtils.HoleAddIssue issue = EarthworkGeometryUtils.diagnoseHoleSelection(
+                selected, geometry.outerRing(), geometry.holes());
+            ctx.setProjectStatus(
+                PlotI18n.tr(issue.statusKey()),
+                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
             return;
         }
         ctx.projectHistory().push(ctx.project());
@@ -831,23 +833,28 @@ public final class EarthworkEditPanel {
         holes.add(hole);
         region.setHoles(holes);
         ctx.invalidatePreview();
-        ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_hole_added"));
+        ctx.setProjectStatus(
+            PlotI18n.tr("plugin.earthwork.geometry_hole_added"),
+            com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS);
     }
 
     private void addHoleToExclusion(ExclusionZone exclusion) {
-        List<Vec2d> hole = extractRegionOutlineFromSelection();
-        if (hole.size() < 3) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection"));
-            return;
-        }
         RegionGeometry geometry = exclusion.getGeometry();
         if (geometry.isEmpty()) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.exclusion_needs_outer_ring"));
+            ctx.setProjectStatus(
+                PlotI18n.tr("plugin.earthwork.exclusion_needs_outer_ring"),
+                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
             return;
         }
-        Vec2d centroid = PolygonRegionUtils.computeCentroid(hole);
-        if (!geometry.contains(centroid)) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_hole_outside_outer"));
+        List<Shape> selected = ctx.host().appState().getSelectedShapes();
+        List<Vec2d> hole = EarthworkGeometryUtils.findBestHoleFromSelection(
+            selected, geometry.outerRing(), geometry.holes());
+        if (hole.size() < 3) {
+            EarthworkGeometryUtils.HoleAddIssue issue = EarthworkGeometryUtils.diagnoseHoleSelection(
+                selected, geometry.outerRing(), geometry.holes());
+            ctx.setProjectStatus(
+                PlotI18n.tr(issue.statusKey()),
+                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
             return;
         }
         ctx.projectHistory().push(ctx.project());
@@ -855,7 +862,9 @@ public final class EarthworkEditPanel {
         holes.add(hole);
         exclusion.setHoles(holes);
         ctx.invalidatePreview();
-        ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_hole_added"));
+        ctx.setProjectStatus(
+            PlotI18n.tr("plugin.earthwork.geometry_hole_added"),
+            com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS);
     }
 
     private void addExclusionFromSelection(EarthworkSite site) {
