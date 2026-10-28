@@ -49,6 +49,9 @@ public final class EarthworkUIManager {
         if (ctx.threePointPickSession().isActive()) {
             editPanel.tickThreePointPickSession();
         }
+        if (ctx.holePickSession().isActive()) {
+            editPanel.tickHolePickSession();
+        }
         tickCanvasSelection();
 
         toolbarPanel.render();

@@ -31,6 +31,7 @@ public final class EarthworkUiContext {
     private final EarthworkProjectHistory projectHistory;
     private final EarthworkRegionPickSession pickSession;
     private final EarthworkThreePointPickSession threePointPickSession;
+    private final EarthworkHolePickSession holePickSession;
     private final TerrainSnapshotCache terrainSnapshotCache;
     private final EarthworkPreviewManager previewManager;
     private final EarthworkBuildManager buildManager;
@@ -67,6 +68,7 @@ public final class EarthworkUiContext {
             EarthworkProjectHistory projectHistory,
             EarthworkRegionPickSession pickSession,
             EarthworkThreePointPickSession threePointPickSession,
+            EarthworkHolePickSession holePickSession,
             TerrainSnapshotCache terrainSnapshotCache,
             EarthworkPreviewManager previewManager,
             EarthworkBuildManager buildManager) {
@@ -76,6 +78,7 @@ public final class EarthworkUiContext {
         this.projectHistory = Objects.requireNonNull(projectHistory, "projectHistory");
         this.pickSession = Objects.requireNonNull(pickSession, "pickSession");
         this.threePointPickSession = Objects.requireNonNull(threePointPickSession, "threePointPickSession");
+        this.holePickSession = Objects.requireNonNull(holePickSession, "holePickSession");
         this.terrainSnapshotCache = Objects.requireNonNull(terrainSnapshotCache, "terrainSnapshotCache");
         this.previewManager = Objects.requireNonNull(previewManager, "previewManager");
         this.buildManager = Objects.requireNonNull(buildManager, "buildManager");
@@ -137,6 +140,10 @@ public final class EarthworkUiContext {
 
     public EarthworkThreePointPickSession threePointPickSession() {
         return threePointPickSession;
+    }
+
+    public EarthworkHolePickSession holePickSession() {
+        return holePickSession;
     }
 
     public TerrainSnapshotCache terrainSnapshotCache() {
@@ -290,6 +297,7 @@ public final class EarthworkUiContext {
     public void resetAfterProjectLoad(String firstRegionId) {
         pickSession.cancel();
         threePointPickSession.cancel();
+        holePickSession.cancel();
         selectedRegions.clear();
         terrainSnapshotCache.clear();
         clearPreview();

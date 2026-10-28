@@ -18,6 +18,7 @@ import com.plot.plugin.earthwork.EarthworkSlopeDirectionCanvasRenderer;
 import com.plot.plugin.earthwork.EarthworkPickEscapeShortcutListener;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import com.plot.plugin.earthwork.EarthworkHolePickSession;
 import com.plot.api.plugin.PluginState;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayController;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayEntry;
@@ -56,6 +57,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
     private final EarthworkProjectHistory projectHistory = new EarthworkProjectHistory();
     private final EarthworkRegionPickSession pickSession = new EarthworkRegionPickSession();
     private final EarthworkThreePointPickSession threePointPickSession = new EarthworkThreePointPickSession();
+    private final EarthworkHolePickSession holePickSession = new EarthworkHolePickSession();
     private final TerrainSnapshotCache terrainSnapshotCache = new TerrainSnapshotCache();
     private final Object projectLock = new Object();
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
@@ -126,6 +128,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
             projectHistory,
             pickSession,
             threePointPickSession,
+            holePickSession,
             terrainSnapshotCache,
             previewManager,
             buildManager);
@@ -138,7 +141,8 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
-        pickEscapeListener = new EarthworkPickEscapeShortcutListener(pickSession, threePointPickSession);
+        pickEscapeListener = new EarthworkPickEscapeShortcutListener(
+            pickSession, threePointPickSession, holePickSession);
         ctx().shortcuts().addListener(pickEscapeListener);
         CanvasOverlayRegistry.register(edgeTreatmentOverlay);
         loadProjectForCurrentProject();
@@ -156,6 +160,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
     public void onDisable() {
         pickSession.cancel();
         threePointPickSession.cancel();
+        holePickSession.cancel();
         persistProject();
         if (config != null) {
             config.save();

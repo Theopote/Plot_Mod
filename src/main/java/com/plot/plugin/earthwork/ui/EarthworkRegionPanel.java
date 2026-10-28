@@ -268,6 +268,7 @@ public final class EarthworkRegionPanel {
 
     private void startPickSession() {
         ctx.threePointPickSession().cancel();
+        ctx.holePickSession().cancel();
         ToolManager toolManager = ctx.host().tools();
         var selectTool = toolManager.getTool("select");
         if (!(selectTool instanceof BaseTool baseTool)) {

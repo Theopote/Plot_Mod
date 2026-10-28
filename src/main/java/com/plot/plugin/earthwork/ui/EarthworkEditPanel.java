@@ -705,8 +705,25 @@ public final class EarthworkEditPanel {
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_hole_count", geometry.holes().size()));
         }
         ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.geometry_add_hole_from_selection"), 0, 0)) {
-            addHoleToRegion(region);
+        boolean holePickingThisRegion = ctx.holePickSession().isActive()
+            && ctx.holePickSession().getTargetKind() == EarthworkHolePickSession.TargetKind.REGION
+            && region.getId().equals(ctx.holePickSession().getTargetId());
+        if (holePickingThisRegion) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.STATUS_INFO);
+        }
+        if (ImGui.button(PlotI18n.tr(
+            holePickingThisRegion
+                ? "plugin.earthwork.geometry_cancel_hole_pick"
+                : "plugin.earthwork.geometry_add_hole_from_selection"), 0, 0)) {
+            if (holePickingThisRegion) {
+                ctx.holePickSession().cancel();
+                ctx.setProjectStatus(PlotI18n.tr("status.plot.earthwork.pick_hole_cancelled"));
+            } else {
+                startHolePick(EarthworkHolePickSession.TargetKind.REGION, region.getId());
+            }
+        }
+        if (holePickingThisRegion) {
+            ImGui.popStyleColor();
         }
         ImGui.sameLine();
         boolean clearDisabled = !geometry.hasHoles();
@@ -802,8 +819,25 @@ public final class EarthworkEditPanel {
             }
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.geometry_add_hole_from_selection"), 0, 0)) {
-            addHoleToExclusion(exclusion);
+        boolean holePickingThisExclusion = ctx.holePickSession().isActive()
+            && ctx.holePickSession().getTargetKind() == EarthworkHolePickSession.TargetKind.EXCLUSION
+            && exclusion.getId().equals(ctx.holePickSession().getTargetId());
+        if (holePickingThisExclusion) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.STATUS_INFO);
+        }
+        if (ImGui.button(PlotI18n.tr(
+            holePickingThisExclusion
+                ? "plugin.earthwork.geometry_cancel_hole_pick"
+                : "plugin.earthwork.geometry_add_hole_from_selection") + "##excl_hole", 0, 0)) {
+            if (holePickingThisExclusion) {
+                ctx.holePickSession().cancel();
+                ctx.setProjectStatus(PlotI18n.tr("status.plot.earthwork.pick_hole_cancelled"));
+            } else {
+                startHolePick(EarthworkHolePickSession.TargetKind.EXCLUSION, exclusion.getId());
+            }
+        }
+        if (holePickingThisExclusion) {
+            ImGui.popStyleColor();
         }
 
         RegionGeometry geometry = exclusion.getGeometry();
@@ -815,56 +849,105 @@ public final class EarthworkEditPanel {
         ImGui.popID();
     }
 
-    private void addHoleToRegion(GradingRegion region) {
-        RegionGeometry geometry = region.getGeometry();
-        List<Shape> selected = ctx.host().appState().getSelectedShapes();
-        List<Vec2d> hole = EarthworkGeometryUtils.findBestHoleFromSelection(
-            selected, geometry.outerRing(), geometry.holes());
-        if (hole.size() < 3) {
-            EarthworkGeometryUtils.HoleAddIssue issue = EarthworkGeometryUtils.diagnoseHoleSelection(
-                selected, geometry.outerRing(), geometry.holes());
-            ctx.setProjectStatus(
-                PlotI18n.tr(issue.statusKey()),
-                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
+    private void startHolePick(EarthworkHolePickSession.TargetKind kind, String targetId) {
+        if (kind == null || targetId == null || targetId.isBlank()) {
             return;
         }
-        ctx.projectHistory().push(ctx.project());
-        List<List<Vec2d>> holes = new ArrayList<>(region.getHoles());
-        holes.add(hole);
-        region.setHoles(holes);
-        ctx.invalidatePreview();
-        ctx.setProjectStatus(
-            PlotI18n.tr("plugin.earthwork.geometry_hole_added"),
-            com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS);
+        ctx.pickSession().cancel();
+        ctx.threePointPickSession().cancel();
+        com.plot.core.tool.ToolManager toolManager = ctx.host().tools();
+        var selectTool = toolManager.getTool("select");
+        if (!(selectTool instanceof com.plot.core.tool.BaseTool baseTool)) {
+            ctx.setProjectStatus(
+                PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection"),
+                EarthworkStatusLevel.WARNING);
+            return;
+        }
+        toolManager.setActiveTool(selectTool);
+        ctx.host().appState().setCurrentTool(baseTool);
+        ctx.holePickSession().begin(kind, targetId);
+        ctx.setProjectStatus(PlotI18n.tr("status.plot.earthwork.pick_hole_active"));
     }
 
-    private void addHoleToExclusion(ExclusionZone exclusion) {
-        RegionGeometry geometry = exclusion.getGeometry();
-        if (geometry.isEmpty()) {
-            ctx.setProjectStatus(
-                PlotI18n.tr("plugin.earthwork.exclusion_needs_outer_ring"),
-                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
+    public void tickHolePickSession() {
+        EarthworkHolePickSession.Outcome outcome = ctx.holePickSession().tick(ctx.host().appState());
+        switch (outcome.getResult()) {
+            case SUCCESS -> applyHolePickOutcome(outcome);
+            case NEED_SELECTION -> ctx.setProjectStatus(
+                PlotI18n.tr("status.plot.earthwork.pick_hole_need_selection"),
+                EarthworkStatusLevel.WARNING);
+            case NO_VALID -> ctx.setProjectStatus(
+                PlotI18n.tr("status.plot.earthwork.pick_hole_no_valid"),
+                EarthworkStatusLevel.WARNING);
+            case CANCELLED -> ctx.setProjectStatus(
+                PlotI18n.tr("status.plot.earthwork.pick_hole_cancelled"));
+            default -> ctx.setProjectStatus(PlotI18n.tr(
+                ctx.holePickSession().hintKeyForCurrentSelection(ctx.host().appState().getSelectedShapes())));
+        }
+    }
+
+    private void applyHolePickOutcome(EarthworkHolePickSession.Outcome outcome) {
+        if (outcome.getTargetKind() == EarthworkHolePickSession.TargetKind.EXCLUSION) {
+            ExclusionZone exclusion = findExclusion(outcome.getTargetId());
+            if (exclusion == null || exclusion.getGeometry().isEmpty()) {
+                ctx.setProjectStatus(
+                    PlotI18n.tr("plugin.earthwork.exclusion_needs_outer_ring"),
+                    EarthworkStatusLevel.WARNING);
+                return;
+            }
+            addHoleFromShapes(exclusion.getGeometry(), outcome.getShapes(), hole -> {
+                List<List<Vec2d>> holes = new ArrayList<>(exclusion.getHoles());
+                holes.add(hole);
+                exclusion.setHoles(holes);
+            });
             return;
         }
-        List<Shape> selected = ctx.host().appState().getSelectedShapes();
+
+        GradingRegion region = ctx.project().getRegion(outcome.getTargetId());
+        if (region == null) {
+            ctx.setProjectStatus(
+                PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection"),
+                EarthworkStatusLevel.WARNING);
+            return;
+        }
+        addHoleFromShapes(region.getGeometry(), outcome.getShapes(), hole -> {
+            List<List<Vec2d>> holes = new ArrayList<>(region.getHoles());
+            holes.add(hole);
+            region.setHoles(holes);
+        });
+    }
+
+    private ExclusionZone findExclusion(String exclusionId) {
+        EarthworkSite site = ctx.project().getActiveSite();
+        if (site == null || exclusionId == null) {
+            return null;
+        }
+        for (ExclusionZone exclusion : site.getExclusionZones()) {
+            if (exclusionId.equals(exclusion.getId())) {
+                return exclusion;
+            }
+        }
+        return null;
+    }
+
+    private void addHoleFromShapes(
+            RegionGeometry geometry,
+            List<Shape> shapes,
+            java.util.function.Consumer<List<Vec2d>> applier) {
         List<Vec2d> hole = EarthworkGeometryUtils.findBestHoleFromSelection(
-            selected, geometry.outerRing(), geometry.holes());
+            shapes, geometry.outerRing(), geometry.holes());
         if (hole.size() < 3) {
             EarthworkGeometryUtils.HoleAddIssue issue = EarthworkGeometryUtils.diagnoseHoleSelection(
-                selected, geometry.outerRing(), geometry.holes());
-            ctx.setProjectStatus(
-                PlotI18n.tr(issue.statusKey()),
-                com.plot.plugin.earthwork.model.EarthworkStatusLevel.WARNING);
+                shapes, geometry.outerRing(), geometry.holes());
+            ctx.setProjectStatus(PlotI18n.tr(issue.statusKey()), EarthworkStatusLevel.WARNING);
             return;
         }
         ctx.projectHistory().push(ctx.project());
-        List<List<Vec2d>> holes = new ArrayList<>(exclusion.getHoles());
-        holes.add(hole);
-        exclusion.setHoles(holes);
+        applier.accept(hole);
         ctx.invalidatePreview();
         ctx.setProjectStatus(
             PlotI18n.tr("plugin.earthwork.geometry_hole_added"),
-            com.plot.plugin.earthwork.model.EarthworkStatusLevel.SUCCESS);
+            EarthworkStatusLevel.SUCCESS);
     }
 
     private void addExclusionFromSelection(EarthworkSite site) {
@@ -1469,6 +1552,7 @@ public final class EarthworkEditPanel {
             return;
         }
         ctx.pickSession().cancel();
+        ctx.holePickSession().cancel();
         ctx.threePointPickSession().begin(controlPointIndex);
         ctx.setProjectStatus(PlotI18n.tr("status.plot.earthwork.three_point_pick_active", controlPointIndex + 1));
     }
