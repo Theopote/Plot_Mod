@@ -1104,6 +1104,7 @@
   "plugin.earthwork.curve_slope_coupled_resolved_flat": "Coupled solver balanced elevation: Y=%1$d",
   "plugin.earthwork.profile.header": "Section (existing vs design)",
   "plugin.earthwork.profile.header_zone": "Section · %s (existing vs design)",
+  "plugin.earthwork.profile.header_zone_selected": "Section · %s (selected · existing vs design)",
   "plugin.earthwork.profile.legend": "Gray=existing  Green=design  Red=cut  Blue=fill",
   "plugin.earthwork.profile.view_hint": "Yellow cut line (selected thicker); triangles point to view side",
   "plugin.earthwork.profile.zone_sep_hint": "Yellow tick = in/out zone edge; outer polyline = surroundings",

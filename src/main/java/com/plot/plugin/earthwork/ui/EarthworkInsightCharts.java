@@ -76,7 +76,7 @@ public final class EarthworkInsightCharts {
         if (mode.showsBuilderVisuals()) {
             renderHeatmap(ctx, preview, preview.designTerrainGrid);
         }
-        renderSelectedZoneProfile(ctx, region);
+        renderAllZoneProfiles(ctx);
         if (mode.showsAnalysisVisuals()) {
             if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
                 renderSlopeCoupledCurveHint(preview);
@@ -108,7 +108,7 @@ public final class EarthworkInsightCharts {
         }
         renderChangeOverview(preview.volumeReport != null ? preview.volumeReport : EarthworkVolumeReport.empty());
         renderHeatmap(ctx, preview, preview.designTerrainGrid);
-        renderSelectedZoneProfile(ctx, region);
+        renderAllZoneProfiles(ctx);
         if (curve != null && !curve.isEmpty()) {
             renderRecommendations(ctx, region, preview, curve, validPreview);
         } else if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
@@ -305,33 +305,70 @@ public final class EarthworkInsightCharts {
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.curve.legend"));
     }
 
-    /** 面板只渲染当前选中分区的剖面与方向按钮。 */
-    static void renderSelectedZoneProfile(EarthworkUiContext ctx, GradingRegion region) {
+    /**
+     * 每个启用分区各画一张剖面（含各自挖填色带）；方向按钮只出现在当前选中分区上。
+     */
+    static void renderAllZoneProfiles(EarthworkUiContext ctx) {
         if (ctx == null || !ctx.previewManager().hasCachedPreview()) {
             return;
         }
-        String zoneId = region != null ? region.getId() : ctx.selectedRegionId();
-        if (zoneId == null || zoneId.isBlank()) {
+        var profiles = ctx.sectionProfilesByZone();
+        if (profiles == null || profiles.isEmpty()) {
             return;
         }
-        EarthworkSectionProfile profile = ctx.sectionProfileForZone(zoneId);
-        if (profile == null || !profile.hasDrawableCutLine()) {
-            return;
+        String selectedId = ctx.selectedRegionId();
+        java.util.List<String> order = new java.util.ArrayList<>(profiles.size());
+        if (selectedId != null && !selectedId.isBlank() && profiles.containsKey(selectedId)) {
+            order.add(selectedId);
         }
-        String zoneName = region != null && region.getName() != null && !region.getName().isBlank()
-            ? region.getName()
-            : zoneId;
-        renderProfile(ctx, profile, zoneName);
+        for (String zoneId : profiles.keySet()) {
+            if (!order.contains(zoneId)) {
+                order.add(zoneId);
+            }
+        }
+        for (String zoneId : order) {
+            EarthworkSectionProfile profile = profiles.get(zoneId);
+            if (profile == null || !profile.hasDrawableCutLine()) {
+                continue;
+            }
+            boolean selected = zoneId.equals(selectedId);
+            renderProfile(ctx, profile, resolveZoneName(ctx, zoneId), selected);
+            ImGui.spacing();
+        }
     }
 
-    static void renderProfile(EarthworkUiContext ctx, EarthworkSectionProfile profile, String zoneName) {
-        ImGui.text(PlotI18n.tr("plugin.earthwork.profile.header_zone", zoneName));
-        // 控件始终显示：即使截线未与分区相交，也要能继续旋转/平移
-        renderProfileControls(ctx);
+    private static String resolveZoneName(EarthworkUiContext ctx, String zoneId) {
+        GradingRegion region = ctx.project() != null ? ctx.project().getRegion(zoneId) : null;
+        if (region != null && region.getName() != null && !region.getName().isBlank()) {
+            return region.getName();
+        }
+        GradingZone zone = ctx.project() != null ? ctx.project().getZone(zoneId) : null;
+        if (zone != null && zone.getName() != null && !zone.getName().isBlank()) {
+            return zone.getName();
+        }
+        return zoneId;
+    }
+
+    static void renderProfile(
+            EarthworkUiContext ctx,
+            EarthworkSectionProfile profile,
+            String zoneName,
+            boolean selected) {
+        ImGui.text(PlotI18n.tr(
+            selected
+                ? "plugin.earthwork.profile.header_zone_selected"
+                : "plugin.earthwork.profile.header_zone",
+            zoneName));
+        if (selected) {
+            // 控件始终显示：即使截线未与分区相交，也要能继续旋转/平移
+            renderProfileControls(ctx);
+        }
         if (profile == null || profile.isEmpty()) {
-            ImGui.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.earthwork.profile.no_intersection_hint"));
+            if (selected) {
+                ImGui.textColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.earthwork.profile.no_intersection_hint"));
+            }
             return;
         }
         float width = ImGui.getContentRegionAvailX();
