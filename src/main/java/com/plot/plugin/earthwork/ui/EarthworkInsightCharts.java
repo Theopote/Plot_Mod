@@ -228,20 +228,26 @@ public final class EarthworkInsightCharts {
         } else if (!canApplyRecommendedElevation(ctx.project().getActiveSite(), region)) {
             EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.recommend.single_flat_only"));
         }
-        if (balance != null) {
+        int currentY = preview.resolvedElevation;
+        // 顶部已有挖/填/总量：仅在推荐高度与当前不同时补充该高度的方量，避免原文重复
+        if (balance != null && balance.y() != currentY) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.earthwork.recommend.balance_hint",
+                    balance.y(),
                     balance.cut(),
                     balance.fill(),
                     balance.imbalance()));
         }
-        if (minWork != null) {
+        if (minWork != null
+            && minWork.y() != currentY
+            && (balance == null || minWork.y() != balance.y())) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.earthwork.recommend.min_work_hint",
+                    minWork.y(),
                     minWork.work(),
                     minWork.cut(),
                     minWork.fill()));
@@ -250,18 +256,15 @@ public final class EarthworkInsightCharts {
     }
 
     static String reasonText(EarthworkGenerationResult preview, EarthworkElevationVolumeCurve curve) {
-        long cut = preview.volumeReport.geometricCutVolume();
-        long fill = preview.volumeReport.geometricFillVolume();
         int y = preview.resolvedElevation;
         if (!curve.canCompareAdjacentHeights()) {
             return PlotI18n.tr(
                 "plugin.earthwork.recommend.reason_sparse",
                 y,
-                cut,
-                fill,
-                Math.abs(cut - fill),
                 curve.sampleStep());
         }
+        long cut = preview.volumeReport.geometricCutVolume();
+        long fill = preview.volumeReport.geometricFillVolume();
         EarthworkElevationVolumeCurve.Sample lower = curve.sampleAtExact(y - 1);
         EarthworkElevationVolumeCurve.Sample here = curve.sampleAtExact(y);
         EarthworkElevationVolumeCurve.Sample upper = curve.sampleAtExact(y + 1);
@@ -271,9 +274,6 @@ public final class EarthworkInsightCharts {
         return PlotI18n.tr(
             "plugin.earthwork.recommend.reason",
             y,
-            cut,
-            fill,
-            Math.abs(cut - fill),
             y - 1,
             vsLower,
             y + 1,
