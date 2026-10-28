@@ -171,7 +171,7 @@ public final class EarthworkEditPanel {
             return;
         }
         int[] priority = {zone.getPriority()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.zone_priority"), priority, 0, 200)) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.zone_priority"), priority, 0, 200, "%d")) {
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -198,7 +198,7 @@ public final class EarthworkEditPanel {
             return;
         }
         int[] max = {Math.max(1, zone.getMaxAutoAdjustment())};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.max_auto_adjust"), max, 1, 16)) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.max_auto_adjust"), max, 1, 16, "±%d")) {
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -515,7 +515,7 @@ public final class EarthworkEditPanel {
             if (multiZone) {
                 ImGui.spacing();
                 int[] blendWidth = {policy.getBlendWidthBlocks()};
-                if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.blend_width_blocks"), blendWidth, 0, 16)) {
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.blend_width_blocks"), blendWidth, 0, 16, "%d")) {
                     if (ImGui.isItemActivated()) {
                         ctx.projectHistory().push(ctx.project());
                     }
@@ -616,7 +616,7 @@ public final class EarthworkEditPanel {
                 continue;
             }
             int[] topElevation = {edge.getTopElevation()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.retaining_top_elevation"), topElevation, -64, 320)) {
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.retaining_top_elevation"), topElevation, -64, 320, "Y=%d")) {
                 if (ImGui.isItemActivated()) {
                     ctx.projectHistory().push(ctx.project());
                 }
@@ -624,7 +624,7 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
             int[] bottomElevation = {edge.getBottomElevation()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.retaining_bottom_elevation"), bottomElevation, -64, 320)) {
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.retaining_bottom_elevation"), bottomElevation, -64, 320, "Y=%d")) {
                 if (ImGui.isItemActivated()) {
                     ctx.projectHistory().push(ctx.project());
                 }
@@ -937,7 +937,7 @@ public final class EarthworkEditPanel {
                 zone.getDesignSurface().getBakedElevationGrid().sampleCount()));
         }
         int[] corridorMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.corridor_margin_blocks"), corridorMargin, 0, 8)) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.corridor_margin_blocks"), corridorMargin, 0, 8, "%d")) {
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -1130,7 +1130,7 @@ public final class EarthworkEditPanel {
             Integer manual = zone.getDesignSurface().getElevation();
             int initial = manual != null ? manual : 64;
             int[] elevation = {initial};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pad_elevation"), elevation, -64, 320)) {
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pad_elevation"), elevation, -64, 320, "Y=%d")) {
                 if (ImGui.isItemActivated()) {
                     ctx.projectHistory().push(ctx.project());
                 }
@@ -1228,7 +1228,7 @@ public final class EarthworkEditPanel {
         if (useBuildingRef.get()) {
             DesignSurface surface = zone.getDesignSurface();
             int[] digDown = {surface.getDigDownBlocks()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.dig_down_blocks"), digDown, 0, 192)) {
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.dig_down_blocks"), digDown, 0, 192, "%d")) {
                 if (ImGui.isItemActivated()) {
                     ctx.projectHistory().push(ctx.project());
                 }
@@ -1239,7 +1239,7 @@ public final class EarthworkEditPanel {
         } else {
             Integer bottom = zone.getDesignSurface().getBottomElevation();
             int[] bottomElevation = {bottom != null ? bottom : 60};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_bottom_elevation"), bottomElevation, -64, 320)) {
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_bottom_elevation"), bottomElevation, -64, 320, "Y=%d")) {
                 if (ImGui.isItemActivated()) {
                     ctx.projectHistory().push(ctx.project());
                 }
@@ -1260,7 +1260,7 @@ public final class EarthworkEditPanel {
         }
 
         int[] slopePitch = {zone.getDesignSurface().getSlopePitchRatio()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_slope_pitch"), slopePitch, 1, 16)) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_slope_pitch"), slopePitch, 1, 16, "%d:1")) {
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -1285,8 +1285,9 @@ public final class EarthworkEditPanel {
         if (!region.isAutoBalance()) {
             int initial = region.getManualTargetElevation() != null ? region.getManualTargetElevation() : 64;
             int[] elevation = {initial};
-            boolean elevationChanged = ImGui.sliderInt("##target_elevation", elevation, -64, 320,
-                PlotI18n.tr("plugin.earthwork.target_elevation", elevation[0]));
+            boolean elevationChanged = ImGui.sliderInt(
+                PlotI18n.tr("plugin.earthwork.target_elevation"),
+                elevation, -64, 320, "Y=%d");
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
