@@ -525,7 +525,7 @@ public class EarthworkProject {
         /** @deprecated 兼容旧 JSON；加载时映射为 {@link #basementFloorDepth}。 */
         @Deprecated
         int basementDepthBlocks = ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH;
-        int workingMarginBlocks = 1;
+        int workingMarginBlocks = DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS;
         int verticalOffset;
         List<BakedSampleData> bakedSamples = new ArrayList<>();
         List<DesignSurfaceFacetData> facets = new ArrayList<>();

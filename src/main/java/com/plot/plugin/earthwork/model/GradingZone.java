@@ -141,6 +141,8 @@ public class GradingZone {
         surface.setElevationSource(DesignSurfaceElevationSource.MANUAL);
         surface.setFacets(new ArrayList<>());
         surface.setExcavationPit(new ExcavationPitParameters());
+        surface.setWorkingMarginBlocks(DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS);
+        surface.setSlopePitchRatio(GradingRegion.DEFAULT_SLOPE_PITCH_RATIO);
 
         region.setSlopeDirectionDegrees(0.0);
         region.setSlopePitchRatio(GradingRegion.DEFAULT_SLOPE_PITCH_RATIO);
@@ -177,7 +179,9 @@ public class GradingZone {
             surface.setDigDownBlocks(Math.max(
                 ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH,
                 surface.getDigDownBlocks()));
-            surface.setWorkingMarginBlocks(0);
+            // 与 DesignSurface / JSON 缺省及编辑页初始值一致；勿清成 0（会导致近乎竖直坑壁）
+            surface.setWorkingMarginBlocks(DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS);
+            surface.setSlopePitchRatio(GradingRegion.DEFAULT_SLOPE_PITCH_RATIO);
             if (!getBuildingFootprintRef().isBlank()
                 && surface.getElevationSource() == DesignSurfaceElevationSource.MANUAL
                 && surface.getBottomElevation() == null) {

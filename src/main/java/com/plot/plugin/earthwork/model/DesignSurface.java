@@ -9,6 +9,9 @@ import java.util.List;
  * 分区设计面定义（JSON v2 显式结构）。
  */
 public class DesignSurface {
+    /** 基坑向外扩展 / 水平工作面默认格数（与编辑页初始值、JSON 缺省一致）。 */
+    public static final int DEFAULT_WORKING_MARGIN_BLOCKS = 1;
+
     private DesignSurfaceKind kind = DesignSurfaceKind.LEVEL_PAD;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
@@ -30,7 +33,7 @@ public class DesignSurface {
     private String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
     private Integer bottomElevation;
     private ExcavationPitParameters excavationPit = new ExcavationPitParameters();
-    private int workingMarginBlocks = 1;
+    private int workingMarginBlocks = DEFAULT_WORKING_MARGIN_BLOCKS;
     private BakedElevationGrid bakedElevationGrid = new BakedElevationGrid();
     private int verticalOffset;
     private List<DesignSurfaceFacet> facets = new ArrayList<>();

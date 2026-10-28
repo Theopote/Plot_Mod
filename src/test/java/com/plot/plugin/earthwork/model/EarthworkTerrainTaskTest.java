@@ -63,6 +63,29 @@ class EarthworkTerrainTaskTest {
         assertEquals(GradingSurfaceMode.MATCH_EXISTING, zone.getRegion().getSurfaceMode());
     }
 
+    @Test void excavateTaskAppliesEditPanelDefaultMarginAndSlopePitch() {
+        var zone = new GradingZone("pad", OUTLINE);
+        EarthworkTerrainTask.SLOPE.applyTo(zone);
+        zone.getRegion().setSlopePitchRatio(12);
+        zone.getDesignSurface().setSlopePitchRatio(12);
+        zone.getDesignSurface().setWorkingMarginBlocks(0);
+
+        EarthworkTerrainTask.EXCAVATE.applyTo(zone);
+
+        assertEquals(GradingZoneType.EXCAVATION_PIT, zone.getType());
+        assertEquals(DesignSurfaceKind.EXCAVATION_PIT, zone.getDesignSurface().getKind());
+        assertEquals(
+            DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS,
+            zone.getDesignSurface().getWorkingMarginBlocks());
+        assertEquals(
+            GradingRegion.DEFAULT_SLOPE_PITCH_RATIO,
+            zone.getDesignSurface().getSlopePitchRatio());
+        assertEquals(
+            ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH,
+            zone.getDesignSurface().getDigDownBlocks());
+        assertNull(zone.getDesignSurface().getBottomElevation());
+    }
+
     @Test void changingTasksClearsBakedSurfaceAndKeepsSpecialTaskTypes() {
         var zone = new GradingZone("pad", OUTLINE);
         zone.getDesignSurface().getBakedElevationGrid().put(0, 0, 95);

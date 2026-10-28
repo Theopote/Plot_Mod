@@ -148,9 +148,14 @@ class EarthworkTerrainTaskGenerationTest {
         EarthworkSite site = siteWithBoundary();
         GradingZone zone = new GradingZone("pit", PAD);
         EarthworkTerrainTask.EXCAVATE.applyTo(zone);
+        // 不覆盖 workingMargin / slopePitch：应保留任务默认（与编辑页初始值一致）
+        assertEquals(
+            com.plot.plugin.earthwork.model.DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS,
+            zone.getDesignSurface().getWorkingMarginBlocks());
+        assertEquals(
+            GradingRegion.DEFAULT_SLOPE_PITCH_RATIO,
+            zone.getDesignSurface().getSlopePitchRatio());
         zone.getDesignSurface().setBottomElevation(58);
-        zone.getDesignSurface().setWorkingMarginBlocks(2);
-        zone.getDesignSurface().setSlopePitchRatio(1);
         zone.syncDesignSurfaceToRegion();
         site.addZone(zone);
 
@@ -162,7 +167,9 @@ class EarthworkTerrainTaskGenerationTest {
         int center = grid.get(5, 5).targetY();
         int corner = grid.get(0, 0).targetY();
         assertEquals(58, center);
-        assertTrue(corner > center, () -> "corner=" + corner + " center=" + center);
+        assertTrue(corner > center, () -> "corner=" + corner + " center=" + center
+            + " margin=" + zone.getDesignSurface().getWorkingMarginBlocks()
+            + " pitch=" + zone.getDesignSurface().getSlopePitchRatio());
     }
 
     @Test
