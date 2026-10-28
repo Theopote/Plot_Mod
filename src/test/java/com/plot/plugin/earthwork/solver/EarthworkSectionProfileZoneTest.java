@@ -109,6 +109,27 @@ class EarthworkSectionProfileZoneTest {
     }
 
     @Test
+    void cutLineExtendsMarginBothSidesEvenWithoutExteriorCells() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        // 仅区内格，无外扩空白 —— 以前截线会贴齐区边
+        for (int x = 10; x <= 12; x++) {
+            put(grid, x, 5, 70, 64, "pad");
+        }
+        EarthworkSectionProfile profile = EarthworkSectionProfile.fromGridForZone(
+            grid, "pad", EarthworkSectionCutSpec.AUTOMATIC);
+        assertTrue(profile.hasDrawableCutLine());
+        EarthworkSectionProfile.SectionCutLine line = profile.sectionCutLine();
+        // 自动沿 X：区内中心 [10.5, 12.5]，margin=16，两端都要伸出
+        double lineMinX = Math.min(line.startWorldX(), line.endWorldX());
+        double lineMaxX = Math.max(line.startWorldX(), line.endWorldX());
+        assertTrue(lineMinX <= 10.5 - 15.5, "cut line must overhang past zone min: " + lineMinX);
+        assertTrue(lineMaxX >= 12.5 + 15.5, "cut line must overhang past zone max: " + lineMaxX);
+        double overhangLo = 10.5 - lineMinX;
+        double overhangHi = lineMaxX - 12.5;
+        assertEquals(overhangLo, overhangHi, 1.1, "both ends should overhang by ~same margin");
+    }
+
+    @Test
     void bothZonesHaveDrawableCutLinesIndependently() {
         DesignTerrainGrid grid = new DesignTerrainGrid();
         for (int x = 0; x < 5; x++) {

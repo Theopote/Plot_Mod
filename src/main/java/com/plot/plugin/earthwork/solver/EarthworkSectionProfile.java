@@ -41,6 +41,12 @@ public final class EarthworkSectionProfile {
     private final int viewSign;
     /** 无采样站时仍可画引导剖切线（手动旋到区外）。 */
     private final boolean cutLineVisible;
+    /**
+     * 画布剖切线沿程端点（相对 origin）；NaN 表示按采样站推算。
+     * 分区剖面写入「区内跨度 ± margin」，即使一侧无外扩格也对称伸出。
+     */
+    private final double cutLineAlongMin;
+    private final double cutLineAlongMax;
     private final double firstAlong;
 
     public record Station(int worldX, int worldZ, int existingY, int designY, String zoneId) {
@@ -87,6 +93,25 @@ public final class EarthworkSectionProfile {
             double viewNz,
             int viewSign,
             boolean cutLineVisible) {
+        this(
+            stations, alongX, crossAxisCoordinate, originX, originZ, dirX, dirZ,
+            viewNx, viewNz, viewSign, cutLineVisible, Double.NaN, Double.NaN);
+    }
+
+    private EarthworkSectionProfile(
+            List<Station> stations,
+            boolean alongX,
+            int crossAxisCoordinate,
+            double originX,
+            double originZ,
+            double dirX,
+            double dirZ,
+            double viewNx,
+            double viewNz,
+            int viewSign,
+            boolean cutLineVisible,
+            double cutLineAlongMin,
+            double cutLineAlongMax) {
         this.stations = List.copyOf(stations);
         this.alongX = alongX;
         this.crossAxisCoordinate = crossAxisCoordinate;
@@ -98,6 +123,8 @@ public final class EarthworkSectionProfile {
         this.viewNz = viewNz;
         this.viewSign = viewSign >= 0 ? 1 : -1;
         this.cutLineVisible = cutLineVisible;
+        this.cutLineAlongMin = cutLineAlongMin;
+        this.cutLineAlongMax = cutLineAlongMax;
         this.firstAlong = stations.isEmpty()
             ? 0.0
             : projectAlongRelative(
@@ -450,7 +477,7 @@ public final class EarthworkSectionProfile {
             stations.add(best.station());
         }
         if (stations.size() < 2) {
-            return guideFromSpec(spec);
+            return guideFromSpec(spec, rangeMin, rangeMax);
         }
         boolean alongX = Math.abs(dirX) >= Math.abs(dirZ);
         int crossCoord = alongX
@@ -466,11 +493,21 @@ public final class EarthworkSectionProfile {
             dirZ,
             spec.viewNx(),
             spec.viewNz(),
-            spec.viewSign());
+            spec.viewSign(),
+            true,
+            rangeMin,
+            rangeMax);
     }
 
     /** 无交点时仍保留走向与最短可视剖切线，方便继续旋转/平移。 */
     static EarthworkSectionProfile guideFromSpec(EarthworkSectionCutSpec spec) {
+        return guideFromSpec(spec, Double.NaN, Double.NaN);
+    }
+
+    static EarthworkSectionProfile guideFromSpec(
+            EarthworkSectionCutSpec spec,
+            double cutLineAlongMin,
+            double cutLineAlongMax) {
         if (spec == null) {
             return EMPTY;
         }
@@ -489,7 +526,9 @@ public final class EarthworkSectionProfile {
             spec.viewNx(),
             spec.viewNz(),
             spec.viewSign(),
-            true);
+            true,
+            cutLineAlongMin,
+            cutLineAlongMax);
     }
 
     /** 无足够采样站，图表不画折线。 */
@@ -583,28 +622,48 @@ public final class EarthworkSectionProfile {
         double maxAlong;
         int primaryMin = 0;
         int primaryMax = 0;
-        if (stations.isEmpty()) {
+        if (!Double.isNaN(cutLineAlongMin) && !Double.isNaN(cutLineAlongMax)
+            && cutLineAlongMax >= cutLineAlongMin) {
+            // 分区剖面：按区内跨度 ± margin 对称画线，不因一侧缺格而贴边
+            minAlong = cutLineAlongMin;
+            maxAlong = cutLineAlongMax;
+        } else if (stations.isEmpty()) {
             minAlong = -MIN_CUT_LINE_HALF_LENGTH;
             maxAlong = MIN_CUT_LINE_HALF_LENGTH;
         } else {
             minAlong = Double.POSITIVE_INFINITY;
             maxAlong = Double.NEGATIVE_INFINITY;
-            primaryMin = Integer.MAX_VALUE;
-            primaryMax = Integer.MIN_VALUE;
             for (Station station : stations) {
                 double along = projectAlongRelative(
                     station.worldX() + 0.5, station.worldZ() + 0.5, originX, originZ, dirX, dirZ);
                 minAlong = Math.min(minAlong, along);
                 maxAlong = Math.max(maxAlong, along);
+            }
+        }
+        double span = maxAlong - minAlong;
+        if (span < MIN_CUT_LINE_HALF_LENGTH * 2.0) {
+            double mid = (minAlong + maxAlong) * 0.5;
+            minAlong = mid - MIN_CUT_LINE_HALF_LENGTH;
+            maxAlong = mid + MIN_CUT_LINE_HALF_LENGTH;
+        }
+        if (!stations.isEmpty()) {
+            primaryMin = Integer.MAX_VALUE;
+            primaryMax = Integer.MIN_VALUE;
+            for (Station station : stations) {
                 int primary = alongX ? station.worldX() : station.worldZ();
                 primaryMin = Math.min(primaryMin, primary);
                 primaryMax = Math.max(primaryMax, primary);
             }
-            double span = maxAlong - minAlong;
-            if (span < MIN_CUT_LINE_HALF_LENGTH * 2.0) {
-                double mid = (minAlong + maxAlong) * 0.5;
-                minAlong = mid - MIN_CUT_LINE_HALF_LENGTH;
-                maxAlong = mid + MIN_CUT_LINE_HALF_LENGTH;
+        } else {
+            primaryMin = (int) Math.floor(Math.min(
+                originX + minAlong * dirX, originX + maxAlong * dirX));
+            primaryMax = (int) Math.floor(Math.max(
+                originX + minAlong * dirX, originX + maxAlong * dirX));
+            if (!alongX) {
+                primaryMin = (int) Math.floor(Math.min(
+                    originZ + minAlong * dirZ, originZ + maxAlong * dirZ));
+                primaryMax = (int) Math.floor(Math.max(
+                    originZ + minAlong * dirZ, originZ + maxAlong * dirZ));
             }
         }
         double startX = originX + minAlong * dirX;
