@@ -216,15 +216,19 @@ public final class DesignSurfaceResolver {
             VerticalAdjustmentPolicy policy) {
         ResolutionResult<Integer> elevation = BuildingFootprintResolver.resolveConstantElevation(
             zone, surface, terrain, buildingLookup, siteDefaultElevation);
-        int y = elevation.valueOrFallback(siteDefaultElevation);
-        ResolvedDesignSource source =
-            surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION
-                ? ResolvedDesignSource.BUILDING_BASE_ELEVATION
-                : ResolvedDesignSource.MANUAL_CONSTANT;
+        boolean buildingLinked =
+            surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION;
+        // 跟随建筑时禁止用场地默认冒充地坪；手动恒定则允许 FALLBACK 推荐值
+        int y = buildingLinked
+            ? elevation.requireResolved("building-linked pad elevation")
+            : elevation.valueOrFallback(siteDefaultElevation);
+        ResolvedDesignSource source = buildingLinked
+            ? ResolvedDesignSource.BUILDING_BASE_ELEVATION
+            : ResolvedDesignSource.MANUAL_CONSTANT;
         return new ResolvedDesignSurface(
             zone.getId(),
             source,
-            elevation.status(),
+            buildingLinked ? ResolutionResult.Status.RESOLVED : elevation.status(),
             policy,
             cell -> y,
             elevation.detail());

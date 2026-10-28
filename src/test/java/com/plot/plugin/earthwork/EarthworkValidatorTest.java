@@ -126,6 +126,44 @@ class EarthworkValidatorTest {
     }
 
     @Test
+    void buildingPadLinkedMissingReferenceIsError() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        GradingZone pad = new GradingZone("pad", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
+        pad.setType(GradingZoneType.BUILDING_PAD);
+        pad.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+        site.addZone(pad);
+        site.recomputeSiteBoundaryFromZones();
+
+        EarthworkValidationReport report = EarthworkValidator.analyzePrePreview(project, pad.getRegion());
+
+        assertTrue(report.blocksPreview());
+        assertTrue(report.errors().stream()
+            .anyMatch(item ->
+                "plugin.earthwork.validation.building_pad_linked_no_reference".equals(item.messageKey())));
+    }
+
+    @Test
+    void buildingPadUnresolvedReferenceIsError() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        GradingZone pad = new GradingZone("pad", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
+        pad.setType(GradingZoneType.BUILDING_PAD);
+        pad.setBuildingFootprintRef("gone");
+        pad.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+        site.addZone(pad);
+        site.recomputeSiteBoundaryFromZones();
+
+        EarthworkValidationReport report = EarthworkValidator.analyzePrePreview(
+            project, pad.getRegion(), BuildingFootprintLookup.NONE);
+
+        assertTrue(report.blocksPreview());
+        assertTrue(report.errors().stream()
+            .anyMatch(item ->
+                "plugin.earthwork.validation.building_pad_unresolved_reference".equals(item.messageKey())));
+    }
+
+    @Test
     void excavationPitMissingBuildingReferenceIsError() {
         EarthworkProject project = new EarthworkProject();
         EarthworkSite site = project.getActiveSite();

@@ -266,12 +266,17 @@ public final class EarthworkValidator {
                 type.name()));
         }
 
-        if (type == GradingZoneType.BUILDING_PAD
-            && isBlank(zone.getBuildingFootprintRef())
-            && zone.getDesignSurface().getElevation() == null) {
-            items.add(EarthworkValidationReport.Item.warning(
-                "plugin.earthwork.validation.building_pad_no_reference",
-                zone.getName()));
+        if (type == GradingZoneType.BUILDING_PAD) {
+            if (zone.getDesignSurface().getElevationSource()
+                == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
+                // 显式跟随建筑：引用失败必须阻断，禁止 silently 用场地平均冒充地坪
+                validateBuildingLinkedPadReference(zone, buildingLookup, items);
+            } else if (isBlank(zone.getBuildingFootprintRef())
+                && zone.getDesignSurface().getElevation() == null) {
+                items.add(EarthworkValidationReport.Item.warning(
+                    "plugin.earthwork.validation.building_pad_no_reference",
+                    zone.getName()));
+            }
         }
 
         if (type == GradingZoneType.EXCAVATION_PIT
@@ -286,9 +291,6 @@ public final class EarthworkValidator {
         validateHoles(region, items);
     }
 
-    /**
-     * 自动坑底依赖建筑基准：缺引用或无法解析一律 ERROR（禁止回退到场地默认标高后仍生成）。
-     */
     private static void validateRoadCorridorReference(
             GradingZone zone,
             RoadSurfaceLookup roadLookup,
@@ -310,6 +312,29 @@ public final class EarthworkValidator {
         }
     }
 
+    /**
+     * 建筑联动地坪：缺引用或无法解析一律 ERROR（与 {@link DesignSurfaceResolver} 合成 fail-closed 对齐）。
+     */
+    private static void validateBuildingLinkedPadReference(
+            GradingZone zone,
+            BuildingFootprintLookup buildingLookup,
+            List<EarthworkValidationReport.Item> items) {
+        String ref = BuildingFootprintResolver.resolveFootprintRef(zone, zone.getDesignSurface());
+        if (isBlank(ref)) {
+            items.add(EarthworkValidationReport.Item.error(
+                "plugin.earthwork.validation.building_pad_linked_no_reference",
+                zone.getName()));
+            return;
+        }
+        if (buildingLookup != null && buildingLookup.getFootprint(ref) == null) {
+            items.add(EarthworkValidationReport.Item.error(
+                "plugin.earthwork.validation.building_pad_unresolved_reference",
+                zone.getName(),
+                ref));
+        }
+    }
+
+    /** 自动坑底依赖建筑基准：缺引用或无法解析一律 ERROR。 */
     private static void validateExcavationPitBuildingReference(
             GradingZone zone,
             BuildingFootprintLookup buildingLookup,

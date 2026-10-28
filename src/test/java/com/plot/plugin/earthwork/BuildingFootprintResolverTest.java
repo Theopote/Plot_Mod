@@ -119,9 +119,10 @@ class BuildingFootprintResolverTest {
     }
 
     @Test
-    void buildingPadAllowsRecommendedFallbackWhenReferenceMissing() {
+    void buildingLinkedPadMarksMissingReferenceWithoutQuietResolved() {
         GradingZone zone = new GradingZone("pad", List.of(
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        zone.setType(GradingZoneType.BUILDING_PAD);
         DesignSurface surface = zone.getDesignSurface();
         surface.setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
 
@@ -129,7 +130,11 @@ class BuildingFootprintResolverTest {
             zone, surface, TerrainSnapshot.empty(), BuildingFootprintLookup.NONE, 64);
 
         assertEquals(ResolutionResult.Status.MISSING_REFERENCE, elevation.status());
-        assertEquals(64, elevation.valueOrFallback(0));
+        assertEquals(64, elevation.value()); // diagnostic only
+        assertTrue(elevation.isReferenceFailure());
+        assertThrows(
+            BuildingFootprintResolver.UnresolvedBuildingReferenceException.class,
+            () -> elevation.requireResolved("building-linked pad"));
     }
 
     @Test

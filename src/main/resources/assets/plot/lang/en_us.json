@@ -1418,6 +1418,8 @@
   "plugin.earthwork.validation.multi_plane_limited": "Region \"%s\" multi-plane surfaces require facets[] in project JSON",
   "plugin.earthwork.validation.zone_type_unsupported": "Zone \"%s\" type %s is not supported in composition",
   "plugin.earthwork.validation.building_pad_no_reference": "Zone \"%s\" building pad has no building footprint reference",
+  "plugin.earthwork.validation.building_pad_linked_no_reference": "Zone \"%s\" building pad follows a building but has no footprint reference; preview blocked (no site-default fallback)",
+  "plugin.earthwork.validation.building_pad_unresolved_reference": "Zone \"%s\" building pad footprint \"%s\" cannot be resolved; preview blocked",
   "plugin.earthwork.validation.excavation_pit_no_reference": "Zone \"%s\" excavation pit uses auto pit bottom but has no building footprint reference; generation blocked (no site-default fallback)",
   "plugin.earthwork.validation.excavation_pit_unresolved_reference": "Zone \"%s\" excavation pit building footprint \"%s\" cannot be resolved; generation blocked",
   "plugin.earthwork.validation.site_balance_may_adjust_building_pad": "Zone \"%s\" building control elevation is not locked; site balance may adjust it",

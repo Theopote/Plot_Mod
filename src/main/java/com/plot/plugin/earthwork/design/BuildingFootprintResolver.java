@@ -9,6 +9,8 @@ import com.plot.plugin.earthwork.model.DesignSurface;
 import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.GradingZoneType;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +20,9 @@ import java.util.List;
  * <p>
  * 一律返回 {@link ResolutionResult}，由下游决定：
  * <ul>
- *   <li>建筑地坪：{@link ResolutionResult.Status#FALLBACK} / 引用失败仍可用推荐值</li>
- *   <li>建筑联动基坑：仅 {@link ResolutionResult.Status#RESOLVED} 可继续（fail closed）</li>
+ *   <li>手动恒定标高：{@link ResolutionResult.Status#FALLBACK} 可用场地推荐值</li>
+ *   <li>显式 {@code BUILDING_BASE_ELEVATION}（地坪或基坑）：仅 {@link ResolutionResult.Status#RESOLVED}
+ *       可写入设计面（fail closed；诊断 value 不得当设计值）</li>
  * </ul>
  */
 public final class BuildingFootprintResolver {
@@ -35,7 +38,7 @@ public final class BuildingFootprintResolver {
 
     /**
      * 建筑地坪 / 恒定标高解析。引用失败时返回 {@code MISSING_REFERENCE}/{@code INVALID_REFERENCE}
-     * 并附带场地默认值，供推荐回退；不静默伪装成 RESOLVED。
+     * 并附带诊断用场地默认值（不得伪装成 RESOLVED）。合成层对建筑联动路径须 {@code requireResolved}。
      */
     public static ResolutionResult<Integer> resolveConstantElevation(
             GradingZone zone,
@@ -146,18 +149,27 @@ public final class BuildingFootprintResolver {
             return ResolutionResult.resolved(surface.getElevation(), "explicit elevation overrides building base");
         }
         String ref = resolveFootprintRef(zone, surface);
+        String zoneName = zone != null ? zone.getName() : "";
+        boolean pit = zone != null && zone.getType() == GradingZoneType.EXCAVATION_PIT;
         if (ref == null || ref.isBlank()) {
-            String zoneName = zone != null ? zone.getName() : "?";
             return ResolutionResult.missingReference(
                 siteDefaultElevation,
-                "Building-linked elevation requires a building footprint reference (zone=" + zoneName + ")");
+                PlotI18n.tr(
+                    pit
+                        ? "plugin.earthwork.validation.excavation_pit_no_reference"
+                        : "plugin.earthwork.validation.building_pad_linked_no_reference",
+                    zoneName));
         }
         BuildingFootprint footprint = lookup != null ? lookup.getFootprint(ref) : null;
         if (footprint == null) {
-            String zoneName = zone != null ? zone.getName() : "?";
             return ResolutionResult.invalidReference(
                 siteDefaultElevation,
-                "Building footprint \"" + ref + "\" is unresolved (zone=" + zoneName + ")");
+                PlotI18n.tr(
+                    pit
+                        ? "plugin.earthwork.validation.excavation_pit_unresolved_reference"
+                        : "plugin.earthwork.validation.building_pad_unresolved_reference",
+                    zoneName,
+                    ref));
         }
         List<Integer> samples = collectFootprintGroundSamples(terrain, footprint.getOuterPoints());
         int elevation = BuildingFoundationUtils.computeBaseElevation(
