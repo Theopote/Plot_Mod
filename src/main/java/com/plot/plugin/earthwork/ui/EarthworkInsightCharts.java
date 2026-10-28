@@ -1,6 +1,8 @@
 package com.plot.plugin.earthwork.ui;
 
+import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
@@ -15,6 +17,9 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * P2 玩家可视化：工作量、两个推荐高度、剖面、标高—方量曲线、挖填热力示意。
  */
@@ -25,6 +30,7 @@ public final class EarthworkInsightCharts {
     private static final float HEATMAP_MAX_SIDE = 220f;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
+    private static final int COLOR_ZONE_OUTLINE = ImColor.rgba(220, 220, 220, 160);
     private static final int COLOR_CUT = ImColor.rgba(220, 80, 80, 255);
     private static final int COLOR_FILL = ImColor.rgba(80, 150, 240, 255);
     private static final int COLOR_WORK = ImColor.rgba(200, 200, 120, 220);
@@ -376,25 +382,27 @@ public final class EarthworkInsightCharts {
         if (grid == null || grid.cellCount() == 0) {
             return;
         }
-        EarthworkCutFillHeatmap.WorldExtents extents = EarthworkCutFillHeatmap.worldExtents(grid);
+        List<List<Vec2d>> zoneOutlines = heatmapZoneOutlines(ctx);
+        EarthworkCutFillHeatmap.CanvasExtents extents =
+            EarthworkCutFillHeatmap.canvasExtents(grid, zoneOutlines);
         if (extents == null) {
             return;
         }
         ImGui.text(PlotI18n.tr("plugin.earthwork.heatmap.header"));
         float availW = Math.max(40f, ImGui.getContentRegionAvailX());
+        // 按分区画布包围盒比例排版，使示意与俯视布局一致
         float[] size = heatmapDisplaySize(availW, extents.aspectWidthOverHeight());
         float width = size[0];
         float height = size[1];
         float innerW = Math.max(1f, width - 8f);
         float innerH = Math.max(1f, height - 8f);
-        // 栅格列/行按世界跨度配比，使示意格在平面上接近正方形
-        int gridCols = Math.clamp((int) Math.round(innerW / 4f), 8, 64);
+        int gridCols = Math.clamp(Math.round(innerW / 4f), 8, 64);
         int gridRows = Math.clamp(
-            (int) Math.round(gridCols * (extents.spanZ() / (double) extents.spanX())),
+            (int) Math.round(gridCols * (extents.spanY() / extents.spanX())),
             6,
             64);
         EarthworkCutFillHeatmap.Bucket[][] buckets =
-            ctx.cutFillHeatmapCache().resolve(preview, grid, gridCols, gridRows);
+            ctx.cutFillHeatmapCache().resolve(preview, grid, gridCols, gridRows, extents);
         if (buckets == null) {
             return;
         }
@@ -420,9 +428,73 @@ public final class EarthworkInsightCharts {
                 drawList.addRectFilled(px, py, px + cellW - 0.5f, py + cellH - 0.5f, color);
             }
         }
+        drawHeatmapZoneOutlines(drawList, origin.x + 4f, origin.y + 4f, innerW, innerH, extents, zoneOutlines);
         drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + height, COLOR_BORDER);
         ImGui.dummy(width, height);
         ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.earthwork.heatmap.legend"));
+    }
+
+    private static List<List<Vec2d>> heatmapZoneOutlines(EarthworkUiContext ctx) {
+        List<List<Vec2d>> outlines = new ArrayList<>();
+        if (ctx == null || ctx.project() == null) {
+            return outlines;
+        }
+        EarthworkSite site = ctx.project().getActiveSite();
+        if (site == null) {
+            return outlines;
+        }
+        for (GradingZone zone : site.getGradingZones().values()) {
+            if (zone == null || !zone.isEnabled()) {
+                continue;
+            }
+            List<Vec2d> outer = zone.getOuterPoints();
+            if (outer != null && outer.size() >= 3) {
+                outlines.add(outer);
+            }
+        }
+        return outlines;
+    }
+
+    private static void drawHeatmapZoneOutlines(
+            ImDrawList drawList,
+            float originX,
+            float originY,
+            float innerW,
+            float innerH,
+            EarthworkCutFillHeatmap.CanvasExtents extents,
+            List<List<Vec2d>> zoneOutlines) {
+        if (drawList == null || extents == null || zoneOutlines == null || zoneOutlines.isEmpty()) {
+            return;
+        }
+        double spanX = extents.spanX();
+        double spanY = extents.spanY();
+        for (List<Vec2d> outline : zoneOutlines) {
+            if (outline == null || outline.size() < 3) {
+                continue;
+            }
+            float prevX = Float.NaN;
+            float prevY = Float.NaN;
+            float firstX = Float.NaN;
+            float firstY = Float.NaN;
+            for (Vec2d point : outline) {
+                if (point == null) {
+                    continue;
+                }
+                float px = originX + (float) ((point.x - extents.minX()) / spanX * innerW);
+                float py = originY + (float) ((point.y - extents.minY()) / spanY * innerH);
+                if (!Float.isNaN(prevX)) {
+                    drawList.addLine(prevX, prevY, px, py, COLOR_ZONE_OUTLINE, 1.25f);
+                } else {
+                    firstX = px;
+                    firstY = py;
+                }
+                prevX = px;
+                prevY = py;
+            }
+            if (!Float.isNaN(prevX) && !Float.isNaN(firstX)) {
+                drawList.addLine(prevX, prevY, firstX, firstY, COLOR_ZONE_OUTLINE, 1.25f);
+            }
+        }
     }
 
     /**

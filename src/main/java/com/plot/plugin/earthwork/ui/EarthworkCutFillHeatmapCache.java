@@ -14,7 +14,8 @@ final class EarthworkCutFillHeatmapCache {
             String sourceRegionId,
             long gridFingerprint,
             int cols,
-            int rows) {
+            int rows,
+            long extentsFingerprint) {
     }
 
     private Key key;
@@ -25,15 +26,24 @@ final class EarthworkCutFillHeatmapCache {
             DesignTerrainGrid grid,
             int cols,
             int rows) {
-        if (grid == null || grid.cellCount() == 0) {
+        return resolve(preview, grid, cols, rows, EarthworkCutFillHeatmap.canvasExtents(grid));
+    }
+
+    EarthworkCutFillHeatmap.Bucket[][] resolve(
+            EarthworkGenerationResult preview,
+            DesignTerrainGrid grid,
+            int cols,
+            int rows,
+            EarthworkCutFillHeatmap.CanvasExtents extents) {
+        if (grid == null || grid.cellCount() == 0 || extents == null) {
             clear();
             return null;
         }
-        Key candidate = keyFor(preview, grid, cols, rows);
+        Key candidate = keyFor(preview, grid, cols, rows, extents);
         if (candidate.equals(key) && buckets != null) {
             return buckets;
         }
-        buckets = EarthworkCutFillHeatmap.aggregate(grid, cols, rows);
+        buckets = EarthworkCutFillHeatmap.aggregate(grid, cols, rows, extents);
         key = candidate;
         return buckets;
     }
@@ -47,7 +57,8 @@ final class EarthworkCutFillHeatmapCache {
             EarthworkGenerationResult preview,
             DesignTerrainGrid grid,
             int cols,
-            int rows) {
+            int rows,
+            EarthworkCutFillHeatmap.CanvasExtents extents) {
         long designRevision = preview != null ? preview.designRevision : 0L;
         long terrainRevision = preview != null ? preview.terrainRevision : 0L;
         String regionId = preview != null && preview.sourceRegionId != null ? preview.sourceRegionId : "";
@@ -57,6 +68,18 @@ final class EarthworkCutFillHeatmapCache {
             regionId,
             DesignTerrainGrid.earthworkContentFingerprint(grid),
             cols,
-            rows);
+            rows,
+            extentsFingerprint(extents));
+    }
+
+    private static long extentsFingerprint(EarthworkCutFillHeatmap.CanvasExtents extents) {
+        if (extents == null) {
+            return 0L;
+        }
+        long hash = Double.hashCode(extents.minX());
+        hash = 31L * hash + Double.hashCode(extents.maxX());
+        hash = 31L * hash + Double.hashCode(extents.minY());
+        hash = 31L * hash + Double.hashCode(extents.maxY());
+        return hash;
     }
 }

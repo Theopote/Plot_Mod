@@ -60,7 +60,11 @@ public final class EarthworkCutFillHeatmapRenderer {
             if ((index++ % stride) != 0) {
                 continue;
             }
-            camera.worldToScreen(terrainCell.worldX() + 0.5, terrainCell.worldZ() + 0.5, SCREEN);
+            Vec2d center = terrainCell.center();
+            if (center == null) {
+                continue;
+            }
+            camera.worldToScreen(center.x, center.y, SCREEN);
             float x = SCREEN[0];
             float y = SCREEN[1];
             if (x + cell < 0 || y + cell < 0 || x - cell > displayW || y - cell > displayH) {
