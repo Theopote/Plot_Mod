@@ -15,7 +15,7 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * 三点定面控制点拾取：在画布上单击，投影到 Minecraft 并采样实面标高。
+ * 三点定面控制点拾取：在画布上右键点击，投影到 Minecraft 并采样实面标高。
  */
 public final class EarthworkThreePointPickSession {
 
@@ -107,7 +107,7 @@ public final class EarthworkThreePointPickSession {
             return Outcome.none();
         }
 
-        if (!ImGui.isMouseClicked(0)) {
+        if (!ImGui.isMouseClicked(1)) {
             return Outcome.none();
         }
 

@@ -1364,9 +1364,11 @@ public final class EarthworkEditPanel {
             ImGui.text(PlotI18n.tr("plugin.earthwork.three_point_label", i + 1));
 
             float[] canvasX = {(float) region.getThreePointCanvasX(i)};
-            boolean xChanged = ImGui.sliderFloat("##three_point_x_" + i, canvasX,
+            boolean xChanged = ImGui.sliderFloat(
+                PlotI18n.tr("plugin.earthwork.three_point_canvas_x") + "##tp_x_" + i,
+                canvasX,
                 (float) bounds.minX(), (float) bounds.maxX(),
-                PlotI18n.tr("plugin.earthwork.three_point_canvas_x", String.format("%.1f", canvasX[0])));
+                "%.1f");
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -1376,9 +1378,11 @@ public final class EarthworkEditPanel {
             }
 
             float[] canvasZ = {(float) region.getThreePointCanvasY(i)};
-            boolean zChanged = ImGui.sliderFloat("##three_point_z_" + i, canvasZ,
+            boolean zChanged = ImGui.sliderFloat(
+                PlotI18n.tr("plugin.earthwork.three_point_canvas_z") + "##tp_z_" + i,
+                canvasZ,
                 (float) bounds.minZ(), (float) bounds.maxZ(),
-                PlotI18n.tr("plugin.earthwork.three_point_canvas_z", String.format("%.1f", canvasZ[0])));
+                "%.1f");
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -1388,8 +1392,9 @@ public final class EarthworkEditPanel {
             }
 
             int[] elevation = {region.getThreePointElevation(i)};
-            boolean yChanged = ImGui.sliderInt("##three_point_y_" + i, elevation, -64, 320,
-                PlotI18n.tr("plugin.earthwork.three_point_elevation", elevation[0]));
+            boolean yChanged = ImGui.sliderInt(
+                PlotI18n.tr("plugin.earthwork.three_point_elevation") + "##tp_y_" + i,
+                elevation, -64, 320, "Y=%d");
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
