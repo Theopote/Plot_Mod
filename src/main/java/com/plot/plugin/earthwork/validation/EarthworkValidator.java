@@ -2,12 +2,7 @@ package com.plot.plugin.earthwork.validation;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
-import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
-import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
-import com.plot.plugin.earthwork.design.ResolutionResult;
-import com.plot.plugin.earthwork.design.RoadCorridorSurfaceResolver;
-import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.design.*;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;

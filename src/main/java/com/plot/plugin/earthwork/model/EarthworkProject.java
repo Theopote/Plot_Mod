@@ -456,13 +456,7 @@ public class EarthworkProject {
     static class CompositionPolicyData {
         String overlapResolution = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS;
         String balanceScope = CompositionPolicy.BALANCE_SCOPE_SITE;
-        /** 规范字段；缺省时回退 {@link #balanceMethod}。 */
-        String optimizationMode;
-        /**
-         * @deprecated 兼容旧 JSON；仅当 {@link #optimizationMode} 缺省时使用。
-         */
-        @Deprecated
-        String balanceMethod = CompositionPolicy.OPTIMIZATION_MODE_NONE;
+        String optimizationMode = CompositionPolicy.OPTIMIZATION_MODE_NONE;
         boolean balanceResidualUniformPolish = true;
         String outsideSiteBoundary = CompositionPolicy.OUTSIDE_IGNORE;
         String exclusionPrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;
@@ -474,7 +468,6 @@ public class EarthworkProject {
             data.overlapResolution = policy.getOverlapResolution();
             data.balanceScope = policy.getBalanceScope();
             data.optimizationMode = policy.getOptimizationMode();
-            data.balanceMethod = policy.getOptimizationMode();
             data.balanceResidualUniformPolish = policy.isBalanceResidualUniformPolish();
             data.outsideSiteBoundary = policy.getOutsideSiteBoundary();
             data.exclusionPrecedence = policy.getExclusionPrecedence();
@@ -487,10 +480,7 @@ public class EarthworkProject {
             CompositionPolicy policy = new CompositionPolicy();
             policy.setOverlapResolution(overlapResolution);
             policy.setBalanceScope(balanceScope);
-            String mode = optimizationMode != null && !optimizationMode.isBlank()
-                ? optimizationMode
-                : balanceMethod;
-            policy.setOptimizationMode(mode);
+            policy.setOptimizationMode(optimizationMode);
             policy.setBalanceResidualUniformPolish(balanceResidualUniformPolish);
             policy.setOutsideSiteBoundary(outsideSiteBoundary);
             policy.setExclusionPrecedence(exclusionPrecedence);
@@ -518,13 +508,9 @@ public class EarthworkProject {
         String roadEdgeRef = "";
         String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
         Integer bottomElevation;
-        /** 地下室楼面深度；缺省时回退 {@link #basementDepthBlocks}。 */
-        Integer basementFloorDepth;
+        int basementFloorDepth = ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH;
         int foundationDepth;
         int workingAllowance;
-        /** @deprecated 兼容旧 JSON；加载时映射为 {@link #basementFloorDepth}。 */
-        @Deprecated
-        int basementDepthBlocks = ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH;
         int workingMarginBlocks = DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS;
         int verticalOffset;
         List<BakedSampleData> bakedSamples = new ArrayList<>();
@@ -558,7 +544,6 @@ public class EarthworkProject {
             data.basementFloorDepth = pit.getBasementFloorDepth();
             data.foundationDepth = pit.getFoundationDepth();
             data.workingAllowance = pit.getWorkingAllowance();
-            data.basementDepthBlocks = pit.getBasementFloorDepth();
             data.workingMarginBlocks = surface.getWorkingMarginBlocks();
             data.verticalOffset = surface.getVerticalOffset();
             for (BakedElevationGrid.Sample sample : surface.getBakedElevationGrid().toSamples()) {
@@ -597,8 +582,8 @@ public class EarthworkProject {
             surface.setRoadEdgeRef(roadEdgeRef);
             surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
             surface.setBottomElevation(bottomElevation);
-            int floorDepth = basementFloorDepth != null ? basementFloorDepth : basementDepthBlocks;
-            surface.setExcavationPit(new ExcavationPitParameters(floorDepth, foundationDepth, workingAllowance));
+            surface.setExcavationPit(new ExcavationPitParameters(
+                basementFloorDepth, foundationDepth, workingAllowance));
             surface.setWorkingMarginBlocks(workingMarginBlocks);
             surface.setVerticalOffset(verticalOffset);
             surface.setBakedElevationGrid(BakedElevationGrid.fromSamples(readBakedSamples(bakedSamples)));

@@ -51,40 +51,20 @@ class CompositionPolicyBalanceSemanticsTest {
     }
 
     @Test
-    void jsonRoundTripWritesOptimizationModeAndReadsLegacyBalanceMethod() {
+    void jsonRoundTripWritesOptimizationMode() {
         CompositionPolicy original = new CompositionPolicy();
         original.setBalanceScope(BalanceScope.SITE);
         original.setOptimizationMode(OptimizationMode.UNIFORM_VERTICAL_SHIFT);
 
         EarthworkProject project = new EarthworkProject();
         project.getActiveSite().setCompositionPolicy(original);
-        EarthworkProject restored = EarthworkProject.fromJson(project.toJson());
+        String json = project.toJson();
+        EarthworkProject restored = EarthworkProject.fromJson(json);
         CompositionPolicy loaded = restored.getActiveSite().getCompositionPolicy();
 
         assertEquals(BalanceScope.SITE, loaded.getBalanceScopeEnum());
         assertEquals(OptimizationMode.UNIFORM_VERTICAL_SHIFT, loaded.getOptimizationModeEnum());
-        assertTrue(project.toJson().contains("\"optimizationMode\""));
-    }
-
-    @Test
-    void legacyJsonBalanceMethodStillLoads() {
-        String json = """
-            {
-              "sites": [{
-                "id": "site-1",
-                "name": "Site",
-                "compositionPolicy": {
-                  "balanceScope": "SITE_WIDE",
-                  "balanceMethod": "EARTHWORK_OPTIMIZATION"
-                },
-                "gradingZones": []
-              }],
-              "activeSiteId": "site-1"
-            }
-            """;
-        EarthworkProject project = EarthworkProject.fromJson(json);
-        CompositionPolicy policy = project.getActiveSite().getCompositionPolicy();
-        assertEquals(BalanceScope.SITE, policy.getBalanceScopeEnum());
-        assertEquals(OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION, policy.getOptimizationModeEnum());
+        assertTrue(json.contains("\"optimizationMode\""));
+        assertFalse(json.contains("\"balanceMethod\""));
     }
 }
