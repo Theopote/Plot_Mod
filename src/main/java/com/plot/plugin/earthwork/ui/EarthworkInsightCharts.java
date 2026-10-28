@@ -50,9 +50,6 @@ public final class EarthworkInsightCharts {
                 PlotI18n.tr("plugin.earthwork.analysis_stale_hint"));
         }
 
-        EarthworkVolumeReport volumes = preview.volumeReport != null
-            ? preview.volumeReport
-            : EarthworkVolumeReport.empty();
         EarthworkWorkMode mode = ctx.config() != null
             ? ctx.config().getWorkMode()
             : EarthworkWorkMode.QUICK;
@@ -63,7 +60,7 @@ public final class EarthworkInsightCharts {
             return;
         }
 
-        renderChangeOverview(volumes);
+        // 建造模式生成页顶部已有挖填汇总，此处不再重复「挖填概览」
 
         if (mode.showsBuilderVisuals()) {
             renderHeatmap(ctx, preview, preview.designTerrainGrid);
@@ -123,24 +120,29 @@ public final class EarthworkInsightCharts {
         long fill = volumes.geometricFillVolume();
         long net = cut - fill;
         ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_overview_header"));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_cut", cut));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_fill", fill));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_net", net));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_cut", formatCount(cut)));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_fill", formatCount(fill)));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.analysis_net", formatCount(net)));
     }
 
     static void renderDiagnostics(EarthworkGenerationResult preview) {
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
+            PlotI18n.tr("plugin.earthwork.calculation_cell_count", formatCount(preview.calculationCellCount)));
         if (preview.existingTerrainSnapshot != null) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.earthwork.terrain_snapshot_summary",
-                    preview.existingTerrainSnapshot.columnCount(),
-                    preview.existingTerrainSnapshot.loadedColumnCount(),
-                    preview.existingTerrainSnapshot.unloadedColumnCount()));
+                    formatCount(preview.existingTerrainSnapshot.columnCount()),
+                    formatCount(preview.existingTerrainSnapshot.loadedColumnCount()),
+                    formatCount(preview.existingTerrainSnapshot.unloadedColumnCount())));
         }
+    }
+
+    /** Minecraft 翻译不支持 {@code %,d} / {@code %.0f}，先在 Java 侧格式化再按 {@code %s} 注入。 */
+    private static String formatCount(long value) {
+        return String.format(java.util.Locale.ROOT, "%,d", value);
     }
 
     static void renderSlopeCoupledCurveHint(EarthworkGenerationResult preview) {

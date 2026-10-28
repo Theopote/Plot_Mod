@@ -80,12 +80,16 @@ public final class EarthworkUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.earthwork.fill_blocks", fill));
             if (compact) {
                 ImGui.text(PlotI18n.tr("plugin.earthwork.diff_blocks", Math.abs(net)));
-                ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.balance_percent",
+                    String.format(java.util.Locale.ROOT, "%.0f", balance)));
                 ImGui.text(PlotI18n.tr("plugin.earthwork.expected_edits", work));
                 return;
             }
             ImGui.text(PlotI18n.tr("plugin.earthwork.net_blocks", net));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.balance_percent",
+                String.format(java.util.Locale.ROOT, "%.0f", balance)));
             ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
         }
 
