@@ -41,6 +41,18 @@ public record GradingPlane(double coeffX, double coeffZ, double intercept, Voxel
         return Math.abs(coeffX) < 1e-9 && Math.abs(coeffZ) < 1e-9;
     }
 
+    /**
+     * 上坡方向（度）：0° = +X，90° = +Z；与 {@link com.plot.plugin.earthwork.model.GradingRegion#getSlopeDirectionDegrees()} 约定一致。
+     * 平面近似水平时返回 {@code null}。
+     */
+    public Double uphillDirectionDegreesOrNull() {
+        if (isFlat()) {
+            return null;
+        }
+        double degrees = Math.toDegrees(Math.atan2(coeffZ, coeffX));
+        return ((degrees % 360.0) + 360.0) % 360.0;
+    }
+
     public static GradingPlane withVoxelDiscretization(
             GradingPlane plane,
             GradingRegion region,

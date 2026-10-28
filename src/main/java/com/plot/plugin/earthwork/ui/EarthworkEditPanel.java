@@ -572,7 +572,7 @@ public final class EarthworkEditPanel {
         if (boundary == null || boundary.size() < 2) {
             List<GradingZone> zones = new ArrayList<>(site.getGradingZones().values());
             if (!zones.isEmpty()) {
-                boundary = zones.get(0).getOuterPoints();
+                boundary = zones.getFirst().getOuterPoints();
             }
         }
         if (boundary == null || boundary.size() < 2) {

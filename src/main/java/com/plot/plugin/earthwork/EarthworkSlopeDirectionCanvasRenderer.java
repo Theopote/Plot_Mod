@@ -2,7 +2,9 @@ package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
+import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
@@ -13,7 +15,8 @@ import imgui.ImDrawList;
 import java.util.List;
 
 /**
- * 在画布上绘制「方向与坡度」任务的坡向指示箭头（随 {@link GradingRegion#getSlopeDirectionDegrees()} 旋转）。
+ * 在画布上绘制坡向指示箭头：
+ * 「方向与坡度」跟随显式坡向；「三点定面」由控制点平面梯度推导。
  */
 public final class EarthworkSlopeDirectionCanvasRenderer {
 
@@ -36,7 +39,8 @@ public final class EarthworkSlopeDirectionCanvasRenderer {
             return;
         }
         GradingRegion region = project.getRegion(selectedRegionId);
-        if (region == null || region.getSurfaceMode() != GradingSurfaceMode.SINGLE_SLOPE_PLANE) {
+        Double directionDegrees = resolveArrowDirectionDegrees(region);
+        if (directionDegrees == null) {
             return;
         }
         List<Vec2d> outer = region.getOuterPoints();
@@ -44,19 +48,16 @@ public final class EarthworkSlopeDirectionCanvasRenderer {
             return;
         }
 
-        Vec2d center = region.getSlopeAnchorCanvas();
-        if (center == null || !region.containsCanvasPoint(center)) {
-            center = EarthworkGeometryUtils.computeCentroid(outer);
-        }
-        if (!region.containsCanvasPoint(center)) {
-            center = outer.getFirst();
+        Vec2d center = resolveArrowCenter(region, outer);
+        if (center == null) {
+            return;
         }
 
         PolygonRegionUtils.RectBounds bounds = EarthworkGeometryUtils.computeBounds(outer);
         double span = Math.min(bounds.width(), bounds.depth());
         double arrowLen = Math.max(span * 0.35, 1.5);
 
-        double radians = Math.toRadians(region.getSlopeDirectionDegrees());
+        double radians = Math.toRadians(directionDegrees);
         Vec2d direction = new Vec2d(Math.cos(radians), Math.sin(radians));
         Vec2d tip = center.add(direction.multiply(arrowLen));
 
@@ -93,5 +94,40 @@ public final class EarthworkSlopeDirectionCanvasRenderer {
         float anchorRadius = 4.5f;
         drawList.addCircleFilled(cx, cy, anchorRadius, ARROW_COLOR);
         drawList.addCircle(cx, cy, anchorRadius, PluginUiColors.RING_DARK, 0, OUTLINE_THICKNESS);
+    }
+
+    /** 供测试：解析当前区域应显示的上坡方向（度）；无需绘制时返回 null。 */
+    static Double resolveArrowDirectionDegrees(GradingRegion region) {
+        if (region == null) {
+            return null;
+        }
+        if (region.getSurfaceMode() == GradingSurfaceMode.SINGLE_SLOPE_PLANE) {
+            return region.getSlopeDirectionDegrees();
+        }
+        if (region.getSurfaceMode() != GradingSurfaceMode.THREE_POINT_PLANE) {
+            return null;
+        }
+        GradingPlane plane = GradingSurfaceResolver.solveThreePointPlane(
+            region.getThreePointCanvasX(0), region.getThreePointCanvasY(0), region.getThreePointElevation(0),
+            region.getThreePointCanvasX(1), region.getThreePointCanvasY(1), region.getThreePointElevation(1),
+            region.getThreePointCanvasX(2), region.getThreePointCanvasY(2), region.getThreePointElevation(2));
+        if (plane == null) {
+            return null;
+        }
+        return plane.uphillDirectionDegreesOrNull();
+    }
+
+    private static Vec2d resolveArrowCenter(GradingRegion region, List<Vec2d> outer) {
+        if (region.getSurfaceMode() == GradingSurfaceMode.SINGLE_SLOPE_PLANE) {
+            Vec2d center = region.getSlopeAnchorCanvas();
+            if (center != null && region.containsCanvasPoint(center)) {
+                return center;
+            }
+        }
+        Vec2d centroid = EarthworkGeometryUtils.computeCentroid(outer);
+        if (region.containsCanvasPoint(centroid)) {
+            return centroid;
+        }
+        return outer.getFirst();
     }
 }
