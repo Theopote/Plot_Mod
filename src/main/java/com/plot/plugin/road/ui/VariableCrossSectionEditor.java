@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
@@ -219,7 +220,10 @@ public final class VariableCrossSectionEditor {
                 double station = draft.originalStation != null
                     && Float.compare(draft.station, draft.originalStation.floatValue()) == 0
                     ? draft.originalStation : draft.station;
-                stations.add(StationCrossSection.at(station, draft.crossSectionDraft.toCrossSection()));
+                RoadCrossSection section = draft.originalCrossSection != null
+                    && crossSectionDraftEqual(draft.crossSectionDraft, draft.originalDraft)
+                    ? draft.originalCrossSection.copy() : draft.crossSectionDraft.toCrossSection();
+                stations.add(StationCrossSection.at(station, section));
             } catch (IllegalArgumentException ignored) {
                 // Skip invalid draft rows until user fixes them.
             }
@@ -272,11 +276,16 @@ public final class VariableCrossSectionEditor {
         float station;
         Double originalStation;
         CrossSectionDraft crossSectionDraft;
+        RoadCrossSection originalCrossSection;
+        CrossSectionDraft originalDraft;
 
         static StationDraft from(StationCrossSection entry, RoadSystemConfig config) {
             StationDraft draft = new StationDraft();
             draft.station = (float) entry.getStation();
             draft.originalStation = entry.getStation();
+            // Opening a form or moving its station must preserve inherited and unexposed parameters.
+            draft.originalCrossSection = entry.getCrossSection().copy();
+            draft.originalDraft = CrossSectionDraft.fromCrossSection(draft.originalCrossSection.copy(), config);
             draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(entry.getCrossSection(), config);
             return draft;
         }

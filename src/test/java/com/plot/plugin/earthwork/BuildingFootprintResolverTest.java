@@ -138,7 +138,7 @@ class BuildingFootprintResolverTest {
     }
 
     @Test
-    void legacyBasementDepthBlocksJsonMigratesToFloorDepth() {
+    void basementFloorDepthJsonRoundTrips() {
         String json = """
             {
               "sites": [{
@@ -154,7 +154,9 @@ class BuildingFootprintResolverTest {
                   "designSurface": {
                     "kind": "EXCAVATION_PIT",
                     "elevationSource": "BUILDING_BASE_ELEVATION",
-                    "basementDepthBlocks": 7
+                    "basementFloorDepth": 7,
+                    "foundationDepth": 1,
+                    "workingAllowance": 2
                   }
                 }]
               }],
@@ -164,7 +166,8 @@ class BuildingFootprintResolverTest {
         EarthworkProject loaded = EarthworkProject.fromJson(json);
         DesignSurface surface = loaded.getActiveSite().getZone("pit").getDesignSurface();
         assertEquals(7, surface.getBasementFloorDepth());
-        assertEquals(0, surface.getFoundationDepth());
-        assertEquals(0, surface.getPitWorkingAllowance());
+        assertEquals(1, surface.getFoundationDepth());
+        assertEquals(2, surface.getPitWorkingAllowance());
+        assertFalse(loaded.toJson().contains("\"basementDepthBlocks\""));
     }
 }

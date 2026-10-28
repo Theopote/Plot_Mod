@@ -88,17 +88,28 @@ class ProfessionalToolDraftRegressionTest {
             RoadFacilityKind.RETAINING_WALL, RoadFacilitySide.LEFT, null, 1.23456789)));
         road.setVariableCrossSections(sections);
         road.setStationFacilities(facilities);
+        sections = road.getVariableCrossSections();
+        facilities = road.getStationFacilities();
         var sectionEditor = new VariableCrossSectionEditor();
         var facilityEditor = new StationFacilityEditor();
         invoke(sectionEditor, "syncDrafts", new Class<?>[]{Road.class, RoadSystemConfig.class}, road, config);
         invoke(facilityEditor, "syncDrafts", new Class<?>[]{Road.class}, road);
         invoke(sectionEditor, "applyDraftsIfChanged", new Class<?>[]{Road.class, RoadSystemConfig.class}, road, config);
         invoke(facilityEditor, "applyDraftsIfChanged", new Class<?>[]{Road.class}, road);
-        assertEquals(new com.google.gson.Gson().toJson(CrossSectionDraft.fromCrossSection(
-            sections.getStations().getFirst().getCrossSection(), config)), new com.google.gson.Gson().toJson(CrossSectionDraft.fromCrossSection(
-            road.getVariableCrossSections().getStations().getFirst().getCrossSection(), config)));
         assertSame(sections, road.getVariableCrossSections());
         assertSame(facilities, road.getStationFacilities());
+    }
+
+    @Test
+    void movingStationPreservesInheritedAndUnexposedSectionParameters() {
+        var section = new RoadCrossSection();
+        section.getShoulder().setMaterial("minecraft:andesite");
+        var draft = VariableCrossSectionEditor.StationDraft.from(StationCrossSection.at(2, section), config);
+        draft.station = 4;
+        var saved = VariableCrossSectionEditor.buildStations(List.of(draft), config).getFirst();
+        assertEquals(4, saved.getStation());
+        assertNull(saved.getCrossSection().getCarriageway().getWidth());
+        assertEquals("minecraft:andesite", saved.getCrossSection().getShoulder().getMaterial());
     }
 
     @Test
