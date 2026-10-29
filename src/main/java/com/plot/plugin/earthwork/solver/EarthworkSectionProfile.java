@@ -403,7 +403,7 @@ public final class EarthworkSectionProfile {
         }
         double zoneSpan = zoneMaxAlong - zoneMinAlong;
         double lineMargin = zoneSectionMargin(zoneSpan);
-        double sampleMargin = Math.min(lineMargin, Math.max(4.0, zoneSpan * 0.5 + 2.0));
+        double sampleMargin = Math.clamp(zoneSpan * 0.5 + 2.0, 4.0, lineMargin);
         double sampleMin = zoneMinAlong - sampleMargin;
         double sampleMax = zoneMaxAlong + sampleMargin;
         double cutMin = zoneMinAlong - lineMargin;

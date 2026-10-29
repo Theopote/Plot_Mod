@@ -153,8 +153,8 @@ class EarthworkCutFillHeatmapTest {
             EarthworkCutFillHeatmap.Bucket[][] buckets,
             java.util.function.Predicate<EarthworkCutFillHeatmap.Bucket> pred) {
         for (int y = 0; y < buckets[0].length; y++) {
-            for (int x = 0; x < buckets.length; x++) {
-                if (pred.test(buckets[x][y])) {
+            for (EarthworkCutFillHeatmap.Bucket[] bucket : buckets) {
+                if (pred.test(bucket[y])) {
                     return y;
                 }
             }
