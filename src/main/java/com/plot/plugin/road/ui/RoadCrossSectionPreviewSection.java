@@ -4,8 +4,9 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -79,38 +80,25 @@ public final class RoadCrossSectionPreviewSection {
     }
 
     static boolean selectedRoadsShareCrossSection(RoadUiContext ctx) {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        RoadSystemConfig config = ctx.networkManager().getConfig();
+        var network = ctx.networkManager().getNetwork();
         LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
         if (roadIds.size() < 2) {
             return true;
         }
-        String signature = null;
+        RoadCrossSection reference = null;
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);
             if (road == null) {
                 continue;
             }
-            ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
-            String current = crossSectionSignature(resolved);
-            if (signature == null) {
-                signature = current;
-            } else if (!signature.equals(current)) {
+            RoadCrossSection current = road.getCrossSection();
+            if (reference == null) {
+                reference = current;
+            } else if (!RoadCrossSectionEngineeringEquality.equals(reference, current)) {
                 return false;
             }
         }
         return true;
-    }
-
-    private static String crossSectionSignature(ResolvedCrossSection resolved) {
-        return resolved.laneCount + "|"
-            + resolved.carriagewayWidth + "|"
-            + resolved.includeSidewalk + "|"
-            + resolved.sidewalkWidth + "|"
-            + resolved.includeMedian + "|"
-            + resolved.medianWidth + "|"
-            + resolved.includeShoulder + "|"
-            + resolved.includeBikeLane;
     }
 
     private static void renderBatchPreview(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {

@@ -32,13 +32,21 @@ public final class RoadEditDiagnosticsBanner {
     }
 
     public static boolean render(RoadUiContext ctx, RoadNetwork network, Road road, Runnable onView) {
-        int count = countIssues(ctx, network, road);
-        if (count <= 0) {
+        return render(ctx, network, road, onView, countIssues(ctx, network, road));
+    }
+
+    public static boolean render(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            Runnable onView,
+            int issueCount) {
+        if (issueCount <= 0) {
             return false;
         }
 
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, PluginUiColors.WARNING);
-        ImGui.text("\u26a0 " + PlotI18n.tr("plugin.road.edit.diagnostics_banner", count));
+        ImGui.text("\u26a0 " + PlotI18n.tr("plugin.road.edit.diagnostics_banner", issueCount));
         ImGui.popStyleColor();
         if (onView != null && ImGui.button(PlotI18n.tr("plugin.road.edit.view_diagnostics") + "##edit_diag_view")) {
             onView.run();

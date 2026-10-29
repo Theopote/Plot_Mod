@@ -34,7 +34,30 @@ final class RoadEditToolLauncher {
             renderGrid(ctx, host, primaryRoadId, singleTools());
             return;
         }
-        renderGrid(ctx, host, primaryRoadId, multiTools());
+        renderBatchCrossSectionPrimary(ctx, host, primaryRoadId, roadIds.size());
+    }
+
+    /** 多选仅展示可用的批量横断面入口，不渲染单路专用灰锁卡片。 */
+    private static void renderBatchCrossSectionPrimary(
+            RoadUiContext ctx,
+            RoadFloatingEditorHost host,
+            String primaryRoadId,
+            int selectedCount) {
+        RoadFloatingEditorKind kind = RoadFloatingEditorKind.BATCH_CROSS_SECTION;
+        boolean active = host.isOpen(kind);
+        if (active) {
+            ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+        }
+        String label = PlotI18n.tr("plugin.road.edit.tools.batch_cross_section.title")
+            + "\n"
+            + PlotI18n.tr("plugin.road.edit.tools.batch_cross_section.multi_hint", selectedCount);
+        float width = ImGui.getContentRegionAvailX();
+        if (ImGui.button(label + "##tool_" + kind.name(), width, CARD_HEIGHT)) {
+            host.openOrFocus(ctx, kind, primaryRoadId);
+        }
+        if (active) {
+            ImGui.popStyleColor();
+        }
     }
 
     private static void renderGrid(
@@ -93,16 +116,6 @@ final class RoadEditToolLauncher {
             enabled(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
             enabled(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"),
             disabled(RoadFloatingEditorKind.BATCH_CROSS_SECTION, "batch_cross_section"));
-    }
-
-    private static List<ToolSpec> multiTools() {
-        return List.of(
-            enabled(RoadFloatingEditorKind.BATCH_CROSS_SECTION, "batch_cross_section"),
-            disabled(RoadFloatingEditorKind.CROSS_SECTION, "cross_section"),
-            disabled(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
-            disabled(RoadFloatingEditorKind.CENTERLINE, "centerline"),
-            disabled(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
-            disabled(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"));
     }
 
     private static ToolSpec enabled(RoadFloatingEditorKind kind, String keySuffix) {

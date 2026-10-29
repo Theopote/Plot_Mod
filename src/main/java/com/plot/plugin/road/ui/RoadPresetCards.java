@@ -20,7 +20,6 @@ import java.util.List;
 
 /** 道路类型预设卡片（配置默认 / 单条道路 / 批量道路共用）。 */
 public final class RoadPresetCards {
-    private static boolean presetLibraryExpanded = false;
 
     private static final float CARD_MIN_WIDTH = 96f;
     private static final float CARD_PADDING_X = 4f;
@@ -35,6 +34,8 @@ public final class RoadPresetCards {
     public static void renderConfigCompact(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         renderCompactPicker(
+            ctx,
+            "config",
             config.getSelectedPreset(),
             true,
             () -> renderGrid(
@@ -45,7 +46,7 @@ public final class RoadPresetCards {
                     config.applyStyle(style);
                     ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
                     ctx.onGenerationConfigChanged();
-                    presetLibraryExpanded = false;
+                    ctx.setPresetLibraryExpanded(false);
                 },
                 config::markCustom));
     }
@@ -59,6 +60,8 @@ public final class RoadPresetCards {
         String themeId = road.getEffectiveThemeId(config);
         boolean customSelected = selectedId == null || selectedId.isBlank();
         renderCompactPicker(
+            ctx,
+            "road:" + road.getId(),
             selectedId,
             customSelected,
             () -> renderGrid(
@@ -71,7 +74,7 @@ public final class RoadPresetCards {
                         onChanged.run();
                     }
                     ctx.requestOverlayRefresh();
-                    presetLibraryExpanded = false;
+                    ctx.setPresetLibraryExpanded(false);
                 },
                 null));
     }
@@ -88,7 +91,10 @@ public final class RoadPresetCards {
         String selectedId = resolveSharedStyleId(network, roadIds);
         String themeId = resolveSharedThemeId(network, roadIds, config);
         boolean customSelected = selectedId == null || selectedId.isBlank();
+        String selectionKey = "roads:" + String.join(",", roadIds);
         renderCompactPicker(
+            ctx,
+            selectionKey,
             selectedId,
             customSelected,
             () -> renderGrid(
@@ -109,7 +115,7 @@ public final class RoadPresetCards {
                         onChanged.run();
                     }
                     ctx.requestOverlayRefresh();
-                    presetLibraryExpanded = false;
+                    ctx.setPresetLibraryExpanded(false);
                 },
                 null));
     }
@@ -183,9 +189,12 @@ public final class RoadPresetCards {
     }
 
     private static void renderCompactPicker(
+            RoadUiContext ctx,
+            String selectionKey,
             String selectedId,
             boolean customSelected,
             Runnable renderExpandedGrid) {
+        ctx.syncPresetLibrarySelection(selectionKey);
         ImGui.text(PlotI18n.tr("plugin.road.preset_section"));
         if (!customSelected && selectedId != null && !selectedId.isBlank()) {
             ImGui.sameLine();
@@ -195,9 +204,9 @@ public final class RoadPresetCards {
             ImGui.textColored(PluginUiColors.HINT_GRAY, "— " + PlotI18n.tr("plugin.road.preset_custom"));
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.preset.change") + "##road_preset_change")) {
-            presetLibraryExpanded = !presetLibraryExpanded;
+            ctx.setPresetLibraryExpanded(!ctx.presetLibraryExpanded());
         }
-        if (presetLibraryExpanded) {
+        if (ctx.presetLibraryExpanded()) {
             ImGui.spacing();
             renderExpandedGrid.run();
         }

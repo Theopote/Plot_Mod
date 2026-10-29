@@ -17,6 +17,10 @@ final class RoadEditOverviewStrip {
     }
 
     static void render(RoadUiContext ctx, RoadNetwork network, Road road) {
+        render(ctx, network, road, RoadEditDiagnosticsBanner.countIssues(ctx, network, road));
+    }
+
+    static void render(RoadUiContext ctx, RoadNetwork network, Road road, int issueCount) {
         if (road == null) {
             return;
         }
@@ -51,7 +55,6 @@ final class RoadEditOverviewStrip {
 
             String presetName = resolvePresetName(road);
             String verticalMode = RoadVerticalStrategy.fromRoad(road).label();
-            int issueCount = RoadEditDiagnosticsBanner.countIssues(ctx, network, road);
             int varSectionCount = variableSectionCount(road);
             int facilityCount = facilityCount(road);
 

@@ -39,6 +39,10 @@ public final class RoadUiContext {
     private final float[] coordMaxY = {100f};
     private final ImBoolean batchIncludeSidewalkRef = new ImBoolean(true);
 
+    /** 预设库内联展开状态（按选择范围重置，非进程级 static）。 */
+    private boolean presetLibraryExpanded = false;
+    private String presetLibrarySelectionKey = "";
+
     private String pendingDeleteEdgeId = "";
     private String pendingDeleteRoadId = "";
     private boolean deleteConfirmPending = false;
@@ -239,6 +243,25 @@ public final class RoadUiContext {
 
     public ImBoolean batchIncludeSidewalkRef() {
         return batchIncludeSidewalkRef;
+    }
+
+    public boolean presetLibraryExpanded() {
+        return presetLibraryExpanded;
+    }
+
+    public void setPresetLibraryExpanded(boolean expanded) {
+        this.presetLibraryExpanded = expanded;
+    }
+
+    /**
+     * 选择范围变化时收起预设库，避免单选/多选/未选之间串状态。
+     */
+    public void syncPresetLibrarySelection(String selectionKey) {
+        String key = selectionKey != null ? selectionKey : "";
+        if (!key.equals(presetLibrarySelectionKey)) {
+            presetLibrarySelectionKey = key;
+            presetLibraryExpanded = false;
+        }
     }
 
     public enum RoadListAction {

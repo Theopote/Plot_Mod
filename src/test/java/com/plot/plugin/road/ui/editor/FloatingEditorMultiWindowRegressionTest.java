@@ -127,6 +127,38 @@ class FloatingEditorMultiWindowRegressionTest {
     }
 
     @Test
+    void dirtyCrossSectionConflictsWhenMainQuickTuneChangesWidth() {
+        CrossSectionDesignerWindow xs = (CrossSectionDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CROSS_SECTION);
+        xs.open(ctx, roadA);
+        xs.editorSession().workingNetwork().getRoad(roadA).setWidth(16);
+        assertTrue(xs.isDirty());
+
+        // 主面板快速调宽：可撤销地改 live 宽度并抬升 revision
+        manager.mutateNetwork(() -> manager.getNetwork().getRoad(roadA).setWidth(12));
+
+        assertFalse(xs.confirmEdits(ctx));
+        assertTrue(xs.hasRevisionConflict());
+        assertEquals(12, manager.getNetwork().getRoad(roadA).getWidth());
+        assertEquals(16, xs.editorSession().workingNetwork().getRoad(roadA).getWidth());
+    }
+
+    @Test
+    void cleanCrossSectionResyncsAfterMainQuickTuneChangesWidth() {
+        CrossSectionDesignerWindow xs = (CrossSectionDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CROSS_SECTION);
+        xs.open(ctx, roadA);
+        assertFalse(xs.isDirty());
+
+        manager.mutateNetwork(() -> manager.getNetwork().getRoad(roadA).setWidth(14));
+        xs.refreshCleanSession(ctx);
+
+        assertFalse(xs.isDirty());
+        assertEquals(14, xs.editorSession().workingNetwork().getRoad(roadA).getWidth());
+        assertTrue(xs.confirmEdits(ctx));
+    }
+
+    @Test
     void undoAfterConfirmedCenterlineDoesNotAffectStillOpenCrossSectionDraft() {
         CrossSectionDesignerWindow xs = (CrossSectionDesignerWindow) host.editorForKind(
             RoadFloatingEditorKind.CROSS_SECTION);

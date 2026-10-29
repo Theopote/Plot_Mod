@@ -24,12 +24,14 @@ final class RoadEditWorkspace {
     }
 
     void renderSingle(RoadNetwork network, Road road) {
-        RoadEditOverviewStrip.render(ctx, network, road);
+        int issueCount = RoadEditDiagnosticsBanner.countIssues(ctx, network, road);
+        RoadEditOverviewStrip.render(ctx, network, road, issueCount);
         RoadEditDiagnosticsBanner.render(
             ctx,
             network,
             road,
-            () -> floatingEditorHost.openOrFocus(ctx, RoadFloatingEditorKind.DIAGNOSTICS, road.getId()));
+            () -> floatingEditorHost.openOrFocus(ctx, RoadFloatingEditorKind.DIAGNOSTICS, road.getId()),
+            issueCount);
 
         RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);

@@ -43,12 +43,17 @@ final class RoadBatchQuickTune {
         if (state.mixedWidth) {
             ImGui.text(PlotI18n.tr("plugin.road.edit.batch_width"));
             ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.vertical_batch_strategy_mixed"));
-            return;
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_batch_strategy_mixed"));
         }
+        // 混合时仍可设目标宽度（初值来自 batch draft / 首条路），宽度与车道互不强制一起覆盖。
         int[] widthArr = {draft.width()};
+        String widthLabel = state.mixedWidth
+            ? PlotI18n.tr("plugin.road.edit.batch_width_target", widthArr[0])
+            : PlotI18n.tr("plugin.road.road_width", widthArr[0]);
         if (ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##batch_quick_width",
+            widthLabel + "##batch_quick_width",
             widthArr,
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
             RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
@@ -68,12 +73,16 @@ final class RoadBatchQuickTune {
         if (state.mixedLaneCount) {
             ImGui.text(PlotI18n.tr("plugin.road.edit.batch_lane_count"));
             ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.vertical_batch_strategy_mixed"));
-            return;
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_batch_strategy_mixed"));
         }
         int[] laneArr = {draft.laneCount()};
+        String laneLabel = state.mixedLaneCount
+            ? PlotI18n.tr("plugin.road.edit.batch_lane_count_target", laneArr[0])
+            : PlotI18n.tr("plugin.road.lane_count", laneArr[0]);
         if (ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.lane_count", laneArr[0]) + "##batch_quick_lanes",
+            laneLabel + "##batch_quick_lanes",
             laneArr,
             RoadParameterLimits.MIN_LANE_COUNT,
             RoadParameterLimits.MAX_LANE_COUNT,
