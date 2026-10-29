@@ -7,8 +7,6 @@ import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadParameterInheritance;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.plugin.road.style.RoadStyle;
-import com.plot.plugin.road.style.RoadStyleCatalog;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -39,7 +37,7 @@ public final class RoadCrossSectionEditor {
         renderPreviewBody(road, config);
     }
 
-    /** 仅绘制横断面预览图（不含 style summary 文案）。 */
+    /** 仅绘制横断面预览图（不含 style summary 文案）。始终反映道路当前断面参数。 */
     public static void renderPreviewBody(Road road, RoadSystemConfig config) {
         if (road == null) {
             return;
@@ -51,27 +49,27 @@ public final class RoadCrossSectionEditor {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float height = 64f;
-        String styleId = road.getStyleId();
-        RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
-        if (styleId != null && !styleId.isBlank()) {
-            RoadStyle style = RoadStyleCatalog.findById(config, styleId);
-            layout = style != null
-                ? RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
-                    style, road.getEffectiveThemeId(config))
-                : RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-                    road.getCrossSection().resolve(config), 0f);
-        } else {
-            layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-                road.getCrossSection().resolve(config), 0f);
-        }
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            layout,
+            previewLayoutForRoad(road, config),
             origin.x,
             origin.y,
             width,
             height);
         ImGui.dummy(width, height);
+    }
+
+    /**
+     * 设计器/编辑区预览布局：用道路当前已解析断面，不用预设 style 快照，
+     * 否则改参后面板左侧图不会变。
+     */
+    static RoadCrossSectionPreviewRenderer.CrossSectionLayout previewLayoutForRoad(
+            Road road,
+            RoadSystemConfig config) {
+        float maxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : 0f;
+        return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+            road.getCrossSection().resolve(config),
+            maxSlope);
     }
 
     public static void renderPresetButtons(RoadUiContext ctx, Road road, Runnable onChanged) {

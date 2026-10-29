@@ -67,14 +67,13 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         RoadSystemConfig config = ctx.networkManager().getConfig();
         float totalWidth = ImGui.getContentRegionAvailX();
         float previewWidth = totalWidth * 0.38f;
-        float paramsWidth = totalWidth - previewWidth - ImGui.getStyle().getItemSpacingX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float paramsWidth = totalWidth - previewWidth - spacing;
+        float startX = ImGui.getCursorPosX();
+        float startY = ImGui.getCursorPosY();
 
-        ImGui.beginChild("##xs_preview", previewWidth, 0, true);
-        ImGui.text(PlotI18n.tr("plugin.road.floating_editor.cross_section.preview"));
-        RoadCrossSectionEditor.renderPreview(road, config);
-        ImGui.endChild();
-
-        ImGui.sameLine();
+        // 先渲染右侧参数（写回 working road），再画左侧预览，保证同帧看到改参效果。
+        ImGui.setCursorPos(startX + previewWidth + spacing, startY);
         ImGui.beginChild(
             "##xs_params",
             paramsWidth,
@@ -133,6 +132,12 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             }
             ImGui.endTabBar();
         }
+        ImGui.endChild();
+
+        ImGui.setCursorPos(startX, startY);
+        ImGui.beginChild("##xs_preview", previewWidth, 0, true);
+        ImGui.text(PlotI18n.tr("plugin.road.floating_editor.cross_section.preview"));
+        RoadCrossSectionEditor.renderPreview(road, config);
         ImGui.endChild();
     }
 

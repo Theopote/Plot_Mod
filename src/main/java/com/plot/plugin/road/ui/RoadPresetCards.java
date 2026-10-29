@@ -30,12 +30,14 @@ public final class RoadPresetCards {
     private static final float CARD_PADDING_BOTTOM = 2f;
     private static final float PREVIEW_GAP = 1f;
     private static final float PREVIEW_HEIGHT = 48f;
+    /** 预设库浮动窗相对屏幕的固定宽高（不可拖拽改尺寸）。 */
     private static final float FLOATING_WIDTH_OF_SCREEN = 0.42f;
     private static final float FLOATING_HEIGHT_OF_SCREEN = 0.55f;
     private static final int FLOATING_FLAGS =
         ImGuiWindowFlags.NoCollapse
             | ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings;
+            | ImGuiWindowFlags.NoSavedSettings
+            | ImGuiWindowFlags.NoResize;
 
     private RoadPresetCards() {
     }
@@ -98,20 +100,17 @@ public final class RoadPresetCards {
             return;
         }
         ImBoolean open = ctx.presetLibraryOpenRef();
+        float sw = ImGui.getIO().getDisplaySizeX();
+        float sh = ImGui.getIO().getDisplaySizeY();
+        float w = sw * FLOATING_WIDTH_OF_SCREEN;
+        float h = sh * FLOATING_HEIGHT_OF_SCREEN;
         if (ctx.consumePresetLibraryFocusPending()) {
-            float sw = ImGui.getIO().getDisplaySizeX();
-            float sh = ImGui.getIO().getDisplaySizeY();
-            float w = sw * FLOATING_WIDTH_OF_SCREEN;
-            float h = sh * FLOATING_HEIGHT_OF_SCREEN;
             ImGui.setNextWindowSize(w, h, ImGuiCond.Appearing);
             ImGui.setNextWindowPos(sw * 0.5f - w * 0.5f, sh * 0.5f - h * 0.5f, ImGuiCond.Appearing);
             ImGui.setNextWindowFocus();
         }
-        ImGui.setNextWindowSizeConstraints(
-            ImGui.getIO().getDisplaySizeX() * 0.28f,
-            ImGui.getIO().getDisplaySizeY() * 0.30f,
-            ImGui.getIO().getDisplaySizeX() * 0.70f,
-            ImGui.getIO().getDisplaySizeY() * 0.85f);
+        // 固定大小：约束上下限相同 + NoResize，避免用户拖边框改尺寸。
+        ImGui.setNextWindowSizeConstraints(w, h, w, h);
 
         if (!ImGui.begin(
                 PlotI18n.tr("plugin.road.preset.library_window") + "##road_preset_library",
