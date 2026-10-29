@@ -39,9 +39,21 @@ public final class RoadUiContext {
     private final float[] coordMaxY = {100f};
     private final ImBoolean batchIncludeSidewalkRef = new ImBoolean(true);
 
-    /** 预设库内联展开状态（按选择范围重置，非进程级 static）。 */
-    private boolean presetLibraryExpanded = false;
+    /** 预设库独立浮动窗口目标。 */
+    public enum PresetLibraryTarget {
+        CONFIG,
+        ROAD,
+        ROADS
+    }
+
+    /** 预设库独立浮动窗口（按选择范围重置）。 */
+    private final ImBoolean presetLibraryOpen = new ImBoolean(false);
     private String presetLibrarySelectionKey = "";
+    private boolean presetLibraryFocusPending = false;
+    private PresetLibraryTarget presetLibraryTarget = PresetLibraryTarget.CONFIG;
+    private String presetLibraryRoadId = "";
+    private java.util.Collection<String> presetLibraryRoadIds = java.util.List.of();
+    private Runnable presetLibraryOnChanged;
 
     private String pendingDeleteEdgeId = "";
     private String pendingDeleteRoadId = "";
@@ -245,22 +257,93 @@ public final class RoadUiContext {
         return batchIncludeSidewalkRef;
     }
 
+    public boolean presetLibraryOpen() {
+        return presetLibraryOpen.get();
+    }
+
+    public ImBoolean presetLibraryOpenRef() {
+        return presetLibraryOpen;
+    }
+
+    /** @deprecated 使用 {@link #presetLibraryOpen()} */
+    @Deprecated
     public boolean presetLibraryExpanded() {
-        return presetLibraryExpanded;
+        return presetLibraryOpen();
     }
 
     public void setPresetLibraryExpanded(boolean expanded) {
-        this.presetLibraryExpanded = expanded;
+        if (expanded) {
+            openPresetLibrary(presetLibraryTarget, presetLibrarySelectionKey,
+                presetLibraryRoadId, presetLibraryRoadIds, presetLibraryOnChanged);
+        } else {
+            closePresetLibrary();
+        }
+    }
+
+    public void openPresetLibrary(
+            PresetLibraryTarget target,
+            String selectionKey,
+            String roadId,
+            java.util.Collection<String> roadIds,
+            Runnable onChanged) {
+        String key = selectionKey != null ? selectionKey : "";
+        boolean wasClosed = !presetLibraryOpen.get();
+        boolean keyChanged = !key.equals(presetLibrarySelectionKey);
+        presetLibrarySelectionKey = key;
+        presetLibraryTarget = target != null ? target : PresetLibraryTarget.CONFIG;
+        presetLibraryRoadId = roadId != null ? roadId : "";
+        presetLibraryRoadIds = roadIds != null
+            ? java.util.List.copyOf(roadIds)
+            : java.util.List.of();
+        presetLibraryOnChanged = onChanged;
+        if (wasClosed || keyChanged) {
+            presetLibraryFocusPending = true;
+        }
+        presetLibraryOpen.set(true);
+    }
+
+    public void closePresetLibrary() {
+        presetLibraryOpen.set(false);
+        presetLibraryFocusPending = false;
+        presetLibraryOnChanged = null;
+    }
+
+    public boolean consumePresetLibraryFocusPending() {
+        if (!presetLibraryFocusPending) {
+            return false;
+        }
+        presetLibraryFocusPending = false;
+        return true;
+    }
+
+    public PresetLibraryTarget presetLibraryTarget() {
+        return presetLibraryTarget;
+    }
+
+    public String presetLibrarySelectionKeyOrEmpty() {
+        return presetLibrarySelectionKey != null ? presetLibrarySelectionKey : "";
+    }
+
+    public String presetLibraryRoadId() {
+        return presetLibraryRoadId;
+    }
+
+    public java.util.Collection<String> presetLibraryRoadIds() {
+        return presetLibraryRoadIds;
+    }
+
+    public Runnable presetLibraryOnChanged() {
+        return presetLibraryOnChanged;
     }
 
     /**
-     * 选择范围变化时收起预设库，避免单选/多选/未选之间串状态。
+     * 选择范围变化时关闭预设库，避免单选/多选/未选之间串状态。
      */
     public void syncPresetLibrarySelection(String selectionKey) {
         String key = selectionKey != null ? selectionKey : "";
         if (!key.equals(presetLibrarySelectionKey)) {
             presetLibrarySelectionKey = key;
-            presetLibraryExpanded = false;
+            closePresetLibrary();
         }
     }
 

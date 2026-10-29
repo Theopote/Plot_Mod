@@ -5,14 +5,17 @@ import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.ui.RoadUiContext.PresetLibraryTarget;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +30,12 @@ public final class RoadPresetCards {
     private static final float CARD_PADDING_BOTTOM = 2f;
     private static final float PREVIEW_GAP = 1f;
     private static final float PREVIEW_HEIGHT = 48f;
+    private static final float FLOATING_WIDTH_OF_SCREEN = 0.42f;
+    private static final float FLOATING_HEIGHT_OF_SCREEN = 0.55f;
+    private static final int FLOATING_FLAGS =
+        ImGuiWindowFlags.NoCollapse
+            | ImGuiWindowFlags.NoDocking
+            | ImGuiWindowFlags.NoSavedSettings;
 
     private RoadPresetCards() {
     }
@@ -35,48 +44,30 @@ public final class RoadPresetCards {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         renderCompactPicker(
             ctx,
+            PresetLibraryTarget.CONFIG,
             "config",
+            null,
+            null,
             config.getSelectedPreset(),
             true,
-            () -> renderGrid(
-                ctx,
-                config.getStyles(),
-                config.getSelectedPreset(),
-                style -> {
-                    config.applyStyle(style);
-                    ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
-                    ctx.onGenerationConfigChanged();
-                    ctx.setPresetLibraryExpanded(false);
-                },
-                config::markCustom));
+            null);
     }
 
     public static void renderForRoadCompact(RoadUiContext ctx, Road road, Runnable onChanged) {
         if (road == null) {
             return;
         }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
         String selectedId = road.getStyleId();
-        String themeId = road.getEffectiveThemeId(config);
         boolean customSelected = selectedId == null || selectedId.isBlank();
         renderCompactPicker(
             ctx,
+            PresetLibraryTarget.ROAD,
             "road:" + road.getId(),
+            road.getId(),
+            null,
             selectedId,
             customSelected,
-            () -> renderGrid(
-                ctx,
-                config.getStyles(),
-                selectedId,
-                style -> {
-                    ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
-                    if (onChanged != null) {
-                        onChanged.run();
-                    }
-                    ctx.requestOverlayRefresh();
-                    ctx.setPresetLibraryExpanded(false);
-                },
-                null));
+            onChanged);
     }
 
     public static void renderForRoadsCompact(
@@ -86,38 +77,64 @@ public final class RoadPresetCards {
         if (roadIds == null || roadIds.isEmpty()) {
             return;
         }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
         RoadNetwork network = ctx.networkManager().getNetwork();
         String selectedId = resolveSharedStyleId(network, roadIds);
-        String themeId = resolveSharedThemeId(network, roadIds, config);
         boolean customSelected = selectedId == null || selectedId.isBlank();
         String selectionKey = "roads:" + String.join(",", roadIds);
         renderCompactPicker(
             ctx,
+            PresetLibraryTarget.ROADS,
             selectionKey,
+            null,
+            roadIds,
             selectedId,
             customSelected,
-            () -> renderGrid(
-                ctx,
-                config.getStyles(),
-                selectedId,
-                style -> {
-                    String applyTheme = themeId != null ? themeId : config.getRoadThemeId();
-                    ctx.networkManager().mutateNetwork(() -> {
-                        for (String roadId : roadIds) {
-                            Road road = network.getRoad(roadId);
-                            if (road != null) {
-                                road.applyStyle(style, applyTheme);
-                            }
-                        }
-                    });
-                    if (onChanged != null) {
-                        onChanged.run();
-                    }
-                    ctx.requestOverlayRefresh();
-                    ctx.setPresetLibraryExpanded(false);
-                },
-                null));
+            onChanged);
+    }
+
+    /** 独立预设库浮动窗口；由 {@code RoadUIManager} 每帧调用。 */
+    public static void renderFloatingWindow(RoadUiContext ctx) {
+        if (ctx == null || !ctx.presetLibraryOpen()) {
+            return;
+        }
+        ImBoolean open = ctx.presetLibraryOpenRef();
+        if (ctx.consumePresetLibraryFocusPending()) {
+            float sw = ImGui.getIO().getDisplaySizeX();
+            float sh = ImGui.getIO().getDisplaySizeY();
+            float w = sw * FLOATING_WIDTH_OF_SCREEN;
+            float h = sh * FLOATING_HEIGHT_OF_SCREEN;
+            ImGui.setNextWindowSize(w, h, ImGuiCond.Appearing);
+            ImGui.setNextWindowPos(sw * 0.5f - w * 0.5f, sh * 0.5f - h * 0.5f, ImGuiCond.Appearing);
+            ImGui.setNextWindowFocus();
+        }
+        ImGui.setNextWindowSizeConstraints(
+            ImGui.getIO().getDisplaySizeX() * 0.28f,
+            ImGui.getIO().getDisplaySizeY() * 0.30f,
+            ImGui.getIO().getDisplaySizeX() * 0.70f,
+            ImGui.getIO().getDisplaySizeY() * 0.85f);
+
+        if (!ImGui.begin(
+                PlotI18n.tr("plugin.road.preset.library_window") + "##road_preset_library",
+                open,
+                FLOATING_FLAGS)) {
+            ImGui.end();
+            if (!open.get()) {
+                ctx.closePresetLibrary();
+            }
+            return;
+        }
+        try {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.preset.library_hint"));
+            ImGui.spacing();
+            renderFloatingContent(ctx);
+        } finally {
+            ImGui.end();
+        }
+        if (!open.get()) {
+            ctx.closePresetLibrary();
+        }
     }
 
     public static void renderConfig(RoadUiContext ctx) {
@@ -190,10 +207,13 @@ public final class RoadPresetCards {
 
     private static void renderCompactPicker(
             RoadUiContext ctx,
+            PresetLibraryTarget target,
             String selectionKey,
+            String roadId,
+            Collection<String> roadIds,
             String selectedId,
             boolean customSelected,
-            Runnable renderExpandedGrid) {
+            Runnable onChanged) {
         ctx.syncPresetLibrarySelection(selectionKey);
         ImGui.text(PlotI18n.tr("plugin.road.preset_section"));
         if (!customSelected && selectedId != null && !selectedId.isBlank()) {
@@ -204,13 +224,90 @@ public final class RoadPresetCards {
             ImGui.textColored(PluginUiColors.HINT_GRAY, "— " + PlotI18n.tr("plugin.road.preset_custom"));
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.preset.change") + "##road_preset_change")) {
-            ctx.setPresetLibraryExpanded(!ctx.presetLibraryExpanded());
-        }
-        if (ctx.presetLibraryExpanded()) {
-            ImGui.spacing();
-            renderExpandedGrid.run();
+            if (ctx.presetLibraryOpen() && selectionKey.equals(ctx.presetLibrarySelectionKeyOrEmpty())) {
+                ctx.closePresetLibrary();
+            } else {
+                ctx.openPresetLibrary(target, selectionKey, roadId, roadIds, onChanged);
+            }
         }
         ImGui.spacing();
+    }
+
+    private static void renderFloatingContent(RoadUiContext ctx) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        Runnable onChanged = ctx.presetLibraryOnChanged();
+        switch (ctx.presetLibraryTarget()) {
+            case CONFIG -> renderGrid(
+                ctx,
+                config.getStyles(),
+                config.getSelectedPreset(),
+                style -> {
+                    config.applyStyle(style);
+                    ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
+                    ctx.onGenerationConfigChanged();
+                    ctx.closePresetLibrary();
+                },
+                () -> {
+                    config.markCustom();
+                    ctx.closePresetLibrary();
+                });
+            case ROAD -> {
+                Road road = network.getRoad(ctx.presetLibraryRoadId());
+                if (road == null) {
+                    ImGui.textColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.road.floating_editor.road_missing"));
+                    return;
+                }
+                String themeId = road.getEffectiveThemeId(config);
+                renderGrid(
+                    ctx,
+                    config.getStyles(),
+                    road.getStyleId(),
+                    style -> {
+                        ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
+                        if (onChanged != null) {
+                            onChanged.run();
+                        }
+                        ctx.requestOverlayRefresh();
+                        ctx.closePresetLibrary();
+                    },
+                    null);
+            }
+            case ROADS -> {
+                Collection<String> roadIds = ctx.presetLibraryRoadIds();
+                if (roadIds == null || roadIds.isEmpty()) {
+                    ImGui.textColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.road.floating_editor.road_missing"));
+                    return;
+                }
+                String selectedId = resolveSharedStyleId(network, roadIds);
+                String themeId = resolveSharedThemeId(network, roadIds, config);
+                renderGrid(
+                    ctx,
+                    config.getStyles(),
+                    selectedId,
+                    style -> {
+                        String applyTheme = themeId != null ? themeId : config.getRoadThemeId();
+                        ctx.networkManager().mutateNetwork(() -> {
+                            for (String roadId : roadIds) {
+                                Road road = network.getRoad(roadId);
+                                if (road != null) {
+                                    road.applyStyle(style, applyTheme);
+                                }
+                            }
+                        });
+                        if (onChanged != null) {
+                            onChanged.run();
+                        }
+                        ctx.requestOverlayRefresh();
+                        ctx.closePresetLibrary();
+                    },
+                    null);
+            }
+        }
     }
 
     private static void renderSectionHeader(String selectedId, boolean customSelected) {

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadUiContextPresetLibraryTest {
 
     @Test
-    void presetLibraryCollapsesWhenSelectionKeyChanges() {
+    void presetLibraryClosesWhenSelectionKeyChanges() {
         RoadUiContext ctx = new RoadUiContext(
             new RoadNetworkManager(new RoadSystemConfig("preset"), new RoadProjectStatus()),
             null,
@@ -23,19 +23,21 @@ class RoadUiContextPresetLibraryTest {
             new RoadProjectStatus(),
             pluginContext());
 
-        ctx.syncPresetLibrarySelection("road:a");
-        ctx.setPresetLibraryExpanded(true);
-        assertTrue(ctx.presetLibraryExpanded());
+        ctx.openPresetLibrary(
+            RoadUiContext.PresetLibraryTarget.ROAD, "road:a", "a", null, null);
+        assertTrue(ctx.presetLibraryOpen());
 
         ctx.syncPresetLibrarySelection("road:b");
-        assertFalse(ctx.presetLibraryExpanded());
+        assertFalse(ctx.presetLibraryOpen());
 
-        ctx.setPresetLibraryExpanded(true);
+        ctx.openPresetLibrary(
+            RoadUiContext.PresetLibraryTarget.ROAD, "road:b", "b", null, null);
+        assertTrue(ctx.presetLibraryOpen());
         ctx.syncPresetLibrarySelection("road:b");
-        assertTrue(ctx.presetLibraryExpanded());
+        assertTrue(ctx.presetLibraryOpen());
 
         ctx.syncPresetLibrarySelection("roads:a,b");
-        assertFalse(ctx.presetLibraryExpanded());
+        assertFalse(ctx.presetLibraryOpen());
     }
 
     private static PluginContext pluginContext() {

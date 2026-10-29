@@ -11,7 +11,12 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.ImVec2;
-/** Edit Tab 单路编辑顶部概览条：名称、长度、预设、纵断模式、警告与高级项计数。 */
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+/** Edit Tab 单路编辑顶部：道路下拉选择 + 长度/预设/警告摘要（对齐土方「选择分区」）。 */
 final class RoadEditOverviewStrip {
     private RoadEditOverviewStrip() {
     }
@@ -21,12 +26,12 @@ final class RoadEditOverviewStrip {
     }
 
     static void render(RoadUiContext ctx, RoadNetwork network, Road road, int issueCount) {
-        if (road == null) {
+        if (road == null || network == null) {
             return;
         }
         float width = ImGui.getContentRegionAvail().x;
         ImVec2 origin = ImGui.getCursorScreenPos();
-        float height = ImGui.getFrameHeightWithSpacing() * 3.2f;
+        float height = ImGui.getFrameHeightWithSpacing() * 3.6f;
         var drawList = ImGui.getWindowDrawList();
         drawList.addRectFilled(
             origin.x,
@@ -44,7 +49,8 @@ final class RoadEditOverviewStrip {
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 8f, 6f);
         ImGui.beginChild("##road_edit_overview_strip", width, height, false);
         try {
-            ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, road));
+            renderRoadSelector(ctx, network, road);
+
             double length = RoadStationing.isStationable(network, road)
                 ? RoadStationing.canonicalLength(network, road)
                 : RoadEdgeListHelper.computeRoadWorldLength(network, road, ctx.host().coordinates());
@@ -83,6 +89,46 @@ final class RoadEditOverviewStrip {
             ImGui.popStyleVar();
         }
         ImGui.spacing();
+    }
+
+    private static void renderRoadSelector(RoadUiContext ctx, RoadNetwork network, Road current) {
+        List<Road> roads = listEditableRoads(network);
+        if (roads.isEmpty()) {
+            ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, current));
+            return;
+        }
+        String preview = RoadEdgeListHelper.formatRoadLabel(network, current);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo(PlotI18n.tr("plugin.road.edit.select_road"), preview)) {
+            for (Road candidate : roads) {
+                String label = RoadEdgeListHelper.formatRoadLabel(network, candidate);
+                boolean selected = candidate.getId().equals(current.getId());
+                if (ImGui.selectable(label + "##edit_road_" + candidate.getId(), selected)) {
+                    if (!selected) {
+                        ctx.networkManager().selectRoad(candidate.getId(), false);
+                        ctx.requestOverlayRefresh();
+                    }
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+    }
+
+    private static List<Road> listEditableRoads(RoadNetwork network) {
+        List<Road> roads = new ArrayList<>();
+        for (Road road : network.getRoads().values()) {
+            if (road == null || road.getSegmentIds().isEmpty()) {
+                continue;
+            }
+            roads.add(road);
+        }
+        roads.sort(Comparator.comparing(
+            road -> RoadEdgeListHelper.formatRoadLabel(network, road),
+            String.CASE_INSENSITIVE_ORDER));
+        return roads;
     }
 
     private static String resolvePresetName(Road road) {
