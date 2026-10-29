@@ -103,17 +103,11 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             if (visible) {
                 float footerReserve =
                     RoadFloatingEditorShell.footerReserveHeight(revisionConflictPending);
-                float bodyHeight = Math.max(80f, ImGui.getContentRegionAvailY() - footerReserve);
-                ImGui.beginChild(
-                    "##floating_editor_body",
-                    0f,
-                    bodyHeight,
-                    false,
-                    ImGuiWindowFlags.AlwaysVerticalScrollbar);
+                // 负高度：把底部精确留给页脚，避免固定窗高时确认键下方再空一截。
+                ImGui.beginChild("##floating_editor_body", 0f, -footerReserve, false, 0);
                 renderRevisionConflictBanner(ctx);
                 renderWindowBody(ctx);
                 ImGui.endChild();
-                ImGui.spacing();
                 RoadFloatingEditorShell.renderFooter(
                     ctx,
                     isDirty(),

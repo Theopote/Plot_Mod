@@ -66,20 +66,17 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         float totalWidth = ImGui.getContentRegionAvailX();
-        float previewWidth = totalWidth * 0.38f;
+        float columnHeight = ImGui.getContentRegionAvailY();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float paramsWidth = totalWidth - previewWidth - spacing;
+        // 左右等宽：预览列宽与参数列宽相同（整体窗宽已按此观感收窄并固定）。
+        float columnWidth = Math.max(80f, (totalWidth - spacing) * 0.5f);
         float startX = ImGui.getCursorPosX();
         float startY = ImGui.getCursorPosY();
 
         // 先渲染右侧参数（写回 working road），再画左侧预览，保证同帧看到改参效果。
-        ImGui.setCursorPos(startX + previewWidth + spacing, startY);
-        ImGui.beginChild(
-            "##xs_params",
-            paramsWidth,
-            0,
-            true,
-            ImGuiWindowFlags.AlwaysVerticalScrollbar);
+        // 列高吃满内容区，只在右侧栏内滚动，避免外层再出一条滚动条。
+        ImGui.setCursorPos(startX + columnWidth + spacing, startY);
+        ImGui.beginChild("##xs_params", columnWidth, columnHeight, true, 0);
         CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(
             road,
             config,
@@ -135,7 +132,12 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         ImGui.endChild();
 
         ImGui.setCursorPos(startX, startY);
-        ImGui.beginChild("##xs_preview", previewWidth, 0, true);
+        ImGui.beginChild(
+            "##xs_preview",
+            columnWidth,
+            columnHeight,
+            true,
+            ImGuiWindowFlags.NoScrollbar);
         ImGui.text(PlotI18n.tr("plugin.road.floating_editor.cross_section.preview"));
         RoadCrossSectionEditor.renderPreview(session.workingNetwork(), road, config);
         ImGui.endChild();

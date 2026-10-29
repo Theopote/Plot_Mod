@@ -105,9 +105,6 @@ public final class RoadCrossSectionEditor {
         RoadPresetCards.renderForRoad(ctx, road, onChanged);
     }
 
-    public static void renderFields(RoadUiContext ctx, Road road, Runnable onHistory) {
-        renderRoadLevelCollapsibles(ctx, road, onHistory);
-    }
 
     /**
      * Edit Tab ROAD-LEVEL：横断面 / 材质 / 附属设施三个折叠区。

@@ -13,42 +13,49 @@ import java.util.function.BooleanSupplier;
 
 /**
  * 共享 ImGui 浮动编辑器壳：窗口尺寸、页脚与关闭确认弹窗。
+ * <p>
+ * 专业设计器统一固定尺寸（与预设库一致），不可拖边框改大小。
+ * 宽度按「横断面左右等宽、左栏保持原预览观感」收窄：约屏宽 42%。
  */
 public final class RoadFloatingEditorShell {
-    private static final float WINDOW_SIZE_OF_SCREEN = 0.55f;
-    private static final float WINDOW_MIN_SIZE_OF_SCREEN = 0.35f;
-    private static final float WINDOW_MAX_SIZE_OF_SCREEN = 0.85f;
-    /** 为页脚按钮预留高度，避免内容区挤占确认/取消。 */
-    static final float FOOTER_RESERVE_HEIGHT = 56f;
+    /** 固定窗口相对屏宽（原 55% 可缩放 → 等宽双栏后约 42%）。 */
+    public static final float FIXED_WIDTH_OF_SCREEN = 0.42f;
+    /**
+     * 固定窗口相对屏高。略低于旧值，避免确认栏下方再留一大块空区；
+     * 底边距与左右窗边距同级（靠 WindowPadding，不再额外垫高）。
+     */
+    public static final float FIXED_HEIGHT_OF_SCREEN = 0.48f;
+    /** 页脚实际占用：分隔线 + 按钮行（勿再加大，否则按钮下会出现空白）。 */
+    static final float FOOTER_RESERVE_HEIGHT = 36f;
     /** 版本冲突横幅额外占用（中文标签较长时需两行）。 */
     static final float CONFLICT_BANNER_RESERVE = 52f;
     /** 窄面板阈值：低于此宽度时页脚按钮换行排列。 */
     static final float NARROW_PANEL_WIDTH = 420f;
+    /** 页脚「取消 / 确认」按钮宽度（比纯文字默认框更易点）。 */
+    static final float FOOTER_ACTION_BUTTON_WIDTH = 96f;
 
-    static final int WINDOW_FLAGS =
+    public static final int WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse
             | ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings;
+            | ImGuiWindowFlags.NoSavedSettings
+            | ImGuiWindowFlags.NoResize;
 
     private RoadFloatingEditorShell() {
     }
 
     public static void prepareWindow(String imguiId, ImBoolean open, boolean focusOnOpen) {
+        float sw = ImGui.getIO().getDisplaySizeX();
+        float sh = ImGui.getIO().getDisplaySizeY();
+        float w = sw * FIXED_WIDTH_OF_SCREEN;
+        float h = sh * FIXED_HEIGHT_OF_SCREEN;
         if (focusOnOpen) {
             ImGui.setNextWindowDockID(0);
-            float sw = ImGui.getIO().getDisplaySizeX();
-            float sh = ImGui.getIO().getDisplaySizeY();
-            float w = sw * WINDOW_SIZE_OF_SCREEN;
-            float h = sh * WINDOW_SIZE_OF_SCREEN;
             ImGui.setNextWindowSize(w, h, ImGuiCond.Appearing);
             ImGui.setNextWindowPos(sw * 0.5f - w * 0.5f, sh * 0.5f - h * 0.5f, ImGuiCond.Appearing);
             ImGui.setNextWindowFocus();
         }
-        ImGui.setNextWindowSizeConstraints(
-            ImGui.getIO().getDisplaySizeX() * WINDOW_MIN_SIZE_OF_SCREEN,
-            ImGui.getIO().getDisplaySizeY() * WINDOW_MIN_SIZE_OF_SCREEN,
-            ImGui.getIO().getDisplaySizeX() * WINDOW_MAX_SIZE_OF_SCREEN,
-            ImGui.getIO().getDisplaySizeY() * WINDOW_MAX_SIZE_OF_SCREEN);
+        // 上下限相同 + NoResize：每帧锁死尺寸，避免旧会话残留可缩放窗口。
+        ImGui.setNextWindowSizeConstraints(w, h, w, h);
     }
 
     public static float footerReserveHeight(boolean revisionConflictPending) {
@@ -73,7 +80,10 @@ public final class RoadFloatingEditorShell {
             }
         }
         if (onCancel != null) {
-            if (ImGui.button(PlotI18n.tr("button.plot.cancel") + "##cancel")) {
+            if (ImGui.button(
+                    PlotI18n.tr("button.plot.cancel") + "##cancel",
+                    FOOTER_ACTION_BUTTON_WIDTH,
+                    0)) {
                 onCancel.run();
             }
             if (!narrow) {
@@ -84,7 +94,10 @@ public final class RoadFloatingEditorShell {
             if (!dirty) {
                 ImGui.beginDisabled();
             }
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.confirm") + "##confirm")) {
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.road.floating_editor.confirm") + "##confirm",
+                    FOOTER_ACTION_BUTTON_WIDTH,
+                    0)) {
                 onConfirm.run();
             }
             if (!dirty) {

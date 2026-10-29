@@ -26,10 +26,6 @@ public final class RoadCenterlineEditPanel {
     private int centerlineVertexIndex = 1;
     private String lastCenterlineEditMessage = "";
 
-    String lastMessage() {
-        return lastCenterlineEditMessage;
-    }
-
     public void recordMessage(CenterlineEditResult result) {
         lastCenterlineEditMessage = CenterlineEditMessages.format(result);
     }
@@ -142,9 +138,8 @@ public final class RoadCenterlineEditPanel {
                 centerlineVertexIndex = vertexValue[0];
             }
             float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
-            centerlineFilletRadiusBlocks = Math.min(
-                Math.max(0.5f, centerlineFilletRadiusBlocks),
-                maxRadius);
+            centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f,
+                    maxRadius);
             float[] radius = {centerlineFilletRadiusBlocks};
             ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
             if (ImGui.sliderFloat(

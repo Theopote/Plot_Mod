@@ -18,10 +18,7 @@ public final class TunnelStyleFloatingEditor {
         ROAD
     }
 
-    private static final int WINDOW_FLAGS =
-        ImGuiWindowFlags.NoCollapse
-            | ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings;
+    private static final int WINDOW_FLAGS = RoadFloatingEditorShell.WINDOW_FLAGS;
 
     private final ImBoolean open = new ImBoolean(false);
     private boolean focusPending;
@@ -113,12 +110,7 @@ public final class TunnelStyleFloatingEditor {
                 return;
             }
             float footer = RoadFloatingEditorShell.footerReserveHeight(false);
-            if (ImGui.beginChild(
-                    "##tunnel_style_body",
-                    0f,
-                    -footer,
-                    false,
-                    ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
+            if (ImGui.beginChild("##tunnel_style_body", 0f, -footer, false, 0)) {
                 TunnelStyleEditor.render(ctx, draft, () -> draft.clamp());
             }
             ImGui.endChild();

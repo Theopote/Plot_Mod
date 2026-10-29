@@ -30,14 +30,13 @@ public final class RoadPresetCards {
     private static final float CARD_PADDING_BOTTOM = 2f;
     private static final float PREVIEW_GAP = 1f;
     private static final float PREVIEW_HEIGHT = 48f;
-    /** 预设库浮动窗相对屏幕的固定宽高（不可拖拽改尺寸）。 */
-    private static final float FLOATING_WIDTH_OF_SCREEN = 0.42f;
-    private static final float FLOATING_HEIGHT_OF_SCREEN = 0.55f;
+    /** 预设库浮动窗：与专业设计器 {@link com.plot.plugin.road.ui.editor.RoadFloatingEditorShell} 同尺寸。 */
+    private static final float FLOATING_WIDTH_OF_SCREEN =
+        com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.FIXED_WIDTH_OF_SCREEN;
+    private static final float FLOATING_HEIGHT_OF_SCREEN =
+        com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.FIXED_HEIGHT_OF_SCREEN;
     private static final int FLOATING_FLAGS =
-        ImGuiWindowFlags.NoCollapse
-            | ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings
-            | ImGuiWindowFlags.NoResize;
+        com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.WINDOW_FLAGS;
 
     private RoadPresetCards() {
     }
