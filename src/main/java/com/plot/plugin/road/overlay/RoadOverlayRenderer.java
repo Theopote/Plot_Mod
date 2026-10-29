@@ -38,6 +38,10 @@ public final class RoadOverlayRenderer {
         RoadOverlayStyle style = RoadOverlayStyle.forState(entry.state());
         renderFill(drawList, camera, corridor, style.fillColor());
         renderCorridorOutlines(drawList, camera, corridor, style);
+        if (entry.hasSlopeBatterOverlay()) {
+            // Outer slope envelope is an auxiliary dashed ring; do not widen pavement fill/outline.
+            renderCorridorOutlines(drawList, camera, entry.slopeBatterGeometry(), RoadOverlayStyle.slopeBatter());
+        }
         if (style.drawCenterline()) {
             renderCenterline(drawList, camera, entry.centerlinePoints(), style.outlineColor());
         }

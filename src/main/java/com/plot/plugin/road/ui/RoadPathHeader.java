@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.RoadAdoptDuplicateDetector;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -24,10 +25,7 @@ public final class RoadPathHeader {
             return;
         }
 
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.pick_path"),
-                ImGui.getContentRegionAvailX() * 0.58f,
-                0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.pick_path"), 0, 0)) {
             ctx.toolManager().activatePathPickTool();
         }
         if (ImGui.isItemHovered()) {
@@ -111,6 +109,6 @@ public final class RoadPathHeader {
             network.getRoads().size(),
             RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
                 network, ctx.host().coordinates())),
-            network.getJunctionCount()));
+            RoadIntersectionInventory.count(network)));
     }
 }

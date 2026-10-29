@@ -32,6 +32,9 @@ public final class RoadEdgeListPanel {
     private final RoadUiContext ctx;
     /** 按道路分组时展开分段列表的道路 id */
     private final Set<String> expandedSegmentGroups = new HashSet<>();
+    /** Previous-frame measured content height for path-tab road list auto-fit. */
+    private float pathListMeasuredContentHeight = -1f;
+    private int pathListMeasuredRowCount = -1;
 
     public RoadEdgeListPanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -137,34 +140,70 @@ public final class RoadEdgeListPanel {
                     showDelete);
         }
 
-        float listHeight = showThumbnails
-            ? pathListHeightForRows(rows.size())
-            : EDGE_LIST_HEIGHT;
-        ImGui.beginChild(childId, 0, listHeight, true);
+        if (showThumbnails) {
+            renderPathListChild(network, rows, showDelete, childId);
+            return;
+        }
+        ImGui.beginChild(childId, 0, EDGE_LIST_HEIGHT, true);
         if (rows.isEmpty()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
         } else {
-            renderVirtualEdgeList(network, rows, showDelete, showThumbnails);
+            renderVirtualEdgeList(network, rows, showDelete, false);
         }
         ImGui.endChild();
     }
 
-    private static float pathRowHeight() {
-        return Math.max(
-            RoadNetworkOverviewRenderer.thumbnailHeight(),
-            ImGui.getTextLineHeightWithSpacing() * 2f
-                + ImGui.getFrameHeightWithSpacing()
-                + ImGui.getStyle().getItemSpacingY())
+    /**
+     * Path-tab road list: size the bordered child to the actual row content.
+     * Avoids ListClipper item-height overestimate leaving empty space under short lists.
+     */
+    private void renderPathListChild(
+            RoadNetwork network,
+            List<RoadEdgeListHelper.DisplayRow> rows,
+            boolean showDelete,
+            String childId) {
+        float padding = ImGui.getStyle().getWindowPaddingY() * 2f;
+        float listHeight = pathListHeightForRows(rows.size(), padding);
+        ImGui.beginChild(childId, 0, listHeight, true);
+        float contentStart = ImGui.getCursorPosY();
+        if (rows.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
+        } else {
+            // Path tab usually has few roads; draw all rows so height can be measured exactly.
+            for (RoadEdgeListHelper.DisplayRow row : rows) {
+                ImGui.pushID(scopeIdForRow(row));
+                renderDisplayRow(network, row, showDelete, true);
+                ImGui.popID();
+            }
+        }
+        float measured = Math.max(0f, ImGui.getCursorPosY() - contentStart);
+        pathListMeasuredContentHeight = measured;
+        pathListMeasuredRowCount = rows.size();
+        ImGui.endChild();
+    }
+
+    private static float pathRowHeightEstimate() {
+        // Thumbnail | (name + summary + delete) on one row; take the taller column.
+        float textColumn = ImGui.getFrameHeight()
+            + ImGui.getStyle().getItemSpacingY()
+            + ImGui.getTextLineHeight()
+            + ImGui.getStyle().getItemSpacingY()
+            + ImGui.getFrameHeight();
+        return Math.max(RoadNetworkOverviewRenderer.thumbnailHeight(), textColumn)
             + ImGui.getStyle().getItemSpacingY();
     }
 
-    private static float pathListHeightForRows(int rowCount) {
-        float padding = ImGui.getStyle().getWindowPaddingY() * 2f;
+    private float pathListHeightForRows(int rowCount, float padding) {
         if (rowCount <= 0) {
             return ImGui.getTextLineHeightWithSpacing() * 2f + padding;
         }
-        float content = rowCount * pathRowHeight() + padding;
-        return Math.min(PATH_LIST_MAX_HEIGHT, content);
+        float content;
+        if (pathListMeasuredRowCount == rowCount && pathListMeasuredContentHeight > 0f) {
+            content = pathListMeasuredContentHeight;
+        } else {
+            content = rowCount * pathRowHeightEstimate();
+        }
+        return Math.min(PATH_LIST_MAX_HEIGHT, content + padding);
     }
 
     private void renderVirtualEdgeList(
@@ -172,9 +211,7 @@ public final class RoadEdgeListPanel {
             List<RoadEdgeListHelper.DisplayRow> rows,
             boolean showDelete,
             boolean showThumbnails) {
-        int rowHeight = showThumbnails
-            ? Math.round(pathRowHeight())
-            : Math.round(ImGui.getTextLineHeightWithSpacing() * EDGE_ROW_HEIGHT_LINES);
+        int rowHeight = Math.round(ImGui.getTextLineHeightWithSpacing() * EDGE_ROW_HEIGHT_LINES);
         ImGuiListClipper.forEach(rows.size(), rowHeight, new ImListClipperCallback() {
             @Override
             public void accept(int index) {

@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.utils.PlotI18n;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -61,6 +62,39 @@ class RoadEdgeListHelperTest {
         road.setName("Residential Loop");
 
         assertEquals("Residential Loop", RoadEdgeListHelper.formatRoadLabel(network, road));
+    }
+
+    @Test
+    void createRoadAssignsSequentialDefaultNames() {
+        RoadNetwork network = new RoadNetwork();
+        Road first = network.createRoad();
+        Road second = network.createRoad();
+
+        assertEquals(PlotI18n.tr("plugin.road.default_name", 1), first.getName());
+        assertEquals(PlotI18n.tr("plugin.road.default_name", 2), second.getName());
+        assertEquals(first.getName(), RoadEdgeListHelper.formatRoadDisplayName(network, first));
+        assertEquals(second.getName(), RoadEdgeListHelper.formatRoadDisplayName(network, second));
+    }
+
+    @Test
+    void formatRoadDisplayNameFallsBackToOrdinalWhenNameCleared() {
+        RoadNetwork network = new RoadNetwork();
+        Road first = network.createRoad();
+        Road second = network.createRoad();
+        first.setName(null);
+        second.setName(null);
+
+        assertEquals(1, RoadEdgeListHelper.resolveRoadOrdinal(network, first));
+        assertEquals(2, RoadEdgeListHelper.resolveRoadOrdinal(network, second));
+        assertEquals(
+            PlotI18n.tr("plugin.road.default_name", 1),
+            RoadEdgeListHelper.formatRoadDisplayName(network, first));
+        assertEquals(
+            PlotI18n.tr("plugin.road.default_name", 2),
+            RoadEdgeListHelper.formatRoadDisplayName(network, second));
+        assertEquals(
+            RoadEdgeListHelper.formatAutoRoadLabel(network, first),
+            RoadEdgeListHelper.formatRoadLabel(network, first));
     }
 
     @Test

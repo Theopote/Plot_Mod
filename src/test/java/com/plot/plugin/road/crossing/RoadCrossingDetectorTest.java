@@ -35,6 +35,7 @@ class RoadCrossingDetectorTest {
         assertEquals(nodesBefore, network.getNodes().size());
         assertEquals(2, network.getEdges().size());
         assertFalse(network.getJunctionCount() > 0);
+        assertEquals(1, RoadIntersectionInventory.count(network));
     }
 
     @Test

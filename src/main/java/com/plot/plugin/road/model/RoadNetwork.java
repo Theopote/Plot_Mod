@@ -197,14 +197,24 @@ public class RoadNetwork {
 
     public Road createRoad() {
         Road road = new Road();
+        assignDefaultRoadName(road);
         roads.put(road.getId(), road);
         return road;
     }
 
     public Road createRoad(String roadId) {
         Road road = new Road(roadId);
+        assignDefaultRoadName(road);
         roads.put(road.getId(), road);
         return road;
+    }
+
+    /** 与土方区域一致：新建时写入「道路 n」/「Road n」，避免列表出现 UUID 片段。 */
+    private void assignDefaultRoadName(Road road) {
+        if (road.getName() != null && !road.getName().isBlank()) {
+            return;
+        }
+        road.setName(PlotI18n.tr("plugin.road.default_name", roads.size() + 1));
     }
 
     /**
@@ -565,6 +575,12 @@ public class RoadNetwork {
         return edges.values().stream().mapToDouble(RoadEdge::getLength).sum();
     }
 
+    /**
+     * 拓扑路口数（连接边度 ≥ 3 的节点）。
+     * <p>
+     * UI「交点」摘要请用 {@link com.plot.plugin.road.crossing.RoadIntersectionInventory#count}：
+     * 现代路网交叉多在注册表中，拓扑度可能仍为 2。
+     */
     public int getJunctionCount() {
         return (int) nodes.values().stream()
             .filter(node -> node.getDegree() >= 3)

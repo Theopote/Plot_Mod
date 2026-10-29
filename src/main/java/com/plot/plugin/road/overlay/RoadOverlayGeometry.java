@@ -105,6 +105,78 @@ public final class RoadOverlayGeometry {
         return RoadEarthworkCorridorResolver.buildCorridorGeometry(centerline, halfWidth, closed);
     }
 
+    /**
+     * Optional outer ring for "show slope batter width": earthwork envelope beyond pavement.
+     * Returns null when slope is disabled or not wider than the pavement corridor.
+     */
+    public static RoadCorridorGeometry resolveRoadSlopeBatterGeometry(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            RoadCorridorGeometry pavementCorridor) {
+        RoadCorridorGeometry slope = resolveRoadCorridorGeometry(
+            network, road, config, coordinates, true);
+        return usableSlopeBatterGeometry(pavementCorridor, slope);
+    }
+
+    public static RoadCorridorGeometry resolvePathSlopeBatterGeometry(
+            Shape path,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            RoadCorridorGeometry pavementCorridor) {
+        RoadCorridorGeometry slope = resolvePathCorridorGeometry(path, config, coordinates, true);
+        return usableSlopeBatterGeometry(pavementCorridor, slope);
+    }
+
+    static RoadCorridorGeometry usableSlopeBatterGeometry(
+            RoadCorridorGeometry pavementCorridor,
+            RoadCorridorGeometry slopeCorridor) {
+        if (slopeCorridor == null || slopeCorridor.primaryFillContour().size() < 3) {
+            return null;
+        }
+        if (pavementCorridor == null || pavementCorridor.primaryFillContour().size() < 3) {
+            return slopeCorridor;
+        }
+        // Skip a duplicate ring when earthwork envelope collapses to pavement.
+        // Compare lateral half-width (not polygon radius): long roads are dominated by length.
+        if (representativeHalfWidth(slopeCorridor) <= representativeHalfWidth(pavementCorridor) + 0.25) {
+            return null;
+        }
+        return slopeCorridor;
+    }
+
+    private static double representativeHalfWidth(RoadCorridorGeometry geometry) {
+        List<Vec2d> centerline = geometry.centerline();
+        List<Vec2d> left = geometry.leftBoundary();
+        if (centerline.size() >= 1 && left.size() >= 1) {
+            return left.getFirst().distance(centerline.getFirst());
+        }
+        List<Vec2d> contour = geometry.primaryFillContour();
+        if (centerline.size() < 2 || contour.isEmpty()) {
+            return 0.0;
+        }
+        double max = 0.0;
+        for (Vec2d point : contour) {
+            max = Math.max(max, distanceToPolyline(point, centerline));
+        }
+        return max;
+    }
+
+    private static double distanceToPolyline(Vec2d point, List<Vec2d> polyline) {
+        double best = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < polyline.size() - 1; i++) {
+            Vec2d a = polyline.get(i);
+            Vec2d b = polyline.get(i + 1);
+            Vec2d ab = b.subtract(a);
+            double lengthSq = ab.lengthSquared();
+            double t = lengthSq < 1e-12 ? 0.0 : Math.clamp(point.subtract(a).dot(ab) / lengthSq, 0.0, 1.0);
+            Vec2d closest = a.add(ab.multiply(t));
+            best = Math.min(best, point.distance(closest));
+        }
+        return best;
+    }
+
     static boolean isShapeTopologyClosed(Shape shape) {
         if (shape == null) {
             return false;

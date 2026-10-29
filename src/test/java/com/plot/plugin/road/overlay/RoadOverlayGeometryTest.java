@@ -84,6 +84,63 @@ class RoadOverlayGeometryTest {
     }
 
     @Test
+    void resolveRoadSlopeBatterGeometry_isWiderThanPavementAndNotNull() {
+        RoadSystemConfig config = slopeConfig();
+        RoadNetwork network = straightRoad(config);
+        Road road = network.getRoads().values().iterator().next();
+
+        RoadCorridorGeometry pavement = RoadOverlayGeometry.resolveRoadCorridorGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE, false);
+        RoadCorridorGeometry slope = RoadOverlayGeometry.resolveRoadSlopeBatterGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE, pavement);
+
+        assertTrue(slope != null && slope.primaryFillContour().size() >= 3);
+        assertTrue(RoadOverlayGeometry.containsPoint(slope, 50, 0));
+        // Pavement stays narrow; slope ring reaches farther off-centerline.
+        assertFalse(RoadOverlayGeometry.containsPoint(pavement, 50, 8));
+        assertTrue(RoadOverlayGeometry.containsPoint(slope, 50, 8));
+    }
+
+    @Test
+    void resolveRoadSlopeBatterGeometry_returnsNullWhenSlopeDisabled() {
+        RoadSystemConfig config = slopeConfig();
+        config.setIncludeSlopeBatter(false);
+        RoadNetwork network = straightRoad(config);
+        Road road = network.getRoads().values().iterator().next();
+        road.setIncludeSlopeBatter(false);
+
+        RoadCorridorGeometry pavement = RoadOverlayGeometry.resolveRoadCorridorGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE, false);
+        RoadCorridorGeometry slope = RoadOverlayGeometry.resolveRoadSlopeBatterGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE, pavement);
+
+        assertEquals(null, slope);
+    }
+
+    private static RoadSystemConfig slopeConfig() {
+        RoadSystemConfig config = new RoadSystemConfig("slope_overlay");
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeBikeLane(false);
+        config.setIncludeSlopeBatter(true);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        config.setCutSlopeRatio(1.0f);
+        return config;
+    }
+
+    private static RoadNetwork straightRoad(RoadSystemConfig config) {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        road.setIncludeSlopeBatter(config.isIncludeSlopeBatter());
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+        return network;
+    }
+
+    @Test
     void resolveConfigCorridorHalfWidth_updatesWhenRoadWidthChanges() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setIncludeSidewalk(false);

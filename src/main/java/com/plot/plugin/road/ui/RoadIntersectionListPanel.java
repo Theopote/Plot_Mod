@@ -1,10 +1,10 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
-import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadNetworkManager;
@@ -32,7 +32,7 @@ public final class RoadIntersectionListPanel {
         RoadNetwork network = ctx.networkManager().getNetwork();
         List<RoadCrossing> crossings = new ArrayList<>(network.getCrossings().values());
         List<RoadStackCrossing> stackCrossings = new ArrayList<>(network.getStackCrossings().values());
-        List<RoadNode> legacyJunctions = listLegacyJunctionNodes(network, crossings, stackCrossings);
+        List<RoadNode> legacyJunctions = RoadIntersectionInventory.listLegacyJunctionNodes(network);
         if (crossings.isEmpty() && stackCrossings.isEmpty() && legacyJunctions.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.path.no_intersections"));
             return;
@@ -53,53 +53,6 @@ public final class RoadIntersectionListPanel {
         for (RoadNode node : legacyJunctions) {
             renderLegacyRow(network, node, node.getId().equals(selectedNodeId));
         }
-    }
-
-    private List<RoadNode> listLegacyJunctionNodes(
-            RoadNetwork network,
-            List<RoadCrossing> crossings,
-            List<RoadStackCrossing> stackCrossings) {
-        List<RoadNode> junctions = new ArrayList<>();
-        for (RoadNode node : network.getNodes().values()) {
-            if (node == null || node.getDegree() < 2) {
-                continue;
-            }
-            if (isCoveredByRegistryCrossing(node, crossings)
-                    || isCoveredByStackCrossing(node, stackCrossings)) {
-                continue;
-            }
-            if (node.isJunction() || RoadGraphQueries.isSimpleCrossing(node, network) || node.isGradeSeparated()) {
-                junctions.add(node);
-            }
-        }
-        junctions.sort(Comparator.comparingInt(RoadNode::getDegree).reversed());
-        return junctions;
-    }
-
-    private static boolean isCoveredByStackCrossing(RoadNode node, List<RoadStackCrossing> stacks) {
-        if (node.getPosition() == null || stacks == null) {
-            return false;
-        }
-        for (RoadStackCrossing stack : stacks) {
-            if (stack.position() != null
-                    && RoadGeometryUtils.pointsNear(node.getPosition(), stack.position(), 0.5)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isCoveredByRegistryCrossing(RoadNode node, List<RoadCrossing> crossings) {
-        if (node.getPosition() == null) {
-            return false;
-        }
-        for (RoadCrossing crossing : crossings) {
-            if (crossing.position() != null
-                    && RoadGeometryUtils.pointsNear(node.getPosition(), crossing.position(), 0.5)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void renderCrossingRow(RoadNetwork network, RoadCrossing crossing, boolean selected) {

@@ -6,6 +6,7 @@ import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
+import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
@@ -33,7 +34,7 @@ public final class RoadPathOverviewPanel {
         RoadUiSections.section("plugin.road.section.network_health");
         RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
             network.getRoads().size(),
-            network.getJunctionCount(),
+            RoadIntersectionInventory.count(network),
             RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
                 network, ctx.host().coordinates()))));
 
@@ -84,7 +85,7 @@ public final class RoadPathOverviewPanel {
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
             network.getRoads().size(),
-            network.getJunctionCount(),
+            RoadIntersectionInventory.count(network),
             RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
                 network, ctx.host().coordinates()))));
     }

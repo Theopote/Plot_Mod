@@ -43,9 +43,10 @@ public final class RoadOverlayController {
             if (road == null) {
                 continue;
             }
+            // Main road outline stays on hard pavement; slope batter is a separate overlay ring.
             com.plot.plugin.road.geometry.RoadCorridorGeometry corridor =
                 RoadOverlayGeometry.resolveRoadCorridorGeometry(
-                    network, road, config, coordinates, includeSlopeBatterOverlay);
+                    network, road, config, coordinates, false);
             if (corridor.primaryFillContour().size() < 3) {
                 continue;
             }
@@ -56,6 +57,10 @@ public final class RoadOverlayController {
                     && road.getId().equals(primaryRoadId)) {
                 profileSeam = RoadLoopSeamService.overlayPosition(network, road);
             }
+            com.plot.plugin.road.geometry.RoadCorridorGeometry slopeBatter = includeSlopeBatterOverlay
+                ? RoadOverlayGeometry.resolveRoadSlopeBatterGeometry(
+                    network, road, config, coordinates, corridor)
+                : null;
             entries.add(new RoadOverlayEntry(
                 road.getId(),
                 road.getName(),
@@ -67,7 +72,8 @@ public final class RoadOverlayController {
                     primaryRoadId,
                     warnings,
                     previewed),
-                profileSeam));
+                profileSeam,
+                slopeBatter));
         }
 
         appendPickCandidates(
@@ -95,16 +101,22 @@ public final class RoadOverlayController {
             }
             com.plot.plugin.road.geometry.RoadCorridorGeometry corridor =
                 RoadOverlayGeometry.resolvePathCorridorGeometry(
-                    path, config, coordinates, includeSlopeBatterOverlay);
+                    path, config, coordinates, false);
             if (corridor.primaryFillContour().size() < 3) {
                 continue;
             }
+            com.plot.plugin.road.geometry.RoadCorridorGeometry slopeBatter = includeSlopeBatterOverlay
+                ? RoadOverlayGeometry.resolvePathSlopeBatterGeometry(
+                    path, config, coordinates, corridor)
+                : null;
             entries.add(new RoadOverlayEntry(
                 "shape:" + path.getId(),
                 path.getId(),
                 corridor,
                 RoadOverlayGeometry.resolveShapeCenterline(path),
-                state));
+                state,
+                null,
+                slopeBatter));
         }
     }
 

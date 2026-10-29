@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -120,8 +121,7 @@ public final class RoadEdgeListHelper {
         if (name != null && !name.isBlank()) {
             return name;
         }
-        String shortId = road.getId().substring(0, Math.min(8, road.getId().length()));
-        return PlotI18n.tr("plugin.road.road_label_fallback", shortId);
+        return PlotI18n.tr("plugin.road.default_name", resolveRoadOrdinal(network, road));
     }
 
     /** 路径列表第二行：车道 / 宽度 / 段数 / 长度。 */
@@ -148,7 +148,7 @@ public final class RoadEdgeListHelper {
             lengthBlocks);
     }
 
-    /** 无自定义名称时的列表/占位标签（基于 id 与横断面摘要）。 */
+    /** 无自定义名称时的列表/占位标签（序号 + 横断面摘要）。 */
     public static String formatAutoRoadLabel(RoadNetwork network, Road road) {
         if (road == null) {
             return PlotI18n.tr("plugin.road.unassigned_road");
@@ -156,8 +156,30 @@ public final class RoadEdgeListHelper {
         int segmentCount = road.getSegmentIds().size();
         int width = road.getWidth() != null ? road.getWidth() : 0;
         int lanes = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
-        return PlotI18n.tr("plugin.road.road_label", road.getId().substring(0, Math.min(8, road.getId().length())),
-            lanes, width, segmentCount);
+        return PlotI18n.tr(
+            "plugin.road.road_label",
+            String.valueOf(resolveRoadOrdinal(network, road)),
+            lanes,
+            width,
+            segmentCount);
+    }
+
+    /**
+     * 无名道路的稳定序号（按 id 排序），用于「道路 n」回退显示。
+     * 新建道路通常已写入 {@code plugin.road.default_name}；此方法覆盖清除名称或旧存档。
+     */
+    public static int resolveRoadOrdinal(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return 1;
+        }
+        List<Road> ordered = new ArrayList<>(network.getRoads().values());
+        ordered.sort(Comparator.comparing(Road::getId, Comparator.nullsLast(String::compareTo)));
+        for (int i = 0; i < ordered.size(); i++) {
+            if (Objects.equals(ordered.get(i).getId(), road.getId())) {
+                return i + 1;
+            }
+        }
+        return Math.max(1, network.getRoads().size());
     }
 
     public static double computeRoadLength(RoadNetwork network, Road road) {

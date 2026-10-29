@@ -90,4 +90,14 @@ public final class RoadOverlayStyle {
                 false);
         };
     }
+
+    /** Outer cut/fill slope envelope ring drawn outside the hard-pavement corridor. */
+    public static RoadOverlayStyle slopeBatter() {
+        return new RoadOverlayStyle(
+            ImColor.rgba(210, 170, 96, 180),
+            ImColor.rgba(0, 0, 0, 0),
+            1.4f,
+            true,
+            false);
+    }
 }

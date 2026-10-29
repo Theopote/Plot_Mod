@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
+import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -182,14 +183,12 @@ public final class RoadGeneratePanel {
     private void renderIntersectionCheckSection(
             RoadNetwork network,
             RoadNetworkValidationReport preflight) {
-        if (network.getJunctionCount() <= 0
-                && network.getCrossings().isEmpty()
-                && network.getStackCrossings().isEmpty()) {
+        int intersectionCount = RoadIntersectionInventory.count(network);
+        if (intersectionCount <= 0) {
             return;
         }
         ImGui.separator();
         RoadUiSections.section("plugin.road.generate.intersection_check");
-        int junctionCount = network.getJunctionCount();
         int issueCount = preflight.intersectionIssueCount();
         if (issueCount > 0) {
             RoadUiWidgets.textWrappedColored(
@@ -197,11 +196,11 @@ public final class RoadGeneratePanel {
                 PlotI18n.tr(
                     "plugin.road.generate.intersection_issues",
                     issueCount,
-                    junctionCount));
+                    intersectionCount));
         } else {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.generate.intersection_ok", junctionCount));
+                PlotI18n.tr("plugin.road.generate.intersection_ok", intersectionCount));
         }
         intersectionListPanel.render();
         renderSelectedIntersection(network);
@@ -233,7 +232,7 @@ public final class RoadGeneratePanel {
         RoadUiWidgets.textWrapped(PlotI18n.tr(
             "plugin.road.build.network_scope_summary",
             network.getRoads().size(),
-            network.getJunctionCount(),
+            RoadIntersectionInventory.count(network),
             RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
                 network, ctx.host().coordinates()))));
         RoadUiWidgets.textWrappedColored(
