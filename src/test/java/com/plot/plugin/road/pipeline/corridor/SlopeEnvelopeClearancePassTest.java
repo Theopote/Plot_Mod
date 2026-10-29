@@ -118,6 +118,67 @@ class SlopeEnvelopeClearancePassTest {
     }
 
     @Test
+    void cutToFillTransitionKeepsBatterClearanceOnBothSides() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        assertTrue(crossSection.includeSlopeBatter);
+
+        // Terrain starts above the design grade (cut) then drops below (fill).
+        TerrainSampler stepped = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return point.x < 12 ? 90 : 50;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0));
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 90, 50, 64, 64, 0.0)),
+            CrossSectionBuildContext.fixed(crossSection),
+            List.of(RoadConstructionType.ROAD),
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            stepped,
+            1.0,
+            "cut-fill-transition",
+            JunctionCorridorBuildContext.NONE,
+            CorridorTestFixtures.planHost(config));
+
+        int cutColumns = 0;
+        int fillColumns = 0;
+        boolean cutOnHighTerrain = false;
+        boolean fillOnLowTerrain = false;
+        int pavementHalf = Math.abs(com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(
+            RoadCorridorWidth.pavementEnvelopeWidthBlocks(crossSection)));
+        for (var entry : plan.slopeEntries()) {
+            if (Math.abs(entry.getKey().worldZ()) <= pavementHalf) {
+                continue;
+            }
+            if (entry.getValue().hasCut()) {
+                cutColumns++;
+                if (entry.getKey().worldX() < 12) {
+                    cutOnHighTerrain = true;
+                }
+            }
+            if (entry.getValue().hasFill()) {
+                fillColumns++;
+                if (entry.getKey().worldX() >= 12) {
+                    fillOnLowTerrain = true;
+                }
+            }
+        }
+        assertTrue(cutColumns > 0, "cut half must emit batter columns");
+        assertTrue(fillColumns > 0, "fill half must emit batter columns");
+        assertTrue(cutOnHighTerrain, "cut batter must appear on the high-terrain half");
+        assertTrue(fillOnLowTerrain, "fill batter must appear on the low-terrain half");
+    }
+
+    @Test
     void diagonalCutBatterKeepsFourConnectedColumns() {
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);

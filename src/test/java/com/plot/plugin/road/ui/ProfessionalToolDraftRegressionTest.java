@@ -113,6 +113,28 @@ class ProfessionalToolDraftRegressionTest {
     }
 
     @Test
+    void singleFieldEditPreservesUnexposedMaterialsAndNullInheritance() {
+        var section = new RoadCrossSection();
+        section.getShoulder().setMaterial("minecraft:andesite");
+        section.getMedian().setMaterial("minecraft:polished_andesite");
+        section.getBikeLane().setMaterial("minecraft:smooth_stone");
+        section.getShoulder().setEnabled(true);
+        section.getShoulder().setWidth(2);
+        var draft = VariableCrossSectionEditor.StationDraft.from(StationCrossSection.at(3, section), config);
+        // UI-resolved draft carries concrete carriageway width; editing one exposed field
+        // must not materialize null inheritance or wipe unexposed materials.
+        assertNull(section.getCarriageway().getWidth());
+        draft.crossSectionDraft.setShoulderWidth(3);
+        var saved = VariableCrossSectionEditor.buildStations(List.of(draft), config).getFirst();
+        assertEquals(3, saved.getStation(), 1e-6);
+        assertNull(saved.getCrossSection().getCarriageway().getWidth());
+        assertEquals(3, saved.getCrossSection().getShoulder().getWidth());
+        assertEquals("minecraft:andesite", saved.getCrossSection().getShoulder().getMaterial());
+        assertEquals("minecraft:polished_andesite", saved.getCrossSection().getMedian().getMaterial());
+        assertEquals("minecraft:smooth_stone", saved.getCrossSection().getBikeLane().getMaterial());
+    }
+
+    @Test
     void invalidRowsDoNotSilentlyRemoveSavedEngineeringData() throws Exception {
         var road = new Road("invalid");
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(

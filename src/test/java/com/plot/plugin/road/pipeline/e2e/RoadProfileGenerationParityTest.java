@@ -110,6 +110,41 @@ class RoadProfileGenerationParityTest {
     }
 
     @Test
+    void confirmedEditedDesignOverlayMatchesGenerationBuildHeights() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("overlay-parity");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setMaxSlope(40.0f);
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(60.0, 76.0),
+            PointOfVerticalIntersection.of(120.0, 70.0)));
+        road.setVerticalAlignment(alignment);
+        wireStraight(network, road, 120.0);
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
+
+        RoadSystemConfig config = baseConfig("overlay-parity");
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
+
+        RunBundle run = compileAndGenerate(network, road, "overlay-parity");
+        for (double station : new double[] {20, 60, 100}) {
+            double designY = com.plot.plugin.road.vertical.VerticalAlignmentGeometry
+                .elevationAt(alignment, station)
+                .orElseThrow();
+            int compileY = run.compile().buildProfile().elevationAtWorldStation(station);
+            assertEquals(designY, compileY, 1.0,
+                "confirmed design line and generation block Y must agree at station " + station);
+            Integer pavementY = ProfilePlacementTestSupport.pavementYNear(
+                run.preview().edgeResults().values().iterator().next(),
+                (int) Math.round(station));
+            if (pavementY != null) {
+                assertEquals(compileY, pavementY.intValue(), 1,
+                    "world placement must track design/compile at station " + station);
+            }
+        }
+    }
+
+    @Test
     void autoWithDormantEditedCurveDoesNotUseStoredPviForGenerationAuthority() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("auto-dormant");

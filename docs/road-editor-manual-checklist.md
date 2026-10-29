@@ -19,6 +19,19 @@ Use this list when validating floating editors and profile authority after code 
 
 - [ ] MANUAL_PROFILE road: green design line, gray block line, and preview build align within one block
 - [ ] AUTO road with dormant stored VA: generation preview does not follow old curve until EDITED is re-confirmed
+- [ ] Stale gray block line is dimmed / labeled as last preview while recomputing (A07)
+
+## In-game acceptance mapping (A01–A08)
+
+See `docs/development/RoadGoldenAcceptance.md` for the full R/W/J mapping. Quick smoke order:
+
+- [ ] **A01** flat straight (R01)
+- [ ] **A04** T or cross junction plane (R03/R04)
+- [ ] **A05** grade-separated or figure-eight stack (R11)
+- [ ] **A07** edit profile → rebuild matches design line
+- [ ] **A08** floating editor cancel / restore / conflict reload
+
+Automation gaps that still need eyes-on: **A03** cliff+cut/fill, **A06** bridge/tunnel junctions.
 
 ## Locale
 

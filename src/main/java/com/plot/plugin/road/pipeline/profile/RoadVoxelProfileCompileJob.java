@@ -46,6 +46,11 @@ public final class RoadVoxelProfileCompileJob {
     private int completedEdges;
     private Phase phase = Phase.PREPARING;
     private VoxelProfileCompileResult result;
+    private long preparingNanos;
+    private long samplingNanos;
+    private long assemblingNanos;
+    private long maxEdgeSampleNanos;
+    private int samplingTicks;
 
     public RoadVoxelProfileCompileJob(RoadNetwork network, Road road, RoadSystemConfig config,
             RoadGenerator generator, TerrainSampler terrain, Map<String, Integer> elevations,
@@ -76,9 +81,30 @@ public final class RoadVoxelProfileCompileJob {
         return phase == Phase.COMPLETED || phase == Phase.CANCELLED || phase == Phase.FAILED;
     }
 
+    /**
+     * Wall-clock phase timings for long-road budgeting. Values use the injected clock
+     * (real {@link System#nanoTime()} in production).
+     */
+    public PhaseTiming phaseTiming() {
+        return new PhaseTiming(
+            preparingNanos, samplingNanos, assemblingNanos, maxEdgeSampleNanos, samplingTicks, completedEdges);
+    }
+
     public VoxelProfileCompileResult result() {
         if (result == null) throw new IllegalStateException("profile compilation has no result");
         return result;
+    }
+
+    public record PhaseTiming(
+            long preparingNanos,
+            long samplingNanos,
+            long assemblingNanos,
+            long maxEdgeSampleNanos,
+            int samplingTicks,
+            int sampledEdges) {
+        public long totalNanos() {
+            return preparingNanos + samplingNanos + assemblingNanos;
+        }
     }
 
     public void cancel() {
@@ -103,35 +129,42 @@ public final class RoadVoxelProfileCompileJob {
     }
 
     private void prepare() {
-        if (!RoadStationing.isStationable(network, road)) {
-            fail("road is not stationable");
-            return;
+        long started = clock.getAsLong();
+        try {
+            if (!RoadStationing.isStationable(network, road)) {
+                fail("road is not stationable");
+                return;
+            }
+            boolean bound = ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
+            DerivedCenterlineSynchronizer.synchronizeRoad(network, road, config.getPathSampleDistance());
+            if (alignment != null) {
+                // The explicit editor override is authoritative only in this disposable snapshot.
+                road.setVerticalAlignment(alignment.copy());
+                ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+            } else if (bound) {
+                road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
+            }
+            stationingCache = new RoadStationingReadCache(network);
+            try (var ignored = stationingCache.activate()) {
+                segments = List.copyOf(RoadStationing.orientedSegments(network, road));
+            }
+            if (segments.isEmpty()) {
+                fail("no road segments");
+                return;
+            }
+            phase = Phase.SAMPLING;
+        } finally {
+            preparingNanos += Math.max(0L, clock.getAsLong() - started);
         }
-        boolean bound = ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
-        DerivedCenterlineSynchronizer.synchronizeRoad(network, road, config.getPathSampleDistance());
-        if (alignment != null) {
-            // The explicit editor override is authoritative only in this disposable snapshot.
-            road.setVerticalAlignment(alignment.copy());
-            ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
-        } else if (bound) {
-            road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
-        }
-        stationingCache = new RoadStationingReadCache(network);
-        try (var ignored = stationingCache.activate()) {
-            segments = List.copyOf(RoadStationing.orientedSegments(network, road));
-        }
-        if (segments.isEmpty()) {
-            fail("no road segments");
-            return;
-        }
-        phase = Phase.SAMPLING;
     }
 
     private void sample(long budgetNanos) {
         long started = clock.getAsLong();
         int sampled = 0;
+        samplingTicks++;
         try (var ignored = stationingCache.activate()) {
             do {
+                long edgeStarted = clock.getAsLong();
                 var segment = segments.get(completedEdges);
                 var edge = network.getEdge(segment.edgeId());
                 var start = edge != null ? network.getNode(edge.getStartNodeId()) : null;
@@ -148,18 +181,24 @@ public final class RoadVoxelProfileCompileJob {
                 edgeResults.put(edge.getId(), profile);
                 completedEdges++;
                 sampled++;
+                maxEdgeSampleNanos = Math.max(maxEdgeSampleNanos, Math.max(0L, clock.getAsLong() - edgeStarted));
             } while (completedEdges < segments.size() && sampled < MAX_EDGES_PER_TICK
                 && clock.getAsLong() - started < budgetNanos);
+        } finally {
+            samplingNanos += Math.max(0L, clock.getAsLong() - started);
         }
         // Final assembly gets its own tick rather than extending the last sampling tick.
         if (completedEdges == segments.size()) phase = Phase.ASSEMBLING;
     }
 
     private void assemble() {
+        long started = clock.getAsLong();
         try (var ignored = stationingCache.activate()) {
             result = RoadVoxelProfileCompiler.compileFromEdgeResults(
                 network, road, config, edgeResults, options, bounds,
                 alignment != null ? alignment : road.getVerticalAlignment());
+        } finally {
+            assemblingNanos += Math.max(0L, clock.getAsLong() - started);
         }
         phase = result.feasible() ? Phase.COMPLETED : Phase.FAILED;
         edgeResults.clear();

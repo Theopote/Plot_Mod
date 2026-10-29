@@ -124,6 +124,53 @@ class RoadVoxelProfileCompileJobTest {
     }
 
     @Test
+    void phaseTimingTracksPreparingSamplingAndAssemblingSeparately() {
+        var clock = new AtomicLong();
+        var generator = new CountingGenerator(clock);
+        var job = job(network(5), generator, clock);
+        while (!job.isDone()) {
+            job.advance(5);
+        }
+        var timing = job.phaseTiming();
+        // Fake clock only advances inside sampleEdgeProfile; prepare/assemble may be 0 here.
+        assertTrue(timing.preparingNanos() >= 0, "prepare timing is always recorded");
+        assertTrue(timing.samplingNanos() > 0, "sampling must record elapsed nanos");
+        assertTrue(timing.assemblingNanos() >= 0, "assemble timing is recorded even if free");
+        assertTrue(timing.maxEdgeSampleNanos() > 0, "per-edge sample cost must be tracked");
+        assertEquals(5, timing.sampledEdges());
+        assertTrue(timing.samplingTicks() >= 2, "5 edges with budget 5 need multiple sampling ticks");
+        assertEquals(timing.preparingNanos() + timing.samplingNanos() + timing.assemblingNanos(),
+            timing.totalNanos());
+    }
+
+    @Test
+    void longRoadRealClockBaselineRecordsAllThreePhases() {
+        // Measure-first baseline: do not assert hard budgets; only that phases are timed.
+        var frozen = network(12);
+        var job = new RoadVoxelProfileCompileJob(
+            frozen,
+            frozen.getRoad("road"),
+            config,
+            new RoadGenerator(config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance()),
+            new FlatTerrainSampler(60),
+            Map.of(),
+            ProfileCompileOptions.defaults(),
+            null,
+            null);
+        while (!job.isDone()) {
+            job.advance(8_000_000L);
+        }
+        assertEquals(RoadVoxelProfileCompileJob.Phase.COMPLETED, job.phase());
+        var timing = job.phaseTiming();
+        assertEquals(12, timing.sampledEdges());
+        assertTrue(timing.preparingNanos() > 0, "real prepare work should take time");
+        assertTrue(timing.samplingNanos() > 0, "real sampling should take time");
+        assertTrue(timing.assemblingNanos() > 0, "real assemble should take time");
+        assertTrue(timing.maxEdgeSampleNanos() > 0);
+        assertTrue(timing.samplingTicks() >= 3, "12 edges / 4 per tick needs >=3 sampling ticks");
+    }
+
+    @Test
     void explicitDraftIsUsedForSamplingWithoutChangingTheSavedRoad() {
         var source = network(2);
         var savedRoad = source.getRoad("road");

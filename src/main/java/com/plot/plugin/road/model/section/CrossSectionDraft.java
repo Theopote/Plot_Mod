@@ -158,6 +158,18 @@ public final class CrossSectionDraft {
 
     public RoadCrossSection toCrossSection() {
         RoadCrossSection section = new RoadCrossSection();
+        applyExposedFieldsOnto(section);
+        return section;
+    }
+
+    /**
+     * Writes every draft-exposed field onto {@code section}. Fields the draft schema
+     * does not cover (shoulder / median / bike materials, null inheritance) are left alone.
+     */
+    public void applyExposedFieldsOnto(RoadCrossSection section) {
+        if (section == null) {
+            return;
+        }
         section.getCarriageway().setWidth(width);
         section.getCarriageway().setLaneCount(laneCount);
         section.getCarriageway().setMaterial(material);
@@ -187,7 +199,95 @@ public final class CrossSectionDraft {
         section.getSlopeBatter().setCutRatio(cutSlopeRatio);
         section.getSlopeBatter().setFillMaterial(fillSlopeMaterial);
         section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
-        return section;
+    }
+
+    /**
+     * Overlays only fields that differ from {@code baseline} onto {@code section}.
+     * Used when rebuilding from an opened original so unedited exposed fields keep
+     * null inheritance, and unexposed materials survive a single-field edit.
+     */
+    public void applyChangedFieldsOnto(RoadCrossSection section, CrossSectionDraft baseline) {
+        if (section == null) {
+            return;
+        }
+        if (baseline == null) {
+            applyExposedFieldsOnto(section);
+            return;
+        }
+        boolean lanesChanged = laneCount != baseline.laneCount
+            || !laneWidths.equals(baseline.laneWidths);
+        if (width != baseline.width) {
+            section.getCarriageway().setWidth(width);
+        }
+        if (lanesChanged) {
+            section.getCarriageway().setLaneCount(laneCount);
+            section.getCarriageway().syncLaneCount(laneCount);
+            List<Integer> resolved = section.getCarriageway().resolveLaneWidths(
+                section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width);
+            for (int i = 0; i < laneCount; i++) {
+                int laneWidth = i < laneWidths.size() && laneWidths.get(i) > 0
+                    ? laneWidths.get(i)
+                    : (i < resolved.size() ? resolved.get(i) : 1);
+                section.getCarriageway().setLaneWidthAt(i, laneWidth);
+            }
+        }
+        if (!materialsEqual(material, baseline.material)) {
+            section.getCarriageway().setMaterial(material);
+        }
+        if (includeShoulder != baseline.includeShoulder) {
+            section.getShoulder().setEnabled(includeShoulder);
+        }
+        if (shoulderWidth != baseline.shoulderWidth) {
+            section.getShoulder().setWidth(shoulderWidth);
+        }
+        if (includeSidewalk != baseline.includeSidewalk) {
+            section.getSidewalk().setEnabled(includeSidewalk);
+        }
+        if (sidewalkWidth != baseline.sidewalkWidth) {
+            section.getSidewalk().setWidth(sidewalkWidth);
+        }
+        if (!java.util.Objects.equals(sidewalkMaterial, baseline.sidewalkMaterial)) {
+            section.getSidewalk().setMaterial(sidewalkMaterial);
+        }
+        if (includeBikeLane != baseline.includeBikeLane) {
+            section.getBikeLane().setEnabled(includeBikeLane);
+        }
+        if (bikeLaneWidth != baseline.bikeLaneWidth) {
+            section.getBikeLane().setWidth(bikeLaneWidth);
+        }
+        if (includeMedian != baseline.includeMedian) {
+            section.getMedian().setEnabled(includeMedian);
+        }
+        if (medianWidth != baseline.medianWidth) {
+            section.getMedian().setWidth(medianWidth);
+        }
+        if (streetlightSpacing != baseline.streetlightSpacing) {
+            section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
+        }
+        if (laneDividers != baseline.laneDividers) {
+            section.getMarkings().setLaneDividers(laneDividers);
+        }
+        if (centerLineStyle != baseline.centerLineStyle) {
+            section.getMarkings().setCenterLineStyle(centerLineStyle);
+        }
+        if (!java.util.Objects.equals(markingMaterial, baseline.markingMaterial)) {
+            section.getMarkings().setMaterial(markingMaterial);
+        }
+        if (includeSlopeBatter != baseline.includeSlopeBatter) {
+            section.getSlopeBatter().setEnabled(includeSlopeBatter);
+        }
+        if (Float.compare(fillSlopeRatio, baseline.fillSlopeRatio) != 0) {
+            section.getSlopeBatter().setFillRatio(fillSlopeRatio);
+        }
+        if (Float.compare(cutSlopeRatio, baseline.cutSlopeRatio) != 0) {
+            section.getSlopeBatter().setCutRatio(cutSlopeRatio);
+        }
+        if (!java.util.Objects.equals(fillSlopeMaterial, baseline.fillSlopeMaterial)) {
+            section.getSlopeBatter().setFillMaterial(fillSlopeMaterial);
+        }
+        if (!java.util.Objects.equals(cutSlopeMaterial, baseline.cutSlopeMaterial)) {
+            section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+        }
     }
 
     public static CrossSectionDraft fromRoad(Road road, RoadSystemConfig defaults) {
@@ -558,6 +658,18 @@ public final class CrossSectionDraft {
 
     public void setMaxSlope(float maxSlope) {
         this.maxSlope = maxSlope;
+    }
+
+    private static boolean materialsEqual(MaterialMix left, MaterialMix right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        return java.util.Objects.equals(left.getPrimaryMaterial(), right.getPrimaryMaterial())
+            && java.util.Objects.equals(left.getAccentMaterial(), right.getAccentMaterial())
+            && Float.compare(left.getAccentRatio(), right.getAccentRatio()) == 0;
     }
 
     private void syncLaneWidthList() {

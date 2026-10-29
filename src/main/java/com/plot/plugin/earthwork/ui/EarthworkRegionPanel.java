@@ -64,12 +64,6 @@ public final class EarthworkRegionPanel {
     }
 
     private void renderPickControls(boolean quickMode) {
-        if (!quickMode) {
-            ImGui.checkbox(
-                PlotI18n.tr("plugin.earthwork.overlay.show_regions"),
-                ctx.showRegionOverlayRef());
-            ImGui.sameLine();
-        }
         if (!ctx.pickSession().isActive()) {
             updateSelectedRegionsIfNeeded();
         }
@@ -82,6 +76,12 @@ public final class EarthworkRegionPanel {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.earthwork.pick_region"));
+        }
+        if (!quickMode) {
+            ImGui.sameLine();
+            ImGui.checkbox(
+                PlotI18n.tr("plugin.earthwork.overlay.show_regions"),
+                ctx.showRegionOverlayRef());
         }
 
         if (quickMode) {

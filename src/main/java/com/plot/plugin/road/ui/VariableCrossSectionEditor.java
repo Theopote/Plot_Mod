@@ -220,9 +220,7 @@ public final class VariableCrossSectionEditor {
                 double station = draft.originalStation != null
                     && Float.compare(draft.station, draft.originalStation.floatValue()) == 0
                     ? draft.originalStation : draft.station;
-                RoadCrossSection section = draft.originalCrossSection != null
-                    && crossSectionDraftEqual(draft.crossSectionDraft, draft.originalDraft)
-                    ? draft.originalCrossSection.copy() : draft.crossSectionDraft.toCrossSection();
+                RoadCrossSection section = rebuildStationCrossSection(draft);
                 stations.add(StationCrossSection.at(station, section));
             } catch (IllegalArgumentException ignored) {
                 // Skip invalid draft rows until user fixes them.
@@ -270,6 +268,22 @@ public final class VariableCrossSectionEditor {
             return false;
         }
         return com.plot.plugin.road.ui.editor.CrossSectionDraftComparer.equals(left, right);
+    }
+
+    /**
+     * Rebuilds a station section from the opened original whenever possible so that
+     * unexposed materials and unchanged inherited nulls survive a single-field edit.
+     */
+    static RoadCrossSection rebuildStationCrossSection(StationDraft draft) {
+        if (draft.originalCrossSection == null) {
+            return draft.crossSectionDraft.toCrossSection();
+        }
+        RoadCrossSection section = draft.originalCrossSection.copy();
+        if (crossSectionDraftEqual(draft.crossSectionDraft, draft.originalDraft)) {
+            return section;
+        }
+        draft.crossSectionDraft.applyChangedFieldsOnto(section, draft.originalDraft);
+        return section;
     }
 
     static final class StationDraft {
