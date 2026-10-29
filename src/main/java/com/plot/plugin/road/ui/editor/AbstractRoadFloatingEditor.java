@@ -6,7 +6,6 @@ import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 /**
@@ -111,7 +110,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                 RoadFloatingEditorShell.renderFooter(
                     ctx,
                     isDirty(),
-                    () -> restoreSession(),
+                        this::restoreSession,
                     () -> discard(ctx),
                     () -> confirm(ctx));
             }

@@ -6,7 +6,6 @@ import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 /**
