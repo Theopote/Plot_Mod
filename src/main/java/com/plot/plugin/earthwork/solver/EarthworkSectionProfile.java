@@ -293,40 +293,7 @@ public final class EarthworkSectionProfile {
                 rangeMax = Math.max(rangeMax, s.along());
             }
         }
-        // 沿截线每 1 格取一站：优先已归属分区，再取垂距更近
-        List<Station> stations = new ArrayList<>();
-        int stepStart = (int) Math.floor(rangeMin);
-        int stepEnd = (int) Math.ceil(rangeMax);
-        for (int step = stepStart; step <= stepEnd; step++) {
-            double t = step;
-            ScoredStation best = null;
-            for (ScoredStation candidate : scored) {
-                if (candidate.along() < rangeMin || candidate.along() > rangeMax) {
-                    continue;
-                }
-                if (Math.abs(candidate.along() - t) > 0.55) {
-                    continue;
-                }
-                if (best == null
-                    || (candidate.zoned() && !best.zoned())
-                    || (candidate.zoned() == best.zoned() && candidate.perpAbs() < best.perpAbs())
-                    || (candidate.zoned() == best.zoned()
-                        && Math.abs(candidate.perpAbs() - best.perpAbs()) < 1e-9
-                        && Math.abs(candidate.along() - t) < Math.abs(best.along() - t))) {
-                    best = candidate;
-                }
-            }
-            if (best == null) {
-                continue;
-            }
-            if (!stations.isEmpty()) {
-                Station prev = stations.getLast();
-                if (prev.worldX() == best.station().worldX() && prev.worldZ() == best.station().worldZ()) {
-                    continue;
-                }
-            }
-            stations.add(best.station());
-        }
+        List<Station> stations = pickStationsByAlongBuckets(scored, rangeMin, rangeMax, null, null);
         if (stations.size() < 2) {
             return guideFromSpec(spec);
         }
@@ -390,9 +357,11 @@ public final class EarthworkSectionProfile {
         double originX = spec.originX();
         double originZ = spec.originZ();
         List<ScoredStation> scored = new ArrayList<>();
+        // 沿程包络只统计截线走廊内的本区格
         double zoneMinAlong = Double.POSITIVE_INFINITY;
         double zoneMaxAlong = Double.NEGATIVE_INFINITY;
-        boolean anyZone = false;
+        boolean anyZoneCell = false;
+        boolean anyOwnOnCorridor = false;
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (cell == null || !cell.participatesInEarthwork()) {
                 continue;
@@ -403,22 +372,24 @@ public final class EarthworkSectionProfile {
             if (!own && !exterior) {
                 continue;
             }
+            if (own) {
+                anyZoneCell = true;
+            }
             double cx = cell.worldX() + 0.5;
             double cz = cell.worldZ() + 0.5;
             double relX = cx - originX;
             double relZ = cz - originZ;
             double along = relX * dirX + relZ * dirZ;
             double perp = relX * (-dirZ) + relZ * dirX;
-            if (own) {
-                zoneMinAlong = Math.min(zoneMinAlong, along);
-                zoneMaxAlong = Math.max(zoneMaxAlong, along);
-                anyZone = true;
-            }
             if (Math.abs(perp) > MAX_PERP_DISTANCE) {
                 continue;
             }
+            if (own) {
+                zoneMinAlong = Math.min(zoneMinAlong, along);
+                zoneMaxAlong = Math.max(zoneMaxAlong, along);
+                anyOwnOnCorridor = true;
+            }
             int existing = cell.existingGroundY();
-            // 区外：无设计，绿=灰
             int design = own ? cell.targetY() : existing;
             String stationZone = own ? zoneId : "";
             scored.add(new ScoredStation(
@@ -427,57 +398,20 @@ public final class EarthworkSectionProfile {
                 Math.abs(perp),
                 own));
         }
-        if (!anyZone) {
+        if (!anyZoneCell || !anyOwnOnCorridor) {
             return guideFromSpec(spec);
         }
-        double margin = zoneSectionMargin(zoneMaxAlong - zoneMinAlong);
-        double rangeMin = zoneMinAlong - margin;
-        double rangeMax = zoneMaxAlong + margin;
-        boolean anyOwnOnCorridor = false;
-        for (ScoredStation s : scored) {
-            if (s.zoned() && s.along() >= rangeMin && s.along() <= rangeMax) {
-                anyOwnOnCorridor = true;
-                break;
-            }
-        }
-        if (!anyOwnOnCorridor) {
-            return guideFromSpec(spec);
-        }
-        List<Station> stations = new ArrayList<>();
-        int stepStart = (int) Math.floor(rangeMin);
-        int stepEnd = (int) Math.ceil(rangeMax);
-        for (int step = stepStart; step <= stepEnd; step++) {
-            double t = step;
-            ScoredStation best = null;
-            for (ScoredStation candidate : scored) {
-                if (candidate.along() < rangeMin || candidate.along() > rangeMax) {
-                    continue;
-                }
-                if (Math.abs(candidate.along() - t) > 0.55) {
-                    continue;
-                }
-                if (best == null
-                    || (candidate.zoned() && !best.zoned())
-                    || (candidate.zoned() == best.zoned() && candidate.perpAbs() < best.perpAbs())
-                    || (candidate.zoned() == best.zoned()
-                        && Math.abs(candidate.perpAbs() - best.perpAbs()) < 1e-9
-                        && Math.abs(candidate.along() - t) < Math.abs(best.along() - t))) {
-                    best = candidate;
-                }
-            }
-            if (best == null) {
-                continue;
-            }
-            if (!stations.isEmpty()) {
-                Station prev = stations.getLast();
-                if (prev.worldX() == best.station().worldX() && prev.worldZ() == best.station().worldZ()) {
-                    continue;
-                }
-            }
-            stations.add(best.station());
-        }
+        double zoneSpan = zoneMaxAlong - zoneMinAlong;
+        double lineMargin = zoneSectionMargin(zoneSpan);
+        double sampleMargin = Math.min(lineMargin, Math.max(4.0, zoneSpan * 0.5 + 2.0));
+        double sampleMin = zoneMinAlong - sampleMargin;
+        double sampleMax = zoneMaxAlong + sampleMargin;
+        double cutMin = zoneMinAlong - lineMargin;
+        double cutMax = zoneMaxAlong + lineMargin;
+        List<Station> stations = pickStationsByAlongBuckets(
+            scored, sampleMin, sampleMax, zoneMinAlong, zoneMaxAlong);
         if (stations.size() < 2) {
-            return guideFromSpec(spec, rangeMin, rangeMax);
+            return guideFromSpec(spec, cutMin, cutMax);
         }
         boolean alongX = Math.abs(dirX) >= Math.abs(dirZ);
         int crossCoord = alongX
@@ -495,8 +429,76 @@ public final class EarthworkSectionProfile {
             spec.viewNz(),
             spec.viewSign(),
             true,
-            rangeMin,
-            rangeMax);
+            cutMin,
+            cutMax);
+    }
+
+    /**
+     * 候选一次分桶：每个沿程步只保留最优格，复杂度约 O(C+S)，避免站×候选嵌套扫描。
+     *
+     * @param zoneMinAlong 非 null 时，区内沿程禁止空白格入站
+     */
+    static List<Station> pickStationsByAlongBuckets(
+            List<ScoredStation> scored,
+            double rangeMin,
+            double rangeMax,
+            Double zoneMinAlong,
+            Double zoneMaxAlong) {
+        int stepStart = (int) Math.floor(rangeMin);
+        int stepEnd = (int) Math.ceil(rangeMax);
+        if (stepEnd < stepStart) {
+            return List.of();
+        }
+        int bucketCount = stepEnd - stepStart + 1;
+        ScoredStation[] bestByStep = new ScoredStation[bucketCount];
+        for (ScoredStation candidate : scored) {
+            if (candidate.along() < rangeMin || candidate.along() > rangeMax) {
+                continue;
+            }
+            int lo = Math.max(stepStart, (int) Math.ceil(candidate.along() - 0.55));
+            int hi = Math.min(stepEnd, (int) Math.floor(candidate.along() + 0.55));
+            for (int step = lo; step <= hi; step++) {
+                boolean insideZone = zoneMinAlong != null
+                    && zoneMaxAlong != null
+                    && step >= zoneMinAlong - 0.55
+                    && step <= zoneMaxAlong + 0.55;
+                if (insideZone && !candidate.zoned()) {
+                    continue;
+                }
+                int idx = step - stepStart;
+                ScoredStation current = bestByStep[idx];
+                if (current == null || isBetterStationCandidate(candidate, current, step)) {
+                    bestByStep[idx] = candidate;
+                }
+            }
+        }
+        List<Station> stations = new ArrayList<>();
+        for (ScoredStation best : bestByStep) {
+            if (best == null) {
+                continue;
+            }
+            if (!stations.isEmpty()) {
+                Station prev = stations.getLast();
+                if (prev.worldX() == best.station().worldX() && prev.worldZ() == best.station().worldZ()) {
+                    continue;
+                }
+            }
+            stations.add(best.station());
+        }
+        return stations;
+    }
+
+    private static boolean isBetterStationCandidate(ScoredStation candidate, ScoredStation best, int step) {
+        double t = step;
+        if (candidate.zoned() && !best.zoned()) {
+            return true;
+        }
+        if (candidate.zoned() == best.zoned() && candidate.perpAbs() < best.perpAbs()) {
+            return true;
+        }
+        return candidate.zoned() == best.zoned()
+            && Math.abs(candidate.perpAbs() - best.perpAbs()) < 1e-9
+            && Math.abs(candidate.along() - t) < Math.abs(best.along() - t);
     }
 
     /** 无交点时仍保留走向与最短可视剖切线，方便继续旋转/平移。 */

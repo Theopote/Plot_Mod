@@ -312,7 +312,7 @@ public final class EarthworkInsightCharts {
     }
 
     /**
-     * 每个启用分区各画一张剖面（含各自挖填色带）；方向按钮只出现在当前选中分区上。
+     * 默认完整显示当前选中分区剖面；其它分区以折叠标题展示，可展开对比。
      */
     static void renderAllZoneProfiles(EarthworkUiContext ctx) {
         if (ctx == null || !ctx.previewManager().hasCachedPreview()) {
@@ -338,9 +338,38 @@ public final class EarthworkInsightCharts {
                 continue;
             }
             boolean selected = zoneId.equals(selectedId);
-            renderProfile(ctx, profile, resolveZoneName(ctx, zoneId), selected);
+            String zoneName = resolveZoneName(ctx, zoneId);
+            if (selected) {
+                renderProfile(ctx, profile, zoneName, true, true);
+            } else {
+                int[] elevRange = profileElevRange(profile);
+                String collapsed = PlotI18n.tr(
+                    "plugin.earthwork.profile.header_zone_collapsed",
+                    zoneName,
+                    elevRange[0],
+                    elevRange[1]);
+                if (ImGui.collapsingHeader(collapsed + "##earthwork_profile_" + zoneId)) {
+                    renderProfile(ctx, profile, zoneName, false, false);
+                }
+            }
             ImGui.spacing();
         }
+    }
+
+    /** @return {elevMin, elevMax}；无站时退回 0,0 */
+    private static int[] profileElevRange(EarthworkSectionProfile profile) {
+        int elevMin = Integer.MAX_VALUE;
+        int elevMax = Integer.MIN_VALUE;
+        if (profile != null) {
+            for (EarthworkSectionProfile.Station station : profile.stations()) {
+                elevMin = Math.min(elevMin, Math.min(station.existingY(), station.designY()));
+                elevMax = Math.max(elevMax, Math.max(station.existingY(), station.designY()));
+            }
+        }
+        if (elevMin == Integer.MAX_VALUE) {
+            return new int[] {0, 0};
+        }
+        return new int[] {elevMin, elevMax};
     }
 
     private static String resolveZoneName(EarthworkUiContext ctx, String zoneId) {
@@ -360,11 +389,22 @@ public final class EarthworkInsightCharts {
             EarthworkSectionProfile profile,
             String zoneName,
             boolean selected) {
-        ImGui.text(PlotI18n.tr(
-            selected
-                ? "plugin.earthwork.profile.header_zone_selected"
-                : "plugin.earthwork.profile.header_zone",
-            zoneName));
+        renderProfile(ctx, profile, zoneName, selected, true);
+    }
+
+    static void renderProfile(
+            EarthworkUiContext ctx,
+            EarthworkSectionProfile profile,
+            String zoneName,
+            boolean selected,
+            boolean showTitle) {
+        if (showTitle) {
+            ImGui.text(PlotI18n.tr(
+                selected
+                    ? "plugin.earthwork.profile.header_zone_selected"
+                    : "plugin.earthwork.profile.header_zone",
+                zoneName));
+        }
         if (selected) {
             // 控件始终显示：即使截线未与分区相交，也要能继续旋转/平移
             renderProfileControls(ctx);

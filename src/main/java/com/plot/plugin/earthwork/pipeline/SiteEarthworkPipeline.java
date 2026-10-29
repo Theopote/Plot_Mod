@@ -7,6 +7,7 @@ import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.grading.DesignTerrainBuilder;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
@@ -86,6 +87,7 @@ public final class SiteEarthworkPipeline {
             context.workMode(),
             effectivePolicy);
         result.designTerrainGrid = design.grid();
+        result.earthworkGridFingerprint = DesignTerrainGrid.earthworkContentFingerprint(design.grid());
         result.resolvedElevationMin = design.grid().minTargetY();
         result.resolvedElevationMax = design.grid().maxTargetY();
         result.resolvedElevation = (result.resolvedElevationMin + result.resolvedElevationMax) / 2;

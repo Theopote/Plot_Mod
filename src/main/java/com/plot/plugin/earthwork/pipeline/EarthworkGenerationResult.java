@@ -74,6 +74,11 @@ public class EarthworkGenerationResult {
     public long designRevision;
     /** 地形快照指纹。 */
     public long terrainRevision;
+    /**
+     * 设计网格土方内容指纹：预览生成时算一次，供热力图等图表缓存比较，
+     * 避免绘制阶段每帧扫全网格。
+     */
+    public long earthworkGridFingerprint;
 
     /**
      * 用最终 {@link #placementRecords} 回写改方块计数，使预览虚影、落地与报告使用同一份变更。

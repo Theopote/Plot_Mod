@@ -5,6 +5,9 @@ import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 
 /**
  * ImGui 热力图栅格聚合缓存：避免每帧遍历完整设计网格。
+ * <p>
+ * 缓存键使用预览上预计算的 {@link EarthworkGenerationResult#earthworkGridFingerprint}，
+ * 命中路径不再调用 {@link DesignTerrainGrid#earthworkContentFingerprint}。
  */
 final class EarthworkCutFillHeatmapCache {
 
@@ -66,10 +69,24 @@ final class EarthworkCutFillHeatmapCache {
             designRevision,
             terrainRevision,
             regionId,
-            DesignTerrainGrid.earthworkContentFingerprint(grid),
+            resolveGridFingerprint(preview, grid),
             cols,
             rows,
             extentsFingerprint(extents));
+    }
+
+    /**
+     * 优先用预览上已缓存的指纹；仅当预览未绑定该网格或指纹尚未写入时才扫网格一次，
+     * 并在绑定时回写，保证后续命中不再遍历。
+     */
+    static long resolveGridFingerprint(EarthworkGenerationResult preview, DesignTerrainGrid grid) {
+        if (preview != null && preview.designTerrainGrid == grid) {
+            if (preview.earthworkGridFingerprint == 0L && grid != null && grid.cellCount() > 0) {
+                preview.earthworkGridFingerprint = DesignTerrainGrid.earthworkContentFingerprint(grid);
+            }
+            return preview.earthworkGridFingerprint;
+        }
+        return DesignTerrainGrid.earthworkContentFingerprint(grid);
     }
 
     private static long extentsFingerprint(EarthworkCutFillHeatmap.CanvasExtents extents) {

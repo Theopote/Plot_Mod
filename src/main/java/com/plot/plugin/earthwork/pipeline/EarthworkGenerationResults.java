@@ -22,6 +22,7 @@ public final class EarthworkGenerationResults {
         target.siteVolumeReport = source.siteVolumeReport;
         target.projectReport = source.projectReport;
         target.designTerrainGrid = source.designTerrainGrid;
+        target.earthworkGridFingerprint = source.earthworkGridFingerprint;
         target.elevationVolumeCurve = source.elevationVolumeCurve;
         target.sectionProfile = source.sectionProfile;
         target.elevationVolumeCurveRequiresSlopeCoupledSolver =

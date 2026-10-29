@@ -1387,10 +1387,6 @@ public final class EarthworkEditPanel {
                 region.setManualTargetElevation(elevation[0]);
                 ctx.invalidatePreview();
             }
-        } else {
-            ImGui.beginDisabled();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.manual_elevation_disabled"));
-            ImGui.endDisabled();
         }
     }
 
