@@ -26,6 +26,7 @@ public final class RoadStyleCatalog {
         styles.add(avenue());
         styles.add(boulevard());
         styles.add(highway());
+        styles.add(railway());
         styles.add(mountain());
         styles.add(dirtRoad());
         styles.add(medievalRoad());
@@ -179,6 +180,33 @@ public final class RoadStyleCatalog {
         style.shoulderMaterial = "minecraft:stone";
         style.centerLineStyle = CenterLineStyle.DOUBLE_SOLID.name();
         style.laneDividers = true;
+        return style;
+    }
+
+    /**
+     * 单线铁路路基：道床 + 两侧道砟肩 + 路堤边坡。
+     * 材质避开 gravel 等重力方块，用深板岩/安山岩表现道砟质感。
+     */
+    public static RoadStyle railway() {
+        RoadStyle style = base("railway");
+        style.width = 5;
+        style.laneCount = 1;
+        style.hasSidewalk = false;
+        style.includeShoulder = true;
+        style.shoulderWidth = 1;
+        style.includeMedian = false;
+        style.includeBikeLane = false;
+        style.includeSlopeBatter = true;
+        style.fillSlopeRatio = 1.5f;
+        style.cutSlopeRatio = 1.0f;
+        style.roadMaterial = "minecraft:polished_andesite";
+        style.shoulderMaterial = "minecraft:cobbled_deepslate";
+        style.fillSlopeMaterial = "minecraft:cobbled_deepslate";
+        style.cutSlopeMaterial = "minecraft:stone";
+        style.markingMaterial = "minecraft:iron_block";
+        style.laneDividers = false;
+        style.centerLineStyle = CenterLineStyle.DOUBLE_SOLID.name();
+        style.streetlightSpacing = null;
         return style;
     }
 

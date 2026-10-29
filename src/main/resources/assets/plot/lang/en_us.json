@@ -2536,6 +2536,7 @@
   "preset.road.residential": "Residential Street",
   "preset.road.country_road": "Rural Road",
   "preset.road.highway": "Highway",
+  "preset.road.railway": "Railway",
   "preset.road.industrial": "Industrial Road",
   "preset.road.park": "Park Path",
   "preset.road.mountain": "Mountain Road",

@@ -22,6 +22,7 @@ class RoadStyleCatalogPresetDimensionsTest {
         Map.entry("avenue", new DimExpectation(2, 11, 2, 15)),
         Map.entry("boulevard", new DimExpectation(2, 8, 2, 12)),
         Map.entry("highway", new DimExpectation(2, 11, 2, 15)),
+        Map.entry("railway", new DimExpectation(1, 5, 1, 7)),
         Map.entry("mountain", new DimExpectation(2, 6, 1, 8)),
         Map.entry("dirt_road", new DimExpectation(1, 5, 1, 7)),
         Map.entry("medieval_road", new DimExpectation(1, 5, 1, 7)),
