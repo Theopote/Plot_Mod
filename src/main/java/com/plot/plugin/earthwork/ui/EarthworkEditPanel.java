@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
@@ -697,13 +698,6 @@ public final class EarthworkEditPanel {
     private void renderRegionGeometrySettings(GradingRegion region) {
         RegionGeometry geometry = region.getGeometry();
         ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_header"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.earthwork.geometry_outer_summary",
-            geometry.outerRing().size(),
-            String.format(java.util.Locale.ROOT, "%.1f", geometry.area())));
-        if (geometry.hasHoles()) {
-            ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_hole_count", geometry.holes().size()));
-        }
         ImGui.spacing();
         boolean holePickingThisRegion = ctx.holePickSession().isActive()
             && ctx.holePickSession().getTargetKind() == EarthworkHolePickSession.TargetKind.REGION
@@ -722,6 +716,7 @@ public final class EarthworkEditPanel {
                 startHolePick(EarthworkHolePickSession.TargetKind.REGION, region.getId());
             }
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.geometry_holes");
         if (holePickingThisRegion) {
             ImGui.popStyleColor();
         }
@@ -738,23 +733,25 @@ public final class EarthworkEditPanel {
         if (clearDisabled) {
             ImGui.endDisabled();
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.geometry_hole_hint"));
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.geometry_holes");
 
         if (!geometry.hasHoles()) {
             return;
         }
-        ImGui.beginChild("earthwork_region_holes", 0, 72, true);
         List<List<Vec2d>> holes = region.getHoles();
+        // 高度随孔洞条数伸缩，过多时封顶并滚动，避免固定预留空白
+        float rowH = ImGui.getFrameHeightWithSpacing();
+        float listH = Math.min(rowH * 6f, rowH * holes.size() + ImGui.getStyle().getItemSpacingY());
+        ImGui.beginChild("earthwork_region_holes", 0, listH, true);
+        WorldProjectionSnapshot holeProjection = ctx.currentProjection();
         for (int i = 0; i < holes.size(); i++) {
             ImGui.pushID("hole_" + i);
             List<Vec2d> hole = holes.get(i);
-            double holeArea = Math.abs(GradingRegion.signedArea(hole));
+            int holeBlocks = PolygonRegionUtils.countProjectedWorldBlocks(hole, List.of(), holeProjection);
             ImGui.text(PlotI18n.tr(
                 "plugin.earthwork.geometry_hole_item",
                 i + 1,
                 hole.size(),
-                String.format(java.util.Locale.ROOT, "%.1f", holeArea)));
+                holeBlocks));
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.delete"))) {
                 ctx.projectHistory().push(ctx.project());
@@ -841,11 +838,13 @@ public final class EarthworkEditPanel {
         }
 
         RegionGeometry geometry = exclusion.getGeometry();
+        int exclusionBlocks = PolygonRegionUtils.countProjectedWorldBlocks(
+            geometry.outerRing(), geometry.holes(), ctx.currentProjection());
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.earthwork.exclusion_geometry_summary",
             geometry.outerRing().size(),
             geometry.holes().size(),
-            String.format(java.util.Locale.ROOT, "%.1f", geometry.area())));
+            exclusionBlocks));
         ImGui.popID();
     }
 
