@@ -195,6 +195,7 @@ public final class EarthworkEditPanel {
             zone.setAutoAdjustElevation(auto.get(), range);
             ctx.invalidatePreview();
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.auto_adjust_elevation");
         if (!zone.isAutoAdjustElevation()) {
             return;
         }
@@ -206,6 +207,7 @@ public final class EarthworkEditPanel {
             zone.setAutoAdjustElevation(true, max[0]);
             ctx.invalidatePreview();
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.max_auto_adjustment");
     }
 
     private void renderPhaseCZoneSettings(GradingZone zone) {
@@ -538,33 +540,42 @@ public final class EarthworkEditPanel {
             return;
         }
         ImGui.text(PlotI18n.tr("plugin.earthwork.breaklines_header"));
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.earthwork.breaklines_hint"));
         for (Breakline breakline : site.getBreaklines()) {
             renderBreaklineRow(site, breakline, zones);
         }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.add_breakline"), 0, 0)) {
-            ctx.projectHistory().push(ctx.project());
-            Breakline breakline = new Breakline(UUID.randomUUID().toString());
-            breakline.setName(PlotI18n.tr("plugin.earthwork.breakline_default_name", site.getBreaklines().size() + 1));
-            breakline.setPoints(defaultSiteSpanPolyline(site));
-            breakline.setLeftZoneId(zones.get(0).getId());
-            breakline.setRightZoneId(zones.get(1).getId());
-            site.addBreakline(breakline);
-            ctx.invalidatePreview();
+            addBreakline(site, zones, defaultSiteSpanPolyline(site));
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.breakline_add");
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.breakline_from_selection"), 0, 0)) {
             List<Vec2d> points = extractBreaklinePointsFromSelection();
-            if (points.size() >= 2) {
-                ctx.projectHistory().push(ctx.project());
-                Breakline breakline = new Breakline(UUID.randomUUID().toString());
-                breakline.setName(PlotI18n.tr("plugin.earthwork.breakline_default_name", site.getBreaklines().size() + 1));
-                breakline.setPoints(points);
-                breakline.setLeftZoneId(zones.get(0).getId());
-                breakline.setRightZoneId(zones.get(1).getId());
-                site.addBreakline(breakline);
-                ctx.invalidatePreview();
+            if (points.size() < 2) {
+                ctx.setProjectStatus(
+                    PlotI18n.tr("plugin.earthwork.polyline_no_valid_selection"),
+                    EarthworkStatusLevel.WARNING);
+            } else {
+                addBreakline(site, zones, points);
+                ctx.setProjectStatus(
+                    PlotI18n.tr("plugin.earthwork.breakline_added"),
+                    EarthworkStatusLevel.SUCCESS);
             }
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.breakline_from_selection");
+    }
+
+    private void addBreakline(EarthworkSite site, List<GradingZone> zones, List<Vec2d> points) {
+        ctx.projectHistory().push(ctx.project());
+        Breakline breakline = new Breakline(UUID.randomUUID().toString());
+        breakline.setName(PlotI18n.tr("plugin.earthwork.breakline_default_name", site.getBreaklines().size() + 1));
+        breakline.setPoints(points);
+        breakline.setLeftZoneId(zones.get(0).getId());
+        breakline.setRightZoneId(zones.get(1).getId());
+        site.addBreakline(breakline);
+        ctx.invalidatePreview();
     }
 
     /** 按场地边界跨度生成默认折线，避免固定 (5,0)–(5,10) 与真实场地无关。 */
@@ -605,6 +616,9 @@ public final class EarthworkEditPanel {
 
     private void renderRetainingEdgeSettings(EarthworkSite site) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.retaining_edges_header"));
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.earthwork.retaining_edges_hint"));
         for (RetainingEdge edge : site.getRetainingEdges()) {
             ImGui.pushID(edge.getId());
             ImGui.text(edge.getName().isBlank() ? edge.getId() : edge.getName());
@@ -666,33 +680,38 @@ public final class EarthworkEditPanel {
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.add_retaining_edge"), 0, 0)) {
-            List<Vec2d> points = extractBreaklinePointsFromSelection();
-            if (points.size() < 2) {
-                points = defaultSiteSpanPolyline(site);
-            }
-            ctx.projectHistory().push(ctx.project());
-            RetainingEdge edge = new RetainingEdge(UUID.randomUUID().toString());
-            edge.setName(PlotI18n.tr("plugin.earthwork.retaining_edge_default_name", site.getRetainingEdges().size() + 1));
-            edge.setPolyline(points);
-            edge.setTopElevation(72);
-            edge.setBottomElevation(64);
-            site.addRetainingEdge(edge);
-            ctx.invalidatePreview();
+            addRetainingEdge(site, defaultSiteSpanPolyline(site));
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.retaining_edge_add");
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.retaining_edge_from_selection"), 0, 0)) {
             List<Vec2d> points = extractBreaklinePointsFromSelection();
-            if (points.size() >= 2) {
-                ctx.projectHistory().push(ctx.project());
-                RetainingEdge edge = new RetainingEdge(UUID.randomUUID().toString());
-                edge.setName(PlotI18n.tr("plugin.earthwork.retaining_edge_default_name", site.getRetainingEdges().size() + 1));
-                edge.setPolyline(points);
-                edge.setTopElevation(72);
-                edge.setBottomElevation(64);
-                site.addRetainingEdge(edge);
-                ctx.invalidatePreview();
+            if (points.size() < 2) {
+                ctx.setProjectStatus(
+                    PlotI18n.tr("plugin.earthwork.polyline_no_valid_selection"),
+                    EarthworkStatusLevel.WARNING);
+            } else {
+                addRetainingEdge(site, points);
+                ctx.setProjectStatus(
+                    PlotI18n.tr("plugin.earthwork.retaining_edge_added"),
+                    EarthworkStatusLevel.SUCCESS);
             }
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.retaining_edge_from_selection");
+    }
+
+    private void addRetainingEdge(EarthworkSite site, List<Vec2d> points) {
+        ctx.projectHistory().push(ctx.project());
+        RetainingEdge edge = new RetainingEdge(UUID.randomUUID().toString());
+        edge.setName(PlotI18n.tr("plugin.earthwork.retaining_edge_default_name", site.getRetainingEdges().size() + 1));
+        edge.setPolyline(points);
+        edge.setTopElevation(72);
+        edge.setBottomElevation(64);
+        if (!site.getGradingZones().isEmpty()) {
+            edge.setLinkedZoneId(site.getGradingZones().values().iterator().next().getId());
+        }
+        site.addRetainingEdge(edge);
+        ctx.invalidatePreview();
     }
 
     private void renderRegionGeometrySettings(GradingRegion region) {
@@ -754,8 +773,6 @@ public final class EarthworkEditPanel {
     }
 
     private void renderExclusionZoneSettings(EarthworkSite site) {
-        ImGui.text(PlotI18n.tr("plugin.earthwork.exclusions_header"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.exclusions_hint"));
         List<ExclusionZone> exclusions = site.getExclusionZones();
         if (exclusions.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.exclusions_empty"));
@@ -767,6 +784,7 @@ public final class EarthworkEditPanel {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.exclusion_add_from_selection"), 0, 0)) {
             addExclusionFromSelection(site);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.exclusion_add");
     }
 
     private void renderExclusionZoneRow(EarthworkSite site, ExclusionZone exclusion) {
@@ -821,15 +839,6 @@ public final class EarthworkEditPanel {
         if (holePickingThisExclusion) {
             ImGui.popStyleColor();
         }
-
-        RegionGeometry geometry = exclusion.getGeometry();
-        int exclusionBlocks = PolygonRegionUtils.countProjectedWorldBlocks(
-            geometry.outerRing(), geometry.holes(), ctx.currentProjection());
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.earthwork.exclusion_geometry_summary",
-            geometry.outerRing().size(),
-            geometry.holes().size(),
-            exclusionBlocks));
         ImGui.popID();
     }
 
@@ -937,7 +946,9 @@ public final class EarthworkEditPanel {
     private void addExclusionFromSelection(EarthworkSite site) {
         List<Vec2d> outer = extractRegionOutlineFromSelection();
         if (outer.size() < 3) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection"));
+            ctx.setProjectStatus(
+                PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection"),
+                EarthworkStatusLevel.WARNING);
             return;
         }
         ctx.projectHistory().push(ctx.project());
@@ -947,7 +958,9 @@ public final class EarthworkEditPanel {
             site.getExclusionZones().size() + 1));
         site.addExclusionZone(exclusion);
         ctx.invalidatePreview();
-        ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.exclusion_added"));
+        ctx.setProjectStatus(
+            PlotI18n.tr("plugin.earthwork.exclusion_added"),
+            EarthworkStatusLevel.SUCCESS);
     }
 
     private List<Vec2d> extractRegionOutlineFromSelection() {
