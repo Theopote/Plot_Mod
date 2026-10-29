@@ -2,6 +2,24 @@
 
 只读深查 `CrossingMaterializer → ElevationResolver → JunctionGenerator → Assembler/flush → Clearance` 后的缺测与回归落地说明。
 
+## 2026-10-29 交叉口专项复查采纳
+
+对照最新代码（HEAD 含 `cc12be7`）核实后的结论：
+
+| 说法 | 判定 | 处理 |
+|------|------|------|
+| 物化失败静默仍返回 COMPLETE | **正确** | 已落地：`CrossingMaterializeStatus` + 双臂原子校验；失败返回 `INCOMPLETE` |
+| snapshot 未检查双道路结果就 apply design | **正确** | 已落地：任一侧失败不调用 `applyCrossingDesignToJunction` |
+| 无 Manifest 只打 Debug 跳过最终校验 | **正确** | 已落地：记入 `missingJunctionValidationIds`，计入 `hasPartialFailure` |
+| 平交统一 junctionY / 立交清场上界 / FinalVoxelValidator | **正确** | 保留，不重复改 |
+
+P2 已落地：
+
+| 项 | 处理 |
+|----|------|
+| 多路口连续纵断面 | `AdjacentJunctionProfileContinuity` 检查相邻 degree≥3 节点连边；软节点断崖记 error 并 `hasPartialFailure`；硬锁冲突仅 warning |
+| 路口与桥隧交界 | `BridgeTunnelJunctionInterfaceTest`：BRIDGE 甲板护甲板、隧道广场面层不被 AIR 挖穿、河谷桥接近路口无 cross-layer leak |
+
 ## 链路结论
 
 | 环节 | 状态 | 备注 |

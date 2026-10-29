@@ -13,11 +13,14 @@ import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.SegmentStation;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * 在 snapshot / 生成前将已注册 {@link RoadCrossing} 临时物化为共享节点拓扑，兼容旧 junction 管线。
+ * <p>
+ * 单臂失败不会再被静默当成 COMPLETE：每条 Crossing 必须确认双道路均已接入节点。
  */
 public final class RoadCrossingMaterializer {
     private static final double NODE_TOLERANCE = RoadNetworkBuilder.NODE_TOLERANCE;
@@ -26,19 +29,21 @@ public final class RoadCrossingMaterializer {
     }
 
     public static RoadNetwork materializeForSnapshot(RoadNetwork source) {
+        return materializeForSnapshotWithReport(source).network();
+    }
+
+    public static SnapshotMaterialization materializeForSnapshotWithReport(RoadNetwork source) {
         if (source == null) {
-            return new RoadNetwork();
+            return new SnapshotMaterialization(new RoadNetwork(), CrossingMaterializationReport.empty());
         }
         if (source.getCrossings().isEmpty() && source.getStackCrossings().isEmpty()) {
-            return source.snapshot();
+            return new SnapshotMaterialization(source.snapshot(), CrossingMaterializationReport.empty());
         }
         RoadNetwork snapshot = source.snapshot();
-        for (RoadCrossing crossing : source.getCrossings().values()) {
-            materializeCrossing(snapshot, crossing);
-        }
+        CrossingMaterializationReport crossingReport = materializeAllCrossings(snapshot, source.getCrossings().values());
         RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
         preserveEditedProfilesAcrossSplits(source, snapshot);
-        return snapshot;
+        return new SnapshotMaterialization(snapshot, crossingReport);
     }
 
     /** Splitting instance edges at a crossing does not edit the logical road path. */
@@ -69,21 +74,74 @@ public final class RoadCrossingMaterializer {
         if (network == null || network.getCrossings().isEmpty()) {
             return IntersectionResult.COMPLETE;
         }
-        for (RoadCrossing crossing : List.copyOf(network.getCrossings().values())) {
-            materializeCrossing(network, crossing);
-        }
-        return IntersectionResult.COMPLETE;
+        return materializeAllCrossings(network, List.copyOf(network.getCrossings().values()))
+            .toIntersectionResult();
     }
 
-    private static void materializeCrossing(RoadNetwork network, RoadCrossing crossing) {
+    private static CrossingMaterializationReport materializeAllCrossings(
+            RoadNetwork network,
+            Iterable<RoadCrossing> crossings) {
+        int attempted = 0;
+        int succeeded = 0;
+        List<CrossingMaterializationFailure> failures = new ArrayList<>();
+        for (RoadCrossing crossing : crossings) {
+            attempted++;
+            Optional<CrossingMaterializationFailure> failure = materializeCrossing(network, crossing);
+            if (failure.isPresent()) {
+                failures.add(failure.get());
+            } else {
+                succeeded++;
+            }
+        }
+        return new CrossingMaterializationReport(attempted, succeeded, failures);
+    }
+
+    private static Optional<CrossingMaterializationFailure> materializeCrossing(
+            RoadNetwork network,
+            RoadCrossing crossing) {
         Vec2d position = crossing.position();
         if (position == null) {
-            return;
+            return Optional.of(new CrossingMaterializationFailure(
+                crossing.id(),
+                crossing.roadAId(),
+                crossing.roadBId(),
+                CrossingMaterializeStatus.STATION_UNRESOLVED,
+                CrossingMaterializeStatus.STATION_UNRESOLVED,
+                "crossing position is null"));
         }
         RoadNode junction = findOrCreateNode(network, position);
-        materializeRoadAtCrossing(network, crossing.roadAId(), crossing.stationA(), junction, position);
-        materializeRoadAtCrossing(network, crossing.roadBId(), crossing.stationB(), junction, position);
+        CrossingMaterializeStatus armA = materializeRoadAtCrossing(
+            network, crossing.roadAId(), crossing.stationA(), junction, position);
+        CrossingMaterializeStatus armB = materializeRoadAtCrossing(
+            network, crossing.roadBId(), crossing.stationB(), junction, position);
+
+        CrossingMaterializeStatus verifiedA = verifyArm(network, junction, crossing.roadAId(), armA);
+        CrossingMaterializeStatus verifiedB = verifyArm(network, junction, crossing.roadBId(), armB);
+        if (!verifiedA.isSuccessful() || !verifiedB.isSuccessful()) {
+            return Optional.of(new CrossingMaterializationFailure(
+                crossing.id(),
+                crossing.roadAId(),
+                crossing.roadBId(),
+                verifiedA,
+                verifiedB,
+                "crossing arms incomplete: A=" + verifiedA + ", B=" + verifiedB));
+        }
         applyCrossingDesignToJunction(network, crossing, junction);
+        return Optional.empty();
+    }
+
+    private static CrossingMaterializeStatus verifyArm(
+            RoadNetwork network,
+            RoadNode junction,
+            String roadId,
+            CrossingMaterializeStatus status) {
+        if (!status.isSuccessful()) {
+            return status;
+        }
+        if (!isRoadConnectedToJunction(network, junction, roadId)) {
+            return CrossingMaterializeStatus.SPLIT_FAILED;
+        }
+        return status;
     }
 
     private static void applyCrossingDesignToJunction(
@@ -112,7 +170,7 @@ public final class RoadCrossingMaterializer {
         }
     }
 
-    private static void materializeRoadAtCrossing(
+    private static CrossingMaterializeStatus materializeRoadAtCrossing(
             RoadNetwork network,
             String roadId,
             double station,
@@ -120,23 +178,45 @@ public final class RoadCrossingMaterializer {
             Vec2d position) {
         Road road = network.getRoad(roadId);
         if (road == null) {
-            return;
+            return CrossingMaterializeStatus.ROAD_NOT_FOUND;
+        }
+        if (isRoadConnectedToJunction(network, junction, roadId)) {
+            return CrossingMaterializeStatus.ALREADY_CONNECTED;
         }
         Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
         if (resolved.isEmpty()) {
-            return;
+            return CrossingMaterializeStatus.STATION_UNRESOLVED;
         }
         String edgeId = resolved.get().segmentId();
         RoadEdge edge = network.getEdge(edgeId);
         if (edge == null) {
-            return;
+            return CrossingMaterializeStatus.EDGE_NOT_FOUND;
         }
         if (isNearEdgeEndpoint(edge, position)) {
-            connectEdgeEndpointToNode(network, edge, position, junction);
-        } else {
-            RoadGraphEdits.of(network).splitEdgeAtNode(
-                edgeId, junction.getId(), position, NODE_TOLERANCE);
+            return connectEdgeEndpointToNode(network, edge, position, junction);
         }
+        Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtNode(
+            edgeId, junction.getId(), position, NODE_TOLERANCE);
+        if (split.isPresent()) {
+            return CrossingMaterializeStatus.SUCCESS;
+        }
+        if (isRoadConnectedToJunction(network, junction, roadId)) {
+            return CrossingMaterializeStatus.ALREADY_CONNECTED;
+        }
+        return CrossingMaterializeStatus.SPLIT_FAILED;
+    }
+
+    static boolean isRoadConnectedToJunction(RoadNetwork network, RoadNode junction, String roadId) {
+        if (network == null || junction == null || roadId == null) {
+            return false;
+        }
+        for (String edgeId : junction.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && roadId.equals(edge.getRoadId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static RoadNode findOrCreateNode(RoadNetwork network, Vec2d position) {
@@ -157,16 +237,22 @@ public final class RoadCrossingMaterializer {
             || RoadGeometryUtils.pointsNear(points.getLast(), point, NODE_TOLERANCE);
     }
 
-    private static void connectEdgeEndpointToNode(
+    private static CrossingMaterializeStatus connectEdgeEndpointToNode(
             RoadNetwork network,
             RoadEdge edge,
             Vec2d intersection,
             RoadNode junctionNode) {
         String endpointNodeId = findEndpointNodeId(edge, intersection);
-        if (endpointNodeId == null || endpointNodeId.equals(junctionNode.getId())) {
-            return;
+        if (endpointNodeId == null) {
+            return CrossingMaterializeStatus.ENDPOINT_RELINK_FAILED;
         }
-        mergeEdgeEndpointToNode(network, edge, endpointNodeId, junctionNode.getId());
+        if (endpointNodeId.equals(junctionNode.getId())) {
+            return CrossingMaterializeStatus.ALREADY_CONNECTED;
+        }
+        if (!mergeEdgeEndpointToNode(network, edge, endpointNodeId, junctionNode.getId())) {
+            return CrossingMaterializeStatus.ENDPOINT_RELINK_FAILED;
+        }
+        return CrossingMaterializeStatus.SUCCESS;
     }
 
     private static String findEndpointNodeId(RoadEdge edge, Vec2d intersection) {
@@ -183,18 +269,18 @@ public final class RoadCrossingMaterializer {
         return null;
     }
 
-    private static void mergeEdgeEndpointToNode(
+    private static boolean mergeEdgeEndpointToNode(
             RoadNetwork network,
             RoadEdge edge,
             String oldNodeId,
             String newNodeId) {
         if (oldNodeId.equals(newNodeId)) {
-            return;
+            return true;
         }
         RoadNode oldNode = network.getNode(oldNodeId);
         RoadNode newNode = network.getNode(newNodeId);
         if (oldNode == null || newNode == null) {
-            return;
+            return false;
         }
         boolean relinked = false;
         if (edge.getStartNodeId().equals(oldNodeId)) {
@@ -211,5 +297,6 @@ public final class RoadCrossingMaterializer {
         if (relinked && oldNode.getDegree() == 0) {
             network.removeNode(oldNodeId);
         }
+        return relinked;
     }
 }

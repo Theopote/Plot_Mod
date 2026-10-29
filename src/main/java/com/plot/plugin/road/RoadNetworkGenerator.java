@@ -1,8 +1,11 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.crossing.CrossingMaterializationFailure;
+import com.plot.plugin.road.crossing.CrossingMaterializationReport;
 import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
+import com.plot.plugin.road.crossing.SnapshotMaterialization;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
@@ -10,6 +13,7 @@ import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
+import com.plot.plugin.road.pipeline.profile.AdjacentJunctionProfileContinuity;
 import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
@@ -51,6 +55,10 @@ public class RoadNetworkGenerator {
         private final Set<String> failedEdgeIds = new LinkedHashSet<>();
         private final Set<String> skippedEdgeIds = new LinkedHashSet<>();
         private final Set<String> skippedJunctionIds = new LinkedHashSet<>();
+        private final Set<String> missingJunctionValidationIds = new LinkedHashSet<>();
+        private final List<CrossingMaterializationFailure> crossingMaterializationFailures = new ArrayList<>();
+        private final List<AdjacentJunctionProfileContinuity.Violation> adjacentJunctionProfileViolations =
+            new ArrayList<>();
         private final List<String> warnings = new ArrayList<>();
         private final List<String> errors = new ArrayList<>();
         private Map<String, Integer> nodeElevations = Map.of();
@@ -84,6 +92,18 @@ public class RoadNetworkGenerator {
 
         public Set<String> getSkippedJunctionIds() {
             return Collections.unmodifiableSet(skippedJunctionIds);
+        }
+
+        public Set<String> getMissingJunctionValidationIds() {
+            return Collections.unmodifiableSet(missingJunctionValidationIds);
+        }
+
+        public List<CrossingMaterializationFailure> getCrossingMaterializationFailures() {
+            return Collections.unmodifiableList(crossingMaterializationFailures);
+        }
+
+        public List<AdjacentJunctionProfileContinuity.Violation> getAdjacentJunctionProfileViolations() {
+            return Collections.unmodifiableList(adjacentJunctionProfileViolations);
         }
 
         public List<String> getWarnings() {
@@ -139,6 +159,41 @@ public class RoadNetworkGenerator {
             }
         }
 
+        void recordCrossingMaterialization(CrossingMaterializationReport report) {
+            if (report == null || report.failures().isEmpty()) {
+                return;
+            }
+            crossingMaterializationFailures.addAll(report.failures());
+            for (CrossingMaterializationFailure failure : report.failures()) {
+                errors.add("crossing " + failure.crossingId() + ": " + failure.detail());
+            }
+        }
+
+        void recordMissingJunctionValidation(String nodeId, String reason) {
+            if (nodeId == null) {
+                return;
+            }
+            missingJunctionValidationIds.add(nodeId);
+            errors.add("junction " + nodeId + ": "
+                + (reason != null && !reason.isBlank() ? reason : "expected validation result missing"));
+        }
+
+        void recordAdjacentJunctionProfileViolations(
+                List<AdjacentJunctionProfileContinuity.Violation> violations) {
+            if (violations == null || violations.isEmpty()) {
+                return;
+            }
+            adjacentJunctionProfileViolations.addAll(violations);
+            for (AdjacentJunctionProfileContinuity.Violation violation : violations) {
+                String detail = violation.detail();
+                if (violation.blocking()) {
+                    errors.add(detail);
+                } else {
+                    warnings.add(detail);
+                }
+            }
+        }
+
         public int successEdgeCount() {
             return (int) edgeOutcomes.values().stream()
                 .filter(EdgeGenerationResult::isSuccess)
@@ -150,7 +205,13 @@ public class RoadNetworkGenerator {
         }
 
         public boolean hasPartialFailure() {
-            return !failedEdgeIds.isEmpty() || !skippedEdgeIds.isEmpty() || !skippedJunctionIds.isEmpty();
+            return !failedEdgeIds.isEmpty()
+                || !skippedEdgeIds.isEmpty()
+                || !skippedJunctionIds.isEmpty()
+                || !crossingMaterializationFailures.isEmpty()
+                || !missingJunctionValidationIds.isEmpty()
+                || adjacentJunctionProfileViolations.stream().anyMatch(
+                    AdjacentJunctionProfileContinuity.Violation::blocking);
         }
 
         public boolean isEmpty() {
@@ -209,7 +270,11 @@ public class RoadNetworkGenerator {
             return RoadNetworkPreviewSession.empty(network);
         }
         reconcileCrossingsForGeneration(network);
-        RoadNetwork generationNetwork = RoadCrossingMaterializer.materializeForSnapshot(network);
+        SnapshotMaterialization materialization =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        RoadNetwork generationNetwork = materialization.network();
+        NetworkGenerationResult networkResult = new NetworkGenerationResult();
+        networkResult.recordCrossingMaterialization(materialization.report());
         List<RoadEdge> edges = RoadEdgeGenerationOrdering.sortForGeneration(
             generationNetwork,
             new ArrayList<>(generationNetwork.getEdges().values()));
@@ -217,7 +282,7 @@ public class RoadNetworkGenerator {
         return new RoadNetworkPreviewSession(
             network,
             generationNetwork,
-            new NetworkGenerationResult(),
+            networkResult,
             terrain,
             edges,
             junctionNodes);
@@ -471,6 +536,11 @@ public class RoadNetworkGenerator {
                 roadGenerator.getConfig());
             RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), networkResult);
             applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
+            networkResult.recordAdjacentJunctionProfileViolations(
+                AdjacentJunctionProfileContinuity.find(
+                    profileNetwork,
+                    networkResult.getNodeElevations(),
+                    roadGenerator.getConfig()));
             return new PreviewResult(
                 profileNetwork,
                 aggregate,
@@ -548,14 +618,21 @@ public class RoadNetworkGenerator {
             return;
         }
         PlacementRecordColumnIndex index = PlacementRecordColumnIndex.build(aggregate);
+        Set<String> skipped = networkResult.getSkippedJunctionIds();
         for (RoadNode node : profileNetwork.getNodes().values()) {
             if (node.getDegree() < 3) {
+                continue;
+            }
+            // Explicit skip already marks partial failure; do not double-count as integrity gap.
+            if (skipped.contains(node.getId())) {
                 continue;
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
                 networkResult.getJunctionResults().get(node.getId());
             if (junctionBlocks == null || junctionBlocks.validationManifest() == null) {
-                LOGGER.debug("Skipping post-merge validation for junction {}: no validation manifest", node.getId());
+                networkResult.recordMissingJunctionValidation(
+                    node.getId(),
+                    "expected junction has no generation/validation result");
                 continue;
             }
             JunctionFinalVoxelValidator.PostMergeReport postMerge =
