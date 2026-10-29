@@ -1,8 +1,8 @@
 package com.plot.plugin.road.model;
 
-import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +19,8 @@ public final class VariableCrossSectionPersistence {
 
     public static final class VariableCrossSectionsData {
         public List<StationEntryData> stations = new ArrayList<>();
+        /** STEP（默认）或 SMOOTH；缺省/未知按 STEP。 */
+        public String transitionMode;
     }
 
     private VariableCrossSectionPersistence() {
@@ -33,6 +35,7 @@ public final class VariableCrossSectionPersistence {
             return null;
         }
         VariableCrossSectionsData data = new VariableCrossSectionsData();
+        data.transitionMode = variable.getTransitionMode().name();
         for (StationCrossSection entry : sorted) {
             StationEntryData entryData = new StationEntryData();
             entryData.station = entry.getStation();
@@ -47,6 +50,7 @@ public final class VariableCrossSectionPersistence {
             return null;
         }
         RoadVariableCrossSections variable = new RoadVariableCrossSections();
+        variable.setTransitionMode(VariableCrossSectionTransitionMode.fromStorage(data.transitionMode));
         for (StationEntryData entryData : data.stations) {
             if (entryData == null || entryData.crossSection == null) {
                 continue;

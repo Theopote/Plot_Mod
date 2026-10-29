@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
@@ -16,6 +17,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImInt;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,12 +30,14 @@ public final class VariableCrossSectionEditor {
 
     private Road syncedRoad;
     private RoadVariableCrossSections syncedSections;
+    private VariableCrossSectionTransitionMode draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
     private double validationLength = Double.POSITIVE_INFINITY;
     private final List<StationDraft> drafts = new ArrayList<>();
 
     public void reset() {
         syncedRoad = null;
         syncedSections = null;
+        draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
         drafts.clear();
     }
 
@@ -59,6 +63,8 @@ public final class VariableCrossSectionEditor {
         validationLength = roadLength;
         syncDrafts(road, config);
 
+        renderTransitionMode(onHistory);
+
         if (drafts.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -66,7 +72,9 @@ public final class VariableCrossSectionEditor {
         }
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.variable_cross_section_hint"));
+            draftTransitionMode == VariableCrossSectionTransitionMode.SMOOTH
+                ? PlotI18n.tr("plugin.road.variable_cross_section_hint_smooth")
+                : PlotI18n.tr("plugin.road.variable_cross_section_hint"));
 
         for (int i = 0; i < drafts.size(); i++) {
             renderDraftRow(ctx, road, drafts.get(i), i, (float) roadLength, chainageDisplay, onHistory);
@@ -83,6 +91,26 @@ public final class VariableCrossSectionEditor {
             }
             drafts.add(StationDraft.defaultEntry(road, config, roadLength));
             applyDraftsIfChanged(road, config);
+        }
+    }
+
+    private void renderTransitionMode(Runnable onHistory) {
+        ImInt index = new ImInt(draftTransitionMode == VariableCrossSectionTransitionMode.SMOOTH ? 1 : 0);
+        String[] labels = {
+            PlotI18n.tr("plugin.road.variable_cross_section_transition.step"),
+            PlotI18n.tr("plugin.road.variable_cross_section_transition.smooth")
+        };
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(
+                PlotI18n.tr("plugin.road.variable_cross_section_transition") + "##vcs_transition",
+                index,
+                labels)) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            draftTransitionMode = index.get() == 1
+                ? VariableCrossSectionTransitionMode.SMOOTH
+                : VariableCrossSectionTransitionMode.STEP;
         }
     }
 
@@ -161,8 +189,10 @@ public final class VariableCrossSectionEditor {
         syncedSections = road.getVariableCrossSections();
         drafts.clear();
         if (road.getVariableCrossSections() == null) {
+            draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
             return;
         }
+        draftTransitionMode = road.getVariableCrossSections().getTransitionMode();
         List<StationCrossSection> stations = road.getVariableCrossSections().sortedStations();
         if (stations.isEmpty() && !road.getVariableCrossSections().isEmpty()) {
             stations = road.getVariableCrossSections().getStations();
@@ -178,10 +208,19 @@ public final class VariableCrossSectionEditor {
         List<StationCrossSection> current = road.getVariableCrossSections() != null
             ? road.getVariableCrossSections().sortedStations()
             : List.of();
-        if (stationsEqual(current, built, config)) {
+        VariableCrossSectionTransitionMode currentMode = road.getVariableCrossSections() != null
+            ? road.getVariableCrossSections().getTransitionMode()
+            : VariableCrossSectionTransitionMode.STEP;
+        boolean stationsUnchanged = stationsEqual(current, built, config);
+        boolean modeUnchanged = currentMode == draftTransitionMode;
+        if (stationsUnchanged && modeUnchanged) {
             return;
         }
-        road.setVariableCrossSections(built.isEmpty() ? null : new RoadVariableCrossSections(built));
+        if (built.isEmpty()) {
+            road.setVariableCrossSections(null);
+        } else {
+            road.setVariableCrossSections(new RoadVariableCrossSections(built, draftTransitionMode));
+        }
         syncedSections = road.getVariableCrossSections();
     }
 

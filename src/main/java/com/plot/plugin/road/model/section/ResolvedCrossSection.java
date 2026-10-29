@@ -510,4 +510,180 @@ public final class ResolvedCrossSection {
             && Objects.equals(left.getAccentMaterial(), right.getAccentMaterial())
             && Float.compare(left.getAccentRatio(), right.getAccentRatio()) == 0;
     }
+
+    /**
+     * 平滑过渡：宽度/坡比等连续量线性插值；车道数、材质、标线样式等离散量取较近侧（t&lt;0.5 取 from）。
+     * 可选条带的 enable 由插值后的有效宽度是否 &gt;0 决定。
+     */
+    public static ResolvedCrossSection lerpContinuous(
+            ResolvedCrossSection from,
+            ResolvedCrossSection to,
+            double t) {
+        if (from == null) {
+            return to;
+        }
+        if (to == null || t <= 0.0) {
+            return from;
+        }
+        if (t >= 1.0) {
+            return to;
+        }
+        ResolvedCrossSection discrete = t < 0.5 ? from : to;
+
+        int carriagewayWidth = Math.max(1, lerpRound(from.carriagewayWidth, to.carriagewayWidth, t));
+        int medianWidth = lerpRound(
+            effectiveWidth(from.includeMedian, from.medianWidth),
+            effectiveWidth(to.includeMedian, to.medianWidth),
+            t);
+        boolean includeMedian = medianWidth > 0;
+        if (includeMedian) {
+            medianWidth = CrossSectionGeometryRules.clampMedianWidth(
+                carriagewayWidth, discrete.laneCount, Math.max(1, medianWidth));
+            if (medianWidth <= 0) {
+                includeMedian = false;
+                medianWidth = 0;
+            }
+        }
+        int laneOnlyWidth = CrossSectionGeometryRules.laneOnlyWidth(
+            carriagewayWidth, discrete.laneCount, medianWidth);
+        List<Integer> laneWidths = scaleLaneWidths(discrete.laneWidths, laneOnlyWidth);
+        List<Double> laneDividerOffsets = scaleOffsets(
+            discrete.laneDividerOffsets, discrete.laneOnlyWidth, laneOnlyWidth);
+
+        int shoulderWidth = lerpRound(
+            effectiveWidth(from.includeShoulder, from.shoulderWidth),
+            effectiveWidth(to.includeShoulder, to.shoulderWidth),
+            t);
+        boolean includeShoulder = shoulderWidth > 0;
+
+        int bikeLaneWidth = lerpRound(
+            effectiveWidth(from.includeBikeLane, from.bikeLaneWidth),
+            effectiveWidth(to.includeBikeLane, to.bikeLaneWidth),
+            t);
+        boolean includeBikeLane = bikeLaneWidth > 0;
+
+        int sidewalkWidth = lerpRound(
+            effectiveWidth(from.includeSidewalk, from.sidewalkWidth),
+            effectiveWidth(to.includeSidewalk, to.sidewalkWidth),
+            t);
+        boolean includeSidewalk = sidewalkWidth > 0;
+
+        float fillRatio = lerpFloat(
+            from.includeSlopeBatter ? from.fillSlopeRatio : 0f,
+            to.includeSlopeBatter ? to.fillSlopeRatio : 0f,
+            t);
+        float cutRatio = lerpFloat(
+            from.includeSlopeBatter ? from.cutSlopeRatio : 0f,
+            to.includeSlopeBatter ? to.cutSlopeRatio : 0f,
+            t);
+        boolean includeSlopeBatter = fillRatio > 0f || cutRatio > 0f;
+
+        Integer streetlightSpacing = lerpNullableInt(from.streetlightSpacing, to.streetlightSpacing, t);
+
+        return new ResolvedCrossSection(
+            discrete.laneCount,
+            laneWidths,
+            laneDividerOffsets,
+            carriagewayWidth,
+            laneOnlyWidth,
+            discrete.carriagewayMaterial,
+            includeMedian,
+            medianWidth,
+            discrete.medianMaterial,
+            discrete.laneDividers,
+            discrete.centerLineStyle,
+            discrete.markingMaterial,
+            includeShoulder,
+            Math.max(0, shoulderWidth),
+            discrete.shoulderMaterial,
+            includeBikeLane,
+            includeBikeLane ? Math.max(1, bikeLaneWidth) : 0,
+            discrete.bikeLaneMaterial,
+            includeSidewalk,
+            Math.max(0, sidewalkWidth),
+            discrete.sidewalkMaterial,
+            streetlightSpacing,
+            discrete.streetlightBlock,
+            includeSlopeBatter,
+            includeSlopeBatter ? fillRatio : 0f,
+            includeSlopeBatter ? cutRatio : 0f,
+            discrete.fillSlopeMaterial,
+            discrete.cutSlopeMaterial
+        );
+    }
+
+    private static int effectiveWidth(boolean enabled, int width) {
+        return enabled ? Math.max(0, width) : 0;
+    }
+
+    private static int lerpRound(int a, int b, double t) {
+        return (int) Math.round(a + (b - a) * t);
+    }
+
+    private static float lerpFloat(float a, float b, double t) {
+        return (float) (a + (b - a) * t);
+    }
+
+    private static Integer lerpNullableInt(Integer a, Integer b, double t) {
+        if (a == null && b == null) {
+            return null;
+        }
+        if (a == null || b == null) {
+            return t < 0.5 ? a : b;
+        }
+        return lerpRound(a, b, t);
+    }
+
+    private static List<Integer> scaleLaneWidths(List<Integer> source, int targetSum) {
+        if (source == null || source.isEmpty()) {
+            return List.of(Math.max(1, targetSum));
+        }
+        int safeTarget = Math.max(source.size(), targetSum);
+        int sum = 0;
+        for (Integer width : source) {
+            sum += width != null ? Math.max(0, width) : 0;
+        }
+        if (sum <= 0) {
+            int each = Math.max(1, safeTarget / source.size());
+            List<Integer> equal = new ArrayList<>(source.size());
+            int used = 0;
+            for (int i = 0; i < source.size(); i++) {
+                int w = i == source.size() - 1 ? Math.max(1, safeTarget - used) : each;
+                equal.add(w);
+                used += w;
+            }
+            return List.copyOf(equal);
+        }
+        List<Integer> scaled = new ArrayList<>(source.size());
+        int used = 0;
+        for (int i = 0; i < source.size(); i++) {
+            int raw = source.get(i) != null ? Math.max(0, source.get(i)) : 0;
+            int w;
+            if (i == source.size() - 1) {
+                w = Math.max(1, safeTarget - used);
+            } else {
+                w = Math.max(1, (int) Math.round(raw * (double) safeTarget / sum));
+                used += w;
+            }
+            scaled.add(w);
+        }
+        return List.copyOf(scaled);
+    }
+
+    private static List<Double> scaleOffsets(List<Double> offsets, int fromWidth, int toWidth) {
+        if (offsets == null || offsets.isEmpty()) {
+            return List.of();
+        }
+        if (fromWidth <= 0 || fromWidth == toWidth) {
+            return List.copyOf(offsets);
+        }
+        double scale = (double) toWidth / fromWidth;
+        List<Double> scaled = new ArrayList<>(offsets.size());
+        for (Double offset : offsets) {
+            if (offset != null) {
+                scaled.add(offset * scale);
+            }
+        }
+        return List.copyOf(scaled);
+    }
 }

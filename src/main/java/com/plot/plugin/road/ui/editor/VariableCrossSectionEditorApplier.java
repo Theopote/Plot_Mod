@@ -20,10 +20,19 @@ public final class VariableCrossSectionEditorApplier {
         if (original == null || working == null) {
             return false;
         }
-        var left = original.getVariableCrossSections() != null
-            ? original.getVariableCrossSections().getStations() : List.<StationCrossSection>of();
-        var right = working.getVariableCrossSections() != null
-            ? working.getVariableCrossSections().getStations() : List.<StationCrossSection>of();
+        RoadVariableCrossSections leftSections = original.getVariableCrossSections();
+        RoadVariableCrossSections rightSections = working.getVariableCrossSections();
+        if (leftSections == null && rightSections == null) {
+            return false;
+        }
+        if (leftSections == null || rightSections == null) {
+            return true;
+        }
+        if (leftSections.getTransitionMode() != rightSections.getTransitionMode()) {
+            return true;
+        }
+        var left = leftSections.getStations();
+        var right = rightSections.getStations();
         if (left.size() != right.size()) return true;
         for (int i = 0; i < left.size(); i++) {
             if (Double.compare(left.get(i).getStation(), right.get(i).getStation()) != 0

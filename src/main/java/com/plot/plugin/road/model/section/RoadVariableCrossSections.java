@@ -3,25 +3,34 @@ package com.plot.plugin.road.model.section;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * 道路沿桩号可变横断面：有序 {@link StationCrossSection} 列表。
+ * 道路沿桩号可变横断面：有序 {@link StationCrossSection} 列表 + 过渡模式。
  * <p>
  * 空列表表示全程使用道路默认 {@link RoadCrossSection}。
  */
 public final class RoadVariableCrossSections {
 
     private final List<StationCrossSection> stations = new ArrayList<>();
+    private VariableCrossSectionTransitionMode transitionMode = VariableCrossSectionTransitionMode.STEP;
 
     public RoadVariableCrossSections() {
     }
 
     public RoadVariableCrossSections(List<StationCrossSection> stations) {
+        this(stations, VariableCrossSectionTransitionMode.STEP);
+    }
+
+    public RoadVariableCrossSections(
+            List<StationCrossSection> stations,
+            VariableCrossSectionTransitionMode transitionMode) {
         if (stations != null) {
             for (StationCrossSection station : stations) {
                 addStation(station);
             }
         }
+        setTransitionMode(transitionMode);
     }
 
     public List<StationCrossSection> getStations() {
@@ -44,6 +53,16 @@ public final class RoadVariableCrossSections {
 
     public int stationCount() {
         return stations.size();
+    }
+
+    public VariableCrossSectionTransitionMode getTransitionMode() {
+        return transitionMode != null ? transitionMode : VariableCrossSectionTransitionMode.STEP;
+    }
+
+    public void setTransitionMode(VariableCrossSectionTransitionMode transitionMode) {
+        this.transitionMode = transitionMode != null
+            ? transitionMode
+            : VariableCrossSectionTransitionMode.STEP;
     }
 
     /**
@@ -75,6 +94,23 @@ public final class RoadVariableCrossSections {
         for (StationCrossSection station : stations) {
             copied.add(station.copy());
         }
-        return new RoadVariableCrossSections(copied);
+        return new RoadVariableCrossSections(copied, getTransitionMode());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof RoadVariableCrossSections other)) {
+            return false;
+        }
+        return getTransitionMode() == other.getTransitionMode()
+            && Objects.equals(stations, other.stations);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getTransitionMode(), stations);
     }
 }

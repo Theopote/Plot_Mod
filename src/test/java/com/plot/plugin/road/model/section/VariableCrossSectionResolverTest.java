@@ -93,7 +93,7 @@ class VariableCrossSectionResolverTest {
         RoadVariableCrossSections variable = new RoadVariableCrossSections(List.of(
             StationCrossSection.at(30.0, sectionWithWidth(8)),
             StationCrossSection.at(70.0, sectionWithWidth(12))
-        ));
+        ), VariableCrossSectionTransitionMode.SMOOTH);
 
         RoadVariableCrossSections restored = VariableCrossSectionPersistence.fromData(
             VariableCrossSectionPersistence.toData(variable));
@@ -101,6 +101,57 @@ class VariableCrossSectionResolverTest {
         assertNotNull(restored);
         assertEquals(2, restored.stationCount());
         assertEquals(12, widthOf(restored.sortedStations().get(1).getCrossSection()));
+        assertEquals(VariableCrossSectionTransitionMode.SMOOTH, restored.getTransitionMode());
+    }
+
+    @Test
+    void persistenceDefaultsMissingTransitionModeToStep() {
+        VariableCrossSectionPersistence.VariableCrossSectionsData data =
+            VariableCrossSectionPersistence.toData(new RoadVariableCrossSections(List.of(
+                StationCrossSection.at(10.0, sectionWithWidth(8))
+            ), VariableCrossSectionTransitionMode.SMOOTH));
+        assertNotNull(data);
+        data.transitionMode = null;
+
+        RoadVariableCrossSections restored = VariableCrossSectionPersistence.fromData(data);
+        assertNotNull(restored);
+        assertEquals(VariableCrossSectionTransitionMode.STEP, restored.getTransitionMode());
+        assertEquals(VariableCrossSectionTransitionMode.STEP, VariableCrossSectionTransitionMode.fromStorage(null));
+        assertEquals(VariableCrossSectionTransitionMode.STEP, VariableCrossSectionTransitionMode.fromStorage("nope"));
+    }
+
+    @Test
+    void smoothLerpsCarriagewayWidthBetweenStations() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        road.setWidth(6);
+        RoadVariableCrossSections variable = new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(0.0, sectionWithWidth(6)),
+            StationCrossSection.at(100.0, sectionWithWidth(16))
+        ), VariableCrossSectionTransitionMode.SMOOTH);
+        road.setVariableCrossSections(variable);
+
+        assertEquals(6, VariableCrossSectionResolver.resolve(network, road, 0.0, config).carriagewayWidth);
+        assertEquals(11, VariableCrossSectionResolver.resolve(network, road, 50.0, config).carriagewayWidth);
+        assertEquals(16, VariableCrossSectionResolver.resolve(network, road, 100.0, config).carriagewayWidth);
+        // 阶梯模板语义不变
+        assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(road, 50.0)));
+    }
+
+    @Test
+    void stepStillJumpsAtStation() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        road.setWidth(6);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(0.0, sectionWithWidth(6)),
+            StationCrossSection.at(100.0, sectionWithWidth(16))
+        ), VariableCrossSectionTransitionMode.STEP));
+
+        assertEquals(6, VariableCrossSectionResolver.resolve(network, road, 50.0, config).carriagewayWidth);
+        assertEquals(16, VariableCrossSectionResolver.resolve(network, road, 100.0, config).carriagewayWidth);
     }
 
     @Test
@@ -110,7 +161,7 @@ class VariableCrossSectionResolverTest {
         road.setWidth(6);
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
             StationCrossSection.at(25.0, sectionWithWidth(10))
-        )));
+        ), VariableCrossSectionTransitionMode.SMOOTH));
 
         RoadNetwork restored = RoadNetwork.parseSnapshot(network.toJson());
         Road restoredRoad = restored.getRoad("var");
@@ -118,6 +169,36 @@ class VariableCrossSectionResolverTest {
         assertNotNull(restoredRoad.getVariableCrossSections());
         assertEquals(1, restoredRoad.getVariableCrossSections().stationCount());
         assertEquals(10, widthOf(restoredRoad.getVariableCrossSections().sortedStations().getFirst().getCrossSection()));
+        assertEquals(
+            VariableCrossSectionTransitionMode.SMOOTH,
+            restoredRoad.getVariableCrossSections().getTransitionMode());
+    }
+
+    @Test
+    void lerpContinuousTakesDiscreteFieldsFromNearerSide() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection narrow = sectionWithWidth(6);
+        narrow.getCarriageway().setLaneCount(2);
+        narrow.getCarriageway().setMaterial("minecraft:stone");
+        RoadCrossSection wide = sectionWithWidth(14);
+        wide.getCarriageway().setLaneCount(4);
+        wide.getCarriageway().setMaterial("minecraft:deepslate");
+
+        ResolvedCrossSection mid = ResolvedCrossSection.lerpContinuous(
+            ResolvedCrossSection.resolve(narrow, config),
+            ResolvedCrossSection.resolve(wide, config),
+            0.25);
+        assertEquals(8, mid.carriagewayWidth);
+        assertEquals(2, mid.laneCount);
+        assertEquals("minecraft:stone", mid.carriagewayMaterial.getPrimaryMaterial());
+
+        ResolvedCrossSection pastHalf = ResolvedCrossSection.lerpContinuous(
+            ResolvedCrossSection.resolve(narrow, config),
+            ResolvedCrossSection.resolve(wide, config),
+            0.75);
+        assertEquals(12, pastHalf.carriagewayWidth);
+        assertEquals(4, pastHalf.laneCount);
+        assertEquals("minecraft:deepslate", pastHalf.carriagewayMaterial.getPrimaryMaterial());
     }
 
     private static RoadCrossSection sectionWithWidth(int width) {
