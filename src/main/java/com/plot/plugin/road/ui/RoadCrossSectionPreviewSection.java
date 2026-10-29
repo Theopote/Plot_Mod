@@ -5,8 +5,6 @@ import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.plugin.road.model.section.RoadCrossSection;
-import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -79,22 +77,27 @@ public final class RoadCrossSectionPreviewSection {
         ImGui.spacing();
     }
 
+    /**
+     * 多选预览是否可共用一张断面图：比较 {@link ResolvedCrossSection#resolve} 后的最终显示，
+     * 使「继承全局默认」与「显式写入相同有效值」视为一致。
+     */
     static boolean selectedRoadsShareCrossSection(RoadUiContext ctx) {
         var network = ctx.networkManager().getNetwork();
+        RoadSystemConfig config = ctx.networkManager().getConfig();
         LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
         if (roadIds.size() < 2) {
             return true;
         }
-        RoadCrossSection reference = null;
+        ResolvedCrossSection reference = null;
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);
             if (road == null) {
                 continue;
             }
-            RoadCrossSection current = road.getCrossSection();
+            ResolvedCrossSection current = road.getCrossSection().resolve(config);
             if (reference == null) {
                 reference = current;
-            } else if (!RoadCrossSectionEngineeringEquality.equals(reference, current)) {
+            } else if (!reference.displayEquals(current)) {
                 return false;
             }
         }

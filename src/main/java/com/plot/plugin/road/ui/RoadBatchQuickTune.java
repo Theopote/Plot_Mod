@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.manager.RoadBatchEditField;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -10,6 +11,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 import java.util.Collection;
+import java.util.Set;
 
 /** 多选 Edit：宽度与车道数快速批量调节。 */
 final class RoadBatchQuickTune {
@@ -24,10 +26,11 @@ final class RoadBatchQuickTune {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         WidthLaneState state = resolveWidthLane(network, roadIds, config);
         RoadNetworkManager.BatchEditDefaults draft = ctx.networkManager().loadBatchEditDefaults();
+        Set<RoadBatchEditField> dirty = ctx.networkManager().batchEditDirtyFields();
 
         RoadUiSections.section("plugin.road.edit.quick_tune");
-        renderWidthField(ctx, draft, state, onHistory);
-        renderLaneField(ctx, draft, state, onHistory);
+        renderWidthField(ctx, draft, state, dirty, onHistory);
+        renderLaneField(ctx, draft, state, dirty, onHistory);
 
         RoadBatchCrossSectionEditor.renderApplyButton(
             ctx,
@@ -39,25 +42,29 @@ final class RoadBatchQuickTune {
             RoadUiContext ctx,
             RoadNetworkManager.BatchEditDefaults draft,
             WidthLaneState state,
+            Set<RoadBatchEditField> dirty,
             Runnable onHistory) {
+        boolean mixedUnset = state.mixedWidth && !dirty.contains(RoadBatchEditField.WIDTH);
         if (state.mixedWidth) {
-            ImGui.text(PlotI18n.tr("plugin.road.edit.batch_width"));
-            ImGui.sameLine();
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_batch_strategy_mixed"));
+                PlotI18n.tr("plugin.road.edit.batch_width_mixed_hint"));
         }
-        // 混合时仍可设目标宽度（初值来自 batch draft / 首条路），宽度与车道互不强制一起覆盖。
         int[] widthArr = {draft.width()};
-        String widthLabel = state.mixedWidth
-            ? PlotI18n.tr("plugin.road.edit.batch_width_target", widthArr[0])
-            : PlotI18n.tr("plugin.road.road_width", widthArr[0]);
+        String label = mixedUnset
+            ? PlotI18n.tr("plugin.road.edit.batch_width_set_unified")
+            : state.mixedWidth
+                ? PlotI18n.tr("plugin.road.edit.batch_width_target", widthArr[0])
+                : PlotI18n.tr("plugin.road.road_width", widthArr[0]);
+        String format = mixedUnset
+            ? PlotI18n.tr("plugin.road.edit.batch_target_unset")
+            : "%d";
         if (ImGui.sliderInt(
-            widthLabel + "##batch_quick_width",
+            label + "##batch_quick_width",
             widthArr,
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
             RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
-            "%d")) {
+            format)) {
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }
@@ -69,24 +76,29 @@ final class RoadBatchQuickTune {
             RoadUiContext ctx,
             RoadNetworkManager.BatchEditDefaults draft,
             WidthLaneState state,
+            Set<RoadBatchEditField> dirty,
             Runnable onHistory) {
+        boolean mixedUnset = state.mixedLaneCount && !dirty.contains(RoadBatchEditField.LANE_COUNT);
         if (state.mixedLaneCount) {
-            ImGui.text(PlotI18n.tr("plugin.road.edit.batch_lane_count"));
-            ImGui.sameLine();
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_batch_strategy_mixed"));
+                PlotI18n.tr("plugin.road.edit.batch_lane_count_mixed_hint"));
         }
         int[] laneArr = {draft.laneCount()};
-        String laneLabel = state.mixedLaneCount
-            ? PlotI18n.tr("plugin.road.edit.batch_lane_count_target", laneArr[0])
-            : PlotI18n.tr("plugin.road.lane_count", laneArr[0]);
+        String label = mixedUnset
+            ? PlotI18n.tr("plugin.road.edit.batch_lane_count_set_unified")
+            : state.mixedLaneCount
+                ? PlotI18n.tr("plugin.road.edit.batch_lane_count_target", laneArr[0])
+                : PlotI18n.tr("plugin.road.lane_count", laneArr[0]);
+        String format = mixedUnset
+            ? PlotI18n.tr("plugin.road.edit.batch_target_unset")
+            : "%d";
         if (ImGui.sliderInt(
-            laneLabel + "##batch_quick_lanes",
+            label + "##batch_quick_lanes",
             laneArr,
             RoadParameterLimits.MIN_LANE_COUNT,
             RoadParameterLimits.MAX_LANE_COUNT,
-            "%d")) {
+            format)) {
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }

@@ -64,6 +64,32 @@ class RoadCrossSectionPreviewSectionTest {
         assertTrue(RoadCrossSectionPreviewSection.selectedRoadsShareCrossSection(ctx));
     }
 
+    @Test
+    void shareCheckTreatsInheritedAndExplicitSameResolvedWidthAsEqual() {
+        RoadSystemConfig config = manager.getConfig();
+        config.setRoadWidth(9);
+        RoadNetwork network = manager.getNetwork();
+        Road inherits = network.createRoad("inherits");
+        Road explicit = network.createRoad("explicit");
+        inherits.setWidth(null);
+        inherits.setLaneCount(2);
+        explicit.setWidth(9);
+        explicit.setLaneCount(2);
+
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), inherits.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), explicit.getId());
+        manager.selectRoad(inherits.getId(), false);
+        manager.selectRoad(explicit.getId(), true);
+
+        assertTrue(
+            inherits.getCrossSection().resolve(config).displayEquals(
+                explicit.getCrossSection().resolve(config)));
+        assertTrue(RoadCrossSectionPreviewSection.selectedRoadsShareCrossSection(ctx));
+    }
+
     private static PluginContext pluginContext() {
         ApplicationContext applicationContext = ApplicationContext.getInstance();
         return new PluginContext(

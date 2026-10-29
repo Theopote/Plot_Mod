@@ -11,6 +11,7 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -456,5 +457,57 @@ public final class ResolvedCrossSection {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * 最终显示等价：比较 {@link #resolve} 后的有效断面，使「继承全局」与「显式同值」在预览中视为一致。
+     */
+    public boolean displayEquals(ResolvedCrossSection other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null) {
+            return false;
+        }
+        return laneCount == other.laneCount
+            && carriagewayWidth == other.carriagewayWidth
+            && laneOnlyWidth == other.laneOnlyWidth
+            && Objects.equals(laneWidths, other.laneWidths)
+            && Objects.equals(laneDividerOffsets, other.laneDividerOffsets)
+            && materialMixEquals(carriagewayMaterial, other.carriagewayMaterial)
+            && includeMedian == other.includeMedian
+            && medianWidth == other.medianWidth
+            && Objects.equals(medianMaterial, other.medianMaterial)
+            && laneDividers == other.laneDividers
+            && centerLineStyle == other.centerLineStyle
+            && Objects.equals(markingMaterial, other.markingMaterial)
+            && includeShoulder == other.includeShoulder
+            && shoulderWidth == other.shoulderWidth
+            && Objects.equals(shoulderMaterial, other.shoulderMaterial)
+            && includeBikeLane == other.includeBikeLane
+            && bikeLaneWidth == other.bikeLaneWidth
+            && Objects.equals(bikeLaneMaterial, other.bikeLaneMaterial)
+            && includeSidewalk == other.includeSidewalk
+            && sidewalkWidth == other.sidewalkWidth
+            && Objects.equals(sidewalkMaterial, other.sidewalkMaterial)
+            && Objects.equals(streetlightSpacing, other.streetlightSpacing)
+            && Objects.equals(streetlightBlock, other.streetlightBlock)
+            && includeSlopeBatter == other.includeSlopeBatter
+            && Float.compare(fillSlopeRatio, other.fillSlopeRatio) == 0
+            && Float.compare(cutSlopeRatio, other.cutSlopeRatio) == 0
+            && Objects.equals(fillSlopeMaterial, other.fillSlopeMaterial)
+            && Objects.equals(cutSlopeMaterial, other.cutSlopeMaterial);
+    }
+
+    private static boolean materialMixEquals(MaterialMix left, MaterialMix right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        return Objects.equals(left.getPrimaryMaterial(), right.getPrimaryMaterial())
+            && Objects.equals(left.getAccentMaterial(), right.getAccentMaterial())
+            && Float.compare(left.getAccentRatio(), right.getAccentRatio()) == 0;
     }
 }

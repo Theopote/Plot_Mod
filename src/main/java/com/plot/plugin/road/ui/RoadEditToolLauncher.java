@@ -114,8 +114,7 @@ final class RoadEditToolLauncher {
             enabled(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
             enabled(RoadFloatingEditorKind.CENTERLINE, "centerline"),
             enabled(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
-            enabled(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"),
-            disabled(RoadFloatingEditorKind.BATCH_CROSS_SECTION, "batch_cross_section"));
+            enabled(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"));
     }
 
     private static ToolSpec enabled(RoadFloatingEditorKind kind, String keySuffix) {
@@ -124,14 +123,6 @@ final class RoadEditToolLauncher {
             "plugin.road.edit.tools." + keySuffix + ".title",
             "plugin.road.edit.tools." + keySuffix + ".subtitle",
             true);
-    }
-
-    private static ToolSpec disabled(RoadFloatingEditorKind kind, String keySuffix) {
-        return new ToolSpec(
-            kind,
-            "plugin.road.edit.tools." + keySuffix + ".title",
-            "plugin.road.edit.tools." + keySuffix + ".subtitle",
-            false);
     }
 
     private record ToolSpec(
