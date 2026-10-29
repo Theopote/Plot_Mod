@@ -49,7 +49,7 @@ final class RoadEditOverviewStrip {
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 8f, 6f);
         ImGui.beginChild("##road_edit_overview_strip", width, height, false);
         try {
-            renderRoadSelector(ctx, network, road);
+            renderRoadSelectorCombo(ctx, network, road);
 
             double length = RoadStationing.isStationable(network, road)
                 ? RoadStationing.canonicalLength(network, road)
@@ -91,18 +91,26 @@ final class RoadEditOverviewStrip {
         ImGui.spacing();
     }
 
-    private static void renderRoadSelector(RoadUiContext ctx, RoadNetwork network, Road current) {
+    /**
+     * 道路下拉选择（对齐土方「选择分区」）。{@code current} 可为 null（未选中时显示占位预览）。
+     */
+    static void renderRoadSelectorCombo(RoadUiContext ctx, RoadNetwork network, Road current) {
         List<Road> roads = listEditableRoads(network);
         if (roads.isEmpty()) {
-            ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, current));
+            if (current != null) {
+                ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, current));
+            }
             return;
         }
-        String preview = RoadEdgeListHelper.formatRoadLabel(network, current);
+        String preview = current != null
+            ? RoadEdgeListHelper.formatRoadLabel(network, current)
+            : PlotI18n.tr("plugin.road.edit.select_road_placeholder");
+        String currentId = current != null ? current.getId() : "";
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.beginCombo(PlotI18n.tr("plugin.road.edit.select_road"), preview)) {
             for (Road candidate : roads) {
                 String label = RoadEdgeListHelper.formatRoadLabel(network, candidate);
-                boolean selected = candidate.getId().equals(current.getId());
+                boolean selected = candidate.getId().equals(currentId);
                 if (ImGui.selectable(label + "##edit_road_" + candidate.getId(), selected)) {
                     if (!selected) {
                         ctx.networkManager().selectRoad(candidate.getId(), false);
@@ -117,7 +125,7 @@ final class RoadEditOverviewStrip {
         }
     }
 
-    private static List<Road> listEditableRoads(RoadNetwork network) {
+    static List<Road> listEditableRoads(RoadNetwork network) {
         List<Road> roads = new ArrayList<>();
         for (Road road : network.getRoads().values()) {
             if (road == null || road.getSegmentIds().isEmpty()) {

@@ -66,23 +66,33 @@ final class RoadEditWorkspace {
         RoadEditToolLauncher.renderMulti(ctx, floatingEditorHost, selectedRoadIds);
     }
 
+    /**
+     * 未选中道路：不展示单路编辑面（概览详情 / 快速设计 / 专业工具），
+     * 仅保留选择入口；认领默认参数收入折叠区，避免与「正在编辑道路」混淆。
+     */
     void renderNoSelectionDefaults() {
+        RoadNetwork network = ctx.networkManager().getNetwork();
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.edit.no_selection_hint"));
         ImGui.spacing();
-        RoadUiSections.section("plugin.road.route.new_road_defaults");
-        RoadCrossSectionPreviewSection.render(ctx);
-        ImGui.spacing();
-        RoadPresetCards.renderConfigCompact(ctx);
-        ImGui.spacing();
-        RoadUiSections.section("plugin.road.edit.quick_tune");
-        RoadRouteQuickTune.renderConfigDefaults(ctx);
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
-            defaultParamsPanel.renderAdvancedDefaultsCollapsible();
+        if (!RoadEditOverviewStrip.listEditableRoads(network).isEmpty()) {
+            RoadEditOverviewStrip.renderRoadSelectorCombo(ctx, network, null);
+            ImGui.spacing();
         }
-        ImGui.spacing();
-        RoadUiSections.group("plugin.road.section.structure");
-        TunnelStyleControls.renderGlobal(ctx);
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.new_road_defaults"))) {
+            RoadCrossSectionPreviewSection.render(ctx);
+            ImGui.spacing();
+            RoadPresetCards.renderConfigCompact(ctx);
+            ImGui.spacing();
+            RoadUiSections.section("plugin.road.edit.quick_tune");
+            RoadRouteQuickTune.renderConfigDefaults(ctx);
+            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
+                defaultParamsPanel.renderAdvancedDefaultsCollapsible();
+            }
+            ImGui.spacing();
+            RoadUiSections.group("plugin.road.section.structure");
+            TunnelStyleControls.renderGlobal(ctx);
+        }
     }
 }
