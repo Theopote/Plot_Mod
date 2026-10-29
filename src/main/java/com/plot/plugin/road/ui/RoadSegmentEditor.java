@@ -64,19 +64,13 @@ public final class RoadSegmentEditor {
                 continue;
             }
             boolean selected = segmentId.equals(primaryId);
+            // 列表只显示序号 + 长度；起终点与桩号留给下方摘要，避免与 formatEdgeLabel 重复。
             String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
-                + " · " + PlotI18n.tr(
-                    "plugin.road.segment_length",
-                    RoadLengthDisplay.formatEdgeMeters(edge, coordinates));
+                + " · " + RoadLengthDisplay.formatEdgeMeters(edge, coordinates);
             if (ImGui.selectable(label + "##seg_pick_" + i, selected) && !selected) {
                 if (onSelect != null) {
                     onSelect.accept(segmentId);
                 }
-            }
-            if (selected && segmentIds.size() > 1) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    RoadEdgeListHelper.formatEdgeLabel(network, edge, coordinates));
             }
         }
         ImGui.spacing();
@@ -89,9 +83,6 @@ public final class RoadSegmentEditor {
             RoadEdge edge,
             ChainageDisplayContext chainageDisplay) {
         var coordinates = ctx.host().coordinates();
-        ImGui.text(PlotI18n.tr(
-            "plugin.road.segment_length",
-            RoadLengthDisplay.formatEdgeMeters(edge, coordinates)));
         if (RoadStationing.isStationable(network, road)) {
             double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
             if (segmentStart >= 0.0) {

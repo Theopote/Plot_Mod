@@ -2089,7 +2089,7 @@
   "plugin.road.vertical_alignment_auto_smooth": "Automatically Smooth Grade Break",
   "plugin.road.vertical_alignment_auto_smooth_success": "A symmetric vertical curve was fitted to the available adjacent grade runs.",
   "plugin.road.vertical_alignment_auto_smooth_no_space": "Adjacent control points are too close for the minimum 8-block vertical transition.",
-  "plugin.road.centerline_edit_hint": "Edit the selected segment polyline. Distance is measured from the segment start.",
+  "plugin.road.centerline_edit_hint": "Edit the selected segment polyline. Distance is from the segment start in world meters (updates with view projection).",
   "plugin.road.centerline_distance": "Distance along segment",
   "plugin.road.centerline_insert_pi": "Insert PI",
   "plugin.road.centerline_split": "Split at distance",

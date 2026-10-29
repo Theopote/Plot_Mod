@@ -9,7 +9,6 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -124,28 +123,6 @@ public final class RoadUiWidgets {
             defaultMix,
             setter::set,
             pushHistoryOnChange ? () -> ctx.networkManager().pushHistory() : null);
-    }
-
-    /**
-     * 点缀比例滑条（0–50%）。
-     */
-    public static void renderAccentRatioSlider(
-            MaterialMix mix,
-            MaterialMixSetter setter,
-            String id,
-            Runnable onActivated) {
-        UIUtils.renderAccentRatioSlider(mix, setter::set, id, onActivated);
-    }
-
-    public static MaterialMix fromPaletteSelection(List<String> blockIds, float existingRatio) {
-        return UIUtils.fromPaletteSelection(
-            blockIds,
-            existingRatio,
-            MaterialMix.single(RoadMaterialUtils.DEFAULT_ROAD_BLOCK));
-    }
-
-    public static void openPalettePicker(List<String> initialBlockIds, Consumer<List<String>> onConfirm) {
-        UIUtils.openPalettePicker(initialBlockIds, onConfirm);
     }
 
     public static void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {

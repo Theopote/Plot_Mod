@@ -393,14 +393,6 @@ public final class ResolvedCrossSection {
             + (includeSidewalk ? sidewalkWidth : 0);
     }
 
-    public double bikeLaneOffset() {
-        return bikeLaneCenterOffset();
-    }
-
-    public double outerSidewalkOffset() {
-        return sidewalkCenterOffset();
-    }
-
     /** Resolved surface layer and material for one signed lateral block offset from centerline. */
     public record SurfaceBandSpec(
             RoadSolidLayer layer,

@@ -2089,7 +2089,7 @@
   "plugin.road.vertical_alignment_auto_smooth": "自动平滑变坡点",
   "plugin.road.vertical_alignment_auto_smooth_success": "已按相邻坡段空间设置对称竖曲线。",
   "plugin.road.vertical_alignment_auto_smooth_no_space": "相邻控制点过近，无法容纳最小 8 格竖向过渡。",
-  "plugin.road.centerline_edit_hint": "编辑当前分段折线中心线；距离从该分段起点沿弧长计。",
+  "plugin.road.centerline_edit_hint": "编辑当前分段折线中心线；距离从该分段起点沿弧长计（世界米，随视图投影更新）。",
   "plugin.road.centerline_distance": "分段内距离",
   "plugin.road.centerline_insert_pi": "插入 PI",
   "plugin.road.centerline_split": "按距离打断",

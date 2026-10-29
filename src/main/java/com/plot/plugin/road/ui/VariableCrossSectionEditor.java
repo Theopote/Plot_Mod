@@ -345,7 +345,7 @@ public final class VariableCrossSectionEditor {
 
         static StationDraft defaultEntry(Road road, RoadSystemConfig config, double roadLength) {
             StationDraft draft = new StationDraft();
-            draft.station = (float) Math.min(roadLength, Math.max(10.0, roadLength * 0.25));
+            draft.station = (float) Math.clamp(roadLength * 0.25, 10.0, roadLength);
             draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(road.getCrossSection(), config);
             return draft;
         }

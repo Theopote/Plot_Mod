@@ -43,11 +43,6 @@ public final class RoadCrossSectionEditor {
         renderPreviewBody(network, road, config);
     }
 
-    /** 仅绘制横断面预览图（不含 style summary 文案）。始终反映道路当前断面参数。 */
-    public static void renderPreviewBody(Road road, RoadSystemConfig config) {
-        renderPreviewBody(null, road, config);
-    }
-
     public static void renderPreviewBody(RoadNetwork network, Road road, RoadSystemConfig config) {
         if (road == null) {
             return;
@@ -112,71 +107,6 @@ public final class RoadCrossSectionEditor {
 
     public static void renderFields(RoadUiContext ctx, Road road, Runnable onHistory) {
         renderRoadLevelCollapsibles(ctx, road, onHistory);
-    }
-
-    /**
-     * 样式 Tab 主界面：预览、外观横断面、材质与附属设施（宽度/车道/坡度在路线 Tab）。
-     */
-    public static void renderPrimaryStyle(RoadUiContext ctx, Road road, Runnable onHistory) {
-        if (road == null) {
-            return;
-        }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
-        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAppearance();
-
-        renderPreview(road, config);
-        ImGui.spacing();
-        CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
-
-        if (ImGui.collapsingHeader(
-            PlotI18n.tr("plugin.road.edit_materials"),
-            ImGuiTreeNodeFlags.DefaultOpen)) {
-            CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
-        }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit_furniture"))) {
-            CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
-        }
-    }
-
-    /**
-     * 样式 Tab「高级道路设计」内的横断面工程参数（继承、分车道宽、边坡、工程坡度）。
-     */
-    public static void renderAdvancedCrossSection(RoadUiContext ctx, Road road, Runnable onHistory) {
-        if (road == null) {
-            return;
-        }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
-        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAdvanced();
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.inherit_all_defaults") + "##inherit_all_adv")) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
-            road.inheritAllDefaults();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.inherit_all_defaults"));
-        }
-        ImGui.spacing();
-
-        if (RoadParameterInheritance.inheritsAny(road)) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.inheritance_mode_active"));
-        } else {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.explicit_params_mode"));
-        }
-        ImGui.spacing();
-
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.style.advanced_cross_section_hint"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.style.quick_tune_authority_hint"));
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.engineering_cross_section"))) {
-            CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
-        }
     }
 
     /**

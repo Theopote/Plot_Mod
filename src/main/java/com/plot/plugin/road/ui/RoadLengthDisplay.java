@@ -46,6 +46,21 @@ public final class RoadLengthDisplay {
         return canvasLength * scale;
     }
 
+    /**
+     * 方块（展示米）→ 画布域：{@link #canvasToBlocks} 的逆变换，供滑条编辑后写回内部弧长。
+     */
+    public static double blocksToCanvas(
+            double worldBlocks,
+            RoadNetwork network,
+            Road road,
+            ICoordinateService coordinates) {
+        double scale = canvasToWorldScale(network, road, coordinates);
+        if (scale <= EPSILON) {
+            return worldBlocks;
+        }
+        return worldBlocks / scale;
+    }
+
     public static double canvasToWorldScale(
             RoadNetwork network,
             Road road,

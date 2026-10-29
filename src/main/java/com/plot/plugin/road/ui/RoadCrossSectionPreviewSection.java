@@ -83,10 +83,6 @@ public final class RoadCrossSectionPreviewSection {
         renderBatchPreview(layout);
     }
 
-    private static void renderHeader(ResolvedCrossSection resolved) {
-        renderHeader(resolved, null);
-    }
-
     private static void renderHeader(ResolvedCrossSection resolved, String gradeLabel) {
         ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
         float avail = ImGui.getContentRegionAvail().x;

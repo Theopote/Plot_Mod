@@ -4,9 +4,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
-import com.plot.plugin.road.model.section.StationCrossSection;
-
-import java.util.List;
 
 /** 可变横断面浮动编辑器写回。 */
 public final class VariableCrossSectionEditorApplier {

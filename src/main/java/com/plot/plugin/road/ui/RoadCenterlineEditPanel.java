@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.model.Road;
@@ -13,11 +14,15 @@ import java.util.List;
 
 /**
  * 分段中心线编辑工具（插入 PI、分割、圆角、合并等）。
+ * <p>
+ * 面板距离/半径以世界米（1 m = 1 格）展示；写入编辑器时换回画布弧长。
  */
 public final class RoadCenterlineEditPanel {
 
-    private float centerlineEditDistance = 10f;
-    private float centerlineFilletRadius = 2f;
+    /** 分段内距离（世界 blocks / m）。 */
+    private float centerlineEditDistanceBlocks = 10f;
+    /** 圆角半径（世界 blocks / m）。 */
+    private float centerlineFilletRadiusBlocks = 2f;
     private int centerlineVertexIndex = 1;
     private String lastCenterlineEditMessage = "";
 
@@ -33,6 +38,7 @@ public final class RoadCenterlineEditPanel {
         renderControls(
             ctx,
             network,
+            road,
             edge,
             (targetNetwork, edgeId, distance) ->
                 ctx.networkManager().insertPiAtLocalDistance(edgeId, distance),
@@ -49,6 +55,7 @@ public final class RoadCenterlineEditPanel {
         renderControls(
             ctx,
             network,
+            road,
             edge,
             RoadCenterlineEditor::insertPiAtLocalDistance,
             RoadCenterlineEditor::splitAtLocalDistance,
@@ -80,33 +87,44 @@ public final class RoadCenterlineEditPanel {
     private void renderControls(
             RoadUiContext ctx,
             RoadNetwork network,
+            Road road,
             RoadEdge edge,
             PiAction insertPi,
             PiAction splitEdge,
             FilletAction filletVertex,
             EdgeAction reverseEdge,
             NodeAction mergeAtNode) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.centerline_edit_hint"));
-
         if (!lastCenterlineEditMessage.isBlank()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastCenterlineEditMessage);
         }
 
-        float edgeLength = (float) edge.getLength();
-        float[] distance = {centerlineEditDistance};
-        ImGui.setNextItemWidth(Math.min(220f, ImGui.getContentRegionAvailX()));
-        if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_distance") + "##cl_dist", distance, 0f, Math.max(edgeLength, 1f), RoadUiFormat.SLIDER_METERS)) {
-            centerlineEditDistance = distance[0];
+        ICoordinateService coordinates = ctx.host().coordinates();
+        float edgeBlocks = (float) RoadLengthDisplay.edgeBlocks(edge, coordinates);
+        float maxDistance = Math.max(edgeBlocks, 0.01f);
+        if (centerlineEditDistanceBlocks > maxDistance) {
+            centerlineEditDistanceBlocks = maxDistance;
         }
 
+        float[] distance = {centerlineEditDistanceBlocks};
+        ImGui.setNextItemWidth(Math.min(220f, ImGui.getContentRegionAvailX()));
+        if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.road.centerline_distance") + "##cl_dist",
+                distance,
+                0f,
+                maxDistance,
+                RoadUiFormat.SLIDER_METERS)) {
+            centerlineEditDistanceBlocks = distance[0];
+        }
+
+        double canvasDistance = RoadLengthDisplay.blocksToCanvas(
+            centerlineEditDistanceBlocks, network, road, coordinates);
+
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_insert_pi") + "##cl_pi")) {
-            recordMessage(insertPi.run(network, edge.getId(), centerlineEditDistance));
+            recordMessage(insertPi.run(network, edge.getId(), canvasDistance));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_split") + "##cl_split")) {
-            recordMessage(splitEdge.run(network, edge.getId(), centerlineEditDistance));
+            recordMessage(splitEdge.run(network, edge.getId(), canvasDistance));
         }
 
         List<com.plot.api.geometry.Vec2d> points = edge.getCenterlinePoints();
@@ -116,20 +134,35 @@ public final class RoadCenterlineEditPanel {
             centerlineVertexIndex = Math.max(1, centerlineVertexIndex);
             ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
             int[] vertexValue = {centerlineVertexIndex};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.road.centerline_vertex") + "##cl_vtx", vertexValue, 1, interiorCount)) {
+            if (ImGui.sliderInt(
+                    PlotI18n.tr("plugin.road.centerline_vertex") + "##cl_vtx",
+                    vertexValue,
+                    1,
+                    interiorCount)) {
                 centerlineVertexIndex = vertexValue[0];
             }
-            float[] radius = {centerlineFilletRadius};
+            float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
+            centerlineFilletRadiusBlocks = Math.min(
+                Math.max(0.5f, centerlineFilletRadiusBlocks),
+                maxRadius);
+            float[] radius = {centerlineFilletRadiusBlocks};
             ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
-            if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_fillet_radius") + "##cl_r", radius, 0.5f, 20f, RoadUiFormat.SLIDER_METERS)) {
-                centerlineFilletRadius = radius[0];
+            if (ImGui.sliderFloat(
+                    PlotI18n.tr("plugin.road.centerline_fillet_radius") + "##cl_r",
+                    radius,
+                    0.5f,
+                    maxRadius,
+                    RoadUiFormat.SLIDER_METERS)) {
+                centerlineFilletRadiusBlocks = radius[0];
             }
             if (ImGui.button(PlotI18n.tr("plugin.road.centerline_fillet") + "##cl_fillet")) {
+                double canvasRadius = RoadLengthDisplay.blocksToCanvas(
+                    centerlineFilletRadiusBlocks, network, road, coordinates);
                 recordMessage(filletVertex.run(
                     network,
                     edge.getId(),
                     centerlineVertexIndex,
-                    centerlineFilletRadius));
+                    canvasRadius));
             }
         }
 

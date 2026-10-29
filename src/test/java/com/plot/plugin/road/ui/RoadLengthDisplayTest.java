@@ -48,6 +48,10 @@ class RoadLengthDisplayTest {
             40.0,
             RoadLengthDisplay.canvasToBlocks(20.0, network, road, coordinates),
             1e-6);
+        assertEquals(
+            20.0,
+            RoadLengthDisplay.blocksToCanvas(40.0, network, road, coordinates),
+            1e-6);
         assertEquals("100.00 m", RoadLengthDisplay.formatEdgeMeters(edge, coordinates));
     }
 }
