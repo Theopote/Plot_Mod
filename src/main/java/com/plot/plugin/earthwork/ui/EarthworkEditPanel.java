@@ -697,8 +697,6 @@ public final class EarthworkEditPanel {
 
     private void renderRegionGeometrySettings(GradingRegion region) {
         RegionGeometry geometry = region.getGeometry();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_header"));
-        ImGui.spacing();
         boolean holePickingThisRegion = ctx.holePickSession().isActive()
             && ctx.holePickSession().getTargetKind() == EarthworkHolePickSession.TargetKind.REGION
             && region.getId().equals(ctx.holePickSession().getTargetId());
@@ -719,19 +717,6 @@ public final class EarthworkEditPanel {
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.geometry_holes");
         if (holePickingThisRegion) {
             ImGui.popStyleColor();
-        }
-        ImGui.sameLine();
-        boolean clearDisabled = !geometry.hasHoles();
-        if (clearDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.earthwork.geometry_clear_holes"), 0, 0)) {
-            ctx.projectHistory().push(ctx.project());
-            region.setHoles(List.of());
-            ctx.invalidatePreview();
-        }
-        if (clearDisabled) {
-            ImGui.endDisabled();
         }
 
         if (!geometry.hasHoles()) {

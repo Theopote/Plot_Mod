@@ -1157,7 +1157,7 @@
   "plugin.earthwork.ui.confirm_build": "Confirm construction…",
   "plugin.earthwork.ui.change_total": "%d planned block changes (including walls)",
   "plugin.earthwork.ui.change_details": "Cut edits %d · Fill edits %d · Walls %d",
-  "plugin.earthwork.ui.region_geometry": "Region shape and holes",
+  "plugin.earthwork.ui.region_geometry": "Zone holes",
   "plugin.earthwork.ui.preview_settings": "Preview display settings",
   "plugin.earthwork.ui.site_settings": "Site-wide settings",
   "plugin.earthwork.ui.site_settings_hint": "These apply to the whole site (how zones are composed), not only the selected region.",

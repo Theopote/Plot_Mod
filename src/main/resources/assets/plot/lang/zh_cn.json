@@ -1157,7 +1157,7 @@
   "plugin.earthwork.ui.confirm_build": "确认施工…",
   "plugin.earthwork.ui.change_total": "预计修改 %d 个方块（含挡墙）",
   "plugin.earthwork.ui.change_details": "挖方改动 %d · 填方改动 %d · 挡墙 %d",
-  "plugin.earthwork.ui.region_geometry": "区域形状与孔洞",
+  "plugin.earthwork.ui.region_geometry": "分区孔洞",
   "plugin.earthwork.ui.preview_settings": "预览显示设置",
   "plugin.earthwork.ui.site_settings": "整场设置",
   "plugin.earthwork.ui.site_settings_hint": "以下作用于整块场地（所有分区的合成方式），不是当前选中分区的专属参数。",
