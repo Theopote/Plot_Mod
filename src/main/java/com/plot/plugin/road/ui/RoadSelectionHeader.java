@@ -57,7 +57,9 @@ public final class RoadSelectionHeader {
                 network, road, ctx.host().coordinates());
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.selection.single_length", length));
+                PlotI18n.tr(
+                    "plugin.road.selection.single_length",
+                    RoadUiFormat.formatMeters(length)));
             return;
         }
 
@@ -82,7 +84,9 @@ public final class RoadSelectionHeader {
         }
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.selection.multi_length", totalLength));
+            PlotI18n.tr(
+                "plugin.road.selection.multi_length",
+                RoadUiFormat.formatMeters(totalLength)));
         ImGui.spacing();
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);

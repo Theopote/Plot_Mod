@@ -96,7 +96,7 @@ public final class StationFacilityEditor {
         float[] start = {draft.startStation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         ImGui.sliderFloat(PlotI18n.tr("plugin.road.station_facility_start") + "##start", start,
-            0, Math.max(0f, roadLength - 0.1f), "%.1fm");
+            0, Math.max(0f, roadLength - 0.1f), RoadUiFormat.SLIDER_METERS);
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
@@ -121,7 +121,7 @@ public final class StationFacilityEditor {
                 end,
                 Math.min(roadLength, draft.startStation + Math.min(0.1f, roadLength)),
                 roadLength,
-                "%.1fm");
+                RoadUiFormat.SLIDER_METERS);
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }
@@ -170,7 +170,7 @@ public final class StationFacilityEditor {
                 height,
                 1f,
                 8f,
-                "%.1f");
+                RoadUiFormat.SLIDER);
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }

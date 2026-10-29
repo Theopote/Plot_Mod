@@ -251,7 +251,7 @@ public final class RoadEdgeListHelper {
     public static String formatEdgeLabel(RoadNetwork network, RoadEdge edge) {
         RoadNode start = network.getNode(edge.getStartNodeId());
         RoadNode end = network.getNode(edge.getEndNodeId());
-        return String.format(Locale.ROOT, "(%.0f,%.0f) -> (%.0f,%.0f), %.1fm",
+        return String.format(Locale.ROOT, "(%.0f,%.0f) -> (%.0f,%.0f), %.2fm",
             start != null ? start.getPosition().x : 0,
             start != null ? start.getPosition().y : 0,
             end != null ? end.getPosition().x : 0,

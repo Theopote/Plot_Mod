@@ -101,8 +101,8 @@ public final class RoadBatchCrossSectionEditor {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.road.batch_slope_preview_summary",
-                    String.format("%.1f", resolved.fillSlopeRatio),
-                    String.format("%.1f", resolved.cutSlopeRatio)));
+                    RoadUiFormat.format(resolved.fillSlopeRatio),
+                    RoadUiFormat.format(resolved.cutSlopeRatio)));
         }
     }
 }

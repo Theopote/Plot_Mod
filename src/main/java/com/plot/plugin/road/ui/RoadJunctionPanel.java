@@ -69,11 +69,11 @@ public final class RoadJunctionPanel {
             ? node.getCornerRadius()
             : config.getDefaultCornerRadius())};
         boolean radiusChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.junction_corner_radius", effectiveRadius),
+            PlotI18n.tr("plugin.road.junction_corner_radius", RoadUiFormat.format(effectiveRadius)),
             cornerRadius,
             0.0f,
             (float) RoadNode.MAX_CORNER_RADIUS,
-            "%.1f m"
+            RoadUiFormat.SLIDER_METERS
         );
         if (ImGui.isItemActivated()) {
             ctx.networkManager().pushHistory();

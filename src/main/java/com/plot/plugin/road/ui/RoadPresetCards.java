@@ -174,37 +174,6 @@ public final class RoadPresetCards {
             null);
     }
 
-    public static void renderForRoads(RoadUiContext ctx, Collection<String> roadIds, Runnable onChanged) {
-        if (roadIds == null || roadIds.isEmpty()) {
-            return;
-        }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        String selectedId = resolveSharedStyleId(network, roadIds);
-        String themeId = resolveSharedThemeId(network, roadIds, config);
-        renderSectionHeader(selectedId, selectedId == null || selectedId.isBlank());
-        renderGrid(
-            ctx,
-            config.getStyles(),
-            selectedId,
-            style -> {
-                String applyTheme = themeId != null ? themeId : config.getRoadThemeId();
-                ctx.networkManager().mutateNetwork(() -> {
-                    for (String roadId : roadIds) {
-                        Road road = network.getRoad(roadId);
-                        if (road != null) {
-                            road.applyStyle(style, applyTheme);
-                        }
-                    }
-                });
-                if (onChanged != null) {
-                    onChanged.run();
-                }
-                ctx.requestOverlayRefresh();
-            },
-            null);
-    }
-
     private static void renderCompactPicker(
             RoadUiContext ctx,
             PresetLibraryTarget target,

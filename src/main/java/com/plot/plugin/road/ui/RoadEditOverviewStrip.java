@@ -21,10 +21,6 @@ final class RoadEditOverviewStrip {
     private RoadEditOverviewStrip() {
     }
 
-    static void render(RoadUiContext ctx, RoadNetwork network, Road road) {
-        render(ctx, network, road, RoadEditDiagnosticsBanner.countIssues(ctx, network, road));
-    }
-
     static void render(RoadUiContext ctx, RoadNetwork network, Road road, int issueCount) {
         if (road == null || network == null) {
             return;
@@ -57,7 +53,10 @@ final class RoadEditOverviewStrip {
             int segmentCount = road.getSegmentIds().size();
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.edit.overview_length_segments", segmentCount, length));
+                PlotI18n.tr(
+                    "plugin.road.edit.overview_length_segments",
+                    segmentCount,
+                    RoadUiFormat.formatMeters(length)));
 
             String presetName = resolvePresetName(road);
             String verticalMode = RoadVerticalStrategy.fromRoad(road).label();

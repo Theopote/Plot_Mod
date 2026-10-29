@@ -97,7 +97,7 @@ public final class RoadCenterlineEditPanel {
         float edgeLength = (float) edge.getLength();
         float[] distance = {centerlineEditDistance};
         ImGui.setNextItemWidth(Math.min(220f, ImGui.getContentRegionAvailX()));
-        if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_distance") + "##cl_dist", distance, 0f, Math.max(edgeLength, 1f), "%.1fm")) {
+        if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_distance") + "##cl_dist", distance, 0f, Math.max(edgeLength, 1f), RoadUiFormat.SLIDER_METERS)) {
             centerlineEditDistance = distance[0];
         }
 
@@ -121,7 +121,7 @@ public final class RoadCenterlineEditPanel {
             }
             float[] radius = {centerlineFilletRadius};
             ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
-            if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_fillet_radius") + "##cl_r", radius, 0.5f, 20f, "%.1fm")) {
+            if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_fillet_radius") + "##cl_r", radius, 0.5f, 20f, RoadUiFormat.SLIDER_METERS)) {
                 centerlineFilletRadius = radius[0];
             }
             if (ImGui.button(PlotI18n.tr("plugin.road.centerline_fillet") + "##cl_fillet")) {

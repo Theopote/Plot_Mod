@@ -103,7 +103,7 @@ public final class VariableCrossSectionEditor {
             station,
             0,
             roadLength,
-            "%.1fm");
+            RoadUiFormat.SLIDER_METERS);
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }

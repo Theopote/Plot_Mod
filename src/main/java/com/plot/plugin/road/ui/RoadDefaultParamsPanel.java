@@ -134,11 +134,11 @@ public final class RoadDefaultParamsPanel {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         float[] defaultRadius = {config.getDefaultCornerRadius()};
         if (ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.default_corner_radius", defaultRadius[0]),
+            PlotI18n.tr("plugin.road.default_corner_radius", RoadUiFormat.format(defaultRadius[0])),
             defaultRadius,
             0.0f,
             (float) RoadNode.MAX_CORNER_RADIUS,
-            "%.1f m"
+            RoadUiFormat.SLIDER_METERS
         )) {
             config.setDefaultCornerRadius(defaultRadius[0]);
             markCustom();

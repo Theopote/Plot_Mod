@@ -39,7 +39,7 @@ public final class HorizontalAlignmentSummaryEditor {
             PlotI18n.tr(
                 "plugin.road.horizontal_alignment_length",
                 alignment.getElements().size(),
-                total,
+                RoadUiFormat.formatMeters(total),
                 formatAlignmentChainage(chainageDisplay, total, 0.0),
                 formatAlignmentChainage(chainageDisplay, total, total)));
         if (RoadStationing.isStationable(network, road)) {
@@ -53,15 +53,15 @@ public final class HorizontalAlignmentSummaryEditor {
                     color,
                     PlotI18n.tr(
                         "plugin.road.horizontal_alignment_centerline_deviation",
-                        consistency.maxDeviationMeters(),
-                        consistency.meanDeviationMeters()));
+                        RoadUiFormat.formatMeters(consistency.maxDeviationMeters()),
+                        RoadUiFormat.formatMeters(consistency.meanDeviationMeters())));
                 if (!consistency.lengthMatches()) {
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.WARNING,
                         PlotI18n.tr(
                             "plugin.road.horizontal_alignment_length_mismatch_hint",
-                            consistency.roadLengthMeters(),
-                            consistency.alignmentLengthMeters()));
+                            RoadUiFormat.formatMeters(consistency.roadLengthMeters()),
+                            RoadUiFormat.formatMeters(consistency.alignmentLengthMeters())));
                 }
             }
         }

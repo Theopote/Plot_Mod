@@ -761,9 +761,6 @@ public final class RoadStationing {
         if (safeMeters >= 1000.0) {
             return String.format(Locale.ROOT, "%.2f km", safeMeters / 1000.0);
         }
-        if (Math.abs(safeMeters - Math.rint(safeMeters)) < 0.05) {
-            return String.format(Locale.ROOT, "%.0f m", safeMeters);
-        }
-        return String.format(Locale.ROOT, "%.1f m", safeMeters);
+        return String.format(Locale.ROOT, "%.2f m", safeMeters);
     }
 }

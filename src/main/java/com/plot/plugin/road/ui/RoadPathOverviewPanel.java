@@ -161,7 +161,7 @@ public final class RoadPathOverviewPanel {
             "plugin.road.overview_road_summary",
             RoadEdgeListHelper.formatRoadLabel(network, road),
             segmentCount,
-            length));
+            RoadUiFormat.formatMeters(length)));
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         if (ImGui.button(PlotI18n.tr("plugin.road.overview_edit_road") + "##overview_edit", buttonWidth, 0)) {

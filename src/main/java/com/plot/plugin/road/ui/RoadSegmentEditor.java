@@ -85,7 +85,9 @@ public final class RoadSegmentEditor {
             }
             boolean selected = segmentId.equals(primaryId);
             String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
-                + " · " + PlotI18n.tr("plugin.road.segment_length", edge.getLength());
+                + " · " + PlotI18n.tr(
+                    "plugin.road.segment_length",
+                    RoadUiFormat.formatMeters(edge.getLength()));
             if (ImGui.selectable(label + "##seg_pick_" + i, selected) && !selected) {
                 if (onSelect != null) {
                     onSelect.accept(segmentId);
@@ -105,7 +107,9 @@ public final class RoadSegmentEditor {
             Road road,
             RoadEdge edge,
             ChainageDisplayContext chainageDisplay) {
-        ImGui.text(PlotI18n.tr("plugin.road.segment_length", edge.getLength()));
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.segment_length",
+            RoadUiFormat.formatMeters(edge.getLength())));
         if (RoadStationing.isStationable(network, road)) {
             double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
             if (segmentStart >= 0.0) {
@@ -174,11 +178,11 @@ public final class RoadSegmentEditor {
 
             if (stackRangeSliders) {
                 ImGui.setNextItemWidth(rowWidth);
-                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, "%.1fm");
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, RoadUiFormat.SLIDER_METERS);
             } else {
                 float sliderWidth = (rowWidth - deleteWidth - spacing * 2.0f) / 2.0f;
                 ImGui.setNextItemWidth(sliderWidth);
-                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, "%.1fm");
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, RoadUiFormat.SLIDER_METERS);
             }
             if (ImGui.isItemActivated()) {
                 beginSlopeOverrideEditIfNeeded(ctx, edge, overrides);
@@ -197,12 +201,12 @@ public final class RoadSegmentEditor {
 
             if (stackRangeSliders) {
                 ImGui.setNextItemWidth(rowWidth);
-                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, "%.1fm");
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, RoadUiFormat.SLIDER_METERS);
             } else {
                 ImGui.sameLine();
                 float sliderWidth = (rowWidth - deleteWidth - spacing * 2.0f) / 2.0f;
                 ImGui.setNextItemWidth(sliderWidth);
-                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, "%.1fm");
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, RoadUiFormat.SLIDER_METERS);
             }
             if (ImGui.isItemActivated()) {
                 beginSlopeOverrideEditIfNeeded(ctx, edge, overrides);

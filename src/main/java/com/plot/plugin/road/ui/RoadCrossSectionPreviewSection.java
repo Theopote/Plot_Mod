@@ -67,11 +67,11 @@ public final class RoadCrossSectionPreviewSection {
             .totalWidthBlocks();
         String metrics = PlotI18n.tr(
             "plugin.road.cross_section_preview_metrics",
-            Math.round(totalWidth),
+            RoadUiFormat.format(totalWidth),
             resolved.laneCount,
-            resolved.carriagewayWidth,
-            resolved.fillSlopeRatio,
-            resolved.cutSlopeRatio);
+            RoadUiFormat.format(resolved.carriagewayWidth),
+            RoadUiFormat.format(resolved.fillSlopeRatio),
+            RoadUiFormat.format(resolved.cutSlopeRatio));
         ImGui.sameLine(Math.max(ImGui.getCursorPosX(), avail - ImGui.calcTextSize(metrics).x));
         ImGui.textColored(PluginUiColors.HINT_GRAY, metrics);
         ImGui.spacing();
