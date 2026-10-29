@@ -265,18 +265,27 @@ public final class TunnelStyle {
 
     public TunnelStyle copy() {
         TunnelStyle copy = new TunnelStyle();
-        copy.shape = shape;
-        copy.clearHeight = clearHeight;
-        copy.sideClearance = sideClearance;
-        copy.liningThickness = liningThickness;
-        copy.liningMaterial = liningMaterial;
-        copy.lightingMode = lightingMode;
-        copy.lightMaterial = lightMaterial;
-        copy.lightSpacing = lightSpacing;
-        copy.accentRings = accentRings;
-        copy.accentMaterial = accentMaterial;
-        copy.accentSpacing = accentSpacing;
+        copy.replaceWith(this);
         return copy;
+    }
+
+    /** 用另一份样式覆盖本实例全部字段（含 null 继承语义）。 */
+    public void replaceWith(TunnelStyle source) {
+        if (source == null) {
+            inheritAll();
+            return;
+        }
+        shape = source.shape;
+        clearHeight = source.clearHeight;
+        sideClearance = source.sideClearance;
+        liningThickness = source.liningThickness;
+        liningMaterial = source.liningMaterial;
+        lightingMode = source.lightingMode;
+        lightMaterial = source.lightMaterial;
+        lightSpacing = source.lightSpacing;
+        accentRings = source.accentRings;
+        accentMaterial = source.accentMaterial;
+        accentSpacing = source.accentSpacing;
     }
 
     @Override

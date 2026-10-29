@@ -10,7 +10,7 @@ import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
 /**
- * Full tunnel style editor shown in a popup from {@link TunnelStyleControls}.
+ * Full tunnel style editor body used by {@link TunnelStyleFloatingEditor}.
  */
 public final class TunnelStyleEditor {
     private TunnelStyleEditor() {

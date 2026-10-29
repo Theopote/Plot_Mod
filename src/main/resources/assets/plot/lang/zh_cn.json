@@ -758,6 +758,7 @@
   "plugin.road.tunnel.shape_preset_tooltip": "使用%s截面",
   "plugin.road.tunnel.accent_spacing": "装饰环间距",
   "plugin.road.tunnel.edit": "编辑…",
+  "plugin.road.tunnel.editor_window": "隧道样式",
   "plugin.road.tunnel.road_override_section": "道路隧道样式",
   "settings.plot.shortcuts_action": "动作",
   "settings.plot.shortcuts_clear_search": "清除搜索",

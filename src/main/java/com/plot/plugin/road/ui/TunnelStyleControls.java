@@ -10,12 +10,16 @@ import imgui.ImGui;
 import imgui.type.ImBoolean;
 
 /**
- * Compact tunnel style entry points for Edit tab cross-section panels.
+ * Compact tunnel style entry points for Edit tab；完整编辑走 {@link TunnelStyleFloatingEditor}。
  */
 public final class TunnelStyleControls {
-    private static final String GLOBAL_POPUP = "##tunnel_style_editor_global";
+    private static final TunnelStyleFloatingEditor FLOATING = new TunnelStyleFloatingEditor();
 
     private TunnelStyleControls() {
+    }
+
+    public static TunnelStyleFloatingEditor floatingEditor() {
+        return FLOATING;
     }
 
     public static void renderGlobal(RoadUiContext ctx) {
@@ -24,12 +28,7 @@ public final class TunnelStyleControls {
             return;
         }
         TunnelStyle style = config.getTunnelStyle();
-        renderCompactRow(style, GLOBAL_POPUP);
-        renderEditorPopup(ctx, GLOBAL_POPUP, style, () -> {
-            style.clamp();
-            config.markCustom();
-            ctx.onGenerationConfigChanged();
-        });
+        renderCompactRow(style, () -> FLOATING.openGlobal(ctx));
     }
 
     public static void renderRoadOverride(RoadUiContext ctx, Road road, Runnable onHistory) {
@@ -50,24 +49,26 @@ public final class TunnelStyleControls {
             }
             ctx.onGenerationConfigChanged();
         }
-        String popupId = "##tunnel_style_editor_" + road.getId();
         if (inherits) {
             ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.inherits_global"));
             renderSummaryText(TunnelStyle.resolve(road, config));
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.tunnel.edit") + "###tunnel_edit_inherit_" + road.getId())) {
+                // 打开编辑即转为显式覆盖草稿；取消则道路仍保持继承（未写回）。
+                FLOATING.openRoad(ctx, road, onHistory);
+            }
             return;
         }
         TunnelStyle style = road.getStoredTunnelStyle();
-        renderCompactRow(style, popupId);
-        renderEditorPopup(ctx, popupId, style, () -> {
-            style.clamp();
-            if (onHistory != null) {
-                onHistory.run();
-            }
-            ctx.onGenerationConfigChanged();
-        });
+        renderCompactRow(style, () -> FLOATING.openRoad(ctx, road, onHistory));
     }
 
-    private static void renderCompactRow(TunnelStyle style, String popupId) {
+    /** 由 {@link com.plot.plugin.road.manager.RoadUIManager} 每帧调用。 */
+    public static void renderFloatingWindow(RoadUiContext ctx) {
+        FLOATING.render(ctx);
+    }
+
+    private static void renderCompactRow(TunnelStyle style, Runnable onEdit) {
         if (style == null) {
             return;
         }
@@ -75,8 +76,10 @@ public final class TunnelStyleControls {
         ImGui.sameLine();
         renderSummaryText(ResolvedTunnelStyle.from(style));
         ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.road.tunnel.edit") + "###edit" + popupId)) {
-            ImGui.openPopup(popupId);
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.tunnel.edit") + "###tunnel_edit")) {
+            if (onEdit != null) {
+                onEdit.run();
+            }
         }
     }
 
@@ -86,23 +89,6 @@ public final class TunnelStyleControls {
             PlotI18n.tr(shapeKey(style.shape())),
             style.clearHeight(),
             style.lightSpacing()));
-    }
-
-    private static void renderEditorPopup(
-            RoadUiContext ctx,
-            String popupId,
-            TunnelStyle style,
-            Runnable onChanged) {
-        if (style == null) {
-            return;
-        }
-        if (ImGui.beginPopup(popupId)) {
-            try {
-                TunnelStyleEditor.render(ctx, style, onChanged);
-            } finally {
-                ImGui.endPopup();
-            }
-        }
     }
 
     private static String shapeKey(TunnelShape shape) {

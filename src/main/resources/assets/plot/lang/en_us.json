@@ -758,6 +758,7 @@
   "plugin.road.tunnel.shape_preset_tooltip": "Use %s cross-section",
   "plugin.road.tunnel.accent_spacing": "Accent ring spacing",
   "plugin.road.tunnel.edit": "Edit…",
+  "plugin.road.tunnel.editor_window": "Tunnel style",
   "plugin.road.tunnel.road_override_section": "Road tunnel style",
   "settings.plot.shortcuts_action": "Action",
   "settings.plot.shortcuts_clear_search": "Clear Search",
