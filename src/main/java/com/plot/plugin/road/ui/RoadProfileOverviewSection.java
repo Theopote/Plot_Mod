@@ -83,7 +83,8 @@ public final class RoadProfileOverviewSection {
             if (profileEditor.hasUnconfirmedEditsForRoad(road.getId())) {
                 header += "  " + PlotI18n.tr("plugin.road.profile_overview_editing");
             }
-            header += " · " + RoadProfileRoadList.formatProfileRoadSummary(network, road);
+            header += " · " + RoadProfileRoadList.formatProfileRoadSummary(
+                network, road, ctx.host().coordinates());
 
             float editButtonWidth = ImGui.calcTextSize(
                 PlotI18n.tr("plugin.road.profile_overview_edit")).x

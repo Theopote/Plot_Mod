@@ -38,7 +38,8 @@ final class RoadGenerateTargetBar {
         }
         ImGui.sameLine();
 
-        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad);
+        var coordinates = ctx.host().coordinates();
+        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad, coordinates);
         float indexWidth = ImGui.calcTextSize(
             PlotI18n.tr("plugin.road.profile_overview_road_index", roads.size(), roads.size())).x
             + ImGui.getStyle().getItemSpacingX() * 2f;
@@ -51,7 +52,7 @@ final class RoadGenerateTargetBar {
         ImGui.setNextItemWidth(comboWidth);
         if (ImGui.beginCombo("##generate_target_road_combo", preview)) {
             for (Road candidate : roads) {
-                String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate);
+                String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate, coordinates);
                 boolean selected = candidate.getId().equals(activeRoadId);
                 if (ImGui.selectable(label, selected)) {
                     selectRoad(ctx, candidate.getId());

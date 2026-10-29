@@ -5,7 +5,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
-import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -47,16 +46,14 @@ final class RoadEditOverviewStrip {
         try {
             renderRoadSelectorCombo(ctx, network, road);
 
-            double length = RoadStationing.isStationable(network, road)
-                ? RoadStationing.canonicalLength(network, road)
-                : RoadEdgeListHelper.computeRoadWorldLength(network, road, ctx.host().coordinates());
             int segmentCount = road.getSegmentIds().size();
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.road.edit.overview_length_segments",
                     segmentCount,
-                    RoadUiFormat.formatMeters(length)));
+                    RoadLengthDisplay.formatRoadMeters(
+                        network, road, ctx.host().coordinates())));
 
             String presetName = resolvePresetName(road);
             String verticalMode = RoadVerticalStrategy.fromRoad(road).label();

@@ -111,12 +111,13 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             false,
             ImGuiWindowFlags.AlwaysVerticalScrollbar);
         segmentEditor.renderWorkingSegmentList(
+            ctx,
             working,
             road,
             selectedWorkingEdgeId,
             edgeId -> selectedWorkingEdgeId = edgeId);
         ImGui.endChild();
-        segmentEditor.renderSegmentSummary(working, road, primaryEdge, chainageDisplay);
+        segmentEditor.renderSegmentSummary(ctx, working, road, primaryEdge, chainageDisplay);
         centerlineEditPanel.renderWorkingNetwork(ctx, working, road, primaryEdge);
         segmentEditor.renderElevationHint(ctx, primaryEdge);
     }

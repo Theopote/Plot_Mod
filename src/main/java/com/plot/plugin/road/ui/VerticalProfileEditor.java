@@ -783,13 +783,14 @@ final class VerticalProfileEditor {
         float comboWidth = wrapMeta
             ? Math.max(MIN_ROAD_COMBO_WIDTH, rowWidth - prevNextWidth - spacing * 2f)
             : Math.max(MIN_ROAD_COMBO_WIDTH, comboMaxSingleRow);
-        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad);
+        var coordinates = ctx.host().coordinates();
+        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad, coordinates);
         float labelPad = ImGui.getStyle().getFramePaddingX() * 2f;
         String comboPreview = RoadUiWidgets.truncateToWidth(preview, Math.max(1f, comboWidth - labelPad));
         ImGui.setNextItemWidth(comboWidth);
         if (ImGui.beginCombo("##profile_editor_road_combo", comboPreview)) {
             for (Road candidate : roads) {
-                String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate);
+                String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate, coordinates);
                 boolean selected = candidate.getId().equals(editorRoadId);
                 if (ImGui.selectable(label, selected)) {
                     selectEditorRoad(ctx, candidate.getId(), true);
@@ -828,7 +829,7 @@ final class VerticalProfileEditor {
             selectedIntersectionIndex >= 0 || editorState.selectedProfilePvi >= 0;
         boolean affectsOthers = affectingAffectsOthers(network, road);
         if (hasSelection || affectsOthers) {
-            String selection = resolveSelectionSummary(road);
+            String selection = resolveSelectionSummary(ctx, network, road);
             String affecting = resolveAffectingSummary(network, road);
             ImGui.textColored(
                 affectsOthers ? PluginUiColors.WARNING_LIGHT : PluginUiColors.HINT_GRAY,
@@ -836,7 +837,7 @@ final class VerticalProfileEditor {
         }
     }
 
-    private String resolveSelectionSummary(Road road) {
+    private String resolveSelectionSummary(RoadUiContext ctx, RoadNetwork network, Road road) {
         if (selectedIntersectionIndex >= 0) {
             return PlotI18n.tr(
                 "plugin.road.profile_editor_selection_intersection",
@@ -850,7 +851,8 @@ final class VerticalProfileEditor {
                 return PlotI18n.tr(
                     "plugin.road.profile_editor_selection_pvi",
                     editorState.selectedProfilePvi + 1,
-                    RoadUiFormat.formatDistance(station));
+                    RoadLengthDisplay.formatCanvasDistance(
+                        station, network, road, ctx.host().coordinates()));
             }
             return PlotI18n.tr(
                 "plugin.road.profile_editor_selection_pvi_index",

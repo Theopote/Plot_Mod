@@ -8,6 +8,8 @@ import java.util.Locale;
  * Minecraft {@code Text.translatable} 对 {@code %.Xf} 不可靠，会把 {@code Double}
  * 原样打出；凡进入 i18n 的长度/距离请先 {@link #formatMeters} / {@link #formatDistance}
  * 再以 {@code %s} 传入。
+ * <p>
+ * 道路长度约定 {@code 1 m = 1} Minecraft 方块；展示值须为世界投影长度，见 {@link RoadLengthDisplay}。
  */
 public final class RoadUiFormat {
     public static final String SLIDER = "%.2f";

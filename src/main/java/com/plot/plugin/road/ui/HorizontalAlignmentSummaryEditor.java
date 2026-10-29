@@ -8,7 +8,6 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -33,15 +32,19 @@ public final class HorizontalAlignmentSummaryEditor {
                 PlotI18n.tr("plugin.road.horizontal_alignment_none"));
             return;
         }
-        double total = RoadStationing.canonicalLength(network, road);
+        var coordinates = ctx.host().coordinates();
+        double canvasTotal = RoadStationing.canonicalLength(network, road);
+        ChainageDisplayContext worldChainage = RoadLengthDisplay.worldChainageContext(
+            chainageDisplay, network, road, coordinates);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.road.horizontal_alignment_length",
                 alignment.getElements().size(),
-                RoadUiFormat.formatMeters(total),
-                formatAlignmentChainage(chainageDisplay, total, 0.0),
-                formatAlignmentChainage(chainageDisplay, total, total)));
+                RoadLengthDisplay.formatCanvasMeters(canvasTotal, network, road, coordinates),
+                worldChainage.format(0.0),
+                worldChainage.format(
+                    RoadLengthDisplay.canvasToBlocks(canvasTotal, network, road, coordinates))));
         if (RoadStationing.isStationable(network, road)) {
             HorizontalAlignmentCenterlineConsistency.Report consistency =
                 HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
@@ -53,15 +56,19 @@ public final class HorizontalAlignmentSummaryEditor {
                     color,
                     PlotI18n.tr(
                         "plugin.road.horizontal_alignment_centerline_deviation",
-                        RoadUiFormat.formatMeters(consistency.maxDeviationMeters()),
-                        RoadUiFormat.formatMeters(consistency.meanDeviationMeters())));
+                        RoadLengthDisplay.formatCanvasMeters(
+                            consistency.maxDeviationMeters(), network, road, coordinates),
+                        RoadLengthDisplay.formatCanvasMeters(
+                            consistency.meanDeviationMeters(), network, road, coordinates)));
                 if (!consistency.lengthMatches()) {
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.WARNING,
                         PlotI18n.tr(
                             "plugin.road.horizontal_alignment_length_mismatch_hint",
-                            RoadUiFormat.formatMeters(consistency.roadLengthMeters()),
-                            RoadUiFormat.formatMeters(consistency.alignmentLengthMeters())));
+                            RoadLengthDisplay.formatCanvasMeters(
+                                consistency.roadLengthMeters(), network, road, coordinates),
+                            RoadLengthDisplay.formatCanvasMeters(
+                                consistency.alignmentLengthMeters(), network, road, coordinates)));
                 }
             }
         }
@@ -82,24 +89,14 @@ public final class HorizontalAlignmentSummaryEditor {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.horizontal_alignment_materialize_hint"));
         }
+        double scale = RoadLengthDisplay.canvasToWorldScale(network, road, coordinates);
         int index = 0;
         for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
-            double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
+            double startCanvas = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
-                chainageDisplay != null
-                    ? HorizontalAlignmentGeometry.describeElement(element, start, chainageDisplay)
-                    : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.DISTANCE_METERS));
+                HorizontalAlignmentGeometry.describeElement(
+                    element, startCanvas, worldChainage, scale));
         }
-    }
-
-    private static String formatAlignmentChainage(
-            ChainageDisplayContext display,
-            double alignmentTotal,
-            double chainageMeters) {
-        if (display != null) {
-            return new ChainageDisplayContext(alignmentTotal, display.mode(), display.format()).format(chainageMeters);
-        }
-        return RoadStationing.format(chainageMeters, RoadStationFormat.DISTANCE_METERS);
     }
 }

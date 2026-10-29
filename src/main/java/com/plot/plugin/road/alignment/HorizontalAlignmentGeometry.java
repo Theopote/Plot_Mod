@@ -99,8 +99,22 @@ public final class HorizontalAlignmentGeometry {
             HorizontalAlignmentElement element,
             double startChainage,
             ChainageDisplayContext display) {
-        String start = display.format(startChainage);
-        String end = display.format(startChainage + element.getLength());
+        return describeElement(element, startChainage, display, 1.0);
+    }
+
+    /**
+     * @param canvasToWorldScale 将画布域桩号/线元长换算为展示用方块（1m=1格）的比例
+     */
+    public static String describeElement(
+            HorizontalAlignmentElement element,
+            double startChainageCanvas,
+            ChainageDisplayContext display,
+            double canvasToWorldScale) {
+        double scale = Double.isFinite(canvasToWorldScale) && canvasToWorldScale > 0.0
+            ? canvasToWorldScale
+            : 1.0;
+        String start = display.format(startChainageCanvas * scale);
+        String end = display.format((startChainageCanvas + element.getLength()) * scale);
         return describeElementRange(element, start, end);
     }
 

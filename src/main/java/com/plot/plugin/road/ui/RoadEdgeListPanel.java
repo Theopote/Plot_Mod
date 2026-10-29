@@ -415,7 +415,8 @@ public final class RoadEdgeListPanel {
             int segmentIndex,
             String roadId,
             boolean showThumbnails) {
-        String label = (prefix != null ? prefix : "") + RoadEdgeListHelper.formatEdgeLabel(network, edge);
+        String label = (prefix != null ? prefix : "")
+            + RoadEdgeListHelper.formatEdgeLabel(network, edge, ctx.host().coordinates());
         boolean selected = ctx.networkManager().getSelectedEdgeIds().contains(edge.getId());
 
         if (showThumbnails) {

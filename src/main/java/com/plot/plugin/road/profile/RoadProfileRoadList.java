@@ -1,9 +1,11 @@
 package com.plot.plugin.road.profile;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.ui.RoadLengthDisplay;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
@@ -36,14 +38,23 @@ public final class RoadProfileRoadList {
     }
 
     public static String formatProfileRoadSummary(RoadNetwork network, Road road) {
+        return formatProfileRoadSummary(network, road, null);
+    }
+
+    public static String formatProfileRoadSummary(
+            RoadNetwork network,
+            Road road,
+            ICoordinateService coordinates) {
         if (road == null || network == null) {
             return "";
         }
-        double length = RoadStationing.canonicalLength(network, road);
+        String lengthText = coordinates != null
+            ? RoadUiFormat.formatDistance(RoadLengthDisplay.roadBlocks(network, road, coordinates))
+            : RoadUiFormat.formatDistance(RoadStationing.canonicalLength(network, road));
         return PlotI18n.tr(
             "plugin.road.profile_road_summary_line",
             RoadEdgeListHelper.formatRoadLabel(network, road),
-            RoadUiFormat.formatDistance(length),
+            lengthText,
             RoadVerticalStrategy.fromRoad(road).label());
     }
 

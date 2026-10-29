@@ -249,14 +249,25 @@ public final class RoadEdgeListHelper {
     }
 
     public static String formatEdgeLabel(RoadNetwork network, RoadEdge edge) {
+        return formatEdgeLabel(network, edge, null);
+    }
+
+    /** @param coordinates 非 null 时长度按世界投影（1m=1格）；否则回退画布弧长。 */
+    public static String formatEdgeLabel(
+            RoadNetwork network,
+            RoadEdge edge,
+            ICoordinateService coordinates) {
         RoadNode start = network.getNode(edge.getStartNodeId());
         RoadNode end = network.getNode(edge.getEndNodeId());
+        double length = coordinates != null
+            ? computeEdgeWorldLength(edge, coordinates)
+            : edge.getLength();
         return String.format(Locale.ROOT, "(%.0f,%.0f) -> (%.0f,%.0f), %.2fm",
             start != null ? start.getPosition().x : 0,
             start != null ? start.getPosition().y : 0,
             end != null ? end.getPosition().x : 0,
             end != null ? end.getPosition().y : 0,
-            edge.getLength());
+            length);
     }
 
     public static List<RoadEdge> filterAndSort(

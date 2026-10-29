@@ -9,7 +9,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
@@ -41,6 +40,7 @@ public final class RoadSegmentEditor {
             primaryId = segmentIds.getFirst();
         }
         renderSegmentListRows(
+            ctx,
             network,
             segmentIds,
             primaryId,
@@ -54,6 +54,7 @@ public final class RoadSegmentEditor {
      * 浮动编辑器草稿分段列表：选择仅写入调用方维护的 working edge id，不改全局选中。
      */
     public void renderWorkingSegmentList(
+            RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             String selectedEdgeId,
@@ -69,14 +70,16 @@ public final class RoadSegmentEditor {
                 onSelect.accept(primaryId);
             }
         }
-        renderSegmentListRows(network, segmentIds, primaryId, onSelect);
+        renderSegmentListRows(ctx, network, segmentIds, primaryId, onSelect);
     }
 
     private void renderSegmentListRows(
+            RoadUiContext ctx,
             RoadNetwork network,
             List<String> segmentIds,
             String primaryId,
             java.util.function.Consumer<String> onSelect) {
+        var coordinates = ctx.host().coordinates();
         for (int i = 0; i < segmentIds.size(); i++) {
             String segmentId = segmentIds.get(i);
             RoadEdge edge = network.getEdge(segmentId);
@@ -87,7 +90,7 @@ public final class RoadSegmentEditor {
             String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
                 + " · " + PlotI18n.tr(
                     "plugin.road.segment_length",
-                    RoadUiFormat.formatMeters(edge.getLength()));
+                    RoadLengthDisplay.formatEdgeMeters(edge, coordinates));
             if (ImGui.selectable(label + "##seg_pick_" + i, selected) && !selected) {
                 if (onSelect != null) {
                     onSelect.accept(segmentId);
@@ -96,20 +99,22 @@ public final class RoadSegmentEditor {
             if (selected && segmentIds.size() > 1) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
-                    RoadEdgeListHelper.formatEdgeLabel(network, edge));
+                    RoadEdgeListHelper.formatEdgeLabel(network, edge, coordinates));
             }
         }
         ImGui.spacing();
     }
 
     public void renderSegmentSummary(
+            RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             RoadEdge edge,
             ChainageDisplayContext chainageDisplay) {
+        var coordinates = ctx.host().coordinates();
         ImGui.text(PlotI18n.tr(
             "plugin.road.segment_length",
-            RoadUiFormat.formatMeters(edge.getLength())));
+            RoadLengthDisplay.formatEdgeMeters(edge, coordinates)));
         if (RoadStationing.isStationable(network, road)) {
             double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
             if (segmentStart >= 0.0) {
@@ -118,8 +123,10 @@ public final class RoadSegmentEditor {
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr(
                         "plugin.road.segment_chainage",
-                        formatChainage(chainageDisplay, segmentStart),
-                        formatChainage(chainageDisplay, segmentEnd)));
+                        RoadLengthDisplay.formatChainage(
+                            chainageDisplay, segmentStart, network, road, coordinates),
+                        RoadLengthDisplay.formatChainage(
+                            chainageDisplay, segmentEnd, network, road, coordinates)));
             }
         }
         ImGui.text(PlotI18n.tr(
@@ -257,14 +264,25 @@ public final class RoadSegmentEditor {
             if (RoadStationing.isStationable(network, road)) {
                 final double startDistance = overrides.get(i).startDistance;
                 final double endDistance = overrides.get(i).endDistance;
+                var coordinates = ctx.host().coordinates();
                 RoadStationing.stationAt(network, road, edge.getId(), startDistance)
                     .ifPresent(startStation -> RoadStationing.stationAt(network, road, edge.getId(), endDistance)
                         .ifPresent(endStation -> RoadUiWidgets.textWrappedColored(
                             PluginUiColors.HINT_GRAY,
                             PlotI18n.tr(
                                 "plugin.road.slope_override_station_hint",
-                                formatChainage(chainageDisplay, startStation.chainageMeters()),
-                                formatChainage(chainageDisplay, endStation.chainageMeters())))));
+                                RoadLengthDisplay.formatChainage(
+                                    chainageDisplay,
+                                    startStation.chainageMeters(),
+                                    network,
+                                    road,
+                                    coordinates),
+                                RoadLengthDisplay.formatChainage(
+                                    chainageDisplay,
+                                    endStation.chainageMeters(),
+                                    network,
+                                    road,
+                                    coordinates)))));
             }
 
             if (overrides.get(i).startDistance > overrides.get(i).endDistance) {
@@ -324,10 +342,4 @@ public final class RoadSegmentEditor {
         slopeOverrideEditDraft = null;
     }
 
-    private static String formatChainage(ChainageDisplayContext display, double chainageMeters) {
-        if (display != null) {
-            return display.format(chainageMeters);
-        }
-        return RoadStationing.format(chainageMeters, RoadStationFormat.DISTANCE_METERS);
-    }
 }
