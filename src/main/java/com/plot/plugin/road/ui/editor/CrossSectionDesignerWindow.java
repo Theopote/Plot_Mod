@@ -137,7 +137,7 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         ImGui.setCursorPos(startX, startY);
         ImGui.beginChild("##xs_preview", previewWidth, 0, true);
         ImGui.text(PlotI18n.tr("plugin.road.floating_editor.cross_section.preview"));
-        RoadCrossSectionEditor.renderPreview(road, config);
+        RoadCrossSectionEditor.renderPreview(session.workingNetwork(), road, config);
         ImGui.endChild();
     }
 

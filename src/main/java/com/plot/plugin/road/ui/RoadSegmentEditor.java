@@ -27,29 +27,6 @@ public final class RoadSegmentEditor {
     private String slopeOverrideEditEdgeId = "";
     private List<RoadEdge.SlopeOverride> slopeOverrideEditDraft = null;
 
-    public void renderSegmentList(RoadUiContext ctx, RoadNetwork network, Road road) {
-        List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(network, road);
-        if (segmentIds.isEmpty()) {
-            return;
-        }
-
-        String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
-        if (!segmentIds.contains(primaryId)) {
-            finishOrCancelSlopeOverrideEdit(ctx);
-            ctx.networkManager().setPrimarySelectedEdge(segmentIds.getFirst());
-            primaryId = segmentIds.getFirst();
-        }
-        renderSegmentListRows(
-            ctx,
-            network,
-            segmentIds,
-            primaryId,
-            segmentId -> {
-                finishOrCancelSlopeOverrideEdit(ctx);
-                ctx.networkManager().setPrimarySelectedEdge(segmentId);
-            });
-    }
-
     /**
      * 浮动编辑器草稿分段列表：选择仅写入调用方维护的 working edge id，不改全局选中。
      */

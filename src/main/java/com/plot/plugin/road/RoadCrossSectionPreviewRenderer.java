@@ -166,12 +166,14 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         if (renderOptions.drawOverlayLabels) {
-            if (layout.maxSlopePercent > 0f) {
-                String gradeLabel = PlotI18n.tr(
-                    "plugin.road.cross_section_grade",
-                    SlopeFormatUtils.formatPercent(layout.maxSlopePercent)
-                );
-                drawList.addText(x0 + width - padding - 72f, y0 + padding * 0.5f, COLOR_LABEL, gradeLabel);
+            String gradeLabel = layout.gradeOverlayLabel();
+            if (gradeLabel != null && !gradeLabel.isBlank()) {
+                float gradeWidth = ImGui.calcTextSize(gradeLabel).x;
+                drawList.addText(
+                    x0 + width - padding - gradeWidth,
+                    y0 + padding * 0.5f,
+                    COLOR_LABEL,
+                    gradeLabel);
             }
 
             String label = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(layout.totalWidthBlocks()));
@@ -499,7 +501,13 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float fillSlopeRatio;
         public final float cutSlopeRatio;
         public final boolean includeSlopeBatter;
+        /** 设计/局部纵坡上限（%）；与 {@link #minSlopePercent} 组成展示区间。 */
         public final float maxSlopePercent;
+        /**
+         * 沿路局部纵坡下限（%）。{@code < 0} 表示未设区间，仅展示 {@link #maxSlopePercent}。
+         * 用于分段坡度 override 等「有的地方大、有的地方小」的情况。
+         */
+        public final float minSlopePercent;
         public final int roadColor;
         public final int sidewalkColor;
         public final int bikeColor;
@@ -525,6 +533,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 float cutSlopeRatio,
                 boolean includeSlopeBatter,
                 float maxSlopePercent,
+                float minSlopePercent,
                 int roadColor,
                 int sidewalkColor,
                 int bikeColor,
@@ -548,6 +557,7 @@ public final class RoadCrossSectionPreviewRenderer {
             this.cutSlopeRatio = cutSlopeRatio;
             this.includeSlopeBatter = includeSlopeBatter;
             this.maxSlopePercent = maxSlopePercent;
+            this.minSlopePercent = minSlopePercent;
             this.roadColor = roadColor;
             this.sidewalkColor = sidewalkColor;
             this.bikeColor = bikeColor;
@@ -561,6 +571,13 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static CrossSectionLayout fromResolved(ResolvedCrossSection section, float maxSlopePercent) {
+            return fromResolved(section, maxSlopePercent, -1f);
+        }
+
+        public static CrossSectionLayout fromResolved(
+                ResolvedCrossSection section,
+                float maxSlopePercent,
+                float minSlopePercent) {
             float road = Math.max(1, section.carriagewayWidth);
             float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
             float bike = section.includeBikeLane ? Math.max(0, section.bikeLaneWidth) : 0f;
@@ -577,6 +594,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 section.includeSlopeBatter ? section.cutSlopeRatio : 0f,
                 section.includeSlopeBatter,
                 maxSlopePercent,
+                minSlopePercent,
                 colorForMaterial(section.carriagewayMaterial.getPrimaryMaterial(), 0xFF707070),
                 colorForMaterial(section.sidewalkMaterial, 0xFF989898),
                 colorForMaterial(section.bikeLaneMaterial, 0xFF6FA8D8),
@@ -588,6 +606,26 @@ public final class RoadCrossSectionPreviewRenderer {
                 markingRatios,
                 colorForMaterial(section.markingMaterial, COLOR_MARKING)
             );
+        }
+
+        /** 横断面图右上角纵坡文案；纵坡沿路常有变化，有区间时显示上下限。 */
+        public String gradeOverlayLabel() {
+            if (maxSlopePercent <= 0f && minSlopePercent < 0f) {
+                return null;
+            }
+            float hi = Math.max(0f, maxSlopePercent);
+            if (minSlopePercent >= 0f && minSlopePercent < hi - 0.05f) {
+                return PlotI18n.tr(
+                    "plugin.road.cross_section_grade_range",
+                    SlopeFormatUtils.formatPercent(minSlopePercent),
+                    SlopeFormatUtils.formatPercent(hi));
+            }
+            if (hi <= 0f) {
+                return null;
+            }
+            return PlotI18n.tr(
+                "plugin.road.cross_section_grade",
+                SlopeFormatUtils.formatPercent(hi));
         }
 
         private static List<Float> buildMarkingRatios(ResolvedCrossSection section, float roadWidth) {
@@ -616,7 +654,8 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static CrossSectionLayout fromConfig(RoadSystemConfig config) {
-            return fromResolved(ResolvedCrossSection.fromConfig(config), 0f);
+            float grade = config != null ? config.getMaxSlope() : 0f;
+            return fromResolved(ResolvedCrossSection.fromConfig(config), grade);
         }
 
         /** 预设卡片：用风格自身材质（含风格自带 themeId），不套当前道路主题。 */

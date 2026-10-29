@@ -112,25 +112,21 @@ public final class RoadFloatingEditorShell {
             return false;
         }
         try {
-            ImGui.textWrapped(PlotI18n.tr("plugin.road.floating_editor.close_confirm_message"));
+            // 不用 textWrapped：与 AlwaysAutoResize 叠加时易在窄宽下逐字折行。
+            ImGui.text(PlotI18n.tr("plugin.road.floating_editor.close_confirm_message"));
             ImGui.separator();
-            boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
-            float buttonWidth = narrow ? -1f : 120f;
+            float buttonWidth = 120f;
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.confirm") + "##close_apply", buttonWidth, 0)) {
                 if (onApplyAndClose.getAsBoolean()) {
                     ImGui.closeCurrentPopup();
                 }
             }
-            if (!narrow) {
-                ImGui.sameLine();
-            }
+            ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.discard") + "##close_discard", buttonWidth, 0)) {
                 onDiscardAndClose.run();
                 ImGui.closeCurrentPopup();
             }
-            if (!narrow) {
-                ImGui.sameLine();
-            }
+            ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##close_continue", buttonWidth, 0)) {
                 onContinueEditing.run();
                 ImGui.closeCurrentPopup();
@@ -151,17 +147,14 @@ public final class RoadFloatingEditorShell {
             return;
         }
         try {
-            ImGui.textWrapped(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_confirm"));
+            ImGui.text(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_confirm"));
             ImGui.separator();
-            boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
-            float buttonWidth = narrow ? -1f : 140f;
+            float buttonWidth = 140f;
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live") + "##reload_confirm", buttonWidth, 0)) {
                 onReload.run();
                 ImGui.closeCurrentPopup();
             }
-            if (!narrow) {
-                ImGui.sameLine();
-            }
+            ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##reload_continue", buttonWidth, 0)) {
                 onContinueEditing.run();
                 ImGui.closeCurrentPopup();

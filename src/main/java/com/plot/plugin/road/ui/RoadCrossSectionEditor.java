@@ -5,6 +5,8 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadParameterInheritance;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.utils.PlotI18n;
@@ -21,6 +23,10 @@ public final class RoadCrossSectionEditor {
     }
 
     public static void renderPreview(Road road, RoadSystemConfig config) {
+        renderPreview(null, road, config);
+    }
+
+    public static void renderPreview(RoadNetwork network, Road road, RoadSystemConfig config) {
         if (road == null) {
             return;
         }
@@ -34,11 +40,15 @@ public final class RoadCrossSectionEditor {
             presetName,
             resolved.carriagewayWidth,
             resolved.laneCount));
-        renderPreviewBody(road, config);
+        renderPreviewBody(network, road, config);
     }
 
     /** 仅绘制横断面预览图（不含 style summary 文案）。始终反映道路当前断面参数。 */
     public static void renderPreviewBody(Road road, RoadSystemConfig config) {
+        renderPreviewBody(null, road, config);
+    }
+
+    public static void renderPreviewBody(RoadNetwork network, Road road, RoadSystemConfig config) {
         if (road == null) {
             return;
         }
@@ -51,7 +61,7 @@ public final class RoadCrossSectionEditor {
         float height = 64f;
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            previewLayoutForRoad(road, config),
+            previewLayoutForRoad(network, road, config),
             origin.x,
             origin.y,
             width,
@@ -61,15 +71,39 @@ public final class RoadCrossSectionEditor {
 
     /**
      * 设计器/编辑区预览布局：用道路当前已解析断面，不用预设 style 快照，
-     * 否则改参后面板左侧图不会变。
+     * 否则改参后面板左侧图不会变。纵坡取有效限值，并汇总分段 override 区间。
      */
     static RoadCrossSectionPreviewRenderer.CrossSectionLayout previewLayoutForRoad(
             Road road,
             RoadSystemConfig config) {
-        float maxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : 0f;
+        return previewLayoutForRoad(null, road, config);
+    }
+
+    static RoadCrossSectionPreviewRenderer.CrossSectionLayout previewLayoutForRoad(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        float designMax = road.getEffectiveMaxSlope(config);
+        float min = designMax;
+        float max = designMax;
+        boolean hasOverrideBand = false;
+        if (network != null) {
+            for (String segmentId : road.getSegmentIds()) {
+                RoadEdge edge = network.getEdge(segmentId);
+                if (edge == null) {
+                    continue;
+                }
+                for (RoadEdge.SlopeOverride override : edge.getSlopeOverrides()) {
+                    hasOverrideBand = true;
+                    min = Math.min(min, override.maxSlope);
+                    max = Math.max(max, override.maxSlope);
+                }
+            }
+        }
         return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
             road.getCrossSection().resolve(config),
-            maxSlope);
+            max,
+            hasOverrideBand ? min : -1f);
     }
 
     public static void renderPresetButtons(RoadUiContext ctx, Road road, Runnable onChanged) {

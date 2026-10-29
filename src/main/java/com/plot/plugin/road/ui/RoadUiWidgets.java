@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.List;
@@ -192,6 +193,9 @@ public final class RoadUiWidgets {
     /**
      * Deferred modal popup: {@code openRequest} only triggers {@link ImGui#openPopup} once;
      * ImGui keeps the modal open until the user closes it.
+     * <p>
+     * 出现时强制最小宽度：{@code AlwaysAutoResize} 搭配 {@code textWrapped} 时，
+     * 首帧可用宽度≈0 会把中文逐字折成竖条窄窗。
      *
      * @return true when the modal is visible this frame (caller must {@link ImGui#endPopup()})
      */
@@ -205,6 +209,15 @@ public final class RoadUiWidgets {
                 onOpenRequested.run();
             }
         }
+        float minWidth = DEFERRED_MODAL_MIN_WIDTH;
+        ImGui.setNextWindowSize(minWidth, 0f, ImGuiCond.Appearing);
+        ImGui.setNextWindowSizeConstraints(minWidth, 0f, Float.MAX_VALUE, Float.MAX_VALUE);
+        float cx = ImGui.getIO().getDisplaySizeX() * 0.5f;
+        float cy = ImGui.getIO().getDisplaySizeY() * 0.5f;
+        ImGui.setNextWindowPos(cx, cy, ImGuiCond.Appearing, 0.5f, 0.5f);
         return ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize);
     }
+
+    /** 确认类弹窗最小宽度，避免 AlwaysAutoResize 首帧折成竖条。 */
+    private static final float DEFERRED_MODAL_MIN_WIDTH = 420f;
 }

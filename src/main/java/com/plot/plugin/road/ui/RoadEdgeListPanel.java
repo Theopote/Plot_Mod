@@ -15,7 +15,6 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiDir;
 import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiPopupFlags;
-import imgui.type.ImBoolean;
 
 import java.util.HashSet;
 import java.util.List;
@@ -40,62 +39,6 @@ public final class RoadEdgeListPanel {
         this.ctx = ctx;
     }
 
-    public void renderToolbar(String idPrefix) {
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.62f);
-        ImGui.inputTextWithHint(
-            idPrefix + "_edge_search",
-            PlotI18n.tr("plugin.road.edge_search_hint"),
-            ctx.edgeSearchBuffer());
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo(idPrefix + "_edge_sort", ctx.edgeSortMode().label())) {
-            for (RoadEdgeListHelper.SortMode mode : RoadEdgeListHelper.SortMode.values()) {
-                boolean selected = mode == ctx.edgeSortMode();
-                if (ImGui.selectable(mode.label(), selected)) {
-                    ctx.setEdgeSortMode(mode);
-                }
-            }
-            ImGui.endCombo();
-        }
-
-        ImBoolean coordFilterRef = new ImBoolean(ctx.coordFilterEnabled());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.coord_filter"), coordFilterRef)) {
-            ctx.setCoordFilterEnabled(coordFilterRef.get());
-        }
-        if (ctx.coordFilterEnabled()) {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.24f);
-            ImGui.dragFloat(idPrefix + "_min_x", ctx.coordMinX(), 1f, -100000f, 100000f, "X>=%.0f");
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.24f);
-            ImGui.dragFloat(idPrefix + "_max_x", ctx.coordMaxX(), 1f, -100000f, 100000f, "X<=%.0f");
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.24f);
-            ImGui.dragFloat(idPrefix + "_min_y", ctx.coordMinY(), 1f, -100000f, 100000f, "Y>=%.0f");
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            ImGui.dragFloat(idPrefix + "_max_y", ctx.coordMaxY(), 1f, -100000f, 100000f, "Y<=%.0f");
-        }
-
-        if (ImGui.smallButton(PlotI18n.tr("plugin.road.select_all_edges") + idPrefix)) {
-            ctx.networkManager().selectAllEdges();
-        }
-        ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.road.clear_selection") + idPrefix)) {
-            ctx.networkManager().clearEdgeSelection();
-        }
-        ImGui.sameLine();
-        int selectedRoads = ctx.networkManager().getSelectedRoadIds().size();
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.selection_count",
-                selectedRoads,
-                RoadEdgeListHelper.groupByRoad(
-                    ctx.networkManager().getNetwork(),
-                    ctx.networkManager().filteredEdges(
-                        ctx.edgeSearchBuffer().get(),
-                        ctx.edgeSortMode(),
-                        ctx.currentCoordFilter())).size()));
-    }
-
     /** 路径 Tab：每条逻辑道路一行，带预览与精简工具栏。 */
     public void renderPathList(String childId) {
         if (ImGui.smallButton(PlotI18n.tr("plugin.road.select_all_edges") + "##path")) {
@@ -112,10 +55,6 @@ public final class RoadEdgeListPanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.selection_count", selectedRoads, totalRoads));
         renderList(false, childId, true);
-    }
-
-    public void renderList(boolean showDelete, String childId) {
-        renderList(showDelete, childId, false);
     }
 
     public void renderList(boolean showDelete, String childId, boolean showThumbnails) {

@@ -30,7 +30,9 @@ public final class RoadCrossSectionPreviewSection {
     private static void renderDefault(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ResolvedCrossSection resolved = ResolvedCrossSection.fromConfig(config);
-        renderHeader(resolved);
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+            resolved, config.getMaxSlope());
+        renderHeader(resolved, layout.gradeOverlayLabel());
         RoadCrossSectionPreviewRenderer.render(config);
     }
 
@@ -40,9 +42,24 @@ public final class RoadCrossSectionPreviewSection {
             return;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
+        var network = ctx.networkManager().getNetwork();
         ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
-        renderHeader(resolved);
-        RoadCrossSectionEditor.renderPreviewBody(road, config);
+        var layout = RoadCrossSectionEditor.previewLayoutForRoad(network, road, config);
+        renderHeader(resolved, layout.gradeOverlayLabel());
+        renderPreviewBody(layout);
+    }
+
+    private static void renderPreviewBody(RoadCrossSectionPreviewRenderer.CrossSectionLayout layout) {
+        float width = ImGui.getContentRegionAvail().x;
+        if (width < 40f || layout == null) {
+            return;
+        }
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float height = 64f;
+        RoadCrossSectionPreviewRenderer.renderMini(
+            drawList, layout, origin.x, origin.y, width, height);
+        ImGui.dummy(width, height);
     }
 
     private static void renderMulti(RoadUiContext ctx) {
@@ -54,12 +71,23 @@ public final class RoadCrossSectionPreviewSection {
             return;
         }
         RoadNetworkManager.BatchEditDefaults draft = ctx.networkManager().loadBatchEditDefaults();
-        ResolvedCrossSection resolved = draft.toCrossSection().resolve(ctx.networkManager().getConfig());
-        renderHeader(resolved);
-        renderBatchPreview(ctx, draft);
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        ResolvedCrossSection resolved = draft.toCrossSection().resolve(config);
+        float grade = config.getMaxSlope();
+        Road primary = ctx.networkManager().getPrimarySelectedRoad();
+        if (primary != null) {
+            grade = primary.getEffectiveMaxSlope(config);
+        }
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, grade);
+        renderHeader(resolved, layout.gradeOverlayLabel());
+        renderBatchPreview(layout);
     }
 
     private static void renderHeader(ResolvedCrossSection resolved) {
+        renderHeader(resolved, null);
+    }
+
+    private static void renderHeader(ResolvedCrossSection resolved, String gradeLabel) {
         ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
         float avail = ImGui.getContentRegionAvail().x;
         float totalWidth = RoadCrossSectionPreviewRenderer.CrossSectionLayout
@@ -72,6 +100,9 @@ public final class RoadCrossSectionPreviewSection {
             RoadUiFormat.format(resolved.carriagewayWidth),
             RoadUiFormat.format(resolved.fillSlopeRatio),
             RoadUiFormat.format(resolved.cutSlopeRatio));
+        if (gradeLabel != null && !gradeLabel.isBlank()) {
+            metrics = metrics + " · " + gradeLabel;
+        }
         ImGui.sameLine(Math.max(ImGui.getCursorPosX(), avail - ImGui.calcTextSize(metrics).x));
         ImGui.textColored(PluginUiColors.HINT_GRAY, metrics);
         ImGui.spacing();
@@ -104,23 +135,7 @@ public final class RoadCrossSectionPreviewSection {
         return true;
     }
 
-    private static void renderBatchPreview(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        ResolvedCrossSection resolved = draft.toCrossSection().resolve(config);
-        float width = ImGui.getContentRegionAvail().x;
-        if (width < 40f) {
-            return;
-        }
-        ImVec2 origin = ImGui.getCursorScreenPos();
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        float height = 64f;
-        RoadCrossSectionPreviewRenderer.renderMini(
-            drawList,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, 0f),
-            origin.x,
-            origin.y,
-            width,
-            height);
-        ImGui.dummy(width, height);
+    private static void renderBatchPreview(RoadCrossSectionPreviewRenderer.CrossSectionLayout layout) {
+        renderPreviewBody(layout);
     }
 }

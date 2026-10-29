@@ -95,13 +95,6 @@ public final class HorizontalAlignmentGeometry {
         return describeElementRange(element, start, end);
     }
 
-    public static String describeElement(
-            HorizontalAlignmentElement element,
-            double startChainage,
-            ChainageDisplayContext display) {
-        return describeElement(element, startChainage, display, 1.0);
-    }
-
     /**
      * @param canvasToWorldScale 将画布域桩号/线元长换算为展示用方块（1m=1格）的比例
      */

@@ -4864,5 +4864,6 @@
   "status.plot.building.pick_footprint_active": "Pick mode: select polygon/rectangle/circle/ellipse, right-click to confirm",
   "status.plot.building.pick_footprint_right_click": "1 footprint selected — right-click to confirm",
   "status.plot.building.pick_footprint_right_click_multi": "%d footprints selected — right-click to confirm",
-  "status.plot.building.pick_footprint_no_valid": "Current selection is not a valid footprint"
+  "status.plot.building.pick_footprint_no_valid": "Current selection is not a valid footprint",
+  "plugin.road.cross_section_grade_range": "Grade %s–%s"
 }

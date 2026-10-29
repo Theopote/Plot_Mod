@@ -101,9 +101,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         ImGui.spacing();
 
         RoadUiSections.section("plugin.road.floating_editor.centerline.tab.segments");
-        float segmentListHeight = Math.min(
-            140f,
-            Math.max(72f, ImGui.getContentRegionAvailY() * 0.22f));
+        float segmentListHeight = Math.clamp(ImGui.getContentRegionAvailY() * 0.22f, 72f,
+                140f);
         ImGui.beginChild(
             "##centerline_segment_list",
             0f,

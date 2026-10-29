@@ -182,20 +182,6 @@ public final class RoadEdgeListHelper {
         return Math.max(1, network.getRoads().size());
     }
 
-    public static double computeRoadLength(RoadNetwork network, Road road) {
-        if (network == null || road == null) {
-            return 0.0;
-        }
-        double total = 0.0;
-        for (String segmentId : orderedSegmentIds(network, road)) {
-            RoadEdge edge = network.getEdge(segmentId);
-            if (edge != null) {
-                total += edge.getLength();
-            }
-        }
-        return total;
-    }
-
     public static double computeRoadWorldLength(
             RoadNetwork network,
             Road road,
