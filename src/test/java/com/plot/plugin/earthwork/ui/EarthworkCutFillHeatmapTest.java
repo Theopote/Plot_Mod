@@ -41,6 +41,34 @@ class EarthworkCutFillHeatmapTest {
     }
 
     @Test
+    void displayMarginPadsCoreExtentsWithoutPainting() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        grid.put(2, 2, cellAtWorld(2, 2, new Vec2d(2.5, 2.5), -1));
+
+        EarthworkCutFillHeatmap.CanvasExtents core = EarthworkCutFillHeatmap.canvasExtents(grid);
+        assertNotNull(core);
+        EarthworkCutFillHeatmap.CanvasExtents padded = EarthworkCutFillHeatmap.withDisplayMargin(core);
+        assertNotNull(padded);
+        assertTrue(padded.minX() < core.minX());
+        assertTrue(padded.maxX() > core.maxX());
+        assertTrue(padded.minY() < core.minY());
+        assertTrue(padded.maxY() > core.maxY());
+        assertTrue(
+            padded.spanX() - core.spanX()
+                >= 2.0 * EarthworkCutFillHeatmap.DISPLAY_MARGIN_MIN - 1e-6);
+
+        EarthworkCutFillHeatmap.Bucket[][] buckets =
+            EarthworkCutFillHeatmap.aggregate(grid, 16, 16, padded);
+        int painted = 0;
+        for (EarthworkCutFillHeatmap.Bucket[] col : buckets) {
+            for (EarthworkCutFillHeatmap.Bucket bucket : col) {
+                painted += bucket.cutCount() + bucket.fillCount() + bucket.unchangedCount();
+            }
+        }
+        assertEquals(1, painted);
+    }
+
+    @Test
     void unassignedSitePaddingDoesNotExpandExtentsOrPaintBuckets() {
         DesignTerrainGrid grid = new DesignTerrainGrid();
         // 分区格：左上挖

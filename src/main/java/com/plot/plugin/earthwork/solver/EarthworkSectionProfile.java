@@ -601,6 +601,34 @@ public final class EarthworkSectionProfile {
         return Math.max(1e-6, axisDistanceExact(stations.getLast()));
     }
 
+    /** 剖面图横轴是否含截线外扩空白（区外对照）。 */
+    public boolean hasChartAxisPadding() {
+        return !Double.isNaN(cutLineAlongMin)
+            && !Double.isNaN(cutLineAlongMax)
+            && cutLineAlongMax >= cutLineAlongMin
+            && !stations.isEmpty();
+    }
+
+    /** 剖面图横轴起点（相对首站，可为负，表示左侧空白外扩）。 */
+    public double chartAxisMin() {
+        if (!hasChartAxisPadding()) {
+            return 0.0;
+        }
+        return Math.min(0.0, cutLineAlongMin - firstAlong);
+    }
+
+    /** 剖面图横轴终点（相对首站）。 */
+    public double chartAxisMax() {
+        if (!hasChartAxisPadding()) {
+            return axisSpanExact();
+        }
+        return Math.max(axisSpanExact(), cutLineAlongMax - firstAlong);
+    }
+
+    public double chartAxisSpan() {
+        return Math.max(1e-6, chartAxisMax() - chartAxisMin());
+    }
+
     /** 相邻采样点在剖面轴向上的间距（格，四舍五入）。 */
     public int axisGap(Station a, Station b) {
         return (int) Math.round(axisGapExact(a, b));

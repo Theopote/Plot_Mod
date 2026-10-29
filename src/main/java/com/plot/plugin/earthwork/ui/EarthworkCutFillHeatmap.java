@@ -11,8 +11,14 @@ import java.util.List;
  * 挖填热力图：按<strong>画布</strong>格心坐标聚合，使面板示意与画布俯视布局同比例、同方位。
  * <p>
  * 仅统计已归属分区的格点；框体优先取各分区外轮廓的画布包围盒，避免把场地空白也铺成「一整块」。
+ * 展示时再 {@link #withDisplayMargin} 外扩一圈空白，便于对照分区与周边关系。
  */
 final class EarthworkCutFillHeatmap {
+
+    /** 相对核心跨度的展示边距比例（每侧）。 */
+    static final double DISPLAY_MARGIN_FRACTION = 0.15;
+    /** 每侧最少外扩（画布单位），小场地也能留出空白。 */
+    static final double DISPLAY_MARGIN_MIN = 6.0;
 
     enum Dominant {
         CUT, FILL, UNCHANGED
@@ -179,5 +185,22 @@ final class EarthworkCutFillHeatmap {
             maxY = minY + 1.0;
         }
         return new CanvasExtents(minX, maxX, minY, maxY);
+    }
+
+    /**
+     * 在分区核心包围盒外扩空白边距（不把远处无归属格拉进框内）。
+     * 空白处不铺挖填色，便于看见分区落在场地中的位置。
+     */
+    static CanvasExtents withDisplayMargin(CanvasExtents core) {
+        if (core == null) {
+            return null;
+        }
+        double padX = Math.max(DISPLAY_MARGIN_MIN, core.spanX() * DISPLAY_MARGIN_FRACTION);
+        double padY = Math.max(DISPLAY_MARGIN_MIN, core.spanY() * DISPLAY_MARGIN_FRACTION);
+        return new CanvasExtents(
+            core.minX() - padX,
+            core.maxX() + padX,
+            core.minY() - padY,
+            core.maxY() + padY);
     }
 }

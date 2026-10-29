@@ -448,25 +448,26 @@ public final class EarthworkInsightCharts {
         }
         float pad = 8f;
         float plotX0 = x0 + PROFILE_LEFT_AXIS;
-        double span = profile.axisSpanExact();
+        double chartMin = profile.chartAxisMin();
+        double span = profile.chartAxisSpan();
         float innerW = Math.max(1f, x1 - plotX0 - pad);
         // 标高轴：顶/底标注
         drawList.addText(x0 + 4f, y0 + pad - 2f, COLOR_AXIS_LABEL, "Y" + elevMax);
         drawList.addText(x0 + 4f, y1 - pad - 12f, COLOR_AXIS_LABEL, "Y" + elevMin);
         drawList.addLine(plotX0 - 2f, y0 + pad, plotX0 - 2f, y1 - pad, COLOR_BORDER, 1f);
 
-        // 区内范围浅底，突出挖填主体
+        // 区内范围浅底，突出挖填主体；两侧空白为截线外扩（区外对照）
         if (zoneAlongMax >= zoneAlongMin && span > 1e-6) {
-            float zx0 = plotX0 + innerW * (float) (zoneAlongMin / span);
-            float zx1 = plotX0 + innerW * (float) (zoneAlongMax / span);
+            float zx0 = plotX0 + innerW * (float) ((zoneAlongMin - chartMin) / span);
+            float zx1 = plotX0 + innerW * (float) ((zoneAlongMax - chartMin) / span);
             drawList.addRectFilled(zx0, y0 + 2f, zx1, y1 - 2f, ImColor.rgba(255, 255, 255, 18));
         }
 
         for (int i = 0; i < profile.stations().size() - 1; i++) {
             EarthworkSectionProfile.Station a = profile.stations().get(i);
             EarthworkSectionProfile.Station b = profile.stations().get(i + 1);
-            float ax = plotX0 + innerW * (float) (profile.axisDistanceExact(a) / span);
-            float bx = plotX0 + innerW * (float) (profile.axisDistanceExact(b) / span);
+            float ax = plotX0 + innerW * (float) ((profile.axisDistanceExact(a) - chartMin) / span);
+            float bx = plotX0 + innerW * (float) ((profile.axisDistanceExact(b) - chartMin) / span);
             boolean enterExit = a.zoned() != b.zoned()
                 || (a.zoned() && b.zoned() && !java.util.Objects.equals(a.zoneId(), b.zoneId()));
             boolean gap = profile.shouldBreakPolyline(a, b);
@@ -511,7 +512,7 @@ public final class EarthworkInsightCharts {
             if (cut <= 0 && fill <= 0) {
                 continue;
             }
-            float sx = plotX0 + innerW * (float) (profile.axisDistanceExact(station) / span);
+            float sx = plotX0 + innerW * (float) ((profile.axisDistanceExact(station) - chartMin) / span);
             int color = cut >= fill ? COLOR_CUT : COLOR_FILL;
             drawList.addLine(
                 sx,
@@ -526,7 +527,7 @@ public final class EarthworkInsightCharts {
         ImGui.dummy(width, PROFILE_CHART_HEIGHT);
         if (ImGui.isItemHovered() && span > 1e-6 && innerW > 1f) {
             float mouseX = ImGui.getMousePosX();
-            double along = ((mouseX - plotX0) / innerW) * span;
+            double along = chartMin + ((mouseX - plotX0) / innerW) * span;
             EarthworkSectionProfile.Station nearest = null;
             double bestDist = Double.POSITIVE_INFINITY;
             for (EarthworkSectionProfile.Station station : profile.stations()) {
@@ -537,7 +538,7 @@ public final class EarthworkInsightCharts {
                 }
             }
             if (nearest != null && bestDist <= Math.max(1.25, span * 0.04)) {
-                float markerX = plotX0 + innerW * (float) (profile.axisDistanceExact(nearest) / span);
+                float markerX = plotX0 + innerW * (float) ((profile.axisDistanceExact(nearest) - chartMin) / span);
                 drawList.addLine(markerX, y0 + 3f, markerX, y1 - 3f, COLOR_CURRENT, 1.0f);
                 if (nearest.zoned()) {
                     ImGui.setTooltip(PlotI18n.tr(
@@ -601,8 +602,8 @@ public final class EarthworkInsightCharts {
             return;
         }
         List<List<Vec2d>> zoneOutlines = heatmapZoneOutlines(ctx);
-        EarthworkCutFillHeatmap.CanvasExtents extents =
-            EarthworkCutFillHeatmap.canvasExtents(grid, zoneOutlines);
+        EarthworkCutFillHeatmap.CanvasExtents extents = EarthworkCutFillHeatmap.withDisplayMargin(
+            EarthworkCutFillHeatmap.canvasExtents(grid, zoneOutlines));
         if (extents == null) {
             return;
         }
