@@ -77,10 +77,19 @@ public class RoadGenerationResult {
     public int structureInteriorSlopeCellCount;
     /** 落地铁轨格数（含普通/动力/探测轨）。 */
     public int railBlockCount;
-    /** 无四邻同层/±1 邻轨的孤立铁轨格（断点候选）。 */
+    /** 无四邻同层/±1 邻轨的孤立铁轨格。 */
     public int railOrphanCount;
-    /** 轨下无实体支撑的铁轨格。 */
+    /** 邻格存在但 shape 未双向连接的边数。 */
+    public int railShapeDiscontinuityCount;
+    /** 生成记录中已确认轨下为空气的铁轨格。 */
     public int railUnsupportedCount;
+    /** 生成记录未覆盖轨下格（世界可能已有支撑）的铁轨数。 */
+    public int railSupportUnknownCount;
+    /**
+     * 可选：生成阶段写入的期望贯通轴线（世界 BlockPos → {@link com.plot.plugin.road.pipeline.marking.RoadRailShapeResolver.AxisHint}）。
+     */
+    public final Map<BlockPos, com.plot.plugin.road.pipeline.marking.RoadRailShapeResolver.AxisHint> railAxisHints =
+        new LinkedHashMap<>();
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -178,7 +187,10 @@ public class RoadGenerationResult {
         structureInteriorSlopeCellCount += source.structureInteriorSlopeCellCount;
         railBlockCount += source.railBlockCount;
         railOrphanCount += source.railOrphanCount;
+        railShapeDiscontinuityCount += source.railShapeDiscontinuityCount;
         railUnsupportedCount += source.railUnsupportedCount;
+        railSupportUnknownCount += source.railSupportUnknownCount;
+        railAxisHints.putAll(source.railAxisHints);
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;

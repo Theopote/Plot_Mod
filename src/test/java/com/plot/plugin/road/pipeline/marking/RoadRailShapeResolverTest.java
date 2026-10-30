@@ -1,8 +1,10 @@
 package com.plot.plugin.road.pipeline.marking;
 
+import com.plot.core.block.BlockSpec;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadRailShapeResolverTest {
@@ -60,12 +62,40 @@ class RoadRailShapeResolverTest {
     }
 
     @Test
-    void resolvePlacementWritesShapeProperty() {
+    void throughNorthSouthPrefersFlatOverSideAscending() {
+        // T：南北贯通 + 东侧高一格，不得被旁支爬坡抢走直股
+        RoadRailShapeResolver.RailNeighbors tee = new RoadRailShapeResolver.RailNeighbors(
+            true, true, true, false, 0, 0, 1, 0);
+        assertEquals(
+            RoadRailShapeResolver.SHAPE_NORTH_SOUTH,
+            RoadRailShapeResolver.resolveShape(
+                "minecraft:rail", tee, RoadRailShapeResolver.AxisHint.NORTH_SOUTH));
+        assertEquals(
+            RoadRailShapeResolver.SHAPE_NORTH_SOUTH,
+            RoadRailShapeResolver.resolveShape("minecraft:rail", tee));
+    }
+
+    @Test
+    void resolvePlacementPreservesNonShapeProperties() {
         String placement = RoadRailShapeResolver.resolvePlacement(
-            "minecraft:rail",
+            "minecraft:powered_rail[powered=true,shape=north_south]",
             RoadRailShapeResolver.RailNeighbors.flat(false, false, true, true));
-        assertTrue(placement.contains("shape=east_west"));
-        assertTrue(placement.startsWith("minecraft:rail"));
+        BlockSpec spec = BlockSpec.parse(placement);
+        assertEquals("minecraft:powered_rail", spec.blockId());
+        assertEquals("true", spec.property("powered"));
+        assertEquals("east_west", spec.property("shape"));
+    }
+
+    @Test
+    void mutuallyConnectedRequiresBothShapesFaceEachOther() {
+        assertTrue(RoadRailShapeResolver.mutuallyConnected(
+            RoadRailShapeResolver.SHAPE_EAST_WEST,
+            RoadRailShapeResolver.Cardinal.EAST,
+            RoadRailShapeResolver.SHAPE_EAST_WEST));
+        assertFalse(RoadRailShapeResolver.mutuallyConnected(
+            RoadRailShapeResolver.SHAPE_NORTH_SOUTH,
+            RoadRailShapeResolver.Cardinal.EAST,
+            RoadRailShapeResolver.SHAPE_EAST_WEST));
     }
 
     @Test

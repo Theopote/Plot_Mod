@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 全网放置记录合并后，按邻格占用回填铁轨 {@code shape}，保证落地连通。
+ * 全网放置记录合并后，按邻格占用 + 贯通轴线提示回填铁轨 {@code shape}。
  */
 public final class RoadRailPlacementPass {
     private RoadRailPlacementPass() {
@@ -40,12 +40,29 @@ public final class RoadRailPlacementPass {
             }
             BlockPos pos = entry.getKey();
             RoadRailShapeResolver.RailNeighbors neighbors = neighborsAt(pos, railCells);
-            String shaped = RoadRailShapeResolver.resolvePlacement(record.newBlockId, neighbors);
+            RoadRailShapeResolver.AxisHint hint = resolveHint(result, pos, neighbors);
+            String shaped = RoadRailShapeResolver.resolvePlacement(record.newBlockId, neighbors, hint);
             if (shaped != null && !shaped.equals(record.newBlockId)) {
                 rewritten.put(pos, new BlockRecord(pos, record.previousBlockId, shaped));
             }
         }
         result.placementRecords.putAll(rewritten);
+    }
+
+    /**
+     * 优先使用生成阶段写入的轴线提示；否则由邻格贯通推断（双端贯通优先于旁支爬坡）。
+     */
+    static RoadRailShapeResolver.AxisHint resolveHint(
+            RoadGenerationResult result,
+            BlockPos pos,
+            RoadRailShapeResolver.RailNeighbors neighbors) {
+        if (result != null && result.railAxisHints != null) {
+            RoadRailShapeResolver.AxisHint hinted = result.railAxisHints.get(pos);
+            if (hinted != null && hinted != RoadRailShapeResolver.AxisHint.NONE) {
+                return hinted;
+            }
+        }
+        return RoadRailShapeResolver.inferAxisHint(neighbors);
     }
 
     public static RoadRailShapeResolver.RailNeighbors neighborsAt(BlockPos pos, Set<Long> railCells) {
