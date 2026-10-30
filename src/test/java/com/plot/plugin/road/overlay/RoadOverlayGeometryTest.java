@@ -10,6 +10,10 @@ import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadTopologyMode;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
@@ -205,6 +209,40 @@ class RoadOverlayGeometryTest {
 
         assertTrue(RoadOverlayGeometry.containsPoint(geometry, 1, 1));
         assertFalse(RoadOverlayGeometry.containsPoint(geometry, 10, 5));
+    }
+
+    @Test
+    void resolveRoadCorridorGeometry_followsVariableCrossSectionHalfWidth() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeSlopeBatter(false);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("var");
+        road.setWidth(6);
+        road.setIncludeSlopeBatter(false);
+        RoadCrossSection wide = new RoadCrossSection();
+        wide.getCarriageway().setWidth(16);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(50.0, wide)
+        ), VariableCrossSectionTransitionMode.STEP));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadCorridorGeometry geometry = RoadOverlayGeometry.resolveRoadCorridorGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE);
+
+        assertTrue(geometry.primaryFillContour().size() >= 3);
+        // 起点仍是 6 格宽（半宽 3）；过 50 后加宽到 16（半宽 8）
+        assertTrue(RoadOverlayGeometry.containsPoint(geometry, 10, 0));
+        assertTrue(RoadOverlayGeometry.containsPoint(geometry, 10, 2.5));
+        assertFalse(RoadOverlayGeometry.containsPoint(geometry, 10, 7));
+        assertTrue(RoadOverlayGeometry.containsPoint(geometry, 80, 7));
+        assertFalse(RoadOverlayGeometry.containsPoint(geometry, 80, 10));
     }
 
     @Test

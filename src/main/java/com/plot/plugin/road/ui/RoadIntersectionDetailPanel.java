@@ -13,7 +13,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 交叉点属性编辑（路径 / 编辑 / 生成 Tab 与属性侧栏共用）。 */
+/** 交叉点属性编辑（路径 Tab 与属性侧栏主入口）。 */
 public final class RoadIntersectionDetailPanel {
     private final RoadUiContext ctx;
     private final RoadGradeSeparationControls gradeSeparationControls;

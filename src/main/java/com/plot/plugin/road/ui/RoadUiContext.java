@@ -544,9 +544,12 @@ public final class RoadUiContext {
         requestTab(RoadUiTab.EDIT);
     }
 
+    /**
+     * 请求切换 Tab；真正生效由 {@link com.plot.plugin.road.manager.RoadUIManager}
+     * 在脏浮动窗确认通过后再 {@link #setActiveTab}。
+     */
     public void requestTab(RoadUiTab tab) {
         pendingTab = tab;
-        setActiveTab(tab);
     }
 
     public RoadUiTab pendingTab() {

@@ -30,25 +30,26 @@ Earthwork defaults to a **Quick** single page (claim, target height, edge, previ
 
 1. Draw road centerlines with polyline, spline, or similar tools
 2. Open **Extension** -> **Road System** -> enable the plugin
-3. In **Path**, pick or click/box-select paths on the canvas to adopt roads; manage the road list and intersections; set vertical strategy (terrain adaptive / flat) and Flat Base Y
-4. In **Edit**, set presets, width, cross-section, materials, and street furniture
-5. In **Generate**, tune terrain adaptation and max slope, edit the longitudinal profile (recommended elevations and editor window), run preview, then project to the world
+3. In **Path**, pick or click/box-select paths to adopt roads; manage the road list and intersections (including grade separation)
+4. In **Edit**, pick a preset, tweak width/lanes, and open floating designers for cross-section, variable section, centerline, furniture, diagnostics, and tunnel style
+5. In **Generate**, set vertical strategy (terrain adaptive / flat), slope and bridges, edit the profile, run preview, then project to the world
 
 ### Three-tab layout
 
 | Tab | Focus |
 |-----|--------|
-| **Path** | Pick/canvas selection, road list, intersections, vertical strategy, network overview |
-| **Edit** | Cross-section presets, width/lanes, materials, furniture, advanced design |
-| **Generate** | Terrain sampling, preview job, profile chart, validation, build |
+| **Path** | Pick/adopt, corridor overlay (optional slope batter), road list, intersection editing, network overview |
+| **Edit** | Road summary, compact preset library, quick width/lanes, floating designer launchers, tunnel override; batch cross-section when multi-selected |
+| **Generate** | Vertical strategy and slope, preview job, profile workspace, build confirm, crossing conflict summary |
 
 ### Features
 
-- Presets (urban main/secondary roads, rural roads, highways)
-- Canvas corridor overlay: click/box-select roads with true-width corridors
-- Width, materials, slope and bridge/tunnel thresholds; flat-road elevation recommendations
-- Sidewalks, shoulders, drainage, streetlights
-- Junction markings (auto / force on / force off) and intersection editing
+- Presets (urban main/secondary, rural, highway, railway-embankment style, and more)
+- Canvas corridor overlay with true width; variable cross-sections widen/narrow along station
+- Floating designers: cross-section, variable section (step/smooth), centerline, furniture, diagnostics, batch cross-section; separate tunnel style window
+- Vertical strategy and profile editing live on **Generate**; flat-road elevation tips; bridge/tunnel thresholds
+- Sidewalks, shoulders, drainage, streetlights; junction markings and intersection editing
+- Dirty floating drafts block leaving Edit / switching roads until you confirm or discard
 - Cut/fill estimates and preview building
 
 ### Property Panel Integration

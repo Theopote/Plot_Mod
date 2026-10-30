@@ -9,6 +9,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
@@ -23,9 +24,12 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 
 /** 从路网/路径解析走廊多边形与中心线（画布叠加层用）。 */
 public final class RoadOverlayGeometry {
@@ -55,6 +59,13 @@ public final class RoadOverlayGeometry {
             RoadSystemConfig config,
             ICoordinateService coordinates,
             boolean includeSlopeBatterOverlay) {
+        if (road != null && VariableCrossSectionResolver.hasVariableSections(road)) {
+            RoadCorridorGeometry variable = resolveVariableRoadCorridorGeometry(
+                network, road, config, coordinates, includeSlopeBatterOverlay);
+            if (variable.primaryFillContour().size() >= 3) {
+                return variable;
+            }
+        }
         List<Vec2d> centerline = resolvePlanCenterline(network, road);
         if (centerline.size() < 2) {
             centerline = resolveRoadCenterline(network, road);
@@ -70,6 +81,76 @@ public final class RoadOverlayGeometry {
         boolean closed = road.getTopologyMode() == RoadTopologyMode.LOOP
             || RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
         return RoadEarthworkCorridorResolver.buildCorridorGeometry(centerline, halfWidth, closed);
+    }
+
+    /**
+     * 可变横断面：按桩号采样半宽生成阶梯/平滑走廊多边形。
+     */
+    static RoadCorridorGeometry resolveVariableRoadCorridorGeometry(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            boolean includeSlopeBatterOverlay) {
+        if (network == null || road == null || config == null) {
+            return new RoadCorridorGeometry(List.of(), List.of(), List.of(), List.of(), false, List.of());
+        }
+        List<PlanCenterlineSample> samples = samplePlanWithVariableStations(network, road);
+        if (samples.size() < 2) {
+            return new RoadCorridorGeometry(List.of(), List.of(), List.of(), List.of(), false, List.of());
+        }
+        List<Vec2d> centerline = samples.stream().map(PlanCenterlineSample::position).toList();
+        List<Double> halfWidths = new ArrayList<>(samples.size());
+        for (PlanCenterlineSample sample : samples) {
+            ResolvedCrossSection section = VariableCrossSectionResolver.resolve(
+                network, road, sample.canonicalStation(), config);
+            double halfWidthBlocks = resolveOverlayHalfWidthBlocks(
+                section, config, includeSlopeBatterOverlay);
+            halfWidths.add(scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates));
+        }
+        boolean closed = road.getTopologyMode() == RoadTopologyMode.LOOP
+            || RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
+        return RoadCorridorGeometryBuilder.build(centerline, halfWidths, closed);
+    }
+
+    private static List<PlanCenterlineSample> samplePlanWithVariableStations(
+            RoadNetwork network,
+            Road road) {
+        List<PlanCenterlineSample> base = new ArrayList<>(
+            RoadPlanGeometry.resolveRoadCenterlineSamples(network, road));
+        if (base.isEmpty()) {
+            return List.of();
+        }
+        double total = RoadPlanGeometry.canonicalLength(network, road);
+        TreeSet<Double> stations = new TreeSet<>();
+        for (PlanCenterlineSample sample : base) {
+            stations.add(sample.canonicalStation());
+        }
+        if (road.getVariableCrossSections() != null) {
+            for (StationCrossSection entry : road.getVariableCrossSections().sortedStations()) {
+                double station = Math.clamp(entry.getStation(), 0.0, total);
+                stations.add(station);
+            }
+        }
+        stations.add(0.0);
+        stations.add(total);
+
+        List<PlanCenterlineSample> merged = new ArrayList<>();
+        for (double station : stations) {
+            RoadPlanGeometry.pointAtStation(network, road, station).ifPresent(point -> {
+                if (merged.isEmpty()
+                        || merged.getLast().position().distance(point) > 1e-6
+                        || Math.abs(merged.getLast().canonicalStation() - station) > 1e-6) {
+                    if (!merged.isEmpty()
+                            && merged.getLast().position().distance(point) <= 1e-6) {
+                        merged.set(merged.size() - 1, new PlanCenterlineSample(point, station));
+                    } else {
+                        merged.add(new PlanCenterlineSample(point, station));
+                    }
+                }
+            });
+        }
+        return merged.size() >= 2 ? List.copyOf(merged) : List.copyOf(base);
     }
 
     public static List<Vec2d> resolvePathCorridor(

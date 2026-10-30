@@ -25,26 +25,6 @@ class RoadCorridorWidthTest {
     }
 
     @Test
-    void canvasPreviewHalfWidthIncludesTraversableBandsButNotShoulderOrSlope() {
-        RoadSystemConfig config = new RoadSystemConfig("road_test");
-        config.setRoadWidth(7);
-        config.setIncludeShoulder(true);
-        config.setShoulderWidth(1);
-        config.setIncludeBikeLane(true);
-        config.setBikeLaneWidth(2);
-        config.setIncludeSidewalk(true);
-        config.setSidewalkWidth(2);
-        config.setIncludeSlopeBatter(true);
-        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
-        config.setCutSlopeRatio(1.0f);
-
-        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
-
-        assertEquals(7.5, RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section), 0.01);
-        assertEquals(8.5, RoadCorridorWidth.pavementHalfWidthBlocks(section), 0.01);
-    }
-
-    @Test
     void bridgeDeckWidthIncludesOuterBands() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(5);

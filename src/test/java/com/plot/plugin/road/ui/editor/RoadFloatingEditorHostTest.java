@@ -76,4 +76,27 @@ class RoadFloatingEditorHostTest {
         assertFalse(host.finishOrPromptOutsideScope(ctx, Set.of(roadB)));
         assertFalse(host.isOpen(RoadFloatingEditorKind.CROSS_SECTION));
     }
+
+    @Test
+    void finishOrPromptOutsideScopeBlocksDirtyEditor() {
+        host.openOrFocus(ctx, RoadFloatingEditorKind.CROSS_SECTION, roadA);
+        CrossSectionDesignerWindow editor = (CrossSectionDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CROSS_SECTION);
+        editor.editorSession().workingNetwork().getRoad(roadA).setWidth(16);
+
+        assertTrue(host.finishOrPromptOutsideScope(ctx, Set.of(roadB)));
+        assertTrue(host.isOpen(RoadFloatingEditorKind.CROSS_SECTION));
+        assertTrue(host.hasInteractionBlocked());
+    }
+
+    @Test
+    void finishOrPromptAllBlocksDirtyEditor() {
+        host.openOrFocus(ctx, RoadFloatingEditorKind.CROSS_SECTION, roadA);
+        CrossSectionDesignerWindow editor = (CrossSectionDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CROSS_SECTION);
+        editor.editorSession().workingNetwork().getRoad(roadA).setWidth(18);
+
+        assertTrue(host.finishOrPromptAll(ctx));
+        assertTrue(host.isOpen(RoadFloatingEditorKind.CROSS_SECTION));
+    }
 }

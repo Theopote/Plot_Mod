@@ -60,6 +60,11 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
 
     protected boolean hasInvalidDrafts() { return false; }
 
+    /** 只读壳：无还原/确认页脚，关闭即丢弃会话。 */
+    protected boolean isReadOnlyShell() {
+        return false;
+    }
+
     @Override
     public void open(RoadUiContext ctx, String roadId) {
         if (roadId == null || roadId.isBlank()) {
@@ -91,7 +96,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             session = createSession(ctx, roadId);
         }
         refreshCleanSession(ctx);
-        RoadFloatingEditorShell.prepareWindow(windowImGuiId(), windowOpen, focusOnOpen);
+        RoadFloatingEditorShell.prepareWindow(
+            windowImGuiId(), windowOpen, focusOnOpen, editorKind().ordinal());
         focusOnOpen = false;
 
         boolean visible = ImGui.begin(
@@ -100,19 +106,26 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             RoadFloatingEditorShell.WINDOW_FLAGS);
         try {
             if (visible) {
-                float footerReserve =
-                    RoadFloatingEditorShell.footerReserveHeight(revisionConflictPending);
+                float footerReserve = isReadOnlyShell()
+                    ? RoadFloatingEditorShell.FOOTER_RESERVE_HEIGHT
+                    : RoadFloatingEditorShell.footerReserveHeight(revisionConflictPending);
                 // 负高度：把底部精确留给页脚，避免固定窗高时确认键下方再空一截。
                 ImGui.beginChild("##floating_editor_body", 0f, -footerReserve, false, 0);
-                renderRevisionConflictBanner(ctx);
+                if (!isReadOnlyShell()) {
+                    renderRevisionConflictBanner(ctx);
+                }
                 renderWindowBody(ctx);
                 ImGui.endChild();
-                RoadFloatingEditorShell.renderFooter(
-                    ctx,
-                    isDirty(),
+                if (isReadOnlyShell()) {
+                    RoadFloatingEditorShell.renderReadOnlyCloseFooter(() -> discard(ctx));
+                } else {
+                    RoadFloatingEditorShell.renderFooter(
+                        ctx,
+                        isDirty(),
                         this::restoreSession,
-                    () -> discard(ctx),
-                    () -> confirm(ctx));
+                        () -> discard(ctx),
+                        () -> confirm(ctx));
+                }
             }
         } finally {
             ImGui.end();

@@ -12,7 +12,7 @@ import imgui.ImGui;
 import imgui.type.ImInt;
 
 /**
- * 交叉口属性编辑（概览/编辑 Tab 与 PropertyPanel 共用）。
+ * 交叉口几何属性（圆角/标线）：路径 Tab 与属性侧栏共用。
  * 标线默认全自动生成，高级覆盖折叠收起，减少日常操作负担。
  */
 public final class RoadJunctionPanel {

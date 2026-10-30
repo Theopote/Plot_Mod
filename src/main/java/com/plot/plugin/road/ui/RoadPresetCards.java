@@ -104,9 +104,11 @@ public final class RoadPresetCards {
         float w = sw * FLOATING_WIDTH_OF_SCREEN;
         float h = sh * FLOATING_HEIGHT_OF_SCREEN;
         if (ctx.consumePresetLibraryFocusPending()) {
-            ImGui.setNextWindowSize(w, h, ImGuiCond.Appearing);
-            ImGui.setNextWindowPos(sw * 0.5f - w * 0.5f, sh * 0.5f - h * 0.5f, ImGuiCond.Appearing);
-            ImGui.setNextWindowFocus();
+            com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.placeCascadedAppearing(
+                w,
+                h,
+                com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.cascadeAfterHost(
+                    com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.CASCADE_AFTER_HOST_PRESET));
         }
         // 固定大小：约束上下限相同 + NoResize，避免用户拖边框改尺寸。
         ImGui.setNextWindowSizeConstraints(w, h, w, h);

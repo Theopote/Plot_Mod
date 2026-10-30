@@ -30,7 +30,8 @@ public final class RoadToolbarPanel {
 
         if (canUndoWorldPlacement()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_world_section"));
-            if (ImGui.button(PlotI18n.tr("plugin.road.undo_world"), ImGui.getContentRegionAvailX(), 0)) {
+            float worldUndoWidth = Math.clamp(ImGui.getContentRegionAvailX() * 0.45f, 96f, 168f);
+            if (ImGui.button(PlotI18n.tr("plugin.road.undo_world"), worldUndoWidth, 0)) {
                 ctx.host().commands().undo();
             }
             if (ImGui.isItemHovered()) {
@@ -38,11 +39,24 @@ public final class RoadToolbarPanel {
             }
         }
 
+        renderOverlayOptions();
+
         if (!ctx.status().isEmpty()) {
             RoadStatusUi.render(ctx.status().getStatus());
         }
         renderPreviewJobControls();
         ImGui.separator();
+    }
+
+    private void renderOverlayOptions() {
+        if (ImGui.checkbox(
+                PlotI18n.tr("plugin.road.overlay.show_slope_batter"),
+                ctx.showSlopeBatterOverlay())) {
+            ctx.requestOverlayRefresh();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
+        }
     }
 
     private void renderPreviewJobControls() {
@@ -64,9 +78,7 @@ public final class RoadToolbarPanel {
     private void renderNetworkUndoRedo(boolean generateTab) {
         float avail = ImGui.getContentRegionAvailX();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float buttonWidth = generateTab
-            ? Math.clamp((avail - spacing) / 2.0f, 96f, 168f)
-            : (avail - spacing) / 2.0f;
+        float buttonWidth = Math.clamp((avail - spacing) / 2.0f, 96f, 168f);
         if (generateTab) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_network_section"));

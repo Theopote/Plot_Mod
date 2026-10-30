@@ -4,11 +4,13 @@ import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadParameterInheritance;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -34,7 +36,7 @@ public final class RoadCrossSectionEditor {
         String presetName = styleId != null && !styleId.isBlank()
             ? PlotI18n.tr("preset.road." + styleId)
             : PlotI18n.tr("plugin.road.preset_custom");
-        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
+        ResolvedCrossSection resolved = resolvePreviewCrossSection(network, road, config);
         ImGui.text(PlotI18n.tr(
             "plugin.road.edit.style_summary",
             presetName,
@@ -95,10 +97,29 @@ public final class RoadCrossSectionEditor {
                 }
             }
         }
+        ResolvedCrossSection previewSection = resolvePreviewCrossSection(network, road, config);
         return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-            road.getCrossSection().resolve(config),
+            previewSection,
             max,
             hasOverrideBand ? min : -1f);
+    }
+
+    /** 迷你预览：有可变断面时用道路中点桩号的解析结果，否则道路默认断面。 */
+    static ResolvedCrossSection resolvePreviewCrossSection(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        if (road == null) {
+            return ResolvedCrossSection.fromConfig(config);
+        }
+        if (network != null && VariableCrossSectionResolver.hasVariableSections(road)) {
+            double length = RoadPlanGeometry.canonicalLength(network, road);
+            double station = Math.max(0.0, length * 0.5);
+            return VariableCrossSectionResolver.resolve(network, road, station, config);
+        }
+        return road.getCrossSection() != null
+            ? road.getCrossSection().resolve(config)
+            : ResolvedCrossSection.fromConfig(config);
     }
 
     public static void renderPresetButtons(RoadUiContext ctx, Road road, Runnable onChanged) {

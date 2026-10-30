@@ -3,10 +3,13 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.tunnel.TunnelStyle;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditor;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
+
+import java.util.Set;
 
 /**
  * 隧道样式独立浮动窗口：标题栏 + 关闭 + 确定/取消，编辑草稿后确认写回。
@@ -75,6 +78,42 @@ public final class TunnelStyleFloatingEditor {
         return isDirty();
     }
 
+    public boolean isDirty() {
+        return draft != null && baseline != null && !draft.equals(baseline);
+    }
+
+    public boolean isInteractionBlocked() {
+        return closeConfirmPending;
+    }
+
+    public boolean matchesScope(Set<String> selectedRoadIds) {
+        if (target != Target.ROAD) {
+            return true;
+        }
+        if (roadId == null || roadId.isBlank()) {
+            return true;
+        }
+        return selectedRoadIds != null && selectedRoadIds.contains(roadId);
+    }
+
+    /**
+     * 离开编辑 Tab 或作用域切换：干净则关闭，脏则弹出确认。
+     *
+     * @return {@link RoadFloatingEditor.FinishResult#PROMPT_SHOWN} 时应阻止切换
+     */
+    public RoadFloatingEditor.FinishResult finishOrPrompt(RoadUiContext ctx) {
+        if (!isOpen()) {
+            return RoadFloatingEditor.FinishResult.CLOSED;
+        }
+        if (isDirty()) {
+            closeConfirmPending = true;
+            open.set(true);
+            return RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
+        }
+        close();
+        return RoadFloatingEditor.FinishResult.CLOSED;
+    }
+
     /** 测试用：修改草稿字段后走确认写回。 */
     void mutateDraftForTest(java.util.function.Consumer<TunnelStyle> mutator) {
         if (draft == null || mutator == null) {
@@ -98,7 +137,13 @@ public final class TunnelStyleFloatingEditor {
         }
         boolean focus = focusPending;
         focusPending = false;
-        RoadFloatingEditorShell.prepareWindow("##tunnel_style_floating", open, focus);
+        // 排在 Host 专业窗之后，避免与横断面等完全重叠
+        RoadFloatingEditorShell.prepareWindow(
+            "##tunnel_style_floating",
+            open,
+            focus,
+            RoadFloatingEditorShell.cascadeAfterHost(
+                RoadFloatingEditorShell.CASCADE_AFTER_HOST_TUNNEL));
 
         boolean visible = ImGui.begin(
             PlotI18n.tr("plugin.road.tunnel.editor_window") + "##tunnel_style_floating",
@@ -167,10 +212,6 @@ public final class TunnelStyleFloatingEditor {
         this.focusPending = true;
         this.closeConfirmPending = false;
         this.open.set(true);
-    }
-
-    private boolean isDirty() {
-        return draft != null && baseline != null && !draft.equals(baseline);
     }
 
     private void requestCancel() {

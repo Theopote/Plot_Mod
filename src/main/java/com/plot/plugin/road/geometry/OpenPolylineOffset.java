@@ -24,6 +24,79 @@ final class OpenPolylineOffset {
         return offset(centerline, distance, PolygonUtils.DEFAULT_MITER_LIMIT);
     }
 
+    /**
+     * 按顶点半宽偏移（画布叠加层可变宽走廊）。符号由 {@code distances} 正负决定侧向。
+     * 角点取相邻切向平均法线，不做完整斜接；锐角处略窄于等距偏移，足够叠加深色示意。
+     */
+    static OffsetResult offsetVariable(List<Vec2d> centerline, List<Double> distances) {
+        if (centerline == null
+                || distances == null
+                || centerline.size() < 2
+                || distances.size() != centerline.size()) {
+            return OffsetResult.empty();
+        }
+        List<Vec2d> sanitizedPoints = new ArrayList<>();
+        List<Double> sanitizedDistances = new ArrayList<>();
+        Vec2d previous = null;
+        for (int i = 0; i < centerline.size(); i++) {
+            Vec2d point = centerline.get(i);
+            if (point == null || !PolygonUtils.isFinite(point)) {
+                continue;
+            }
+            double distance = distances.get(i);
+            if (previous != null && previous.distance(point) <= PolygonUtils.DEFAULT_EPSILON) {
+                // 重复顶点保留较大半宽，避免阶梯跳变被吃掉
+                if (!sanitizedDistances.isEmpty()
+                        && Math.abs(distance) > Math.abs(sanitizedDistances.getLast())) {
+                    sanitizedDistances.set(sanitizedDistances.size() - 1, distance);
+                }
+                continue;
+            }
+            sanitizedPoints.add(point.copy());
+            sanitizedDistances.add(distance);
+            previous = point;
+        }
+        if (sanitizedPoints.size() < 2) {
+            return OffsetResult.empty();
+        }
+
+        List<Vec2d> output = new ArrayList<>(sanitizedPoints.size());
+        List<String> warnings = new ArrayList<>();
+        for (int i = 0; i < sanitizedPoints.size(); i++) {
+            Vec2d tangent = tangentAt(sanitizedPoints, i);
+            double length = tangent.length();
+            if (length <= PolygonUtils.DEFAULT_EPSILON) {
+                warnings.add("degenerate_vertex_tangent");
+                output.add(sanitizedPoints.get(i).copy());
+                continue;
+            }
+            Vec2d unit = tangent.multiply(1.0 / length);
+            Vec2d offset = PolygonUtils.leftNormal(unit).multiply(sanitizedDistances.get(i));
+            output.add(sanitizedPoints.get(i).add(offset));
+        }
+        return new OffsetResult(PolygonNormalizer.removeDuplicateVertices(output), List.copyOf(warnings));
+    }
+
+    private static Vec2d tangentAt(List<Vec2d> points, int index) {
+        if (index <= 0) {
+            return points.get(1).subtract(points.get(0));
+        }
+        if (index >= points.size() - 1) {
+            return points.get(points.size() - 1).subtract(points.get(points.size() - 2));
+        }
+        Vec2d incoming = points.get(index).subtract(points.get(index - 1));
+        Vec2d outgoing = points.get(index + 1).subtract(points.get(index));
+        double inLen = incoming.length();
+        double outLen = outgoing.length();
+        if (inLen <= PolygonUtils.DEFAULT_EPSILON) {
+            return outgoing;
+        }
+        if (outLen <= PolygonUtils.DEFAULT_EPSILON) {
+            return incoming;
+        }
+        return incoming.multiply(1.0 / inLen).add(outgoing.multiply(1.0 / outLen));
+    }
+
     static OffsetResult offset(List<Vec2d> centerline, double distance, double miterLimit) {
         List<Vec2d> sanitized = sanitizeOpenCenterline(centerline);
         if (sanitized.size() < 2 || Math.abs(distance) <= PolygonUtils.DEFAULT_EPSILON) {

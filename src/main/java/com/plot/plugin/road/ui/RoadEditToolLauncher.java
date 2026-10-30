@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.ui.PluginUiColors;
@@ -10,7 +11,12 @@ import imgui.flag.ImGuiCol;
 import java.util.Collection;
 import java.util.List;
 
-/** 编辑 Tab 专业工具卡片启动器（2×3 网格）。 */
+/**
+ * 编辑 Tab 专业工具卡片启动器。
+ * <p>
+ * 单路：六张卡（含隧道），列数随可用宽度在 2–3 间自适应。
+ * 多选：批量横断面主入口 + 说明；其余设计器需单选。
+ */
 final class RoadEditToolLauncher {
 
     private static final float CARD_MIN_WIDTH = 108f;
@@ -35,6 +41,9 @@ final class RoadEditToolLauncher {
             return;
         }
         renderBatchCrossSectionPrimary(ctx, host, primaryRoadId, roadIds.size());
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.edit.tools.multi_single_only_hint"));
     }
 
     /** 多选仅展示可用的批量横断面入口，不渲染单路专用灰锁卡片。 */
@@ -67,15 +76,19 @@ final class RoadEditToolLauncher {
             List<ToolSpec> tools) {
         float avail = ImGui.getContentRegionAvailX();
         float gap = ImGui.getStyle().getItemSpacingX();
-        int columns = avail >= CARD_MIN_WIDTH * 2f + gap ? 2 : 1;
+        int columns = 1;
+        if (avail >= CARD_MIN_WIDTH * 3f + gap * 2f) {
+            columns = 3;
+        } else if (avail >= CARD_MIN_WIDTH * 2f + gap) {
+            columns = 2;
+        }
         float cardWidth = Math.max(1f, (avail - gap * (columns - 1)) / columns);
 
         for (int i = 0; i < tools.size(); i++) {
             if (i > 0 && i % columns != 0) {
                 ImGui.sameLine(0f, gap);
             }
-            ToolSpec tool = tools.get(i);
-            renderToolCard(ctx, host, primaryRoadId, tool, cardWidth);
+            renderToolCard(ctx, host, primaryRoadId, tools.get(i), cardWidth);
         }
     }
 
@@ -85,50 +98,68 @@ final class RoadEditToolLauncher {
             String roadId,
             ToolSpec tool,
             float width) {
-        boolean active = tool.enabled && host.isOpen(tool.kind);
-        if (!tool.enabled) {
-            ImGui.beginDisabled();
-        }
+        boolean active = tool.isActive(host);
         if (active) {
             ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
         }
-        String label = PlotI18n.tr(tool.titleKey) + "\n" + PlotI18n.tr(tool.subtitleKey);
-        if (ImGui.button(label + "##tool_" + tool.kind.name(), width, CARD_HEIGHT)) {
-            if (tool.enabled) {
-                host.openOrFocus(ctx, tool.kind, roadId);
-            } else {
-                ctx.status().info(PlotI18n.tr("plugin.road.edit.tools.coming_soon"));
-            }
+        String label = PlotI18n.tr(tool.titleKey()) + "\n" + PlotI18n.tr(tool.subtitleKey());
+        if (ImGui.button(label + "##tool_" + tool.id(), width, CARD_HEIGHT)) {
+            tool.open(ctx, host, roadId);
         }
         if (active) {
             ImGui.popStyleColor();
-        }
-        if (!tool.enabled) {
-            ImGui.endDisabled();
         }
     }
 
     private static List<ToolSpec> singleTools() {
         return List.of(
-            enabled(RoadFloatingEditorKind.CROSS_SECTION, "cross_section"),
-            enabled(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
-            enabled(RoadFloatingEditorKind.CENTERLINE, "centerline"),
-            enabled(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
-            enabled(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"));
-    }
-
-    private static ToolSpec enabled(RoadFloatingEditorKind kind, String keySuffix) {
-        return new ToolSpec(
-            kind,
-            "plugin.road.edit.tools." + keySuffix + ".title",
-            "plugin.road.edit.tools." + keySuffix + ".subtitle",
-            true);
+            ToolSpec.host(RoadFloatingEditorKind.CROSS_SECTION, "cross_section"),
+            ToolSpec.host(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
+            ToolSpec.host(RoadFloatingEditorKind.CENTERLINE, "centerline"),
+            ToolSpec.host(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
+            ToolSpec.host(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"),
+            ToolSpec.tunnel());
     }
 
     private record ToolSpec(
+            String id,
             RoadFloatingEditorKind kind,
             String titleKey,
-            String subtitleKey,
-            boolean enabled) {
+            String subtitleKey) {
+
+        static ToolSpec host(RoadFloatingEditorKind kind, String keySuffix) {
+            return new ToolSpec(
+                kind.name(),
+                kind,
+                "plugin.road.edit.tools." + keySuffix + ".title",
+                "plugin.road.edit.tools." + keySuffix + ".subtitle");
+        }
+
+        static ToolSpec tunnel() {
+            return new ToolSpec(
+                "TUNNEL",
+                null,
+                "plugin.road.edit.tools.tunnel.title",
+                "plugin.road.edit.tools.tunnel.subtitle");
+        }
+
+        boolean isActive(RoadFloatingEditorHost host) {
+            if (kind != null) {
+                return host.isOpen(kind);
+            }
+            return TunnelStyleControls.floatingEditor().isOpen();
+        }
+
+        void open(RoadUiContext ctx, RoadFloatingEditorHost host, String roadId) {
+            if (kind != null) {
+                host.openOrFocus(ctx, kind, roadId);
+                return;
+            }
+            Road road = ctx.networkManager().getNetwork().getRoad(roadId);
+            if (road == null) {
+                return;
+            }
+            TunnelStyleControls.floatingEditor().openRoad(ctx, road, ctx::pushRoadEditHistory);
+        }
     }
 }

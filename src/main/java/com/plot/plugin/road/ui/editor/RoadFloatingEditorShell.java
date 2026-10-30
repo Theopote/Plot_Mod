@@ -40,27 +40,126 @@ public final class RoadFloatingEditorShell {
             | ImGuiWindowFlags.NoSavedSettings
             | ImGuiWindowFlags.NoResize;
 
+    /** 纵断面等需要拖边框缩放的浮动窗（与固定专业窗共用错开策略）。 */
+    public static final int RESIZABLE_WINDOW_FLAGS =
+        ImGuiWindowFlags.NoCollapse
+            | ImGuiWindowFlags.NoDocking
+            | ImGuiWindowFlags.NoSavedSettings;
+
+    /** 纵断面默认相对屏宽/高（图表需要比专业卡更大）。 */
+    public static final float PROFILE_WIDTH_OF_SCREEN = 0.60f;
+    public static final float PROFILE_HEIGHT_OF_SCREEN = 0.60f;
+    public static final float PROFILE_MIN_OF_SCREEN = 0.40f;
+    public static final float PROFILE_MAX_OF_SCREEN = 0.90f;
+
     private RoadFloatingEditorShell() {
     }
 
+    /** 连开多个专业窗时错开的像素步长（相对屏短边比例再夹紧）。 */
+    public static final float CASCADE_STEP_OF_MIN_SIDE = 0.035f;
+    public static final float CASCADE_STEP_MIN_PX = 28f;
+    public static final float CASCADE_STEP_MAX_PX = 56f;
+
+    /**
+     * 隧道 / 预设库 / 纵断面等非 Host 窗的 cascade 基址：
+     * {@code RoadFloatingEditorKind.values().length + offset}。
+     */
+    public static final int CASCADE_AFTER_HOST_TUNNEL = 0;
+    public static final int CASCADE_AFTER_HOST_PRESET = 1;
+    public static final int CASCADE_AFTER_HOST_PROFILE = 2;
+
+    public static int cascadeAfterHost(int offset) {
+        return RoadFloatingEditorKind.values().length + Math.max(0, offset);
+    }
+
     public static void prepareWindow(String imguiId, ImBoolean open, boolean focusOnOpen) {
+        prepareWindow(imguiId, open, focusOnOpen, 0);
+    }
+
+    /**
+     * @param cascadeIndex 同屏错开序号（0 = 居中；专业窗用 {@link RoadFloatingEditorKind#ordinal()}）
+     */
+    public static void prepareWindow(
+            String imguiId,
+            ImBoolean open,
+            boolean focusOnOpen,
+            int cascadeIndex) {
         float sw = ImGui.getIO().getDisplaySizeX();
         float sh = ImGui.getIO().getDisplaySizeY();
         float w = sw * FIXED_WIDTH_OF_SCREEN;
         float h = sh * FIXED_HEIGHT_OF_SCREEN;
         if (focusOnOpen) {
-            ImGui.setNextWindowDockID(0);
-            ImGui.setNextWindowSize(w, h, ImGuiCond.Appearing);
-            ImGui.setNextWindowPos(sw * 0.5f - w * 0.5f, sh * 0.5f - h * 0.5f, ImGuiCond.Appearing);
-            ImGui.setNextWindowFocus();
+            placeAppearingWindow(sw, sh, w, h, cascadeIndex);
         }
         // 上下限相同 + NoResize：每帧锁死尺寸，避免旧会话残留可缩放窗口。
         ImGui.setNextWindowSizeConstraints(w, h, w, h);
     }
 
+    /**
+     * 可缩放浮动窗（纵断面）：默认较大，保留 min/max，打开时与专业窗同一套 cascade 错开。
+     */
+    public static void prepareResizableWindow(
+            boolean focusOnOpen,
+            int cascadeIndex,
+            float widthOfScreen,
+            float heightOfScreen,
+            float minOfScreen,
+            float maxOfScreen) {
+        float sw = ImGui.getIO().getDisplaySizeX();
+        float sh = ImGui.getIO().getDisplaySizeY();
+        float w = sw * widthOfScreen;
+        float h = sh * heightOfScreen;
+        if (focusOnOpen) {
+            placeAppearingWindow(sw, sh, w, h, cascadeIndex);
+        }
+        ImGui.setNextWindowSizeConstraints(
+            sw * minOfScreen,
+            sh * minOfScreen,
+            sw * maxOfScreen,
+            sh * maxOfScreen);
+    }
+
+    /** 仅定位/定尺寸（Appearing），不改 SizeConstraints；供预设库等自管约束的窗口使用。 */
+    public static void placeCascadedAppearing(float width, float height, int cascadeIndex) {
+        float sw = ImGui.getIO().getDisplaySizeX();
+        float sh = ImGui.getIO().getDisplaySizeY();
+        placeAppearingWindow(sw, sh, width, height, cascadeIndex);
+    }
+
+    private static void placeAppearingWindow(
+            float sw,
+            float sh,
+            float w,
+            float h,
+            int cascadeIndex) {
+        float step = Math.clamp(
+            Math.min(sw, sh) * CASCADE_STEP_OF_MIN_SIDE,
+            CASCADE_STEP_MIN_PX,
+            CASCADE_STEP_MAX_PX);
+        int index = Math.max(0, cascadeIndex);
+        float x = Math.clamp(sw * 0.5f - w * 0.5f + index * step, 8f, Math.max(8f, sw - w - 8f));
+        float y = Math.clamp(sh * 0.5f - h * 0.5f + index * step, 8f, Math.max(8f, sh - h - 8f));
+        ImGui.setNextWindowDockID(0);
+        ImGui.setNextWindowSize(w, h, ImGuiCond.Appearing);
+        ImGui.setNextWindowPos(x, y, ImGuiCond.Appearing);
+        ImGui.setNextWindowFocus();
+    }
+
     public static float footerReserveHeight(boolean revisionConflictPending) {
         return FOOTER_RESERVE_HEIGHT
             + (revisionConflictPending ? CONFLICT_BANNER_RESERVE : 0f);
+    }
+
+    /** 只读窗页脚：仅关闭。 */
+    public static void renderReadOnlyCloseFooter(Runnable onClose) {
+        ImGui.separator();
+        if (onClose != null
+                && ImGui.button(
+                    PlotI18n.tr("button.plot.close") + "##readonly_close",
+                    FOOTER_ACTION_BUTTON_WIDTH,
+                    0)) {
+            onClose.run();
+        }
     }
 
     public static void renderFooter(

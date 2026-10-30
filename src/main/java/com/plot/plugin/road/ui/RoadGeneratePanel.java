@@ -28,8 +28,6 @@ public final class RoadGeneratePanel {
     private final VerticalModeControls verticalModeControls = new VerticalModeControls();
     private final RoadPathVerticalPropertyPanel pathPropertyPanel =
         new RoadPathVerticalPropertyPanel(new RoadVerticalStrategySwitchDialog());
-    private final RoadIntersectionListPanel intersectionListPanel;
-    private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private final RoadNetworkToolsPanel networkToolsPanel;
     private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
@@ -37,8 +35,6 @@ public final class RoadGeneratePanel {
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.intersectionListPanel = new RoadIntersectionListPanel(ctx);
-        this.intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
         this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
         profileEditor.setOnAlignmentCommitted(this::recomputePreviewAfterProfileConfirm);
@@ -105,15 +101,30 @@ public final class RoadGeneratePanel {
         }
 
         if (!network.getEdges().isEmpty()) {
-            renderProfileWorkspace(network);
-            renderIntersectionCheckSection(network, preflight);
-            ImGui.separator();
-            networkToolsPanel.render(network);
+            renderSecondaryGenerateTools(network, preflight);
         }
 
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
             renderPreviewDetailsCollapsible(network, lastGenerationResult);
         }
+    }
+
+    /** 纵断面概览、交叉检查、全网标高：默认折叠，避免生成主路径被撑长。 */
+    private void renderSecondaryGenerateTools(
+            RoadNetwork network,
+            RoadNetworkValidationReport preflight) {
+        ImGui.separator();
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.profile_section"))) {
+            RoadProfileOverviewSection.render(
+                ctx,
+                network,
+                profileEditor,
+                road -> resolveFlatProfileOverlay(network, road));
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.intersection_check"))) {
+            renderIntersectionCheckBody(network, preflight);
+        }
+        networkToolsPanel.render(network);
     }
 
     void renderProfileEditorWindow(RoadNetwork network) {
@@ -152,22 +163,6 @@ public final class RoadGeneratePanel {
             PlotI18n.tr("plugin.road.preview_status_none"));
     }
 
-    private void renderProfileWorkspace(RoadNetwork network) {
-        ImGui.separator();
-        RoadUiSections.section("plugin.road.generate.profile_section");
-        RoadProfileOverviewSection.render(
-            ctx,
-            network,
-            profileEditor,
-            road -> resolveFlatProfileOverlay(network, road));
-
-    }
-
-    private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
-        Road road = resolveActiveProfileRoad(network);
-        return resolveFlatProfileOverlay(network, road);
-    }
-
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network, Road road) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return FlatElevationProfileOverlay.EMPTY;
@@ -180,15 +175,16 @@ public final class RoadGeneratePanel {
         return RoadProfileRoadList.resolveActiveRoad(network, ctx);
     }
 
-    private void renderIntersectionCheckSection(
+    private void renderIntersectionCheckBody(
             RoadNetwork network,
             RoadNetworkValidationReport preflight) {
         int intersectionCount = RoadIntersectionInventory.count(network);
         if (intersectionCount <= 0) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.generate.intersection_none"));
             return;
         }
-        ImGui.separator();
-        RoadUiSections.section("plugin.road.generate.intersection_check");
         int issueCount = preflight.intersectionIssueCount();
         if (issueCount > 0) {
             RoadUiWidgets.textWrappedColored(
@@ -202,22 +198,11 @@ public final class RoadGeneratePanel {
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.generate.intersection_ok", intersectionCount));
         }
-        intersectionListPanel.render();
-        renderSelectedIntersection(network);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.generate.intersection_edit_on_path"));
         if (ImGui.button(PlotI18n.tr("plugin.road.generate.goto_intersections"))) {
             ctx.requestTab(RoadUiTab.PATH);
-        }
-    }
-
-    private void renderSelectedIntersection(RoadNetwork network) {
-        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
-            return;
-        }
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.road.generate.intersection_detail"),
-                imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
-            intersectionDetailPanel.renderFocusedSelection(
-                network, RoadGradeSeparationControls.Layout.BLOCK);
         }
     }
 

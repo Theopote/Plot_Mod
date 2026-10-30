@@ -30,6 +30,18 @@ class RoadCorridorGeometryBuilderTest {
     }
 
     @Test
+    void variableHalfWidths_widenAlongCenterline() {
+        List<Vec2d> centerline = List.of(new Vec2d(0, 0), new Vec2d(5, 0), new Vec2d(10, 0));
+        RoadCorridorGeometry geometry = RoadCorridorGeometryBuilder.build(
+            centerline, List.of(2.0, 2.0, 5.0), false);
+
+        assertFalse(geometry.closed());
+        assertEquals(2.0, geometry.leftBoundary().getFirst().y, 1e-6);
+        assertEquals(5.0, geometry.leftBoundary().getLast().y, 1e-6);
+        assertFalse(PolygonValidator.hasSelfIntersection(geometry.fillContours().getFirst()));
+    }
+
+    @Test
     void rightAngleTurn_joinsWithoutSelfIntersection() {
         List<Vec2d> centerline = List.of(
             new Vec2d(0, 0),

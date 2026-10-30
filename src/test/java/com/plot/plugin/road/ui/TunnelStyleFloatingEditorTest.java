@@ -10,11 +10,13 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditor;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -145,6 +147,28 @@ class TunnelStyleFloatingEditorTest {
 
         assertFalse(editor.isOpen());
         assertEquals(before + 4, manager.getConfig().getTunnelStyle().getClearHeight());
+    }
+
+    @Test
+    void dirtyFinishOrPromptBlocksLeaving() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        editor.openRoad(ctx, road, null);
+        editor.mutateDraftForTest(d -> d.setClearHeight(d.getClearHeight() + 1));
+
+        assertEquals(
+            RoadFloatingEditor.FinishResult.PROMPT_SHOWN,
+            editor.finishOrPrompt(ctx));
+        assertTrue(editor.isOpen());
+        assertTrue(editor.isInteractionBlocked());
+        assertFalse(editor.matchesScope(Set.of("other-road")));
+    }
+
+    @Test
+    void cleanFinishOrPromptCloses() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        editor.openRoad(ctx, road, null);
+        assertEquals(RoadFloatingEditor.FinishResult.CLOSED, editor.finishOrPrompt(ctx));
+        assertFalse(editor.isOpen());
     }
 
     private static PluginContext pluginContext() {

@@ -44,10 +44,6 @@ final class RoadEditWorkspace {
         ImGui.spacing();
 
         RoadEditToolLauncher.renderSingle(ctx, floatingEditorHost, road.getId());
-        ImGui.spacing();
-
-        RoadUiSections.group("plugin.road.section.structure");
-        TunnelStyleControls.renderRoadOverride(ctx, road, ctx::pushRoadEditHistory);
     }
 
     void renderMulti() {

@@ -43,7 +43,8 @@ public final class RoadCrossSectionPreviewSection {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         var network = ctx.networkManager().getNetwork();
-        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
+        ResolvedCrossSection resolved =
+            RoadCrossSectionEditor.resolvePreviewCrossSection(network, road, config);
         var layout = RoadCrossSectionEditor.previewLayoutForRoad(network, road, config);
         renderHeader(resolved, layout.gradeOverlayLabel());
         renderPreviewBody(layout);

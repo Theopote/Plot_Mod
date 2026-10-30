@@ -34,6 +34,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.ui.PluginTabScrollUi;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasAccess;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
@@ -61,6 +62,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private String overlaySelectionKey = "";
     private final RoadCanvasSelectionController canvasSelectionController = new RoadCanvasSelectionController();
     private final RoadFloatingEditorHost floatingEditorHost = new RoadFloatingEditorHost();
+    /** 脏草稿挡住切 Tab 后，下一帧强制把 ImGui 选回编辑 Tab。 */
+    private boolean forceReselectEditTab;
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -81,8 +84,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadIntersectionListPanel intersectionListPanel = new RoadIntersectionListPanel(ctx);
         RoadIntersectionDetailPanel intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
         this.nodePropertyPanel = new RoadNodePropertyPanel(ctx, intersectionDetailPanel);
-        this.editPanel = new RoadEditPanel(
-            ctx, defaultParamsPanel, intersectionDetailPanel, junctionPanel, floatingEditorHost);
+        this.editPanel = new RoadEditPanel(ctx, defaultParamsPanel, floatingEditorHost);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);
@@ -117,15 +119,28 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         TunnelStyleControls.renderFloatingWindow(ctx);
 
         RoadUiTab pendingTab = ctx.pendingTab();
-        if (pendingTab != null) {
-            ctx.setActiveTab(pendingTab);
+        if (pendingTab != null && pendingTab != tabAtFrameStart) {
+            if (tabAtFrameStart == RoadUiTab.EDIT && pendingTab != RoadUiTab.EDIT
+                    && editPanel.tryLeaveEdit()) {
+                ctx.clearPendingTab();
+                pendingTab = null;
+                forceReselectEditTab = true;
+            } else {
+                ctx.setActiveTab(pendingTab);
+            }
         }
+
+        RoadUiTab selectFlagTab = forceReselectEditTab
+            ? RoadUiTab.EDIT
+            : pendingTab;
+        forceReselectEditTab = false;
+
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
-            renderTab(RoadUiTab.PATH, "plugin.road.tab.path", pendingTab, pathPanel::render);
-            renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", pendingTab, editPanel::render);
-            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", pendingTab, this::renderBuildTab);
+            renderTab(RoadUiTab.PATH, "plugin.road.tab.path", selectFlagTab, pathPanel::render);
+            renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", selectFlagTab, editPanel::render);
+            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", selectFlagTab, this::renderBuildTab);
             ImGui.endTabBar();
         }
 
@@ -134,11 +149,19 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         }
 
         if (tabAtFrameStart == RoadUiTab.EDIT && ctx.activeTab() != RoadUiTab.EDIT) {
-            editPanel.finishPendingEdits();
+            if (editPanel.tryLeaveEdit()) {
+                ctx.setActiveTab(RoadUiTab.EDIT);
+                forceReselectEditTab = true;
+            }
         }
 
         ensureOverlaySnapshot();
+        String selectionKeyBefore = overlaySelectionKey;
         tickCanvasSelection();
+        if (ctx.activeTab() == RoadUiTab.EDIT
+                && !overlaySelectionKey().equals(selectionKeyBefore)) {
+            editPanel.reconcileRoadScope();
+        }
         if (ctx.toolManager().getPathPickSession().isActive()) {
             ctx.toolManager().tick();
         }
@@ -252,10 +275,23 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         }
     }
 
-    private void renderTab(RoadUiTab tab, String labelKey, RoadUiTab pendingTab, Runnable body) {
-        int flags = pendingTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-        if (PluginTabScrollUi.renderTab(labelKey, flags, "##road_tab_" + tab.name().toLowerCase(), body)) {
+    private void renderTab(RoadUiTab tab, String labelKey, RoadUiTab selectFlagTab, Runnable body) {
+        int flags = selectFlagTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        if (!ImGui.beginTabItem(PlotI18n.tr(labelKey), flags)) {
+            return;
+        }
+        try {
+            if (tab != RoadUiTab.EDIT
+                    && ctx.activeTab() == RoadUiTab.EDIT
+                    && editPanel.tryLeaveEdit()) {
+                forceReselectEditTab = true;
+                return;
+            }
             ctx.setActiveTab(tab);
+            PluginTabScrollUi.renderScrollBody(
+                "##road_tab_" + tab.name().toLowerCase(), body);
+        } finally {
+            ImGui.endTabItem();
         }
     }
 

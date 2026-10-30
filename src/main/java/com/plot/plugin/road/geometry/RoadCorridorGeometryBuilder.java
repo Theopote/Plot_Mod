@@ -29,6 +29,74 @@ public final class RoadCorridorGeometryBuilder {
         return buildOpen(centerline, halfWidth);
     }
 
+    /**
+     * 按中心线顶点半宽生成走廊（可变横断面叠加层）。半宽列表须与中心线等长；
+     * 若全部相等则回退到等距偏移。
+     */
+    public static RoadCorridorGeometry build(
+            List<Vec2d> centerline,
+            List<Double> halfWidths,
+            boolean closed) {
+        if (centerline == null
+                || halfWidths == null
+                || centerline.size() < 2
+                || halfWidths.size() != centerline.size()) {
+            return empty(centerline, closed);
+        }
+        double first = halfWidths.getFirst();
+        boolean uniform = true;
+        double minPositive = first > 0.0 ? first : 0.0;
+        for (double halfWidth : halfWidths) {
+            if (Math.abs(halfWidth - first) > 1e-6) {
+                uniform = false;
+            }
+            if (halfWidth > 0.0) {
+                minPositive = minPositive > 0.0 ? Math.min(minPositive, halfWidth) : halfWidth;
+            }
+        }
+        if (uniform) {
+            return build(centerline, first, closed);
+        }
+        if (minPositive <= 0.0) {
+            return empty(centerline, closed);
+        }
+        return buildVariableOpen(centerline, halfWidths, closed || isGeometricallyClosed(centerline));
+    }
+
+    private static RoadCorridorGeometry buildVariableOpen(
+            List<Vec2d> centerline,
+            List<Double> halfWidths,
+            boolean closed) {
+        List<Double> leftDistances = new ArrayList<>(halfWidths.size());
+        List<Double> rightDistances = new ArrayList<>(halfWidths.size());
+        for (double halfWidth : halfWidths) {
+            double safe = Math.max(0.0, halfWidth);
+            leftDistances.add(safe);
+            rightDistances.add(-safe);
+        }
+        OpenPolylineOffset.OffsetResult left = OpenPolylineOffset.offsetVariable(centerline, leftDistances);
+        OpenPolylineOffset.OffsetResult right = OpenPolylineOffset.offsetVariable(centerline, rightDistances);
+        if (left.points().size() < 2 || right.points().size() < 2) {
+            return empty(centerline, closed);
+        }
+        List<String> warnings = new ArrayList<>();
+        warnings.addAll(left.warnings());
+        warnings.addAll(right.warnings());
+        List<Vec2d> fill = new ArrayList<>(left.points().size() + right.points().size());
+        fill.addAll(left.points());
+        for (int index = right.points().size() - 1; index >= 0; index--) {
+            fill.add(right.points().get(index).copy());
+        }
+        List<Vec2d> sanitized = OpenPolylineOffset.sanitizeOpenCenterline(centerline);
+        return new RoadCorridorGeometry(
+            sanitized,
+            left.points(),
+            right.points(),
+            List.of(fill),
+            closed,
+            warnings);
+    }
+
     public static boolean isGeometricallyClosed(List<Vec2d> centerline) {
         if (centerline == null || centerline.size() < 3) {
             return false;

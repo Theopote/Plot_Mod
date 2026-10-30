@@ -53,15 +53,14 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 import java.util.HashMap;
@@ -75,19 +74,10 @@ import java.util.function.Function;
  */
 final class VerticalProfileEditor {
 
-    /** 打开时面板宽度 / 屏幕宽度；高度按同比例缩放，保持与屏幕相同宽高比。 */
-    private static final float EDITOR_SIZE_OF_SCREEN = 0.6f;
-    private static final float EDITOR_MIN_SIZE_OF_SCREEN = 0.4f;
-    private static final float EDITOR_MAX_SIZE_OF_SCREEN = 0.9f;
     /** 图表占滚动内容区可用高度的固定比例。 */
     private static final float EDITOR_CHART_OF_CONTENT = 0.72f;
     private static final float MIN_EDITOR_CHART_HEIGHT = 240f;
     private static final float MIN_ROAD_COMBO_WIDTH = 48f;
-    /** 独立浮动面板：不参与 DockSpace，不恢复上次停靠布局。 */
-    private static final int EDITOR_WINDOW_FLAGS =
-        ImGuiWindowFlags.NoCollapse
-            | ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings;
 
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
     private String editorRoadId = "";
@@ -211,28 +201,22 @@ final class VerticalProfileEditor {
         RoadNetwork network = windowSession.editingNetwork();
         ensureEditorRoadSelection(ctx, network);
 
-        float displayW = ImGui.getIO().getDisplaySizeX();
-        float displayH = ImGui.getIO().getDisplaySizeY();
-        // 与屏幕同宽高比：宽 = 0.6·屏宽，高 = 0.6·屏高。
-        float editorW = displayW * EDITOR_SIZE_OF_SCREEN;
-        float editorH = displayH * EDITOR_SIZE_OF_SCREEN;
-        if (focusEditorOnOpen) {
-            // 强制脱离任何既有 Dock 节点，保证始终为独立浮动面板。
-            ImGui.setNextWindowDockID(0, ImGuiCond.Appearing);
-            var center = ImGui.getMainViewport().getCenter();
-            ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-            ImGui.setNextWindowSize(editorW, editorH, ImGuiCond.Appearing);
-            ImGui.setNextWindowFocus();
-            focusEditorOnOpen = false;
-        }
-        ImGui.setNextWindowSizeConstraints(
-            displayW * EDITOR_MIN_SIZE_OF_SCREEN,
-            displayH * EDITOR_MIN_SIZE_OF_SCREEN,
-            displayW * EDITOR_MAX_SIZE_OF_SCREEN,
-            displayH * EDITOR_MAX_SIZE_OF_SCREEN);
+        // 与专业浮动窗共用 cascade 错开；纵断面保持可缩放、默认更大。
+        RoadFloatingEditorShell.prepareResizableWindow(
+            focusEditorOnOpen,
+            RoadFloatingEditorShell.cascadeAfterHost(
+                RoadFloatingEditorShell.CASCADE_AFTER_HOST_PROFILE),
+            RoadFloatingEditorShell.PROFILE_WIDTH_OF_SCREEN,
+            RoadFloatingEditorShell.PROFILE_HEIGHT_OF_SCREEN,
+            RoadFloatingEditorShell.PROFILE_MIN_OF_SCREEN,
+            RoadFloatingEditorShell.PROFILE_MAX_OF_SCREEN);
+        focusEditorOnOpen = false;
 
         String windowTitle = PlotI18n.tr("plugin.road.vertical_alignment_editor_window");
-        if (!ImGui.begin(windowTitle + "###road_profile_editor", editorWindowOpen, EDITOR_WINDOW_FLAGS)) {
+        if (!ImGui.begin(
+                windowTitle + "###road_profile_editor",
+                editorWindowOpen,
+                RoadFloatingEditorShell.RESIZABLE_WINDOW_FLAGS)) {
             handleEditorCloseRequest(ctx, liveNetwork);
             ImGui.end();
             return;

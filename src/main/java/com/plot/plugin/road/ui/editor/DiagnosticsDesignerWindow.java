@@ -87,6 +87,11 @@ public final class DiagnosticsDesignerWindow extends AbstractRoadFloatingEditor 
     }
 
     @Override
+    protected boolean isReadOnlyShell() {
+        return true;
+    }
+
+    @Override
     protected void applySessionToLive(RoadUiContext ctx) {
         // read-only
     }
