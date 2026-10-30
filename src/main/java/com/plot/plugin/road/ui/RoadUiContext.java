@@ -63,6 +63,10 @@ public final class RoadUiContext {
     private RoadUiTab pendingTab = null;
     private RoadUiTab activeTab = RoadUiTab.PATH;
     private String pendingProfileEdgeId = "";
+    /** 切到编辑 Tab 后打开中心线浮动窗的目标道路。 */
+    private String pendingCenterlineRoadId = "";
+    /** 切到编辑 Tab 后打开横断面浮动窗的目标道路。 */
+    private String pendingCrossSectionRoadId = "";
     private Runnable pathsAdoptedListener;
     private boolean overlayForegroundDirty;
 
@@ -494,6 +498,8 @@ public final class RoadUiContext {
         roadListRename.cancelActive();
         clearPendingTab();
         pendingProfileEdgeId = "";
+        pendingCenterlineRoadId = "";
+        pendingCrossSectionRoadId = "";
         clearDeleteConfirmPending();
         clearBuildConfirmPending();
         pendingDeleteEdgeId = "";
@@ -542,6 +548,32 @@ public final class RoadUiContext {
             networkManager.selectRoad(roadId, false);
         }
         requestTab(RoadUiTab.EDIT);
+    }
+
+    /** 跳转到编辑 Tab、选中道路，并在编辑页打开中心线浮动窗。 */
+    public void requestEditCenterline(String roadId) {
+        requestEditRoad(roadId);
+        pendingCenterlineRoadId = roadId != null ? roadId : "";
+        pendingCrossSectionRoadId = "";
+    }
+
+    /** 跳转到编辑 Tab、选中道路，并在编辑页打开横断面浮动窗。 */
+    public void requestEditCrossSection(String roadId) {
+        requestEditRoad(roadId);
+        pendingCrossSectionRoadId = roadId != null ? roadId : "";
+        pendingCenterlineRoadId = "";
+    }
+
+    public String consumePendingCenterlineRoadId() {
+        String roadId = pendingCenterlineRoadId;
+        pendingCenterlineRoadId = "";
+        return roadId;
+    }
+
+    public String consumePendingCrossSectionRoadId() {
+        String roadId = pendingCrossSectionRoadId;
+        pendingCrossSectionRoadId = "";
+        return roadId;
     }
 
     /**

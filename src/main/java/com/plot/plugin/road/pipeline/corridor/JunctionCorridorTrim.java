@@ -95,7 +95,7 @@ public final class JunctionCorridorTrim {
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
         double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
@@ -126,7 +126,7 @@ public final class JunctionCorridorTrim {
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
     }
 
     private static List<RoadEdge> connectedEdges(

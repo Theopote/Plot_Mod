@@ -73,7 +73,8 @@ public final class RoadOverlayController {
                     warnings,
                     previewed),
                 profileSeam,
-                slopeBatter));
+                slopeBatter,
+                RoadOverlayGeometry.resolveSpiralHighlightSegments(network, road)));
         }
 
         appendPickCandidates(

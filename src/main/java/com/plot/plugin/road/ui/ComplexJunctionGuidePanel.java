@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.graph.NearbyJunctionClusterAnalyzer;
@@ -7,6 +8,7 @@ import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.overlay.IntersectionOverlaySource;
@@ -224,10 +226,36 @@ public final class ComplexJunctionGuidePanel {
                     bearingDeg += 360.0;
                 }
             }
+            double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(
+                        network, edge, ctx.networkManager().getConfig())
+                    .totalHardSurfaceWidthBlocks());
+            double length = edge.getLength();
             ImGui.bulletText(PlotI18n.tr(
                 "plugin.road.complex_junction_arm_item",
                 formatRoadLabel(network, edge.getRoadId()),
-                String.format("%.0f", bearingDeg)));
+                String.format("%.0f", bearingDeg),
+                RoadUiFormat.format(halfWidth),
+                RoadUiFormat.format(length)));
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.complex_junction_arm_select")
+                    + "##arm_sel_" + edgeId)) {
+                ctx.networkManager().selectRoad(edge.getRoadId(), false);
+                ctx.networkManager().setPrimarySelectedEdge(edgeId);
+                ctx.requestOverlayRefresh();
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.complex_junction_arm_centerline")
+                    + "##arm_cl_" + edgeId)) {
+                ctx.networkManager().setPrimarySelectedEdge(edgeId);
+                ctx.requestEditCenterline(edge.getRoadId());
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.complex_junction_arm_cross_section")
+                    + "##arm_xs_" + edgeId)) {
+                ctx.networkManager().setPrimarySelectedEdge(edgeId);
+                ctx.requestEditCrossSection(edge.getRoadId());
+            }
         }
     }
 

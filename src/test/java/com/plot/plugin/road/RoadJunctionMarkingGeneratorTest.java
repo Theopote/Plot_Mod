@@ -247,5 +247,10 @@ class RoadJunctionMarkingGeneratorTest {
                 .anyMatch(p -> "minecraft:detector_rail".equals(p.materialId())
                     && p.elevation() == 65),
             "three+ railway approaches should place a detector-rail switch marker at the plaza center");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:powered_rail".equals(p.materialId())
+                    && p.elevation() == 65),
+            "three+ railway approaches should place powered rail on the through route");
     }
 }

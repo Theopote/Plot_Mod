@@ -10,7 +10,10 @@ import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
+import com.plot.plugin.road.alignment.HorizontalAlignmentElementType;
+import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.PlanCenterlineSample;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
@@ -514,5 +517,19 @@ public final class RoadOverlayGeometry {
                 RoadPlanGeometry.resolveEdgeCenterline(network, edge, spacing));
         }
         return List.copyOf(merged);
+    }
+
+    /**
+     * 设计平面线形中缓和曲线段的中心线采样，供叠加层高亮示意。
+     */
+    public static List<List<Vec2d>> resolveSpiralHighlightSegments(RoadNetwork network, Road road) {
+        if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            return List.of();
+        }
+        RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
+        return HorizontalAlignmentGeometry.sampleElementsOfType(
+            alignment,
+            HorizontalAlignmentElementType.SPIRAL,
+            OVERLAY_HA_SAMPLE_SPACING_METERS);
     }
 }

@@ -13,7 +13,14 @@ public record RoadOverlayEntry(
         List<Vec2d> centerlinePoints,
         RoadOverlayState state,
         Vec2d profileSeamPosition,
-        RoadCorridorGeometry slopeBatterGeometry) {
+        RoadCorridorGeometry slopeBatterGeometry,
+        List<List<Vec2d>> spiralHighlightSegments) {
+
+    public RoadOverlayEntry {
+        spiralHighlightSegments = spiralHighlightSegments != null
+            ? List.copyOf(spiralHighlightSegments)
+            : List.of();
+    }
 
     public RoadOverlayEntry(
             String roadId,
@@ -21,7 +28,7 @@ public record RoadOverlayEntry(
             RoadCorridorGeometry corridorGeometry,
             List<Vec2d> centerlinePoints,
             RoadOverlayState state) {
-        this(roadId, displayName, corridorGeometry, centerlinePoints, state, null, null);
+        this(roadId, displayName, corridorGeometry, centerlinePoints, state, null, null, List.of());
     }
 
     public RoadOverlayEntry(
@@ -31,7 +38,26 @@ public record RoadOverlayEntry(
             List<Vec2d> centerlinePoints,
             RoadOverlayState state,
             Vec2d profileSeamPosition) {
-        this(roadId, displayName, corridorGeometry, centerlinePoints, state, profileSeamPosition, null);
+        this(roadId, displayName, corridorGeometry, centerlinePoints, state, profileSeamPosition, null, List.of());
+    }
+
+    public RoadOverlayEntry(
+            String roadId,
+            String displayName,
+            RoadCorridorGeometry corridorGeometry,
+            List<Vec2d> centerlinePoints,
+            RoadOverlayState state,
+            Vec2d profileSeamPosition,
+            RoadCorridorGeometry slopeBatterGeometry) {
+        this(
+            roadId,
+            displayName,
+            corridorGeometry,
+            centerlinePoints,
+            state,
+            profileSeamPosition,
+            slopeBatterGeometry,
+            List.of());
     }
 
     /** 开放道路的单环轮廓；闭环道路为外环（拾取/框选回退用）。 */
@@ -41,5 +67,9 @@ public record RoadOverlayEntry(
 
     public boolean hasSlopeBatterOverlay() {
         return slopeBatterGeometry != null && slopeBatterGeometry.primaryFillContour().size() >= 3;
+    }
+
+    public boolean hasSpiralHighlights() {
+        return !spiralHighlightSegments.isEmpty();
     }
 }

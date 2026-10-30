@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -312,6 +313,22 @@ public final class RoadJunctionGeometry {
             maxHalfWidth = Math.max(maxHalfWidth, halfWidthResolver.applyAsDouble(edge));
         }
         return Math.max(baseRadius, maxHalfWidth + 1.0);
+    }
+
+    /**
+     * 按进口最大半宽拟合广场基准半径（半宽 + 1），再夹到节点允许范围。
+     */
+    public static double fitPlazaRadiusToApproaches(
+            List<RoadEdge> edges,
+            ToDoubleFunction<RoadEdge> halfWidthResolver) {
+        double maxHalfWidth = 0;
+        if (edges != null && halfWidthResolver != null) {
+            for (RoadEdge edge : edges) {
+                maxHalfWidth = Math.max(maxHalfWidth, halfWidthResolver.applyAsDouble(edge));
+            }
+        }
+        double fitted = maxHalfWidth + 1.0;
+        return Math.clamp(fitted, RoadNode.MIN_PLAZA_RADIUS, RoadNode.MAX_PLAZA_RADIUS);
     }
 
     static List<Vec2d> sortVerticesByPolarAngle(List<Vec2d> vertices, Vec2d center) {

@@ -71,6 +71,43 @@ public final class HorizontalAlignmentGeometry {
         return points;
     }
 
+    /**
+     * 按线元类型分段采样中心线（画布叠加层示意用）。相邻同类型线元各自成段。
+     */
+    public static List<List<Vec2d>> sampleElementsOfType(
+            RoadHorizontalAlignment alignment,
+            HorizontalAlignmentElementType type,
+            double spacing) {
+        List<List<Vec2d>> segments = new ArrayList<>();
+        if (alignment == null || alignment.isEmpty() || type == null) {
+            return segments;
+        }
+        double step = spacing > EPSILON ? spacing : INTEGRATION_STEP;
+        double station = 0.0;
+        for (HorizontalAlignmentElement element : alignment.getElements()) {
+            double length = element.getLength();
+            if (element.getType() == type && length > EPSILON) {
+                List<Vec2d> points = new ArrayList<>();
+                for (double local = 0.0; local <= length + EPSILON; local += step) {
+                    double chainage = station + Math.min(local, length);
+                    poseAt(alignment, chainage).ifPresent(pose ->
+                        points.add(new Vec2d(pose.x(), pose.y())));
+                }
+                poseAt(alignment, station + length).ifPresent(pose -> {
+                    Vec2d end = new Vec2d(pose.x(), pose.y());
+                    if (points.isEmpty() || points.getLast().distanceSquared(end) > 1e-10) {
+                        points.add(end);
+                    }
+                });
+                if (points.size() >= 2) {
+                    segments.add(List.copyOf(points));
+                }
+            }
+            station += length;
+        }
+        return List.copyOf(segments);
+    }
+
     public static double elementStartChainage(RoadHorizontalAlignment alignment, int elementIndex) {
         if (alignment == null || elementIndex < 0) {
             return -1.0;

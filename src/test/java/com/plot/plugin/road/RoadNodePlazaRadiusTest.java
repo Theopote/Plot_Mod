@@ -34,6 +34,34 @@ class RoadNodePlazaRadiusTest {
     }
 
     @Test
+    void fitPlazaRadiusToApproachesUsesWidestHalfWidthPlusOne() {
+        RoadEdge narrow = edge("n");
+        RoadEdge wide = edge("w");
+        double fitted = RoadJunctionGeometry.fitPlazaRadiusToApproaches(
+            List.of(narrow, wide),
+            edge -> edge == narrow ? 2.5 : 4.0);
+        assertEquals(5.0, fitted, 1e-9);
+
+        assertEquals(RoadNode.MIN_PLAZA_RADIUS,
+            RoadJunctionGeometry.fitPlazaRadiusToApproaches(List.of(), e -> 0.0), 1e-9);
+        assertEquals(RoadNode.MAX_PLAZA_RADIUS,
+            RoadJunctionGeometry.fitPlazaRadiusToApproaches(List.of(edge("x")), e -> 40.0), 1e-9);
+    }
+
+    @Test
+    void resolveEffectiveJunctionRadiusHonorsPlazaOverride() {
+        List<RoadEdge> edges = List.of(edge("e"));
+        assertEquals(5.0,
+            RoadJunctionGeometry.resolveEffectiveJunctionRadius(edges, e -> 4.0, 3.0), 1e-9);
+        assertEquals(8.0,
+            RoadJunctionGeometry.resolveEffectiveJunctionRadius(edges, e -> 4.0, 8.0), 1e-9);
+    }
+
+    private static RoadEdge edge(String id) {
+        return new RoadEdge("a-" + id, "b-" + id, List.of(new Vec2d(0, 0), new Vec2d(1, 0)));
+    }
+
+    @Test
     void largerPlazaRadiusGrowsJunctionPolygon() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(0, 0));

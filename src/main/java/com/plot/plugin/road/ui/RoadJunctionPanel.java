@@ -3,13 +3,21 @@ import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.JunctionMarkingSetting;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImInt;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 交叉口几何属性（圆角/标线）：路径 Tab 与属性侧栏共用。
@@ -90,13 +98,23 @@ public final class RoadJunctionPanel {
             node.setCornerRadius(null);
         }
 
-        double basePlaza = com.plot.plugin.road.RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
-        double effectivePlaza = node.getEffectivePlazaRadius(basePlaza);
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        List<RoadEdge> connected = connectedEdges(network, node);
+        double basePlaza = RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
+        double plazaBase = node.getEffectivePlazaRadius(basePlaza);
+        double resolvedPlaza = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            connected,
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
+            plazaBase);
         float[] plazaRadius = {(float) (node.getPlazaRadius() != null
             ? node.getPlazaRadius()
             : basePlaza)};
         boolean plazaChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.junction_plaza_radius", RoadUiFormat.format(effectivePlaza)),
+            PlotI18n.tr(
+                "plugin.road.junction_plaza_radius",
+                RoadUiFormat.format(plazaBase),
+                RoadUiFormat.format(resolvedPlaza)),
             plazaRadius,
             (float) RoadNode.MIN_PLAZA_RADIUS,
             (float) RoadNode.MAX_PLAZA_RADIUS,
@@ -114,6 +132,18 @@ public final class RoadJunctionPanel {
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_plaza"))) {
             ctx.networkManager().pushHistory();
             node.setPlazaRadius(null);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_fit_plaza"))) {
+            ctx.networkManager().pushHistory();
+            double fitted = RoadJunctionGeometry.fitPlazaRadiusToApproaches(
+                connected,
+                edge -> RoadDimensionUtils.halfExtentFromCenter(
+                    RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()));
+            node.setPlazaRadius(fitted);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_fit_plaza"));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
@@ -146,6 +176,20 @@ public final class RoadJunctionPanel {
                 node.setTurnArrows(JunctionMarkingSetting.AUTO);
             }
         }
+    }
+
+    private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {
+        List<RoadEdge> edges = new ArrayList<>();
+        if (network == null || node == null) {
+            return edges;
+        }
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null) {
+                edges.add(edge);
+            }
+        }
+        return edges;
     }
 
     private void renderMarkingSetting(

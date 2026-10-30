@@ -6,6 +6,7 @@ import com.plot.core.geometry.polygon.RegionTriangulator;
 import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.CanvasCamera;
+import imgui.ImColor;
 import imgui.ImDrawList;
 
 import java.util.List;
@@ -44,11 +45,31 @@ public final class RoadOverlayRenderer {
         }
         if (style.drawCenterline()) {
             renderCenterline(drawList, camera, entry.centerlinePoints(), style.outlineColor());
+            renderSpiralHighlights(drawList, camera, entry.spiralHighlightSegments());
         }
         if (entry.state() == RoadOverlayState.PRIMARY) {
             renderDirectionArrow(drawList, camera, entry.centerlinePoints());
             if (entry.profileSeamPosition() != null) {
                 renderProfileSeamMarker(drawList, camera, entry.profileSeamPosition());
+            }
+        }
+    }
+
+    private static void renderSpiralHighlights(
+            ImDrawList drawList,
+            CanvasCamera camera,
+            List<List<Vec2d>> segments) {
+        if (segments == null || segments.isEmpty()) {
+            return;
+        }
+        // 缓和曲线用实线强调，叠在虚线中心线之上
+        int color = ImColor.rgba(96, 220, 180, 255);
+        for (List<Vec2d> segment : segments) {
+            if (segment == null || segment.size() < 2) {
+                continue;
+            }
+            for (int i = 0; i < segment.size() - 1; i++) {
+                drawSolidSegment(drawList, camera, segment.get(i), segment.get(i + 1), color, 2.2f);
             }
         }
     }

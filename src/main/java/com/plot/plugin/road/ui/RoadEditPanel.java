@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -57,6 +58,22 @@ public final class RoadEditPanel {
             }
             case MULTI -> editWorkspace.renderMulti();
         }
+        openPendingFloatingEditors();
+    }
+
+    private void openPendingFloatingEditors() {
+        openPendingEditor(ctx.consumePendingCenterlineRoadId(), RoadFloatingEditorKind.CENTERLINE);
+        openPendingEditor(ctx.consumePendingCrossSectionRoadId(), RoadFloatingEditorKind.CROSS_SECTION);
+    }
+
+    private void openPendingEditor(String roadId, RoadFloatingEditorKind kind) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        if (ctx.networkManager().getNetwork().getRoad(roadId) == null) {
+            return;
+        }
+        floatingEditorHost.openOrFocus(ctx, kind, roadId);
     }
 
     /**

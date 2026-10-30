@@ -60,7 +60,7 @@ public final class RoadJunctionMarkingGenerator {
             RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig()).includeSidewalk);
 
         List<ApproachGeometry> approaches = buildApproachGeometries(node, edges, network);
-        int railApproachCount = 0;
+        List<ApproachGeometry> railApproaches = new ArrayList<>();
         for (ApproachGeometry approach : approaches) {
             RoadEdge edge = approach.edge();
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
@@ -72,7 +72,7 @@ public final class RoadJunctionMarkingGenerator {
 
             boolean railApproach = crossSection.centerLineStyle == CenterLineStyle.RAIL;
             if (railApproach) {
-                railApproachCount++;
+                railApproaches.add(approach);
             }
 
             // 标线/铁轨延续：仅当该边本身有中线/分道线/铁轨时自动延续进路口
@@ -102,16 +102,98 @@ public final class RoadJunctionMarkingGenerator {
                 generateTurnArrows(blocks, center, direction, junctionRadius, junctionY, turns);
             }
         }
-        // 三路及以上铁路进口：路口中心铺探测铁轨，作为简易道岔标记（非专用道岔几何）。
-        // 提高材质优先级，避免被延续中心轨覆盖。
-        if (railApproachCount >= 3) {
+        placeRailwayTurnoutMarkers(
+            blocks, node, network, center, junctionY, junctionRadius, railApproaches);
+    }
+
+    /**
+     * 三路及以上铁路进口：中心探测轨 + 直股动力轨（简易道岔，非专用道岔模型）。
+     */
+    private void placeRailwayTurnoutMarkers(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            RoadNode node,
+            RoadNetwork network,
+            Vec2d center,
+            int junctionY,
+            double junctionRadius,
+            List<ApproachGeometry> railApproaches) {
+        if (railApproaches.size() < 3) {
+            return;
+        }
+
+        List<Vec2d> outwards = new ArrayList<>(railApproaches.size());
+        for (ApproachGeometry approach : railApproaches) {
+            outwards.add(approach.outward());
+        }
+        var through = RoadRailwayTurnout.resolveThroughPairIndices(outwards);
+        if (through.isPresent()) {
+            int[] pair = through.get();
+            placePoweredRailOnApproach(
+                blocks, railApproaches.get(pair[0]), node.getId(), network, center, junctionY, junctionRadius);
+            placePoweredRailOnApproach(
+                blocks, railApproaches.get(pair[1]), node.getId(), network, center, junctionY, junctionRadius);
+        }
+        // 最后铺探测轨，优先级高于直股动力轨，保证岔心标记可见。
+        blocks.getSolids().add(
+            center,
+            junctionY + 1,
+            RoadSolidLayer.MARKING,
+            "minecraft:detector_rail",
+            15);
+    }
+
+    private void placePoweredRailOnApproach(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            ApproachGeometry approach,
+            String nodeId,
+            RoadNetwork network,
+            Vec2d center,
+            int junctionY,
+            double junctionRadius) {
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, approach.edge());
+        List<Vec2d> outward = RoadJunctionGeometry.extractApproachCenterline(
+            centerline, approach.edge(), nodeId, junctionRadius * 1.35);
+        if (outward.size() < 2) {
+            return;
+        }
+        List<Vec2d> inward = new ArrayList<>(outward);
+        Collections.reverse(inward);
+        for (Vec2d point : densifyPolyline(inward, 1.0)) {
+            if (!RoadRailwayTurnout.inThroughPowerBand(point, center, junctionRadius)) {
+                continue;
+            }
+            // 岔心留给 detector_rail
+            if (point.distanceSquared(center) <= 1e-6) {
+                continue;
+            }
             blocks.getSolids().add(
-                center,
+                point,
                 junctionY + 1,
                 RoadSolidLayer.MARKING,
-                "minecraft:detector_rail",
-                10);
+                "minecraft:powered_rail",
+                12);
         }
+    }
+
+    private static List<Vec2d> densifyPolyline(List<Vec2d> points, double step) {
+        if (points == null || points.size() < 2 || step <= 1e-9) {
+            return points != null ? points : List.of();
+        }
+        List<Vec2d> dense = new ArrayList<>();
+        dense.add(points.getFirst());
+        for (int i = 1; i < points.size(); i++) {
+            Vec2d prev = points.get(i - 1);
+            Vec2d curr = points.get(i);
+            double len = prev.distance(curr);
+            if (len < 1e-9) {
+                continue;
+            }
+            int segments = Math.max(1, (int) Math.ceil(len / step));
+            for (int s = 1; s <= segments; s++) {
+                dense.add(prev.lerp(curr, (double) s / segments));
+            }
+        }
+        return dense;
     }
 
     private static List<ApproachGeometry> buildApproachGeometries(

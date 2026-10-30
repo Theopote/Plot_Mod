@@ -67,6 +67,27 @@ class HorizontalAlignmentGeometryTest {
     }
 
     @Test
+    void sampleElementsOfTypeIsolatesSpirals() {
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of(
+            HorizontalAlignmentElement.tangent(40.0),
+            HorizontalAlignmentElement.spiral(20.0, 15.0),
+            HorizontalAlignmentElement.circularArc(30.0, 60.0, TurnDirection.LEFT),
+            HorizontalAlignmentElement.spiral(16.0, 12.0),
+            HorizontalAlignmentElement.tangent(20.0)
+        ));
+
+        List<List<Vec2d>> spirals = HorizontalAlignmentGeometry.sampleElementsOfType(
+            alignment, HorizontalAlignmentElementType.SPIRAL, 2.0);
+        assertEquals(2, spirals.size());
+        assertTrue(spirals.get(0).size() >= 2);
+        assertTrue(spirals.get(1).size() >= 2);
+
+        List<List<Vec2d>> tangents = HorizontalAlignmentGeometry.sampleElementsOfType(
+            alignment, HorizontalAlignmentElementType.TANGENT, 5.0);
+        assertEquals(2, tangents.size());
+    }
+
+    @Test
     void persistenceRoundTrip() {
         RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(5, 10), Math.PI / 2, List.of(
             HorizontalAlignmentElement.tangent(40.0),

@@ -248,6 +248,30 @@ class RoadOverlayGeometryTest {
     }
 
     @Test
+    void resolveSpiralHighlightSegments_samplesClothoidsOnly() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("ha");
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of(
+            HorizontalAlignmentElement.tangent(40.0),
+            HorizontalAlignmentElement.spiral(20.0, 15.0),
+            HorizontalAlignmentElement.circularArc(25.0, 40.0, com.plot.plugin.road.alignment.TurnDirection.LEFT),
+            HorizontalAlignmentElement.tangent(30.0)
+        ));
+        road.setHorizontalAlignment(alignment);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        List<List<Vec2d>> spirals = RoadOverlayGeometry.resolveSpiralHighlightSegments(network, road);
+        assertEquals(1, spirals.size());
+        assertTrue(spirals.getFirst().size() >= 2);
+
+        Road plain = network.createRoad("plain");
+        assertTrue(RoadOverlayGeometry.resolveSpiralHighlightSegments(network, plain).isEmpty());
+    }
+
+    @Test
     void resolveRoadCorridorGeometry_marksLoopRoadClosed() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(6);
