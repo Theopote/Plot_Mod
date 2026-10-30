@@ -21,9 +21,11 @@ import java.util.Optional;
 /** 复杂多路交叉口：主界面简要入口 + 浮动设计器正文。 */
 public final class ComplexJunctionGuidePanel {
     private final RoadUiContext ctx;
+    private final RoadJunctionPanel junctionPanel;
 
     public ComplexJunctionGuidePanel(RoadUiContext ctx) {
         this.ctx = ctx;
+        this.junctionPanel = new RoadJunctionPanel(ctx);
     }
 
     public void render(RoadNetwork network, RoadNode node) {
@@ -70,6 +72,15 @@ public final class ComplexJunctionGuidePanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.complex_junction_simple_crossing_only"));
         }
+
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.complex_junction_elevation"));
+        RoadNodeElevationControls.render(
+            ctx, node, network, ctx.networkManager().getConfig());
+
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.complex_junction_geometry"));
+        junctionPanel.renderForNode(node, true);
 
         NearbyJunctionClusterAnalyzer.NearbyJunctionCluster cluster =
             NearbyJunctionClusterAnalyzer.clusterContaining(

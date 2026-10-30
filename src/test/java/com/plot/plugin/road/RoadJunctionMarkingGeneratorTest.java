@@ -187,4 +187,60 @@ class RoadJunctionMarkingGeneratorTest {
                 > fullBlocks.getSolids().count(RoadSolidLayer.MARKING),
             "forcing markings on should add more blocks than when stop lines, crosswalks and arrows are off");
     }
+
+    @Test
+    void railwayApproachesContinueRailsWithoutHighwayMarkings() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+
+        Road road = network.createRoad();
+        road.applyStyle(com.plot.plugin.road.style.RoadStyleCatalog.railway());
+
+        List<RoadEdge> edges = new ArrayList<>();
+        edges.add(network.createEdge(
+            junction.getId(), north.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 10)), road.getId()));
+        edges.add(network.createEdge(
+            junction.getId(), east.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()));
+        edges.add(network.createEdge(
+            south.getId(), junction.getId(),
+            List.of(new Vec2d(0, -10), new Vec2d(0, 0)), road.getId()));
+
+        List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
+            junction.getId(),
+            edges,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            2.0,
+            RoadJunctionCenterlineResolver.forNetwork(network));
+
+        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        markingGenerator.generateStopLines(blocks, junction, network, edges, 64);
+        markingGenerator.generateMarkings(blocks, junction, network, edges, polygon, 64);
+
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:rail".equals(p.materialId())),
+            "railway approaches should continue rails into the junction plaza");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:oak_planks".equals(p.materialId())),
+            "railway approaches should place sleepers under continued rails");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .filter(p -> "minecraft:rail".equals(p.materialId()))
+                .allMatch(p -> p.elevation() == 65),
+            "rails should sit one block above plaza surface");
+    }
 }

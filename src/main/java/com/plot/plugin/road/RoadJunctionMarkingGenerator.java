@@ -7,7 +7,9 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 
@@ -67,12 +69,19 @@ public final class RoadJunctionMarkingGenerator {
                 continue;
             }
 
-            // 标线延续：仅当该边本身有中线/分道线时自动延续进路口
+            boolean railApproach = crossSection.centerLineStyle == CenterLineStyle.RAIL;
+
+            // 标线/铁轨延续：仅当该边本身有中线/分道线/铁轨时自动延续进路口
             boolean continueMarkings = node.getContinuedMarkings().resolve(
                 RoadMarkingPasses.hasAnyMarkings(crossSection));
             if (continueMarkings) {
                 generateContinuedMarkings(
                     blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection, network);
+            }
+
+            // 铁路进口不铺公路斑马线 / 转向箭头
+            if (railApproach) {
+                continue;
             }
 
             // 斑马线：有人行道的路口自动铺；无横断面配置时也可由 AUTO 关闭
@@ -166,6 +175,10 @@ public final class RoadJunctionMarkingGenerator {
 
         List<Vec2d> inward = new ArrayList<>(outward);
         Collections.reverse(inward);
+        if (crossSection.centerLineStyle == CenterLineStyle.RAIL) {
+            generateContinuedRails(blocks, inward, junctionPolygon, junctionY, crossSection);
+            return;
+        }
         List<RoadMarkingPasses.Pass> passes = RoadMarkingPasses.fromCrossSection(crossSection);
 
         for (RoadMarkingPasses.Pass pass : passes) {
@@ -183,6 +196,63 @@ public final class RoadJunctionMarkingGenerator {
                 addMarking(blocks, point, junctionY);
             }
         }
+    }
+
+    /**
+     * 铁路进口：路口广场内延续轨枕 + 铁轨（多路汇合处形成可连通的道岔状轨网）。
+     */
+    private void generateContinuedRails(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            List<Vec2d> inward,
+            List<Vec2d> junctionPolygon,
+            int junctionY,
+            ResolvedCrossSection crossSection) {
+        String railId = crossSection.markingMaterial != null && !crossSection.markingMaterial.isBlank()
+            ? crossSection.markingMaterial
+            : "minecraft:rail";
+        String sleeperId = RoadMarkingGenerator.RAIL_SLEEPER_MATERIAL;
+        // 广场内线段短：每个落点都铺轨枕，避免采样落在多边形外导致间距跳空。
+        for (int i = 0; i < inward.size(); i++) {
+            Vec2d point = inward.get(i);
+            if (junctionPolygon != null
+                && junctionPolygon.size() >= 3
+                && !RoadGeometryUtils.pointInPolygon(point, junctionPolygon)) {
+                continue;
+            }
+            Vec2d tangent = sampleTangent(inward, i);
+            Vec2d lateral = tangent.perpendicular();
+            if (lateral.lengthSquared() > 1e-12) {
+                lateral = lateral.normalize();
+            } else {
+                lateral = new Vec2d(1, 0);
+            }
+            for (int lat = -RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH;
+                 lat <= RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH;
+                 lat++) {
+                blocks.getSolids().add(
+                    point.add(lateral.multiply(lat)),
+                    junctionY,
+                    RoadSolidLayer.MARKING,
+                    sleeperId);
+            }
+            blocks.getSolids().add(point, junctionY + 1, RoadSolidLayer.MARKING, railId);
+        }
+    }
+
+    private static Vec2d sampleTangent(List<Vec2d> polyline, int index) {
+        if (polyline == null || polyline.isEmpty()) {
+            return new Vec2d(1, 0);
+        }
+        if (polyline.size() == 1) {
+            return new Vec2d(1, 0);
+        }
+        if (index <= 0) {
+            return polyline.get(1).subtract(polyline.get(0));
+        }
+        if (index >= polyline.size() - 1) {
+            return polyline.get(polyline.size() - 1).subtract(polyline.get(polyline.size() - 2));
+        }
+        return polyline.get(index + 1).subtract(polyline.get(index - 1));
     }
 
     private void generateCrosswalk(
@@ -314,6 +384,9 @@ public final class RoadJunctionMarkingGenerator {
         for (RoadEdge edge : edges) {
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
                 network, edge, generator.getConfig());
+            if (crossSection.centerLineStyle == CenterLineStyle.RAIL) {
+                continue;
+            }
 
             List<Vec2d> centerline = centerlineResolver.apply(edge);
             Vec2d direction = RoadJunctionGeometry.computeApproachDirection(centerline, edge, node.getId());
