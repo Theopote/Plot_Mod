@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -171,6 +172,19 @@ class FloatingEditorLifecycleTest {
         assertFalse(editor.isDirty());
         assertEquals(RoadFloatingEditor.FinishResult.CLOSED, editor.finishOrPrompt(ctx));
         assertFalse(editor.isOpen());
+    }
+
+    @Test
+    void diagnosticsBatchMatchesMultiSelectionScope() {
+        manager.selectRoad(roadA, false);
+        manager.selectRoad(roadB, true);
+        DiagnosticsDesignerWindow editor = (DiagnosticsDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.DIAGNOSTICS);
+        editor.open(ctx, roadA);
+        assertTrue(editor.isOpen());
+        assertTrue(editor.matchesScope(manager.getSelectedRoadIds()));
+        assertFalse(editor.matchesScope(Set.of(roadA)));
+        assertEquals(RoadFloatingEditor.FinishResult.CLOSED, editor.finishOrPrompt(ctx));
     }
 
     @Test
