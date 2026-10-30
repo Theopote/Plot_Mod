@@ -67,7 +67,8 @@ class WaterAwareProfileSolverTest {
         assertEquals(WaterCrossingStrategy.CAUSEWAY, crossings.getFirst().strategy());
         List<VerticalStationConstraint> constraints = VerticalStationConstraints.build(
             environment, crossings, trend, settings);
-        assertEquals(63.0, constraints.get(2).minimumElevation(), 1e-6);
+        double waterFloor = 63.0 + settings.waterRoadClearanceBlocks();
+        assertEquals(waterFloor, constraints.get(2).minimumElevation(), 1e-6);
         VerticalStationConstraints.StationElevationBounds bounds =
             VerticalStationConstraints.toBounds(constraints);
         GradeLimitedProfileSolver.DesignSolveResult solved = GradeLimitedProfileSolver.solveDesignProfile(
@@ -79,12 +80,12 @@ class WaterAwareProfileSolverTest {
             null,
             preset,
             bounds);
-        assertTrue(solved.designElevations().get(2) >= 63.0 - 1e-6,
-            "causeway road surface must stay at or above water surface");
+        assertTrue(solved.designElevations().get(2) >= waterFloor - 1e-6,
+            "causeway road surface must stay above water + clearance");
     }
 
     @Test
-    void causewayApproachDoesNotUseBridgeClearance() {
+    void causewayApproachRampsToWaterClearance() {
         TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
         EnvironmentProfile environment = causewayApproachEnvironment();
         List<Double> trend = List.of(64.0, 64.0, 63.0, 63.0, 64.0);
@@ -99,6 +100,7 @@ class WaterAwareProfileSolverTest {
         List<VerticalStationConstraint> constraints = VerticalStationConstraints.build(
             environment, crossings, trend, settings);
         WaterCrossing crossing = crossings.getFirst();
+        double waterFloor = crossing.waterSurfaceY() + settings.waterRoadClearanceBlocks();
         VerticalStationConstraint approachConstraint = null;
         for (int i = 0; i < environment.samples().size(); i++) {
             EnvironmentSample sample = environment.samples().get(i);
@@ -108,8 +110,8 @@ class WaterAwareProfileSolverTest {
         }
         assertTrue(approachConstraint != null, "expected land sample in causeway approach zone");
         assertTrue(
-            approachConstraint.minimumElevation() < 63.0 + settings.waterRoadClearanceBlocks() - 1e-6,
-            "causeway approach must ramp to water surface, not bridge clearance");
+            approachConstraint.minimumElevation() <= waterFloor + 1e-6,
+            "approach ramp ends at water clearance, not higher");
         assertTrue(
             approachConstraint.minimumElevation() >= crossing.waterSurfaceY() - 1e-6,
             "causeway approach must not drop below water surface");

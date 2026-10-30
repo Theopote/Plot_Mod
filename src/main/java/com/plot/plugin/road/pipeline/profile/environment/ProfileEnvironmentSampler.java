@@ -72,11 +72,13 @@ public final class ProfileEnvironmentSampler {
         Integer waterY = column.waterSurfaceY;
         int depth = 0;
         SurfaceContext context = SurfaceContext.LAND;
+        // 仅保留真正高于地表的裸露水面；贴地/地下水位不参与自动抬升
         if (waterY != null && waterY > column.terrainY) {
             depth = waterY - column.terrainY;
             context = depth <= 2 ? SurfaceContext.SHALLOW_WATER : SurfaceContext.DEEP_WATER;
+            return new EnvironmentSample(station, column.terrainY, waterY, depth, context);
         }
-        return new EnvironmentSample(station, column.terrainY, waterY, depth, context);
+        return new EnvironmentSample(station, column.terrainY, null, 0, context);
     }
 
     private static EnvironmentColumn sampleColumn(

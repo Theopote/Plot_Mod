@@ -37,12 +37,21 @@ public final class VerticalStationConstraints {
             double preferred,
             WaterCrossingSettings settings) {
         WaterCrossing crossing = findCrossing(crossings, sample.station());
-        if (crossing == null || !sample.hasWater()) {
+        if (crossing == null || !sample.hasExposedWater()) {
             if (crossing != null && crossing.isInApproachZone(sample.station())) {
                 return crossingTransitionConstraint(sample, crossing, preferred, settings);
             }
             if (crossing != null && crossing.isInExitZone(sample.station())) {
                 return crossingTransitionConstraint(sample, crossing, preferred, settings);
+            }
+            // 无跨越分类时，裸露水面仍抬升到水面以上（自动设计不进水）
+            if (sample.hasExposedWater()) {
+                double waterFloor = sample.waterSurfaceY() + settings.waterRoadClearanceBlocks();
+                return new VerticalStationConstraint(
+                    Math.max(preferred, waterFloor),
+                    waterFloor,
+                    null,
+                    sample.context());
             }
             return VerticalStationConstraint.land(preferred);
         }
@@ -118,13 +127,17 @@ public final class VerticalStationConstraints {
             SurfaceContext.SHORE);
     }
 
+    /**
+     * 自动设计路面最低标高：一律在水面以上（含浅滩填方）。
+     * 水下隧道路由 {@link WaterCrossingStrategy#TUNNEL_CANDIDATE} 另议，此处不设下限。
+     */
     static double crossingTargetMinimumElevation(
             WaterCrossing crossing,
             WaterCrossingSettings settings) {
-        if (crossing.strategy() == WaterCrossingStrategy.CAUSEWAY) {
+        if (crossing.strategy() == WaterCrossingStrategy.TUNNEL_CANDIDATE) {
             return crossing.waterSurfaceY();
         }
-        return crossing.waterSurfaceY() + settings.waterRoadClearanceBlocks();
+        return crossing.waterSurfaceY() + Math.max(1, settings.waterRoadClearanceBlocks());
     }
 
     private static double rampMinimum(

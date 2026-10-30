@@ -290,18 +290,31 @@ public final class RoadProfileSolver {
                     manualEndHeight,
                     effectiveTerrainPreset,
                     elevationBounds);
-            designElevations = terrainSolve.designElevations();
-            manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
-            waterConstraintFeasible = EnvironmentFeasibilityProjector.evaluateWaterFeasibility(
-                designElevations,
-                solverEnvironment,
-                waterCrossings,
-                waterSettings,
-                manualStartHeight,
-                manualEndHeight,
-                flattenPolicy);
-            // GradeLimitedProfileSolver already applies BuildHeightRasterPostProcessor.
-            raster = terrainSolve.rasterization();
+            // 自动适应地形：再经环境可行域投影，确保有水面时路面抬到水面以上
+            EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
+                EnvironmentFeasibilityProjector.project(
+                    terrainSolve.designElevations(),
+                    distances,
+                    effectiveMaxSlopes,
+                    solverEnvironment,
+                    waterCrossings,
+                    waterSettings,
+                    effectiveTerrainPreset,
+                    manualStartHeight,
+                    manualEndHeight,
+                    flattenPolicy);
+            designElevations = envResult.designElevations();
+            manualEndpointConstraintFeasible =
+                terrainSolve.manualEndpointsFeasible() && envResult.manualEndpointsFeasible();
+            waterConstraintFeasible = envResult.waterConstraintFeasible();
+            raster = BuildHeightRasterPostProcessor.smooth(
+                RoadHeightRasterizer.rasterize(
+                    designElevations,
+                    distances,
+                    effectiveMaxSlopes,
+                    manualStartHeight),
+                distances,
+                ProfileCompileOptions.defaults());
         } else {
             EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
                 EnvironmentFeasibilityProjector.project(
