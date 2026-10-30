@@ -214,6 +214,61 @@ class RoadCorridorGeometryBuilderTest {
     }
 
     @Test
+    void overlayRoundJoin_zShapeAvoidsLongMiterSpikes() {
+        // 接近截图的 Z 折线：外角 round 贴半宽，内侧仍可斜接；到中心线距离不应被刀尖拉飞
+        List<Vec2d> centerline = List.of(
+            new Vec2d(0, 40),
+            new Vec2d(0, 18),
+            new Vec2d(22, 12),
+            new Vec2d(22, -8));
+        double halfWidth = 4.0;
+        RoadCorridorGeometry miter = RoadCorridorGeometryBuilder.build(centerline, halfWidth);
+        RoadCorridorGeometry overlay = RoadCorridorGeometryBuilder.buildForOverlay(
+            centerline, halfWidth, false);
+
+        assertFalse(PolygonValidator.hasSelfIntersection(overlay.fillContours().getFirst()));
+        assertTrue(overlay.leftBoundary().size() > miter.leftBoundary().size(),
+            "round joins should densify outer corners");
+
+        double overlayOffset = maxDistanceToCenterline(overlay.fillContours().getFirst(), centerline);
+        assertTrue(overlayOffset <= halfWidth * 1.25 + 1e-6,
+            "overlay corridor should stay near half-width (was " + overlayOffset + ")");
+
+        double miterOffset = maxDistanceToCenterline(miter.fillContours().getFirst(), centerline);
+        assertTrue(overlayOffset <= miterOffset + 1e-6,
+            "round overlay should not spike farther than miter");
+    }
+
+    @Test
+    void overlayRoundJoin_rightAngleOuterArcOnHalfWidthCircle() {
+        List<Vec2d> centerline = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(20, 0),
+            new Vec2d(20, 20));
+        double halfWidth = 3.0;
+        RoadCorridorGeometry overlay = RoadCorridorGeometryBuilder.buildForOverlay(
+            centerline, halfWidth, false);
+
+        assertFalse(PolygonValidator.hasSelfIntersection(overlay.fillContours().getFirst()));
+        assertEquals(halfWidth,
+            maxDistanceToCenterline(overlay.fillContours().getFirst(), centerline),
+            halfWidth * 0.15);
+
+        // 外角圆弧点应落在以折角为圆心、半宽为半径的圆上
+        Vec2d corner = centerline.get(1);
+        boolean foundArcPoint = false;
+        for (Vec2d point : overlay.rightBoundary()) {
+            double d = point.distance(corner);
+            if (d > halfWidth * 0.95 && d < halfWidth * 1.05
+                    && point.x > corner.x + 0.1 && point.y < corner.y - 0.1) {
+                foundArcPoint = true;
+                break;
+            }
+        }
+        assertTrue(foundArcPoint, "expected outer round-join samples on right boundary");
+    }
+
+    @Test
     void screenshotRegression_closedRectangle() {
         List<Vec2d> centerline = List.of(
             new Vec2d(0, 0),
@@ -260,6 +315,18 @@ class RoadCorridorGeometryBuilderTest {
             count++;
         }
         return count == 0 ? 0.0 : sum / count;
+    }
+
+    private static double maxDistanceToCenterline(List<Vec2d> boundary, List<Vec2d> centerline) {
+        double max = 0.0;
+        for (Vec2d point : boundary) {
+            double best = Double.MAX_VALUE;
+            for (int i = 0; i < centerline.size() - 1; i++) {
+                best = Math.min(best, distancePointToSegment(point, centerline.get(i), centerline.get(i + 1)));
+            }
+            max = Math.max(max, best);
+        }
+        return max;
     }
 
     private static double maxVertexDistanceFromCorner(List<Vec2d> boundary, Vec2d corner) {

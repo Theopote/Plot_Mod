@@ -16,7 +16,6 @@ import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
-import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.geometry.RoadCanvasScale;
 import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import com.plot.plugin.road.geometry.RoadCorridorGeometryBuilder;
@@ -84,7 +83,7 @@ public final class RoadOverlayGeometry {
         }
         boolean closed = road.getTopologyMode() == RoadTopologyMode.LOOP
             || RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
-        return RoadEarthworkCorridorResolver.buildCorridorGeometry(centerline, halfWidth, closed);
+        return RoadCorridorGeometryBuilder.buildForOverlay(centerline, halfWidth, closed);
     }
 
     /**
@@ -187,7 +186,7 @@ public final class RoadOverlayGeometry {
         }
         boolean closed = isShapeTopologyClosed(path)
             || RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
-        return RoadEarthworkCorridorResolver.buildCorridorGeometry(centerline, halfWidth, closed);
+        return RoadCorridorGeometryBuilder.buildForOverlay(centerline, halfWidth, closed);
     }
 
     /**

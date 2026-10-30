@@ -9,8 +9,17 @@ import com.plot.core.geometry.polygon.PolygonValidator;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 开放折线等距偏移（无限直线斜接 + miter limit + bevel）。 */
+/** 开放折线等距偏移（无限直线斜接 + miter limit + bevel；画布可用 round join）。 */
 final class OpenPolylineOffset {
+    private static final double ROUND_JOIN_STEP_RADIANS = Math.PI / 12.0;
+
+    enum JoinStyle {
+        /** 斜接，超限切 bevel（生成/土方等）。 */
+        MITER,
+        /** 顶点圆弧接缝（画布走廊示意，避免锐角刀尖）。 */
+        ROUND
+    }
+
     private OpenPolylineOffset() {
     }
 
@@ -21,7 +30,11 @@ final class OpenPolylineOffset {
     }
 
     static OffsetResult offset(List<Vec2d> centerline, double distance) {
-        return offset(centerline, distance, PolygonUtils.DEFAULT_MITER_LIMIT);
+        return offset(centerline, distance, PolygonUtils.DEFAULT_MITER_LIMIT, JoinStyle.MITER);
+    }
+
+    static OffsetResult offsetRound(List<Vec2d> centerline, double distance) {
+        return offset(centerline, distance, PolygonUtils.DEFAULT_MITER_LIMIT, JoinStyle.ROUND);
     }
 
     /**
@@ -98,6 +111,14 @@ final class OpenPolylineOffset {
     }
 
     static OffsetResult offset(List<Vec2d> centerline, double distance, double miterLimit) {
+        return offset(centerline, distance, miterLimit, JoinStyle.MITER);
+    }
+
+    static OffsetResult offset(
+            List<Vec2d> centerline,
+            double distance,
+            double miterLimit,
+            JoinStyle joinStyle) {
         List<Vec2d> sanitized = sanitizeOpenCenterline(centerline);
         if (sanitized.size() < 2 || Math.abs(distance) <= PolygonUtils.DEFAULT_EPSILON) {
             return OffsetResult.empty();
@@ -106,24 +127,8 @@ final class OpenPolylineOffset {
             return OffsetResult.empty();
         }
 
-        int segmentCount = sanitized.size() - 1;
-        List<OffsetEdge> offsetEdges = new ArrayList<>(segmentCount);
-        for (int i = 0; i < segmentCount; i++) {
-            Vec2d start = sanitized.get(i);
-            Vec2d end = sanitized.get(i + 1);
-            Vec2d direction = end.subtract(start);
-            double length = direction.length();
-            if (length <= PolygonUtils.DEFAULT_EPSILON) {
-                continue;
-            }
-            Vec2d unit = direction.multiply(1.0 / length);
-            Vec2d offsetVector = PolygonUtils.leftNormal(unit).multiply(distance);
-            offsetEdges.add(new OffsetEdge(
-                start.add(offsetVector),
-                end.add(offsetVector),
-                unit
-            ));
-        }
+        JoinStyle style = joinStyle != null ? joinStyle : JoinStyle.MITER;
+        List<OffsetEdge> offsetEdges = buildOffsetEdges(sanitized, distance);
         if (offsetEdges.isEmpty()) {
             return OffsetResult.empty();
         }
@@ -133,9 +138,15 @@ final class OpenPolylineOffset {
         output.add(offsetEdges.getFirst().start());
 
         for (int i = 0; i < offsetEdges.size() - 1; i++) {
-            Vec2d vertex = sanitized.get(i + 1);
             OffsetEdge current = offsetEdges.get(i);
             OffsetEdge nextEdge = offsetEdges.get(i + 1);
+            Vec2d vertex = current.centerlineEnd();
+
+            if (style == JoinStyle.ROUND) {
+                appendRoundOrInnerBevel(
+                    output, vertex, current, nextEdge, distance, warnings);
+                continue;
+            }
 
             Vec2d corner = intersectOffsetEdges(
                 vertex,
@@ -162,6 +173,110 @@ final class OpenPolylineOffset {
         return new OffsetResult(cleaned, List.copyOf(warnings));
     }
 
+    private static List<OffsetEdge> buildOffsetEdges(List<Vec2d> sanitized, double distance) {
+        int segmentCount = sanitized.size() - 1;
+        List<OffsetEdge> offsetEdges = new ArrayList<>(segmentCount);
+        for (int i = 0; i < segmentCount; i++) {
+            Vec2d start = sanitized.get(i);
+            Vec2d end = sanitized.get(i + 1);
+            Vec2d direction = end.subtract(start);
+            double length = direction.length();
+            if (length <= PolygonUtils.DEFAULT_EPSILON) {
+                continue;
+            }
+            Vec2d unit = direction.multiply(1.0 / length);
+            Vec2d offsetVector = PolygonUtils.leftNormal(unit).multiply(distance);
+            offsetEdges.add(new OffsetEdge(
+                start.add(offsetVector),
+                end.add(offsetVector),
+                unit,
+                end
+            ));
+        }
+        return offsetEdges;
+    }
+
+    /**
+     * 外角：半宽圆弧（去掉刀尖）；内角：斜接交点（bevel 在直角内会自交）。
+     */
+    private static void appendRoundOrInnerBevel(
+            List<Vec2d> output,
+            Vec2d vertex,
+            OffsetEdge current,
+            OffsetEdge next,
+            double distance,
+            List<String> warnings) {
+        Vec2d inDir = current.direction();
+        Vec2d outDir = next.direction();
+        double inLen = inDir.length();
+        double outLen = outDir.length();
+        if (inLen <= PolygonUtils.DEFAULT_EPSILON || outLen <= PolygonUtils.DEFAULT_EPSILON) {
+            appendBevelCorner(output, current.end(), next.start(), warnings);
+            return;
+        }
+        Vec2d inUnit = inDir.multiply(1.0 / inLen);
+        Vec2d outUnit = outDir.multiply(1.0 / outLen);
+        double cross = inUnit.cross(outUnit);
+        // 左转且左偏 / 右转且右偏 → 内角：用斜接，超限再 bevel
+        if (cross * distance > PolygonUtils.DEFAULT_EPSILON) {
+            Vec2d corner = intersectOffsetEdges(
+                vertex,
+                current,
+                next,
+                Math.abs(distance),
+                PolygonUtils.DEFAULT_MITER_LIMIT,
+                warnings);
+            if (PolygonUtils.isFinite(corner)) {
+                output.add(corner);
+            } else {
+                appendBevelCorner(output, current.end(), next.start(), warnings);
+            }
+            return;
+        }
+        if (!appendRoundCorner(output, vertex, current, next, Math.abs(distance), inUnit, outUnit, warnings)) {
+            appendBevelCorner(output, current.end(), next.start(), warnings);
+        }
+    }
+
+    /**
+     * 以折角顶点为圆心、半宽为半径，按路径转角扫圆弧连接两偏移边。
+     * @return false 表示退化，调用方应 bevel
+     */
+    private static boolean appendRoundCorner(
+            List<Vec2d> output,
+            Vec2d vertex,
+            OffsetEdge current,
+            OffsetEdge next,
+            double absDistance,
+            Vec2d inUnit,
+            Vec2d outUnit,
+            List<String> warnings) {
+        if (!PolygonUtils.isFinite(vertex) || absDistance <= PolygonUtils.DEFAULT_EPSILON) {
+            return false;
+        }
+        double turn = Math.atan2(inUnit.cross(outUnit), inUnit.dot(outUnit));
+        if (Math.abs(turn) <= PolygonUtils.DEFAULT_EPSILON) {
+            output.add(current.end());
+            return true;
+        }
+
+        Vec2d from = current.end().subtract(vertex);
+        if (from.lengthSquared() <= PolygonUtils.DEFAULT_EPSILON) {
+            return false;
+        }
+        double a0 = Math.atan2(from.y, from.x);
+        int steps = Math.max(1, (int) Math.ceil(Math.abs(turn) / ROUND_JOIN_STEP_RADIANS));
+        warnings.add("round_join");
+        for (int step = 0; step <= steps; step++) {
+            double t = step / (double) steps;
+            double angle = a0 + turn * t;
+            output.add(new Vec2d(
+                vertex.x + Math.cos(angle) * absDistance,
+                vertex.y + Math.sin(angle) * absDistance));
+        }
+        return true;
+    }
+
     private static OffsetResult offsetWithForcedBevel(
             List<Vec2d> sanitized,
             double distance,
@@ -185,7 +300,8 @@ final class OpenPolylineOffset {
             offsetEdges.add(new OffsetEdge(
                 start.add(offsetVector),
                 end.add(offsetVector),
-                unit
+                unit,
+                end
             ));
         }
         if (offsetEdges.isEmpty()) {
@@ -268,6 +384,6 @@ final class OpenPolylineOffset {
         return result;
     }
 
-    private record OffsetEdge(Vec2d start, Vec2d end, Vec2d direction) {
+    private record OffsetEdge(Vec2d start, Vec2d end, Vec2d direction, Vec2d centerlineEnd) {
     }
 }

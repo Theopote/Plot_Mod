@@ -3,6 +3,7 @@ package com.plot.plugin.road.geometry;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.PolygonNormalizer;
 import com.plot.core.geometry.polygon.PolygonOffset;
+import com.plot.core.geometry.polygon.PolygonUtils;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 
@@ -26,7 +27,24 @@ public final class RoadCorridorGeometryBuilder {
         if (effectiveClosed) {
             return buildClosed(centerline, halfWidth);
         }
-        return buildOpen(centerline, halfWidth);
+        return buildOpen(centerline, halfWidth, OpenPolylineOffset.JoinStyle.MITER);
+    }
+
+    /**
+     * 画布叠加层走廊：开放折线用 round join，避免锐角 miter 刀尖；闭环仍走多边形偏移。
+     */
+    public static RoadCorridorGeometry buildForOverlay(
+            List<Vec2d> centerline,
+            double halfWidth,
+            boolean closed) {
+        if (centerline == null || centerline.size() < 2 || halfWidth <= 0.0) {
+            return empty(centerline, closed);
+        }
+        boolean effectiveClosed = closed || isGeometricallyClosed(centerline);
+        if (effectiveClosed) {
+            return buildClosed(centerline, halfWidth);
+        }
+        return buildOpen(centerline, halfWidth, OpenPolylineOffset.JoinStyle.ROUND);
     }
 
     /**
@@ -107,14 +125,19 @@ public final class RoadCorridorGeometryBuilder {
             RoadNetworkBuilder.NODE_TOLERANCE);
     }
 
-    private static RoadCorridorGeometry buildOpen(List<Vec2d> centerline, double halfWidth) {
+    private static RoadCorridorGeometry buildOpen(
+            List<Vec2d> centerline,
+            double halfWidth,
+            OpenPolylineOffset.JoinStyle joinStyle) {
         List<Vec2d> sanitized = OpenPolylineOffset.sanitizeOpenCenterline(centerline);
         if (sanitized.size() < 2) {
             return empty(centerline, false);
         }
 
-        OpenPolylineOffset.OffsetResult left = OpenPolylineOffset.offset(sanitized, halfWidth);
-        OpenPolylineOffset.OffsetResult right = OpenPolylineOffset.offset(sanitized, -halfWidth);
+        OpenPolylineOffset.OffsetResult left = OpenPolylineOffset.offset(
+            sanitized, halfWidth, PolygonUtils.DEFAULT_MITER_LIMIT, joinStyle);
+        OpenPolylineOffset.OffsetResult right = OpenPolylineOffset.offset(
+            sanitized, -halfWidth, PolygonUtils.DEFAULT_MITER_LIMIT, joinStyle);
         if (left.points().size() < 2 || right.points().size() < 2) {
             return empty(sanitized, false);
         }
