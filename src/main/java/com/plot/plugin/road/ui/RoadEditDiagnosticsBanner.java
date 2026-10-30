@@ -23,10 +23,13 @@ public final class RoadEditDiagnosticsBanner {
         if (ctx == null || network == null || road == null) {
             return 0;
         }
+        // Repair 诊断已覆盖拓扑 + 中心线形状；勿再叠加 ShapeValidator 以免双计。
         int count = RoadRepairDiagnosisCache.diagnose(ctx, network, road).size();
-        if (count == 0 && !RoadRepairDiagnosisCache.hasIssues(ctx, network, road)) {
-            count += RoadTopologyInvariantValidator.validateRoad(network, road).size();
+        if (count > 0) {
+            return count;
         }
+        // 无 repair issue 时仍展示纯拓扑/形状提示（与 renderDetailedIssues 回退路径一致）。
+        count += RoadTopologyInvariantValidator.validateRoad(network, road).size();
         count += RoadCenterlineShapeValidator.validateRoad(network, road).size();
         return count;
     }

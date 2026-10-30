@@ -23,10 +23,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 检测单条逻辑道路的中心线自交、重叠与非线性拓扑。
+ * 检测单条逻辑道路中心线的有害形状问题。
  * <p>
- * 路网级求交 ({@link com.plot.plugin.road.RoadNetworkBuilder}) 会刻意跳过同 roadId 边对；
- * 本校验器补全「单 Road 内部交叉」的产品规则。
+ * 路网级跨路求交会跳过同 {@code roadId} 边对；同路平面真交由
+ * {@link com.plot.plugin.road.crossing.RoadStackCrossing} 注册（平交/立交），
+ * <b>不</b>再报为形状违规——盘山路投影交叉、立交匝道、环路汇合后再引出出口等均为合法设计。
+ * <p>
+ * 仍报：共线折返重叠（桩号语义破坏）、内部分叉/未标记闭环（应拆多路或标 LOOP）。
  */
 public final class RoadCenterlineShapeValidator {
 
@@ -61,19 +64,13 @@ public final class RoadCenterlineShapeValidator {
                 continue;
             }
             List<Vec2d> points = edge.getCenterlinePoints();
-            if (PolygonValidator.hasOpenPolylineSelfIntersection(points)) {
-                kinds.add(RoadCenterlineViolationKind.SELF_INTERSECTION);
-            }
+            // 故意不报平面真交：见类注释 / RoadStackCrossing。
             if (PolygonValidator.hasOpenPolylineSelfOverlap(points)) {
                 kinds.add(RoadCenterlineViolationKind.SELF_OVERLAP);
             }
         }
 
         List<Vec2d> chained = buildChainedCenterline(network, road);
-        if (chained.size() >= 4
-            && PolygonValidator.hasOpenPolylineSelfIntersection(chained)) {
-            kinds.add(RoadCenterlineViolationKind.SELF_INTERSECTION);
-        }
         if (chained.size() >= 3
             && PolygonValidator.hasOpenPolylineSelfOverlap(chained)) {
             kinds.add(RoadCenterlineViolationKind.SELF_OVERLAP);

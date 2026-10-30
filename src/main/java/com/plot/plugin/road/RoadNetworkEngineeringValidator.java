@@ -257,9 +257,7 @@ public final class RoadNetworkEngineeringValidator {
             }
             return;
         }
-        addCenterlineShapeWarningIfPositive(
-            items, counts, RoadCenterlineViolationKind.SELF_INTERSECTION,
-            "plugin.road.validation.centerline_self_intersection");
+        // 平面自交不再进入工程报告：同路真交由 StackCrossing 承接（盘山/立交/环路汇合合法）。
         addCenterlineShapeWarningIfPositive(
             items, counts, RoadCenterlineViolationKind.SELF_OVERLAP,
             "plugin.road.validation.centerline_self_overlap");

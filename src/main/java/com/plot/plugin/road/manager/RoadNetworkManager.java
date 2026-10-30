@@ -519,10 +519,10 @@ public final class RoadNetworkManager {
     /**
      * 全网统一到用户指定标高，最大坡度强制 0。
      */
-    public boolean applyCustomUniformFlatElevation(int elevation) {
+    public void applyCustomUniformFlatElevation(int elevation) {
         if (network.getEdges().isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
-            return false;
+            return;
         }
         int clamped = (int) RoadParameterLimits.clampElevation(elevation);
         applyUniformFlatElevationAt(
@@ -530,7 +530,6 @@ public final class RoadNetworkManager {
             PlotI18n.tr("plugin.road.uniform_elevation_strategy_custom"),
             0,
             clamped);
-        return true;
     }
 
     /**
@@ -1249,26 +1248,6 @@ public final class RoadNetworkManager {
         return true;
     }
 
-    /**
-     * 显式连接两条道路端点（唯一允许的拓扑端点合并入口）。
-     */
-    public boolean connectRoadEndpoints(
-            String edgeAId,
-            boolean useStartA,
-            String edgeBId,
-            boolean useStartB) {
-        Boolean connected = mutateNetwork(
-            () -> com.plot.plugin.road.graph.RoadExplicitConnector.connectEndpoints(
-                network, edgeAId, useStartA, edgeBId, useStartB),
-            result -> result);
-        if (Boolean.TRUE.equals(connected)) {
-            status.success(PlotI18n.tr("plugin.road.connect_roads_success"));
-        } else {
-            status.warning(PlotI18n.tr("plugin.road.connect_roads_failed"));
-        }
-        return Boolean.TRUE.equals(connected);
-    }
-
     private static double seamChainOffset(
             RoadNetwork network,
             Road road,
@@ -1469,20 +1448,6 @@ public final class RoadNetworkManager {
             return;
         }
         mutateNetwork(() -> applyBatchEditToSelectedRoads(draft, true));
-    }
-
-    /**
-     * 在已 {@link #beginNetworkEdit} 的 mutation 内调用，避免重复 push undo 帧。
-     */
-    public void applyBatchEditWithinPendingEdit(BatchEditDefaults draft) {
-        if (selectedEdgeIds.isEmpty()) {
-            return;
-        }
-        prepareBatchEditFields(draft);
-        if (batchEditDirtyFields.isEmpty()) {
-            return;
-        }
-        applyBatchEditToSelectedRoads(draft, false);
     }
 
     /** Applies only this window's changed fields to its captured road scope. */

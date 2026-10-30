@@ -498,7 +498,8 @@ class RoadNetworkEngineeringValidatorTest {
     }
 
     @Test
-    void reportsCenterlineSelfIntersectionAsWarning() {
+    void planSelfIntersectionIsNotAnEngineeringWarning() {
+        // 平面自交由 StackCrossing 处理；工程报告不应再要求「拆路」。
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road-x");
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
@@ -512,7 +513,7 @@ class RoadNetworkEngineeringValidatorTest {
         RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
             network, Map.of(), new RoadSystemConfig("test"));
 
-        assertTrue(hasWarning(report, "plugin.road.validation.centerline_self_intersection"));
+        assertFalse(hasWarning(report, "plugin.road.validation.centerline_self_intersection"));
         assertFalse(report.blocksBuild());
     }
 

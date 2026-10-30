@@ -50,7 +50,8 @@ class RoadCenterlineShapeValidatorTest {
     }
 
     @Test
-    void singleEdgeFigureEightReportsSelfIntersection() {
+    void singleEdgeFigureEightIsNotAShapeViolation() {
+        // 平面真交合法：由 RoadStackCrossing 承接（盘山/立交/环路汇合），不再报形状问题。
         var network = new com.plot.plugin.road.model.RoadNetwork();
         var road = network.createRoad("road-x");
         var n1 = network.createNode(new Vec2d(0, 0));
@@ -66,8 +67,9 @@ class RoadCenterlineShapeValidatorTest {
             road.getId());
 
         var violations = RoadCenterlineShapeValidator.validateRoad(network, road);
-        assertTrue(violations.stream().anyMatch(v ->
-            v.kind() == RoadCenterlineViolationKind.SELF_INTERSECTION));
+        assertTrue(violations.isEmpty());
+        assertTrue(PolygonValidator.hasOpenPolylineSelfIntersection(List.of(
+            new Vec2d(0, 0), new Vec2d(10, 10), new Vec2d(0, 10), new Vec2d(10, 0))));
     }
 
     @Test
@@ -109,9 +111,19 @@ class RoadCenterlineShapeValidatorTest {
         network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(110, 0), new Vec2d(120, 0)), fork.getId());
         network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(110, 0), new Vec2d(110, 10)), fork.getId());
 
+        var overlap = network.createRoad("overlap");
+        var o1 = network.createNode(new Vec2d(200, 0));
+        var o2 = network.createNode(new Vec2d(215, 0));
+        network.createEdge(
+            o1.getId(),
+            o2.getId(),
+            List.of(new Vec2d(200, 0), new Vec2d(210, 0), new Vec2d(205, 0), new Vec2d(215, 0)),
+            overlap.getId());
+
         var counts = RoadCenterlineShapeValidator.countByKind(network);
-        assertTrue(counts.get(RoadCenterlineViolationKind.SELF_INTERSECTION) >= 1);
+        assertEquals(0, counts.get(RoadCenterlineViolationKind.SELF_INTERSECTION));
         assertTrue(counts.get(RoadCenterlineViolationKind.NON_LINEAR_ROAD_TOPOLOGY) >= 1);
+        assertTrue(counts.get(RoadCenterlineViolationKind.SELF_OVERLAP) >= 1);
         assertEquals(2, RoadCenterlineShapeValidator.countRoadsWithViolations(network));
     }
 }
