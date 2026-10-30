@@ -126,4 +126,12 @@ class RoadStyleTest {
         assertEquals(3, style.width);
         assertFalse(style.hasSidewalk);
     }
+
+    @Test
+    void railwayPresetPlacesCenterRail() {
+        RoadCrossSection section = RoadStyleCatalog.railway().toCrossSection();
+        assertEquals(CenterLineStyle.RAIL, section.getMarkings().getCenterLineStyle());
+        assertEquals("minecraft:rail", section.getMarkings().getMaterial());
+        assertFalse(Boolean.TRUE.equals(section.getMarkings().getLaneDividers()));
+    }
 }

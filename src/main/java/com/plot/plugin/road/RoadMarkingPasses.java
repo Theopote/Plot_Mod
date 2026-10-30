@@ -36,6 +36,7 @@ public final class RoadMarkingPasses {
                     passes.add(new Pass(-0.3, true));
                     passes.add(new Pass(0.3, true));
                 }
+                case RAIL -> passes.add(new Pass(0.0, true));
                 default -> {
                 }
             }

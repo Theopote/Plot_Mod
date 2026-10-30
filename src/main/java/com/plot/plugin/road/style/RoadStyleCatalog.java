@@ -184,8 +184,9 @@ public final class RoadStyleCatalog {
     }
 
     /**
-     * 单线铁路路基：道床 + 两侧道砟肩 + 路堤边坡。
+     * 单线铁路路基：道床 + 两侧道砟肩 + 路堤边坡；中心线铺 {@code minecraft:rail}。
      * 材质避开 gravel 等重力方块，用深板岩/安山岩表现道砟质感。
+     * 不含轨枕排布与道岔几何（后续增强）。
      */
     public static RoadStyle railway() {
         RoadStyle style = base("railway");
@@ -203,9 +204,9 @@ public final class RoadStyleCatalog {
         style.shoulderMaterial = "minecraft:cobbled_deepslate";
         style.fillSlopeMaterial = "minecraft:cobbled_deepslate";
         style.cutSlopeMaterial = "minecraft:stone";
-        style.markingMaterial = "minecraft:iron_block";
+        style.markingMaterial = "minecraft:rail";
         style.laneDividers = false;
-        style.centerLineStyle = CenterLineStyle.DOUBLE_SOLID.name();
+        style.centerLineStyle = CenterLineStyle.RAIL.name();
         style.streetlightSpacing = null;
         return style;
     }

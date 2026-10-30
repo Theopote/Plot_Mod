@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** 复杂多路交叉口：主界面简要说明 + 可折叠高级处理。 */
+/** 复杂多路交叉口：主界面简要入口 + 浮动设计器正文。 */
 public final class ComplexJunctionGuidePanel {
     private final RoadUiContext ctx;
 
@@ -34,16 +34,23 @@ public final class ComplexJunctionGuidePanel {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.complex_junction_summary", roadCount));
+        if (ImGui.button(PlotI18n.tr("plugin.road.complex_junction_open_designer") + "##complex_open")) {
+            ComplexJunctionControls.openOrFocus(ctx, node.getId());
+        }
+        ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.complex_junction_node_settings") + "##complex_node")) {
             focusNode(network, node);
         }
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.complex_junction_advanced"))) {
-            return;
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.complex_junction_advanced"))) {
+            renderDesignerBody(network, node);
         }
-        renderAdvanced(network, node);
     }
 
-    private void renderAdvanced(RoadNetwork network, RoadNode node) {
+    /** 浮动设计器与「高级处理」折叠共用。 */
+    public void renderDesignerBody(RoadNetwork network, RoadNode node) {
+        if (network == null || node == null) {
+            return;
+        }
         RoadNetworkBuilder.JunctionType type =
             ctx.networkManager().getNetworkBuilder().classify(node);
         ImGui.bulletText(PlotI18n.tr(
@@ -178,6 +185,9 @@ public final class ComplexJunctionGuidePanel {
             ctx.status().success(PlotI18n.tr("plugin.road.complex_junction_merge_success"));
             ctx.previewManager().invalidatePreview();
             ctx.requestOverlayRefresh();
+            if (ComplexJunctionControls.floatingEditor().isOpen()) {
+                ComplexJunctionControls.floatingEditor().open(ctx, merged.get());
+            }
         });
     }
 

@@ -25,6 +25,7 @@ import com.plot.plugin.road.ui.RoadIntersectionPropertySupport;
 import com.plot.plugin.road.ui.RoadPathPanel;
 import com.plot.plugin.road.ui.RoadPresetCards;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
+import com.plot.plugin.road.ui.ComplexJunctionControls;
 import com.plot.plugin.road.ui.TunnelStyleControls;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
@@ -117,6 +118,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         floatingEditorHost.renderAll(ctx);
         RoadPresetCards.renderFloatingWindow(ctx);
         TunnelStyleControls.renderFloatingWindow(ctx);
+        ComplexJunctionControls.renderFloatingWindow(ctx);
 
         RoadUiTab pendingTab = ctx.pendingTab();
         if (pendingTab != null && pendingTab != tabAtFrameStart) {

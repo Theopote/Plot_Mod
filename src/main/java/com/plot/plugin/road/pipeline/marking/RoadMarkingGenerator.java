@@ -67,13 +67,15 @@ public final class RoadMarkingGenerator {
                     return;
                 }
                 String blockId = materialResolver.resolve(crossSection.markingMaterial);
+                boolean rail = crossSection.centerLineStyle == CenterLineStyle.RAIL;
+                int placeY = rail ? targetY + 1 : targetY;
                 for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(crossSection)) {
                     if (!pass.solid() && index % 2 != 0) {
                         continue;
                     }
                     Vec2d direction = leftNormal.multiply(-1);
                     Vec2d point = center.add(direction.multiply(pass.offset() * unitsPerBlock));
-                    solids.add(point, targetY, RoadSolidLayer.MARKING, blockId);
+                    solids.add(point, placeY, RoadSolidLayer.MARKING, blockId);
                 }
             });
     }

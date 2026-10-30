@@ -372,6 +372,7 @@ public final class CrossSectionDraftMutator {
         String inheritedLabel = PlotI18n.tr(switch (config.getCenterLineStyle()) {
             case SINGLE_DASHED -> "plugin.road.center_line.single_dashed";
             case DOUBLE_SOLID -> "plugin.road.center_line.double_solid";
+            case RAIL -> "plugin.road.center_line.rail";
             default -> "plugin.road.center_line.none";
         });
         hooks.afterField(

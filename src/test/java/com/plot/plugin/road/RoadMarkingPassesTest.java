@@ -60,4 +60,20 @@ class RoadMarkingPassesTest {
         assertEquals(0.0, passes.getFirst().offset(), 1e-6);
         assertFalse(passes.getFirst().solid());
     }
+
+    @Test
+    void railProducesSolidCenterPass() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.RAIL);
+        section.getMarkings().setLaneDividers(false);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        assertEquals(CenterLineStyle.RAIL, resolved.centerLineStyle);
+        var passes = RoadMarkingPasses.fromCrossSection(resolved);
+        assertEquals(1, passes.size());
+        assertEquals(0.0, passes.getFirst().offset(), 1e-6);
+        assertTrue(passes.getFirst().solid());
+        assertTrue(RoadMarkingPasses.hasAnyMarkings(resolved));
+    }
 }

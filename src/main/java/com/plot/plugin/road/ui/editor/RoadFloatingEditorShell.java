@@ -67,6 +67,7 @@ public final class RoadFloatingEditorShell {
     public static final int CASCADE_AFTER_HOST_TUNNEL = 0;
     public static final int CASCADE_AFTER_HOST_PRESET = 1;
     public static final int CASCADE_AFTER_HOST_PROFILE = 2;
+    public static final int CASCADE_AFTER_HOST_COMPLEX_JUNCTION = 3;
 
     public static int cascadeAfterHost(int offset) {
         return RoadFloatingEditorKind.values().length + Math.max(0, offset);

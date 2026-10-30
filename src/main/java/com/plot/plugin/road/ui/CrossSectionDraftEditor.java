@@ -495,11 +495,13 @@ public final class CrossSectionDraftEditor {
         String[] centerLineLabels = {
             PlotI18n.tr("plugin.road.center_line.none"),
             PlotI18n.tr("plugin.road.center_line.single_dashed"),
-            PlotI18n.tr("plugin.road.center_line.double_solid")
+            PlotI18n.tr("plugin.road.center_line.double_solid"),
+            PlotI18n.tr("plugin.road.center_line.rail")
         };
         ImInt centerLineIndex = new ImInt(switch (centerLineStyle) {
             case SINGLE_DASHED -> 1;
             case DOUBLE_SOLID -> 2;
+            case RAIL -> 3;
             default -> 0;
         });
         if (ImGui.combo(
@@ -512,6 +514,7 @@ public final class CrossSectionDraftEditor {
             mutator.setCenterLineStyle(switch (centerLineIndex.get()) {
                 case 1 -> CenterLineStyle.SINGLE_DASHED;
                 case 2 -> CenterLineStyle.DOUBLE_SOLID;
+                case 3 -> CenterLineStyle.RAIL;
                 default -> CenterLineStyle.NONE;
             });
         }
