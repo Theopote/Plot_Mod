@@ -15,7 +15,7 @@ import java.util.List;
  * 编辑 Tab 专业工具卡片启动器。
  * <p>
  * 单路：六张卡（含隧道），列数随可用宽度在 2–3 间自适应。
- * 多选：批量横断面主入口 + 说明；其余设计器需单选。
+ * 多选：批量横断面 + 批量隧道；其余设计器需单选。
  */
 final class RoadEditToolLauncher {
 
@@ -40,18 +40,23 @@ final class RoadEditToolLauncher {
             renderGrid(ctx, host, primaryRoadId, singleTools());
             return;
         }
-        renderBatchCrossSectionPrimary(ctx, host, primaryRoadId, roadIds.size());
+        float gap = ImGui.getStyle().getItemSpacingX();
+        float half = Math.max(1f, (ImGui.getContentRegionAvailX() - gap) / 2f);
+        renderBatchCrossSectionPrimary(ctx, host, primaryRoadId, roadIds.size(), half);
+        ImGui.sameLine(0f, gap);
+        renderBatchTunnelPrimary(ctx, roadIds, half);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.edit.tools.multi_single_only_hint"));
     }
 
-    /** 多选仅展示可用的批量横断面入口，不渲染单路专用灰锁卡片。 */
+    /** 多选批量横断面入口。 */
     private static void renderBatchCrossSectionPrimary(
             RoadUiContext ctx,
             RoadFloatingEditorHost host,
             String primaryRoadId,
-            int selectedCount) {
+            int selectedCount,
+            float width) {
         RoadFloatingEditorKind kind = RoadFloatingEditorKind.BATCH_CROSS_SECTION;
         boolean active = host.isOpen(kind);
         if (active) {
@@ -60,9 +65,27 @@ final class RoadEditToolLauncher {
         String label = PlotI18n.tr("plugin.road.edit.tools.batch_cross_section.title")
             + "\n"
             + PlotI18n.tr("plugin.road.edit.tools.batch_cross_section.multi_hint", selectedCount);
-        float width = ImGui.getContentRegionAvailX();
         if (ImGui.button(label + "##tool_" + kind.name(), width, CARD_HEIGHT)) {
             host.openOrFocus(ctx, kind, primaryRoadId);
+        }
+        if (active) {
+            ImGui.popStyleColor();
+        }
+    }
+
+    private static void renderBatchTunnelPrimary(
+            RoadUiContext ctx,
+            Collection<String> roadIds,
+            float width) {
+        boolean active = TunnelStyleControls.floatingEditor().isOpen();
+        if (active) {
+            ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+        }
+        String label = PlotI18n.tr("plugin.road.edit.tools.batch_tunnel.title")
+            + "\n"
+            + PlotI18n.tr("plugin.road.edit.tools.batch_tunnel.multi_hint", roadIds.size());
+        if (ImGui.button(label + "##tool_BATCH_TUNNEL", width, CARD_HEIGHT)) {
+            TunnelStyleControls.floatingEditor().openRoads(ctx, roadIds, ctx::pushRoadEditHistory);
         }
         if (active) {
             ImGui.popStyleColor();

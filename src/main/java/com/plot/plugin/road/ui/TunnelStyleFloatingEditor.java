@@ -9,6 +9,10 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -27,6 +31,8 @@ public final class TunnelStyleFloatingEditor {
     private boolean closeConfirmPending;
     private Target target = Target.GLOBAL;
     private String roadId = "";
+    /** 批量写入目标（含主路）；单路时为空或仅含 {@link #roadId}。 */
+    private final LinkedHashSet<String> batchRoadIds = new LinkedHashSet<>();
     /** 打开时道路是否尚无显式覆盖（确认前不写回）。 */
     private boolean roadWasInheriting;
     private TunnelStyle draft;
@@ -54,12 +60,31 @@ public final class TunnelStyleFloatingEditor {
         if (ctx == null || road == null) {
             return;
         }
+        openRoads(ctx, List.of(road.getId()), onHistory);
+    }
+
+    /** 多选：以第一条道路为草稿种子，确认后写入全部目标道路。 */
+    public void openRoads(RoadUiContext ctx, Collection<String> roadIds, Runnable onHistory) {
+        if (ctx == null || roadIds == null || roadIds.isEmpty()) {
+            return;
+        }
+        LinkedHashSet<String> targets = new LinkedHashSet<>();
+        for (String id : roadIds) {
+            if (id != null && !id.isBlank() && ctx.networkManager().getNetwork().getRoad(id) != null) {
+                targets.add(id);
+            }
+        }
+        if (targets.isEmpty()) {
+            return;
+        }
+        String primaryId = targets.iterator().next();
+        Road road = ctx.networkManager().getNetwork().getRoad(primaryId);
         RoadSystemConfig config = ctx.networkManager().getConfig();
         boolean inheriting = road.getStoredTunnelStyle() == null;
         TunnelStyle seed = inheriting
             ? TunnelStyle.fromResolved(TunnelStyle.resolve(road, config))
             : road.getStoredTunnelStyle().copy();
-        beginSession(Target.ROAD, road.getId(), inheriting, seed, onHistory);
+        beginSession(Target.ROAD, primaryId, inheriting, seed, onHistory, targets);
     }
 
     public void close() {
@@ -70,7 +95,12 @@ public final class TunnelStyleFloatingEditor {
         baseline = null;
         onHistory = null;
         roadId = "";
+        batchRoadIds.clear();
         roadWasInheriting = false;
+    }
+
+    public int batchTargetCount() {
+        return batchRoadIds.isEmpty() ? (roadId.isBlank() ? 0 : 1) : batchRoadIds.size();
     }
 
     /** 测试用：当前草稿是否相对打开时基线有改动。 */
@@ -90,10 +120,21 @@ public final class TunnelStyleFloatingEditor {
         if (target != Target.ROAD) {
             return true;
         }
-        if (roadId == null || roadId.isBlank()) {
+        Set<String> targets = batchRoadIds.isEmpty()
+            ? (roadId.isBlank() ? Set.of() : Set.of(roadId))
+            : batchRoadIds;
+        if (targets.isEmpty()) {
             return true;
         }
-        return selectedRoadIds != null && selectedRoadIds.contains(roadId);
+        if (selectedRoadIds == null || selectedRoadIds.isEmpty()) {
+            return false;
+        }
+        for (String id : targets) {
+            if (!selectedRoadIds.contains(id)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -155,6 +196,12 @@ public final class TunnelStyleFloatingEditor {
             }
             float footer = RoadFloatingEditorShell.footerReserveHeight(false);
             if (ImGui.beginChild("##tunnel_style_body", 0f, -footer, false, 0)) {
+                if (target == Target.ROAD && batchTargetCount() > 1) {
+                    ImGui.textColored(
+                        com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.road.tunnel.batch_scope_hint", batchTargetCount()));
+                    ImGui.spacing();
+                }
                 TunnelStyleEditor.render(ctx, draft, () -> draft.clamp());
             }
             ImGui.endChild();
@@ -201,10 +248,31 @@ public final class TunnelStyleFloatingEditor {
             boolean roadWasInheriting,
             TunnelStyle initial,
             Runnable onHistory) {
+        beginSession(target, roadId, roadWasInheriting, initial, onHistory, List.of());
+    }
+
+    private void beginSession(
+            Target target,
+            String roadId,
+            boolean roadWasInheriting,
+            TunnelStyle initial,
+            Runnable onHistory,
+            Collection<String> batchTargets) {
         this.target = target;
         this.roadId = roadId != null ? roadId : "";
         this.roadWasInheriting = roadWasInheriting;
         this.onHistory = onHistory;
+        this.batchRoadIds.clear();
+        if (batchTargets != null) {
+            for (String id : batchTargets) {
+                if (id != null && !id.isBlank()) {
+                    this.batchRoadIds.add(id);
+                }
+            }
+        }
+        if (target == Target.ROAD && this.batchRoadIds.isEmpty() && !this.roadId.isBlank()) {
+            this.batchRoadIds.add(this.roadId);
+        }
         TunnelStyle seed = initial != null ? initial : new TunnelStyle();
         seed.ensureConfigDefaults();
         this.baseline = seed.copy();
@@ -247,8 +315,9 @@ public final class TunnelStyleFloatingEditor {
             return;
         }
 
-        Road road = ctx.networkManager().getNetwork().getRoad(roadId);
-        if (road == null) {
+        List<String> targets = new ArrayList<>(
+            batchRoadIds.isEmpty() ? List.of(roadId) : batchRoadIds);
+        if (targets.isEmpty() || targets.getFirst().isBlank()) {
             ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
             close();
             return;
@@ -260,13 +329,26 @@ public final class TunnelStyleFloatingEditor {
         if (onHistory != null) {
             onHistory.run();
         }
-        TunnelStyle live = road.getStoredTunnelStyle();
-        if (live == null) {
-            // 从「继承全局」打开并改过参数：确认后写入道路级覆盖
-            road.setTunnelStyle(draft.copy());
-        } else {
-            live.replaceWith(draft);
-            live.clamp();
+        var network = ctx.networkManager().getNetwork();
+        int written = 0;
+        for (String targetRoadId : targets) {
+            Road road = network.getRoad(targetRoadId);
+            if (road == null) {
+                continue;
+            }
+            TunnelStyle live = road.getStoredTunnelStyle();
+            if (live == null) {
+                road.setTunnelStyle(draft.copy());
+            } else {
+                live.replaceWith(draft);
+                live.clamp();
+            }
+            written++;
+        }
+        if (written == 0) {
+            ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
+            close();
+            return;
         }
         ctx.onGenerationConfigChanged();
         ctx.requestOverlayRefresh();

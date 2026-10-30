@@ -189,6 +189,8 @@ class RoadOverlayGeometryTest {
             network, road, config, IdentityCoordinateService.INSTANCE);
 
         assertTrue(planCenterline.size() >= 2);
+        // 100 m HA @ 1 m overlay spacing → denser than default 2 m materialize spacing
+        assertTrue(planCenterline.size() >= 90);
         assertEquals(0.0, storedCenterline.getFirst().y, 1e-6);
         assertEquals(8.0, planCenterline.getFirst().y, 0.2);
         assertFalse(corridor.isEmpty());

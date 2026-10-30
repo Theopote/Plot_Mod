@@ -171,6 +171,30 @@ class TunnelStyleFloatingEditorTest {
         assertFalse(editor.isOpen());
     }
 
+    @Test
+    void batchConfirmWritesAllTargetRoads() {
+        RoadNetwork network = manager.getNetwork();
+        Road second = network.createRoad("side");
+        String roadB = second.getId();
+        var nodeC = network.createNode(new Vec2d(40, 0));
+        var nodeD = network.createNode(new Vec2d(60, 0));
+        network.createEdge(
+            nodeC.getId(), nodeD.getId(), List.of(new Vec2d(40, 0), new Vec2d(60, 0)), roadB);
+
+        assertNull(network.getRoad(roadId).getStoredTunnelStyle());
+        assertNull(network.getRoad(roadB).getStoredTunnelStyle());
+
+        editor.openRoads(ctx, List.of(roadId, roadB), null);
+        assertEquals(2, editor.batchTargetCount());
+        int height = TunnelStyle.resolve(network.getRoad(roadId), manager.getConfig()).clearHeight() + 5;
+        editor.mutateDraftForTest(style -> style.setClearHeight(height));
+        editor.confirmForTest(ctx);
+
+        assertFalse(editor.isOpen());
+        assertEquals(height, network.getRoad(roadId).getStoredTunnelStyle().getClearHeight());
+        assertEquals(height, network.getRoad(roadB).getStoredTunnelStyle().getClearHeight());
+    }
+
     private static PluginContext pluginContext() {
         ApplicationContext applicationContext = ApplicationContext.getInstance();
         return new PluginContext(

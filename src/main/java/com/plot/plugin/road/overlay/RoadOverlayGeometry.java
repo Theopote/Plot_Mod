@@ -9,6 +9,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
@@ -489,18 +490,28 @@ public final class RoadOverlayGeometry {
         return RoadGeometryUtils.extractShapePoints(path);
     }
 
-    /** 沿道路链拼接 plan 中心线（供方向箭头等）。 */
+    /**
+     * 画布叠加层 HA 采样间距（米）。比物化默认 2 m 更密，缓和曲线/圆曲线更顺滑。
+     */
+    public static final double OVERLAY_HA_SAMPLE_SPACING_METERS = 1.0;
+
+    /** 沿道路链拼接 plan 中心线（供方向箭头、走廊等）。有 HA 时用更密采样。 */
     public static List<Vec2d> resolvePlanCenterline(RoadNetwork network, Road road) {
         if (network == null || road == null) {
             return List.of();
         }
+        double spacing = RoadPlanGeometry.hasDesignAlignment(network, road)
+            ? OVERLAY_HA_SAMPLE_SPACING_METERS
+            : HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS;
         List<Vec2d> merged = new ArrayList<>();
         for (String segmentId : RoadSegmentOrdering.orderedSegmentIds(network, road)) {
             RoadEdge edge = network.getEdge(segmentId);
             if (edge == null) {
                 continue;
             }
-            merged = mergeCenterlines(merged, RoadPlanGeometry.resolveEdgeCenterline(network, edge));
+            merged = mergeCenterlines(
+                merged,
+                RoadPlanGeometry.resolveEdgeCenterline(network, edge, spacing));
         }
         return List.copyOf(merged);
     }
