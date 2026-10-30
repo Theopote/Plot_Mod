@@ -156,20 +156,6 @@ public final class RoadOverlayGeometry {
         return merged.size() >= 2 ? List.copyOf(merged) : List.copyOf(base);
     }
 
-    public static List<Vec2d> resolvePathCorridor(
-            Shape path,
-            RoadSystemConfig config,
-            ICoordinateService coordinates) {
-        return resolvePathCorridorGeometry(path, config, coordinates, false).primaryFillContour();
-    }
-
-    public static RoadCorridorGeometry resolvePathCorridorGeometry(
-            Shape path,
-            RoadSystemConfig config,
-            ICoordinateService coordinates) {
-        return resolvePathCorridorGeometry(path, config, coordinates, false);
-    }
-
     public static RoadCorridorGeometry resolvePathCorridorGeometry(
             Shape path,
             RoadSystemConfig config,
@@ -233,7 +219,7 @@ public final class RoadOverlayGeometry {
     private static double representativeHalfWidth(RoadCorridorGeometry geometry) {
         List<Vec2d> centerline = geometry.centerline();
         List<Vec2d> left = geometry.leftBoundary();
-        if (centerline.size() >= 1 && left.size() >= 1) {
+        if (!centerline.isEmpty() && !left.isEmpty()) {
             return left.getFirst().distance(centerline.getFirst());
         }
         List<Vec2d> contour = geometry.primaryFillContour();
@@ -321,15 +307,6 @@ public final class RoadOverlayGeometry {
             return List.of();
         }
         return RoadCenterlineShapeValidator.buildChainedCenterline(network, road);
-    }
-
-    public static double resolveRoadHalfWidth(
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config,
-            List<Vec2d> centerline,
-            ICoordinateService coordinates) {
-        return resolveRoadHalfWidth(network, road, config, centerline, coordinates, false);
     }
 
     public static double resolveRoadHalfWidth(

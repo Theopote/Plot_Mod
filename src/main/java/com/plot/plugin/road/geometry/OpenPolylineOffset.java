@@ -29,14 +29,6 @@ final class OpenPolylineOffset {
         }
     }
 
-    static OffsetResult offset(List<Vec2d> centerline, double distance) {
-        return offset(centerline, distance, PolygonUtils.DEFAULT_MITER_LIMIT, JoinStyle.MITER);
-    }
-
-    static OffsetResult offsetRound(List<Vec2d> centerline, double distance) {
-        return offset(centerline, distance, PolygonUtils.DEFAULT_MITER_LIMIT, JoinStyle.ROUND);
-    }
-
     /**
      * 按顶点半宽偏移（画布叠加层可变宽走廊）。符号由 {@code distances} 正负决定侧向。
      * 角点取相邻切向平均法线，不做完整斜接；锐角处略窄于等距偏移，足够叠加深色示意。
@@ -95,7 +87,7 @@ final class OpenPolylineOffset {
             return points.get(1).subtract(points.get(0));
         }
         if (index >= points.size() - 1) {
-            return points.get(points.size() - 1).subtract(points.get(points.size() - 2));
+            return points.getLast().subtract(points.get(points.size() - 2));
         }
         Vec2d incoming = points.get(index).subtract(points.get(index - 1));
         Vec2d outgoing = points.get(index + 1).subtract(points.get(index));
@@ -108,10 +100,6 @@ final class OpenPolylineOffset {
             return incoming;
         }
         return incoming.multiply(1.0 / inLen).add(outgoing.multiply(1.0 / outLen));
-    }
-
-    static OffsetResult offset(List<Vec2d> centerline, double distance, double miterLimit) {
-        return offset(centerline, distance, miterLimit, JoinStyle.MITER);
     }
 
     static OffsetResult offset(

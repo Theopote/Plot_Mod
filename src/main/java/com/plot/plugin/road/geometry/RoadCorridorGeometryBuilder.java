@@ -63,7 +63,7 @@ public final class RoadCorridorGeometryBuilder {
         }
         double first = halfWidths.getFirst();
         boolean uniform = true;
-        double minPositive = first > 0.0 ? first : 0.0;
+        double minPositive = Math.max(first, 0.0);
         for (double halfWidth : halfWidths) {
             if (Math.abs(halfWidth - first) > 1e-6) {
                 uniform = false;
