@@ -236,6 +236,14 @@ public class RoadNetworkGenerator {
         return roadGenerator.createTerrainSampler(world);
     }
 
+    public com.plot.plugin.config.RoadSystemConfig getConfig() {
+        return roadGenerator.getConfig();
+    }
+
+    public com.plot.api.world.ICoordinateService coordinateTransformer() {
+        return roadGenerator.coordinateTransformer();
+    }
+
     /**
      * 在路网快照上生成，避免预览/落地修改 live 派生 {@code centerlinePoints}。
      */

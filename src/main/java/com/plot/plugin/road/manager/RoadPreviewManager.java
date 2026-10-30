@@ -52,10 +52,12 @@ public final class RoadPreviewManager {
     private boolean previewNeedsRecalc = false;
     private RoadNetworkPreviewJob previewJob;
     private long lastPreviewTerrainFingerprint = 0L;
+    /** 用于检测 Pushdozer / 世界改方块后的地形变化，驱动预取缓存失效。 */
+    private long lastWorldTerrainSampleFingerprint = 0L;
     private String previewWorldKey = "";
     /** 地形预取完成后需用服务端快照重刷的路网（轻量纵断面）。 */
     private RoadNetwork pendingTerrainPrefetchRefresh;
-    /** 完整预览在缓存未就绪时启动；预取完成后提示重新计算。 */
+    /** 完整预览在缓存未就绪时启动；预取完成后提示重新计算。与轻量采样独立。 */
     private boolean pendingFullPreviewTerrainRefresh;
     private boolean suppressTerrainPrefetchReschedule;
 
@@ -91,10 +93,27 @@ public final class RoadPreviewManager {
         terrainRevision++;
     }
 
+    /**
+     * 采样节点地面指纹；若世界地形相对上次已变，使走廊预取缓存整体失效。
+     */
+    private void syncWorldTerrainPrefetchEpoch(RoadNetwork network) {
+        if (network == null || networkGenerator == null) {
+            return;
+        }
+        long fingerprint = terrainFingerprint(network);
+        if (lastWorldTerrainSampleFingerprint != 0L
+                && fingerprint != lastWorldTerrainSampleFingerprint) {
+            RoadCorridorTerrainPrefetch.notifyWorldTerrainChanged();
+            LOGGER.debug("检测到世界地形变更，走廊预取缓存已失效");
+        }
+        lastWorldTerrainSampleFingerprint = fingerprint;
+    }
+
     private void invalidateManualProfilesIfTerrainChanged(RoadNetwork network) {
         if (network == null || networkGenerator == null) {
             return;
         }
+        syncWorldTerrainPrefetchEpoch(network);
         long fingerprint = terrainFingerprint(network);
         if (lastPreviewTerrainFingerprint != 0L && fingerprint != lastPreviewTerrainFingerprint) {
             LOGGER.debug("检测到地形变更，预览将重新采样");
@@ -221,6 +240,7 @@ public final class RoadPreviewManager {
         }
 
         cancelPreviewJobSilently();
+        syncWorldTerrainPrefetchEpoch(network);
         try {
             RoadNetworkGenerator.ProfileSamplingResult sampling =
                 networkGenerator.calculateProfileSampling(network, world);
@@ -229,11 +249,19 @@ public final class RoadPreviewManager {
                 return false;
             }
             applyProfileSamplingResult(network, sampling);
-            if (!suppressTerrainPrefetchReschedule
-                    && !RoadCorridorTerrainPrefetch.isCacheReady(network, world)) {
-                pendingTerrainPrefetchRefresh = network;
-                if (RoadCorridorTerrainPrefetch.isPrefetchPending()) {
-                    status.info(PlotI18n.tr("plugin.road.terrain_prefetch_pending"));
+            if (!suppressTerrainPrefetchReschedule) {
+                var prefetchStatus = RoadCorridorTerrainPrefetch.cacheStatus(
+                    network, world, networkGenerator.getConfig(), networkGenerator.coordinateTransformer());
+                if (!prefetchStatus.isUsable()) {
+                    pendingTerrainPrefetchRefresh = network;
+                    if (RoadCorridorTerrainPrefetch.isPrefetchPending()) {
+                        status.info(PlotI18n.tr("plugin.road.terrain_prefetch_pending"));
+                    }
+                } else if (prefetchStatus.coverage()
+                        == RoadCorridorTerrainPrefetch.Coverage.PARTIAL) {
+                    status.warning(PlotI18n.tr(
+                        "plugin.road.terrain_prefetch_partial",
+                        prefetchStatus.columnCount()));
                 }
             }
             return true;
@@ -245,7 +273,7 @@ public final class RoadPreviewManager {
     }
 
     /**
-     * 每帧轮询走廊地形预取；缓存就绪后用服务端快照重刷轻量纵断面（不打断进行中的完整预览 job）。
+     * 每帧轮询走廊地形预取。轻量纵断面与完整预览待刷新相互独立，不会互相清除。
      */
     public void tickTerrainPrefetch() {
         RoadCorridorTerrainPrefetch.pollCompleted(null);
@@ -256,27 +284,56 @@ public final class RoadPreviewManager {
         RoadNetwork profileNetwork = pendingTerrainPrefetchRefresh;
         if (profileNetwork != null
                 && world != null
-                && RoadCorridorTerrainPrefetch.isCacheReady(profileNetwork, world)) {
+                && RoadCorridorTerrainPrefetch.isCacheReady(
+                    profileNetwork,
+                    world,
+                    networkGenerator != null ? networkGenerator.getConfig() : null,
+                    networkGenerator != null ? networkGenerator.coordinateTransformer() : null)) {
             pendingTerrainPrefetchRefresh = null;
             suppressTerrainPrefetchReschedule = true;
             try {
                 if (calculateProfileSamplingOnly(profileNetwork)) {
-                    status.info(PlotI18n.tr("plugin.road.terrain_prefetch_applied"));
+                    var coverage = RoadCorridorTerrainPrefetch.cacheStatus(
+                        profileNetwork,
+                        world,
+                        networkGenerator.getConfig(),
+                        networkGenerator.coordinateTransformer());
+                    if (coverage.coverage() == RoadCorridorTerrainPrefetch.Coverage.PARTIAL) {
+                        status.warning(PlotI18n.tr(
+                            "plugin.road.terrain_prefetch_partial_applied",
+                            coverage.columnCount()));
+                    } else {
+                        status.info(PlotI18n.tr("plugin.road.terrain_prefetch_applied"));
+                    }
                 }
             } finally {
                 suppressTerrainPrefetchReschedule = false;
             }
-            pendingFullPreviewTerrainRefresh = false;
-            return;
+            // 不清除 pendingFullPreviewTerrainRefresh：两种刷新状态独立
         }
         if (pendingFullPreviewTerrainRefresh
                 && world != null
                 && previewNetwork != null
-                && RoadCorridorTerrainPrefetch.isCacheReady(previewNetwork, world)) {
+                && RoadCorridorTerrainPrefetch.isCacheReady(
+                    previewNetwork,
+                    world,
+                    networkGenerator != null ? networkGenerator.getConfig() : null,
+                    networkGenerator != null ? networkGenerator.coordinateTransformer() : null)) {
             pendingFullPreviewTerrainRefresh = false;
             previewNeedsRecalc = true;
             bumpTerrainRevision();
-            status.info(PlotI18n.tr("plugin.road.terrain_prefetch_preview_stale"));
+            var coverage = RoadCorridorTerrainPrefetch.cacheStatus(
+                previewNetwork,
+                world,
+                networkGenerator != null ? networkGenerator.getConfig() : null,
+                networkGenerator != null ? networkGenerator.coordinateTransformer() : null);
+            if (coverage.coverage() == RoadCorridorTerrainPrefetch.Coverage.PARTIAL) {
+                status.warning(PlotI18n.tr(
+                    "plugin.road.terrain_prefetch_partial_preview_stale",
+                    coverage.columnCount()));
+            } else {
+                status.info(PlotI18n.tr("plugin.road.terrain_prefetch_preview_stale"));
+            }
         }
     }
 
@@ -306,7 +363,8 @@ public final class RoadPreviewManager {
 
         cancelPreviewJobSilently();
         previewJob = new RoadNetworkPreviewJob(network, autoProjectGhosts, networkGenerator, this);
-        if (!RoadCorridorTerrainPrefetch.isCacheReady(network, world)) {
+        if (!RoadCorridorTerrainPrefetch.isCacheReady(
+                network, world, networkGenerator.getConfig(), networkGenerator.coordinateTransformer())) {
             pendingFullPreviewTerrainRefresh = true;
         }
         updatePreviewJobProgress(previewJob);
@@ -621,6 +679,8 @@ public final class RoadPreviewManager {
         clearGhostBlocksSafely();
         lastPreviewTerrainFingerprint = 0L;
         previewWorldKey = "";
+        pendingTerrainPrefetchRefresh = null;
+        pendingFullPreviewTerrainRefresh = false;
         if (hadPreview) {
             previewNeedsRecalc = true;
             LOGGER.debug("网络已变更，预览结果与虚影已失效");

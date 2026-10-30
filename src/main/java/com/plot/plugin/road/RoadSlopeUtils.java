@@ -137,6 +137,11 @@ public final class RoadSlopeUtils {
         List<int[]> profile = new ArrayList<>();
         profile.add(new int[]{0, shoulderEdgeHeight});
 
+        // direction == 0 无坡向（平齐），无需展开；直接返回仅含起点的剖面。
+        if (direction == 0) {
+            return profile;
+        }
+
         int groundAtEdge = groundHeightAtOffset.applyAsInt(0);
         if (groundAtEdge == shoulderEdgeHeight) {
             return profile;
