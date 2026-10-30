@@ -75,6 +75,12 @@ public class RoadGenerationResult {
     public int shoulderTraceGapCount;
     /** Corridor slope cells under bridge/tunnel interior (must stay zero). */
     public int structureInteriorSlopeCellCount;
+    /** 落地铁轨格数（含普通/动力/探测轨）。 */
+    public int railBlockCount;
+    /** 无四邻同层/±1 邻轨的孤立铁轨格（断点候选）。 */
+    public int railOrphanCount;
+    /** 轨下无实体支撑的铁轨格。 */
+    public int railUnsupportedCount;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -170,6 +176,9 @@ public class RoadGenerationResult {
         roadShoulderSeamGapCount += source.roadShoulderSeamGapCount;
         shoulderTraceGapCount += source.shoulderTraceGapCount;
         structureInteriorSlopeCellCount += source.structureInteriorSlopeCellCount;
+        railBlockCount += source.railBlockCount;
+        railOrphanCount += source.railOrphanCount;
+        railUnsupportedCount += source.railUnsupportedCount;
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;

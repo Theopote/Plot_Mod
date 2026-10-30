@@ -48,7 +48,7 @@ public final class RoadRailPlacementPass {
         result.placementRecords.putAll(rewritten);
     }
 
-    static RoadRailShapeResolver.RailNeighbors neighborsAt(BlockPos pos, Set<Long> railCells) {
+    public static RoadRailShapeResolver.RailNeighbors neighborsAt(BlockPos pos, Set<Long> railCells) {
         DirScan north = scan(pos.getX(), pos.getZ() - 1, pos.getY(), railCells);
         DirScan south = scan(pos.getX(), pos.getZ() + 1, pos.getY(), railCells);
         DirScan east = scan(pos.getX() + 1, pos.getZ(), pos.getY(), railCells);
@@ -77,7 +77,8 @@ public final class RoadRailPlacementPass {
         return new DirScan(false, 0);
     }
 
-    private static long cellKey(int x, int y, int z) {
+    /** 与 {@link RoadRailConnectivityValidator} 共用的铁轨格键。 */
+    public static long cellKey(int x, int y, int z) {
         return (((long) x) << 42) ^ (((long) (y + 512) & 0x3ffL) << 32) ^ (z & 0xffffffffL);
     }
 

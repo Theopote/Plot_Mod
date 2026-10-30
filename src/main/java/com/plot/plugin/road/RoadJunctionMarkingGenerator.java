@@ -73,19 +73,18 @@ public final class RoadJunctionMarkingGenerator {
             boolean railApproach = crossSection.centerLineStyle == CenterLineStyle.RAIL;
             if (railApproach) {
                 railApproaches.add(approach);
+                // 铁路延续与公路「延续标线」开关解耦：关标线不得掐断进路口铁轨
+                generateContinuedRailApproach(
+                    blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection, network);
+                continue;
             }
 
-            // 标线/铁轨延续：仅当该边本身有中线/分道线/铁轨时自动延续进路口
+            // 公路标线延续：仅当该边本身有中线/分道线时按路口开关决定
             boolean continueMarkings = node.getContinuedMarkings().resolve(
                 RoadMarkingPasses.hasAnyMarkings(crossSection));
             if (continueMarkings) {
                 generateContinuedMarkings(
                     blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection, network);
-            }
-
-            // 铁路进口不铺公路斑马线 / 转向箭头
-            if (railApproach) {
-                continue;
             }
 
             // 斑马线：有人行道的路口自动铺；无横断面配置时也可由 AUTO 关闭
@@ -345,7 +344,7 @@ public final class RoadJunctionMarkingGenerator {
         return new TurnOptions(straight, left, right);
     }
 
-    private void generateContinuedMarkings(
+    private void generateContinuedRailApproach(
             RoadJunctionGenerator.JunctionBlocks blocks,
             RoadEdge edge,
             String nodeId,
@@ -360,13 +359,35 @@ public final class RoadJunctionMarkingGenerator {
         if (outward.size() < 2) {
             return;
         }
+        List<Vec2d> inward = new ArrayList<>(outward);
+        Collections.reverse(inward);
+        generateContinuedRails(blocks, inward, junctionPolygon, junctionY, crossSection);
+    }
+
+    private void generateContinuedMarkings(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            RoadEdge edge,
+            String nodeId,
+            List<Vec2d> junctionPolygon,
+            int junctionY,
+            double junctionRadius,
+            ResolvedCrossSection crossSection,
+            RoadNetwork network) {
+        if (crossSection.centerLineStyle == CenterLineStyle.RAIL) {
+            // 铁路走 generateContinuedRailApproach，避免被公路标线开关误伤
+            generateContinuedRailApproach(
+                blocks, edge, nodeId, junctionPolygon, junctionY, junctionRadius, crossSection, network);
+            return;
+        }
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
+        List<Vec2d> outward = RoadJunctionGeometry.extractApproachCenterline(
+            centerline, edge, nodeId, junctionRadius * 1.35);
+        if (outward.size() < 2) {
+            return;
+        }
 
         List<Vec2d> inward = new ArrayList<>(outward);
         Collections.reverse(inward);
-        if (crossSection.centerLineStyle == CenterLineStyle.RAIL) {
-            generateContinuedRails(blocks, inward, junctionPolygon, junctionY, crossSection);
-            return;
-        }
         List<RoadMarkingPasses.Pass> passes = RoadMarkingPasses.fromCrossSection(crossSection);
 
         for (RoadMarkingPasses.Pass pass : passes) {

@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
+import com.plot.plugin.road.pipeline.marking.RoadRailConnectivityValidator;
 import com.plot.plugin.road.pipeline.marking.RoadRailPlacementPass;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
@@ -41,6 +42,7 @@ public final class RoadGenerationResultAssembler {
         }
         com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
         RoadRailPlacementPass.apply(aggregate);
+        RoadRailConnectivityValidator.validate(aggregate);
         return aggregate;
     }
 
