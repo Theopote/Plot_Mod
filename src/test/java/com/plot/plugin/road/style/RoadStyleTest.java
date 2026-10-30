@@ -134,4 +134,11 @@ class RoadStyleTest {
         assertEquals("minecraft:rail", section.getMarkings().getMaterial());
         assertFalse(Boolean.TRUE.equals(section.getMarkings().getLaneDividers()));
     }
+
+    @Test
+    void railwayThemeDoesNotOverwriteRailMaterial() {
+        RoadStyle themed = RoadThemeCatalog.applyTheme("industrial", RoadStyleCatalog.railway());
+        assertEquals(CenterLineStyle.RAIL.name(), themed.centerLineStyle);
+        assertEquals("minecraft:rail", themed.markingMaterial);
+    }
 }

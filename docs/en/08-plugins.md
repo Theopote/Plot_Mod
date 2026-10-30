@@ -46,7 +46,7 @@ Earthwork defaults to a **Quick** single page (claim, target height, edge, previ
 
 - Presets (urban main/secondary, rural, highway, railway embankment with sleepers and center rails, and more)
 - Canvas corridor overlay with true width; variable cross-sections widen/narrow along station
-- Floating designers: cross-section, variable section (step/smooth), centerline, furniture, diagnostics, batch cross-section; multi-select also batches tunnel / variable section / furniture / diagnostics; separate tunnel style and complex-junction windows (elevation + geometry)
+- Floating designers: cross-section, variable section (step/smooth), centerline, furniture, diagnostics, batch cross-section; multi-select also batches tunnel / variable section / furniture / diagnostics / centerline switching; separate tunnel style and complex-junction windows (elevation, geometry, approach bearings)
 - Vertical strategy and profile editing live on **Generate**; flat-road elevation tips; bridge/tunnel thresholds
 - Sidewalks, shoulders, drainage, streetlights; junction markings and intersection editing (multi-leg junctions open a designer)
 - Dirty floating drafts block leaving Edit / switching roads until you confirm or discard

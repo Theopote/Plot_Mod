@@ -48,7 +48,8 @@ public class RoadTheme {
         if (isSet(cutSlopeMaterial)) {
             style.cutSlopeMaterial = cutSlopeMaterial;
         }
-        if (isSet(markingMaterial)) {
+        // 铁路中心轨材质不可被主题标线色板覆盖。
+        if (isSet(markingMaterial) && !isRailCenterLine(style)) {
             style.markingMaterial = markingMaterial;
         }
         if (isSet(streetlightBlock)) {
@@ -83,5 +84,12 @@ public class RoadTheme {
 
     private static boolean isSet(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private static boolean isRailCenterLine(RoadStyle style) {
+        if (style == null || style.centerLineStyle == null) {
+            return false;
+        }
+        return "RAIL".equalsIgnoreCase(style.centerLineStyle.trim());
     }
 }

@@ -242,5 +242,10 @@ class RoadJunctionMarkingGeneratorTest {
                 .filter(p -> "minecraft:rail".equals(p.materialId()))
                 .allMatch(p -> p.elevation() == 65),
             "rails should sit one block above plaza surface");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:detector_rail".equals(p.materialId())
+                    && p.elevation() == 65),
+            "three+ railway approaches should place a detector-rail switch marker at the plaza center");
     }
 }

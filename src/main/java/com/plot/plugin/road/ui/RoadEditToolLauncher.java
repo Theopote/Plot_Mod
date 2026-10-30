@@ -15,7 +15,7 @@ import java.util.List;
  * 编辑 Tab 专业工具卡片启动器。
  * <p>
  * 单路：六张卡（含隧道），列数随可用宽度在 2–3 间自适应。
- * 多选：批量横断面 / 隧道 / 变截面 / 设施 / 诊断；中心线仍需单选。
+ * 多选：批量横断面 / 隧道 / 变截面 / 设施 / 诊断 / 中心线（主路，可切换）。
  */
 final class RoadEditToolLauncher {
 
@@ -62,9 +62,11 @@ final class RoadEditToolLauncher {
             ctx, host, primaryRoadId, count, half,
             RoadFloatingEditorKind.DIAGNOSTICS,
             "batch_diagnostics");
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.edit.tools.multi_single_only_hint"));
+        ImGui.sameLine(0f, gap);
+        renderBatchHostCard(
+            ctx, host, primaryRoadId, count, half,
+            RoadFloatingEditorKind.CENTERLINE,
+            "batch_centerline");
     }
 
     private static void renderBatchHostCard(

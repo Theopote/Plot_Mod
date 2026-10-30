@@ -84,8 +84,22 @@ class RoadMarkingPassesTest {
         assertEquals(
             "minecraft:oak_planks",
             com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_MATERIAL);
-        assertEquals(0 % 2, 0);
         assertTrue(2 % com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_EVERY_SAMPLES == 0);
         assertFalse(1 % com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_EVERY_SAMPLES == 0);
+    }
+
+    @Test
+    void resolveRailBlockIdRejectsThemeMarkingPalette() {
+        assertEquals(
+            "minecraft:rail",
+            com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.resolveRailBlockId(
+                "minecraft:white_concrete"));
+        assertEquals(
+            "minecraft:powered_rail",
+            com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.resolveRailBlockId(
+                "minecraft:powered_rail"));
+        assertEquals(
+            "minecraft:rail",
+            com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.resolveRailBlockId(null));
     }
 }

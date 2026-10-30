@@ -73,8 +73,9 @@ public final class RoadMarkingGenerator {
                 if (!crossSection.laneDividers && crossSection.centerLineStyle == CenterLineStyle.NONE) {
                     return;
                 }
-                String blockId = materialResolver.resolve(crossSection.markingMaterial);
                 boolean rail = crossSection.centerLineStyle == CenterLineStyle.RAIL;
+                String blockId = materialResolver.resolve(
+                    rail ? resolveRailBlockId(crossSection.markingMaterial) : crossSection.markingMaterial);
                 Vec2d lateral = leftNormal.multiply(-1);
                 if (rail && index % RAIL_SLEEPER_EVERY_SAMPLES == 0) {
                     String sleeperId = materialResolver.resolve(RAIL_SLEEPER_MATERIAL);
@@ -92,6 +93,17 @@ public final class RoadMarkingGenerator {
                     solids.add(point, placeY, RoadSolidLayer.MARKING, blockId);
                 }
             });
+    }
+
+    /** 铁轨方块：仅接受 *rail* 材质，其它（含主题标线色）回退为普通铁轨。 */
+    public static String resolveRailBlockId(String markingMaterial) {
+        if (markingMaterial != null) {
+            String id = markingMaterial.trim();
+            if (!id.isEmpty() && id.toLowerCase().contains("rail")) {
+                return id;
+            }
+        }
+        return "minecraft:rail";
     }
 
     @FunctionalInterface

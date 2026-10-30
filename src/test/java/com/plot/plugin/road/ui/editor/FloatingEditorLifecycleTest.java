@@ -188,6 +188,22 @@ class FloatingEditorLifecycleTest {
     }
 
     @Test
+    void centerlineMultiSelectCanSwitchTargetWhenClean() {
+        manager.selectRoad(roadA, false);
+        manager.selectRoad(roadB, true);
+        CenterlineDesignerWindow editor = (CenterlineDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CENTERLINE);
+        editor.open(ctx, roadA);
+        assertTrue(editor.isOpen());
+        assertEquals(roadA, editor.roadId());
+        assertTrue(editor.matchesScope(manager.getSelectedRoadIds()));
+        editor.open(ctx, roadB);
+        assertEquals(roadB, editor.roadId());
+        assertTrue(editor.matchesScope(manager.getSelectedRoadIds()));
+        assertEquals(RoadFloatingEditor.FinishResult.CLOSED, editor.finishOrPrompt(ctx));
+    }
+
+    @Test
     void dirtyFinishOrPromptBlocksScope() {
         CrossSectionDesignerWindow editor = (CrossSectionDesignerWindow) host.editorForKind(
             RoadFloatingEditorKind.CROSS_SECTION);

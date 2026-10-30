@@ -82,6 +82,10 @@ public final class ComplexJunctionGuidePanel {
         ImGui.text(PlotI18n.tr("plugin.road.complex_junction_geometry"));
         junctionPanel.renderForNode(node, true);
 
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.complex_junction_arms"));
+        renderApproachArms(network, node);
+
         NearbyJunctionClusterAnalyzer.NearbyJunctionCluster cluster =
             NearbyJunctionClusterAnalyzer.clusterContaining(
                 network,
@@ -123,6 +127,10 @@ public final class ComplexJunctionGuidePanel {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.complex_junction_merge_policy"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.complex_junction_apply_radius_cluster")
+                + "##apply_radius_cluster")) {
+            applyCornerRadiusToCluster(network, node, cluster);
+        }
 
         for (String otherNodeId : cluster.nodeIds()) {
             if (otherNodeId.equals(node.getId())) {
@@ -188,6 +196,65 @@ public final class ComplexJunctionGuidePanel {
     private void selectRoadsAtNode(RoadNetwork network, RoadNode node) {
         ctx.networkManager().focusIntersection(IntersectionOverlaySource.LEGACY_NODE, node.getId());
         ctx.requestOverlayRefresh();
+    }
+
+    private void renderApproachArms(RoadNetwork network, RoadNode node) {
+        var centerlineResolver =
+            com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver.forNetwork(network);
+        List<String> edgeIds = new ArrayList<>(node.getConnectedEdgeIds());
+        if (edgeIds.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.complex_junction_arms_empty"));
+            return;
+        }
+        for (String edgeId : edgeIds) {
+            var edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            var centerline = centerlineResolver.apply(edge);
+            var outward = com.plot.plugin.road.RoadJunctionGeometry.computeApproachDirection(
+                centerline, edge, node.getId());
+            double bearingDeg = 0.0;
+            if (outward.lengthSquared() > 1e-12) {
+                var unit = outward.normalize();
+                bearingDeg = Math.toDegrees(Math.atan2(unit.x, unit.y));
+                if (bearingDeg < 0) {
+                    bearingDeg += 360.0;
+                }
+            }
+            ImGui.bulletText(PlotI18n.tr(
+                "plugin.road.complex_junction_arm_item",
+                formatRoadLabel(network, edge.getRoadId()),
+                String.format("%.0f", bearingDeg)));
+        }
+    }
+
+    private void applyCornerRadiusToCluster(
+            RoadNetwork network,
+            RoadNode node,
+            NearbyJunctionClusterAnalyzer.NearbyJunctionCluster cluster) {
+        if (cluster == null || node == null) {
+            return;
+        }
+        Double radius = node.getCornerRadius();
+        ctx.editNetwork(() -> {
+            int applied = 0;
+            for (String id : cluster.nodeIds()) {
+                RoadNode target = network.getNode(id);
+                if (target == null) {
+                    continue;
+                }
+                target.setCornerRadius(radius);
+                applied++;
+            }
+            ctx.status().success(PlotI18n.tr(
+                "plugin.road.complex_junction_apply_radius_cluster_success",
+                applied));
+            ctx.previewManager().invalidatePreview();
+            ctx.requestOverlayRefresh();
+        });
     }
 
     private void selectRoadPair(RoadNetwork network, String roadA, String roadB) {

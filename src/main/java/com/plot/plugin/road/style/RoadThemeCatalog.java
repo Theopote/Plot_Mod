@@ -239,7 +239,9 @@ public final class RoadThemeCatalog {
         if (scratch.bikeLaneMaterial != null) {
             section.getBikeLane().setMaterial(scratch.bikeLaneMaterial);
         }
-        if (scratch.markingMaterial != null) {
+        if (scratch.markingMaterial != null
+                && section.getMarkings().getCenterLineStyle()
+                    != com.plot.plugin.road.model.section.CenterLineStyle.RAIL) {
             section.getMarkings().setMaterial(scratch.markingMaterial);
         }
         if (scratch.fillSlopeMaterial != null) {

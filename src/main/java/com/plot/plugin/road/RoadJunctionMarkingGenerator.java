@@ -60,6 +60,7 @@ public final class RoadJunctionMarkingGenerator {
             RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig()).includeSidewalk);
 
         List<ApproachGeometry> approaches = buildApproachGeometries(node, edges, network);
+        int railApproachCount = 0;
         for (ApproachGeometry approach : approaches) {
             RoadEdge edge = approach.edge();
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
@@ -70,6 +71,9 @@ public final class RoadJunctionMarkingGenerator {
             }
 
             boolean railApproach = crossSection.centerLineStyle == CenterLineStyle.RAIL;
+            if (railApproach) {
+                railApproachCount++;
+            }
 
             // 标线/铁轨延续：仅当该边本身有中线/分道线/铁轨时自动延续进路口
             boolean continueMarkings = node.getContinuedMarkings().resolve(
@@ -97,6 +101,16 @@ public final class RoadJunctionMarkingGenerator {
                 TurnOptions turns = resolveTurnOptions(approach, approaches);
                 generateTurnArrows(blocks, center, direction, junctionRadius, junctionY, turns);
             }
+        }
+        // 三路及以上铁路进口：路口中心铺探测铁轨，作为简易道岔标记（非专用道岔几何）。
+        // 提高材质优先级，避免被延续中心轨覆盖。
+        if (railApproachCount >= 3) {
+            blocks.getSolids().add(
+                center,
+                junctionY + 1,
+                RoadSolidLayer.MARKING,
+                "minecraft:detector_rail",
+                10);
         }
     }
 
@@ -207,18 +221,15 @@ public final class RoadJunctionMarkingGenerator {
             List<Vec2d> junctionPolygon,
             int junctionY,
             ResolvedCrossSection crossSection) {
-        String railId = crossSection.markingMaterial != null && !crossSection.markingMaterial.isBlank()
-            ? crossSection.markingMaterial
-            : "minecraft:rail";
+        String railId = RoadMarkingGenerator.resolveRailBlockId(crossSection.markingMaterial);
         String sleeperId = RoadMarkingGenerator.RAIL_SLEEPER_MATERIAL;
-        // 广场内线段短：每个落点都铺轨枕，避免采样落在多边形外导致间距跳空。
+        // 铁轨沿整段进口采样铺设（含广场外缘），保证与路段轨衔接；
+        // 轨枕仅落在广场多边形内，避免广场外道床被木板覆盖。
         for (int i = 0; i < inward.size(); i++) {
             Vec2d point = inward.get(i);
-            if (junctionPolygon != null
-                && junctionPolygon.size() >= 3
-                && !RoadGeometryUtils.pointInPolygon(point, junctionPolygon)) {
-                continue;
-            }
+            boolean inPlaza = junctionPolygon == null
+                || junctionPolygon.size() < 3
+                || RoadGeometryUtils.pointInPolygon(point, junctionPolygon);
             Vec2d tangent = sampleTangent(inward, i);
             Vec2d lateral = tangent.perpendicular();
             if (lateral.lengthSquared() > 1e-12) {
@@ -226,14 +237,16 @@ public final class RoadJunctionMarkingGenerator {
             } else {
                 lateral = new Vec2d(1, 0);
             }
-            for (int lat = -RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH;
-                 lat <= RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH;
-                 lat++) {
-                blocks.getSolids().add(
-                    point.add(lateral.multiply(lat)),
-                    junctionY,
-                    RoadSolidLayer.MARKING,
-                    sleeperId);
+            if (inPlaza) {
+                for (int lat = -RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH;
+                     lat <= RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH;
+                     lat++) {
+                    blocks.getSolids().add(
+                        point.add(lateral.multiply(lat)),
+                        junctionY,
+                        RoadSolidLayer.MARKING,
+                        sleeperId);
+                }
             }
             blocks.getSolids().add(point, junctionY + 1, RoadSolidLayer.MARKING, railId);
         }
