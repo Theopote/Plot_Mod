@@ -1298,7 +1298,7 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 单条道路一键自动修复（单次撤销步）。
+     * 单条道路一键自动修复（单次撤销步；无改动时不入撤销栈）。
      */
     public com.plot.plugin.road.repair.RoadAutoRepair.Result fixRoad(Road road) {
         if (road == null) {
@@ -1311,7 +1311,12 @@ public final class RoadNetworkManager {
             config,
             networkBuilder,
             () -> adoptIntersectionRepairPending = false);
-        commitNetworkChange();
+        if (result.changed()) {
+            commitNetworkChange();
+        } else {
+            // 无实际改动：丢弃暂存快照，避免空撤销步与无反馈的「假修复」。
+            abortPendingNetworkEdit();
+        }
         return result;
     }
 
