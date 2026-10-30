@@ -1576,6 +1576,8 @@
   "plugin.road.complex_junction_open_designer": "打开交叉口设计器",
   "plugin.road.complex_junction_designer_title": "复杂交叉口",
   "plugin.road.complex_junction_designer_heading": "%d 路汇合 · 处置工具",
+  "plugin.road.complex_junction_select_roads": "选中汇合道路",
+  "plugin.road.complex_junction_select_pair": "选中这对",
   "plugin.road.complex_junction_node_settings": "路口设置",
   "plugin.road.complex_junction_advanced": "高级处理",
   "plugin.road.complex_junction_advanced_nearby": "附近交叉点",

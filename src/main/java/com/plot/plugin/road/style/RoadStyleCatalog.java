@@ -184,9 +184,9 @@ public final class RoadStyleCatalog {
     }
 
     /**
-     * 单线铁路路基：道床 + 两侧道砟肩 + 路堤边坡；中心线铺 {@code minecraft:rail}。
+     * 单线铁路路基：道床 + 两侧道砟肩 + 路堤边坡；中心线铺轨枕 + {@code minecraft:rail}。
      * 材质避开 gravel 等重力方块，用深板岩/安山岩表现道砟质感。
-     * 不含轨枕排布与道岔几何（后续增强）。
+     * 不含道岔几何（后续增强）。
      */
     public static RoadStyle railway() {
         RoadStyle style = base("railway");

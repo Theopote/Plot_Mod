@@ -16,9 +16,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Lane dividers and centerline markings.
+ * Lane dividers and centerline markings（含铁路中心轨 + 轨枕）。
  */
 public final class RoadMarkingGenerator {
+    /** 轨枕材质：压在道床表面、铁轨之下。 */
+    public static final String RAIL_SLEEPER_MATERIAL = "minecraft:oak_planks";
+    /** 每隔多少采样点铺一根轨枕（采样约 1 格）。 */
+    public static final int RAIL_SLEEPER_EVERY_SAMPLES = 2;
+    /** 轨枕横向半宽（格）：中心 ± 该值，共 2n+1 格。 */
+    public static final int RAIL_SLEEPER_HALF_WIDTH = 1;
+
     private RoadMarkingGenerator() {
     }
 
@@ -68,13 +75,20 @@ public final class RoadMarkingGenerator {
                 }
                 String blockId = materialResolver.resolve(crossSection.markingMaterial);
                 boolean rail = crossSection.centerLineStyle == CenterLineStyle.RAIL;
+                Vec2d lateral = leftNormal.multiply(-1);
+                if (rail && index % RAIL_SLEEPER_EVERY_SAMPLES == 0) {
+                    String sleeperId = materialResolver.resolve(RAIL_SLEEPER_MATERIAL);
+                    for (int lat = -RAIL_SLEEPER_HALF_WIDTH; lat <= RAIL_SLEEPER_HALF_WIDTH; lat++) {
+                        Vec2d sleeperPoint = center.add(lateral.multiply(lat * unitsPerBlock));
+                        solids.add(sleeperPoint, targetY, RoadSolidLayer.MARKING, sleeperId);
+                    }
+                }
                 int placeY = rail ? targetY + 1 : targetY;
                 for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(crossSection)) {
                     if (!pass.solid() && index % 2 != 0) {
                         continue;
                     }
-                    Vec2d direction = leftNormal.multiply(-1);
-                    Vec2d point = center.add(direction.multiply(pass.offset() * unitsPerBlock));
+                    Vec2d point = center.add(lateral.multiply(pass.offset() * unitsPerBlock));
                     solids.add(point, placeY, RoadSolidLayer.MARKING, blockId);
                 }
             });

@@ -73,10 +73,6 @@ public final class RoadFloatingEditorShell {
         return RoadFloatingEditorKind.values().length + Math.max(0, offset);
     }
 
-    public static void prepareWindow(String imguiId, ImBoolean open, boolean focusOnOpen) {
-        prepareWindow(imguiId, open, focusOnOpen, 0);
-    }
-
     /**
      * @param cascadeIndex 同屏错开序号（0 = 居中；专业窗用 {@link RoadFloatingEditorKind#ordinal()}）
      */

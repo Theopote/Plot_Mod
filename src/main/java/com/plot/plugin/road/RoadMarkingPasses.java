@@ -1,6 +1,5 @@
 package com.plot.plugin.road;
 
-import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 

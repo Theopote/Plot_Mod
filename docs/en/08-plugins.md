@@ -44,7 +44,7 @@ Earthwork defaults to a **Quick** single page (claim, target height, edge, previ
 
 ### Features
 
-- Presets (urban main/secondary, rural, highway, railway embankment with center rails, and more)
+- Presets (urban main/secondary, rural, highway, railway embankment with sleepers and center rails, and more)
 - Canvas corridor overlay with true width; variable cross-sections widen/narrow along station
 - Floating designers: cross-section, variable section (step/smooth), centerline, furniture, diagnostics, batch cross-section; separate tunnel style and complex-junction windows
 - Vertical strategy and profile editing live on **Generate**; flat-road elevation tips; bridge/tunnel thresholds

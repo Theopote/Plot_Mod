@@ -9,6 +9,7 @@ import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.overlay.IntersectionOverlaySource;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -57,6 +58,13 @@ public final class ComplexJunctionGuidePanel {
             "plugin.road.complex_junction_topology",
             RoadNetworkManager.junctionTypeLabel(type),
             node.getDegree()));
+        if (ImGui.button(PlotI18n.tr("plugin.road.complex_junction_select_roads") + "##complex_select_all")) {
+            selectRoadsAtNode(network, node);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.complex_junction_node_settings") + "##complex_node_body")) {
+            focusNode(network, node);
+        }
         if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -142,6 +150,11 @@ public final class ComplexJunctionGuidePanel {
                     "plugin.road.complex_junction_pair_item",
                     formatRoadLabel(network, roadA),
                     formatRoadLabel(network, roadB)));
+                ImGui.sameLine();
+                if (ImGui.smallButton(PlotI18n.tr("plugin.road.complex_junction_select_pair")
+                        + "##pair_sel_" + roadA + "_" + roadB)) {
+                    selectRoadPair(network, roadA, roadB);
+                }
                 RoadNode simpleNode = findSimpleCrossingForPair(network, roadA, roadB);
                 if (simpleNode != null && !simpleNode.getId().equals(node.getId())) {
                     ImGui.indent();
@@ -159,6 +172,20 @@ public final class ComplexJunctionGuidePanel {
                 }
             }
         }
+    }
+
+    private void selectRoadsAtNode(RoadNetwork network, RoadNode node) {
+        ctx.networkManager().focusIntersection(IntersectionOverlaySource.LEGACY_NODE, node.getId());
+        ctx.requestOverlayRefresh();
+    }
+
+    private void selectRoadPair(RoadNetwork network, String roadA, String roadB) {
+        if (network.getRoad(roadA) == null || network.getRoad(roadB) == null) {
+            return;
+        }
+        ctx.networkManager().selectRoad(roadA, false);
+        ctx.networkManager().selectRoad(roadB, true);
+        ctx.requestOverlayRefresh();
     }
 
     private RoadNode findSimpleCrossingForPair(RoadNetwork network, String roadA, String roadB) {

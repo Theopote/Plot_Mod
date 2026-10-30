@@ -76,4 +76,16 @@ class RoadMarkingPassesTest {
         assertTrue(passes.getFirst().solid());
         assertTrue(RoadMarkingPasses.hasAnyMarkings(resolved));
     }
+
+    @Test
+    void railSleeperSpacingIsEvenSamples() {
+        assertEquals(2, com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_EVERY_SAMPLES);
+        assertEquals(1, com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_HALF_WIDTH);
+        assertEquals(
+            "minecraft:oak_planks",
+            com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_MATERIAL);
+        assertEquals(0 % 2, 0);
+        assertTrue(2 % com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_EVERY_SAMPLES == 0);
+        assertFalse(1 % com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator.RAIL_SLEEPER_EVERY_SAMPLES == 0);
+    }
 }

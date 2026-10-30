@@ -1576,6 +1576,8 @@
   "plugin.road.complex_junction_open_designer": "Open junction designer",
   "plugin.road.complex_junction_designer_title": "Complex junction",
   "plugin.road.complex_junction_designer_heading": "%d roads meet · tools",
+  "plugin.road.complex_junction_select_roads": "Select meeting roads",
+  "plugin.road.complex_junction_select_pair": "Select pair",
   "plugin.road.complex_junction_node_settings": "Junction settings",
   "plugin.road.complex_junction_advanced": "Advanced",
   "plugin.road.complex_junction_advanced_nearby": "Nearby crossings",
