@@ -7,10 +7,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RoadStyleTest {
 
@@ -31,8 +28,8 @@ class RoadStyleTest {
 
         assertTrue(section.getSidewalk().getEnabled());
         assertEquals(1, section.getSidewalk().getWidth());
-        assertFalse(Boolean.TRUE.equals(section.getBikeLane().getEnabled()));
-        assertFalse(Boolean.TRUE.equals(section.getSlopeBatter().getEnabled()));
+        assertNotEquals(Boolean.TRUE, section.getBikeLane().getEnabled());
+        assertNotEquals(Boolean.TRUE, section.getSlopeBatter().getEnabled());
     }
 
     @Test
@@ -132,7 +129,7 @@ class RoadStyleTest {
         RoadCrossSection section = RoadStyleCatalog.railway().toCrossSection();
         assertEquals(CenterLineStyle.RAIL, section.getMarkings().getCenterLineStyle());
         assertEquals("minecraft:rail", section.getMarkings().getMaterial());
-        assertFalse(Boolean.TRUE.equals(section.getMarkings().getLaneDividers()));
+        assertNotEquals(Boolean.TRUE, section.getMarkings().getLaneDividers());
     }
 
     @Test

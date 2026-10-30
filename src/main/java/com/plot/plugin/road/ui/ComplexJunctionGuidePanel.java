@@ -238,7 +238,8 @@ public final class ComplexJunctionGuidePanel {
         if (cluster == null || node == null) {
             return;
         }
-        Double radius = node.getCornerRadius();
+        Double corner = node.getCornerRadius();
+        Double plaza = node.getPlazaRadius();
         ctx.editNetwork(() -> {
             int applied = 0;
             for (String id : cluster.nodeIds()) {
@@ -246,7 +247,8 @@ public final class ComplexJunctionGuidePanel {
                 if (target == null) {
                     continue;
                 }
-                target.setCornerRadius(radius);
+                target.setCornerRadius(corner);
+                target.setPlazaRadius(plaza);
                 applied++;
             }
             ctx.status().success(PlotI18n.tr(

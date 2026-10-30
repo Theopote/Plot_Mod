@@ -250,7 +250,7 @@ public final class TunnelJunctionConnectivityPass {
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             List.of(edge),
             e -> RoadModelUtils.getEffectiveWidth(network, e, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
         double window = Math.max(
             junctionRadius,
             Math.max(
@@ -285,7 +285,7 @@ public final class TunnelJunctionConnectivityPass {
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
         double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),

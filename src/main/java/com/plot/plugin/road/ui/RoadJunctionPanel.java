@@ -89,6 +89,32 @@ public final class RoadJunctionPanel {
             ctx.networkManager().pushHistory();
             node.setCornerRadius(null);
         }
+
+        double basePlaza = com.plot.plugin.road.RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
+        double effectivePlaza = node.getEffectivePlazaRadius(basePlaza);
+        float[] plazaRadius = {(float) (node.getPlazaRadius() != null
+            ? node.getPlazaRadius()
+            : basePlaza)};
+        boolean plazaChanged = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.junction_plaza_radius", RoadUiFormat.format(effectivePlaza)),
+            plazaRadius,
+            (float) RoadNode.MIN_PLAZA_RADIUS,
+            (float) RoadNode.MAX_PLAZA_RADIUS,
+            RoadUiFormat.SLIDER_METERS
+        );
+        if (ImGui.isItemActivated()) {
+            ctx.networkManager().pushHistory();
+        }
+        if (plazaChanged) {
+            node.setPlazaRadius((double) plazaRadius[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_plaza_radius"));
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_plaza"))) {
+            ctx.networkManager().pushHistory();
+            node.setPlazaRadius(null);
+        }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
             ctx.networkManager().clearNodeSelection();

@@ -622,6 +622,22 @@ class RoadNetworkTest {
     }
 
     @Test
+    void jsonRoundTripPreservesPlazaRadius() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setPlazaRadius(7.0);
+        junction.addEdge("e1");
+        junction.addEdge("e2");
+        junction.addEdge("e3");
+
+        RoadNetwork restored = network.snapshot();
+        RoadNode restoredNode = restored.getNode(junction.getId());
+
+        assertEquals(7.0, restoredNode.getPlazaRadius());
+        assertEquals(7.0, restoredNode.getEffectivePlazaRadius(3.0), 1e-9);
+    }
+
+    @Test
     void classifyJunctionTypes() {
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
         RoadNetwork network = new RoadNetwork();

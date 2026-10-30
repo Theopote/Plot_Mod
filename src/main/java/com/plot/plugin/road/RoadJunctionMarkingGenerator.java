@@ -53,7 +53,7 @@ public final class RoadJunctionMarkingGenerator {
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
 
         boolean anySidewalk = edges.stream().anyMatch(edge ->
@@ -263,7 +263,7 @@ public final class RoadJunctionMarkingGenerator {
             return polyline.get(1).subtract(polyline.get(0));
         }
         if (index >= polyline.size() - 1) {
-            return polyline.get(polyline.size() - 1).subtract(polyline.get(polyline.size() - 2));
+            return polyline.getLast().subtract(polyline.get(polyline.size() - 2));
         }
         return polyline.get(index + 1).subtract(polyline.get(index - 1));
     }
@@ -390,7 +390,7 @@ public final class RoadJunctionMarkingGenerator {
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
 
         var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);

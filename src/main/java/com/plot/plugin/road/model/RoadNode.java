@@ -15,6 +15,9 @@ public class RoadNode {
     public static final double MIN_CORNER_RADIUS = 0.0;
     public static final double MAX_CORNER_RADIUS = 12.0;
     public static final double DEFAULT_CORNER_RADIUS = 2.0;
+    /** 路口广场基准半径（格）；有效值还会与进口半宽取 max。 */
+    public static final double MIN_PLAZA_RADIUS = 2.0;
+    public static final double MAX_PLAZA_RADIUS = 16.0;
 
     private final String id;
     private Vec2d position;
@@ -29,6 +32,8 @@ public class RoadNode {
     private Double crossingClearance;
     /** 路缘石圆角半径（格），null 表示使用网络默认值 */
     private Double cornerRadius;
+    /** 路口广场基准半径（格），null 表示使用 {@link com.plot.plugin.road.RoadJunctionGeometry#DEFAULT_JUNCTION_RADIUS}。 */
+    private Double plazaRadius;
     private JunctionMarkingSetting stopLines = JunctionMarkingSetting.AUTO;
     private JunctionMarkingSetting continuedMarkings = JunctionMarkingSetting.AUTO;
     private JunctionMarkingSetting crosswalks = JunctionMarkingSetting.AUTO;
@@ -198,6 +203,18 @@ public class RoadNode {
         return cornerRadius != null ? cornerRadius : networkDefault;
     }
 
+    public Double getPlazaRadius() {
+        return plazaRadius;
+    }
+
+    public void setPlazaRadius(Double plazaRadius) {
+        this.plazaRadius = clampPlazaRadius(plazaRadius);
+    }
+
+    public double getEffectivePlazaRadius(double networkDefault) {
+        return plazaRadius != null ? plazaRadius : networkDefault;
+    }
+
     public JunctionMarkingSetting getStopLines() {
         return stopLines;
     }
@@ -263,6 +280,7 @@ public class RoadNode {
         copy.gradeSeparated = gradeSeparated;
         copy.elevatedRoadId = elevatedRoadId;
         copy.crossingClearance = crossingClearance;
+        copy.plazaRadius = plazaRadius;
         copy.stopLines = stopLines;
         copy.continuedMarkings = continuedMarkings;
         copy.crosswalks = crosswalks;
@@ -280,5 +298,12 @@ public class RoadNode {
             return null;
         }
         return Math.clamp(radius, MIN_CORNER_RADIUS, MAX_CORNER_RADIUS);
+    }
+
+    private static Double clampPlazaRadius(Double radius) {
+        if (radius == null) {
+            return null;
+        }
+        return Math.clamp(radius, MIN_PLAZA_RADIUS, MAX_PLAZA_RADIUS);
     }
 }

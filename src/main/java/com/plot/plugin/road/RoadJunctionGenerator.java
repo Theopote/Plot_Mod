@@ -160,7 +160,7 @@ public class RoadJunctionGenerator {
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
             edge -> hardSurfaceHalfExtent(network, edge),
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
         double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
         List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(

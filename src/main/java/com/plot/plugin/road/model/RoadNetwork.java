@@ -939,6 +939,7 @@ public class RoadNetwork {
         String elevatedRoadId;
         Double crossingClearance;
         Double cornerRadius;
+        Double plazaRadius;
         String stopLines;
         String continuedMarkings;
         String crosswalks;
@@ -1264,6 +1265,7 @@ public class RoadNetwork {
                 nodeData.elevatedRoadId = node.getElevatedRoadId();
                 nodeData.crossingClearance = node.getCrossingClearance();
                 nodeData.cornerRadius = node.getCornerRadius();
+                nodeData.plazaRadius = node.getPlazaRadius();
                 if (node.getStopLines() != JunctionMarkingSetting.AUTO) {
                     nodeData.stopLines = node.getStopLines().name();
                 }
@@ -1384,6 +1386,7 @@ public class RoadNetwork {
                     nodeData.cornerRadius,
                     null
                 );
+                node.setPlazaRadius(nodeData.plazaRadius);
                 node.setStopLines(JunctionMarkingSetting.fromString(nodeData.stopLines));
                 node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
                 node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));

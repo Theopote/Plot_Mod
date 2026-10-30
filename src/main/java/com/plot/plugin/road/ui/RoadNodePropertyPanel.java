@@ -28,7 +28,7 @@ public final class RoadNodePropertyPanel {
             return;
         }
 
-        float scrollHeight = Math.min(320f, Math.max(120f, ImGui.getContentRegionAvailY() * 0.45f));
+        float scrollHeight = Math.clamp(ImGui.getContentRegionAvailY() * 0.45f, 120f, 320f);
         boolean scroll = ImGui.beginChild(
             "##road_junction_property_scroll",
             0f,
