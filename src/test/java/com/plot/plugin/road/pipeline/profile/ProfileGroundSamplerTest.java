@@ -66,6 +66,41 @@ class ProfileGroundSamplerTest {
     }
 
     @Test
+    void collectTreatsWorldBottomSentinelAsUnloadedWhenSamplerRejectsIt() {
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return planPoint.x < 10 ? 80 : -64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y > -64;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return true;
+            }
+
+            @Override
+            public java.util.OptionalInt sampleLoadedSurfaceY(Vec2d planPoint) {
+                int y = sampleSurfaceY(planPoint);
+                return y <= worldBottomY() ? java.util.OptionalInt.empty() : java.util.OptionalInt.of(y);
+            }
+        };
+
+        List<PathSegment> segments = List.of(
+            new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new PathSegment(new Vec2d(10, 0), new Vec2d(20, 0)));
+        ProfileGroundSampler.SampleData data = ProfileGroundSampler.collect(segments, terrain, 0);
+
+        assertEquals(80, data.groundStarts().getFirst());
+        assertEquals(80, data.groundEnds().getLast());
+        assertTrue(data.groundSamples().stream().noneMatch(y -> y <= -64));
+    }
+
+    @Test
     void collectMarksFullyUnloadedWhenNoChunksAreLoaded() {
         TerrainSampler terrain = new TerrainSampler() {
             @Override

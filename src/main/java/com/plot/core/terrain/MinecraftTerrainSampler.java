@@ -47,6 +47,15 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public OptionalInt sampleLoadedSurfaceY(Vec2d planPoint) {
+        if (planPoint == null) {
+            return OptionalInt.empty();
+        }
+        BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, transformer);
+        return terrainService.findGroundSurface(column.getX(), column.getZ());
+    }
+
+    @Override
     public OptionalInt findExposedWaterSurface(Vec2d planPoint) {
         if (planPoint == null) {
             return OptionalInt.empty();

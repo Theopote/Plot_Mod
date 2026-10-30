@@ -307,14 +307,6 @@ public final class RoadProfileSolver {
             manualEndpointConstraintFeasible =
                 terrainSolve.manualEndpointsFeasible() && envResult.manualEndpointsFeasible();
             waterConstraintFeasible = envResult.waterConstraintFeasible();
-            raster = BuildHeightRasterPostProcessor.smooth(
-                RoadHeightRasterizer.rasterize(
-                    designElevations,
-                    distances,
-                    effectiveMaxSlopes,
-                    manualStartHeight),
-                distances,
-                ProfileCompileOptions.defaults());
         } else {
             EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
                 EnvironmentFeasibilityProjector.project(
@@ -331,15 +323,15 @@ public final class RoadProfileSolver {
             designElevations = envResult.designElevations();
             manualEndpointConstraintFeasible = envResult.manualEndpointsFeasible();
             waterConstraintFeasible = envResult.waterConstraintFeasible();
-            raster = BuildHeightRasterPostProcessor.smooth(
-                RoadHeightRasterizer.rasterize(
-                    designElevations,
-                    distances,
-                    effectiveMaxSlopes,
-                    manualStartHeight),
-                distances,
-                ProfileCompileOptions.defaults());
         }
+        raster = BuildHeightRasterPostProcessor.smooth(
+            RoadHeightRasterizer.rasterize(
+                designElevations,
+                distances,
+                effectiveMaxSlopes,
+                manualStartHeight),
+            distances,
+            ProfileCompileOptions.defaults());
 
         List<SegmentHeightInfo> heightInfos = buildHeightInfos(
             segments,
@@ -504,13 +496,6 @@ public final class RoadProfileSolver {
                 crossing.strategy()));
         }
         return List.copyOf(markers);
-    }
-
-    private static List<Integer> buildStationHeights(int startHeight, List<Integer> segmentBuildEnds) {
-        List<Integer> buildHeights = new ArrayList<>(segmentBuildEnds.size() + 1);
-        buildHeights.add(startHeight);
-        buildHeights.addAll(segmentBuildEnds);
-        return buildHeights;
     }
 
     private static List<Double> toDoubleList(List<Integer> values) {

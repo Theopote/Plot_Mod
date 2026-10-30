@@ -36,25 +36,51 @@ public final class EngineeringTerrainService {
 
     /**
      * 工程现状地面：跳过空气、流体与自然附着物后的最高实心地形方块 Y。
+     * <p>
+     * 未加载或空列（无工程地形）回退 {@link #DEFAULT_GROUND_ELEVATION}，
+     * 不再返回世界底界 -64（避免纵断面把空洞当成深谷）。需要区分「无地面」时用
+     * {@link #findGroundSurface(int, int)}。
      */
     public int sampleGroundSurface(int worldX, int worldZ) {
+        return findGroundSurface(worldX, worldZ).orElse(DEFAULT_GROUND_ELEVATION);
+    }
+
+    /**
+     * 已加载列上的工程地面；未加载或整列无工程地形时为空。
+     */
+    public java.util.OptionalInt findGroundSurface(int worldX, int worldZ) {
         if (world == null || !isChunkLoaded(worldX, worldZ)) {
-            return DEFAULT_GROUND_ELEVATION;
+            return java.util.OptionalInt.empty();
         }
         try {
             int topY = sampleRawSurface(worldX, worldZ);
             int bottomY = world.getBottomY();
-            for (int y = topY; y >= bottomY; y--) {
+            return findEngineeringGroundY(topY, bottomY, y -> {
                 BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
-                if (isEngineeringTerrain(state)) {
-                    return y;
-                }
-            }
-            return bottomY;
+                return isEngineeringTerrain(state);
+            });
         } catch (Exception e) {
             LOGGER.warn("采样工程地面失败 ({}, {}): {}", worldX, worldZ, e.getMessage());
-            return DEFAULT_GROUND_ELEVATION;
+            return java.util.OptionalInt.empty();
         }
+    }
+
+    /**
+     * 纯函数：从列顶向下找第一个工程地形 Y；无则空（供测试与 {@link #findGroundSurface} 共用）。
+     */
+    public static java.util.OptionalInt findEngineeringGroundY(
+            int rawSurfaceY,
+            int bottomY,
+            java.util.function.IntPredicate isEngineeringAtY) {
+        if (isEngineeringAtY == null) {
+            return java.util.OptionalInt.empty();
+        }
+        for (int y = rawSurfaceY; y >= bottomY; y--) {
+            if (isEngineeringAtY.test(y)) {
+                return java.util.OptionalInt.of(y);
+            }
+        }
+        return java.util.OptionalInt.empty();
     }
 
     /**

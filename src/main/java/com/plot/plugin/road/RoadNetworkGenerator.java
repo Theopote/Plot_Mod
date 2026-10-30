@@ -22,6 +22,7 @@ import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
@@ -292,7 +293,19 @@ public class RoadNetworkGenerator {
         if (network == null || world == null) {
             return RoadNetworkPreviewSession.empty(network);
         }
-        return beginPreviewSession(network, roadGenerator.createTerrainSampler(world));
+        return beginPreviewSession(network, prepareTerrainForNetwork(network, world));
+    }
+
+    /**
+     * 预览/纵断面采样前预取走廊地形（抬视距 + 集成服强制加载并缓存工程地面）。
+     */
+    private TerrainSampler prepareTerrainForNetwork(RoadNetwork network, World world) {
+        TerrainSampler clientSampler = roadGenerator.createTerrainSampler(world);
+        return RoadCorridorTerrainPrefetch.prepareForNetwork(
+            network,
+            world,
+            roadGenerator.coordinateTransformer(),
+            clientSampler);
     }
 
     /** 准备阶段：同步派生中心线并决议节点标高。 */
@@ -487,7 +500,7 @@ public class RoadNetworkGenerator {
         if (network == null || world == null) {
             return ProfileSamplingResult.empty();
         }
-        return calculateProfileSampling(network, roadGenerator.createTerrainSampler(world));
+        return calculateProfileSampling(network, prepareTerrainForNetwork(network, world));
     }
 
     public ProfileSamplingResult calculateProfileSampling(RoadNetwork network, TerrainSampler terrain) {

@@ -16,6 +16,11 @@ public final class EngineeringTerrainSampler {
         return EngineeringTerrainService.of(world).sampleGroundSurface(blockX, blockZ);
     }
 
+    /** 已加载列工程地面；未加载或空列为 empty。 */
+    public static java.util.OptionalInt findGroundSurface(World world, int blockX, int blockZ) {
+        return EngineeringTerrainService.of(world).findGroundSurface(blockX, blockZ);
+    }
+
     public static int sampleRawSurface(World world, int blockX, int blockZ) {
         return EngineeringTerrainService.of(world).sampleRawSurface(blockX, blockZ);
     }

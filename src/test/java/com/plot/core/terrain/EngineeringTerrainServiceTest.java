@@ -47,6 +47,7 @@ class EngineeringTerrainServiceTest {
     void nullWorldReturnsDefaultGroundElevation() {
         EngineeringTerrainService service = EngineeringTerrainService.of(null);
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleGroundSurface(0, 0));
+        assertTrue(service.findGroundSurface(0, 0).isEmpty());
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleRawSurface(0, 0));
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleWaterSurface(0, 0));
         assertTrue(service.findWaterSurface(0, 0).isEmpty());
@@ -56,6 +57,18 @@ class EngineeringTerrainServiceTest {
         assertFalse(service.isWireObstruction(0, 64, 0));
         assertFalse(service.isClearableNaturalDecoration(0, 64, 0));
         assertFalse(service.isChunkLoaded(0, 0));
+    }
+
+    @Test
+    void findEngineeringGroundYReturnsEmptyWhenColumnHasNoTerrain() {
+        assertTrue(EngineeringTerrainService.findEngineeringGroundY(64, -64, y -> false).isEmpty());
+    }
+
+    @Test
+    void findEngineeringGroundYReturnsHighestMatch() {
+        assertEquals(
+            70,
+            EngineeringTerrainService.findEngineeringGroundY(80, -64, y -> y == 70 || y == 40).orElseThrow());
     }
 
     @ParameterizedTest(name = "{0}")
