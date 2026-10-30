@@ -20,7 +20,8 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
 
     private final StationFacilityEditor editor = new StationFacilityEditor();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
-    private Set<String> targetRoadIds = Set.of();
+    private java.util.List<String> targetRoadIds = java.util.List.of();
+    private BatchStationMappingMode batchMappingMode = BatchStationMappingMode.PROPORTIONAL;
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -57,7 +58,7 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
         if (selected.isEmpty() && roadId != null && !roadId.isBlank()) {
             selected.add(roadId);
         }
-        targetRoadIds = Set.copyOf(selected);
+        targetRoadIds = java.util.List.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
         var openSnapshot = live.snapshot();
         return RoadNetworkEditorSession.open(
@@ -82,6 +83,14 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
                 PlotI18n.tr(
                     "plugin.road.floating_editor.station_facilities.batch_scope",
                     targetRoadIds.size()));
+            batchMappingMode = BatchStationMappingUi.renderModeSelector(
+                batchMappingMode, "station_facilities");
+            BatchStationMappingUi.renderFacilityPreviewWarnings(
+                session.workingNetwork(),
+                road,
+                road.getStationFacilities(),
+                new LinkedHashSet<>(targetRoadIds),
+                batchMappingMode);
             ImGui.spacing();
         }
         ChainageDisplayContext chainageDisplay = null;
@@ -100,16 +109,18 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
 
     @Override
     protected void applySessionToLive(RoadUiContext ctx) {
-        StationFacilityEditorApplier.applyToLive(
+        BatchApplyReport report = StationFacilityEditorApplier.applyToLive(
             ctx.networkManager().getNetwork(),
             session.workingNetwork(),
             roadId,
-            targetRoadIds);
+            new LinkedHashSet<>(targetRoadIds),
+            batchMappingMode);
+        BatchStationMappingUi.reportApplyResult(ctx, report);
     }
 
     @Override
     public boolean matchesScope(Set<String> selectedRoadIds) {
-        return targetRoadIds.equals(selectedRoadIds);
+        return new LinkedHashSet<>(targetRoadIds).equals(selectedRoadIds);
     }
 
     @Override

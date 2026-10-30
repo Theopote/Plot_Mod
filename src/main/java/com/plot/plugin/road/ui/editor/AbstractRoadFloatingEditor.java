@@ -21,6 +21,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     protected boolean scopeBlocked;
     protected boolean revisionConflictPending;
     protected boolean reloadConfirmPending;
+    /** 脏窗确认后要切到的道路；空表示确认/丢弃后关闭。 */
+    protected String pendingSwitchRoadId = "";
 
     protected abstract RoadFloatingEditorKind editorKind();
 
@@ -75,6 +77,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             return;
         }
         if (windowOpen.get() && isDirty()) {
+            // 编辑 A → 请求切 B：先确认，成功后再 beginSession(B)
+            pendingSwitchRoadId = roadId;
             closeConfirmPending = true;
             scopeBlocked = true;
             return;
@@ -164,6 +168,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         scopeBlocked = false;
         revisionConflictPending = false;
         reloadConfirmPending = false;
+        pendingSwitchRoadId = "";
         if (session != null) {
             session.cancel();
         }
@@ -180,6 +185,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         scopeBlocked = false;
         revisionConflictPending = false;
         reloadConfirmPending = false;
+        pendingSwitchRoadId = "";
     }
 
     /** 作用域切换等场景：是否有未保存确认或版本冲突待处理。 */
@@ -210,15 +216,25 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             (open, working) -> commitWithHistory(ctx, () -> applySessionToLive(ctx)));
         return switch (result) {
             case NO_CHANGES -> {
+                String nextId = pendingSwitchRoadId;
                 discard(ctx);
+                if (nextId != null && !nextId.isBlank()) {
+                    beginSession(ctx, nextId);
+                }
                 yield true;
             }
             case APPLIED -> {
                 ctx.requestOverlayRefresh();
+                String nextId = pendingSwitchRoadId;
                 discard(ctx);
+                if (nextId != null && !nextId.isBlank()) {
+                    beginSession(ctx, nextId);
+                }
                 yield true;
             }
             case CONFLICT -> {
+                // 冲突时保留 A 草稿，不切换
+                pendingSwitchRoadId = "";
                 revisionConflictPending = true;
                 ctx.status().warning(
                     PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
@@ -241,21 +257,23 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         RoadFloatingEditorShell.renderCloseConfirmDialog(
             closeConfirmPopupId(),
             closeConfirmPending,
-            () -> closeConfirmPending = false,
             () -> {
-                boolean applied = confirm(ctx);
-                if (applied) {
-                    closeConfirmPending = false;
-                    scopeBlocked = false;
-                }
-                return applied;
-            },
-            () -> {
-                discard(ctx);
+                // 弹窗被点掉：取消切换，留在当前路
+                pendingSwitchRoadId = "";
                 closeConfirmPending = false;
                 scopeBlocked = false;
             },
+            () -> confirm(ctx),
             () -> {
+                String nextId = pendingSwitchRoadId;
+                discard(ctx);
+                if (nextId != null && !nextId.isBlank()) {
+                    beginSession(ctx, nextId);
+                }
+            },
+            () -> {
+                // 继续编辑 A：取消待切换
+                pendingSwitchRoadId = "";
                 closeConfirmPending = false;
                 scopeBlocked = false;
             });
@@ -324,5 +342,10 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
 
     boolean hasRevisionConflict() {
         return revisionConflictPending;
+    }
+
+    /** 包内测试：脏窗切换时记下的目标道路。 */
+    String pendingSwitchRoadId() {
+        return pendingSwitchRoadId;
     }
 }

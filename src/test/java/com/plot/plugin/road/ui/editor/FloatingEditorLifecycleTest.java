@@ -204,6 +204,28 @@ class FloatingEditorLifecycleTest {
     }
 
     @Test
+    void centerlineDirtySwitchRemembersPendingTargetThenContinuesAfterConfirm() {
+        manager.selectRoad(roadA, false);
+        manager.selectRoad(roadB, true);
+        CenterlineDesignerWindow editor = (CenterlineDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CENTERLINE);
+        editor.open(ctx, roadA);
+        assertTrue(RoadCenterlineEditor.insertPiAtLocalDistance(
+            editor.editorSession().workingNetwork(), edgeA, 4.0).isSuccess());
+        assertTrue(editor.isDirty());
+
+        editor.open(ctx, roadB);
+        assertEquals(roadA, editor.roadId(), "dirty window must stay on A until resolved");
+        assertEquals(roadB, editor.pendingSwitchRoadId());
+        assertTrue(editor.isInteractionBlocked());
+
+        assertTrue(editor.confirmEdits(ctx));
+        assertEquals(roadB, editor.roadId(), "after save, switch to pending B");
+        assertEquals("", editor.pendingSwitchRoadId());
+        assertFalse(editor.isDirty());
+    }
+
+    @Test
     void dirtyFinishOrPromptBlocksScope() {
         CrossSectionDesignerWindow editor = (CrossSectionDesignerWindow) host.editorForKind(
             RoadFloatingEditorKind.CROSS_SECTION);

@@ -3,11 +3,12 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
-
 import com.plot.plugin.road.model.facility.StationFacilityRun;
+import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /** 沿线设施浮动编辑器写回。 */
 public final class StationFacilityEditorApplier {
@@ -39,32 +40,62 @@ public final class StationFacilityEditorApplier {
     }
 
     public static void applyToLive(RoadNetwork live, RoadNetwork workingNetwork, String roadId) {
-        applyToLive(live, workingNetwork, roadId, java.util.Set.of(roadId));
+        applyToLive(live, workingNetwork, roadId, Set.of(roadId), BatchStationMappingMode.PROPORTIONAL);
     }
 
     /**
-     * 将工作副本中 {@code sourceRoadId} 的桩号设施复制到 live 上全部 {@code targetRoadIds}。
+     * 将工作副本中 {@code sourceRoadId} 的桩号设施映射到 live 上全部 {@code targetRoadIds}。
+     * LEFT/RIGHT 随各路前进方向解释，不做世界坐标翻转。
      */
-    public static void applyToLive(
+    public static BatchApplyReport applyToLive(
             RoadNetwork live,
             RoadNetwork workingNetwork,
             String sourceRoadId,
-            java.util.Set<String> targetRoadIds) {
+            Set<String> targetRoadIds,
+            BatchStationMappingMode mappingMode) {
         Road workingRoad = workingNetwork.getRoad(sourceRoadId);
         if (live == null || workingRoad == null) {
-            return;
+            return BatchApplyReport.empty();
         }
         RoadStationFacilities source = workingRoad.getStationFacilities();
-        java.util.Set<String> targets = targetRoadIds == null || targetRoadIds.isEmpty()
-            ? java.util.Set.of(sourceRoadId)
+        Set<String> targets = targetRoadIds == null || targetRoadIds.isEmpty()
+            ? Set.of(sourceRoadId)
             : targetRoadIds;
+        BatchStationMappingMode mode = mappingMode != null
+            ? mappingMode
+            : BatchStationMappingMode.PROPORTIONAL;
+        double sourceLength = RoadStationing.canonicalLength(workingNetwork, workingRoad);
+        int applied = 0;
+        int dropped = 0;
+        int clamped = 0;
         for (String targetId : targets) {
             Road liveRoad = live.getRoad(targetId);
             if (liveRoad == null) {
                 continue;
             }
-            liveRoad.setStationFacilities(source != null ? source.copy() : null);
+            if (source == null) {
+                liveRoad.setStationFacilities(null);
+                applied++;
+                continue;
+            }
+            double targetLength = RoadStationing.canonicalLength(live, liveRoad);
+            BatchStationDataMapper.MapResult<RoadStationFacilities> mapped =
+                BatchStationDataMapper.mapStationFacilities(source, sourceLength, targetLength, mode);
+            liveRoad.setStationFacilities(mapped.data());
+            applied++;
+            dropped += mapped.droppedCount();
+            clamped += mapped.clampedCount();
         }
+        return new BatchApplyReport(applied, dropped, clamped);
     }
 
+    /** @deprecated 请显式传入 {@link BatchStationMappingMode} */
+    @Deprecated
+    public static void applyToLive(
+            RoadNetwork live,
+            RoadNetwork workingNetwork,
+            String sourceRoadId,
+            Set<String> targetRoadIds) {
+        applyToLive(live, workingNetwork, sourceRoadId, targetRoadIds, BatchStationMappingMode.PROPORTIONAL);
+    }
 }

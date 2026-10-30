@@ -20,9 +20,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 /** 中心线 / 平面线形浮动编辑器（多选时可切换当前编辑道路）。 */
@@ -35,8 +33,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     /** 窗口内草稿分段选择；确认成功前不写入全局选中。 */
     private String selectedWorkingEdgeId = "";
-    /** 打开时的多选范围；用于作用域守卫与目标路切换。 */
-    private Set<String> siblingRoadIds = Set.of();
+    /** 打开时的多选范围（保序）；用于作用域守卫与目标路切换。 */
+    private java.util.List<String> siblingRoadIds = java.util.List.of();
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -69,7 +67,7 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         if (selected.isEmpty() && roadId != null && !roadId.isBlank()) {
             selected.add(roadId);
         }
-        siblingRoadIds = Set.copyOf(selected);
+        siblingRoadIds = java.util.List.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
         var openSnapshot = live.snapshot();
         selectedWorkingEdgeId = resolveInitialWorkingEdgeId(ctx, live.getRoad(roadId));
@@ -82,13 +80,13 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     @Override
     public void discard(RoadUiContext ctx) {
         selectedWorkingEdgeId = "";
-        siblingRoadIds = Set.of();
+        siblingRoadIds = java.util.List.of();
         super.discard(ctx);
     }
 
     @Override
     public boolean matchesScope(Set<String> selectedRoadIds) {
-        return siblingRoadIds.equals(selectedRoadIds);
+        return new LinkedHashSet<>(siblingRoadIds).equals(selectedRoadIds);
     }
 
     @Override
@@ -186,15 +184,15 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             PlotI18n.tr(
                 "plugin.road.floating_editor.centerline.batch_scope",
                 siblingRoadIds.size()));
-        List<String> ids = new ArrayList<>(siblingRoadIds);
-        String[] labels = new String[ids.size()];
+        String[] labels = new String[siblingRoadIds.size()];
         int current = 0;
-        for (int i = 0; i < ids.size(); i++) {
-            Road candidate = working.getRoad(ids.get(i));
+        for (int i = 0; i < siblingRoadIds.size(); i++) {
+            String id = siblingRoadIds.get(i);
+            Road candidate = working.getRoad(id);
             labels[i] = candidate != null
                 ? RoadEdgeListHelper.formatRoadLabel(working, candidate)
-                : ids.get(i);
-            if (ids.get(i).equals(roadId)) {
+                : id;
+            if (id.equals(roadId)) {
                 current = i;
             }
         }
@@ -205,8 +203,7 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                 index,
                 labels)
             && index.get() != current) {
-            String nextId = ids.get(index.get());
-            open(ctx, nextId);
+            open(ctx, siblingRoadIds.get(index.get()));
         }
         ImGui.spacing();
     }
