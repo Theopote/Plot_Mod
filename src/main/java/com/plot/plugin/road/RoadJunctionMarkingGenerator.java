@@ -107,7 +107,106 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     /**
-     * 三路及以上铁路进口：中心探测轨 + 直股动力轨（简易道岔，非专用道岔模型）。
+     * 立交上层铁路：在桥面标高贯通轨枕+铁轨，避免被下层广场切断轨面高程。
+     */
+    public void generateElevatedRailwayContinuation(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            RoadNode node,
+            RoadNetwork network,
+            List<RoadEdge> elevatedEdges,
+            int elevatedDeckY) {
+        if (blocks == null || node == null || network == null
+                || elevatedEdges == null || elevatedEdges.isEmpty()) {
+            return;
+        }
+        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            elevatedEdges,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
+        Vec2d center = node.getPosition();
+        List<ApproachGeometry> railApproaches = new ArrayList<>();
+        for (ApproachGeometry approach : buildApproachGeometries(node, elevatedEdges, network)) {
+            ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
+                network, approach.edge(), generator.getConfig());
+            if (crossSection.centerLineStyle != CenterLineStyle.RAIL) {
+                continue;
+            }
+            railApproaches.add(approach);
+            List<Vec2d> inward = extractInwardApproach(
+                approach, node.getId(), network, junctionRadius);
+            if (inward.size() < 2) {
+                continue;
+            }
+            placeElevatedRailStrip(blocks, inward, elevatedDeckY, crossSection);
+        }
+        if (railApproaches.size() < 2) {
+            return;
+        }
+        List<Vec2d> outwards = new ArrayList<>(railApproaches.size());
+        for (ApproachGeometry approach : railApproaches) {
+            outwards.add(approach.outward());
+        }
+        var through = RoadRailwayTurnout.resolveThroughPairIndices(outwards);
+        if (through.isEmpty()) {
+            // 无对向时仍保证岔心有轨，衔接两侧进口端点
+            blocks.getSolids().add(
+                center,
+                elevatedDeckY + 1,
+                RoadSolidLayer.MARKING,
+                "minecraft:rail",
+                RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT);
+            return;
+        }
+        int[] pair = through.get();
+        List<Vec2d> inwardA = extractInwardApproach(
+            railApproaches.get(pair[0]), node.getId(), network, junctionRadius);
+        List<Vec2d> inwardB = extractInwardApproach(
+            railApproaches.get(pair[1]), node.getId(), network, junctionRadius);
+        List<Vec2d> throughPath = RoadRailwayTurnout.densifyThroughPath(inwardA, inwardB, center, 0.5);
+        ResolvedCrossSection railCs = RoadModelUtils.resolveCrossSection(
+            network, railApproaches.get(pair[0]).edge(), generator.getConfig());
+        String railId = RoadMarkingGenerator.resolveRailBlockId(railCs.markingMaterial);
+        for (Vec2d point : throughPath) {
+            blocks.getSolids().add(
+                point,
+                elevatedDeckY,
+                RoadSolidLayer.MARKING,
+                RoadMarkingGenerator.RAIL_SLEEPER_MATERIAL,
+                RoadRailwayTurnout.PRIORITY_APPROACH_RAIL);
+            blocks.getSolids().add(
+                point,
+                elevatedDeckY + 1,
+                RoadSolidLayer.MARKING,
+                railId,
+                RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT);
+        }
+    }
+
+    private void placeElevatedRailStrip(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            List<Vec2d> inward,
+            int elevatedDeckY,
+            ResolvedCrossSection crossSection) {
+        String railId = RoadMarkingGenerator.resolveRailBlockId(crossSection.markingMaterial);
+        for (Vec2d point : RoadRailwayTurnout.densifyPolyline(inward, 0.5)) {
+            blocks.getSolids().add(
+                point,
+                elevatedDeckY,
+                RoadSolidLayer.MARKING,
+                RoadMarkingGenerator.RAIL_SLEEPER_MATERIAL,
+                RoadRailwayTurnout.PRIORITY_APPROACH_RAIL);
+            blocks.getSolids().add(
+                point,
+                elevatedDeckY + 1,
+                RoadSolidLayer.MARKING,
+                railId,
+                RoadRailwayTurnout.PRIORITY_APPROACH_RAIL);
+        }
+    }
+
+    /**
+     * 三路及以上铁路进口：直股连通骨架（普通轨）+ 装饰动力轨 + 岔心外侧探测轨。
+     * 无足够对向进口时不强制选直股，仅保留各进口延续轨。
      */
     private void placeRailwayTurnoutMarkers(
             RoadJunctionGenerator.JunctionBlocks blocks,
@@ -126,44 +225,33 @@ public final class RoadJunctionMarkingGenerator {
             outwards.add(approach.outward());
         }
         var through = RoadRailwayTurnout.resolveThroughPairIndices(outwards);
-        if (through.isPresent()) {
-            int[] pair = through.get();
-            placePoweredRailOnApproach(
-                blocks, railApproaches.get(pair[0]), node.getId(), network, center, junctionY, junctionRadius);
-            placePoweredRailOnApproach(
-                blocks, railApproaches.get(pair[1]), node.getId(), network, center, junctionY, junctionRadius);
-        }
-        // 最后铺探测轨，优先级高于直股动力轨，保证岔心标记可见。
-        blocks.getSolids().add(
-            center,
-            junctionY + 1,
-            RoadSolidLayer.MARKING,
-            "minecraft:detector_rail",
-            15);
-    }
-
-    private void placePoweredRailOnApproach(
-            RoadJunctionGenerator.JunctionBlocks blocks,
-            ApproachGeometry approach,
-            String nodeId,
-            RoadNetwork network,
-            Vec2d center,
-            int junctionY,
-            double junctionRadius) {
-        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, approach.edge());
-        List<Vec2d> outward = RoadJunctionGeometry.extractApproachCenterline(
-            centerline, approach.edge(), nodeId, junctionRadius * 1.35);
-        if (outward.size() < 2) {
+        if (through.isEmpty()) {
             return;
         }
-        List<Vec2d> inward = new ArrayList<>(outward);
-        Collections.reverse(inward);
-        for (Vec2d point : densifyPolyline(inward, 1.0)) {
-            if (!RoadRailwayTurnout.inThroughPowerBand(point, center, junctionRadius)) {
+        int[] pair = through.get();
+        ApproachGeometry armA = railApproaches.get(pair[0]);
+        ApproachGeometry armB = railApproaches.get(pair[1]);
+        List<Vec2d> inwardA = extractInwardApproach(armA, node.getId(), network, junctionRadius);
+        List<Vec2d> inwardB = extractInwardApproach(armB, node.getId(), network, junctionRadius);
+        List<Vec2d> throughPath = RoadRailwayTurnout.densifyThroughPath(inwardA, inwardB, center, 0.5);
+
+        // 1) 直股连通骨架：普通铁轨贯穿岔心，优先级高于进口延续轨与装饰动力轨。
+        for (Vec2d point : throughPath) {
+            if (!RoadRailwayTurnout.inThroughPowerBand(point, center, junctionRadius)
+                    && point.distanceSquared(center) > 1e-6) {
                 continue;
             }
-            // 岔心留给 detector_rail
-            if (point.distanceSquared(center) <= 1e-6) {
+            blocks.getSolids().add(
+                point,
+                junctionY + 1,
+                RoadSolidLayer.MARKING,
+                "minecraft:rail",
+                RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT);
+        }
+
+        // 2) 装饰动力轨：离开岔心的直股段可见标记；岔心保留普通轨供支线汇合。
+        for (Vec2d point : throughPath) {
+            if (!RoadRailwayTurnout.inPoweredDecorBand(point, center, junctionRadius)) {
                 continue;
             }
             blocks.getSolids().add(
@@ -171,29 +259,33 @@ public final class RoadJunctionMarkingGenerator {
                 junctionY + 1,
                 RoadSolidLayer.MARKING,
                 "minecraft:powered_rail",
-                12);
+                RoadRailwayTurnout.PRIORITY_POWERED_DECOR);
         }
+
+        // 3) 探测轨标记在岔心外侧一格，避免占住汇合点破坏支线接入。
+        RoadRailwayTurnout.detectorMarkPosition(center, armA.outward(), armB.outward())
+            .ifPresent(mark -> blocks.getSolids().add(
+                mark,
+                junctionY + 1,
+                RoadSolidLayer.MARKING,
+                "minecraft:detector_rail",
+                RoadRailwayTurnout.PRIORITY_DETECTOR_MARK));
     }
 
-    private static List<Vec2d> densifyPolyline(List<Vec2d> points, double step) {
-        if (points == null || points.size() < 2 || step <= 1e-9) {
-            return points != null ? points : List.of();
+    private static List<Vec2d> extractInwardApproach(
+            ApproachGeometry approach,
+            String nodeId,
+            RoadNetwork network,
+            double junctionRadius) {
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, approach.edge());
+        List<Vec2d> outward = RoadJunctionGeometry.extractApproachCenterline(
+            centerline, approach.edge(), nodeId, junctionRadius * 1.35);
+        if (outward.size() < 2) {
+            return List.of();
         }
-        List<Vec2d> dense = new ArrayList<>();
-        dense.add(points.getFirst());
-        for (int i = 1; i < points.size(); i++) {
-            Vec2d prev = points.get(i - 1);
-            Vec2d curr = points.get(i);
-            double len = prev.distance(curr);
-            if (len < 1e-9) {
-                continue;
-            }
-            int segments = Math.max(1, (int) Math.ceil(len / step));
-            for (int s = 1; s <= segments; s++) {
-                dense.add(prev.lerp(curr, (double) s / segments));
-            }
-        }
-        return dense;
+        List<Vec2d> inward = new ArrayList<>(outward);
+        Collections.reverse(inward);
+        return inward;
     }
 
     private static List<ApproachGeometry> buildApproachGeometries(
@@ -330,7 +422,12 @@ public final class RoadJunctionMarkingGenerator {
                         sleeperId);
                 }
             }
-            blocks.getSolids().add(point, junctionY + 1, RoadSolidLayer.MARKING, railId);
+            blocks.getSolids().add(
+                point,
+                junctionY + 1,
+                RoadSolidLayer.MARKING,
+                railId,
+                RoadRailwayTurnout.PRIORITY_APPROACH_RAIL);
         }
     }
 

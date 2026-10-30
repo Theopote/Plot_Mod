@@ -246,11 +246,132 @@ class RoadJunctionMarkingGeneratorTest {
             blocks.getSolids().primitives().stream()
                 .anyMatch(p -> "minecraft:detector_rail".equals(p.materialId())
                     && p.elevation() == 65),
-            "three+ railway approaches should place a detector-rail switch marker at the plaza center");
+            "three+ railway approaches should place a detector-rail turnout mark");
         assertTrue(
             blocks.getSolids().primitives().stream()
                 .anyMatch(p -> "minecraft:powered_rail".equals(p.materialId())
                     && p.elevation() == 65),
             "three+ railway approaches should place powered rail on the through route");
+
+        // 岔心须为普通铁轨（直股连通），探测轨不得占住汇合点
+        var frog = blocks.getSolids().primitives().stream()
+            .filter(p -> p.elevation() == 65
+                && Math.round(p.planPoint().x) == 0
+                && Math.round(p.planPoint().y) == 0)
+            .findFirst();
+        assertTrue(frog.isPresent(), "frog cell should have a rail solid");
+        assertTrue(
+            "minecraft:rail".equals(frog.get().materialId()),
+            "frog must stay normal rail for branch merge; got " + frog.get().materialId());
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .filter(p -> "minecraft:detector_rail".equals(p.materialId()))
+                .noneMatch(p -> Math.round(p.planPoint().x) == 0
+                    && Math.round(p.planPoint().y) == 0),
+            "detector mark must be offset from frog");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:rail".equals(p.materialId())
+                    && p.materialPriority() == RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT),
+            "through path should place high-priority connecting rails");
+    }
+
+    @Test
+    void elevatedRailwayContinuationPlacesRailsAtDeckHeight() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 12));
+        RoadNode south = network.createNode(new Vec2d(0, -12));
+
+        Road elevated = network.createRoad();
+        elevated.applyStyle(com.plot.plugin.road.style.RoadStyleCatalog.railway());
+
+        List<RoadEdge> elevatedEdges = List.of(
+            network.createEdge(
+                junction.getId(), north.getId(),
+                List.of(new Vec2d(0, 0), new Vec2d(0, 12)), elevated.getId()),
+            network.createEdge(
+                south.getId(), junction.getId(),
+                List.of(new Vec2d(0, -12), new Vec2d(0, 0)), elevated.getId()));
+
+        int deckY = 70;
+        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        markingGenerator.generateElevatedRailwayContinuation(
+            blocks, junction, network, elevatedEdges, deckY);
+
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:rail".equals(p.materialId()) && p.elevation() == deckY + 1),
+            "elevated through rails must sit one block above deck");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:oak_planks".equals(p.materialId()) && p.elevation() == deckY),
+            "elevated sleepers must sit on deck");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:rail".equals(p.materialId())
+                    && p.materialPriority() == RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT
+                    && Math.round(p.planPoint().x) == 0
+                    && Math.round(p.planPoint().y) == 0),
+            "through connect rail should cover the grade-separated node cell at deck+1");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .filter(p -> p.materialId() != null && p.materialId().contains("rail"))
+                .noneMatch(p -> p.elevation() < deckY),
+            "elevated continuation must not drop rails to underpass elevation");
+    }
+
+    @Test
+    void railwayFanWithoutOpposingArmsSkipsTurnoutDecor() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        // 扇形三臂：无对向直股
+        RoadNode a = network.createNode(new Vec2d(10, 0));
+        RoadNode b = network.createNode(new Vec2d(8, 6));
+        RoadNode c = network.createNode(new Vec2d(4, 9));
+
+        Road road = network.createRoad();
+        road.applyStyle(com.plot.plugin.road.style.RoadStyleCatalog.railway());
+
+        List<RoadEdge> edges = List.of(
+            network.createEdge(
+                junction.getId(), a.getId(),
+                List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()),
+            network.createEdge(
+                junction.getId(), b.getId(),
+                List.of(new Vec2d(0, 0), new Vec2d(8, 6)), road.getId()),
+            network.createEdge(
+                junction.getId(), c.getId(),
+                List.of(new Vec2d(0, 0), new Vec2d(4, 9)), road.getId()));
+
+        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        markingGenerator.generateMarkings(blocks, junction, network, edges, List.of(), 64);
+
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:rail".equals(p.materialId())),
+            "continued approach rails still generate");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .noneMatch(p -> "minecraft:powered_rail".equals(p.materialId())),
+            "no forced through powered rail without opposing pair");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .noneMatch(p -> "minecraft:detector_rail".equals(p.materialId())),
+            "no detector turnout mark without opposing pair");
     }
 }

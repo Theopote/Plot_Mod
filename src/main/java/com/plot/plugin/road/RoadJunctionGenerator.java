@@ -144,7 +144,48 @@ public class RoadJunctionGenerator {
             networkNodeElevations);
         markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
         markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
+        Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, generator.getConfig());
+        if (elevatedDeckY != null) {
+            List<RoadEdge> elevatedEdges = collectElevatedJunctionEdges(node, network, terrain);
+            markingGenerator.generateElevatedRailwayContinuation(
+                blocks, node, network, elevatedEdges, elevatedDeckY);
+        }
         return blocks;
+    }
+
+    private List<RoadEdge> collectElevatedJunctionEdges(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        List<RoadEdge> elevated = new ArrayList<>();
+        if (node == null || network == null) {
+            return elevated;
+        }
+        if (node.isStackGradeSeparated()) {
+            for (String edgeId : node.getConnectedEdgeIds()) {
+                if (!node.isStackUpperEdge(edgeId)) {
+                    continue;
+                }
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge != null) {
+                    elevated.add(edge);
+                }
+            }
+            return elevated;
+        }
+        String elevatedRoadId = node.isGradeSeparated()
+            ? generator.resolveElevatedRoadId(node, network, terrain)
+            : null;
+        if (elevatedRoadId == null) {
+            return elevated;
+        }
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && elevatedRoadId.equals(edge.getRoadId())) {
+                elevated.add(edge);
+            }
+        }
+        return elevated;
     }
 
     private List<Vec2d> generatePolygonJunction(

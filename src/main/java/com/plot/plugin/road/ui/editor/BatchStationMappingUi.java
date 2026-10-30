@@ -45,16 +45,28 @@ final class BatchStationMappingUi {
     }
 
     static void renderPreviewReport(BatchApplyReport preview) {
-        if (preview == null || !preview.hasWarnings()) {
+        if (preview == null) {
             return;
         }
-        ImGui.textColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr(
-                "plugin.road.floating_editor.batch_mapping.preview_warning",
-                preview.skippedTargets(),
-                preview.droppedItems(),
-                preview.clampedItems()));
+        if (preview.hasWarnings()) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr(
+                    "plugin.road.floating_editor.batch_mapping.preview_stats",
+                    preview.appliedTargets(),
+                    preview.skippedTargets(),
+                    preview.droppedItems(),
+                    preview.clampedItems()));
+        } else if (preview.appliedTargets() > 0) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.floating_editor.batch_mapping.preview_stats",
+                    preview.appliedTargets(),
+                    preview.skippedTargets(),
+                    preview.droppedItems(),
+                    preview.clampedItems()));
+        }
     }
 
     static BatchApplyReport previewVariable(
@@ -78,14 +90,20 @@ final class BatchStationMappingUi {
     }
 
     static void reportApplyResult(RoadUiContext ctx, BatchApplyReport report) {
-        if (ctx == null || report == null || !report.hasWarnings()) {
+        if (ctx == null || report == null) {
             return;
         }
-        ctx.status().warning(PlotI18n.tr(
-            "plugin.road.floating_editor.batch_mapping.apply_warning",
+        String message = PlotI18n.tr(
+            "plugin.road.floating_editor.batch_mapping.apply_stats",
+            report.appliedTargets(),
             report.skippedTargets(),
             report.droppedItems(),
-            report.clampedItems()));
+            report.clampedItems());
+        if (report.hasWarnings()) {
+            ctx.status().warning(message);
+        } else if (report.appliedTargets() > 0) {
+            ctx.status().info(message);
+        }
     }
 
     static boolean renderLossyConfirmDialog(

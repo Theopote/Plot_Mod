@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
+import com.plot.plugin.road.pipeline.marking.RoadRailPlacementPass;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 
@@ -33,14 +34,13 @@ public final class RoadGenerationResultAssembler {
                 mergeResult(aggregate, edgeResult);
             }
         }
-        if (network == null || junctionResults == null || host == null) {
-            com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
-            return aggregate;
-        }
-        for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
-            mergeJunctionForNode(aggregate, network.getNode(entry.getKey()), entry.getValue(), network, host);
+        if (network != null && junctionResults != null && host != null) {
+            for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
+                mergeJunctionForNode(aggregate, network.getNode(entry.getKey()), entry.getValue(), network, host);
+            }
         }
         com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
+        RoadRailPlacementPass.apply(aggregate);
         return aggregate;
     }
 

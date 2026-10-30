@@ -227,7 +227,7 @@ public final class BatchStationDataMapper {
         if (start > limit + EPSILON) {
             return null;
         }
-        double clampedStart = Math.min(Math.max(0.0, start), limit);
+        double clampedStart = Math.clamp(start, 0.0, limit);
         Double clampedEnd = end;
         if (end != null) {
             if (!Double.isFinite(end)) {
