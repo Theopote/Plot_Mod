@@ -113,6 +113,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadUiTab tabAtFrameStart = ctx.activeTab();
         ctx.roadListRename().tickFrame();
         ctx.previewManager().tickPreviewJob();
+        ctx.previewManager().tickTerrainPrefetch();
 
         buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
         floatingEditorHost.renderAll(ctx);

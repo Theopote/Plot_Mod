@@ -297,14 +297,16 @@ public class RoadNetworkGenerator {
     }
 
     /**
-     * 预览/纵断面采样前预取走廊地形（抬视距 + 集成服强制加载并缓存工程地面）。
+     * 预览/纵断面采样前解析走廊地形：缓存命中则用服务端预取快照，否则非阻塞启动预取并先用客户端采样。
      */
     private TerrainSampler prepareTerrainForNetwork(RoadNetwork network, World world) {
         TerrainSampler clientSampler = roadGenerator.createTerrainSampler(world);
-        return RoadCorridorTerrainPrefetch.prepareForNetwork(
+        return RoadCorridorTerrainPrefetch.resolve(
             network,
             world,
             roadGenerator.coordinateTransformer(),
+            roadGenerator.getConfig(),
+            roadGenerator::estimateCanvasUnitsPerBlock,
             clientSampler);
     }
 

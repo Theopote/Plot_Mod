@@ -16,6 +16,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
 import com.plot.utils.PlotI18n;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -52,6 +53,12 @@ public final class RoadPreviewManager {
     private RoadNetworkPreviewJob previewJob;
     private long lastPreviewTerrainFingerprint = 0L;
     private String previewWorldKey = "";
+    /** 地形预取完成后需用服务端快照重刷的路网（轻量纵断面）。 */
+    private RoadNetwork pendingTerrainPrefetchRefresh;
+    /** 完整预览在缓存未就绪时启动；预取完成后提示重新计算。 */
+    private boolean pendingFullPreviewTerrainRefresh;
+    private boolean suppressTerrainPrefetchReschedule;
+
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
         this.host = Objects.requireNonNull(host, "host");
@@ -222,11 +229,54 @@ public final class RoadPreviewManager {
                 return false;
             }
             applyProfileSamplingResult(network, sampling);
+            if (!suppressTerrainPrefetchReschedule
+                    && !RoadCorridorTerrainPrefetch.isCacheReady(network, world)) {
+                pendingTerrainPrefetchRefresh = network;
+                if (RoadCorridorTerrainPrefetch.isPrefetchPending()) {
+                    status.info(PlotI18n.tr("plugin.road.terrain_prefetch_pending"));
+                }
+            }
             return true;
         } catch (RuntimeException e) {
             status.error(PlotI18n.tr("plugin.road.profile_sampling_failed"));
             LOGGER.error("纵断面采样失败: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+    /**
+     * 每帧轮询走廊地形预取；缓存就绪后用服务端快照重刷轻量纵断面（不打断进行中的完整预览 job）。
+     */
+    public void tickTerrainPrefetch() {
+        RoadCorridorTerrainPrefetch.pollCompleted(null);
+        if (isPreviewJobRunning()) {
+            return;
+        }
+        World world = RoadNetworkGenerator.getClientWorld();
+        RoadNetwork profileNetwork = pendingTerrainPrefetchRefresh;
+        if (profileNetwork != null
+                && world != null
+                && RoadCorridorTerrainPrefetch.isCacheReady(profileNetwork, world)) {
+            pendingTerrainPrefetchRefresh = null;
+            suppressTerrainPrefetchReschedule = true;
+            try {
+                if (calculateProfileSamplingOnly(profileNetwork)) {
+                    status.info(PlotI18n.tr("plugin.road.terrain_prefetch_applied"));
+                }
+            } finally {
+                suppressTerrainPrefetchReschedule = false;
+            }
+            pendingFullPreviewTerrainRefresh = false;
+            return;
+        }
+        if (pendingFullPreviewTerrainRefresh
+                && world != null
+                && previewNetwork != null
+                && RoadCorridorTerrainPrefetch.isCacheReady(previewNetwork, world)) {
+            pendingFullPreviewTerrainRefresh = false;
+            previewNeedsRecalc = true;
+            bumpTerrainRevision();
+            status.info(PlotI18n.tr("plugin.road.terrain_prefetch_preview_stale"));
         }
     }
 
@@ -256,6 +306,9 @@ public final class RoadPreviewManager {
 
         cancelPreviewJobSilently();
         previewJob = new RoadNetworkPreviewJob(network, autoProjectGhosts, networkGenerator, this);
+        if (!RoadCorridorTerrainPrefetch.isCacheReady(network, world)) {
+            pendingFullPreviewTerrainRefresh = true;
+        }
         updatePreviewJobProgress(previewJob);
         return true;
     }
