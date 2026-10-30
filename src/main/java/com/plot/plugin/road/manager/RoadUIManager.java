@@ -61,6 +61,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private List<RoadJunctionOverlayEntry> junctionOverlayEntries = List.of();
     private long overlaySnapshotRevision = -1L;
     private String overlaySelectionKey = "";
+    /** 视图范围/画布尺度变化时需重建走廊半宽（方块→画布换算依赖投影）。 */
+    private int overlayProjectionFingerprint = 0;
     private final RoadCanvasSelectionController canvasSelectionController = new RoadCanvasSelectionController();
     private final RoadFloatingEditorHost floatingEditorHost = new RoadFloatingEditorHost();
     /** 脏草稿挡住切 Tab 后，下一帧强制把 ImGui 选回编辑 Tab。 */
@@ -197,7 +199,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     }
 
     /**
-     * 单一 overlay snapshot 入口：仅在 revision / 选择态 / 前景 dirty 变化时重建。
+     * 单一 overlay snapshot 入口：revision / 选择态 / 投影尺度 / 前景 dirty 变化时重建。
      */
     private void ensureOverlaySnapshot() {
         if (!ctx.isRoadOverlayVisible()) {
@@ -205,20 +207,41 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             junctionOverlayEntries = List.of();
             overlaySnapshotRevision = -1L;
             overlaySelectionKey = "";
+            overlayProjectionFingerprint = 0;
             ctx.consumeOverlayForegroundDirty();
             return;
         }
         long revision = ctx.networkManager().getNetworkRevision();
         String selectionKey = overlaySelectionKey();
+        int projectionFingerprint = currentOverlayProjectionFingerprint();
         if (revision == overlaySnapshotRevision
                 && selectionKey.equals(overlaySelectionKey)
+                && projectionFingerprint == overlayProjectionFingerprint
                 && !ctx.isOverlayForegroundDirty()) {
             return;
         }
         captureOverlaySnapshot();
         overlaySnapshotRevision = revision;
         overlaySelectionKey = selectionKey;
+        overlayProjectionFingerprint = projectionFingerprint;
         ctx.consumeOverlayForegroundDirty();
+    }
+
+    /**
+     * 仅含视图尺度（viewDistance / scale / canvas 尺寸），不含玩家平移，
+     * 避免每帧 pan 都重建，同时保证调整「视图范围」时走廊宽度即时刷新。
+     */
+    private int currentOverlayProjectionFingerprint() {
+        try {
+            var coordinates = ctx.host().coordinates();
+            if (coordinates == null) {
+                return 0;
+            }
+            var snapshot = coordinates.captureProjection();
+            return snapshot != null ? snapshot.uiFingerprint() : 0;
+        } catch (RuntimeException ignored) {
+            return 0;
+        }
     }
 
     private void captureOverlaySnapshot() {
