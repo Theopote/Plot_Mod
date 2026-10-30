@@ -6,10 +6,13 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
  * 将源道路的桩号工程数据映射到目标道路长度域。
+ * <p>
+ * 比例模式要求源、目标均有有效长度；任一侧为零则整次映射拒绝（不猜测桩号）。
  */
 public final class BatchStationDataMapper {
     private static final double EPSILON = 1e-6;
@@ -17,9 +20,17 @@ public final class BatchStationDataMapper {
     private BatchStationDataMapper() {
     }
 
-    public record MapResult<T>(T data, int droppedCount, int clampedCount) {
+    public record MapResult<T>(T data, int droppedCount, int clampedCount, boolean rejected) {
         public boolean hasWarnings() {
-            return droppedCount > 0 || clampedCount > 0;
+            return rejected || droppedCount > 0 || clampedCount > 0;
+        }
+
+        static <T> MapResult<T> rejected(int inputCount) {
+            return new MapResult<>(null, Math.max(0, inputCount), 0, true);
+        }
+
+        static <T> MapResult<T> ok(T data, int dropped, int clamped) {
+            return new MapResult<>(data, dropped, clamped, false);
         }
     }
 
@@ -29,7 +40,7 @@ public final class BatchStationDataMapper {
             double targetLength,
             BatchStationMappingMode mode) {
         if (source == null) {
-            return new MapResult<>(null, 0, 0);
+            return MapResult.ok(null, 0, 0);
         }
         if (mode == BatchStationMappingMode.PROPORTIONAL) {
             return mapVariableProportional(source, sourceLength, targetLength);
@@ -43,7 +54,7 @@ public final class BatchStationDataMapper {
             double targetLength,
             BatchStationMappingMode mode) {
         if (source == null) {
-            return new MapResult<>(null, 0, 0);
+            return MapResult.ok(null, 0, 0);
         }
         if (mode == BatchStationMappingMode.PROPORTIONAL) {
             return mapFacilitiesProportional(source, sourceLength, targetLength);
@@ -51,6 +62,9 @@ public final class BatchStationDataMapper {
         return mapFacilitiesAbsolute(source, targetLength);
     }
 
+    /**
+     * @return 映射后的桩号；无效输入或比例模式长度不足时为 {@link Double#NaN}
+     */
     public static double mapStation(
             double station,
             double sourceLength,
@@ -64,87 +78,94 @@ public final class BatchStationDataMapper {
         }
         double src = Math.max(sourceLength, 0.0);
         double dst = Math.max(targetLength, 0.0);
-        if (src <= EPSILON) {
-            // 源无长度（仅草稿路）：目标也无长度时原样保留，否则夹到目标长
-            return dst <= EPSILON ? station : Math.min(station, dst);
+        if (src <= EPSILON || dst <= EPSILON) {
+            return Double.NaN;
         }
         return station / src * dst;
+    }
+
+    public static boolean canMapProportionally(double sourceLength, double targetLength) {
+        return Math.max(sourceLength, 0.0) > EPSILON && Math.max(targetLength, 0.0) > EPSILON;
     }
 
     private static MapResult<RoadVariableCrossSections> mapVariableProportional(
             RoadVariableCrossSections source,
             double sourceLength,
             double targetLength) {
-        if (Math.max(sourceLength, 0.0) <= EPSILON && Math.max(targetLength, 0.0) <= EPSILON) {
-            return new MapResult<>(source.copy(), 0, 0);
+        int inputCount = source.stationCount();
+        if (!canMapProportionally(sourceLength, targetLength)) {
+            return MapResult.rejected(inputCount);
         }
+        List<StationCrossSection> sorted = new ArrayList<>(source.getStations());
+        sorted.removeIf(s -> s == null || !Double.isFinite(s.getStation()) || s.getStation() < 0.0);
+        sorted.sort(Comparator.comparingDouble(StationCrossSection::getStation));
+
         List<StationCrossSection> mapped = new ArrayList<>();
+        int dropped = inputCount - sorted.size();
         double last = -1.0;
-        for (StationCrossSection station : source.getStations()) {
-            if (station == null) {
-                continue;
-            }
+        double limit = targetLength;
+        for (StationCrossSection station : sorted) {
             double s = mapStation(
                 station.getStation(), sourceLength, targetLength, BatchStationMappingMode.PROPORTIONAL);
-            if (!Double.isFinite(s)) {
+            if (!Double.isFinite(s) || s < -EPSILON || s > limit + EPSILON) {
+                dropped++;
                 continue;
             }
-            s = clamp(s, 0.0, Math.max(targetLength, 0.0));
+            s = clamp(s, 0.0, limit);
             if (s <= last + EPSILON) {
-                s = last + EPSILON * 10.0;
-            }
-            if (targetLength > EPSILON && s > targetLength + EPSILON) {
+                // 重叠或非严格递增：丢弃，不静默推移
+                dropped++;
                 continue;
             }
             mapped.add(StationCrossSection.at(s, station.getCrossSection().copy()));
             last = s;
         }
-        return new MapResult<>(
-            new RoadVariableCrossSections(mapped, source.getTransitionMode()),
-            0,
-            0);
+        return MapResult.ok(new RoadVariableCrossSections(mapped, source.getTransitionMode()), dropped, 0);
     }
 
     private static MapResult<RoadVariableCrossSections> mapVariableAbsolute(
             RoadVariableCrossSections source,
             double targetLength) {
+        List<StationCrossSection> sorted = new ArrayList<>(source.getStations());
+        int inputCount = source.stationCount();
+        sorted.removeIf(s -> s == null || !Double.isFinite(s.getStation()) || s.getStation() < 0.0);
+        sorted.sort(Comparator.comparingDouble(StationCrossSection::getStation));
+
         List<StationCrossSection> mapped = new ArrayList<>();
-        int dropped = 0;
+        int dropped = inputCount - sorted.size();
+        double last = -1.0;
         double limit = Math.max(targetLength, 0.0);
-        for (StationCrossSection station : source.getStations()) {
-            if (station == null) {
-                continue;
-            }
+        for (StationCrossSection station : sorted) {
             double s = station.getStation();
-            if (!Double.isFinite(s) || s < 0.0) {
-                dropped++;
-                continue;
-            }
             if (s > limit + EPSILON) {
                 dropped++;
                 continue;
             }
-            mapped.add(StationCrossSection.at(Math.min(s, limit), station.getCrossSection().copy()));
+            s = Math.min(s, limit);
+            if (s <= last + EPSILON) {
+                dropped++;
+                continue;
+            }
+            mapped.add(StationCrossSection.at(s, station.getCrossSection().copy()));
+            last = s;
         }
-        return new MapResult<>(
-            new RoadVariableCrossSections(mapped, source.getTransitionMode()),
-            dropped,
-            0);
+        return MapResult.ok(new RoadVariableCrossSections(mapped, source.getTransitionMode()), dropped, 0);
     }
 
     private static MapResult<RoadStationFacilities> mapFacilitiesProportional(
             RoadStationFacilities source,
             double sourceLength,
             double targetLength) {
-        // 双边均无长度：原样复制（多选草稿路尚未铺设时）
-        if (Math.max(sourceLength, 0.0) <= EPSILON && Math.max(targetLength, 0.0) <= EPSILON) {
-            return new MapResult<>(source.copy(), 0, 0);
+        int inputCount = source.runCount();
+        if (!canMapProportionally(sourceLength, targetLength)) {
+            return MapResult.rejected(inputCount);
         }
         List<StationFacilityRun> mapped = new ArrayList<>();
         int dropped = 0;
-        double limit = Math.max(targetLength, 0.0);
+        double limit = targetLength;
         for (StationFacilityRun run : source.getRuns()) {
             if (run == null) {
+                dropped++;
                 continue;
             }
             double start = mapStation(
@@ -160,7 +181,7 @@ public final class BatchStationDataMapper {
                 mapped.add(remapped);
             }
         }
-        return new MapResult<>(new RoadStationFacilities(mapped), dropped, 0);
+        return MapResult.ok(new RoadStationFacilities(mapped), dropped, 0);
     }
 
     private static MapResult<RoadStationFacilities> mapFacilitiesAbsolute(
@@ -172,6 +193,7 @@ public final class BatchStationDataMapper {
         double limit = Math.max(targetLength, 0.0);
         for (StationFacilityRun run : source.getRuns()) {
             if (run == null) {
+                dropped++;
                 continue;
             }
             double start = run.getStartStation();
@@ -191,7 +213,7 @@ public final class BatchStationDataMapper {
                 }
             }
         }
-        return new MapResult<>(new RoadStationFacilities(mapped), dropped, clamped);
+        return MapResult.ok(new RoadStationFacilities(mapped), dropped, clamped);
     }
 
     private static StationFacilityRun clampFacilityRun(
@@ -202,10 +224,10 @@ public final class BatchStationDataMapper {
         if (!Double.isFinite(start) || start < 0.0) {
             return null;
         }
-        double clampedStart = Math.min(start, limit);
-        if (clampedStart > limit + EPSILON) {
+        if (start > limit + EPSILON) {
             return null;
         }
+        double clampedStart = Math.min(Math.max(0.0, start), limit);
         Double clampedEnd = end;
         if (end != null) {
             if (!Double.isFinite(end)) {
@@ -215,12 +237,10 @@ public final class BatchStationDataMapper {
             if (clampedEnd <= clampedStart + EPSILON) {
                 return null;
             }
-        } else if (limit <= EPSILON && clampedStart > EPSILON) {
-            return null;
         }
         try {
             return new StationFacilityRun(
-                Math.max(0.0, clampedStart),
+                clampedStart,
                 clampedEnd,
                 template.getKind(),
                 template.getSide(),

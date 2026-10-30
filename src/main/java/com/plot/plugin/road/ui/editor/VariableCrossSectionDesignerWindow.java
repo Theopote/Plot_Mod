@@ -83,14 +83,19 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
                 PlotI18n.tr(
                     "plugin.road.floating_editor.variable_cross_section.batch_scope",
                     targetRoadIds.size()));
+            BatchStationMappingMode previous = batchMappingMode;
             batchMappingMode = BatchStationMappingUi.renderModeSelector(
                 batchMappingMode, "variable_xs");
-            BatchStationMappingUi.renderVariablePreviewWarnings(
+            if (previous != batchMappingMode) {
+                lossyBatchAcknowledged = false;
+            }
+            BatchApplyReport preview = BatchStationMappingUi.previewVariable(
                 session.workingNetwork(),
                 road,
                 road.getVariableCrossSections(),
                 new LinkedHashSet<>(targetRoadIds),
                 batchMappingMode);
+            BatchStationMappingUi.renderPreviewReport(preview);
             ImGui.spacing();
         }
         ChainageDisplayContext chainageDisplay = null;
@@ -106,6 +111,23 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
             road,
             chainageDisplay,
             () -> { /* dirty tracked by session */ });
+    }
+
+    @Override
+    protected boolean isBatchMappingLossy() {
+        if (session == null || targetRoadIds.size() <= 1) {
+            return false;
+        }
+        Road road = session.workingNetwork().getRoad(roadId);
+        if (road == null || road.getVariableCrossSections() == null) {
+            return false;
+        }
+        return BatchStationMappingUi.previewVariable(
+            session.workingNetwork(),
+            road,
+            road.getVariableCrossSections(),
+            new LinkedHashSet<>(targetRoadIds),
+            batchMappingMode).isLossy();
     }
 
     @Override
@@ -128,5 +150,6 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
     protected void restoreSession() {
         super.restoreSession();
         editor.reset();
+        lossyBatchAcknowledged = false;
     }
 }

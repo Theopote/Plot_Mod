@@ -45,7 +45,7 @@ public final class StationFacilityEditorApplier {
 
     /**
      * 将工作副本中 {@code sourceRoadId} 的桩号设施映射到 live 上全部 {@code targetRoadIds}。
-     * LEFT/RIGHT 随各路前进方向解释，不做世界坐标翻转。
+     * LEFT/RIGHT 按各路自身前进方向解释，不随世界坐标翻转。
      */
     public static BatchApplyReport applyToLive(
             RoadNetwork live,
@@ -66,11 +66,13 @@ public final class StationFacilityEditorApplier {
             : BatchStationMappingMode.PROPORTIONAL;
         double sourceLength = RoadStationing.canonicalLength(workingNetwork, workingRoad);
         int applied = 0;
+        int skipped = 0;
         int dropped = 0;
         int clamped = 0;
         for (String targetId : targets) {
             Road liveRoad = live.getRoad(targetId);
             if (liveRoad == null) {
+                skipped++;
                 continue;
             }
             if (source == null) {
@@ -81,12 +83,58 @@ public final class StationFacilityEditorApplier {
             double targetLength = RoadStationing.canonicalLength(live, liveRoad);
             BatchStationDataMapper.MapResult<RoadStationFacilities> mapped =
                 BatchStationDataMapper.mapStationFacilities(source, sourceLength, targetLength, mode);
+            if (mapped.rejected()) {
+                skipped++;
+                dropped += mapped.droppedCount();
+                continue;
+            }
             liveRoad.setStationFacilities(mapped.data());
             applied++;
             dropped += mapped.droppedCount();
             clamped += mapped.clampedCount();
         }
-        return new BatchApplyReport(applied, dropped, clamped);
+        return new BatchApplyReport(applied, skipped, dropped, clamped);
+    }
+
+    public static BatchApplyReport preview(
+            RoadNetwork network,
+            Road sourceRoad,
+            RoadStationFacilities source,
+            Set<String> targetRoadIds,
+            BatchStationMappingMode mappingMode) {
+        if (network == null || sourceRoad == null || source == null || targetRoadIds == null) {
+            return BatchApplyReport.empty();
+        }
+        BatchStationMappingMode mode = mappingMode != null
+            ? mappingMode
+            : BatchStationMappingMode.PROPORTIONAL;
+        double sourceLength = RoadStationing.canonicalLength(network, sourceRoad);
+        int skipped = 0;
+        int dropped = 0;
+        int clamped = 0;
+        int applied = 0;
+        for (String targetId : targetRoadIds) {
+            if (targetId.equals(sourceRoad.getId())) {
+                continue;
+            }
+            Road target = network.getRoad(targetId);
+            if (target == null) {
+                skipped++;
+                continue;
+            }
+            double targetLength = RoadStationing.canonicalLength(network, target);
+            var mapped = BatchStationDataMapper.mapStationFacilities(
+                source, sourceLength, targetLength, mode);
+            if (mapped.rejected()) {
+                skipped++;
+                dropped += mapped.droppedCount();
+            } else {
+                applied++;
+                dropped += mapped.droppedCount();
+                clamped += mapped.clampedCount();
+            }
+        }
+        return new BatchApplyReport(applied, skipped, dropped, clamped);
     }
 
     /** @deprecated 请显式传入 {@link BatchStationMappingMode} */

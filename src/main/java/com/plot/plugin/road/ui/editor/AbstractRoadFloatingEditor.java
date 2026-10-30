@@ -23,6 +23,10 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     protected boolean reloadConfirmPending;
     /** 脏窗确认后要切到的道路；空表示确认/丢弃后关闭。 */
     protected String pendingSwitchRoadId = "";
+    /** 批量映射将丢弃/截断时的二次确认。 */
+    protected boolean lossyBatchConfirmPending;
+    /** 用户已确认接受丢弃/截断。 */
+    protected boolean lossyBatchAcknowledged;
 
     protected abstract RoadFloatingEditorKind editorKind();
 
@@ -141,6 +145,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
 
         renderCloseConfirmDialog(ctx);
         renderReloadConfirmDialog(ctx);
+        renderLossyBatchConfirmDialog(ctx);
 
         if (!windowOpen.get()) {
             session = null;
@@ -168,6 +173,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         scopeBlocked = false;
         revisionConflictPending = false;
         reloadConfirmPending = false;
+        lossyBatchConfirmPending = false;
+        lossyBatchAcknowledged = false;
         pendingSwitchRoadId = "";
         if (session != null) {
             session.cancel();
@@ -185,12 +192,42 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         scopeBlocked = false;
         revisionConflictPending = false;
         reloadConfirmPending = false;
+        lossyBatchConfirmPending = false;
+        lossyBatchAcknowledged = false;
         pendingSwitchRoadId = "";
+    }
+
+    /** 子类：批量写回是否会丢弃/截断/跳过目标。 */
+    protected boolean isBatchMappingLossy() {
+        return false;
+    }
+
+    protected void renderLossyBatchConfirmDialog(RoadUiContext ctx) {
+        BatchStationMappingUi.renderLossyConfirmDialog(
+            windowImGuiId() + "##lossy_batch_confirm",
+            lossyBatchConfirmPending,
+            () -> {
+                lossyBatchConfirmPending = false;
+                lossyBatchAcknowledged = false;
+            },
+            () -> {
+                lossyBatchConfirmPending = false;
+                lossyBatchAcknowledged = true;
+                confirmAfterLossyAck(ctx);
+            },
+            () -> {
+                lossyBatchConfirmPending = false;
+                lossyBatchAcknowledged = false;
+            });
     }
 
     /** 作用域切换等场景：是否有未保存确认或版本冲突待处理。 */
     boolean isInteractionBlocked() {
-        return scopeBlocked || closeConfirmPending || revisionConflictPending || reloadConfirmPending;
+        return scopeBlocked
+            || closeConfirmPending
+            || revisionConflictPending
+            || reloadConfirmPending
+            || lossyBatchConfirmPending;
     }
 
     protected void restoreSession() {
@@ -210,6 +247,14 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.invalid_draft"));
             return false;
         }
+        if (isBatchMappingLossy() && !lossyBatchAcknowledged) {
+            lossyBatchConfirmPending = true;
+            return false;
+        }
+        return confirmAfterLossyAck(ctx);
+    }
+
+    private boolean confirmAfterLossyAck(RoadUiContext ctx) {
         long liveRevision = ctx.networkManager().getNetworkRevision();
         RoadNetworkEditorSession.ConfirmResult result = session.confirm(
             liveRevision,
@@ -233,8 +278,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                 yield true;
             }
             case CONFLICT -> {
-                // 冲突时保留 A 草稿，不切换
-                pendingSwitchRoadId = "";
+                // 冲突时保留 A 草稿与待切换意图，不切换
                 revisionConflictPending = true;
                 ctx.status().warning(
                     PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));

@@ -47,6 +47,7 @@ public final class VariableCrossSectionEditorApplier {
 
     /**
      * 将工作副本中 {@code sourceRoadId} 的可变断面映射到 live 上全部 {@code targetRoadIds}。
+     * 比例映射在源/目标无有效长度时跳过该目标（不猜测桩号）。
      */
     public static BatchApplyReport applyToLive(
             RoadNetwork live,
@@ -67,11 +68,13 @@ public final class VariableCrossSectionEditorApplier {
             : BatchStationMappingMode.PROPORTIONAL;
         double sourceLength = RoadStationing.canonicalLength(workingNetwork, workingRoad);
         int applied = 0;
+        int skipped = 0;
         int dropped = 0;
         int clamped = 0;
         for (String targetId : targets) {
             Road liveRoad = live.getRoad(targetId);
             if (liveRoad == null) {
+                skipped++;
                 continue;
             }
             if (source == null) {
@@ -82,12 +85,58 @@ public final class VariableCrossSectionEditorApplier {
             double targetLength = RoadStationing.canonicalLength(live, liveRoad);
             BatchStationDataMapper.MapResult<RoadVariableCrossSections> mapped =
                 BatchStationDataMapper.mapVariableCrossSections(source, sourceLength, targetLength, mode);
+            if (mapped.rejected()) {
+                skipped++;
+                dropped += mapped.droppedCount();
+                continue;
+            }
             liveRoad.setVariableCrossSections(mapped.data());
             applied++;
             dropped += mapped.droppedCount();
             clamped += mapped.clampedCount();
         }
-        return new BatchApplyReport(applied, dropped, clamped);
+        return new BatchApplyReport(applied, skipped, dropped, clamped);
+    }
+
+    public static BatchApplyReport preview(
+            RoadNetwork network,
+            Road sourceRoad,
+            RoadVariableCrossSections source,
+            Set<String> targetRoadIds,
+            BatchStationMappingMode mappingMode) {
+        if (network == null || sourceRoad == null || source == null || targetRoadIds == null) {
+            return BatchApplyReport.empty();
+        }
+        BatchStationMappingMode mode = mappingMode != null
+            ? mappingMode
+            : BatchStationMappingMode.PROPORTIONAL;
+        double sourceLength = RoadStationing.canonicalLength(network, sourceRoad);
+        int skipped = 0;
+        int dropped = 0;
+        int clamped = 0;
+        int applied = 0;
+        for (String targetId : targetRoadIds) {
+            if (targetId.equals(sourceRoad.getId())) {
+                continue;
+            }
+            Road target = network.getRoad(targetId);
+            if (target == null) {
+                skipped++;
+                continue;
+            }
+            double targetLength = RoadStationing.canonicalLength(network, target);
+            var mapped = BatchStationDataMapper.mapVariableCrossSections(
+                source, sourceLength, targetLength, mode);
+            if (mapped.rejected()) {
+                skipped++;
+                dropped += mapped.droppedCount();
+            } else {
+                applied++;
+                dropped += mapped.droppedCount();
+                clamped += mapped.clampedCount();
+            }
+        }
+        return new BatchApplyReport(applied, skipped, dropped, clamped);
     }
 
     /** @deprecated 请显式传入 {@link BatchStationMappingMode} */

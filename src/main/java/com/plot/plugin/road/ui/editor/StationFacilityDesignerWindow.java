@@ -83,14 +83,20 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
                 PlotI18n.tr(
                     "plugin.road.floating_editor.station_facilities.batch_scope",
                     targetRoadIds.size()));
+            BatchStationMappingMode previous = batchMappingMode;
             batchMappingMode = BatchStationMappingUi.renderModeSelector(
                 batchMappingMode, "station_facilities");
-            BatchStationMappingUi.renderFacilityPreviewWarnings(
+            if (previous != batchMappingMode) {
+                lossyBatchAcknowledged = false;
+            }
+            BatchStationMappingUi.renderFacilitySideNote();
+            BatchApplyReport preview = BatchStationMappingUi.previewFacilities(
                 session.workingNetwork(),
                 road,
                 road.getStationFacilities(),
                 new LinkedHashSet<>(targetRoadIds),
                 batchMappingMode);
+            BatchStationMappingUi.renderPreviewReport(preview);
             ImGui.spacing();
         }
         ChainageDisplayContext chainageDisplay = null;
@@ -105,6 +111,23 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
             road,
             chainageDisplay,
             () -> { /* dirty tracked by session */ });
+    }
+
+    @Override
+    protected boolean isBatchMappingLossy() {
+        if (session == null || targetRoadIds.size() <= 1) {
+            return false;
+        }
+        Road road = session.workingNetwork().getRoad(roadId);
+        if (road == null || road.getStationFacilities() == null) {
+            return false;
+        }
+        return BatchStationMappingUi.previewFacilities(
+            session.workingNetwork(),
+            road,
+            road.getStationFacilities(),
+            new LinkedHashSet<>(targetRoadIds),
+            batchMappingMode).isLossy();
     }
 
     @Override
@@ -127,5 +150,6 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
     protected void restoreSession() {
         super.restoreSession();
         editor.reset();
+        lossyBatchAcknowledged = false;
     }
 }

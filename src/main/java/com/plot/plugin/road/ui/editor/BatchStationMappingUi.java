@@ -4,8 +4,8 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
-import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImInt;
@@ -38,79 +38,88 @@ final class BatchStationMappingUi {
         return mode;
     }
 
-    static void renderVariablePreviewWarnings(
+    static void renderFacilitySideNote() {
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.floating_editor.batch_mapping.side_note"));
+    }
+
+    static void renderPreviewReport(BatchApplyReport preview) {
+        if (preview == null || !preview.hasWarnings()) {
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr(
+                "plugin.road.floating_editor.batch_mapping.preview_warning",
+                preview.skippedTargets(),
+                preview.droppedItems(),
+                preview.clampedItems()));
+    }
+
+    static BatchApplyReport previewVariable(
             RoadNetwork network,
             Road sourceRoad,
             RoadVariableCrossSections source,
             Set<String> targetRoadIds,
             BatchStationMappingMode mode) {
-        if (network == null || sourceRoad == null || source == null || targetRoadIds == null || targetRoadIds.size() <= 1) {
-            return;
-        }
-        double sourceLength = RoadStationing.canonicalLength(network, sourceRoad);
-        int dropped = 0;
-        for (String targetId : targetRoadIds) {
-            if (targetId.equals(sourceRoad.getId())) {
-                continue;
-            }
-            Road target = network.getRoad(targetId);
-            if (target == null) {
-                continue;
-            }
-            double targetLength = RoadStationing.canonicalLength(network, target);
-            dropped += BatchStationDataMapper.mapVariableCrossSections(
-                source, sourceLength, targetLength, mode).droppedCount();
-        }
-        if (dropped > 0) {
-            ImGui.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.floating_editor.batch_mapping.oob_warning", dropped));
-        }
+        return VariableCrossSectionEditorApplier.preview(
+            network, sourceRoad, source, targetRoadIds, mode);
     }
 
-    static void renderFacilityPreviewWarnings(
+    static BatchApplyReport previewFacilities(
             RoadNetwork network,
             Road sourceRoad,
             RoadStationFacilities source,
             Set<String> targetRoadIds,
             BatchStationMappingMode mode) {
-        if (network == null || sourceRoad == null || source == null || targetRoadIds == null || targetRoadIds.size() <= 1) {
-            return;
-        }
-        double sourceLength = RoadStationing.canonicalLength(network, sourceRoad);
-        int dropped = 0;
-        int clamped = 0;
-        for (String targetId : targetRoadIds) {
-            if (targetId.equals(sourceRoad.getId())) {
-                continue;
-            }
-            Road target = network.getRoad(targetId);
-            if (target == null) {
-                continue;
-            }
-            double targetLength = RoadStationing.canonicalLength(network, target);
-            var result = BatchStationDataMapper.mapStationFacilities(
-                source, sourceLength, targetLength, mode);
-            dropped += result.droppedCount();
-            clamped += result.clampedCount();
-        }
-        if (dropped > 0 || clamped > 0) {
-            ImGui.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr(
-                    "plugin.road.floating_editor.batch_mapping.facility_oob_warning",
-                    dropped,
-                    clamped));
-        }
+        return StationFacilityEditorApplier.preview(
+            network, sourceRoad, source, targetRoadIds, mode);
     }
 
-    static void reportApplyResult(com.plot.plugin.road.ui.RoadUiContext ctx, BatchApplyReport report) {
+    static void reportApplyResult(RoadUiContext ctx, BatchApplyReport report) {
         if (ctx == null || report == null || !report.hasWarnings()) {
             return;
         }
         ctx.status().warning(PlotI18n.tr(
             "plugin.road.floating_editor.batch_mapping.apply_warning",
+            report.skippedTargets(),
             report.droppedItems(),
             report.clampedItems()));
+    }
+
+    static boolean renderLossyConfirmDialog(
+            String popupId,
+            boolean pending,
+            Runnable clearPending,
+            Runnable onProceed,
+            Runnable onCancel) {
+        if (!com.plot.plugin.road.ui.RoadUiWidgets.beginDeferredPopupModal(popupId, pending, clearPending)) {
+            return false;
+        }
+        try {
+            ImGui.text(PlotI18n.tr("plugin.road.floating_editor.batch_mapping.lossy_confirm_message"));
+            ImGui.separator();
+            float buttonWidth = 140f;
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.road.floating_editor.batch_mapping.lossy_confirm_proceed")
+                        + "##lossy_ok",
+                    buttonWidth,
+                    0)) {
+                onProceed.run();
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##lossy_cancel",
+                    buttonWidth,
+                    0)) {
+                onCancel.run();
+                ImGui.closeCurrentPopup();
+            }
+        } finally {
+            ImGui.endPopup();
+        }
+        return true;
     }
 }

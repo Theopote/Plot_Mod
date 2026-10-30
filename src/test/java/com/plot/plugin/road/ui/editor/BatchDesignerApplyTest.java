@@ -24,10 +24,9 @@ class BatchDesignerApplyTest {
 
     @Test
     void variableCrossSectionApplyCopiesToAllTargets() {
-        RoadNetwork live = new RoadNetwork();
-        Road a = live.createRoad("a");
-        Road b = live.createRoad("b");
-        live.createNode(new Vec2d(0, 0));
+        RoadNetwork live = networkWithRoads(50.0, 50.0);
+        Road a = named(live, "a");
+        Road b = named(live, "b");
         RoadNetwork working = live.snapshot();
         RoadCrossSection wide = new RoadCrossSection();
         wide.getCarriageway().setWidth(14);
@@ -50,8 +49,8 @@ class BatchDesignerApplyTest {
     @Test
     void variableCrossSectionProportionalRespectsDifferentLengths() {
         RoadNetwork live = networkWithRoads(100.0, 40.0);
-        Road a = live.getRoads().values().stream().filter(r -> "a".equals(r.getName())).findFirst().orElseThrow();
-        Road b = live.getRoads().values().stream().filter(r -> "b".equals(r.getName())).findFirst().orElseThrow();
+        Road a = named(live, "a");
+        Road b = named(live, "b");
         RoadNetwork working = live.snapshot();
         RoadCrossSection wide = new RoadCrossSection();
         wide.getCarriageway().setWidth(12);
@@ -65,6 +64,7 @@ class BatchDesignerApplyTest {
             live, working, a.getId(), Set.of(a.getId(), b.getId()), BatchStationMappingMode.PROPORTIONAL);
 
         assertEquals(0, report.droppedItems());
+        assertEquals(0, report.skippedTargets());
         var stations = live.getRoad(b.getId()).getVariableCrossSections().sortedStations();
         assertEquals(3, stations.size());
         assertEquals(8.0, stations.get(0).getStation(), 1e-6);
@@ -75,8 +75,8 @@ class BatchDesignerApplyTest {
     @Test
     void variableCrossSectionAbsoluteDropsBeyondTargetLength() {
         RoadNetwork live = networkWithRoads(100.0, 40.0);
-        Road a = live.getRoads().values().stream().filter(r -> "a".equals(r.getName())).findFirst().orElseThrow();
-        Road b = live.getRoads().values().stream().filter(r -> "b".equals(r.getName())).findFirst().orElseThrow();
+        Road a = named(live, "a");
+        Road b = named(live, "b");
         RoadNetwork working = live.snapshot();
         working.getRoad(a.getId()).setVariableCrossSections(new RoadVariableCrossSections(List.of(
             StationCrossSection.at(20.0, new RoadCrossSection()),
@@ -95,10 +95,30 @@ class BatchDesignerApplyTest {
     }
 
     @Test
+    void proportionalSkipsZeroLengthTargetWithoutWriting() {
+        RoadNetwork live = networkWithRoads(100.0, 40.0);
+        Road a = named(live, "a");
+        Road zero = live.createRoad("zero");
+        zero.setName("zero");
+        // no edges → length 0
+        RoadNetwork working = live.snapshot();
+        working.getRoad(a.getId()).setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(20.0, new RoadCrossSection())
+        )));
+        assertNull(live.getRoad(zero.getId()).getVariableCrossSections());
+
+        BatchApplyReport report = VariableCrossSectionEditorApplier.applyToLive(
+            live, working, a.getId(), Set.of(zero.getId()), BatchStationMappingMode.PROPORTIONAL);
+
+        assertEquals(1, report.skippedTargets());
+        assertNull(live.getRoad(zero.getId()).getVariableCrossSections());
+    }
+
+    @Test
     void stationFacilitiesApplyCopiesToAllTargets() {
-        RoadNetwork live = new RoadNetwork();
-        Road a = live.createRoad("a");
-        Road b = live.createRoad("b");
+        RoadNetwork live = networkWithRoads(50.0, 50.0);
+        Road a = named(live, "a");
+        Road b = named(live, "b");
         assertNull(b.getStationFacilities());
 
         RoadNetwork working = live.snapshot();
@@ -119,8 +139,8 @@ class BatchDesignerApplyTest {
     @Test
     void stationFacilitiesProportionalFitsShorterTarget() {
         RoadNetwork live = networkWithRoads(100.0, 30.0);
-        Road a = live.getRoads().values().stream().filter(r -> "a".equals(r.getName())).findFirst().orElseThrow();
-        Road b = live.getRoads().values().stream().filter(r -> "b".equals(r.getName())).findFirst().orElseThrow();
+        Road a = named(live, "a");
+        Road b = named(live, "b");
         RoadNetwork working = live.snapshot();
         working.getRoad(a.getId()).setStationFacilities(new RoadStationFacilities(List.of(
             StationFacilityRun.of(50.0, 80.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
@@ -134,6 +154,31 @@ class BatchDesignerApplyTest {
         assertEquals(15.0, run.getStartStation(), 1e-6);
         assertEquals(24.0, run.getEndStation(), 1e-6);
         assertEquals(RoadFacilitySide.LEFT, run.getSide());
+    }
+
+    @Test
+    void absoluteFacilityKeepsSideRelativeToRoadDirection() {
+        RoadNetwork live = networkWithRoads(100.0, 100.0);
+        Road a = named(live, "a");
+        Road b = named(live, "b");
+        RoadNetwork working = live.snapshot();
+        working.getRoad(a.getId()).setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(10.0, 20.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT)
+        )));
+
+        StationFacilityEditorApplier.applyToLive(
+            live, working, a.getId(), Set.of(b.getId()), BatchStationMappingMode.ABSOLUTE);
+
+        assertEquals(
+            RoadFacilitySide.RIGHT,
+            live.getRoad(b.getId()).getStationFacilities().sortedRuns().getFirst().getSide());
+    }
+
+    private static Road named(RoadNetwork network, String name) {
+        return network.getRoads().values().stream()
+            .filter(r -> name.equals(r.getName()))
+            .findFirst()
+            .orElseThrow();
     }
 
     private static RoadNetwork networkWithRoads(double lengthA, double lengthB) {
