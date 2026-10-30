@@ -15,7 +15,7 @@ import java.util.List;
  * 编辑 Tab 专业工具卡片启动器。
  * <p>
  * 单路：六张卡（含隧道），列数随可用宽度在 2–3 间自适应。
- * 多选：批量横断面 + 批量隧道；其余设计器需单选。
+ * 多选：批量横断面 / 隧道 / 变截面 / 设施；中心线与诊断仍需单选。
  */
 final class RoadEditToolLauncher {
 
@@ -42,30 +42,43 @@ final class RoadEditToolLauncher {
         }
         float gap = ImGui.getStyle().getItemSpacingX();
         float half = Math.max(1f, (ImGui.getContentRegionAvailX() - gap) / 2f);
-        renderBatchCrossSectionPrimary(ctx, host, primaryRoadId, roadIds.size(), half);
+        int count = roadIds.size();
+        renderBatchHostCard(
+            ctx, host, primaryRoadId, count, half,
+            RoadFloatingEditorKind.BATCH_CROSS_SECTION,
+            "batch_cross_section");
         ImGui.sameLine(0f, gap);
         renderBatchTunnelPrimary(ctx, roadIds, half);
+        renderBatchHostCard(
+            ctx, host, primaryRoadId, count, half,
+            RoadFloatingEditorKind.VARIABLE_CROSS_SECTION,
+            "batch_variable_cross_section");
+        ImGui.sameLine(0f, gap);
+        renderBatchHostCard(
+            ctx, host, primaryRoadId, count, half,
+            RoadFloatingEditorKind.STATION_FACILITIES,
+            "batch_station_facilities");
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.edit.tools.multi_single_only_hint"));
     }
 
-    /** 多选批量横断面入口。 */
-    private static void renderBatchCrossSectionPrimary(
+    private static void renderBatchHostCard(
             RoadUiContext ctx,
             RoadFloatingEditorHost host,
             String primaryRoadId,
             int selectedCount,
-            float width) {
-        RoadFloatingEditorKind kind = RoadFloatingEditorKind.BATCH_CROSS_SECTION;
+            float width,
+            RoadFloatingEditorKind kind,
+            String keySuffix) {
         boolean active = host.isOpen(kind);
         if (active) {
             ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
         }
-        String label = PlotI18n.tr("plugin.road.edit.tools.batch_cross_section.title")
+        String label = PlotI18n.tr("plugin.road.edit.tools." + keySuffix + ".title")
             + "\n"
-            + PlotI18n.tr("plugin.road.edit.tools.batch_cross_section.multi_hint", selectedCount);
-        if (ImGui.button(label + "##tool_" + kind.name(), width, CARD_HEIGHT)) {
+            + PlotI18n.tr("plugin.road.edit.tools." + keySuffix + ".multi_hint", selectedCount);
+        if (ImGui.button(label + "##tool_batch_" + kind.name(), width, CARD_HEIGHT)) {
             host.openOrFocus(ctx, kind, primaryRoadId);
         }
         if (active) {

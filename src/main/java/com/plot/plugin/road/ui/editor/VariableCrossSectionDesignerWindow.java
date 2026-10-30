@@ -8,14 +8,19 @@ import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.VariableCrossSectionEditor;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 沿桩号可变横断面浮动编辑器。 */
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+/** 沿桩号可变横断面浮动编辑器（多选时确认写入全部目标道路）。 */
 public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloatingEditor {
 
     private final VariableCrossSectionEditor editor = new VariableCrossSectionEditor();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
+    private Set<String> targetRoadIds = Set.of();
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -48,6 +53,11 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
         editor.reset();
+        LinkedHashSet<String> selected = new LinkedHashSet<>(ctx.networkManager().getSelectedRoadIds());
+        if (selected.isEmpty() && roadId != null && !roadId.isBlank()) {
+            selected.add(roadId);
+        }
+        targetRoadIds = Set.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
         var openSnapshot = live.snapshot();
         return RoadNetworkEditorSession.open(
@@ -65,6 +75,14 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
         if (road == null) {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
             return;
+        }
+        if (targetRoadIds.size() > 1) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.floating_editor.variable_cross_section.batch_scope",
+                    targetRoadIds.size()));
+            ImGui.spacing();
         }
         ChainageDisplayContext chainageDisplay = null;
         if (RoadStationing.isStationable(session.workingNetwork(), road)) {
@@ -86,7 +104,13 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
         VariableCrossSectionEditorApplier.applyToLive(
             ctx.networkManager().getNetwork(),
             session.workingNetwork(),
-            roadId);
+            roadId,
+            targetRoadIds);
+    }
+
+    @Override
+    public boolean matchesScope(Set<String> selectedRoadIds) {
+        return targetRoadIds.equals(selectedRoadIds);
     }
 
     @Override

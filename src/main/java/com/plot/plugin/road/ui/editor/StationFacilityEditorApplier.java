@@ -39,13 +39,32 @@ public final class StationFacilityEditorApplier {
     }
 
     public static void applyToLive(RoadNetwork live, RoadNetwork workingNetwork, String roadId) {
-        Road liveRoad = live.getRoad(roadId);
-        Road workingRoad = workingNetwork.getRoad(roadId);
-        if (liveRoad == null || workingRoad == null) {
+        applyToLive(live, workingNetwork, roadId, java.util.Set.of(roadId));
+    }
+
+    /**
+     * 将工作副本中 {@code sourceRoadId} 的桩号设施复制到 live 上全部 {@code targetRoadIds}。
+     */
+    public static void applyToLive(
+            RoadNetwork live,
+            RoadNetwork workingNetwork,
+            String sourceRoadId,
+            java.util.Set<String> targetRoadIds) {
+        Road workingRoad = workingNetwork.getRoad(sourceRoadId);
+        if (live == null || workingRoad == null) {
             return;
         }
         RoadStationFacilities source = workingRoad.getStationFacilities();
-        liveRoad.setStationFacilities(source != null ? source.copy() : null);
+        java.util.Set<String> targets = targetRoadIds == null || targetRoadIds.isEmpty()
+            ? java.util.Set.of(sourceRoadId)
+            : targetRoadIds;
+        for (String targetId : targets) {
+            Road liveRoad = live.getRoad(targetId);
+            if (liveRoad == null) {
+                continue;
+            }
+            liveRoad.setStationFacilities(source != null ? source.copy() : null);
+        }
     }
 
 }
