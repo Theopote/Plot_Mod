@@ -603,23 +603,24 @@ public final class RoadNetworkManager {
 
     /**
      * 拖动统一 Y 滑条：首次改值时推撤销快照，拖动过程只改 live，不重复进历史。
-     * 须与 {@link #commitUniformElevationYDrag()} 配对；不窃取其它编辑已打开的事务。
+     * 须与 {@link #commitUniformElevationYDrag()} 配对；不窃取、也不写入其它编辑已打开的事务。
+     *
+     * @return {@code true} 已写入 live；{@code false} 被外事务占用而拒绝（UI 应恢复滑条显示值）
      */
-    public void updateUniformElevationYDuringDrag(int elevation) {
+    public boolean updateUniformElevationYDuringDrag(int elevation) {
         int clamped = (int) RoadParameterLimits.clampElevation(elevation);
         if (network.getUniformElevationY() == clamped) {
-            return;
+            return true;
         }
         if (!uniformElevationDragActive) {
             if (hasPendingNetworkEdit()) {
-                // 其它编辑持有 staged 事务：只写入 live，归属仍归对方提交/取消。
-                network.setUniformElevationY(clamped);
-                return;
+                return false;
             }
             beginNetworkEdit();
             uniformElevationDragActive = true;
         }
         network.setUniformElevationY(clamped);
+        return true;
     }
 
     /** 结束统一 Y 滑条拖动：仅当本滑条持有事务时提交一次 revision / 预览失效。 */

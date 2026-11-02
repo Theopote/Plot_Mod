@@ -165,17 +165,17 @@ class RoadNetworkMutationTransactionTest {
     }
 
     @Test
-    void uniformElevationYDragDoesNotStealForeignPendingEdit() {
+    void uniformElevationYDragRejectsWhenForeignPendingEditOwnsTransaction() {
         manager.setNetworkElevationMode(
             com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
         manager.beginNetworkEdit();
         Road road = manager.getNetwork().createRoad("foreign");
         road.setName("draft");
 
-        manager.updateUniformElevationYDuringDrag(75);
+        assertFalse(manager.updateUniformElevationYDuringDrag(75));
         assertFalse(manager.hasUniformElevationYDrag());
         assertTrue(manager.hasPendingNetworkEdit());
-        assertEquals(75, manager.getNetwork().getUniformElevationY());
+        assertEquals(64, manager.getNetwork().getUniformElevationY());
 
         long beforeCommit = manager.getNetworkRevision();
         manager.commitUniformElevationYDrag();
@@ -184,8 +184,13 @@ class RoadNetworkMutationTransactionTest {
 
         manager.finishNetworkEdit();
         assertFalse(manager.hasPendingNetworkEdit());
-        assertEquals(75, manager.getNetwork().getUniformElevationY());
+        assertEquals(64, manager.getNetwork().getUniformElevationY());
         assertEquals("draft", manager.getNetwork().getRoad("foreign").getName());
+
+        assertTrue(manager.updateUniformElevationYDuringDrag(75));
+        assertTrue(manager.hasUniformElevationYDrag());
+        manager.commitUniformElevationYDrag();
+        assertEquals(75, manager.getNetwork().getUniformElevationY());
     }
 
     @Test

@@ -244,7 +244,10 @@ public final class RoadGeneratePanel {
             com.plot.api.world.PlacementReadiness buildReadiness) {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean hasNetwork = !network.getEdges().isEmpty();
-        boolean previewBlocked = !hasNetwork || preflight.blocksBuild() || ctx.previewManager().isPreviewJobRunning();
+        boolean previewBlocked = !hasNetwork
+            || preflight.blocksBuild()
+            || ctx.previewManager().isPreviewJobRunning()
+            || ctx.networkManager().hasPendingNetworkEdit();
 
         if (!preflight.items().isEmpty() && !ctx.previewManager().hasValidPreview()) {
             RoadNetworkValidationPanel.render(preflight, ctx);
@@ -321,6 +324,7 @@ public final class RoadGeneratePanel {
             || !buildReadiness.ready()
             || ctx.host().placement().isBusy()
             || ctx.previewManager().isPreviewJobRunning()
+            || ctx.networkManager().hasPendingNetworkEdit()
             || !ctx.previewManager().isBuildPreviewCurrent()
             || validationReport.blocksBuild()
             || partialFailure;

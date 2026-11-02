@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  * 道路预览、虚影投影与世界落地。
@@ -63,6 +64,8 @@ public final class RoadPreviewManager {
     /** 完整预览在缓存未就绪时启动；预取完成后提示重新计算。与轻量采样独立。 */
     private boolean pendingFullPreviewTerrainRefresh;
     private boolean suppressTerrainPrefetchReschedule;
+    /** 路网存在未提交编辑事务时为 true（例如统一 Y 拖动中）。 */
+    private BooleanSupplier pendingNetworkEditCheck = () -> false;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -71,6 +74,15 @@ public final class RoadPreviewManager {
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
         this.networkGenerator = networkGenerator;
+    }
+
+    public void setPendingNetworkEditCheck(BooleanSupplier pendingNetworkEditCheck) {
+        this.pendingNetworkEditCheck =
+            pendingNetworkEditCheck != null ? pendingNetworkEditCheck : () -> false;
+    }
+
+    private boolean hasPendingNetworkEdit() {
+        return pendingNetworkEditCheck.getAsBoolean();
     }
 
     public Map<String, Integer> getLastNodeElevations() {
@@ -383,6 +395,10 @@ public final class RoadPreviewManager {
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return false;
         }
+        if (hasPendingNetworkEdit()) {
+            status.warning(PlotI18n.tr("plugin.road.preview_blocked_pending_edit"));
+            return false;
+        }
 
         // 计算/重新计算预览：强制重采样世界地形，避免中段改地仍用旧预取。
         forceWorldTerrainResample();
@@ -661,12 +677,13 @@ public final class RoadPreviewManager {
         return lastGenerationResult != null && !lastGenerationResult.placementRecords.isEmpty();
     }
 
-    /** 当前预览可用于投影/建造：有效、未过期、世界一致且不在计算中。 */
+    /** 当前预览可用于投影/建造：有效、未过期、世界一致、不在计算中、无未提交路网编辑。 */
     public boolean isBuildPreviewCurrent() {
         return hasValidPreview()
             && !previewNeedsRecalc
             && !isPreviewJobRunning()
-            && previewWorldMatchesCurrent();
+            && previewWorldMatchesCurrent()
+            && !hasPendingNetworkEdit();
     }
 
     private boolean previewWorldMatchesCurrent() {
@@ -733,6 +750,10 @@ public final class RoadPreviewManager {
     }
 
     public void buildRoadInWorld() {
+        if (hasPendingNetworkEdit()) {
+            status.error(PlotI18n.tr("plugin.road.build_blocked_pending_edit"));
+            return;
+        }
         if (!isBuildPreviewCurrent()) {
             status.error(PlotI18n.tr("plugin.road.build_blocked_stale_preview"));
             return;

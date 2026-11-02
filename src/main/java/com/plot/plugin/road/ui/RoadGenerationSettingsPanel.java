@@ -146,7 +146,9 @@ public final class RoadGenerationSettingsPanel {
                 RoadParameterLimits.ELEVATION_MIN,
                 RoadParameterLimits.ELEVATION_MAX,
                 "Y=%d")) {
-            ctx.networkManager().updateUniformElevationYDuringDrag(draftY[0]);
+            if (!ctx.networkManager().updateUniformElevationYDuringDrag(draftY[0])) {
+                draftY[0] = network.getUniformElevationY();
+            }
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
             ctx.networkManager().commitUniformElevationYDrag();
