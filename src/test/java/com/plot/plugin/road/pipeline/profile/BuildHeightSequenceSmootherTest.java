@@ -118,6 +118,48 @@ class BuildHeightSequenceSmootherTest {
         assertEquals(60, result.samples().getLast().buildY());
     }
 
+    @Test
+    void alternatingOneBlockNoiseOnFlatDesignIsFlattened() {
+        // 近似 Math.round 在平坦设计线上抖出的 ±1 尖峰
+        List<BuildHeightSample> samples = samples(
+            new int[] {64, 65, 64, 65, 64, 65, 64},
+            64.4);
+        BuildHeightSequenceSmoother.SmoothingResult result = BuildHeightSequenceSmoother.smooth(
+            samples, ProfileCompileOptions.defaults(), null);
+        assertTrue(result.diagnostics().adjustmentCount() > 0);
+        assertTrue(
+            result.diagnostics().shortReversalCountAfter()
+                < result.diagnostics().shortReversalCountBefore());
+        int min = result.samples().stream().mapToInt(BuildHeightSample::buildY).min().orElseThrow();
+        int max = result.samples().stream().mapToInt(BuildHeightSample::buildY).max().orElseThrow();
+        assertTrue(max - min <= 1, "alternating spikes should collapse; got " + min + ".." + max);
+    }
+
+    @Test
+    void stepLimitedQuantizeNeverJumpsTwoBlocksPerSample() {
+        int y = 64;
+        for (double design = 64.0; design <= 70.0; design += 0.37) {
+            int next = RoadHeightRasterizer.stepLimitedBuildY(y, design);
+            assertTrue(Math.abs(next - y) <= 1, "step from " + y + " toward " + design + " -> " + next);
+            y = next;
+        }
+    }
+
+    @Test
+    void alternatingRoundingNoiseOnFlatDesignIsFlattened() {
+        // Classic Math.round chatter on an otherwise flat design line.
+        List<BuildHeightSample> samples = samples(
+            new int[] {64, 65, 64, 65, 64, 65, 64},
+            64.4);
+        BuildHeightSequenceSmoother.SmoothingResult result = BuildHeightSequenceSmoother.smooth(
+            samples, ProfileCompileOptions.defaults(), null);
+        assertEquals(0, BuildHeightSequenceSmoother.countShortReversals(
+            result.samples().stream().mapToInt(BuildHeightSample::buildY).toArray()));
+        int min = result.samples().stream().mapToInt(BuildHeightSample::buildY).min().orElseThrow();
+        int max = result.samples().stream().mapToInt(BuildHeightSample::buildY).max().orElseThrow();
+        assertTrue(max - min <= 1, "alternating spike should collapse, got " + min + ".." + max);
+    }
+
     private static List<BuildHeightSample> samples(int[] buildY, double designY) {
         return samples(buildY, station -> designY);
     }

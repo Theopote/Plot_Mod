@@ -103,7 +103,9 @@ public class RoadJunctionGenerator {
     }
 
     /**
-     * @param edgeResults connected edge build profiles for per-cell elevation interpolation
+     * @param edgeResults connected edge results for leftover clearance tops / protected upper deck;
+     *     plaza surface itself stays on consensus {@code junctionY} (endpoint snap + corridor trim
+     *     keep approach ROAD meeting that plane — see {@code JunctionApproachElevationTest})
      */
     public JunctionBlocks generateJunction(
             RoadNode node,
