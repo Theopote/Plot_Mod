@@ -455,16 +455,13 @@ public final class RoadGenerationIntegrityValidator {
             SolidIndex index,
             TerrainSampler terrain) {
         int belowY = cell.surfaceY() - 1;
-        // 生成记录优先：本次清为空则原世界实体不可再作支撑。
-        if (index.hasAir(key, belowY)) {
-            return false;
+        // 生成记录优先：本格已有写入时（含空气/流体/装饰）不再回退原世界。
+        if (index.hasGeneratedOccupant(key, belowY)) {
+            return index.hasStructuralSupport(key, belowY);
         }
-        if (index.hasStructuralSupport(key, belowY)) {
-            return true;
-        }
-        // 桥面必须由本次生成的板/梁承载，谷底地形不算支撑；允许邻列桥面板横向对齐。
+        // 桥面板要求本列承重；局部漏板不得被邻列掩盖。
         if (isBridgeMode(clearance)) {
-            return hasNeighborStructuralSupport(key, belowY, index);
+            return false;
         }
         return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ());
     }
@@ -476,36 +473,13 @@ public final class RoadGenerationIntegrityValidator {
             PlacementIndex index,
             TerrainSampler terrain) {
         int belowY = cell.surfaceY() - 1;
-        if (index.hasAir(key, belowY)) {
-            return false;
-        }
-        if (index.hasStructuralSupport(key, belowY)) {
-            return true;
+        if (index.hasGeneratedOccupant(key, belowY)) {
+            return index.hasStructuralSupport(key, belowY);
         }
         if (isBridgeMode(clearance)) {
-            return hasNeighborStructuralSupport(key, belowY, index);
+            return false;
         }
         return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ());
-    }
-
-    private static boolean hasNeighborStructuralSupport(ColumnKey key, int y, SolidIndex index) {
-        for (int[] offset : NEIGHBOR_OFFSETS) {
-            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
-            if (!index.hasAir(neighbor, y) && index.hasStructuralSupport(neighbor, y)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean hasNeighborStructuralSupport(ColumnKey key, int y, PlacementIndex index) {
-        for (int[] offset : NEIGHBOR_OFFSETS) {
-            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
-            if (!index.hasAir(neighbor, y) && index.hasStructuralSupport(neighbor, y)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static int countUnclearedObstructions(
@@ -779,7 +753,7 @@ public final class RoadGenerationIntegrityValidator {
                     primitive.elevation(),
                     (int) Math.round(primitive.planPoint().y));
                 index.byPosition.put(pos, primitive);
-                if ("minecraft:air".equals(primitive.materialId())
+                if (RoadPavementSupportMaterials.isAirId(primitive.materialId())
                         && primitive.materialPriority() == com.plot.plugin.road.solid.RoadSolidMaterialPriority.AIR) {
                     index.airPositions.add(pos);
                 }
@@ -798,17 +772,23 @@ public final class RoadGenerationIntegrityValidator {
                     primitive.materialId(), primitive.layer(), expectedLayer, expectedMaterialId);
         }
 
+        boolean hasGeneratedOccupant(ColumnKey column, int y) {
+            return byPosition.containsKey(columnPos(column, y));
+        }
+
         boolean hasAir(ColumnKey column, int y) {
             if (airPositions.contains(columnPos(column, y))) {
                 return true;
             }
             RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
-            return primitive != null && "minecraft:air".equals(primitive.materialId());
+            return primitive != null && RoadPavementSupportMaterials.isAirId(primitive.materialId());
         }
 
         boolean hasStructuralSupport(ColumnKey column, int y) {
             RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
-            return primitive != null && !"minecraft:air".equals(primitive.materialId());
+            return primitive != null
+                && RoadPavementSupportMaterials.isGeneratedStructuralSupport(
+                    primitive.layer(), primitive.materialId());
         }
 
         boolean obstructionClearanceResolved(ColumnKey column, int y) {
@@ -862,14 +842,23 @@ public final class RoadGenerationIntegrityValidator {
                     record.newBlockId, placedLayer, expectedLayer, expectedMaterialId);
         }
 
+        boolean hasGeneratedOccupant(ColumnKey column, int y) {
+            return records.containsKey(columnPos(column, y));
+        }
+
         boolean hasAir(ColumnKey column, int y) {
             BlockRecord record = records.get(columnPos(column, y));
-            return record != null && "minecraft:air".equals(record.newBlockId);
+            return record != null && RoadPavementSupportMaterials.isAirId(record.newBlockId);
         }
 
         boolean hasStructuralSupport(ColumnKey column, int y) {
-            BlockRecord record = records.get(columnPos(column, y));
-            return record != null && !"minecraft:air".equals(record.newBlockId);
+            BlockPos pos = columnPos(column, y);
+            BlockRecord record = records.get(pos);
+            if (record == null) {
+                return false;
+            }
+            return RoadPavementSupportMaterials.isGeneratedStructuralSupport(
+                layers.get(pos), record.newBlockId);
         }
 
         boolean obstructionClearanceResolved(ColumnKey column, int y) {

@@ -1,17 +1,15 @@
 package com.plot.plugin.road.terrain;
 
-import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 将玩家放置/破坏方块接到走廊预取失效：仅当变更落在最近预取足迹内时冲刷缓存。
+ * 将<strong>已确认</strong>的世界方块变更接到走廊预取失效。
  * <p>
- * 探针指纹仍覆盖无事件路径；本监听优先处理「路肩旁改地、中心线未变」的情况。
+ * 只订阅 {@link PlayerBlockBreakEvents#AFTER}：破坏已发生后才冲刷。
+ * 不订阅 UseBlock / AttackBlock（尝试交互 ≠ 世界已改），避免空手右键、未破坏的左键
+ * 反复触发无效预取。放置类改地仍由土方/道路建造回调与侧向地表探针兜底。
  */
 public final class RoadCorridorWorldBlockListener {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadTerrainPrefetch");
@@ -25,26 +23,16 @@ public final class RoadCorridorWorldBlockListener {
             return;
         }
         registered = true;
-        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (world != null && hitResult != null && hitResult.getBlockPos() != null) {
-                BlockPos against = hitResult.getBlockPos();
-                BlockPos placed = against.offset(hitResult.getSide());
-                RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(against);
-                RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(placed);
-            }
-            return ActionResult.PASS;
-        });
-        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
-            if (pos != null) {
-                RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(pos);
-            }
-            return ActionResult.PASS;
-        });
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, entity) -> {
             if (pos != null) {
                 RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(pos);
             }
         });
-        LOGGER.debug("走廊世界方块变更监听已注册");
+        LOGGER.debug("走廊世界方块变更监听已注册（仅破坏完成事件）");
+    }
+
+    /** 测试：是否已注册。 */
+    static boolean isRegisteredForTest() {
+        return registered;
     }
 }

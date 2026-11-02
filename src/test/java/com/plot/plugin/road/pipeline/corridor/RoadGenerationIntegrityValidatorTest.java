@@ -297,6 +297,78 @@ class RoadGenerationIntegrityValidatorTest {
     }
 
     @Test
+    void bridgeMissingDeckIsNotRescuedByNeighborColumn() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d deckPoint = new Vec2d(0, 0);
+        Vec2d neighborPoint = new Vec2d(1, 0);
+        ColumnKey deck = new ColumnKey(0, 0);
+        ColumnKey neighbor = new ColumnKey(1, 0);
+        plan.surfaceMask().put(deck, new SurfaceCell(deckPoint, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(deck, new ClearanceCell(
+            deckPoint, 70, 72, RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+        plan.surfaceMask().put(neighbor, new SurfaceCell(neighborPoint, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(neighbor, new ClearanceCell(
+            neighborPoint, 70, 72, RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(deckPoint, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+        solids.add(neighborPoint, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+        // Only the neighbor column has a deck slab under the pavement.
+        solids.add(neighborPoint, 69, RoadSolidLayer.BRIDGE, "minecraft:stone_bricks");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(50));
+
+        assertEquals(1, report.unsupportedPavementCount(),
+            "local missing deck slab must not be masked by a neighboring column");
+    }
+
+    @Test
+    void waterUnderPavementIsNotStructuralSupport() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 70, 72, RoadCorridorConstructionMode.OPEN, RoadConstructionType.ROAD));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+        solids.add(point, 69, RoadSolidLayer.SUBGRADE, "minecraft:water");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(64));
+
+        assertEquals(1, report.unsupportedPavementCount(),
+            "fluid must not count as load-bearing subgrade");
+    }
+
+    @Test
+    void torchUnderPavementIsNotStructuralSupportEvenWithBlockState() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 70, 72, RoadCorridorConstructionMode.OPEN, RoadConstructionType.ROAD));
+
+        RoadGenerationResult result = new RoadGenerationResult(1.0);
+        BlockPos surface = new BlockPos(0, 70, 0);
+        BlockPos below = new BlockPos(0, 69, 0);
+        result.placementRecords.put(surface, new BlockRecord(surface, "minecraft:air", "minecraft:stone"));
+        result.placementLayers.put(surface, RoadSolidLayer.ROAD);
+        result.placementRecords.put(
+            below, new BlockRecord(below, "minecraft:air", "minecraft:wall_torch[facing=north]"));
+        result.placementLayers.put(below, RoadSolidLayer.STREETLIGHT);
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validatePlacements(plan, result, new FlatTerrainSampler(64));
+
+        assertEquals(1, report.unsupportedPavementCount(),
+            "decorative torch with BlockState must not count as pavement support");
+    }
+
+    @Test
     void atGradePavementIsSupportedByTerrain() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         Vec2d point = new Vec2d(0, 0);

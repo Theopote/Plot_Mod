@@ -186,6 +186,43 @@ class RoadVoxelProfileE2ETest {
     }
 
     @Test
+    void ascendingManualProfilePlacementsStayMonotonicWithoutShortReversals() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("voxel-ascent-e2e");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setMaxSlope(40.0f);
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            new PointOfVerticalIntersection(0.0, 64.0),
+            new PointOfVerticalIntersection(80.0, 76.0)));
+        road.setVerticalAlignment(alignment);
+
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(80, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
+
+        RoadSystemConfig config = new RoadSystemConfig("voxel-ascent-e2e");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(false);
+        config.setIncludeSlopeBatter(false);
+        config.setMaxSlope(40.0f);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        RoadGenerationResult edge = RoadBenchmarkHarness.generatePreview(
+            network, generator, new FlatTerrainSampler(64))
+            .edgeResults().values().iterator().next();
+
+        assertEquals(0, countShortPavementReversals(edge, 4, 76),
+            "continuous ascent must not leave short pavement reversals");
+        assertTrue(maxAdjacentPavementStep(edge, 4, 76) <= 1);
+        assertTrue(isNonDecreasingCenterline(edge, 4, 76),
+            "ascending design should produce non-decreasing centerline ROAD Y");
+    }
+
+    @Test
     void placementRecordsHaveNoShortReversalsOnNearFlatDesign() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("voxel-flat-rev");
@@ -255,6 +292,21 @@ class RoadVoxelProfileE2ETest {
             prev = y;
         }
         return maxStep;
+    }
+
+    private static boolean isNonDecreasingCenterline(RoadGenerationResult edge, int minX, int maxX) {
+        int[] ys = centerlinePavementYs(edge, minX, maxX);
+        Integer prev = null;
+        for (int y : ys) {
+            if (y == Integer.MIN_VALUE) {
+                continue;
+            }
+            if (prev != null && y < prev) {
+                return false;
+            }
+            prev = y;
+        }
+        return prev != null;
     }
 
     private static int[] centerlinePavementYs(RoadGenerationResult edge, int minX, int maxX) {

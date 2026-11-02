@@ -204,17 +204,6 @@ public final class RoadCorridorTerrainPrefetch {
         return hit.builder.build(clientSampler, coordinates);
     }
 
-    /**
-     * 兼容旧入口：缺少 config/estimator 时无法按纵断面列预取，直接返回客户端采样器。
-     */
-    public static TerrainSampler prepareForNetwork(
-            RoadNetwork network,
-            World clientWorld,
-            ICoordinateService coordinates,
-            TerrainSampler clientSampler) {
-        return clientSampler;
-    }
-
     /** 当前网络是否已有可用预取缓存（含部分覆盖）。 */
     public static boolean isCacheReady(RoadNetwork network, World world) {
         return isCacheReady(network, world, null, null);
