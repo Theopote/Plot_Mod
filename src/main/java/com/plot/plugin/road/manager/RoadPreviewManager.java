@@ -17,6 +17,7 @@ import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
+import com.plot.plugin.road.terrain.RoadWorldTerrainProbe;
 import com.plot.utils.PlotI18n;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -52,7 +53,9 @@ public final class RoadPreviewManager {
     private boolean previewNeedsRecalc = false;
     private RoadNetworkPreviewJob previewJob;
     private long lastPreviewTerrainFingerprint = 0L;
-    /** 用于检测 Pushdozer / 世界改方块后的地形变化，驱动预取缓存失效。 */
+    /** 道路几何指纹（节点/中心线）；仅几何变化时不冲刷世界地形世代。 */
+    private long lastRoadGeometryFingerprint = 0L;
+    /** 沿走廊中心线站的地表指纹；中段改地形也会变。 */
     private long lastWorldTerrainSampleFingerprint = 0L;
     private String previewWorldKey = "";
     /** 地形预取完成后需用服务端快照重刷的路网（轻量纵断面）。 */
@@ -94,19 +97,43 @@ public final class RoadPreviewManager {
     }
 
     /**
-     * 采样节点地面指纹；若世界地形相对上次已变，使走廊预取缓存整体失效。
+     * 分离道路几何变化与世界地表变化：
+     * <ul>
+     *   <li>仅移动节点 / 改折线 → 更新几何指纹；预取缓存键本就会变，不 bump 世界世代</li>
+     *   <li>走廊中段地表 Y 变化 → {@link RoadCorridorTerrainPrefetch#notifyWorldTerrainChanged()}</li>
+     * </ul>
      */
     private void syncWorldTerrainPrefetchEpoch(RoadNetwork network) {
         if (network == null || networkGenerator == null) {
             return;
         }
-        long fingerprint = terrainFingerprint(network);
-        if (lastWorldTerrainSampleFingerprint != 0L
-                && fingerprint != lastWorldTerrainSampleFingerprint) {
+        long geometry = RoadWorldTerrainProbe.geometryFingerprint(network);
+        long surface = worldSurfaceFingerprint(network);
+        boolean geometryChanged = lastRoadGeometryFingerprint != 0L
+            && geometry != lastRoadGeometryFingerprint;
+        boolean surfaceChanged = lastWorldTerrainSampleFingerprint != 0L
+            && surface != lastWorldTerrainSampleFingerprint
+            && surface != 0L;
+        if (surfaceChanged) {
             RoadCorridorTerrainPrefetch.notifyWorldTerrainChanged();
-            LOGGER.debug("检测到世界地形变更，走廊预取缓存已失效");
+            LOGGER.debug("检测到走廊地表变更（含中段），走廊预取缓存已失效");
+        } else if (geometryChanged) {
+            LOGGER.debug("道路几何已变，预取将按新几何指纹重建（不冲刷世界地形世代）");
         }
-        lastWorldTerrainSampleFingerprint = fingerprint;
+        lastRoadGeometryFingerprint = geometry;
+        if (surface != 0L) {
+            lastWorldTerrainSampleFingerprint = surface;
+        }
+    }
+
+    /**
+     * 用户主动重算纵断面 / 预览时强制丢弃预取缓存，兜底刷子中段改地却未被探针命中的情况。
+     */
+    public void forceWorldTerrainResample() {
+        RoadCorridorTerrainPrefetch.notifyWorldTerrainChanged();
+        lastWorldTerrainSampleFingerprint = 0L;
+        bumpTerrainRevision();
+        LOGGER.debug("已强制失效走廊地形预取（用户重算）");
     }
 
     private void invalidateManualProfilesIfTerrainChanged(RoadNetwork network) {
@@ -114,33 +141,35 @@ public final class RoadPreviewManager {
             return;
         }
         syncWorldTerrainPrefetchEpoch(network);
-        long fingerprint = terrainFingerprint(network);
+        long fingerprint = combinedTerrainFingerprint(network);
         if (lastPreviewTerrainFingerprint != 0L && fingerprint != lastPreviewTerrainFingerprint) {
-            LOGGER.debug("检测到地形变更，预览将重新采样");
+            LOGGER.debug("检测到地形/几何变更，预览将重新采样");
         }
     }
 
+    /** 兼容旧调用：几何 + 走廊地表合成指纹。 */
     private long terrainFingerprint(RoadNetwork network) {
+        return combinedTerrainFingerprint(network);
+    }
+
+    private long combinedTerrainFingerprint(RoadNetwork network) {
+        long geometry = RoadWorldTerrainProbe.geometryFingerprint(network);
+        long surface = worldSurfaceFingerprint(network);
+        return 31L * geometry + surface;
+    }
+
+    private long worldSurfaceFingerprint(RoadNetwork network) {
         if (network == null || networkGenerator == null) {
             return 0L;
         }
-        net.minecraft.world.World world = RoadNetworkGenerator.getClientWorld();
+        World world = RoadNetworkGenerator.getClientWorld();
         if (world == null) {
             return 0L;
         }
-        var terrain = networkGenerator.createTerrainSampler(world);
-        long hash = 17L;
-        for (var node : network.getNodes().values()) {
-            if (node == null || node.getPosition() == null) {
-                continue;
-            }
-            int surfaceY = terrain.sampleSurfaceY(node.getPosition());
-            hash = 31L * hash + node.getId().hashCode();
-            hash = 31L * hash + surfaceY;
-            hash = 31L * hash + Double.hashCode(node.getPosition().x);
-            hash = 31L * hash + Double.hashCode(node.getPosition().y);
-        }
-        return hash;
+        return RoadWorldTerrainProbe.surfaceFingerprint(
+            network,
+            networkGenerator.createTerrainSampler(world),
+            networkGenerator.getConfig());
     }
 
     public Integer getLastNodeElevation(String nodeId) {
@@ -240,7 +269,12 @@ public final class RoadPreviewManager {
         }
 
         cancelPreviewJobSilently();
-        syncWorldTerrainPrefetchEpoch(network);
+        // 用户主动采样：强制丢弃预取，兜底中段改地；预取完成回调路径不强制。
+        if (!suppressTerrainPrefetchReschedule) {
+            forceWorldTerrainResample();
+        } else {
+            syncWorldTerrainPrefetchEpoch(network);
+        }
         try {
             RoadNetworkGenerator.ProfileSamplingResult sampling =
                 networkGenerator.calculateProfileSampling(network, world);
@@ -259,9 +293,8 @@ public final class RoadPreviewManager {
                     }
                 } else if (prefetchStatus.coverage()
                         == RoadCorridorTerrainPrefetch.Coverage.PARTIAL) {
-                    status.warning(PlotI18n.tr(
-                        "plugin.road.terrain_prefetch_partial",
-                        prefetchStatus.columnCount()));
+                    status.warning(partialPrefetchMessage(
+                        "plugin.road.terrain_prefetch_partial", prefetchStatus));
                 }
             }
             return true;
@@ -299,9 +332,8 @@ public final class RoadPreviewManager {
                         networkGenerator.getConfig(),
                         networkGenerator.coordinateTransformer());
                     if (coverage.coverage() == RoadCorridorTerrainPrefetch.Coverage.PARTIAL) {
-                        status.warning(PlotI18n.tr(
-                            "plugin.road.terrain_prefetch_partial_applied",
-                            coverage.columnCount()));
+                        status.warning(partialPrefetchMessage(
+                            "plugin.road.terrain_prefetch_partial_applied", coverage));
                     } else {
                         status.info(PlotI18n.tr("plugin.road.terrain_prefetch_applied"));
                     }
@@ -328,13 +360,22 @@ public final class RoadPreviewManager {
                 networkGenerator != null ? networkGenerator.getConfig() : null,
                 networkGenerator != null ? networkGenerator.coordinateTransformer() : null);
             if (coverage.coverage() == RoadCorridorTerrainPrefetch.Coverage.PARTIAL) {
-                status.warning(PlotI18n.tr(
-                    "plugin.road.terrain_prefetch_partial_preview_stale",
-                    coverage.columnCount()));
+                status.warning(partialPrefetchMessage(
+                    "plugin.road.terrain_prefetch_partial_preview_stale", coverage));
             } else {
                 status.info(PlotI18n.tr("plugin.road.terrain_prefetch_preview_stale"));
             }
         }
+    }
+
+    private static String partialPrefetchMessage(
+            String key,
+            RoadCorridorTerrainPrefetch.PrefetchStatus status) {
+        return PlotI18n.tr(
+            key,
+            status.columnCount(),
+            status.targetColumnCount(),
+            status.uncoveredColumnCount());
     }
 
     public boolean startNetworkPreview(RoadNetwork network, boolean autoProjectGhosts) {
@@ -343,6 +384,8 @@ public final class RoadPreviewManager {
             return false;
         }
 
+        // 计算/重新计算预览：强制重采样世界地形，避免中段改地仍用旧预取。
+        forceWorldTerrainResample();
         invalidateManualProfilesIfTerrainChanged(network);
 
         RoadElevationBounds elevationBounds = validationElevationBounds();
@@ -753,6 +796,7 @@ public final class RoadPreviewManager {
             }
             if (command.hasAppliedRecords()) {
                 host.commands().pushExecuted(command);
+                RoadCorridorTerrainPrefetch.notifyWorldTerrainChanged();
             }
             applyBuildResultStatus(result);
             clearPreview();

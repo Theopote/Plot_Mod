@@ -65,9 +65,43 @@ public final class RoadCorridorTerrainPrefetch {
         EMPTY
     }
 
-    public record PrefetchStatus(Coverage coverage, int columnCount, boolean truncated) {
+    /**
+     * @param columnCount        已写入快照的列数（known）
+     * @param targetColumnCount  本轮目标列数
+     * @param uncoveredColumnCount 未覆盖列数（target - known，截断或未采完）
+     */
+    public record PrefetchStatus(
+            Coverage coverage,
+            int columnCount,
+            boolean truncated,
+            int targetColumnCount,
+            int uncoveredColumnCount) {
+        public PrefetchStatus(Coverage coverage, int columnCount, boolean truncated) {
+            this(
+                coverage,
+                columnCount,
+                truncated,
+                columnCount,
+                Math.max(0, truncated ? 1 : 0));
+        }
+
         public static PrefetchStatus empty() {
-            return new PrefetchStatus(Coverage.EMPTY, 0, false);
+            return new PrefetchStatus(Coverage.EMPTY, 0, false, 0, 0);
+        }
+
+        public static PrefetchStatus of(
+                Coverage coverage,
+                int knownColumns,
+                int targetColumns,
+                boolean truncated) {
+            int target = Math.max(0, targetColumns);
+            int known = Math.max(0, knownColumns);
+            return new PrefetchStatus(
+                coverage,
+                known,
+                truncated,
+                target,
+                Math.max(0, target - known));
         }
 
         public boolean isUsable() {
@@ -188,9 +222,10 @@ public final class RoadCorridorTerrainPrefetch {
             if (done.builder == null || done.builder.isEmpty()) {
                 return false;
             }
-            PrefetchStatus status = new PrefetchStatus(
+            PrefetchStatus status = PrefetchStatus.of(
                 done.truncated ? Coverage.PARTIAL : Coverage.COMPLETE,
                 done.builder.knownCount(),
+                done.columns.size(),
                 done.truncated);
             cache = new CacheEntry(done.key, done.builder, status);
             promoted = cache;
@@ -390,9 +425,10 @@ public final class RoadCorridorTerrainPrefetch {
                     && key.equals(inflight.key)
                     && inflight.builder != null
                     && !inflight.builder.isEmpty()) {
-                PrefetchStatus status = new PrefetchStatus(
+                PrefetchStatus status = PrefetchStatus.of(
                     inflight.truncated ? Coverage.PARTIAL : Coverage.COMPLETE,
                     inflight.builder.knownCount(),
+                    inflight.columns.size(),
                     inflight.truncated);
                 cache = new CacheEntry(inflight.key, inflight.builder, status);
                 CacheEntry entry = cache;
@@ -486,17 +522,20 @@ public final class RoadCorridorTerrainPrefetch {
             return;
         }
 
-        long deadline = System.nanoTime() + SERVER_BATCH_BUDGET_NS;
+        long batchStarted = System.nanoTime();
+        long deadline = batchStarted + SERVER_BATCH_BUDGET_NS;
         List<Long> chunkKeys = job.chunkKeys;
         int chunksLoaded = 0;
         while (chunkIndex < chunkKeys.size()
                 && chunksLoaded < CHUNKS_PER_SERVER_BATCH
                 && System.nanoTime() < deadline) {
             long chunkKey = chunkKeys.get(chunkIndex++);
+            // getChunk 可能同步生成/加载，无法在调用内打断；预算是调度目标而非硬上限。
             serverWorld.getChunk(ChunkPos.getPackedX(chunkKey), ChunkPos.getPackedZ(chunkKey));
             chunksLoaded++;
         }
         if (chunkIndex < chunkKeys.size()) {
+            logBatchTiming(job, batchStarted, chunksLoaded, 0, false);
             int nextChunk = chunkIndex;
             int nextColumn = columnIndex;
             server.execute(() -> runBatch(server, worldKey, job, nextChunk, nextColumn));
@@ -521,17 +560,41 @@ public final class RoadCorridorTerrainPrefetch {
             sampled++;
         }
         if (columnIndex < columns.size()) {
+            logBatchTiming(job, batchStarted, chunksLoaded, sampled, false);
             int nextColumn = columnIndex;
             server.execute(() -> runBatch(server, worldKey, job, chunkKeys.size(), nextColumn));
             return;
         }
 
+        logBatchTiming(job, batchStarted, chunksLoaded, sampled, true);
         job.completed = true;
         LOGGER.info(
-            "道路走廊地形预取完成: columns={}, known={}, truncated={}",
+            "道路走廊地形预取完成: target={}, known={}, uncovered={}, truncated={}",
             columns.size(),
             builder.knownCount(),
+            Math.max(0, columns.size() - builder.knownCount()),
             job.truncated);
+    }
+
+    private static void logBatchTiming(
+            InflightJob job,
+            long batchStartedNs,
+            int chunksLoaded,
+            int columnsSampled,
+            boolean finished) {
+        long elapsedNs = System.nanoTime() - batchStartedNs;
+        long budgetMs = TimeUnit.NANOSECONDS.toMillis(SERVER_BATCH_BUDGET_NS);
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(elapsedNs);
+        if (elapsedNs > SERVER_BATCH_BUDGET_NS) {
+            LOGGER.debug(
+                "走廊地形预取批次超时: elapsed={}ms budget={}ms chunks={} columns={} finished={} truncated={}",
+                elapsedMs,
+                budgetMs,
+                chunksLoaded,
+                columnsSampled,
+                finished,
+                job.truncated);
+        }
     }
 
     record ColumnCollectResult(List<BlockPos> columns, boolean truncated) {

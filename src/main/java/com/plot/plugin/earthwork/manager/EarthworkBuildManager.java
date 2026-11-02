@@ -268,6 +268,8 @@ public final class EarthworkBuildManager {
         if (project != null) {
             terrainCache.invalidateSite(project.getActiveSiteId());
         }
+        // 土方落地会改世界地表；通知道路走廊预取失效，避免中段改地仍用旧快照。
+        com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch.notifyWorldTerrainChanged();
     }
 
     private void applyBuildResultStatus(
