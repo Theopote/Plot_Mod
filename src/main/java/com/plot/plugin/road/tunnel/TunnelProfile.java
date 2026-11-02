@@ -25,7 +25,11 @@ public final class TunnelProfile {
                 yield Math.max(0, 2 * radius - clear);
             }
             // Deeper invert than a diameter-matched circle so ELLIPTICAL stays visually oval.
-            case ELLIPTICAL -> Math.max(2, Math.clamp(clearHeight / 2 + 1, 2, halfCavityWidth));
+            // Clamp to half-width so narrow cavities (halfW < 2) stay legal.
+            case ELLIPTICAL -> {
+                int desired = Math.max(2, clearHeight / 2 + 1);
+                yield Math.min(halfCavityWidth, desired);
+            }
             default -> 0;
         };
     }

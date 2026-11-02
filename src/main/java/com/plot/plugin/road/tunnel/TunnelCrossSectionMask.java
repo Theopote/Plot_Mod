@@ -2,14 +2,18 @@ package com.plot.plugin.road.tunnel;
 
 import com.plot.plugin.road.RoadDimensionUtils;
 
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Discrete tunnel cross-section occupancy for voxel placement.
  * <p>
- * Built from inner + outer contours: AIR inside the inner profile, LINING between
- * outer and inner shells. Road pavement cells at {@code roadY} are OUTSIDE.
+ * AIR is the inner cavity profile. LINING is a Chebyshev dilation of AIR by the
+ * lining thickness (4-neighbor-connected shell), excluding pavement cells at
+ * {@code roadY} which stay OUTSIDE for the road generator.
  */
 public final class TunnelCrossSectionMask {
     public enum CellKind {
@@ -89,30 +93,109 @@ public final class TunnelCrossSectionMask {
                 resolved, Math.abs(lateral), halfCavityWidth, roadY, clearHeight, lining, invert));
         }
 
-        TunnelCrossSectionMask mask = new TunnelCrossSectionMask(roadMin, roadMax, minY, maxY);
+        // Expand bounds one extra lining step so Chebyshev shells near the edge stay in-range.
+        minY -= lining;
+        maxY += lining;
+        outerMin -= lining;
+        outerMax += lining;
+
+        Set<Long> air = new HashSet<>();
         for (int lateral = outerMin; lateral <= outerMax; lateral++) {
             boolean roadColumn = lateral >= roadMin && lateral <= roadMax;
             for (int y = minY; y <= maxY; y++) {
-                boolean inner = TunnelProfile.containsInner(
-                    resolved, lateral, y, roadY, halfCavityWidth, clearHeight);
-                boolean outer = TunnelProfile.containsOuter(
-                    resolved, lateral, y, roadY, halfCavityWidth, clearHeight, lining);
-
-                CellKind kind;
                 if (roadColumn && y == roadY) {
-                    // Pavement owned by road generator — keep mask hole flat.
-                    kind = CellKind.OUTSIDE;
-                } else if (inner) {
-                    kind = CellKind.AIR;
-                } else if (outer) {
-                    kind = CellKind.LINING;
-                } else {
-                    kind = CellKind.OUTSIDE;
+                    continue;
                 }
-                mask.put(lateral, y, kind);
+                if (TunnelProfile.containsInner(
+                        resolved, lateral, y, roadY, halfCavityWidth, clearHeight)) {
+                    air.add(pack(lateral, y));
+                }
             }
         }
+
+        Set<Long> shell = dilateChebyshev(air, lining, outerMin, outerMax, minY, maxY);
+        int tightMinY = Integer.MAX_VALUE;
+        int tightMaxY = Integer.MIN_VALUE;
+        for (long key : air) {
+            int y = unpackY(key);
+            tightMinY = Math.min(tightMinY, y);
+            tightMaxY = Math.max(tightMaxY, y);
+        }
+        for (long key : shell) {
+            if (air.contains(key)) {
+                continue;
+            }
+            int lateral = unpackLateral(key);
+            int y = unpackY(key);
+            if (lateral >= roadMin && lateral <= roadMax && y == roadY) {
+                continue;
+            }
+            tightMinY = Math.min(tightMinY, y);
+            tightMaxY = Math.max(tightMaxY, y);
+        }
+        if (tightMinY == Integer.MAX_VALUE) {
+            tightMinY = roadY;
+            tightMaxY = roadY;
+        }
+        TunnelCrossSectionMask mask = new TunnelCrossSectionMask(roadMin, roadMax, tightMinY, tightMaxY);
+        for (long key : air) {
+            mask.put(unpackLateral(key), unpackY(key), CellKind.AIR);
+        }
+        for (long key : shell) {
+            if (air.contains(key)) {
+                continue;
+            }
+            int lateral = unpackLateral(key);
+            int y = unpackY(key);
+            if (lateral >= roadMin && lateral <= roadMax && y == roadY) {
+                continue;
+            }
+            mask.put(lateral, y, CellKind.LINING);
+        }
         return mask;
+    }
+
+    /**
+     * Chebyshev (chessboard) dilation of {@code seed} by {@code radius} steps within bounds.
+     */
+    private static Set<Long> dilateChebyshev(
+            Set<Long> seed,
+            int radius,
+            int minLateral,
+            int maxLateral,
+            int minY,
+            int maxY) {
+        Set<Long> expanded = new HashSet<>(seed);
+        if (radius <= 0 || seed.isEmpty()) {
+            return expanded;
+        }
+        ArrayDeque<Long> frontier = new ArrayDeque<>(seed);
+        // Distance layers: each iteration expands by Chebyshev distance 1.
+        for (int step = 0; step < radius; step++) {
+            int layer = frontier.size();
+            for (int i = 0; i < layer; i++) {
+                long key = frontier.removeFirst();
+                int lateral = unpackLateral(key);
+                int y = unpackY(key);
+                for (int dl = -1; dl <= 1; dl++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        if (dl == 0 && dy == 0) {
+                            continue;
+                        }
+                        int nl = lateral + dl;
+                        int ny = y + dy;
+                        if (nl < minLateral || nl > maxLateral || ny < minY || ny > maxY) {
+                            continue;
+                        }
+                        long next = pack(nl, ny);
+                        if (expanded.add(next)) {
+                            frontier.addLast(next);
+                        }
+                    }
+                }
+            }
+        }
+        return expanded;
     }
 
     /**

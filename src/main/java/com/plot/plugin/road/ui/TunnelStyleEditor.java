@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPreset;
 import com.plot.plugin.road.tunnel.TunnelPresetCatalog;
+import com.plot.plugin.road.tunnel.TunnelProfile;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.utils.PlotI18n;
@@ -75,7 +76,9 @@ public final class TunnelStyleEditor {
             style.getShape(),
             style.getClearHeight(),
             style.getSideClearance(),
-            style.getLiningThickness());
+            style.getLiningThickness(),
+            style.getLightingMode(),
+            style.isAccentRings());
         ImGui.spacing();
 
         int[] clearHeight = {style.getClearHeight()};
@@ -83,6 +86,15 @@ public final class TunnelStyleEditor {
                 TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {
             style.setClearHeight(clearHeight[0]);
             notifyChanged(style, onChanged, presetSelection);
+        }
+        if (style.getShape() == TunnelShape.CIRCULAR) {
+            int cavityHalf = (TunnelCrossSectionPreviewRenderer.PREVIEW_ENVELOPE_WIDTH
+                + style.getSideClearance() * 2) / 2;
+            int effective = TunnelProfile.effectiveCircularClearHeight(
+                cavityHalf, style.getClearHeight());
+            ImGui.textDisabled(PlotI18n.tr(
+                "plugin.road.tunnel.circular_effective_height",
+                effective));
         }
         int[] sideClearance = {style.getSideClearance()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.side_clearance"), sideClearance,

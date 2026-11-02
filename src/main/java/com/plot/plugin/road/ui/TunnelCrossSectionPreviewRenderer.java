@@ -1,7 +1,8 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
-import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
+import com.plot.plugin.road.tunnel.TunnelLightingMode;
+import com.plot.plugin.road.tunnel.TunnelSectionDisplayModel;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.ui.PluginUiColors;
@@ -24,15 +25,18 @@ public final class TunnelCrossSectionPreviewRenderer {
     public static final float PRESET_CARD_HEIGHT = 100f;
     private static final float PRESET_PREVIEW_HEIGHT = 64f;
     private static final int SHAPE_CARDS_PER_ROW = 4;
-    private static final float LIVE_PREVIEW_HEIGHT = 120f;
+    private static final float LIVE_PREVIEW_HEIGHT = 172f;
     private static final float LABEL_PADDING = 4f;
 
-    private static final int COLOR_AIR = 0x552A3545;
-    private static final int COLOR_LINING = 0xFF8B7355;
-    private static final int COLOR_ROAD = 0xFF555555;
+    private static final int COLOR_AIR = 0xFF2A3545;
+    private static final int COLOR_LINING = 0xFF8FA8B8;
+    private static final int COLOR_ROAD = 0xFF4A5560;
     private static final int COLOR_MOUNTAIN = 0x33446B3A;
+    private static final int COLOR_WALL_LIGHT = 0xFFFFC94A;
+    private static final int COLOR_CEILING_LIGHT = 0xFFFFE08A;
     private static final int COLOR_LABEL = 0xFFE8E8E8;
     private static final int COLOR_LABEL_DIM = 0xFFB0B0B0;
+    private static final int COLOR_CELL_EDGE = 0x33000000;
 
     private TunnelCrossSectionPreviewRenderer() {
     }
@@ -42,7 +46,9 @@ public final class TunnelCrossSectionPreviewRenderer {
             TunnelShape shape,
             int clearHeight,
             int sideClearance,
-            int liningThickness) {
+            int liningThickness,
+            TunnelLightingMode lightingMode,
+            boolean accentRings) {
         float width = Math.max(PRESET_CARD_WIDTH * 3f + 8f, ImGui.getContentRegionAvailX());
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
@@ -53,7 +59,7 @@ public final class TunnelCrossSectionPreviewRenderer {
 
         drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG, 4f);
         drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 4f, 0, 1f);
-        drawCrossSection(
+        drawLiveCrossSection(
             drawList,
             x0 + 4f,
             y0 + 4f,
@@ -63,7 +69,8 @@ public final class TunnelCrossSectionPreviewRenderer {
             clearHeight,
             sideClearance,
             liningThickness,
-            true);
+            lightingMode,
+            accentRings);
         ImGui.dummy(width, LIVE_PREVIEW_HEIGHT);
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_legend"));
     }
@@ -106,7 +113,7 @@ public final class TunnelCrossSectionPreviewRenderer {
         drawList.addRect(x0, y0, x1, y1, borderColor, 4f, 0, borderThickness);
 
         float previewBottom = y0 + PRESET_PREVIEW_HEIGHT;
-        drawCrossSection(
+        drawPresetCrossSection(
             drawList,
             x0 + 3f,
             y0 + 3f,
@@ -115,8 +122,7 @@ public final class TunnelCrossSectionPreviewRenderer {
             shape,
             presetDefaults().clearHeight(),
             presetDefaults().sideClearance(),
-            presetDefaults().liningThickness(),
-            false);
+            presetDefaults().liningThickness());
 
         String label = PlotI18n.tr(shapeLabelKey(shape));
         float labelY = previewBottom + LABEL_PADDING;
@@ -130,6 +136,117 @@ public final class TunnelCrossSectionPreviewRenderer {
         return ImGui.isItemClicked(0);
     }
 
+    static void drawLiveCrossSection(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            TunnelShape shape,
+            int clearHeight,
+            int sideClearance,
+            int liningThickness,
+            TunnelLightingMode lightingMode,
+            boolean accentRings) {
+        TunnelSectionDisplayModel model = TunnelSectionDisplayModel.build(
+            shape != null ? shape : TunnelShape.ARCH,
+            PREVIEW_ENVELOPE_WIDTH,
+            Math.max(TunnelStyle.MIN_SIDE_CLEARANCE, sideClearance),
+            Math.max(TunnelStyle.MIN_CLEAR_HEIGHT, clearHeight),
+            Math.max(TunnelStyle.MIN_LINING_THICKNESS, liningThickness),
+            PREVIEW_ROAD_Y,
+            lightingMode != null ? lightingMode : TunnelLightingMode.NONE,
+            accentRings);
+        if (model.cells().isEmpty()) {
+            return;
+        }
+
+        int cols = Math.max(1, model.cols());
+        int rows = Math.max(1, model.rows());
+        float pad = 2f;
+        float availW = Math.max(1f, x1 - x0 - pad * 2f);
+        float availH = Math.max(1f, y1 - y0 - pad * 2f);
+        float block = Math.min(availW / cols, availH / rows);
+        block = Math.max(3f, (float) Math.floor(block));
+
+        float gridW = cols * block;
+        float gridH = rows * block;
+        final float originX = x0 + (x1 - x0 - gridW) * 0.5f;
+        final float originY = y0 + (y1 - y0 - gridH) * 0.5f;
+
+        // Mountain fill: outside the voxel grid, above the road row.
+        int roadRowFromTop = model.displayMaxY() - model.roadY();
+        float roadTopY = originY + roadRowFromTop * block;
+        if (roadTopY > y0) {
+            drawList.addRectFilled(x0, y0, x1, Math.min(roadTopY, originY), COLOR_MOUNTAIN, 2f);
+            if (originX > x0) {
+                drawList.addRectFilled(x0, Math.max(y0, originY), originX, roadTopY, COLOR_MOUNTAIN, 0f);
+            }
+            float gridRight = originX + gridW;
+            if (gridRight < x1) {
+                drawList.addRectFilled(gridRight, Math.max(y0, originY), x1, roadTopY, COLOR_MOUNTAIN, 0f);
+            }
+        }
+
+        for (TunnelSectionDisplayModel.Cell cell : model.cells()) {
+            int col = cell.lateral() - model.minLateral();
+            int row = model.displayMaxY() - cell.y();
+            float bx = originX + col * block;
+            float by = originY + row * block;
+            int color = colorFor(cell.kind());
+            drawList.addRectFilled(bx, by, bx + block, by + block, color, 0f);
+            drawList.addRect(bx, by, bx + block, by + block, COLOR_CELL_EDGE, 0f, 0, 1f);
+        }
+    }
+
+    /** Compact preset thumbnail: geometry only, no lights/accents, roadY+ clip. */
+    static void drawPresetCrossSection(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            TunnelShape shape,
+            int clearHeight,
+            int sideClearance,
+            int liningThickness) {
+        TunnelSectionDisplayModel model = TunnelSectionDisplayModel.build(
+            shape != null ? shape : TunnelShape.ARCH,
+            PREVIEW_ENVELOPE_WIDTH,
+            Math.max(TunnelStyle.MIN_SIDE_CLEARANCE, sideClearance),
+            Math.max(TunnelStyle.MIN_CLEAR_HEIGHT, clearHeight),
+            Math.max(TunnelStyle.MIN_LINING_THICKNESS, liningThickness),
+            PREVIEW_ROAD_Y,
+            TunnelLightingMode.NONE,
+            false);
+        if (model.cells().isEmpty()) {
+            return;
+        }
+
+        int cols = Math.max(1, model.cols());
+        int rows = Math.max(1, model.rows());
+        float pad = 1f;
+        float availW = Math.max(1f, x1 - x0 - pad * 2f);
+        float availH = Math.max(1f, y1 - y0 - pad * 2f);
+        float block = Math.min(availW / cols, availH / rows);
+        block = Math.max(2f, (float) Math.floor(block));
+
+        float gridW = cols * block;
+        float gridH = rows * block;
+        float originX = x0 + (x1 - x0 - gridW) * 0.5f;
+        float originY = y0 + (y1 - y0 - gridH) * 0.5f;
+
+        for (TunnelSectionDisplayModel.Cell cell : model.cells()) {
+            int col = cell.lateral() - model.minLateral();
+            int row = model.displayMaxY() - cell.y();
+            float bx = originX + col * block;
+            float by = originY + row * block;
+            int color = colorFor(cell.kind());
+            drawList.addRectFilled(bx, by, bx + block, by + block, color, 0f);
+        }
+    }
+
+    /** @deprecated retained for tests that build masks directly; prefer {@link TunnelSectionDisplayModel}. */
     static void drawCrossSection(
             ImDrawList drawList,
             float x0,
@@ -141,73 +258,13 @@ public final class TunnelCrossSectionPreviewRenderer {
             int sideClearance,
             int liningThickness,
             boolean showMountain) {
-        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
-            shape != null ? shape : TunnelShape.ARCH,
-            PREVIEW_ENVELOPE_WIDTH,
-            Math.max(TunnelStyle.MIN_SIDE_CLEARANCE, sideClearance),
-            Math.max(TunnelStyle.MIN_CLEAR_HEIGHT, clearHeight),
-            Math.max(TunnelStyle.MIN_LINING_THICKNESS, liningThickness),
-            PREVIEW_ROAD_Y,
-            false);
-
-        int minLat = Integer.MAX_VALUE;
-        int maxLat = Integer.MIN_VALUE;
-        for (int lateral = -12; lateral <= 12; lateral++) {
-            for (int y = mask.minY(); y <= mask.maxY(); y++) {
-                if (mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.OUTSIDE) {
-                    minLat = Math.min(minLat, lateral);
-                    maxLat = Math.max(maxLat, lateral);
-                }
-            }
-        }
-        if (minLat == Integer.MAX_VALUE) {
-            return;
-        }
-
-        int cols = maxLat - minLat + 1;
-        int rows = mask.maxY() - mask.minY() + 1;
-        float pad = 2f;
-        float availW = Math.max(1f, x1 - x0 - pad * 2f);
-        float availH = Math.max(1f, y1 - y0 - pad * 2f);
-        float block = Math.min(availW / cols, availH / rows);
-        block = Math.max(2f, (float) Math.floor(block));
-
-        float gridW = cols * block;
-        float gridH = rows * block;
-        final float originX = x0 + (x1 - x0 - gridW) * 0.5f;
-        final float originY = y0 + (y1 - y0 - gridH) * 0.5f;
-        final int lateralMin = minLat;
-        final float blockSize = block;
-        final int maskMaxY = mask.maxY();
-
         if (showMountain) {
-            drawList.addRectFilled(x0, y0, x1, originY, COLOR_MOUNTAIN, 2f);
-        }
-
-        mask.forEach((lateral, y, kind) -> {
-            if (kind == TunnelCrossSectionMask.CellKind.OUTSIDE) {
-                return;
-            }
-            int col = lateral - lateralMin;
-            int row = maskMaxY - y;
-            float bx = originX + col * blockSize;
-            float by = originY + row * blockSize;
-            int color = kind == TunnelCrossSectionMask.CellKind.AIR ? COLOR_AIR : COLOR_LINING;
-            drawList.addRectFilled(bx, by, bx + blockSize - 0.5f, by + blockSize - 0.5f, color, 1f);
-        });
-
-        // Road pavement cells are OUTSIDE in the mask (owned by the road generator).
-        // Draw them as an explicit ROAD layer so invert arches remain visible below.
-        int roadHalf = PREVIEW_ENVELOPE_WIDTH / 2;
-        for (int lateral = -roadHalf; lateral <= roadHalf; lateral++) {
-            if (lateral < lateralMin || lateral > maxLat) {
-                continue;
-            }
-            int col = lateral - lateralMin;
-            int row = maskMaxY - PREVIEW_ROAD_Y;
-            float bx = originX + col * blockSize;
-            float by = originY + row * blockSize;
-            drawList.addRectFilled(bx, by, bx + blockSize - 0.5f, by + blockSize - 0.5f, COLOR_ROAD, 1f);
+            drawLiveCrossSection(
+                drawList, x0, y0, x1, y1, shape, clearHeight, sideClearance, liningThickness,
+                TunnelLightingMode.NONE, false);
+        } else {
+            drawPresetCrossSection(
+                drawList, x0, y0, x1, y1, shape, clearHeight, sideClearance, liningThickness);
         }
     }
 
@@ -220,6 +277,17 @@ public final class TunnelCrossSectionPreviewRenderer {
             case CIRCULAR -> "plugin.road.tunnel.shape.circular";
             case ARCH -> "plugin.road.tunnel.shape.arch";
             case PENTAGONAL -> "plugin.road.tunnel.shape.pentagonal";
+        };
+    }
+
+    private static int colorFor(TunnelSectionDisplayModel.DisplayKind kind) {
+        return switch (kind) {
+            case AIR -> COLOR_AIR;
+            case LINING -> COLOR_LINING;
+            case ROAD -> COLOR_ROAD;
+            case WALL_LIGHT -> COLOR_WALL_LIGHT;
+            case CEILING_LIGHT -> COLOR_CEILING_LIGHT;
+            case ACCENT -> 0xFFE07A3D;
         };
     }
 

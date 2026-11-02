@@ -23,9 +23,9 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
+import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
-import com.plot.plugin.road.tunnel.TunnelProfile;
 import com.plot.plugin.road.tunnel.TunnelRoofGapSealer;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.core.terrain.TerrainSampler;
@@ -325,91 +325,14 @@ public final class TunnelStructureGenerator {
         if (lightMaterial == null || lightMaterial.isBlank()) {
             return;
         }
-        int side = tunnelStyle.sideClearance();
-        int cavityWidth = roadEnvelopeWidth + side * 2;
-        int cavityMin = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(cavityWidth);
-        int cavityMax = com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(cavityWidth);
-        int halfCavityWidth = cavityWidth / 2;
         double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
-        var shape = tunnelStyle.shape();
-        int clear = tunnelStyle.clearHeight();
-        int lining = tunnelStyle.liningThickness();
-        TunnelCrossSectionMask lightMask = TunnelCrossSectionMask.build(
-            shape, roadEnvelopeWidth, side, clear, lining, roadY, false);
-        if (mode.placesWallLights()) {
-            placeWallLightIfValid(
-                solids, lightMask, center, normal, cavityMin, +1, roadY, clear, scale, columnResolver, lightMaterial);
-            placeWallLightIfValid(
-                solids, lightMask, center, normal, cavityMax, -1, roadY, clear, scale, columnResolver, lightMaterial);
+        for (var light : TunnelLightPlacementResolver.resolve(tunnelStyle, roadEnvelopeWidth, roadY)) {
+            placeLightBlock(
+                solids, center, normal, light.lateral(), light.y(), scale, columnResolver, lightMaterial);
         }
-        if (mode.placesCeilingLights()) {
-            int ceilingY = TunnelProfile.innerCeilingY(shape, 0, halfCavityWidth, roadY, clear);
-            if (isMaskAir(lightMask, 0, ceilingY)) {
-                placeLightBlock(solids, center, normal, 0, ceilingY, scale, columnResolver, lightMaterial);
-            }
-        }
-    }
-
-    /**
-     * Search from the cavity edge inward for a verified mask AIR cell; skip the light when none exists.
-     */
-    private static void placeWallLightIfValid(
-            RoadSolidModel solids,
-            TunnelCrossSectionMask mask,
-            Vec2d center,
-            Vec2d normal,
-            int edgeLateral,
-            int inwardStep,
-            int roadY,
-            int clearHeight,
-            double scale,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            String lightMaterial) {
-        int preferredY = roadY + 2;
-        for (int lateral = edgeLateral; ; lateral += inwardStep) {
-            if (inwardStep > 0 && lateral > 0) {
-                break;
-            }
-            if (inwardStep < 0 && lateral < 0) {
-                break;
-            }
-            Integer y = wallLightYInColumn(mask, lateral, preferredY, roadY, clearHeight);
-            if (y != null) {
-                placeLightBlock(solids, center, normal, lateral, y, scale, columnResolver, lightMaterial);
-                return;
-            }
-            if (lateral == 0) {
-                break;
-            }
-        }
-    }
-
-    private static Integer wallLightYInColumn(
-            TunnelCrossSectionMask mask,
-            int lateral,
-            int preferredY,
-            int roadY,
-            int clearHeight) {
-        if (isMaskAir(mask, lateral, preferredY)) {
-            return preferredY;
-        }
-        int mid = roadY + Math.max(2, clearHeight / 2);
-        if (isMaskAir(mask, lateral, mid)) {
-            return mid;
-        }
-        for (int y = roadY + 1; y <= roadY + clearHeight; y++) {
-            if (isMaskAir(mask, lateral, y)) {
-                return y;
-            }
-        }
-        return null;
-    }
-
-    private static boolean isMaskAir(TunnelCrossSectionMask mask, int lateral, int y) {
-        return mask != null && mask.kindAt(lateral, y) == TunnelCrossSectionMask.CellKind.AIR;
     }
 
     private static void placeLightBlock(
