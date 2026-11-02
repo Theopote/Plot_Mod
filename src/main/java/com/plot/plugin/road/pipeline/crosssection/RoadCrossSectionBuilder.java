@@ -218,9 +218,12 @@ public final class RoadCrossSectionBuilder {
         }
     }
 
-    /** 桥段已判定为桥时，路面下只要还有空隙就铺桥面板，不再用桥阈值二次过滤浅跨。 */
+    /**
+     * 桥段已判定为桥时铺桥面板（含 1 格空隙与同标高桥台）。
+     * BRIDGE 支撑校验不认原地形，岸坡桥台也必须有本次生成的承重层。
+     */
     static boolean shouldPlaceDeckUnderlay(int targetY, int groundY) {
-        return groundY < targetY - 1;
+        return groundY <= targetY;
     }
 
     private static void generateMedianBlocks(

@@ -8,12 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadCrossSectionBuilderTest {
 
     @Test
-    void shallowBridgeGapStillGetsDeckUnderlay() {
+    void classifiedBridgeGetsDeckUnderlayThroughAtGradeAbutment() {
         assertTrue(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 67),
-            "3-block gap under a classified bridge must still receive a deck slab");
+            "deep gap under a classified bridge must receive a deck slab");
         assertTrue(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 68));
-        assertFalse(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 69),
-            "no room for an underlay when ground is already at deck Y");
-        assertFalse(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 70));
+        assertTrue(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 69),
+            "1-block seat still needs generated slab — BRIDGE integrity rejects terrain");
+        assertTrue(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 70),
+            "at-grade abutment still needs generated slab under pavement");
+        assertFalse(RoadCrossSectionBuilder.shouldPlaceDeckUnderlay(70, 71),
+            "cut above deck is not an underlay seat");
     }
 }
