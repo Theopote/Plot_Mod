@@ -45,6 +45,7 @@ class RoadSlopeContinuityTest {
         RoadGenerationResult edge = preview.edgeResults().values().iterator().next();
         assertEquals(0, edge.missingRoadSurfaceCount, "R08 bridge must not miss planned surfaces");
         assertEquals(0, edge.orphanSlopePillarCount, "R08 must not leave orphan slope pillars");
+        assertEquals(0, edge.unsupportedPavementCount, "R08 open pavement must not float");
 
         int roadColumnsInValley = 0;
         for (var entry : edge.placementRecords.entrySet()) {
@@ -74,6 +75,10 @@ class RoadSlopeContinuityTest {
                 scenario.id() + " uncleared obstructions");
             assertEquals(0, edgeResult.missingRoadSurfaceCount,
                 scenario.id() + " missing road surface");
+            assertEquals(0, edgeResult.unsupportedPavementCount,
+                scenario.id() + " unsupported pavement");
+            assertEquals(0, edgeResult.structureInteriorSlopeCellCount,
+                scenario.id() + " structure-interior slope cells");
         }
     }
 }

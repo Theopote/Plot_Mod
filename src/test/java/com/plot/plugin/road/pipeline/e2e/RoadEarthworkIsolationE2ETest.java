@@ -28,6 +28,8 @@ class RoadEarthworkIsolationE2ETest {
         assertEquals(0, edge.structureInteriorSlopeCellCount,
             "bridge span must not retain corridor slope cells, types=" + edge.constructionTypes);
         assertEquals(0, edge.orphanSlopePillarCount);
+        assertEquals(0, edge.unsupportedPavementCount,
+            "open approach pavement must not float without support");
         assertEquals(0, edge.fillVolume,
             "bridge must not fill valley as ordinary roadbed");
         assertTrue(edge.constructionTypes.contains(RoadConstructionType.BRIDGE)
@@ -59,6 +61,8 @@ class RoadEarthworkIsolationE2ETest {
         RoadGenerationResult edge = previewEdge(RoadGoldenScenarioFactory.r09Tunnel());
         assertEquals(0, edge.structureInteriorSlopeCellCount,
             "tunnel body must not retain corridor slope cells");
+        assertEquals(0, edge.unsupportedPavementCount,
+            "tunnel corridor must not leave unsupported open pavement");
         assertTrue(edge.tunnelCount > 0 || edge.tunnelLength > 0 || !edge.tunnelBlocks.isEmpty(),
             "R09 must produce tunnel structure");
         // Cross-section preset changes must not reintroduce open corridor fill into the tunnel body.
@@ -76,6 +80,8 @@ class RoadEarthworkIsolationE2ETest {
         assertEquals(0, edge.fillVolume,
             "ROAD→BRIDGE→ROAD must not fill the valley as open subgrade");
         assertEquals(0, edge.orphanSlopePillarCount);
+        assertEquals(0, edge.unsupportedPavementCount,
+            "composite bridge must not leave unsupported open pavement");
         assertTrue(countRoadSurfaceInXBand(edge, 10, 20) >= 5,
             "bridge deck ROAD surface must remain across the valley");
     }
@@ -90,6 +96,8 @@ class RoadEarthworkIsolationE2ETest {
         assertTrue(edge.tunnelCount > 0 || edge.tunnelLength > 0 || !edge.tunnelBlocks.isEmpty(),
             "R09 must produce tunnel structure for composite path");
         assertEquals(0, edge.orphanSlopePillarCount);
+        assertEquals(0, edge.unsupportedPavementCount,
+            "composite tunnel must not leave unsupported open pavement");
     }
 
     private static int countRoadSurfaceInXBand(RoadGenerationResult edge, int minX, int maxX) {

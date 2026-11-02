@@ -220,6 +220,80 @@ class RoadGenerationIntegrityValidatorTest {
         assertTrue(report.hasUnresolvedSlopeConstruction());
     }
 
+    @Test
+    void elevatedOpenPavementWithoutSupportIsDetected() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 70, 72, RoadCorridorConstructionMode.OPEN, RoadConstructionType.ROAD));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(64));
+
+        assertEquals(1, report.unsupportedPavementCount());
+        assertTrue(!report.isClean());
+    }
+
+    @Test
+    void elevatedOpenPavementWithSubgradeSupportPasses() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 70, 72, RoadCorridorConstructionMode.OPEN, RoadConstructionType.ROAD));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+        solids.add(point, 69, RoadSolidLayer.SUBGRADE, "minecraft:dirt");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(64));
+
+        assertEquals(0, report.unsupportedPavementCount());
+    }
+
+    @Test
+    void elevatedBridgePavementIsNotCountedAsUnsupported() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 70, 72, RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(50));
+
+        assertEquals(0, report.unsupportedPavementCount());
+    }
+
+    @Test
+    void atGradePavementIsSupportedByTerrain() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        plan.surfaceMask().put(
+            new ColumnKey(0, 0),
+            new SurfaceCell(point, 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 64, RoadSolidLayer.ROAD, "minecraft:stone");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(64));
+
+        assertEquals(0, report.unsupportedPavementCount());
+        assertTrue(report.isClean());
+    }
+
     private static TerrainSampler elevatedColumn(int topY) {
         return new TerrainSampler() {
             @Override

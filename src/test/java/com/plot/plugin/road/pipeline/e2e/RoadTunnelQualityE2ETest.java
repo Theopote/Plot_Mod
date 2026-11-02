@@ -38,6 +38,8 @@ class RoadTunnelQualityE2ETest {
         RoadGenerationResult edge = preview(RoadGoldenScenarioFactory.r09Tunnel());
         assertEquals(0, edge.orphanSlopePillarCount);
         assertEquals(0, edge.structureInteriorSlopeCellCount);
+        assertEquals(0, edge.unsupportedPavementCount,
+            "tunnel approaches must not leave floating open pavement");
     }
 
     @Test

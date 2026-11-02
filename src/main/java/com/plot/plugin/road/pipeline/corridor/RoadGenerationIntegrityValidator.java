@@ -37,13 +37,16 @@ public final class RoadGenerationIntegrityValidator {
             int needsRetainingWallCount,
             int roadShoulderSeamGapCount,
             int shoulderTraceGapCount,
-            int structureInteriorSlopeCellCount) {
-        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            int structureInteriorSlopeCellCount,
+            /** 开放走廊路面下方无填方/地形支撑（悬空候选；桥隧列不计）。 */
+            int unsupportedPavementCount) {
+        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         public boolean isClean() {
             return missingRoadSurfaceCount == 0
                 && unclearedObstructionCount == 0
-                && orphanSlopePillarCount == 0;
+                && orphanSlopePillarCount == 0
+                && unsupportedPavementCount == 0;
         }
 
         /** Slope did not reach terrain or left a lateral gap in the batter mask. */
@@ -70,6 +73,7 @@ public final class RoadGenerationIntegrityValidator {
         int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
         int structureInteriorSlopes = countStructureInteriorSlopeCells(plan);
         int seamGaps = countRoadShoulderSeamGaps(plan);
+        int unsupportedPavement = countUnsupportedPavement(plan, index, terrain);
         plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
         plan.setRoadShoulderSeamGapCount(seamGaps);
         return new IntegrityReport(
@@ -82,7 +86,8 @@ public final class RoadGenerationIntegrityValidator {
             plan.needsRetainingWallCount(),
             seamGaps,
             traceGaps,
-            structureInteriorSlopes);
+            structureInteriorSlopes,
+            unsupportedPavement);
     }
 
     public static IntegrityReport validatePlacements(
@@ -109,6 +114,7 @@ public final class RoadGenerationIntegrityValidator {
         int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
         int structureInteriorSlopes = countStructureInteriorSlopeCells(plan);
         int seamGaps = countRoadShoulderSeamGaps(plan);
+        int unsupportedPavement = countUnsupportedPavement(plan, index, terrain);
         plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
         plan.setRoadShoulderSeamGapCount(seamGaps);
         return new IntegrityReport(
@@ -121,7 +127,8 @@ public final class RoadGenerationIntegrityValidator {
             plan.needsRetainingWallCount(),
             seamGaps,
             traceGaps,
-            structureInteriorSlopes);
+            structureInteriorSlopes,
+            unsupportedPavement);
     }
 
     public static void applyToResult(
@@ -204,6 +211,7 @@ public final class RoadGenerationIntegrityValidator {
         result.roadShoulderSeamGapCount = report.roadShoulderSeamGapCount();
         result.shoulderTraceGapCount = report.shoulderTraceGapCount();
         result.structureInteriorSlopeCellCount = report.structureInteriorSlopeCellCount();
+        result.unsupportedPavementCount = report.unsupportedPavementCount();
     }
 
     /**
@@ -351,6 +359,90 @@ public final class RoadGenerationIntegrityValidator {
             }
         }
         return missing;
+    }
+
+    /**
+     * OPEN 走廊路面若高出自然地面且下方无地形/填方支撑，计为悬空。
+     * 桥隧等结构模式路面由桥面/衬砌承载，不计入。
+     */
+    static int countUnsupportedPavement(
+            RoadCorridorPlan plan,
+            SolidIndex index,
+            TerrainSampler terrain) {
+        int unsupported = 0;
+        for (var entry : plan.surfaceMask().entries()) {
+            SurfaceCell cell = entry.getValue();
+            if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
+                continue;
+            }
+            ColumnKey key = entry.getKey();
+            if (isStructureClearanceMode(plan.clearanceCell(key))) {
+                continue;
+            }
+            if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
+                continue;
+            }
+            if (hasPavementSupport(key, cell, index, terrain)) {
+                continue;
+            }
+            unsupported++;
+        }
+        return unsupported;
+    }
+
+    static int countUnsupportedPavement(
+            RoadCorridorPlan plan,
+            PlacementIndex index,
+            TerrainSampler terrain) {
+        int unsupported = 0;
+        for (var entry : plan.surfaceMask().entries()) {
+            SurfaceCell cell = entry.getValue();
+            if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
+                continue;
+            }
+            ColumnKey key = entry.getKey();
+            if (isStructureClearanceMode(plan.clearanceCell(key))) {
+                continue;
+            }
+            if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
+                continue;
+            }
+            if (hasPavementSupport(key, cell, index, terrain)) {
+                continue;
+            }
+            unsupported++;
+        }
+        return unsupported;
+    }
+
+    private static boolean isStructureClearanceMode(ClearanceCell clearance) {
+        if (clearance == null) {
+            return false;
+        }
+        return clearance.mode() == RoadCorridorConstructionMode.BRIDGE
+            || clearance.mode() == RoadCorridorConstructionMode.TUNNEL
+            || clearance.mode() == RoadCorridorConstructionMode.PORTAL
+            || clearance.mode() == RoadCorridorConstructionMode.SHELTER;
+    }
+
+    private static boolean hasPavementSupport(
+            ColumnKey key,
+            SurfaceCell cell,
+            SolidIndex index,
+            TerrainSampler terrain) {
+        int belowY = cell.surfaceY() - 1;
+        return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ())
+            || index.hasStructuralSupport(key, belowY);
+    }
+
+    private static boolean hasPavementSupport(
+            ColumnKey key,
+            SurfaceCell cell,
+            PlacementIndex index,
+            TerrainSampler terrain) {
+        int belowY = cell.surfaceY() - 1;
+        return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ())
+            || index.hasStructuralSupport(key, belowY);
     }
 
     private static int countUnclearedObstructions(
@@ -647,6 +739,11 @@ public final class RoadGenerationIntegrityValidator {
             return airPositions.contains(columnPos(column, y));
         }
 
+        boolean hasStructuralSupport(ColumnKey column, int y) {
+            RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
+            return primitive != null && !"minecraft:air".equals(primitive.materialId());
+        }
+
         boolean obstructionClearanceResolved(ColumnKey column, int y) {
             if (hasAir(column, y)) {
                 return true;
@@ -701,6 +798,11 @@ public final class RoadGenerationIntegrityValidator {
         boolean hasAir(ColumnKey column, int y) {
             BlockRecord record = records.get(columnPos(column, y));
             return record != null && "minecraft:air".equals(record.newBlockId);
+        }
+
+        boolean hasStructuralSupport(ColumnKey column, int y) {
+            BlockRecord record = records.get(columnPos(column, y));
+            return record != null && !"minecraft:air".equals(record.newBlockId);
         }
 
         boolean obstructionClearanceResolved(ColumnKey column, int y) {

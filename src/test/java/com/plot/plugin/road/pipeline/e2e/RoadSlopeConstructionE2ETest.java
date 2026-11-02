@@ -43,6 +43,7 @@ class RoadSlopeConstructionE2ETest {
 
         RoadGenerationResult edge = singleEdgePreview(network, config, terrain);
         assertEquals(0, edge.missingRoadSurfaceCount, "road surface must be placed");
+        assertEquals(0, edge.unsupportedPavementCount, "cut pavement must rest on terrain/subgrade");
         assertTrue(edge.cutVolume > 0, "cut volume expected on high ground");
 
         int missingEmbankment = 0;
