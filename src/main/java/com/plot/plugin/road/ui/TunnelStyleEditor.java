@@ -16,6 +16,11 @@ import imgui.type.ImInt;
  * Full tunnel style editor body used by {@link TunnelStyleFloatingEditor}.
  */
 public final class TunnelStyleEditor {
+    /** Left column share for the live cross-section preview. */
+    private static final float PREVIEW_COLUMN_RATIO = 0.38f;
+    private static final float PREVIEW_COLUMN_MIN = 168f;
+    private static final float PARAMS_COLUMN_MIN = 220f;
+
     private TunnelStyleEditor() {
     }
 
@@ -72,6 +77,41 @@ public final class TunnelStyleEditor {
             // selection handled in callback
         }
         ImGui.spacing();
+        renderPreviewAndParams(ctx, style, onChanged, presetSelection);
+    }
+
+    private static void renderPreviewAndParams(
+            RoadUiContext ctx,
+            TunnelStyle style,
+            Runnable onChanged,
+            PresetSelection presetSelection) {
+        float avail = ImGui.getContentRegionAvailX();
+        float gap = ImGui.getStyle().getItemSpacingX();
+        float leftWidth = Math.max(PREVIEW_COLUMN_MIN, avail * PREVIEW_COLUMN_RATIO);
+        float rightWidth = avail - leftWidth - gap;
+        if (rightWidth < PARAMS_COLUMN_MIN && avail > PREVIEW_COLUMN_MIN + PARAMS_COLUMN_MIN + gap) {
+            rightWidth = PARAMS_COLUMN_MIN;
+            leftWidth = avail - rightWidth - gap;
+        }
+
+        // Side-by-side when both columns fit; otherwise stack preview above params.
+        boolean sideBySide = rightWidth >= PARAMS_COLUMN_MIN && leftWidth >= PREVIEW_COLUMN_MIN;
+        if (sideBySide) {
+            ImGui.beginChild("##tunnel_preview_col", leftWidth, 0f, false);
+            renderLivePreviewColumn(style);
+            ImGui.endChild();
+            ImGui.sameLine(0f, gap);
+            ImGui.beginChild("##tunnel_params_col", rightWidth, 0f, false);
+            renderParameterColumn(ctx, style, onChanged, presetSelection);
+            ImGui.endChild();
+        } else {
+            renderLivePreviewColumn(style);
+            ImGui.spacing();
+            renderParameterColumn(ctx, style, onChanged, presetSelection);
+        }
+    }
+
+    private static void renderLivePreviewColumn(TunnelStyle style) {
         TunnelCrossSectionPreviewRenderer.renderLivePreview(
             style.getShape(),
             style.getClearHeight(),
@@ -79,8 +119,13 @@ public final class TunnelStyleEditor {
             style.getLiningThickness(),
             style.getLightingMode(),
             style.isAccentRings());
-        ImGui.spacing();
+    }
 
+    private static void renderParameterColumn(
+            RoadUiContext ctx,
+            TunnelStyle style,
+            Runnable onChanged,
+            PresetSelection presetSelection) {
         int[] clearHeight = {style.getClearHeight()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.clear_height"), clearHeight,
                 TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {

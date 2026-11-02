@@ -40,7 +40,7 @@ public final class TunnelCrossSectionPreviewRenderer {
     private TunnelCrossSectionPreviewRenderer() {
     }
 
-    /** Live preview in {@link TunnelStyleEditor}; updates as sliders move. */
+    /** Live preview in {@link TunnelStyleEditor}; fills the current content width. */
     public static void renderLivePreview(
             TunnelShape shape,
             int clearHeight,
@@ -48,13 +48,15 @@ public final class TunnelCrossSectionPreviewRenderer {
             int liningThickness,
             TunnelLightingMode lightingMode,
             boolean accentRings) {
-        float width = Math.max(PRESET_CARD_WIDTH * 3f + 8f, ImGui.getContentRegionAvailX());
+        float width = Math.max(120f, ImGui.getContentRegionAvailX());
+        // Prefer a near-square viewport in the side column so voxels stay readable.
+        float height = Math.max(LIVE_PREVIEW_HEIGHT, Math.min(width * 1.05f, 220f));
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
         float y0 = origin.y;
         float x1 = x0 + width;
-        float y1 = y0 + LIVE_PREVIEW_HEIGHT;
+        float y1 = y0 + height;
 
         drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG, 4f);
         drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 4f, 0, 1f);
@@ -70,7 +72,7 @@ public final class TunnelCrossSectionPreviewRenderer {
             liningThickness,
             lightingMode,
             accentRings);
-        ImGui.dummy(width, LIVE_PREVIEW_HEIGHT);
+        ImGui.dummy(width, height);
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_legend"));
     }
 
@@ -246,6 +248,7 @@ public final class TunnelCrossSectionPreviewRenderer {
     }
 
     /** @deprecated retained for tests that build masks directly; prefer {@link TunnelSectionDisplayModel}. */
+    @Deprecated
     static void drawCrossSection(
             ImDrawList drawList,
             float x0,
