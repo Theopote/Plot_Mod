@@ -12,6 +12,9 @@ import com.plot.core.terrain.TerrainSampler;
  * Fills vertical air gaps between the tunnel lining roof and original terrain above,
  * and stabilizes a short band of solids so gravity blocks (gravel/sand) cannot cascade
  * into the cavity through a thin or gapped roof shell.
+ * <p>
+ * Roof top is evaluated <strong>per lateral column</strong> so peaked / circular / elliptical
+ * shells are not sealed as a flat rectangle at {@link TunnelCrossSectionMask#maxY()}.
  */
 public final class TunnelRoofGapSealer {
     private static final String DEFAULT_TERRAIN_RESTORE = "minecraft:stone";
@@ -49,13 +52,15 @@ public final class TunnelRoofGapSealer {
         int outerWidth = cavityWidth + liningThickness * 2;
         int outerMin = RoadDimensionUtils.minLateralOffset(outerWidth);
         int outerMax = RoadDimensionUtils.maxLateralOffset(outerWidth);
-        int roofTop = mask.maxY();
+        int halfCavity = cavityWidth / 2;
+        TunnelShape resolved = shape != null ? shape : TunnelShape.ARCH;
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
 
         for (int lateral = outerMin; lateral <= outerMax; lateral++) {
-            if (mask.kindAt(lateral, roofTop) == TunnelCrossSectionMask.CellKind.OUTSIDE) {
+            int roofTop = columnRoofTop(mask, resolved, lateral, halfCavity, roadY, clearHeight, liningThickness);
+            if (roofTop == Integer.MIN_VALUE) {
                 continue;
             }
             Vec2d point = center.add(normal.multiply(lateral * scale));
@@ -99,5 +104,24 @@ public final class TunnelRoofGapSealer {
                     RoadSolidMaterialPriority.STRUCTURAL);
             }
         }
+    }
+
+    private static int columnRoofTop(
+            TunnelCrossSectionMask mask,
+            TunnelShape shape,
+            int lateral,
+            int halfCavity,
+            int roadY,
+            int clearHeight,
+            int liningThickness) {
+        int fromMask = mask.outerTopY(lateral);
+        if (fromMask != Integer.MIN_VALUE) {
+            return fromMask;
+        }
+        if (Math.abs(lateral) > halfCavity + liningThickness) {
+            return Integer.MIN_VALUE;
+        }
+        return TunnelProfile.outerCeilingY(
+            shape, Math.abs(lateral), halfCavity, roadY, clearHeight, liningThickness);
     }
 }

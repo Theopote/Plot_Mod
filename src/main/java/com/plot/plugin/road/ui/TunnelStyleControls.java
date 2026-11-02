@@ -113,9 +113,13 @@ public final class TunnelStyleControls {
 
     private static String shapeKey(TunnelShape shape) {
         return switch (shape != null ? shape : TunnelShape.ARCH) {
+            case D_SHAPE -> "plugin.road.tunnel.shape.d_shape";
             case RECTANGULAR -> "plugin.road.tunnel.shape.rectangular";
-            case ARCH -> "plugin.road.tunnel.shape.arch";
             case HORSESHOE -> "plugin.road.tunnel.shape.horseshoe";
+            case ELLIPTICAL -> "plugin.road.tunnel.shape.elliptical";
+            case CIRCULAR -> "plugin.road.tunnel.shape.circular";
+            case ARCH -> "plugin.road.tunnel.shape.arch";
+            case PENTAGONAL -> "plugin.road.tunnel.shape.pentagonal";
         };
     }
 }

@@ -312,10 +312,19 @@ class TunnelStructureGeneratorTest {
 
         assertTrue(solids.primitives().stream().anyMatch(p ->
             p.materialId().equals("minecraft:air") && p.elevation() == 69 && Math.abs(p.planPoint().y) == 0));
+        // Near the walls the continuous arch drops; lining follows the lowered outer contour
+        // instead of filling a rectangular corner at crown height.
         assertTrue(solids.primitives().stream().anyMatch(p ->
             p.materialId().equals("minecraft:stone_bricks")
+                && p.elevation() < 69
+                && p.elevation() >= 65
+                && Math.abs(p.planPoint().y) >= 2),
+            "arch lining near walls must sit below the center crown");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+            p.materialId().equals("minecraft:air")
                 && p.elevation() == 69
-                && Math.abs(p.planPoint().y) >= 3));
+                && Math.abs(p.planPoint().y) >= 2),
+            "arch must not keep crown-height air near the walls");
     }
 
     @Test

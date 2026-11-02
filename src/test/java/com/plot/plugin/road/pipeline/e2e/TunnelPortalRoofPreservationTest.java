@@ -201,6 +201,8 @@ class TunnelPortalRoofPreservationTest {
         Vec2d forward = tangent.lengthSquared() > 1e-12 ? tangent.normalize() : new Vec2d(1, 0);
         Vec2d leftNormal = forward.perpendicular().normalize();
 
+        var portalMask = TunnelPortalExcavationMask.forPortal(style, envelopeWidth, ROAD_Y);
+        var section = portalMask.crossSection();
         List<BlockPos> preserveSamples = new ArrayList<>();
         for (int along = 0; along <= 6; along++) {
             Vec2d center = forward.multiply(along);
@@ -209,10 +211,15 @@ class TunnelPortalRoofPreservationTest {
                 if (absLateral < cavityHalf || absLateral > outerHalf) {
                     continue;
                 }
+                int colRoof = section.outerTopY(lateral);
+                if (colRoof == Integer.MIN_VALUE) {
+                    continue;
+                }
                 Vec2d plan = center.add(leftNormal.multiply(lateral));
                 int wx = (int) Math.round(plan.x);
                 int wz = (int) Math.round(plan.y);
-                for (int y = roofTop + 1; y <= Math.min(TERRAIN_TOP, roofTop + 3); y++) {
+                // Sample just above this column's outer shell, not the global peak.
+                for (int y = colRoof + 1; y <= Math.min(TERRAIN_TOP, colRoof + 3); y++) {
                     if (scenario.terrain().isSolidBlock(wx, y, wz)) {
                         preserveSamples.add(new BlockPos(wx, y, wz));
                     }
@@ -281,8 +288,8 @@ class TunnelPortalRoofPreservationTest {
     private static boolean insidePortalRoof(RoadGoldenScenario scenario, ResolvedTunnelStyle style, int lateral) {
         int width = RoadCorridorWidth.gradingEnvelopeWidthBlocks(ResolvedCrossSection.fromConfig(scenario.config()));
         var section = TunnelPortalExcavationMask.forPortal(style, width, ROAD_Y).crossSection();
-        return section.kindAt(lateral, section.maxY())
-            != com.plot.plugin.road.tunnel.TunnelCrossSectionMask.CellKind.OUTSIDE;
+        // Per-column outer shell (peaked/circular roofs are not flat at mask.maxY()).
+        return section.outerTopY(lateral) != Integer.MIN_VALUE;
     }
 
     private static int portalRoofTop(RoadGoldenScenario scenario, ResolvedTunnelStyle style) {

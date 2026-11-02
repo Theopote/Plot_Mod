@@ -180,7 +180,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y : clearanceYsToValidate(cell, host)) {
+            for (int y : clearanceYsToValidate(plan, cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -511,7 +511,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y : clearanceYsToValidate(cell, host)) {
+            for (int y : clearanceYsToValidate(plan, cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -539,7 +539,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y : clearanceYsToValidate(cell, host)) {
+            for (int y : clearanceYsToValidate(plan, cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -553,10 +553,12 @@ public final class RoadGenerationIntegrityValidator {
     }
 
     /**
-     * Portal clearance only removes cavity AIR cells; preserve zones above the lining roof
-     * must match {@link RoadCorridorClearancePass}.
+     * Portal / transition clearance Ys must match {@link RoadCorridorClearancePass}:
+     * PORTAL columns only clear cavity AIR; OPEN columns near a portal roof are capped
+     * by {@link PortalTransitionGuard} so peaked shells are not required to excavate above the crown.
      */
     private static List<Integer> clearanceYsToValidate(
+            RoadCorridorPlan plan,
             ClearanceCell cell,
             RoadCorridorPlanBuilder.PlanHost host) {
         int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
@@ -574,6 +576,14 @@ public final class RoadGenerationIntegrityValidator {
                 }
             }
             return ys;
+        }
+        if (host != null && plan != null && cell.mode() != RoadCorridorConstructionMode.PORTAL) {
+            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+            int roadHalfWidth = Math.abs(
+                com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(
+                    RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection)));
+            PortalTransitionGuard portalGuard = PortalTransitionGuard.from(plan);
+            topY = portalGuard.capClearTopY(cell.planPoint(), topY, host, roadHalfWidth);
         }
         for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
             ys.add(y);

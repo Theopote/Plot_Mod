@@ -1,6 +1,8 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
+import com.plot.plugin.road.tunnel.TunnelPreset;
+import com.plot.plugin.road.tunnel.TunnelPresetCatalog;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.utils.PlotI18n;
@@ -22,8 +24,11 @@ public final class TunnelStyleEditor {
         }
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.editor_hint"));
         ImGui.spacing();
+        renderStylePresetCombo(style, onChanged);
+        ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.tunnel.cross_section_section"));
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.shape_presets_hint"));
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.shape_switch_keeps_style"));
         if (TunnelCrossSectionPreviewRenderer.renderShapePresetRow(style.getShape(), shape -> {
             style.setShape(shape);
             onChanged.run();
@@ -125,6 +130,25 @@ public final class TunnelStyleEditor {
                 if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.accent_spacing"), accentSpacing,
                         TunnelStyle.MIN_ACCENT_SPACING, TunnelStyle.MAX_ACCENT_SPACING)) {
                     style.setAccentSpacing(accentSpacing[0]);
+                    onChanged.run();
+                }
+            }
+        }
+    }
+
+    private static void renderStylePresetCombo(TunnelStyle style, Runnable onChanged) {
+        TunnelPreset[] presets = TunnelPreset.values();
+        String[] labels = new String[presets.length + 1];
+        labels[0] = PlotI18n.tr("plugin.road.tunnel.style_preset.none");
+        for (int i = 0; i < presets.length; i++) {
+            labels[i + 1] = PlotI18n.tr(presets[i].translationKey());
+        }
+        ImInt index = new ImInt(0);
+        if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.style_preset"), index, labels)) {
+            int selected = index.get();
+            if (selected > 0 && selected <= presets.length) {
+                TunnelPresetCatalog.apply(presets[selected - 1], style);
+                if (onChanged != null) {
                     onChanged.run();
                 }
             }

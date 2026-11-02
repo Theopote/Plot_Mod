@@ -334,16 +334,41 @@ public final class TunnelStructureGenerator {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
-        int wallLightY = roadY + 2;
+        var shape = tunnelStyle.shape();
+        int clear = tunnelStyle.clearHeight();
         if (mode.placesWallLights()) {
+            int wallLightY = wallLightY(shape, cavityMin, roadY, halfCavityWidth, clear);
             placeLightBlock(solids, center, normal, cavityMin, wallLightY, scale, columnResolver, lightMaterial);
             placeLightBlock(solids, center, normal, cavityMax, wallLightY, scale, columnResolver, lightMaterial);
         }
         if (mode.placesCeilingLights()) {
-            int ceilingY = TunnelProfile.ceilingY(
-                tunnelStyle.shape(), 0, halfCavityWidth, roadY, tunnelStyle.clearHeight());
+            // Place on the last air cell under the crown so lights sit in the cavity, not in lining.
+            int ceilingY = TunnelProfile.innerCeilingY(shape, 0, halfCavityWidth, roadY, clear);
             placeLightBlock(solids, center, normal, 0, ceilingY, scale, columnResolver, lightMaterial);
         }
+    }
+
+    /** Prefer roadY+2 on the wall; fall back to mid-clearance air if the wall is inset. */
+    private static int wallLightY(
+            com.plot.plugin.road.tunnel.TunnelShape shape,
+            int wallLateral,
+            int roadY,
+            int halfCavityWidth,
+            int clearHeight) {
+        int preferred = roadY + 2;
+        if (TunnelProfile.isCavityAir(shape, wallLateral, preferred, roadY, halfCavityWidth, clearHeight)) {
+            return preferred;
+        }
+        int mid = roadY + Math.max(2, clearHeight / 2);
+        if (TunnelProfile.isCavityAir(shape, wallLateral, mid, roadY, halfCavityWidth, clearHeight)) {
+            return mid;
+        }
+        for (int y = roadY + 1; y <= roadY + clearHeight; y++) {
+            if (TunnelProfile.isCavityAir(shape, wallLateral, y, roadY, halfCavityWidth, clearHeight)) {
+                return y;
+            }
+        }
+        return preferred;
     }
 
     private static void placeLightBlock(

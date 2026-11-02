@@ -7,6 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TunnelCrossSectionMaskTest {
 
+    private static final int ROAD_Y = 64;
+    private static final int ENVELOPE = 5;
+    private static final int SIDE = 1;
+    private static final int CLEAR = 6;
+    private static final int LINING = 1;
+
     @Test
     void rectangularMaskHasAirCavityAndLiningShell() {
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
@@ -35,5 +41,84 @@ class TunnelCrossSectionMaskTest {
             }
         });
         assertTrue(portalLining[0] > normalLining[0]);
+    }
+
+    @Test
+    void liningFollowsArchInsteadOfFilledRectangle() {
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.ARCH, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+        // Near the edge at crown height, a rectangular shell would still be LINING;
+        // a true arch shell should leave that cell OUTSIDE.
+        int cavityHalf = (ENVELOPE + SIDE * 2) / 2;
+        int crownY = ROAD_Y + CLEAR + LINING;
+        assertEquals(
+            TunnelCrossSectionMask.CellKind.OUTSIDE,
+            mask.kindAt(cavityHalf, crownY),
+            "arch must not fill a rectangular corner above the sloping roof");
+    }
+
+    @Test
+    void circularInvertExistsBelowRoadWithoutCarvingPavement() {
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.CIRCULAR, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+        assertEquals(TunnelCrossSectionMask.CellKind.OUTSIDE, mask.kindAt(0, ROAD_Y),
+            "pavement cell stays outside the mask");
+        boolean invertStructure = false;
+        for (int y = mask.minY(); y < ROAD_Y; y++) {
+            TunnelCrossSectionMask.CellKind kind = mask.kindAt(0, y);
+            if (kind == TunnelCrossSectionMask.CellKind.AIR
+                    || kind == TunnelCrossSectionMask.CellKind.LINING) {
+                invertStructure = true;
+                break;
+            }
+        }
+        assertTrue(invertStructure, "circular must place invert air/lining below roadY");
+    }
+
+    @Test
+    void ellipticalInvertExistsBelowRoadWithoutCarvingPavement() {
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.ELLIPTICAL, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+        assertEquals(TunnelCrossSectionMask.CellKind.OUTSIDE, mask.kindAt(0, ROAD_Y));
+        boolean invertStructure = false;
+        for (int y = mask.minY(); y < ROAD_Y; y++) {
+            TunnelCrossSectionMask.CellKind kind = mask.kindAt(1, y);
+            if (kind == TunnelCrossSectionMask.CellKind.AIR
+                    || kind == TunnelCrossSectionMask.CellKind.LINING) {
+                invertStructure = true;
+                break;
+            }
+        }
+        assertTrue(invertStructure, "elliptical must place invert structure below roadY");
+    }
+
+    @Test
+    void centerlineLiningThicknessAtCrownIsApproximatelyConfigured() {
+        for (TunnelShape shape : TunnelShape.values()) {
+            TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+                shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+            int half = (ENVELOPE + SIDE * 2) / 2;
+            int innerTop = TunnelProfile.innerCeilingY(shape, 0, half, ROAD_Y, CLEAR);
+            int liningCount = 0;
+            for (int y = innerTop + 1; y <= mask.maxY(); y++) {
+                if (mask.kindAt(0, y) == TunnelCrossSectionMask.CellKind.LINING) {
+                    liningCount++;
+                }
+            }
+            assertTrue(liningCount >= LINING,
+                shape + " crown lining count=" + liningCount);
+            assertTrue(liningCount <= LINING + 1,
+                shape + " crown lining unexpectedly thick: " + liningCount);
+        }
+    }
+
+    @Test
+    void outerTopYTracksPerColumnShell() {
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.PENTAGONAL, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+        int centerTop = mask.outerTopY(0);
+        int edgeTop = mask.outerTopY((ENVELOPE + SIDE * 2) / 2);
+        assertTrue(centerTop > edgeTop,
+            "pentagonal peak must be higher on center than on edge walls");
     }
 }

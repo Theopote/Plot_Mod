@@ -41,12 +41,14 @@ class TunnelCrossSectionPreviewRendererTest {
     @Test
     void shapesProduceDistinctPreviewMasks() {
         ResolvedTunnelStyle defaults = ResolvedTunnelStyle.defaults();
-        TunnelCrossSectionMask rectangular = previewMask(TunnelShape.RECTANGULAR, defaults);
-        TunnelCrossSectionMask arch = previewMask(TunnelShape.ARCH, defaults);
-        TunnelCrossSectionMask horseshoe = previewMask(TunnelShape.HORSESHOE, defaults);
-        assertTrue(masksDiffer(rectangular, arch));
-        assertTrue(masksDiffer(arch, horseshoe));
-        assertTrue(masksDiffer(rectangular, horseshoe));
+        TunnelShape[] shapes = TunnelShape.values();
+        for (int i = 0; i < shapes.length; i++) {
+            TunnelCrossSectionMask left = previewMask(shapes[i], defaults);
+            for (int j = i + 1; j < shapes.length; j++) {
+                TunnelCrossSectionMask right = previewMask(shapes[j], defaults);
+                assertTrue(masksDiffer(left, right), shapes[i] + " vs " + shapes[j]);
+            }
+        }
     }
 
     private static boolean masksDiffer(TunnelCrossSectionMask left, TunnelCrossSectionMask right) {

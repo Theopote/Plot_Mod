@@ -7,6 +7,9 @@ import java.util.Map;
 
 /**
  * Discrete tunnel cross-section occupancy for voxel placement.
+ * <p>
+ * Built from inner + outer contours: AIR inside the inner profile, LINING between
+ * outer and inner shells. Road pavement cells at {@code roadY} are OUTSIDE.
  */
 public final class TunnelCrossSectionMask {
     public enum CellKind {
@@ -66,32 +69,42 @@ public final class TunnelCrossSectionMask {
         int lining = portalFrame
             ? Math.min(TunnelStyle.MAX_LINING_THICKNESS, liningThickness + 1)
             : liningThickness;
+        lining = Math.max(TunnelStyle.MIN_LINING_THICKNESS, lining);
         int cavityWidth = roadEnvelopeWidth + sideClearance * 2;
         int outerWidth = cavityWidth + lining * 2;
         int roadMin = RoadDimensionUtils.minLateralOffset(roadEnvelopeWidth);
         int roadMax = RoadDimensionUtils.maxLateralOffset(roadEnvelopeWidth);
-        int cavityMin = RoadDimensionUtils.minLateralOffset(cavityWidth);
-        int cavityMax = RoadDimensionUtils.maxLateralOffset(cavityWidth);
         int outerMin = RoadDimensionUtils.minLateralOffset(outerWidth);
         int outerMax = RoadDimensionUtils.maxLateralOffset(outerWidth);
         int halfCavityWidth = cavityWidth / 2;
-        int roofTop = roadY + clearHeight + lining;
-        TunnelCrossSectionMask mask = new TunnelCrossSectionMask(roadMin, roadMax, roadY - 1, roofTop);
+        TunnelShape resolved = shape != null ? shape : TunnelShape.ARCH;
+        int invert = TunnelProfile.derivedInvertDepth(resolved, halfCavityWidth, clearHeight);
+
+        int minY = roadY - invert - lining;
+        int maxY = roadY + clearHeight + lining;
         for (int lateral = outerMin; lateral <= outerMax; lateral++) {
-            boolean cavityColumn = lateral >= cavityMin && lateral <= cavityMax;
+            maxY = Math.max(maxY, TunnelProfile.outerCeilingY(
+                resolved, Math.abs(lateral), halfCavityWidth, roadY, clearHeight, lining));
+            minY = Math.min(minY, TunnelProfile.outerFloorY(
+                resolved, Math.abs(lateral), halfCavityWidth, roadY, clearHeight, lining, invert));
+        }
+
+        TunnelCrossSectionMask mask = new TunnelCrossSectionMask(roadMin, roadMax, minY, maxY);
+        for (int lateral = outerMin; lateral <= outerMax; lateral++) {
             boolean roadColumn = lateral >= roadMin && lateral <= roadMax;
-            for (int y = roadY - 1; y <= roofTop; y++) {
+            for (int y = minY; y <= maxY; y++) {
+                boolean inner = TunnelProfile.containsInner(
+                    resolved, lateral, y, roadY, halfCavityWidth, clearHeight);
+                boolean outer = TunnelProfile.containsOuter(
+                    resolved, lateral, y, roadY, halfCavityWidth, clearHeight, lining);
+
                 CellKind kind;
-                if (cavityColumn
-                        && TunnelProfile.isCavityAir(shape, lateral, y, roadY, halfCavityWidth, clearHeight)) {
-                    kind = CellKind.AIR;
-                } else if (roadColumn && y == roadY) {
+                if (roadColumn && y == roadY) {
+                    // Pavement owned by road generator — keep mask hole flat.
                     kind = CellKind.OUTSIDE;
-                } else if (cavityColumn && !roadColumn && y == roadY) {
-                    kind = CellKind.LINING;
-                } else if (cavityColumn && y == roadY - 1) {
-                    kind = CellKind.LINING;
-                } else if (!cavityColumn || y > roadY) {
+                } else if (inner) {
+                    kind = CellKind.AIR;
+                } else if (outer) {
                     kind = CellKind.LINING;
                 } else {
                     kind = CellKind.OUTSIDE;
@@ -100,6 +113,20 @@ public final class TunnelCrossSectionMask {
             }
         }
         return mask;
+    }
+
+    /**
+     * Highest LINING (or structural) Y in this lateral column, or {@link Integer#MIN_VALUE}
+     * when the column has no shell cells.
+     */
+    public int outerTopY(int lateral) {
+        int top = Integer.MIN_VALUE;
+        for (int y = minY; y <= maxY; y++) {
+            if (kindAt(lateral, y) == CellKind.LINING) {
+                top = y;
+            }
+        }
+        return top;
     }
 
     public int roadMin() {
