@@ -105,6 +105,8 @@ public final class RoadNetworkManager {
     private boolean loopSeamRemapConfirmPending = false;
     private com.plot.plugin.road.model.RoadLoopSeam pendingLoopSeamReplacement;
     private double pendingLoopSeamShift = 0.0;
+    /** 统一 Y 滑条是否持有当前 {@link #hasPendingNetworkEdit()} 事务（避免误提交/取消其它编辑）。 */
+    private boolean uniformElevationDragActive = false;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
         this(config, status, new RoadNetworkBuilder());
@@ -141,6 +143,7 @@ public final class RoadNetworkManager {
     }
 
     public void setNetwork(RoadNetwork network) {
+        abandonUniformElevationDragWithoutRestore();
         this.network = network != null ? network : new RoadNetwork();
         this.network.assertInvariants();
         notifyNetworkChanged();
@@ -301,9 +304,7 @@ public final class RoadNetworkManager {
             if (network.getEdge(edgeId) == null) {
                 continue;
             }
-            if (!selectedEdgeIds.contains(edgeId)) {
-                selectedEdgeIds.add(edgeId);
-            }
+            selectedEdgeIds.add(edgeId);
             lastSelectedEdgeId = edgeId;
         }
         ensureSelectionValid();
@@ -334,6 +335,7 @@ public final class RoadNetworkManager {
 
     public void commitNetworkChange(RoadChangeKind kind) {
         history.commitStagedPush();
+        uniformElevationDragActive = false;
         RoadChangeKind effective = kind != null ? kind : RoadChangeKind.GENERAL;
         if (effective == RoadChangeKind.GEOMETRY) {
             clearStaleJunctionManualElevations();
@@ -574,6 +576,7 @@ public final class RoadNetworkManager {
         if (network.getElevationMode() == next) {
             return;
         }
+        cancelUniformElevationYDrag();
         mutateNetwork(() -> network.setElevationMode(next));
         if (next == NetworkElevationMode.UNIFORM_FLAT) {
             warnIfUniformFlatGradeSeparated();
@@ -590,6 +593,7 @@ public final class RoadNetworkManager {
         if (network.getUniformElevationY() == clamped) {
             return;
         }
+        cancelUniformElevationYDrag();
         mutateNetwork(() -> network.setUniformElevationY(clamped));
         if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
             warnIfUniformFlatGradeSeparated();
@@ -599,21 +603,31 @@ public final class RoadNetworkManager {
 
     /**
      * 拖动统一 Y 滑条：首次改值时推撤销快照，拖动过程只改 live，不重复进历史。
-     * 须与 {@link #commitUniformElevationYDrag()} 配对。
+     * 须与 {@link #commitUniformElevationYDrag()} 配对；不窃取其它编辑已打开的事务。
      */
     public void updateUniformElevationYDuringDrag(int elevation) {
         int clamped = (int) RoadParameterLimits.clampElevation(elevation);
         if (network.getUniformElevationY() == clamped) {
             return;
         }
-        if (!hasPendingNetworkEdit()) {
+        if (!uniformElevationDragActive) {
+            if (hasPendingNetworkEdit()) {
+                // 其它编辑持有 staged 事务：只写入 live，归属仍归对方提交/取消。
+                network.setUniformElevationY(clamped);
+                return;
+            }
             beginNetworkEdit();
+            uniformElevationDragActive = true;
         }
         network.setUniformElevationY(clamped);
     }
 
-    /** 结束统一 Y 滑条拖动：提交一次 revision / 预览失效。 */
+    /** 结束统一 Y 滑条拖动：仅当本滑条持有事务时提交一次 revision / 预览失效。 */
     public void commitUniformElevationYDrag() {
+        if (!uniformElevationDragActive) {
+            return;
+        }
+        uniformElevationDragActive = false;
         if (!hasPendingNetworkEdit()) {
             return;
         }
@@ -626,10 +640,26 @@ public final class RoadNetworkManager {
         }
     }
 
-    /** 滑条激活后未改值或取消时丢弃草稿撤销帧。 */
+    /** 滑条取消或中断：仅丢弃本滑条创建的草稿撤销帧。 */
     public void cancelUniformElevationYDrag() {
+        if (!uniformElevationDragActive) {
+            return;
+        }
+        uniformElevationDragActive = false;
         if (hasPendingNetworkEdit()) {
             cancelPendingNetworkEdit();
+        }
+    }
+
+    public boolean hasUniformElevationYDrag() {
+        return uniformElevationDragActive;
+    }
+
+    /** 路网被整体替换时：丢弃 staged 快照且不恢复 mid-drag live（即将被覆盖）。 */
+    private void abandonUniformElevationDragWithoutRestore() {
+        uniformElevationDragActive = false;
+        if (hasPendingNetworkEdit()) {
+            history.discardStagedPush(network);
         }
     }
 
@@ -1793,6 +1823,7 @@ public final class RoadNetworkManager {
 
     /** 丢弃未提交的撤销帧（如拖动后数值未变化）。 */
     public void cancelPendingNetworkEdit() {
+        uniformElevationDragActive = false;
         network = history.discardStagedPush(network);
         network.assertInvariants();
         ensureSelectionValid();

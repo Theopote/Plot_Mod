@@ -150,7 +150,7 @@ public final class RoadGenerationSettingsPanel {
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
             ctx.networkManager().commitUniformElevationYDrag();
-        } else if (ImGui.isItemDeactivated() && ctx.networkManager().hasPendingNetworkEdit()) {
+        } else if (ImGui.isItemDeactivated() && ctx.networkManager().hasUniformElevationYDrag()) {
             ctx.networkManager().cancelUniformElevationYDrag();
         }
 

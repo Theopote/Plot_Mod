@@ -27,8 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * 最终 aggregate.placementRecords 接缝验收：路口、曲线、变宽、桥头。
@@ -47,7 +46,7 @@ class RoadJunctionSeamContinuityE2ETest {
             .findFirst()
             .orElseThrow();
         Integer plazaY = preview.nodeElevations().get(plaza.getId());
-        assertTrue(plazaY != null);
+        assertNotNull(plazaY);
 
         RoadPlacementSeamAssertions.assertJunctionApproachSeams(
             scenario.network(),

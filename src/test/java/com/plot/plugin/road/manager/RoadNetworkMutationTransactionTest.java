@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkMutationTransactionTest {
@@ -146,12 +147,14 @@ class RoadNetworkMutationTransactionTest {
         manager.updateUniformElevationYDuringDrag(70);
         manager.updateUniformElevationYDuringDrag(72);
         manager.updateUniformElevationYDuringDrag(75);
+        assertTrue(manager.hasUniformElevationYDrag());
         assertTrue(manager.hasPendingNetworkEdit());
         assertEquals(before, manager.getNetworkRevision());
         assertEquals(0, changeNotifications.get());
         assertEquals(75, manager.getNetwork().getUniformElevationY());
 
         manager.commitUniformElevationYDrag();
+        assertFalse(manager.hasUniformElevationYDrag());
         assertFalse(manager.hasPendingNetworkEdit());
         assertEquals(before + 1, manager.getNetworkRevision());
         assertEquals(1, changeNotifications.get());
@@ -159,6 +162,67 @@ class RoadNetworkMutationTransactionTest {
 
         manager.undo();
         assertEquals(64, manager.getNetwork().getUniformElevationY());
+    }
+
+    @Test
+    void uniformElevationYDragDoesNotStealForeignPendingEdit() {
+        manager.setNetworkElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        manager.beginNetworkEdit();
+        Road road = manager.getNetwork().createRoad("foreign");
+        road.setName("draft");
+
+        manager.updateUniformElevationYDuringDrag(75);
+        assertFalse(manager.hasUniformElevationYDrag());
+        assertTrue(manager.hasPendingNetworkEdit());
+        assertEquals(75, manager.getNetwork().getUniformElevationY());
+
+        long beforeCommit = manager.getNetworkRevision();
+        manager.commitUniformElevationYDrag();
+        assertEquals(beforeCommit, manager.getNetworkRevision());
+        assertTrue(manager.hasPendingNetworkEdit());
+
+        manager.finishNetworkEdit();
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(75, manager.getNetwork().getUniformElevationY());
+        assertEquals("draft", manager.getNetwork().getRoad("foreign").getName());
+    }
+
+    @Test
+    void modeSwitchDuringUniformElevationDragDiscardsPendingY() {
+        manager.setNetworkElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        manager.updateUniformElevationYDuringDrag(75);
+        assertTrue(manager.hasUniformElevationYDrag());
+        assertEquals(75, manager.getNetwork().getUniformElevationY());
+
+        manager.setNetworkElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.PER_ROAD);
+        assertFalse(manager.hasUniformElevationYDrag());
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(64, manager.getNetwork().getUniformElevationY());
+        assertEquals(
+            com.plot.plugin.road.model.NetworkElevationMode.PER_ROAD,
+            manager.getNetwork().getElevationMode());
+    }
+
+    @Test
+    void setNetworkDuringUniformElevationDragAbandonsStagedTransaction() {
+        manager.setNetworkElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        manager.updateUniformElevationYDuringDrag(75);
+        assertTrue(manager.hasUniformElevationYDrag());
+
+        RoadNetwork replacement = new RoadNetwork();
+        replacement.setElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        replacement.setUniformElevationY(80);
+        manager.setNetwork(replacement);
+
+        assertFalse(manager.hasUniformElevationYDrag());
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(80, manager.getNetwork().getUniformElevationY());
+        assertSame(replacement, manager.getNetwork());
     }
 
     @Test
