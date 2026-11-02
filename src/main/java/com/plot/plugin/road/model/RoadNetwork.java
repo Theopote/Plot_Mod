@@ -979,6 +979,7 @@ public class RoadNetwork {
         String continuedMarkings;
         String crosswalks;
         String turnArrows;
+        String railwayJunctionMode;
         List<String> connectedEdgeIds = new ArrayList<>();
     }
 
@@ -1317,6 +1318,9 @@ public class RoadNetwork {
                 if (node.getTurnArrows() != JunctionMarkingSetting.AUTO) {
                     nodeData.turnArrows = node.getTurnArrows().name();
                 }
+                if (node.getRailwayJunctionMode() != RailwayJunctionMode.DECORATIVE) {
+                    nodeData.railwayJunctionMode = node.getRailwayJunctionMode().name();
+                }
                 nodeData.connectedEdgeIds = new ArrayList<>(node.getConnectedEdgeIds());
                 data.nodes.add(nodeData);
             }
@@ -1434,6 +1438,7 @@ public class RoadNetwork {
                 node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
                 node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));
                 node.setTurnArrows(JunctionMarkingSetting.fromString(nodeData.turnArrows));
+                node.setRailwayJunctionMode(RailwayJunctionMode.fromString(nodeData.railwayJunctionMode));
                 ManualElevationOrigin origin = ManualElevationOrigin.fromStored(nodeData.manualElevationOrigin);
                 if (nodeData.manualElevation != null) {
                     node.setManualElevation(nodeData.manualElevation, origin);

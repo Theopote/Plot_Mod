@@ -324,6 +324,54 @@ class RoadJunctionMarkingGeneratorTest {
     }
 
     @Test
+    void passableRailwayModeOmitsDecorMarkersButKeepsThroughRails() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setRailwayJunctionMode(com.plot.plugin.road.model.RailwayJunctionMode.PASSABLE);
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+
+        Road road = network.createRoad();
+        road.applyStyle(com.plot.plugin.road.style.RoadStyleCatalog.railway());
+
+        List<RoadEdge> edges = List.of(
+            network.createEdge(
+                junction.getId(), north.getId(),
+                List.of(new Vec2d(0, 0), new Vec2d(0, 10)), road.getId()),
+            network.createEdge(
+                junction.getId(), east.getId(),
+                List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()),
+            network.createEdge(
+                south.getId(), junction.getId(),
+                List.of(new Vec2d(0, -10), new Vec2d(0, 0)), road.getId()));
+
+        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        markingGenerator.generateMarkings(blocks, junction, network, edges, List.of(), 64);
+
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> "minecraft:rail".equals(p.materialId())
+                    && p.materialPriority() == RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT),
+            "passable mode still places through-connect rails");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .noneMatch(p -> "minecraft:powered_rail".equals(p.materialId())),
+            "passable mode must not place powered decor");
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .noneMatch(p -> "minecraft:detector_rail".equals(p.materialId())),
+            "passable mode must not place detector marks");
+    }
+
+    @Test
     void elevatedRailwayContinuationPlacesRailsAtDeckHeight() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadGenerator generator = new RoadGenerator(

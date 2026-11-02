@@ -8,6 +8,8 @@ import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.JunctionMarkingSetting;
+import com.plot.plugin.road.model.RailwayJunctionMode;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -168,13 +170,54 @@ public final class RoadJunctionPanel {
             renderMarkingSetting("turn_arrows", PlotI18n.tr("plugin.road.junction_turn_arrows"), node.getTurnArrows(),
                 node::setTurnArrows);
 
+            if (hasRailwayApproach(network, node, config)) {
+                renderRailwayJunctionMode(node);
+            }
+
             if (ImGui.button(PlotI18n.tr("plugin.road.junction_reset_markings"))) {
                 ctx.networkManager().pushHistory();
                 node.setStopLines(JunctionMarkingSetting.AUTO);
                 node.setContinuedMarkings(JunctionMarkingSetting.AUTO);
                 node.setCrosswalks(JunctionMarkingSetting.AUTO);
                 node.setTurnArrows(JunctionMarkingSetting.AUTO);
+                node.setRailwayJunctionMode(RailwayJunctionMode.DECORATIVE);
             }
+        }
+    }
+
+    private static boolean hasRailwayApproach(
+            RoadNetwork network,
+            RoadNode node,
+            RoadSystemConfig config) {
+        if (network == null || node == null) {
+            return false;
+        }
+        for (RoadEdge edge : connectedEdges(network, node)) {
+            if (RoadModelUtils.resolveCrossSection(network, edge, config).centerLineStyle
+                    == CenterLineStyle.RAIL) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void renderRailwayJunctionMode(RoadNode node) {
+        String[] labels = {
+            PlotI18n.tr("plugin.road.junction_railway_mode.decorative"),
+            PlotI18n.tr("plugin.road.junction_railway_mode.passable")
+        };
+        ImInt index = new ImInt(
+            node.getRailwayJunctionMode() == RailwayJunctionMode.PASSABLE ? 1 : 0);
+        if (ImGui.combo(
+                PlotI18n.tr("plugin.road.junction_railway_mode") + "##railway_junction_mode",
+                index,
+                labels)) {
+            ctx.networkManager().pushHistory();
+            node.setRailwayJunctionMode(
+                index.get() == 1 ? RailwayJunctionMode.PASSABLE : RailwayJunctionMode.DECORATIVE);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_railway_mode"));
         }
     }
 

@@ -204,7 +204,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     /**
-     * 三路及以上铁路进口：直股连通骨架（普通轨）+ 装饰动力轨 + 岔心外侧探测轨。
+     * 三路及以上铁路进口：直股连通骨架（普通轨）；装饰模式另加动力/探测标记。
      * 无足够对向进口时不强制选直股，仅保留各进口延续轨。
      */
     private void placeRailwayTurnoutMarkers(
@@ -234,7 +234,7 @@ public final class RoadJunctionMarkingGenerator {
         List<Vec2d> inwardB = extractInwardApproach(armB, node.getId(), network, junctionRadius);
         List<Vec2d> throughPath = RoadRailwayTurnout.densifyThroughPath(inwardA, inwardB, center, 0.5);
 
-        // 1) 直股连通骨架：普通铁轨贯穿岔心，优先级高于进口延续轨与装饰动力轨。
+        // 1) 直股连通骨架：普通铁轨贯穿岔心（装饰/可通行模式均保留）。
         for (Vec2d point : throughPath) {
             if (!RoadRailwayTurnout.inThroughPowerBand(point, center, junctionRadius)
                     && point.distanceSquared(center) > 1e-6) {
@@ -246,6 +246,11 @@ public final class RoadJunctionMarkingGenerator {
                 RoadSolidLayer.MARKING,
                 "minecraft:rail",
                 RoadRailwayTurnout.PRIORITY_THROUGH_CONNECT);
+        }
+
+        if (!node.getRailwayJunctionMode().placesDecorMarkers()) {
+            // 可通行优先：不加动力/探测装饰，避免覆盖直股 shape
+            return;
         }
 
         // 2) 装饰动力轨：离开岔心的直股段可见标记；岔心保留普通轨供支线汇合。

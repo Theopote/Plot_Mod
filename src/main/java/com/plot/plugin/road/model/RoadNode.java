@@ -38,6 +38,8 @@ public class RoadNode {
     private JunctionMarkingSetting continuedMarkings = JunctionMarkingSetting.AUTO;
     private JunctionMarkingSetting crosswalks = JunctionMarkingSetting.AUTO;
     private JunctionMarkingSetting turnArrows = JunctionMarkingSetting.AUTO;
+    /** 铁路交汇模式；无铁路进口时忽略。 */
+    private RailwayJunctionMode railwayJunctionMode = RailwayJunctionMode.DECORATIVE;
     /** 自交叠交注册表 ID（物化后写入，供生成识别）。 */
     private String stackCrossingId;
     /** 同路自交立交：上下层由 {@link #stackUpperEdgeIds} 区分。 */
@@ -247,6 +249,16 @@ public class RoadNode {
         this.turnArrows = turnArrows != null ? turnArrows : JunctionMarkingSetting.AUTO;
     }
 
+    public RailwayJunctionMode getRailwayJunctionMode() {
+        return railwayJunctionMode != null ? railwayJunctionMode : RailwayJunctionMode.DECORATIVE;
+    }
+
+    public void setRailwayJunctionMode(RailwayJunctionMode railwayJunctionMode) {
+        this.railwayJunctionMode = railwayJunctionMode != null
+            ? railwayJunctionMode
+            : RailwayJunctionMode.DECORATIVE;
+    }
+
     public boolean isJunction() {
         return getDegree() >= 3;
     }
@@ -285,6 +297,7 @@ public class RoadNode {
         copy.continuedMarkings = continuedMarkings;
         copy.crosswalks = crosswalks;
         copy.turnArrows = turnArrows;
+        copy.railwayJunctionMode = railwayJunctionMode;
         copy.stackCrossingId = stackCrossingId;
         copy.stackGradeSeparated = stackGradeSeparated;
         copy.stackCrossingClearance = stackCrossingClearance;

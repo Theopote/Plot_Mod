@@ -336,6 +336,7 @@ class RoadNetworkTest {
         junction.setContinuedMarkings(JunctionMarkingSetting.ON);
         junction.setCrosswalks(JunctionMarkingSetting.ON);
         junction.setTurnArrows(JunctionMarkingSetting.OFF);
+        junction.setRailwayJunctionMode(com.plot.plugin.road.model.RailwayJunctionMode.PASSABLE);
 
         RoadNetwork restored = network.snapshot();
         RoadNode restoredNode = restored.getNode(junction.getId());
@@ -344,6 +345,14 @@ class RoadNetworkTest {
         assertEquals(JunctionMarkingSetting.ON, restoredNode.getContinuedMarkings());
         assertEquals(JunctionMarkingSetting.ON, restoredNode.getCrosswalks());
         assertEquals(JunctionMarkingSetting.OFF, restoredNode.getTurnArrows());
+        assertEquals(
+            com.plot.plugin.road.model.RailwayJunctionMode.PASSABLE,
+            restoredNode.getRailwayJunctionMode());
+
+        RoadNetwork fromJson = RoadNetwork.parseSnapshot(network.toJson());
+        assertEquals(
+            com.plot.plugin.road.model.RailwayJunctionMode.PASSABLE,
+            fromJson.getNode(junction.getId()).getRailwayJunctionMode());
     }
 
     @Test
