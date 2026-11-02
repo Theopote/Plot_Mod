@@ -68,6 +68,31 @@ class RoadWorldTerrainProbeTest {
         assertEquals(8, stations.size());
     }
 
+    @Test
+    void surfaceFingerprintChangesWhenLateralTerrainChanges() {
+        RoadNetwork network = straightRoad();
+        RoadSystemConfig config = new RoadSystemConfig("probe-lateral");
+        config.setPathSampleDistance(5.0);
+
+        Map<String, Integer> heights = new HashMap<>();
+        for (int x = 0; x <= 40; x++) {
+            for (int z = -6; z <= 6; z++) {
+                heights.put(key(x, z), 64);
+            }
+        }
+        MutableTerrain terrain = new MutableTerrain(heights);
+        long before = RoadWorldTerrainProbe.surfaceFingerprint(network, terrain, config);
+
+        // Only raise ground beside the centerline (right side), leave centerline flat.
+        for (int x = 10; x <= 30; x++) {
+            heights.put(key(x, 4), 78);
+        }
+        long after = RoadWorldTerrainProbe.surfaceFingerprint(network, terrain, config);
+
+        assertNotEquals(before, after, "lateral shoulder/slope terrain change must alter surface fingerprint");
+        assertEquals(64, terrain.sampleSurfaceY(new Vec2d(20, 0)));
+    }
+
     private static RoadNetwork straightRoad() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));

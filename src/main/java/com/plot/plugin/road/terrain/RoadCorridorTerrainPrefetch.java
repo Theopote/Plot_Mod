@@ -55,6 +55,9 @@ public final class RoadCorridorTerrainPrefetch {
 
     private static CacheEntry cache;
     private static InflightJob inflight;
+    /** 最近一次预取覆盖的列 / 区块，供世界方块变更做走廊邻近失效。 */
+    private static Set<Long> lastPrefetchColumnKeys = Set.of();
+    private static Set<Long> lastPrefetchChunkKeys = Set.of();
 
     public enum Coverage {
         /** 全部目标列已纳入快照。 */
@@ -121,8 +124,51 @@ public final class RoadCorridorTerrainPrefetch {
                 inflight.cancelled = true;
             }
             inflight = null;
+            lastPrefetchColumnKeys = Set.of();
+            lastPrefetchChunkKeys = Set.of();
         }
         LOGGER.debug("走廊地形预取已因世界地形变更失效 (epoch={})", WORLD_TERRAIN_EPOCH.get());
+    }
+
+    /**
+     * 玩家或工具改动单个世界方块时调用：仅当落在最近预取走廊列/区块内时失效缓存。
+     * 无预取足迹时不动作（仍依赖探针指纹与主动重算兜底）。
+     *
+     * @return 是否因邻近走廊而失效
+     */
+    public static boolean notifyWorldBlockChanged(BlockPos pos) {
+        if (pos == null) {
+            return false;
+        }
+        long columnKey = PrefetchedGroundTerrainSampler.packColumn(pos.getX(), pos.getZ());
+        long chunkKey = packChunkKey(pos.getX(), pos.getZ());
+        synchronized (LOCK) {
+            boolean nearCorridor = lastPrefetchColumnKeys.contains(columnKey)
+                || lastPrefetchChunkKeys.contains(chunkKey);
+            if (!nearCorridor && inflight != null) {
+                nearCorridor = inflight.chunkKeys.contains(chunkKey);
+            }
+            if (!nearCorridor) {
+                return false;
+            }
+        }
+        notifyWorldTerrainChanged();
+        LOGGER.debug("走廊邻近方块变更，预取已失效: {}", pos);
+        return true;
+    }
+
+    /** 测试：最近一次预取足迹列数。 */
+    static int lastPrefetchColumnKeyCountForTest() {
+        synchronized (LOCK) {
+            return lastPrefetchColumnKeys.size();
+        }
+    }
+
+    static void rememberPrefetchFootprintForTest(Set<Long> columns, Set<Long> chunks) {
+        synchronized (LOCK) {
+            lastPrefetchColumnKeys = columns != null ? Set.copyOf(columns) : Set.of();
+            lastPrefetchChunkKeys = chunks != null ? Set.copyOf(chunks) : Set.of();
+        }
     }
 
     /** 当前世界地形世代（纳入缓存指纹）。 */
@@ -228,6 +274,7 @@ public final class RoadCorridorTerrainPrefetch {
                 done.columns.size(),
                 done.truncated);
             cache = new CacheEntry(done.key, done.builder, status);
+            rememberFootprintLocked(done);
             promoted = cache;
         }
         if (onReady != null) {
@@ -244,7 +291,30 @@ public final class RoadCorridorTerrainPrefetch {
                 inflight.cancelled = true;
             }
             inflight = null;
+            lastPrefetchColumnKeys = Set.of();
+            lastPrefetchChunkKeys = Set.of();
         }
+    }
+
+    private static void rememberFootprintLocked(InflightJob job) {
+        if (job == null) {
+            lastPrefetchColumnKeys = Set.of();
+            lastPrefetchChunkKeys = Set.of();
+            return;
+        }
+        LinkedHashSet<Long> columns = new LinkedHashSet<>(job.columns.size());
+        for (BlockPos column : job.columns) {
+            columns.add(PrefetchedGroundTerrainSampler.packColumn(column.getX(), column.getZ()));
+        }
+        lastPrefetchColumnKeys = Set.copyOf(columns);
+        lastPrefetchChunkKeys = Set.copyOf(job.chunkKeys);
+    }
+
+    /** 与 {@link ChunkPos#toLong(int, int)} 同形，避免单测路径触发 ChunkPos 类初始化。 */
+    static long packChunkKey(int blockX, int blockZ) {
+        int chunkX = blockX >> 4;
+        int chunkZ = blockZ >> 4;
+        return ((long) chunkX & 0xffffffffL) | (((long) chunkZ & 0xffffffffL) << 32);
     }
 
     static ColumnCollectResult collectProfileSampleColumns(
@@ -431,6 +501,7 @@ public final class RoadCorridorTerrainPrefetch {
                     inflight.columns.size(),
                     inflight.truncated);
                 cache = new CacheEntry(inflight.key, inflight.builder, status);
+                rememberFootprintLocked(inflight);
                 CacheEntry entry = cache;
                 inflight = null;
                 return entry;
@@ -498,6 +569,7 @@ public final class RoadCorridorTerrainPrefetch {
         RegistryKey<World> worldKey = client.world.getRegistryKey();
         InflightJob job = new InflightJob(key, collected.columns(), collected.truncated());
         inflight = job;
+        rememberFootprintLocked(job);
         server.execute(() -> runBatch(server, worldKey, job, 0, 0));
         LOGGER.debug(
             "已启动走廊地形预取: key={}, columns={}, truncated={}",
@@ -624,7 +696,7 @@ public final class RoadCorridorTerrainPrefetch {
             this.truncated = truncated;
             LinkedHashSet<Long> chunks = new LinkedHashSet<>();
             for (BlockPos column : this.columns) {
-                chunks.add(ChunkPos.toLong(column.getX() >> 4, column.getZ() >> 4));
+                chunks.add(packChunkKey(column.getX(), column.getZ()));
             }
             this.chunkKeys = List.copyOf(chunks);
         }

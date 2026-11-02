@@ -178,6 +178,95 @@ class RoadVoxelProfileE2ETest {
             assertNotNull(pavementY, "ROAD surface expected near x=" + x);
             assertEquals(previewY, pavementY.intValue(), "mismatch at x=" + x);
         }
+
+        assertEquals(0, countShortPavementReversals(edge, 4, 76),
+            "smoothed+rasterized ROAD placements must not oscillate ±1 over short runs");
+        assertTrue(maxAdjacentPavementStep(edge, 4, 76) <= 1,
+            "adjacent centerline ROAD Y steps must stay within 1 block after quantization");
+    }
+
+    @Test
+    void placementRecordsHaveNoShortReversalsOnNearFlatDesign() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("voxel-flat-rev");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setMaxSlope(40.0f);
+        // At-grade, slightly off-integer design to provoke Math.round jitter before smoothing.
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            new PointOfVerticalIntersection(0.0, 64.4),
+            new PointOfVerticalIntersection(60.0, 64.6)));
+        road.setVerticalAlignment(alignment);
+
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(60, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
+
+        RoadSystemConfig config = new RoadSystemConfig("voxel-flat-rev");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(false);
+        config.setIncludeSlopeBatter(false);
+        config.setMaxSlope(40.0f);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        RoadGenerationResult edge = RoadBenchmarkHarness.generatePreview(
+            network, generator, new FlatTerrainSampler(64))
+            .edgeResults().values().iterator().next();
+
+        assertEquals(0, countShortPavementReversals(edge, 2, 58),
+            "near-flat design must not leave short pavement reversals in placements");
+        assertTrue(maxAdjacentPavementStep(edge, 2, 58) <= 1);
+    }
+
+    /**
+     * Counts local Y zig-zags along centerline ROAD: rise then immediate fall (or vice versa)
+     * within a 3-station window — the placement-level analogue of smoother short reversals.
+     */
+    private static int countShortPavementReversals(RoadGenerationResult edge, int minX, int maxX) {
+        int[] ys = centerlinePavementYs(edge, minX, maxX);
+        int reversals = 0;
+        for (int i = 1; i + 1 < ys.length; i++) {
+            if (ys[i] == Integer.MIN_VALUE || ys[i - 1] == Integer.MIN_VALUE || ys[i + 1] == Integer.MIN_VALUE) {
+                continue;
+            }
+            int d0 = ys[i] - ys[i - 1];
+            int d1 = ys[i + 1] - ys[i];
+            if (d0 * d1 < 0 && Math.abs(d0) <= 1 && Math.abs(d1) <= 1) {
+                reversals++;
+            }
+        }
+        return reversals;
+    }
+
+    private static int maxAdjacentPavementStep(RoadGenerationResult edge, int minX, int maxX) {
+        int[] ys = centerlinePavementYs(edge, minX, maxX);
+        int maxStep = 0;
+        Integer prev = null;
+        for (int y : ys) {
+            if (y == Integer.MIN_VALUE) {
+                continue;
+            }
+            if (prev != null) {
+                maxStep = Math.max(maxStep, Math.abs(y - prev));
+            }
+            prev = y;
+        }
+        return maxStep;
+    }
+
+    private static int[] centerlinePavementYs(RoadGenerationResult edge, int minX, int maxX) {
+        int[] ys = new int[Math.max(0, maxX - minX + 1)];
+        java.util.Arrays.fill(ys, Integer.MIN_VALUE);
+        for (int x = minX; x <= maxX; x++) {
+            Integer y = pavementYNear(edge, x);
+            if (y != null) {
+                ys[x - minX] = y;
+            }
+        }
+        return ys;
     }
 
     private static Integer pavementYNear(RoadGenerationResult edge, int x) {

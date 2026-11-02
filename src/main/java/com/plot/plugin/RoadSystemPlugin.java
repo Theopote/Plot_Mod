@@ -15,6 +15,7 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
+import com.plot.plugin.road.terrain.RoadCorridorWorldBlockListener;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
@@ -83,6 +84,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         try {
             RoadGenerator roadGenerator = new RoadGenerator(config, ctx().coordinates(), ctx().projection());
             previewManager.setNetworkGenerator(new RoadNetworkGenerator(roadGenerator));
+            RoadCorridorWorldBlockListener.register();
         } catch (Exception e) {
             LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("道路插件初始化失败", e);

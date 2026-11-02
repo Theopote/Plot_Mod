@@ -177,4 +177,22 @@ class RoadCorridorTerrainPrefetchTest {
         assertFalse(result.columns().isEmpty());
         assertTrue(result.columns().size() < RoadCorridorTerrainPrefetch.MAX_COLUMNS);
     }
+
+    @Test
+    void notifyWorldBlockChangedInvalidatesOnlyNearCorridorFootprint() {
+        long epochBefore = RoadCorridorTerrainPrefetch.worldTerrainEpoch();
+        assertFalse(RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(new BlockPos(1000, 64, 1000)),
+            "far block with empty footprint must not invalidate");
+        assertEquals(epochBefore, RoadCorridorTerrainPrefetch.worldTerrainEpoch());
+
+        long column = PrefetchedGroundTerrainSampler.packColumn(12, 4);
+        long chunk = RoadCorridorTerrainPrefetch.packChunkKey(12, 4);
+        RoadCorridorTerrainPrefetch.rememberPrefetchFootprintForTest(Set.of(column), Set.of(chunk));
+
+        assertTrue(RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(new BlockPos(12, 70, 4)),
+            "column inside footprint must invalidate");
+        assertTrue(RoadCorridorTerrainPrefetch.worldTerrainEpoch() > epochBefore);
+        assertEquals(0, RoadCorridorTerrainPrefetch.lastPrefetchColumnKeyCountForTest(),
+            "invalidate clears footprint");
+    }
 }

@@ -362,8 +362,12 @@ public final class RoadGenerationIntegrityValidator {
     }
 
     /**
-     * OPEN 走廊路面若高出自然地面且下方无地形/填方支撑，计为悬空。
-     * 桥隧等结构模式路面由桥面/衬砌承载，不计入。
+     * 路面下方无有效支撑则计数。
+     * <ul>
+     *   <li>OPEN：生成空气优先；否则生成实体或原世界实体</li>
+     *   <li>BRIDGE：必须有本次生成的桥面板/结构实体（不认谷底原地形）</li>
+     *   <li>TUNNEL/PORTAL/SHELTER：腔体语义另验，此处跳过</li>
+     * </ul>
      */
     static int countUnsupportedPavement(
             RoadCorridorPlan plan,
@@ -372,17 +376,15 @@ public final class RoadGenerationIntegrityValidator {
         int unsupported = 0;
         for (var entry : plan.surfaceMask().entries()) {
             SurfaceCell cell = entry.getValue();
-            if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
+            ClearanceCell clearance = plan.clearanceCell(entry.getKey());
+            if (!shouldCheckPavementSupport(cell, clearance)) {
                 continue;
             }
             ColumnKey key = entry.getKey();
-            if (isStructureClearanceMode(plan.clearanceCell(key))) {
-                continue;
-            }
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            if (hasPavementSupport(key, cell, index, terrain)) {
+            if (hasPavementSupport(key, cell, clearance, index, terrain)) {
                 continue;
             }
             unsupported++;
@@ -397,17 +399,15 @@ public final class RoadGenerationIntegrityValidator {
         int unsupported = 0;
         for (var entry : plan.surfaceMask().entries()) {
             SurfaceCell cell = entry.getValue();
-            if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
+            ClearanceCell clearance = plan.clearanceCell(entry.getKey());
+            if (!shouldCheckPavementSupport(cell, clearance)) {
                 continue;
             }
             ColumnKey key = entry.getKey();
-            if (isStructureClearanceMode(plan.clearanceCell(key))) {
-                continue;
-            }
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            if (hasPavementSupport(key, cell, index, terrain)) {
+            if (hasPavementSupport(key, cell, clearance, index, terrain)) {
                 continue;
             }
             unsupported++;
@@ -415,34 +415,97 @@ public final class RoadGenerationIntegrityValidator {
         return unsupported;
     }
 
-    private static boolean isStructureClearanceMode(ClearanceCell clearance) {
+    /**
+     * OPEN 检查行车道与外侧条带；BRIDGE 仅检查行车道（桥面板按桥面总宽铺，路肩列由接缝测试覆盖）。
+     */
+    private static boolean shouldCheckPavementSupport(SurfaceCell cell, ClearanceCell clearance) {
+        if (cell == null) {
+            return false;
+        }
+        if (isCavityStructureMode(clearance)) {
+            return false;
+        }
+        if (isBridgeMode(clearance)) {
+            return cell.layer() == RoadSolidLayer.ROAD;
+        }
+        return cell.layer() == RoadSolidLayer.ROAD
+            || cell.layer() == RoadSolidLayer.SHOULDER
+            || cell.layer() == RoadSolidLayer.SIDEWALK
+            || cell.layer() == RoadSolidLayer.BIKE_LANE;
+    }
+
+    /** 隧/洞门/棚洞：底板与衬砌由专用质量测试覆盖。 */
+    private static boolean isCavityStructureMode(ClearanceCell clearance) {
         if (clearance == null) {
             return false;
         }
-        return clearance.mode() == RoadCorridorConstructionMode.BRIDGE
-            || clearance.mode() == RoadCorridorConstructionMode.TUNNEL
+        return clearance.mode() == RoadCorridorConstructionMode.TUNNEL
             || clearance.mode() == RoadCorridorConstructionMode.PORTAL
             || clearance.mode() == RoadCorridorConstructionMode.SHELTER;
     }
 
-    private static boolean hasPavementSupport(
-            ColumnKey key,
-            SurfaceCell cell,
-            SolidIndex index,
-            TerrainSampler terrain) {
-        int belowY = cell.surfaceY() - 1;
-        return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ())
-            || index.hasStructuralSupport(key, belowY);
+    private static boolean isBridgeMode(ClearanceCell clearance) {
+        return clearance != null && clearance.mode() == RoadCorridorConstructionMode.BRIDGE;
     }
 
     private static boolean hasPavementSupport(
             ColumnKey key,
             SurfaceCell cell,
+            ClearanceCell clearance,
+            SolidIndex index,
+            TerrainSampler terrain) {
+        int belowY = cell.surfaceY() - 1;
+        // 生成记录优先：本次清为空则原世界实体不可再作支撑。
+        if (index.hasAir(key, belowY)) {
+            return false;
+        }
+        if (index.hasStructuralSupport(key, belowY)) {
+            return true;
+        }
+        // 桥面必须由本次生成的板/梁承载，谷底地形不算支撑；允许邻列桥面板横向对齐。
+        if (isBridgeMode(clearance)) {
+            return hasNeighborStructuralSupport(key, belowY, index);
+        }
+        return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ());
+    }
+
+    private static boolean hasPavementSupport(
+            ColumnKey key,
+            SurfaceCell cell,
+            ClearanceCell clearance,
             PlacementIndex index,
             TerrainSampler terrain) {
         int belowY = cell.surfaceY() - 1;
-        return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ())
-            || index.hasStructuralSupport(key, belowY);
+        if (index.hasAir(key, belowY)) {
+            return false;
+        }
+        if (index.hasStructuralSupport(key, belowY)) {
+            return true;
+        }
+        if (isBridgeMode(clearance)) {
+            return hasNeighborStructuralSupport(key, belowY, index);
+        }
+        return terrain.isSolidBlock(key.worldX(), belowY, key.worldZ());
+    }
+
+    private static boolean hasNeighborStructuralSupport(ColumnKey key, int y, SolidIndex index) {
+        for (int[] offset : NEIGHBOR_OFFSETS) {
+            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+            if (!index.hasAir(neighbor, y) && index.hasStructuralSupport(neighbor, y)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasNeighborStructuralSupport(ColumnKey key, int y, PlacementIndex index) {
+        for (int[] offset : NEIGHBOR_OFFSETS) {
+            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+            if (!index.hasAir(neighbor, y) && index.hasStructuralSupport(neighbor, y)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static int countUnclearedObstructions(
@@ -736,7 +799,11 @@ public final class RoadGenerationIntegrityValidator {
         }
 
         boolean hasAir(ColumnKey column, int y) {
-            return airPositions.contains(columnPos(column, y));
+            if (airPositions.contains(columnPos(column, y))) {
+                return true;
+            }
+            RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
+            return primitive != null && "minecraft:air".equals(primitive.materialId());
         }
 
         boolean hasStructuralSupport(ColumnKey column, int y) {

@@ -259,7 +259,7 @@ class RoadGenerationIntegrityValidatorTest {
     }
 
     @Test
-    void elevatedBridgePavementIsNotCountedAsUnsupported() {
+    void elevatedBridgePavementWithoutDeckSlabIsUnsupported() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         Vec2d point = new Vec2d(0, 0);
         ColumnKey key = new ColumnKey(0, 0);
@@ -269,6 +269,26 @@ class RoadGenerationIntegrityValidatorTest {
 
         RoadSolidModel solids = new RoadSolidModel();
         solids.add(point, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(50));
+
+        assertEquals(1, report.unsupportedPavementCount(),
+            "bridge deck must not lean on valley terrain without a generated slab");
+    }
+
+    @Test
+    void elevatedBridgePavementWithDeckSlabPasses() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 70, 72, RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 70, RoadSolidLayer.ROAD, "minecraft:stone");
+        solids.add(point, 69, RoadSolidLayer.BRIDGE, "minecraft:stone_bricks");
 
         RoadGenerationIntegrityValidator.IntegrityReport report =
             RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(50));
@@ -292,6 +312,51 @@ class RoadGenerationIntegrityValidatorTest {
 
         assertEquals(0, report.unsupportedPavementCount());
         assertTrue(report.isClean());
+    }
+
+    @Test
+    void clearedWorldSupportIsNotTrustedForPavement() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 64, 66, RoadCorridorConstructionMode.OPEN, RoadConstructionType.ROAD));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(point, 64, RoadSolidLayer.ROAD, "minecraft:stone");
+        // 原地形 y=63 仍为实体，但本次生成已清为空。
+        solids.add(point, 63, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(64));
+
+        assertEquals(1, report.unsupportedPavementCount(),
+            "generation air must override residual world solid under pavement");
+    }
+
+    @Test
+    void clearedWorldSupportIsNotTrustedInPlacementIndex() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            point, 64, 66, RoadCorridorConstructionMode.OPEN, RoadConstructionType.ROAD));
+
+        RoadGenerationResult result = new RoadGenerationResult(1.0);
+        BlockPos surface = new BlockPos(0, 64, 0);
+        BlockPos below = new BlockPos(0, 63, 0);
+        result.placementRecords.put(surface, new BlockRecord(surface, "minecraft:dirt", "minecraft:stone"));
+        result.placementLayers.put(surface, RoadSolidLayer.ROAD);
+        result.placementRecords.put(below, new BlockRecord(below, "minecraft:dirt", "minecraft:air"));
+        result.placementLayers.put(below, RoadSolidLayer.TUNNEL);
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validatePlacements(plan, result, new FlatTerrainSampler(64));
+
+        assertEquals(1, report.unsupportedPavementCount(),
+            "placement air under pavement must not fall back to world solid");
     }
 
     private static TerrainSampler elevatedColumn(int topY) {

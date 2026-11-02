@@ -16,10 +16,13 @@ import java.util.List;
  * 沿道路中心线密化站采样地表，用于发现「端点不变、中段地形已改」的缓存失效场景。
  * <p>
  * 与 {@link RoadCorridorTerrainPrefetch#fingerprint} 的道路几何指纹分开：本探针只反映世界地表 Y。
+ * 每个中心线站额外采样左右侧向点，以便路肩/边坡旁改地也能使指纹变化。
  */
 public final class RoadWorldTerrainProbe {
-    /** 单次探针上限，避免巨型路网在预览路径上卡顿。 */
+    /** 单次探针中心线站上限，避免巨型路网在预览路径上卡顿。 */
     public static final int MAX_PROBE_STATIONS = 512;
+    /** 相对中心线的侧向探针偏移（画布单位，通常≈方块）。 */
+    public static final double LATERAL_PROBE_OFFSET = 4.0;
 
     private RoadWorldTerrainProbe() {
     }
@@ -58,7 +61,7 @@ public final class RoadWorldTerrainProbe {
     }
 
     /**
-     * 沿中心线站采样地表 Y 指纹。端点不变而中段抬土时会变化。
+     * 沿中心线站及其左右侧向点采样地表 Y 指纹。端点不变而中段抬土、或仅改一侧边坡时会变化。
      */
     public static long surfaceFingerprint(
             RoadNetwork network,
@@ -68,17 +71,22 @@ public final class RoadWorldTerrainProbe {
             return 0L;
         }
         double step = config != null ? Math.max(0.5, config.getPathSampleDistance()) : 2.0;
-        List<Vec2d> stations = collectProbeStations(network, step, MAX_PROBE_STATIONS);
+        List<ProbeStation> stations = collectProbeStationsWithNormals(
+            network, step, MAX_PROBE_STATIONS);
         long hash = 17L;
         hash = 31L * hash + stations.size();
-        for (Vec2d station : stations) {
-            if (station == null) {
+        hash = 31L * hash + Double.hashCode(LATERAL_PROBE_OFFSET);
+        for (ProbeStation station : stations) {
+            if (station == null || station.point() == null) {
                 continue;
             }
-            int surfaceY = terrain.sampleSurfaceY(station);
-            hash = 31L * hash + Double.hashCode(station.x);
-            hash = 31L * hash + Double.hashCode(station.y);
-            hash = 31L * hash + surfaceY;
+            hash = mixSurfaceSample(hash, terrain, station.point());
+            if (station.leftNormal() != null) {
+                Vec2d left = station.point().add(station.leftNormal().multiply(LATERAL_PROBE_OFFSET));
+                Vec2d right = station.point().add(station.leftNormal().multiply(-LATERAL_PROBE_OFFSET));
+                hash = mixSurfaceSample(hash, terrain, left);
+                hash = mixSurfaceSample(hash, terrain, right);
+            }
         }
         return hash;
     }
@@ -90,11 +98,26 @@ public final class RoadWorldTerrainProbe {
             RoadNetwork network,
             double step,
             int maxStations) {
+        List<ProbeStation> framed = collectProbeStationsWithNormals(network, step, maxStations);
+        List<Vec2d> points = new ArrayList<>(framed.size());
+        for (ProbeStation station : framed) {
+            points.add(station.point());
+        }
+        return points;
+    }
+
+    /**
+     * 中心线密化站 + 单位左法线（用于侧向地表采样）。
+     */
+    public static List<ProbeStation> collectProbeStationsWithNormals(
+            RoadNetwork network,
+            double step,
+            int maxStations) {
         if (network == null || maxStations <= 0) {
             return List.of();
         }
         double sampleStep = Math.max(0.5, step);
-        List<Vec2d> dense = new ArrayList<>();
+        List<ProbeStation> dense = new ArrayList<>();
         List<RoadEdge> edges = new ArrayList<>(network.getEdges().values());
         edges.sort(Comparator.comparing(e -> e != null && e.getId() != null ? e.getId() : ""));
         for (RoadEdge edge : edges) {
@@ -105,12 +128,12 @@ public final class RoadWorldTerrainProbe {
             if (path.size() < 2) {
                 continue;
             }
-            appendDensified(dense, path, sampleStep);
+            appendDensifiedWithNormals(dense, path, sampleStep);
         }
         if (dense.size() <= maxStations) {
             return dense;
         }
-        List<Vec2d> thinned = new ArrayList<>(maxStations);
+        List<ProbeStation> thinned = new ArrayList<>(maxStations);
         double stride = (dense.size() - 1) / (double) (maxStations - 1);
         for (int i = 0; i < maxStations; i++) {
             int index = Math.min(dense.size() - 1, (int) Math.round(i * stride));
@@ -119,8 +142,10 @@ public final class RoadWorldTerrainProbe {
         return thinned;
     }
 
-    private static void appendDensified(List<Vec2d> out, List<Vec2d> path, double step) {
-        out.add(path.getFirst());
+    public record ProbeStation(Vec2d point, Vec2d leftNormal) {
+    }
+
+    private static void appendDensifiedWithNormals(List<ProbeStation> out, List<Vec2d> path, double step) {
         for (int i = 1; i < path.size(); i++) {
             Vec2d prev = path.get(i - 1);
             Vec2d curr = path.get(i);
@@ -128,11 +153,23 @@ public final class RoadWorldTerrainProbe {
             if (len < 1e-9) {
                 continue;
             }
+            Vec2d tangent = curr.subtract(prev).normalize();
+            Vec2d left = new Vec2d(-tangent.y, tangent.x);
             int segments = Math.max(1, (int) Math.ceil(len / step));
+            if (i == 1) {
+                out.add(new ProbeStation(prev, left));
+            }
             for (int s = 1; s <= segments; s++) {
-                out.add(prev.lerp(curr, (double) s / segments));
+                out.add(new ProbeStation(prev.lerp(curr, (double) s / segments), left));
             }
         }
+    }
+
+    private static long mixSurfaceSample(long hash, TerrainSampler terrain, Vec2d station) {
+        int surfaceY = terrain.sampleSurfaceY(station);
+        hash = 31L * hash + Double.hashCode(station.x);
+        hash = 31L * hash + Double.hashCode(station.y);
+        return 31L * hash + surfaceY;
     }
 
     private static long mixPoints(long hash, List<Vec2d> points) {
