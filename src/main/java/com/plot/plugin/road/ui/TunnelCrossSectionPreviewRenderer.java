@@ -24,7 +24,6 @@ public final class TunnelCrossSectionPreviewRenderer {
     public static final float PRESET_CARD_WIDTH = 78f;
     public static final float PRESET_CARD_HEIGHT = 100f;
     private static final float PRESET_PREVIEW_HEIGHT = 64f;
-    private static final int SHAPE_CARDS_PER_ROW = 4;
     private static final float LIVE_PREVIEW_HEIGHT = 172f;
     private static final float LABEL_PADDING = 4f;
 
@@ -75,14 +74,14 @@ public final class TunnelCrossSectionPreviewRenderer {
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_legend"));
     }
 
-    /** Two-row shape cards (4 + remainder); returns true when selection changes. */
+    /** Single-row shape cards; returns true when selection changes. */
     public static boolean renderShapePresetRow(TunnelShape selectedShape, java.util.function.Consumer<TunnelShape> onSelect) {
         boolean changed = false;
         TunnelShape[] shapes = TunnelShape.values();
         ImGui.beginGroup();
         for (int i = 0; i < shapes.length; i++) {
             TunnelShape shape = shapes[i];
-            if (i > 0 && i % SHAPE_CARDS_PER_ROW != 0) {
+            if (i > 0) {
                 ImGui.sameLine(0f, 6f);
             }
             if (renderShapePresetCard(shape, shape == selectedShape)) {
