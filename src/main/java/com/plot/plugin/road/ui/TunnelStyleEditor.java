@@ -24,6 +24,7 @@ public final class TunnelStyleEditor {
     private static final float PREVIEW_COLUMN_RATIO = 0.38f;
     private static final float PREVIEW_COLUMN_MIN = 168f;
     private static final float PARAMS_COLUMN_MIN = 220f;
+    private static final float LIVE_PREVIEW_HEIGHT_MIN = 160f;
 
     private TunnelStyleEditor() {
     }
@@ -78,8 +79,6 @@ public final class TunnelStyleEditor {
             return;
         }
         int envelopeWidth = resolvePreviewEnvelopeWidth(ctx, roadId);
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.editor_hint"));
-        ImGui.spacing();
         renderStylePresetCombo(style, onChanged, presetSelection);
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.tunnel.cross_section_section"));
@@ -133,16 +132,20 @@ public final class TunnelStyleEditor {
 
         // Side-by-side when both columns fit; otherwise stack preview above params.
         boolean sideBySide = rightWidth >= PARAMS_COLUMN_MIN && leftWidth >= PREVIEW_COLUMN_MIN;
+        float rowHeight = Math.max(LIVE_PREVIEW_HEIGHT_MIN, ImGui.getContentRegionAvailY());
         if (sideBySide) {
-            ImGui.beginChild("##tunnel_preview_col", leftWidth, 0f, false);
+            ImGui.beginChild("##tunnel_preview_col", leftWidth, rowHeight, false);
             renderLivePreviewColumn(style, envelopeWidth);
             ImGui.endChild();
             ImGui.sameLine(0f, gap);
-            ImGui.beginChild("##tunnel_params_col", rightWidth, 0f, false);
+            ImGui.beginChild("##tunnel_params_col", rightWidth, rowHeight, false);
             renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
             ImGui.endChild();
         } else {
+            float previewHeight = Math.max(LIVE_PREVIEW_HEIGHT_MIN, rowHeight * 0.42f);
+            ImGui.beginChild("##tunnel_preview_col", avail, previewHeight, false);
             renderLivePreviewColumn(style, envelopeWidth);
+            ImGui.endChild();
             ImGui.spacing();
             renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
         }

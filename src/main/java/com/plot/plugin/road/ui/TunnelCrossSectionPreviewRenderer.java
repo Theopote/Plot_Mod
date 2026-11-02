@@ -50,8 +50,8 @@ public final class TunnelCrossSectionPreviewRenderer {
             boolean accentRings,
             int roadEnvelopeWidth) {
         float width = Math.max(120f, ImGui.getContentRegionAvailX());
-        // Prefer a near-square viewport in the side column so voxels stay readable.
-        float height = Math.max(LIVE_PREVIEW_HEIGHT, Math.min(width * 1.05f, 220f));
+        // Fill the parent column height so the left pane has no empty gap below.
+        float height = Math.max(LIVE_PREVIEW_HEIGHT, ImGui.getContentRegionAvailY());
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
