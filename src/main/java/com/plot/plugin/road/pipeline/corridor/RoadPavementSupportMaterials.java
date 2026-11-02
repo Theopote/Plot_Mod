@@ -7,9 +7,20 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * 路面 / 桥面下方「有效承重」判定：区分空气、流体、装饰与结构材料。
+ * 路面 / 桥面下方「有效承重」判定：区分已确认承重、已确认无效、材质未知。
+ * <p>
+ * 生成管线应写入 {@link RoadSolidLayer}；无层信息时不靠黑名单启发式默认通过。
  */
 public final class RoadPavementSupportMaterials {
+    public enum SupportVerdict {
+        /** 结构层 + 非装饰材料，可作路基/桥面板。 */
+        CONFIRMED,
+        /** 空气、流体、装饰或非承重层。 */
+        INVALID,
+        /** 无结构层且材质不在排除表，无法确认承重。 */
+        UNKNOWN
+    }
+
     private static final Set<String> FLUID_IDS = Set.of(
         "minecraft:water",
         "minecraft:lava",
@@ -102,16 +113,20 @@ public final class RoadPavementSupportMaterials {
     }
 
     /**
-     * 本次生成记录是否构成有效支撑：优先认结构层；无层信息时排除非承重材质。
+     * 三态分类：优先依赖生成结构层；无层时不默认承重（UNKNOWN → 不计入支撑）。
      */
-    public static boolean isGeneratedStructuralSupport(RoadSolidLayer layer, String materialOrSpec) {
+    public static SupportVerdict classifyGeneratedSupport(RoadSolidLayer layer, String materialOrSpec) {
         if (isNonLoadBearingId(materialOrSpec)) {
-            return false;
+            return SupportVerdict.INVALID;
         }
-        if (layer != null) {
-            return isLoadBearingLayer(layer);
+        if (layer == null) {
+            return SupportVerdict.UNKNOWN;
         }
-        // 无层元数据时：已排除流体/装饰，剩余视为实体砌体/填方。
-        return true;
+        return isLoadBearingLayer(layer) ? SupportVerdict.CONFIRMED : SupportVerdict.INVALID;
+    }
+
+    /** 仅 {@link SupportVerdict#CONFIRMED} 可作为生成侧有效支撑。 */
+    public static boolean isGeneratedStructuralSupport(RoadSolidLayer layer, String materialOrSpec) {
+        return classifyGeneratedSupport(layer, materialOrSpec) == SupportVerdict.CONFIRMED;
     }
 }

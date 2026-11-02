@@ -20,7 +20,7 @@ class RoadPavementSupportMaterialsTest {
     }
 
     @Test
-    void generatedSupportRequiresLoadBearingLayerOrSolidMaterial() {
+    void generatedSupportRequiresConfirmedLoadBearingLayer() {
         assertTrue(RoadPavementSupportMaterials.isGeneratedStructuralSupport(
             RoadSolidLayer.BRIDGE, "minecraft:stone_bricks"));
         assertTrue(RoadPavementSupportMaterials.isGeneratedStructuralSupport(
@@ -31,9 +31,14 @@ class RoadPavementSupportMaterialsTest {
             RoadSolidLayer.STREETLIGHT, "minecraft:torch"));
         assertFalse(RoadPavementSupportMaterials.isGeneratedStructuralSupport(
             RoadSolidLayer.MARKING, "minecraft:white_concrete"));
-        assertTrue(RoadPavementSupportMaterials.isGeneratedStructuralSupport(
-            null, "minecraft:cobblestone"));
+        // 无结构层：即使材质看起来像砌体，也不得默认承重（UNKNOWN）。
+        assertEquals(
+            RoadPavementSupportMaterials.SupportVerdict.UNKNOWN,
+            RoadPavementSupportMaterials.classifyGeneratedSupport(null, "minecraft:cobblestone"));
         assertFalse(RoadPavementSupportMaterials.isGeneratedStructuralSupport(
-            null, "minecraft:water[level=0]"));
+            null, "minecraft:cobblestone"));
+        assertEquals(
+            RoadPavementSupportMaterials.SupportVerdict.INVALID,
+            RoadPavementSupportMaterials.classifyGeneratedSupport(null, "minecraft:water[level=0]"));
     }
 }
