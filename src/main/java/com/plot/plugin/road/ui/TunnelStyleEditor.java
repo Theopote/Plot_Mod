@@ -1,5 +1,9 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPreset;
 import com.plot.plugin.road.tunnel.TunnelPresetCatalog;
@@ -49,7 +53,7 @@ public final class TunnelStyleEditor {
     }
 
     public static void render(RoadUiContext ctx, TunnelStyle style, Runnable onChanged) {
-        render(ctx, style, onChanged, null);
+        render(ctx, style, onChanged, null, null);
     }
 
     public static void render(
@@ -57,19 +61,28 @@ public final class TunnelStyleEditor {
             TunnelStyle style,
             Runnable onChanged,
             PresetSelection presetSelection) {
+        render(ctx, style, onChanged, presetSelection, null);
+    }
+
+    /**
+     * @param roadId when non-blank, live preview uses that road's pavement envelope width;
+     *               otherwise uses the global config road width.
+     */
+    public static void render(
+            RoadUiContext ctx,
+            TunnelStyle style,
+            Runnable onChanged,
+            PresetSelection presetSelection,
+            String roadId) {
         if (style == null) {
             return;
         }
+        int envelopeWidth = resolvePreviewEnvelopeWidth(ctx, roadId);
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.editor_hint"));
         ImGui.spacing();
         renderStylePresetCombo(style, onChanged, presetSelection);
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.tunnel.cross_section_section"));
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.shape_presets_hint"));
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.shape_switch_keeps_style"));
-        if (style.getShape() == TunnelShape.CIRCULAR) {
-            ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.circular_constraint_hint"));
-        }
         if (TunnelCrossSectionPreviewRenderer.renderShapePresetRow(style.getShape(), shape -> {
             style.setShape(shape);
             notifyChanged(style, onChanged, presetSelection);
@@ -77,14 +90,38 @@ public final class TunnelStyleEditor {
             // selection handled in callback
         }
         ImGui.spacing();
-        renderPreviewAndParams(ctx, style, onChanged, presetSelection);
+        renderPreviewAndParams(ctx, style, onChanged, presetSelection, envelopeWidth);
+    }
+
+    /**
+     * Pavement envelope used by tunnel generation for the given road, or global config when
+     * {@code roadId} is blank / missing.
+     */
+    public static int resolvePreviewEnvelopeWidth(RoadUiContext ctx, String roadId) {
+        RoadSystemConfig config = ctx != null && ctx.networkManager() != null
+            ? ctx.networkManager().getConfig()
+            : null;
+        if (ctx != null && ctx.networkManager() != null
+                && roadId != null && !roadId.isBlank()) {
+            Road road = ctx.networkManager().getNetwork().getRoad(roadId);
+            if (road != null) {
+                return Math.max(1, RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                    ResolvedCrossSection.resolve(road.getCrossSection(), config)));
+            }
+        }
+        if (config != null) {
+            return Math.max(1, RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                ResolvedCrossSection.fromConfig(config)));
+        }
+        return TunnelCrossSectionPreviewRenderer.PREVIEW_ENVELOPE_WIDTH;
     }
 
     private static void renderPreviewAndParams(
             RoadUiContext ctx,
             TunnelStyle style,
             Runnable onChanged,
-            PresetSelection presetSelection) {
+            PresetSelection presetSelection,
+            int envelopeWidth) {
         float avail = ImGui.getContentRegionAvailX();
         float gap = ImGui.getStyle().getItemSpacingX();
         float leftWidth = Math.max(PREVIEW_COLUMN_MIN, avail * PREVIEW_COLUMN_RATIO);
@@ -98,34 +135,36 @@ public final class TunnelStyleEditor {
         boolean sideBySide = rightWidth >= PARAMS_COLUMN_MIN && leftWidth >= PREVIEW_COLUMN_MIN;
         if (sideBySide) {
             ImGui.beginChild("##tunnel_preview_col", leftWidth, 0f, false);
-            renderLivePreviewColumn(style);
+            renderLivePreviewColumn(style, envelopeWidth);
             ImGui.endChild();
             ImGui.sameLine(0f, gap);
             ImGui.beginChild("##tunnel_params_col", rightWidth, 0f, false);
-            renderParameterColumn(ctx, style, onChanged, presetSelection);
+            renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
             ImGui.endChild();
         } else {
-            renderLivePreviewColumn(style);
+            renderLivePreviewColumn(style, envelopeWidth);
             ImGui.spacing();
-            renderParameterColumn(ctx, style, onChanged, presetSelection);
+            renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
         }
     }
 
-    private static void renderLivePreviewColumn(TunnelStyle style) {
+    private static void renderLivePreviewColumn(TunnelStyle style, int envelopeWidth) {
         TunnelCrossSectionPreviewRenderer.renderLivePreview(
             style.getShape(),
             style.getClearHeight(),
             style.getSideClearance(),
             style.getLiningThickness(),
             style.getLightingMode(),
-            style.isAccentRings());
+            style.isAccentRings(),
+            envelopeWidth);
     }
 
     private static void renderParameterColumn(
             RoadUiContext ctx,
             TunnelStyle style,
             Runnable onChanged,
-            PresetSelection presetSelection) {
+            PresetSelection presetSelection,
+            int envelopeWidth) {
         int[] clearHeight = {style.getClearHeight()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.clear_height"), clearHeight,
                 TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {
@@ -133,8 +172,7 @@ public final class TunnelStyleEditor {
             notifyChanged(style, onChanged, presetSelection);
         }
         if (style.getShape() == TunnelShape.CIRCULAR) {
-            int cavityHalf = (TunnelCrossSectionPreviewRenderer.PREVIEW_ENVELOPE_WIDTH
-                + style.getSideClearance() * 2) / 2;
+            int cavityHalf = (Math.max(1, envelopeWidth) + style.getSideClearance() * 2) / 2;
             int effective = TunnelProfile.effectiveCircularClearHeight(
                 cavityHalf, style.getClearHeight());
             ImGui.textDisabled(PlotI18n.tr(

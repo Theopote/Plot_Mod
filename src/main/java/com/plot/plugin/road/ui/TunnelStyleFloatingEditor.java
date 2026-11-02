@@ -204,7 +204,12 @@ public final class TunnelStyleFloatingEditor {
                         PlotI18n.tr("plugin.road.tunnel.batch_scope_hint", batchTargetCount()));
                     ImGui.spacing();
                 }
-                TunnelStyleEditor.render(ctx, draft, () -> draft.clamp(), presetSelection);
+                TunnelStyleEditor.render(
+                    ctx,
+                    draft,
+                    () -> draft.clamp(),
+                    presetSelection,
+                    target == Target.ROAD ? roadId : null);
             }
             ImGui.endChild();
 

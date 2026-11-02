@@ -8,6 +8,8 @@ import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditor;
@@ -169,6 +171,26 @@ class TunnelStyleFloatingEditorTest {
         editor.openRoad(ctx, road, null);
         assertEquals(RoadFloatingEditor.FinishResult.CLOSED, editor.finishOrPrompt(ctx));
         assertFalse(editor.isOpen());
+    }
+
+    @Test
+    void previewEnvelopeWidthFollowsSelectedRoadNotGlobalDefault() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        manager.getConfig().setRoadWidth(5);
+        road.getCrossSection().getCarriageway().setWidth(11);
+
+        int roadEnvelope = TunnelStyleEditor.resolvePreviewEnvelopeWidth(ctx, roadId);
+        int globalEnvelope = TunnelStyleEditor.resolvePreviewEnvelopeWidth(ctx, null);
+
+        assertEquals(
+            RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                ResolvedCrossSection.resolve(road.getCrossSection(), manager.getConfig())),
+            roadEnvelope);
+        assertEquals(
+            RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                ResolvedCrossSection.fromConfig(manager.getConfig())),
+            globalEnvelope);
+        assertTrue(roadEnvelope > globalEnvelope);
     }
 
     @Test

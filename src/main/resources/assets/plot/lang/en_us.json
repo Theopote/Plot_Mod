@@ -792,6 +792,7 @@
   "plugin.road.tunnel.cross_section_section": "Cross-section",
   "plugin.road.tunnel.shape_presets_hint": "Click a preset to switch cross-section shape.",
   "plugin.road.tunnel.preview_legend": "Light blue = lining, dark = cavity, slate = road, yellow = lights, orange = accent rings. Above-road section only.",
+  "plugin.road.tunnel.preview_road_width": "Preview road width: %d blocks",
   "plugin.road.tunnel.circular_effective_height": "Effective circular clear height: %d blocks",
   "plugin.road.tunnel.shape_preset_tooltip": "Use %s cross-section",
   "plugin.road.tunnel.accent_spacing": "Accent ring spacing",

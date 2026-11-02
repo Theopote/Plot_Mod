@@ -47,7 +47,8 @@ public final class TunnelCrossSectionPreviewRenderer {
             int sideClearance,
             int liningThickness,
             TunnelLightingMode lightingMode,
-            boolean accentRings) {
+            boolean accentRings,
+            int roadEnvelopeWidth) {
         float width = Math.max(120f, ImGui.getContentRegionAvailX());
         // Prefer a near-square viewport in the side column so voxels stay readable.
         float height = Math.max(LIVE_PREVIEW_HEIGHT, Math.min(width * 1.05f, 220f));
@@ -57,6 +58,7 @@ public final class TunnelCrossSectionPreviewRenderer {
         float y0 = origin.y;
         float x1 = x0 + width;
         float y1 = y0 + height;
+        int envelope = Math.max(1, roadEnvelopeWidth);
 
         drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG, 4f);
         drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 4f, 0, 1f);
@@ -71,9 +73,9 @@ public final class TunnelCrossSectionPreviewRenderer {
             sideClearance,
             liningThickness,
             lightingMode,
-            accentRings);
+            accentRings,
+            envelope);
         ImGui.dummy(width, height);
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_legend"));
     }
 
     /** Single-row shape cards; returns true when selection changes. */
@@ -148,10 +150,11 @@ public final class TunnelCrossSectionPreviewRenderer {
             int sideClearance,
             int liningThickness,
             TunnelLightingMode lightingMode,
-            boolean accentRings) {
+            boolean accentRings,
+            int roadEnvelopeWidth) {
         TunnelSectionDisplayModel model = TunnelSectionDisplayModel.build(
             shape != null ? shape : TunnelShape.ARCH,
-            PREVIEW_ENVELOPE_WIDTH,
+            Math.max(1, roadEnvelopeWidth),
             Math.max(TunnelStyle.MIN_SIDE_CLEARANCE, sideClearance),
             Math.max(TunnelStyle.MIN_CLEAR_HEIGHT, clearHeight),
             Math.max(TunnelStyle.MIN_LINING_THICKNESS, liningThickness),
@@ -263,7 +266,7 @@ public final class TunnelCrossSectionPreviewRenderer {
         if (showMountain) {
             drawLiveCrossSection(
                 drawList, x0, y0, x1, y1, shape, clearHeight, sideClearance, liningThickness,
-                TunnelLightingMode.NONE, false);
+                TunnelLightingMode.NONE, false, PREVIEW_ENVELOPE_WIDTH);
         } else {
             drawPresetCrossSection(
                 drawList, x0, y0, x1, y1, shape, clearHeight, sideClearance, liningThickness);

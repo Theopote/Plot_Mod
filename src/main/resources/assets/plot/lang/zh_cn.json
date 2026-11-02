@@ -792,6 +792,7 @@
   "plugin.road.tunnel.cross_section_section": "截面",
   "plugin.road.tunnel.shape_presets_hint": "点击预设卡片切换截面形状。",
   "plugin.road.tunnel.preview_legend": "浅蓝=衬砌，深灰=净空，石板灰=路面，黄=灯具，橙=装饰环；仅显示路面以上截面。",
+  "plugin.road.tunnel.preview_road_width": "预览道路宽度：%d 格",
   "plugin.road.tunnel.circular_effective_height": "当前圆形截面有效净高：%d 格",
   "plugin.road.tunnel.shape_preset_tooltip": "使用%s截面",
   "plugin.road.tunnel.accent_spacing": "装饰环间距",
