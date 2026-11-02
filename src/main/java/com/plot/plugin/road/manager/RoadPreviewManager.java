@@ -272,6 +272,10 @@ public final class RoadPreviewManager {
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return false;
         }
+        if (hasPendingNetworkEdit()) {
+            status.warning(PlotI18n.tr("plugin.road.preview_blocked_pending_edit"));
+            return false;
+        }
 
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null || networkGenerator == null) {
@@ -322,7 +326,7 @@ public final class RoadPreviewManager {
      */
     public void tickTerrainPrefetch() {
         RoadCorridorTerrainPrefetch.pollCompleted(null);
-        if (isPreviewJobRunning()) {
+        if (isPreviewJobRunning() || hasPendingNetworkEdit()) {
             return;
         }
         World world = RoadNetworkGenerator.getClientWorld();
@@ -471,6 +475,16 @@ public final class RoadPreviewManager {
             return;
         }
         previewJob = null;
+        if (hasPendingNetworkEdit()) {
+            // 拖动等未提交编辑期间完成的旧作业不得标为当前可建造预览。
+            lastGenerationResult = null;
+            previewNetwork = null;
+            lastNetworkGenerationResult = null;
+            previewNeedsRecalc = true;
+            clearGhostBlocksSafely();
+            status.warning(PlotI18n.tr("plugin.road.preview_blocked_pending_edit"));
+            return;
+        }
         applyPreviewResult(job.sourceNetwork(), previewResult, autoProjectGhosts);
     }
 
@@ -521,6 +535,10 @@ public final class RoadPreviewManager {
     public boolean calculateNetworkPreview(RoadNetwork network, boolean autoProjectGhosts) {
         if (network.getEdges().isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
+            return false;
+        }
+        if (hasPendingNetworkEdit()) {
+            status.warning(PlotI18n.tr("plugin.road.preview_blocked_pending_edit"));
             return false;
         }
 
