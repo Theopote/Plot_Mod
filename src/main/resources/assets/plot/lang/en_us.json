@@ -766,6 +766,7 @@
   "plugin.road.tunnel.style_preset.industrial_mining": "Industrial mine",
   "plugin.road.tunnel.style_preset.arctic_snow": "Arctic snow",
   "plugin.road.tunnel.shape_switch_keeps_style": "Changing the cross-section shape keeps materials, lighting, and decoration.",
+  "plugin.road.tunnel.circular_constraint_hint": "Circular radius equals cavity half-width; clear height above the diameter is clamped so the tube is not laterally truncated.",
   "plugin.road.tunnel.clear_height": "Height",
   "plugin.road.tunnel.side_clearance": "Side clearance",
   "plugin.road.tunnel.lining_section": "Lining",

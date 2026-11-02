@@ -59,8 +59,9 @@ class TunnelCrossSectionMaskTest {
 
     @Test
     void circularInvertExistsBelowRoadWithoutCarvingPavement() {
+        // Clear height below diameter so the true circle dips under the road datum.
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
-            TunnelShape.CIRCULAR, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+            TunnelShape.CIRCULAR, ENVELOPE, SIDE, 4, LINING, ROAD_Y, false);
         assertEquals(TunnelCrossSectionMask.CellKind.OUTSIDE, mask.kindAt(0, ROAD_Y),
             "pavement cell stays outside the mask");
         boolean invertStructure = false;

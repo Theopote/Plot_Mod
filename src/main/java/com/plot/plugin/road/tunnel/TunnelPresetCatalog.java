@@ -121,4 +121,28 @@ public final class TunnelPresetCatalog {
         }
         style.clamp();
     }
+
+    /** Full-field match — shape alone is not enough (several presets share a shape). */
+    public static boolean matches(TunnelPreset preset, TunnelStyle style) {
+        if (preset == null || style == null) {
+            return false;
+        }
+        TunnelStyle probe = new TunnelStyle();
+        apply(preset, probe);
+        return sameResolved(probe, style);
+    }
+
+    private static boolean sameResolved(TunnelStyle expected, TunnelStyle actual) {
+        return expected.getShape() == actual.getShape()
+            && expected.getClearHeight() == actual.getClearHeight()
+            && expected.getSideClearance() == actual.getSideClearance()
+            && expected.getLiningThickness() == actual.getLiningThickness()
+            && java.util.Objects.equals(expected.getLiningMaterial(), actual.getLiningMaterial())
+            && expected.getLightingMode() == actual.getLightingMode()
+            && java.util.Objects.equals(expected.getLightMaterial(), actual.getLightMaterial())
+            && expected.getLightSpacing() == actual.getLightSpacing()
+            && expected.isAccentRings() == actual.isAccentRings()
+            && java.util.Objects.equals(expected.getAccentMaterial(), actual.getAccentMaterial())
+            && expected.getAccentSpacing() == actual.getAccentSpacing();
+    }
 }

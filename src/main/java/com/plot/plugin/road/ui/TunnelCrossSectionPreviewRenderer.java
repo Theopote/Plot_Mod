@@ -193,20 +193,22 @@ public final class TunnelCrossSectionPreviewRenderer {
             float bx = originX + col * blockSize;
             float by = originY + row * blockSize;
             int color = kind == TunnelCrossSectionMask.CellKind.AIR ? COLOR_AIR : COLOR_LINING;
-            if (y == PREVIEW_ROAD_Y && Math.abs(lateral) <= PREVIEW_ENVELOPE_WIDTH / 2) {
-                color = COLOR_ROAD;
-            }
             drawList.addRectFilled(bx, by, bx + blockSize - 0.5f, by + blockSize - 0.5f, color, 1f);
         });
 
-        float roadRowTop = originY + (maskMaxY - PREVIEW_ROAD_Y) * blockSize;
-        drawList.addLine(
-            originX,
-            roadRowTop + block,
-            originX + gridW,
-            roadRowTop + block,
-            COLOR_ROAD,
-            1.5f);
+        // Road pavement cells are OUTSIDE in the mask (owned by the road generator).
+        // Draw them as an explicit ROAD layer so invert arches remain visible below.
+        int roadHalf = PREVIEW_ENVELOPE_WIDTH / 2;
+        for (int lateral = -roadHalf; lateral <= roadHalf; lateral++) {
+            if (lateral < lateralMin || lateral > maxLat) {
+                continue;
+            }
+            int col = lateral - lateralMin;
+            int row = maskMaxY - PREVIEW_ROAD_Y;
+            float bx = originX + col * blockSize;
+            float by = originY + row * blockSize;
+            drawList.addRectFilled(bx, by, bx + blockSize - 0.5f, by + blockSize - 0.5f, COLOR_ROAD, 1f);
+        }
     }
 
     static String shapeLabelKey(TunnelShape shape) {

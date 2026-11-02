@@ -37,6 +37,7 @@ public final class TunnelStyleFloatingEditor {
     private boolean roadWasInheriting;
     private TunnelStyle draft;
     private TunnelStyle baseline;
+    private final TunnelStyleEditor.PresetSelection presetSelection = new TunnelStyleEditor.PresetSelection();
     private Runnable onHistory;
 
     public boolean isOpen() {
@@ -93,6 +94,7 @@ public final class TunnelStyleFloatingEditor {
         closeConfirmPending = false;
         draft = null;
         baseline = null;
+        presetSelection.clear();
         onHistory = null;
         roadId = "";
         batchRoadIds.clear();
@@ -202,7 +204,7 @@ public final class TunnelStyleFloatingEditor {
                         PlotI18n.tr("plugin.road.tunnel.batch_scope_hint", batchTargetCount()));
                     ImGui.spacing();
                 }
-                TunnelStyleEditor.render(ctx, draft, () -> draft.clamp());
+                TunnelStyleEditor.render(ctx, draft, () -> draft.clamp(), presetSelection);
             }
             ImGui.endChild();
 
@@ -277,6 +279,7 @@ public final class TunnelStyleFloatingEditor {
         seed.ensureConfigDefaults();
         this.baseline = seed.copy();
         this.draft = seed.copy();
+        this.presetSelection.clear();
         this.focusPending = true;
         this.closeConfirmPending = false;
         this.open.set(true);

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,10 +20,10 @@ class TunnelProfileTest {
     void sevenShapesProduceDistinguishableAirSets() {
         TunnelShape[] shapes = TunnelShape.values();
         for (int i = 0; i < shapes.length; i++) {
-            Set<Long> a = airSet(shapes[i]);
+            Set<Long> a = airSet(shapes[i], CLEAR);
             assertFalse(a.isEmpty(), shapes[i] + " must have cavity air");
             for (int j = i + 1; j < shapes.length; j++) {
-                Set<Long> b = airSet(shapes[j]);
+                Set<Long> b = airSet(shapes[j], CLEAR);
                 assertNotEquals(a, b, shapes[i] + " vs " + shapes[j] + " air sets must differ");
                 double jaccard = jaccard(a, b);
                 assertTrue(jaccard < 0.92,
@@ -44,18 +45,40 @@ class TunnelProfileTest {
 
     @Test
     void circularAndEllipticalDiffer() {
-        assertNotEquals(airSet(TunnelShape.CIRCULAR), airSet(TunnelShape.ELLIPTICAL));
+        assertNotEquals(airSet(TunnelShape.CIRCULAR, CLEAR), airSet(TunnelShape.ELLIPTICAL, CLEAR));
+        // Also when circular has invert (clear < diameter).
+        assertNotEquals(airSet(TunnelShape.CIRCULAR, 4), airSet(TunnelShape.ELLIPTICAL, 4));
     }
 
     @Test
     void circularAndEllipticalAllowInvertBelowRoad() {
-        assertTrue(TunnelProfile.derivedInvertDepth(TunnelShape.CIRCULAR, HALF_W, CLEAR) > 0);
+        // Clear height below the circle diameter yields a true invert under the road.
+        int circularClear = HALF_W; // diameter=6, clear=3 → invert=3
+        assertTrue(TunnelProfile.derivedInvertDepth(TunnelShape.CIRCULAR, HALF_W, circularClear) > 0);
         assertTrue(TunnelProfile.derivedInvertDepth(TunnelShape.ELLIPTICAL, HALF_W, CLEAR) > 0);
         assertTrue(TunnelProfile.isCavityAir(
-            TunnelShape.CIRCULAR, 0, ROAD_Y - 1, ROAD_Y, HALF_W, CLEAR)
-            || TunnelProfile.isCavityAir(
+            TunnelShape.CIRCULAR, 0, ROAD_Y - 1, ROAD_Y, HALF_W, circularClear),
+            "circular invert must place air below road datum on centerline");
+        assertTrue(TunnelProfile.isCavityAir(
             TunnelShape.ELLIPTICAL, 0, ROAD_Y - 1, ROAD_Y, HALF_W, CLEAR),
-            "invert shapes must place air below road datum on centerline");
+            "elliptical invert must place air below road datum on centerline");
+    }
+
+    @Test
+    void circularDoesNotLaterallyTruncateWhenClearHeightExceedsDiameter() {
+        int tallClear = 10;
+        assertEquals(2 * HALF_W, TunnelProfile.effectiveCircularClearHeight(HALF_W, tallClear));
+        // At mid-height of the constrained circle, edge column at halfW must remain in-circle
+        // (a truncated cylinder would reject the edge while claiming radius > halfW).
+        int clear = TunnelProfile.effectiveCircularClearHeight(HALF_W, tallClear);
+        int midY = ROAD_Y + clear / 2;
+        assertTrue(
+            TunnelProfile.isCavityAir(TunnelShape.CIRCULAR, HALF_W, midY, ROAD_Y, HALF_W, tallClear),
+            "true circle must keep edge air at mid-height under clamped clear height");
+        // Excess height above the diameter is not carved as cavity.
+        assertFalse(
+            TunnelProfile.isCavityAir(TunnelShape.CIRCULAR, 0, ROAD_Y + tallClear, ROAD_Y, HALF_W, tallClear),
+            "clear height above diameter must not invent extra crown air");
     }
 
     @Test
@@ -78,12 +101,12 @@ class TunnelProfileTest {
         }
     }
 
-    private static Set<Long> airSet(TunnelShape shape) {
-        int invert = TunnelProfile.derivedInvertDepth(shape, HALF_W, CLEAR);
+    private static Set<Long> airSet(TunnelShape shape, int clearHeight) {
+        int invert = TunnelProfile.derivedInvertDepth(shape, HALF_W, clearHeight);
         Set<Long> cells = new HashSet<>();
         for (int lat = -HALF_W - 1; lat <= HALF_W + 1; lat++) {
-            for (int y = ROAD_Y - invert - 1; y <= ROAD_Y + CLEAR + 2; y++) {
-                if (TunnelProfile.isCavityAir(shape, lat, y, ROAD_Y, HALF_W, CLEAR)) {
+            for (int y = ROAD_Y - invert - 1; y <= ROAD_Y + clearHeight + 2; y++) {
+                if (TunnelProfile.isCavityAir(shape, lat, y, ROAD_Y, HALF_W, clearHeight)) {
                     cells.add((((long) lat) << 32) ^ (y & 0xffffffffL));
                 }
             }

@@ -766,6 +766,7 @@
   "plugin.road.tunnel.style_preset.industrial_mining": "工业矿坑",
   "plugin.road.tunnel.style_preset.arctic_snow": "冰雪极地",
   "plugin.road.tunnel.shape_switch_keeps_style": "切换截面形状不会删除其他材质、照明或装饰设置。",
+  "plugin.road.tunnel.circular_constraint_hint": "圆形截面半径等于腔体半宽；净高超过直径时按直径约束，避免横向截窄。",
   "plugin.road.tunnel.clear_height": "高度",
   "plugin.road.tunnel.side_clearance": "侧向空间",
   "plugin.road.tunnel.lining_section": "衬砌",

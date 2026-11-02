@@ -19,11 +19,13 @@ public final class TunnelProfile {
         }
         return switch (shape) {
             case CIRCULAR -> {
-                int radius = circularRadius(halfCavityWidth, clearHeight);
-                // Bottom of circle is centerY - radius = roadY + clearHeight - 2*radius.
-                yield Math.max(0, 2 * radius - clearHeight);
+                int radius = circularRadius(halfCavityWidth);
+                int clear = effectiveCircularClearHeight(halfCavityWidth, clearHeight);
+                // Bottom of circle is centerY - radius = roadY + clear - 2*radius.
+                yield Math.max(0, 2 * radius - clear);
             }
-            case ELLIPTICAL -> Math.max(1, Math.min(halfCavityWidth, Math.max(1, clearHeight / 2)));
+            // Deeper invert than a diameter-matched circle so ELLIPTICAL stays visually oval.
+            case ELLIPTICAL -> Math.max(2, Math.clamp(clearHeight / 2 + 1, 2, halfCavityWidth));
             default -> 0;
         };
     }
@@ -205,10 +207,12 @@ public final class TunnelProfile {
                 yield distFromCenter <= halfCavityWidth;
             }
             case CIRCULAR -> {
-                int radius = circularRadius(halfCavityWidth, clearHeight);
-                int centerY = roadY + clearHeight - radius;
+                int radius = circularRadius(halfCavityWidth);
+                int clear = effectiveCircularClearHeight(halfCavityWidth, clearHeight);
+                int centerY = roadY + clear - radius;
                 double dy = y - centerY;
                 double maxDx = Math.sqrt(Math.max(0.0, (double) radius * radius - dy * dy));
+                // Radius equals half-width, so the circle equation already respects cavity width.
                 yield distFromCenter <= Math.floor(maxDx + 1e-9);
             }
             case ELLIPTICAL -> {
@@ -232,7 +236,9 @@ public final class TunnelProfile {
 
     /** Straight walls up to spring line, then circular arc roof. */
     private static int dShapeCeiling(int d, int halfW, int roadY, int clearHeight) {
-        int radius = Math.max(1, Math.min(halfW, clearHeight - 1));
+        // Keep at least ~2 blocks of vertical wall when clear height allows, so D_SHAPE
+        // stays distinct from continuous ARCH even at modest sizes.
+        int radius = Math.max(1, Math.min(halfW, Math.max(1, clearHeight - 2)));
         int springY = roadY + clearHeight - radius;
         if (d >= halfW) {
             return springY;
@@ -253,12 +259,12 @@ public final class TunnelProfile {
         return roadY + clearHeight - drop;
     }
 
-    /** Round roof with fuller mid-height (less drop than ARCH near mid-sides). */
+    /** Round roof with fuller mid-height (flatter than CIRCULAR / ARCH near mid-sides). */
     private static int horseshoeCeiling(int d, int halfW, int roadY, int clearHeight) {
         double norm = (double) d / halfW;
-        // Circular-ish roof: drop grows slower near center than quadratic ARCH.
-        int archDepth = Math.max(1, clearHeight / 2);
-        int drop = (int) Math.round((1.0 - Math.sqrt(Math.max(0.0, 1.0 - norm * norm))) * archDepth);
+        // Shallow roof drop — keeps a wide flat crown so horseshoe ≠ truncated circle.
+        int archDepth = Math.max(1, clearHeight / 3);
+        int drop = (int) Math.round(norm * norm * archDepth);
         return roadY + clearHeight - drop;
     }
 
@@ -299,28 +305,42 @@ public final class TunnelProfile {
         return Math.min(floor, roadY + 1);
     }
 
-    private static int circularRadius(int halfW, int clearHeight) {
-        // Shield-style tube: radius at least half-width, and large enough that the
-        // circle extends below the road datum (invert > 0 for typical sizes).
-        return Math.max(halfW, clearHeight / 2 + 1);
+    /**
+     * True circle locked to cavity half-width. Clear height taller than the diameter is
+     * clamped via {@link #effectiveCircularClearHeight} so the profile is never a
+     * laterally truncated cylinder.
+     */
+    private static int circularRadius(int halfW) {
+        return Math.max(1, halfW);
+    }
+
+    /**
+     * Circular sections cannot honour an arbitrary clear height larger than the diameter
+     * without ceasing to be circular; excess height is ignored.
+     */
+    public static int effectiveCircularClearHeight(int halfCavityWidth, int clearHeight) {
+        int diameter = Math.max(2, 2 * Math.max(1, halfCavityWidth));
+        return Math.clamp(clearHeight, 1, diameter);
     }
 
     private static int circularCeiling(int d, int halfW, int roadY, int clearHeight) {
-        int radius = circularRadius(halfW, clearHeight);
-        int centerY = roadY + clearHeight - radius;
+        int radius = circularRadius(halfW);
+        int clear = effectiveCircularClearHeight(halfW, clearHeight);
+        int centerY = roadY + clear - radius;
         if (d > radius) {
             return roadY + 1;
         }
         int rise = (int) Math.round(Math.sqrt(Math.max(0.0, (double) radius * radius - (double) d * d)));
-        return Math.min(roadY + clearHeight, centerY + rise);
+        return Math.min(roadY + clear, centerY + rise);
     }
 
     private static int circularFloor(int d, int halfW, int roadY, int clearHeight, int invertDepth) {
         if (invertDepth <= 0) {
             return roadY + 1;
         }
-        int radius = circularRadius(halfW, clearHeight);
-        int centerY = roadY + clearHeight - radius;
+        int radius = circularRadius(halfW);
+        int clear = effectiveCircularClearHeight(halfW, clearHeight);
+        int centerY = roadY + clear - radius;
         if (d > radius) {
             return roadY + 1;
         }

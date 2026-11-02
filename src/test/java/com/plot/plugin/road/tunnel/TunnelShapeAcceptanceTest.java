@@ -32,8 +32,10 @@ class TunnelShapeAcceptanceTest {
 
     @Test
     void circularAndEllipticalKeepFlatPavementCell() {
-        for (TunnelShape shape : new TunnelShape[] {TunnelShape.CIRCULAR, TunnelShape.ELLIPTICAL}) {
-            TunnelCrossSectionMask mask = build(shape);
+        TunnelCrossSectionMask elliptical = build(TunnelShape.ELLIPTICAL);
+        TunnelCrossSectionMask circular = TunnelCrossSectionMask.build(
+            TunnelShape.CIRCULAR, ENVELOPE, SIDE, 4, LINING, ROAD_Y, false);
+        for (TunnelCrossSectionMask mask : new TunnelCrossSectionMask[] {elliptical, circular}) {
             assertEquals(TunnelCrossSectionMask.CellKind.OUTSIDE, mask.kindAt(0, ROAD_Y));
             assertEquals(TunnelCrossSectionMask.CellKind.OUTSIDE, mask.kindAt(1, ROAD_Y));
             boolean invert = false;
@@ -44,7 +46,7 @@ class TunnelShapeAcceptanceTest {
                     break;
                 }
             }
-            assertTrue(invert, shape + " must keep invert structure below road");
+            assertTrue(invert, "invert shape must keep structure below road");
         }
     }
 

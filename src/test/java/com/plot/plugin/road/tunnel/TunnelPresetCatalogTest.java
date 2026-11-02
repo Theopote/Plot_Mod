@@ -5,9 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.EnumSet;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class TunnelPresetCatalogTest {
 
@@ -22,7 +20,7 @@ class TunnelPresetCatalogTest {
         for (TunnelPreset preset : TunnelPreset.values()) {
             TunnelStyle style = new TunnelStyle();
             TunnelPresetCatalog.apply(preset, style);
-            assertTrue(style.getShape() != null, preset.name());
+            assertNotNull(style.getShape(), preset.name());
             covered.add(style.getShape());
             assertTrue(EMITTING_LIGHTS.contains(style.getLightMaterial()),
                 preset + " light must emit without attachment/power: " + style.getLightMaterial());
@@ -53,5 +51,16 @@ class TunnelPresetCatalogTest {
         assertEquals(TunnelShape.ELLIPTICAL, style.getShape());
         assertEquals("minecraft:packed_ice", style.getLiningMaterial());
         assertEquals("minecraft:sea_lantern", style.getLightMaterial());
+    }
+
+    @Test
+    void matchesRequiresFullFieldEqualityNotJustShape() {
+        TunnelStyle luxury = new TunnelStyle();
+        TunnelPresetCatalog.apply(TunnelPreset.LUXURY_SCENIC, luxury);
+        assertTrue(TunnelPresetCatalog.matches(TunnelPreset.LUXURY_SCENIC, luxury));
+        assertFalse(TunnelPresetCatalog.matches(TunnelPreset.ARCTIC_SNOW, luxury),
+            "same ELLIPTICAL shape must not match a different preset");
+        luxury.setClearHeight(luxury.getClearHeight() + 1);
+        assertFalse(TunnelPresetCatalog.matches(TunnelPreset.LUXURY_SCENIC, luxury));
     }
 }

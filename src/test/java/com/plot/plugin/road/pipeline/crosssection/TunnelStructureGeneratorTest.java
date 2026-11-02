@@ -18,6 +18,7 @@ import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.plugin.road.tunnel.TunnelProfile;
 import net.minecraft.util.math.BlockPos;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
 import com.plot.plugin.road.tunnel.TunnelShape;
@@ -470,6 +471,44 @@ class TunnelStructureGeneratorTest {
 
         assertTrue(solids.primitives().stream().noneMatch(p ->
             p.materialId().equals("minecraft:sea_lantern")));
+    }
+
+    @Test
+    void wallLightingOnlyOccupiesMaskAirCellsForInsetShapes() {
+        for (TunnelShape shape : new TunnelShape[] {
+            TunnelShape.HORSESHOE, TunnelShape.ELLIPTICAL, TunnelShape.CIRCULAR, TunnelShape.ARCH
+        }) {
+            RoadSolidModel solids = new RoadSolidModel();
+            ResolvedTunnelStyle style = resolved(shape, 5, 1, 1, TunnelLightingMode.WALL_AND_CEILING);
+            int envelope = 3;
+            int roadY = 64;
+            TunnelStructureGenerator.placeLighting(
+                testHost(),
+                solids,
+                style,
+                new Vec2d(0, 0),
+                new Vec2d(0, 1),
+                envelope,
+                roadY,
+                0.0,
+                columnResolver(),
+                1.0);
+
+            int half = (envelope + style.sideClearance() * 2) / 2;
+            TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+                shape, envelope, style.sideClearance(), style.clearHeight(), style.liningThickness(), roadY, false);
+            List<RoadSolidPrimitive> lights = solids.primitives().stream()
+                .filter(p -> p.materialId().equals("minecraft:sea_lantern"))
+                .toList();
+            for (RoadSolidPrimitive light : lights) {
+                int lateral = (int) Math.round(light.planPoint().y);
+                assertEquals(
+                    TunnelCrossSectionMask.CellKind.AIR,
+                    mask.kindAt(lateral, light.elevation()),
+                    shape + " light at lat=" + lateral + " y=" + light.elevation()
+                        + " must sit in mask AIR (half=" + half + ")");
+            }
+        }
     }
 
     @Test
