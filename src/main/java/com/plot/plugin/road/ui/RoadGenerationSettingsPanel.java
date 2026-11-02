@@ -61,8 +61,9 @@ public final class RoadGenerationSettingsPanel {
         }
 
         RoadNetwork network = ctx.networkManager().getNetwork();
+        renderUniformFlatModeControls(ctx, network);
+        // 复选框可能刚改写了 mode：同帧重读，避免仍渲染上一模式控件。
         boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
-        renderUniformFlatModeControls(ctx, network, uniformFlat);
         ImGui.spacing();
 
         if (!network.getEdges().isEmpty()) {
@@ -108,11 +109,9 @@ public final class RoadGenerationSettingsPanel {
         }
     }
 
-    private static void renderUniformFlatModeControls(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            boolean uniformFlat) {
-        ImBoolean enabled = new ImBoolean(uniformFlat);
+    private static void renderUniformFlatModeControls(RoadUiContext ctx, RoadNetwork network) {
+        boolean wasUniformFlat = NetworkElevationAuthority.isUniformFlat(network);
+        ImBoolean enabled = new ImBoolean(wasUniformFlat);
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.uniform_flat_elevation"), enabled)) {
             ctx.networkManager().setNetworkElevationMode(
                 enabled.get() ? NetworkElevationMode.UNIFORM_FLAT : NetworkElevationMode.PER_ROAD);
@@ -147,7 +146,12 @@ public final class RoadGenerationSettingsPanel {
                 RoadParameterLimits.ELEVATION_MIN,
                 RoadParameterLimits.ELEVATION_MAX,
                 "Y=%d")) {
-            ctx.networkManager().setUniformElevationY(draftY[0]);
+            ctx.networkManager().updateUniformElevationYDuringDrag(draftY[0]);
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            ctx.networkManager().commitUniformElevationYDrag();
+        } else if (ImGui.isItemDeactivated() && ctx.networkManager().hasPendingNetworkEdit()) {
+            ctx.networkManager().cancelUniformElevationYDrag();
         }
 
         ImGui.sameLine();

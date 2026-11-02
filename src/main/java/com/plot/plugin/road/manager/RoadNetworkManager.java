@@ -597,6 +597,42 @@ public final class RoadNetworkManager {
         }
     }
 
+    /**
+     * 拖动统一 Y 滑条：首次改值时推撤销快照，拖动过程只改 live，不重复进历史。
+     * 须与 {@link #commitUniformElevationYDrag()} 配对。
+     */
+    public void updateUniformElevationYDuringDrag(int elevation) {
+        int clamped = (int) RoadParameterLimits.clampElevation(elevation);
+        if (network.getUniformElevationY() == clamped) {
+            return;
+        }
+        if (!hasPendingNetworkEdit()) {
+            beginNetworkEdit();
+        }
+        network.setUniformElevationY(clamped);
+    }
+
+    /** 结束统一 Y 滑条拖动：提交一次 revision / 预览失效。 */
+    public void commitUniformElevationYDrag() {
+        if (!hasPendingNetworkEdit()) {
+            return;
+        }
+        finishNetworkEdit();
+        if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
+            warnIfUniformFlatGradeSeparated();
+            status.info(PlotI18n.tr(
+                "plugin.road.uniform_flat_y_updated",
+                network.getUniformElevationY()));
+        }
+    }
+
+    /** 滑条激活后未改值或取消时丢弃草稿撤销帧。 */
+    public void cancelUniformElevationYDrag() {
+        if (hasPendingNetworkEdit()) {
+            cancelPendingNetworkEdit();
+        }
+    }
+
     private void warnIfUniformFlatGradeSeparated() {
         int conflicts = NetworkElevationAuthority.countGradeSeparationConflicts(network);
         if (conflicts <= 0) {

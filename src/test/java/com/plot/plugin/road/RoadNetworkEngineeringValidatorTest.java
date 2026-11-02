@@ -39,6 +39,58 @@ class RoadNetworkEngineeringValidatorTest {
     }
 
     @Test
+    void uniformFlatIgnoresShortNonFlatLiveProfileForPreGeneration() {
+        RoadNetwork network = shortProfileNetwork(18.0, 70.0, 72.0, RoadVerticalMode.MANUAL_PROFILE);
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(72);
+
+        RoadNetworkValidationReport report =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+
+        assertFalse(report.blocksBuild(), "UNIFORM_FLAT must not be blocked by dormant short slope VA");
+        assertTrue(report.items().stream().noneMatch(item ->
+            "plugin.road.validation.short_road_non_flat".equals(item.messageKey())));
+    }
+
+    @Test
+    void uniformFlatIgnoresConflictingLiveFlatBasesForPreGeneration() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode spurN = network.createNode(new Vec2d(0, 20));
+        RoadNode spurS = network.createNode(new Vec2d(0, -20));
+        Road bare = network.createRoad("bare");
+        network.createEdge(junction.getId(), spurN.getId(),
+            List.of(junction.getPosition(), spurN.getPosition()), bare.getId());
+        network.createEdge(junction.getId(), spurS.getId(),
+            List.of(junction.getPosition(), spurS.getPosition()), bare.getId());
+
+        Road roadA = network.createRoad("flat-a");
+        Road roadB = network.createRoad("flat-b");
+        RoadNode endA = network.createNode(new Vec2d(100, 0));
+        RoadNode endB = network.createNode(new Vec2d(-100, 0));
+        network.createEdge(junction.getId(), endA.getId(),
+            List.of(junction.getPosition(), endA.getPosition()), roadA.getId());
+        network.createEdge(junction.getId(), endB.getId(),
+            List.of(junction.getPosition(), endB.getPosition()), roadB.getId());
+        roadA.setVerticalMode(RoadVerticalMode.FLAT);
+        roadB.setVerticalMode(RoadVerticalMode.FLAT);
+        roadA.setFlatVerticalIntent(new com.plot.plugin.road.vertical.FlatVerticalIntent(70.0));
+        roadB.setFlatVerticalIntent(new com.plot.plugin.road.vertical.FlatVerticalIntent(76.0));
+        com.plot.plugin.road.vertical.FlatVerticalIntentSupport.syncCompiledAlignment(network, roadA, 8.0);
+        com.plot.plugin.road.vertical.FlatVerticalIntentSupport.syncCompiledAlignment(network, roadB, 8.0);
+
+        assertTrue(RoadNetworkEngineeringValidator.analyzePreGeneration(network).blocksBuild());
+
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(72);
+        RoadNetworkValidationReport report =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+        assertFalse(report.blocksBuild(), "UNIFORM_FLAT must ignore live flat-flat Y mismatch");
+        assertTrue(report.items().stream().noneMatch(item ->
+            "plugin.road.validation.flat_flat_at_grade_mismatch".equals(item.messageKey())));
+    }
+
+    @Test
     void preGenerationAllowsFlatShortRoadAndSlopeAtMinimumLength() {
         RoadNetwork flat = shortProfileNetwork(18.0, 70.0, 70.0, RoadVerticalMode.FLAT);
         RoadNetwork minimumLength =

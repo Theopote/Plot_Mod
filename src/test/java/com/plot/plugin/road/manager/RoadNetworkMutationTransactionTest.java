@@ -136,6 +136,63 @@ class RoadNetworkMutationTransactionTest {
     }
 
     @Test
+    void uniformElevationYDragCommitsSingleUndoFrame() {
+        manager.setNetworkElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        changeNotifications.set(0);
+        long before = manager.getNetworkRevision();
+        assertEquals(64, manager.getNetwork().getUniformElevationY());
+
+        manager.updateUniformElevationYDuringDrag(70);
+        manager.updateUniformElevationYDuringDrag(72);
+        manager.updateUniformElevationYDuringDrag(75);
+        assertTrue(manager.hasPendingNetworkEdit());
+        assertEquals(before, manager.getNetworkRevision());
+        assertEquals(0, changeNotifications.get());
+        assertEquals(75, manager.getNetwork().getUniformElevationY());
+
+        manager.commitUniformElevationYDrag();
+        assertFalse(manager.hasPendingNetworkEdit());
+        assertEquals(before + 1, manager.getNetworkRevision());
+        assertEquals(1, changeNotifications.get());
+        assertTrue(manager.canUndo());
+
+        manager.undo();
+        assertEquals(64, manager.getNetwork().getUniformElevationY());
+    }
+
+    @Test
+    void uniformFlatModeAndYRoundTripThroughUndoAndJson() throws Exception {
+        manager.setNetworkElevationMode(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        manager.setUniformElevationY(72);
+        assertEquals(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT,
+            manager.getNetwork().getElevationMode());
+        assertEquals(72, manager.getNetwork().getUniformElevationY());
+
+        String json = manager.getNetwork().toJson();
+        RoadNetwork restored = RoadNetwork.fromJson(json);
+        assertEquals(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT,
+            restored.getElevationMode());
+        assertEquals(72, restored.getUniformElevationY());
+
+        manager.undo();
+        assertEquals(64, manager.getNetwork().getUniformElevationY());
+        manager.undo();
+        assertEquals(
+            com.plot.plugin.road.model.NetworkElevationMode.PER_ROAD,
+            manager.getNetwork().getElevationMode());
+        manager.redo();
+        assertEquals(
+            com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT,
+            manager.getNetwork().getElevationMode());
+        manager.redo();
+        assertEquals(72, manager.getNetwork().getUniformElevationY());
+    }
+
+    @Test
     void reconcileIntersectionsIncrementsRevisionOnlyWhenRegistryChanges() {
         RoadNetwork network = manager.getNetwork();
         Road roadA = network.createRoad("road-a");

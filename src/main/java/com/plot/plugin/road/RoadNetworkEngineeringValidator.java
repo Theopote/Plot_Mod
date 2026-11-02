@@ -65,10 +65,15 @@ public final class RoadNetworkEngineeringValidator {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
         if (network != null && !network.getEdges().isEmpty()) {
             addUniformFlatGradeSeparationBlocker(items, network);
-            addShortRoadVerticalAlignmentBlocker(items, network);
-            addVerticalElevationBoundsBlocker(items, network, elevationBounds);
-            addFlatRoadJunctionConflictBlocker(items, network);
-            addFlatFlatAtGradeMismatchBlocker(items, network);
+            if (com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(network)) {
+                // 生成权威为全网统一 Y：跳过 live 逐路纵断冲突/短坡检查，避免旧 VA/FLAT 误阻断。
+                addUniformFlatElevationBoundsBlocker(items, network, elevationBounds);
+            } else {
+                addShortRoadVerticalAlignmentBlocker(items, network);
+                addVerticalElevationBoundsBlocker(items, network, elevationBounds);
+                addFlatRoadJunctionConflictBlocker(items, network);
+                addFlatFlatAtGradeMismatchBlocker(items, network);
+            }
             addIntersectionIncompleteBlocker(items, network);
             addHorizontalAlignmentPreflightBlockers(items, network);
         }
@@ -406,6 +411,10 @@ public final class RoadNetworkEngineeringValidator {
             RoadNetwork network,
             RoadSystemConfig config,
             RoadElevationBounds elevationBounds) {
+        if (com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(network)) {
+            addUniformFlatElevationBoundsBlocker(items, network, elevationBounds);
+            return;
+        }
         if (!hasVerticalAlignmentRoads(network)) {
             return;
         }
@@ -460,6 +469,25 @@ public final class RoadNetworkEngineeringValidator {
                 (int) bounds.minY(),
                 (int) bounds.maxY()));
         }
+    }
+
+    /** 全网统一标高模式：仅校验统一 Y 是否在世界高度范围内。 */
+    private static void addUniformFlatElevationBoundsBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network,
+            RoadElevationBounds bounds) {
+        if (bounds == null) {
+            bounds = RoadWorldElevationBounds.fallback();
+        }
+        int y = com.plot.plugin.road.vertical.NetworkElevationAuthority.effectiveUniformY(network);
+        if (bounds.contains(y)) {
+            return;
+        }
+        items.add(RoadNetworkValidationReport.Item.error(
+            "plugin.road.validation.vertical_elevation_out_of_bounds",
+            1,
+            (int) bounds.minY(),
+            (int) bounds.maxY()));
     }
 
     private static void addFlatRoadJunctionConflictBlocker(
