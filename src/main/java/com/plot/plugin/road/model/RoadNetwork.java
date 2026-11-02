@@ -77,7 +77,7 @@ import java.util.stream.Collectors;
 public class RoadNetwork {
 
     /** 路网 sidecar JSON 格式版本（{@link NetworkData#schemaVersion}）。 */
-    public static final int CURRENT_SCHEMA_VERSION = 3;
+    public static final int CURRENT_SCHEMA_VERSION = 4;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -95,6 +95,27 @@ public class RoadNetwork {
     /** 单路自交叠交注册表。 */
     private final Map<String, com.plot.plugin.road.crossing.RoadStackCrossing> stackCrossings =
         new ConcurrentHashMap<>();
+
+    private NetworkElevationMode elevationMode = NetworkElevationMode.PER_ROAD;
+    private int uniformElevationY =
+        com.plot.plugin.road.vertical.NetworkElevationAuthority.DEFAULT_UNIFORM_ELEVATION_Y;
+
+    public NetworkElevationMode getElevationMode() {
+        return elevationMode != null ? elevationMode : NetworkElevationMode.PER_ROAD;
+    }
+
+    public void setElevationMode(NetworkElevationMode elevationMode) {
+        this.elevationMode = elevationMode != null ? elevationMode : NetworkElevationMode.PER_ROAD;
+    }
+
+    public int getUniformElevationY() {
+        return (int) com.plot.plugin.road.RoadParameterLimits.clampElevation(uniformElevationY);
+    }
+
+    public void setUniformElevationY(int uniformElevationY) {
+        this.uniformElevationY =
+            (int) com.plot.plugin.road.RoadParameterLimits.clampElevation(uniformElevationY);
+    }
 
     public Map<String, RoadNode> getNodes() {
         return Map.copyOf(nodes);
@@ -831,6 +852,7 @@ public class RoadNetwork {
                 case 0 -> migrateV0ToV1(data);
                 case 1 -> RoadNetworkVerticalModeMigration.migrateV1ToV2(data);
                 case 2 -> RoadNetworkProfileSourceMigration.migrateV2ToV3(data);
+                case 3 -> migrateV3ToV4(data);
                 default -> throw new RoadNetworkFormatException(
                     RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
                     PlotI18n.error(
@@ -842,6 +864,18 @@ public class RoadNetwork {
         }
         RoadNetworkVerticalModeMigration.normalizeLoadedVerticalModes(data);
         RoadNetworkProfileSourceMigration.normalizeLoadedProfileSources(data);
+        return data;
+    }
+
+    private static NetworkData migrateV3ToV4(NetworkData data) {
+        data.schemaVersion = 4;
+        if (data.elevationMode == null || data.elevationMode.isBlank()) {
+            data.elevationMode = NetworkElevationMode.PER_ROAD.name();
+        }
+        if (data.uniformElevationY == null) {
+            data.uniformElevationY =
+                com.plot.plugin.road.vertical.NetworkElevationAuthority.DEFAULT_UNIFORM_ELEVATION_Y;
+        }
         return data;
     }
 
@@ -1242,6 +1276,8 @@ public class RoadNetwork {
 
     static class NetworkData {
         int schemaVersion = CURRENT_SCHEMA_VERSION;
+        String elevationMode;
+        Integer uniformElevationY;
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
         List<RoadData> roads = new ArrayList<>();
@@ -1251,6 +1287,8 @@ public class RoadNetwork {
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
             data.schemaVersion = CURRENT_SCHEMA_VERSION;
+            data.elevationMode = network.getElevationMode().name();
+            data.uniformElevationY = network.getUniformElevationY();
 
             for (RoadNode node : network.nodes.values()) {
                 NodeData nodeData = new NodeData();
@@ -1378,6 +1416,10 @@ public class RoadNetwork {
 
         RoadNetwork toNetwork() {
             RoadNetwork network = new RoadNetwork();
+            network.setElevationMode(NetworkElevationMode.fromStored(elevationMode));
+            if (uniformElevationY != null) {
+                network.setUniformElevationY(uniformElevationY);
+            }
 
             for (NodeData nodeData : nodes) {
                 RoadNode node = new RoadNode(

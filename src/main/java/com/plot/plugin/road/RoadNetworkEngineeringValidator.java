@@ -64,6 +64,7 @@ public final class RoadNetworkEngineeringValidator {
             RoadElevationBounds elevationBounds) {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
         if (network != null && !network.getEdges().isEmpty()) {
+            addUniformFlatGradeSeparationBlocker(items, network);
             addShortRoadVerticalAlignmentBlocker(items, network);
             addVerticalElevationBoundsBlocker(items, network, elevationBounds);
             addFlatRoadJunctionConflictBlocker(items, network);
@@ -72,6 +73,19 @@ public final class RoadNetworkEngineeringValidator {
             addHorizontalAlignmentPreflightBlockers(items, network);
         }
         return new RoadNetworkValidationReport(items);
+    }
+
+    private static void addUniformFlatGradeSeparationBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        int conflicts = com.plot.plugin.road.vertical.NetworkElevationAuthority
+            .countGradeSeparationConflicts(network);
+        if (conflicts <= 0) {
+            return;
+        }
+        items.add(RoadNetworkValidationReport.Item.error(
+            "plugin.road.uniform_flat_grade_sep_conflict",
+            conflicts));
     }
 
     public static RoadNetworkValidationReport analyze(

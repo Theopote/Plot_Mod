@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * 最终 {@link RoadGenerationResult#placementRecords} 接缝验收：
@@ -147,8 +147,7 @@ public final class RoadPlacementSeamAssertions {
         int present = 0;
         for (StationPavement sample : samples) {
             if (sample.pavementY() == null) {
-                assertTrue(!sample.clearedToAir(),
-                    context + ": pavement cleared to air at station " + sample.station()
+                assertFalse(sample.clearedToAir(), context + ": pavement cleared to air at station " + sample.station()
                         + " (" + sample.worldX() + "," + sample.worldZ() + ")");
                 continue;
             }
@@ -168,8 +167,7 @@ public final class RoadPlacementSeamAssertions {
 
     public static void assertNoClearedPavement(List<StationPavement> samples, String context) {
         for (StationPavement sample : samples) {
-            assertTrue(!sample.clearedToAir(),
-                context + ": design pavement cleared at station " + sample.station());
+            assertFalse(sample.clearedToAir(), context + ": design pavement cleared at station " + sample.station());
         }
     }
 
@@ -202,8 +200,7 @@ public final class RoadPlacementSeamAssertions {
             assertLongitudinalContinuity(near, 1, "junction approach edge=" + edge.getId());
             assertNoClearedPavement(near, "junction approach edge=" + edge.getId());
             StationPavement closest = near.getFirst();
-            assertTrue(closest.pavementY() != null,
-                "missing pavement at junction seam edge=" + edge.getId()
+            assertNotNull(closest.pavementY(), "missing pavement at junction seam edge=" + edge.getId()
                     + " @" + closest.worldX() + "," + closest.worldZ());
             assertTrue(Math.abs(closest.pavementY() - plazaY) <= maxStepToPlaza,
                 "junction seam cliff edge=" + edge.getId()
@@ -221,7 +218,7 @@ public final class RoadPlacementSeamAssertions {
             int window,
             int maxStep) {
         List<ModeTransition> transitions = findBridgeModeTransitions(samples);
-        assertTrue(!transitions.isEmpty(), "expected at least one OPEN↔BRIDGE transition along centerline");
+        assertFalse(transitions.isEmpty(), "expected at least one OPEN↔BRIDGE transition along centerline");
         for (ModeTransition transition : transitions) {
             int from = Math.max(0, transition.fromIndex() - window);
             int to = Math.min(samples.size() - 1, transition.toIndex() + window);
@@ -270,8 +267,7 @@ public final class RoadPlacementSeamAssertions {
         assertTrue(maxAfter > maxBefore,
             "carriageway must widen after variable section, beforeHalf=" + maxBefore
                 + " afterHalf=" + maxAfter);
-        assertTrue(placements.roadShoulderSeamGapCount == 0,
-            "variable-width must keep ROAD/SHOULDER seam continuous");
+        assertEquals(0, placements.roadShoulderSeamGapCount, "variable-width must keep ROAD/SHOULDER seam continuous");
     }
 
     private static void assertCurbPresence(

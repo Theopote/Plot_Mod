@@ -162,7 +162,8 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
    * 产品层纵向方式可为 FIT_TERRAIN + EDITED。
    */
   private static RoadVerticalMode verticalAlignmentSolverMode(RoadNetwork network, Road road) {
-    if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+    if (com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(network)
+            || road.getVerticalMode() == RoadVerticalMode.FLAT) {
       return RoadVerticalMode.FLAT;
     }
     if (ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)) {

@@ -233,7 +233,7 @@ class RoadNetworkVerticalModeMigrationTest {
             }
             """);
         String saved = network.toJson();
-        assertTrue(saved.contains("\"schemaVersion\": 3"));
+        assertTrue(saved.contains("\"schemaVersion\": 4"));
         assertTrue(saved.contains("\"verticalMode\": \"FIT_TERRAIN\""));
     }
 

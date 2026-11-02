@@ -62,6 +62,8 @@ public final class VerticalProfileGenerationPolicy {
         if (generationNetwork == null) {
             return 0;
         }
+        com.plot.plugin.road.vertical.NetworkElevationAuthority
+            .applyUniformFlatToGenerationSnapshot(generationNetwork);
         int stripped = 0;
         for (Road road : generationNetwork.getRoads().values()) {
             if (road == null) {

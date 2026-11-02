@@ -164,6 +164,12 @@ final class VerticalProfileEditor {
         if (roadId == null || roadId.isBlank()) {
             return;
         }
+        if (ctx != null
+                && com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(
+                    ctx.networkManager().getNetwork())) {
+            ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+            return;
+        }
         selectEditorRoad(ctx, roadId, true);
         editorWindowOpen.set(true);
         focusEditorOnOpen = true;

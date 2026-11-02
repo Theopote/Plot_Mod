@@ -56,7 +56,16 @@ public final class NetworkNodeElevationResolver {
         Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> approachConstraints =
             collectApproachConstraints(network);
 
+        Integer uniformY = null;
+        if (com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(network)) {
+            uniformY = com.plot.plugin.road.vertical.NetworkElevationAuthority.effectiveUniformY(network);
+        }
+
         for (RoadNode node : network.getNodes().values()) {
+            if (uniformY != null && (node == null || !node.isGradeSeparated())) {
+                resolved.put(node.getId(), uniformY);
+                continue;
+            }
             if (node.getManualElevation() != null) {
                 resolved.put(node.getId(), node.getManualElevation().intValue());
                 continue;

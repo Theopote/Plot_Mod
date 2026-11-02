@@ -10,6 +10,7 @@ import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
+import com.plot.plugin.road.model.NetworkElevationMode;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -20,6 +21,7 @@ import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
+import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
@@ -496,7 +498,7 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 全网统一标高平路：沿途经地形采样，取众数（否则平均）作为路面 Y 并应用。
+     * 启用全网统一标高模式，并写入推荐/指定 Y（不改写道路 VA / maxSlope）。
      */
     public RoadUniformElevationUtils.ElevationRecommendation applyUniformFlatElevation(
             TerrainSampler terrain) {
@@ -517,7 +519,7 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 全网统一到用户指定标高，最大坡度强制 0。
+     * 启用全网统一标高模式并写入用户指定 Y。
      */
     public void applyCustomUniformFlatElevation(int elevation) {
         if (network.getEdges().isEmpty()) {
@@ -533,41 +535,76 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 将全部节点手动标高设为 {@code elevation}，全部道路与默认最大坡度设为 0。
+     * 写入路网级 {@link NetworkElevationMode#UNIFORM_FLAT} + Y；不改节点手动标高、不强制 maxSlope=0。
      */
     public void applyUniformFlatElevationAt(
             int elevation,
             String strategyLabel,
             int sampleCount,
             double average) {
+        int clamped = (int) RoadParameterLimits.clampElevation(elevation);
         mutateNetwork(() -> {
-            for (RoadNode node : network.getNodes().values()) {
-                node.setManualElevation((double) elevation);
-            }
-            for (Road road : network.getRoads().values()) {
-                road.setMaxSlope(0f);
-            }
+            network.setElevationMode(NetworkElevationMode.UNIFORM_FLAT);
+            network.setUniformElevationY(clamped);
         });
-        // 仅改路网内道路坡度，不写全局默认配置，避免副作用持久化到 config
+        warnIfUniformFlatGradeSeparated();
 
         if (sampleCount > 0) {
             status.success(PlotI18n.tr(
                 "plugin.road.uniform_elevation_applied",
-                elevation,
+                clamped,
                 strategyLabel != null ? strategyLabel : "",
                 sampleCount,
                 String.format("%.1f", average)));
         } else {
             status.success(PlotI18n.tr(
                 "plugin.road.uniform_elevation_applied_custom",
-                elevation));
+                clamped));
         }
         LOGGER.info(
-            "全网统一标高: Y={} ({}), 样本={}, 平均={}",
-            elevation,
+            "全网统一标高模式: Y={} ({}), 样本={}, 平均={}",
+            clamped,
             strategyLabel,
             sampleCount,
             average);
+    }
+
+    public void setNetworkElevationMode(NetworkElevationMode mode) {
+        NetworkElevationMode next = mode != null ? mode : NetworkElevationMode.PER_ROAD;
+        if (network.getElevationMode() == next) {
+            return;
+        }
+        mutateNetwork(() -> network.setElevationMode(next));
+        if (next == NetworkElevationMode.UNIFORM_FLAT) {
+            warnIfUniformFlatGradeSeparated();
+            status.info(PlotI18n.tr(
+                "plugin.road.uniform_flat_mode_enabled",
+                network.getUniformElevationY()));
+        } else {
+            status.info(PlotI18n.tr("plugin.road.uniform_flat_mode_disabled"));
+        }
+    }
+
+    public void setUniformElevationY(int elevation) {
+        int clamped = (int) RoadParameterLimits.clampElevation(elevation);
+        if (network.getUniformElevationY() == clamped) {
+            return;
+        }
+        mutateNetwork(() -> network.setUniformElevationY(clamped));
+        if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
+            warnIfUniformFlatGradeSeparated();
+            status.info(PlotI18n.tr("plugin.road.uniform_flat_y_updated", clamped));
+        }
+    }
+
+    private void warnIfUniformFlatGradeSeparated() {
+        int conflicts = NetworkElevationAuthority.countGradeSeparationConflicts(network);
+        if (conflicts <= 0) {
+            return;
+        }
+        status.warning(PlotI18n.tr(
+            "plugin.road.uniform_flat_grade_sep_conflict",
+            conflicts));
     }
 
     private void notifyNetworkChanged() {

@@ -12,8 +12,7 @@ import com.plot.plugin.road.solid.RoadSolidModel;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RoadGenerationIntegrityValidatorTest {
 
@@ -236,7 +235,7 @@ class RoadGenerationIntegrityValidatorTest {
             RoadGenerationIntegrityValidator.validate(plan, solids, new FlatTerrainSampler(64));
 
         assertEquals(1, report.unsupportedPavementCount());
-        assertTrue(!report.isClean());
+        assertFalse(report.isClean());
     }
 
     @Test

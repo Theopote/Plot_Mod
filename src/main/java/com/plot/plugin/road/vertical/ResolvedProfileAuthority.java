@@ -28,6 +28,9 @@ public final class ResolvedProfileAuthority {
         if (road == null || network == null) {
             return new Resolution(Kind.AUTO, false);
         }
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return new Resolution(Kind.FLAT, false);
+        }
         RoadVerticalMode mode = road.getVerticalMode();
         if (mode == RoadVerticalMode.FLAT) {
             return new Resolution(Kind.FLAT, false);

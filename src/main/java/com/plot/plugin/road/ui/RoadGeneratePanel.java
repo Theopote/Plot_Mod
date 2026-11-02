@@ -12,6 +12,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
+import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
@@ -28,14 +29,12 @@ public final class RoadGeneratePanel {
     private final VerticalModeControls verticalModeControls = new VerticalModeControls();
     private final RoadPathVerticalPropertyPanel pathPropertyPanel =
         new RoadPathVerticalPropertyPanel(new RoadVerticalStrategySwitchDialog());
-    private final RoadNetworkToolsPanel networkToolsPanel;
     private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
         profileEditor.setOnAlignmentCommitted(this::recomputePreviewAfterProfileConfirm);
     }
@@ -54,6 +53,9 @@ public final class RoadGeneratePanel {
     /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */
     public void openProfileForEdge(String edgeId) {
         if (edgeId == null || edgeId.isBlank()) {
+            return;
+        }
+        if (rejectProfileEditorIfUniformFlat()) {
             return;
         }
         profileEdgeId = edgeId;
@@ -85,6 +87,9 @@ public final class RoadGeneratePanel {
             ctx,
             pathPropertyPanel,
             () -> {
+                if (rejectProfileEditorIfUniformFlat()) {
+                    return;
+                }
                 Road road = resolveActiveProfileRoad(network);
                 if (road != null) {
                     profileEditor.openEditorForRoad(ctx, road.getId());
@@ -109,12 +114,13 @@ public final class RoadGeneratePanel {
         }
     }
 
-    /** 纵断面概览、交叉检查、全网标高：默认折叠，避免生成主路径被撑长。 */
+    /** 纵断面概览、交叉检查：默认折叠，避免生成主路径被撑长。 */
     private void renderSecondaryGenerateTools(
             RoadNetwork network,
             RoadNetworkValidationReport preflight) {
         ImGui.separator();
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.profile_section"))) {
+        boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
+        if (!uniformFlat && ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.profile_section"))) {
             RoadProfileOverviewSection.render(
                 ctx,
                 network,
@@ -124,7 +130,14 @@ public final class RoadGeneratePanel {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.intersection_check"))) {
             renderIntersectionCheckBody(network, preflight);
         }
-        networkToolsPanel.render(network);
+    }
+
+    private boolean rejectProfileEditorIfUniformFlat() {
+        if (!NetworkElevationAuthority.isUniformFlat(ctx.networkManager().getNetwork())) {
+            return false;
+        }
+        ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+        return true;
     }
 
     void renderProfileEditorWindow(RoadNetwork network) {
@@ -353,11 +366,6 @@ public final class RoadGeneratePanel {
 
     public void renderDeferredModals() {
         pathPropertyPanel.renderDeferredModals(ctx);
-        networkToolsPanel.renderConfirmPopup();
-    }
-
-    public void renderUniformElevationConfirmPopup() {
-        networkToolsPanel.renderConfirmPopup();
     }
 
     public void renderBuildConfirmPopup() {
