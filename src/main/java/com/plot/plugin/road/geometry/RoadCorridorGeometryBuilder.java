@@ -32,7 +32,10 @@ public final class RoadCorridorGeometryBuilder {
     }
 
     /**
-     * 画布叠加层走廊：开放折线用 round join，避免锐角 miter 刀尖；闭环仍走多边形偏移。
+     * 画布叠加层走廊：急折中心线先圆角，再高斜接限制等距偏移，保持中心线两侧半宽。
+     * <p>
+     * 圆角弧被离散成许多小转角；默认 miter limit=4 会把每段内侧 bevel 掉，
+     * 看起来像挤压变形并容易自交。圆角后抬高斜接限制即可得到平行等宽边界。
      */
     public static RoadCorridorGeometry buildForOverlay(
             List<Vec2d> centerline,
@@ -45,7 +48,10 @@ public final class RoadCorridorGeometryBuilder {
         if (effectiveClosed) {
             return buildClosed(centerline, halfWidth);
         }
-        return buildOpen(centerline, halfWidth, OpenPolylineOffset.JoinStyle.ROUND);
+        List<Vec2d> sanitized = OpenPolylineOffset.sanitizeOpenCenterline(centerline);
+        // 半径略大于半宽，内侧偏移保留正曲率，避免看起来被挤成尖角
+        List<Vec2d> filleted = OpenPolylineFillet.filletSharpCorners(sanitized, halfWidth * 1.25);
+        return buildOpen(filleted, halfWidth, OpenPolylineOffset.JoinStyle.MITER, 64.0);
     }
 
     /**
@@ -131,15 +137,24 @@ public final class RoadCorridorGeometryBuilder {
             List<Vec2d> centerline,
             double halfWidth,
             OpenPolylineOffset.JoinStyle joinStyle) {
+        return buildOpen(centerline, halfWidth, joinStyle, PolygonUtils.DEFAULT_MITER_LIMIT);
+    }
+
+    private static RoadCorridorGeometry buildOpen(
+            List<Vec2d> centerline,
+            double halfWidth,
+            OpenPolylineOffset.JoinStyle joinStyle,
+            double miterLimit) {
         List<Vec2d> sanitized = OpenPolylineOffset.sanitizeOpenCenterline(centerline);
         if (sanitized.size() < 2) {
             return empty(centerline, false);
         }
 
+        double safeMiterLimit = miterLimit > 0.0 ? miterLimit : PolygonUtils.DEFAULT_MITER_LIMIT;
         OpenPolylineOffset.OffsetResult left = OpenPolylineOffset.offset(
-            sanitized, halfWidth, PolygonUtils.DEFAULT_MITER_LIMIT, joinStyle);
+            sanitized, halfWidth, safeMiterLimit, joinStyle);
         OpenPolylineOffset.OffsetResult right = OpenPolylineOffset.offset(
-            sanitized, -halfWidth, PolygonUtils.DEFAULT_MITER_LIMIT, joinStyle);
+            sanitized, -halfWidth, safeMiterLimit, joinStyle);
         if (left.points().size() < 2 || right.points().size() < 2) {
             return empty(sanitized, false);
         }
@@ -151,7 +166,7 @@ public final class RoadCorridorGeometryBuilder {
         List<Vec2d> fill = composeOpenFill(left.points(), right.points());
         if (PolygonValidator.hasSelfIntersection(fill)) {
             warnings.add("fill_self_intersection");
-            // ROUND 内角已尽量避免穿越；若填充仍自交（走廊几何自叠），渲染侧改描左右边界。
+            // 若填充仍自交（走廊几何自叠），渲染侧改描左右边界。
         }
 
         return new RoadCorridorGeometry(

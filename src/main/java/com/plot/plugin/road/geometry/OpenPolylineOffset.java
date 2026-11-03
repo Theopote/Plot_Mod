@@ -185,10 +185,8 @@ final class OpenPolylineOffset {
     }
 
     /**
-     * 外角：半宽圆弧（去掉刀尖）；内角：斜接交点。
-     * <p>
-     * 锐角内角若退化为 bevel，两偏移边端点会落在道路对侧，弦线横穿路面形成领结重叠；
-     * 此时改用角平分线半宽点，把内角收在顶点附近。
+     * 外角：半宽圆弧；内角：斜接，超限则 bevel。
+     * 叠加层急折应先经 {@link OpenPolylineFillet} 再高斜接限制偏移，避免半宽被挤扁。
      */
     private static void appendRoundOrInnerBevel(
             List<Vec2d> output,
@@ -208,7 +206,7 @@ final class OpenPolylineOffset {
         Vec2d inUnit = inDir.multiply(1.0 / inLen);
         Vec2d outUnit = outDir.multiply(1.0 / outLen);
         double cross = inUnit.cross(outUnit);
-        // 左转且左偏 / 右转且右偏 → 内角：用斜接；超限用角平分线点，禁止穿越型 bevel
+        // 左转且左偏 / 右转且右偏 → 内角：斜接，超限 bevel
         if (cross * distance > PolygonUtils.DEFAULT_EPSILON) {
             Vec2d corner = intersectOffsetEdges(
                 vertex,
@@ -219,7 +217,7 @@ final class OpenPolylineOffset {
                 warnings);
             if (PolygonUtils.isFinite(corner)) {
                 output.add(corner);
-            } else if (!appendInnerBisectorJoin(output, vertex, inUnit, outUnit, distance, warnings)) {
+            } else {
                 appendBevelCorner(output, current.end(), next.start(), warnings);
             }
             return;
@@ -227,30 +225,6 @@ final class OpenPolylineOffset {
         if (!appendRoundCorner(output, vertex, current, next, Math.abs(distance), inUnit, outUnit, warnings)) {
             appendBevelCorner(output, current.end(), next.start(), warnings);
         }
-    }
-
-    /**
-     * 锐角内角截断斜接：只落角平分线半宽点。
-     * 不连接两偏移边端点——锐角时端点常在道路对侧，bevel 弦会画出领结重叠。
-     */
-    private static boolean appendInnerBisectorJoin(
-            List<Vec2d> output,
-            Vec2d vertex,
-            Vec2d inUnit,
-            Vec2d outUnit,
-            double distance,
-            List<String> warnings) {
-        if (!PolygonUtils.isFinite(vertex) || Math.abs(distance) <= PolygonUtils.DEFAULT_EPSILON) {
-            return false;
-        }
-        Vec2d sum = PolygonUtils.leftNormal(inUnit).add(PolygonUtils.leftNormal(outUnit));
-        double length = sum.length();
-        if (length <= PolygonUtils.DEFAULT_EPSILON) {
-            return false;
-        }
-        warnings.add("inner_bisector_join");
-        output.add(vertex.add(sum.multiply(distance / length)));
-        return true;
     }
 
     /**
