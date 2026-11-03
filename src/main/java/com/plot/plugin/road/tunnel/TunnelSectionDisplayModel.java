@@ -222,7 +222,7 @@ public final class TunnelSectionDisplayModel {
             expandBounds(bounds, lateral, y);
         });
 
-        if (schematicAccent && liningCells != null && !liningCells.isEmpty()) {
+        if (schematicAccent && !liningCells.isEmpty()) {
             applySchematicAccentMarkers(layers, liningCells, mask, roadY);
         }
 

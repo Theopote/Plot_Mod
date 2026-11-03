@@ -4,8 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
+import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.ConstructionRun;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -13,9 +15,11 @@ import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
@@ -29,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -76,6 +81,94 @@ class TunnelContinuityTest {
             .filter(record -> "minecraft:air".equals(record.newBlockId))
             .count();
         assertTrue(airBlocks > 0, scenario + " must carve tunnel air volume");
+    }
+
+    @ParameterizedTest(name = "{0} station mask")
+    @MethodSource("tunnelScenarios")
+    void bentStationsMatchMaskCavityAndLining(Scenario scenario) {
+        RoadGenerationResult result = generateTunnel(scenario);
+        RoadSystemConfig config = new RoadSystemConfig("tunnel-continuity");
+        config.setRoadWidth(scenario.roadWidth());
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        int envelope = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+
+        TunnelStyle style = new TunnelStyle();
+        style.setShape(TunnelShape.RECTANGULAR);
+        style.setClearHeight(5);
+        style.setSideClearance(1);
+        style.setLiningThickness(1);
+        style.ensureConfigDefaults();
+        ResolvedTunnelStyle tunnelStyle = ResolvedTunnelStyle.from(style);
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            tunnelStyle.shape(),
+            envelope,
+            tunnelStyle.sideClearance(),
+            tunnelStyle.clearHeight(),
+            tunnelStyle.liningThickness(),
+            64,
+            false);
+
+        List<PathSegment> segments = scenario.segments();
+        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
+        for (PathSegment segment : segments) {
+            heightInfos.add(new SegmentHeightInfo(segment, 72, 72, 64, 64, 0.0));
+        }
+
+        AtomicInteger stations = new AtomicInteger();
+        AtomicInteger airHits = new AtomicInteger();
+        AtomicInteger liningHits = new AtomicInteger();
+        RoadPathStationSampler.forEach(
+            segments,
+            heightInfos,
+            0.0,
+            1.0,
+            (center, targetY) -> targetY,
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
+                // Skip endpoints / corners where rasterization is sparsest.
+                if (chainage < 4.0 || chainage > totalLength(segments) - 4.0) {
+                    return;
+                }
+                stations.incrementAndGet();
+                Vec2d left = leftNormal.lengthSquared() > 1e-12 ? leftNormal.normalize() : new Vec2d(0, 1);
+                int[] airFound = {0};
+                int[] liningFound = {0};
+                mask.forEach((lateral, y, kind) -> {
+                    if (y < 64) {
+                        return;
+                    }
+                    Vec2d point = center.add(left.multiply(lateral));
+                    BlockPos pos = new BlockPos(
+                        (int) Math.round(point.x), y, (int) Math.round(point.y));
+                    var record = result.placementRecords.get(pos);
+                    if (kind == TunnelCrossSectionMask.CellKind.AIR
+                            && record != null
+                            && "minecraft:air".equals(record.newBlockId)) {
+                        airFound[0]++;
+                    }
+                    if (kind == TunnelCrossSectionMask.CellKind.LINING
+                            && result.placementLayers.get(pos) == RoadSolidLayer.TUNNEL
+                            && record != null
+                            && !"minecraft:air".equals(record.newBlockId)) {
+                        liningFound[0]++;
+                    }
+                });
+                assertTrue(airFound[0] > 0, scenario + " station " + chainage + " needs cavity air");
+                assertTrue(liningFound[0] > 0, scenario + " station " + chainage + " needs lining");
+                airHits.addAndGet(airFound[0]);
+                liningHits.addAndGet(liningFound[0]);
+            });
+
+        assertTrue(stations.get() >= 4, scenario + " stations=" + stations.get());
+        assertTrue(airHits.get() >= stations.get(), scenario + " airHits=" + airHits.get());
+        assertTrue(liningHits.get() >= stations.get(), scenario + " liningHits=" + liningHits.get());
+    }
+
+    private static double totalLength(List<PathSegment> segments) {
+        double total = 0.0;
+        for (PathSegment segment : segments) {
+            total += segment.distance;
+        }
+        return total;
     }
 
     private static boolean hasIsolatedLiningBlock(Set<BlockPos> lining) {
