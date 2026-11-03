@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -217,6 +218,45 @@ class RoadProfileConstraintSynchronizerTest {
         assertEquals(70, at(b, 50), 1e-6);
         assertEquals(70, b.getFlatVerticalIntent().getBaseElevation());
         for (double station = 0; station <= 100; station++) assertEquals(70, at(b, station), 1e-6);
+    }
+
+    @Test
+    void releaseStaleCrossingAnchorsDowngradesOrphanJunctionFixedToFree() {
+        Road a = road("a", 64);
+        Road b = road("b", 64);
+        network.registerCrossing(RoadCrossing.atGrade("a", 50, "b", 50, new Vec2d(50, 0)));
+        RoadProfileConstraintSynchronizer.seedCrossingAnchors(network, config);
+        assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED,
+            a.getVerticalAlignment().getPvis().get(1).getConstraint());
+
+        String crossingId = network.getCrossings().keySet().iterator().next();
+        network.removeCrossing(crossingId);
+        Set<String> changed = RoadProfileConstraintSynchronizer.releaseStaleCrossingAnchors(network, config);
+
+        assertTrue(changed.contains("a"));
+        assertEquals(VerticalControlPointConstraint.FREE,
+            a.getVerticalAlignment().getPvis().get(1).getConstraint());
+        assertEquals(50.0, a.getVerticalAlignment().getPvis().get(1).getStation(), 1e-9);
+        assertEquals(64.0, a.getVerticalAlignment().getPvis().get(1).getElevation(), 1e-9);
+    }
+
+    @Test
+    void releaseStaleCrossingAnchorsPreservesUserLockedAndLiveJunctionFixed() {
+        Road a = road("a", 64);
+        Road b = road("b", 64);
+        a.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            new PointOfVerticalIntersection(50, 70, null, VerticalControlPointConstraint.JUNCTION_FIXED),
+            new PointOfVerticalIntersection(75, 72, null, VerticalControlPointConstraint.USER_LOCKED),
+            PointOfVerticalIntersection.of(100, 64))));
+        network.registerCrossing(RoadCrossing.atGrade("a", 50, "b", 50, new Vec2d(50, 0)));
+
+        RoadProfileConstraintSynchronizer.releaseStaleCrossingAnchors(network, config);
+
+        assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED,
+            a.getVerticalAlignment().getPvis().get(1).getConstraint());
+        assertEquals(VerticalControlPointConstraint.USER_LOCKED,
+            a.getVerticalAlignment().getPvis().get(2).getConstraint());
     }
 
     @Test

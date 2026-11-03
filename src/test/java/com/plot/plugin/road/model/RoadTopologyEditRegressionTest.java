@@ -10,8 +10,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -76,16 +80,83 @@ class RoadTopologyEditRegressionTest {
     }
 
     @Test
-    void t04DeleteMiddleEdgeMustNotSilentlyStayLinear() {
+    void t04DeleteMiddleEdgeSplitsIntoIndependentRoads() {
         linearRoadFourSegments();
         Road road = singleRoad();
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            PointOfVerticalIntersection.of(5, 66),
+            PointOfVerticalIntersection.of(25, 70),
+            PointOfVerticalIntersection.of(35, 68),
+            PointOfVerticalIntersection.of(40, 64))));
         String middleEdgeId = road.getOrderedSegmentIds().get(1);
 
         manager.deleteEdge(middleEdgeId);
+        refreshNetwork();
 
-        assertFalse(RoadTopologyInvariantValidator.validateRoad(network, road).isEmpty());
-        assertTrue(RoadTopologyInvariantValidator.validateRoad(network, road).stream()
-            .anyMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_DISCONNECTED));
+        // Middle delete must not silently stitch remaining segments into one linear road.
+        assertNull(network.getEdge(middleEdgeId));
+        assertTrue(network.getRoads().size() >= 2);
+        assertTrue(RoadTopologyInvariantValidator.validate(network).stream()
+            .noneMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_DISCONNECTED));
+        for (Road surviving : network.getRoads().values()) {
+            assertTrue(RoadTopologyInvariantValidator.validateRoad(network, surviving).isEmpty());
+            assertTrue(RoadStationing.canonicalLength(network, surviving) > 0);
+            if (surviving.getVerticalAlignment() != null) {
+                double length = RoadStationing.canonicalLength(network, surviving);
+                for (PointOfVerticalIntersection pvi : surviving.getVerticalAlignment().getPvis()) {
+                    assertTrue(pvi.getStation() >= -1e-6);
+                    assertTrue(pvi.getStation() <= length + 1e-6);
+                }
+            }
+        }
+    }
+
+    @Test
+    void deleteHeadSegmentRebasesDownstreamPvis() {
+        linearRoadThreeSegments();
+        Road road = singleRoad();
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            PointOfVerticalIntersection.of(15, 70),
+            PointOfVerticalIntersection.of(25, 68),
+            PointOfVerticalIntersection.of(30, 64))));
+        String headEdgeId = road.getOrderedSegmentIds().getFirst();
+
+        manager.deleteEdge(headEdgeId);
+        refreshNetwork();
+        Road surviving = singleRoad();
+        assertEquals(20.0, RoadStationing.canonicalLength(network, surviving), 1e-6);
+        List<PointOfVerticalIntersection> pvis = surviving.getVerticalAlignment().sortedPvis();
+        assertEquals(5.0, pvis.stream().filter(p -> Math.abs(p.getElevation() - 70) < 1e-6)
+            .findFirst().orElseThrow().getStation(), 1e-6);
+        assertEquals(15.0, pvis.stream().filter(p -> Math.abs(p.getElevation() - 68) < 1e-6)
+            .findFirst().orElseThrow().getStation(), 1e-6);
+    }
+
+    @Test
+    void deleteTailSegmentTrimsPastEndPvis() {
+        linearRoadThreeSegments();
+        Road road = singleRoad();
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            PointOfVerticalIntersection.of(10, 70),
+            PointOfVerticalIntersection.of(25, 68),
+            PointOfVerticalIntersection.of(30, 64))));
+        String tailEdgeId = road.getOrderedSegmentIds().getLast();
+
+        manager.deleteEdge(tailEdgeId);
+        refreshNetwork();
+        Road surviving = singleRoad();
+        assertEquals(20.0, RoadStationing.canonicalLength(network, surviving), 1e-6);
+        for (PointOfVerticalIntersection pvi : surviving.getVerticalAlignment().getPvis()) {
+            assertTrue(pvi.getStation() <= 20.0 + 1e-6);
+        }
+        assertTrue(surviving.getVerticalAlignment().getPvis().stream()
+            .anyMatch(p -> Math.abs(p.getElevation() - 70) < 1e-6));
     }
 
     @Test
@@ -150,6 +221,17 @@ class RoadTopologyEditRegressionTest {
         network.createEdge(n1.getId(), n2.getId(), List.of(n1.getPosition(), n2.getPosition()), road.getId());
         network.createEdge(n2.getId(), n3.getId(), List.of(n2.getPosition(), n3.getPosition()), road.getId());
         network.createEdge(n3.getId(), n4.getId(), List.of(n3.getPosition(), n4.getPosition()), road.getId());
+    }
+
+    private void linearRoadThreeSegments() {
+        Road road = network.createRoad("chain3");
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(10, 0));
+        RoadNode n2 = network.createNode(new Vec2d(20, 0));
+        RoadNode n3 = network.createNode(new Vec2d(30, 0));
+        network.createEdge(n0.getId(), n1.getId(), List.of(n0.getPosition(), n1.getPosition()), road.getId());
+        network.createEdge(n1.getId(), n2.getId(), List.of(n1.getPosition(), n2.getPosition()), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(n2.getPosition(), n3.getPosition()), road.getId());
     }
 
     private Road singleRoad() {

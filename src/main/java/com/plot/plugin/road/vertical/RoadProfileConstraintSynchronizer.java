@@ -278,6 +278,55 @@ public final class RoadProfileConstraintSynchronizer {
         return changed;
     }
 
+    /**
+     * Downgrade orphaned {@link VerticalControlPointConstraint#JUNCTION_FIXED} PVIs to
+     * {@link VerticalControlPointConstraint#FREE} when no live crossing / shared junction
+     * remains at that station. Preserves station, elevation and curve; never touches
+     * {@link VerticalControlPointConstraint#USER_LOCKED} or endpoint constraints.
+     */
+    public static Set<String> releaseStaleCrossingAnchors(RoadNetwork network, RoadSystemConfig config) {
+        Set<String> changed = new LinkedHashSet<>();
+        if (network == null) {
+            return changed;
+        }
+        Map<String, List<Double>> liveStationsByRoad = new LinkedHashMap<>();
+        for (var link : collectLinks(network, config)) {
+            for (var point : List.of(link.a, link.b)) {
+                liveStationsByRoad.computeIfAbsent(point.roadId, ignored -> new ArrayList<>())
+                    .add(point.station);
+            }
+        }
+        for (Road road : network.getRoads().values()) {
+            if (road.getVerticalMode() == RoadVerticalMode.FLAT
+                    || road.getEffectiveProfileSource() != ProfileSource.EDITED) {
+                continue;
+            }
+            List<Double> liveStations = liveStationsByRoad.getOrDefault(road.getId(), List.of());
+            var points = new ArrayList<>(road.getVerticalAlignment().getPvis());
+            boolean roadChanged = false;
+            for (int i = 0; i < points.size(); i++) {
+                var pvi = points.get(i);
+                if (pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED) {
+                    continue;
+                }
+                boolean stillLinked = liveStations.stream()
+                    .anyMatch(station -> Math.abs(station - pvi.getStation()) <= EPSILON);
+                if (stillLinked) {
+                    continue;
+                }
+                points.set(i, pvi.withConstraint(VerticalControlPointConstraint.FREE));
+                roadChanged = true;
+            }
+            if (roadChanged) {
+                var mode = road.getVerticalMode();
+                road.setVerticalAlignment(new RoadVerticalAlignment(points));
+                road.setVerticalMode(mode);
+                changed.add(road.getId());
+            }
+        }
+        return changed;
+    }
+
     /** A curve-length edit changes shape, while every existing crossing keeps its road height. */
     public static void preserveCrossingElevations(
             RoadNetwork network, Road road, RoadVerticalAlignment before, RoadSystemConfig config) {

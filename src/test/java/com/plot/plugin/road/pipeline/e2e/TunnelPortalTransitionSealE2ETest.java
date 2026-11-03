@@ -16,18 +16,31 @@ import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Station-by-station final-block seal on R09 (straight X corridor).
- * Uses the same world mapping as {@link RoadTunnelQualityE2ETest}: along = X, lateral = Z.
+ * Zones: stable body (exact), portal mouth, and portal transition.
+ * Mapping matches {@link RoadTunnelQualityE2ETest}: along = X, lateral = Z.
  */
 class TunnelPortalTransitionSealE2ETest {
 
     private static final int ROAD_Y = 64;
+    private static final int[][] DIRS4 = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+    private enum Zone {
+        BODY,
+        TRANSITION,
+        PORTAL
+    }
 
     @Test
-    void r09StationsKeepPavementCavityAndLiningSealed() {
+    void r09ZonesSealPavementCavityAndLining() {
         RoadGoldenScenario scenario = RoadGoldenScenarioFactory.r09Tunnel();
         RoadGenerationResult edge = preview(scenario);
         ResolvedTunnelStyle style = ResolvedTunnelStyle.from(scenario.config().getTunnelStyle());
@@ -51,70 +64,86 @@ class TunnelPortalTransitionSealE2ETest {
             true);
 
         int bodyChecked = 0;
+        int transitionChecked = 0;
         int portalChecked = 0;
         for (int x = 0; x <= 30; x++) {
-            boolean portalBand = x <= 3 || x >= 27;
-            boolean bodyBand = x >= 8 && x <= 22;
-            if (!portalBand && !bodyBand) {
-                continue;
-            }
-            TunnelCrossSectionMask mask = portalBand ? portalMask : bodyMask;
-            StationSeal seal = inspectStation(edge, scenario, x, mask);
-            assertTrue(seal.pavementOk(),
-                "x=" + x + " must keep pavement under the road envelope");
-            assertTrue(seal.unclearedAirCells() <= seal.expectedAirCells() / 2,
-                "x=" + x + " cavity mostly cleared, uncleared="
-                    + seal.unclearedAirCells() + "/" + seal.expectedAirCells());
-            assertTrue(seal.missingLiningCells() <= seal.expectedLiningCells() / 2,
-                "x=" + x + " lining mostly placed, missing="
-                    + seal.missingLiningCells() + "/" + seal.expectedLiningCells());
-            assertTrue(seal.shellAirLeaks() == 0,
-                "x=" + x + " lining shell must not be carved to air, leaks=" + seal.shellAirLeaks());
-            if (bodyBand) {
-                bodyChecked++;
-            } else {
-                portalChecked++;
+            Zone zone = zoneAt(x);
+            TunnelCrossSectionMask mask = zone == Zone.BODY ? bodyMask : portalMask;
+            StationSeal seal = inspectStation(edge, scenario, x, mask, zone);
+            int roadWidth = mask.roadMax() - mask.roadMin() + 1;
+
+            assertTrue(seal.pavementCells() >= Math.max(1, roadWidth - (zone == Zone.BODY ? 0 : 1)),
+                "x=" + x + " " + zone + " pavement width, covered="
+                    + seal.pavementCells() + "/" + roadWidth);
+
+            switch (zone) {
+                case BODY -> {
+                    assertEquals(0, seal.unclearedAirCells(),
+                        "x=" + x + " body cavity must be fully cleared, uncleared="
+                            + seal.unclearedAirCells());
+                    assertEquals(0, seal.missingLiningCells(),
+                        "x=" + x + " body lining must match mask cells, missing="
+                            + seal.missingLiningCells());
+                    assertEquals(0, seal.shellBreaches(),
+                        "x=" + x + " body lining must not be carved to air");
+                    assertTrue(seal.cavityConnected(),
+                        "x=" + x + " body cavity air must be 4-connected");
+                    bodyChecked++;
+                }
+                case TRANSITION -> {
+                    assertTrue(seal.unclearedAirCells() <= Math.max(2, seal.expectedAirCells() / 10),
+                        "x=" + x + " transition cavity nearly clear, uncleared="
+                            + seal.unclearedAirCells() + "/" + seal.expectedAirCells());
+                    assertTrue(seal.missingLiningCells() <= Math.max(2, seal.expectedLiningCells() / 8),
+                        "x=" + x + " transition lining nearly complete, missing="
+                            + seal.missingLiningCells() + "/" + seal.expectedLiningCells());
+                    assertEquals(0, seal.shellBreaches(),
+                        "x=" + x + " transition must not leave unsealed lining gaps");
+                    assertTrue(seal.cavityConnected(),
+                        "x=" + x + " transition cavity must stay connected");
+                    transitionChecked++;
+                }
+                case PORTAL -> {
+                    assertTrue(seal.unclearedAirCells() <= Math.max(3, seal.expectedAirCells() / 8),
+                        "x=" + x + " portal cavity usable, uncleared="
+                            + seal.unclearedAirCells() + "/" + seal.expectedAirCells());
+                    assertTrue(seal.missingLiningCells() <= Math.max(3, seal.expectedLiningCells() / 6),
+                        "x=" + x + " portal frame lining present, missing="
+                            + seal.missingLiningCells() + "/" + seal.expectedLiningCells());
+                    assertEquals(0, seal.shellBreaches(),
+                        "x=" + x + " portal lining must not leave open shell breaches");
+                    assertTrue(seal.cavityConnected(),
+                        "x=" + x + " portal cavity must stay connected");
+                    portalChecked++;
+                }
             }
         }
-        assertTrue(bodyChecked >= 5, "body stations checked=" + bodyChecked);
-        assertTrue(portalChecked >= 4, "portal stations checked=" + portalChecked);
+        assertTrue(bodyChecked >= 8, "body stations=" + bodyChecked);
+        assertTrue(transitionChecked >= 6, "transition stations=" + transitionChecked);
+        assertTrue(portalChecked >= 4, "portal stations=" + portalChecked);
+    }
+
+    private static Zone zoneAt(int x) {
+        if (x <= 2 || x >= 28) {
+            return Zone.PORTAL;
+        }
+        if (x <= 7 || x >= 23) {
+            return Zone.TRANSITION;
+        }
+        return Zone.BODY;
     }
 
     private static StationSeal inspectStation(
             RoadGenerationResult edge,
             RoadGoldenScenario scenario,
             int alongX,
-            TunnelCrossSectionMask mask) {
-        boolean pavementOk = false;
+            TunnelCrossSectionMask mask,
+            Zone zone) {
+        int pavementCells = 0;
+        int roadWidth = mask.roadMax() - mask.roadMin() + 1;
         for (int lateral = mask.roadMin(); lateral <= mask.roadMax(); lateral++) {
-            for (int y = ROAD_Y - 1; y <= ROAD_Y + 1; y++) {
-                BlockPos pos = new BlockPos(alongX, y, lateral);
-                RoadSolidLayer layer = edge.placementLayers.get(pos);
-                if (layer == RoadSolidLayer.ROAD
-                        || layer == RoadSolidLayer.SHOULDER
-                        || layer == RoadSolidLayer.SIDEWALK) {
-                    pavementOk = true;
-                    break;
-                }
-            }
-            if (pavementOk) {
-                break;
-            }
-        }
-        // Fallback: any ROAD cell on this station strip (generator may offset Y slightly).
-        if (!pavementOk) {
-            for (var entry : edge.placementLayers.entrySet()) {
-                BlockPos pos = entry.getKey();
-                if (pos.getX() != alongX) {
-                    continue;
-                }
-                if (pos.getZ() < mask.roadMin() || pos.getZ() > mask.roadMax()) {
-                    continue;
-                }
-                if (entry.getValue() == RoadSolidLayer.ROAD) {
-                    pavementOk = true;
-                    break;
-                }
+            if (hasPavementAt(edge, alongX, lateral)) {
+                pavementCells++;
             }
         }
 
@@ -122,73 +151,151 @@ class TunnelPortalTransitionSealE2ETest {
         int[] unclearedAir = {0};
         int[] expectedLining = {0};
         int[] missingLining = {0};
-        int[] shellAirLeaks = {0};
+        int[] shellBreaches = {0};
+        Set<Long> airCells = new HashSet<>();
 
+        boolean exactBody = zone == Zone.BODY;
+        // Road surface can occupy ROAD_Y and ROAD_Y+1; true clearance starts above that band.
+        final int cavityMinY = ROAD_Y + 2;
         mask.forEach((lateral, y, kind) -> {
-            if (y < ROAD_Y) {
+            if (y < cavityMinY) {
                 return;
             }
             BlockPos pos = new BlockPos(alongX, y, lateral);
             BlockRecord record = edge.placementRecords.get(pos);
             boolean airPlacement = record != null && "minecraft:air".equals(record.newBlockId);
-            boolean nonAirTunnel = edge.placementLayers.get(pos) == RoadSolidLayer.TUNNEL
-                && record != null
-                && record.newBlockId != null
-                && !"minecraft:air".equals(record.newBlockId);
+            boolean nonAirTunnel = isNonAirTunnel(edge, pos);
 
             if (kind == TunnelCrossSectionMask.CellKind.AIR) {
                 expectedAir[0]++;
+                airCells.add(pack(lateral, y));
                 boolean nativeSolid = scenario.terrain().isSolidBlock(pos.getX(), pos.getY(), pos.getZ());
-                if (nativeSolid && !airPlacement) {
+                boolean cleared = airPlacement
+                    || isPavementLayer(edge, pos)
+                    || (!exactBody && hasNearbyAir(edge, pos));
+                if (nativeSolid && !cleared) {
                     unclearedAir[0]++;
                 }
             } else if (kind == TunnelCrossSectionMask.CellKind.LINING) {
                 expectedLining[0]++;
-                boolean nearbyLining = hasNearbyNonAirTunnel(edge, pos);
-                if (!nonAirTunnel && !nearbyLining) {
+                // Voxelization can shift the shell by one cell vs the 2D mask; a cardinal
+                // neighbor lining still means the cavity is sealed (no real breach).
+                boolean present = nonAirTunnel || hasCardinalNonAirTunnel(edge, pos);
+                if (!present) {
                     missingLining[0]++;
                 }
-                // True shell breach: mask lining cell became air and no lining sits nearby.
-                if (airPlacement && !nearbyLining && !nonAirTunnel) {
-                    shellAirLeaks[0]++;
+                // Breach = lining mask cell is air with no solid lining on cell or cardinal neighbor.
+                if (airPlacement && !present) {
+                    shellBreaches[0]++;
                 }
             }
         });
 
         return new StationSeal(
-            pavementOk, expectedAir[0], unclearedAir[0], expectedLining[0], missingLining[0], shellAirLeaks[0]);
+            pavementCells,
+            roadWidth,
+            expectedAir[0],
+            unclearedAir[0],
+            expectedLining[0],
+            missingLining[0],
+            shellBreaches[0],
+            airIsConnected(airCells));
+    }
+
+    private static boolean hasPavementAt(RoadGenerationResult edge, int alongX, int lateral) {
+        for (int y = ROAD_Y - 1; y <= ROAD_Y + 1; y++) {
+            if (isPavementLayer(edge, new BlockPos(alongX, y, lateral))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPavementLayer(RoadGenerationResult edge, BlockPos pos) {
+        RoadSolidLayer layer = edge.placementLayers.get(pos);
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.SIDEWALK;
+    }
+
+    private static boolean isNonAirTunnel(RoadGenerationResult edge, BlockPos pos) {
+        if (edge.placementLayers.get(pos) != RoadSolidLayer.TUNNEL) {
+            return false;
+        }
+        BlockRecord record = edge.placementRecords.get(pos);
+        return record != null
+            && record.newBlockId != null
+            && !"minecraft:air".equals(record.newBlockId);
+    }
+
+    private static boolean hasNearbyAir(RoadGenerationResult edge, BlockPos pos) {
+        for (int[] d : DIRS4) {
+            BlockRecord record = edge.placementRecords.get(pos.add(d[0], 0, d[1]));
+            if (record != null && "minecraft:air".equals(record.newBlockId)) {
+                return true;
+            }
+            record = edge.placementRecords.get(pos.add(0, d[0], 0));
+            if (record != null && "minecraft:air".equals(record.newBlockId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 4-neighbor only — avoids treating a distant 3×3×3 lining as sealing a real gap. */
+    private static boolean hasCardinalNonAirTunnel(RoadGenerationResult edge, BlockPos pos) {
+        return isNonAirTunnel(edge, pos.add(1, 0, 0))
+            || isNonAirTunnel(edge, pos.add(-1, 0, 0))
+            || isNonAirTunnel(edge, pos.add(0, 0, 1))
+            || isNonAirTunnel(edge, pos.add(0, 0, -1))
+            || isNonAirTunnel(edge, pos.add(0, 1, 0))
+            || isNonAirTunnel(edge, pos.add(0, -1, 0));
+    }
+
+    private static boolean airIsConnected(Set<Long> air) {
+        if (air.isEmpty()) {
+            return false;
+        }
+        ArrayDeque<Long> queue = new ArrayDeque<>();
+        Set<Long> seen = new HashSet<>();
+        long start = air.iterator().next();
+        queue.add(start);
+        seen.add(start);
+        while (!queue.isEmpty()) {
+            long cell = queue.removeFirst();
+            int lateral = unpackLateral(cell);
+            int y = unpackY(cell);
+            for (int[] d : DIRS4) {
+                long next = pack(lateral + d[0], y + d[1]);
+                if (air.contains(next) && seen.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        return seen.size() == air.size();
     }
 
     private record StationSeal(
-            boolean pavementOk,
+            int pavementCells,
+            int roadWidth,
             int expectedAirCells,
             int unclearedAirCells,
             int expectedLiningCells,
             int missingLiningCells,
-            int shellAirLeaks) {
+            int shellBreaches,
+            boolean cavityConnected) {
     }
 
-    private static boolean hasNearbyNonAirTunnel(RoadGenerationResult edge, BlockPos pos) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0) {
-                        continue;
-                    }
-                    BlockPos near = pos.add(dx, dy, dz);
-                    if (edge.placementLayers.get(near) != RoadSolidLayer.TUNNEL) {
-                        continue;
-                    }
-                    BlockRecord record = edge.placementRecords.get(near);
-                    if (record != null
-                            && record.newBlockId != null
-                            && !"minecraft:air".equals(record.newBlockId)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
+    private static long pack(int lateral, int y) {
+        return (((long) lateral) << 32) ^ (y & 0xffffffffL);
+    }
+
+    private static int unpackLateral(long key) {
+        return (int) (key >> 32);
+    }
+
+    private static int unpackY(long key) {
+        return (int) key;
     }
 
     private static RoadGenerationResult preview(RoadGoldenScenario scenario) {

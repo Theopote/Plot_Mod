@@ -7,5 +7,6 @@ public enum ProfilePointRole {
     LOOP_SEAM_START,
     LOOP_SEAM_END,
     INTERIOR_PVI,
-    JUNCTION_FIXED
+    JUNCTION_FIXED,
+    USER_LOCKED
 }

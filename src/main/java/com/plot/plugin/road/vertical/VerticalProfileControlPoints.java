@@ -113,6 +113,9 @@ public final class VerticalProfileControlPoints {
         if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
             return ProfilePointRole.JUNCTION_FIXED;
         }
+        if (pvi.getConstraint() == VerticalControlPointConstraint.USER_LOCKED) {
+            return ProfilePointRole.USER_LOCKED;
+        }
         return ProfilePointRole.INTERIOR_PVI;
     }
 

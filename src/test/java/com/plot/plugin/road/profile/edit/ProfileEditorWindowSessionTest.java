@@ -204,6 +204,26 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
+    void seedSampledProfilesReleasesStaleJunctionFixedAnchors() {
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            new PointOfVerticalIntersection(
+                50, 68, null,
+                com.plot.plugin.road.vertical.VerticalControlPointConstraint.JUNCTION_FIXED),
+            PointOfVerticalIntersection.of(100, 66))));
+        manager.setNetwork(live);
+
+        ProfileEditorWindowSession session = openSession();
+        session.seedSampledProfiles(config, java.util.Map.of());
+
+        assertEquals(
+            com.plot.plugin.road.vertical.VerticalControlPointConstraint.FREE,
+            session.editingNetwork().getRoad(road.getId()).getVerticalAlignment().getPvis().get(1)
+                .getConstraint());
+        assertEquals(session.openRevision(), manager.getNetworkRevision());
+    }
+
+    @Test
     void applierCopiesOnlyTouchedRoadVerticalFields() {
         Road other = live.createRoad("road-b");
         RoadNode b1 = live.createNode(new Vec2d(0, 10));

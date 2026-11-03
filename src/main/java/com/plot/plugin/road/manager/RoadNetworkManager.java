@@ -19,13 +19,19 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
+import com.plot.plugin.road.station.RoadStationDataTransforms;
+import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
+import com.plot.plugin.road.station.RoadStationDataTransforms.StationDataSnapshot;
+import com.plot.plugin.road.station.RoadStationDataTransforms.StationRange;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
 import com.plot.plugin.road.vertical.NetworkElevationAuthority;
+import com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
+import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -36,8 +42,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -859,15 +868,121 @@ public final class RoadNetworkManager {
             return;
         }
         mutateNetwork(() -> {
+            RoadEdge edge = network.getEdge(edgeId);
+            String roadId = edge != null ? edge.getRoadId() : null;
+            Road roadBefore = roadId != null ? network.getRoad(roadId) : null;
+            SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+            StationDataSnapshot stationSnapshot = roadBefore != null
+                ? StationDataSnapshot.capture(roadBefore)
+                : null;
+            Map<String, StationRange> edgeRangesBefore = captureEdgeStationRanges(roadBefore);
             network.removeEdge(edgeId);
             selectedEdgeIds.remove(edgeId);
             if (edgeId.equals(lastSelectedEdgeId)) {
                 lastSelectedEdgeId = getPrimarySelectedEdgeId();
             }
             ensureSelectionValid();
+            remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
             // Geometry gone → drop orphan RoadCrossing markers from the registry/overlay.
             reconcileCrossingsInPlace();
         });
+    }
+
+    /**
+     * After a segment is removed, keep VA/VCS/facilities aligned with surviving geometry:
+     * head/tail trim via station rescale; middle disconnect via topology split + component extract.
+     */
+    private void remapVerticalDataAfterEdgeDeletion(
+            String roadId,
+            SegmentGeometrySnapshot before,
+            StationDataSnapshot stationSnapshot,
+            Map<String, StationRange> edgeRangesBefore) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return;
+        }
+        var violations = RoadTopologyInvariantValidator.validateRoad(network, road);
+        boolean disconnectedOrBranching = violations.stream().anyMatch(v ->
+            v.kind() == RoadTopologyViolationKind.ROAD_DISCONNECTED
+                || v.kind() == RoadTopologyViolationKind.ROAD_BRANCHING);
+        if (disconnectedOrBranching) {
+            // Clear before repair so splitter does not remap with post-delete broken chainage.
+            road.setVerticalAlignment(null);
+            road.setVariableCrossSections(null);
+            road.setStationFacilities(null);
+            RoadTopologyRoadSplitter.repairRoad(network, road);
+            applyCapturedStationDataToSurvivingRoads(
+                stationSnapshot,
+                before != null ? before.totalLengthBefore() : 0.0,
+                edgeRangesBefore);
+            return;
+        }
+        if (before == null) {
+            return;
+        }
+        RoadStationDataTransforms.rescaleAfterGeometryEdit(
+            road,
+            before.rangeStart(),
+            before.oldSegmentLength(),
+            0.0,
+            before.totalLengthBefore());
+        RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+    }
+
+    private Map<String, StationRange> captureEdgeStationRanges(Road road) {
+        LinkedHashMap<String, StationRange> ranges = new LinkedHashMap<>();
+        if (road == null) {
+            return ranges;
+        }
+        for (var segment : RoadStationing.orientedSegments(network, road)) {
+            ranges.put(segment.edgeId(),
+                new StationRange(segment.startStation(), segment.endStation()));
+        }
+        return ranges;
+    }
+
+    private void applyCapturedStationDataToSurvivingRoads(
+            StationDataSnapshot snapshot,
+            double totalLengthBefore,
+            Map<String, StationRange> edgeRangesBefore) {
+        if (snapshot == null || !snapshot.hasPhase2Data() || totalLengthBefore <= 1e-6
+                || edgeRangesBefore == null || edgeRangesBefore.isEmpty()) {
+            return;
+        }
+        HashSet<String> survivingEdgeIds = new HashSet<>(edgeRangesBefore.keySet());
+        survivingEdgeIds.removeIf(id -> network.getEdge(id) == null);
+        LinkedHashSet<String> touchedRoadIds = new LinkedHashSet<>();
+        for (String edgeId : survivingEdgeIds) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && edge.getRoadId() != null) {
+                touchedRoadIds.add(edge.getRoadId());
+            }
+        }
+        for (String survivingRoadId : touchedRoadIds) {
+            Road surviving = network.getRoad(survivingRoadId);
+            if (surviving == null) {
+                continue;
+            }
+            double rangeStart = Double.POSITIVE_INFINITY;
+            double rangeEnd = 0.0;
+            boolean found = false;
+            for (String segmentId : surviving.getOrderedSegmentIds()) {
+                StationRange range = edgeRangesBefore.get(segmentId);
+                if (range == null || !range.isValid()) {
+                    continue;
+                }
+                found = true;
+                rangeStart = Math.min(rangeStart, range.start());
+                rangeEnd = Math.max(rangeEnd, range.end());
+            }
+            if (!found) {
+                continue;
+            }
+            snapshot.applyRangeTo(surviving, totalLengthBefore, new StationRange(rangeStart, rangeEnd));
+        }
     }
 
     public void deleteRoad(String roadId) {
@@ -1043,6 +1158,7 @@ public final class RoadNetworkManager {
     void reconcileCrossingsInPlace() {
         com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
         com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadProfileConstraintSynchronizer.releaseStaleCrossingAnchors(network, config);
     }
 
     /** 校验一键修复：同步可维护道路的分段存储顺序。 */

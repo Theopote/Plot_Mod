@@ -40,6 +40,11 @@ final class ProfileChartInteractionTooltips {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_pvi_junction_fixed_hint"));
+        } else if (point.role() == ProfilePointRole.USER_LOCKED) {
+            ImGui.separator();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_pvi_user_locked_hint"));
         } else if (!point.elevationEditable()) {
             ImGui.separator();
             ImGui.textColored(

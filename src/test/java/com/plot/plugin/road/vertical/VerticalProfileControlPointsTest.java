@@ -151,6 +151,28 @@ class VerticalProfileControlPointsTest {
         assertTrue(VerticalProfileControlPoints.isEditablePvi(network, road, start));
     }
 
+    @Test void userLockedMiddlePviUsesDedicatedRoleAndStaysNonEditable() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            new PointOfVerticalIntersection(
+                50, 75, null, VerticalControlPointConstraint.USER_LOCKED),
+            PointOfVerticalIntersection.of(100, 70))));
+        var a = network.createNode(new Vec2d(0, 0));
+        var b = network.createNode(new Vec2d(100, 0));
+        network.createEdge(a.getId(), b.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        ProfileControlPoint middle = VerticalProfileControlPoints.forRoad(network, road).stream()
+            .filter(point -> point.pviIndex() == 1)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(ProfilePointRole.USER_LOCKED, middle.role());
+        assertFalse(middle.elevationEditable());
+        assertFalse(VerticalProfileControlPoints.isEditablePvi(network, road, middle));
+    }
+
     @Test void junctionFixedMiddlePviKeepsElevationLockedButAllowsSmoothing() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road");

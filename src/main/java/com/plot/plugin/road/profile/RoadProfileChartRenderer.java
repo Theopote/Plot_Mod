@@ -36,6 +36,7 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_CONTROL_INVALID = PluginUiColors.ERROR;
     private static final int COLOR_ENDPOINT = 0xFFFFE066;
     private static final int COLOR_JUNCTION_FIXED = 0xFF9AA0A6;
+    private static final int COLOR_USER_LOCKED = 0xFF7EB6FF;
     private static final int COLOR_CURVE_HANDLE = 0xFF88DDFF;
     private static final int COLOR_CURVE_HANDLE_SELECTED = 0xFFFFFFFF;
     private static final float DRAG_THRESHOLD_PX = 5f;
@@ -917,6 +918,7 @@ public final class RoadProfileChartRenderer {
             float y = layout.plotY(point.elevation(), range.minElevation(), range.maxElevation());
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGradePercent);
             boolean junctionFixed = point.role() == ProfilePointRole.JUNCTION_FIXED;
+            boolean userLocked = point.role() == ProfilePointRole.USER_LOCKED;
             int color = invalid ? COLOR_CONTROL_INVALID : COLOR_CONTROL;
             if (point.pviIndex() == selected) {
                 color = COLOR_CONTROL_SELECTED;
@@ -926,6 +928,8 @@ public final class RoadProfileChartRenderer {
                 color = point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_ENDPOINT;
             } else if (junctionFixed) {
                 color = point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_JUNCTION_FIXED;
+            } else if (userLocked) {
+                color = point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_USER_LOCKED;
             }
             if (junctionFixed) {
                 drawList.addRectFilled(x - radius, y - radius, x + radius, y + radius, color);
@@ -933,6 +937,9 @@ public final class RoadProfileChartRenderer {
                 drawList.addCircleFilled(x, y, radius, color);
             }
             drawList.addCircle(x, y, radius + 1.2f, COLOR_BG, 12, 1.2f);
+            if (userLocked && !junctionFixed) {
+                drawList.addCircle(x, y, radius + 2.4f, COLOR_USER_LOCKED, 12, 1.6f);
+            }
         }
     }
 

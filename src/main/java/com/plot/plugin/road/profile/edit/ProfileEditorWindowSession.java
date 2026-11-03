@@ -206,7 +206,11 @@ public final class ProfileEditorWindowSession {
     }
 
     private void syncCrossingAnchorsToSnapshot(RoadSystemConfig config) {
-        // Derive anchors from each curve independently; edited heights must not enter the restore baseline.
+        // Release orphans first, then seed live crossings; edited heights must not enter the restore baseline.
+        com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer
+            .releaseStaleCrossingAnchors(workingNetwork, config);
+        com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer
+            .releaseStaleCrossingAnchors(openSnapshot, config);
         com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.seedCrossingAnchors(workingNetwork, config);
         com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.seedCrossingAnchors(openSnapshot, config);
     }
