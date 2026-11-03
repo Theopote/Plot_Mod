@@ -16,11 +16,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Diagnoses whether lining cells above the road form a reliable 4-neighbor shell.
+ * Ensures lining above the road forms one 4-neighbor-connected shell sealed against outside.
  */
 class TunnelCrossSectionLiningConnectivityTest {
 
     private static final int ROAD_Y = 64;
+    private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
     static Stream<Arguments> matrix() {
         List<Arguments> args = new ArrayList<>();
@@ -61,7 +62,8 @@ class TunnelCrossSectionLiningConnectivityTest {
 
         Set<Long> liningCells = new HashSet<>();
         Set<Long> airCells = new HashSet<>();
-        int[] roadMinMax = {mask.roadMin(), mask.roadMax()};
+        int roadMin = mask.roadMin();
+        int roadMax = mask.roadMax();
         mask.forEach((lateral, y, kind) -> {
             if (y < ROAD_Y) {
                 return;
@@ -75,8 +77,12 @@ class TunnelCrossSectionLiningConnectivityTest {
         });
 
         assumeTrue(!liningCells.isEmpty(), "shape produced no lining above road");
-        assertFalse(hasIsolatedLining(liningCells, roadMinMax[0], roadMinMax[1]),
-            () -> shape + " has lining cells without 4-neighbor lining/road contact");
+        assertTrue(
+            liningIsSingleComponent(liningCells, roadMin, roadMax),
+            () -> shape + " lining above road is not a single 4-neighbor component (via road boundary)");
+        assertFalse(
+            cavityLeaksToOutside(mask, airCells, roadMin, roadMax),
+            () -> shape + " cavity air has a gap to OUTSIDE above the pavement");
         assertTrue(airIsConnected(airCells),
             () -> shape + " cavity air above road is disconnected");
         assertPavementHolePreserved(mask, width);
@@ -121,26 +127,65 @@ class TunnelCrossSectionLiningConnectivityTest {
         assertTrue(mask.kindAt(0, ROAD_Y) == TunnelCrossSectionMask.CellKind.OUTSIDE);
     }
 
-    private static boolean hasIsolatedLining(Set<Long> lining, int roadMin, int roadMax) {
-        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (long cell : lining) {
+    /**
+     * All lining cells above the road must be reachable from any one of them via
+     * 4-neighbor steps through lining, treating pavement OUTSIDE cells as a
+     * connecting bottom boundary.
+     */
+    private static boolean liningIsSingleComponent(Set<Long> lining, int roadMin, int roadMax) {
+        if (lining.isEmpty()) {
+            return true;
+        }
+        ArrayDeque<Long> queue = new ArrayDeque<>();
+        Set<Long> seen = new HashSet<>();
+        long start = lining.iterator().next();
+        queue.add(start);
+        seen.add(start);
+        while (!queue.isEmpty()) {
+            long cell = queue.removeFirst();
             int lateral = unpackLateral(cell);
             int y = unpackY(cell);
-            int neighbors = 0;
-            for (int[] d : dirs) {
+            for (int[] d : DIRS) {
                 int nl = lateral + d[0];
                 int ny = y + d[1];
-                if (lining.contains(pack(nl, ny))) {
-                    neighbors++;
+                long next = pack(nl, ny);
+                if (lining.contains(next) && seen.add(next)) {
+                    queue.add(next);
                     continue;
                 }
-                // Road pavement closes the visible ring at roadY.
+                // Pavement closes the visible ring; walk across it to join wall feet.
                 if (ny == ROAD_Y && nl >= roadMin && nl <= roadMax) {
-                    neighbors++;
+                    for (int[] rd : DIRS) {
+                        long fromRoad = pack(nl + rd[0], ny + rd[1]);
+                        if (lining.contains(fromRoad) && seen.add(fromRoad)) {
+                            queue.add(fromRoad);
+                        }
+                    }
                 }
             }
-            if (neighbors == 0) {
-                return true;
+        }
+        return seen.size() == lining.size();
+    }
+
+    /**
+     * Any AIR cell above the pavement that 4-neighbors a non-pavement OUTSIDE cell
+     * means the shell has a leak (typically a crown or wall gap).
+     */
+    private static boolean cavityLeaksToOutside(
+            TunnelCrossSectionMask mask, Set<Long> air, int roadMin, int roadMax) {
+        for (long cell : air) {
+            int lateral = unpackLateral(cell);
+            int y = unpackY(cell);
+            for (int[] d : DIRS) {
+                int nl = lateral + d[0];
+                int ny = y + d[1];
+                if (mask.kindAt(nl, ny) != TunnelCrossSectionMask.CellKind.OUTSIDE) {
+                    continue;
+                }
+                boolean pavement = ny == ROAD_Y && nl >= roadMin && nl <= roadMax;
+                if (!pavement) {
+                    return true;
+                }
             }
         }
         return false;
@@ -155,12 +200,11 @@ class TunnelCrossSectionLiningConnectivityTest {
         long start = air.iterator().next();
         queue.add(start);
         seen.add(start);
-        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         while (!queue.isEmpty()) {
             long cell = queue.removeFirst();
             int lateral = unpackLateral(cell);
             int y = unpackY(cell);
-            for (int[] d : dirs) {
+            for (int[] d : DIRS) {
                 long next = pack(lateral + d[0], y + d[1]);
                 if (air.contains(next) && seen.add(next)) {
                     queue.add(next);

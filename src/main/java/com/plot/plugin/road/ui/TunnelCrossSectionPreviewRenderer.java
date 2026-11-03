@@ -23,6 +23,7 @@ public final class TunnelCrossSectionPreviewRenderer {
 
     public static final float PRESET_CARD_WIDTH = 78f;
     public static final float PRESET_CARD_HEIGHT = 100f;
+    public static final float PRESET_CARD_GAP = 6f;
     private static final float PRESET_PREVIEW_HEIGHT = 64f;
     private static final float LIVE_PREVIEW_HEIGHT = 172f;
     private static final float LABEL_PADDING = 4f;
@@ -78,15 +79,19 @@ public final class TunnelCrossSectionPreviewRenderer {
         ImGui.dummy(width, height);
     }
 
-    /** Single-row shape cards; returns true when selection changes. */
+    /**
+     * Shape preset cards wrapped to the available content width.
+     * Returns true when selection changes.
+     */
     public static boolean renderShapePresetRow(TunnelShape selectedShape, java.util.function.Consumer<TunnelShape> onSelect) {
         boolean changed = false;
         TunnelShape[] shapes = TunnelShape.values();
+        int perRow = shapeCardsPerRow(ImGui.getContentRegionAvailX());
         ImGui.beginGroup();
         for (int i = 0; i < shapes.length; i++) {
             TunnelShape shape = shapes[i];
-            if (i > 0) {
-                ImGui.sameLine(0f, 6f);
+            if (i > 0 && i % perRow != 0) {
+                ImGui.sameLine(0f, PRESET_CARD_GAP);
             }
             if (renderShapePresetCard(shape, shape == selectedShape)) {
                 onSelect.accept(shape);
@@ -95,6 +100,16 @@ public final class TunnelCrossSectionPreviewRenderer {
         }
         ImGui.endGroup();
         return changed;
+    }
+
+    /** Cards that fit in {@code availX} without horizontal overflow (≥1). */
+    public static int shapeCardsPerRow(float availX) {
+        float pitch = PRESET_CARD_WIDTH + PRESET_CARD_GAP;
+        if (availX <= 0f || pitch <= 0f) {
+            return 1;
+        }
+        // First card needs PRESET_CARD_WIDTH; each extra card needs gap + width.
+        return Math.max(1, (int) Math.floor((availX + PRESET_CARD_GAP) / pitch));
     }
 
     public static boolean renderShapePresetCard(TunnelShape shape, boolean selected) {

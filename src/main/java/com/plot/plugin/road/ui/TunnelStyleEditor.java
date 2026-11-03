@@ -249,6 +249,7 @@ public final class TunnelStyleEditor {
                 notifyChanged(style, onChanged, presetSelection);
             }
             if (style.isAccentRings()) {
+                ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_accent_schematic"));
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
                     "##tunnel_accent_material",

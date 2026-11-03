@@ -6,6 +6,7 @@ import com.plot.plugin.road.tunnel.TunnelSectionDisplayModel;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,6 +50,18 @@ class TunnelCrossSectionPreviewRendererTest {
         TunnelSectionDisplayModel lit = previewModel(
             TunnelShape.RECTANGULAR, defaults, TunnelLightingMode.WALL_AND_CEILING, false);
         assertNotEquals(countLights(none), countLights(lit));
+    }
+
+    @Test
+    void shapeCardsPerRowWrapsToAvailableWidth() {
+        float gap = TunnelCrossSectionPreviewRenderer.PRESET_CARD_GAP;
+        float card = TunnelCrossSectionPreviewRenderer.PRESET_CARD_WIDTH;
+        assertEquals(1, TunnelCrossSectionPreviewRenderer.shapeCardsPerRow(card - 1f));
+        assertEquals(1, TunnelCrossSectionPreviewRenderer.shapeCardsPerRow(card));
+        assertEquals(2, TunnelCrossSectionPreviewRenderer.shapeCardsPerRow(card * 2f + gap));
+        assertEquals(7, TunnelCrossSectionPreviewRenderer.shapeCardsPerRow(card * 7f + gap * 6f));
+        // Narrow panel (~500px content) must wrap before all 7 cards overflow.
+        assertTrue(TunnelCrossSectionPreviewRenderer.shapeCardsPerRow(500f) < TunnelShape.values().length);
     }
 
     private static long countLights(TunnelSectionDisplayModel model) {

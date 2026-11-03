@@ -72,6 +72,46 @@ class TunnelSectionDisplayModelTest {
                 || c.kind() == TunnelSectionDisplayModel.DisplayKind.CEILING_LIGHT));
         assertTrue(lit.cells().stream().anyMatch(c ->
             c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT));
+        assertTrue(lit.cells().stream().anyMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.LINING),
+            "normal-section preview must keep ordinary lining color");
+        long lining = lit.cells().stream()
+            .filter(c -> c.kind() == TunnelSectionDisplayModel.DisplayKind.LINING)
+            .count();
+        long accent = lit.cells().stream()
+            .filter(c -> c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT)
+            .count();
+        assertTrue(accent > 0 && accent < lining,
+            "schematic accents must be sparse, not the whole shell (accent=" + accent + ", lining=" + lining + ")");
+        assertEquals(
+            TunnelSectionDisplayModel.PreviewSectionKind.NORMAL_SECTION,
+            lit.sectionKind());
+    }
+
+    @Test
+    void accentRingSectionRecolorsFullLining() {
+        TunnelSectionDisplayModel ring = TunnelSectionDisplayModel.build(
+            TunnelShape.RECTANGULAR, ENVELOPE, 1, 6, 1, ROAD_Y,
+            TunnelLightingMode.NONE, true,
+            TunnelSectionDisplayModel.PreviewSectionKind.ACCENT_RING_SECTION);
+        assertEquals(TunnelSectionDisplayModel.PreviewSectionKind.ACCENT_RING_SECTION, ring.sectionKind());
+        assertTrue(ring.cells().stream().anyMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT));
+        assertTrue(ring.cells().stream().noneMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.LINING),
+            "accent-ring station preview uses accent material for the whole lining");
+    }
+
+    @Test
+    void accentDisabledKeepsNoAccentEvenOnRingSection() {
+        TunnelSectionDisplayModel model = TunnelSectionDisplayModel.build(
+            TunnelShape.ARCH, ENVELOPE, 1, 6, 1, ROAD_Y,
+            TunnelLightingMode.NONE, false,
+            TunnelSectionDisplayModel.PreviewSectionKind.ACCENT_RING_SECTION);
+        assertTrue(model.cells().stream().noneMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT));
+        assertTrue(model.cells().stream().anyMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.LINING));
     }
 
     @Test
