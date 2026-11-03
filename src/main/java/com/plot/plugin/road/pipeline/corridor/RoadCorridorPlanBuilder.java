@@ -533,6 +533,10 @@ public final class RoadCorridorPlanBuilder {
             crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++);
     }
 
+    /**
+     * 沿 span 采样边坡射线。急折时法线夹角大、路径很短，仅按路径栅格插值会让外侧射线扇区
+     * 在远端留下三角空隙；此时按最大边坡水平伸出加密角向采样，填满外侧楔形。
+     */
     private static List<SlopeProfileSample> mergeSlopeSpan(
             RoadCorridorPlan plan,
             StationSample from,
@@ -544,16 +548,32 @@ public final class RoadCorridorPlanBuilder {
             long[] stationSampleSeq) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
-        int last = span.size() - 1;
-        for (int i = 0; i <= last; i++) {
-            double t = last == 0 ? 1.0 : (double) i / last;
-            Vec2d center = span.get(i);
-            int targetY = last == 0
-                ? to.targetY()
-                : (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * t);
-            Vec2d leftNormal = last == 0
-                ? normalize(to.leftNormal())
-                : normalize(from.leftNormal().multiply(1.0 - t).add(to.leftNormal().multiply(t)));
+        int pathLast = Math.max(0, span.size() - 1);
+        Vec2d fromNormal = normalize(from.leftNormal());
+        Vec2d toNormal = normalize(to.leftNormal());
+        double turn = signedAngle(fromNormal, toNormal);
+        int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+        // 在 maxRun 处相邻射线间距约 1 格：Δθ ≈ 1/maxRun
+        double maxGapRadians = 1.0 / Math.max(1, maxRun);
+        int angularSteps = Math.abs(turn) <= 1e-6
+            ? 0
+            : Math.max(1, (int) Math.ceil(Math.abs(turn) / maxGapRadians));
+        int steps = Math.max(pathLast, angularSteps);
+        if (steps <= 0) {
+            RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
+            if (RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
+                samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
+                    crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++));
+            }
+            return samples;
+        }
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            Vec2d center = centerAlongSpan(span, pathLast, from.center(), to.center(), t);
+            int targetY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * t);
+            Vec2d leftNormal = Math.abs(turn) <= 1e-6
+                ? toNormal
+                : normalize(fromNormal.rotate(turn * t));
             RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
             if (!RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
                 continue;
@@ -562,6 +582,34 @@ public final class RoadCorridorPlanBuilder {
                 crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++));
         }
         return samples;
+    }
+
+    private static Vec2d centerAlongSpan(
+            List<Vec2d> span,
+            int pathLast,
+            Vec2d from,
+            Vec2d to,
+            double t) {
+        if (span == null || span.isEmpty() || pathLast <= 0) {
+            return from.lerp(to, t);
+        }
+        double exact = t * pathLast;
+        int index = (int) Math.floor(exact);
+        if (index >= pathLast) {
+            return span.get(pathLast);
+        }
+        double localT = exact - index;
+        return span.get(index).lerp(span.get(index + 1), localT);
+    }
+
+    /** 从 {@code from} 转到 {@code to} 的有向夹角，范围 (-π, π]。 */
+    private static double signedAngle(Vec2d from, Vec2d to) {
+        Vec2d a = normalize(from);
+        Vec2d b = normalize(to);
+        if (a.lengthSquared() < 1e-12 || b.lengthSquared() < 1e-12) {
+            return 0.0;
+        }
+        return Math.atan2(a.cross(b), a.dot(b));
     }
 
     private static RoadConstructionType resolveStepConstructionType(
