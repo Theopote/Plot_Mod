@@ -511,8 +511,10 @@ public final class TunnelLightPlacementResolver {
             if (inwardStep < 0 && lateral < 0) {
                 break;
             }
-            Integer y = wallLightYInColumn(mask, lateral, preferredY, roadY, clearHeight);
-            if (y != null && isValidLightCell(mask, lateral, y, roadY, TunnelLightMount.PROTRUDING)) {
+            // Search valid mount cells in this column before stepping inward:
+            // preferred Y → nearby heights → remaining column heights.
+            Integer y = firstValidWallLightYInColumn(mask, lateral, preferredY, roadY, clearHeight);
+            if (y != null) {
                 lights.add(new LightPosition(lateral, y, LightType.WALL));
                 return;
             }
@@ -522,22 +524,35 @@ public final class TunnelLightPlacementResolver {
         }
     }
 
-    private static Integer wallLightYInColumn(
+    /**
+     * Finds a protruding wall-light Y in one lateral column. Unlike a plain AIR
+     * scan, this only accepts cells that already satisfy {@link #isValidLightCell}.
+     */
+    private static Integer firstValidWallLightYInColumn(
             TunnelCrossSectionMask mask,
             int lateral,
             int preferredY,
             int roadY,
             int clearHeight) {
-        if (isMaskAir(mask, lateral, preferredY)) {
-            return preferredY;
-        }
         int mid = roadY + Math.max(2, clearHeight / 2);
-        if (isMaskAir(mask, lateral, mid)) {
-            return mid;
-        }
-        for (int y = roadY + 1; y <= roadY + clearHeight; y++) {
-            if (isMaskAir(mask, lateral, y)) {
+        int[] priority = {preferredY, mid};
+        for (int y : priority) {
+            if (y > roadY && y <= roadY + clearHeight
+                    && isValidLightCell(mask, lateral, y, roadY, TunnelLightMount.PROTRUDING)) {
                 return y;
+            }
+        }
+        // Expand around the preferred height first so curved walls keep a sensible band.
+        for (int delta = 1; delta <= clearHeight; delta++) {
+            int up = preferredY + delta;
+            int down = preferredY - delta;
+            if (up <= roadY + clearHeight
+                    && isValidLightCell(mask, lateral, up, roadY, TunnelLightMount.PROTRUDING)) {
+                return up;
+            }
+            if (down > roadY
+                    && isValidLightCell(mask, lateral, down, roadY, TunnelLightMount.PROTRUDING)) {
+                return down;
             }
         }
         return null;
