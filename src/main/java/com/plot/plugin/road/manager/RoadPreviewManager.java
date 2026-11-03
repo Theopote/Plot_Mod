@@ -611,8 +611,12 @@ public final class RoadPreviewManager {
             lastGenerationResult.cutVolume, lastGenerationResult.fillVolume,
             lastGenerationResult.streetlightCount,
             lastGenerationResult.droppedSolidCount);
-        applyPreviewReadyStatus();
+        // Explicit full preview is authoritative. startNetworkPreview force-resamples
+        // terrain and may arm pendingFullPreviewTerrainRefresh; if prefetch finishes
+        // afterwards, do not immediately flip this successful preview back to stale.
         previewNeedsRecalc = false;
+        pendingFullPreviewTerrainRefresh = false;
+        applyPreviewReadyStatus();
         if (autoProjectGhosts) {
             projectRoadPreview();
         }

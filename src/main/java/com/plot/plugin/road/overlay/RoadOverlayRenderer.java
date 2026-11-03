@@ -2,6 +2,7 @@ package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.PolygonTriangulator;
+import com.plot.core.geometry.polygon.PolygonValidator;
 import com.plot.core.geometry.polygon.RegionTriangulator;
 import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import com.plot.plugin.ui.PluginUiColors;
@@ -143,7 +144,22 @@ public final class RoadOverlayRenderer {
             renderPolylineOutline(drawList, camera, corridor.innerHole(), style, true);
             return;
         }
-        renderPolylineOutline(drawList, camera, corridor.primaryFillContour(), style, true);
+        List<Vec2d> fill = corridor.primaryFillContour();
+        // 锐角自叠时闭合填充轮廓会画出领结交叉线；改为左右边界 + 端帽。
+        if (PolygonValidator.hasSelfIntersection(fill)
+                && corridor.leftBoundary().size() >= 2
+                && corridor.rightBoundary().size() >= 2) {
+            renderPolylineOutline(drawList, camera, corridor.leftBoundary(), style, false);
+            renderPolylineOutline(drawList, camera, corridor.rightBoundary(), style, false);
+            renderPolylineOutline(drawList, camera, List.of(
+                corridor.leftBoundary().getFirst(),
+                corridor.rightBoundary().getFirst()), style, false);
+            renderPolylineOutline(drawList, camera, List.of(
+                corridor.leftBoundary().getLast(),
+                corridor.rightBoundary().getLast()), style, false);
+            return;
+        }
+        renderPolylineOutline(drawList, camera, fill, style, true);
     }
 
     private static void renderPolylineOutline(

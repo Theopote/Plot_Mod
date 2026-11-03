@@ -21,7 +21,6 @@ import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentChartSeeding;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;

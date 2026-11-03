@@ -51,26 +51,6 @@ public final class RoadProfileChartRenderer {
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             float chartHeight,
-            FlatElevationProfileOverlay flatOverlay) {
-        renderOverview(
-            chart, design, intersections, chartHeight, flatOverlay, ProfileChartRenderMode.OVERVIEW, null);
-    }
-
-    public static void renderOverview(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<RoadProfileIntersection> intersections,
-            float chartHeight,
-            FlatElevationProfileOverlay flatOverlay,
-            ProfileChartRenderMode mode) {
-        renderOverview(chart, design, intersections, chartHeight, flatOverlay, mode, null);
-    }
-
-    public static void renderOverview(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<RoadProfileIntersection> intersections,
-            float chartHeight,
             FlatElevationProfileOverlay flatOverlay,
             ProfileChartRenderMode mode,
             RoadVerticalMode verticalMode) {

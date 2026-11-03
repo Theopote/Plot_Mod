@@ -214,6 +214,36 @@ class RoadCorridorGeometryBuilderTest {
     }
 
     @Test
+    void overlayRoundJoin_acuteHairpinUsesInnerBisectorWithoutBowtie() {
+        // 接近截图锐角折返：旧 bevel 弦会横穿路面，填充轮廓呈领结重叠
+        List<Vec2d> centerline = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(40, 0),
+            new Vec2d(5, 8));
+        double halfWidth = 6.0;
+        RoadCorridorGeometry overlay = RoadCorridorGeometryBuilder.buildForOverlay(
+            centerline, halfWidth, false);
+
+        assertTrue(overlay.warnings().contains("inner_bisector_join"),
+            "acute overlay should use truncated inner bisector join");
+        assertFalse(
+            PolygonValidator.hasOpenPolylineSelfIntersection(overlay.leftBoundary()),
+            "left boundary must not cross itself");
+        assertFalse(
+            PolygonValidator.hasOpenPolylineSelfIntersection(overlay.rightBoundary()),
+            "right boundary must not cross itself");
+
+        Vec2d corner = centerline.get(1);
+        // 旧 bevel 会把内侧点甩到 y≈-5.8（穿到对侧）；截断斜接应留在折点附近半宽带内
+        boolean crossedToOppositeSide = overlay.leftBoundary().stream().anyMatch(point ->
+            point.distance(corner) <= halfWidth * 2.5 && point.y < -halfWidth * 0.25);
+        assertFalse(crossedToOppositeSide, "inner join must not jump across the centerline");
+        assertTrue(
+            overlay.leftBoundary().stream().anyMatch(point -> point.distance(corner) <= halfWidth * 1.25),
+            "inner bisector join should place a point near the corner within half-width");
+    }
+
+    @Test
     void overlayRoundJoin_zShapeAvoidsLongMiterSpikes() {
         // 接近截图的 Z 折线：外角 round 贴半宽，内侧仍可斜接；到中心线距离不应被刀尖拉飞
         List<Vec2d> centerline = List.of(

@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.PolygonNormalizer;
 import com.plot.core.geometry.polygon.PolygonOffset;
 import com.plot.core.geometry.polygon.PolygonUtils;
+import com.plot.core.geometry.polygon.PolygonValidator;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 
@@ -73,7 +74,8 @@ public final class RoadCorridorGeometryBuilder {
             }
         }
         if (uniform) {
-            return build(centerline, first, closed);
+            // 可变宽 API 的等宽退化也应走 overlay round join，避免锐角 miter 刀尖。
+            return buildForOverlay(centerline, first, closed);
         }
         if (minPositive <= 0.0) {
             return empty(centerline, closed);
@@ -146,10 +148,10 @@ public final class RoadCorridorGeometryBuilder {
         warnings.addAll(left.warnings());
         warnings.addAll(right.warnings());
 
-        List<Vec2d> fill = new ArrayList<>(left.points().size() + right.points().size());
-        fill.addAll(left.points());
-        for (int index = right.points().size() - 1; index >= 0; index--) {
-            fill.add(right.points().get(index).copy());
+        List<Vec2d> fill = composeOpenFill(left.points(), right.points());
+        if (PolygonValidator.hasSelfIntersection(fill)) {
+            warnings.add("fill_self_intersection");
+            // ROUND 内角已尽量避免穿越；若填充仍自交（走廊几何自叠），渲染侧改描左右边界。
         }
 
         return new RoadCorridorGeometry(
@@ -159,6 +161,15 @@ public final class RoadCorridorGeometryBuilder {
             List.of(fill),
             false,
             warnings);
+    }
+
+    private static List<Vec2d> composeOpenFill(List<Vec2d> left, List<Vec2d> right) {
+        List<Vec2d> fill = new ArrayList<>(left.size() + right.size());
+        fill.addAll(left);
+        for (int index = right.size() - 1; index >= 0; index--) {
+            fill.add(right.get(index).copy());
+        }
+        return fill;
     }
 
     private static RoadCorridorGeometry buildClosed(List<Vec2d> centerline, double halfWidth) {

@@ -6,7 +6,6 @@ import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.*;
