@@ -4,6 +4,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.tunnel.TunnelLightMount;
+import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPreset;
 import com.plot.plugin.road.tunnel.TunnelPresetCatalog;
@@ -135,7 +137,7 @@ public final class TunnelStyleEditor {
         float rowHeight = Math.max(LIVE_PREVIEW_HEIGHT_MIN, ImGui.getContentRegionAvailY());
         if (sideBySide) {
             ImGui.beginChild("##tunnel_preview_col", leftWidth, rowHeight, false);
-            renderLivePreviewColumn(style, envelopeWidth);
+            renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth);
             ImGui.endChild();
             ImGui.sameLine(0f, gap);
             ImGui.beginChild("##tunnel_params_col", rightWidth, rowHeight, false);
@@ -144,22 +146,22 @@ public final class TunnelStyleEditor {
         } else {
             float previewHeight = Math.max(LIVE_PREVIEW_HEIGHT_MIN, rowHeight * 0.42f);
             ImGui.beginChild("##tunnel_preview_col", avail, previewHeight, false);
-            renderLivePreviewColumn(style, envelopeWidth);
+            renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth);
             ImGui.endChild();
             ImGui.spacing();
             renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
         }
     }
 
-    private static void renderLivePreviewColumn(TunnelStyle style, int envelopeWidth) {
-        TunnelCrossSectionPreviewRenderer.renderLivePreview(
-            style.getShape(),
-            style.getClearHeight(),
-            style.getSideClearance(),
-            style.getLiningThickness(),
-            style.getLightingMode(),
-            style.isAccentRings(),
-            envelopeWidth);
+    private static void renderLivePreviewColumn(
+            TunnelStyle style,
+            Runnable onChanged,
+            PresetSelection presetSelection,
+            int envelopeWidth) {
+        if (TunnelCrossSectionPreviewRenderer.renderLivePreview(
+                style, style.isAccentRings(), envelopeWidth, true)) {
+            notifyChanged(style, onChanged, presetSelection);
+        }
     }
 
     private static void renderParameterColumn(
@@ -219,9 +221,26 @@ public final class TunnelStyleEditor {
         };
         if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.lighting_mode"), lightingIndex, lightingLabels)) {
             style.setLightingMode(uiLightingModes()[lightingIndex.get()]);
+            // Mode change clears custom layout so the template takes effect immediately.
+            style.clearCustomLightLayout();
             notifyChanged(style, onChanged, presetSelection);
         }
-        if (style.getLightingMode() != TunnelLightingMode.NONE) {
+        ImInt mountIndex = new ImInt(style.getLightMount() == TunnelLightMount.EMBEDDED ? 1 : 0);
+        String[] mountLabels = {
+            PlotI18n.tr("plugin.road.tunnel.light_mount.protruding"),
+            PlotI18n.tr("plugin.road.tunnel.light_mount.embedded")
+        };
+        if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.light_mount"), mountIndex, mountLabels)) {
+            style.setLightMount(mountIndex.get() == 1
+                ? TunnelLightMount.EMBEDDED
+                : TunnelLightMount.PROTRUDING);
+            TunnelLightPlacementResolver.syncCustomAnchorsToMount(
+                style, envelopeWidth, TunnelCrossSectionPreviewRenderer.PREVIEW_ROAD_Y);
+            notifyChanged(style, onChanged, presetSelection);
+        }
+        boolean lightingActive = style.getLightingMode() != TunnelLightingMode.NONE
+            || style.hasCustomLightLayout();
+        if (lightingActive) {
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
                 "##tunnel_light_material",
@@ -236,6 +255,13 @@ public final class TunnelStyleEditor {
             if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.light_spacing"), lightSpacing,
                     TunnelStyle.MIN_LIGHT_SPACING, TunnelStyle.MAX_LIGHT_SPACING)) {
                 style.setLightSpacing(lightSpacing[0]);
+                notifyChanged(style, onChanged, presetSelection);
+            }
+        }
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.light_custom_hint"));
+        if (style.hasCustomLightLayout()) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.tunnel.light_reset_defaults"))) {
+                style.clearCustomLightLayout();
                 notifyChanged(style, onChanged, presetSelection);
             }
         }

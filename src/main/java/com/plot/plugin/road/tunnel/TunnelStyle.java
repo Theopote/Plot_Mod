@@ -3,6 +3,8 @@ package com.plot.plugin.road.tunnel;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -29,6 +31,7 @@ public final class TunnelStyle {
     private static final TunnelLightingMode DEFAULT_LIGHTING_MODE = TunnelLightingMode.NONE;
     private static final String DEFAULT_LIGHT_MATERIAL = "minecraft:sea_lantern";
     private static final int DEFAULT_LIGHT_SPACING = 6;
+    private static final TunnelLightMount DEFAULT_LIGHT_MOUNT = TunnelLightMount.PROTRUDING;
     private static final boolean DEFAULT_ACCENT_RINGS = false;
     private static final String DEFAULT_ACCENT_MATERIAL = "";
     private static final int DEFAULT_ACCENT_SPACING = 8;
@@ -41,6 +44,9 @@ public final class TunnelStyle {
     private TunnelLightingMode lightingMode;
     private String lightMaterial;
     private Integer lightSpacing;
+    private TunnelLightMount lightMount;
+    /** null = mode defaults; non-null (incl. empty) = custom cross-section layout. */
+    private List<TunnelLightAnchor> lightAnchors;
     private Boolean accentRings;
     private String accentMaterial;
     private Integer accentSpacing;
@@ -112,6 +118,34 @@ public final class TunnelStyle {
         this.lightSpacing = lightSpacing;
     }
 
+    public TunnelLightMount getStoredLightMount() {
+        return lightMount;
+    }
+
+    public void setLightMount(TunnelLightMount lightMount) {
+        this.lightMount = lightMount;
+    }
+
+    /**
+     * Stored custom anchors, or {@code null} when using mode defaults.
+     * An empty non-null list means "custom layout with no lights".
+     */
+    public List<TunnelLightAnchor> getStoredLightAnchors() {
+        return lightAnchors;
+    }
+
+    public void setLightAnchors(List<TunnelLightAnchor> lightAnchors) {
+        this.lightAnchors = lightAnchors == null ? null : List.copyOf(lightAnchors);
+    }
+
+    public void clearCustomLightLayout() {
+        this.lightAnchors = null;
+    }
+
+    public boolean hasCustomLightLayout() {
+        return lightAnchors != null;
+    }
+
     public Boolean getStoredAccentRings() {
         return accentRings;
     }
@@ -168,6 +202,10 @@ public final class TunnelStyle {
         return lightSpacing != null ? lightSpacing : DEFAULT_LIGHT_SPACING;
     }
 
+    public TunnelLightMount getLightMount() {
+        return lightMount != null ? lightMount : DEFAULT_LIGHT_MOUNT;
+    }
+
     public boolean isAccentRings() {
         return accentRings != null ? accentRings : DEFAULT_ACCENT_RINGS;
     }
@@ -189,6 +227,8 @@ public final class TunnelStyle {
             && lightingMode == null
             && lightMaterial == null
             && lightSpacing == null
+            && lightMount == null
+            && lightAnchors == null
             && accentRings == null
             && accentMaterial == null
             && accentSpacing == null;
@@ -203,6 +243,8 @@ public final class TunnelStyle {
         lightingMode = null;
         lightMaterial = null;
         lightSpacing = null;
+        lightMount = null;
+        lightAnchors = null;
         accentRings = null;
         accentMaterial = null;
         accentSpacing = null;
@@ -251,6 +293,9 @@ public final class TunnelStyle {
         if (lightSpacing == null) {
             lightSpacing = DEFAULT_LIGHT_SPACING;
         }
+        if (lightMount == null) {
+            lightMount = DEFAULT_LIGHT_MOUNT;
+        }
         if (accentRings == null) {
             accentRings = DEFAULT_ACCENT_RINGS;
         }
@@ -283,6 +328,8 @@ public final class TunnelStyle {
         lightingMode = source.lightingMode;
         lightMaterial = source.lightMaterial;
         lightSpacing = source.lightSpacing;
+        lightMount = source.lightMount;
+        lightAnchors = source.lightAnchors == null ? null : List.copyOf(source.lightAnchors);
         accentRings = source.accentRings;
         accentMaterial = source.accentMaterial;
         accentSpacing = source.accentSpacing;
@@ -304,6 +351,8 @@ public final class TunnelStyle {
             && lightingMode == other.lightingMode
             && Objects.equals(lightMaterial, other.lightMaterial)
             && Objects.equals(lightSpacing, other.lightSpacing)
+            && lightMount == other.lightMount
+            && Objects.equals(lightAnchors, other.lightAnchors)
             && Objects.equals(accentRings, other.accentRings)
             && Objects.equals(accentMaterial, other.accentMaterial)
             && Objects.equals(accentSpacing, other.accentSpacing);
@@ -320,6 +369,8 @@ public final class TunnelStyle {
             lightingMode,
             lightMaterial,
             lightSpacing,
+            lightMount,
+            lightAnchors,
             accentRings,
             accentMaterial,
             accentSpacing);
@@ -344,6 +395,8 @@ public final class TunnelStyle {
             override.lightMaterial != null && !override.lightMaterial.isBlank()
                 ? override.lightMaterial : defaults.getLightMaterial(),
             override.lightSpacing != null ? override.lightSpacing : defaults.getLightSpacing(),
+            override.lightMount != null ? override.lightMount : defaults.getLightMount(),
+            override.lightAnchors != null ? override.lightAnchors : defaults.getStoredLightAnchors(),
             override.accentRings != null ? override.accentRings : defaults.isAccentRings(),
             override.accentMaterial != null ? override.accentMaterial : defaults.getAccentMaterial(),
             override.accentSpacing != null ? override.accentSpacing : defaults.getAccentSpacing());
@@ -362,6 +415,8 @@ public final class TunnelStyle {
         style.lightingMode = resolved.lightingMode();
         style.lightMaterial = resolved.lightMaterial();
         style.lightSpacing = resolved.lightSpacing();
+        style.lightMount = resolved.lightMount();
+        style.lightAnchors = resolved.lightAnchors() == null ? null : new ArrayList<>(resolved.lightAnchors());
         style.accentRings = resolved.accentRings();
         style.accentMaterial = resolved.accentMaterial();
         style.accentSpacing = resolved.accentSpacing();

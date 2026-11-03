@@ -314,8 +314,11 @@ public final class TunnelStructureGenerator {
             double structureStation,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             double canvasUnitsPerBlock) {
-        TunnelLightingMode mode = tunnelStyle.lightingMode();
-        if (mode == TunnelLightingMode.NONE || tunnelStyle.lightSpacing() <= 0) {
+        if (tunnelStyle.lightSpacing() <= 0) {
+            return;
+        }
+        if (!tunnelStyle.hasCustomLightLayout()
+                && tunnelStyle.lightingMode() == TunnelLightingMode.NONE) {
             return;
         }
         if (!hitsStructureSpacing(structureStation, tunnelStyle.lightSpacing())) {
@@ -325,11 +328,16 @@ public final class TunnelStructureGenerator {
         if (lightMaterial == null || lightMaterial.isBlank()) {
             return;
         }
+        List<TunnelLightPlacementResolver.LightPosition> lights =
+            TunnelLightPlacementResolver.resolve(tunnelStyle, roadEnvelopeWidth, roadY);
+        if (lights.isEmpty()) {
+            return;
+        }
         double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
-        for (var light : TunnelLightPlacementResolver.resolve(tunnelStyle, roadEnvelopeWidth, roadY)) {
+        for (var light : lights) {
             placeLightBlock(
                 solids, center, normal, light.lateral(), light.y(), scale, columnResolver, lightMaterial);
         }

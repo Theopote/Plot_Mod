@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelSectionDisplayModel;
 import com.plot.plugin.road.tunnel.TunnelShape;
@@ -38,20 +39,34 @@ public final class TunnelCrossSectionPreviewRenderer {
     private static final int COLOR_LABEL_DIM = 0xFFB0B0B0;
     private static final int COLOR_CELL_EDGE = 0x33000000;
 
+    /** Screen-space layout of the live voxel grid for hit-testing. */
+    public record PreviewGridLayout(
+            float originX,
+            float originY,
+            float block,
+            int minLateral,
+            int displayMaxY,
+            int cols,
+            int rows) {
+    }
+
+    public record CellHit(int lateral, int y) {
+    }
+
     private TunnelCrossSectionPreviewRenderer() {
     }
 
-    /** Live preview in {@link TunnelStyleEditor}; fills the current content width. */
-    public static void renderLivePreview(
-            TunnelShape shape,
-            int clearHeight,
-            int sideClearance,
-            int liningThickness,
-            TunnelLightingMode lightingMode,
+    /**
+     * Live preview with optional light toggle on left-click.
+     *
+     * @return true when a light cell was toggled
+     */
+    public static boolean renderLivePreview(
+            TunnelStyle style,
             boolean accentRings,
-            int roadEnvelopeWidth) {
+            int roadEnvelopeWidth,
+            boolean lightsInteractive) {
         float width = Math.max(120f, ImGui.getContentRegionAvailX());
-        // Fill the parent column height so the left pane has no empty gap below.
         float height = Math.max(LIVE_PREVIEW_HEIGHT, ImGui.getContentRegionAvailY());
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
@@ -63,20 +78,47 @@ public final class TunnelCrossSectionPreviewRenderer {
 
         drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG, 4f);
         drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 4f, 0, 1f);
-        drawLiveCrossSection(
+
+        PreviewGridLayout layout = drawLiveCrossSection(
             drawList,
             x0 + 4f,
             y0 + 4f,
             x1 - 4f,
             y1 - 4f,
-            shape,
-            clearHeight,
-            sideClearance,
-            liningThickness,
-            lightingMode,
-            accentRings,
+            style,
             envelope);
-        ImGui.dummy(width, height);
+
+        ImGui.invisibleButton("##tunnel_live_preview_hit", width, height);
+        boolean toggled = false;
+        if (lightsInteractive && layout != null && ImGui.isItemClicked(0)) {
+            ImVec2 mouse = ImGui.getMousePos();
+            CellHit hit = hitTestCell(layout, mouse.x, mouse.y);
+            if (hit != null && style != null) {
+                toggled = TunnelLightPlacementResolver.toggleLightOnStyle(
+                    style, envelope, PREVIEW_ROAD_Y, hit.lateral(), hit.y());
+            }
+        }
+        return toggled;
+    }
+
+    /** @deprecated use {@link #renderLivePreview(TunnelStyle, boolean, int, boolean)} */
+    @Deprecated
+    public static void renderLivePreview(
+            TunnelShape shape,
+            int clearHeight,
+            int sideClearance,
+            int liningThickness,
+            TunnelLightingMode lightingMode,
+            boolean accentRings,
+            int roadEnvelopeWidth) {
+        TunnelStyle style = new TunnelStyle();
+        style.setShape(shape);
+        style.setClearHeight(clearHeight);
+        style.setSideClearance(sideClearance);
+        style.setLiningThickness(liningThickness);
+        style.setLightingMode(lightingMode);
+        style.setAccentRings(accentRings);
+        renderLivePreview(style, accentRings, roadEnvelopeWidth, false);
     }
 
     /**
@@ -108,7 +150,6 @@ public final class TunnelCrossSectionPreviewRenderer {
         if (availX <= 0f || pitch <= 0f) {
             return 1;
         }
-        // First card needs PRESET_CARD_WIDTH; each extra card needs gap + width.
         return Math.max(1, (int) Math.floor((availX + PRESET_CARD_GAP) / pitch));
     }
 
@@ -154,30 +195,27 @@ public final class TunnelCrossSectionPreviewRenderer {
         return ImGui.isItemClicked(0);
     }
 
-    static void drawLiveCrossSection(
+    static PreviewGridLayout drawLiveCrossSection(
             ImDrawList drawList,
             float x0,
             float y0,
             float x1,
             float y1,
-            TunnelShape shape,
-            int clearHeight,
-            int sideClearance,
-            int liningThickness,
-            TunnelLightingMode lightingMode,
-            boolean accentRings,
+            TunnelStyle style,
             int roadEnvelopeWidth) {
-        TunnelSectionDisplayModel model = TunnelSectionDisplayModel.build(
-            shape != null ? shape : TunnelShape.ARCH,
-            Math.max(1, roadEnvelopeWidth),
-            Math.max(TunnelStyle.MIN_SIDE_CLEARANCE, sideClearance),
-            Math.max(TunnelStyle.MIN_CLEAR_HEIGHT, clearHeight),
-            Math.max(TunnelStyle.MIN_LINING_THICKNESS, liningThickness),
-            PREVIEW_ROAD_Y,
-            lightingMode != null ? lightingMode : TunnelLightingMode.NONE,
-            accentRings);
+        TunnelSectionDisplayModel model = style != null
+            ? TunnelSectionDisplayModel.buildFromStyle(style, Math.max(1, roadEnvelopeWidth), PREVIEW_ROAD_Y)
+            : TunnelSectionDisplayModel.build(
+                TunnelShape.ARCH,
+                Math.max(1, roadEnvelopeWidth),
+                1,
+                5,
+                1,
+                PREVIEW_ROAD_Y,
+                TunnelLightingMode.NONE,
+                false);
         if (model.cells().isEmpty()) {
-            return;
+            return null;
         }
 
         int cols = Math.max(1, model.cols());
@@ -193,7 +231,6 @@ public final class TunnelCrossSectionPreviewRenderer {
         final float originX = x0 + (x1 - x0 - gridW) * 0.5f;
         final float originY = y0 + (y1 - y0 - gridH) * 0.5f;
 
-        // Mountain fill: outside the voxel grid, above the road row.
         int roadRowFromTop = model.displayMaxY() - model.roadY();
         float roadTopY = originY + roadRowFromTop * block;
         if (roadTopY > y0) {
@@ -216,6 +253,52 @@ public final class TunnelCrossSectionPreviewRenderer {
             drawList.addRectFilled(bx, by, bx + block, by + block, color, 0f);
             drawList.addRect(bx, by, bx + block, by + block, COLOR_CELL_EDGE, 0f, 0, 1f);
         }
+
+        return new PreviewGridLayout(
+            originX, originY, block, model.minLateral(), model.displayMaxY(), cols, rows);
+    }
+
+    /** Legacy signature used by deprecated drawCrossSection. */
+    static void drawLiveCrossSection(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            TunnelShape shape,
+            int clearHeight,
+            int sideClearance,
+            int liningThickness,
+            TunnelLightingMode lightingMode,
+            boolean accentRings,
+            int roadEnvelopeWidth) {
+        TunnelStyle style = new TunnelStyle();
+        style.setShape(shape);
+        style.setClearHeight(clearHeight);
+        style.setSideClearance(sideClearance);
+        style.setLiningThickness(liningThickness);
+        style.setLightingMode(lightingMode);
+        style.setAccentRings(accentRings);
+        drawLiveCrossSection(drawList, x0, y0, x1, y1, style, roadEnvelopeWidth);
+    }
+
+    public static CellHit hitTestCell(PreviewGridLayout layout, float mouseX, float mouseY) {
+        if (layout == null || layout.block() <= 0f) {
+            return null;
+        }
+        float localX = mouseX - layout.originX();
+        float localY = mouseY - layout.originY();
+        if (localX < 0f || localY < 0f) {
+            return null;
+        }
+        int col = (int) Math.floor(localX / layout.block());
+        int row = (int) Math.floor(localY / layout.block());
+        if (col < 0 || row < 0 || col >= layout.cols() || row >= layout.rows()) {
+            return null;
+        }
+        int lateral = layout.minLateral() + col;
+        int y = layout.displayMaxY() - row;
+        return new CellHit(lateral, y);
     }
 
     /** Compact preset thumbnail: geometry only, no lights/accents, roadY+ clip. */

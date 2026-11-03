@@ -87,6 +87,8 @@ public final class TunnelSectionDisplayModel {
             liningThickness,
             roadY,
             lightingMode,
+            TunnelLightMount.PROTRUDING,
+            null,
             accentRings,
             PreviewSectionKind.NORMAL_SECTION);
     }
@@ -99,6 +101,80 @@ public final class TunnelSectionDisplayModel {
             int liningThickness,
             int roadY,
             TunnelLightingMode lightingMode,
+            boolean accentRings,
+            PreviewSectionKind sectionKind) {
+        return build(
+            shape,
+            roadEnvelopeWidth,
+            sideClearance,
+            clearHeight,
+            liningThickness,
+            roadY,
+            lightingMode,
+            TunnelLightMount.PROTRUDING,
+            null,
+            accentRings,
+            sectionKind);
+    }
+
+    public static TunnelSectionDisplayModel build(
+            TunnelShape shape,
+            int roadEnvelopeWidth,
+            int sideClearance,
+            int clearHeight,
+            int liningThickness,
+            int roadY,
+            TunnelLightingMode lightingMode,
+            TunnelLightMount lightMount,
+            List<TunnelLightAnchor> lightAnchors,
+            boolean accentRings) {
+        return build(
+            shape,
+            roadEnvelopeWidth,
+            sideClearance,
+            clearHeight,
+            liningThickness,
+            roadY,
+            lightingMode,
+            lightMount,
+            lightAnchors,
+            accentRings,
+            PreviewSectionKind.NORMAL_SECTION);
+    }
+
+    public static TunnelSectionDisplayModel buildFromStyle(
+            TunnelStyle style,
+            int roadEnvelopeWidth,
+            int roadY) {
+        if (style == null) {
+            return build(
+                TunnelShape.ARCH, roadEnvelopeWidth, 1, 5, 1, roadY,
+                TunnelLightingMode.NONE, false);
+        }
+        return build(
+            style.getShape(),
+            roadEnvelopeWidth,
+            style.getSideClearance(),
+            style.getClearHeight(),
+            style.getLiningThickness(),
+            roadY,
+            style.getLightingMode(),
+            style.getLightMount(),
+            style.getStoredLightAnchors(),
+            style.isAccentRings(),
+            PreviewSectionKind.NORMAL_SECTION);
+    }
+
+    public static TunnelSectionDisplayModel build(
+            TunnelShape shape,
+            int roadEnvelopeWidth,
+            int sideClearance,
+            int clearHeight,
+            int liningThickness,
+            int roadY,
+            TunnelLightingMode lightingMode,
+            TunnelLightMount lightMount,
+            List<TunnelLightAnchor> lightAnchors,
             boolean accentRings,
             PreviewSectionKind sectionKind) {
         TunnelShape resolved = shape != null ? shape : TunnelShape.ARCH;
@@ -157,7 +233,9 @@ public final class TunnelSectionDisplayModel {
 
         List<TunnelLightPlacementResolver.LightPosition> lights = TunnelLightPlacementResolver.resolve(
             resolved, envelope, side, clear, lining, roadY,
-            lightingMode != null ? lightingMode : TunnelLightingMode.NONE);
+            lightingMode != null ? lightingMode : TunnelLightingMode.NONE,
+            lightMount != null ? lightMount : TunnelLightMount.PROTRUDING,
+            lightAnchors);
         for (TunnelLightPlacementResolver.LightPosition light : lights) {
             if (light.y() < roadY) {
                 continue;

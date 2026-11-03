@@ -119,6 +119,8 @@ public final class TunnelPresetCatalog {
                 style.setAccentSpacing(10);
             }
         }
+        style.setLightMount(TunnelLightMount.PROTRUDING);
+        style.clearCustomLightLayout();
         style.clamp();
     }
 
@@ -141,6 +143,8 @@ public final class TunnelPresetCatalog {
             && expected.getLightingMode() == actual.getLightingMode()
             && java.util.Objects.equals(expected.getLightMaterial(), actual.getLightMaterial())
             && expected.getLightSpacing() == actual.getLightSpacing()
+            && expected.getLightMount() == actual.getLightMount()
+            && !actual.hasCustomLightLayout()
             && expected.isAccentRings() == actual.isAccentRings()
             && java.util.Objects.equals(expected.getAccentMaterial(), actual.getAccentMaterial())
             && expected.getAccentSpacing() == actual.getAccentSpacing();

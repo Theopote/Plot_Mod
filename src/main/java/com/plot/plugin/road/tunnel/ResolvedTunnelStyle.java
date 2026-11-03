@@ -1,5 +1,7 @@
 package com.plot.plugin.road.tunnel;
 
+import java.util.List;
+
 /**
  * Immutable effective tunnel appearance used during generation.
  */
@@ -12,9 +14,21 @@ public record ResolvedTunnelStyle(
         TunnelLightingMode lightingMode,
         String lightMaterial,
         int lightSpacing,
+        TunnelLightMount lightMount,
+        List<TunnelLightAnchor> lightAnchors,
         boolean accentRings,
         String accentMaterial,
         int accentSpacing) {
+
+    public ResolvedTunnelStyle {
+        lightMount = lightMount != null ? lightMount : TunnelLightMount.PROTRUDING;
+        // null = mode defaults; non-null (incl. empty) = custom layout
+        lightAnchors = lightAnchors != null ? List.copyOf(lightAnchors) : null;
+    }
+
+    public boolean hasCustomLightLayout() {
+        return lightAnchors != null;
+    }
 
     public int structureHeight() {
         return clearHeight + liningThickness;
@@ -44,6 +58,8 @@ public record ResolvedTunnelStyle(
             style.getLightingMode(),
             style.getLightMaterial(),
             style.getLightSpacing(),
+            style.getLightMount(),
+            style.getStoredLightAnchors(),
             style.isAccentRings(),
             style.getAccentMaterial(),
             style.getAccentSpacing());
