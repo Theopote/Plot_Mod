@@ -122,4 +122,39 @@ class TunnelCrossSectionMaskTest {
         assertTrue(centerTop > edgeTop,
             "pentagonal peak must be higher on center than on edge walls");
     }
+
+    @Test
+    void circularWideSideClearanceFillsPavementApronWithLining() {
+        int side = 4;
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.CIRCULAR, ENVELOPE, side, 7, LINING, ROAD_Y, false);
+        assertEquals(TunnelCrossSectionMask.CellKind.OUTSIDE, mask.kindAt(0, ROAD_Y),
+            "pavement hole must stay outside");
+        int besideRoad = mask.roadMax() + 1;
+        assertEquals(
+            TunnelCrossSectionMask.CellKind.LINING,
+            mask.kindAt(besideRoad, ROAD_Y),
+            "roadY side niche must meet pavement with lining, not air");
+        assertEquals(
+            TunnelCrossSectionMask.CellKind.LINING,
+            mask.kindAt(mask.roadMin() - 1, ROAD_Y));
+        // No AIR remains on the pavement plane outside the road envelope.
+        mask.forEach((lateral, y, kind) -> {
+            if (y == ROAD_Y && (lateral < mask.roadMin() || lateral > mask.roadMax())) {
+                assertEquals(
+                    TunnelCrossSectionMask.CellKind.LINING,
+                    kind,
+                    "apron cell at lateral=" + lateral);
+            }
+        });
+    }
+
+    @Test
+    void ellipticalWideSideClearanceFillsPavementApronWithLining() {
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.ELLIPTICAL, ENVELOPE, 3, CLEAR, LINING, ROAD_Y, false);
+        assertEquals(
+            TunnelCrossSectionMask.CellKind.LINING,
+            mask.kindAt(mask.roadMax() + 1, ROAD_Y));
+    }
 }

@@ -14,6 +14,10 @@ import java.util.Set;
  * AIR is the inner cavity profile. LINING is a Chebyshev dilation of AIR by the
  * lining thickness (4-neighbor-connected shell), excluding pavement cells at
  * {@code roadY} which stay OUTSIDE for the road generator.
+ * <p>
+ * At {@code roadY}, any cavity cell outside the road envelope is promoted to
+ * LINING so side-clearance niches (typical of circular/elliptical invert) meet
+ * the pavement with the same lining material.
  */
 public final class TunnelCrossSectionMask {
     public enum CellKind {
@@ -113,6 +117,21 @@ public final class TunnelCrossSectionMask {
             }
         }
 
+        // Pavement apron: side-clearance niches at roadY become lining so the
+        // road edges meet the tunnel walls (circular/elliptical invert otherwise
+        // leaves AIR beside the pavement hole).
+        Set<Long> apron = new HashSet<>();
+        for (long key : air) {
+            if (unpackY(key) != roadY) {
+                continue;
+            }
+            int lateral = unpackLateral(key);
+            if (lateral < roadMin || lateral > roadMax) {
+                apron.add(key);
+            }
+        }
+        air.removeAll(apron);
+
         Set<Long> shell = dilateChebyshev(air, lining, outerMin, outerMax, minY, maxY);
         int tightMinY = Integer.MAX_VALUE;
         int tightMaxY = Integer.MIN_VALUE;
@@ -121,8 +140,13 @@ public final class TunnelCrossSectionMask {
             tightMinY = Math.min(tightMinY, y);
             tightMaxY = Math.max(tightMaxY, y);
         }
+        for (long key : apron) {
+            int y = unpackY(key);
+            tightMinY = Math.min(tightMinY, y);
+            tightMaxY = Math.max(tightMaxY, y);
+        }
         for (long key : shell) {
-            if (air.contains(key)) {
+            if (air.contains(key) || apron.contains(key)) {
                 continue;
             }
             int lateral = unpackLateral(key);
@@ -141,8 +165,11 @@ public final class TunnelCrossSectionMask {
         for (long key : air) {
             mask.put(unpackLateral(key), unpackY(key), CellKind.AIR);
         }
+        for (long key : apron) {
+            mask.put(unpackLateral(key), unpackY(key), CellKind.LINING);
+        }
         for (long key : shell) {
-            if (air.contains(key)) {
+            if (air.contains(key) || apron.contains(key)) {
                 continue;
             }
             int lateral = unpackLateral(key);

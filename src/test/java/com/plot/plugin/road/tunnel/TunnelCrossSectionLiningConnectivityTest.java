@@ -71,7 +71,7 @@ class TunnelCrossSectionLiningConnectivityTest {
             if (kind == TunnelCrossSectionMask.CellKind.LINING) {
                 liningCells.add(pack(lateral, y));
             } else if (kind == TunnelCrossSectionMask.CellKind.AIR && y > ROAD_Y) {
-                // Usable cavity above the pavement; roadY side niches may be equatorial orphans.
+                // Usable cavity above the pavement (roadY apron is lining, not air).
                 airCells.add(pack(lateral, y));
             }
         });
