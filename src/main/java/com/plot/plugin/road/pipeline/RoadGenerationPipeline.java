@@ -18,6 +18,8 @@ import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import com.plot.plugin.road.pipeline.raster.RoadVoxelRasterizerPass;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Orchestrates incremental road generation stages while {@link com.plot.plugin.road.RoadGenerator}
@@ -47,6 +49,16 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  * {@link RoadGenerationPipelineHost} implements {@link RoadGenerationPipelineContext.Host}.
  */
 public final class RoadGenerationPipeline {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RoadGenerationPipeline.class);
+
+    private static long stage(String name, long startedNanos, String edgeId) {
+        long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000L;
+        if (elapsedMs >= 25L) {
+            LOGGER.debug("road-gen stage {} edge={} durationMs={}", name, edgeId, elapsedMs);
+        }
+        return System.nanoTime();
+    }
+
     private static void generateTunnelStructures(
             RoadGenerationPipelineContext ctx,
             RoadGenerationPipelineContext.Host host) {
@@ -132,6 +144,8 @@ public final class RoadGenerationPipeline {
         ctx.setDetection(detection);
 
         host.setEndpointSnaps(request.endpointSnaps());
+        String edgeId = request.carriagewaySeedKey() != null ? request.carriagewaySeedKey() : "standalone";
+        long pipelineStarted = System.nanoTime();
         try {
             ctx.initBuildState(host.maxDedupKeys());
             ctx.solids().setCoordinateService(host.coordinateTransformer());
@@ -141,13 +155,16 @@ public final class RoadGenerationPipeline {
             });
             var planHost = RoadCorridorPlanBuilder.PlanHost.from(
                 host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
+            long stageStarted = System.nanoTime();
             var plan = RoadCorridorPlanBuilder.build(ctx, host);
             ctx.setCorridorPlan(plan);
             if (host instanceof RoadGenerationPipelineHost pipelineHost) {
                 pipelineHost.captureCorridorPlanForTesting(plan);
             }
+            stageStarted = stage("corridor-plan", stageStarted, edgeId);
             RoadCorridorClearancePass.apply(
                 ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics(), ctx.request().gradeSeparation());
+            stageStarted = stage("open-clearance", stageStarted, edgeId);
             TunnelInteriorClearancePass.apply(
                 ctx.solids(),
                 ctx.segments(),
@@ -172,6 +189,7 @@ public final class RoadGenerationPipeline {
                     }
                 },
                 ctx.metrics());
+            stageStarted = stage("tunnel-clearance", stageStarted, edgeId);
             RoadCorridorSolidEmitter.emit(
                 ctx.solids(),
                 plan,
@@ -180,15 +198,22 @@ public final class RoadGenerationPipeline {
                 ctx.metrics(),
                 host.resolveBlockId(host.config().getFillSlopeMaterial()),
                 ctx.request().gradeSeparation());
+            stageStarted = stage("solid-emit", stageStarted, edgeId);
             RoadCrossSectionBuilder.build(ctx, host);
+            stageStarted = stage("cross-section", stageStarted, edgeId);
             RoadMarkingGenerator.generate(ctx, host);
             RoadFurnitureGenerator.generate(ctx, host);
             RoadStationFacilityGenerator.generate(ctx, host);
             generateTunnelStructures(ctx, host);
             TunnelPortalBackfillPass.apply(ctx.solids(), plan, ctx.terrain(), planHost);
+            stageStarted = stage("structures", stageStarted, edgeId);
             RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
-            com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.apply(result, plan, request.tunnelStyle().clearHeight());
+            stageStarted = stage("rasterize", stageStarted, edgeId);
+            com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.apply(
+                result, plan, request.tunnelStyle().clearHeight(), request.gradeSeparation());
             RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain(), planHost);
+            stage("surface-validate", stageStarted, edgeId);
+            stage("pipeline-total", pipelineStarted, edgeId);
             return result;
         } finally {
             host.clearEndpointSnaps();

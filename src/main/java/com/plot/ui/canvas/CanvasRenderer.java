@@ -176,9 +176,9 @@ public class CanvasRenderer implements EventListener {
                 double memoryUsagePercent = (double) usedMemory / maxMemory * 100;
                 
                 if (memoryUsagePercent > 80) {
-                    LOGGER.warn("Canvas渲染器内存使用率过高: {:.1f}%", memoryUsagePercent);
+                    LOGGER.warn("Canvas渲染器内存使用率过高: {}%", String.format(java.util.Locale.ROOT, "%.1f", memoryUsagePercent));
                 } else {
-                    LOGGER.debug("Canvas渲染器内存使用率: {:.1f}%", memoryUsagePercent);
+                    LOGGER.debug("Canvas渲染器内存使用率: {}%", String.format(java.util.Locale.ROOT, "%.1f", memoryUsagePercent));
                 }
             } catch (Exception e) {
                 LOGGER.debug("性能检查失败", e);

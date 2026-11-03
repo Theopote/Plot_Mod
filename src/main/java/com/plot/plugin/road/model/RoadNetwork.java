@@ -781,7 +781,13 @@ public class RoadNetwork {
             node.setElevatedRoadId(null);
         }
         node.setGradeSeparated(true);
-        node.setCrossingClearance(crossingClearance);
+        // Null means "keep / unspecified"; do not wipe a user or prior clearance.
+        // When both are set, keep the larger so auto-detect cannot shrink an edited underpass.
+        if (crossingClearance != null) {
+            Double existing = node.getCrossingClearance();
+            node.setCrossingClearance(
+                existing == null ? crossingClearance : Math.max(existing, crossingClearance));
+        }
         return true;
     }
 

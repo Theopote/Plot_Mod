@@ -52,7 +52,7 @@ class CrossingGradeClassifierTest {
             network, "a", 5.0, "b", 5.0, new Vec2d(5, 5));
         assertEquals(CrossingType.GRADE_SEPARATED, crossing.type());
         assertEquals("b", crossing.elevatedRoadId());
-        assertEquals(CrossingGradeClassifier.DEFAULT_CLEARANCE, crossing.crossingClearance(), 1e-9);
+        assertEquals(8.0, crossing.crossingClearance(), 1e-9);
     }
 
     @Test

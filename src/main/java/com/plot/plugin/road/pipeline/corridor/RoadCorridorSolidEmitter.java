@@ -60,8 +60,9 @@ public final class RoadCorridorSolidEmitter {
 
         int bridgeThreshold = host.bridgeThreshold();
         PortalTransitionGuard portalGuard = PortalTransitionGuard.from(plan);
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(
-            ResolvedCrossSection.fromConfig(host.config()));
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+        TunnelMountainProtection mountainProtection = TunnelMountainProtection.from(plan, crossSection);
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
         int roadHalfWidth = Math.abs(RoadDimensionUtils.maxLateralOffset(envelopeWidth));
         for (ColumnKey key : columns) {
             emitColumn(
@@ -73,6 +74,7 @@ public final class RoadCorridorSolidEmitter {
                 bridgeThreshold,
                 metrics,
                 portalGuard,
+                mountainProtection,
                 roadHalfWidth,
                 host,
                 gradeSeparation);
@@ -88,6 +90,7 @@ public final class RoadCorridorSolidEmitter {
             int bridgeThreshold,
             RoadEdgeBuildMetrics metrics,
             PortalTransitionGuard portalGuard,
+            TunnelMountainProtection mountainProtection,
             int roadHalfWidth,
             RoadCorridorPlanBuilder.PlanHost host,
             GradeSeparationBuildContext gradeSeparation) {
@@ -140,7 +143,13 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
+        // 隧道族净空柱与洞顶保护包络内禁止开放切方
+        boolean tunnelFamilyColumn = constructionType != null
+            && (constructionType.isTunnelFamily() || constructionType.isRockShelter());
+        boolean mountainProtected = mountainProtection != null && mountainProtection.protects(key);
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
+                && !tunnelFamilyColumn
+                && !mountainProtected
                 && (constructionType == null
                     || RoadEarthworkPolicy.allowsCorridorBatter(constructionType))) {
             int cutTopY = portalGuard.capCutTopY(planPoint, groundY, host, roadHalfWidth);

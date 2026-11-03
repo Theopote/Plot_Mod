@@ -4,11 +4,14 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
 
 import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Removes corridor plan columns that fall inside junction fill polygons.
+ * <p>
+ * When {@link JunctionCorridorBuildContext#preserveClearanceInExclusion()} is set (grade-sep
+ * lower road), only surface and slope are removed so open clearance still punches underpass air.
  */
 public final class JunctionCorridorPlanFilter {
     private JunctionCorridorPlanFilter() {
@@ -18,33 +21,42 @@ public final class JunctionCorridorPlanFilter {
         if (plan == null || context == null || context.exclusionPolygons().isEmpty()) {
             return;
         }
-        Set<ColumnKey> toRemove = new HashSet<>();
+        boolean preserveClearance = context.preserveClearanceInExclusion();
+        Set<ColumnKey> surfaceOrSlope = new HashSet<>();
+        Set<ColumnKey> clearanceOnly = new HashSet<>();
         for (var entry : plan.surfaceMask().entries()) {
             Vec2d planPoint = entry.getValue().planPoint();
             if (planPoint != null && insideAny(planPoint, context.exclusionPolygons())) {
-                toRemove.add(entry.getKey());
-            }
-        }
-        for (var entry : plan.clearanceEntries()) {
-            if (toRemove.contains(entry.getKey())) {
-                continue;
-            }
-            Vec2d planPoint = entry.getValue().planPoint();
-            if (planPoint != null && insideAny(planPoint, context.exclusionPolygons())) {
-                toRemove.add(entry.getKey());
+                surfaceOrSlope.add(entry.getKey());
             }
         }
         for (var entry : plan.slopeEntries()) {
-            if (toRemove.contains(entry.getKey())) {
+            Vec2d planPoint = entry.getValue().planPoint();
+            if (planPoint != null && insideAny(planPoint, context.exclusionPolygons())) {
+                surfaceOrSlope.add(entry.getKey());
+            }
+        }
+        for (var entry : plan.clearanceEntries()) {
+            if (surfaceOrSlope.contains(entry.getKey())) {
                 continue;
             }
             Vec2d planPoint = entry.getValue().planPoint();
             if (planPoint != null && insideAny(planPoint, context.exclusionPolygons())) {
-                toRemove.add(entry.getKey());
+                clearanceOnly.add(entry.getKey());
             }
         }
-        for (ColumnKey key : toRemove) {
-            plan.removeColumn(key);
+        for (ColumnKey key : surfaceOrSlope) {
+            if (preserveClearance) {
+                plan.surfaceMask().remove(key);
+                plan.removeSlopeCell(key);
+            } else {
+                plan.removeColumn(key);
+            }
+        }
+        if (!preserveClearance) {
+            for (ColumnKey key : clearanceOnly) {
+                plan.removeColumn(key);
+            }
         }
     }
 

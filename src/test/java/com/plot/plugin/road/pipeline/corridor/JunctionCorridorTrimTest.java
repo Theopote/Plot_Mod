@@ -100,6 +100,15 @@ class JunctionCorridorTrimTest {
 
         assertFalse(JunctionCorridorTrim.shouldTrimAtEndpoint(network, elevated, junction));
         assertTrue(elevatedContext.exclusionPolygons().isEmpty());
+
+        RoadEdge lower = network.getEdges().values().stream()
+            .filter(edge -> !roadB.getId().equals(edge.getRoadId()))
+            .findFirst()
+            .orElseThrow();
+        assertFalse(JunctionCorridorTrim.shouldTrimAtEndpoint(network, lower, junction));
+        JunctionCorridorBuildContext lowerContext = JunctionCorridorTrim.forEdge(
+            network, lower, crossSection, config, 1.0);
+        assertTrue(lowerContext.exclusionPolygons().isEmpty());
     }
 
     @Test

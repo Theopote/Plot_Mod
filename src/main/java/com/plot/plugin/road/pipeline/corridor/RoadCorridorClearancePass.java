@@ -83,6 +83,11 @@ public final class RoadCorridorClearancePass {
                     RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection)));
             topY = portalGuard.capClearTopY(cell.planPoint(), topY, host, roadHalfWidth);
         }
+        // Lower road under a grade-sep deck must not punch through the elevated underside.
+        Integer deckCap = gradeSeparation != null ? gradeSeparation.maxOpenClearTopY(cell.planPoint()) : null;
+        if (deckCap != null) {
+            topY = Math.min(topY, deckCap);
+        }
         if (cell.mode() == RoadCorridorConstructionMode.PORTAL && host != null) {
             ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
             int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);

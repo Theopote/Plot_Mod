@@ -45,14 +45,17 @@ public final class JunctionCorridorTrim {
         double skipStart = 0.0;
         double skipEnd = 0.0;
         List<List<Vec2d>> polygons = new ArrayList<>();
+        boolean preserveClearance = false;
 
         if (shouldTrimAtEndpoint(network, edge, startNode)) {
             skipStart = skipDistanceAtNode(network, startNode, crossSection, config) * scale;
             exclusionPolygon(network, startNode, config).ifPresent(polygons::add);
+            preserveClearance |= isGradeSeparatedLowerApproach(network, edge, startNode);
         }
         if (shouldTrimAtEndpoint(network, edge, endNode)) {
             skipEnd = skipDistanceAtNode(network, endNode, crossSection, config) * scale;
             exclusionPolygon(network, endNode, config).ifPresent(polygons::add);
+            preserveClearance |= isGradeSeparatedLowerApproach(network, edge, endNode);
         }
 
         skipStart = clampSkip(skipStart, edgeLength);
@@ -64,7 +67,23 @@ public final class JunctionCorridorTrim {
         }
         return new JunctionCorridorBuildContext(
             new StationFacilityJunctionTrim.FacilityEndpointTrim(skipStart, skipEnd),
-            List.copyOf(polygons));
+            List.copyOf(polygons),
+            preserveClearance);
+    }
+
+    /** Lower road at a grade-sep node: keep underpass clearance when plaza surface is handed to junction. */
+    static boolean isGradeSeparatedLowerApproach(RoadNetwork network, RoadEdge edge, RoadNode node) {
+        if (node == null || edge == null) {
+            return false;
+        }
+        if (node.isStackGradeSeparated()) {
+            return !node.isStackUpperEdge(edge.getId());
+        }
+        if (!node.isGradeSeparated()) {
+            return false;
+        }
+        String elevatedRoadId = node.getElevatedRoadId();
+        return elevatedRoadId == null || !elevatedRoadId.equals(edge.getRoadId());
     }
 
     static boolean shouldTrimAtEndpoint(RoadNetwork network, RoadEdge edge, RoadNode node) {
@@ -72,12 +91,14 @@ public final class JunctionCorridorTrim {
             return false;
         }
         if (node.isStackGradeSeparated()) {
+            // Lower stack approaches still trim plaza surface; clearance is preserved separately.
             return !node.isStackUpperEdge(edge.getId());
         }
         if (node.isGradeSeparated()) {
-            String elevatedRoadId = node.getElevatedRoadId();
-            String edgeRoadId = edge.getRoadId();
-            return elevatedRoadId == null || !elevatedRoadId.equals(edgeRoadId);
+            // Keep both upper and lower corridors intact through the crossing so the lower
+            // road retains OPEN clearance (underpass headroom). Junction fill still overlays
+            // the shared plaza surface via layer priority.
+            return false;
         }
         return true;
     }

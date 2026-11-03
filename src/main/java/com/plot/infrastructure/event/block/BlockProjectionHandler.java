@@ -319,7 +319,7 @@ public class BlockProjectionHandler implements IBlockProjectionService {
                 pos.getY(),
                 pos.getZ(),
                 blockId);
-            LOGGER.info("执行命令: {}", command);
+            LOGGER.debug("执行命令: {}", command);
             Objects.requireNonNull(client.getNetworkHandler()).sendChatCommand(command);
             return true;
         } catch (Exception e) {

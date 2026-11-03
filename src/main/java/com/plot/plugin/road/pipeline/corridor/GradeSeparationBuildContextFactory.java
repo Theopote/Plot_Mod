@@ -30,15 +30,23 @@ public final class GradeSeparationBuildContextFactory {
         if (network == null || edge == null || config == null || networkNodeElevations == null) {
             return GradeSeparationBuildContext.NONE;
         }
-        List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones = new ArrayList<>();
-        collectZone(network, edge, network.getNode(edge.getStartNodeId()), networkNodeElevations, config,
-            elevatedRoadIdResolver, zones);
-        collectZone(network, edge, network.getNode(edge.getEndNodeId()), networkNodeElevations, config,
-            elevatedRoadIdResolver, zones);
-        if (zones.isEmpty()) {
-            return GradeSeparationBuildContext.NONE;
+        List<GradeSeparationBuildContext.ProtectedUnderpassZone> elevatedZones = new ArrayList<>();
+        collectElevatedZone(network, edge, network.getNode(edge.getStartNodeId()), networkNodeElevations, config,
+            elevatedRoadIdResolver, elevatedZones);
+        collectElevatedZone(network, edge, network.getNode(edge.getEndNodeId()), networkNodeElevations, config,
+            elevatedRoadIdResolver, elevatedZones);
+        if (!elevatedZones.isEmpty()) {
+            return new GradeSeparationBuildContext(true, elevatedZones);
         }
-        return new GradeSeparationBuildContext(true, zones);
+        List<GradeSeparationBuildContext.ProtectedUnderpassZone> lowerZones = new ArrayList<>();
+        collectLowerZone(network, edge, network.getNode(edge.getStartNodeId()), networkNodeElevations, config,
+            elevatedRoadIdResolver, lowerZones);
+        collectLowerZone(network, edge, network.getNode(edge.getEndNodeId()), networkNodeElevations, config,
+            elevatedRoadIdResolver, lowerZones);
+        if (!lowerZones.isEmpty()) {
+            return new GradeSeparationBuildContext(false, lowerZones);
+        }
+        return GradeSeparationBuildContext.NONE;
     }
 
     @FunctionalInterface
@@ -46,7 +54,7 @@ public final class GradeSeparationBuildContextFactory {
         String resolve(RoadNode node, RoadNetwork network);
     }
 
-    private static void collectZone(
+    private static void collectElevatedZone(
             RoadNetwork network,
             RoadEdge edge,
             RoadNode node,
@@ -73,6 +81,36 @@ public final class GradeSeparationBuildContextFactory {
         if (elevatedRoadId == null || !elevatedRoadId.equals(edge.getRoadId())) {
             return;
         }
+        addUnderpassZone(network, node, networkNodeElevations, config, elevatedRoadId, zones);
+    }
+
+    private static void collectLowerZone(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadNode node,
+            Map<String, Integer> networkNodeElevations,
+            RoadSystemConfig config,
+            ElevatedRoadIdResolver elevatedRoadIdResolver,
+            List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones) {
+        if (node == null || node.getDegree() < 3 || !node.isGradeSeparated() || node.isStackGradeSeparated()) {
+            return;
+        }
+        String elevatedRoadId = elevatedRoadIdResolver != null
+            ? elevatedRoadIdResolver.resolve(node, network)
+            : node.getElevatedRoadId();
+        if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
+            return;
+        }
+        addUnderpassZone(network, node, networkNodeElevations, config, elevatedRoadId, zones);
+    }
+
+    private static void addUnderpassZone(
+            RoadNetwork network,
+            RoadNode node,
+            Map<String, Integer> networkNodeElevations,
+            RoadSystemConfig config,
+            String elevatedRoadId,
+            List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones) {
         Integer underpassY = networkNodeElevations.get(node.getId());
         if (underpassY == null) {
             return;

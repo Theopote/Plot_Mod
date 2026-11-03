@@ -32,12 +32,15 @@ public final class CrossingGradeClassifier {
             return RoadCrossing.atGrade(roadAId, stationA, roadBId, stationB, position);
         }
         double delta = elevationA.getAsDouble() - elevationB.getAsDouble();
-        if (Math.abs(delta) + EPSILON < DEFAULT_CLEARANCE) {
+        double separation = Math.abs(delta);
+        if (separation + EPSILON < DEFAULT_CLEARANCE) {
             return RoadCrossing.atGrade(roadAId, stationA, roadBId, stationB, position);
         }
         String elevatedRoadId = delta > 0.0 ? roadAId : roadBId;
+        // Use the designed vertical separation as underpass clearance so auto-detect
+        // does not shrink a taller edited profile back to DEFAULT_CLEARANCE.
         return RoadCrossing.gradeSeparated(
-            roadAId, stationA, roadBId, stationB, position, elevatedRoadId, DEFAULT_CLEARANCE);
+            roadAId, stationA, roadBId, stationB, position, elevatedRoadId, separation);
     }
 
     public static RoadStackCrossing classifyStack(
@@ -52,13 +55,14 @@ public final class CrossingGradeClassifier {
             return RoadStackCrossing.atGrade(roadId, stationA, stationB, position);
         }
         double delta = elevationA.getAsDouble() - elevationB.getAsDouble();
-        if (Math.abs(delta) + EPSILON < DEFAULT_CLEARANCE) {
+        double separation = Math.abs(delta);
+        if (separation + EPSILON < DEFAULT_CLEARANCE) {
             return RoadStackCrossing.atGrade(roadId, stationA, stationB, position);
         }
         double lowerStation = delta < 0.0 ? stationA : stationB;
         double upperStation = delta < 0.0 ? stationB : stationA;
         return RoadStackCrossing.gradeSeparated(
-            roadId, lowerStation, upperStation, position, DEFAULT_CLEARANCE);
+            roadId, lowerStation, upperStation, position, separation);
     }
 
     /** 两路在交点处设计高差是否达到立交净空。 */

@@ -28,7 +28,9 @@ final class PortalTransitionGuard {
         if (plan != null) {
             for (var entry : plan.clearanceEntries()) {
                 ClearanceCell cell = entry.getValue();
-                if (cell.constructionType() != RoadConstructionType.TUNNEL_PORTAL) {
+                RoadConstructionType type = cell.constructionType();
+                // 洞身与洞门均登记，避免洞顶外侧开放切方不受屋顶盖帽约束
+                if (type == null || !type.isTunnelFamily()) {
                     continue;
                 }
                 designYByColumn.merge(entry.getKey(), cell.designSurfaceY(), Math::max);

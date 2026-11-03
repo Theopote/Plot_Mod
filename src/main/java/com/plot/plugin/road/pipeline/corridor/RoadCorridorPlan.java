@@ -175,6 +175,13 @@ public final class RoadCorridorPlan {
         }
     }
 
+    /** Drop open batter on a column without counting it as an incomplete ray. */
+    void removeSlopeCell(ColumnKey key) {
+        if (key != null) {
+            slopeCells.remove(key);
+        }
+    }
+
     public boolean isSlopeColumnIncomplete(ColumnKey key) {
         return key != null && incompleteSlopeColumns.contains(key);
     }

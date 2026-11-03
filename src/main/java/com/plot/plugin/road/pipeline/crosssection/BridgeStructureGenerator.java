@@ -549,7 +549,13 @@ public final class BridgeStructureGenerator {
             GradeSeparationBuildContext gradeSeparation) {
         int groundY = terrain.sampleSurfaceY(canvasPos);
         for (int y = groundY + 1; y < deckY; y++) {
-            if (gradeSeparation != null && gradeSeparation.protects(canvasPos, y)) {
+            if (gradeSeparation != null
+                    && (gradeSeparation.protects(canvasPos, y)
+                        || gradeSeparation.protects(
+                            new com.plot.api.geometry.Vec2d(
+                                Math.floor(canvasPos.x) + 0.5,
+                                Math.floor(canvasPos.y) + 0.5),
+                            y))) {
                 continue;
             }
             solids.add(canvasPos, y, RoadSolidLayer.BRIDGE, blockId);

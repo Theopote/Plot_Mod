@@ -108,6 +108,11 @@ public final class RoadCorridorPlanBuilder {
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
+        // 空间保护：剔除伸进洞身/洞门山体包络的开放边坡（仅靠站点邻接不够）
+        ResolvedCrossSection protectSection = stations.isEmpty()
+            ? ResolvedCrossSection.fromConfig(config)
+            : crossSections.resolve(stations.getFirst().chainage());
+        TunnelMountainProtection.from(plan, protectSection).scrubOpenBatter(plan);
         SlopeEnvelopeClearancePass.apply(plan, terrain);
         // Exact polygon ownership, rather than also skipping an entire endpoint
         // length, keeps the approach pavement connected to the plaza boundary.

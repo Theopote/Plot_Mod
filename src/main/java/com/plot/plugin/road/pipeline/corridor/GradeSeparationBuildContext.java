@@ -6,8 +6,11 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import java.util.List;
 
 /**
- * Vertical protection when generating an elevated road edge: excavation preserves
- * the lower road surface, while fill must preserve the entire underpass gap.
+ * Vertical protection at grade-separated nodes.
+ * <ul>
+ *   <li>Elevated edges: fill must not bury the underpass; cut may clear the gap.</li>
+ *   <li>Lower edges: open clearance must not carve into/through the elevated deck.</li>
+ * </ul>
  */
 public record GradeSeparationBuildContext(
         boolean elevatedRoadEdge,
@@ -31,9 +34,13 @@ public record GradeSeparationBuildContext(
 
     /** Excavation may clear the gap; fill must preserve the whole underpass volume. */
     public boolean protectsClearance(Vec2d planPoint, int y) {
-        if (!elevatedRoadEdge || planPoint == null) return false;
+        if (!elevatedRoadEdge || planPoint == null) {
+            return false;
+        }
         for (var zone : protectedZones) {
-            if (y <= zone.surfaceY() && RoadGeometryUtils.pointInPolygon(planPoint, zone.polygon())) return true;
+            if (y <= zone.surfaceY() && RoadGeometryUtils.pointInPolygon(planPoint, zone.polygon())) {
+                return true;
+            }
         }
         return false;
     }
@@ -48,5 +55,24 @@ public record GradeSeparationBuildContext(
             }
         }
         return false;
+    }
+
+    /**
+     * For lower (at-grade) edges under a deck: max Y that open clearance may clear.
+     * {@code floorY} on the zone is the elevated underside / deck floor.
+     */
+    public Integer maxOpenClearTopY(Vec2d planPoint) {
+        if (elevatedRoadEdge || planPoint == null || protectedZones.isEmpty()) {
+            return null;
+        }
+        Integer max = null;
+        for (ProtectedUnderpassZone zone : protectedZones) {
+            if (!RoadGeometryUtils.pointInPolygon(planPoint, zone.polygon())) {
+                continue;
+            }
+            int cap = zone.floorY() - 1;
+            max = max == null ? cap : Math.min(max, cap);
+        }
+        return max;
     }
 }
