@@ -10,6 +10,12 @@ import java.util.Map;
 /**
  * Pure cross-section light placement shared by tunnel generation and UI preview.
  * Longitudinal spacing is applied by the caller.
+ * <p>
+ * Lights may only sit on a mountable surface: protruding AIR cells adjacent to
+ * lining, or embedded inner-face LINING. Free-floating cavity air (e.g. lane
+ * center) is rejected. Custom anchors that fall outside a narrower section are
+ * snapped toward the wall/ceiling when possible; unresolved anchors are kept
+ * in storage but omitted from the resolved list.
  */
 public final class TunnelLightPlacementResolver {
     public enum LightType {
@@ -18,6 +24,13 @@ public final class TunnelLightPlacementResolver {
     }
 
     public record LightPosition(int lateral, int y, LightType type) {
+    }
+
+    /** Resolved lights plus how many custom anchors could not be placed. */
+    public record ResolveResult(List<LightPosition> lights, int unresolvedAnchors) {
+        public ResolveResult {
+            lights = lights != null ? List.copyOf(lights) : List.of();
+        }
     }
 
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -34,7 +47,7 @@ public final class TunnelLightPlacementResolver {
             int liningThickness,
             int roadY,
             TunnelLightingMode mode) {
-        return resolve(
+        return resolveDetailed(
             shape,
             roadEnvelopeWidth,
             sideClearance,
@@ -43,10 +56,25 @@ public final class TunnelLightPlacementResolver {
             roadY,
             mode,
             TunnelLightMount.PROTRUDING,
-            null);
+            null).lights();
     }
 
     public static List<LightPosition> resolve(
+            TunnelShape shape,
+            int roadEnvelopeWidth,
+            int sideClearance,
+            int clearHeight,
+            int liningThickness,
+            int roadY,
+            TunnelLightingMode mode,
+            TunnelLightMount mount,
+            List<TunnelLightAnchor> customAnchors) {
+        return resolveDetailed(
+            shape, roadEnvelopeWidth, sideClearance, clearHeight, liningThickness,
+            roadY, mode, mount, customAnchors).lights();
+    }
+
+    public static ResolveResult resolveDetailed(
             TunnelShape shape,
             int roadEnvelopeWidth,
             int sideClearance,
@@ -65,30 +93,33 @@ public final class TunnelLightPlacementResolver {
             resolved, roadEnvelopeWidth, side, clear, lining, roadY, false);
 
         if (customAnchors != null) {
-            // Custom anchors are validated for the active mount (with cross-mount snap).
-            return fromCustomAnchors(customAnchors, mask, roadY, resolvedMount);
+            return fromCustomAnchors(customAnchors, mask, roadY, clear, resolvedMount);
         }
 
         List<LightPosition> protruding = modeDefaultsProtruding(
             resolved, mask, roadEnvelopeWidth, side, clear, roadY, mode);
         if (resolvedMount == TunnelLightMount.PROTRUDING) {
-            return List.copyOf(protruding);
+            return new ResolveResult(protruding, 0);
         }
         List<LightPosition> embedded = new ArrayList<>(protruding.size());
         for (LightPosition light : protruding) {
             LightPosition snapped = toEmbedded(mask, light);
-            if (snapped != null) {
+            if (snapped != null && isValidLightCell(mask, snapped.lateral(), snapped.y(), roadY, resolvedMount)) {
                 embedded.add(snapped);
             }
         }
-        return dedupe(embedded);
+        return new ResolveResult(dedupe(embedded), 0);
     }
 
     public static List<LightPosition> resolve(ResolvedTunnelStyle style, int roadEnvelopeWidth, int roadY) {
+        return resolveDetailed(style, roadEnvelopeWidth, roadY).lights();
+    }
+
+    public static ResolveResult resolveDetailed(ResolvedTunnelStyle style, int roadEnvelopeWidth, int roadY) {
         if (style == null) {
-            return List.of();
+            return new ResolveResult(List.of(), 0);
         }
-        return resolve(
+        return resolveDetailed(
             style.shape(),
             roadEnvelopeWidth,
             style.sideClearance(),
@@ -122,7 +153,11 @@ public final class TunnelLightPlacementResolver {
         return anchors;
     }
 
-    /** Whether a cell is a valid click target for the given mount. */
+    /**
+     * Valid click / placement target for the mount.
+     * Protruding: AIR adjacent to lining (wall or ceiling face).
+     * Embedded: inner-face LINING. Free cavity air is never valid.
+     */
     public static boolean isValidLightCell(
             TunnelCrossSectionMask mask,
             int lateral,
@@ -133,10 +168,10 @@ public final class TunnelLightPlacementResolver {
             return false;
         }
         TunnelLightMount resolved = mount != null ? mount : TunnelLightMount.PROTRUDING;
-        if (resolved == TunnelLightMount.PROTRUDING) {
-            return isMaskAir(mask, lateral, y);
+        if (resolved == TunnelLightMount.EMBEDDED) {
+            return isInnerFaceLining(mask, lateral, y);
         }
-        return isInnerFaceLining(mask, lateral, y);
+        return isMaskAir(mask, lateral, y) && isAdjacentToLining(mask, lateral, y);
     }
 
     public static LightType inferLightType(int lateral, int y, int roadY, int clearHeight) {
@@ -145,6 +180,22 @@ public final class TunnelLightPlacementResolver {
             return LightType.CEILING;
         }
         return LightType.WALL;
+    }
+
+    public static LightType inferLightType(
+            TunnelCrossSectionMask mask,
+            int lateral,
+            int y,
+            int roadY,
+            int clearHeight) {
+        if (mask != null && mask.kindAt(lateral, y + 1) == TunnelCrossSectionMask.CellKind.LINING) {
+            boolean sideLining = mask.kindAt(lateral - 1, y) == TunnelCrossSectionMask.CellKind.LINING
+                || mask.kindAt(lateral + 1, y) == TunnelCrossSectionMask.CellKind.LINING;
+            if (!sideLining || lateral == 0) {
+                return LightType.CEILING;
+            }
+        }
+        return inferLightType(lateral, y, roadY, clearHeight);
     }
 
     /**
@@ -188,48 +239,46 @@ public final class TunnelLightPlacementResolver {
             return false;
         }
 
-        // Always rewrite anchors from the currently resolved cells so mount flips stay consistent.
-        List<TunnelLightAnchor> next = new ArrayList<>();
-        for (LightPosition light : current) {
-            if (light.lateral() == lateral && light.y() == y) {
-                continue;
+        List<TunnelLightAnchor> base;
+        if (style.getStoredLightAnchors() != null) {
+            base = new ArrayList<>(style.getStoredLightAnchors());
+        } else {
+            base = new ArrayList<>();
+            for (LightPosition light : current) {
+                base.add(TunnelLightAnchor.fromAbsolute(
+                    light.lateral(), light.y(), roadY, light.type()));
             }
-            next.add(TunnelLightAnchor.fromAbsolute(
-                light.lateral(), light.y(), roadY, light.type()));
         }
-        if (!occupied) {
-            LightType type = inferLightType(lateral, y, roadY, style.getClearHeight());
-            next.add(TunnelLightAnchor.fromAbsolute(lateral, y, roadY, type));
+
+        if (occupied) {
+            base.removeIf(anchor -> {
+                if (anchor == null) {
+                    return false;
+                }
+                if (anchor.lateral() == lateral && anchor.absoluteY(roadY) == y) {
+                    return true;
+                }
+                LightPosition placed = placeCustomAnchor(
+                    anchor, mask, roadY, style.getClearHeight(), mount);
+                return placed != null && placed.lateral() == lateral && placed.y() == y;
+            });
+        } else {
+            LightType type = inferLightType(mask, lateral, y, roadY, style.getClearHeight());
+            base.add(TunnelLightAnchor.fromAbsolute(lateral, y, roadY, type));
         }
-        style.setLightAnchors(next);
+        style.setLightAnchors(base);
         return true;
     }
 
-    /** Re-store custom anchors at the cells implied by the current mount (no-op if not custom). */
+    /**
+     * Mount flips are resolved at placement time; stored anchors are left intact so
+     * variable-width sections can still recover original intent.
+     */
     public static void syncCustomAnchorsToMount(
             TunnelStyle style,
             int roadEnvelopeWidth,
             int roadY) {
-        if (style == null || !style.hasCustomLightLayout()) {
-            return;
-        }
-        int envelope = Math.max(1, roadEnvelopeWidth);
-        List<LightPosition> lights = resolve(
-            style.getShape(),
-            envelope,
-            style.getSideClearance(),
-            style.getClearHeight(),
-            style.getLiningThickness(),
-            roadY,
-            style.getLightingMode(),
-            style.getLightMount(),
-            style.getStoredLightAnchors());
-        List<TunnelLightAnchor> anchors = new ArrayList<>(lights.size());
-        for (LightPosition light : lights) {
-            anchors.add(TunnelLightAnchor.fromAbsolute(
-                light.lateral(), light.y(), roadY, light.type()));
-        }
-        style.setLightAnchors(anchors);
+        // Intentionally no-op: rewriting would drop anchors that only fit wider envelopes.
     }
 
     private static List<LightPosition> modeDefaultsProtruding(
@@ -255,58 +304,117 @@ public final class TunnelLightPlacementResolver {
         }
         if (mode.placesCeilingLights()) {
             int ceilingY = TunnelProfile.innerCeilingY(shape, 0, halfCavityWidth, roadY, clear);
-            if (isMaskAir(mask, 0, ceilingY)) {
+            if (isValidLightCell(mask, 0, ceilingY, roadY, TunnelLightMount.PROTRUDING)) {
                 lights.add(new LightPosition(0, ceilingY, LightType.CEILING));
             }
         }
         return lights;
     }
 
-    /**
-     * Interprets custom anchors. Stored anchors are always the protruding (AIR) cell
-     * when mount is PROTRUDING, or the intended click cell for EMBEDDED (inner LINING).
-     * For EMBEDDED UI clicks we store the lining cell; resolve then returns it directly
-     * when mount is EMBEDDED. For PROTRUDING, store/validate AIR.
-     */
-    private static List<LightPosition> fromCustomAnchors(
+    private static ResolveResult fromCustomAnchors(
             List<TunnelLightAnchor> customAnchors,
             TunnelCrossSectionMask mask,
             int roadY,
+            int clearHeight,
             TunnelLightMount mount) {
         List<LightPosition> lights = new ArrayList<>();
+        int unresolved = 0;
         for (TunnelLightAnchor anchor : customAnchors) {
             if (anchor == null) {
                 continue;
             }
-            int y = anchor.absoluteY(roadY);
-            if (y <= roadY) {
-                continue;
+            LightPosition placed = placeCustomAnchor(anchor, mask, roadY, clearHeight, mount);
+            if (placed != null) {
+                lights.add(placed);
+            } else {
+                unresolved++;
             }
-            LightType type = anchor.type() != null ? anchor.type() : LightType.WALL;
-            if (mount == TunnelLightMount.EMBEDDED) {
-                if (isInnerFaceLining(mask, anchor.lateral(), y)) {
-                    lights.add(new LightPosition(anchor.lateral(), y, type));
-                } else if (isMaskAir(mask, anchor.lateral(), y)) {
-                    // Anchor saved while protruding; convert when mount flipped.
-                    LightPosition embedded = toEmbedded(
-                        mask, new LightPosition(anchor.lateral(), y, type));
-                    if (embedded != null) {
-                        lights.add(embedded);
+        }
+        return new ResolveResult(dedupe(lights), unresolved);
+    }
+
+    private static LightPosition placeCustomAnchor(
+            TunnelLightAnchor anchor,
+            TunnelCrossSectionMask mask,
+            int roadY,
+            int clearHeight,
+            TunnelLightMount mount) {
+        int y = anchor.absoluteY(roadY);
+        if (y <= roadY) {
+            return null;
+        }
+        LightType type = anchor.type() != null ? anchor.type() : LightType.WALL;
+        LightPosition exact = new LightPosition(anchor.lateral(), y, type);
+        if (isValidLightCell(mask, exact.lateral(), exact.y(), roadY, mount)) {
+            return exact;
+        }
+        if (mount == TunnelLightMount.EMBEDDED && isMaskAir(mask, exact.lateral(), exact.y())) {
+            LightPosition embedded = toEmbedded(mask, exact);
+            if (embedded != null && isValidLightCell(mask, embedded.lateral(), embedded.y(), roadY, mount)) {
+                return embedded;
+            }
+        }
+        if (mount == TunnelLightMount.PROTRUDING && isInnerFaceLining(mask, exact.lateral(), exact.y())) {
+            LightPosition protruding = toProtruding(mask, exact);
+            if (protruding != null && isValidLightCell(mask, protruding.lateral(), protruding.y(), roadY, mount)) {
+                return protruding;
+            }
+        }
+        return snapToMountSurface(mask, exact, roadY, clearHeight, mount);
+    }
+
+    /**
+     * When an anchor falls outside a narrower cavity, walk toward the near wall
+     * (or ceiling) for a valid mount cell at a similar elevation.
+     */
+    private static LightPosition snapToMountSurface(
+            TunnelCrossSectionMask mask,
+            LightPosition desired,
+            int roadY,
+            int clearHeight,
+            TunnelLightMount mount) {
+        if (desired.type() == LightType.CEILING) {
+            int yMin = Math.max(roadY + 1, desired.y() - 2);
+            int yMax = desired.y() + Math.max(2, clearHeight);
+            for (int y = yMin; y <= yMax; y++) {
+                for (int lateral = 0; lateral <= 2; lateral++) {
+                    int[] sides = lateral == 0 ? new int[]{0} : new int[]{lateral, -lateral};
+                    for (int side : sides) {
+                        if (!isValidLightCell(mask, side, y, roadY, mount)) {
+                            continue;
+                        }
+                        if (mount == TunnelLightMount.EMBEDDED
+                                || mask.kindAt(side, y + 1) == TunnelCrossSectionMask.CellKind.LINING) {
+                            return new LightPosition(side, y, LightType.CEILING);
+                        }
                     }
                 }
-            } else {
-                if (isMaskAir(mask, anchor.lateral(), y)) {
-                    lights.add(new LightPosition(anchor.lateral(), y, type));
-                } else if (isInnerFaceLining(mask, anchor.lateral(), y)) {
-                    LightPosition protruding = toProtruding(
-                        mask, new LightPosition(anchor.lateral(), y, type));
-                    if (protruding != null) {
-                        lights.add(protruding);
+            }
+            return null;
+        }
+
+        int direction = desired.lateral() >= 0 ? 1 : -1;
+        for (int dy = 0; dy <= 3; dy++) {
+            for (int yDelta : dy == 0 ? new int[]{0} : new int[]{dy, -dy}) {
+                int y = desired.y() + yDelta;
+                if (y <= roadY) {
+                    continue;
+                }
+                for (int step = 0; step <= 16; step++) {
+                    int lateral = desired.lateral() + direction * step;
+                    if (isValidLightCell(mask, lateral, y, roadY, mount)) {
+                        return new LightPosition(lateral, y, LightType.WALL);
+                    }
+                    if (step > 0) {
+                        int opposite = desired.lateral() - direction * step;
+                        if (isValidLightCell(mask, opposite, y, roadY, mount)) {
+                            return new LightPosition(opposite, y, LightType.WALL);
+                        }
                     }
                 }
             }
         }
-        return dedupe(lights);
+        return null;
     }
 
     private static LightPosition toEmbedded(TunnelCrossSectionMask mask, LightPosition protruding) {
@@ -319,7 +427,6 @@ public final class TunnelLightPlacementResolver {
         if (!isMaskAir(mask, protruding.lateral(), protruding.y())) {
             return null;
         }
-        // Prefer outward/upward for walls/ceiling.
         int[] preferred;
         if (protruding.type() == LightType.CEILING) {
             preferred = new int[]{0, 1, 0, -1, 1, 0, -1, 0};
@@ -351,7 +458,8 @@ public final class TunnelLightPlacementResolver {
         if (embedded == null) {
             return null;
         }
-        if (isMaskAir(mask, embedded.lateral(), embedded.y())) {
+        if (isMaskAir(mask, embedded.lateral(), embedded.y())
+                && isAdjacentToLining(mask, embedded.lateral(), embedded.y())) {
             return embedded;
         }
         if (!isInnerFaceLining(mask, embedded.lateral(), embedded.y())) {
@@ -360,7 +468,7 @@ public final class TunnelLightPlacementResolver {
         for (int[] d : DIRS) {
             int nl = embedded.lateral() + d[0];
             int ny = embedded.y() + d[1];
-            if (isMaskAir(mask, nl, ny)) {
+            if (isMaskAir(mask, nl, ny) && isAdjacentToLining(mask, nl, ny)) {
                 return new LightPosition(nl, ny, embedded.type());
             }
         }
@@ -373,6 +481,15 @@ public final class TunnelLightPlacementResolver {
         }
         for (int[] d : DIRS) {
             if (isMaskAir(mask, lateral + d[0], y + d[1])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isAdjacentToLining(TunnelCrossSectionMask mask, int lateral, int y) {
+        for (int[] d : DIRS) {
+            if (mask.kindAt(lateral + d[0], y + d[1]) == TunnelCrossSectionMask.CellKind.LINING) {
                 return true;
             }
         }
@@ -395,7 +512,7 @@ public final class TunnelLightPlacementResolver {
                 break;
             }
             Integer y = wallLightYInColumn(mask, lateral, preferredY, roadY, clearHeight);
-            if (y != null) {
+            if (y != null && isValidLightCell(mask, lateral, y, roadY, TunnelLightMount.PROTRUDING)) {
                 lights.add(new LightPosition(lateral, y, LightType.WALL));
                 return;
             }

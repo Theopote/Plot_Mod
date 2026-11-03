@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelLightMount;
 import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
@@ -159,8 +160,17 @@ public final class TunnelStyleEditor {
             PresetSelection presetSelection,
             int envelopeWidth) {
         if (TunnelCrossSectionPreviewRenderer.renderLivePreview(
-                style, style.isAccentRings(), envelopeWidth, true)) {
+                style, style.hasEffectiveAccentRings(), envelopeWidth, true)) {
             notifyChanged(style, onChanged, presetSelection);
+        }
+        TunnelLightPlacementResolver.ResolveResult lightResult =
+            TunnelLightPlacementResolver.resolveDetailed(
+                ResolvedTunnelStyle.from(style), envelopeWidth,
+                TunnelCrossSectionPreviewRenderer.PREVIEW_ROAD_Y);
+        if (lightResult.unresolvedAnchors() > 0) {
+            ImGui.textDisabled(PlotI18n.tr(
+                "plugin.road.tunnel.light_unresolved",
+                lightResult.unresolvedAnchors()));
         }
     }
 

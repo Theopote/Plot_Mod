@@ -214,6 +214,15 @@ public final class TunnelStyle {
         return accentMaterial == null ? DEFAULT_ACCENT_MATERIAL : accentMaterial;
     }
 
+    /** True when accent rings are enabled and a non-blank accent material is set. */
+    public boolean hasEffectiveAccentRings() {
+        return isAccentRings() && getAccentMaterial() != null && !getAccentMaterial().isBlank();
+    }
+
+    public static boolean hasEffectiveAccentRings(boolean accentRings, String accentMaterial) {
+        return accentRings && accentMaterial != null && !accentMaterial.isBlank();
+    }
+
     public int getAccentSpacing() {
         return accentSpacing != null ? accentSpacing : DEFAULT_ACCENT_SPACING;
     }

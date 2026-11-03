@@ -121,8 +121,7 @@ public final class TunnelStructureGenerator {
                 double structureStation = structureStationAt(
                     tunnelRunContaining(detection != null ? detection.runs() : null, worldStation),
                     worldStation);
-                boolean accentRing = tunnelStyle.accentRings()
-                    && !tunnelStyle.accentMaterial().isBlank()
+                boolean accentRing = tunnelStyle.hasEffectiveAccentRings()
                     && hitsStructureSpacing(structureStation, tunnelStyle.accentSpacing());
                 String liningMaterial = accentRing
                     ? tunnelStyle.accentMaterial()

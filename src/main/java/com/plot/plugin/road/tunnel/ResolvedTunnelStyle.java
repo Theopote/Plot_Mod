@@ -30,6 +30,10 @@ public record ResolvedTunnelStyle(
         return lightAnchors != null;
     }
 
+    public boolean hasEffectiveAccentRings() {
+        return TunnelStyle.hasEffectiveAccentRings(accentRings, accentMaterial);
+    }
+
     public int structureHeight() {
         return clearHeight + liningThickness;
     }

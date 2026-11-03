@@ -29,7 +29,7 @@ public final class TunnelFeasibilityChecker {
         int outerWidth = cavityWidth + style.liningThickness() * 2;
         int outerMin = RoadDimensionUtils.minLateralOffset(outerWidth);
         int outerMax = RoadDimensionUtils.maxLateralOffset(outerWidth);
-        int roofY = roadY + style.roofTopOffset();
+        int fallbackRoofY = roadY + style.roofTopOffset();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
@@ -41,6 +41,15 @@ public final class TunnelFeasibilityChecker {
             return TunnelFeasibility.invalid();
         }
 
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.clearHeight(),
+            style.liningThickness(),
+            roadY,
+            false);
+
         int minCover = Integer.MAX_VALUE;
         int checkedColumns = 0;
         int coveredColumns = 0;
@@ -49,7 +58,9 @@ public final class TunnelFeasibilityChecker {
             int worldX = columnResolver.worldX(point);
             int worldZ = columnResolver.worldZ(point);
             checkedColumns++;
-            int cover = measureCoverAbove(terrain, worldX, worldZ, roofY);
+            int columnRoof = mask.outerTopY(lateral);
+            int roofY = columnRoof != Integer.MIN_VALUE ? columnRoof : fallbackRoofY;
+            int cover = measureContinuousCoverAbove(terrain, worldX, worldZ, roofY);
             minCover = Math.min(minCover, cover);
             if (cover >= TunnelFeasibility.MINIMUM_COVER_BLOCKS) {
                 coveredColumns++;
@@ -63,14 +74,18 @@ public final class TunnelFeasibilityChecker {
         return new TunnelFeasibility(valid, minCover == Integer.MAX_VALUE ? 0 : minCover, ratio);
     }
 
-    private static int measureCoverAbove(TerrainSampler terrain, int worldX, int worldZ, int roofY) {
+    /**
+     * Counts solid blocks stacked immediately above {@code roofY}.
+     * The first air cell ends continuous cover (even when cover is still zero),
+     * so a floating rock ledge above a void does not count as tunnel overburden.
+     */
+    static int measureContinuousCoverAbove(TerrainSampler terrain, int worldX, int worldZ, int roofY) {
         int cover = 0;
         for (int y = roofY + 1; y <= roofY + 12; y++) {
-            if (terrain.isSolidBlock(worldX, y, worldZ)) {
-                cover++;
-            } else if (cover > 0) {
+            if (!terrain.isSolidBlock(worldX, y, worldZ)) {
                 break;
             }
+            cover++;
         }
         return cover;
     }

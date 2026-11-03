@@ -223,8 +223,14 @@ public final class TunnelCrossSectionPreviewRenderer {
         float pad = 2f;
         float availW = Math.max(1f, x1 - x0 - pad * 2f);
         float availH = Math.max(1f, y1 - y0 - pad * 2f);
+        // Prefer fitting the whole section; 3px is a readability preference, not a hard floor.
         float block = Math.min(availW / cols, availH / rows);
-        block = Math.max(3f, (float) Math.floor(block));
+        float preferred = (float) Math.floor(block);
+        if (preferred >= 3f) {
+            block = preferred;
+        } else {
+            block = Math.max(1f, block);
+        }
 
         float gridW = cols * block;
         float gridH = rows * block;
@@ -244,6 +250,15 @@ public final class TunnelCrossSectionPreviewRenderer {
             }
         }
 
+        CellHit hover = null;
+        if (ImGui.isMouseHoveringRect(x0, y0, x1, y1)) {
+            ImVec2 mouse = ImGui.getMousePos();
+            hover = hitTestCell(
+                new PreviewGridLayout(
+                    originX, originY, block, model.minLateral(), model.displayMaxY(), cols, rows),
+                mouse.x, mouse.y);
+        }
+
         for (TunnelSectionDisplayModel.Cell cell : model.cells()) {
             int col = cell.lateral() - model.minLateral();
             int row = model.displayMaxY() - cell.y();
@@ -252,6 +267,9 @@ public final class TunnelCrossSectionPreviewRenderer {
             int color = colorFor(cell.kind());
             drawList.addRectFilled(bx, by, bx + block, by + block, color, 0f);
             drawList.addRect(bx, by, bx + block, by + block, COLOR_CELL_EDGE, 0f, 0, 1f);
+            if (hover != null && hover.lateral() == cell.lateral() && hover.y() == cell.y()) {
+                drawList.addRect(bx, by, bx + block, by + block, PluginUiColors.ACCENT_BLUE, 0f, 0, 2f);
+            }
         }
 
         return new PreviewGridLayout(

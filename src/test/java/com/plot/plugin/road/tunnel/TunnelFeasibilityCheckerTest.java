@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,6 +59,45 @@ class TunnelFeasibilityCheckerTest {
             columnResolver(),
             1.0);
         assertFalse(feasibility.valid());
+    }
+
+    @Test
+    void floatingRockAboveVoidDoesNotCountAsCover() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int roofY = 64 + style.roofTopOffset();
+        // Gap immediately above the roof, then solid rock higher up.
+        TerrainSampler floatingLedge = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return roofY + 8;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return roofY + 8;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                if (y <= 64) {
+                    return true; // road / ground
+                }
+                return y >= roofY + 4 && y <= roofY + 8;
+            }
+        };
+        assertEquals(0, TunnelFeasibilityChecker.measureContinuousCoverAbove(
+            floatingLedge, 0, 0, roofY));
+        TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(
+            floatingLedge,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            64,
+            5,
+            style,
+            columnResolver(),
+            1.0);
+        assertFalse(feasibility.valid());
+        assertEquals(0, feasibility.minimumCover());
     }
 
     private static TerrainSampler solidUpTo(int maxSolidY) {

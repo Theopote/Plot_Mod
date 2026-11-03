@@ -161,7 +161,7 @@ public final class TunnelSectionDisplayModel {
             style.getLightingMode(),
             style.getLightMount(),
             style.getStoredLightAnchors(),
-            style.isAccentRings(),
+            style.hasEffectiveAccentRings(),
             PreviewSectionKind.NORMAL_SECTION);
     }
 

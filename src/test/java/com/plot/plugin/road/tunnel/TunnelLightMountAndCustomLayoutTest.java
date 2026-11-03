@@ -60,8 +60,14 @@ class TunnelLightMountAndCustomLayoutTest {
 
     @Test
     void customAnchorsReplaceModeDefaults() {
-        TunnelLightAnchor only = new TunnelLightAnchor(
-            0, 3, TunnelLightPlacementResolver.LightType.CEILING);
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.RECTANGULAR, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+        int ceilingY = TunnelProfile.innerCeilingY(
+            TunnelShape.RECTANGULAR, 0, (ENVELOPE + SIDE * 2) / 2, ROAD_Y, CLEAR);
+        assertTrue(TunnelLightPlacementResolver.isValidLightCell(
+            mask, 0, ceilingY, ROAD_Y, TunnelLightMount.PROTRUDING));
+        TunnelLightAnchor only = TunnelLightAnchor.fromAbsolute(
+            0, ceilingY, ROAD_Y, TunnelLightPlacementResolver.LightType.CEILING);
         List<TunnelLightPlacementResolver.LightPosition> lights = TunnelLightPlacementResolver.resolve(
             TunnelShape.RECTANGULAR, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y,
             TunnelLightingMode.WALL_AND_CEILING,
@@ -69,7 +75,7 @@ class TunnelLightMountAndCustomLayoutTest {
             List.of(only));
         assertEquals(1, lights.size());
         assertEquals(0, lights.getFirst().lateral());
-        assertEquals(ROAD_Y + 3, lights.getFirst().y());
+        assertEquals(ceilingY, lights.getFirst().y());
     }
 
     @Test
@@ -95,7 +101,20 @@ class TunnelLightMountAndCustomLayoutTest {
     }
 
     @Test
-    void toggleSeedsCustomLayoutAndAddsCell() {
+    void laneCenterAirIsNotAValidProtrudingMount() {
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            TunnelShape.RECTANGULAR, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
+        int lateral = 0;
+        int y = ROAD_Y + 3;
+        assertEquals(TunnelCrossSectionMask.CellKind.AIR, mask.kindAt(lateral, y));
+        assertFalse(
+            TunnelLightPlacementResolver.isValidLightCell(
+                mask, lateral, y, ROAD_Y, TunnelLightMount.PROTRUDING),
+            "lane-center air must not accept lights");
+    }
+
+    @Test
+    void toggleRejectsLaneCenterAndAcceptsWallFace() {
         TunnelStyle style = new TunnelStyle();
         style.setShape(TunnelShape.RECTANGULAR);
         style.setClearHeight(CLEAR);
@@ -104,21 +123,55 @@ class TunnelLightMountAndCustomLayoutTest {
         style.setLightingMode(TunnelLightingMode.NONE);
         style.setLightMount(TunnelLightMount.PROTRUDING);
 
+        assertFalse(TunnelLightPlacementResolver.toggleLightOnStyle(
+            style, ENVELOPE, ROAD_Y, 0, ROAD_Y + 3));
+
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             TunnelShape.RECTANGULAR, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
-        int lateral = 0;
-        int y = ROAD_Y + 3;
-        assertEquals(TunnelCrossSectionMask.CellKind.AIR, mask.kindAt(lateral, y));
-
+        int y = ROAD_Y + 2;
+        Integer validLateral = null;
+        for (int lateral = -8; lateral <= 8; lateral++) {
+            if (TunnelLightPlacementResolver.isValidLightCell(
+                    mask, lateral, y, ROAD_Y, TunnelLightMount.PROTRUDING)
+                    && lateral != 0) {
+                validLateral = lateral;
+                break;
+            }
+        }
+        assertNotNull(validLateral, "expected a wall-adjacent air cell");
         assertTrue(TunnelLightPlacementResolver.toggleLightOnStyle(
-            style, ENVELOPE, ROAD_Y, lateral, y));
+            style, ENVELOPE, ROAD_Y, validLateral, y));
         assertTrue(style.hasCustomLightLayout());
         assertEquals(1, style.getStoredLightAnchors().size());
 
         assertTrue(TunnelLightPlacementResolver.toggleLightOnStyle(
-            style, ENVELOPE, ROAD_Y, lateral, y));
-        assertTrue(style.hasCustomLightLayout());
+            style, ENVELOPE, ROAD_Y, validLateral, y));
         assertTrue(style.getStoredLightAnchors().isEmpty());
+    }
+
+    @Test
+    void customAnchorSnapsInwardWhenSectionNarrows() {
+        TunnelLightAnchor wideWall = new TunnelLightAnchor(
+            -5, 2, TunnelLightPlacementResolver.LightType.WALL);
+        TunnelLightPlacementResolver.ResolveResult wide = TunnelLightPlacementResolver.resolveDetailed(
+            TunnelShape.RECTANGULAR, 11, 4, CLEAR, LINING, ROAD_Y,
+            TunnelLightingMode.NONE, TunnelLightMount.PROTRUDING, List.of(wideWall));
+        assertEquals(1, wide.lights().size());
+        assertEquals(0, wide.unresolvedAnchors());
+
+        TunnelLightPlacementResolver.ResolveResult narrow = TunnelLightPlacementResolver.resolveDetailed(
+            TunnelShape.RECTANGULAR, 3, 0, CLEAR, LINING, ROAD_Y,
+            TunnelLightingMode.NONE, TunnelLightMount.PROTRUDING, List.of(wideWall));
+        assertTrue(narrow.lights().size() + narrow.unresolvedAnchors() >= 1);
+        if (narrow.lights().size() == 1) {
+            assertTrue(
+                TunnelLightPlacementResolver.isValidLightCell(
+                    TunnelCrossSectionMask.build(TunnelShape.RECTANGULAR, 3, 0, CLEAR, LINING, ROAD_Y, false),
+                    narrow.lights().getFirst().lateral(),
+                    narrow.lights().getFirst().y(),
+                    ROAD_Y,
+                    TunnelLightMount.PROTRUDING));
+        }
     }
 
     @Test

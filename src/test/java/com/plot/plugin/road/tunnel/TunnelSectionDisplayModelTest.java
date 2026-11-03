@@ -115,6 +115,25 @@ class TunnelSectionDisplayModelTest {
     }
 
     @Test
+    void accentSchematicRequiresNonBlankMaterialViaStyle() {
+        TunnelStyle ringsWithoutMaterial = new TunnelStyle();
+        ringsWithoutMaterial.setShape(TunnelShape.RECTANGULAR);
+        ringsWithoutMaterial.setAccentRings(true);
+        ringsWithoutMaterial.setAccentMaterial("");
+        TunnelSectionDisplayModel noAccent = TunnelSectionDisplayModel.buildFromStyle(
+            ringsWithoutMaterial, ENVELOPE, ROAD_Y);
+        assertTrue(noAccent.cells().stream().noneMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT));
+
+        TunnelStyle ringsWithMaterial = ringsWithoutMaterial.copy();
+        ringsWithMaterial.setAccentMaterial("minecraft:yellow_concrete");
+        TunnelSectionDisplayModel withAccent = TunnelSectionDisplayModel.buildFromStyle(
+            ringsWithMaterial, ENVELOPE, ROAD_Y);
+        assertTrue(withAccent.cells().stream().anyMatch(c ->
+            c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT));
+    }
+
+    @Test
     void circularEffectiveClearHeightIsClamped() {
         TunnelSectionDisplayModel model = TunnelSectionDisplayModel.build(
             TunnelShape.CIRCULAR, ENVELOPE, 1, 12, 1, ROAD_Y, TunnelLightingMode.NONE, false);
