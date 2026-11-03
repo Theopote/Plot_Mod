@@ -9,14 +9,14 @@ import com.plot.core.geometry.polygon.PolygonValidator;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 开放折线等距偏移（无限直线斜接 + miter limit + bevel；画布可用 round join）。 */
+/** 开放折线等距偏移（无限直线斜接 + miter limit + bevel；可选 round join）。 */
 final class OpenPolylineOffset {
     private static final double ROUND_JOIN_STEP_RADIANS = Math.PI / 12.0;
 
     enum JoinStyle {
-        /** 斜接，超限切 bevel（生成/土方等）。 */
+        /** 斜接，超限切 bevel（生成/画布折线尖角）。 */
         MITER,
-        /** 顶点圆弧接缝（画布走廊示意，避免锐角刀尖）。 */
+        /** 顶点圆弧接缝（可选）。 */
         ROUND
     }
 
@@ -186,7 +186,7 @@ final class OpenPolylineOffset {
 
     /**
      * 外角：半宽圆弧；内角：斜接，超限则 bevel。
-     * 叠加层急折应先经 {@link OpenPolylineFillet} 再高斜接限制偏移，避免半宽被挤扁。
+     * 画布折线叠加层用 {@link JoinStyle#MITER} 保留尖角，不用 round。
      */
     private static void appendRoundOrInnerBevel(
             List<Vec2d> output,

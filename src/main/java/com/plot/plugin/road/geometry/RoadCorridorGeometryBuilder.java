@@ -32,10 +32,10 @@ public final class RoadCorridorGeometryBuilder {
     }
 
     /**
-     * 画布叠加层走廊：急折中心线先圆角，再高斜接限制等距偏移，保持中心线两侧半宽。
+     * 画布叠加层走廊：折线外侧保留尖角斜接，按半宽等距偏移（不倒圆角）。
      * <p>
-     * 圆角弧被离散成许多小转角；默认 miter limit=4 会把每段内侧 bevel 掉，
-     * 看起来像挤压变形并容易自交。圆角后抬高斜接限制即可得到平行等宽边界。
+     * 斜接限制略高于生成路径默认值，避免常见 Z/锐折外侧被 bevel 切成钝角；
+     * 极端长刀尖仍会按限制切 bevel。
      */
     public static RoadCorridorGeometry buildForOverlay(
             List<Vec2d> centerline,
@@ -48,10 +48,8 @@ public final class RoadCorridorGeometryBuilder {
         if (effectiveClosed) {
             return buildClosed(centerline, halfWidth);
         }
-        List<Vec2d> sanitized = OpenPolylineOffset.sanitizeOpenCenterline(centerline);
-        // 半径略大于半宽，内侧偏移保留正曲率，避免看起来被挤成尖角
-        List<Vec2d> filleted = OpenPolylineFillet.filletSharpCorners(sanitized, halfWidth * 1.25);
-        return buildOpen(filleted, halfWidth, OpenPolylineOffset.JoinStyle.MITER, 64.0);
+        // 折线道路要尖角：直接 miter，不做中心线圆角 / round join
+        return buildOpen(centerline, halfWidth, OpenPolylineOffset.JoinStyle.MITER, 8.0);
     }
 
     /**

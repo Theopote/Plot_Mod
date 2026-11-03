@@ -214,8 +214,8 @@ class RoadCorridorGeometryBuilderTest {
     }
 
     @Test
-    void overlayRoundJoin_acuteHairpinKeepsHalfWidthWithoutBowtie() {
-        // 截图式锐折（非极端回头弯）：中心线先圆角再偏移，两侧保持半宽且无领结
+    void overlayMiter_acuteTurnKeepsHalfWidthWithoutBowtie() {
+        // 截图式锐折：折线尖角斜接，两侧半宽且无领结
         List<Vec2d> centerline = List.of(
             new Vec2d(0, 0),
             new Vec2d(40, 0),
@@ -224,8 +224,8 @@ class RoadCorridorGeometryBuilderTest {
         RoadCorridorGeometry overlay = RoadCorridorGeometryBuilder.buildForOverlay(
             centerline, halfWidth, false);
 
-        assertTrue(overlay.centerline().size() > centerline.size(),
-            "sharp overlay corners should be filleted before offset");
+        assertEquals(centerline.size(), overlay.centerline().size(),
+            "overlay should keep original polyline corners (no fillet)");
         assertFalse(
             PolygonValidator.hasOpenPolylineSelfIntersection(overlay.leftBoundary()),
             "left boundary must not cross itself");
@@ -234,59 +234,60 @@ class RoadCorridorGeometryBuilderTest {
             "right boundary must not cross itself");
         assertFalse(
             PolygonValidator.hasSelfIntersection(overlay.fillContours().getFirst()),
-            "filleted overlay fill should stay simple");
+            "miter overlay fill should stay simple");
 
-        // 沿圆角后中心线抽样：到左右边界的距离应接近半宽（等宽走廊）
-        List<Vec2d> cl = overlay.centerline();
-        int samples = 0;
-        double maxHalfWidthError = 0.0;
-        for (int i = 1; i < cl.size() - 1; i += Math.max(1, cl.size() / 8)) {
-            Vec2d p = cl.get(i);
-            double left = minDistanceToPolyline(p, overlay.leftBoundary());
-            double right = minDistanceToPolyline(p, overlay.rightBoundary());
-            maxHalfWidthError = Math.max(maxHalfWidthError, Math.abs(left - halfWidth));
-            maxHalfWidthError = Math.max(maxHalfWidthError, Math.abs(right - halfWidth));
-            samples++;
+        Vec2d corner = centerline.get(1);
+        // 外侧尖角：右边界应有一点落在折点外侧斜接附近（非圆角弧）
+        assertTrue(
+            overlay.rightBoundary().stream().anyMatch(p ->
+                p.y < corner.y - halfWidth * 0.5 && p.distance(corner) <= halfWidth * 2.5),
+            "outer corner should keep a sharp miter tip");
+
+        // 段中点处到左右边界应接近半宽（尖角顶点本身到中心线距离会 > 半宽，属正常斜接）
+        for (int i = 0; i < overlay.centerline().size() - 1; i++) {
+            Vec2d a = overlay.centerline().get(i);
+            Vec2d b = overlay.centerline().get(i + 1);
+            Vec2d mid = new Vec2d((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
+            assertEquals(halfWidth, minDistanceToPolyline(mid, overlay.leftBoundary()), halfWidth * 0.2);
+            assertEquals(halfWidth, minDistanceToPolyline(mid, overlay.rightBoundary()), halfWidth * 0.2);
         }
-        assertTrue(samples > 0);
-        assertTrue(maxHalfWidthError <= halfWidth * 0.35,
-            "overlay should stay near constant half-width (err=" + maxHalfWidthError + ")");
     }
 
     @Test
-    void overlayRoundJoin_zShapeAvoidsLongMiterSpikes() {
-        // 接近截图的 Z 折线：先圆角再等距偏移，相对圆角后中心线应保持半宽
+    void overlayMiter_zShapeKeepsSharpEqualWidthCorners() {
+        // 截图 Z 折线：外侧尖角，相对中心线等宽
         List<Vec2d> centerline = List.of(
             new Vec2d(0, 40),
             new Vec2d(0, 18),
             new Vec2d(22, 12),
             new Vec2d(22, -8));
         double halfWidth = 4.0;
-        RoadCorridorGeometry miter = RoadCorridorGeometryBuilder.build(centerline, halfWidth);
         RoadCorridorGeometry overlay = RoadCorridorGeometryBuilder.buildForOverlay(
             centerline, halfWidth, false);
 
-        assertTrue(overlay.centerline().size() > centerline.size(),
-            "Z corners should be filleted for overlay");
-        assertTrue(overlay.leftBoundary().size() >= miter.leftBoundary().size(),
-            "filleted overlay should not sparsify boundaries");
-        assertFalse(PolygonValidator.hasOpenPolylineSelfIntersection(overlay.centerline()));
+        assertEquals(centerline.size(), overlay.centerline().size(),
+            "Z overlay should not fillet centerline");
         assertFalse(PolygonValidator.hasOpenPolylineSelfIntersection(overlay.leftBoundary()));
         assertFalse(PolygonValidator.hasOpenPolylineSelfIntersection(overlay.rightBoundary()));
         assertFalse(PolygonValidator.hasSelfIntersection(overlay.fillContours().getFirst()));
-        double overlayOffset = maxDistanceToCenterline(
-            overlay.fillContours().getFirst(), overlay.centerline());
-        assertTrue(overlayOffset <= halfWidth * 1.2 + 1e-6,
-            "overlay corridor should stay near half-width about filleted CL (was "
-                + overlayOffset + ")");
+
         double leftMean = meanDistanceToCenterline(overlay.leftBoundary(), overlay.centerline());
         double rightMean = meanDistanceToCenterline(overlay.rightBoundary(), overlay.centerline());
         assertEquals(halfWidth, leftMean, halfWidth * 0.25);
         assertEquals(halfWidth, rightMean, halfWidth * 0.25);
+
+        // 两处折点外侧应出现斜接尖角（到折点距离接近 hw/sin(θ/2)，而不是半宽圆角）
+        for (Vec2d corner : List.of(centerline.get(1), centerline.get(2))) {
+            double maxCornerDist = Math.max(
+                maxVertexDistanceFromCorner(overlay.leftBoundary(), corner),
+                maxVertexDistanceFromCorner(overlay.rightBoundary(), corner));
+            assertTrue(maxCornerDist >= halfWidth * Math.sqrt(2.0) * 0.85,
+                "outer/inner miter tip should extend past round-join radius at " + corner);
+        }
     }
 
     @Test
-    void overlayRoundJoin_rightAngleKeepsEqualHalfWidth() {
+    void overlayMiter_rightAngleKeepsSharpEqualHalfWidth() {
         List<Vec2d> centerline = List.of(
             new Vec2d(0, 0),
             new Vec2d(20, 0),
@@ -296,11 +297,16 @@ class RoadCorridorGeometryBuilderTest {
             centerline, halfWidth, false);
 
         assertFalse(PolygonValidator.hasSelfIntersection(overlay.fillContours().getFirst()));
-        assertTrue(overlay.centerline().size() > centerline.size(),
-            "90° overlay corner should be filleted");
-        assertEquals(halfWidth,
-            maxDistanceToCenterline(overlay.fillContours().getFirst(), overlay.centerline()),
-            halfWidth * 0.2);
+        assertEquals(centerline.size(), overlay.centerline().size(),
+            "90° overlay should keep sharp polyline corner");
+
+        Vec2d corner = centerline.get(1);
+        // 右外侧尖角约在 (20+hw, -hw)，距离折点 hw√2
+        boolean foundOuterMiter = overlay.rightBoundary().stream().anyMatch(p ->
+            p.distance(corner) > halfWidth * 1.2
+                && p.x > corner.x
+                && p.y < corner.y);
+        assertTrue(foundOuterMiter, "expected sharp outer miter beyond half-width circle");
 
         double leftMean = meanDistanceToCenterline(overlay.leftBoundary(), overlay.centerline());
         double rightMean = meanDistanceToCenterline(overlay.rightBoundary(), overlay.centerline());
