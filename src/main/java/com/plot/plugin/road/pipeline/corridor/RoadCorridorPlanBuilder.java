@@ -94,12 +94,17 @@ public final class RoadCorridorPlanBuilder {
         for (int i = 0; i < stations.size(); i++) {
             StationSample sample = stations.get(i);
             ResolvedCrossSection crossSection = crossSections.resolve(sample.chainage());
+            boolean suppressBatterNearTunnel = adjacentTunnelFamily(stations, i);
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
-                carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq);
+                carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq,
+                suppressBatterNearTunnel);
             if (i > 0) {
+                // 邻接洞门/洞身的路基站及其 span 都不放坡，避免边坡贴到洞口掏山
+                boolean suppressSpanBatter = suppressBatterNearTunnel
+                    || adjacentTunnelFamily(stations, i - 1);
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
                     unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples,
-                    stationSampleSeq);
+                    stationSampleSeq, suppressSpanBatter);
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
@@ -141,6 +146,17 @@ public final class RoadCorridorPlanBuilder {
         return stations;
     }
 
+    private static boolean adjacentTunnelFamily(List<StationSample> stations, int index) {
+        if (stations == null || index < 0 || index >= stations.size()) {
+            return false;
+        }
+        if (index > 0 && stations.get(index - 1).constructionType().isTunnelFamily()) {
+            return true;
+        }
+        return index + 1 < stations.size()
+            && stations.get(index + 1).constructionType().isTunnelFamily();
+    }
+
     private static void rasterizeStation(
             RoadCorridorPlan plan,
             StationSample sample,
@@ -152,7 +168,8 @@ public final class RoadCorridorPlanBuilder {
             RoadSystemConfig config,
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
-            long[] stationSampleSeq) {
+            long[] stationSampleSeq,
+            boolean suppressBatterNearTunnel) {
         if (sample.constructionType() == RoadConstructionType.TUNNEL_PORTAL) {
             Vec2d leftNormal = normalize(sample.leftNormal());
             // leftNormal = (-fy, fx) for forward (fx, fy) → forward = (ly, -lx)
@@ -168,8 +185,9 @@ public final class RoadCorridorPlanBuilder {
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);
-        if (crossSection.includeSlopeBatter
-                && RoadEarthworkPolicy.of(sample.constructionType()).allowsCorridorBatter()) {
+        if (!suppressBatterNearTunnel
+                && crossSection.includeSlopeBatter
+                && RoadEarthworkPolicy.allowsCorridorBatter(sample.constructionType())) {
             slopeSamples.addAll(mergeSlopeWedge(
                 plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq));
         }
@@ -187,7 +205,8 @@ public final class RoadCorridorPlanBuilder {
             RoadSystemConfig config,
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
-            long[] stationSampleSeq) {
+            long[] stationSampleSeq,
+            boolean suppressSpanBatter) {
         ResolvedCrossSection toSection = crossSection;
         RoadConstructionType fromType = from.constructionType();
         RoadConstructionType toType = to.constructionType();
@@ -208,9 +227,11 @@ public final class RoadCorridorPlanBuilder {
                 midY, to.targetY(), toSection, terrain, unitsPerBlock,
                 seedKey, host, toType, config, tunnelThreshold);
         }
-        if (toSection.includeSlopeBatter
-                && (RoadEarthworkPolicy.of(fromType).allowsCorridorBatter()
-                    || RoadEarthworkPolicy.of(toType).allowsCorridorBatter())) {
+        // 两端都允许且不贴隧道才放坡：避免洞口路基 span 把边坡伸进山体
+        if (!suppressSpanBatter
+                && toSection.includeSlopeBatter
+                && RoadEarthworkPolicy.allowsCorridorBatter(fromType)
+                && RoadEarthworkPolicy.allowsCorridorBatter(toType)) {
             slopeSamples.addAll(mergeSlopeSpan(
                 plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq));
         }
@@ -533,9 +554,13 @@ public final class RoadCorridorPlanBuilder {
             crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++);
     }
 
+    /** 急折外侧扇区：仅当转角够大且路径采样偏稀时加密；上限避免预览算力爆炸。 */
+    private static final double SLOPE_FAN_MIN_TURN_RADIANS = Math.toRadians(25.0);
+    private static final double SLOPE_FAN_GAP_BLOCKS = 1.5;
+    private static final int SLOPE_FAN_MAX_STEPS = 16;
+
     /**
-     * 沿 span 采样边坡射线。急折时法线夹角大、路径很短，仅按路径栅格插值会让外侧射线扇区
-     * 在远端留下三角空隙；此时按最大边坡水平伸出加密角向采样，填满外侧楔形。
+     * 沿 span 采样边坡射线。急折且路径短时角向加密，填外侧三角空隙；步数封顶保预览性能。
      */
     private static List<SlopeProfileSample> mergeSlopeSpan(
             RoadCorridorPlan plan,
@@ -552,16 +577,18 @@ public final class RoadCorridorPlanBuilder {
         Vec2d fromNormal = normalize(from.leftNormal());
         Vec2d toNormal = normalize(to.leftNormal());
         double turn = signedAngle(fromNormal, toNormal);
-        int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
-        // 在 maxRun 处相邻射线间距约 1 格：Δθ ≈ 1/maxRun
-        double maxGapRadians = 1.0 / Math.max(1, maxRun);
-        int angularSteps = Math.abs(turn) <= 1e-6
-            ? 0
-            : Math.max(1, (int) Math.ceil(Math.abs(turn) / maxGapRadians));
-        int steps = Math.max(pathLast, angularSteps);
+        int steps = pathLast;
+        if (Math.abs(turn) >= SLOPE_FAN_MIN_TURN_RADIANS) {
+            int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+            double maxGapRadians = SLOPE_FAN_GAP_BLOCKS / Math.max(1, maxRun);
+            int angularSteps = Math.max(1, (int) Math.ceil(Math.abs(turn) / maxGapRadians));
+            if (angularSteps > pathLast) {
+                steps = Math.max(pathLast, Math.min(angularSteps, SLOPE_FAN_MAX_STEPS));
+            }
+        }
         if (steps <= 0) {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
-            if (RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
+            if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
                     crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++));
             }
@@ -575,7 +602,7 @@ public final class RoadCorridorPlanBuilder {
                 ? toNormal
                 : normalize(fromNormal.rotate(turn * t));
             RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
-            if (!RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
+            if (!RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 continue;
             }
             samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,

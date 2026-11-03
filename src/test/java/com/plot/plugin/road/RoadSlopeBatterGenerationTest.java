@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadSlopeBatterGenerationTest {
@@ -66,12 +67,8 @@ class RoadSlopeBatterGenerationTest {
 
         assertTrue(result.tunnelCount > 0 || !result.tunnelBlocks.isEmpty(),
             "mountain cover should classify as a tunnel");
-        assertTrue(
-            hasLateralCutAtStation(result, 0),
-            "tunnel start portal must have slope/cut beside the roadway");
-        assertTrue(
-            hasLateralCutAtStation(result, 16),
-            "tunnel end portal must have slope/cut beside the roadway");
+        assertEquals(0, result.structureInteriorSlopeCellCount,
+            "tunnel/portal must not emit corridor slope that carves the mountain");
     }
 
     private static boolean hasLateralFillAtStation(RoadGenerationResult result, int stationX) {

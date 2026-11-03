@@ -14,7 +14,7 @@ class RoadEarthworkPolicyTest {
         assertEquals(RoadEarthworkPolicy.NORMAL_BATTER, RoadEarthworkPolicy.of(RoadConstructionType.ROAD));
         assertEquals(RoadEarthworkPolicy.NORMAL_BATTER, RoadEarthworkPolicy.of(RoadConstructionType.CUT));
         assertEquals(RoadEarthworkPolicy.NORMAL_BATTER, RoadEarthworkPolicy.of(RoadConstructionType.FILL));
-        assertTrue(RoadEarthworkPolicy.of(RoadConstructionType.ROAD).allowsCorridorBatter());
+        assertTrue(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.ROAD));
         assertTrue(RoadEarthworkPolicy.of(RoadConstructionType.CUT).allowsOpenSubgradeFill());
     }
 
@@ -22,21 +22,30 @@ class RoadEarthworkPolicyTest {
     void mapsBridgeAndTunnelInteriorToStructureOnly() {
         assertEquals(RoadEarthworkPolicy.STRUCTURE_ONLY, RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE));
         assertEquals(RoadEarthworkPolicy.STRUCTURE_ONLY, RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL));
-        assertFalse(RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE).allowsCorridorBatter());
+        assertFalse(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.BRIDGE));
         assertFalse(RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL).allowsOpenSubgradeFill());
         assertFalse(RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE).allowsOpenCorridorClearance());
-        assertTrue(RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL_PORTAL).allowsOpenCorridorClearance());
     }
 
     @Test
-    void mapsPortalAndAbutmentToTransitionBatter() {
-        assertEquals(RoadEarthworkPolicy.TRANSITION_BATTER, RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE_ABUTMENT));
+    void tunnelFamilyNeverEmitsCorridorBatterButPortalKeepsClearance() {
         assertEquals(RoadEarthworkPolicy.TRANSITION_BATTER, RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL_PORTAL));
-        assertTrue(RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL_PORTAL).allowsCorridorBatter());
+        assertTrue(RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL_PORTAL).allowsOpenCorridorClearance());
+        assertFalse(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.TUNNEL));
+        assertFalse(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.TUNNEL_PORTAL));
+        assertFalse(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.ROCK_SHELTER_LEFT));
+        assertFalse(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.ROCK_SHELTER_RIGHT));
+    }
+
+    @Test
+    void mapsBridgeAbutmentToTransitionBatter() {
+        assertEquals(RoadEarthworkPolicy.TRANSITION_BATTER, RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE_ABUTMENT));
+        assertTrue(RoadEarthworkPolicy.allowsCorridorBatter(RoadConstructionType.BRIDGE_ABUTMENT));
     }
 
     @Test
     void nullTypeDefaultsToNormalBatter() {
         assertEquals(RoadEarthworkPolicy.NORMAL_BATTER, RoadEarthworkPolicy.of(null));
+        assertTrue(RoadEarthworkPolicy.allowsCorridorBatter(null));
     }
 }

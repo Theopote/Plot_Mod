@@ -323,10 +323,15 @@ class RoadCorridorPlanBuilderTest {
 
         assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan),
             "tunnel interior must not retain corridor slope cells");
-        assertTrue(plan.slopeEntries().stream().anyMatch(e -> {
-            int x = e.getKey().worldX();
-            return x >= 8 && x <= 12;
-        }), "portal zone must keep transition batter / cut slope cells");
+        java.util.List<Integer> tunnelZoneSlopeXs = plan.slopeEntries().stream()
+            .map(e -> e.getKey().worldX())
+            .filter(x -> x >= 8 && x <= 24)
+            .distinct()
+            .sorted()
+            .toList();
+        assertTrue(tunnelZoneSlopeXs.isEmpty(),
+            "tunnel portal/body must not emit corridor slope cells that carve the mountain; xs="
+                + tunnelZoneSlopeXs);
     }
 
     @Test

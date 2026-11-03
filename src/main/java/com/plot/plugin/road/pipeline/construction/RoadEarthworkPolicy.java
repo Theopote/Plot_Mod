@@ -26,6 +26,17 @@ public enum RoadEarthworkPolicy {
         return NORMAL_BATTER;
     }
 
+    /**
+     * 走廊放坡：洞身/洞门/棚洞一律禁止（有顶盖，放坡会掏穿山体）；
+     * 洞门仍可走 {@link #allowsOpenCorridorClearance()} 做窄带净空，与放坡分离。
+     */
+    public static boolean allowsCorridorBatter(RoadConstructionType type) {
+        if (type != null && (type.isTunnelFamily() || type.isRockShelter())) {
+            return false;
+        }
+        return of(type).allowsCorridorBatter();
+    }
+
     public boolean allowsCorridorBatter() {
         return this == NORMAL_BATTER || this == TRANSITION_BATTER;
     }

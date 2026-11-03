@@ -142,7 +142,7 @@ public final class RoadCorridorSolidEmitter {
 
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
                 && (constructionType == null
-                    || RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter())) {
+                    || RoadEarthworkPolicy.allowsCorridorBatter(constructionType))) {
             int cutTopY = portalGuard.capCutTopY(planPoint, groundY, host, roadHalfWidth);
             int cutFaceY = portalGuard.capSlopeSurfaceY(planPoint, slope.cutSurfaceY(), host, roadHalfWidth);
             if (cutFaceY >= cutTopY) {
