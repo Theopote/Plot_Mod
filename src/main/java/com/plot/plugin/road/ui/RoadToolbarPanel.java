@@ -24,7 +24,7 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
-        boolean generateTab = ctx.activeTab() == RoadUiTab.GENERATE;
+        boolean generateTab = ctx.activeTab() == RoadUiTab.BUILD;
         renderNetworkUndoRedo(generateTab);
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
 

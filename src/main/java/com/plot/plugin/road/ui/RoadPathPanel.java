@@ -1,11 +1,13 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 /**
- * 路径 Tab：道路在哪里、当前选择、路径列表与交叉关系（不含风格编辑）。
+ * 路线工作区：道路在哪里、当前选择、路径列表与交叉关系；中心线编辑入口在列表下方。
  */
 public final class RoadPathPanel {
     private final RoadUiContext ctx;
@@ -38,6 +40,7 @@ public final class RoadPathPanel {
 
         ImGui.separator();
         renderRoadList();
+        renderCenterlineEntry();
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         if (!network.getEdges().isEmpty()) {
@@ -45,6 +48,25 @@ public final class RoadPathPanel {
             RoadUiSections.section("plugin.road.path.intersections");
             renderSelectedIntersection(network);
             intersectionListPanel.render();
+        }
+    }
+
+    private void renderCenterlineEntry() {
+        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        if (mode != RoadSelectionHeader.Mode.SINGLE) {
+            return;
+        }
+        Road road = ctx.networkManager().getPrimarySelectedRoad();
+        if (road == null) {
+            return;
+        }
+        ImGui.spacing();
+        RoadUiSections.section("plugin.road.route.centerline");
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.route.centerline_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.route.edit_centerline"))) {
+            ctx.requestEditCenterline(road.getId());
         }
     }
 

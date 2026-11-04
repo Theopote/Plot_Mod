@@ -80,7 +80,8 @@ class RoadNetworkManagerSelectionTest {
         manager.applyCustomUniformFlatElevation(64);
 
         assertEquals(12f, config.getMaxSlope(), 0.001f);
-        assertEquals(0f, road.getMaxSlope(), 0.001f);
+        // 统一标高只改网络 elevation mode / Y，不改写逐路 VA 或 maxSlope。
+        assertEquals(8f, road.getMaxSlope(), 0.001f);
     }
 
     @Test

@@ -9,12 +9,13 @@ import com.plot.plugin.road.overlay.RoadOverlayCompositor;
 import com.plot.plugin.road.overlay.RoadOverlayController;
 import com.plot.plugin.road.overlay.RoadOverlayEntry;
 import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
+import com.plot.plugin.road.ui.ComplexJunctionControls;
 import com.plot.plugin.road.ui.RoadAdoptPanel;
 import com.plot.plugin.road.ui.RoadAutoRepairUi;
 import com.plot.plugin.road.ui.RoadBuildPanel;
+import com.plot.plugin.road.ui.RoadCrossSectionPanel;
 import com.plot.plugin.road.ui.RoadDefaultParamsPanel;
 import com.plot.plugin.road.ui.RoadEdgeListPanel;
-import com.plot.plugin.road.ui.RoadEditPanel;
 import com.plot.plugin.road.ui.RoadGeneratePanel;
 import com.plot.plugin.road.ui.RoadJunctionPanel;
 import com.plot.plugin.road.ui.RoadNodePropertyPanel;
@@ -25,11 +26,12 @@ import com.plot.plugin.road.ui.RoadIntersectionPropertySupport;
 import com.plot.plugin.road.ui.RoadPathPanel;
 import com.plot.plugin.road.ui.RoadPresetCards;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
-import com.plot.plugin.road.ui.ComplexJunctionControls;
-import com.plot.plugin.road.ui.TunnelStyleControls;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
+import com.plot.plugin.road.ui.RoadVerticalProfilePanel;
+import com.plot.plugin.road.ui.TunnelStyleControls;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.ui.PluginTabScrollUi;
@@ -45,13 +47,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 道路系统 ImGui 界面编排（路径 / 编辑 / 生成）。
+ * 道路系统 ImGui 界面编排（路线 / 横断面 / 纵断面 / 建造）。
  */
 public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private final RoadUiContext ctx;
     private final RoadToolbarPanel toolbarPanel;
     private final RoadPathPanel pathPanel;
-    private final RoadEditPanel editPanel;
+    private final RoadCrossSectionPanel crossSectionPanel;
+    private final RoadVerticalProfilePanel verticalProfilePanel;
     private final RoadBuildPanel buildPanel;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
@@ -61,12 +64,12 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private List<RoadJunctionOverlayEntry> junctionOverlayEntries = List.of();
     private long overlaySnapshotRevision = -1L;
     private String overlaySelectionKey = "";
-    /** 视图范围/画布尺度变化时需重建走廊半宽（方块→画布换算依赖投影）。 */
     private int overlayProjectionFingerprint = 0;
     private final RoadCanvasSelectionController canvasSelectionController = new RoadCanvasSelectionController();
     private final RoadFloatingEditorHost floatingEditorHost = new RoadFloatingEditorHost();
-    /** 脏草稿挡住切 Tab 后，下一帧强制把 ImGui 选回编辑 Tab。 */
-    private boolean forceReselectEditTab;
+    /** 脏草稿挡住切 Tab 后，下一帧强制把 ImGui 选回离开前的 Tab。 */
+    private boolean forceReselectBlockedTab;
+    private RoadUiTab blockedReturnTab = RoadUiTab.ROUTE;
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -87,7 +90,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadIntersectionListPanel intersectionListPanel = new RoadIntersectionListPanel(ctx);
         RoadIntersectionDetailPanel intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
         this.nodePropertyPanel = new RoadNodePropertyPanel(ctx, intersectionDetailPanel);
-        this.editPanel = new RoadEditPanel(ctx, defaultParamsPanel, floatingEditorHost);
+        this.crossSectionPanel = new RoadCrossSectionPanel(ctx, defaultParamsPanel, floatingEditorHost);
+        this.verticalProfilePanel = new RoadVerticalProfilePanel(ctx);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);
@@ -117,7 +121,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.previewManager().tickPreviewJob();
         ctx.previewManager().tickTerrainPrefetch();
 
-        buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
+        verticalProfilePanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
         floatingEditorHost.renderAll(ctx);
         RoadPresetCards.renderFloatingWindow(ctx);
         TunnelStyleControls.renderFloatingWindow(ctx);
@@ -125,27 +129,37 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
         RoadUiTab pendingTab = ctx.pendingTab();
         if (pendingTab != null && pendingTab != tabAtFrameStart) {
-            if (tabAtFrameStart == RoadUiTab.EDIT && pendingTab != RoadUiTab.EDIT
-                    && editPanel.tryLeaveEdit()) {
+            if (tryBlockLeave(tabAtFrameStart)) {
                 ctx.clearPendingTab();
                 pendingTab = null;
-                forceReselectEditTab = true;
+                forceReselectBlockedTab = true;
+                blockedReturnTab = tabAtFrameStart;
             } else {
+                applyPendingNavigationSelection();
                 ctx.setActiveTab(pendingTab);
             }
         }
 
-        RoadUiTab selectFlagTab = forceReselectEditTab
-            ? RoadUiTab.EDIT
+        RoadUiTab selectFlagTab = forceReselectBlockedTab
+            ? blockedReturnTab
             : pendingTab;
-        forceReselectEditTab = false;
+        forceReselectBlockedTab = false;
 
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
-            renderTab(RoadUiTab.PATH, "plugin.road.tab.path", selectFlagTab, pathPanel::render);
-            renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", selectFlagTab, editPanel::render);
-            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", selectFlagTab, this::renderBuildTab);
+            renderTab(RoadUiTab.ROUTE, "plugin.road.tab.route", selectFlagTab, this::renderRouteTab);
+            renderTab(
+                RoadUiTab.CROSS_SECTION,
+                "plugin.road.tab.cross_section",
+                selectFlagTab,
+                crossSectionPanel::render);
+            renderTab(
+                RoadUiTab.VERTICAL_PROFILE,
+                "plugin.road.tab.vertical_profile",
+                selectFlagTab,
+                this::renderVerticalProfileTab);
+            renderTab(RoadUiTab.BUILD, "plugin.road.tab.build", selectFlagTab, buildPanel::render);
             ImGui.endTabBar();
         }
 
@@ -153,26 +167,74 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.clearPendingTab();
         }
 
-        if (tabAtFrameStart == RoadUiTab.EDIT && ctx.activeTab() != RoadUiTab.EDIT) {
-            if (editPanel.tryLeaveEdit()) {
-                ctx.setActiveTab(RoadUiTab.EDIT);
-                forceReselectEditTab = true;
-            }
+        if (tabAtFrameStart != ctx.activeTab() && tryBlockLeave(tabAtFrameStart)) {
+            ctx.setActiveTab(tabAtFrameStart);
+            forceReselectBlockedTab = true;
+            blockedReturnTab = tabAtFrameStart;
         }
 
         ensureOverlaySnapshot();
         String selectionKeyBefore = overlaySelectionKey;
         tickCanvasSelection();
-        if (ctx.activeTab() == RoadUiTab.EDIT
+        if (ctx.activeTab() == RoadUiTab.CROSS_SECTION
                 && !overlaySelectionKey().equals(selectionKeyBefore)) {
-            editPanel.reconcileRoadScope();
+            crossSectionPanel.reconcileRoadScope();
         }
         if (ctx.toolManager().getPathPickSession().isActive()) {
             ctx.toolManager().tick();
         }
     }
 
-    /** 拾取完成并自动认领道路后的 UI 反馈。 */
+    private void renderRouteTab() {
+        pathPanel.render();
+        openPendingCenterlineFromRoute();
+    }
+
+    private void renderVerticalProfileTab() {
+        String profileEdgeId = ctx.consumePendingProfileEdgeId();
+        if (profileEdgeId != null && !profileEdgeId.isBlank()) {
+            verticalProfilePanel.openProfileForEdge(profileEdgeId);
+        }
+        verticalProfilePanel.render();
+        verticalProfilePanel.renderDeferredModals();
+    }
+
+    private void openPendingCenterlineFromRoute() {
+        String roadId = ctx.consumePendingCenterlineRoadId();
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        if (ctx.networkManager().getNetwork().getRoad(roadId) == null) {
+            return;
+        }
+        floatingEditorHost.openOrFocus(ctx, RoadFloatingEditorKind.CENTERLINE, roadId);
+    }
+
+    private void applyPendingNavigationSelection() {
+        var request = ctx.pendingNavigation();
+        if (request == null) {
+            return;
+        }
+        if (request.roadId() != null && !request.roadId().isBlank()) {
+            ctx.networkManager().selectRoad(request.roadId(), false);
+        }
+        if (request.crossingId() != null && !request.crossingId().isBlank()) {
+            ctx.networkManager().setSelectedCrossingId(request.crossingId());
+        }
+    }
+
+    /**
+     * 任意工作区离开时，若浮动编辑器/隧道草稿脏则拦截。
+     * 草稿归属编辑器会话，不绑定某一主标签。
+     */
+    private boolean tryBlockLeave(RoadUiTab leavingTab) {
+        if (leavingTab == RoadUiTab.CROSS_SECTION || leavingTab == RoadUiTab.ROUTE) {
+            return crossSectionPanel.tryLeaveEditors();
+        }
+        // 其他工作区仍需检查全局浮动草稿（例如从建造切走时隧道窗仍开着）
+        return crossSectionPanel.tryLeaveEditors();
+    }
+
     public void onPathsPicked() {
         RoadRepairDiagnosisCache.invalidate();
         LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
@@ -182,9 +244,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.requestOverlayRefresh();
     }
 
-    /**
-     * 所有 ImGui 面板渲染完成后补绘道路叠加层（BackgroundDrawList + 画布裁剪）。
-     */
     public void renderCanvasOverlay() {
         if (!ctx.isRoadOverlayVisible() || !CanvasAccess.isPresent()) {
             return;
@@ -198,9 +257,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             junctionOverlayEntries);
     }
 
-    /**
-     * 单一 overlay snapshot 入口：revision / 选择态 / 投影尺度 / 前景 dirty 变化时重建。
-     */
     private void ensureOverlaySnapshot() {
         if (!ctx.isRoadOverlayVisible()) {
             overlayEntries = List.of();
@@ -227,10 +283,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.consumeOverlayForegroundDirty();
     }
 
-    /**
-     * 仅含视图尺度（viewDistance / scale / canvas 尺寸），不含玩家平移，
-     * 避免每帧 pan 都重建，同时保证调整「视图范围」时走廊宽度即时刷新。
-     */
     private int currentOverlayProjectionFingerprint() {
         try {
             var coordinates = ctx.host().coordinates();
@@ -295,7 +347,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             junctionOverlayEntries,
             pickActive,
             ctx::isRoadOverlayVisible);
-        // Selection may change during tick; rebuild once if the hit-test key diverged.
         if (!overlaySelectionKey().equals(keyBefore)) {
             ensureOverlaySnapshot();
         }
@@ -307,10 +358,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             return;
         }
         try {
-            if (tab != RoadUiTab.EDIT
-                    && ctx.activeTab() == RoadUiTab.EDIT
-                    && editPanel.tryLeaveEdit()) {
-                forceReselectEditTab = true;
+            if (tab != ctx.activeTab() && tryBlockLeave(ctx.activeTab())) {
+                forceReselectBlockedTab = true;
+                blockedReturnTab = ctx.activeTab();
                 return;
             }
             ctx.setActiveTab(tab);
@@ -321,25 +371,15 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         }
     }
 
-    private void renderBuildTab() {
-        String profileEdgeId = ctx.consumePendingProfileEdgeId();
-        if (profileEdgeId != null && !profileEdgeId.isBlank()) {
-            buildPanel.openProfileForEdge(profileEdgeId);
-        }
-        buildPanel.render();
-    }
-
     public void renderDeferredModals() {
         edgeListPanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
         buildPanel.renderDeferredModals();
+        verticalProfilePanel.renderDeferredModals();
     }
 
-    /**
-     * 离开道路插件 Tab 时清理瞬时 UI 状态（不持久化路网）。
-     */
     public void onDeactivate() {
-        editPanel.finishPendingEdits();
+        crossSectionPanel.finishPendingEdits();
         ctx.toolManager().cancel();
         ctx.cancelPreviewJobSilently();
         ctx.previewManager().clearPreview();

@@ -95,9 +95,9 @@ class RoadEditScopeGuardTest {
 
     @Test
     void requestTabDoesNotFlipActiveImmediately() {
-        ctx.setActiveTab(RoadUiTab.EDIT);
-        ctx.requestTab(RoadUiTab.GENERATE);
-        assertEquals(RoadUiTab.EDIT, ctx.activeTab());
-        assertEquals(RoadUiTab.GENERATE, ctx.pendingTab());
+        ctx.setActiveTab(RoadUiTab.CROSS_SECTION);
+        ctx.requestTab(RoadUiTab.BUILD);
+        assertEquals(RoadUiTab.CROSS_SECTION, ctx.activeTab());
+        assertEquals(RoadUiTab.BUILD, ctx.pendingTab());
     }
 }

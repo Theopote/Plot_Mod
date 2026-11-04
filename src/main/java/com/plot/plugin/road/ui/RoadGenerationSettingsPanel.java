@@ -50,8 +50,11 @@ public final class RoadGenerationSettingsPanel {
             && showsTerrainAdaptiveControls(ctx);
     }
 
-    /** 建造 Tab 主界面：统一标高模式、目标道路、路径属性、坡度/地形/纵断面来源、桥梁选项。 */
-    public static void renderPrimary(
+    /**
+     * 纵断面工作区：统一标高模式、目标道路、路径属性、坡度/地形/纵断面来源。
+     * 桥梁结构选项已迁至横断面工作区。
+     */
+    public static void renderVerticalDesign(
             RoadUiContext ctx,
             RoadPathVerticalPropertyPanel pathPropertyPanel,
             Runnable openProfileEditorForSelectedRoad) {
@@ -96,17 +99,15 @@ public final class RoadGenerationSettingsPanel {
                     PlotI18n.tr("plugin.road.generate.flat_terrain_controls_hidden"));
             }
         }
+    }
 
-        ImBoolean bridgePillars = new ImBoolean(config.isGenerateBridgePillars());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.generate_bridge_pillars"), bridgePillars)) {
-            config.setGenerateBridgePillars(bridgePillars.get());
-            markChanged(ctx);
-        }
-        ImBoolean bridgeGuardrail = new ImBoolean(config.isIncludeBridgeGuardrail());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_bridge_guardrail"), bridgeGuardrail)) {
-            config.setIncludeBridgeGuardrail(bridgeGuardrail.get());
-            markChanged(ctx);
-        }
+    /** @deprecated 使用 {@link #renderVerticalDesign}；保留别名以免旧调用方编译失败。 */
+    @Deprecated
+    public static void renderPrimary(
+            RoadUiContext ctx,
+            RoadPathVerticalPropertyPanel pathPropertyPanel,
+            Runnable openProfileEditorForSelectedRoad) {
+        renderVerticalDesign(ctx, pathPropertyPanel, openProfileEditorForSelectedRoad);
     }
 
     private static void renderUniformFlatModeControls(RoadUiContext ctx, RoadNetwork network) {
@@ -134,7 +135,7 @@ public final class RoadGenerationSettingsPanel {
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.road.uniform_flat_grade_sep_conflict", conflicts));
             if (ImGui.button(PlotI18n.tr("plugin.road.generate.goto_intersections"))) {
-                ctx.requestTab(RoadUiTab.PATH);
+                ctx.requestTab(RoadUiTab.ROUTE);
             }
         }
 

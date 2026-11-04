@@ -144,7 +144,7 @@ public final class RoadPathOverviewPanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.overview_multi_road_selected", roadIds.size()));
             if (ImGui.button(PlotI18n.tr("plugin.road.overview_edit_road") + "##overview_multi_edit")) {
-                ctx.requestTab(RoadUiTab.EDIT);
+                ctx.requestTab(RoadUiTab.CROSS_SECTION);
             }
             return;
         }
@@ -165,7 +165,7 @@ public final class RoadPathOverviewPanel {
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         if (ImGui.button(PlotI18n.tr("plugin.road.overview_edit_road") + "##overview_edit", buttonWidth, 0)) {
-            ctx.requestTab(RoadUiTab.EDIT);
+            ctx.requestTab(RoadUiTab.CROSS_SECTION);
         }
         ImGui.sameLine();
         String primaryEdgeId = ctx.networkManager().getPrimarySelectedEdgeId();

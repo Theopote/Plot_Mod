@@ -12,10 +12,10 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * 编辑 Tab 专业工具卡片启动器。
+ * 横断面工作区专业工具卡片启动器。
  * <p>
- * 单路：六张卡（含隧道），列数随可用宽度在 2–3 间自适应。
- * 多选：批量横断面 / 隧道 / 变截面 / 设施 / 诊断 / 中心线（主路，可切换）。
+ * 单路：详细断面 / 变截面 / 设施 / 诊断 / 隧道（中心线已迁至路线工作区）。
+ * 多选：批量横断面 / 隧道 / 变截面 / 设施 / 诊断。
  */
 final class RoadEditToolLauncher {
 
@@ -62,11 +62,6 @@ final class RoadEditToolLauncher {
             ctx, host, primaryRoadId, count, half,
             RoadFloatingEditorKind.DIAGNOSTICS,
             "batch_diagnostics");
-        ImGui.sameLine(0f, gap);
-        renderBatchHostCard(
-            ctx, host, primaryRoadId, count, half,
-            RoadFloatingEditorKind.CENTERLINE,
-            "batch_centerline");
     }
 
     private static void renderBatchHostCard(
@@ -154,10 +149,10 @@ final class RoadEditToolLauncher {
     }
 
     private static List<ToolSpec> singleTools() {
+        // 中心线编辑入口已迁至路线工作区。
         return List.of(
             ToolSpec.host(RoadFloatingEditorKind.CROSS_SECTION, "cross_section"),
             ToolSpec.host(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
-            ToolSpec.host(RoadFloatingEditorKind.CENTERLINE, "centerline"),
             ToolSpec.host(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
             ToolSpec.host(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"),
             ToolSpec.tunnel());

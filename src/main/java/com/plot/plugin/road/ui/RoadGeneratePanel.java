@@ -1,19 +1,13 @@
 package com.plot.plugin.road.ui;
-import com.plot.plugin.ui.PluginUiColors;
 
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
-import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.profile.RoadProfileRoadList;
-import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
-import com.plot.plugin.road.vertical.NetworkElevationAuthority;
-import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -21,51 +15,15 @@ import imgui.ImGui;
 import java.util.List;
 
 /**
- * 道路生成 Tab：预览计算、投影与世界落地。
+ * 建造工作区核心：正式预览计算、检查与 Minecraft 落地（不含纵断面/横断面设计）。
  */
 public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
-    private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
-    private final VerticalModeControls verticalModeControls = new VerticalModeControls();
-    private final RoadPathVerticalPropertyPanel pathPropertyPanel =
-        new RoadPathVerticalPropertyPanel(new RoadVerticalStrategySwitchDialog());
-    private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
-        profileEditor.setOnAlignmentCommitted(this::recomputePreviewAfterProfileConfirm);
-    }
-
-    private void recomputePreviewAfterProfileConfirm() {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        if (network == null || network.getEdges().isEmpty()) {
-            return;
-        }
-        if (ctx.previewManager() == null) {
-            return;
-        }
-        ctx.previewManager().startNetworkPreview(network);
-    }
-
-    /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */
-    public void openProfileForEdge(String edgeId) {
-        if (edgeId == null || edgeId.isBlank()) {
-            return;
-        }
-        if (rejectProfileEditorIfUniformFlat()) {
-            return;
-        }
-        profileEdgeId = edgeId;
-        ctx.networkManager().setPrimarySelectedEdge(edgeId);
-        RoadEdge edge = ctx.networkManager().getNetwork().getEdge(edgeId);
-        if (edge != null && edge.getRoadId() != null) {
-            profileEditor.openEditorForRoad(ctx, edge.getRoadId());
-        } else {
-            profileEditor.openEditorForEdge(ctx, ctx.networkManager().getNetwork(), edgeId);
-        }
     }
 
     public void render() {
@@ -75,26 +33,9 @@ public final class RoadGeneratePanel {
             ctx.host().projection().checkWorldModificationReadiness();
 
         renderPreviewStatusCard();
+        renderDesignStatusHints(network, preflight);
         ImGui.separator();
         renderNetworkBuildScope(network);
-        if (!network.getEdges().isEmpty()) {
-            renderGenerateWorkflowHint();
-        }
-        ImGui.separator();
-
-        RoadUiSections.section("plugin.road.section.generation_settings");
-        RoadGenerationSettingsPanel.renderPrimary(
-            ctx,
-            pathPropertyPanel,
-            () -> {
-                if (rejectProfileEditorIfUniformFlat()) {
-                    return;
-                }
-                Road road = resolveActiveProfileRoad(network);
-                if (road != null) {
-                    profileEditor.openEditorForRoad(ctx, road.getId());
-                }
-            });
         ImGui.separator();
 
         renderPreviewActions(network, preflight, buildReadiness);
@@ -106,86 +47,48 @@ public final class RoadGeneratePanel {
         }
 
         if (!network.getEdges().isEmpty()) {
-            renderSecondaryGenerateTools(network, preflight);
+            renderSecondaryBuildTools(network, preflight);
         }
 
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
-            renderPreviewDetailsCollapsible(network, lastGenerationResult);
+            renderPreviewDetailsCollapsible(lastGenerationResult);
         }
     }
 
-    /** 纵断面概览、交叉检查：默认折叠，避免生成主路径被撑长。 */
-    private void renderSecondaryGenerateTools(
+    private void renderDesignStatusHints(RoadNetwork network, RoadNetworkValidationReport preflight) {
+        if (network.getEdges().isEmpty()) {
+            return;
+        }
+        if (ctx.networkManager().hasPendingNetworkEdit()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.build_blocked_pending_edit"));
+        }
+        if (preflight.blocksBuild()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.build_blocked_validation"));
+            if (ImGui.button(PlotI18n.tr("plugin.road.build.goto_route_fix"))) {
+                ctx.requestTab(RoadUiTab.ROUTE);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.build.goto_cross_section_fix"))) {
+                ctx.requestTab(RoadUiTab.CROSS_SECTION);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.build.goto_profile_fix"))) {
+                ctx.requestTab(RoadUiTab.VERTICAL_PROFILE);
+            }
+        }
+    }
+
+    private void renderSecondaryBuildTools(
             RoadNetwork network,
             RoadNetworkValidationReport preflight) {
         ImGui.separator();
-        boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
-        if (!uniformFlat && ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.profile_section"))) {
-            RoadProfileOverviewSection.render(
-                ctx,
-                network,
-                profileEditor,
-                road -> resolveFlatProfileOverlay(network, road));
-        }
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.intersection_check"))) {
             renderIntersectionCheckBody(network, preflight);
         }
-    }
-
-    private boolean rejectProfileEditorIfUniformFlat() {
-        if (!NetworkElevationAuthority.isUniformFlat(ctx.networkManager().getNetwork())) {
-            return false;
-        }
-        ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
-        return true;
-    }
-
-    void renderProfileEditorWindow(RoadNetwork network) {
-        profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(network, road));
-        profileEditor.renderEditorWindow(ctx, network);
-    }
-
-    private void renderGenerateWorkflowHint() {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.generate.workflow_hint"));
-    }
-
-    private void renderPreviewStatusCard() {
-        var preview = ctx.previewManager();
-        if (preview.isPreviewJobRunning()) {
-            ImGui.textColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.preview_status_computing"));
-            return;
-        }
-        if (preview.isBuildPreviewCurrent()) {
-            ImGui.textColored(
-                PluginUiColors.STATUS_OK,
-                PlotI18n.tr("plugin.road.preview_status_ready"));
-            return;
-        }
-        if (preview.needsPreviewRecalc()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr("plugin.road.preview_status_stale"));
-            return;
-        }
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.preview_status_none"));
-    }
-
-    private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network, Road road) {
-        if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
-            return FlatElevationProfileOverlay.EMPTY;
-        }
-        return verticalModeControls.flatElevationProfileOverlay(
-            network, road, ctx.networkManager().getConfig());
-    }
-
-    private Road resolveActiveProfileRoad(RoadNetwork network) {
-        return RoadProfileRoadList.resolveActiveRoad(network, ctx);
     }
 
     private void renderIntersectionCheckBody(
@@ -215,8 +118,33 @@ public final class RoadGeneratePanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.generate.intersection_edit_on_path"));
         if (ImGui.button(PlotI18n.tr("plugin.road.generate.goto_intersections"))) {
-            ctx.requestTab(RoadUiTab.PATH);
+            ctx.requestTab(RoadUiTab.ROUTE);
         }
+    }
+
+    private void renderPreviewStatusCard() {
+        var preview = ctx.previewManager();
+        if (preview.isPreviewJobRunning()) {
+            ImGui.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.road.preview_status_computing"));
+            return;
+        }
+        if (preview.isBuildPreviewCurrent()) {
+            ImGui.textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.road.preview_status_ready"));
+            return;
+        }
+        if (preview.needsPreviewRecalc()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.preview_status_stale"));
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.preview_status_none"));
     }
 
     private void renderNetworkBuildScope(RoadNetwork network) {
@@ -281,8 +209,6 @@ public final class RoadGeneratePanel {
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.clear_preview"), half, 0)) {
             ctx.previewManager().clearPreview();
-            profileEdgeId = "";
-            profileEditor.clearCache();
         }
         if (clearPreviewDisabled) {
             ImGui.endDisabled();
@@ -339,7 +265,7 @@ public final class RoadGeneratePanel {
         }
     }
 
-    private void renderPreviewDetailsCollapsible(RoadNetwork network, RoadGenerationResult lastGenerationResult) {
+    private void renderPreviewDetailsCollapsible(RoadGenerationResult lastGenerationResult) {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.build.preview_details"))) {
             return;
         }
@@ -369,7 +295,7 @@ public final class RoadGeneratePanel {
     }
 
     public void renderDeferredModals() {
-        pathPropertyPanel.renderDeferredModals(ctx);
+        // 纵向策略确认弹窗已迁至纵断面工作区。
     }
 
     public void renderBuildConfirmPopup() {
@@ -380,10 +306,10 @@ public final class RoadGeneratePanel {
             return;
         }
         try {
-        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
-        RoadNetworkValidationReport validationReport = validationReport();
-        int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
-        ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
+            RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+            RoadNetworkValidationReport validationReport = validationReport();
+            int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
             if (lastGenerationResult != null) {
                 int totalBlocks = lastGenerationResult.placementRecords.size();
@@ -442,9 +368,9 @@ public final class RoadGeneratePanel {
                 ImGui.endDisabled();
             }
             ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
-            ImGui.closeCurrentPopup();
-        }
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
         } finally {
             ImGui.endPopup();
         }

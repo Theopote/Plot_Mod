@@ -61,11 +61,12 @@ public final class RoadUiContext {
     private boolean buildConfirmPending = false;
 
     private RoadUiTab pendingTab = null;
-    private RoadUiTab activeTab = RoadUiTab.PATH;
+    private RoadUiTab activeTab = RoadUiTab.ROUTE;
+    private RoadUiNavigationRequest pendingNavigation = null;
     private String pendingProfileEdgeId = "";
-    /** 切到编辑 Tab 后打开中心线浮动窗的目标道路。 */
+    /** 切到目标工作区后打开中心线浮动窗的目标道路。 */
     private String pendingCenterlineRoadId = "";
-    /** 切到编辑 Tab 后打开横断面浮动窗的目标道路。 */
+    /** 切到横断面工作区后打开横断面浮动窗的目标道路。 */
     private String pendingCrossSectionRoadId = "";
     private Runnable pathsAdoptedListener;
     private boolean overlayForegroundDirty;
@@ -542,26 +543,30 @@ public final class RoadUiContext {
         return true;
     }
 
-    /** 跳转到编辑 Tab 并选中指定逻辑道路。 */
+    /** 跳转到横断面工作区并选中指定逻辑道路。 */
     public void requestEditRoad(String roadId) {
-        if (roadId != null && !roadId.isBlank()) {
-            networkManager.selectRoad(roadId, false);
-        }
-        requestTab(RoadUiTab.EDIT);
+        requestNavigation(RoadUiNavigationRequest.of(
+            RoadUiTab.CROSS_SECTION, roadId, null, null, null));
     }
 
-    /** 跳转到编辑 Tab、选中道路，并在编辑页打开中心线浮动窗。 */
+    /** 跳转到路线工作区、选中道路，并打开中心线浮动窗。 */
     public void requestEditCenterline(String roadId) {
-        requestEditRoad(roadId);
-        pendingCenterlineRoadId = roadId != null ? roadId : "";
-        pendingCrossSectionRoadId = "";
+        requestNavigation(RoadUiNavigationRequest.of(
+            RoadUiTab.ROUTE,
+            roadId,
+            null,
+            null,
+            com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CENTERLINE));
     }
 
-    /** 跳转到编辑 Tab、选中道路，并在编辑页打开横断面浮动窗。 */
+    /** 跳转到横断面工作区、选中道路，并打开横断面浮动窗。 */
     public void requestEditCrossSection(String roadId) {
-        requestEditRoad(roadId);
-        pendingCrossSectionRoadId = roadId != null ? roadId : "";
-        pendingCenterlineRoadId = "";
+        requestNavigation(RoadUiNavigationRequest.of(
+            RoadUiTab.CROSS_SECTION,
+            roadId,
+            null,
+            null,
+            com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CROSS_SECTION));
     }
 
     public String consumePendingCenterlineRoadId() {
@@ -581,11 +586,38 @@ public final class RoadUiContext {
      * 在脏浮动窗确认通过后再 {@link #setActiveTab}。
      */
     public void requestTab(RoadUiTab tab) {
-        pendingTab = tab;
+        requestNavigation(RoadUiNavigationRequest.tab(tab));
+    }
+
+    /** 排队完整导航意图（含道路/编辑器上下文）。 */
+    public void requestNavigation(RoadUiNavigationRequest request) {
+        if (request == null || request.targetTab() == null) {
+            return;
+        }
+        pendingNavigation = request;
+        pendingTab = request.targetTab();
+        if (request.roadId() != null && !request.roadId().isBlank()) {
+            networkManager.selectRoad(request.roadId(), false);
+        }
+        if (request.edgeId() != null && !request.edgeId().isBlank()) {
+            pendingProfileEdgeId = request.edgeId();
+        }
+        if (request.editorKind() == com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CENTERLINE) {
+            pendingCenterlineRoadId = request.roadId() != null ? request.roadId() : "";
+            pendingCrossSectionRoadId = "";
+        } else if (request.editorKind()
+                == com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CROSS_SECTION) {
+            pendingCrossSectionRoadId = request.roadId() != null ? request.roadId() : "";
+            pendingCenterlineRoadId = "";
+        }
     }
 
     public RoadUiTab pendingTab() {
         return pendingTab;
+    }
+
+    public RoadUiNavigationRequest pendingNavigation() {
+        return pendingNavigation;
     }
 
     public RoadUiTab activeTab() {
@@ -600,12 +632,13 @@ public final class RoadUiContext {
 
     public void clearPendingTab() {
         pendingTab = null;
+        pendingNavigation = null;
     }
 
-    /** 跳转到建造 Tab 并聚焦指定边的纵断面。 */
+    /** 跳转到纵断面工作区并聚焦指定边的纵断面。 */
     public void requestViewProfile(String edgeId) {
-        requestTab(RoadUiTab.GENERATE);
-        pendingProfileEdgeId = edgeId != null ? edgeId : "";
+        requestNavigation(RoadUiNavigationRequest.of(
+            RoadUiTab.VERTICAL_PROFILE, null, edgeId, null, null));
     }
 
     public String consumePendingProfileEdgeId() {
