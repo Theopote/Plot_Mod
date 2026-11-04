@@ -273,6 +273,79 @@ class RoadCorridorClearancePassTest {
         assertTrue(solids.primitives().stream().noneMatch(p -> p.elevation() == 64));
     }
 
+    @Test
+    void adjacentDecorationClearanceUsesCanvasPlanPointsUnderOffsetProjection() {
+        var coordinates = com.plot.test.world.OrthographicProjectionTestFixtures.liveOrthographic();
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig(), coordinates);
+        Vec2d canvasCenter = new Vec2d(400, 300);
+        var worldColumn = host.canvasToBlockPos(canvasCenter);
+        Vec2d planPoint = host.planPointForWorldColumn(worldColumn.getX(), worldColumn.getZ());
+        // Non-identity: world XZ must not equal canvas coords used for terrain sampling.
+        assertTrue(Math.abs(planPoint.x - worldColumn.getX()) > 1.0
+                || Math.abs(planPoint.y - worldColumn.getZ()) > 1.0,
+            "fixture must use a non-identity canvas↔world transform");
+
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        plan.putClearance(
+            new ColumnKey(worldColumn.getX(), worldColumn.getZ()),
+            new ClearanceCell(planPoint, 64, 66, RoadCorridorConstructionMode.OPEN, null));
+
+        ColumnKey neighbor = new ColumnKey(worldColumn.getX() + 1, worldColumn.getZ());
+        Vec2d expectedNeighborPlan = host.planPointForWorldColumn(neighbor.worldX(), neighbor.worldZ());
+        java.util.concurrent.atomic.AtomicReference<Vec2d> sampledTopPoint =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return 64;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                // Neighbor dilation is the only caller that needs column-top above solidTop.
+                if (Math.abs(p.x - expectedNeighborPlan.x) < 0.5
+                        && Math.abs(p.y - expectedNeighborPlan.y) < 0.5) {
+                    sampledTopPoint.set(p);
+                    return 70;
+                }
+                return 66;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 64;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int worldX, int y, int worldZ) {
+                return worldX == neighbor.worldX()
+                    && worldZ == neighbor.worldZ()
+                    && y > 66
+                    && y <= 70;
+            }
+        };
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorClearancePass.apply(solids, plan, terrain, host);
+
+        assertTrue(sampledTopPoint.get() != null,
+            "neighbor decoration clear must sample column top via canvas plan point");
+        assertEquals(expectedNeighborPlan.x, sampledTopPoint.get().x, 0.5);
+        assertEquals(expectedNeighborPlan.y, sampledTopPoint.get().y, 0.5);
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                "minecraft:air".equals(p.materialId())
+                    && p.elevation() == 70
+                    && Math.abs(p.planPoint().x - expectedNeighborPlan.x) < 0.5
+                    && Math.abs(p.planPoint().y - expectedNeighborPlan.y) < 0.5),
+            "cleared decoration solids must be stamped at canvas neighbor plan point, not raw world XZ");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                "minecraft:air".equals(p.materialId())
+                    && Math.abs(p.planPoint().x - neighbor.worldX()) < 0.01
+                    && Math.abs(p.planPoint().y - neighbor.worldZ()) < 0.01),
+            "must not treat world XZ as canvas coordinates when writing solids");
+    }
+
     private static TerrainSampler woodedColumn(int groundY, int topY) {
         return new TerrainSampler() {
             @Override

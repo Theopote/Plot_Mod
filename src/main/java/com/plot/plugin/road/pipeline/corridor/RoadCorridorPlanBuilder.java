@@ -1049,6 +1049,14 @@ public final class RoadCorridorPlanBuilder {
         /** Exact world-column center in canvas space; ownership uses the same point as placement. */
         default Vec2d canonicalColumnPoint(Vec2d point) { return point; }
 
+        /**
+         * Canvas plan point for an already-resolved world XZ column.
+         * Must not treat world integers as canvas coordinates under a non-identity projection.
+         */
+        default Vec2d planPointForWorldColumn(int worldX, int worldZ) {
+            return new Vec2d(worldX, worldZ);
+        }
+
         int worldX(Vec2d planPoint);
 
         int worldZ(Vec2d planPoint);
@@ -1086,6 +1094,14 @@ public final class RoadCorridorPlanBuilder {
                     if (projection == null || !projection.isValid()) return point;
                     var column = host.canvasToBlockPos(point);
                     return projection.toCanvas(new Vec2d(column.getX(), column.getZ()));
+                }
+
+                @Override
+                public Vec2d planPointForWorldColumn(int worldX, int worldZ) {
+                    if (projection == null || !projection.isValid()) {
+                        return new Vec2d(worldX, worldZ);
+                    }
+                    return projection.toCanvas(new Vec2d(worldX, worldZ));
                 }
 
                 @Override

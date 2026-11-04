@@ -36,6 +36,7 @@ final class CorridorTestFixtures {
         ICoordinateService resolvedCoordinates = coordinates != null
             ? coordinates
             : IdentityCoordinateService.INSTANCE;
+        var projection = resolvedCoordinates.captureProjection();
         return new RoadCorridorPlanBuilder.PlanHost() {
             @Override
             public RoadSystemConfig config() {
@@ -55,6 +56,23 @@ final class CorridorTestFixtures {
             @Override
             public BlockPos canvasToBlockPos(Vec2d canvasPos) {
                 return RoadGeometryUtils.canvasToBlockXZ(canvasPos, resolvedCoordinates);
+            }
+
+            @Override
+            public Vec2d canonicalColumnPoint(Vec2d point) {
+                if (projection == null || !projection.isValid()) {
+                    return point;
+                }
+                var column = canvasToBlockPos(point);
+                return projection.toCanvas(new Vec2d(column.getX(), column.getZ()));
+            }
+
+            @Override
+            public Vec2d planPointForWorldColumn(int worldX, int worldZ) {
+                if (projection == null || !projection.isValid()) {
+                    return new Vec2d(worldX, worldZ);
+                }
+                return projection.toCanvas(new Vec2d(worldX, worldZ));
             }
 
             @Override

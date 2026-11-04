@@ -348,6 +348,40 @@ class GenerateRoadCommandTest {
     }
 
     @Test
+    void orderForWorldConstructionPlacesNonAirBeforeExcavationAir() {
+        BlockPos lining = new BlockPos(0, 70, 0);
+        BlockPos cavity = new BlockPos(0, 68, 0);
+        BlockPos pavement = new BlockPos(0, 64, 0);
+        List<BlockRecord> ordered = GenerateRoadCommand.orderForWorldConstruction(List.of(
+            new BlockRecord(cavity, "minecraft:stone", "minecraft:air"),
+            new BlockRecord(lining, "minecraft:gravel", "minecraft:stone_bricks"),
+            new BlockRecord(pavement, "minecraft:dirt", "minecraft:dirt_path")));
+        assertEquals("minecraft:stone_bricks", ordered.get(0).newBlockId);
+        assertEquals("minecraft:dirt_path", ordered.get(1).newBlockId);
+        assertEquals("minecraft:air", ordered.get(2).newBlockId);
+    }
+
+    @Test
+    void executeWritesSupportBlocksBeforeCavityAir() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos lining = new BlockPos(5, 70, 5);
+        BlockPos cavity = new BlockPos(5, 68, 5);
+        writer.seed(lining, "minecraft:gravel");
+        writer.seed(cavity, "minecraft:stone");
+        List<BlockPos> writeOrder = new ArrayList<>();
+        GenerateRoadCommand.BlockWriter tracking = (pos, blockId) -> {
+            writeOrder.add(pos);
+            return writer.setBlockAt(pos, blockId);
+        };
+        GenerateRoadCommand command = new GenerateRoadCommand(List.of(
+            new BlockRecord(cavity, "minecraft:stone", "minecraft:air"),
+            new BlockRecord(lining, "minecraft:gravel", "minecraft:stone_bricks")), tracking);
+        command.execute();
+        assertEquals(List.of(lining, cavity), writeOrder,
+            "roof/lining support must be written before cavity excavation air");
+    }
+
+    @Test
     void totalFailureLeavesNoAppliedRecords() {
         InMemoryBlockWriter writer = new InMemoryBlockWriter();
         BlockPos pos = new BlockPos(0, 64, 0);

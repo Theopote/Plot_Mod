@@ -89,6 +89,11 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+        return terrainService.isGravityAffectedBlock(worldX, y, worldZ);
+    }
+
+    @Override
     public boolean isConstructionVolumeObstruction(int worldX, int y, int worldZ) {
         return terrainService.isConstructionVolumeObstruction(worldX, y, worldZ);
     }

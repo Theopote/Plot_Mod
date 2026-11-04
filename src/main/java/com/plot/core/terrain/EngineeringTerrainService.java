@@ -290,6 +290,19 @@ public final class EngineeringTerrainService {
         }
     }
 
+    /** Sand, gravel, concrete powder, and other support-dependent falling blocks. */
+    public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+        if (world == null || !isChunkLoaded(worldX, worldZ)) {
+            return false;
+        }
+        try {
+            BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
+            return state.getBlock() instanceof net.minecraft.block.FallingBlock;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
      * 可清理的自然附着物：草花、树叶、以及判定为自然树的原木。
      * 单独原木柱 / 木梁（无足够树叶）视为人工构筑，不可清理。

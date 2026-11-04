@@ -62,7 +62,7 @@ public final class RoadCorridorClearancePass {
         }
         // Acute / gore corners often leave one-column wedges outside the stamped corridor.
         // Dilate OPEN/BRIDGE decoration clearance by 1 so canopy cannot remain over the road.
-        int dilated = clearAdjacentOpenDecorations(solids, plan, terrain, gradeSeparation);
+        int dilated = clearAdjacentOpenDecorations(solids, plan, terrain, host, gradeSeparation);
         if (metrics != null) {
             metrics.cutVolume += dilated;
         }
@@ -173,13 +173,15 @@ public final class RoadCorridorClearancePass {
     /**
      * One-cell OPEN/BRIDGE decoration dilation for acute gore / sampling gaps that never
      * received a clearance stamp but still overhang the finished road.
+     * Neighbor columns are world XZ keys; canvas plan points come from {@link PlanHost}.
      */
     private static int clearAdjacentOpenDecorations(
             RoadSolidModel solids,
             RoadCorridorPlan plan,
             TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host,
             GradeSeparationBuildContext gradeSeparation) {
-        if (solids == null || plan == null || terrain == null) {
+        if (solids == null || plan == null || terrain == null || host == null) {
             return 0;
         }
         int cleared = 0;
@@ -190,9 +192,6 @@ public final class RoadCorridorClearancePass {
                 continue;
             }
             ColumnKey key = entry.getKey();
-            Integer deckCap = gradeSeparation != null
-                ? gradeSeparation.maxOpenClearTopY(cell.planPoint())
-                : null;
             int solidTopY = Math.max(cell.clearTopY(), cell.designSurfaceY());
             for (int[] offset : NEIGHBOR_OFFSETS) {
                 ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
@@ -202,7 +201,11 @@ public final class RoadCorridorClearancePass {
                 if (!terrain.isChunkLoaded(neighbor.worldX(), neighbor.worldZ())) {
                     continue;
                 }
-                var neighborPoint = new com.plot.api.geometry.Vec2d(neighbor.worldX(), neighbor.worldZ());
+                // World column → canvas plan point (never treat world XZ as canvas coords).
+                var neighborPoint = host.planPointForWorldColumn(neighbor.worldX(), neighbor.worldZ());
+                Integer deckCap = gradeSeparation != null
+                    ? gradeSeparation.maxOpenClearTopY(neighborPoint)
+                    : null;
                 cleared += clearDecorationsAbove(
                     solids,
                     new ClearanceCell(

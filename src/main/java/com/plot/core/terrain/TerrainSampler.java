@@ -68,6 +68,14 @@ public interface TerrainSampler {
     }
 
     /**
+     * Whether the block can fall when support is removed (sand, gravel, concrete powder, …).
+     * Defaults to false for samplers without block-type information.
+     */
+    default boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+        return false;
+    }
+
+    /**
      * Any non-air, non-fluid block inside an approved road-body clearance volume that must be removed.
      * Defaults to {@link #isWireObstruction}; world-backed samplers include logs, ores, and other solids.
      */

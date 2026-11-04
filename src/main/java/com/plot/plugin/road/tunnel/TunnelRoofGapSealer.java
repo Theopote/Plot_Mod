@@ -10,19 +10,19 @@ import com.plot.core.terrain.TerrainSampler;
 
 /**
  * Fills vertical air gaps between the tunnel lining roof and original terrain above,
- * and stabilizes a short band of solids so gravity blocks (gravel/sand) cannot cascade
- * into the cavity through a thin or gapped roof shell.
+ * and stabilizes gravity-affected stacks so sand/gravel cannot cascade into the cavity.
  * <p>
  * Roof top is evaluated <strong>per lateral column</strong> so peaked / circular / elliptical
  * shells are not sealed as a flat rectangle at {@link TunnelCrossSectionMask#maxY()}.
+ * Stable engineering solids (dirt, stone, …) are left in place — only gravity blocks are rewritten.
  */
 public final class TunnelRoofGapSealer {
     private static final String DEFAULT_TERRAIN_RESTORE = "minecraft:stone";
     /**
-     * Replace this many solid layers above the roof with stable stone (covers gravel/sand stacks).
-     * Portal faces and steep portals often have thicker gravity stacks than mid-tunnel.
+     * Cap on gravity-block replacements per column (thick portal gravel stacks).
+     * Does not rewrite ordinary solid terrain.
      */
-    private static final int STABILIZE_SOLID_LAYERS = 8;
+    private static final int STABILIZE_GRAVITY_LAYERS = 8;
 
     private TunnelRoofGapSealer() {
     }
@@ -77,26 +77,33 @@ public final class TunnelRoofGapSealer {
                 continue;
             }
             int columnTop = Math.min(terrain.sampleColumnTopY(point), surfaceY);
-            int solidsStabilized = 0;
+            int gravityStabilized = 0;
+            boolean reachedOverburden = false;
             for (int y = roofTop + 1; y <= columnTop; y++) {
                 if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
                     continue;
                 }
-                if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                if (terrain.isGravityAffectedBlock(worldX, y, worldZ)) {
                     solids.add(
                         point,
                         y,
                         RoadSolidLayer.TUNNEL,
                         restoreId,
                         RoadSolidMaterialPriority.STRUCTURAL);
-                    solidsStabilized++;
-                    if (solidsStabilized >= STABILIZE_SOLID_LAYERS) {
+                    gravityStabilized++;
+                    reachedOverburden = true;
+                    if (gravityStabilized >= STABILIZE_GRAVITY_LAYERS) {
                         break;
                     }
                     continue;
                 }
-                if (solidsStabilized > 0) {
-                    // Reached air after stabilizing solids — stop (do not fill caves above).
+                if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                    // Stable solid — leave in place; stop filling air gaps above it.
+                    reachedOverburden = true;
+                    continue;
+                }
+                if (reachedOverburden) {
+                    // Air after overburden — do not fill caves above the roof stack.
                     break;
                 }
                 solids.add(

@@ -40,6 +40,12 @@ class TunnelRoofGapSealerTest {
             public boolean isSolidBlock(int x, int y, int z) {
                 return y != 71;
             }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                // Surface gravel above the air sandwich — must be stabilized.
+                return y == 72;
+            }
         };
         TunnelRoofGapSealer.sealAboveRoofShell(
             solids,
@@ -148,7 +154,7 @@ class TunnelRoofGapSealerTest {
     }
 
     @Test
-    void stabilizesStackedSolidsAboveRoof() {
+    void stabilizesGravityStacksButLeavesStableSolids() {
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int envelopeWidth = 9;
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
@@ -175,6 +181,12 @@ class TunnelRoofGapSealerTest {
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
                 return y > roofTop;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                // First three overburden layers are gravel; layers above are stable dirt.
+                return y > roofTop && y <= roofTop + 3;
             }
         };
         TunnelRoofGapSealer.sealAboveRoofShell(
@@ -210,6 +222,11 @@ class TunnelRoofGapSealerTest {
                 && p.elevation() <= roofTop + 3)
             .count();
         assertTrue(stabilized >= 3,
-            "sealer must stabilize multiple solid layers above roof against gravel collapse");
+            "sealer must rewrite gravity stacks above roof");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                "minecraft:stone".equals(p.materialId())
+                    && p.elevation() > roofTop + 3
+                    && p.elevation() <= roofTop + 5),
+            "stable dirt/stone overburden must not be mass-replaced with stone");
     }
 }

@@ -142,7 +142,7 @@ public class GenerateRoadCommand implements Command {
             enqueueWrites(requestedRecords, true, result -> { });
             return;
         }
-        lastExecutionResult = applySync(requestedRecords, true);
+        lastExecutionResult = applySync(orderForWorldConstruction(requestedRecords), true);
         LOGGER.info("道路落地完成: {}/{}（applied {}）",
             lastExecutionResult.success(),
             lastExecutionResult.total(),
@@ -179,7 +179,7 @@ public class GenerateRoadCommand implements Command {
             enqueueWrites(toApply, true, result -> { });
             return;
         }
-        lastExecutionResult = applySync(toApply, true);
+        lastExecutionResult = applySync(orderForWorldConstruction(toApply), true);
         LOGGER.info("道路重做完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
@@ -254,7 +254,11 @@ public class GenerateRoadCommand implements Command {
             List<BlockRecord> source,
             boolean applyNewBlocks,
             java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<BlockRecord> plans = List.copyOf(source);
+        // Structural / pavement writes before excavation air so gravity blocks keep support
+        // until replacement stone (or other solids) are already in the world.
+        List<BlockRecord> plans = applyNewBlocks
+            ? orderForWorldConstruction(source)
+            : List.copyOf(source);
         List<IBlockPlacementService.BlockWrite> writes = new ArrayList<>(plans.size());
         for (BlockRecord record : plans) {
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
@@ -289,6 +293,24 @@ public class GenerateRoadCommand implements Command {
         if (onComplete != null) {
             onComplete.accept(lastExecutionResult);
         }
+    }
+
+    /**
+     * World apply order: non-air (lining, pavement, roof stabilize) before air (excavation).
+     * Final placement records alone cannot express multi-phase construction; this restores
+     * a support-before-cut sequence for gravity-safe tunnel builds.
+     */
+    static List<BlockRecord> orderForWorldConstruction(List<BlockRecord> source) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        List<BlockRecord> ordered = new ArrayList<>(source);
+        ordered.sort((a, b) -> Boolean.compare(isExcavationAir(a), isExcavationAir(b)));
+        return List.copyOf(ordered);
+    }
+
+    private static boolean isExcavationAir(BlockRecord record) {
+        return record != null && "minecraft:air".equals(record.newBlockId);
     }
 
     private void enqueueWritesReverse(
