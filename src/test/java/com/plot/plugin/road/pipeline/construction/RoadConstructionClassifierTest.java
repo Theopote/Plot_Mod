@@ -81,6 +81,104 @@ class RoadConstructionClassifierTest {
     }
 
     @Test
+    void roofOverburdenRejectsDiscontinuousFloatingLedge() {
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        var info = new SegmentHeightInfo(segment, 90, 90, 64, 64, 0);
+        var style = com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults();
+        int roofY = 64 + style.roofTopOffset();
+        TerrainSampler caveWithFloatingLedge = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return roofY + 8; // high surface reading alone must not prove cover
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                if (y <= 64) {
+                    return true;
+                }
+                // Gap above roof, then an independent floating ledge
+                return y >= roofY + 4 && y <= roofY + 8;
+            }
+        };
+        assertFalse(
+            RoadConstructionClassifier.hasRoofOverburden(info, caveWithFloatingLedge, style),
+            "discontinuous rock above a void must not count as tunnel overburden");
+    }
+
+    @Test
+    void emergingSlopeSegmentDoesNotStayTunnelFromMidpointAlone() {
+        RoadSystemConfig config = new RoadSystemConfig("emerge");
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        // Long deep cut so evaluator initially picks TUNNEL
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
+        SegmentHeightInfo info = new SegmentHeightInfo(segment, 90, 90, 64, 64, 0.0);
+        var columns = new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+            public int worldX(Vec2d p) { return (int) Math.round(p.x); }
+            public int worldZ(Vec2d p) { return (int) Math.round(p.y); }
+        };
+        // Buried for x < 20, daylight for x >= 20 — midpoint (x=20) is transitional
+        TerrainSampler emerging = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return p.x < 20 ? 90 : 64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
+        ConstructionDetection detection = RoadConstructionClassifier.classify(
+            List.of(segment),
+            List.of(info),
+            emerging,
+            config,
+            null,
+            p -> new BlockPos((int) Math.round(p.x), 64, (int) Math.round(p.y)),
+            7,
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
+            columns);
+        assertFalse(detection.constructionTypes().getFirst().isTunnelFamily(),
+            "segment that exits the mountain must not remain TUNNEL from midpoint cover alone");
+    }
+
+    @Test
+    void midpointCoverWithOpenEndsDemotesTunnel() {
+        RoadSystemConfig config = new RoadSystemConfig("open-ends");
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
+        SegmentHeightInfo info = new SegmentHeightInfo(segment, 90, 90, 64, 64, 0.0);
+        var columns = new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+            public int worldX(Vec2d p) { return (int) Math.round(p.x); }
+            public int worldZ(Vec2d p) { return (int) Math.round(p.y); }
+        };
+        TerrainSampler midOnly = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return Math.abs(p.x - 20) <= 4 ? 90 : 64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
+        ConstructionDetection detection = RoadConstructionClassifier.classify(
+            List.of(segment),
+            List.of(info),
+            midOnly,
+            config,
+            null,
+            p -> new BlockPos((int) Math.round(p.x), 64, (int) Math.round(p.y)),
+            7,
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
+            columns);
+        assertFalse(detection.constructionTypes().getFirst().isTunnelFamily(),
+            "cover only near midpoint must not keep the whole segment as TUNNEL");
+    }
+
+    @Test
     void classifyMarksBridgeWhenTargetIsHighAboveGround() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);

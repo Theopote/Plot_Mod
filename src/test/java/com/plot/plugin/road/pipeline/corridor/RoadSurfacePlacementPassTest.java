@@ -4,7 +4,12 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.solid.*;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableSet;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoadSurfacePlacementPassTest {
@@ -108,6 +113,66 @@ class RoadSurfacePlacementPassTest {
         assertEquals("minecraft:dirt",
             merged.placementRecords.get(surface.up(4)).newBlockId,
             "elevated SUBGRADE underside must survive underpass headroom clear");
+    }
+
+    @Test
+    void pavementYIndexFindsLowestDeckAboveSurface() {
+        var result = new RoadGenerationResult(0);
+        result.recordPlacementByLayerPriority(new BlockPos(1, 64, 2), "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(new BlockPos(1, 70, 2), "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(new BlockPos(1, 72, 2), "minecraft:air", "minecraft:yellow_concrete",
+            RoadSolidLayer.MARKING, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(new BlockPos(1, 68, 2), "minecraft:air", "minecraft:dirt",
+            RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
+        Map<ColumnKey, NavigableSet<Integer>> index = RoadSurfacePlacementPass.buildPavementYIndex(result);
+        assertEquals(70, RoadSurfacePlacementPass.lowestProtectedPavementAbove(index, 1, 64, 2));
+        assertNull(RoadSurfacePlacementPass.lowestProtectedPavementAbove(index, 1, 72, 2));
+        assertNull(RoadSurfacePlacementPass.lowestProtectedPavementAbove(index, 9, 64, 9));
+    }
+
+    @Test
+    void clearIntrudingFillScalesOnLargeSyntheticNetwork() {
+        int columns = 5_000;
+        int fillersPerColumn = 20;
+        var result = new RoadGenerationResult(0);
+        for (int i = 0; i < columns; i++) {
+            BlockPos surface = new BlockPos(i, 64, 0);
+            result.recordPlacementByLayerPriority(surface, "minecraft:air", "minecraft:white_concrete",
+                RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+            result.openRoadClearanceTops.put(surface, 69);
+            for (int dy = 1; dy <= fillersPerColumn; dy++) {
+                BlockPos filler = new BlockPos(i, 64 + dy, 0);
+                result.recordPlacementByLayerPriority(filler, "minecraft:air", "minecraft:coarse_dirt",
+                    RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
+            }
+            // Elevated deck above headroom so underside protection path is exercised
+            result.recordPlacementByLayerPriority(new BlockPos(i, 72, 0), "minecraft:air", "minecraft:white_concrete",
+                RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+            result.recordPlacementByLayerPriority(new BlockPos(i, 71, 0), "minecraft:air", "minecraft:stone",
+                RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
+        }
+        assertTrue(result.placementLayers.size() >= 100_000,
+            "synthetic fixture must be large enough to catch O(S*P) regressions");
+
+        long start = System.nanoTime();
+        RoadSurfacePlacementPass.clearIntrudingFill(result);
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+        // Indexed path should finish well under a second even on constrained CI; 5s is a hard ceiling.
+        assertTrue(elapsedMs < 5_000,
+            "clearIntrudingFill took " + elapsedMs + "ms on ~" + result.placementLayers.size() + " placements");
+
+        Map<String, Integer> cleared = new HashMap<>();
+        for (int i = 0; i < columns; i++) {
+            assertEquals("minecraft:air",
+                result.placementRecords.get(new BlockPos(i, 66, 0)).newBlockId);
+            assertEquals("minecraft:stone",
+                result.placementRecords.get(new BlockPos(i, 71, 0)).newBlockId,
+                "elevated underside must survive at column " + i);
+            cleared.merge("ok", 1, Integer::sum);
+        }
+        assertEquals(columns, cleared.get("ok"));
     }
 
     private static RoadCorridorPlan plan() {

@@ -30,19 +30,28 @@ public final class RoadGenerationResultAssembler {
             Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
             RoadGenerationPipelineHost host) {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        long t0 = System.nanoTime();
         if (edgeResults != null) {
             for (RoadGenerationResult edgeResult : edgeResults) {
                 mergeResult(aggregate, edgeResult);
             }
         }
+        long t1 = System.nanoTime();
         if (network != null && junctionResults != null && host != null) {
             for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
                 mergeJunctionForNode(aggregate, network.getNode(entry.getKey()), entry.getValue(), network, host);
             }
         }
+        long t2 = System.nanoTime();
         com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
+        long t3 = System.nanoTime();
         RoadRailPlacementPass.apply(aggregate);
         RoadRailConnectivityValidator.validate(aggregate);
+        long t4 = System.nanoTime();
+        aggregate.assembleMergeEdgesNanos = t1 - t0;
+        aggregate.assembleMergeJunctionsNanos = t2 - t1;
+        aggregate.assembleClearIntrudingFillNanos = t3 - t2;
+        aggregate.assembleRailPassNanos = t4 - t3;
         return aggregate;
     }
 

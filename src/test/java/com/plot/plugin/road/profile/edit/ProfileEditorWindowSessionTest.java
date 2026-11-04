@@ -204,6 +204,40 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
+    void cancelAndReopenAfterExternalRevisionDropsDirtyWorkingEdits() {
+        ProfileEditorWindowSession session = openSession();
+        long openRevision = session.openRevision();
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+        mutatePvi(workingRoad, 1, 81.0);
+        session.markTouched(workingRoad);
+        assertTrue(session.isDirty());
+
+        // External topology / network mutation bumps revision while editor is unsaved
+        manager.mutateNetwork(() -> {
+            live.getRoad(road.getId()).setName("renamed-externally");
+            live.createNode(new Vec2d(200, 0));
+        });
+        assertTrue(manager.getNetworkRevision() > openRevision);
+
+        assertEquals(
+            ProfileEditorWindowSession.ConfirmResult.CONFLICT,
+            session.confirm(testContext(), live, config),
+            "unsaved session must not apply over a newer live revision");
+
+        session.cancel();
+        assertFalse(session.isDirty());
+
+        ProfileEditorWindowSession reloaded = ProfileEditorWindowSession.open(live, manager.getNetworkRevision());
+        assertEquals(manager.getNetworkRevision(), reloaded.openRevision());
+        assertEquals(
+            68.0,
+            reloaded.editingNetwork().getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation(),
+            "reloaded session must use live control points, not discarded dirty edits");
+        assertEquals("renamed-externally", reloaded.editingNetwork().getRoad(road.getId()).getName());
+        assertFalse(reloaded.isDirty());
+    }
+
+    @Test
     void seedSampledProfilesReleasesStaleJunctionFixedAnchors() {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 64),

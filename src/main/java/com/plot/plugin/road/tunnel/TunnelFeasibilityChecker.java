@@ -76,7 +76,7 @@ public final class TunnelFeasibilityChecker {
      * The first air cell ends continuous cover (even when cover is still zero),
      * so a floating rock ledge above a void does not count as tunnel overburden.
      */
-    static int measureContinuousCoverAbove(TerrainSampler terrain, int worldX, int worldZ, int roofY) {
+    public static int measureContinuousCoverAbove(TerrainSampler terrain, int worldX, int worldZ, int roofY) {
         int cover = 0;
         for (int y = roofY + 1; y <= roofY + 12; y++) {
             if (!terrain.isSolidBlock(worldX, y, worldZ)) {

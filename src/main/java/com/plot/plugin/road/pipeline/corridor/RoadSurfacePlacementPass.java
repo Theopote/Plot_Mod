@@ -5,6 +5,11 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
+
 /** The rasterized pavement footprint owns its surface, including diagonal tunnel mouths. */
 public final class RoadSurfacePlacementPass {
     private RoadSurfacePlacementPass() { }
@@ -55,11 +60,17 @@ public final class RoadSurfacePlacementPass {
      * When the same column already has an elevated pavement (ROAD/BRIDGE/…) above the open surface,
      * stop below that deck and never strip BRIDGE structure that supports it — otherwise grade-sep
      * underpass headroom clearing eats the upper road underside after network merge.
+     * <p>
+     * Pavement Y lookup is O(log H) per surface column via a one-shot XZ index (not O(P) per surface).
      */
     public static void clearIntrudingFill(RoadGenerationResult result) {
+        if (result == null || result.openRoadClearanceTops.isEmpty()) {
+            return;
+        }
+        Map<ColumnKey, NavigableSet<Integer>> pavementYsByColumn = buildPavementYIndex(result);
         result.openRoadClearanceTops.forEach((surface, top) -> {
             Integer elevatedPavementY = lowestProtectedPavementAbove(
-                result, surface.getX(), surface.getY(), surface.getZ());
+                pavementYsByColumn, surface.getX(), surface.getY(), surface.getZ());
             int clearTo = elevatedPavementY != null ? Math.min(top, elevatedPavementY - 1) : top;
             for (int y = surface.getY() + 1; y <= clearTo; y++) {
                 var pos = new BlockPos(surface.getX(), y, surface.getZ());
@@ -88,24 +99,39 @@ public final class RoadSurfacePlacementPass {
         });
     }
 
-    private static Integer lowestProtectedPavementAbove(
-            RoadGenerationResult result, int worldX, int surfaceY, int worldZ) {
-        Integer lowest = null;
+    static Map<ColumnKey, NavigableSet<Integer>> buildPavementYIndex(RoadGenerationResult result) {
+        Map<ColumnKey, NavigableSet<Integer>> index = new HashMap<>();
+        if (result == null) {
+            return index;
+        }
         for (var entry : result.placementLayers.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (pos.getX() != worldX || pos.getZ() != worldZ || pos.getY() <= surfaceY) {
-                continue;
-            }
             if (!isElevatedPavementLayer(entry.getValue())) {
                 continue;
             }
+            BlockPos pos = entry.getKey();
             var record = result.placementRecords.get(pos);
             if (record == null || "minecraft:air".equals(record.newBlockId)) {
                 continue;
             }
-            lowest = lowest == null ? pos.getY() : Math.min(lowest, pos.getY());
+            index.computeIfAbsent(new ColumnKey(pos.getX(), pos.getZ()), ignored -> new TreeSet<>())
+                .add(pos.getY());
         }
-        return lowest;
+        return index;
+    }
+
+    static Integer lowestProtectedPavementAbove(
+            Map<ColumnKey, NavigableSet<Integer>> pavementYsByColumn,
+            int worldX,
+            int surfaceY,
+            int worldZ) {
+        if (pavementYsByColumn == null || pavementYsByColumn.isEmpty()) {
+            return null;
+        }
+        NavigableSet<Integer> ys = pavementYsByColumn.get(new ColumnKey(worldX, worldZ));
+        if (ys == null || ys.isEmpty()) {
+            return null;
+        }
+        return ys.higher(surfaceY);
     }
 
     private static boolean isElevatedPavementLayer(RoadSolidLayer layer) {

@@ -29,6 +29,14 @@ public class RoadGenerationResult {
     public final Map<BlockPos, Integer> placementMaterialPriorities = new LinkedHashMap<>();
     /** Sparse reserved headroom above open-road surfaces; no air records for already-empty terrain. */
     public final Map<BlockPos, Integer> openRoadClearanceTops = new LinkedHashMap<>();
+    /**
+     * Aggregate-network stage timings in nanoseconds (0 when not recorded).
+     * Used for large-network profiling; safe to ignore in normal gameplay paths.
+     */
+    public long assembleMergeEdgesNanos;
+    public long assembleMergeJunctionsNanos;
+    public long assembleClearIntrudingFillNanos;
+    public long assembleRailPassNanos;
     public int cutVolume;
     public int fillVolume;
     public int bridgeCount;

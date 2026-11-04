@@ -306,6 +306,9 @@ public final class RoadConstructionClassifier {
         return info.waterStart != null || info.waterEnd != null;
     }
 
+    /** Sparse along-segment samples for tunnel / daylight transitions. */
+    private static final double[] TUNNEL_SAMPLE_TS = {0.0, 0.25, 0.5, 0.75, 1.0};
+
     private static boolean validateTunnelSegment(
             SegmentHeightInfo info,
             TerrainSampler terrain,
@@ -314,56 +317,86 @@ public final class RoadConstructionClassifier {
             ResolvedTunnelStyle tunnelStyle,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             boolean chainForward, double unitsPerBlock) {
-        if (terrain == null || canvasToBlockPos == null || tunnelStyle == null) {
+        if (terrain == null || canvasToBlockPos == null || tunnelStyle == null || info == null
+                || info.segment == null) {
             return false;
         }
-        Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
-        int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
-        // 不要求路面格本身为实心：沙砾/重力方块塌落后空洞不应把洞身降级为开敞切方。
-        // 覆土与可行性由 TunnelFeasibilityChecker（洞顶连续盖层）判定。
+        // 全部稀疏采样点均须具备连续洞顶覆土；中点成立而端部见天时不得整段锁死为隧道。
+        for (double t : TUNNEL_SAMPLE_TS) {
+            if (!validateTunnelAt(info, t, terrain, canvasToBlockPos, gradingEnvelopeWidth,
+                    tunnelStyle, columnResolver, chainForward, unitsPerBlock)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean validateTunnelAt(
+            SegmentHeightInfo info,
+            double t,
+            TerrainSampler terrain,
+            CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth,
+            ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            boolean chainForward,
+            double unitsPerBlock) {
+        Vec2d point = info.segment.start.lerp(info.segment.end, t);
+        int targetY = interpolateTargetY(info, t);
+        if (!terrain.isChunkLoaded(point)) {
+            return false;
+        }
         if (gradingEnvelopeWidth <= 0 || columnResolver == null) {
-            int surfaceY = terrain.sampleSurfaceY(mid);
+            int surfaceY = terrain.sampleSurfaceY(point);
             return surfaceY - targetY >= tunnelStyle.clearHeight()
                 + TunnelFeasibility.MINIMUM_COVER_BLOCKS;
         }
         Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(info.segment, chainForward);
-        TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(
+        return TunnelFeasibilityChecker.check(
             terrain,
-            mid,
+            point,
             leftNormal,
             targetY,
             gradingEnvelopeWidth,
             tunnelStyle,
             columnResolver,
-            unitsPerBlock);
-        return feasibility.valid();
+            unitsPerBlock).valid();
     }
 
     /**
-     * 中心线柱在洞顶以上是否仍有工程覆土（不含可清理树叶）。
-     * 开敞路堑中心已见天时为 false，避免侧壁误判把路堑锁成隧道。
+     * 中心线稀疏采样柱在洞顶以上是否均有连续工程覆土。
+     * 用 {@link TunnelFeasibilityChecker#measureContinuousCoverAbove}，不用地表高度近似，
+     * 避免天然拱桥/洞穴上空独立岩层误判。
      */
     static boolean hasRoofOverburden(
             SegmentHeightInfo info,
             TerrainSampler terrain,
             ResolvedTunnelStyle tunnelStyle) {
-        if (info == null || terrain == null || info.segment == null) {
+        if (info == null || terrain == null || info.segment == null || tunnelStyle == null) {
             return false;
         }
-        Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
-        if (!terrain.isChunkLoaded(mid)) {
-            return false;
-        }
-        int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
-        int clear = Math.max(1, tunnelStyle != null ? tunnelStyle.clearHeight() : 1);
         int coverNeed = TunnelFeasibility.MINIMUM_COVER_BLOCKS;
-        return terrain.sampleSurfaceY(mid) >= targetY + clear + coverNeed;
+        int roofOffset = Math.max(1, tunnelStyle.roofTopOffset());
+        for (double t : TUNNEL_SAMPLE_TS) {
+            Vec2d point = info.segment.start.lerp(info.segment.end, t);
+            if (!terrain.isChunkLoaded(point)) {
+                return false;
+            }
+            int targetY = interpolateTargetY(info, t);
+            int roofY = targetY + roofOffset;
+            int worldX = (int) Math.round(point.x);
+            int worldZ = (int) Math.round(point.y);
+            if (TunnelFeasibilityChecker.measureContinuousCoverAbove(
+                    terrain, worldX, worldZ, roofY) < coverNeed) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
      * 洞室 AIR 格内是否仍有工程实体妨碍（洞穴钟乳/夹石）。
-     * 只检查衬砌内侧空洞，不含衬砌格本身；仍可能扫到窄路堑伸入包络的侧壁，
-     * 须与 {@link #hasRoofOverburden} 合用。
+     * 沿段稀疏采样；须与 {@link #hasRoofOverburden} 合用。
      */
     static boolean hasSolidWithinClearHeight(
             SegmentHeightInfo info,
@@ -374,17 +407,37 @@ public final class RoadConstructionClassifier {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             boolean chainForward,
             double unitsPerBlock) {
-        if (info == null || terrain == null || tunnelStyle == null) {
+        if (info == null || terrain == null || tunnelStyle == null || info.segment == null) {
             return false;
         }
-        Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
-        int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
+        for (double t : TUNNEL_SAMPLE_TS) {
+            if (hasSolidWithinClearHeightAt(
+                    info, t, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle,
+                    columnResolver, chainForward, unitsPerBlock)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasSolidWithinClearHeightAt(
+            SegmentHeightInfo info,
+            double t,
+            TerrainSampler terrain,
+            CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth,
+            ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            boolean chainForward,
+            double unitsPerBlock) {
+        Vec2d sample = info.segment.start.lerp(info.segment.end, t);
+        int targetY = interpolateTargetY(info, t);
         int clear = Math.max(1, tunnelStyle.clearHeight());
         if (columnResolver == null || gradingEnvelopeWidth <= 0) {
             if (canvasToBlockPos == null) {
                 return false;
             }
-            var pos = canvasToBlockPos.resolve(mid);
+            var pos = canvasToBlockPos.resolve(sample);
             return hasCavityObstructionInColumn(terrain, pos.getX(), pos.getZ(), targetY, clear);
         }
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
@@ -406,7 +459,7 @@ public final class RoadConstructionClassifier {
             if (y <= targetY || y > targetY + clear) {
                 return;
             }
-            Vec2d point = mid.add(normal.multiply(lateral * scale));
+            Vec2d point = sample.add(normal.multiply(lateral * scale));
             int worldX = columnResolver.worldX(point);
             int worldZ = columnResolver.worldZ(point);
             if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
@@ -417,6 +470,11 @@ public final class RoadConstructionClassifier {
             }
         });
         return found[0];
+    }
+
+    private static int interpolateTargetY(SegmentHeightInfo info, double t) {
+        double clamped = Math.max(0.0, Math.min(1.0, t));
+        return (int) Math.round(info.targetStart + (info.targetEnd - info.targetStart) * clamped);
     }
 
     private static boolean hasCavityObstructionInColumn(

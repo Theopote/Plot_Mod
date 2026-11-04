@@ -129,5 +129,9 @@ class RoadGenerationResultAssemblerTest {
             host);
 
         assertEquals(1, aggregate.bridgeCount);
+        assertTrue(aggregate.assembleMergeEdgesNanos >= 0);
+        assertTrue(aggregate.assembleMergeJunctionsNanos >= 0);
+        assertTrue(aggregate.assembleClearIntrudingFillNanos >= 0);
+        assertTrue(aggregate.assembleRailPassNanos >= 0);
     }
 }
