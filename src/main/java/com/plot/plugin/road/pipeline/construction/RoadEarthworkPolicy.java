@@ -37,6 +37,36 @@ public enum RoadEarthworkPolicy {
         return of(type).allowsCorridorBatter();
     }
 
+    /**
+     * 是否抑制开敞切坡：隧道族/邻接隧道/棚洞，或中心覆土已达隧道阈值（深埋不露天削坡）。
+     *
+     * @param coverAboveDesign 路中地形标高 − 设计路面标高（格）
+     * @param tunnelThreshold  隧道覆土阈值（与分类器一致）
+     */
+    public static boolean suppressOpenDaylightBatter(
+            RoadConstructionType type,
+            boolean nearTunnelFamily,
+            int coverAboveDesign,
+            int tunnelThreshold) {
+        if (nearTunnelFamily) {
+            return true;
+        }
+        if (!allowsCorridorBatter(type)) {
+            return true;
+        }
+        return tunnelThreshold > 0 && coverAboveDesign >= tunnelThreshold;
+    }
+
+    /**
+     * 单侧路肩外缘：切方且外缘覆土已达隧道阈值时，该侧不开敞放坡（挂壁/半隧靠山侧）。
+     */
+    public static boolean suppressShoulderCutBatter(boolean isFill, int edgeCoverAboveDesign, int tunnelThreshold) {
+        if (isFill || tunnelThreshold <= 0) {
+            return false;
+        }
+        return edgeCoverAboveDesign >= tunnelThreshold;
+    }
+
     public boolean allowsCorridorBatter() {
         return this == NORMAL_BATTER || this == TRANSITION_BATTER;
     }

@@ -273,11 +273,10 @@ public final class RoadConstructionClassifier {
             int lh = terrain.sampleSurfaceY(lp) - y;
             int rh = terrain.sampleSurfaceY(rp) - y;
             RoadConstructionType atSample;
-            if (lh >= high && rh < style.clearHeight()
-                    && terrain.isSolidBlock(columns.worldX(lp), y + style.clearHeight(), columns.worldZ(lp))) {
+            // 半崖/挂壁：靠山侧覆土足够高即可；不强制洞高处有实体（洞穴或沙砾塌落后仍按棚洞，禁靠山放坡）
+            if (lh >= high && rh < style.clearHeight()) {
                 atSample = RoadConstructionType.ROCK_SHELTER_LEFT;
-            } else if (rh >= high && lh < style.clearHeight()
-                    && terrain.isSolidBlock(columns.worldX(rp), y + style.clearHeight(), columns.worldZ(rp))) {
+            } else if (rh >= high && lh < style.clearHeight()) {
                 atSample = RoadConstructionType.ROCK_SHELTER_RIGHT;
             } else return null;
             if (candidate != null && candidate != atSample) return null;

@@ -84,8 +84,13 @@ public final class TunnelStructureGenerator {
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             // Half-block station spacing covers diagonal/curved voxel footprints.
             boolean diagonal = Math.abs(leftNormal.x) > EPSILON && Math.abs(leftNormal.y) > EPSILON;
-            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale * (diagonal ? 2 : 1)));
+            boolean acuteIncoming = i > 0 && isAcutePolylineTurn(segments.get(i - 1), segment);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale * (diagonal || acuteIncoming ? 2 : 1)));
             for (int j = 0; j <= samples; j++) {
+                // 锐折共点：跳过本段起点，避免两段断面法向冲突把衬砌/净空堵进车行道
+                if (j == 0 && acuteIncoming) {
+                    continue;
+                }
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
@@ -508,6 +513,22 @@ public final class TunnelStructureGenerator {
         return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
             || terrain.isSolidBlock(worldX, y, worldZ)
             || terrain.isRoadClearableDecoration(worldX, y, worldZ);
+    }
+
+    /** 折线转向 |θ|≥90° ⇒ 内角为锐角；共点双断面易堵洞。 */
+    static boolean isAcutePolylineTurn(PathSegment incoming, PathSegment outgoing) {
+        if (incoming == null || outgoing == null) {
+            return false;
+        }
+        Vec2d inDir = incoming.end.subtract(incoming.start);
+        Vec2d outDir = outgoing.end.subtract(outgoing.start);
+        if (inDir.lengthSquared() < EPSILON || outDir.lengthSquared() < EPSILON) {
+            return false;
+        }
+        Vec2d a = inDir.normalize();
+        Vec2d b = outDir.normalize();
+        double turn = Math.atan2(a.cross(b), a.dot(b));
+        return Math.abs(turn) >= Math.PI * 0.5 - 1e-6;
     }
 
     /**

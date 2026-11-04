@@ -143,13 +143,21 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
-        // 隧道族净空柱与洞顶保护包络内禁止开放切方
+        // 隧道族净空柱、洞顶保护包络、深覆土柱禁止开放切方（洞穴/峡谷误判 CUT 时也不削山）
         boolean tunnelFamilyColumn = constructionType != null
             && (constructionType.isTunnelFamily() || constructionType.isRockShelter());
         boolean mountainProtected = mountainProtection != null && mountainProtection.protects(key);
+        // 仅填方边坡时 cutSurfaceY 为 null，不可拆箱
+        int designY = resolveDesignY(surfaceY, slope, groundY);
+        boolean deepCoverColumn = RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            constructionType,
+            false,
+            groundY - designY,
+            host.tunnelThreshold());
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
                 && !tunnelFamilyColumn
                 && !mountainProtected
+                && !deepCoverColumn
                 && (constructionType == null
                     || RoadEarthworkPolicy.allowsCorridorBatter(constructionType))) {
             int cutTopY = portalGuard.capCutTopY(planPoint, groundY, host, roadHalfWidth);
@@ -199,5 +207,19 @@ public final class RoadCorridorSolidEmitter {
             return true;
         }
         return surfaceY - groundY <= bridgeThreshold;
+    }
+
+    /** 覆土判定用的设计标高：路面优先，其次切/填坡面，避免仅填方柱上 cutSurfaceY 空拆箱。 */
+    static int resolveDesignY(Integer surfaceY, SlopeColumnCell slope, int groundY) {
+        if (surfaceY != null) {
+            return surfaceY;
+        }
+        if (slope != null && slope.hasCut()) {
+            return slope.cutSurfaceY();
+        }
+        if (slope != null && slope.hasFill()) {
+            return slope.fillSurfaceY();
+        }
+        return groundY;
     }
 }

@@ -94,14 +94,15 @@ public final class RoadCorridorPlanBuilder {
         for (int i = 0; i < stations.size(); i++) {
             StationSample sample = stations.get(i);
             ResolvedCrossSection crossSection = crossSections.resolve(sample.chainage());
-            boolean suppressBatterNearTunnel = adjacentTunnelFamily(stations, i);
+            boolean suppressBatter = shouldSuppressCorridorBatter(
+                stations, i, terrain, tunnelThreshold);
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
                 carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq,
-                suppressBatterNearTunnel);
+                suppressBatter);
             if (i > 0) {
-                // 邻接洞门/洞身的路基站及其 span 都不放坡，避免边坡贴到洞口掏山
-                boolean suppressSpanBatter = suppressBatterNearTunnel
-                    || adjacentTunnelFamily(stations, i - 1);
+                // 邻接洞门/洞身/深覆土的路基站及其 span 都不放坡，避免边坡贴到洞口掏山
+                boolean suppressSpanBatter = suppressBatter
+                    || shouldSuppressCorridorBatter(stations, i - 1, terrain, tunnelThreshold);
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
                     unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples,
                     stationSampleSeq, suppressSpanBatter);
@@ -151,10 +152,28 @@ public final class RoadCorridorPlanBuilder {
         return stations;
     }
 
-    /** 邻接窗口：锐弯处边坡扇可能跨过一站，故检查 ±2 站内是否有隧道族。 */
+    /** 邻接窗口：锐弯处边坡扇可能跨过一站，故检查 ±2 站内是否有隧道族/棚洞。 */
     private static final int TUNNEL_BATTER_SUPPRESS_STATION_RADIUS = 2;
 
-    private static boolean adjacentTunnelFamily(List<StationSample> stations, int index) {
+    private static boolean shouldSuppressCorridorBatter(
+            List<StationSample> stations,
+            int index,
+            TerrainSampler terrain,
+            int tunnelThreshold) {
+        if (stations == null || index < 0 || index >= stations.size()) {
+            return false;
+        }
+        StationSample sample = stations.get(index);
+        boolean nearTunnel = adjacentTunnelOrShelter(stations, index);
+        int cover = 0;
+        if (terrain != null && sample.center() != null && terrain.isChunkLoaded(sample.center())) {
+            cover = terrain.sampleSurfaceY(sample.center()) - sample.targetY();
+        }
+        return RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            sample.constructionType(), nearTunnel, cover, tunnelThreshold);
+    }
+
+    private static boolean adjacentTunnelOrShelter(List<StationSample> stations, int index) {
         if (stations == null || index < 0 || index >= stations.size()) {
             return false;
         }
@@ -165,7 +184,7 @@ public final class RoadCorridorPlanBuilder {
                 continue;
             }
             RoadConstructionType type = stations.get(i).constructionType();
-            if (type != null && type.isTunnelFamily()) {
+            if (type != null && (type.isTunnelFamily() || type.isRockShelter())) {
                 return true;
             }
         }
@@ -184,7 +203,7 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq,
-            boolean suppressBatterNearTunnel) {
+            boolean suppressBatter) {
         if (sample.constructionType() == RoadConstructionType.TUNNEL_PORTAL) {
             Vec2d leftNormal = normalize(sample.leftNormal());
             // leftNormal = (-fy, fx) for forward (fx, fy) → forward = (ly, -lx)
@@ -200,11 +219,12 @@ public final class RoadCorridorPlanBuilder {
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);
-        if (!suppressBatterNearTunnel
+        if (!suppressBatter
                 && crossSection.includeSlopeBatter
                 && RoadEarthworkPolicy.allowsCorridorBatter(sample.constructionType())) {
             slopeSamples.addAll(mergeSlopeWedge(
-                plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq));
+                plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq,
+                tunnelThreshold));
         }
     }
 
@@ -242,13 +262,14 @@ public final class RoadCorridorPlanBuilder {
                 midY, to.targetY(), toSection, terrain, unitsPerBlock,
                 seedKey, host, toType, config, tunnelThreshold);
         }
-        // 两端都允许且不贴隧道才放坡：避免洞口路基 span 把边坡伸进山体
+        // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体
         if (!suppressSpanBatter
                 && toSection.includeSlopeBatter
                 && RoadEarthworkPolicy.allowsCorridorBatter(fromType)
                 && RoadEarthworkPolicy.allowsCorridorBatter(toType)) {
             slopeSamples.addAll(mergeSlopeSpan(
-                plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq));
+                plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq,
+                tunnelThreshold));
         }
     }
 
@@ -564,9 +585,10 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             PlanHost host,
-            long[] stationSampleSeq) {
+            long[] stationSampleSeq,
+            int tunnelThreshold) {
         return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
-            crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++);
+            crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++, tunnelThreshold);
     }
 
     /** 急折外侧扇区：仅当转角够大且路径采样偏稀时加密；上限避免预览算力爆炸。 */
@@ -585,7 +607,8 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             PlanHost host,
-            long[] stationSampleSeq) {
+            long[] stationSampleSeq,
+            int tunnelThreshold) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
         int pathLast = Math.max(0, span.size() - 1);
@@ -605,7 +628,8 @@ public final class RoadCorridorPlanBuilder {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
             if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
-                    crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++));
+                    crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
+                    tunnelThreshold));
             }
             return samples;
         }
@@ -621,7 +645,8 @@ public final class RoadCorridorPlanBuilder {
                 continue;
             }
             samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,
-                crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++));
+                crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
+                tunnelThreshold));
         }
         return samples;
     }
@@ -675,7 +700,8 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             PlanHost host,
-            long stationSampleId) {
+            long stationSampleId,
+            int tunnelThreshold) {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
@@ -689,10 +715,12 @@ public final class RoadCorridorPlanBuilder {
         List<SlopeProfileSample> samples = new ArrayList<>();
         samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT)));
+            normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT),
+            tunnelThreshold));
         samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT)));
+            normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT),
+            tunnelThreshold));
         return samples;
     }
 
@@ -711,7 +739,8 @@ public final class RoadCorridorPlanBuilder {
             Vec2d outwardNormal,
             double unitsPerBlock,
             PlanHost host,
-            SlopeRayId rayId) {
+            SlopeRayId rayId,
+            int tunnelThreshold) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d leftNormal = normalize(corridorLeftNormal);
@@ -725,6 +754,11 @@ public final class RoadCorridorPlanBuilder {
             return samples;
         }
         boolean isFill = targetY > groundAtEdge;
+        // 挂壁/半隧靠山侧：外缘覆土已达隧道阈值，不开敞削坡
+        if (RoadEarthworkPolicy.suppressShoulderCutBatter(
+                isFill, groundAtEdge - targetY, tunnelThreshold)) {
+            return samples;
+        }
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
         int heightDifference = Math.abs(targetY - groundAtEdge);

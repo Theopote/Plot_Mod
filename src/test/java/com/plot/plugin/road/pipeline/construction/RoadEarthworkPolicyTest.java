@@ -48,4 +48,27 @@ class RoadEarthworkPolicyTest {
         assertEquals(RoadEarthworkPolicy.NORMAL_BATTER, RoadEarthworkPolicy.of(null));
         assertTrue(RoadEarthworkPolicy.allowsCorridorBatter(null));
     }
+
+    @Test
+    void suppressOpenDaylightBatterForNearTunnelDeepCoverAndTunnelTypes() {
+        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.ROAD, true, 0, 4));
+        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.TUNNEL, false, 0, 4));
+        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.CUT, false, 4, 4));
+        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.ROAD, false, 8, 4));
+        assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.ROAD, false, 2, 4));
+    }
+
+    @Test
+    void suppressShoulderCutBatterOnlyForDeepCutEdges() {
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 4, 4));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 4));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(true, 10, 4));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 2, 4));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 0));
+    }
 }

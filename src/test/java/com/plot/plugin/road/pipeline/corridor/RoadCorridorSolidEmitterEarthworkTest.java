@@ -124,6 +124,30 @@ class RoadCorridorSolidEmitterEarthworkTest {
         }
     }
 
+    @Test
+    void fillOnlySlopeColumnWithoutSurfaceDoesNotThrowOnDeepCoverCheck() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey fillColumn = new ColumnKey(8, 2);
+        plan.putClearance(fillColumn, new ClearanceCell(
+            new Vec2d(8, 2), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.FILL));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(fillColumn, new Vec2d(8, 2));
+        slope.mergeFill(64, "minecraft:gravel");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            valleyTerrain(),
+            CorridorTestFixtures.planHost(config),
+            null,
+            "minecraft:gravel");
+
+        assertEquals(64, RoadCorridorSolidEmitter.resolveDesignY(null, slope, 50));
+    }
+
     private static TerrainSampler mountainTerrain() {
         return new TerrainSampler() {
             @Override

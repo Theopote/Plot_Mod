@@ -117,6 +117,23 @@ class RoadCorridorPlanBuilderTest {
     }
 
     @Test
+    void deepCoverOpenRoadSuppressesDaylightBatter() {
+        var config = CorridorTestFixtures.baseConfig();
+        config.setIncludeSlopeBatter(true);
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        // 地形远高于路面（≥ tunnelThreshold）时，即使类型仍是 ROAD/CUT 也不开敞削坡
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 96, 96, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
+            List.of(RoadConstructionType.CUT),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), new FlatTerrainSampler(96),
+            1, "deep-cover", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config));
+        assertTrue(plan.slopeEntries().isEmpty(),
+            "deep cover over design grade must not emit open corridor batter");
+        assertFalse(plan.surfaceMask().entries().isEmpty());
+    }
+
+    @Test
     void spanRasterizationCoversStraightSegmentLength() {
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
