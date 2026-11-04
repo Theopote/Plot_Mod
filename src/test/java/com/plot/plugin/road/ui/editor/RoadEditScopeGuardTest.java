@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadEditScopeGuardTest {
@@ -99,5 +100,23 @@ class RoadEditScopeGuardTest {
         ctx.requestTab(RoadUiTab.BUILD);
         assertEquals(RoadUiTab.CROSS_SECTION, ctx.activeTab());
         assertEquals(RoadUiTab.BUILD, ctx.pendingTab());
+    }
+
+    @Test
+    void requestEditOtherRoadDoesNotChangeSelectionWhileDirtyDraftBlocks() {
+        manager.selectRoad(roadA, false);
+        ctx.setActiveTab(RoadUiTab.CROSS_SECTION);
+        host.openOrFocus(ctx, RoadFloatingEditorKind.CROSS_SECTION, roadA);
+        CrossSectionDesignerWindow editor = (CrossSectionDesignerWindow) host.editorForKind(
+            RoadFloatingEditorKind.CROSS_SECTION);
+        editor.editorSession().workingNetwork().getRoad(roadA).setWidth(21);
+
+        ctx.requestEditRoad(roadB);
+
+        assertEquals(Set.of(roadA), manager.getSelectedRoadIds());
+        assertTrue(editPanel.tryLeaveEdit());
+        ctx.clearPendingNavigation();
+        assertEquals(Set.of(roadA), manager.getSelectedRoadIds());
+        assertNull(ctx.pendingNavigation());
     }
 }

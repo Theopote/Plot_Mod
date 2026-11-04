@@ -63,20 +63,23 @@ final class RoadEditWorkspace {
     }
 
     /**
-     * 未选中道路：不展示单路编辑面（概览详情 / 快速设计 / 专业工具），
-     * 仅保留选择入口；认领默认参数收入折叠区，避免与「正在编辑道路」混淆。
+     * 未选中道路或空路网：不展示单路编辑面，仅保留选择入口与「新道路默认设置」。
      */
     void renderNoSelectionDefaults() {
         RoadNetwork network = ctx.networkManager().getNetwork();
+        boolean emptyNetwork = network.getEdges().isEmpty();
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.edit.no_selection_hint"));
+            PlotI18n.tr(emptyNetwork
+                ? "plugin.road.style.no_roads_hint"
+                : "plugin.road.edit.no_selection_hint"));
         ImGui.spacing();
         if (!RoadEditOverviewStrip.listEditableRoads(network).isEmpty()) {
             RoadEditOverviewStrip.renderRoadSelectorCombo(ctx, network, null);
             ImGui.spacing();
         }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.new_road_defaults"))) {
+        int defaultsFlags = emptyNetwork ? imgui.flag.ImGuiTreeNodeFlags.DefaultOpen : 0;
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.new_road_defaults"), defaultsFlags)) {
             RoadCrossSectionPreviewSection.render(ctx);
             ImGui.spacing();
             RoadPresetCards.renderConfigCompact(ctx);

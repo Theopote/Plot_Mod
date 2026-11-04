@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -28,11 +27,6 @@ public final class RoadCrossSectionPanel {
     }
 
     public void render() {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        if (network.getEdges().isEmpty()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.style.no_roads_hint"));
-            return;
-        }
         editPanel.render();
         ImGui.separator();
         renderGlobalStructureOptions();

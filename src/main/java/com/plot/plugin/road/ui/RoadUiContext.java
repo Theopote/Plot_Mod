@@ -62,12 +62,8 @@ public final class RoadUiContext {
 
     private RoadUiTab pendingTab = null;
     private RoadUiTab activeTab = RoadUiTab.ROUTE;
+    /** 唯一导航权威：草稿检查通过前仅排队，不改选择、不打开编辑器。 */
     private RoadUiNavigationRequest pendingNavigation = null;
-    private String pendingProfileEdgeId = "";
-    /** 切到目标工作区后打开中心线浮动窗的目标道路。 */
-    private String pendingCenterlineRoadId = "";
-    /** 切到横断面工作区后打开横断面浮动窗的目标道路。 */
-    private String pendingCrossSectionRoadId = "";
     private Runnable pathsAdoptedListener;
     private boolean overlayForegroundDirty;
 
@@ -497,10 +493,7 @@ public final class RoadUiContext {
     /** 清除待确认弹窗、Tab 跳转等瞬时 UI 状态。 */
     public void clearTransientUiState() {
         roadListRename.cancelActive();
-        clearPendingTab();
-        pendingProfileEdgeId = "";
-        pendingCenterlineRoadId = "";
-        pendingCrossSectionRoadId = "";
+        clearPendingNavigation();
         clearDeleteConfirmPending();
         clearBuildConfirmPending();
         pendingDeleteEdgeId = "";
@@ -569,18 +562,6 @@ public final class RoadUiContext {
             com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CROSS_SECTION));
     }
 
-    public String consumePendingCenterlineRoadId() {
-        String roadId = pendingCenterlineRoadId;
-        pendingCenterlineRoadId = "";
-        return roadId;
-    }
-
-    public String consumePendingCrossSectionRoadId() {
-        String roadId = pendingCrossSectionRoadId;
-        pendingCrossSectionRoadId = "";
-        return roadId;
-    }
-
     /**
      * 请求切换 Tab；真正生效由 {@link com.plot.plugin.road.manager.RoadUIManager}
      * 在脏浮动窗确认通过后再 {@link #setActiveTab}。
@@ -589,27 +570,16 @@ public final class RoadUiContext {
         requestNavigation(RoadUiNavigationRequest.tab(tab));
     }
 
-    /** 排队完整导航意图（含道路/编辑器上下文）。 */
+    /**
+     * 仅排队导航意图。道路选择、交叉口选择与编辑器打开一律等草稿检查通过后由
+     * {@link com.plot.plugin.road.manager.RoadUIManager} 统一提交。
+     */
     public void requestNavigation(RoadUiNavigationRequest request) {
         if (request == null || request.targetTab() == null) {
             return;
         }
         pendingNavigation = request;
         pendingTab = request.targetTab();
-        if (request.roadId() != null && !request.roadId().isBlank()) {
-            networkManager.selectRoad(request.roadId(), false);
-        }
-        if (request.edgeId() != null && !request.edgeId().isBlank()) {
-            pendingProfileEdgeId = request.edgeId();
-        }
-        if (request.editorKind() == com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CENTERLINE) {
-            pendingCenterlineRoadId = request.roadId() != null ? request.roadId() : "";
-            pendingCrossSectionRoadId = "";
-        } else if (request.editorKind()
-                == com.plot.plugin.road.ui.editor.RoadFloatingEditorKind.CROSS_SECTION) {
-            pendingCrossSectionRoadId = request.roadId() != null ? request.roadId() : "";
-            pendingCenterlineRoadId = "";
-        }
     }
 
     public RoadUiTab pendingTab() {
@@ -630,7 +600,14 @@ public final class RoadUiContext {
         }
     }
 
+    /** @deprecated 使用 {@link #clearPendingNavigation()}；保留别名以免旧调用方编译失败。 */
+    @Deprecated
     public void clearPendingTab() {
+        clearPendingNavigation();
+    }
+
+    /** 拒绝或消费完成后清除完整导航请求（含目标对象/编辑器意图）。 */
+    public void clearPendingNavigation() {
         pendingTab = null;
         pendingNavigation = null;
     }
@@ -639,12 +616,6 @@ public final class RoadUiContext {
     public void requestViewProfile(String edgeId) {
         requestNavigation(RoadUiNavigationRequest.of(
             RoadUiTab.VERTICAL_PROFILE, null, edgeId, null, null));
-    }
-
-    public String consumePendingProfileEdgeId() {
-        String edgeId = pendingProfileEdgeId;
-        pendingProfileEdgeId = "";
-        return edgeId;
     }
 
     public void setPathsAdoptedListener(Runnable listener) {

@@ -39,24 +39,11 @@ public final class RoadToolbarPanel {
             }
         }
 
-        renderOverlayOptions();
-
         if (!ctx.status().isEmpty()) {
             RoadStatusUi.render(ctx.status().getStatus());
         }
         renderPreviewJobControls();
         ImGui.separator();
-    }
-
-    private void renderOverlayOptions() {
-        if (ImGui.checkbox(
-                PlotI18n.tr("plugin.road.overlay.show_slope_batter"),
-                ctx.showSlopeBatterOverlay())) {
-            ctx.requestOverlayRefresh();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
-        }
     }
 
     private void renderPreviewJobControls() {

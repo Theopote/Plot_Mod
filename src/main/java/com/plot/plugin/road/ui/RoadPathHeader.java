@@ -25,19 +25,61 @@ public final class RoadPathHeader {
             return;
         }
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.pick_path"), 0, 0)) {
+        renderPickAndOverlayControls(ctx);
+
+        renderProjectStats(ctx);
+        adoptPanel.renderIntersectionRepairPrompt();
+    }
+
+    /**
+     * 「选择路径 / 显示道路路径 / 显示边坡宽度」按可用宽度自动折行，
+     * 边坡开关紧跟路径显示开关之后。
+     */
+    private static void renderPickAndOverlayControls(RoadUiContext ctx) {
+        String pickLabel = PlotI18n.tr("plugin.road.pick_path");
+        String pathsLabel = PlotI18n.tr("plugin.road.overlay.show_paths");
+        String slopeLabel = PlotI18n.tr("plugin.road.overlay.show_slope_batter");
+
+        float avail = ImGui.getContentRegionAvailX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float used = 0f;
+
+        float pickWidth = ImGui.calcTextSize(pickLabel).x + ImGui.getStyle().getFramePaddingX() * 2f;
+        if (ImGui.button(pickLabel, 0, 0)) {
             ctx.toolManager().activatePathPickTool();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.pick_path_hint"));
         }
-        ImGui.sameLine();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.overlay.show_paths"), ctx.showRoadOverlay())) {
+        used = pickWidth;
+
+        float pathsWidth = checkboxWidth(pathsLabel);
+        if (used + spacing + pathsWidth <= avail) {
+            ImGui.sameLine(0f, spacing);
+            used += spacing + pathsWidth;
+        } else {
+            used = pathsWidth;
+        }
+        if (ImGui.checkbox(pathsLabel, ctx.showRoadOverlay())) {
             ctx.requestOverlayRefresh();
         }
 
-        renderProjectStats(ctx);
-        adoptPanel.renderIntersectionRepairPrompt();
+        float slopeWidth = checkboxWidth(slopeLabel);
+        if (used + spacing + slopeWidth <= avail) {
+            ImGui.sameLine(0f, spacing);
+        }
+        if (ImGui.checkbox(slopeLabel, ctx.showSlopeBatterOverlay())) {
+            ctx.requestOverlayRefresh();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
+        }
+    }
+
+    private static float checkboxWidth(String label) {
+        return ImGui.getFrameHeight()
+            + ImGui.getStyle().getItemInnerSpacingX()
+            + ImGui.calcTextSize(label).x;
     }
 
     private static void renderPickSessionState(RoadUiContext ctx) {

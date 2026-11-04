@@ -1,11 +1,11 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
-import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -46,10 +46,6 @@ public final class RoadGeneratePanel {
             renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
         }
 
-        if (!network.getEdges().isEmpty()) {
-            renderSecondaryBuildTools(network, preflight);
-        }
-
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
             renderPreviewDetailsCollapsible(lastGenerationResult);
         }
@@ -68,57 +64,17 @@ public final class RoadGeneratePanel {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.WARNING_LIGHT,
                 PlotI18n.tr("plugin.road.build_blocked_validation"));
-            if (ImGui.button(PlotI18n.tr("plugin.road.build.goto_route_fix"))) {
-                ctx.requestTab(RoadUiTab.ROUTE);
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.build.goto_cross_section_fix"))) {
-                ctx.requestTab(RoadUiTab.CROSS_SECTION);
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.build.goto_profile_fix"))) {
-                ctx.requestTab(RoadUiTab.VERTICAL_PROFILE);
-            }
-        }
-    }
-
-    private void renderSecondaryBuildTools(
-            RoadNetwork network,
-            RoadNetworkValidationReport preflight) {
-        ImGui.separator();
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.intersection_check"))) {
-            renderIntersectionCheckBody(network, preflight);
-        }
-    }
-
-    private void renderIntersectionCheckBody(
-            RoadNetwork network,
-            RoadNetworkValidationReport preflight) {
-        int intersectionCount = RoadIntersectionInventory.count(network);
-        if (intersectionCount <= 0) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.generate.intersection_none"));
-            return;
-        }
-        int issueCount = preflight.intersectionIssueCount();
-        if (issueCount > 0) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr(
-                    "plugin.road.generate.intersection_issues",
-                    issueCount,
-                    intersectionCount));
-        } else {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.generate.intersection_ok", intersectionCount));
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.generate.intersection_edit_on_path"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.generate.goto_intersections"))) {
-            ctx.requestTab(RoadUiTab.ROUTE);
+            RoadUiWidgets.flowButtons(
+                new String[] {
+                    PlotI18n.tr("plugin.road.build.goto_route_fix"),
+                    PlotI18n.tr("plugin.road.build.goto_cross_section_fix"),
+                    PlotI18n.tr("plugin.road.build.goto_profile_fix")
+                },
+                new Runnable[] {
+                    () -> ctx.requestTab(RoadUiTab.ROUTE),
+                    () -> ctx.requestTab(RoadUiTab.CROSS_SECTION),
+                    () -> ctx.requestTab(RoadUiTab.VERTICAL_PROFILE)
+                });
         }
     }
 

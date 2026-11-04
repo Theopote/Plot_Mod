@@ -76,6 +76,38 @@ public final class RoadUiWidgets {
         return ellipsis;
     }
 
+    /**
+     * 按内容区宽度自动折行排列按钮；窄面板时改为垂直堆叠，避免 sameLine 溢出。
+     */
+    public static void flowButtons(String[] labels, Runnable[] actions) {
+        if (labels == null || actions == null || labels.length == 0) {
+            return;
+        }
+        int count = Math.min(labels.length, actions.length);
+        float avail = ImGui.getContentRegionAvailX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float used = 0f;
+        boolean firstInRow = true;
+        for (int i = 0; i < count; i++) {
+            String label = labels[i];
+            if (label == null || label.isBlank()) {
+                continue;
+            }
+            float width = ImGui.calcTextSize(label).x + ImGui.getStyle().getFramePaddingX() * 2f;
+            if (!firstInRow && used + spacing + width <= avail) {
+                ImGui.sameLine(0f, spacing);
+                used += spacing + width;
+            } else {
+                used = width;
+                firstInRow = false;
+            }
+            if (ImGui.button(label) && actions[i] != null) {
+                actions[i].run();
+            }
+            firstInRow = false;
+        }
+    }
+
     @FunctionalInterface
     public interface MaterialSetter {
         void set(String material);

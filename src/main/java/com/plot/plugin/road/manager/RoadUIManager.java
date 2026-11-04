@@ -128,14 +128,16 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ComplexJunctionControls.renderFloatingWindow(ctx);
 
         RoadUiTab pendingTab = ctx.pendingTab();
-        if (pendingTab != null && pendingTab != tabAtFrameStart) {
+        var pendingNav = ctx.pendingNavigation();
+        if (pendingNav != null && pendingTab != null) {
+            // 同标签换路/开编辑器也要先过草稿检查；失败则保持原标签与原选择。
             if (tryBlockLeave(tabAtFrameStart)) {
-                ctx.clearPendingTab();
+                ctx.clearPendingNavigation();
                 pendingTab = null;
                 forceReselectBlockedTab = true;
                 blockedReturnTab = tabAtFrameStart;
             } else {
-                applyPendingNavigationSelection();
+                commitNavigation(pendingNav);
                 ctx.setActiveTab(pendingTab);
             }
         }
@@ -148,7 +150,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
-            renderTab(RoadUiTab.ROUTE, "plugin.road.tab.route", selectFlagTab, this::renderRouteTab);
+            renderTab(RoadUiTab.ROUTE, "plugin.road.tab.route", selectFlagTab, pathPanel::render);
             renderTab(
                 RoadUiTab.CROSS_SECTION,
                 "plugin.road.tab.cross_section",
@@ -158,13 +160,13 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
                 RoadUiTab.VERTICAL_PROFILE,
                 "plugin.road.tab.vertical_profile",
                 selectFlagTab,
-                this::renderVerticalProfileTab);
+                verticalProfilePanel::render);
             renderTab(RoadUiTab.BUILD, "plugin.road.tab.build", selectFlagTab, buildPanel::render);
             ImGui.endTabBar();
         }
 
         if (pendingTab != null) {
-            ctx.clearPendingTab();
+            ctx.clearPendingNavigation();
         }
 
         if (tabAtFrameStart != ctx.activeTab() && tryBlockLeave(tabAtFrameStart)) {
@@ -185,41 +187,35 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         }
     }
 
-    private void renderRouteTab() {
-        pathPanel.render();
-        openPendingCenterlineFromRoute();
-    }
-
-    private void renderVerticalProfileTab() {
-        String profileEdgeId = ctx.consumePendingProfileEdgeId();
-        if (profileEdgeId != null && !profileEdgeId.isBlank()) {
-            verticalProfilePanel.openProfileForEdge(profileEdgeId);
-        }
-        verticalProfilePanel.render();
-        verticalProfilePanel.renderDeferredModals();
-    }
-
-    private void openPendingCenterlineFromRoute() {
-        String roadId = ctx.consumePendingCenterlineRoadId();
-        if (roadId == null || roadId.isBlank()) {
-            return;
-        }
-        if (ctx.networkManager().getNetwork().getRoad(roadId) == null) {
-            return;
-        }
-        floatingEditorHost.openOrFocus(ctx, RoadFloatingEditorKind.CENTERLINE, roadId);
-    }
-
-    private void applyPendingNavigationSelection() {
-        var request = ctx.pendingNavigation();
+    /**
+     * 草稿检查通过后统一提交：校验目标 → 更新选择 → 打开/聚焦编辑器。
+     * 调用前不得改写选择；被拒绝时由 {@link RoadUiContext#clearPendingNavigation()} 清除全部意图。
+     */
+    private void commitNavigation(com.plot.plugin.road.ui.RoadUiNavigationRequest request) {
         if (request == null) {
             return;
         }
-        if (request.roadId() != null && !request.roadId().isBlank()) {
-            ctx.networkManager().selectRoad(request.roadId(), false);
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        String roadId = request.roadId();
+        boolean roadOk = roadId != null && !roadId.isBlank() && network.getRoad(roadId) != null;
+        if (roadOk) {
+            ctx.networkManager().selectRoad(roadId, false);
         }
         if (request.crossingId() != null && !request.crossingId().isBlank()) {
             ctx.networkManager().setSelectedCrossingId(request.crossingId());
+        }
+        String edgeId = request.edgeId();
+        boolean edgeOk = edgeId != null && !edgeId.isBlank() && network.getEdge(edgeId) != null;
+        if (edgeOk) {
+            if (request.targetTab() == RoadUiTab.VERTICAL_PROFILE) {
+                verticalProfilePanel.openProfileForEdge(edgeId);
+            } else {
+                ctx.networkManager().setPrimarySelectedEdge(edgeId);
+            }
+        }
+        RoadFloatingEditorKind kind = request.editorKind();
+        if (kind != null && roadOk) {
+            floatingEditorHost.openOrFocus(ctx, kind, roadId);
         }
     }
 
@@ -228,10 +224,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
      * 草稿归属编辑器会话，不绑定某一主标签。
      */
     private boolean tryBlockLeave(RoadUiTab leavingTab) {
-        if (leavingTab == RoadUiTab.CROSS_SECTION || leavingTab == RoadUiTab.ROUTE) {
-            return crossSectionPanel.tryLeaveEditors();
-        }
-        // 其他工作区仍需检查全局浮动草稿（例如从建造切走时隧道窗仍开着）
         return crossSectionPanel.tryLeaveEditors();
     }
 
