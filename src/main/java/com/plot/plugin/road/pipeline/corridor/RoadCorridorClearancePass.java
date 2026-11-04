@@ -83,10 +83,12 @@ public final class RoadCorridorClearancePass {
                     RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection)));
             topY = portalGuard.capClearTopY(cell.planPoint(), topY, host, roadHalfWidth);
         }
-        // Lower road under a grade-sep deck must not punch through the elevated underside.
+        // Lower road under a grade-sep deck: clear full underpass headroom up to the
+        // elevated underside. Do not keep the cave/local clearHeight shrink here —
+        // leftover terrain under the deck is exactly what users see at the crossing.
         Integer deckCap = gradeSeparation != null ? gradeSeparation.maxOpenClearTopY(cell.planPoint()) : null;
         if (deckCap != null) {
-            topY = Math.min(topY, deckCap);
+            topY = Math.max(designY, deckCap);
         }
         if (cell.mode() == RoadCorridorConstructionMode.PORTAL && host != null) {
             ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());

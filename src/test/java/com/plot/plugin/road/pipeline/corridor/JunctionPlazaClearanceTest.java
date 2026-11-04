@@ -152,14 +152,15 @@ class JunctionPlazaClearanceTest {
             .filter(node -> node.getDegree() >= 3)
             .findFirst()
             .orElseThrow();
+        // 显式净空 4 会被抬到下穿隧道净高下限（默认 5）→ deck = 64+5
         assertTrue(network.setNodeGradeSeparation(junction.getId(), true, "roadA", 4.0));
 
         Map<String, RoadGenerationResult> edgeResults = leftoverNeighborhood(network, 68);
         var blocks = junctionGenerator.generateJunction(
             junction, network, hillTerrain(64, 80), Map.of(junction.getId(), 64), edgeResults);
 
-        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, config);
-        assertEquals(68, deckY);
+        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
+        assertEquals(69, deckY);
         for (int y = 65; y < deckY; y++) {
             assertTrue(hasAirNearOrigin(blocks, y),
                 "underpass shaft missing air at y=" + y + " airYs=" + airElevationsNearOrigin(blocks));

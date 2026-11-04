@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadJunctionMarkingGeneratorTest {
 
     @Test
-    void generatesStopLinesCrosswalksAndContinuedMarkingsAtTJunction() {
+    void generatesStopLinesCrosswalksWithoutPlazaDividersAtTJunction() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
@@ -63,8 +63,8 @@ class RoadJunctionMarkingGeneratorTest {
         markingGenerator.generateMarkings(blocks, junction, network, edges, polygon, 64);
 
         assertFalse(blocks.getSolids().isEmpty(), "stop lines should be generated");
-        assertTrue(blocks.getSolids().count(RoadSolidLayer.MARKING) >= 12,
-            "crosswalk stripes and continued centerline should add marking blocks");
+        assertTrue(blocks.getSolids().count(RoadSolidLayer.MARKING) >= 8,
+            "stop lines, crosswalk stripes and turn arrows should add marking blocks");
     }
 
     @Test

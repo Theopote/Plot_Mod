@@ -86,8 +86,12 @@ public final class JunctionCrossSectionFill {
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         EdgeProjection projection = nearestEdgeProjection(cellPoint, nodeId, edges, centerlineResolver);
+        RoadEdge widestEdge = selectWidestEdge(edges, network, config);
+        ResolvedCrossSection widestSection = widestEdge != null
+            ? RoadModelUtils.resolveCrossSection(network, widestEdge, config)
+            : null;
         if (projection == null) {
-            solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
+            stampPlazaRoad(solids, cellPoint, junctionY, widestSection, widestEdge, materials);
             gradeColumn(
                 solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
                 maxClearY);
@@ -102,14 +106,17 @@ public final class JunctionCrossSectionFill {
 
         Optional<ResolvedCrossSection.SurfaceBandSpec> band = crossSection.surfaceBandAtLateral(lateral);
         if (band.isPresent()) {
-            stampSurfaceBand(
-                solids, cellPoint, junctionY, band.get(), projection.edge().getId(), materials);
-        } else if (lateral >= crossSection.minSurfaceLateral()
-                && lateral <= crossSection.maxSurfaceLateral()) {
-            solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
+            ResolvedCrossSection.SurfaceBandSpec spec = band.get();
+            // 行车道：路口统一用最宽道路材质；路肩/人行道仍跟最近进口断面
+            if (spec.layer() == RoadSolidLayer.ROAD && widestSection != null) {
+                stampPlazaRoad(solids, cellPoint, junctionY, widestSection, widestEdge, materials);
+            } else {
+                stampSurfaceBand(
+                    solids, cellPoint, junctionY, spec, projection.edge().getId(), materials);
+            }
         } else {
             // Polygon cell outside nearest approach band: still pave the junction interior.
-            solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
+            stampPlazaRoad(solids, cellPoint, junctionY, widestSection, widestEdge, materials);
         }
         gradeColumn(
             solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
@@ -422,6 +429,48 @@ public final class JunctionCrossSectionFill {
         solids.add(cellPoint, junctionY, spec.layer(), materialId);
     }
 
+    /** 广场行车道：采用最宽进口道路的车行道材质。 */
+    private static void stampPlazaRoad(
+            RoadSolidModel solids,
+            Vec2d cellPoint,
+            int junctionY,
+            ResolvedCrossSection widestSection,
+            RoadEdge widestEdge,
+            MaterialResolver materials) {
+        if (widestSection != null && widestSection.carriagewayMaterial != null && materials != null) {
+            BlockPos pos = materials.canvasToBlockPos(cellPoint).withY(junctionY);
+            String seed = widestEdge != null ? widestEdge.getId() : "plaza";
+            String materialId = MaterialMixResolver.resolve(
+                widestSection.carriagewayMaterial, pos, seed, materials::resolve);
+            solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD, materialId);
+            return;
+        }
+        solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
+    }
+
+    static RoadEdge selectWidestEdge(
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        if (edges == null || edges.isEmpty() || network == null || config == null) {
+            return null;
+        }
+        RoadEdge widest = null;
+        int maxWidth = -1;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            int width = RoadModelUtils.resolveCrossSection(network, edge, config)
+                .totalHardSurfaceWidthBlocks();
+            if (width > maxWidth) {
+                maxWidth = width;
+                widest = edge;
+            }
+        }
+        return widest;
+    }
+
     private static void gradeColumn(
             RoadSolidModel solids,
             Vec2d planPoint,
@@ -442,7 +491,9 @@ public final class JunctionCrossSectionFill {
         }
         if (maxClearY != null) {
             int groundY = terrain.sampleSurfaceY(planPoint);
-            int cutTop = Math.min(groundY, maxClearY);
+            int columnTop = terrain.sampleColumnTopY(planPoint);
+            // 立交下层：清到桥底（含柱顶/残留），不只 engineering surface
+            int cutTop = Math.min(Math.max(groundY, columnTop), maxClearY);
             if (cutTop > junctionY) {
                 JunctionTerrainClearance.punchColumn(solids, planPoint, junctionY, cutTop);
             }

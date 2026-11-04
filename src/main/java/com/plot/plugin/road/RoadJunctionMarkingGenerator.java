@@ -79,15 +79,14 @@ public final class RoadJunctionMarkingGenerator {
                 continue;
             }
 
-            // 公路标线延续：仅当该边本身有中线/分道线时按路口开关决定
-            boolean continueMarkings = node.getContinuedMarkings().resolve(
-                RoadMarkingPasses.hasAnyMarkings(crossSection));
+            // 公路标线延续（中线/分道线）：路口广场内默认不铺；仅 ON 强制延续
+            boolean continueMarkings = node.getContinuedMarkings().resolve(false);
             if (continueMarkings) {
                 generateContinuedMarkings(
                     blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection, network);
             }
 
-            // 斑马线：有人行道的路口自动铺；无横断面配置时也可由 AUTO 关闭
+            // 进口斑马线：有人行道的路口自动铺（城市平交），与广场内分道线分离
             boolean wantCrosswalk = node.getCrosswalks().resolve(
                 crossSection.includeSidewalk || (junctionDegree >= 3 && anySidewalk));
             if (wantCrosswalk && (crossSection.includeSidewalk || anySidewalk)) {
