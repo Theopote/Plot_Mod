@@ -146,7 +146,7 @@ public class RoadJunctionGenerator {
             networkNodeElevations);
         markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
         markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
-        Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, generator.getConfig());
+        Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, network, generator.getConfig());
         if (elevatedDeckY != null) {
             List<RoadEdge> elevatedEdges = collectElevatedJunctionEdges(node, network, terrain);
             markingGenerator.generateElevatedRailwayContinuation(
@@ -342,7 +342,7 @@ public class RoadJunctionGenerator {
                 }
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
-        Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, generator.getConfig());
+        Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, network, generator.getConfig());
         Integer maxClearY = elevatedDeckY != null ? elevatedDeckY - 1 : null;
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
@@ -500,23 +500,42 @@ public class RoadJunctionGenerator {
         return connectedEdges;
     }
 
-    public static Integer resolveElevatedDeckY(RoadNode node, int junctionY, RoadSystemConfig config) {
+    public static Integer resolveElevatedDeckY(
+            RoadNode node, int junctionY, RoadNetwork network, RoadSystemConfig config) {
         if (node == null) {
             return null;
         }
         double clearance;
         if (node.isStackGradeSeparated()) {
-            clearance = node.getStackCrossingClearance() != null
-                ? node.getStackCrossingClearance()
-                : (config != null ? config.getDefaultCrossingClearance() : 4.0);
+            String roadId = null;
+            if (network != null) {
+                for (String edgeId : node.getConnectedEdgeIds()) {
+                    RoadEdge edge = network.getEdge(edgeId);
+                    if (edge != null && edge.getRoadId() != null) {
+                        roadId = edge.getRoadId();
+                        break;
+                    }
+                }
+            }
+            clearance = com.plot.plugin.road.crossing.GradeSeparationClearance.resolve(
+                node.getStackCrossingClearance(),
+                network != null && roadId != null ? network.getRoad(roadId) : null,
+                config);
         } else if (node.isGradeSeparated()) {
-            clearance = node.getCrossingClearance() != null
-                ? node.getCrossingClearance()
-                : (config != null ? config.getDefaultCrossingClearance() : 4.0);
+            clearance = com.plot.plugin.road.crossing.GradeSeparationClearance.forNode(
+                node.getCrossingClearance(),
+                node,
+                network,
+                node.getElevatedRoadId(),
+                config);
         } else {
             return null;
         }
         return junctionY + (int) Math.ceil(Math.max(1.0, clearance));
+    }
+
+    public static Integer resolveElevatedDeckY(RoadNode node, int junctionY, RoadSystemConfig config) {
+        return resolveElevatedDeckY(node, junctionY, null, config);
     }
 
     private double estimateUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {

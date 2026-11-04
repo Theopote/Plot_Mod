@@ -137,7 +137,7 @@ public final class FlatRoadJunctionConflictResolver {
     public static boolean convertToGradeSeparation(
             RoadNetwork network,
             String nodeId,
-            double clearance) {
+            Double clearance) {
         if (network == null || nodeId == null) return false;
         return network.setNodeGradeSeparation(nodeId, true, null, clearance);
     }

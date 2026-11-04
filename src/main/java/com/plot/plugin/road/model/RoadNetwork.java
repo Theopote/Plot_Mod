@@ -685,7 +685,8 @@ public class RoadNetwork {
                 com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED,
                 lower,
                 upper,
-                crossingClearance != null ? crossingClearance : getDefaultCrossingClearance(stack),
+                // null：运行时按下穿道路隧道净高解析，不在此烘焙固定默认值
+                crossingClearance,
                 stack.sharedElevation()));
         } else {
             stackCrossings.put(stackCrossingId, new com.plot.plugin.road.crossing.RoadStackCrossing(
@@ -701,13 +702,6 @@ public class RoadNetwork {
                 stack.sharedElevation()));
         }
         return true;
-    }
-
-    private static double getDefaultCrossingClearance(com.plot.plugin.road.crossing.RoadStackCrossing stack) {
-        if (stack.crossingClearance() != null) {
-            return stack.crossingClearance();
-        }
-        return 3.0;
     }
 
     public boolean setCrossingGradeSeparation(

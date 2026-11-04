@@ -19,7 +19,8 @@ public final class RoadParameterLimits {
     /** Inclusive maximum placeable block Y for default overworld fallback. */
     public static final int ELEVATION_MAX = TerrainSampler.DEFAULT_WORLD_TOP_EXCLUSIVE_Y - 1;
     public static final int MIN_CROSSING_CLEARANCE = 1;
-    public static final int MAX_CROSSING_CLEARANCE = 10;
+    /** 与隧道净高上限对齐，立交净空可高于下穿道路隧道净高。 */
+    public static final int MAX_CROSSING_CLEARANCE = 12;
     public static final int STREETLIGHT_DISABLED = 0;
     public static final int MIN_STREETLIGHT_SPACING = 8;
     public static final int MAX_STREETLIGHT_SPACING = 50;

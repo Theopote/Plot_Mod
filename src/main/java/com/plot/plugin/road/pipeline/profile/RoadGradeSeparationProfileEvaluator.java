@@ -64,11 +64,14 @@ public final class RoadGradeSeparationProfileEvaluator {
 
         String roadA = roadIds.get(0);
         String roadB = roadIds.get(1);
-        double clearance = resolveClearance(node, config);
+        double clearanceAOverB = com.plot.plugin.road.crossing.GradeSeparationClearance.resolve(
+            node.getCrossingClearance(), network.getRoad(roadB), config);
+        double clearanceBOverA = com.plot.plugin.road.crossing.GradeSeparationClearance.resolve(
+            node.getCrossingClearance(), network.getRoad(roadA), config);
         RoadGradeSeparationAlternative aOverB = evaluateAlternative(
-            node, network, sampler, roadA, roadB, clearance);
+            node, network, sampler, roadA, roadB, clearanceAOverB);
         RoadGradeSeparationAlternative bOverA = evaluateAlternative(
-            node, network, sampler, roadB, roadA, clearance);
+            node, network, sampler, roadB, roadA, clearanceBOverA);
         return new RoadGradeSeparationEvaluation(roadA, roadB, aOverB, bOverA, terrainAnalyzed);
     }
 
@@ -210,13 +213,6 @@ public final class RoadGradeSeparationProfileEvaluator {
             }
         }
         return new JunctionGradeMetrics(maxGrade);
-    }
-
-    private static double resolveClearance(RoadNode node, RoadSystemConfig config) {
-        if (node.getCrossingClearance() != null) {
-            return node.getCrossingClearance();
-        }
-        return config.getDefaultCrossingClearance();
     }
 
     private record JunctionGradeMetrics(float maxGradePercent) {

@@ -151,6 +151,23 @@ class RoadCorridorPlanBuilderTest {
     }
 
     @Test
+    void highFillClearanceDoesNotEmitFillBatter() {
+        var config = CorridorTestFixtures.baseConfig();
+        config.setIncludeSlopeBatter(true);
+        config.setFillSlopeRatio(1.0f);
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0));
+        // 路面 70、地面 64：净高 6 > BALANCED bridgeThreshold(3)，不应生成填方边坡
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 64, 64, 70, 70, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
+            List.of(RoadConstructionType.ROAD),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), new FlatTerrainSampler(64),
+            1, "high-fill", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config));
+        assertTrue(plan.slopeEntries().isEmpty(),
+            "clearance above bridge threshold must not emit fill batter");
+    }
+
+    @Test
     void spanRasterizationCoversStraightSegmentLength() {
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);

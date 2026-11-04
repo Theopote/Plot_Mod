@@ -2,6 +2,7 @@ package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.GradeSeparationClearance;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
@@ -476,14 +477,21 @@ public final class RoadProfileConstraintSynchronizer {
                 : roleHeight.applyAsDouble(a) > roleHeight.applyAsDouble(b);
             links.add(new Link("crossing:" + c.id(), separated && aUpper ? b : a,
                 separated && aUpper ? a : b, separated,
-                c.crossingClearance() != null ? c.crossingClearance() : config.getDefaultCrossingClearance()));
+                GradeSeparationClearance.forTwoRoadCrossing(
+                    c.crossingClearance(),
+                    network,
+                    separated ? (aUpper ? c.roadAId() : c.roadBId()) : c.elevatedRoadId(),
+                    c.roadAId(),
+                    c.roadBId(),
+                    config)));
         });
         network.getStackCrossings().values().stream().sorted(Comparator.comparing(RoadStackCrossing::id)).forEach(c ->
             links.add(new Link("stack:" + c.id(),
                 new Point(c.roadId(), c.isGradeSeparated() ? c.resolvedLowerStation() : c.stationA()),
                 new Point(c.roadId(), c.isGradeSeparated() ? c.resolvedUpperStation() : c.stationB()),
-                c.isGradeSeparated(), c.crossingClearance() != null
-                    ? c.crossingClearance() : config.getDefaultCrossingClearance())));
+                c.isGradeSeparated(),
+                GradeSeparationClearance.resolve(
+                    c.crossingClearance(), network.getRoad(c.roadId()), config))));
         Map<String, Set<Point>> byNode = new TreeMap<>();
         for (Road road : network.getRoads().values()) {
             for (var segment : RoadStationing.orientedSegments(network, road)) {
@@ -515,7 +523,8 @@ public final class RoadProfileConstraintSynchronizer {
                 links.add(new Link("node:" + nodeId, lower.getFirst(), lower.get(i), false, 0));
             }
             links.add(new Link("node:" + nodeId, lower.getFirst(), upper, true,
-                node.getCrossingClearance() != null ? node.getCrossingClearance() : config.getDefaultCrossingClearance()));
+                GradeSeparationClearance.forNode(
+                    node.getCrossingClearance(), node, network, upper.roadId, config)));
         });
         return links;
     }

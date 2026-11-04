@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.crossing.CrossingGradeClassifier;
 import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.GradeSeparationClearance;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
@@ -638,19 +639,14 @@ public final class RoadGradeSeparationControls {
 
     private void applyGradeSeparatedAuto(RoadCrossing crossing, RoadNetwork network, RoadSystemConfig config) {
         beginCrossingEdit(crossing, network);
-        double clearance = crossing.crossingClearance() != null
-            ? crossing.crossingClearance()
-            : config.getDefaultCrossingClearance();
+        // 净空留 null：运行时按下穿道路隧道净高解析；仅保留用户已改过的显式值
         network.setCrossingGradeSeparation(
-            crossing.id(), CrossingType.GRADE_SEPARATED, null, clearance);
+            crossing.id(), CrossingType.GRADE_SEPARATED, null, crossing.crossingClearance());
     }
 
     private void applyGradeSeparatedAuto(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
         beginNodeEdit(node, network);
-        double clearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
-        network.setNodeGradeSeparation(node.getId(), true, null, clearance);
+        network.setNodeGradeSeparation(node.getId(), true, null, node.getCrossingClearance());
     }
 
     private void applyPassModeSelection(
@@ -660,9 +656,7 @@ public final class RoadGradeSeparationControls {
             List<String> roadIds,
             int index) {
         beginCrossingEdit(crossing, network);
-        double clearance = crossing.crossingClearance() != null
-            ? crossing.crossingClearance()
-            : config.getDefaultCrossingClearance();
+        Double clearance = crossing.crossingClearance();
         if (index == 0) {
             network.setCrossingGradeSeparation(
                 crossing.id(), CrossingType.GRADE_SEPARATED, null, clearance);
@@ -679,9 +673,7 @@ public final class RoadGradeSeparationControls {
             List<String> roadIds,
             int index) {
         beginNodeEdit(node, network);
-        double clearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
+        Double clearance = node.getCrossingClearance();
         if (index == 0) {
             network.setNodeGradeSeparation(node.getId(), true, null, clearance);
         } else {
@@ -698,11 +690,8 @@ public final class RoadGradeSeparationControls {
             return;
         }
         beginCrossingEdit(crossing, network);
-        double clearance = crossing.crossingClearance() != null
-            ? crossing.crossingClearance()
-            : config.getDefaultCrossingClearance();
         network.setCrossingGradeSeparation(
-            crossing.id(), CrossingType.GRADE_SEPARATED, elevatedRoadId, clearance);
+            crossing.id(), CrossingType.GRADE_SEPARATED, elevatedRoadId, crossing.crossingClearance());
     }
 
     private void applyLockedElevatedRoad(
@@ -714,10 +703,7 @@ public final class RoadGradeSeparationControls {
             return;
         }
         beginNodeEdit(node, network);
-        double clearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
-        network.setNodeGradeSeparation(node.getId(), true, elevatedRoadId, clearance);
+        network.setNodeGradeSeparation(node.getId(), true, elevatedRoadId, node.getCrossingClearance());
     }
 
     private boolean renderClearanceSliderForRegistry(
@@ -725,9 +711,20 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             boolean inline) {
-        double currentClearance = crossing.crossingClearance() != null
-            ? crossing.crossingClearance()
-            : config.getDefaultCrossingClearance();
+        double minClearance = GradeSeparationClearance.forTwoRoadCrossing(
+            null,
+            network,
+            crossing.elevatedRoadId(),
+            crossing.roadAId(),
+            crossing.roadBId(),
+            config);
+        double currentClearance = GradeSeparationClearance.forTwoRoadCrossing(
+            crossing.crossingClearance(),
+            network,
+            crossing.elevatedRoadId(),
+            crossing.roadAId(),
+            crossing.roadBId(),
+            config);
         int[] clearance = {(int) Math.round(currentClearance)};
         if (inline) {
             ImGui.sameLine();
@@ -735,7 +732,7 @@ public final class RoadGradeSeparationControls {
         boolean clearanceChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
             clearance,
-            RoadParameterLimits.MIN_CROSSING_CLEARANCE,
+            (int) Math.round(minClearance),
             RoadParameterLimits.MAX_CROSSING_CLEARANCE,
             "%d");
         if (ImGui.isItemActivated()) {
@@ -756,9 +753,14 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             boolean inline) {
-        double currentClearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
+        double minClearance = GradeSeparationClearance.minimumForNode(
+            node, network, node.getElevatedRoadId(), config);
+        double currentClearance = GradeSeparationClearance.forNode(
+            node.getCrossingClearance(),
+            node,
+            network,
+            node.getElevatedRoadId(),
+            config);
         int[] clearance = {(int) Math.round(currentClearance)};
         if (inline) {
             ImGui.sameLine();
@@ -766,7 +768,7 @@ public final class RoadGradeSeparationControls {
         boolean clearanceChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
             clearance,
-            RoadParameterLimits.MIN_CROSSING_CLEARANCE,
+            (int) Math.round(minClearance),
             RoadParameterLimits.MAX_CROSSING_CLEARANCE,
             "%d");
         if (ImGui.isItemActivated()) {
@@ -834,9 +836,10 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             boolean inline) {
-        double currentClearance = stack.crossingClearance() != null
-            ? stack.crossingClearance()
-            : config.getDefaultCrossingClearance();
+        Road stackRoad = network.getRoad(stack.roadId());
+        double minClearance = GradeSeparationClearance.fromUnderpassRoad(stackRoad, config);
+        double currentClearance = GradeSeparationClearance.resolve(
+            stack.crossingClearance(), stackRoad, config);
         int[] clearance = {(int) Math.round(currentClearance)};
         if (inline) {
             ImGui.sameLine();
@@ -844,7 +847,7 @@ public final class RoadGradeSeparationControls {
         boolean clearanceChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
             clearance,
-            RoadParameterLimits.MIN_CROSSING_CLEARANCE,
+            (int) Math.round(minClearance),
             RoadParameterLimits.MAX_CROSSING_CLEARANCE,
             "%d");
         if (ImGui.isItemActivated()) {
@@ -888,11 +891,12 @@ public final class RoadGradeSeparationControls {
             double lowerStation,
             double upperStation) {
         beginStackEdit(stack, network);
-        double clearance = stack.crossingClearance() != null
-            ? stack.crossingClearance()
-            : config.getDefaultCrossingClearance();
         network.setStackCrossingGradeSeparation(
-            stack.id(), CrossingType.GRADE_SEPARATED, lowerStation, upperStation, clearance);
+            stack.id(),
+            CrossingType.GRADE_SEPARATED,
+            lowerStation,
+            upperStation,
+            stack.crossingClearance());
     }
 
     private String formatRoadLabel(RoadNetwork network, String roadId) {

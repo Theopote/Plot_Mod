@@ -12,8 +12,8 @@ import java.util.OptionalDouble;
  * 两路在交点处高差达到净空才标立交；没有纵断面或高差不足时保持平交。
  */
 public final class CrossingGradeClassifier {
-    /** 与 {@code RoadSystemConfig} 默认交叉净空一致。 */
-    public static final double DEFAULT_CLEARANCE = 3.0;
+    /** 兼容旧调用；立交判定实际使用下穿道路隧道净高。 */
+    public static final double DEFAULT_CLEARANCE = 5.0;
     private static final double EPSILON = 1e-9;
 
     private CrossingGradeClassifier() {
@@ -33,12 +33,15 @@ public final class CrossingGradeClassifier {
         }
         double delta = elevationA.getAsDouble() - elevationB.getAsDouble();
         double separation = Math.abs(delta);
-        if (separation + EPSILON < DEFAULT_CLEARANCE) {
+        String elevatedRoadId = delta > 0.0 ? roadAId : roadBId;
+        String underpassRoadId = delta > 0.0 ? roadBId : roadAId;
+        double required = GradeSeparationClearance.fromUnderpassRoad(
+            network.getRoad(underpassRoadId), null);
+        if (separation + EPSILON < required) {
             return RoadCrossing.atGrade(roadAId, stationA, roadBId, stationB, position);
         }
-        String elevatedRoadId = delta > 0.0 ? roadAId : roadBId;
         // Use the designed vertical separation as underpass clearance so auto-detect
-        // does not shrink a taller edited profile back to DEFAULT_CLEARANCE.
+        // does not shrink a taller edited profile back to the tunnel clear-height default.
         return RoadCrossing.gradeSeparated(
             roadAId, stationA, roadBId, stationB, position, elevatedRoadId, separation);
     }
@@ -56,7 +59,9 @@ public final class CrossingGradeClassifier {
         }
         double delta = elevationA.getAsDouble() - elevationB.getAsDouble();
         double separation = Math.abs(delta);
-        if (separation + EPSILON < DEFAULT_CLEARANCE) {
+        double required = GradeSeparationClearance.fromUnderpassRoad(
+            network.getRoad(roadId), null);
+        if (separation + EPSILON < required) {
             return RoadStackCrossing.atGrade(roadId, stationA, stationB, position);
         }
         double lowerStation = delta < 0.0 ? stationA : stationB;
@@ -65,7 +70,7 @@ public final class CrossingGradeClassifier {
             roadId, lowerStation, upperStation, position, separation);
     }
 
-    /** 两路在交点处设计高差是否达到立交净空。 */
+    /** 两路在交点处设计高差是否达到下穿道路隧道净高。 */
     public static boolean profileSuggestsGradeSeparation(
             RoadNetwork network,
             String roadAId,
@@ -77,8 +82,11 @@ public final class CrossingGradeClassifier {
         if (elevationA.isEmpty() || elevationB.isEmpty()) {
             return false;
         }
-        return Math.abs(elevationA.getAsDouble() - elevationB.getAsDouble()) + EPSILON
-            >= DEFAULT_CLEARANCE;
+        double delta = elevationA.getAsDouble() - elevationB.getAsDouble();
+        String underpassRoadId = delta > 0.0 ? roadBId : roadAId;
+        double required = GradeSeparationClearance.fromUnderpassRoad(
+            network.getRoad(underpassRoadId), null);
+        return Math.abs(delta) + EPSILON >= required;
     }
 
     static OptionalDouble designedElevation(RoadNetwork network, String roadId, double station) {

@@ -1,6 +1,5 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -27,12 +26,10 @@ public final class FlatFlatJunctionConflictUi {
         if (conflicts.isEmpty()) {
             return;
         }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        double defaultClearance = config.getDefaultCrossingClearance();
         for (int i = 0; i < conflicts.size(); i++) {
             FlatFlatConflict conflict = conflicts.get(i);
             ImGui.pushID("flat_flat_" + conflict.nodeId() + "_" + i);
-            renderConflict(ctx, network, conflict, defaultClearance, suffix);
+            renderConflict(ctx, network, conflict, suffix);
             ImGui.popID();
             if (i < conflicts.size() - 1) {
                 ImGui.separator();
@@ -44,7 +41,6 @@ public final class FlatFlatJunctionConflictUi {
             RoadUiContext ctx,
             RoadNetwork network,
             FlatFlatConflict conflict,
-            double defaultClearance,
             String suffix) {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.WARNING_LIGHT,
@@ -85,8 +81,9 @@ public final class FlatFlatJunctionConflictUi {
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_flat_conflict.grade_separate") + suffix)) {
             ctx.networkManager().pushHistory();
+            // 净空留空，运行时按下穿道路隧道净高解析
             if (FlatRoadJunctionConflictResolver.convertToGradeSeparation(
-                    network, conflict.nodeId(), defaultClearance)) {
+                    network, conflict.nodeId(), null)) {
                 ctx.onGenerationConfigChanged();
                 ctx.status().success(PlotI18n.tr("plugin.road.flat_flat_conflict.grade_separate_success"));
             }

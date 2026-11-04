@@ -93,4 +93,14 @@ class RoadEarthworkPolicyTest {
         assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 6, 0));
         assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 7, 0));
     }
+
+    @Test
+    void suppressFillBatterWhenClearanceExceedsBridgeThreshold() {
+        assertFalse(RoadEarthworkPolicy.suppressFillBatter(true, 3, 3));
+        assertTrue(RoadEarthworkPolicy.suppressFillBatter(true, 4, 3));
+        assertFalse(RoadEarthworkPolicy.suppressFillBatter(false, 10, 3));
+        assertFalse(RoadEarthworkPolicy.suppressFillBatter(true, 10, 0));
+        assertTrue(RoadEarthworkPolicy.allowsOpenFillHeight(67, 64, 3));
+        assertFalse(RoadEarthworkPolicy.allowsOpenFillHeight(68, 64, 3));
+    }
 }

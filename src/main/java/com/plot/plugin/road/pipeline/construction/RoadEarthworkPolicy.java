@@ -109,6 +109,28 @@ public enum RoadEarthworkPolicy {
         return edgeCoverAboveDesign >= deepDaylightCoverBlocks(tunnelStyle, tunnelThreshold);
     }
 
+    /**
+     * 填方边坡：路肩外缘相对地面净高超过桥隧填方阈值时不再堆土坡
+     * （高架/可能成桥段；阈值与 {@code bridgeThreshold} 一致，默认约 3）。
+     */
+    public static boolean suppressFillBatter(boolean isFill, int fillHeightAboveGround, int bridgeThreshold) {
+        if (!isFill || bridgeThreshold <= 0) {
+            return false;
+        }
+        return fillHeightAboveGround > bridgeThreshold;
+    }
+
+    /**
+     * 开敞路基填土：仅当路面/坡面相对地面净高 ≤ 桥阈值时允许；
+     * 不再因类型为 FILL 而无限堆高（高差过大应交桥/净空，不该成土堤）。
+     */
+    public static boolean allowsOpenFillHeight(int surfaceY, int groundY, int bridgeThreshold) {
+        if (bridgeThreshold <= 0) {
+            return false;
+        }
+        return surfaceY - groundY <= bridgeThreshold;
+    }
+
     public boolean allowsCorridorBatter() {
         return this == NORMAL_BATTER || this == TRANSITION_BATTER;
     }

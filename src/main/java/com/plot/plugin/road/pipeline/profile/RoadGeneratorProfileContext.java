@@ -125,7 +125,8 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
 
   @Override
   public double defaultCrossingClearance() {
-    return config.getDefaultCrossingClearance();
+    // 无具体下穿道路上下文时，退回配置默认隧道净高（与立交解析一致）
+    return com.plot.plugin.road.crossing.GradeSeparationClearance.fromUnderpassRoad(null, config);
   }
 
   @Override

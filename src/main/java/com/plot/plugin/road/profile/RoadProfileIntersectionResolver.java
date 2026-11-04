@@ -132,9 +132,13 @@ public final class RoadProfileIntersectionResolver {
                     : currentElevation.getAsDouble() > otherElevation.getAsDouble()
                         || currentElevation.getAsDouble() == otherElevation.getAsDouble()
                             && crossing.roadBId().equals(currentRoad.getId()));
-            double clearance = crossing.crossingClearance() != null
-                ? crossing.crossingClearance()
-                : config.getDefaultCrossingClearance();
+            double clearance = com.plot.plugin.road.crossing.GradeSeparationClearance.forTwoRoadCrossing(
+                crossing.crossingClearance(),
+                network,
+                elevatedRoadId,
+                crossing.roadAId(),
+                crossing.roadBId(),
+                config);
             ResolvedCrossSection otherSection =
                 VariableCrossSectionResolver.resolve(network, otherRoad, otherStation, config);
             out.add(new RoadProfileIntersection(
@@ -170,9 +174,8 @@ public final class RoadProfileIntersectionResolver {
                 continue;
             }
             boolean gradeSeparated = stack.isGradeSeparated();
-            double clearance = stack.crossingClearance() != null
-                ? stack.crossingClearance()
-                : config.getDefaultCrossingClearance();
+            double clearance = com.plot.plugin.road.crossing.GradeSeparationClearance.resolve(
+                stack.crossingClearance(), currentRoad, config);
             ResolvedCrossSection sectionAtA =
                 VariableCrossSectionResolver.resolve(network, currentRoad, stack.stationA(), config);
             ResolvedCrossSection sectionAtB =
@@ -310,9 +313,8 @@ public final class RoadProfileIntersectionResolver {
         }
         boolean gradeSeparated = node.isGradeSeparated();
         String elevatedRoadId = node.getElevatedRoadId();
-        double clearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
+        double clearance = com.plot.plugin.road.crossing.GradeSeparationClearance.forNode(
+            node.getCrossingClearance(), node, network, elevatedRoadId, config);
 
         for (String otherRoadId : roadIds) {
             if (otherRoadId.equals(currentRoad.getId())) {

@@ -30,16 +30,17 @@ class SlopeOuterCornerContinuityTest {
         path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
         path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(40, 40)));
 
-        RoadCorridorPlan plan = buildCutPlan(path, 64, 96);
+        // 覆土 8 < 默认深埋门槛(净高+衬砌+隧道阈值≈10)，仍属普通路堑，应有连续外侧边坡
+        RoadCorridorPlan plan = buildCutPlan(path, 64, 72);
         assertTrue(plan.slopeEntries().size() > 20, "cut L-turn should emit many slope columns");
 
-        // 折点 (40,0) 外侧 SE：修复前常见空三角采样点
+        // 折点 (40,0) 外侧 SE：角向加密应盖住楔形（覆土 8 → 边坡水平约 10 格内）
         List<Vec2d> probes = List.of(
-            new Vec2d(48, -8),
-            new Vec2d(52, -12),
-            new Vec2d(46, -14),
-            new Vec2d(55, -8),
-            new Vec2d(50, -16));
+            new Vec2d(45, -4),
+            new Vec2d(47, -6),
+            new Vec2d(44, -7),
+            new Vec2d(48, -5),
+            new Vec2d(46, -8));
         for (Vec2d probe : probes) {
             assertTrue(hasNearbySlope(plan, probe, 2),
                 "outer corner wedge missing slope near " + probe);

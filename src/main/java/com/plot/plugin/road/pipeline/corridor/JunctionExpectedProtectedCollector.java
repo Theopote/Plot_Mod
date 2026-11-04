@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.crossing.GradeSeparationClearance;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -109,13 +110,27 @@ public final class JunctionExpectedProtectedCollector {
         if (underpassY == null) {
             return null;
         }
-        double clearance = node.isStackGradeSeparated()
-            ? (node.getStackCrossingClearance() != null
-                ? node.getStackCrossingClearance()
-                : config.getDefaultCrossingClearance())
-            : (node.getCrossingClearance() != null
-                ? node.getCrossingClearance()
-                : config.getDefaultCrossingClearance());
+        double clearance;
+        if (node.isStackGradeSeparated()) {
+            String roadId = null;
+            for (String edgeId : node.getConnectedEdgeIds()) {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge != null && edge.getRoadId() != null) {
+                    roadId = edge.getRoadId();
+                    break;
+                }
+            }
+            clearance = GradeSeparationClearance.resolve(
+                node.getStackCrossingClearance(),
+                roadId != null ? network.getRoad(roadId) : null,
+                config);
+        } else {
+            String elevatedRoadId = elevatedRoadIdResolver != null
+                ? elevatedRoadIdResolver.resolve(node, network)
+                : node.getElevatedRoadId();
+            clearance = GradeSeparationClearance.forNode(
+                node.getCrossingClearance(), node, network, elevatedRoadId, config);
+        }
         int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
         List<Vec2d> polygon = resolveProtectionPolygon(
             network, node, config, elevatedRoadIdResolver);

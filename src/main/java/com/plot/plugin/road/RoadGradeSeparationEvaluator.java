@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.crossing.GradeSeparationClearance;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -40,11 +41,15 @@ public final class RoadGradeSeparationEvaluator {
 
         String roadA = roadIds.get(0);
         String roadB = roadIds.get(1);
-        double clearance = resolveClearance(node, config);
+        // 各方案净空取该方案下穿道路的隧道净高（显式 crossingClearance 仍优先）
+        double clearanceAOverB = GradeSeparationClearance.resolve(
+            node.getCrossingClearance(), network.getRoad(roadB), config);
+        double clearanceBOverA = GradeSeparationClearance.resolve(
+            node.getCrossingClearance(), network.getRoad(roadA), config);
         RoadGradeSeparationAlternative aOverB = evaluateAlternative(
-            node, network, config, sampler, naturalRoadHeight, roadA, roadB, clearance);
+            node, network, config, sampler, naturalRoadHeight, roadA, roadB, clearanceAOverB);
         RoadGradeSeparationAlternative bOverA = evaluateAlternative(
-            node, network, config, sampler, naturalRoadHeight, roadB, roadA, clearance);
+            node, network, config, sampler, naturalRoadHeight, roadB, roadA, clearanceBOverA);
         return new RoadGradeSeparationEvaluation(roadA, roadB, aOverB, bOverA, terrainAnalyzed);
     }
 
@@ -110,13 +115,6 @@ public final class RoadGradeSeparationEvaluator {
             return MIN_APPROACH_BLOCKS;
         }
         return Math.max(MIN_APPROACH_BLOCKS, shortest * 0.5f);
-    }
-
-    private static double resolveClearance(RoadNode node, RoadSystemConfig config) {
-        if (node.getCrossingClearance() != null) {
-            return node.getCrossingClearance();
-        }
-        return config.getDefaultCrossingClearance();
     }
 
     private static String pickByNaturalHeight(

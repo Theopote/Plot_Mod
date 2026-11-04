@@ -2050,16 +2050,18 @@ final class VerticalProfileEditor {
         if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
             var stack = network.getStackCrossing(
                 com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
-            return stack != null && stack.crossingClearance() != null
-                ? stack.crossingClearance() : config.getDefaultCrossingClearance();
+            return com.plot.plugin.road.crossing.GradeSeparationClearance.resolve(
+                stack != null ? stack.crossingClearance() : null,
+                stack != null ? network.getRoad(stack.roadId()) : null,
+                config);
         }
         if (com.plot.plugin.road.crossing.RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
             com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
                 com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
-            return RoadProfileIntersectionDragEditor.requiredClearance(crossing, config);
+            return RoadProfileIntersectionDragEditor.requiredClearance(crossing, network, config);
         }
         return RoadProfileIntersectionDragEditor.requiredClearance(
-            network.getNode(intersection.nodeId()), config);
+            network.getNode(intersection.nodeId()), network, config);
     }
 
     private List<RoadProfileIntersection> resolveIntersections(

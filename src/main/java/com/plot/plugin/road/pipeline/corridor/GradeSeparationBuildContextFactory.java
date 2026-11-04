@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.crossing.GradeSeparationClearance;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -115,9 +116,8 @@ public final class GradeSeparationBuildContextFactory {
         if (underpassY == null) {
             return;
         }
-        double clearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
+        double clearance = GradeSeparationClearance.forNode(
+            node.getCrossingClearance(), node, network, elevatedRoadId, config);
         int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
         List<Vec2d> polygon = junctionPolygon(network, node, config, elevatedRoadId);
         if (polygon.size() >= 3) {
@@ -135,9 +135,18 @@ public final class GradeSeparationBuildContextFactory {
         if (underpassY == null) {
             return;
         }
-        double clearance = node.getStackCrossingClearance() != null
-            ? node.getStackCrossingClearance()
-            : config.getDefaultCrossingClearance();
+        String roadId = null;
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && edge.getRoadId() != null) {
+                roadId = edge.getRoadId();
+                break;
+            }
+        }
+        double clearance = GradeSeparationClearance.resolve(
+            node.getStackCrossingClearance(),
+            roadId != null ? network.getRoad(roadId) : null,
+            config);
         int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
         List<Vec2d> polygon = stackJunctionPolygon(network, node, config);
         if (polygon.size() >= 3) {

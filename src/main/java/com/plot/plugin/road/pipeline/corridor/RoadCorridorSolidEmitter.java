@@ -114,9 +114,13 @@ public final class RoadCorridorSolidEmitter {
             return;
         }
 
-        if (slope != null && slope.hasFill()
-                && (constructionType == null
-                    || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill())) {
+        // 立交上跨边：禁止开敞填方边坡/路基堆土（会掉进下层净空或成悬浮土堤）
+        boolean elevatedEdge = gradeSeparation != null && gradeSeparation.elevatedRoadEdge();
+        boolean allowOpenFill = !elevatedEdge
+            && !bridgeClearance
+            && (constructionType == null
+                || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill());
+        if (allowOpenFill && slope != null && slope.hasFill()) {
             int fillTop = surfaceY != null
                 ? Math.min(slope.fillSurfaceY(), surfaceY - 1)
                 : slope.fillSurfaceY();
@@ -130,7 +134,7 @@ public final class RoadCorridorSolidEmitter {
                     solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillId);
                 }
             }
-        } else if (!bridgeClearance && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
+        } else if (allowOpenFill && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
                 constructionType, surfaceY, groundY, bridgeThreshold)) {
             for (int y = groundY + 1; y < surfaceY; y++) {
                 if (gradeSeparation.protects(planPoint, y)) {
@@ -204,10 +208,7 @@ public final class RoadCorridorSolidEmitter {
                 && !RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill()) {
             return false;
         }
-        if (constructionType == RoadConstructionType.FILL) {
-            return true;
-        }
-        return surfaceY - groundY <= bridgeThreshold;
+        return RoadEarthworkPolicy.allowsOpenFillHeight(surfaceY, groundY, bridgeThreshold);
     }
 
     /** 覆土判定用的设计标高：路面优先，其次切/填坡面，避免仅填方柱上 cutSurfaceY 空拆箱。 */

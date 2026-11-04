@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadGradeSeparationEvaluator;
+import com.plot.plugin.road.crossing.GradeSeparationClearance;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -98,7 +99,7 @@ public final class GradeSeparationPolicy {
                 ? networkUnderpassY
                 : computeStackCrossingBaseHeight(node, network, terrain, naturalEdgeHeight);
             return retainDesignedUpperHeight(network, edge, node,
-                baseHeight + (int) Math.ceil(resolveStackCrossingClearance(node)));
+                baseHeight + (int) Math.ceil(resolveStackCrossingClearance(node, network)));
         }
         if (!node.isGradeSeparated()) {
             return null;
@@ -111,7 +112,7 @@ public final class GradeSeparationPolicy {
             ? networkUnderpassY
             : computeCrossingBaseHeight(node, network, terrain, elevatedRoadId, naturalEdgeHeight);
         return retainDesignedUpperHeight(network, edge, node,
-            baseHeight + (int) Math.ceil(resolveCrossingClearance(node)));
+            baseHeight + (int) Math.ceil(resolveCrossingClearance(node, network, elevatedRoadId)));
     }
 
     private int retainDesignedUpperHeight(
@@ -225,18 +226,29 @@ public final class GradeSeparationPolicy {
         return RoadSlopeUtils.averageJunctionHeight(heights);
     }
 
-    private double resolveCrossingClearance(RoadNode node) {
-        if (node.getCrossingClearance() != null) {
-            return node.getCrossingClearance();
-        }
-        return context.defaultCrossingClearance();
+    private double resolveCrossingClearance(RoadNode node, RoadNetwork network, String elevatedRoadId) {
+        return GradeSeparationClearance.forNode(
+            node.getCrossingClearance(),
+            node,
+            network,
+            elevatedRoadId,
+            context.roadConfig());
     }
 
-    private double resolveStackCrossingClearance(RoadNode node) {
-        if (node.getStackCrossingClearance() != null) {
-            return node.getStackCrossingClearance();
+    private double resolveStackCrossingClearance(RoadNode node, RoadNetwork network) {
+        // 自交立交：上下同路，净空取该路隧道净高
+        String roadId = null;
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network != null ? network.getEdge(edgeId) : null;
+            if (edge != null && edge.getRoadId() != null) {
+                roadId = edge.getRoadId();
+                break;
+            }
         }
-        return context.defaultCrossingClearance();
+        return GradeSeparationClearance.resolve(
+            node.getStackCrossingClearance(),
+            network != null && roadId != null ? network.getRoad(roadId) : null,
+            context.roadConfig());
     }
 
     @FunctionalInterface

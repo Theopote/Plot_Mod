@@ -125,6 +125,44 @@ class RoadCorridorSolidEmitterEarthworkTest {
     }
 
     @Test
+    void elevatedGradeSeparationEdgeDoesNotEmitFillBatter() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(10, 2);
+        plan.surfaceMask().put(key, new SurfaceCell(
+            new Vec2d(10, 2), 70, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(key, new ClearanceCell(
+            new Vec2d(10, 2), 70, 74,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(key, new Vec2d(10, 2));
+        slope.mergeFill(69, "minecraft:dirt");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        GradeSeparationBuildContext elevated = new GradeSeparationBuildContext(
+            true,
+            java.util.List.of(new GradeSeparationBuildContext.ProtectedUnderpassZone(
+                java.util.List.of(
+                    new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(20, 10), new Vec2d(0, 10)),
+                64,
+                66)));
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            valleyTerrain(),
+            CorridorTestFixtures.planHost(config),
+            null,
+            "minecraft:dirt",
+            elevated);
+
+        long dirtFill = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        assertEquals(0, dirtFill, "elevated grade-sep edge must not emit open fill batter");
+    }
+
+    @Test
     void fillOnlySlopeColumnWithoutSurfaceDoesNotThrowOnDeepCoverCheck() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey fillColumn = new ColumnKey(8, 2);

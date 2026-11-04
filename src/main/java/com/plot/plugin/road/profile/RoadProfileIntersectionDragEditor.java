@@ -164,17 +164,35 @@ public final class RoadProfileIntersectionDragEditor {
         return Math.max(requested, minOther);
     }
 
-    public static double requiredClearance(RoadNode node, RoadSystemConfig config) {
-        if (node != null && node.getCrossingClearance() != null) {
-            return node.getCrossingClearance();
+    public static double requiredClearance(
+            RoadNode node, RoadNetwork network, RoadSystemConfig config) {
+        return com.plot.plugin.road.crossing.GradeSeparationClearance.forNode(
+            node != null ? node.getCrossingClearance() : null,
+            node,
+            network,
+            node != null ? node.getElevatedRoadId() : null,
+            config);
+    }
+
+    public static double requiredClearance(
+            RoadCrossing crossing, RoadNetwork network, RoadSystemConfig config) {
+        if (crossing == null) {
+            return com.plot.plugin.road.crossing.GradeSeparationClearance.fromUnderpassRoad(null, config);
         }
-        return config != null ? config.getDefaultCrossingClearance() : 4.0;
+        return com.plot.plugin.road.crossing.GradeSeparationClearance.forTwoRoadCrossing(
+            crossing.crossingClearance(),
+            network,
+            crossing.elevatedRoadId(),
+            crossing.roadAId(),
+            crossing.roadBId(),
+            config);
+    }
+
+    public static double requiredClearance(RoadNode node, RoadSystemConfig config) {
+        return requiredClearance(node, null, config);
     }
 
     public static double requiredClearance(RoadCrossing crossing, RoadSystemConfig config) {
-        if (crossing != null && crossing.crossingClearance() != null) {
-            return crossing.crossingClearance();
-        }
-        return config != null ? config.getDefaultCrossingClearance() : 4.0;
+        return requiredClearance(crossing, null, config);
     }
 }

@@ -594,9 +594,9 @@ public final class RoadCorridorPlanBuilder {
     }
 
     /** 急折外侧扇区：仅当转角够大且路径采样偏稀时加密；上限避免预览算力爆炸。 */
-    private static final double SLOPE_FAN_MIN_TURN_RADIANS = Math.toRadians(25.0);
-    private static final double SLOPE_FAN_GAP_BLOCKS = 1.5;
-    private static final int SLOPE_FAN_MAX_STEPS = 16;
+    private static final double SLOPE_FAN_MIN_TURN_RADIANS = Math.toRadians(20.0);
+    private static final double SLOPE_FAN_GAP_BLOCKS = 1.25;
+    private static final int SLOPE_FAN_MAX_STEPS = 24;
 
     /**
      * 沿 span 采样边坡射线。急折且路径短时角向加密，填外侧三角空隙；步数封顶保预览性能。
@@ -756,9 +756,14 @@ public final class RoadCorridorPlanBuilder {
             return samples;
         }
         boolean isFill = targetY > groundAtEdge;
+        int heightAboveGround = Math.abs(targetY - groundAtEdge);
         // 挂壁/半隧靠山侧：外缘覆土已达结构高度+盖层，不开敞削坡
         if (RoadEarthworkPolicy.suppressShoulderCutBatter(
                 isFill, groundAtEdge - targetY, host.tunnelStyle(), tunnelThreshold)) {
+            return samples;
+        }
+        // 高架填方：路底相对地面净高超过桥阈值则不堆土坡（交给桥梁/净空）
+        if (RoadEarthworkPolicy.suppressFillBatter(isFill, heightAboveGround, host.bridgeThreshold())) {
             return samples;
         }
         int profileDirection = isFill ? -1 : 1;
