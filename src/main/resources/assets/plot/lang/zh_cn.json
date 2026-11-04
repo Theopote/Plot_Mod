@@ -1927,7 +1927,7 @@
   "plugin.road.vertical_strategy_terrain_adaptive_hint": "纵坡由地形与坡度限制自动求解；在生成 Tab 编辑 PVI 后将转为手动纵断面。",
   "plugin.road.vertical_strategy_flat_hint": "整条道路保持固定基准高程；纵断面编辑器中只能整体上下移动，不可局部弯曲。",
   "plugin.road.profile_source_section": "纵断面来源",
-  "plugin.road.profile_source_auto": "自动设计（推荐）",
+  "plugin.road.profile_source_auto": "自动设计",
   "plugin.road.profile_source_auto_hint": "— 根据当前路径与地形重新计算",
   "plugin.road.profile_source_edited": "使用编辑曲线",
   "plugin.road.profile_source_edited_hint": "— 按已确认的用户纵断面生成",

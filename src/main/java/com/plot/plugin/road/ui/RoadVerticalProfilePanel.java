@@ -42,7 +42,6 @@ public final class RoadVerticalProfilePanel {
             return;
         }
 
-        RoadUiSections.section("plugin.road.section.vertical_profile");
         RoadGenerationSettingsPanel.renderVerticalDesign(
             ctx,
             pathPropertyPanel,

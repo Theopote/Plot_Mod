@@ -1927,7 +1927,7 @@
   "plugin.road.vertical_strategy_terrain_adaptive_hint": "Grades follow terrain and slope limits. Editing PVIs in Generate switches to manual profile.",
   "plugin.road.vertical_strategy_flat_hint": "Keeps a fixed baseline elevation; the profile editor only allows whole-line up/down moves, not local bending.",
   "plugin.road.profile_source_section": "Profile Source",
-  "plugin.road.profile_source_auto": "Automatic design (recommended)",
+  "plugin.road.profile_source_auto": "Automatic design",
   "plugin.road.profile_source_auto_hint": "— Recalculate from current path and terrain",
   "plugin.road.profile_source_edited": "Use edited curve",
   "plugin.road.profile_source_edited_hint": "— Generate from confirmed user profile",

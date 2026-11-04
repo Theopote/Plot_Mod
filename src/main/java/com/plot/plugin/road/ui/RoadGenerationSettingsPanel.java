@@ -64,18 +64,19 @@ public final class RoadGenerationSettingsPanel {
         }
 
         RoadNetwork network = ctx.networkManager().getNetwork();
+        if (!network.getEdges().isEmpty()) {
+            RoadGenerateTargetBar.render(ctx, network);
+            ImGui.spacing();
+        }
+
         renderUniformFlatModeControls(ctx, network);
         // 复选框可能刚改写了 mode：同帧重读，避免仍渲染上一模式控件。
         boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
         ImGui.spacing();
 
-        if (!network.getEdges().isEmpty()) {
-            RoadGenerateTargetBar.render(ctx, network);
+        if (!uniformFlat && !network.getEdges().isEmpty() && pathPropertyPanel != null) {
+            pathPropertyPanel.renderGenerationSettings(ctx);
             ImGui.spacing();
-            if (!uniformFlat && pathPropertyPanel != null) {
-                pathPropertyPanel.renderGenerationSettings(ctx);
-                ImGui.spacing();
-            }
         }
 
         if (!uniformFlat) {
