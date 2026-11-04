@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RoadCorridorClearancePassTest {
 
@@ -329,8 +328,7 @@ class RoadCorridorClearancePassTest {
         RoadSolidModel solids = new RoadSolidModel();
         RoadCorridorClearancePass.apply(solids, plan, terrain, host);
 
-        assertTrue(sampledTopPoint.get() != null,
-            "neighbor decoration clear must sample column top via canvas plan point");
+        assertNotNull(sampledTopPoint.get(), "neighbor decoration clear must sample column top via canvas plan point");
         assertEquals(expectedNeighborPlan.x, sampledTopPoint.get().x, 0.5);
         assertEquals(expectedNeighborPlan.y, sampledTopPoint.get().y, 0.5);
         assertTrue(solids.primitives().stream().anyMatch(p ->

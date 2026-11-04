@@ -173,7 +173,7 @@ public final class RoadCorridorClearancePass {
     /**
      * One-cell OPEN/BRIDGE decoration dilation for acute gore / sampling gaps that never
      * received a clearance stamp but still overhang the finished road.
-     * Neighbor columns are world XZ keys; canvas plan points come from {@link PlanHost}.
+     * Neighbor columns are world XZ keys; canvas plan points come from {@link RoadCorridorPlanBuilder.PlanHost}.
      */
     private static int clearAdjacentOpenDecorations(
             RoadSolidModel solids,

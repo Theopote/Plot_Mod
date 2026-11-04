@@ -181,7 +181,7 @@ class GenerateRoadCommandTest {
             new BlockRecord(pos, "minecraft:dirt", "minecraft:stone"));
         GenerateRoadCommand command = new GenerateRoadCommand(
             records,
-            writer::setBlockAt,
+                writer,
             writer::get,
             false,
             null);
@@ -233,7 +233,7 @@ class GenerateRoadCommandTest {
 
         GenerateRoadCommand command = new GenerateRoadCommand(
             List.of(new BlockRecord(pos, "minecraft:oak_stairs", "minecraft:stone")),
-            writer::setBlockAt,
+                writer,
             writer::get,
             false,
             null);

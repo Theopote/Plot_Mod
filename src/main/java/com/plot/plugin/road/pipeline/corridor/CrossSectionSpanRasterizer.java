@@ -42,26 +42,6 @@ public final class CrossSectionSpanRasterizer {
             RoadCorridorPlanBuilder.PlanHost host,
             TerrainSampler terrain,
             RoadConstructionType constructionType,
-            int tunnelThreshold) {
-        rasterizeSpan(
-            plan, fromCenter, toCenter, fromNormal, toNormal, fromY, toY, scale, crossSection,
-            seedKey, host, terrain, constructionType, tunnelThreshold, null);
-    }
-
-    public static void rasterizeSpan(
-            RoadCorridorPlan plan,
-            Vec2d fromCenter,
-            Vec2d toCenter,
-            Vec2d fromNormal,
-            Vec2d toNormal,
-            int fromY,
-            int toY,
-            double scale,
-            ResolvedCrossSection crossSection,
-            String seedKey,
-            RoadCorridorPlanBuilder.PlanHost host,
-            TerrainSampler terrain,
-            RoadConstructionType constructionType,
             int tunnelThreshold,
             List<PathSegment> polylineSegments) {
         if (plan == null || crossSection == null || host == null || terrain == null) {
@@ -84,7 +64,7 @@ public final class CrossSectionSpanRasterizer {
         // Acute turns leave triangular gore gaps between consecutive sections; denser stamps
         // keep pavement and clearance continuous through the inner corner.
         int density = acute ? 5 : (rotated ? 2 : 1);
-        int steps = Math.min(64, Math.max(0, (int) Math.ceil(worldDistance * density)));
+        int steps = Math.clamp((int) Math.ceil(worldDistance * density), 0, 64);
         // 锐折：端点用各自法向，中段用弦线左法向，避免内外角斜接把外侧条带折进车行道
         Vec2d chordNormal = chordLeftNormal(fromCenter, toCenter, startNormal, endNormal);
         double carriageHalf = Math.max(0.5, crossSection.carriagewayHalfWidth()) * scale;
