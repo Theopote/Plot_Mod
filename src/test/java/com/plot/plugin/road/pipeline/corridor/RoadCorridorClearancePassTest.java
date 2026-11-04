@@ -156,6 +156,52 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
+    void openModeStripsCanopyAboveLocalSolidClearTopWithoutExcavatingRock() {
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        // Cave/local solid clear stops at 69; canopy continues to 78
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(point, 64, 69, RoadCorridorConstructionMode.OPEN, null));
+
+        TerrainSampler caveWithCanopy = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 90;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 78;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y >= 70 && y <= 90;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int worldX, int y, int worldZ) {
+                return y >= 72 && y <= 78;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(
+            solids, plan, caveWithCanopy, CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()));
+
+        assertTrue(solids.primitives().stream()
+                .anyMatch(p -> p.elevation() == 78 && "minecraft:air".equals(p.materialId())),
+            "OPEN must strip canopy above local clear top");
+        assertTrue(solids.primitives().stream()
+                .anyMatch(p -> p.elevation() == 72 && "minecraft:air".equals(p.materialId())),
+            "OPEN must strip mid-canopy decoration above local clear top");
+        assertTrue(solids.primitives().stream()
+                .noneMatch(p -> p.elevation() == 71 && "minecraft:air".equals(p.materialId())),
+            "must not excavate mountain rock above local clear top");
+    }
+
+    @Test
     void gradeSepUnderpassClearsUpToDeckEvenWhenCellClearTopIsLocalOnly() {
         RoadSolidModel solids = new RoadSolidModel();
         RoadCorridorPlan plan = new RoadCorridorPlan();

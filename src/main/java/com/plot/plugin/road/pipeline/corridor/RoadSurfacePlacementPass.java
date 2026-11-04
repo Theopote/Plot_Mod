@@ -51,17 +51,32 @@ public final class RoadSurfacePlacementPass {
     /**
      * Other approaches can add batter/bridge fill after the original (empty) terrain was inspected.
      * Clear SUBGRADE and BRIDGE intrusions in reserved open-road headroom (not ROAD/SHOULDER surfaces).
+     * <p>
+     * When the same column already has an elevated pavement (ROAD/BRIDGE/…) above the open surface,
+     * stop below that deck and never strip BRIDGE structure that supports it — otherwise grade-sep
+     * underpass headroom clearing eats the upper road underside after network merge.
      */
     public static void clearIntrudingFill(RoadGenerationResult result) {
         result.openRoadClearanceTops.forEach((surface, top) -> {
-            for (int y = surface.getY() + 1; y <= top; y++) {
+            Integer elevatedPavementY = lowestProtectedPavementAbove(
+                result, surface.getX(), surface.getY(), surface.getZ());
+            int clearTo = elevatedPavementY != null ? Math.min(top, elevatedPavementY - 1) : top;
+            for (int y = surface.getY() + 1; y <= clearTo; y++) {
                 var pos = new BlockPos(surface.getX(), y, surface.getZ());
                 var record = result.placementRecords.get(pos);
                 if (record == null || "minecraft:air".equals(record.newBlockId)) {
                     continue;
                 }
                 var layer = result.placementLayers.get(pos);
-                if (layer != RoadSolidLayer.SUBGRADE && layer != RoadSolidLayer.BRIDGE) {
+                // SUBGRADE/BRIDGE fill from other approaches, and stray TUNNEL lining that
+                // leaked into an OPEN/BRIDGE headroom column.
+                if (layer != RoadSolidLayer.SUBGRADE
+                        && layer != RoadSolidLayer.BRIDGE
+                        && layer != RoadSolidLayer.TUNNEL) {
+                    continue;
+                }
+                // Keep elevated bridge shells under a deck in this column.
+                if (layer == RoadSolidLayer.BRIDGE && elevatedPavementY != null) {
                     continue;
                 }
                 result.recordPlacementOverride(pos, record.previousBlockId, "minecraft:air");
@@ -69,6 +84,37 @@ public final class RoadSurfacePlacementPass {
                 result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
             }
         });
+    }
+
+    private static Integer lowestProtectedPavementAbove(
+            RoadGenerationResult result, int worldX, int surfaceY, int worldZ) {
+        Integer lowest = null;
+        for (var entry : result.placementLayers.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (pos.getX() != worldX || pos.getZ() != worldZ || pos.getY() <= surfaceY) {
+                continue;
+            }
+            if (!isElevatedPavementLayer(entry.getValue())) {
+                continue;
+            }
+            var record = result.placementRecords.get(pos);
+            if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            lowest = lowest == null ? pos.getY() : Math.min(lowest, pos.getY());
+        }
+        return lowest;
+    }
+
+    private static boolean isElevatedPavementLayer(RoadSolidLayer layer) {
+        // Pavement only — BRIDGE shells alone in headroom are still intrusions.
+        // BRIDGE under an elevated ROAD is kept separately when pavement is detected.
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN
+            || layer == RoadSolidLayer.MARKING;
     }
 
 }

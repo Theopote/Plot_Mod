@@ -111,6 +111,52 @@ public final class RoadCorridorClearancePass {
         for (int y = designY + 1; y <= topY; y++) {
             cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
         }
+        // OPEN/BRIDGE: strip trees and other clearable decoration above the solid clear
+        // envelope (cave/local top) without excavating mountain rock beyond topY.
+        if (cell.mode() == RoadCorridorConstructionMode.OPEN
+                || cell.mode() == RoadCorridorConstructionMode.BRIDGE) {
+            cleared += clearDecorationsAbove(
+                solids, cell, key, terrain, designY, topY, deckCap, gradeSeparation);
+        }
+        return cleared;
+    }
+
+    /**
+     * Removes floating canopy / sparse decoration above the solid clearance top.
+     * Does not clear engineering rock — only {@link TerrainSampler#isRoadClearableDecoration}.
+     */
+    private static int clearDecorationsAbove(
+            RoadSolidModel solids,
+            ClearanceCell cell,
+            ColumnKey key,
+            TerrainSampler terrain,
+            int designY,
+            int solidTopY,
+            Integer deckCap,
+            GradeSeparationBuildContext gradeSeparation) {
+        int decoTop = terrain.sampleColumnTopY(cell.planPoint());
+        if (deckCap != null) {
+            decoTop = Math.min(decoTop, deckCap);
+        }
+        if (decoTop <= solidTopY) {
+            return 0;
+        }
+        int cleared = 0;
+        for (int y = Math.max(designY + 1, solidTopY + 1); y <= decoTop; y++) {
+            if (gradeSeparation != null && gradeSeparation.protectsClearance(cell.planPoint(), y)) {
+                continue;
+            }
+            if (!terrain.isRoadClearableDecoration(key.worldX(), y, key.worldZ())) {
+                continue;
+            }
+            solids.add(
+                cell.planPoint(),
+                y,
+                RoadSolidLayer.TUNNEL,
+                "minecraft:air",
+                RoadSolidMaterialPriority.AIR);
+            cleared++;
+        }
         return cleared;
     }
 

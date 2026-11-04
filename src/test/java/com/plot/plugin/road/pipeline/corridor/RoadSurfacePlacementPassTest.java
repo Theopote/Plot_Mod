@@ -46,15 +46,44 @@ class RoadSurfacePlacementPassTest {
             var other = new RoadGenerationResult(0);
             other.recordPlacementByLayerPriority(surface.up(2), "minecraft:air", "minecraft:coarse_dirt",
                 RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
-            other.recordPlacementByLayerPriority(surface.up(5), "minecraft:air", "minecraft:stone",
+            // Outside reserved headroom (surface+1..surface+5)
+            other.recordPlacementByLayerPriority(surface.up(6), "minecraft:air", "minecraft:stone",
                 RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
             var merged = new RoadGenerationResult(0);
             merged.mergeFrom(roadFirst ? road : other);
             merged.mergeFrom(roadFirst ? other : road);
             RoadSurfacePlacementPass.clearIntrudingFill(merged);
             assertEquals("minecraft:air", merged.placementRecords.get(surface.up(2)).newBlockId);
-            assertEquals("minecraft:stone", merged.placementRecords.get(surface.up(5)).newBlockId);
+            assertEquals("minecraft:stone", merged.placementRecords.get(surface.up(6)).newBlockId);
         }
+    }
+
+    @Test
+    void clearIntrudingFillPreservesElevatedDeckUnderside() {
+        var underpass = new RoadGenerationResult(0);
+        var surface = new BlockPos(0, 64, 0);
+        underpass.recordPlacementByLayerPriority(surface, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        // Headroom reserved up to underside of deck (68)
+        underpass.openRoadClearanceTops.put(surface, 68);
+
+        var elevated = new RoadGenerationResult(0);
+        elevated.recordPlacementByLayerPriority(surface.up(4), "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
+        elevated.recordPlacementByLayerPriority(surface.up(5), "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+
+        var merged = new RoadGenerationResult(0);
+        merged.mergeFrom(underpass);
+        merged.mergeFrom(elevated);
+        RoadSurfacePlacementPass.clearIntrudingFill(merged);
+
+        assertEquals("minecraft:stone_bricks",
+            merged.placementRecords.get(surface.up(4)).newBlockId,
+            "elevated BRIDGE underside must survive underpass headroom clear");
+        assertEquals("minecraft:white_concrete",
+            merged.placementRecords.get(surface.up(5)).newBlockId,
+            "elevated ROAD deck must remain");
     }
 
     private static RoadCorridorPlan plan() {

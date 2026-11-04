@@ -935,6 +935,9 @@ public final class RoadCorridorPlanBuilder {
     /**
      * 开敞净空顶：浅路堑连到柱顶；洞穴/深覆土（净高以上仍有空洞或盖层过厚）只清到隧道设计净高，
      * 避免把洞顶上方整座山体打成天窗。
+     * <p>
+     * 覆土与洞穴判定只用工程实体地体；树冠等可清理装饰不计入「深覆土/洞穴」，
+     * 否则林冠下的空隙会被误判为隧道/洞穴净空，边坡被抑制且树叶残留。
      */
     static int openCorridorClearTopY(
             int designSurfaceY,
@@ -953,10 +956,11 @@ public final class RoadCorridorPlanBuilder {
         }
         int worldX = host.worldX(planPoint);
         int worldZ = host.worldZ(planPoint);
-        int cover = columnTop - designSurfaceY;
+        // Engineering surface only — tree canopy must not invent deep cover.
+        int cover = terrain.sampleSurfaceY(planPoint) - designSurfaceY;
         boolean deepCover = cover >= RoadEarthworkPolicy.deepDaylightCoverBlocks(
             host.tunnelStyle(), tunnelThreshold);
-        boolean voidAboveHeadroom = hasAirGapAbove(
+        boolean voidAboveHeadroom = hasCaveCeilingAbove(
             terrain, worldX, worldZ, localTop, columnTop);
         if (deepCover || voidAboveHeadroom) {
             return localTop;
@@ -964,8 +968,11 @@ public final class RoadCorridorPlanBuilder {
         return columnTop;
     }
 
-    /** {@code fromYExclusive+1 .. toYInclusive} 之间是否出现空气（洞穴空洞）。 */
-    static boolean hasAirGapAbove(
+    /**
+     * True cave/overhang: air (or non-engineering gap) under a later solid engineering roof.
+     * Clearable decoration (leaves/logs) is skipped so forest canopy is not treated as a tunnel roof.
+     */
+    static boolean hasCaveCeilingAbove(
             TerrainSampler terrain,
             int worldX,
             int worldZ,
@@ -974,8 +981,16 @@ public final class RoadCorridorPlanBuilder {
         if (terrain == null || toYInclusive <= fromYExclusive) {
             return false;
         }
+        boolean sawGap = false;
         for (int y = fromYExclusive + 1; y <= toYInclusive; y++) {
+            if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                continue;
+            }
             if (!terrain.isSolidBlock(worldX, y, worldZ)) {
+                sawGap = true;
+                continue;
+            }
+            if (sawGap) {
                 return true;
             }
         }

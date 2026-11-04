@@ -147,6 +147,38 @@ class RoadCorridorPlanBuilderTest {
     }
 
     @Test
+    void forestCanopyDoesNotTriggerCaveLocalClearTop() {
+        var config = CorridorTestFixtures.baseConfig();
+        int designY = 64;
+        TerrainSampler forest = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 64;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 78;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 64;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int worldX, int y, int worldZ) {
+                return y >= 70 && y <= 78;
+            }
+        };
+        var host = CorridorTestFixtures.planHost(config);
+        int clearTop = RoadCorridorPlanBuilder.openCorridorClearTopY(
+            designY, new Vec2d(0, 0), forest, 4, host);
+        assertEquals(78, clearTop,
+            "tree canopy above flat ground must not shrink OPEN clear top to local headroom");
+    }
+
+    @Test
     void deepCoverOpenRoadSuppressesDaylightBatter() {
         var config = CorridorTestFixtures.baseConfig();
         config.setIncludeSlopeBatter(true);

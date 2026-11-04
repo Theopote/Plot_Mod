@@ -98,7 +98,10 @@ class RoadJunctionAcceptanceRegressionTest {
             .orElseThrow();
         assertTrue(network.setNodeGradeSeparation(junction.getId(), true, "roadA", 4.0));
 
-        Map<String, RoadGenerationResult> edgeResults = leftoverNeighborhood(network, 68);
+        // Explicit clearance 4 is raised to underpass tunnel clearHeight floor (default 5) → deck 69
+        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
+        assertEquals(69, deckY);
+        Map<String, RoadGenerationResult> edgeResults = leftoverNeighborhood(network, deckY);
         var blocks = junctionGenerator.generateJunction(
             junction, network, hillTerrain(64, 80), Map.of(junction.getId(), 64), edgeResults);
 
@@ -119,16 +122,14 @@ class RoadJunctionAcceptanceRegressionTest {
             "minecraft:stone",
             "minecraft:white_concrete");
 
-        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, config);
-        assertEquals(68, deckY);
         boolean deckSurvived = aggregate.placementRecords.entrySet().stream().anyMatch(entry ->
-            entry.getKey().getY() == 68
+            entry.getKey().getY() == deckY
                 && Math.abs(entry.getKey().getX()) <= 1
                 && Math.abs(entry.getKey().getZ()) <= 1
                 && "minecraft:stone".equals(entry.getValue().newBlockId));
         assertTrue(deckSurvived, "elevated deck ROAD must survive junction AIR flush");
         boolean deckPunched = aggregate.placementRecords.entrySet().stream().anyMatch(entry ->
-            entry.getKey().getY() == 68
+            entry.getKey().getY() == deckY
                 && Math.abs(entry.getKey().getX()) <= 1
                 && Math.abs(entry.getKey().getZ()) <= 1
                 && "minecraft:air".equals(entry.getValue().newBlockId));
