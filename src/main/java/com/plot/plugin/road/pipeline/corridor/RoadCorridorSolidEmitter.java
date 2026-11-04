@@ -128,7 +128,7 @@ public final class RoadCorridorSolidEmitter {
             if (shouldFillSubgrade(constructionType, fillTop, groundY, bridgeThreshold)) {
                 String fillId = slope.fillMaterialId() != null ? slope.fillMaterialId() : defaultFillMaterialId;
                 for (int y = groundY + 1; y <= fillTop; y++) {
-                    if (gradeSeparation.protects(planPoint, y)) {
+                    if (gradeSeparation != null && gradeSeparation.protects(planPoint, y)) {
                         continue;
                     }
                     solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillId);
@@ -137,7 +137,7 @@ public final class RoadCorridorSolidEmitter {
         } else if (allowOpenFill && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
                 constructionType, surfaceY, groundY, bridgeThreshold)) {
             for (int y = groundY + 1; y < surfaceY; y++) {
-                if (gradeSeparation.protects(planPoint, y)) {
+                if (gradeSeparation != null && gradeSeparation.protects(planPoint, y)) {
                     continue;
                 }
                 solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, defaultFillMaterialId);
@@ -171,7 +171,7 @@ public final class RoadCorridorSolidEmitter {
                 cutFaceY = cutTopY - 1;
             }
             for (int y = cutFaceY + 1; y <= cutTopY; y++) {
-                if (gradeSeparation.protectsClearance(planPoint, y)) {
+                if (gradeSeparation != null && gradeSeparation.protectsClearance(planPoint, y)) {
                     continue;
                 }
                 solids.add(

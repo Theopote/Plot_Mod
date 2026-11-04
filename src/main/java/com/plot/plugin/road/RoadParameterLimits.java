@@ -35,11 +35,11 @@ public final class RoadParameterLimits {
     }
 
     public static int clampCarriagewayWidth(int width) {
-        return Math.max(MIN_CARRIAGEWAY_WIDTH, Math.min(MAX_CARRIAGEWAY_WIDTH, width));
+        return Math.clamp(width, MIN_CARRIAGEWAY_WIDTH, MAX_CARRIAGEWAY_WIDTH);
     }
 
     public static int clampLaneCount(int laneCount) {
-        return Math.max(MIN_LANE_COUNT, Math.min(MAX_LANE_COUNT, laneCount));
+        return Math.clamp(laneCount, MIN_LANE_COUNT, MAX_LANE_COUNT);
     }
 
     public static int maxPerLaneWidth(int carriagewayWidth, int laneCount) {
@@ -52,11 +52,11 @@ public final class RoadParameterLimits {
     }
 
     public static int clampStripWidth(int width) {
-        return Math.max(MIN_STRIP_WIDTH, Math.min(MAX_STRIP_WIDTH, width));
+        return Math.clamp(width, MIN_STRIP_WIDTH, MAX_STRIP_WIDTH);
     }
 
     public static int clampShoulderWidth(int width) {
-        return Math.max(0, Math.min(MAX_STRIP_WIDTH, width));
+        return Math.clamp(width, 0, MAX_STRIP_WIDTH);
     }
 
     public static double clampElevation(double elevation) {
@@ -75,7 +75,7 @@ public final class RoadParameterLimits {
     }
 
     public static double clampCrossingClearance(double clearance) {
-        return Math.max(MIN_CROSSING_CLEARANCE, Math.min(MAX_CROSSING_CLEARANCE, clearance));
+        return Math.clamp(clearance, MIN_CROSSING_CLEARANCE, MAX_CROSSING_CLEARANCE);
     }
 
     public static Double clampCrossingClearanceNullable(Double clearance) {
@@ -93,7 +93,7 @@ public final class RoadParameterLimits {
         if (spacing == null || spacing <= STREETLIGHT_DISABLED) {
             return null;
         }
-        return Math.max(MIN_STREETLIGHT_SPACING, Math.min(MAX_STREETLIGHT_SPACING, spacing));
+        return Math.clamp(spacing, MIN_STREETLIGHT_SPACING, MAX_STREETLIGHT_SPACING);
     }
 
 }

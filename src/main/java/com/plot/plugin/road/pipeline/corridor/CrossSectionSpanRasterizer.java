@@ -4,17 +4,19 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Stamps a full cross-section at each centerline sample so adjacent bands share coverage.
  * <p>
- * 锐折处用法向角向插值（勿线性 lerp，否则中间法向会塌缩/翻转），并丢弃越过中心线
- * 或落入行车道包络的人行道/路肩格，避免尖角内侧蓝带插入路面。
+ * 锐折处用法向角向插值（勿线性 lerp，否则中间法向会塌缩/翻转），并丢弃越过中心线、
+ * 落入本段或邻段行车道包络的人行道/路肩格，避免尖角内侧蓝带插入路面。
  */
 public final class CrossSectionSpanRasterizer {
     private static final double[] CELL_INSETS = {0.0, -0.25, 0.25};
@@ -41,6 +43,27 @@ public final class CrossSectionSpanRasterizer {
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
+        rasterizeSpan(
+            plan, fromCenter, toCenter, fromNormal, toNormal, fromY, toY, scale, crossSection,
+            seedKey, host, terrain, constructionType, tunnelThreshold, null);
+    }
+
+    public static void rasterizeSpan(
+            RoadCorridorPlan plan,
+            Vec2d fromCenter,
+            Vec2d toCenter,
+            Vec2d fromNormal,
+            Vec2d toNormal,
+            int fromY,
+            int toY,
+            double scale,
+            ResolvedCrossSection crossSection,
+            String seedKey,
+            RoadCorridorPlanBuilder.PlanHost host,
+            TerrainSampler terrain,
+            RoadConstructionType constructionType,
+            int tunnelThreshold,
+            List<PathSegment> polylineSegments) {
         if (plan == null || crossSection == null || host == null || terrain == null) {
             return;
         }
@@ -53,7 +76,8 @@ public final class CrossSectionSpanRasterizer {
         boolean acute = Math.abs(turn) >= ACUTE_TURN_RADIANS;
         boolean clipIntrusion = acute
             || Math.abs(turn) >= CLIP_TURN_RADIANS
-            || (constructionType != null && constructionType.isTunnelFamily());
+            || (constructionType != null && constructionType.isTunnelFamily())
+            || (polylineSegments != null && polylineSegments.size() >= 2);
         var fromWorld = host.canvasToBlockPos(fromCenter);
         var toWorld = host.canvasToBlockPos(toCenter);
         double worldDistance = Math.hypot(toWorld.getX() - fromWorld.getX(), toWorld.getZ() - fromWorld.getZ());
@@ -93,7 +117,8 @@ public final class CrossSectionSpanRasterizer {
                 terrain,
                 constructionType,
                 tunnelThreshold,
-                clipIntrusion);
+                clipIntrusion,
+                polylineSegments);
         }
     }
 
@@ -110,7 +135,8 @@ public final class CrossSectionSpanRasterizer {
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold,
-            boolean clipIntrusion) {
+            boolean clipIntrusion,
+            List<PathSegment> polylineSegments) {
         for (int lateral = crossSection.minSurfaceLateral(); lateral <= crossSection.maxSurfaceLateral(); lateral++) {
             Optional<ResolvedCrossSection.SurfaceBandSpec> band = crossSection.surfaceBandAtLateral(lateral);
             if (band.isEmpty()) {
@@ -122,7 +148,8 @@ public final class CrossSectionSpanRasterizer {
                 double signedLateral = (lateral + inset) * scale;
                 Vec2d planPoint = center.add(normal.multiply(signedLateral));
                 if (clipIntrusion && shouldRejectIntrudingStamp(
-                        center, normal, planPoint, signedLateral, scale, carriageHalf, spec.layer())) {
+                        center, normal, planPoint, signedLateral, scale, carriageHalf, spec.layer(),
+                        polylineSegments)) {
                     continue;
                 }
                 int worldX = host.worldX(planPoint), worldZ = host.worldZ(planPoint);
@@ -147,7 +174,7 @@ public final class CrossSectionSpanRasterizer {
     }
 
     /**
-     * 丢弃：越过中心线，或外侧条带（人行道/路肩等）落入行车道半宽内。
+     * 丢弃：越过中心线，或外侧条带落入本段/邻段行车道半宽内。
      */
     static boolean shouldRejectIntrudingStamp(
             Vec2d center,
@@ -157,6 +184,19 @@ public final class CrossSectionSpanRasterizer {
             double scale,
             double carriageHalf,
             RoadSolidLayer layer) {
+        return shouldRejectIntrudingStamp(
+            center, normal, planPoint, expectedSignedLateral, scale, carriageHalf, layer, null);
+    }
+
+    static boolean shouldRejectIntrudingStamp(
+            Vec2d center,
+            Vec2d normal,
+            Vec2d planPoint,
+            double expectedSignedLateral,
+            double scale,
+            double carriageHalf,
+            RoadSolidLayer layer,
+            List<PathSegment> polylineSegments) {
         if (center == null || normal == null || planPoint == null) {
             return false;
         }
@@ -168,7 +208,11 @@ public final class CrossSectionSpanRasterizer {
         }
         double projected = planPoint.subtract(center).dot(normal);
         // 预期在行车道外，实际投影却掉进车行道路幅
-        return Math.abs(projected) + 1e-9 < carriageHalf;
+        if (Math.abs(projected) + 1e-9 < carriageHalf) {
+            return true;
+        }
+        // 邻段（回头弯对侧）行车道包络：本段外侧条带落入邻段车行道
+        return NeighborCarriagewayClip.insideAnyCarriageway(planPoint, polylineSegments, carriageHalf);
     }
 
     static boolean isOuterPavementBand(RoadSolidLayer layer) {

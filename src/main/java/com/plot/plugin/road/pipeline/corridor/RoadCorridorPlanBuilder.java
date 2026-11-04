@@ -99,14 +99,14 @@ public final class RoadCorridorPlanBuilder {
                 stations, i, terrain, tunnelStyle, tunnelThreshold);
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
                 carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq,
-                suppressBatter);
+                suppressBatter, segments);
             if (i > 0) {
                 // 邻接洞门/洞身/深覆土的路基站及其 span 都不放坡，避免边坡贴到洞口掏山
                 boolean suppressSpanBatter = suppressBatter
                     || shouldSuppressCorridorBatter(stations, i - 1, terrain, tunnelStyle, tunnelThreshold);
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
                     unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples,
-                    stationSampleSeq, suppressSpanBatter);
+                    stationSampleSeq, suppressSpanBatter, segments);
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
@@ -205,7 +205,8 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq,
-            boolean suppressBatter) {
+            boolean suppressBatter,
+            List<PathSegment> polylineSegments) {
         if (sample.constructionType() == RoadConstructionType.TUNNEL_PORTAL) {
             Vec2d leftNormal = normalize(sample.leftNormal());
             // leftNormal = (-fy, fx) for forward (fx, fy) → forward = (ly, -lx)
@@ -220,7 +221,7 @@ public final class RoadCorridorPlanBuilder {
         }
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
-            seedKey, host, sample.constructionType(), config, tunnelThreshold);
+            seedKey, host, sample.constructionType(), config, tunnelThreshold, polylineSegments);
         if (!suppressBatter
                 && crossSection.includeSlopeBatter
                 && RoadEarthworkPolicy.allowsCorridorBatter(sample.constructionType())) {
@@ -243,7 +244,8 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq,
-            boolean suppressSpanBatter) {
+            boolean suppressSpanBatter,
+            List<PathSegment> polylineSegments) {
         ResolvedCrossSection toSection = crossSection;
         RoadConstructionType fromType = from.constructionType();
         RoadConstructionType toType = to.constructionType();
@@ -252,17 +254,17 @@ public final class RoadCorridorPlanBuilder {
         if (fromType == toType) {
             rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
                 from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
-                seedKey, host, toType, config, tunnelThreshold);
+                seedKey, host, toType, config, tunnelThreshold, polylineSegments);
         } else {
             Vec2d midCenter = from.center().lerp(to.center(), 0.5);
             int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * 0.5);
             Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), 0.5));
             rasterizeSurfaceBands(plan, from.center(), midCenter, from.leftNormal(), midNormal,
                 from.targetY(), midY, toSection, terrain, unitsPerBlock,
-                seedKey, host, fromType, config, tunnelThreshold);
+                seedKey, host, fromType, config, tunnelThreshold, polylineSegments);
             rasterizeSurfaceBands(plan, midCenter, to.center(), midNormal, to.leftNormal(),
                 midY, to.targetY(), toSection, terrain, unitsPerBlock,
-                seedKey, host, toType, config, tunnelThreshold);
+                seedKey, host, toType, config, tunnelThreshold, polylineSegments);
         }
         // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体
         if (!suppressSpanBatter
@@ -290,15 +292,16 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             RoadConstructionType constructionType,
             RoadSystemConfig config,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            List<PathSegment> polylineSegments) {
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d startNormal = normalize(fromNormal);
         Vec2d endNormal = normalize(toNormal);
 
         CrossSectionSpanRasterizer.rasterizeSpan(
             plan, fromCenter, toCenter, startNormal, endNormal, fromY, toY, scale, crossSection,
-            seedKey, host, terrain, constructionType, tunnelThreshold);
-        expandClearanceEnvelope(plan, fromCenter, toCenter, startNormal, fromY, toY, scale,
+            seedKey, host, terrain, constructionType, tunnelThreshold, polylineSegments);
+        expandClearanceEnvelope(plan, fromCenter, toCenter, startNormal, endNormal, fromY, toY, scale,
             crossSection, terrain, constructionType, config, tunnelThreshold, host);
     }
 
@@ -306,7 +309,8 @@ public final class RoadCorridorPlanBuilder {
             RoadCorridorPlan plan,
             Vec2d fromCenter,
             Vec2d toCenter,
-            Vec2d leftNormal,
+            Vec2d fromNormal,
+            Vec2d toNormal,
             int fromY,
             int toY,
             double scale,
@@ -333,7 +337,7 @@ public final class RoadCorridorPlanBuilder {
         int maxOffset = RoadDimensionUtils.maxLateralOffset(envelopeWidth);
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
             double offset = lateral * scale;
-            writeClearanceSpan(plan, fromCenter, toCenter, leftNormal, offset, fromY, toY,
+            writeClearanceSpan(plan, fromCenter, toCenter, fromNormal, toNormal, offset, fromY, toY,
                 terrain, constructionType, tunnelThreshold, host, lateral);
         }
     }
@@ -342,7 +346,8 @@ public final class RoadCorridorPlanBuilder {
             RoadCorridorPlan plan,
             Vec2d fromCenter,
             Vec2d toCenter,
-            Vec2d leftNormal,
+            Vec2d fromNormal,
+            Vec2d toNormal,
             double lateralOffset,
             int fromY,
             int toY,
@@ -351,15 +356,34 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold,
             PlanHost host,
             int corridorLateral) {
-        Vec2d fromPoint = fromCenter.add(leftNormal.multiply(lateralOffset));
-        Vec2d toPoint = toCenter.add(leftNormal.multiply(lateralOffset));
-        List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(fromPoint, toPoint);
-        int last = span.size() - 1;
-        for (int i = 0; i < span.size(); i++) {
-            Vec2d planPoint = host.canonicalColumnPoint(span.get(i));
+        Vec2d startNormal = normalize(fromNormal);
+        Vec2d endNormal = normalize(toNormal);
+        double turn = signedAngle(startNormal, endNormal);
+        boolean acute = Math.abs(turn) >= Math.PI * 0.5;
+        Vec2d chordNormal = chordLeftNormal(fromCenter, toCenter, startNormal, endNormal);
+        List<Vec2d> centers = RoadVoxelRasterizer.sampleSpanPoints(fromCenter, toCenter);
+        int last = centers.size() - 1;
+        for (int i = 0; i < centers.size(); i++) {
+            double t = last == 0 ? 0.0 : (double) i / last;
+            Vec2d center = centers.get(i);
+            Vec2d normal;
+            if (acute) {
+                if (t <= 1e-9) {
+                    normal = startNormal;
+                } else if (t >= 1.0 - 1e-9) {
+                    normal = endNormal;
+                } else {
+                    normal = chordNormal;
+                }
+            } else if (Math.abs(turn) <= 1e-9) {
+                normal = endNormal;
+            } else {
+                normal = normalize(startNormal.rotate(turn * t));
+            }
+            Vec2d planPoint = host.canonicalColumnPoint(center.add(normal.multiply(lateralOffset)));
             int surfaceY = last == 0
                 ? fromY
-                : (int) Math.round(fromY + (toY - fromY) * ((double) i / last));
+                : (int) Math.round(fromY + (toY - fromY) * t);
             int worldX = host.worldX(planPoint);
             int worldZ = host.worldZ(planPoint);
             if (!terrain.isChunkLoaded(worldX, worldZ)) {
@@ -927,6 +951,19 @@ public final class RoadCorridorPlanBuilder {
             tunnelStyle.liningThickness(),
             designSurfaceY,
             false).maxY();
+    }
+
+    private static Vec2d chordLeftNormal(Vec2d fromCenter, Vec2d toCenter, Vec2d startNormal, Vec2d endNormal) {
+        Vec2d forward = toCenter.subtract(fromCenter);
+        if (forward.lengthSquared() < 1e-12) {
+            return startNormal;
+        }
+        Vec2d unit = forward.normalize();
+        Vec2d chord = new Vec2d(-unit.y, unit.x);
+        if (chord.dot(startNormal) + chord.dot(endNormal) < 0.0) {
+            chord = chord.multiply(-1.0);
+        }
+        return normalize(chord);
     }
 
     private static Vec2d normalize(Vec2d vector) {

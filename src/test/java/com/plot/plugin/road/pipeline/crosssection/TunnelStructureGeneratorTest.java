@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.construction.ConstructionRun;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
@@ -611,6 +612,38 @@ class TunnelStructureGeneratorTest {
                 return y <= solidBelowY;
             }
         };
+    }
+
+    @Test
+    void acuteHairpinConvertsNeighborCarriagewayLiningToAir() {
+        // 接近 180° 回头：上一段水平，下一段几乎折回
+        PathSegment previous = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        PathSegment current = new PathSegment(new Vec2d(20, 0), new Vec2d(0, 2));
+        assertTrue(TunnelStructureGenerator.isAcutePolylineTurn(previous, current));
+
+        var style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        var solids = new RoadSolidModel();
+        // 在 current 起点附近采样：衬砌侧向偏移会扫进 previous 的行车道
+        Vec2d center = new Vec2d(18, 0.2);
+        Vec2d normal = PathSegmentGeometry.leftNormal(current);
+        TunnelStructureGenerator.placeCrossSection(
+            solids, style, center, normal, 7, 64, "minecraft:stone_bricks",
+            columnTerrain(100, 100, 100), columnResolver(), 1.0, false,
+            previous, null, 3.0);
+
+        boolean liningBlockedRoad = solids.primitives().stream().anyMatch(p -> {
+            if (!"minecraft:stone_bricks".equals(p.materialId())) {
+                return false;
+            }
+            double d = com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
+                p.planPoint(), previous.start, previous.end);
+            return d < 3.0 - 1e-6;
+        });
+        assertFalse(liningBlockedRoad, "lining must not occupy neighbor carriageway at acute hairpin");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+            "minecraft:air".equals(p.materialId())
+                && com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
+                    p.planPoint(), previous.start, previous.end) < 3.0));
     }
 
     private static TunnelStructureGenerator.Host testHost() {
