@@ -50,25 +50,39 @@ class RoadEarthworkPolicyTest {
     }
 
     @Test
+    void deepDaylightCoverFarExceedsTunnelThreshold() {
+        assertEquals(16, RoadEarthworkPolicy.deepDaylightCoverBlocks(4));
+        assertEquals(24, RoadEarthworkPolicy.deepDaylightCoverBlocks(8));
+        assertEquals(Integer.MAX_VALUE, RoadEarthworkPolicy.deepDaylightCoverBlocks(0));
+    }
+
+    @Test
     void suppressOpenDaylightBatterForNearTunnelDeepCoverAndTunnelTypes() {
         assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.ROAD, true, 0, 4));
         assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.TUNNEL, false, 0, 4));
-        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+        // 普通切方：覆土刚过隧道阈值，仍应放坡
+        assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.CUT, false, 4, 4));
-        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+        assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.ROAD, false, 8, 4));
         assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
-            RoadConstructionType.ROAD, false, 2, 4));
+            RoadConstructionType.ROAD, false, 15, 4));
+        // 远超阈值才禁开敞削山
+        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.ROAD, false, 16, 4));
+        assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
+            RoadConstructionType.CUT, false, 32, 4));
     }
 
     @Test
-    void suppressShoulderCutBatterOnlyForDeepCutEdges() {
-        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 4, 4));
-        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 4));
-        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(true, 10, 4));
-        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 2, 4));
-        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 0));
+    void suppressShoulderCutBatterOnlyForFarDeepMountainEdges() {
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 4, 4));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 4));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 16, 4));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 24, 8));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(true, 24, 4));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 100, 0));
     }
 }

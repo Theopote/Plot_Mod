@@ -121,7 +121,7 @@ class RoadCorridorPlanBuilderTest {
         var config = CorridorTestFixtures.baseConfig();
         config.setIncludeSlopeBatter(true);
         var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
-        // 地形远高于路面（≥ tunnelThreshold）时，即使类型仍是 ROAD/CUT 也不开敞削坡
+        // 地形远超隧道阈值（≥ max(3×threshold,16)）时，即使类型仍是 ROAD/CUT 也不开敞削山
         var plan = RoadCorridorPlanBuilder.build(List.of(segment),
             List.of(new SegmentHeightInfo(segment, 96, 96, 64, 64, 0)),
             CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
@@ -131,6 +131,23 @@ class RoadCorridorPlanBuilderTest {
         assertTrue(plan.slopeEntries().isEmpty(),
             "deep cover over design grade must not emit open corridor batter");
         assertFalse(plan.surfaceMask().entries().isEmpty());
+    }
+
+    @Test
+    void moderateOpenCutStillEmitsCorridorBatter() {
+        var config = CorridorTestFixtures.baseConfig();
+        config.setIncludeSlopeBatter(true);
+        config.setCutSlopeRatio(1.0f);
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0));
+        // 覆土 8：高于隧道阈值(4)但仍属普通路堑，必须放坡，不能留下垂直壁
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 72, 72, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
+            List.of(RoadConstructionType.CUT),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), new FlatTerrainSampler(72),
+            1, "moderate-cut", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config));
+        assertFalse(plan.slopeEntries().isEmpty(),
+            "ordinary open cut must still emit shoulder batter");
     }
 
     @Test
