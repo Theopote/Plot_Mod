@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.construction;
 
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,10 +51,15 @@ class RoadEarthworkPolicyTest {
     }
 
     @Test
-    void deepDaylightCoverFarExceedsTunnelThreshold() {
-        assertEquals(16, RoadEarthworkPolicy.deepDaylightCoverBlocks(4));
-        assertEquals(24, RoadEarthworkPolicy.deepDaylightCoverBlocks(8));
-        assertEquals(Integer.MAX_VALUE, RoadEarthworkPolicy.deepDaylightCoverBlocks(0));
+    void deepDaylightCoverUsesStructureHeightPlusTunnelThreshold() {
+        // 默认净高5+衬砌1 + BALANCED阈值4 = 10
+        assertEquals(10, RoadEarthworkPolicy.deepDaylightCoverBlocks(4));
+        assertEquals(14, RoadEarthworkPolicy.deepDaylightCoverBlocks(8));
+        // tunnelThreshold<=0 时仍保留最小盖层 1：structure 6 + 1 = 7
+        assertEquals(7, RoadEarthworkPolicy.deepDaylightCoverBlocks(0));
+        assertEquals(
+            6 + 4,
+            RoadEarthworkPolicy.deepDaylightCoverBlocks(ResolvedTunnelStyle.defaults(), 4));
     }
 
     @Test
@@ -62,27 +68,29 @@ class RoadEarthworkPolicyTest {
             RoadConstructionType.ROAD, true, 0, 4));
         assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.TUNNEL, false, 0, 4));
-        // 普通切方：覆土刚过隧道阈值，仍应放坡
+        // 普通切方：低于 净高+衬砌+阈值，仍应放坡
         assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.CUT, false, 4, 4));
         assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.ROAD, false, 8, 4));
         assertFalse(RoadEarthworkPolicy.suppressOpenDaylightBatter(
-            RoadConstructionType.ROAD, false, 15, 4));
-        // 远超阈值才禁开敞削山
+            RoadConstructionType.ROAD, false, 9, 4));
+        // 达到结构高度+盖层才禁开敞削山
         assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
-            RoadConstructionType.ROAD, false, 16, 4));
+            RoadConstructionType.ROAD, false, 10, 4));
         assertTrue(RoadEarthworkPolicy.suppressOpenDaylightBatter(
             RoadConstructionType.CUT, false, 32, 4));
     }
 
     @Test
-    void suppressShoulderCutBatterOnlyForFarDeepMountainEdges() {
+    void suppressShoulderCutBatterOnlyForStructureDepthMountainEdges() {
         assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 4, 4));
-        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 4));
-        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 16, 4));
-        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 24, 8));
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 9, 4));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 4));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 14, 8));
         assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(true, 24, 4));
-        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 100, 0));
+        // threshold 0 → 门槛 = structure(6)+1 = 7
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 6, 0));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 7, 0));
     }
 }

@@ -153,6 +153,7 @@ public final class RoadCorridorSolidEmitter {
             constructionType,
             false,
             groundY - designY,
+            host.tunnelStyle(),
             host.tunnelThreshold());
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
                 && !tunnelFamilyColumn

@@ -94,15 +94,16 @@ public final class RoadCorridorPlanBuilder {
         for (int i = 0; i < stations.size(); i++) {
             StationSample sample = stations.get(i);
             ResolvedCrossSection crossSection = crossSections.resolve(sample.chainage());
+            ResolvedTunnelStyle tunnelStyle = host.tunnelStyle();
             boolean suppressBatter = shouldSuppressCorridorBatter(
-                stations, i, terrain, tunnelThreshold);
+                stations, i, terrain, tunnelStyle, tunnelThreshold);
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
                 carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq,
                 suppressBatter);
             if (i > 0) {
                 // 邻接洞门/洞身/深覆土的路基站及其 span 都不放坡，避免边坡贴到洞口掏山
                 boolean suppressSpanBatter = suppressBatter
-                    || shouldSuppressCorridorBatter(stations, i - 1, terrain, tunnelThreshold);
+                    || shouldSuppressCorridorBatter(stations, i - 1, terrain, tunnelStyle, tunnelThreshold);
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
                     unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples,
                     stationSampleSeq, suppressSpanBatter);
@@ -159,6 +160,7 @@ public final class RoadCorridorPlanBuilder {
             List<StationSample> stations,
             int index,
             TerrainSampler terrain,
+            ResolvedTunnelStyle tunnelStyle,
             int tunnelThreshold) {
         if (stations == null || index < 0 || index >= stations.size()) {
             return false;
@@ -170,7 +172,7 @@ public final class RoadCorridorPlanBuilder {
             cover = terrain.sampleSurfaceY(sample.center()) - sample.targetY();
         }
         return RoadEarthworkPolicy.suppressOpenDaylightBatter(
-            sample.constructionType(), nearTunnel, cover, tunnelThreshold);
+            sample.constructionType(), nearTunnel, cover, tunnelStyle, tunnelThreshold);
     }
 
     private static boolean adjacentTunnelOrShelter(List<StationSample> stations, int index) {
@@ -754,9 +756,9 @@ public final class RoadCorridorPlanBuilder {
             return samples;
         }
         boolean isFill = targetY > groundAtEdge;
-        // 挂壁/半隧靠山侧：外缘覆土已达隧道阈值，不开敞削坡
+        // 挂壁/半隧靠山侧：外缘覆土已达结构高度+盖层，不开敞削坡
         if (RoadEarthworkPolicy.suppressShoulderCutBatter(
-                isFill, groundAtEdge - targetY, tunnelThreshold)) {
+                isFill, groundAtEdge - targetY, host.tunnelStyle(), tunnelThreshold)) {
             return samples;
         }
         int profileDirection = isFill ? -1 : 1;

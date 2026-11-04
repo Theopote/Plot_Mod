@@ -1,6 +1,8 @@
 package com.plot.plugin.road.pipeline.construction;
 
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelFeasibility;
 
 /**
  * Corridor earthwork rules by construction type: open batter vs structure-only spans.
@@ -38,27 +40,45 @@ public enum RoadEarthworkPolicy {
     }
 
     /**
-     * 深埋禁开敞削坡的覆土下限：须<strong>远超</strong>隧道分类阈值。
-     * 普通开敞切方（数格到十余格）仍应放坡，不能用 tunnelThreshold 本身当禁坡门槛。
+     * 开敞放坡允许的最大侧向/路中覆土（格）。
+     * <p>
+     * 取隧道结构高度（净高+衬砌）再加分类覆土阈值：低于此高度按路堑放坡；
+     * 达到或超过则相当于「已够一座隧道外壳+盖层」，不再露天削山。
+     * 仅用净高+衬砌（默认约 6）会过严，普通路堑也会被压成垂直壁。
      */
+    public static int deepDaylightCoverBlocks(ResolvedTunnelStyle tunnelStyle, int tunnelThreshold) {
+        ResolvedTunnelStyle style = tunnelStyle != null ? tunnelStyle : ResolvedTunnelStyle.defaults();
+        int structure = Math.max(1, style.structureHeight());
+        int coverMargin = tunnelThreshold > 0
+            ? tunnelThreshold
+            : TunnelFeasibility.MINIMUM_COVER_BLOCKS;
+        return structure + Math.max(TunnelFeasibility.MINIMUM_COVER_BLOCKS, coverMargin);
+    }
+
     public static int deepDaylightCoverBlocks(int tunnelThreshold) {
-        if (tunnelThreshold <= 0) {
-            return Integer.MAX_VALUE;
-        }
-        // 与棚洞「高崖」量级对齐：至少 16，或 3× 隧道阈值
-        return Math.max(tunnelThreshold * 3, 16);
+        return deepDaylightCoverBlocks(ResolvedTunnelStyle.defaults(), tunnelThreshold);
     }
 
     /**
-     * 是否抑制开敞切坡：隧道族/邻接隧道/棚洞，或中心覆土远超隧道阈值（深埋不露天削山）。
+     * 是否抑制开敞切坡：隧道族/邻接隧道/棚洞，或覆土已达隧道结构高度+盖层。
      *
-     * @param coverAboveDesign 路中地形标高 − 设计路面标高（格）
-     * @param tunnelThreshold  隧道覆土阈值（与分类器一致）
+     * @param coverAboveDesign 路中/外缘地形标高 − 设计路面标高（格）
+     * @param tunnelThreshold  隧道覆土分类阈值
      */
     public static boolean suppressOpenDaylightBatter(
             RoadConstructionType type,
             boolean nearTunnelFamily,
             int coverAboveDesign,
+            int tunnelThreshold) {
+        return suppressOpenDaylightBatter(
+            type, nearTunnelFamily, coverAboveDesign, ResolvedTunnelStyle.defaults(), tunnelThreshold);
+    }
+
+    public static boolean suppressOpenDaylightBatter(
+            RoadConstructionType type,
+            boolean nearTunnelFamily,
+            int coverAboveDesign,
+            ResolvedTunnelStyle tunnelStyle,
             int tunnelThreshold) {
         if (nearTunnelFamily) {
             return true;
@@ -66,18 +86,27 @@ public enum RoadEarthworkPolicy {
         if (!allowsCorridorBatter(type)) {
             return true;
         }
-        return coverAboveDesign >= deepDaylightCoverBlocks(tunnelThreshold);
+        return coverAboveDesign >= deepDaylightCoverBlocks(tunnelStyle, tunnelThreshold);
     }
 
     /**
-     * 单侧路肩外缘：切方且外缘覆土<strong>远超</strong>隧道阈值时，该侧不开敞放坡（挂壁/半隧靠山侧）。
-     * 普通路堑切坡外缘覆土常 ≥ tunnelThreshold，仍须正常放坡。
+     * 单侧路肩外缘：切方且外缘覆土已达隧道结构高度+盖层时，该侧不开敞放坡（挂壁靠山侧）。
+     * 普通路堑外缘覆土低于此值时仍正常放坡。
      */
     public static boolean suppressShoulderCutBatter(boolean isFill, int edgeCoverAboveDesign, int tunnelThreshold) {
+        return suppressShoulderCutBatter(
+            isFill, edgeCoverAboveDesign, ResolvedTunnelStyle.defaults(), tunnelThreshold);
+    }
+
+    public static boolean suppressShoulderCutBatter(
+            boolean isFill,
+            int edgeCoverAboveDesign,
+            ResolvedTunnelStyle tunnelStyle,
+            int tunnelThreshold) {
         if (isFill) {
             return false;
         }
-        return edgeCoverAboveDesign >= deepDaylightCoverBlocks(tunnelThreshold);
+        return edgeCoverAboveDesign >= deepDaylightCoverBlocks(tunnelStyle, tunnelThreshold);
     }
 
     public boolean allowsCorridorBatter() {

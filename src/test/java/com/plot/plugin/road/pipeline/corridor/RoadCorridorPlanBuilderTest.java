@@ -121,7 +121,7 @@ class RoadCorridorPlanBuilderTest {
         var config = CorridorTestFixtures.baseConfig();
         config.setIncludeSlopeBatter(true);
         var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
-        // 地形远超隧道阈值（≥ max(3×threshold,16)）时，即使类型仍是 ROAD/CUT 也不开敞削山
+        // 覆土 ≥ 净高+衬砌+隧道阈值（默认 5+1+4=10）时，即使类型仍是 ROAD/CUT 也不开敞削山
         var plan = RoadCorridorPlanBuilder.build(List.of(segment),
             List.of(new SegmentHeightInfo(segment, 96, 96, 64, 64, 0)),
             CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
@@ -139,7 +139,7 @@ class RoadCorridorPlanBuilderTest {
         config.setIncludeSlopeBatter(true);
         config.setCutSlopeRatio(1.0f);
         var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0));
-        // 覆土 8：高于隧道阈值(4)但仍属普通路堑，必须放坡，不能留下垂直壁
+        // 覆土 8：低于 净高+衬砌+阈值(10)，属普通路堑，必须放坡
         var plan = RoadCorridorPlanBuilder.build(List.of(segment),
             List.of(new SegmentHeightInfo(segment, 72, 72, 64, 64, 0)),
             CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)),
