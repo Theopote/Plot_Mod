@@ -155,7 +155,12 @@ public class RoadGenerationResult {
                     && isProtectedSurface(source.placementLayers.get(pos));
             // The union of approach clearance volumes opens tunnel junctions;
             // first-claim would retain another approach's wall across the lane.
-            boolean replaceWithClearance = existing != null && incomingAir && !existingSurface;
+            // Do not let underpass AIR erase elevated deck underside (SUBGRADE/BRIDGE under ROAD).
+            boolean existingDeckSupport = existing != null
+                    && !existingSurface
+                    && isElevatedDeckSupport(placementLayers.get(pos), pos);
+            boolean replaceWithClearance = existing != null && incomingAir && !existingSurface
+                    && !existingDeckSupport;
             if (replaceWithSurface || replaceWithClearance) {
                 recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
                 placementLayers.put(pos, source.placementLayers.get(pos));
@@ -206,6 +211,24 @@ public class RoadGenerationResult {
             || layer == RoadSolidLayer.SIDEWALK || layer == RoadSolidLayer.BIKE_LANE
             || layer == RoadSolidLayer.MEDIAN || layer == RoadSolidLayer.MARKING
             || layer == RoadSolidLayer.BRIDGE;
+    }
+
+    /** SUBGRADE (or extra BRIDGE shell) immediately under pavement in the same column. */
+    private boolean isElevatedDeckSupport(RoadSolidLayer layer, BlockPos pos) {
+        if (pos == null || (layer != RoadSolidLayer.SUBGRADE && layer != RoadSolidLayer.BRIDGE)) {
+            return false;
+        }
+        for (int dy = 1; dy <= 2; dy++) {
+            BlockPos above = pos.up(dy);
+            if (!isProtectedSurface(placementLayers.get(above))) {
+                continue;
+            }
+            BlockRecord aboveRecord = placementRecords.get(above);
+            if (aboveRecord != null && !"minecraft:air".equals(aboveRecord.newBlockId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void copyProfileFrom(RoadGenerationResult source) {

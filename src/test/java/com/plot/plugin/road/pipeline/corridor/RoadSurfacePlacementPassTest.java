@@ -86,6 +86,30 @@ class RoadSurfacePlacementPassTest {
             "elevated ROAD deck must remain");
     }
 
+    @Test
+    void clearIntrudingFillPreservesElevatedSubgradeUnderside() {
+        var underpass = new RoadGenerationResult(0);
+        var surface = new BlockPos(0, 64, 0);
+        underpass.recordPlacementByLayerPriority(surface, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        underpass.openRoadClearanceTops.put(surface, 68);
+
+        var elevated = new RoadGenerationResult(0);
+        elevated.recordPlacementByLayerPriority(surface.up(4), "minecraft:air", "minecraft:dirt",
+            RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
+        elevated.recordPlacementByLayerPriority(surface.up(5), "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+
+        var merged = new RoadGenerationResult(0);
+        merged.mergeFrom(underpass);
+        merged.mergeFrom(elevated);
+        RoadSurfacePlacementPass.clearIntrudingFill(merged);
+
+        assertEquals("minecraft:dirt",
+            merged.placementRecords.get(surface.up(4)).newBlockId,
+            "elevated SUBGRADE underside must survive underpass headroom clear");
+    }
+
     private static RoadCorridorPlan plan() {
         var plan = new RoadCorridorPlan();
         var key = new ColumnKey(3, -3);

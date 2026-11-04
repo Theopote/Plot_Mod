@@ -75,8 +75,10 @@ public final class RoadSurfacePlacementPass {
                         && layer != RoadSolidLayer.TUNNEL) {
                     continue;
                 }
-                // Keep elevated bridge shells under a deck in this column.
-                if (layer == RoadSolidLayer.BRIDGE && elevatedPavementY != null) {
+                // Keep elevated underside (bridge shell / subgrade) under the deck.
+                if (elevatedPavementY != null
+                        && y >= elevatedPavementY - 2
+                        && (layer == RoadSolidLayer.BRIDGE || layer == RoadSolidLayer.SUBGRADE)) {
                     continue;
                 }
                 result.recordPlacementOverride(pos, record.previousBlockId, "minecraft:air");

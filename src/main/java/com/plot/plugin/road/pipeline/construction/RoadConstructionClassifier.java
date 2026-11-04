@@ -105,11 +105,12 @@ public final class RoadConstructionClassifier {
                     resolvedTypes.set(i, RoadConstructionType.CUT);
                 } else if (!validateTunnelSegment(
                     info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward, unitsPerBlock)) {
-                    // 无连续盖层：净高内仍有岩体 → 保留隧道（清腔+衬砌）；
-                    // 洞穴净高足够 → 降为普通路（开敞净空只清局部，不打穿山体）
+                    // 无全断面连续盖层时：仅当洞室空腔内仍有实体、且中心线上方确有覆土时保留隧道
+                    // （洞穴钟乳清腔）。开敞路堑侧壁伸入包络、中心线已见天，必须降为普通路以便放坡。
                     if (hasSolidWithinClearHeight(
                             info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle,
-                            columnResolver, chainForward, unitsPerBlock)) {
+                            columnResolver, chainForward, unitsPerBlock)
+                            && hasRoofOverburden(info, terrain, tunnelStyle)) {
                         // keep TUNNEL
                     } else {
                         resolvedTypes.set(i, RoadConstructionType.ROAD);
@@ -152,7 +153,8 @@ public final class RoadConstructionClassifier {
                     info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true, 1.0)) {
                     ResolvedTunnelStyle defaults = ResolvedTunnelStyle.defaults();
                     if (!hasSolidWithinClearHeight(
-                            info, terrain, canvasToBlockPos, 0, defaults, null, true, 1.0)) {
+                            info, terrain, canvasToBlockPos, 0, defaults, null, true, 1.0)
+                            || !hasRoofOverburden(info, terrain, defaults)) {
                         resolvedTypes.set(i, RoadConstructionType.ROAD);
                     }
                 }
@@ -338,7 +340,30 @@ public final class RoadConstructionClassifier {
     }
 
     /**
-     * 设计净高范围内是否仍有实心妨碍（洞穴钟乳/夹石）。有则即使无连续盖层也按隧道清腔。
+     * 中心线柱在洞顶以上是否仍有工程覆土（不含可清理树叶）。
+     * 开敞路堑中心已见天时为 false，避免侧壁误判把路堑锁成隧道。
+     */
+    static boolean hasRoofOverburden(
+            SegmentHeightInfo info,
+            TerrainSampler terrain,
+            ResolvedTunnelStyle tunnelStyle) {
+        if (info == null || terrain == null || info.segment == null) {
+            return false;
+        }
+        Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
+        if (!terrain.isChunkLoaded(mid)) {
+            return false;
+        }
+        int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
+        int clear = Math.max(1, tunnelStyle != null ? tunnelStyle.clearHeight() : 1);
+        int coverNeed = TunnelFeasibility.MINIMUM_COVER_BLOCKS;
+        return terrain.sampleSurfaceY(mid) >= targetY + clear + coverNeed;
+    }
+
+    /**
+     * 洞室 AIR 格内是否仍有工程实体妨碍（洞穴钟乳/夹石）。
+     * 只检查衬砌内侧空洞，不含衬砌格本身；仍可能扫到窄路堑伸入包络的侧壁，
+     * 须与 {@link #hasRoofOverburden} 合用。
      */
     static boolean hasSolidWithinClearHeight(
             SegmentHeightInfo info,
@@ -360,28 +385,46 @@ public final class RoadConstructionClassifier {
                 return false;
             }
             var pos = canvasToBlockPos.resolve(mid);
-            return hasSolidInColumn(terrain, pos.getX(), pos.getZ(), targetY, clear);
+            return hasCavityObstructionInColumn(terrain, pos.getX(), pos.getZ(), targetY, clear);
         }
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        Vec2d normal = PathSegmentGeometry.chainLeftNormal(info.segment, chainForward);
-        if (normal.lengthSquared() > 1e-12) {
-            normal = normal.normalize();
-        }
-        int min = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(gradingEnvelopeWidth);
-        int max = com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(gradingEnvelopeWidth);
-        for (int lateral = min; lateral <= max; lateral++) {
-            Vec2d point = mid.add(normal.multiply(lateral * scale));
-            if (hasSolidInColumn(
-                    terrain, columnResolver.worldX(point), columnResolver.worldZ(point), targetY, clear)) {
-                return true;
+        Vec2d rawNormal = PathSegmentGeometry.chainLeftNormal(info.segment, chainForward);
+        final Vec2d normal = rawNormal.lengthSquared() > 1e-12 ? rawNormal.normalize() : rawNormal;
+        var mask = com.plot.plugin.road.tunnel.TunnelCrossSectionMask.build(
+            tunnelStyle.shape(),
+            gradingEnvelopeWidth,
+            tunnelStyle.sideClearance(),
+            tunnelStyle.clearHeight(),
+            tunnelStyle.liningThickness(),
+            targetY,
+            false);
+        final boolean[] found = {false};
+        mask.forEach((lateral, y, kind) -> {
+            if (found[0] || kind != com.plot.plugin.road.tunnel.TunnelCrossSectionMask.CellKind.AIR) {
+                return;
             }
-        }
-        return false;
+            if (y <= targetY || y > targetY + clear) {
+                return;
+            }
+            Vec2d point = mid.add(normal.multiply(lateral * scale));
+            int worldX = columnResolver.worldX(point);
+            int worldZ = columnResolver.worldZ(point);
+            if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                return;
+            }
+            if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                found[0] = true;
+            }
+        });
+        return found[0];
     }
 
-    private static boolean hasSolidInColumn(
+    private static boolean hasCavityObstructionInColumn(
             TerrainSampler terrain, int worldX, int worldZ, int roadY, int clearHeight) {
         for (int y = roadY + 1; y <= roadY + clearHeight; y++) {
+            if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                continue;
+            }
             if (terrain.isSolidBlock(worldX, y, worldZ)) {
                 return true;
             }

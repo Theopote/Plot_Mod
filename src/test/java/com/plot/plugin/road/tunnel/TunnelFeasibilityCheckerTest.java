@@ -46,6 +46,23 @@ class TunnelFeasibilityCheckerTest {
     }
 
     @Test
+    void singleBlockCoverIsInvalid() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int roofY = 64 + style.roofTopOffset();
+        TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(
+            solidUpTo(roofY + 1),
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            64,
+            5,
+            style,
+            columnResolver(),
+            1.0);
+        assertFalse(feasibility.valid(),
+            "one-block roof cover must not validate as a tunnel");
+    }
+
+    @Test
     void openAirAtRoadLevelIsInvalid() {
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         TerrainSampler openAir = solidUpTo(60);

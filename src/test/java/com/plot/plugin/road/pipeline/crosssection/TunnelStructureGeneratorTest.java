@@ -354,6 +354,7 @@ class TunnelStructureGeneratorTest {
             resolver,
             1.0,
             false);
+        TerrainSampler mountain = columnTerrain(100, 80, 100);
         TunnelStructureGenerator.placeLighting(
             testHost(),
             solids,
@@ -363,6 +364,7 @@ class TunnelStructureGeneratorTest {
             envelopeWidth,
             roadY,
             0.0,
+            mountain,
             resolver,
             1.0);
 
@@ -392,6 +394,7 @@ class TunnelStructureGeneratorTest {
         int ceilingY = TunnelProfile.ceilingY(
             style.shape(), 0, halfCavityWidth, roadY, style.clearHeight());
 
+        TerrainSampler mountain = columnTerrain(100, 80, 100);
         TunnelStructureGenerator.placeCrossSection(
             solids,
             style,
@@ -400,7 +403,7 @@ class TunnelStructureGeneratorTest {
             envelopeWidth,
             roadY,
             "minecraft:stone_bricks",
-            columnTerrain(100, 80, 100),
+            mountain,
             resolver,
             1.0,
             false);
@@ -413,6 +416,7 @@ class TunnelStructureGeneratorTest {
             envelopeWidth,
             roadY,
             0.0,
+            mountain,
             resolver,
             1.0);
 
@@ -432,6 +436,7 @@ class TunnelStructureGeneratorTest {
     void wallBandLightingPlacesLightsOnSidewallsOnly() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_BANDS);
+        TerrainSampler mountain = columnTerrain(100, 80, 100);
 
         TunnelStructureGenerator.placeLighting(
             testHost(),
@@ -442,6 +447,7 @@ class TunnelStructureGeneratorTest {
             3,
             64,
             0.0,
+            mountain,
             columnResolver(),
             1.0);
 
@@ -451,6 +457,31 @@ class TunnelStructureGeneratorTest {
         assertFalse(lights.isEmpty());
         assertTrue(lights.stream().allMatch(p -> p.elevation() == 66));
         assertTrue(lights.stream().anyMatch(p -> Math.abs(p.planPoint().y) > 0));
+    }
+
+    @Test
+    void openCutWithoutLiningMountPlacesNoTunnelLights() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_AND_CEILING);
+        // Surface at road grade: shouldPlaceLining is false for the whole shell
+        TerrainSampler openCut = columnTerrain(64, 64, 64);
+
+        TunnelStructureGenerator.placeLighting(
+            testHost(),
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            0.0,
+            openCut,
+            columnResolver(),
+            1.0);
+
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+            p.materialId().equals("minecraft:sea_lantern")),
+            "tunnel lights must not float where no lining would be placed");
     }
 
     @Test
@@ -467,6 +498,7 @@ class TunnelStructureGeneratorTest {
             3,
             64,
             3.0,
+            columnTerrain(100, 80, 100),
             columnResolver(),
             1.0);
 
@@ -492,6 +524,7 @@ class TunnelStructureGeneratorTest {
                 envelope,
                 roadY,
                 0.0,
+                columnTerrain(100, 80, 100),
                 columnResolver(),
                 1.0);
 

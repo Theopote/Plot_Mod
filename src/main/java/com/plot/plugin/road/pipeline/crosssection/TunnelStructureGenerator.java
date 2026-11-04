@@ -24,6 +24,7 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
+import com.plot.plugin.road.tunnel.TunnelLightMount;
 import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
@@ -169,6 +170,7 @@ public final class TunnelStructureGenerator {
                     envelopeWidth,
                     targetY,
                     structureStation,
+                    terrain,
                     columnResolver,
                     unitsPerBlock);
             }
@@ -399,6 +401,8 @@ public final class TunnelStructureGenerator {
 
     /**
      * Places lighting using tunnel-run-local structure station (0 at run start), not road chainage.
+     * Lights require a mountable lining face in terrain ({@link #shouldPlaceLining}); open cuts
+     * without a roof/wall shell get no floating lanterns.
      */
     static void placeLighting(
             Host host,
@@ -409,6 +413,7 @@ public final class TunnelStructureGenerator {
             int roadEnvelopeWidth,
             int roadY,
             double structureStation,
+            TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             double canvasUnitsPerBlock) {
         if (tunnelStyle.lightSpacing() <= 0) {
@@ -419,6 +424,9 @@ public final class TunnelStructureGenerator {
             return;
         }
         if (!hitsStructureSpacing(structureStation, tunnelStyle.lightSpacing())) {
+            return;
+        }
+        if (terrain == null || columnResolver == null) {
             return;
         }
         String lightMaterial = host.resolveBlockId(tunnelStyle.lightMaterial());
@@ -434,10 +442,73 @@ public final class TunnelStructureGenerator {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            tunnelStyle.shape(),
+            roadEnvelopeWidth,
+            tunnelStyle.sideClearance(),
+            tunnelStyle.clearHeight(),
+            tunnelStyle.liningThickness(),
+            roadY,
+            false);
+        TunnelLightMount mount = tunnelStyle.lightMount() != null
+            ? tunnelStyle.lightMount()
+            : TunnelLightMount.PROTRUDING;
         for (var light : lights) {
+            if (!lightHasLiningMount(
+                    mask, light, mount, terrain, center, normal, scale, columnResolver)) {
+                continue;
+            }
             placeLightBlock(
-                solids, center, normal, light.lateral(), light.y(), scale, columnResolver, lightMaterial);
+                solids, center, normal, light.lateral(), light.y(), scale, lightMaterial);
         }
+    }
+
+    /**
+     * Protruding lights need an adjacent LINING cell that would actually be placed;
+     * embedded lights sit on a LINING cell that must itself receive lining.
+     */
+    static boolean lightHasLiningMount(
+            TunnelCrossSectionMask mask,
+            TunnelLightPlacementResolver.LightPosition light,
+            TunnelLightMount mount,
+            TerrainSampler terrain,
+            Vec2d center,
+            Vec2d normal,
+            double scale,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
+        if (mask == null || light == null || terrain == null || center == null || columnResolver == null) {
+            return false;
+        }
+        TunnelLightMount resolved = mount != null ? mount : TunnelLightMount.PROTRUDING;
+        if (resolved == TunnelLightMount.EMBEDDED) {
+            return liningWouldExist(mask, light.lateral(), light.y(), terrain, center, normal, scale, columnResolver);
+        }
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] dir : dirs) {
+            int nl = light.lateral() + dir[0];
+            int ny = light.y() + dir[1];
+            if (liningWouldExist(mask, nl, ny, terrain, center, normal, scale, columnResolver)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean liningWouldExist(
+            TunnelCrossSectionMask mask,
+            int lateral,
+            int y,
+            TerrainSampler terrain,
+            Vec2d center,
+            Vec2d normal,
+            double scale,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
+        if (mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.LINING) {
+            return false;
+        }
+        Vec2d point = center.add(normal.multiply(lateral * scale));
+        return shouldPlaceLining(
+            terrain, columnResolver.worldX(point), y, columnResolver.worldZ(point), point);
     }
 
     private static void placeLightBlock(
@@ -447,7 +518,6 @@ public final class TunnelStructureGenerator {
             int lateral,
             int y,
             double scale,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             String lightMaterial) {
         Vec2d point = center.add(normal.multiply(lateral * scale));
         solids.add(point, y, RoadSolidLayer.TUNNEL, lightMaterial, RoadSolidMaterialPriority.DECORATIVE);

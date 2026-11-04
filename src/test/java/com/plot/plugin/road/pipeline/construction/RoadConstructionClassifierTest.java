@@ -59,6 +59,28 @@ class RoadConstructionClassifierTest {
     }
 
     @Test
+    void openTrenchCenterlineHasNoRoofOverburden() {
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        var info = new SegmentHeightInfo(segment, 80, 80, 64, 64, 0);
+        TerrainSampler openTrench = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                // Daylight at centerline; high banks only off to the sides
+                return Math.abs(p.y) <= 2 ? 64 : 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
+        assertFalse(
+            RoadConstructionClassifier.hasRoofOverburden(
+                info, openTrench, com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults()),
+            "open-cut centerline with sky above must not count as tunnel roof cover");
+    }
+
+    @Test
     void classifyMarksBridgeWhenTargetIsHighAboveGround() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
