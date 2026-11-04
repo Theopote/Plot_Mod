@@ -62,6 +62,44 @@ class TunnelFeasibilityCheckerTest {
     }
 
     @Test
+    void cavityAtRoadLevelWithIntactRoofCoverRemainsValid() {
+        // 模拟沙砾塌落后路面格变空，但洞顶山体覆土仍在
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int roofY = 64 + style.roofTopOffset();
+        TerrainSampler gravelCavity = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 80;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                if (y == 64) {
+                    return false; // road cell emptied by gravity block fall
+                }
+                return y <= 80;
+            }
+        };
+        TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(
+            gravelCavity,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            64,
+            5,
+            style,
+            columnResolver(),
+            1.0);
+        assertTrue(feasibility.valid(), "intact overburden must keep tunnel even if road cell is air");
+        assertTrue(feasibility.minimumCover() >= TunnelFeasibility.MINIMUM_COVER_BLOCKS);
+        assertTrue(roofY < 80);
+    }
+
+    @Test
     void floatingRockAboveVoidDoesNotCountAsCover() {
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int roofY = 64 + style.roofTopOffset();

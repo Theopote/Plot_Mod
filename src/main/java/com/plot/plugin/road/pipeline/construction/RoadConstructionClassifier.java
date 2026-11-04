@@ -86,8 +86,6 @@ public final class RoadConstructionClassifier {
             scoreConfig,
             RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
 
-        List<BridgeSegment> bridges = new ArrayList<>();
-        List<TunnelSegment> tunnels = new ArrayList<>();
         List<RoadConstructionType> resolvedTypes = new ArrayList<>(constructionTypes);
         boolean chainForward = true;
 
@@ -102,23 +100,19 @@ public final class RoadConstructionClassifier {
                     continue;
                 }
             }
-            if (type == RoadConstructionType.BRIDGE) {
-                int heightDifference = Math.max(
-                    info.targetStart - info.groundStart,
-                    info.targetEnd - info.groundEnd);
-                bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
-            } else if (type == RoadConstructionType.TUNNEL) {
+            if (type == RoadConstructionType.TUNNEL) {
                 if (isSubmerged(info) || !validateTunnelSegment(
                     info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward, unitsPerBlock)) {
+                    // 校验失败先降为 CUT；随后短间隙合并可能再并回隧道
                     resolvedTypes.set(i, RoadConstructionType.CUT);
-                } else {
-                    int heightDifference = Math.max(
-                        info.groundStart - info.targetStart,
-                        info.groundEnd - info.targetEnd);
-                    tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
                 }
             }
         }
+
+        mergeShortTunnelGaps(resolvedTypes, segmentDistances, unitsPerBlock);
+        List<BridgeSegment> bridges = new ArrayList<>();
+        List<TunnelSegment> tunnels = new ArrayList<>();
+        collectStructureSegments(resolvedTypes, heightInfos, bridges, tunnels);
 
         markPortalAndAbutmentSegments(resolvedTypes);
         return new ConstructionDetection(
@@ -135,8 +129,6 @@ public final class RoadConstructionClassifier {
             List<SegmentHeightInfo> heightInfos,
             CanvasBlockPosResolver canvasToBlockPos,
             TerrainSampler terrain) {
-        List<BridgeSegment> bridges = new ArrayList<>();
-        List<TunnelSegment> tunnels = new ArrayList<>();
         List<Integer> groundHeights = new ArrayList<>();
         List<Integer> targetHeights = new ArrayList<>();
         for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
@@ -144,23 +136,17 @@ public final class RoadConstructionClassifier {
             groundHeights.add(averageHeight(info.groundStart, info.groundEnd));
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
             RoadConstructionType type = resolvedTypes.get(i);
-            if (type == RoadConstructionType.BRIDGE) {
-                int heightDifference = Math.max(
-                    info.targetStart - info.groundStart,
-                    info.targetEnd - info.groundEnd);
-                bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
-            } else if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
+            if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
                 if (isSubmerged(info) || !validateTunnelSegment(
                     info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true, 1.0)) {
                     resolvedTypes.set(i, RoadConstructionType.CUT);
-                } else {
-                    int heightDifference = Math.max(
-                        info.groundStart - info.targetStart,
-                        info.groundEnd - info.targetEnd);
-                    tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
                 }
             }
         }
+        mergeShortTunnelGaps(resolvedTypes, segmentDistances, 1.0);
+        List<BridgeSegment> bridges = new ArrayList<>();
+        List<TunnelSegment> tunnels = new ArrayList<>();
+        collectStructureSegments(resolvedTypes, heightInfos, bridges, tunnels);
         markPortalAndAbutmentSegments(resolvedTypes);
         return new ConstructionDetection(
             bridges,
@@ -168,6 +154,79 @@ public final class RoadConstructionClassifier {
             List.copyOf(resolvedTypes),
             segmentDistances,
             buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+    }
+
+    private static void collectStructureSegments(
+            List<RoadConstructionType> resolvedTypes,
+            List<SegmentHeightInfo> heightInfos,
+            List<BridgeSegment> bridges,
+            List<TunnelSegment> tunnels) {
+        for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            RoadConstructionType type = resolvedTypes.get(i);
+            if (type == RoadConstructionType.BRIDGE || type == RoadConstructionType.BRIDGE_ABUTMENT) {
+                int heightDifference = Math.max(
+                    info.targetStart - info.groundStart,
+                    info.targetEnd - info.groundEnd);
+                bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
+            } else if (type.isTunnelFamily()) {
+                int heightDifference = Math.max(
+                    info.groundStart - info.targetStart,
+                    info.groundEnd - info.targetEnd);
+                tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
+            }
+        }
+    }
+
+    /**
+     * 将隧道族之间过短的非隧道开敞段并回 {@link RoadConstructionType#TUNNEL}。
+     * 仅处理隧道↔隧道间隙；桥或路侧开敞不受影响。
+     */
+    static void mergeShortTunnelGaps(
+            List<RoadConstructionType> types,
+            List<Double> segmentDistances,
+            double unitsPerBlock) {
+        if (types == null || types.isEmpty() || segmentDistances == null) {
+            return;
+        }
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double maxGapCanvas = RoadConstructionHeuristics.MAX_TUNNEL_GAP_MERGE_BLOCKS * scale;
+        int index = 0;
+        while (index < types.size()) {
+            if (!types.get(index).isTunnelFamily()) {
+                index++;
+                continue;
+            }
+            int gapStart = index + 1;
+            while (gapStart < types.size() && types.get(gapStart).isTunnelFamily()) {
+                gapStart++;
+            }
+            if (gapStart >= types.size()) {
+                break;
+            }
+            int gapEnd = gapStart;
+            double gapLength = 0.0;
+            while (gapEnd < types.size() && !types.get(gapEnd).isTunnelFamily()) {
+                if (gapEnd < segmentDistances.size()) {
+                    gapLength += segmentDistances.get(gapEnd);
+                }
+                gapEnd++;
+            }
+            if (gapEnd < types.size()
+                    && types.get(gapEnd).isTunnelFamily()
+                    && gapLength > 1e-9
+                    && gapLength <= maxGapCanvas + 1e-9) {
+                for (int i = gapStart; i < gapEnd; i++) {
+                    // 不覆盖桥段：桥在隧道间隙中应保持结构
+                    if (!types.get(i).isBridgeFamily()) {
+                        types.set(i, RoadConstructionType.TUNNEL);
+                    }
+                }
+                index = gapEnd;
+            } else {
+                index = gapStart;
+            }
+        }
     }
 
     /** 将桥隧成段的首尾标为桥台 / 洞门，供土方与边坡按类型处理而不再依赖 run 边界探测。 */
@@ -244,12 +303,12 @@ public final class RoadConstructionClassifier {
         }
         Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
         int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
-        var pos = canvasToBlockPos.resolve(mid).withY(targetY);
-        if (!terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
-            return false;
-        }
+        // 不要求路面格本身为实心：沙砾/重力方块塌落后空洞不应把洞身降级为开敞切方。
+        // 覆土与可行性由 TunnelFeasibilityChecker（洞顶连续盖层）判定。
         if (gradingEnvelopeWidth <= 0 || columnResolver == null) {
-            return true;
+            int surfaceY = terrain.sampleSurfaceY(mid);
+            return surfaceY - targetY >= tunnelStyle.clearHeight()
+                + TunnelFeasibility.MINIMUM_COVER_BLOCKS;
         }
         Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(info.segment, chainForward);
         TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(

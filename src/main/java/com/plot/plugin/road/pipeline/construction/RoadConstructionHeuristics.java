@@ -14,6 +14,11 @@ public final class RoadConstructionHeuristics {
     public static final double MIN_CONSIDERATION_HEIGHT = 2.0;
     /** 软评分桥隧最短保留长度（格）；硬阈值桥隧不受此限制。 */
     public static final double MIN_STRUCTURE_RUN = 1.0;
+    /**
+     * 两段隧道之间的开敞路基若短于此长度（世界格），并入隧道，避免短暂开敞放坡掏山。
+     * 仅合并隧道↔隧道间隙，不影响桥或路侧开敞。
+     */
+    public static final double MAX_TUNNEL_GAP_MERGE_BLOCKS = 5.0;
 
     public static final double CUT_WEIGHT = 1.0;
     public static final double FILL_WEIGHT = 1.0;

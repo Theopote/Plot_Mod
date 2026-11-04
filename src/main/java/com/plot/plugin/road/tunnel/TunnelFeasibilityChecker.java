@@ -35,11 +35,8 @@ public final class TunnelFeasibilityChecker {
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
 
-        int centerX = columnResolver.worldX(center);
-        int centerZ = columnResolver.worldZ(center);
-        if (!terrain.isSolidBlock(centerX, roadY, centerZ)) {
-            return TunnelFeasibility.invalid();
-        }
+        // 路面格是否实心不作为否决条件：重力方块塌落留下的空洞仍可能有完整洞顶覆土。
+        // 真正决定隧道成立的是洞顶以上的连续盖层（见 measureContinuousCoverAbove）。
 
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             style.shape(),

@@ -44,7 +44,10 @@ public final class TunnelMountainProtection {
                 continue;
             }
             ColumnKey seed = entry.getKey();
-            if (type == RoadConstructionType.TUNNEL || type.isRockShelter()) {
+            if (type == RoadConstructionType.TUNNEL
+                    || type == RoadConstructionType.TUNNEL_PORTAL
+                    || type.isRockShelter()) {
+                // 洞门与洞身同用半宽包络：锐弯洞口外侧 OPEN 边坡射线同样会切入洞顶山体
                 for (int dx = -bodyRadius; dx <= bodyRadius; dx++) {
                     for (int dz = -bodyRadius; dz <= bodyRadius; dz++) {
                         if (Math.max(Math.abs(dx), Math.abs(dz)) > bodyRadius) {
@@ -53,8 +56,6 @@ public final class TunnelMountainProtection {
                         protectedColumns.add(new ColumnKey(seed.worldX() + dx, seed.worldZ() + dz));
                     }
                 }
-            } else if (type == RoadConstructionType.TUNNEL_PORTAL) {
-                protectedColumns.add(seed);
             }
         }
         return protectedColumns.isEmpty() ? none() : new TunnelMountainProtection(protectedColumns);

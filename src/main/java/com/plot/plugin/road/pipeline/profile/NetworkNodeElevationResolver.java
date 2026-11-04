@@ -120,9 +120,17 @@ public final class NetworkNodeElevationResolver {
         }
         Map<String, Integer> targets = new LinkedHashMap<>();
         samples.forEach((id, values) -> {
-            int target = values.getFirst();
-            // Contradictory explicit designs retain the existing conflict diagnostics.
-            if (values.stream().allMatch(y -> y == target)) targets.put(id, target);
+            if (values == null || values.isEmpty()) {
+                return;
+            }
+            // 有设计纵断面时只用设计样本决议，避免无 VA 的贴地边把平交口均值拉低。
+            // 设计之间散布过大仍留给后续冲突诊断（不写入 targets）。
+            RoadSlopeUtils.JunctionHeightResolution resolution =
+                RoadSlopeUtils.resolveJunctionHeight(values);
+            if (resolution.spread()
+                    <= RoadSlopeUtils.JunctionHeightResolution.SIGNIFICANT_SPREAD_THRESHOLD) {
+                targets.put(id, resolution.height());
+            }
         });
         return targets;
     }

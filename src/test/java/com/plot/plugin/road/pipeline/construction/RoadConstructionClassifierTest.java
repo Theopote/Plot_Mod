@@ -83,6 +83,48 @@ class RoadConstructionClassifierTest {
     }
 
     @Test
+    void shortOpenGapBetweenTunnelsIsMergedIntoTunnel() {
+        List<RoadConstructionType> types = new java.util.ArrayList<>(List.of(
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.CUT,
+            RoadConstructionType.ROAD,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL));
+        // 两段隧道之间 2+2=4 格开敞，应并入隧道
+        List<Double> distances = List.of(8.0, 8.0, 2.0, 2.0, 8.0, 8.0);
+        RoadConstructionClassifier.mergeShortTunnelGaps(types, distances, 1.0);
+        assertEquals(RoadConstructionType.TUNNEL, types.get(2));
+        assertEquals(RoadConstructionType.TUNNEL, types.get(3));
+    }
+
+    @Test
+    void longOpenGapBetweenTunnelsIsNotMerged() {
+        List<RoadConstructionType> types = new java.util.ArrayList<>(List.of(
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.CUT,
+            RoadConstructionType.CUT,
+            RoadConstructionType.CUT,
+            RoadConstructionType.TUNNEL));
+        List<Double> distances = List.of(10.0, 3.0, 3.0, 3.0, 10.0); // gap=9 > 5
+        RoadConstructionClassifier.mergeShortTunnelGaps(types, distances, 1.0);
+        assertEquals(RoadConstructionType.CUT, types.get(1));
+        assertEquals(RoadConstructionType.CUT, types.get(2));
+        assertEquals(RoadConstructionType.CUT, types.get(3));
+    }
+
+    @Test
+    void bridgeInsideTunnelGapIsNotConvertedToTunnel() {
+        List<RoadConstructionType> types = new java.util.ArrayList<>(List.of(
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.TUNNEL));
+        List<Double> distances = List.of(10.0, 4.0, 10.0);
+        RoadConstructionClassifier.mergeShortTunnelGaps(types, distances, 1.0);
+        assertEquals(RoadConstructionType.BRIDGE, types.get(1));
+    }
+
+    @Test
     void markPortalAndAbutmentRewritesStructureRunEnds() {
         List<RoadConstructionType> types = new java.util.ArrayList<>(List.of(
             RoadConstructionType.CUT,

@@ -151,15 +151,25 @@ public final class RoadCorridorPlanBuilder {
         return stations;
     }
 
+    /** 邻接窗口：锐弯处边坡扇可能跨过一站，故检查 ±2 站内是否有隧道族。 */
+    private static final int TUNNEL_BATTER_SUPPRESS_STATION_RADIUS = 2;
+
     private static boolean adjacentTunnelFamily(List<StationSample> stations, int index) {
         if (stations == null || index < 0 || index >= stations.size()) {
             return false;
         }
-        if (index > 0 && stations.get(index - 1).constructionType().isTunnelFamily()) {
-            return true;
+        int from = Math.max(0, index - TUNNEL_BATTER_SUPPRESS_STATION_RADIUS);
+        int to = Math.min(stations.size() - 1, index + TUNNEL_BATTER_SUPPRESS_STATION_RADIUS);
+        for (int i = from; i <= to; i++) {
+            if (i == index) {
+                continue;
+            }
+            RoadConstructionType type = stations.get(i).constructionType();
+            if (type != null && type.isTunnelFamily()) {
+                return true;
+            }
         }
-        return index + 1 < stations.size()
-            && stations.get(index + 1).constructionType().isTunnelFamily();
+        return false;
     }
 
     private static void rasterizeStation(
