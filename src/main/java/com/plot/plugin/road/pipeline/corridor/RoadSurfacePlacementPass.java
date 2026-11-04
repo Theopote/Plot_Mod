@@ -9,13 +9,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import java.util.function.Function;
 
 /** The rasterized pavement footprint owns its surface, including diagonal tunnel mouths. */
 public final class RoadSurfacePlacementPass {
     private RoadSurfacePlacementPass() { }
 
     public static void apply(RoadGenerationResult result, RoadCorridorPlan plan, int clearHeight) {
-        apply(result, plan, clearHeight, GradeSeparationBuildContext.NONE);
+        apply(result, plan, clearHeight, GradeSeparationBuildContext.NONE, null);
     }
 
     public static void apply(
@@ -23,6 +24,20 @@ public final class RoadSurfacePlacementPass {
             RoadCorridorPlan plan,
             int clearHeight,
             GradeSeparationBuildContext gradeSeparation) {
+        apply(result, plan, clearHeight, gradeSeparation, null);
+    }
+
+    /**
+     * @param previousBlockId resolves undo baselines for surface cells that never received a
+     *     solid emit (e.g. grade-sep lower pavement gaps). Prefer world projection; null falls
+     *     back to {@code minecraft:air}.
+     */
+    public static void apply(
+            RoadGenerationResult result,
+            RoadCorridorPlan plan,
+            int clearHeight,
+            GradeSeparationBuildContext gradeSeparation,
+            Function<BlockPos, String> previousBlockId) {
         for (var entry : plan.surfaceMask().entries()) {
             var cell = entry.getValue();
             if (cell.materialId() == null) continue;
@@ -40,9 +55,13 @@ public final class RoadSurfacePlacementPass {
                 }
                 result.openRoadClearanceTops.put(pos, top);
             }
-            // Missing records: do not fabricate undo baselines (integrity validator reports them).
-            // Still recorded openRoadClearanceTops above so grade-sep air can clear intruding fill.
             if (existing == null) {
+                // Final pavement mask owns the cell: stamp designed material even when solids
+                // never wrote a record (crossing gaps under grade-sep decks).
+                String previous = resolvePrevious(previousBlockId, pos);
+                result.recordPlacementOverride(pos, previous, cell.materialId());
+                result.placementLayers.put(pos, cell.layer());
+                result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
                 continue;
             }
             var layer = result.placementLayers.get(pos);
@@ -53,6 +72,17 @@ public final class RoadSurfacePlacementPass {
             result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
         }
     }
+
+    private static String resolvePrevious(Function<BlockPos, String> previousBlockId, BlockPos pos) {
+        if (previousBlockId != null) {
+            String resolved = previousBlockId.apply(pos);
+            if (resolved != null && !resolved.isBlank()) {
+                return resolved;
+            }
+        }
+        return "minecraft:air";
+    }
+
     /**
      * Other approaches can add batter/bridge fill after the original (empty) terrain was inspected.
      * Clear SUBGRADE and BRIDGE intrusions in reserved open-road headroom (not ROAD/SHOULDER surfaces).

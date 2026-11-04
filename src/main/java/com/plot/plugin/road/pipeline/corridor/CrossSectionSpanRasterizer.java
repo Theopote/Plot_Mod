@@ -81,7 +81,9 @@ public final class CrossSectionSpanRasterizer {
         var fromWorld = host.canvasToBlockPos(fromCenter);
         var toWorld = host.canvasToBlockPos(toCenter);
         double worldDistance = Math.hypot(toWorld.getX() - fromWorld.getX(), toWorld.getZ() - fromWorld.getZ());
-        int density = acute ? 3 : (rotated ? 2 : 1);
+        // Acute turns leave triangular gore gaps between consecutive sections; denser stamps
+        // keep pavement and clearance continuous through the inner corner.
+        int density = acute ? 5 : (rotated ? 2 : 1);
         int steps = Math.min(64, Math.max(0, (int) Math.ceil(worldDistance * density)));
         // 锐折：端点用各自法向，中段用弦线左法向，避免内外角斜接把外侧条带折进车行道
         Vec2d chordNormal = chordLeftNormal(fromCenter, toCenter, startNormal, endNormal);

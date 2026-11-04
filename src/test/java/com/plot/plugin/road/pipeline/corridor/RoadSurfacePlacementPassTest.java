@@ -29,11 +29,15 @@ class RoadSurfacePlacementPassTest {
     }
 
     @Test
-    void roadMarkingsSurviveAndMissingRecordsDoNotGetInvented() {
+    void roadMarkingsSurviveAndMissingSurfaceMaskIsStamped() {
         var result = new RoadGenerationResult(0);
-        RoadSurfacePlacementPass.apply(result, plan(), 5);
-        assertTrue(result.placementRecords.isEmpty());
+        RoadSurfacePlacementPass.apply(
+            result, plan(), 5, GradeSeparationBuildContext.NONE, pos -> "minecraft:grass_block");
         var surface = new BlockPos(3, 69, -3);
+        assertEquals("minecraft:white_concrete", result.placementRecords.get(surface).newBlockId);
+        assertEquals("minecraft:grass_block", result.placementRecords.get(surface).previousBlockId);
+        assertEquals(RoadSolidLayer.ROAD, result.placementLayers.get(surface));
+
         result.recordPlacementByLayerPriority(surface, "minecraft:stone", "minecraft:yellow_concrete",
             RoadSolidLayer.MARKING, RoadSolidMaterialPriority.DEFAULT);
         RoadSurfacePlacementPass.apply(result, plan(), 5);

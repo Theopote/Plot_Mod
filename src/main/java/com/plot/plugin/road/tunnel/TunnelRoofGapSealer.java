@@ -18,8 +18,11 @@ import com.plot.core.terrain.TerrainSampler;
  */
 public final class TunnelRoofGapSealer {
     private static final String DEFAULT_TERRAIN_RESTORE = "minecraft:stone";
-    /** Replace this many solid layers above the roof with stable stone (covers gravel stacks). */
-    private static final int STABILIZE_SOLID_LAYERS = 3;
+    /**
+     * Replace this many solid layers above the roof with stable stone (covers gravel/sand stacks).
+     * Portal faces and steep portals often have thicker gravity stacks than mid-tunnel.
+     */
+    private static final int STABILIZE_SOLID_LAYERS = 8;
 
     private TunnelRoofGapSealer() {
     }

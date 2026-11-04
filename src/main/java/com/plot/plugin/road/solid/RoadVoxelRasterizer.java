@@ -172,7 +172,11 @@ public final class RoadVoxelRasterizer {
         }
         var layers = new ArrayList<>(buckets.keySet());
         for (var layer : layers) {
-            for (var primitive : buckets.get(layer)) {
+            List<RoadSolidPrimitive> bucket = buckets.get(layer);
+            // Structural shell before clearance air so gravity blocks stabilize before
+            // their support is removed (same TUNNEL layer, different materialPriority).
+            bucket.sort((a, b) -> Integer.compare(b.materialPriority(), a.materialPriority()));
+            for (var primitive : bucket) {
                 writer.write(result, primitive, transformer, projectionHandler);
             }
         }
@@ -259,7 +263,7 @@ public final class RoadVoxelRasterizer {
             String sidewalkBlockId,
             String markingBlockId) {
         return switch (layer) {
-            case ROAD -> roadBlockId;
+            case ROAD, SHOULDER, BIKE_LANE, MEDIAN -> roadBlockId;
             case SIDEWALK -> sidewalkBlockId;
             case MARKING -> markingBlockId;
             default -> null;

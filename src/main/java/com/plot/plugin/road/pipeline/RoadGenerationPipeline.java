@@ -209,8 +209,16 @@ public final class RoadGenerationPipeline {
             stageStarted = stage("structures", stageStarted, edgeId);
             RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
             stageStarted = stage("rasterize", stageStarted, edgeId);
+            java.util.function.Function<net.minecraft.util.math.BlockPos, String> previousBlockId =
+                host instanceof RoadGenerationPipelineHost concrete
+                    ? concrete.projectionHandler()::getBlockIdAt
+                    : null;
             com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.apply(
-                result, plan, request.tunnelStyle().clearHeight(), request.gradeSeparation());
+                result,
+                plan,
+                request.tunnelStyle().clearHeight(),
+                request.gradeSeparation(),
+                previousBlockId);
             RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain(), planHost);
             stage("surface-validate", stageStarted, edgeId);
             stage("pipeline-total", pipelineStarted, edgeId);

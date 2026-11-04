@@ -333,13 +333,12 @@ public final class TunnelStructureGenerator {
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
         final int[] cutHolder = {0};
+        // Phase A — permanent shell first (lining only). Writing cavity air before the roof
+        // shell lets gravity blocks (gravel/sand) update and fall onto the finished road.
         mask.forEach((lateral, y, kind) -> {
-            if (kind != TunnelCrossSectionMask.CellKind.AIR
-                    && kind != TunnelCrossSectionMask.CellKind.LINING) {
+            if (kind != TunnelCrossSectionMask.CellKind.LINING) {
                 return;
             }
-            // Cover the width of each mask cell, not just its center. At 45 degrees
-            // integer lateral samples alone leave a checkerboard of native terrain.
             int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
             for (double inset : CELL_INSETS) {
                 Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
@@ -351,23 +350,13 @@ public final class TunnelStructureGenerator {
                 if (!terrain.isChunkLoaded(worldX, worldZ)) {
                     continue;
                 }
-                if (kind == TunnelCrossSectionMask.CellKind.AIR) {
-                    // 洞室：清障为空气。不得对 LINING 格先写 air，否则 shouldPlaceLining 拒绝时会留下顶板破洞，
-                    // 上方沙砾等重力方块会落到路面。
-                    if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
-                        cutHolder[0]++;
-                    }
-                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-                } else if (Math.abs(lateral) * scale + 1e-9 >= carriageHalf
+                if (Math.abs(lateral) * scale + 1e-9 >= carriageHalf
                         && liningIntrudesCarriageway(
                             point, owner, previous, next, polyline, carriageHalf, scale)) {
-                    // 仅侧壁衬砌：mask 横向已在行车道外，但落点却落入本段/邻段车行道（尖角串侧）
-                    // 顶板衬砌 lateral≈0，不做此裁，避免把洞顶改成空气
-                    if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
-                        cutHolder[0]++;
-                    }
-                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-                } else if (shouldPlaceLining(terrain, worldX, y, worldZ, point)) {
+                    // Defer intrusion→air to Phase C so seal still sees a coherent roof plan.
+                    continue;
+                }
+                if (shouldPlaceLining(terrain, worldX, y, worldZ, point)) {
                     if (hasTerrainObstruction(terrain, worldX, y, worldZ)
                             || terrain.isSolidBlock(worldX, y, worldZ)) {
                         cutHolder[0]++;
@@ -379,7 +368,7 @@ public final class TunnelStructureGenerator {
         int lining = portalFrame
             ? Math.min(TunnelStyle.MAX_LINING_THICKNESS, tunnelStyle.liningThickness() + 1)
             : tunnelStyle.liningThickness();
-        // 整段隧道都封洞顶与上方空隙；仅洞口封缝时，洞身顶板镂空会导致沙砾落入路面。
+        // Phase B — stabilize overburden / seal roof gaps before any cavity excavation.
         TunnelRoofGapSealer.sealAboveRoofShell(
             solids,
             mask,
@@ -396,6 +385,44 @@ public final class TunnelStructureGenerator {
             terrain,
             liningMaterialId,
             "minecraft:stone");
+        // Phase C — excavate cavity and clip intruding / decorative shell cells to air.
+        mask.forEach((lateral, y, kind) -> {
+            if (kind != TunnelCrossSectionMask.CellKind.AIR
+                    && kind != TunnelCrossSectionMask.CellKind.LINING) {
+                return;
+            }
+            int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
+            for (double inset : CELL_INSETS) {
+                Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
+                int worldX = columnResolver.worldX(point);
+                int worldZ = columnResolver.worldZ(point);
+                if (worldX == lastX && worldZ == lastZ) continue;
+                lastX = worldX;
+                lastZ = worldZ;
+                if (!terrain.isChunkLoaded(worldX, worldZ)) {
+                    continue;
+                }
+                if (kind == TunnelCrossSectionMask.CellKind.AIR) {
+                    if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
+                        cutHolder[0]++;
+                    }
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                } else if (Math.abs(lateral) * scale + 1e-9 >= carriageHalf
+                        && liningIntrudesCarriageway(
+                            point, owner, previous, next, polyline, carriageHalf, scale)) {
+                    if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
+                        cutHolder[0]++;
+                    }
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                } else if (!shouldPlaceLining(terrain, worldX, y, worldZ, point)
+                        && terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                    // Only clearable decoration — not engineering solid — when lining is refused.
+                    // Punching air through near-surface shell solids recreates roof holes / gravel falls.
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                    cutHolder[0]++;
+                }
+            }
+        });
         return new RoadRoadbedGradingUtils.GradingVolumes(cutHolder[0], 0);
     }
 
@@ -695,8 +722,12 @@ public final class TunnelStructureGenerator {
     }
 
     /**
-     * 衬砌是否侵入<strong>其他段</strong>行车道（含体素余量）。
-     * 不检测本段：顶板/侧壁在平面投影上可靠近中心线，误伤会把洞顶改成空气。
+     * 侧壁衬砌是否侵入行车道（含体素余量）。
+     * <ul>
+     *   <li>邻段：始终检测（回头弯对侧串壁）</li>
+     *   <li>本段：尖角时侧壁落点可折回本段车行道，也须裁成空气；调用方须保证仅对
+     *       {@code |lateral|≥carriageHalf} 的侧壁格调用（顶板 lateral≈0 不调用）</li>
+     * </ul>
      */
     static boolean liningIntrudesCarriageway(
             Vec2d point,
@@ -712,7 +743,7 @@ public final class TunnelStructureGenerator {
         double margin = NeighborCarriagewayClip.VOXEL_MARGIN * Math.max(scale, 1e-9);
         if (polyline != null && !polyline.isEmpty()) {
             for (PathSegment segment : polyline) {
-                if (segment == null || segment == owner) {
+                if (segment == null) {
                     continue;
                 }
                 if (com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
@@ -721,6 +752,11 @@ public final class TunnelStructureGenerator {
                 }
             }
             return false;
+        }
+        if (owner != null
+                && com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
+                    point, owner.start, owner.end) + 1e-9 < carriageHalf + margin) {
+            return true;
         }
         return NeighborCarriagewayClip.insideNeighborCarriageway(
             point, previous, next, carriageHalf, margin);

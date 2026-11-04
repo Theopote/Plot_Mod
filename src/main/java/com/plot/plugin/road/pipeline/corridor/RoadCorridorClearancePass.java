@@ -60,6 +60,12 @@ public final class RoadCorridorClearancePass {
                 metrics.cutVolume += cleared;
             }
         }
+        // Acute / gore corners often leave one-column wedges outside the stamped corridor.
+        // Dilate OPEN/BRIDGE decoration clearance by 1 so canopy cannot remain over the road.
+        int dilated = clearAdjacentOpenDecorations(solids, plan, terrain, gradeSeparation);
+        if (metrics != null) {
+            metrics.cutVolume += dilated;
+        }
     }
 
     private static int clearColumn(
@@ -156,6 +162,62 @@ public final class RoadCorridorClearancePass {
                 "minecraft:air",
                 RoadSolidMaterialPriority.AIR);
             cleared++;
+        }
+        return cleared;
+    }
+
+    private static final int[][] NEIGHBOR_OFFSETS = {
+        {1, 0}, {-1, 0}, {0, 1}, {0, -1}
+    };
+
+    /**
+     * One-cell OPEN/BRIDGE decoration dilation for acute gore / sampling gaps that never
+     * received a clearance stamp but still overhang the finished road.
+     */
+    private static int clearAdjacentOpenDecorations(
+            RoadSolidModel solids,
+            RoadCorridorPlan plan,
+            TerrainSampler terrain,
+            GradeSeparationBuildContext gradeSeparation) {
+        if (solids == null || plan == null || terrain == null) {
+            return 0;
+        }
+        int cleared = 0;
+        for (var entry : plan.clearanceEntries()) {
+            ClearanceCell cell = entry.getValue();
+            if (cell.mode() != RoadCorridorConstructionMode.OPEN
+                    && cell.mode() != RoadCorridorConstructionMode.BRIDGE) {
+                continue;
+            }
+            ColumnKey key = entry.getKey();
+            Integer deckCap = gradeSeparation != null
+                ? gradeSeparation.maxOpenClearTopY(cell.planPoint())
+                : null;
+            int solidTopY = Math.max(cell.clearTopY(), cell.designSurfaceY());
+            for (int[] offset : NEIGHBOR_OFFSETS) {
+                ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+                if (plan.clearanceCell(neighbor) != null) {
+                    continue;
+                }
+                if (!terrain.isChunkLoaded(neighbor.worldX(), neighbor.worldZ())) {
+                    continue;
+                }
+                var neighborPoint = new com.plot.api.geometry.Vec2d(neighbor.worldX(), neighbor.worldZ());
+                cleared += clearDecorationsAbove(
+                    solids,
+                    new ClearanceCell(
+                        neighborPoint,
+                        cell.designSurfaceY(),
+                        solidTopY,
+                        cell.mode(),
+                        cell.constructionType()),
+                    neighbor,
+                    terrain,
+                    cell.designSurfaceY(),
+                    solidTopY,
+                    deckCap,
+                    gradeSeparation);
+            }
         }
         return cleared;
     }

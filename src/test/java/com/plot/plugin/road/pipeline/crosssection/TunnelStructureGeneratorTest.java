@@ -648,6 +648,16 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
+    void acuteHairpinConvertsOwnerCarriagewaySideWallLiningToAir() {
+        // Side wall mask lateral ≥ carriageHalf but voxel falls back into owner carriageway.
+        PathSegment owner = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        assertTrue(TunnelStructureGenerator.liningIntrudesCarriageway(
+            new Vec2d(10, 0.5), owner, null, null, List.of(owner), 3.0, 1.0));
+        assertFalse(TunnelStructureGenerator.liningIntrudesCarriageway(
+            new Vec2d(10, 5.0), owner, null, null, List.of(owner), 3.0, 1.0));
+    }
+
+    @Test
     void acuteHairpinConvertsNeighborCarriagewayLiningToAir() {
         // 接近 180° 回头：上一段水平，下一段几乎折回
         PathSegment previous = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
