@@ -117,6 +117,36 @@ class RoadCorridorPlanBuilderTest {
     }
 
     @Test
+    void openClearanceThroughCaveDoesNotPunchMountainTop() {
+        var config = CorridorTestFixtures.baseConfig();
+        int clearHeight = config.getTunnelStyle().getClearHeight();
+        int designY = 40;
+        int mountainTop = 90;
+        TerrainSampler cave = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return mountainTop;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return mountainTop;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                // 洞穴空洞 41..69，洞顶岩体 70..90
+                return y >= 70 && y <= mountainTop;
+            }
+        };
+        var host = CorridorTestFixtures.planHost(config);
+        int clearTop = RoadCorridorPlanBuilder.openCorridorClearTopY(
+            designY, new Vec2d(0, 0), cave, 4, host);
+        assertEquals(designY + clearHeight, clearTop,
+            "cave void must cap OPEN clearance at tunnel clear height, not mountain top");
+    }
+
+    @Test
     void deepCoverOpenRoadSuppressesDaylightBatter() {
         var config = CorridorTestFixtures.baseConfig();
         config.setIncludeSlopeBatter(true);

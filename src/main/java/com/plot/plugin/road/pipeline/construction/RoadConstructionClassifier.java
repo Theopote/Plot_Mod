@@ -101,10 +101,19 @@ public final class RoadConstructionClassifier {
                 }
             }
             if (type == RoadConstructionType.TUNNEL) {
-                if (isSubmerged(info) || !validateTunnelSegment(
-                    info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward, unitsPerBlock)) {
-                    // 校验失败先降为 CUT；随后短间隙合并可能再并回隧道
+                if (isSubmerged(info)) {
                     resolvedTypes.set(i, RoadConstructionType.CUT);
+                } else if (!validateTunnelSegment(
+                    info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward, unitsPerBlock)) {
+                    // 无连续盖层：净高内仍有岩体 → 保留隧道（清腔+衬砌）；
+                    // 洞穴净高足够 → 降为普通路（开敞净空只清局部，不打穿山体）
+                    if (hasSolidWithinClearHeight(
+                            info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle,
+                            columnResolver, chainForward, unitsPerBlock)) {
+                        // keep TUNNEL
+                    } else {
+                        resolvedTypes.set(i, RoadConstructionType.ROAD);
+                    }
                 }
             }
         }
@@ -137,9 +146,15 @@ public final class RoadConstructionClassifier {
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
             RoadConstructionType type = resolvedTypes.get(i);
             if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
-                if (isSubmerged(info) || !validateTunnelSegment(
-                    info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true, 1.0)) {
+                if (isSubmerged(info)) {
                     resolvedTypes.set(i, RoadConstructionType.CUT);
+                } else if (!validateTunnelSegment(
+                    info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true, 1.0)) {
+                    ResolvedTunnelStyle defaults = ResolvedTunnelStyle.defaults();
+                    if (!hasSolidWithinClearHeight(
+                            info, terrain, canvasToBlockPos, 0, defaults, null, true, 1.0)) {
+                        resolvedTypes.set(i, RoadConstructionType.ROAD);
+                    }
                 }
             }
         }
@@ -320,6 +335,58 @@ public final class RoadConstructionClassifier {
             columnResolver,
             unitsPerBlock);
         return feasibility.valid();
+    }
+
+    /**
+     * 设计净高范围内是否仍有实心妨碍（洞穴钟乳/夹石）。有则即使无连续盖层也按隧道清腔。
+     */
+    static boolean hasSolidWithinClearHeight(
+            SegmentHeightInfo info,
+            TerrainSampler terrain,
+            CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth,
+            ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            boolean chainForward,
+            double unitsPerBlock) {
+        if (info == null || terrain == null || tunnelStyle == null) {
+            return false;
+        }
+        Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
+        int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
+        int clear = Math.max(1, tunnelStyle.clearHeight());
+        if (columnResolver == null || gradingEnvelopeWidth <= 0) {
+            if (canvasToBlockPos == null) {
+                return false;
+            }
+            var pos = canvasToBlockPos.resolve(mid);
+            return hasSolidInColumn(terrain, pos.getX(), pos.getZ(), targetY, clear);
+        }
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        Vec2d normal = PathSegmentGeometry.chainLeftNormal(info.segment, chainForward);
+        if (normal.lengthSquared() > 1e-12) {
+            normal = normal.normalize();
+        }
+        int min = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(gradingEnvelopeWidth);
+        int max = com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(gradingEnvelopeWidth);
+        for (int lateral = min; lateral <= max; lateral++) {
+            Vec2d point = mid.add(normal.multiply(lateral * scale));
+            if (hasSolidInColumn(
+                    terrain, columnResolver.worldX(point), columnResolver.worldZ(point), targetY, clear)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasSolidInColumn(
+            TerrainSampler terrain, int worldX, int worldZ, int roadY, int clearHeight) {
+        for (int y = roadY + 1; y <= roadY + clearHeight; y++) {
+            if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<ConstructionRun> buildRuns(

@@ -11,6 +11,9 @@ import java.util.List;
  * 用点到折线各段中心线的距离判定是否占用了行车道。
  */
 public final class NeighborCarriagewayClip {
+    /** 体素对角/inset 余量：衬砌格心可能略偏入车行道。 */
+    public static final double VOXEL_MARGIN = 0.55;
+
     private NeighborCarriagewayClip() {
     }
 
@@ -21,10 +24,18 @@ public final class NeighborCarriagewayClip {
             Vec2d point,
             List<PathSegment> segments,
             double carriageHalf) {
+        return insideAnyCarriageway(point, segments, carriageHalf, 0.0);
+    }
+
+    public static boolean insideAnyCarriageway(
+            Vec2d point,
+            List<PathSegment> segments,
+            double carriageHalf,
+            double margin) {
         if (point == null || segments == null || segments.isEmpty() || carriageHalf <= 0.0) {
             return false;
         }
-        double limit = carriageHalf - 1e-9;
+        double limit = carriageHalf + Math.max(0.0, margin) - 1e-9;
         for (PathSegment segment : segments) {
             if (segment == null) {
                 continue;
@@ -42,10 +53,19 @@ public final class NeighborCarriagewayClip {
             PathSegment previous,
             PathSegment next,
             double carriageHalf) {
+        return insideNeighborCarriageway(point, previous, next, carriageHalf, 0.0);
+    }
+
+    public static boolean insideNeighborCarriageway(
+            Vec2d point,
+            PathSegment previous,
+            PathSegment next,
+            double carriageHalf,
+            double margin) {
         if (point == null || carriageHalf <= 0.0) {
             return false;
         }
-        double limit = carriageHalf - 1e-9;
+        double limit = carriageHalf + Math.max(0.0, margin) - 1e-9;
         if (previous != null
                 && GeometryUtils.pointToSegmentDistance(point, previous.start, previous.end) < limit) {
             return true;

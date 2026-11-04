@@ -7,7 +7,8 @@ import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 
 /**
- * 道路穿地形时的上方方块清除：按隧道阈值区分完全开挖与隧道腔体。
+ * 道路穿地形时的上方方块清除：按隧道阈值区分完全开挖与隧道腔体；
+ * 洞穴空洞不打穿至柱顶。
  */
 public final class RoadTerrainClearanceUtils {
     private RoadTerrainClearanceUtils() {
@@ -16,7 +17,9 @@ public final class RoadTerrainClearanceUtils {
     public enum OverheadMode {
         NONE,
         CUT,
-        TUNNEL
+        TUNNEL,
+        /** 洞穴/不连续覆土：只清局部净空，不打穿山体。 */
+        LOCAL
     }
 
     public static OverheadMode classify(
@@ -29,12 +32,15 @@ public final class RoadTerrainClearanceUtils {
         if (terrain == null || surfaceY <= roadY || tunnelThreshold <= 0) {
             return OverheadMode.NONE;
         }
-        if (!hasSolidAboveRoad(roadY, surfaceY, worldX, worldZ, terrain)) {
-            // 高度图已报告路面以上存在地表，但逐格未检测到实心方块（如草被误判为空）时仍按开挖处理
-            return OverheadMode.CUT;
-        }
         if (terrain.isSolidBlock(worldX, roadY + tunnelThreshold, worldZ)) {
             return OverheadMode.TUNNEL;
+        }
+        if (!hasSolidAboveRoad(roadY, surfaceY, worldX, worldZ, terrain)) {
+            // 高度图已报告路面以上存在地表，但逐格未检测到实心方块 → 局部净空即可
+            return OverheadMode.LOCAL;
+        }
+        if (hasAirGapBetween(terrain, worldX, worldZ, roadY, surfaceY)) {
+            return OverheadMode.LOCAL;
         }
         return OverheadMode.CUT;
     }
@@ -62,6 +68,15 @@ public final class RoadTerrainClearanceUtils {
             }
             case TUNNEL -> {
                 int top = roadY + tunnelThreshold;
+                for (int y = roadY + 1; y <= top; y++) {
+                    if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                        solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                    }
+                }
+            }
+            case LOCAL -> {
+                // 与隧道设计净空同量级：清局部妨碍，保留洞顶上方山体
+                int top = roadY + Math.max(1, tunnelThreshold);
                 for (int y = roadY + 1; y <= top; y++) {
                     if (terrain.isSolidBlock(worldX, y, worldZ)) {
                         solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
@@ -109,6 +124,20 @@ public final class RoadTerrainClearanceUtils {
             TerrainSampler terrain) {
         for (int y = roadY + 1; y <= surfaceY; y++) {
             if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean hasAirGapBetween(
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            int roadY,
+            int surfaceY) {
+        for (int y = roadY + 1; y <= surfaceY; y++) {
+            if (!terrain.isSolidBlock(worldX, y, worldZ)) {
                 return true;
             }
         }

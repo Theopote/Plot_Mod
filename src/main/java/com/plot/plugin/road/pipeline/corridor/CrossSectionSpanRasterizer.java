@@ -211,8 +211,9 @@ public final class CrossSectionSpanRasterizer {
         if (Math.abs(projected) + 1e-9 < carriageHalf) {
             return true;
         }
-        // 邻段（回头弯对侧）行车道包络：本段外侧条带落入邻段车行道
-        return NeighborCarriagewayClip.insideAnyCarriageway(planPoint, polylineSegments, carriageHalf);
+        // 邻段（回头弯对侧）行车道包络：本段外侧条带落入邻段车行道（含体素余量）
+        return NeighborCarriagewayClip.insideAnyCarriageway(
+            planPoint, polylineSegments, carriageHalf, NeighborCarriagewayClip.VOXEL_MARGIN * scale);
     }
 
     static boolean isOuterPavementBand(RoadSolidLayer layer) {

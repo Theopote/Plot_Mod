@@ -927,9 +927,59 @@ public final class RoadCorridorPlanBuilder {
             case TUNNEL -> tunnelInteriorRoofTopY(host, designSurfaceY);
             case PORTAL -> portalRoofTopY(host, designSurfaceY);
             case SHELTER -> designSurfaceY + host.tunnelStyle().clearHeight();
-            case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint),
-                designSurfaceY + host.tunnelStyle().clearHeight());
+            case OPEN -> openCorridorClearTopY(
+                designSurfaceY, planPoint, terrain, tunnelThreshold, host);
         };
+    }
+
+    /**
+     * 开敞净空顶：浅路堑连到柱顶；洞穴/深覆土（净高以上仍有空洞或盖层过厚）只清到隧道设计净高，
+     * 避免把洞顶上方整座山体打成天窗。
+     */
+    static int openCorridorClearTopY(
+            int designSurfaceY,
+            Vec2d planPoint,
+            TerrainSampler terrain,
+            int tunnelThreshold,
+            PlanHost host) {
+        int clearHeight = Math.max(1, host.tunnelStyle().clearHeight());
+        int localTop = designSurfaceY + clearHeight;
+        if (terrain == null || planPoint == null) {
+            return localTop;
+        }
+        int columnTop = terrain.sampleColumnTopY(planPoint);
+        if (columnTop <= localTop) {
+            return Math.max(columnTop, localTop);
+        }
+        int worldX = host.worldX(planPoint);
+        int worldZ = host.worldZ(planPoint);
+        int cover = columnTop - designSurfaceY;
+        boolean deepCover = cover >= RoadEarthworkPolicy.deepDaylightCoverBlocks(
+            host.tunnelStyle(), tunnelThreshold);
+        boolean voidAboveHeadroom = hasAirGapAbove(
+            terrain, worldX, worldZ, localTop, columnTop);
+        if (deepCover || voidAboveHeadroom) {
+            return localTop;
+        }
+        return columnTop;
+    }
+
+    /** {@code fromYExclusive+1 .. toYInclusive} 之间是否出现空气（洞穴空洞）。 */
+    static boolean hasAirGapAbove(
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            int fromYExclusive,
+            int toYInclusive) {
+        if (terrain == null || toYInclusive <= fromYExclusive) {
+            return false;
+        }
+        for (int y = fromYExclusive + 1; y <= toYInclusive; y++) {
+            if (!terrain.isSolidBlock(worldX, y, worldZ)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static int portalRoofTopY(PlanHost host, int designSurfaceY) {

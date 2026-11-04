@@ -163,7 +163,7 @@ class RoadTerrainClearanceUtilsTest {
     }
 
     @Test
-    void surfaceAboveRoadWithoutDetectedSolidsStillUsesCutMode() {
+    void surfaceAboveRoadWithoutDetectedSolidsUsesLocalMode() {
         TerrainSampler terrain = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d planPoint) {
@@ -176,8 +176,27 @@ class RoadTerrainClearanceUtilsTest {
             }
         };
         assertEquals(
-            RoadTerrainClearanceUtils.OverheadMode.CUT,
+            RoadTerrainClearanceUtils.OverheadMode.LOCAL,
             RoadTerrainClearanceUtils.classify(64, 68, 0, 0, 8, terrain));
+    }
+
+    @Test
+    void caveAirGapUsesLocalModeNotCutToMountainTop() {
+        // 洞穴：路面以上先空气，再高山体
+        TerrainSampler cave = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 100;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y >= 80 && y <= 100;
+            }
+        };
+        assertEquals(
+            RoadTerrainClearanceUtils.OverheadMode.LOCAL,
+            RoadTerrainClearanceUtils.classify(64, 100, 0, 0, 8, cave));
     }
 
     @Test
@@ -204,8 +223,10 @@ class RoadTerrainClearanceUtilsTest {
             0,
             0,
             terrain);
-        assertEquals(4, volumes.cutVolume());
-        assertTrue(solids.primitives().stream().anyMatch(p -> p.elevation() == 68));
+        // LOCAL：只清到 roadY+tunnelThreshold，不打穿到虚构地表
+        assertEquals(8, volumes.cutVolume());
+        assertTrue(solids.primitives().stream().anyMatch(p -> p.elevation() == 72));
+        assertTrue(solids.primitives().stream().noneMatch(p -> p.elevation() > 72));
     }
 
     private static TerrainSampler columnTerrain(int surfaceY, int roadY, int deepCheckY) {

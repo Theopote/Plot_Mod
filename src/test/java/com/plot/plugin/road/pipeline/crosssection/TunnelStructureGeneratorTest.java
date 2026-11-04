@@ -629,19 +629,24 @@ class TunnelStructureGeneratorTest {
         TunnelStructureGenerator.placeCrossSection(
             solids, style, center, normal, 7, 64, "minecraft:stone_bricks",
             columnTerrain(100, 100, 100), columnResolver(), 1.0, false,
-            previous, null, 3.0);
+            current, previous, null, 3.0, List.of(previous, current));
 
-        boolean liningBlockedRoad = solids.primitives().stream().anyMatch(p -> {
+        // 仅检查行车净高带内的侧壁衬砌；洞顶横向可落在邻段投影内
+        boolean wallBlockedRoad = solids.primitives().stream().anyMatch(p -> {
             if (!"minecraft:stone_bricks".equals(p.materialId())) {
+                return false;
+            }
+            if (p.elevation() < 65 || p.elevation() > 68) {
                 return false;
             }
             double d = com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
                 p.planPoint(), previous.start, previous.end);
             return d < 3.0 - 1e-6;
         });
-        assertFalse(liningBlockedRoad, "lining must not occupy neighbor carriageway at acute hairpin");
+        assertFalse(wallBlockedRoad, "side-wall lining must not occupy neighbor carriageway at acute hairpin");
         assertTrue(solids.primitives().stream().anyMatch(p ->
             "minecraft:air".equals(p.materialId())
+                && p.elevation() >= 65 && p.elevation() <= 68
                 && com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
                     p.planPoint(), previous.start, previous.end) < 3.0));
     }

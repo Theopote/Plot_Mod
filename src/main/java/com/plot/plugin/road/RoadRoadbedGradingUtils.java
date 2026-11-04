@@ -201,7 +201,8 @@ public final class RoadRoadbedGradingUtils {
             roadY, groundY, worldX, worldZ, tunnelThreshold, terrain);
         int cleared = 0;
         int topY = groundY;
-        if (mode == RoadTerrainClearanceUtils.OverheadMode.TUNNEL) {
+        if (mode == RoadTerrainClearanceUtils.OverheadMode.TUNNEL
+                || mode == RoadTerrainClearanceUtils.OverheadMode.LOCAL) {
             topY = roadY + tunnelThreshold;
         } else if (mode == RoadTerrainClearanceUtils.OverheadMode.NONE && groundY > roadY) {
             topY = groundY;

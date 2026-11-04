@@ -90,16 +90,18 @@ public final class TunnelStructureGenerator {
             PathSegment previous = i > 0 ? segments.get(i - 1) : null;
             PathSegment next = i + 1 < segments.size() ? segments.get(i + 1) : null;
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale
-                * (diagonal || acuteIncoming || acuteOutgoing ? 2 : 1)));
+                * (diagonal || acuteIncoming || acuteOutgoing ? 3 : 1)));
             for (int j = 0; j <= samples; j++) {
-                // 锐折共点：跳过本段起点/终点，避免两段断面法向冲突把衬砌堵进车行道
-                if (j == 0 && acuteIncoming) {
-                    continue;
-                }
-                if (j == samples && acuteOutgoing) {
-                    continue;
-                }
                 double t = (double) j / samples;
+                // 锐折顶点邻域整段跳过：仅跳 j==0 仍会把近顶点断面衬砌扫进对侧车行道
+                double along = segment.distance * t;
+                double skipRadius = Math.max(scale, 1.25 * scale);
+                if (acuteIncoming && along < skipRadius) {
+                    continue;
+                }
+                if (acuteOutgoing && segment.distance - along < skipRadius) {
+                    continue;
+                }
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
                 double worldStation = geometryLocal / scale;
@@ -128,7 +130,7 @@ public final class TunnelStructureGenerator {
                     total = total.add(placeRockShelter(solids, tunnelStyle, center, rockNormal,
                         envelopeWidth, targetY, host.resolveBlockId(tunnelStyle.liningMaterial()),
                         terrain, columnResolver, unitsPerBlock, sampleType == RoadConstructionType.ROCK_SHELTER_LEFT,
-                        previous, next, carriageHalf));
+                        segment, previous, next, carriageHalf, segments));
                     continue;
                 }
                 if (!sampleType.isTunnelFamily()) continue;
@@ -153,9 +155,11 @@ public final class TunnelStructureGenerator {
                     columnResolver,
                     unitsPerBlock,
                     portalFrame,
+                    segment,
                     previous,
                     next,
-                    carriageHalf));
+                    carriageHalf,
+                    segments));
                 placeLighting(
                     host,
                     solids,
@@ -203,6 +207,17 @@ public final class TunnelStructureGenerator {
             int width, int roadY, String material, TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columns, double unitsPerBlock, boolean rockOnLeft,
             PathSegment previous, PathSegment next, double carriageHalf) {
+        return placeRockShelter(
+            solids, style, center, leftNormal, width, roadY, material, terrain, columns,
+            unitsPerBlock, rockOnLeft, null, previous, next, carriageHalf, null);
+    }
+
+    static RoadRoadbedGradingUtils.GradingVolumes placeRockShelter(
+            RoadSolidModel solids, ResolvedTunnelStyle style, Vec2d center, Vec2d leftNormal,
+            int width, int roadY, String material, TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns, double unitsPerBlock, boolean rockOnLeft,
+            PathSegment owner, PathSegment previous, PathSegment next, double carriageHalf,
+            List<PathSegment> polyline) {
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = leftNormal.normalize();
         int min = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(width) - style.sideClearance();
@@ -214,8 +229,8 @@ public final class TunnelStructureGenerator {
             boolean wallColumn = rockOnLeft ? lateral >= wall : lateral <= wall;
             for (double inset : CELL_INSETS) {
                 Vec2d point = center.add(normal.multiply((lateral + inset) * scale));
-                if (wallColumn && NeighborCarriagewayClip.insideNeighborCarriageway(
-                        point, previous, next, carriageHalf)) {
+                if (wallColumn && liningIntrudesCarriageway(
+                        point, owner, previous, next, polyline, carriageHalf, scale)) {
                     continue;
                 }
                 int x = columns.worldX(point), z = columns.worldZ(point);
@@ -275,6 +290,28 @@ public final class TunnelStructureGenerator {
             PathSegment previous,
             PathSegment next,
             double carriageHalf) {
+        return placeCrossSection(
+            solids, tunnelStyle, center, leftNormal, roadEnvelopeWidth, roadY, liningMaterialId,
+            terrain, columnResolver, canvasUnitsPerBlock, portalFrame, null, previous, next, carriageHalf, null);
+    }
+
+    static RoadRoadbedGradingUtils.GradingVolumes placeCrossSection(
+            RoadSolidModel solids,
+            ResolvedTunnelStyle tunnelStyle,
+            Vec2d center,
+            Vec2d leftNormal,
+            int roadEnvelopeWidth,
+            int roadY,
+            String liningMaterialId,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double canvasUnitsPerBlock,
+            boolean portalFrame,
+            PathSegment owner,
+            PathSegment previous,
+            PathSegment next,
+            double carriageHalf,
+            List<PathSegment> polyline) {
         if (solids == null || center == null || leftNormal == null || roadEnvelopeWidth <= 0
                 || terrain == null || columnResolver == null
                 || liningMaterialId == null || liningMaterialId.isBlank()
@@ -319,9 +356,11 @@ public final class TunnelStructureGenerator {
                         cutHolder[0]++;
                     }
                     solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-                } else if (NeighborCarriagewayClip.insideNeighborCarriageway(
-                        point, previous, next, carriageHalf)) {
-                    // 尖角邻段行车道内：不写衬砌，改为净空，避免隧道壁堵路
+                } else if (Math.abs(lateral) * scale + 1e-9 >= carriageHalf
+                        && liningIntrudesCarriageway(
+                            point, owner, previous, next, polyline, carriageHalf, scale)) {
+                    // 仅侧壁衬砌：mask 横向已在行车道外，但落点却落入本段/邻段车行道（尖角串侧）
+                    // 顶板衬砌 lateral≈0，不做此裁，避免把洞顶改成空气
                     if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
                         cutHolder[0]++;
                     }
@@ -583,6 +622,38 @@ public final class TunnelStructureGenerator {
         Vec2d b = outDir.normalize();
         double turn = Math.atan2(a.cross(b), a.dot(b));
         return Math.abs(turn) >= Math.PI * 0.5 - 1e-6;
+    }
+
+    /**
+     * 衬砌是否侵入<strong>其他段</strong>行车道（含体素余量）。
+     * 不检测本段：顶板/侧壁在平面投影上可靠近中心线，误伤会把洞顶改成空气。
+     */
+    static boolean liningIntrudesCarriageway(
+            Vec2d point,
+            PathSegment owner,
+            PathSegment previous,
+            PathSegment next,
+            List<PathSegment> polyline,
+            double carriageHalf,
+            double scale) {
+        if (point == null || carriageHalf <= 0.0) {
+            return false;
+        }
+        double margin = NeighborCarriagewayClip.VOXEL_MARGIN * Math.max(scale, 1e-9);
+        if (polyline != null && !polyline.isEmpty()) {
+            for (PathSegment segment : polyline) {
+                if (segment == null || segment == owner) {
+                    continue;
+                }
+                if (com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
+                        point, segment.start, segment.end) + 1e-9 < carriageHalf + margin) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return NeighborCarriagewayClip.insideNeighborCarriageway(
+            point, previous, next, carriageHalf, margin);
     }
 
     /**
