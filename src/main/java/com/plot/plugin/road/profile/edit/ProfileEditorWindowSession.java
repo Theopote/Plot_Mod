@@ -216,8 +216,10 @@ public final class ProfileEditorWindowSession {
         if (!Double.isFinite(length) || length <= 1e-6) {
             return false;
         }
-        double start = terrainChart.nearestFiniteGroundElevation(0.0);
-        double end = terrainChart.nearestFiniteGroundElevation(length);
+        // 端点附近必须有可靠采样；勿用道路中段远处标高冒充起终点。
+        double endpointTolerance = Math.max(2.0, Math.min(8.0, length * 0.02));
+        double start = terrainChart.nearestFiniteGroundElevation(0.0, endpointTolerance);
+        double end = terrainChart.nearestFiniteGroundElevation(length, endpointTolerance);
         if (!Double.isFinite(start) || !Double.isFinite(end)) {
             return false;
         }

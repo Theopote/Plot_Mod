@@ -222,8 +222,10 @@ class RoadTerrainProfileSamplerTest {
         RoadProfileChartData merged = staleFull.withTerrainGround(terrain);
         assertEquals(80.0, merged.groundElevationAt(0.0), 1e-9);
         assertEquals(82.0, merged.groundElevationAt(100.0), 1e-9);
-        assertTrue(merged.hasProfileData());
+        assertFalse(merged.hasProfileData());
+        assertTrue(merged.hasStaleDesignReference());
         assertEquals(65.0, merged.previewElevationAt(0.0), 1e-9);
+        assertTrue(Double.isNaN(merged.buildElevationAt(0.0)));
     }
 
     @Test
@@ -258,6 +260,116 @@ class RoadTerrainProfileSamplerTest {
         assertEquals(RoadTerrainProfileSamplingJob.Phase.CANCELLED, job.phase());
         assertTrue(manager.getTerrainProfile(null, "r1") == null);
         assertFalse(manager.isTerrainProfileJobRunning());
+    }
+
+    @Test
+    void unresolvedStationPointsDoNotThrow() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        // 人为塞入无法落在几何上的桩号：resolvePoints 应允许 null 占位，不抛 NPE。
+        List<Double> stations = List.of(0.0, 5.0, 10.0, 1_000_000.0);
+        List<Vec2d> points = RoadTerrainProfileSampler.resolvePoints(network, road, stations);
+        assertEquals(4, points.size());
+        assertNotNull(points.get(0));
+        assertNotNull(points.get(1));
+        assertNotNull(points.get(2));
+        // 超长桩号可能被夹到终点，也可能为 null；关键是不抛异常且列表可被 job 接受。
+        RoadTerrainProfileSamplingJob job = new RoadTerrainProfileSamplingJob(
+            new RoadPreviewManager(
+                new RoadProjectStatus(),
+                new PluginContext(
+                    ApplicationContext.getInstance().getAppState(),
+                    ApplicationContext.getInstance().getCommandService(),
+                    ApplicationContext.getInstance().getEventBus(),
+                    ApplicationContext.getInstance().getToolManager(),
+                    IdentityCoordinateService.INSTANCE,
+                    null,
+                    null,
+                    null)),
+            new TerrainProfileKey("w", "r1", 1L, 0L, 1L, 1.0),
+            10.0,
+            stations,
+            points);
+        assertEquals(4, job.totalWorkUnits());
+    }
+
+    @Test
+    void movedRoadRejectsCompletedJobResult() {
+        ApplicationContext app = ApplicationContext.getInstance();
+        PluginContext host = new PluginContext(
+            app.getAppState(),
+            app.getCommandService(),
+            app.getEventBus(),
+            app.getToolManager(),
+            IdentityCoordinateService.INSTANCE,
+            null,
+            null,
+            null);
+        RoadPreviewManager manager = new RoadPreviewManager(new RoadProjectStatus(), host);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(40, 0));
+        var edge = network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId());
+        manager.setLiveNetworkLookup(() -> network);
+
+        TerrainProfileKey startKey = RoadTerrainProfileSampler.buildKey(
+            "test-world", network, road, IdentityCoordinateService.INSTANCE, new RoadSystemConfig("t"));
+        RoadTerrainProfileData data = loadedTerrain(
+            startKey, List.of(0.0, 20.0, 40.0), List.of(70.0, 71.0, 72.0));
+
+        RoadTerrainProfileSamplingJob job = new RoadTerrainProfileSamplingJob(
+            manager, startKey, 40.0, data.stations(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)));
+        try {
+            var field = RoadPreviewManager.class.getDeclaredField("terrainProfileJob");
+            field.setAccessible(true);
+            field.set(manager, job);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+
+        // 采样完成前移动道路 → live key 变化，结果不得发布。
+        edge.setCenterlinePoints(List.of(new Vec2d(0, 0), new Vec2d(40, 20)));
+        manager.completeTerrainProfileJob(job, data);
+        assertTrue(manager.getTerrainProfile(network, "r1") == null);
+    }
+
+    @Test
+    void endpointGapDoesNotBootstrapFromDistantSample() {
+        RoadNetwork live = new RoadNetwork();
+        Road road = live.createRoad("r1");
+        RoadNode a = live.createNode(new Vec2d(0, 0));
+        RoadNode b = live.createNode(new Vec2d(100, 0));
+        live.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        TerrainProfileKey key = new TerrainProfileKey("w", "r1", 1L, 0L, 1L, 1.0);
+        // 仅中段有有效点，起终点附近缺失。
+        List<Double> stations = List.of(0.0, 50.0, 100.0);
+        List<Double> terrainY = List.of(Double.NaN, 74.0, Double.NaN);
+        List<Double> waterY = List.of(Double.NaN, Double.NaN, Double.NaN);
+        List<Boolean> loaded = List.of(false, true, false);
+        // 中段相邻？只有一个有效点 → 不可渲染。补一对中段相邻点。
+        stations = List.of(0.0, 48.0, 52.0, 100.0);
+        terrainY = List.of(Double.NaN, 74.0, 75.0, Double.NaN);
+        waterY = List.of(Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        loaded = List.of(false, true, true, false);
+        RoadTerrainProfileData terrain = new RoadTerrainProfileData(
+            key, 100.0, stations, terrainY, waterY, loaded);
+        RoadProfileChartData chart = RoadProfileChartData.fromTerrain(terrain);
+        assertNotNull(chart);
+
+        ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 0L);
+        Road working = session.editingNetwork().getRoad(road.getId());
+        assertFalse(session.seedRoadEditorAlignment(
+            working, new RoadSystemConfig("bootstrap"), java.util.Map.of(), chart));
+        assertFalse(VerticalAlignmentGeometry.isEvaluable(working.getVerticalAlignment()));
     }
 
     @Test

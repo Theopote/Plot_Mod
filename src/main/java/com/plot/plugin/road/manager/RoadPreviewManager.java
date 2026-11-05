@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * 道路预览、虚影投影与世界落地。
@@ -70,6 +71,8 @@ public final class RoadPreviewManager {
     private boolean suppressTerrainPrefetchReschedule;
     /** 路网存在未提交编辑事务时为 true（例如统一 Y 拖动中）。 */
     private BooleanSupplier pendingNetworkEditCheck = () -> false;
+    /** 发布地形任务结果时读取当前 live 路网（几何/投影必须重新校验）。 */
+    private Supplier<RoadNetwork> liveNetworkLookup = () -> null;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -83,6 +86,10 @@ public final class RoadPreviewManager {
     public void setPendingNetworkEditCheck(BooleanSupplier pendingNetworkEditCheck) {
         this.pendingNetworkEditCheck =
             pendingNetworkEditCheck != null ? pendingNetworkEditCheck : () -> false;
+    }
+
+    public void setLiveNetworkLookup(Supplier<RoadNetwork> liveNetworkLookup) {
+        this.liveNetworkLookup = liveNetworkLookup != null ? liveNetworkLookup : () -> null;
     }
 
     private boolean hasPendingNetworkEdit() {
@@ -208,8 +215,9 @@ public final class RoadPreviewManager {
     }
 
     /**
-     * 概览图表：有效 Level-1 地形优先作为灰线；若有完整设计/建造图则叠加上去。
-     * 避免「更新地形」后仍被旧完整图表覆盖。
+     * 概览图表：仅当 Level-1 地形对当前 live 路网 fresh 时使用灰线；
+     * 若叠加旧设计线，建造高程会被清空并标记为过期参考（见 {@link RoadProfileChartData#withTerrainGround}）。
+     * 过期地形缓存不回退展示，避免道路移动后旧结果混入编辑器。
      */
     public RoadProfileChartData getOverviewChart(RoadNetwork network, String roadId) {
         RoadTerrainProfileData terrain = getTerrainProfile(network, roadId);
@@ -227,10 +235,15 @@ public final class RoadPreviewManager {
         if (full != null && full.canRenderChart()) {
             return full;
         }
-        if (terrain != null && terrain.hasRenderableTerrain()) {
-            return RoadProfileChartData.fromTerrain(terrain);
-        }
         return null;
+    }
+
+    /** 当前地形采样任务是否属于指定道路。 */
+    public boolean isTerrainProfileJobForRoad(String roadId) {
+        return terrainProfileJob != null
+            && terrainProfileJob.isRunning()
+            && roadId != null
+            && roadId.equals(terrainProfileJob.key().roadId());
     }
 
     public RoadTerrainProfileData getTerrainProfile(RoadNetwork network, String roadId) {
@@ -261,10 +274,13 @@ public final class RoadPreviewManager {
 
     /**
      * Level-1：排队分帧读取当前道路中心线地形。不改设计权威、不启动正式建造预览。
-     *
-     * @return 是否成功启动（或已有同 key 新鲜缓存）
+     * 自动场景可命中缓存；用户点击「更新地形」应传 {@code force=true} 强制重采。
      */
     public boolean refreshTerrainProfile(RoadNetwork network, String roadId) {
+        return refreshTerrainProfile(network, roadId, false);
+    }
+
+    public boolean refreshTerrainProfile(RoadNetwork network, String roadId, boolean force) {
         if (network == null || roadId == null || roadId.isBlank()) {
             return false;
         }
@@ -281,15 +297,19 @@ public final class RoadPreviewManager {
         var config = networkGenerator != null ? networkGenerator.getConfig() : null;
         TerrainProfileKey key = RoadTerrainProfileSampler.buildKey(
             currentWorldKey(), network, road, host.coordinates(), config);
-        if (terrainProfileCache.isFresh(key)) {
+        if (!force && terrainProfileCache.isFresh(key)) {
             status.success(PlotI18n.tr("plugin.road.terrain_profile.ready"));
             return true;
         }
         cancelTerrainProfileJobSilently();
+        if (force) {
+            terrainProfileCache.invalidate(roadId);
+        }
         double spacing = RoadTerrainProfileSampler.resolveSpacing(config);
         var stations = RoadTerrainProfileSampler.buildStations(network, road, spacing);
         var points = RoadTerrainProfileSampler.resolvePoints(network, road, stations);
         double totalStation = RoadStationing.canonicalLength(network, road);
+        // 发布前会用 live 路网重建 key；此处 key 仅标识任务起点身份。
         terrainProfileJob = new RoadTerrainProfileSamplingJob(
             this, key, totalStation, stations, points);
         status.progress(PlotI18n.tr("plugin.road.terrain_profile.sampling"));
@@ -341,13 +361,14 @@ public final class RoadPreviewManager {
             return;
         }
         terrainProfileJob = null;
-        TerrainProfileKey expected = currentTerrainKeyForData(data);
-        if (expected == null || data == null || !data.matches(expected)) {
+        if (data == null || !data.hasAnyValidSample()) {
             status.warning(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
             return;
         }
-        if (!data.hasAnyValidSample()) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+        // 必须用当前 live 路网/投影/世界重建 key，禁止复制任务旧几何指纹。
+        TerrainProfileKey expected = currentLiveTerrainKey(data.roadId());
+        if (expected == null || !data.matches(expected)) {
+            status.warning(PlotI18n.tr("plugin.road.terrain_profile.rejected_stale"));
             return;
         }
         terrainProfileCache.put(data);
@@ -382,18 +403,20 @@ public final class RoadPreviewManager {
             currentWorldKey(), network, road, host.coordinates(), config);
     }
 
-    private TerrainProfileKey currentTerrainKeyForData(RoadTerrainProfileData data) {
-        if (data == null) {
+    /** 从 live 路网重新计算当前道路的 TerrainProfileKey（任务发布验收用）。 */
+    private TerrainProfileKey currentLiveTerrainKey(String roadId) {
+        if (roadId == null || roadId.isBlank()) {
             return null;
         }
-        // 发布时用任务 key 与「当前世界/地形世代」比对：几何与间距取自任务快照。
-        return new TerrainProfileKey(
-            currentWorldKey(),
-            data.roadId(),
-            data.key().geometryFingerprint(),
-            data.key().transformFingerprint(),
-            RoadCorridorTerrainPrefetch.worldTerrainEpoch(),
-            data.key().sampleSpacing());
+        RoadNetwork network = liveNetworkLookup.get();
+        if (network == null) {
+            return null;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null || !RoadStationing.isStationable(network, road)) {
+            return null;
+        }
+        return currentTerrainKey(network, road);
     }
 
     public RoadNetworkGenerator.NetworkGenerationResult getLastNetworkGenerationResult() {

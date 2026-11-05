@@ -282,8 +282,8 @@ public record RoadProfileChartData(
     }
 
     /**
-     * 用 Level-1 地形替换灰线/水面，保留既有设计/建造序列的桩号域时尽量插值对齐；
-     * 桩号网格不同则以地形站为准并清空建造阶梯（避免旧预览冒充新地形）。
+     * 用 Level-1 地形替换灰线/水面；保留设计线作为过期参考，清空建造高程与阶梯，
+     * 避免新地形与旧建造结果混为「当前有效工程数据」。
      */
     public RoadProfileChartData withTerrainGround(RoadTerrainProfileData terrain) {
         if (terrain == null || !terrain.hasRenderableTerrain()) {
@@ -293,7 +293,7 @@ public record RoadProfileChartData(
         List<Double> build = new ArrayList<>(terrain.stations().size());
         for (double station : terrain.stations()) {
             preview.add(previewElevationAt(station));
-            build.add(buildElevationAt(station));
+            build.add(Double.NaN);
         }
         return new RoadProfileChartData(
             terrain.roadId(),
@@ -310,24 +310,43 @@ public record RoadProfileChartData(
             waterConstraintFeasible,
             terrain.waterY(),
             waterCrossings,
-            constructionRuns);
+            List.of());
     }
 
-    public double nearestFiniteGroundElevation(double station) {
+    /** 有设计参考线但无有效建造高程（地形已更新、正式预览未刷新）。 */
+    public boolean hasStaleDesignReference() {
+        return hasTerrainSeries()
+            && finiteCount(previewElevations) >= 2
+            && finiteCount(buildElevations) < 2
+            && !hasBuildSamples();
+    }
+
+    /**
+     * 在 {@code maxDistance} 桩号范围内取最近有限地形标高；超出范围返回 NaN，
+     * 避免用远处采样点冒充端点高程。
+     */
+    public double nearestFiniteGroundElevation(double station, double maxDistance) {
         int best = -1;
         double bestDist = Double.POSITIVE_INFINITY;
+        double limit = Double.isFinite(maxDistance) && maxDistance >= 0
+            ? maxDistance
+            : Double.POSITIVE_INFINITY;
         for (int i = 0; i < stations.size(); i++) {
             Double y = groundElevations.get(i);
             if (y == null || !Double.isFinite(y)) {
                 continue;
             }
             double dist = Math.abs(stations.get(i) - station);
-            if (dist < bestDist) {
+            if (dist <= limit && dist < bestDist) {
                 bestDist = dist;
                 best = i;
             }
         }
         return best >= 0 ? groundElevations.get(best) : Double.NaN;
+    }
+
+    public double nearestFiniteGroundElevation(double station) {
+        return nearestFiniteGroundElevation(station, Double.POSITIVE_INFINITY);
     }
 
     public boolean hasBuildSamples() {

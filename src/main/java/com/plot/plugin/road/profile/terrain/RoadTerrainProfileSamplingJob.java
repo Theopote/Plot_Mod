@@ -8,10 +8,12 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Level-1 地形采样分帧任务：主线程每 tick 处理有限列，可取消；完成时校验 key 再发布。
+ * Level-1 地形采样分帧任务：主线程每 tick 在样本数与纳秒预算内处理，可取消；
+ * 完成时由 Manager 用 live 路网重建 key 验收后再发布。
  */
 public final class RoadTerrainProfileSamplingJob {
 
@@ -21,6 +23,11 @@ public final class RoadTerrainProfileSamplingJob {
         CANCELLED,
         FAILED
     }
+
+    /** 单帧最多处理的采样列数（硬上限）。 */
+    public static final int SAMPLES_PER_TICK = RoadTerrainProfileSampler.SAMPLES_PER_TICK;
+    /** 单帧时间预算（纳秒），避免复杂世界读取拖垮 ImGui。 */
+    public static final long TICK_BUDGET_NS = 2_000_000L;
 
     private final RoadPreviewManager manager;
     private final TerrainProfileKey key;
@@ -34,6 +41,8 @@ public final class RoadTerrainProfileSamplingJob {
     private Phase phase = Phase.RUNNING;
     private int nextIndex;
     private volatile boolean cancelled;
+    private long lastTickNanos;
+    private long maxTickNanos;
 
     public RoadTerrainProfileSamplingJob(
             RoadPreviewManager manager,
@@ -45,7 +54,11 @@ public final class RoadTerrainProfileSamplingJob {
         this.key = key;
         this.totalStation = totalStation;
         this.stations = List.copyOf(stations);
-        this.points = List.copyOf(points);
+        // 允许 null 占位（桩号无法解析），List.copyOf 会拒绝 null。
+        this.points = Collections.unmodifiableList(new ArrayList<>(points));
+        if (this.stations.size() != this.points.size()) {
+            throw new IllegalArgumentException("stations/points size mismatch");
+        }
         int n = this.stations.size();
         this.terrainY = new ArrayList<>(n);
         this.waterY = new ArrayList<>(n);
@@ -77,6 +90,14 @@ public final class RoadTerrainProfileSamplingJob {
         return stations.size();
     }
 
+    public long lastTickNanos() {
+        return lastTickNanos;
+    }
+
+    public long maxTickNanos() {
+        return maxTickNanos;
+    }
+
     public void cancel() {
         cancelled = true;
     }
@@ -85,6 +106,7 @@ public final class RoadTerrainProfileSamplingJob {
         if (phase != Phase.RUNNING) {
             return;
         }
+        long tickStart = System.nanoTime();
         if (cancelled) {
             phase = Phase.CANCELLED;
             manager.finishCancelledTerrainProfileJob(this);
@@ -97,12 +119,17 @@ public final class RoadTerrainProfileSamplingJob {
             return;
         }
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, manager.hostCoordinates());
-        int budget = RoadTerrainProfileSampler.SAMPLES_PER_TICK;
-        while (budget-- > 0 && nextIndex < stations.size()) {
+        int sampleBudget = SAMPLES_PER_TICK;
+        long deadline = tickStart + TICK_BUDGET_NS;
+        while (sampleBudget-- > 0 && nextIndex < stations.size()) {
             if (cancelled) {
                 phase = Phase.CANCELLED;
                 manager.finishCancelledTerrainProfileJob(this);
+                recordTick(tickStart);
                 return;
+            }
+            if (System.nanoTime() >= deadline) {
+                break;
             }
             RoadTerrainProfileSampler.SampleColumn column =
                 RoadTerrainProfileSampler.sampleColumn(terrain, points.get(nextIndex));
@@ -111,6 +138,7 @@ public final class RoadTerrainProfileSamplingJob {
             loaded.set(nextIndex, column.loaded());
             nextIndex++;
         }
+        recordTick(tickStart);
         manager.updateTerrainProfileJobProgress(this);
         if (nextIndex >= stations.size()) {
             RoadTerrainProfileData data = new RoadTerrainProfileData(
@@ -123,5 +151,10 @@ public final class RoadTerrainProfileSamplingJob {
             phase = Phase.COMPLETED;
             manager.completeTerrainProfileJob(this, data);
         }
+    }
+
+    private void recordTick(long tickStart) {
+        lastTickNanos = System.nanoTime() - tickStart;
+        maxTickNanos = Math.max(maxTickNanos, lastTickNanos);
     }
 }

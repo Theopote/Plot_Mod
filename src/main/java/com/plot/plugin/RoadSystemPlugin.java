@@ -71,6 +71,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         persistenceManager = new RoadPersistenceManager(getDataFolder(), status, ctx());
         previewManager = new RoadPreviewManager(status, ctx());
         previewManager.setPendingNetworkEditCheck(networkManager::hasPendingNetworkEdit);
+        previewManager.setLiveNetworkLookup(networkManager::getNetwork);
         networkManager.setOnNetworkChanged(previewManager::handleNetworkChanged);
         toolManager = new RoadToolManager(status, ctx());
         pathPickEscapeListener = new RoadPathPickEscapeShortcutListener(toolManager);
@@ -95,7 +96,10 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
             ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
             persistenceManager.loadForCurrentProject(
-                networkManager::setNetwork,
+                network -> {
+                    previewManager.clearTerrainProfileCache();
+                    networkManager.setNetwork(network);
+                },
                 () -> {
                     networkManager.getHistory().clear();
                     networkManager.resetSelection();
@@ -125,6 +129,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         }
         if (previewManager != null) {
             previewManager.clearPreview();
+            previewManager.clearTerrainProfileCache();
         }
         if (toolManager != null) {
             toolManager.cancel();
@@ -177,7 +182,10 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     private void onProjectLoaded(String filePath) {
         persistenceManager.onProjectLoaded(
             filePath,
-            networkManager::setNetwork,
+            network -> {
+                previewManager.clearTerrainProfileCache();
+                networkManager.setNetwork(network);
+            },
             () -> {
                 networkManager.getHistory().clear();
                 networkManager.resetSelection();

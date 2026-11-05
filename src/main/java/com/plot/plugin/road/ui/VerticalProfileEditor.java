@@ -1075,7 +1075,7 @@ final class VerticalProfileEditor {
             PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
         if (road != null
                 && ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update") + "##editor_missing_terrain")) {
-            ctx.previewManager().refreshTerrainProfile(network, road.getId());
+            ctx.previewManager().refreshTerrainProfile(network, road.getId(), true);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {

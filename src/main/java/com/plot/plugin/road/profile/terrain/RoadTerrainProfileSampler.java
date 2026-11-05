@@ -62,13 +62,17 @@ public final class RoadTerrainProfileSampler {
         return Math.clamp(configured, MIN_SPACING, MAX_SPACING);
     }
 
+    /**
+     * 完整投影指纹（含世界边界绝对位置）。地形采样必须用此值，
+     * 不可复用 {@code uiFingerprint()}（后者刻意忽略绝对世界位移）。
+     */
     public static long transformFingerprint(ICoordinateService coordinates) {
         if (coordinates == null) {
             return 0L;
         }
         try {
             var snapshot = coordinates.captureProjection();
-            return snapshot != null ? snapshot.uiFingerprint() : 0L;
+            return snapshot != null ? Integer.toUnsignedLong(snapshot.fingerprint()) : 0L;
         } catch (RuntimeException ignored) {
             return 0L;
         }
@@ -130,6 +134,10 @@ public final class RoadTerrainProfileSampler {
         return List.copyOf(stations);
     }
 
+    /**
+     * 解析各桩号平面点。无法定位的站记为 {@code null}（采样时按未加载处理），
+     * 不得使用 {@link List#copyOf}（其拒绝 null）。
+     */
     public static List<Vec2d> resolvePoints(
             RoadNetwork network,
             Road road,
@@ -138,7 +146,7 @@ public final class RoadTerrainProfileSampler {
         for (double station : stations) {
             points.add(RoadPlanGeometry.pointAtStation(network, road, station).orElse(null));
         }
-        return List.copyOf(points);
+        return java.util.Collections.unmodifiableList(points);
     }
 
     public static SampleColumn sampleColumn(TerrainSampler terrain, Vec2d point) {
