@@ -59,7 +59,7 @@ public record GradeSeparationBuildContext(
 
     /**
      * For lower (at-grade) edges under a deck: max Y that open clearance may clear.
-     * {@code floorY} on the zone is the elevated underside / deck floor.
+     * {@code floorY} is elevated pavement Y；净空停在承重层（pavement − supportDepth）之下。
      */
     public Integer maxOpenClearTopY(Vec2d planPoint) {
         if (elevatedRoadEdge || planPoint == null || protectedZones.isEmpty()) {
@@ -70,7 +70,8 @@ public record GradeSeparationBuildContext(
             if (!RoadGeometryUtils.pointInPolygon(planPoint, zone.polygon())) {
                 continue;
             }
-            int cap = zone.floorY() - 1;
+            int supportBottom = zone.floorY() - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
+            int cap = supportBottom - 1;
             max = max == null ? cap : Math.min(max, cap);
         }
         return max;

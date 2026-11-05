@@ -242,12 +242,13 @@ class RoadCorridorClearancePassTest {
             null,
             underpass);
 
+        // floorY=72 为上层路面；承重层在 71，净空最高到 70。
         assertTrue(solids.primitives().stream()
-            .anyMatch(p -> p.elevation() == 71 && "minecraft:air".equals(p.materialId())),
-            "underpass must clear solids up to deck underside, not stop at local clearHeight");
+            .anyMatch(p -> p.elevation() == 70 && "minecraft:air".equals(p.materialId())),
+            "underpass must clear solids up to below deck support, not stop at local clearHeight");
         assertTrue(solids.primitives().stream()
-            .noneMatch(p -> p.elevation() >= 72 && "minecraft:air".equals(p.materialId())),
-            "must not punch into elevated deck");
+            .noneMatch(p -> p.elevation() >= 71 && "minecraft:air".equals(p.materialId())),
+            "must not punch into elevated underside or pavement");
     }
 
     @Test

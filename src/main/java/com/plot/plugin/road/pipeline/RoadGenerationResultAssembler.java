@@ -139,7 +139,7 @@ public final class RoadGenerationResultAssembler {
         int widestRoad = -1;
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
+            if (edge == null || isElevatedJunctionEdge(node, edge)) {
                 continue;
             }
             if (sidewalk && !RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)) {
@@ -167,7 +167,7 @@ public final class RoadGenerationResultAssembler {
         int widestRoad = -1;
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
+            if (edge == null || isElevatedJunctionEdge(node, edge)) {
                 continue;
             }
             int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
@@ -177,6 +177,21 @@ public final class RoadGenerationResultAssembler {
             }
         }
         return selectedMaterial != null ? selectedMaterial : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+    }
+
+    /**
+     * 立交上层道路不参与下层路口材质选取，避免“十”字形异材质。
+     * 与 {@code RoadJunctionGenerator.collectUnderpassJunctionEdges} 过滤语义对齐。
+     */
+    static boolean isElevatedJunctionEdge(RoadNode node, RoadEdge edge) {
+        if (node == null || edge == null) {
+            return false;
+        }
+        if (node.isStackGradeSeparated() && node.isStackUpperEdge(edge.getId())) {
+            return true;
+        }
+        String elevatedRoadId = node.getElevatedRoadId();
+        return elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId());
     }
 
     public static void applyBuildMetrics(RoadGenerationResult result, RoadEdgeBuildMetrics metrics) {

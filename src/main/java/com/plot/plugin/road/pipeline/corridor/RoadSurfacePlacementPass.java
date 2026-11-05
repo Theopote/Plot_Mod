@@ -101,25 +101,36 @@ public final class RoadSurfacePlacementPass {
         result.openRoadClearanceTops.forEach((surface, top) -> {
             Integer elevatedPavementY = lowestProtectedPavementAbove(
                 pavementYsByColumn, surface.getX(), surface.getY(), surface.getZ());
-            int clearTo = elevatedPavementY != null ? Math.min(top, elevatedPavementY - 1) : top;
+            int clearTo = elevatedPavementY != null
+                ? Math.min(top, elevatedPavementY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1)
+                : top;
             for (int y = surface.getY() + 1; y <= clearTo; y++) {
                 var pos = new BlockPos(surface.getX(), y, surface.getZ());
                 var record = result.placementRecords.get(pos);
-                if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                var layer = result.placementLayers.get(pos);
+                // Keep elevated underside (bridge shell / subgrade) under the deck.
+                if (elevatedPavementY != null
+                        && y >= elevatedPavementY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH
+                        && (layer == RoadSolidLayer.BRIDGE || layer == RoadSolidLayer.SUBGRADE)) {
                     continue;
                 }
-                var layer = result.placementLayers.get(pos);
+                if (record == null) {
+                    // 仅立交下层净空：补齐缺失 AIR，清除未进入 placement 的原地形。
+                    if (elevatedPavementY != null) {
+                        result.recordPlacementOverride(pos, "minecraft:air", "minecraft:air");
+                        result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+                        result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
+                    }
+                    continue;
+                }
+                if ("minecraft:air".equals(record.newBlockId)) {
+                    continue;
+                }
                 // SUBGRADE/BRIDGE fill from other approaches, and stray TUNNEL lining that
                 // leaked into an OPEN/BRIDGE headroom column.
                 if (layer != RoadSolidLayer.SUBGRADE
                         && layer != RoadSolidLayer.BRIDGE
                         && layer != RoadSolidLayer.TUNNEL) {
-                    continue;
-                }
-                // Keep elevated underside (bridge shell / subgrade) under the deck.
-                if (elevatedPavementY != null
-                        && y >= elevatedPavementY - 2
-                        && (layer == RoadSolidLayer.BRIDGE || layer == RoadSolidLayer.SUBGRADE)) {
                     continue;
                 }
                 result.recordPlacementOverride(pos, record.previousBlockId, "minecraft:air");

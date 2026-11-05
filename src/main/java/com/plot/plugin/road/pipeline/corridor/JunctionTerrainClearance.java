@@ -18,6 +18,13 @@ import java.util.Map;
  * Clears terrain, decorations, and leftover edge solids above a junction road surface.
  */
 public final class JunctionTerrainClearance {
+    /**
+     * 上层路面下方保留的承重层厚度（格）。净空清障不得触及该层。
+     * 与 {@link com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder} 桥面板
+     * {@code targetY - 1} 一致。
+     */
+    public static final int ELEVATED_DECK_SUPPORT_DEPTH = 1;
+
     private JunctionTerrainClearance() {
     }
 
@@ -86,7 +93,9 @@ public final class JunctionTerrainClearance {
         int columnTopY = terrain.sampleColumnTopY(planPoint);
         int topY = Math.max(leftoverTopY, Math.max(surfaceY, columnTopY));
         if (elevatedDeckY != null) {
-            topY = Math.min(topY, elevatedDeckY - 1);
+            // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
+            // 净空只清到 supportBottom - 1。
+            topY = Math.min(topY, elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1);
         }
         punchColumn(solids, planPoint, cellY, topY);
     }

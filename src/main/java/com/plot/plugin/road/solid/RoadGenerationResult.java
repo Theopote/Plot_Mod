@@ -154,24 +154,31 @@ public class RoadGenerationResult {
                         pos, RoadSolidMaterialPriority.DEFAULT));
                 continue;
             }
+            RoadSolidLayer incomingLayer = source.placementLayers.get(pos);
             // Excavation, subgrade and tunnel lining from another edge must not
             // replace designed pavement. Copy the winning record and metadata together.
             boolean replaceWithSurface = existing != null
                     && ("minecraft:air".equals(existing.newBlockId)
                         || !existingSurface)
                     && incoming != null && !incomingAir
-                    && isProtectedSurface(source.placementLayers.get(pos));
+                    && isProtectedSurface(incomingLayer);
+            // 下层先写入 AIR 后，上层底板（SUBGRADE/BRIDGE）仍须能覆盖同柱空气，保证合并顺序无关。
+            boolean replaceWithDeckSupport = existing != null
+                    && "minecraft:air".equals(existing.newBlockId)
+                    && incoming != null && !incomingAir
+                    && (isElevatedDeckSupport(incomingLayer, pos, source)
+                        || isElevatedDeckSupport(incomingLayer, pos, this));
             // The union of approach clearance volumes opens tunnel junctions;
             // first-claim would retain another approach's wall across the lane.
             // Do not let underpass AIR erase elevated deck underside (SUBGRADE/BRIDGE under ROAD).
             boolean existingDeckSupport = existing != null
                     && !existingSurface
-                    && isElevatedDeckSupport(placementLayers.get(pos), pos);
+                    && isElevatedDeckSupport(placementLayers.get(pos), pos, this);
             boolean replaceWithClearance = existing != null && incomingAir && !existingSurface
                     && !existingDeckSupport;
-            if (replaceWithSurface || replaceWithClearance) {
+            if (replaceWithSurface || replaceWithDeckSupport || replaceWithClearance) {
                 recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
-                placementLayers.put(pos, source.placementLayers.get(pos));
+                placementLayers.put(pos, incomingLayer);
                 placementMaterialPriorities.put(pos, source.placementMaterialPriorities.getOrDefault(
                     pos, RoadSolidMaterialPriority.DEFAULT));
             } else {
@@ -221,17 +228,25 @@ public class RoadGenerationResult {
             || layer == RoadSolidLayer.BRIDGE;
     }
 
-    /** SUBGRADE (or extra BRIDGE shell) immediately under pavement in the same column. */
-    private boolean isElevatedDeckSupport(RoadSolidLayer layer, BlockPos pos) {
-        if (pos == null || (layer != RoadSolidLayer.SUBGRADE && layer != RoadSolidLayer.BRIDGE)) {
+    /**
+     * SUBGRADE / BRIDGE shell immediately under pavement in the same column.
+     * Looks up pavement in {@code owner} so incoming deck support can replace prior AIR
+     * even when this aggregate does not yet hold the elevated ROAD.
+     */
+    private static boolean isElevatedDeckSupport(
+            RoadSolidLayer layer,
+            BlockPos pos,
+            RoadGenerationResult owner) {
+        if (pos == null || owner == null
+                || (layer != RoadSolidLayer.SUBGRADE && layer != RoadSolidLayer.BRIDGE)) {
             return false;
         }
         for (int dy = 1; dy <= 2; dy++) {
             BlockPos above = pos.up(dy);
-            if (!isProtectedSurface(placementLayers.get(above))) {
+            if (!isProtectedSurface(owner.placementLayers.get(above))) {
                 continue;
             }
-            BlockRecord aboveRecord = placementRecords.get(above);
+            BlockRecord aboveRecord = owner.placementRecords.get(above);
             if (aboveRecord != null && !"minecraft:air".equals(aboveRecord.newBlockId)) {
                 return true;
             }

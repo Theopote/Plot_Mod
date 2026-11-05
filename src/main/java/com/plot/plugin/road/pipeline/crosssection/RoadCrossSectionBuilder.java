@@ -60,7 +60,8 @@ public final class RoadCrossSectionBuilder {
             crossSections,
             unitsPerBlock,
             designElevation,
-            buildProfile);
+            buildProfile,
+            ctx.request().gradeSeparation());
 
         generateBridgeStructures(
             crossSectionHost,
@@ -169,16 +170,19 @@ public final class RoadCrossSectionBuilder {
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
             DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
+            BuildHeightProfile buildProfile,
+            com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContext gradeSeparation) {
         String bridgeStructureBlockId = host.resolveBlockId(BridgeStructureGenerator.DECK_SLAB_MATERIAL);
         boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        // 立交上跨边即使未分类为 BRIDGE，也须铺连续承重层（上跨已禁用常规填方）。
+        boolean elevatedDeckEdge = gradeSeparation != null && gradeSeparation.elevatedRoadEdge();
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             boolean bridgeSegment = RoadConstructionClassifier.constructionTypeAt(
                 constructionTypes, i).isBridgeFamily();
-            if (!bridgeSegment) {
+            if (!bridgeSegment && !elevatedDeckEdge) {
                 geometryLocalBase += segment.distance;
                 continue;
             }

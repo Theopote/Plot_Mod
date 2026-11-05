@@ -93,7 +93,15 @@ public final class GradeSeparationBuildContextFactory {
             RoadSystemConfig config,
             ElevatedRoadIdResolver elevatedRoadIdResolver,
             List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones) {
-        if (node == null || node.getDegree() < 3 || !node.isGradeSeparated() || node.isStackGradeSeparated()) {
+        if (node == null || node.getDegree() < 3 || !node.isGradeSeparated()) {
+            return;
+        }
+        if (node.isStackGradeSeparated()) {
+            // STACK 下层也需要净空上界，避免走廊清障挖穿上层底板。
+            if (node.isStackUpperEdge(edge.getId())) {
+                return;
+            }
+            collectStackUnderpassZone(network, node, networkNodeElevations, config, zones);
             return;
         }
         String elevatedRoadId = elevatedRoadIdResolver != null

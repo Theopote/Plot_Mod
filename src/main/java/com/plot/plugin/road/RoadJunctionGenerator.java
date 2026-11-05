@@ -343,7 +343,10 @@ public class RoadJunctionGenerator {
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
         Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, network, generator.getConfig());
-        Integer maxClearY = elevatedDeckY != null ? elevatedDeckY - 1 : null;
+        // 净空上限停在上层底板之下，避免清掉 targetY-1 承重层。
+        Integer maxClearY = elevatedDeckY != null
+            ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
+            : null;
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();

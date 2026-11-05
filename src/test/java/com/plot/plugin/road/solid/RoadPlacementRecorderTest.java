@@ -53,6 +53,38 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void mergingElevatedDeckSupportAndUnderpassAirIsOrderIndependent() {
+        var pavement = new BlockPos(0, 70, 0);
+        var underside = pavement.down();
+        var elevated = new RoadGenerationResult(0);
+        elevated.recordPlacementByLayerPriority(
+            pavement, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        elevated.recordPlacementByLayerPriority(
+            underside, "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
+
+        var underpass = new RoadGenerationResult(0);
+        underpass.recordPlacementByLayerPriority(
+            underside, "minecraft:dirt", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.CLEARANCE);
+
+        for (boolean underpassFirst : new boolean[]{true, false}) {
+            var merged = new RoadGenerationResult(0);
+            merged.mergeFrom(underpassFirst ? underpass : elevated);
+            merged.mergeFrom(underpassFirst ? elevated : underpass);
+            assertEquals(
+                "minecraft:stone_bricks",
+                merged.placementRecords.get(underside).newBlockId,
+                "underside must survive regardless of merge order; underpassFirst=" + underpassFirst);
+            assertEquals(RoadSolidLayer.BRIDGE, merged.placementLayers.get(underside));
+            assertEquals(
+                "minecraft:white_concrete",
+                merged.placementRecords.get(pavement).newBlockId);
+        }
+    }
+
+    @Test
     void mergingRoadSurfaceAndOtherEdgesExcavationIsOrderIndependent() {
         var pos = new BlockPos(2, 76, 0);
         var air = new RoadGenerationResult(0);

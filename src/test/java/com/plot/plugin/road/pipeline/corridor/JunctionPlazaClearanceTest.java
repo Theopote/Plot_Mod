@@ -161,17 +161,18 @@ class JunctionPlazaClearanceTest {
 
         Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
         assertEquals(69, deckY);
-        for (int y = 65; y < deckY; y++) {
+        int supportBottom = deckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
+        for (int y = 65; y < supportBottom; y++) {
             assertTrue(hasAirNearOrigin(blocks, y),
                 "underpass shaft missing air at y=" + y + " airYs=" + airElevationsNearOrigin(blocks));
         }
         assertTrue(
             blocks.getSolids().primitives().stream()
-                .noneMatch(p -> p.elevation() >= deckY
+                .noneMatch(p -> p.elevation() >= supportBottom
                     && "minecraft:air".equals(p.materialId())
                     && Math.abs(p.planPoint().x) <= 2.5
                     && Math.abs(p.planPoint().y) <= 2.5),
-            "elevated deck Y must not be punched by underpass plaza");
+            "elevated underside and pavement must not be punched by underpass plaza");
     }
 
     @Test

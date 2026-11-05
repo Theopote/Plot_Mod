@@ -34,6 +34,41 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadNetworkGeneratorTest {
 
     @Test
+    void resolveJunctionMaterialIgnoresElevatedRoadEvenIfWider() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setSelectedMaterial("minecraft:white_concrete");
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
+
+        Road underpass = network.createRoad("underpass");
+        underpass.setWidth(5);
+        underpass.setMaterial("minecraft:white_concrete");
+        network.createEdge(
+            junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)), underpass.getId());
+        network.createEdge(
+            junction.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -10)), underpass.getId());
+
+        Road overpass = network.createRoad("overpass");
+        overpass.setWidth(11);
+        overpass.setMaterial("minecraft:dirt");
+        network.createEdge(
+            junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), overpass.getId());
+        network.createEdge(
+            junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)), overpass.getId());
+        assertTrue(network.setNodeGradeSeparation(junction.getId(), true, overpass.getId(), 6.0));
+
+        assertEquals(
+            "minecraft:white_concrete",
+            RoadGenerationResultAssembler.resolveJunctionMaterial(junction, network, config, false),
+            "grade-sep plaza material must come from underpass, not wider elevated road");
+    }
+
+    @Test
     void resolveJunctionMaterialPrefersWidestConnectedEdge() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setSelectedMaterial("minecraft:white_concrete");

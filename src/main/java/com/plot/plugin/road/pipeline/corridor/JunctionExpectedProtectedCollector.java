@@ -224,11 +224,13 @@ public final class JunctionExpectedProtectedCollector {
     private static boolean isProtectedLayer(RoadSolidLayer layer) {
         return layer == RoadSolidLayer.ROAD
             || layer == RoadSolidLayer.BRIDGE
+            || layer == RoadSolidLayer.SUBGRADE
             || layer == RoadSolidLayer.GUARDRAIL
             || layer == RoadSolidLayer.SIDEWALK
             || layer == RoadSolidLayer.SHOULDER
             || layer == RoadSolidLayer.BIKE_LANE
-            || layer == RoadSolidLayer.MEDIAN;
+            || layer == RoadSolidLayer.MEDIAN
+            || layer == RoadSolidLayer.MARKING;
     }
 
     private static Vec2d blockToPlan(BlockPos pos, ICoordinateService coordinateTransformer) {

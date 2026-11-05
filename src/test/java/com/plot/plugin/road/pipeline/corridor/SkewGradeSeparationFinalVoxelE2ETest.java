@@ -102,11 +102,14 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         assertTrue(upperRoad > 0, "skew GS must stamp elevated ROAD/BRIDGE near junction");
         assertTrue(lowerRoad > 0, "skew GS must stamp underpass ROAD near junction");
         assertTrue(lowerShaftAir > 0, "underpass shaft must clear air up toward the deck");
-        assertTrue(upperUndersideCleared == 0 || upperUndersideIntact > 0,
-            "elevated underside must not be wiped by CLEARANCE without surviving structure; "
-                + "intact=" + upperUndersideIntact + " cleared=" + upperUndersideCleared);
-        assertFalse(upperUndersideCleared > upperUndersideIntact && upperUndersideIntact == 0,
-            "CLEARANCE must not erase the entire elevated underside");
+        assertTrue(upperUndersideIntact > 0,
+            "elevated underside (deckY-1) must exist; intact=" + upperUndersideIntact);
+        assertTrue(upperUndersideCleared == 0,
+            "CLEARANCE must not punch elevated underside; cleared=" + upperUndersideCleared
+                + " intact=" + upperUndersideIntact);
+        assertTrue(upperUndersideIntact * 2 >= upperRoad,
+            "most elevated pavement columns should keep continuous underside; "
+                + "pavement=" + upperRoad + " underside=" + upperUndersideIntact);
     }
 
     private static RoadNetwork skewedGradeSeparatedCross(double radians) {
