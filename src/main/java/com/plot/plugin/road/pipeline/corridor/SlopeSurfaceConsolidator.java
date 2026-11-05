@@ -63,6 +63,12 @@ public final class SlopeSurfaceConsolidator {
                     sample.outcome()));
             }
             enforceMonotonicRay(steps);
+            // 软接地等末端微调发生在单调校正之前；校正后必须再验证，否则 COMPLETE 名不副实。
+            rayOutcomeForSteps = finalizeTipAfterMonotonic(steps, rayOutcomeForSteps, terrain);
+            if (rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL
+                    && rayOutcome != SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
+                plan.noteNeedsRetainingWall();
+            }
 
             int tipOffset = steps.stream().mapToInt(RayStep::horizontalOffset).max().orElse(0);
             for (RayStep step : steps) {
@@ -244,6 +250,74 @@ public final class SlopeSurfaceConsolidator {
         int direction = step.fill() ? -1 : 1;
         float ratio = Math.max(0.5f, step.slopeRatio());
         return step.slopeSurfaceY() - direction * Math.round(step.horizontalOffset() / ratio);
+    }
+
+    /**
+     * 单调校正后核对末端接地：若仍差 ≤ 软接地阈值则拉回地面；否则降级为挡墙收尾。
+     */
+    private static SlopeConstructionOutcome finalizeTipAfterMonotonic(
+            List<RayStep> steps,
+            SlopeConstructionOutcome outcome,
+            TerrainSampler terrain) {
+        if (steps == null || steps.isEmpty() || terrain == null) {
+            return outcome;
+        }
+        if (outcome != SlopeConstructionOutcome.COMPLETE
+                && outcome != SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
+            return outcome;
+        }
+        int tipIndex = 0;
+        for (int i = 1; i < steps.size(); i++) {
+            if (steps.get(i).horizontalOffset() >= steps.get(tipIndex).horizontalOffset()) {
+                tipIndex = i;
+            }
+        }
+        RayStep tip = steps.get(tipIndex);
+        if (!terrain.isChunkLoaded(tip.planPoint())) {
+            return outcome == SlopeConstructionOutcome.COMPLETE
+                ? SlopeConstructionOutcome.NEEDS_RETAINING_WALL
+                : outcome;
+        }
+        int groundY = terrain.sampleSurfaceY(tip.planPoint());
+        if (tipMeetsTerrain(tip, groundY)) {
+            return outcome;
+        }
+        int remaining = Math.abs(tip.slopeSurfaceY() - groundY);
+        if (remaining <= RoadEarthworkPolicy.WIDTH_CAP_SOFT_GROUND_REMAINING
+                && tipSnapPreservesNeighborStep(steps, tipIndex, groundY)) {
+            steps.set(tipIndex, tip.withSlopeSurfaceY(groundY));
+            if (tipMeetsTerrain(steps.get(tipIndex), groundY)) {
+                return SlopeConstructionOutcome.COMPLETE;
+            }
+        }
+        return SlopeConstructionOutcome.NEEDS_RETAINING_WALL;
+    }
+
+    private static boolean tipMeetsTerrain(RayStep tip, int groundY) {
+        if (tip.fill()) {
+            return tip.slopeSurfaceY() <= groundY + 1;
+        }
+        return tip.slopeSurfaceY() >= groundY - 1;
+    }
+
+    private static boolean tipSnapPreservesNeighborStep(
+            List<RayStep> steps,
+            int tipIndex,
+            int snappedY) {
+        if (tipIndex <= 0) {
+            return true;
+        }
+        RayStep prev = steps.get(tipIndex - 1);
+        RayStep tip = steps.get(tipIndex);
+        // 软接地允许末端相对邻步最多跳 WIDTH_CAP_SOFT_GROUND_REMAINING 格。
+        int delta = Math.abs(snappedY - prev.slopeSurfaceY());
+        if (delta > RoadEarthworkPolicy.WIDTH_CAP_SOFT_GROUND_REMAINING) {
+            return false;
+        }
+        if (tip.fill()) {
+            return snappedY <= prev.slopeSurfaceY();
+        }
+        return snappedY >= prev.slopeSurfaceY();
     }
 
     private record ColumnCandidate(

@@ -120,7 +120,12 @@ public final class RoadCorridorClearancePass {
             }
             return cleared;
         }
+        SlopeColumnCell slope = plan != null ? plan.slopeCell(key) : null;
+        int groundY = terrain.sampleSurfaceY(cell.planPoint());
         for (int y = designY + 1; y <= topY; y++) {
+            if (retainingFinishOccupies(slope, groundY, y)) {
+                continue;
+            }
             cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
         }
         // OPEN/BRIDGE: strip trees and other clearable decoration above the solid clear
@@ -128,7 +133,7 @@ public final class RoadCorridorClearancePass {
         if (cell.mode() == RoadCorridorConstructionMode.OPEN
                 || cell.mode() == RoadCorridorConstructionMode.BRIDGE) {
             cleared += clearDecorationsAbove(
-                solids, cell, key, terrain, designY, topY, deckCap, gradeSeparation);
+                solids, cell, key, terrain, designY, topY, deckCap, gradeSeparation, slope, groundY);
         }
         return cleared;
     }
@@ -146,6 +151,21 @@ public final class RoadCorridorClearancePass {
             int solidTopY,
             Integer deckCap,
             GradeSeparationBuildContext gradeSeparation) {
+        return clearDecorationsAbove(
+            solids, cell, key, terrain, designY, solidTopY, deckCap, gradeSeparation, null, Integer.MIN_VALUE);
+    }
+
+    private static int clearDecorationsAbove(
+            RoadSolidModel solids,
+            ClearanceCell cell,
+            ColumnKey key,
+            TerrainSampler terrain,
+            int designY,
+            int solidTopY,
+            Integer deckCap,
+            GradeSeparationBuildContext gradeSeparation,
+            SlopeColumnCell slope,
+            int groundY) {
         int decoTop = terrain.sampleColumnTopY(cell.planPoint());
         if (deckCap != null) {
             decoTop = Math.min(decoTop, deckCap);
@@ -156,6 +176,9 @@ public final class RoadCorridorClearancePass {
         int cleared = 0;
         for (int y = Math.max(designY + 1, solidTopY + 1); y <= decoTop; y++) {
             if (gradeSeparation != null && gradeSeparation.protectsClearance(cell.planPoint(), y)) {
+                continue;
+            }
+            if (retainingFinishOccupies(slope, groundY, y)) {
                 continue;
             }
             if (!terrain.isRoadClearableDecoration(key.worldX(), y, key.worldZ())) {
@@ -170,6 +193,22 @@ public final class RoadCorridorClearancePass {
             cleared++;
         }
         return cleared;
+    }
+
+    /** 宽度截断竖向挡墙占用的高度：清障 AIR 不得写入该区间。 */
+    static boolean retainingFinishOccupies(SlopeColumnCell slope, int groundY, int y) {
+        if (slope == null || !slope.needsRetainingFinish()) {
+            return false;
+        }
+        if (slope.hasCut()) {
+            int faceY = slope.cutSurfaceY();
+            return y >= faceY && y < groundY;
+        }
+        if (slope.hasFill()) {
+            int faceY = slope.fillSurfaceY();
+            return y > groundY && y <= faceY;
+        }
+        return false;
     }
 
     private static final int[][] NEIGHBOR_OFFSETS = {

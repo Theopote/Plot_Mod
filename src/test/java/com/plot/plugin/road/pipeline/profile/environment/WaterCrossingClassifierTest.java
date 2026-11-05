@@ -34,4 +34,25 @@ class WaterCrossingClassifierTest {
         assertEquals(17.0, crossing.crossingEndStation(), 1e-6);
         assertEquals(8.0, crossing.lengthMeters(), 1e-6);
     }
+
+    @Test
+    void defaultsDoNotAutoSelectCausewayForShortShallowWater() {
+        EnvironmentProfile profile = new EnvironmentProfile(
+            List.of(
+                EnvironmentSample.land(0.0, 64),
+                new EnvironmentSample(1.0, 62, 63, 1, SurfaceContext.SHALLOW_WATER),
+                new EnvironmentSample(2.0, 62, 63, 1, SurfaceContext.SHALLOW_WATER),
+                EnvironmentSample.land(3.0, 64)),
+            List.of(0.0, 1.0, 2.0, 3.0));
+
+        List<WaterCrossing> crossings = WaterCrossingClassifier.classify(
+            WaterCrossingDetector.detect(profile),
+            WaterCrossingSettings.defaults(),
+            TerrainFollowPreset.STANDARD,
+            3.0);
+
+        assertEquals(1, crossings.size());
+        assertEquals(WaterCrossingStrategy.BRIDGE, crossings.getFirst().strategy(),
+            "default settings must not auto-authorize water embankment");
+    }
 }

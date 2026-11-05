@@ -19,10 +19,12 @@ import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
+import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
@@ -45,7 +47,8 @@ public final class RoadCorridorPlanBuilder {
             int targetY,
             double chainage,
             int segmentIndex,
-            RoadConstructionType constructionType) {
+            RoadConstructionType constructionType,
+            boolean allowWaterEmbankment) {
     }
 
     public static RoadCorridorPlan build(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
@@ -62,7 +65,8 @@ public final class RoadCorridorPlanBuilder {
             ctx.unitsPerBlock(),
             ctx.carriagewaySeedKey(),
             ctx.request().junctionCorridor(),
-            planHost);
+            planHost,
+            ctx.request().profileWaterCrossings());
         return plan;
     }
 
@@ -78,12 +82,31 @@ public final class RoadCorridorPlanBuilder {
             String carriagewaySeedKey,
             JunctionCorridorBuildContext junctionCorridor,
             PlanHost host) {
+        return build(
+            segments, heightInfos, crossSections, constructionTypes, designElevation, buildProfile,
+            terrain, unitsPerBlock, carriagewaySeedKey, junctionCorridor, host, List.of());
+    }
+
+    static RoadCorridorPlan build(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            List<RoadConstructionType> constructionTypes,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            TerrainSampler terrain,
+            double unitsPerBlock,
+            String carriagewaySeedKey,
+            JunctionCorridorBuildContext junctionCorridor,
+            PlanHost host,
+            List<WaterCrossing> profileWaterCrossings) {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         List<StationSample> stations = collectStations(
             segments, heightInfos, crossSections, constructionTypes,
             designElevation, buildProfile, host::snapEndpointElevation, unitsPerBlock,
             junctionCorridor != null && junctionCorridor.exclusionPolygons().isEmpty()
-                ? junctionCorridor.endpointTrim() : null);
+                ? junctionCorridor.endpointTrim() : null,
+            profileWaterCrossings);
         if (stations.isEmpty()) {
             return plan;
         }
@@ -131,7 +154,8 @@ public final class RoadCorridorPlanBuilder {
             BuildHeightProfile buildProfile,
             RoadPathStationSampler.ElevationSnapper snapper,
             double unitsPerBlock,
-            com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim) {
+            com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
+            List<WaterCrossing> profileWaterCrossings) {
         List<StationSample> stations = new ArrayList<>();
         RoadPathStationSampler.forEach(
             segments,
@@ -149,7 +173,9 @@ public final class RoadCorridorPlanBuilder {
                     targetY,
                     chainage,
                     segmentIndex,
-                    RoadConstructionClassifier.constructionTypeAt(constructionTypes, segmentIndex))));
+                    RoadConstructionClassifier.constructionTypeAt(constructionTypes, segmentIndex),
+                    WaterCrossingConstructionResolver.isCausewayFillStation(
+                        profileWaterCrossings, chainage))));
         return stations;
     }
 
@@ -219,15 +245,20 @@ public final class RoadCorridorPlanBuilder {
                 RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection),
                 unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0));
         }
-        rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
-            sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
-            seedKey, host, sample.constructionType(), config, tunnelThreshold, polylineSegments);
-        if (!suppressBatter
-                && crossSection.includeSlopeBatter
-                && RoadEarthworkPolicy.allowsCorridorBatter(sample.constructionType())) {
-            slopeSamples.addAll(mergeSlopeWedge(
-                plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq,
-                tunnelThreshold));
+        plan.setWaterEmbankmentMarkingActive(sample.allowWaterEmbankment());
+        try {
+            rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
+                sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
+                seedKey, host, sample.constructionType(), config, tunnelThreshold, polylineSegments);
+            if (!suppressBatter
+                    && crossSection.includeSlopeBatter
+                    && RoadEarthworkPolicy.allowsCorridorBatter(sample.constructionType())) {
+                slopeSamples.addAll(mergeSlopeWedge(
+                    plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq,
+                    tunnelThreshold));
+            }
+        } finally {
+            plan.setWaterEmbankmentMarkingActive(false);
         }
     }
 
@@ -252,28 +283,50 @@ public final class RoadCorridorPlanBuilder {
         // Split type-boundary spans so PORTAL→TUNNEL / ROAD→BRIDGE does not tag the
         // transition half as STRUCTURE_ONLY (which strips slope and skips open clearance).
         if (fromType == toType) {
-            rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
-                from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
-                seedKey, host, toType, config, tunnelThreshold, polylineSegments);
+            plan.setWaterEmbankmentMarkingActive(
+                from.allowWaterEmbankment() || to.allowWaterEmbankment());
+            try {
+                rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
+                    from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
+                    seedKey, host, toType, config, tunnelThreshold, polylineSegments);
+            } finally {
+                plan.setWaterEmbankmentMarkingActive(false);
+            }
         } else {
             Vec2d midCenter = from.center().lerp(to.center(), 0.5);
             int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * 0.5);
             Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), 0.5));
-            rasterizeSurfaceBands(plan, from.center(), midCenter, from.leftNormal(), midNormal,
-                from.targetY(), midY, toSection, terrain, unitsPerBlock,
-                seedKey, host, fromType, config, tunnelThreshold, polylineSegments);
-            rasterizeSurfaceBands(plan, midCenter, to.center(), midNormal, to.leftNormal(),
-                midY, to.targetY(), toSection, terrain, unitsPerBlock,
-                seedKey, host, toType, config, tunnelThreshold, polylineSegments);
+            plan.setWaterEmbankmentMarkingActive(from.allowWaterEmbankment());
+            try {
+                rasterizeSurfaceBands(plan, from.center(), midCenter, from.leftNormal(), midNormal,
+                    from.targetY(), midY, toSection, terrain, unitsPerBlock,
+                    seedKey, host, fromType, config, tunnelThreshold, polylineSegments);
+            } finally {
+                plan.setWaterEmbankmentMarkingActive(false);
+            }
+            plan.setWaterEmbankmentMarkingActive(to.allowWaterEmbankment());
+            try {
+                rasterizeSurfaceBands(plan, midCenter, to.center(), midNormal, to.leftNormal(),
+                    midY, to.targetY(), toSection, terrain, unitsPerBlock,
+                    seedKey, host, toType, config, tunnelThreshold, polylineSegments);
+            } finally {
+                plan.setWaterEmbankmentMarkingActive(false);
+            }
         }
         // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体
         if (!suppressSpanBatter
                 && toSection.includeSlopeBatter
                 && RoadEarthworkPolicy.allowsCorridorBatter(fromType)
                 && RoadEarthworkPolicy.allowsCorridorBatter(toType)) {
-            slopeSamples.addAll(mergeSlopeSpan(
-                plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq,
-                tunnelThreshold));
+            plan.setWaterEmbankmentMarkingActive(
+                from.allowWaterEmbankment() || to.allowWaterEmbankment());
+            try {
+                slopeSamples.addAll(mergeSlopeSpan(
+                    plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq,
+                    tunnelThreshold));
+            } finally {
+                plan.setWaterEmbankmentMarkingActive(false);
+            }
         }
     }
 
@@ -617,7 +670,7 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold) {
         return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
             crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++, tunnelThreshold,
-            sample.constructionType());
+            sample.constructionType(), sample.allowWaterEmbankment());
     }
 
     /** 急折外侧扇区：仅当转角够大且路径采样偏稀时加密；上限避免预览算力爆炸。 */
@@ -655,10 +708,11 @@ public final class RoadCorridorPlanBuilder {
         }
         if (steps <= 0) {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
+            boolean allowWater = resolveStepAllowWaterEmbankment(from, to, 1.0);
             if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
                     crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                    tunnelThreshold, stepType));
+                    tunnelThreshold, stepType, allowWater));
             }
             return samples;
         }
@@ -670,12 +724,13 @@ public final class RoadCorridorPlanBuilder {
                 ? toNormal
                 : normalize(fromNormal.rotate(turn * t));
             RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
+            boolean allowWater = resolveStepAllowWaterEmbankment(from, to, t);
             if (!RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 continue;
             }
             samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,
                 crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                tunnelThreshold, stepType));
+                tunnelThreshold, stepType, allowWater));
         }
         return samples;
     }
@@ -720,6 +775,18 @@ public final class RoadCorridorPlanBuilder {
         return t <= 0.5 ? fromType : toType;
     }
 
+    private static boolean resolveStepAllowWaterEmbankment(
+            StationSample from,
+            StationSample to,
+            double t) {
+        boolean fromAllow = from.allowWaterEmbankment();
+        boolean toAllow = to.allowWaterEmbankment();
+        if (fromAllow == toAllow) {
+            return fromAllow;
+        }
+        return t <= 0.5 ? fromAllow : toAllow;
+    }
+
     private static List<SlopeProfileSample> mergeSlopeAtCenter(
             RoadCorridorPlan plan,
             Vec2d center,
@@ -731,7 +798,8 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             long stationSampleId,
             int tunnelThreshold,
-            RoadConstructionType constructionType) {
+            RoadConstructionType constructionType,
+            boolean allowWaterEmbankment) {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
@@ -746,11 +814,11 @@ public final class RoadCorridorPlanBuilder {
         samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT),
-            tunnelThreshold, constructionType));
+            tunnelThreshold, constructionType, allowWaterEmbankment));
         samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT),
-            tunnelThreshold, constructionType));
+            tunnelThreshold, constructionType, allowWaterEmbankment));
         return samples;
     }
 
@@ -771,7 +839,8 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             SlopeRayId rayId,
             int tunnelThreshold,
-            RoadConstructionType constructionType) {
+            RoadConstructionType constructionType,
+            boolean allowWaterEmbankment) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d leftNormal = normalize(corridorLeftNormal);
@@ -795,9 +864,9 @@ public final class RoadCorridorPlanBuilder {
         if (RoadEarthworkPolicy.suppressFillBatter(isFill, heightAboveGround, host.bridgeThreshold())) {
             return samples;
         }
-        // 水面柱禁止普通填方；堤道 FILL/CAUSEWAY 例外
+        // 水面柱禁止普通填方；仅授权堤道（CAUSEWAY）例外，普通 FILL 不放行
         if (RoadEarthworkPolicy.suppressFillOverWater(
-                isFill, constructionType, terrain.findExposedWaterSurface(outerEdge))) {
+                isFill, allowWaterEmbankment, terrain.findExposedWaterSurface(outerEdge))) {
             return samples;
         }
         int profileDirection = isFill ? -1 : 1;
@@ -851,13 +920,13 @@ public final class RoadCorridorPlanBuilder {
                     int y = (int) Math.round(previousHeight + (slopeHeight - previousHeight) * t);
                     int offset = (int) Math.round(previousOffset + (horizontalOffset - previousOffset) * t);
                     addSlopeSample(
-                        samples, span.get(i), y, isFill, materialId, rayId, offset, slopeRatio, outcome,
-                        terrain, host);
+                        samples, plan, span.get(i), y, isFill, materialId, rayId, offset, slopeRatio,
+                        outcome, terrain, host, allowWaterEmbankment);
                 }
             } else {
                 addSlopeSample(
-                    samples, samplePoint, slopeHeight, isFill, materialId, rayId,
-                    horizontalOffset, slopeRatio, outcome, terrain, host);
+                    samples, plan, samplePoint, slopeHeight, isFill, materialId, rayId,
+                    horizontalOffset, slopeRatio, outcome, terrain, host, allowWaterEmbankment);
             }
             previousPoint = samplePoint;
             previousHeight = slopeHeight;
@@ -868,6 +937,7 @@ public final class RoadCorridorPlanBuilder {
 
     private static void addSlopeSample(
             List<SlopeProfileSample> samples,
+            RoadCorridorPlan plan,
             Vec2d samplePoint,
             int slopeHeight,
             boolean isFill,
@@ -877,12 +947,16 @@ public final class RoadCorridorPlanBuilder {
             float slopeRatio,
             SlopeConstructionOutcome outcome,
             TerrainSampler terrain,
-            PlanHost host) {
+            PlanHost host,
+            boolean allowWaterEmbankment) {
         if (samplePoint == null || !terrain.isChunkLoaded(samplePoint)) {
             return;
         }
         Vec2d planPoint = host.canonicalColumnPoint(samplePoint);
         ColumnKey key = new ColumnKey(host.worldX(planPoint), host.worldZ(planPoint));
+        if (allowWaterEmbankment) {
+            plan.markAllowWaterEmbankment(key);
+        }
         samples.add(new SlopeProfileSample(
             key, planPoint, slopeHeight, isFill, materialId, rayId,
             horizontalOffset, slopeRatio, outcome));

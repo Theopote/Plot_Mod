@@ -65,18 +65,24 @@ public final class RoadPlacementRecorder {
         RoadSolidLayer existingLayer = placementLayers.get(pos);
         if (existingLayer != null) {
             int layerCompare = RoadSolidLayerPriority.compare(layer, existingLayer);
+            BlockRecord existingRecord = placementRecords.get(pos);
+            String existingBlockId = existingRecord != null ? existingRecord.newBlockId : null;
+            // 宽度截断挡墙可覆盖同柱边坡清障 AIR，但不得压过非空气的隧道/结构净空。
             if (layerCompare < 0) {
-                return;
-            }
-            if (layerCompare == 0) {
+                if (!retainingWallOverridesClearanceAir(layer, newBlockId, existingLayer, existingBlockId)) {
+                    return;
+                }
+            } else if (layerCompare > 0) {
+                if (clearanceAirWouldEraseRetainingWall(layer, newBlockId, existingLayer)) {
+                    return;
+                }
+            } else {
                 int existingMaterialPriority = placementMaterialPriorities.getOrDefault(
                     pos, RoadSolidMaterialPriority.DEFAULT);
                 if (materialPriority < existingMaterialPriority) {
                     return;
                 }
                 if (materialPriority == existingMaterialPriority) {
-                    BlockRecord existingRecord = placementRecords.get(pos);
-                    String existingBlockId = existingRecord != null ? existingRecord.newBlockId : null;
                     if (existingBlockId != null && newBlockId.compareTo(existingBlockId) <= 0) {
                         return;
                     }
@@ -92,5 +98,31 @@ public final class RoadPlacementRecorder {
         } else {
             recordOverride(placementRecords, pos, previousBlockId, newBlockId);
         }
+    }
+
+    /** 截断挡墙落地：覆盖普通边坡 OPEN 清障写入的 TUNNEL AIR。 */
+    static boolean retainingWallOverridesClearanceAir(
+            RoadSolidLayer incomingLayer,
+            String incomingBlockId,
+            RoadSolidLayer existingLayer,
+            String existingBlockId) {
+        return incomingLayer == RoadSolidLayer.RETAINING_WALL
+            && !isAirBlockId(incomingBlockId)
+            && existingLayer == RoadSolidLayer.TUNNEL
+            && isAirBlockId(existingBlockId);
+    }
+
+    /** 清障 AIR 不得抹掉已落盘的截断挡墙。 */
+    static boolean clearanceAirWouldEraseRetainingWall(
+            RoadSolidLayer incomingLayer,
+            String incomingBlockId,
+            RoadSolidLayer existingLayer) {
+        return incomingLayer == RoadSolidLayer.TUNNEL
+            && isAirBlockId(incomingBlockId)
+            && existingLayer == RoadSolidLayer.RETAINING_WALL;
+    }
+
+    private static boolean isAirBlockId(String blockId) {
+        return blockId == null || blockId.isBlank() || "minecraft:air".equals(blockId);
     }
 }

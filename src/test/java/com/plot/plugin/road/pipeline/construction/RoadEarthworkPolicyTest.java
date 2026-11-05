@@ -105,16 +105,17 @@ class RoadEarthworkPolicyTest {
     }
 
     @Test
-    void suppressFillOverWaterExceptCauseway() {
+    void suppressFillOverWaterExceptAuthorizedCauseway() {
         var water = java.util.OptionalInt.of(62);
-        assertTrue(RoadEarthworkPolicy.suppressFillOverWater(true, RoadConstructionType.ROAD, water));
-        assertTrue(RoadEarthworkPolicy.suppressFillOverWater(true, RoadConstructionType.CUT, water));
-        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(true, RoadConstructionType.FILL, water),
-            "CAUSEWAY/FILL may fill over water");
-        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(false, RoadConstructionType.ROAD, water));
+        assertTrue(RoadEarthworkPolicy.suppressFillOverWater(true, false, water),
+            "ordinary fill must not embank over water");
+        assertTrue(RoadEarthworkPolicy.suppressFillOverWater(true, false, water));
+        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(true, true, water),
+            "authorized causeway may embank over water");
+        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(false, false, water));
         assertFalse(RoadEarthworkPolicy.suppressFillOverWater(
-            true, RoadConstructionType.ROAD, java.util.OptionalInt.empty()));
-        assertTrue(RoadEarthworkPolicy.allowsCausewayWaterFill(RoadConstructionType.FILL));
-        assertFalse(RoadEarthworkPolicy.allowsCausewayWaterFill(RoadConstructionType.ROAD));
+            true, false, java.util.OptionalInt.empty()));
+        assertTrue(RoadEarthworkPolicy.allowsWaterEmbankment(true));
+        assertFalse(RoadEarthworkPolicy.allowsWaterEmbankment(false));
     }
 }

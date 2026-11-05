@@ -32,6 +32,45 @@ class SlopeSurfaceConsolidatorTest {
     }
 
     @Test
+    void softGroundTipSurvivesMonotonicCorrection() {
+        // Soft-ground raised tip to natural ground; monotonic would otherwise snap it back to ratio Y.
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                new ColumnKey(10, 0), new Vec2d(10, 0), 94, false, "minecraft:stone", RAY, 1, 1.0f),
+            new SlopeProfileSample(
+                new ColumnKey(11, 0), new Vec2d(11, 0), 95, false, "minecraft:stone", RAY, 2, 1.0f),
+            new SlopeProfileSample(
+                new ColumnKey(12, 0), new Vec2d(12, 0), 98, false, "minecraft:stone", RAY, 3, 1.0f,
+                SlopeConstructionOutcome.COMPLETE)),
+            new FlatTerrainSampler(98));
+
+        SlopeColumnCell tip = plan.slopeCell(new ColumnKey(12, 0));
+        assertEquals(98, tip.cutSurfaceY(), "soft-ground tip must remain tied to terrain after consolidator");
+        assertFalse(tip.needsRetainingFinish(), "grounded tip must not request retaining finish");
+        assertEquals(0, plan.needsRetainingWallCount());
+    }
+
+    @Test
+    void softGroundFailureAfterMonotonicRequestsRetaining() {
+        // Tip claims COMPLETE but remains far from terrain after ratio snap → retaining.
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                new ColumnKey(10, 0), new Vec2d(10, 0), 90, false, "minecraft:stone", RAY, 1, 1.0f,
+                SlopeConstructionOutcome.COMPLETE),
+            new SlopeProfileSample(
+                new ColumnKey(20, 0), new Vec2d(20, 0), 91, false, "minecraft:stone", RAY, 11, 1.0f,
+                SlopeConstructionOutcome.COMPLETE)),
+            new FlatTerrainSampler(120));
+
+        SlopeColumnCell tip = plan.slopeCell(new ColumnKey(20, 0));
+        assertTrue(tip.needsRetainingFinish(),
+            "COMPLETE tip that cannot meet terrain after monotonic must request retaining");
+        assertEquals(1, plan.needsRetainingWallCount());
+    }
+
+    @Test
     void needsRetainingWallRayStillEmitsPartialSlope() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey key = new ColumnKey(20, 0);

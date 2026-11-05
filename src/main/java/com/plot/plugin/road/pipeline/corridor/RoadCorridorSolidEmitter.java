@@ -116,8 +116,9 @@ public final class RoadCorridorSolidEmitter {
 
         // 立交上跨边：禁止开敞填方边坡/路基堆土（会掉进下层净空或成悬浮土堤）
         boolean elevatedEdge = gradeSeparation != null && gradeSeparation.elevatedRoadEdge();
+        boolean allowWaterEmbankment = plan.allowsWaterEmbankment(key);
         boolean waterBlocksFill = RoadEarthworkPolicy.suppressFillOverWater(
-            true, constructionType, terrain.findExposedWaterSurface(planPoint));
+            true, allowWaterEmbankment, terrain.findExposedWaterSurface(planPoint));
         boolean allowOpenFill = !elevatedEdge
             && !bridgeClearance
             && !waterBlocksFill
@@ -181,8 +182,13 @@ public final class RoadCorridorSolidEmitter {
             if (cutFaceY >= cutTopY) {
                 cutFaceY = cutTopY - 1;
             }
+            boolean retainingTip = slope.needsRetainingFinish();
             for (int y = cutFaceY + 1; y <= cutTopY; y++) {
                 if (gradeSeparation != null && gradeSeparation.protectsClearance(planPoint, y)) {
+                    continue;
+                }
+                // 挡墙将占据 faceY..groundY-1；同柱清障 AIR 不得抢占。
+                if (retainingTip && y >= cutFaceY && y < groundY) {
                     continue;
                 }
                 solids.add(
@@ -205,7 +211,7 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
-        if (slope != null && slope.needsRetainingFinish()) {
+        if (slope != null && slope.needsRetainingFinish() && !waterBlocksFill) {
             emitRetainingFinish(
                 solids, slope, planPoint, groundY, defaultFillMaterialId, gradeSeparation);
         }

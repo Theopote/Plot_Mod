@@ -126,24 +126,25 @@ public enum RoadEarthworkPolicy {
     }
 
     /**
-     * 堤道（{@link RoadConstructionType#FILL} / CAUSEWAY）允许在水域填筑；其它类型禁止。
+     * 仅当构建上下文明确授权水域堤道（CAUSEWAY 区间）时允许填水；
+     * 普通 {@link RoadConstructionType#FILL} 陆地填方不得借此绕过水面禁令。
      */
-    public static boolean allowsCausewayWaterFill(RoadConstructionType type) {
-        return type == RoadConstructionType.FILL;
+    public static boolean allowsWaterEmbankment(boolean allowWaterEmbankment) {
+        return allowWaterEmbankment;
     }
 
     /**
      * 水面柱禁止普通填方边坡：工程地面可能是湖床，仅靠 sampleSurfaceY 会误判为干地填方。
-     * 堤道例外。
+     * 仅授权堤道例外。
      */
     public static boolean suppressFillOverWater(
             boolean isFill,
-            RoadConstructionType type,
+            boolean allowWaterEmbankment,
             OptionalInt exposedWaterSurface) {
         if (!isFill || exposedWaterSurface == null || exposedWaterSurface.isEmpty()) {
             return false;
         }
-        return !allowsCausewayWaterFill(type);
+        return !allowsWaterEmbankment(allowWaterEmbankment);
     }
 
     /**

@@ -238,6 +238,30 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void retainingWallBeatsSlopeClearanceAirEitherOrder() {
+        Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
+        Map<BlockPos, RoadSolidLayer> layers = new LinkedHashMap<>();
+        Map<BlockPos, Integer> materialPriorities = new LinkedHashMap<>();
+        BlockPos pos = new BlockPos(5, 71, 0);
+
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:stone",
+            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:stone",
+            "minecraft:cobblestone", RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+
+        assertEquals("minecraft:cobblestone", records.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.RETAINING_WALL, layers.get(pos));
+
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:stone",
+            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+        assertEquals("minecraft:cobblestone", records.get(pos).newBlockId,
+            "later clearance AIR must not erase retaining wall");
+    }
+
+    @Test
     void flushJunctionSolidsAppliesLayerMaterialOverrides() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         RoadSolidModel solids = new RoadSolidModel();

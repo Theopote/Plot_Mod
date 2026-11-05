@@ -58,7 +58,7 @@ class WaterAwareProfileSolverTest {
         List<Double> distances = constantDistances(4, 1.0);
         List<Float> slopes = constantSlopes(4, 8.0f);
         EnvironmentProfile environment = shallowPondEnvironment();
-        WaterCrossingSettings settings = WaterCrossingSettings.defaults();
+        WaterCrossingSettings settings = new WaterCrossingSettings(1, 6.0, 2, 6.0, 60.0, false);
         List<WaterCrossing> crossings = WaterCrossingClassifier.classify(
             WaterCrossingDetector.detect(environment),
             settings,

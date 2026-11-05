@@ -1,15 +1,21 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
+import com.plot.plugin.road.solid.RoadPlacementRecorder;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.solid.RoadSolidPrimitive;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
-import java.util.OptionalInt;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -196,9 +202,39 @@ class RoadCorridorSolidEmitterEarthworkTest {
     }
 
     @Test
-    void causewayFillMayEmbankOverWater() {
+    void ordinaryFillTypeDoesNotBypassWaterBan() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey key = new ColumnKey(10, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(
+            new Vec2d(10, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(key, new ClearanceCell(
+            new Vec2d(10, 0), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.FILL));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(key, new Vec2d(10, 0));
+        slope.mergeFill(63, "minecraft:dirt");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            lakeTerrain(60, 62),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:dirt");
+
+        long dirt = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        assertEquals(0, dirt, "ordinary FILL classification must not embank over water");
+    }
+
+    @Test
+    void authorizedCausewayMayEmbankOverWater() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(10, 0);
+        plan.markAllowWaterEmbankment(key);
         plan.surfaceMask().put(key, new SurfaceCell(
             new Vec2d(10, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
         plan.putClearance(key, new ClearanceCell(
@@ -222,9 +258,34 @@ class RoadCorridorSolidEmitterEarthworkTest {
             .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
             .filter(p -> "minecraft:dirt".equals(p.materialId()))
             .count();
-        org.junit.jupiter.api.Assertions.assertTrue(dirt > 0, "causeway FILL may embank over water");
+        org.junit.jupiter.api.Assertions.assertTrue(dirt > 0, "authorized causeway may embank over water");
         org.junit.jupiter.api.Assertions.assertTrue(metrics.fillVolume > 0,
             "slope fill path must count fillVolume");
+    }
+
+    @Test
+    void retainingFinishDoesNotEmbankUnauthorizedWaterColumn() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey tip = new ColumnKey(20, 0);
+        SlopeColumnCell slope = plan.slopeCellOrCreate(tip, new Vec2d(20, 0));
+        slope.mergeFill(63, "minecraft:dirt");
+        slope.markRetainingFinish();
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            lakeTerrain(60, 62),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:dirt");
+
+        long wallOrFill = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.RETAINING_WALL
+                || p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        assertEquals(0, wallOrFill, "width-cap retaining must not refill banned water columns");
     }
 
     @Test
@@ -250,6 +311,55 @@ class RoadCorridorSolidEmitterEarthworkTest {
             .count();
         org.junit.jupiter.api.Assertions.assertTrue(wall > 0,
             "capped cut tip must emit vertical retaining finish up to ground");
+    }
+
+    @Test
+    void retainingFinishSurvivesClearanceAirInFinalPlacementRecords() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey tip = new ColumnKey(20, 0);
+        Vec2d point = new Vec2d(20, 0);
+        plan.putClearance(tip, new ClearanceCell(
+            point, 70, 80,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(tip, point);
+        slope.mergeCut(70, "minecraft:stone");
+        slope.markRetainingFinish();
+
+        RoadSolidModel solids = new RoadSolidModel();
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        TerrainSampler terrain = mountainTerrain();
+        RoadCorridorClearancePass.apply(solids, plan, terrain, host);
+        RoadCorridorSolidEmitter.emit(solids, plan, terrain, host, null, "minecraft:stone");
+
+        Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
+        Map<BlockPos, RoadSolidLayer> layers = new HashMap<>();
+        Map<BlockPos, Integer> materialPriorities = new HashMap<>();
+        for (RoadSolidPrimitive primitive : solids.primitives()) {
+            BlockPos pos = new BlockPos(
+                (int) Math.round(primitive.planPoint().x),
+                primitive.elevation(),
+                (int) Math.round(primitive.planPoint().y));
+            RoadPlacementRecorder.recordByLayerPriority(
+                records,
+                layers,
+                materialPriorities,
+                pos,
+                "minecraft:stone",
+                primitive.materialId(),
+                primitive.layer(),
+                primitive.materialPriority());
+        }
+
+        for (int y = 70; y < 80; y++) {
+            BlockPos pos = new BlockPos(20, y, 0);
+            BlockRecord record = records.get(pos);
+            org.junit.jupiter.api.Assertions.assertNotNull(record, "retaining cell y=" + y);
+            org.junit.jupiter.api.Assertions.assertEquals(
+                "minecraft:stone", record.newBlockId, "retaining must beat clearance AIR at y=" + y);
+            org.junit.jupiter.api.Assertions.assertEquals(
+                RoadSolidLayer.RETAINING_WALL, layers.get(pos));
+        }
     }
 
     @Test
