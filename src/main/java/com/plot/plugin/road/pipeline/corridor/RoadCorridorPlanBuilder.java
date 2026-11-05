@@ -598,10 +598,12 @@ public final class RoadCorridorPlanBuilder {
         }
         ColumnKey key = new ColumnKey(worldX, worldZ);
         plan.surfaceMask().put(key, new SurfaceCell(planPoint, surfaceY, layer, materialId));
+        SurfaceCell finalSurface = plan.surfaceMask().get(key);
+        int designY = finalSurface != null ? finalSurface.surfaceY() : surfaceY;
 
         RoadCorridorConstructionMode mode = toMode(constructionType);
-        int clearTopY = computeClearTopY(mode, surfaceY, planPoint, terrain, tunnelThreshold, host);
-        plan.putClearance(key, new ClearanceCell(planPoint, surfaceY, clearTopY, mode, constructionType));
+        int clearTopY = computeClearTopY(mode, designY, planPoint, terrain, tunnelThreshold, host);
+        plan.putClearance(key, new ClearanceCell(planPoint, designY, clearTopY, mode, constructionType));
     }
 
     private static List<SlopeProfileSample> mergeSlopeWedge(

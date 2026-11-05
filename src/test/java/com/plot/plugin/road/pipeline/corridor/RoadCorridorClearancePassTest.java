@@ -252,6 +252,54 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
+    void slopeStepClearanceFloorFollowsFinalSurfaceMaskY() {
+        // surfaceY=65，clearance.designY 仍为 64：清障底以 65 为准，不得把 65 清成空气。
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 65, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(key, new ClearanceCell(point, 64, 70, RoadCorridorConstructionMode.OPEN, null));
+
+        TerrainSampler hill = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 70;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 70;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 70;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(
+            solids, plan, hill, CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()));
+
+        assertTrue(solids.primitives().stream()
+            .noneMatch(p -> p.elevation() == 65 && "minecraft:air".equals(p.materialId())),
+            "final pavement Y must remain for ROAD emit");
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 66 && "minecraft:air".equals(p.materialId())),
+            "must clear immediately above final surface, not stale lower designY");
+    }
+
+    @Test
+    void surfaceMaskKeepsHigherYOnEqualLayerSlopeStep() {
+        RoadSurfaceMask mask = new RoadSurfaceMask();
+        ColumnKey key = new ColumnKey(1, 2);
+        mask.put(key, new SurfaceCell(new Vec2d(1, 2), 65, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        mask.put(key, new SurfaceCell(new Vec2d(1, 2), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        assertEquals(65, mask.get(key).surfaceY(),
+            "later lower-step stamp must not overwrite higher pavement Y");
+    }
+
+    @Test
     void bridgeModeStillClearsOverheadAboveDeck() {
         RoadSolidModel solids = new RoadSolidModel();
         RoadCorridorPlan plan = new RoadCorridorPlan();

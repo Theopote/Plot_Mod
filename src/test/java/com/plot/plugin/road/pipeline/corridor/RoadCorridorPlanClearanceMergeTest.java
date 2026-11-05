@@ -118,4 +118,20 @@ class RoadCorridorPlanClearanceMergeTest {
         assertEquals(RoadConstructionType.FILL,
             RoadCorridorPlan.mergeClearance(low, high).constructionType());
     }
+
+    @Test
+    void openMergeKeepsHigherDesignSurfaceOnSlopeStep() {
+        ClearanceCell lowStep = new ClearanceCell(
+            new Vec2d(0, 0), 64, 71,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD);
+        ClearanceCell highStep = new ClearanceCell(
+            new Vec2d(0, 0), 65, 70,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD);
+        ClearanceCell merged = RoadCorridorPlan.mergeClearance(highStep, lowStep);
+        assertEquals(65, merged.designSurfaceY(),
+            "slope-step merge must not drop designSurfaceY when a later stamp has higher clearTop");
+        assertEquals(71, merged.clearTopY());
+    }
 }

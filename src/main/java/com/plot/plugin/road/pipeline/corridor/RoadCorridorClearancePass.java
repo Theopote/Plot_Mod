@@ -55,7 +55,7 @@ public final class RoadCorridorClearancePass {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            int cleared = clearColumn(solids, cell, key, terrain, host, portalGuard, gradeSeparation);
+            int cleared = clearColumn(solids, plan, cell, key, terrain, host, portalGuard, gradeSeparation);
             if (metrics != null) {
                 metrics.cutVolume += cleared;
             }
@@ -70,6 +70,7 @@ public final class RoadCorridorClearancePass {
 
     private static int clearColumn(
             RoadSolidModel solids,
+            RoadCorridorPlan plan,
             ClearanceCell cell,
             ColumnKey key,
             TerrainSampler terrain,
@@ -77,7 +78,12 @@ public final class RoadCorridorClearancePass {
             PortalTransitionGuard portalGuard,
             GradeSeparationBuildContext gradeSeparation) {
         int cleared = 0;
+        // 以最终路面 mask 为准：纵坡台阶同柱可能留下偏高的 clearance.designY 或偏低的 surfaceY。
         int designY = cell.designSurfaceY();
+        SurfaceCell surface = plan != null ? plan.surfaceMask().get(key) : null;
+        if (surface != null) {
+            designY = Math.max(designY, surface.surfaceY());
+        }
         int topY = Math.max(cell.clearTopY(), designY);
         if (cell.mode() == RoadCorridorConstructionMode.TUNNEL && host != null) {
             return clearTunnelInterior(solids, cell, key, terrain, host, designY, topY);

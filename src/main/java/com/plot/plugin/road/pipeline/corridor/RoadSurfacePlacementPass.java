@@ -152,11 +152,10 @@ public final class RoadSurfacePlacementPass {
                 continue;
             }
             if (record == null) {
-                if (elevatedPavementY != null) {
-                    result.recordPlacementOverride(pos, "minecraft:air", "minecraft:air");
-                    result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
-                    result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
-                }
+                // 开敞路与立交净空柱：补齐缺失 AIR，避免纵坡台阶处未进入 solids 的地形残留在路面上。
+                result.recordPlacementOverride(pos, "minecraft:air", "minecraft:air");
+                result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+                result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
                 continue;
             }
             if ("minecraft:air".equals(record.newBlockId)) {

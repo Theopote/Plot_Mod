@@ -92,13 +92,13 @@ public final class RoadCorridorPlan {
             return preferWithExpandedEnvelope(portalPreferred, other);
         }
         if (incoming.clearTopY() > existing.clearTopY()) {
-            return withMergedLateral(incoming, existing);
+            return preferWithExpandedEnvelope(incoming, existing);
         }
         if (incoming.clearTopY() == existing.clearTopY()
                 && incoming.designSurfaceY() > existing.designSurfaceY()) {
-            return withMergedLateral(incoming, existing);
+            return preferWithExpandedEnvelope(incoming, existing);
         }
-        return withMergedLateral(existing, incoming);
+        return preferWithExpandedEnvelope(existing, incoming);
     }
 
     private static ClearanceCell portalPreferred(ClearanceCell a, ClearanceCell b) {
@@ -115,21 +115,33 @@ public final class RoadCorridorPlan {
         if (isStructureEnvelope(preferred)) {
             return withMergedLateral(preferred, other);
         }
-        int clearTopY = Math.max(preferred.clearTopY(), other.clearTopY());
-        if (clearTopY == preferred.clearTopY()) {
-            return withMergedLateral(preferred, other);
-        }
-        return new ClearanceCell(
-            preferred.planPoint(),
-            preferred.designSurfaceY(),
-            clearTopY,
-            preferred.mode(),
-            preferred.constructionType(),
-            mergedLateral(preferred, other));
+        return withMergedOpenEnvelope(preferred, other);
     }
 
     private static boolean isStructureEnvelope(ClearanceCell cell) {
         return clearanceMergeRank(cell.constructionType()) >= 1;
+    }
+
+    /**
+     * 开敞走廊合并：净空顶与设计面都取较高值，避免纵坡台阶同柱先写高后写低时
+     * designSurfaceY 偏低、漏清路面上一格。
+     */
+    private static ClearanceCell withMergedOpenEnvelope(ClearanceCell preferred, ClearanceCell other) {
+        int clearTopY = Math.max(preferred.clearTopY(), other.clearTopY());
+        int designSurfaceY = Math.max(preferred.designSurfaceY(), other.designSurfaceY());
+        Integer lateral = mergedLateral(preferred, other);
+        if (clearTopY == preferred.clearTopY()
+                && designSurfaceY == preferred.designSurfaceY()
+                && Objects.equals(lateral, preferred.corridorLateral())) {
+            return preferred;
+        }
+        return new ClearanceCell(
+            preferred.planPoint(),
+            designSurfaceY,
+            clearTopY,
+            preferred.mode(),
+            preferred.constructionType(),
+            lateral);
     }
 
     private static ClearanceCell withMergedLateral(ClearanceCell primary, ClearanceCell secondary) {

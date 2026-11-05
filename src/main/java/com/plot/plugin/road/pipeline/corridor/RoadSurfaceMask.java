@@ -16,7 +16,18 @@ public final class RoadSurfaceMask {
             return;
         }
         SurfaceCell existing = cells.get(key);
-        if (existing == null || RoadSolidLayerPriority.compare(cell.layer(), existing.layer()) >= 0) {
+        if (existing == null) {
+            cells.put(key, cell);
+            return;
+        }
+        int layerCmp = RoadSolidLayerPriority.compare(cell.layer(), existing.layer());
+        if (layerCmp > 0) {
+            cells.put(key, cell);
+            return;
+        }
+        // 同层纵坡台阶：同柱多次写入时保留较高路面，避免后写低台阶盖掉高台阶后
+        // clearance 仍按高 designY 起算、漏清路面上一格地形。
+        if (layerCmp == 0 && cell.surfaceY() >= existing.surfaceY()) {
             cells.put(key, cell);
         }
     }
