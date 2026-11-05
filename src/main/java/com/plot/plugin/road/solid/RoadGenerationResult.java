@@ -170,6 +170,9 @@ public class RoadGenerationResult {
                 continue;
             }
             RoadSolidLayer incomingLayer = source.placementLayers.get(pos);
+            RoadSolidLayer existingLayer = placementLayers.get(pos);
+            boolean existingRetaining = isRetainingWallSolid(existingLayer, existing);
+            boolean incomingRetaining = isRetainingWallSolid(incomingLayer, incoming);
             // Excavation, subgrade and tunnel lining from another edge must not
             // replace designed pavement. Copy the winning record and metadata together.
             boolean replaceWithSurface = existing != null
@@ -183,15 +186,21 @@ public class RoadGenerationResult {
                     && incoming != null && !incomingAir
                     && (isElevatedDeckSupport(incomingLayer, pos, source)
                         || isElevatedDeckSupport(incomingLayer, pos, this));
+            // 截断挡墙可覆盖他路清障 AIR，但不得借 isProtectedSurface 侵入行车净空。
+            boolean replaceWithRetaining = existing != null
+                    && "minecraft:air".equals(existing.newBlockId)
+                    && incomingRetaining;
             // The union of approach clearance volumes opens tunnel junctions;
             // first-claim would retain another approach's wall across the lane.
             // Do not let underpass AIR erase elevated deck underside (SUBGRADE/BRIDGE under ROAD).
+            // 也不允许他路边坡清障 AIR 抹掉已落盘的截断挡墙。
             boolean existingDeckSupport = existing != null
                     && !existingSurface
-                    && isElevatedDeckSupport(placementLayers.get(pos), pos, this);
+                    && isElevatedDeckSupport(existingLayer, pos, this);
             boolean replaceWithClearance = existing != null && incomingAir && !existingSurface
-                    && !existingDeckSupport;
-            if (replaceWithSurface || replaceWithDeckSupport || replaceWithClearance) {
+                    && !existingDeckSupport
+                    && !existingRetaining;
+            if (replaceWithSurface || replaceWithDeckSupport || replaceWithRetaining || replaceWithClearance) {
                 recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
                 placementLayers.put(pos, incomingLayer);
                 placementMaterialPriorities.put(pos, source.placementMaterialPriorities.getOrDefault(
@@ -241,6 +250,14 @@ public class RoadGenerationResult {
             || layer == RoadSolidLayer.SIDEWALK || layer == RoadSolidLayer.BIKE_LANE
             || layer == RoadSolidLayer.MEDIAN || layer == RoadSolidLayer.MARKING
             || layer == RoadSolidLayer.BRIDGE;
+    }
+
+    /** 截断挡墙实体（非空气）：跨边合并时保护，不被普通清障 AIR 覆盖。 */
+    private static boolean isRetainingWallSolid(RoadSolidLayer layer, BlockRecord record) {
+        return layer == RoadSolidLayer.RETAINING_WALL
+            && record != null
+            && record.newBlockId != null
+            && !"minecraft:air".equals(record.newBlockId);
     }
 
     /**

@@ -85,6 +85,30 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void mergingRetainingWallAndOtherEdgesClearanceAirIsOrderIndependent() {
+        var pos = new BlockPos(8, 71, 0);
+        var retaining = new RoadGenerationResult(0);
+        retaining.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+        var clearance = new RoadGenerationResult(0);
+        clearance.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+
+        for (boolean retainingFirst : new boolean[]{true, false}) {
+            var merged = new RoadGenerationResult(0);
+            merged.mergeFrom(retainingFirst ? retaining : clearance);
+            merged.mergeFrom(retainingFirst ? clearance : retaining);
+            assertEquals(
+                "minecraft:cobblestone",
+                merged.placementRecords.get(pos).newBlockId,
+                "retaining must survive either merge order; retainingFirst=" + retainingFirst);
+            assertEquals(RoadSolidLayer.RETAINING_WALL, merged.placementLayers.get(pos));
+        }
+    }
+
+    @Test
     void mergingRoadSurfaceAndOtherEdgesExcavationIsOrderIndependent() {
         var pos = new BlockPos(2, 76, 0);
         var air = new RoadGenerationResult(0);

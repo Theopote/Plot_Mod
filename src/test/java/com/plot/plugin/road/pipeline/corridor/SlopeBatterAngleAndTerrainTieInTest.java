@@ -29,7 +29,8 @@ class SlopeBatterAngleAndTerrainTieInTest {
     @ValueSource(floats = {30f, 45f, 60f})
     void cutSlopeRespectsTargetAngleWithinTolerance(float angleDegrees) {
         float ratio = SlopeFormatUtils.angleDegreesToBatterRatio(angleDegrees);
-        RoadCorridorPlan plan = buildCutPlan(ratio, new FlatTerrainSampler(90));
+        // cover=8 < deepDaylight(~10)，保证开敞挖方放坡不被深覆土策略关掉。
+        RoadCorridorPlan plan = buildCutPlan(ratio, new FlatTerrainSampler(72));
         assertTrue(plan.slopeEntries().size() >= 3, "cut plan must emit slope cells");
 
         List<SlopeColumnCell> cutCells = new ArrayList<>();
@@ -47,7 +48,8 @@ class SlopeBatterAngleAndTerrainTieInTest {
     @ValueSource(floats = {30f, 45f, 60f})
     void fillSlopeRespectsTargetAngleWithinTolerance(float angleDegrees) {
         float ratio = SlopeFormatUtils.angleDegreesToBatterRatio(angleDegrees);
-        RoadCorridorPlan plan = buildFillPlan(ratio, new FlatTerrainSampler(50));
+        // 填高=2 ≤ bridgeThreshold(3)，保证开敞填方边坡可生成。
+        RoadCorridorPlan plan = buildFillPlan(ratio, new FlatTerrainSampler(62));
         assertTrue(plan.slopeEntries().size() >= 3, "fill plan must emit slope cells");
 
         List<SlopeColumnCell> fillCells = new ArrayList<>();
@@ -71,7 +73,10 @@ class SlopeBatterAngleAndTerrainTieInTest {
 
     @org.junit.jupiter.api.Test
     void deepCutWithinWidthCapKeepsPartialSlopeAndRetainingWallDiagnostic() {
-        RoadCorridorPlan plan = buildCutPlan(1.0f, new FlatTerrainSampler(120));
+        // 抬高隧道覆土门槛，使深挖仍走开敞放坡，从而触发宽度上限收尾。
+        RoadCorridorPlan plan = buildPlan(
+            1.0f, 1.0f, 64, new FlatTerrainSampler(120),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig(), 64, 3));
         assertTrue(plan.slopeBatterWidthCapCount() > 0);
         assertTrue(plan.needsRetainingWallCount() > 0);
         assertEquals(0, plan.unresolvedSlopeConstructionCount());
@@ -114,19 +119,22 @@ class SlopeBatterAngleAndTerrainTieInTest {
     }
 
     private static RoadCorridorPlan buildCutPlan(float cutRatio, TerrainSampler terrain) {
-        return buildPlan(cutRatio, cutRatio, 64, terrain);
+        return buildPlan(cutRatio, cutRatio, 64, terrain, CorridorTestFixtures.planHost(
+            CorridorTestFixtures.baseConfig()));
     }
 
     private static RoadCorridorPlan buildFillPlan(float fillRatio, TerrainSampler terrain) {
-        return buildPlan(fillRatio, fillRatio, 64, terrain);
+        return buildPlan(fillRatio, fillRatio, 64, terrain, CorridorTestFixtures.planHost(
+            CorridorTestFixtures.baseConfig()));
     }
 
     private static RoadCorridorPlan buildPlan(
             float cutRatio,
             float fillRatio,
             int roadY,
-            TerrainSampler terrain) {
-        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
+        RoadSystemConfig config = host.config();
         config.setCutSlopeRatio(cutRatio);
         config.setFillSlopeRatio(fillRatio);
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
@@ -142,6 +150,6 @@ class SlopeBatterAngleAndTerrainTieInTest {
             1.0,
             "angle-test",
             JunctionCorridorBuildContext.NONE,
-            CorridorTestFixtures.planHost(config));
+            host);
     }
 }

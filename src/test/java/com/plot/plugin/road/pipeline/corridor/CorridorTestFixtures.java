@@ -32,7 +32,26 @@ final class CorridorTestFixtures {
             RoadSystemConfig config,
             RoadTerrainStyle terrainStyle,
             ICoordinateService coordinates) {
-        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(terrainStyle);
+        return planHost(
+            config,
+            coordinates,
+            RoadConstructionHeuristics.tunnelThreshold(terrainStyle),
+            RoadConstructionHeuristics.bridgeThreshold(terrainStyle));
+    }
+
+    /** 深挖/高填专项测试可抬高隧道覆土门槛，避免开敞放坡被 deep-daylight 提前关掉。 */
+    static RoadCorridorPlanBuilder.PlanHost planHost(
+            RoadSystemConfig config,
+            int tunnelThreshold,
+            int bridgeThreshold) {
+        return planHost(config, IdentityCoordinateService.INSTANCE, tunnelThreshold, bridgeThreshold);
+    }
+
+    static RoadCorridorPlanBuilder.PlanHost planHost(
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            int tunnelThreshold,
+            int bridgeThreshold) {
         ICoordinateService resolvedCoordinates = coordinates != null
             ? coordinates
             : IdentityCoordinateService.INSTANCE;
@@ -92,7 +111,7 @@ final class CorridorTestFixtures {
 
             @Override
             public int bridgeThreshold() {
-                return RoadConstructionHeuristics.bridgeThreshold(terrainStyle);
+                return bridgeThreshold;
             }
 
             @Override

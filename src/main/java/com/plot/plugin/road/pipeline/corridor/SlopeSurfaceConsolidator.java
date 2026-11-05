@@ -45,8 +45,6 @@ public final class SlopeSurfaceConsolidator {
                 for (SlopeProfileSample sample : raySamples) {
                     touchedByUnresolvedRay.add(sample.columnKey());
                 }
-            } else if (rayOutcome == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
-                plan.noteNeedsRetainingWall();
             }
 
             List<RayStep> steps = new ArrayList<>(raySamples.size());
@@ -60,13 +58,14 @@ public final class SlopeSurfaceConsolidator {
                     sample.materialId(),
                     sample.horizontalOffset(),
                     sample.slopeRatio(),
-                    sample.outcome()));
+                    sample.outcome(),
+                    sample.allowWaterEmbankment()));
             }
             enforceMonotonicRay(steps);
             // 软接地等末端微调发生在单调校正之前；校正后必须再验证，否则 COMPLETE 名不副实。
             rayOutcomeForSteps = finalizeTipAfterMonotonic(steps, rayOutcomeForSteps, terrain);
-            if (rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL
-                    && rayOutcome != SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
+            // 诊断计数以校正后的最终末端状态为准，避免「需要挡墙」与已接地矛盾。
+            if (rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
                 plan.noteNeedsRetainingWall();
             }
 
@@ -101,6 +100,10 @@ public final class SlopeSurfaceConsolidator {
             }
             if (resolution.retainingFinish()) {
                 cell.markRetainingFinish();
+            }
+            // 水域授权绑定最终胜出列，避免落败的堤道射线污染普通道路柱。
+            if (resolution.allowWaterEmbankment()) {
+                plan.markAllowWaterEmbankment(key);
             }
             written.add(key);
         }
@@ -280,7 +283,7 @@ public final class SlopeSurfaceConsolidator {
         }
         int groundY = terrain.sampleSurfaceY(tip.planPoint());
         if (tipMeetsTerrain(tip, groundY)) {
-            return outcome;
+            return SlopeConstructionOutcome.COMPLETE;
         }
         int remaining = Math.abs(tip.slopeSurfaceY() - groundY);
         if (remaining <= RoadEarthworkPolicy.WIDTH_CAP_SOFT_GROUND_REMAINING
@@ -335,10 +338,13 @@ public final class SlopeSurfaceConsolidator {
             String materialId,
             int horizontalOffset,
             float slopeRatio,
-            SlopeConstructionOutcome outcome) {
+            SlopeConstructionOutcome outcome,
+            boolean allowWaterEmbankment) {
 
         RayStep withSlopeSurfaceY(int y) {
-            return new RayStep(columnKey, planPoint, y, fill, materialId, horizontalOffset, slopeRatio, outcome);
+            return new RayStep(
+                columnKey, planPoint, y, fill, materialId, horizontalOffset, slopeRatio, outcome,
+                allowWaterEmbankment);
         }
     }
 
@@ -348,7 +354,8 @@ public final class SlopeSurfaceConsolidator {
             boolean fill,
             String materialId,
             boolean hadConflict,
-            boolean retainingFinish) {
+            boolean retainingFinish,
+            boolean allowWaterEmbankment) {
 
         static ColumnResolution from(ColumnCandidate candidate, boolean hadConflict) {
             RayStep step = candidate.step();
@@ -358,7 +365,8 @@ public final class SlopeSurfaceConsolidator {
                 step.fill(),
                 step.materialId(),
                 hadConflict,
-                candidate.tipRetaining());
+                candidate.tipRetaining(),
+                step.allowWaterEmbankment());
         }
     }
 }

@@ -50,7 +50,7 @@ class SlopeEnvelopeClearancePassTest {
                     && clearance.designSurfaceY() == cutY
                     && clearance.clearTopY() > clearance.designSurfaceY()) {
                 slopeCovered++;
-            } else if (cutY >= 89) {
+            } else if (cutY >= 71) {
                 slopeCovered++;
             }
         }
@@ -124,10 +124,11 @@ class SlopeEnvelopeClearancePassTest {
         assertTrue(crossSection.includeSlopeBatter);
 
         // Terrain starts above the design grade (cut) then drops below (fill).
+        // cut cover=8、fill height=2，均在开敞放坡门槛内。
         TerrainSampler stepped = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d point) {
-                return point.x < 12 ? 90 : 50;
+                return point.x < 12 ? 72 : 62;
             }
 
             @Override
@@ -138,7 +139,7 @@ class SlopeEnvelopeClearancePassTest {
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0));
         RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
             List.of(segment),
-            List.of(new SegmentHeightInfo(segment, 90, 50, 64, 64, 0.0)),
+            List.of(new SegmentHeightInfo(segment, 72, 62, 64, 64, 0.0)),
             CrossSectionBuildContext.fixed(crossSection),
             List.of(RoadConstructionType.ROAD),
             DesignElevationSource.inactive(),
@@ -211,7 +212,7 @@ class SlopeEnvelopeClearancePassTest {
             ResolvedCrossSection crossSection,
             Vec2d start,
             Vec2d end) {
-        return cutPlan(config, crossSection, start, end, new FlatTerrainSampler(90));
+        return cutPlan(config, crossSection, start, end, new FlatTerrainSampler(72));
     }
 
     private static RoadCorridorPlan cutPlan(
@@ -221,9 +222,10 @@ class SlopeEnvelopeClearancePassTest {
             Vec2d end,
             TerrainSampler terrain) {
         PathSegment segment = new PathSegment(start, end);
+        int groundY = terrain.sampleSurfaceY(start);
         return RoadCorridorPlanBuilder.build(
             List.of(segment),
-            List.of(new SegmentHeightInfo(segment, 90, 90, 64, 64, 0.0)),
+            List.of(new SegmentHeightInfo(segment, groundY, groundY, 64, 64, 0.0)),
             CrossSectionBuildContext.fixed(crossSection),
             List.of(RoadConstructionType.ROAD),
             DesignElevationSource.inactive(),
@@ -232,6 +234,9 @@ class SlopeEnvelopeClearancePassTest {
             1.0,
             "slope-envelope",
             JunctionCorridorBuildContext.NONE,
-            CorridorTestFixtures.planHost(config));
+            // 深覆土场景测试抬高门槛，保证仍走开放放坡+清障路径。
+            groundY - 64 >= 10
+                ? CorridorTestFixtures.planHost(config, 64, 3)
+                : CorridorTestFixtures.planHost(config));
     }
 }

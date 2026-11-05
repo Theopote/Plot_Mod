@@ -71,6 +71,48 @@ class SlopeSurfaceConsolidatorTest {
     }
 
     @Test
+    void groundedTipClearsStaleRetainingDiagnostic() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                new ColumnKey(10, 0), new Vec2d(10, 0), 96, false, "minecraft:stone", RAY, 1, 1.0f,
+                SlopeConstructionOutcome.NEEDS_RETAINING_WALL),
+            new SlopeProfileSample(
+                new ColumnKey(11, 0), new Vec2d(11, 0), 97, false, "minecraft:stone", RAY, 2, 1.0f,
+                SlopeConstructionOutcome.NEEDS_RETAINING_WALL),
+            new SlopeProfileSample(
+                new ColumnKey(12, 0), new Vec2d(12, 0), 98, false, "minecraft:stone", RAY, 3, 1.0f,
+                SlopeConstructionOutcome.NEEDS_RETAINING_WALL)),
+            new FlatTerrainSampler(98));
+
+        assertFalse(plan.slopeCell(new ColumnKey(12, 0)).needsRetainingFinish());
+        assertEquals(0, plan.needsRetainingWallCount(),
+            "tip that meets terrain after monotonic must not keep retaining diagnostic");
+    }
+
+    @Test
+    void waterEmbankmentAuthFollowsWinningColumnOnly() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey shared = new ColumnKey(40, 0);
+        SlopeRayId causewayRay = new SlopeRayId(100L, SlopeRayId.ShoulderSide.LEFT);
+        SlopeRayId ordinaryRay = new SlopeRayId(101L, SlopeRayId.ShoulderSide.LEFT);
+
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                shared, new Vec2d(40, 0), 72, true, "dirt", causewayRay, 8, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, true),
+            new SlopeProfileSample(
+                shared, new Vec2d(40, 0), 70, true, "dirt", ordinaryRay, 2, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false)),
+            new FlatTerrainSampler(64));
+
+        // Closest shoulder offset (ordinary ray offset 2) wins over causeway offset 8.
+        assertEquals(70, plan.slopeCell(shared).fillSurfaceY());
+        assertFalse(plan.allowsWaterEmbankment(shared),
+            "losing causeway candidate must not leave water embankment auth on the column");
+    }
+
+    @Test
     void needsRetainingWallRayStillEmitsPartialSlope() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey key = new ColumnKey(20, 0);

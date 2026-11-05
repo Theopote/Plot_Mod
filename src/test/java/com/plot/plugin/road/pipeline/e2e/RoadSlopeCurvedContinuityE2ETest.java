@@ -37,7 +37,8 @@ class RoadSlopeCurvedContinuityE2ETest {
             PointOfVerticalIntersection.of(0, 64),
             PointOfVerticalIntersection.of(40, 64))));
 
-        RoadGenerationResult edge = preview(network, slopeEnabledConfig(), new FlatTerrainSampler(88));
+        // cover≈8，低于 deep-daylight，保留开敞弯道挖方边坡。
+        RoadGenerationResult edge = preview(network, slopeEnabledConfig(), new FlatTerrainSampler(72));
         assertEquals(0, edge.missingRoadSurfaceCount);
         assertTrue(edge.cutVolume > 0);
         assertTrue(edge.brokenSlopeSurfaceCount <= 2,
@@ -46,11 +47,11 @@ class RoadSlopeCurvedContinuityE2ETest {
     }
 
     @Test
-    void deepCutDoesNotLeaveTruncatedVerticalShoulderWall() {
+    void deepCoverDoesNotEmitOpenVerticalBatterWalls() {
         RoadNetwork network = straightRoad("deep-wall", 64, 64);
+        // 深覆土走隧道/抑制开敞放坡路径，不应再堆出竖向路肩土墙。
         RoadGenerationResult edge = preview(network, slopeEnabledConfig(), new FlatTerrainSampler(120));
 
-        assertTrue(edge.needsRetainingWallCount > 0);
         assertEquals(0, edge.unresolvedSlopeConstructionCount);
         Map<Long, Integer> stackedByColumn = new java.util.HashMap<>();
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : edge.placementLayers.entrySet()) {
@@ -71,7 +72,7 @@ class RoadSlopeCurvedContinuityE2ETest {
             }
         }
         assertTrue(verticalFillColumns <= 8,
-            "width-capped deep cut must not emit long vertical fill walls, columns=" + verticalFillColumns);
+            "deep-cover cut must not emit long vertical fill walls, columns=" + verticalFillColumns);
     }
 
     private static RoadSystemConfig slopeEnabledConfig() {

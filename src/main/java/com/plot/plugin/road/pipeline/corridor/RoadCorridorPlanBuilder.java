@@ -282,9 +282,10 @@ public final class RoadCorridorPlanBuilder {
         RoadConstructionType toType = to.constructionType();
         // Split type-boundary spans so PORTAL→TUNNEL / ROAD→BRIDGE does not tag the
         // transition half as STRUCTURE_ONLY (which strips slope and skips open clearance).
-        if (fromType == toType) {
-            plan.setWaterEmbankmentMarkingActive(
-                from.allowWaterEmbankment() || to.allowWaterEmbankment());
+        // 水面授权按桩号半段划分，禁止用端点 OR 把堤道权限扩散到整段普通道路。
+        boolean waterAuthDiffers = from.allowWaterEmbankment() != to.allowWaterEmbankment();
+        if (fromType == toType && !waterAuthDiffers) {
+            plan.setWaterEmbankmentMarkingActive(from.allowWaterEmbankment());
             try {
                 rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
                     from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
@@ -313,20 +314,15 @@ public final class RoadCorridorPlanBuilder {
                 plan.setWaterEmbankmentMarkingActive(false);
             }
         }
-        // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体
+        // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体。
+        // 边坡水域授权随 SlopeProfileSample 传递，在 consolidator 胜出列后落盘。
         if (!suppressSpanBatter
                 && toSection.includeSlopeBatter
                 && RoadEarthworkPolicy.allowsCorridorBatter(fromType)
                 && RoadEarthworkPolicy.allowsCorridorBatter(toType)) {
-            plan.setWaterEmbankmentMarkingActive(
-                from.allowWaterEmbankment() || to.allowWaterEmbankment());
-            try {
-                slopeSamples.addAll(mergeSlopeSpan(
-                    plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq,
-                    tunnelThreshold));
-            } finally {
-                plan.setWaterEmbankmentMarkingActive(false);
-            }
+            slopeSamples.addAll(mergeSlopeSpan(
+                plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq,
+                tunnelThreshold));
         }
     }
 
@@ -920,12 +916,12 @@ public final class RoadCorridorPlanBuilder {
                     int y = (int) Math.round(previousHeight + (slopeHeight - previousHeight) * t);
                     int offset = (int) Math.round(previousOffset + (horizontalOffset - previousOffset) * t);
                     addSlopeSample(
-                        samples, plan, span.get(i), y, isFill, materialId, rayId, offset, slopeRatio,
+                        samples, span.get(i), y, isFill, materialId, rayId, offset, slopeRatio,
                         outcome, terrain, host, allowWaterEmbankment);
                 }
             } else {
                 addSlopeSample(
-                    samples, plan, samplePoint, slopeHeight, isFill, materialId, rayId,
+                    samples, samplePoint, slopeHeight, isFill, materialId, rayId,
                     horizontalOffset, slopeRatio, outcome, terrain, host, allowWaterEmbankment);
             }
             previousPoint = samplePoint;
@@ -937,7 +933,6 @@ public final class RoadCorridorPlanBuilder {
 
     private static void addSlopeSample(
             List<SlopeProfileSample> samples,
-            RoadCorridorPlan plan,
             Vec2d samplePoint,
             int slopeHeight,
             boolean isFill,
@@ -954,12 +949,9 @@ public final class RoadCorridorPlanBuilder {
         }
         Vec2d planPoint = host.canonicalColumnPoint(samplePoint);
         ColumnKey key = new ColumnKey(host.worldX(planPoint), host.worldZ(planPoint));
-        if (allowWaterEmbankment) {
-            plan.markAllowWaterEmbankment(key);
-        }
         samples.add(new SlopeProfileSample(
             key, planPoint, slopeHeight, isFill, materialId, rayId,
-            horizontalOffset, slopeRatio, outcome));
+            horizontalOffset, slopeRatio, outcome, allowWaterEmbankment));
     }
 
     /**
