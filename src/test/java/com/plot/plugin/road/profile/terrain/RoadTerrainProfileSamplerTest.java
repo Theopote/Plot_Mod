@@ -298,47 +298,137 @@ class RoadTerrainProfileSamplerTest {
     }
 
     @Test
-    void movedRoadRejectsCompletedJobResult() {
-        ApplicationContext app = ApplicationContext.getInstance();
-        PluginContext host = new PluginContext(
-            app.getAppState(),
-            app.getCommandService(),
-            app.getEventBus(),
-            app.getToolManager(),
-            IdentityCoordinateService.INSTANCE,
-            null,
-            null,
-            null);
-        RoadPreviewManager manager = new RoadPreviewManager(new RoadProjectStatus(), host);
+    void sameWorldUnchangedGeometryPublishesJobResult() {
+        RoadPreviewManager manager = terrainManager("test-world");
+        RoadNetwork network = straightRoadNetwork(40.0);
+        Road road = network.getRoad("r1");
+        manager.setLiveNetworkLookup(() -> network);
 
-        RoadNetwork network = new RoadNetwork();
-        Road road = network.createRoad("r1");
-        RoadNode a = network.createNode(new Vec2d(0, 0));
-        RoadNode b = network.createNode(new Vec2d(40, 0));
-        var edge = network.createEdge(
-            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId());
+        TerrainProfileKey key = RoadTerrainProfileSampler.buildKey(
+            "test-world", network, road, IdentityCoordinateService.INSTANCE, new RoadSystemConfig("t"));
+        RoadTerrainProfileData data = loadedTerrain(
+            key, List.of(0.0, 20.0, 40.0), List.of(70.0, 71.0, 72.0));
+        RoadTerrainProfileSamplingJob job = attachJob(manager, key, data);
+        manager.completeTerrainProfileJob(job, data);
+
+        RoadTerrainProfileData cached = manager.getTerrainProfile(network, "r1");
+        assertNotNull(cached);
+        assertTrue(manager.isTerrainProfileFresh(network, road));
+    }
+
+    @Test
+    void sameWorldMovedRoadRejectsCompletedJobResult() {
+        RoadPreviewManager manager = terrainManager("test-world");
+        RoadNetwork network = straightRoadNetwork(40.0);
+        Road road = network.getRoad("r1");
+        var edge = network.getEdges().values().iterator().next();
         manager.setLiveNetworkLookup(() -> network);
 
         TerrainProfileKey startKey = RoadTerrainProfileSampler.buildKey(
             "test-world", network, road, IdentityCoordinateService.INSTANCE, new RoadSystemConfig("t"));
         RoadTerrainProfileData data = loadedTerrain(
             startKey, List.of(0.0, 20.0, 40.0), List.of(70.0, 71.0, 72.0));
+        RoadTerrainProfileSamplingJob job = attachJob(manager, startKey, data);
 
-        RoadTerrainProfileSamplingJob job = new RoadTerrainProfileSamplingJob(
-            manager, startKey, 40.0, data.stations(),
-            List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)));
-        try {
-            var field = RoadPreviewManager.class.getDeclaredField("terrainProfileJob");
-            field.setAccessible(true);
-            field.set(manager, job);
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError(e);
-        }
-
-        // 采样完成前移动道路 → live key 变化，结果不得发布。
         edge.setCenterlinePoints(List.of(new Vec2d(0, 0), new Vec2d(40, 20)));
         manager.completeTerrainProfileJob(job, data);
         assertTrue(manager.getTerrainProfile(network, "r1") == null);
+    }
+
+    @Test
+    void worldSwitchRejectsCompletedJobResult() {
+        RoadPreviewManager manager = terrainManager("world-a");
+        RoadNetwork network = straightRoadNetwork(40.0);
+        Road road = network.getRoad("r1");
+        manager.setLiveNetworkLookup(() -> network);
+
+        TerrainProfileKey startKey = RoadTerrainProfileSampler.buildKey(
+            "world-a", network, road, IdentityCoordinateService.INSTANCE, new RoadSystemConfig("t"));
+        RoadTerrainProfileData data = loadedTerrain(
+            startKey, List.of(0.0, 20.0, 40.0), List.of(70.0, 71.0, 72.0));
+        RoadTerrainProfileSamplingJob job = attachJob(manager, startKey, data);
+
+        manager.setWorldKeyLookup(() -> "world-b");
+        manager.completeTerrainProfileJob(job, data);
+        assertTrue(manager.getTerrainProfile(network, "r1") == null);
+    }
+
+    @Test
+    void withTerrainGroundResamplesInLinearTime() {
+        List<Double> designStations = new ArrayList<>();
+        List<Double> preview = new ArrayList<>();
+        for (int i = 0; i <= 2047; i++) {
+            designStations.add(i * (10000.0 / 2047.0));
+            preview.add(60.0 + i * 0.001);
+        }
+        RoadProfileChartData full = new RoadProfileChartData(
+            "r1",
+            10000.0,
+            designStations,
+            preview,
+            preview,
+            preview,
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            true,
+            true,
+            List.of(),
+            List.of(),
+            List.of());
+        TerrainProfileKey key = new TerrainProfileKey("w", "r1", 1L, 0L, 1L, 1.0);
+        List<Double> terrainStations = new ArrayList<>();
+        List<Double> terrainY = new ArrayList<>();
+        for (int i = 0; i <= 2047; i++) {
+            terrainStations.add(i * (10000.0 / 2047.0));
+            terrainY.add(80.0 + i * 0.002);
+        }
+        RoadTerrainProfileData terrain = loadedTerrain(key, terrainStations, terrainY);
+        long start = System.nanoTime();
+        RoadProfileChartData merged = full.withTerrainGround(terrain);
+        long elapsedNs = System.nanoTime() - start;
+        assertNotNull(merged);
+        assertEquals(80.0, merged.groundElevationAt(0.0), 1e-6);
+        assertEquals(60.0, merged.previewElevationAt(0.0), 1e-6);
+        assertTrue(merged.hasStaleDesignReference());
+        // 双指针合成应远低于 O(N*M) 量级；给宽裕上限以免 CI 抖动。
+        assertTrue(elapsedNs < 50_000_000L, "merge took " + elapsedNs + " ns");
+    }
+
+    @Test
+    void staleFullChartIsNotUsedAsCurrentTerrain() {
+        RoadPreviewManager manager = terrainManager("test-world");
+        RoadNetwork network = straightRoadNetwork(40.0);
+        manager.setLiveNetworkLookup(() -> network);
+
+        RoadProfileChartData full = new RoadProfileChartData(
+            "r1",
+            40.0,
+            List.of(0.0, 40.0),
+            List.of(60.0, 62.0),
+            List.of(65.0, 67.0),
+            List.of(65.0, 67.0),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            true,
+            true,
+            List.of(),
+            List.of(),
+            List.of());
+        try {
+            var field = RoadPreviewManager.class.getDeclaredField("lastRoadProfiles");
+            field.setAccessible(true);
+            field.set(manager, java.util.Map.of("r1", full));
+            var stale = RoadPreviewManager.class.getDeclaredField("previewNeedsRecalc");
+            stale.setAccessible(true);
+            stale.setBoolean(manager, true);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+        assertTrue(manager.getOverviewChart(network, "r1") == null);
     }
 
     @Test
@@ -398,6 +488,52 @@ class RoadTerrainProfileSamplerTest {
         assertEquals(76.0, working.getVerticalAlignment().getPvis().get(1).getElevation(), 1e-9);
         assertEquals(ProfileSource.AUTO, working.getEffectiveProfileSource());
         assertFalse(VerticalAlignmentGeometry.isEvaluable(live.getRoad(road.getId()).getVerticalAlignment()));
+    }
+
+    private static RoadPreviewManager terrainManager(String worldId) {
+        ApplicationContext app = ApplicationContext.getInstance();
+        PluginContext host = new PluginContext(
+            app.getAppState(),
+            app.getCommandService(),
+            app.getEventBus(),
+            app.getToolManager(),
+            IdentityCoordinateService.INSTANCE,
+            null,
+            null,
+            null);
+        RoadPreviewManager manager = new RoadPreviewManager(new RoadProjectStatus(), host);
+        manager.setWorldKeyLookup(() -> worldId);
+        return manager;
+    }
+
+    private static RoadNetwork straightRoadNetwork(double length) {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(length, 0));
+        network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(length, 0)), road.getId());
+        return network;
+    }
+
+    private static RoadTerrainProfileSamplingJob attachJob(
+            RoadPreviewManager manager,
+            TerrainProfileKey key,
+            RoadTerrainProfileData data) {
+        List<Vec2d> points = new ArrayList<>(data.stations().size());
+        for (double station : data.stations()) {
+            points.add(new Vec2d(station, 0));
+        }
+        RoadTerrainProfileSamplingJob job = new RoadTerrainProfileSamplingJob(
+            manager, key, data.totalStation(), data.stations(), points);
+        try {
+            var field = RoadPreviewManager.class.getDeclaredField("terrainProfileJob");
+            field.setAccessible(true);
+            field.set(manager, job);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+        return job;
     }
 
     private static RoadTerrainProfileData loadedTerrain(

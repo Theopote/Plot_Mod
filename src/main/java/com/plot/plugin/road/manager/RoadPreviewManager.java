@@ -30,10 +30,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -54,6 +56,10 @@ public final class RoadPreviewManager {
     private Map<String, RoadProfileChartData> lastRoadProfiles = Collections.emptyMap();
     private final RoadTerrainProfileCache terrainProfileCache = new RoadTerrainProfileCache();
     private RoadTerrainProfileSamplingJob terrainProfileJob;
+    /** 概览合成图表缓存：避免每帧 withTerrainGround 重算。 */
+    private final Map<String, OverviewChartCacheEntry> overviewChartCache = new LinkedHashMap<>();
+    /** 已自动请求过的 TerrainProfileKey 编码；同键不重复自动读，失败也不每帧重试。 */
+    private final Set<String> autoTerrainRequestTokens = new HashSet<>();
     private RoadNetworkGenerator.NetworkGenerationResult lastNetworkGenerationResult;
     private long terrainRevision = 0L;
     private boolean previewNeedsRecalc = false;
@@ -73,6 +79,8 @@ public final class RoadPreviewManager {
     private BooleanSupplier pendingNetworkEditCheck = () -> false;
     /** 发布地形任务结果时读取当前 live 路网（几何/投影必须重新校验）。 */
     private Supplier<RoadNetwork> liveNetworkLookup = () -> null;
+    /** 测试可覆盖世界键；生产默认识别当前客户端世界。 */
+    private Supplier<String> worldKeyLookup = RoadPreviewManager::detectCurrentWorldKey;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -90,6 +98,16 @@ public final class RoadPreviewManager {
 
     public void setLiveNetworkLookup(Supplier<RoadNetwork> liveNetworkLookup) {
         this.liveNetworkLookup = liveNetworkLookup != null ? liveNetworkLookup : () -> null;
+    }
+
+    public void setWorldKeyLookup(Supplier<String> worldKeyLookup) {
+        this.worldKeyLookup = worldKeyLookup != null
+            ? worldKeyLookup
+            : RoadPreviewManager::detectCurrentWorldKey;
+    }
+
+    private void bumpOverviewChartCache() {
+        overviewChartCache.clear();
     }
 
     private boolean hasPendingNetworkEdit() {
@@ -117,6 +135,7 @@ public final class RoadPreviewManager {
 
     private void bumpTerrainRevision() {
         terrainRevision++;
+        bumpOverviewChartCache();
     }
 
     /**
@@ -215,27 +234,106 @@ public final class RoadPreviewManager {
     }
 
     /**
-     * 概览图表：仅当 Level-1 地形对当前 live 路网 fresh 时使用灰线；
-     * 若叠加旧设计线，建造高程会被清空并标记为过期参考（见 {@link RoadProfileChartData#withTerrainGround}）。
-     * 过期地形缓存不回退展示，避免道路移动后旧结果混入编辑器。
+     * 概览图表：
+     * <ul>
+     *   <li>Level-1 fresh → 当前地形（可叠加过期设计参考）</li>
+     *   <li>完整图表与当前路网/世界一致且未标记过期 → 允许显示</li>
+     *   <li>否则不回退过期 Level-1 或过期完整图</li>
+     * </ul>
+     * 合成结果按版本缓存，避免 ImGui 每帧重复 withTerrainGround。
      */
     public RoadProfileChartData getOverviewChart(RoadNetwork network, String roadId) {
+        if (network == null || roadId == null || roadId.isBlank()) {
+            return null;
+        }
+        Road road = network.getRoad(roadId);
         RoadTerrainProfileData terrain = getTerrainProfile(network, roadId);
-        boolean terrainFresh = network != null
-            && roadId != null
-            && network.getRoad(roadId) != null
-            && isTerrainProfileFresh(network, network.getRoad(roadId));
+        TerrainProfileKey liveKey = road != null ? currentTerrainKey(network, road) : null;
+        boolean terrainFresh = liveKey != null
+            && terrain != null
+            && terrain.hasRenderableTerrain()
+            && terrain.matches(liveKey);
         RoadProfileChartData full = getRoadProfileChart(roadId);
-        if (terrain != null && terrainFresh && terrain.hasRenderableTerrain()) {
+        boolean fullCurrent = isFullProfileChartCurrent(full);
+
+        OverviewChartCacheEntry cached = overviewChartCache.get(roadId);
+        long cacheToken = overviewCacheToken(liveKey, terrain, full, terrainFresh, fullCurrent);
+        if (cached != null && cached.token() == cacheToken) {
+            return cached.chart();
+        }
+
+        RoadProfileChartData chart = null;
+        if (terrainFresh) {
             if (full != null && full.hasProfileData()) {
-                return full.withTerrainGround(terrain);
+                chart = full.withTerrainGround(terrain);
+            } else {
+                chart = RoadProfileChartData.fromTerrain(terrain);
             }
-            return RoadProfileChartData.fromTerrain(terrain);
+        } else if (fullCurrent) {
+            chart = full;
         }
-        if (full != null && full.canRenderChart()) {
-            return full;
+
+        overviewChartCache.put(roadId, new OverviewChartCacheEntry(cacheToken, chart));
+        return chart;
+    }
+
+    /**
+     * 首次进入纵断面且当前道路无有效 Level-1 缓存时，自动排队一次轻量读取。
+     * 同键只请求一次；路网拖动中不触发；失败不每帧重试。
+     */
+    public void maybeAutoRefreshTerrainProfile(RoadNetwork network, Road road) {
+        if (network == null || road == null || hasPendingNetworkEdit()) {
+            return;
         }
-        return null;
+        if (isTerrainProfileJobRunning()) {
+            return;
+        }
+        if (!RoadStationing.isStationable(network, road)) {
+            return;
+        }
+        TerrainProfileKey key = currentTerrainKey(network, road);
+        if (key == null || terrainProfileCache.isFresh(key)) {
+            return;
+        }
+        String token = encodeTerrainKey(key);
+        if (!autoTerrainRequestTokens.add(token)) {
+            return;
+        }
+        refreshTerrainProfile(network, road.getId(), false);
+    }
+
+    private boolean isFullProfileChartCurrent(RoadProfileChartData full) {
+        return full != null
+            && full.canRenderChart()
+            && !previewNeedsRecalc
+            && previewWorldMatchesCurrent();
+    }
+
+    private static long overviewCacheToken(
+            TerrainProfileKey liveKey,
+            RoadTerrainProfileData terrain,
+            RoadProfileChartData full,
+            boolean terrainFresh,
+            boolean fullCurrent) {
+        long hash = 17L;
+        hash = 31L * hash + (liveKey != null ? liveKey.hashCode() : 0);
+        hash = 31L * hash + (terrain != null ? System.identityHashCode(terrain) : 0);
+        hash = 31L * hash + (full != null ? System.identityHashCode(full) : 0);
+        hash = 31L * hash + (terrainFresh ? 1 : 0);
+        hash = 31L * hash + (fullCurrent ? 1 : 0);
+        return hash;
+    }
+
+    private static String encodeTerrainKey(TerrainProfileKey key) {
+        return key.worldId() + '|'
+            + key.roadId() + '|'
+            + key.geometryFingerprint() + '|'
+            + key.transformFingerprint() + '|'
+            + key.terrainEpoch() + '|'
+            + Double.doubleToLongBits(key.sampleSpacing());
+    }
+
+    private record OverviewChartCacheEntry(long token, RoadProfileChartData chart) {
     }
 
     /** 当前地形采样任务是否属于指定道路。 */
@@ -372,6 +470,7 @@ public final class RoadPreviewManager {
             return;
         }
         terrainProfileCache.put(data);
+        bumpOverviewChartCache();
         if (!data.hasDrawableSegment()) {
             status.warning(PlotI18n.tr("plugin.road.terrain_profile.sparse"));
         } else if (!data.fullyLoaded()) {
@@ -880,6 +979,8 @@ public final class RoadPreviewManager {
     public void clearTerrainProfileCache() {
         cancelTerrainProfileJobSilently();
         terrainProfileCache.clear();
+        autoTerrainRequestTokens.clear();
+        bumpOverviewChartCache();
     }
 
     /**
@@ -902,7 +1003,12 @@ public final class RoadPreviewManager {
         return previewWorldKey.isEmpty() || previewWorldKey.equals(currentWorldKey());
     }
 
-    private static String currentWorldKey() {
+    private String currentWorldKey() {
+        String key = worldKeyLookup.get();
+        return key != null ? key : "";
+    }
+
+    private static String detectCurrentWorldKey() {
         net.minecraft.world.World world = RoadNetworkGenerator.getClientWorld();
         if (world == null) {
             return "";
@@ -933,6 +1039,7 @@ public final class RoadPreviewManager {
         clearGhostBlocksSafely();
         if (hadBuildPreview || hasProfileSampling()) {
             previewNeedsRecalc = true;
+            bumpOverviewChartCache();
             LOGGER.debug("纵断面/交叉口编辑：建造预览已标记过期，保留地形纵断面采样");
         }
     }
@@ -1070,6 +1177,7 @@ public final class RoadPreviewManager {
         lastEdgeResults = new LinkedHashMap<>(sampling.edgeResults());
         lastNodeElevations = new LinkedHashMap<>(sampling.nodeElevations());
         lastRoadProfiles = new LinkedHashMap<>(sampling.roadProfiles());
+        bumpOverviewChartCache();
     }
 
     private void applyProfileSamplingState(RoadNetworkGenerator.PreviewResult previewResult) {
@@ -1077,6 +1185,7 @@ public final class RoadPreviewManager {
         lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
         lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
         lastRoadProfiles = new LinkedHashMap<>(previewResult.roadProfiles());
+        bumpOverviewChartCache();
     }
 
     private RoadElevationBounds validationElevationBounds() {
@@ -1088,6 +1197,7 @@ public final class RoadPreviewManager {
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
         lastRoadProfiles = Collections.emptyMap();
+        bumpOverviewChartCache();
         // Level-1 地形缓存按几何指纹惰性失效，不随建造预览清空而抹掉。
     }
 

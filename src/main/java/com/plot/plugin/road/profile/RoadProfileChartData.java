@@ -284,15 +284,16 @@ public record RoadProfileChartData(
     /**
      * 用 Level-1 地形替换灰线/水面；保留设计线作为过期参考，清空建造高程与阶梯，
      * 避免新地形与旧建造结果混为「当前有效工程数据」。
+     * <p>
+     * 设计线重采样为 O(N+M) 双指针插值（地形站与设计站均单调），避免每站线性扫描。
      */
     public RoadProfileChartData withTerrainGround(RoadTerrainProfileData terrain) {
         if (terrain == null || !terrain.hasRenderableTerrain()) {
             return this;
         }
-        List<Double> preview = new ArrayList<>(terrain.stations().size());
+        List<Double> preview = resampleElevations(stations, previewElevations, terrain.stations());
         List<Double> build = new ArrayList<>(terrain.stations().size());
-        for (double station : terrain.stations()) {
-            preview.add(previewElevationAt(station));
+        for (int i = 0; i < terrain.stations().size(); i++) {
             build.add(Double.NaN);
         }
         return new RoadProfileChartData(
@@ -443,24 +444,85 @@ public record RoadProfileChartData(
             return Double.NaN;
         }
         if (station <= stations.getFirst() + EPSILON) {
-            return values.getFirst();
+            return finiteOrNaN(values.getFirst());
         }
         if (station >= stations.getLast() - EPSILON) {
-            return values.getLast();
+            return finiteOrNaN(values.getLast());
         }
-        for (int i = 1; i < stations.size(); i++) {
-            double start = stations.get(i - 1);
-            double end = stations.get(i);
-            if (station > end) {
+        int lo = 0;
+        int hi = stations.size() - 1;
+        while (hi - lo > 1) {
+            int mid = (lo + hi) >>> 1;
+            if (stations.get(mid) <= station) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return lerpSegment(stations, values, lo, station);
+    }
+
+    /**
+     * 将源序列按查询桩号（单调升序）重采样为同长度序列；双指针 O(N+M)。
+     */
+    static List<Double> resampleElevations(
+            List<Double> srcStations,
+            List<Double> srcValues,
+            List<Double> queryStations) {
+        if (queryStations == null || queryStations.isEmpty()) {
+            return List.of();
+        }
+        if (srcStations == null || srcValues == null
+                || srcStations.isEmpty()
+                || srcValues.size() != srcStations.size()) {
+            List<Double> empty = new ArrayList<>(queryStations.size());
+            for (int i = 0; i < queryStations.size(); i++) {
+                empty.add(Double.NaN);
+            }
+            return empty;
+        }
+        List<Double> out = new ArrayList<>(queryStations.size());
+        int cursor = 0;
+        for (double query : queryStations) {
+            if (query <= srcStations.getFirst() + EPSILON) {
+                out.add(finiteOrNaN(srcValues.getFirst()));
                 continue;
             }
-            double span = end - start;
-            if (span <= EPSILON) {
-                return values.get(i);
+            if (query >= srcStations.getLast() - EPSILON) {
+                out.add(finiteOrNaN(srcValues.getLast()));
+                continue;
             }
-            double ratio = (station - start) / span;
-            return values.get(i - 1) + ratio * (values.get(i) - values.get(i - 1));
+            while (cursor + 1 < srcStations.size()
+                    && srcStations.get(cursor + 1) < query - EPSILON) {
+                cursor++;
+            }
+            out.add(lerpSegment(srcStations, srcValues, cursor, query));
         }
-        return values.getLast();
+        return out;
+    }
+
+    private static double lerpSegment(
+            List<Double> stations,
+            List<Double> values,
+            int left,
+            double station) {
+        int right = Math.min(left + 1, stations.size() - 1);
+        double start = stations.get(left);
+        double end = stations.get(right);
+        Double y0 = values.get(left);
+        Double y1 = values.get(right);
+        if (y0 == null || !Double.isFinite(y0) || y1 == null || !Double.isFinite(y1)) {
+            return Double.NaN;
+        }
+        double span = end - start;
+        if (span <= EPSILON) {
+            return y0;
+        }
+        double ratio = (station - start) / span;
+        return y0 + ratio * (y1 - y0);
+    }
+
+    private static double finiteOrNaN(Double value) {
+        return value != null && Double.isFinite(value) ? value : Double.NaN;
     }
 }

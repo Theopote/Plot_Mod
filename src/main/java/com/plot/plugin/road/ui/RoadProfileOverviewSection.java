@@ -51,6 +51,9 @@ public final class RoadProfileOverviewSection {
         }
 
         Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
+        if (activeRoad != null) {
+            ctx.previewManager().maybeAutoRefreshTerrainProfile(network, activeRoad);
+        }
         renderActiveTerrainToolbar(ctx, network, profileEditor, activeRoad, uniformFlat);
 
         String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
