@@ -90,14 +90,9 @@ public final class JunctionCorridorTrim {
         if (node == null || node.getDegree() < 3) {
             return false;
         }
-        if (node.isStackGradeSeparated()) {
-            // Lower stack approaches still trim plaza surface; clearance is preserved separately.
-            return !node.isStackUpperEdge(edge.getId());
-        }
-        if (node.isGradeSeparated()) {
-            // Keep both upper and lower corridors intact through the crossing so the lower
-            // road retains OPEN clearance (underpass headroom). Junction fill still overlays
-            // the shared plaza surface via layer priority.
+        if (node.isStackGradeSeparated() || node.isGradeSeparated()) {
+            // 立交/STACK：走廊保留下层路面掩膜，避免 exclusion 与路口填充多边形不一致
+            // 留下「十」字形原地形空洞；路口铺装通过图层优先级叠加。
             return false;
         }
         return true;

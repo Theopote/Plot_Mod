@@ -44,6 +44,7 @@ public final class RoadGenerationResultAssembler {
         }
         long t2 = System.nanoTime();
         com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
+        com.plot.plugin.road.pipeline.corridor.UnderpassPavementSealPass.apply(aggregate);
         long t3 = System.nanoTime();
         RoadRailPlacementPass.apply(aggregate);
         RoadRailConnectivityValidator.validate(aggregate);

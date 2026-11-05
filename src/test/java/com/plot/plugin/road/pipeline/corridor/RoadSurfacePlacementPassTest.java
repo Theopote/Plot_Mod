@@ -120,6 +120,32 @@ class RoadSurfacePlacementPassTest {
     }
 
     @Test
+    void underpassPavementSealFillsMissingCrossUnderElevatedDeck() {
+        var result = new RoadGenerationResult(0);
+        BlockPos paved = new BlockPos(0, 64, 0);
+        BlockPos hole = new BlockPos(1, 64, 0);
+        result.recordPlacementByLayerPriority(
+            paved, "minecraft:grass_block", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.openRoadClearanceTops.put(paved, 68);
+        result.openRoadClearanceTops.put(hole, 68);
+        // 上层路面投影覆盖空洞柱；空洞本身无下层路面记录 → 原地形会透出
+        result.recordPlacementByLayerPriority(
+            hole.up(6), "minecraft:air", "minecraft:dirt_path",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(
+            paved.up(6), "minecraft:air", "minecraft:dirt_path",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+
+        UnderpassPavementSealPass.apply(result);
+
+        assertEquals("minecraft:white_concrete",
+            result.placementRecords.get(hole).newBlockId,
+            "missing underpass pavement under elevated deck must be sealed");
+        assertEquals(RoadSolidLayer.ROAD, result.placementLayers.get(hole));
+    }
+
+    @Test
     void pavementYIndexFindsLowestDeckAboveSurface() {
         var result = new RoadGenerationResult(0);
         result.recordPlacementByLayerPriority(new BlockPos(1, 64, 2), "minecraft:air", "minecraft:white_concrete",
