@@ -616,7 +616,8 @@ public final class RoadCorridorPlanBuilder {
             long[] stationSampleSeq,
             int tunnelThreshold) {
         return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
-            crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++, tunnelThreshold);
+            crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++, tunnelThreshold,
+            sample.constructionType());
     }
 
     /** 急折外侧扇区：仅当转角够大且路径采样偏稀时加密；上限避免预览算力爆炸。 */
@@ -657,7 +658,7 @@ public final class RoadCorridorPlanBuilder {
             if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
                     crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                    tunnelThreshold));
+                    tunnelThreshold, stepType));
             }
             return samples;
         }
@@ -674,7 +675,7 @@ public final class RoadCorridorPlanBuilder {
             }
             samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,
                 crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                tunnelThreshold));
+                tunnelThreshold, stepType));
         }
         return samples;
     }
@@ -729,7 +730,8 @@ public final class RoadCorridorPlanBuilder {
             double unitsPerBlock,
             PlanHost host,
             long stationSampleId,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            RoadConstructionType constructionType) {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
@@ -744,11 +746,11 @@ public final class RoadCorridorPlanBuilder {
         samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT),
-            tunnelThreshold));
+            tunnelThreshold, constructionType));
         samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT),
-            tunnelThreshold));
+            tunnelThreshold, constructionType));
         return samples;
     }
 
@@ -768,7 +770,8 @@ public final class RoadCorridorPlanBuilder {
             double unitsPerBlock,
             PlanHost host,
             SlopeRayId rayId,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            RoadConstructionType constructionType) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d leftNormal = normalize(corridorLeftNormal);
@@ -790,6 +793,11 @@ public final class RoadCorridorPlanBuilder {
         }
         // 高架填方：路底相对地面净高超过桥阈值则不堆土坡（交给桥梁/净空）
         if (RoadEarthworkPolicy.suppressFillBatter(isFill, heightAboveGround, host.bridgeThreshold())) {
+            return samples;
+        }
+        // 水面柱禁止普通填方；堤道 FILL/CAUSEWAY 例外
+        if (RoadEarthworkPolicy.suppressFillOverWater(
+                isFill, constructionType, terrain.findExposedWaterSurface(outerEdge))) {
             return samples;
         }
         int profileDirection = isFill ? -1 : 1;
@@ -821,6 +829,9 @@ public final class RoadCorridorPlanBuilder {
         }
 
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
+        if (widthCapped && !meetsTerrain) {
+            meetsTerrain = trySoftGroundWidthCap(profile, isFill, outerEdge, normal, scale, terrain);
+        }
         SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
         String materialId = isFill ? fillBlockId : cutBlockId;
 
@@ -875,6 +886,33 @@ public final class RoadCorridorPlanBuilder {
         samples.add(new SlopeProfileSample(
             key, planPoint, slopeHeight, isFill, materialId, rayId,
             horizontalOffset, slopeRatio, outcome));
+    }
+
+    /**
+     * 宽度上限截断且剩余高差较小时，把坡面末端拉向自然地面，避免悬空半坡。
+     */
+    private static boolean trySoftGroundWidthCap(
+            List<int[]> profile,
+            boolean isFill,
+            Vec2d outerEdge,
+            Vec2d outwardNormal,
+            double scale,
+            TerrainSampler terrain) {
+        if (profile == null || profile.isEmpty()) {
+            return false;
+        }
+        int[] last = profile.getLast();
+        Vec2d tip = outerEdge.add(outwardNormal.multiply(last[0] * scale));
+        if (!terrain.isChunkLoaded(tip)) {
+            return false;
+        }
+        int groundHeight = terrain.sampleSurfaceY(tip);
+        int remaining = Math.abs(last[1] - groundHeight);
+        if (remaining > RoadEarthworkPolicy.WIDTH_CAP_SOFT_GROUND_REMAINING) {
+            return false;
+        }
+        last[1] = groundHeight;
+        return slopeProfileMeetsTerrain(profile, isFill, outerEdge, outwardNormal, scale, terrain);
     }
 
     private static boolean slopeProfileMeetsTerrain(

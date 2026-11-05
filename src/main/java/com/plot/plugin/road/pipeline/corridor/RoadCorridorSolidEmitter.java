@@ -116,8 +116,11 @@ public final class RoadCorridorSolidEmitter {
 
         // 立交上跨边：禁止开敞填方边坡/路基堆土（会掉进下层净空或成悬浮土堤）
         boolean elevatedEdge = gradeSeparation != null && gradeSeparation.elevatedRoadEdge();
+        boolean waterBlocksFill = RoadEarthworkPolicy.suppressFillOverWater(
+            true, constructionType, terrain.findExposedWaterSurface(planPoint));
         boolean allowOpenFill = !elevatedEdge
             && !bridgeClearance
+            && !waterBlocksFill
             && (constructionType == null
                 || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill());
         if (allowOpenFill && slope != null && slope.hasFill()) {
@@ -132,6 +135,9 @@ public final class RoadCorridorSolidEmitter {
                         continue;
                     }
                     solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillId);
+                    if (metrics != null) {
+                        metrics.fillVolume++;
+                    }
                 }
             }
         } else if (allowOpenFill && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
@@ -159,6 +165,11 @@ public final class RoadCorridorSolidEmitter {
             groundY - designY,
             host.tunnelStyle(),
             host.tunnelThreshold());
+        // SlopeEnvelopeClearancePass 已为切坡列建清障时，挖方量只在 ClearancePass 计一次。
+        boolean cutCountedInClearance = clearance != null
+            && clearance.mode() == RoadCorridorConstructionMode.OPEN
+            && slope != null
+            && slope.hasCut();
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
                 && !tunnelFamilyColumn
                 && !mountainProtected
@@ -180,7 +191,7 @@ public final class RoadCorridorSolidEmitter {
                     RoadSolidLayer.TUNNEL,
                     "minecraft:air",
                     RoadSolidMaterialPriority.AIR);
-                if (metrics != null) {
+                if (metrics != null && !cutCountedInClearance) {
                     metrics.cutVolume++;
                 }
             }
@@ -194,8 +205,59 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
+        if (slope != null && slope.needsRetainingFinish()) {
+            emitRetainingFinish(
+                solids, slope, planPoint, groundY, defaultFillMaterialId, gradeSeparation);
+        }
+
         if (surface != null) {
             solids.add(planPoint, surface.surfaceY(), surface.layer(), surface.materialId());
+        }
+    }
+
+    /**
+     * 宽度上限截断收尾：在最外坡柱用竖向支撑接到自然地面，避免悬空半坡。
+     */
+    private static void emitRetainingFinish(
+            RoadSolidModel solids,
+            SlopeColumnCell slope,
+            Vec2d planPoint,
+            int groundY,
+            String defaultFillMaterialId,
+            GradeSeparationBuildContext gradeSeparation) {
+        if (solids == null || slope == null || planPoint == null) {
+            return;
+        }
+        if (slope.hasCut()) {
+            int faceY = slope.cutSurfaceY();
+            String material = slope.cutMaterialId() != null && !slope.cutMaterialId().isBlank()
+                ? slope.cutMaterialId()
+                : defaultFillMaterialId;
+            if (material == null || material.isBlank() || groundY <= faceY) {
+                return;
+            }
+            for (int y = faceY; y < groundY; y++) {
+                if (gradeSeparation != null && gradeSeparation.protects(planPoint, y)) {
+                    continue;
+                }
+                solids.add(planPoint, y, RoadSolidLayer.RETAINING_WALL, material);
+            }
+            return;
+        }
+        if (slope.hasFill()) {
+            int faceY = slope.fillSurfaceY();
+            String material = slope.fillMaterialId() != null && !slope.fillMaterialId().isBlank()
+                ? slope.fillMaterialId()
+                : defaultFillMaterialId;
+            if (material == null || material.isBlank() || faceY <= groundY) {
+                return;
+            }
+            for (int y = groundY + 1; y <= faceY; y++) {
+                if (gradeSeparation != null && gradeSeparation.protects(planPoint, y)) {
+                    continue;
+                }
+                solids.add(planPoint, y, RoadSolidLayer.RETAINING_WALL, material);
+            }
         }
     }
 

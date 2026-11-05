@@ -4,6 +4,8 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelFeasibility;
 
+import java.util.OptionalInt;
+
 /**
  * Corridor earthwork rules by construction type: open batter vs structure-only spans.
  */
@@ -14,6 +16,9 @@ public enum RoadEarthworkPolicy {
     STRUCTURE_ONLY,
     /** Connection segments; v1 uses same batter rules as {@link #NORMAL_BATTER}. */
     TRANSITION_BATTER;
+
+    /** 宽度截断后剩余高差 ≤ 此值时，末段微调接地，不立挡墙。 */
+    public static final int WIDTH_CAP_SOFT_GROUND_REMAINING = 3;
 
     public static RoadEarthworkPolicy of(RoadConstructionType type) {
         if (type == null) {
@@ -42,7 +47,7 @@ public enum RoadEarthworkPolicy {
     /**
      * 开敞放坡允许的最大侧向/路中覆土（格）。
      * <p>
-     * 取隧道结构高度（净高+衬砌）再加分类覆土阈值：低于此高度按路堑放坡；
+     * 取隧道结构高度（净高+衬砌）再加分类覆土门槛：低于此高度按路堑放坡；
      * 达到或超过则相当于「已够一座隧道外壳+盖层」，不再露天削山。
      * 仅用净高+衬砌（默认约 6）会过严，普通路堑也会被压成垂直壁。
      */
@@ -63,7 +68,7 @@ public enum RoadEarthworkPolicy {
      * 是否抑制开敞切坡：隧道族/邻接隧道/棚洞，或覆土已达隧道结构高度+盖层。
      *
      * @param coverAboveDesign 路中/外缘地形标高 − 设计路面标高（格）
-     * @param tunnelThreshold  隧道覆土分类阈值
+     * @param tunnelThreshold  隧道覆土分类门槛
      */
     public static boolean suppressOpenDaylightBatter(
             RoadConstructionType type,
@@ -110,8 +115,8 @@ public enum RoadEarthworkPolicy {
     }
 
     /**
-     * 填方边坡：路肩外缘相对地面净高超过桥隧填方阈值时不再堆土坡
-     * （高架/可能成桥段；阈值与 {@code bridgeThreshold} 一致，默认约 3）。
+     * 填方边坡：路肩外缘相对地面净高超过桥隧填方门槛时不再堆土坡
+     * （高架/可能成桥段；门槛与 {@code bridgeThreshold} 一致，默认约 3）。
      */
     public static boolean suppressFillBatter(boolean isFill, int fillHeightAboveGround, int bridgeThreshold) {
         if (!isFill || bridgeThreshold <= 0) {
@@ -121,7 +126,28 @@ public enum RoadEarthworkPolicy {
     }
 
     /**
-     * 开敞路基填土：仅当路面/坡面相对地面净高 ≤ 桥阈值时允许；
+     * 堤道（{@link RoadConstructionType#FILL} / CAUSEWAY）允许在水域填筑；其它类型禁止。
+     */
+    public static boolean allowsCausewayWaterFill(RoadConstructionType type) {
+        return type == RoadConstructionType.FILL;
+    }
+
+    /**
+     * 水面柱禁止普通填方边坡：工程地面可能是湖床，仅靠 sampleSurfaceY 会误判为干地填方。
+     * 堤道例外。
+     */
+    public static boolean suppressFillOverWater(
+            boolean isFill,
+            RoadConstructionType type,
+            OptionalInt exposedWaterSurface) {
+        if (!isFill || exposedWaterSurface == null || exposedWaterSurface.isEmpty()) {
+            return false;
+        }
+        return !allowsCausewayWaterFill(type);
+    }
+
+    /**
+     * 开敞路基填土：仅当路面/坡面相对地面净高 ≤ 桥门槛时允许；
      * 不再因类型为 FILL 而无限堆高（高差过大应交桥/净空，不该成土堤）。
      */
     public static boolean allowsOpenFillHeight(int surfaceY, int groundY, int bridgeThreshold) {

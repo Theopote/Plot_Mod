@@ -44,6 +44,24 @@ class SlopeSurfaceConsolidatorTest {
         assertEquals(70, plan.slopeCell(key).cutSurfaceY());
         assertEquals(1, plan.needsRetainingWallCount());
         assertFalse(plan.isSlopeColumnIncomplete(key));
+        assertTrue(plan.slopeCell(key).needsRetainingFinish(),
+            "outermost width-capped column must request retaining finish");
+    }
+
+    @Test
+    void retainingFinishOnlyOnTipOfWidthCappedRay() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                new ColumnKey(10, 0), new Vec2d(10, 0), 68, false, "minecraft:stone", RAY, 1, 1.0f,
+                SlopeConstructionOutcome.NEEDS_RETAINING_WALL),
+            new SlopeProfileSample(
+                new ColumnKey(12, 0), new Vec2d(12, 0), 70, false, "minecraft:stone", RAY, 3, 1.0f,
+                SlopeConstructionOutcome.NEEDS_RETAINING_WALL)),
+            new FlatTerrainSampler(120));
+
+        assertFalse(plan.slopeCell(new ColumnKey(10, 0)).needsRetainingFinish());
+        assertTrue(plan.slopeCell(new ColumnKey(12, 0)).needsRetainingFinish());
     }
 
     @Test

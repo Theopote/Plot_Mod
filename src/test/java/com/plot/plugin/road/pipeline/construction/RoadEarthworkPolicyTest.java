@@ -55,8 +55,8 @@ class RoadEarthworkPolicyTest {
         // 默认净高5+衬砌1 + BALANCED阈值4 = 10
         assertEquals(10, RoadEarthworkPolicy.deepDaylightCoverBlocks(4));
         assertEquals(14, RoadEarthworkPolicy.deepDaylightCoverBlocks(8));
-        // tunnelThreshold<=0 时仍保留最小盖层 1：structure 6 + 1 = 7
-        assertEquals(7, RoadEarthworkPolicy.deepDaylightCoverBlocks(0));
+        // tunnelThreshold<=0 时仍保留最小盖层：structure 6 + MINIMUM_COVER(2) = 8
+        assertEquals(8, RoadEarthworkPolicy.deepDaylightCoverBlocks(0));
         assertEquals(
             6 + 4,
             RoadEarthworkPolicy.deepDaylightCoverBlocks(ResolvedTunnelStyle.defaults(), 4));
@@ -89,9 +89,9 @@ class RoadEarthworkPolicyTest {
         assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 10, 4));
         assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 14, 8));
         assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(true, 24, 4));
-        // threshold 0 → 门槛 = structure(6)+1 = 7
-        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 6, 0));
-        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 7, 0));
+        // threshold 0 → 门槛 = structure(6)+MINIMUM_COVER(2) = 8
+        assertFalse(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 7, 0));
+        assertTrue(RoadEarthworkPolicy.suppressShoulderCutBatter(false, 8, 0));
     }
 
     @Test
@@ -102,5 +102,19 @@ class RoadEarthworkPolicyTest {
         assertFalse(RoadEarthworkPolicy.suppressFillBatter(true, 10, 0));
         assertTrue(RoadEarthworkPolicy.allowsOpenFillHeight(67, 64, 3));
         assertFalse(RoadEarthworkPolicy.allowsOpenFillHeight(68, 64, 3));
+    }
+
+    @Test
+    void suppressFillOverWaterExceptCauseway() {
+        var water = java.util.OptionalInt.of(62);
+        assertTrue(RoadEarthworkPolicy.suppressFillOverWater(true, RoadConstructionType.ROAD, water));
+        assertTrue(RoadEarthworkPolicy.suppressFillOverWater(true, RoadConstructionType.CUT, water));
+        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(true, RoadConstructionType.FILL, water),
+            "CAUSEWAY/FILL may fill over water");
+        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(false, RoadConstructionType.ROAD, water));
+        assertFalse(RoadEarthworkPolicy.suppressFillOverWater(
+            true, RoadConstructionType.ROAD, java.util.OptionalInt.empty()));
+        assertTrue(RoadEarthworkPolicy.allowsCausewayWaterFill(RoadConstructionType.FILL));
+        assertFalse(RoadEarthworkPolicy.allowsCausewayWaterFill(RoadConstructionType.ROAD));
     }
 }

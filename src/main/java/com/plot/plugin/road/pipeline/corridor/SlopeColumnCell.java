@@ -9,6 +9,8 @@ public final class SlopeColumnCell {
     private Integer fillSurfaceY;
     private String cutMaterialId;
     private String fillMaterialId;
+    /** 宽度上限截断：该列需竖向收尾，避免悬空半坡。 */
+    private boolean retainingFinish;
 
     public SlopeColumnCell(Vec2d planPoint) {
         this.planPoint = planPoint;
@@ -56,5 +58,13 @@ public final class SlopeColumnCell {
 
     public boolean hasFill() {
         return fillSurfaceY != null;
+    }
+
+    public void markRetainingFinish() {
+        retainingFinish = true;
+    }
+
+    public boolean needsRetainingFinish() {
+        return retainingFinish;
     }
 }

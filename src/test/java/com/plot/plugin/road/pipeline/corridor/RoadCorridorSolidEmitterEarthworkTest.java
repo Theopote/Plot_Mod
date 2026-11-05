@@ -4,11 +4,15 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import org.junit.jupiter.api.Test;
 
+import java.util.OptionalInt;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadCorridorSolidEmitterEarthworkTest {
 
@@ -163,6 +167,116 @@ class RoadCorridorSolidEmitterEarthworkTest {
     }
 
     @Test
+    void lakeColumnDoesNotEmitOrdinaryFillBatter() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(10, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(
+            new Vec2d(10, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(key, new ClearanceCell(
+            new Vec2d(10, 0), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(key, new Vec2d(10, 0));
+        slope.mergeFill(63, "minecraft:dirt");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            lakeTerrain(60, 62),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:dirt");
+
+        long dirt = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        assertEquals(0, dirt, "ordinary road must not embank into lake columns");
+    }
+
+    @Test
+    void causewayFillMayEmbankOverWater() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(10, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(
+            new Vec2d(10, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(key, new ClearanceCell(
+            new Vec2d(10, 0), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.FILL));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(key, new Vec2d(10, 0));
+        slope.mergeFill(63, "minecraft:dirt");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        var metrics = new com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            lakeTerrain(60, 62),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            metrics,
+            "minecraft:dirt");
+
+        long dirt = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        org.junit.jupiter.api.Assertions.assertTrue(dirt > 0, "causeway FILL may embank over water");
+        org.junit.jupiter.api.Assertions.assertTrue(metrics.fillVolume > 0,
+            "slope fill path must count fillVolume");
+    }
+
+    @Test
+    void widthCapTipEmitsVerticalRetainingFinish() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey tip = new ColumnKey(20, 0);
+        SlopeColumnCell slope = plan.slopeCellOrCreate(tip, new Vec2d(20, 0));
+        slope.mergeCut(70, "minecraft:stone");
+        slope.markRetainingFinish();
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            mountainTerrain(),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:stone");
+
+        long wall = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.RETAINING_WALL)
+            .filter(p -> Math.round(p.planPoint().x) == 20 && Math.round(p.planPoint().y) == 0)
+            .count();
+        org.junit.jupiter.api.Assertions.assertTrue(wall > 0,
+            "capped cut tip must emit vertical retaining finish up to ground");
+    }
+
+    @Test
+    void cutVolumeNotDoubleCountedWhenClearanceAlreadyCoversSlope() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(12, 4);
+        plan.putClearance(key, new ClearanceCell(
+            new Vec2d(12, 4), 65, 80,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(key, new Vec2d(12, 4));
+        slope.mergeCut(65, "minecraft:stone");
+
+        var metrics = new com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics();
+        RoadCorridorSolidEmitter.emit(
+            new RoadSolidModel(),
+            plan,
+            mountainTerrain(),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            metrics,
+            "minecraft:stone");
+
+        assertEquals(0, metrics.cutVolume,
+            "emitter must not re-count cut when SlopeEnvelopeClearance already owns the column");
+    }
+
+    @Test
     void fillOnlySlopeColumnWithoutSurfaceDoesNotThrowOnDeepCoverCheck() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey fillColumn = new ColumnKey(8, 2);
@@ -210,6 +324,26 @@ class RoadCorridorSolidEmitterEarthworkTest {
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
                 return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
+    }
+
+    /** Lake bed groundY, exposed water surface above bed. */
+    private static TerrainSampler lakeTerrain(int bedY, int waterY) {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return bedY;
+            }
+
+            @Override
+            public java.util.OptionalInt findExposedWaterSurface(Vec2d planPoint) {
+                return java.util.OptionalInt.of(waterY);
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= bedY;
             }
         };
     }

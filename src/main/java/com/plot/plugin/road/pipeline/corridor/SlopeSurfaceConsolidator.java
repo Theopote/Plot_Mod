@@ -64,10 +64,13 @@ public final class SlopeSurfaceConsolidator {
             }
             enforceMonotonicRay(steps);
 
+            int tipOffset = steps.stream().mapToInt(RayStep::horizontalOffset).max().orElse(0);
             for (RayStep step : steps) {
+                boolean tipRetaining = rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL
+                    && step.horizontalOffset() == tipOffset;
                 columnCandidates
                     .computeIfAbsent(step.columnKey(), ignored -> new ArrayList<>())
-                    .add(new ColumnCandidate(step, rayEntry.getKey(), rayOutcomeForSteps));
+                    .add(new ColumnCandidate(step, rayEntry.getKey(), rayOutcomeForSteps, tipRetaining));
             }
         }
 
@@ -89,6 +92,9 @@ public final class SlopeSurfaceConsolidator {
                 cell.mergeFill(resolution.slopeSurfaceY(), resolution.materialId());
             } else {
                 cell.mergeCut(resolution.slopeSurfaceY(), resolution.materialId());
+            }
+            if (resolution.retainingFinish()) {
+                cell.markRetainingFinish();
             }
             written.add(key);
         }
@@ -124,7 +130,7 @@ public final class SlopeSurfaceConsolidator {
             return null;
         }
         if (candidates.size() == 1) {
-            return ColumnResolution.from(candidates.getFirst().step(), false);
+            return ColumnResolution.from(candidates.getFirst(), false);
         }
 
         SlopeConstructionOutcome bestOutcome = candidates.stream()
@@ -135,7 +141,7 @@ public final class SlopeSurfaceConsolidator {
             .filter(candidate -> candidate.rayOutcome() == bestOutcome)
             .toList();
         if (preferredOutcome.size() == 1) {
-            return ColumnResolution.from(preferredOutcome.getFirst().step(), false);
+            return ColumnResolution.from(preferredOutcome.getFirst(), false);
         }
 
         int minOffset = preferredOutcome.stream()
@@ -147,19 +153,19 @@ public final class SlopeSurfaceConsolidator {
             .toList();
 
         if (closest.size() == 1) {
-            return ColumnResolution.from(closest.getFirst().step(), false);
+            return ColumnResolution.from(closest.getFirst(), false);
         }
 
         boolean mixedFillCut = closest.stream().anyMatch(c -> c.step().fill())
             && closest.stream().anyMatch(c -> !c.step().fill());
         if (!mixedFillCut) {
-            RayStep merged = closest.getFirst().step().fill()
-                ? closest.stream().map(ColumnCandidate::step)
-                    .max(Comparator.comparingInt(RayStep::slopeSurfaceY))
-                    .orElse(closest.getFirst().step())
-                : closest.stream().map(ColumnCandidate::step)
-                    .min(Comparator.comparingInt(RayStep::slopeSurfaceY))
-                    .orElse(closest.getFirst().step());
+            ColumnCandidate merged = closest.getFirst().step().fill()
+                ? closest.stream()
+                    .max(Comparator.comparingInt(c -> c.step().slopeSurfaceY()))
+                    .orElse(closest.getFirst())
+                : closest.stream()
+                    .min(Comparator.comparingInt(c -> c.step().slopeSurfaceY()))
+                    .orElse(closest.getFirst());
             return ColumnResolution.from(merged, false);
         }
 
@@ -168,20 +174,17 @@ public final class SlopeSurfaceConsolidator {
         List<ColumnCandidate> cutCandidates = closest.stream().filter(c -> !c.step().fill()).toList();
 
         if (!fillCandidates.isEmpty() && !cutCandidates.isEmpty()) {
-            RayStep bestFill = fillCandidates.stream()
-                .map(ColumnCandidate::step)
-                .max(Comparator.comparingInt(RayStep::slopeSurfaceY))
+            ColumnCandidate bestFill = fillCandidates.stream()
+                .max(Comparator.comparingInt(c -> c.step().slopeSurfaceY()))
                 .orElseThrow();
-            RayStep bestCut = cutCandidates.stream()
-                .map(ColumnCandidate::step)
-                .min(Comparator.comparingInt(RayStep::slopeSurfaceY))
+            ColumnCandidate bestCut = cutCandidates.stream()
+                .min(Comparator.comparingInt(c -> c.step().slopeSurfaceY()))
                 .orElseThrow();
-            RayStep chosen = bestFill.slopeSurfaceY() > groundY ? bestFill : bestCut;
+            ColumnCandidate chosen = bestFill.step().slopeSurfaceY() > groundY ? bestFill : bestCut;
             return ColumnResolution.from(chosen, true);
         }
 
-        RayStep fallback = closest.getFirst().step();
-        return ColumnResolution.from(fallback, true);
+        return ColumnResolution.from(closest.getFirst(), true);
     }
 
     private static int sampleGroundY(ColumnKey key, com.plot.api.geometry.Vec2d planPoint, TerrainSampler terrain) {
@@ -243,7 +246,11 @@ public final class SlopeSurfaceConsolidator {
         return step.slopeSurfaceY() - direction * Math.round(step.horizontalOffset() / ratio);
     }
 
-    private record ColumnCandidate(RayStep step, SlopeRayId rayId, SlopeConstructionOutcome rayOutcome) {
+    private record ColumnCandidate(
+            RayStep step,
+            SlopeRayId rayId,
+            SlopeConstructionOutcome rayOutcome,
+            boolean tipRetaining) {
     }
 
     private record RayStep(
@@ -266,15 +273,18 @@ public final class SlopeSurfaceConsolidator {
             int slopeSurfaceY,
             boolean fill,
             String materialId,
-            boolean hadConflict) {
+            boolean hadConflict,
+            boolean retainingFinish) {
 
-        static ColumnResolution from(RayStep step, boolean hadConflict) {
+        static ColumnResolution from(ColumnCandidate candidate, boolean hadConflict) {
+            RayStep step = candidate.step();
             return new ColumnResolution(
                 step.planPoint(),
                 step.slopeSurfaceY(),
                 step.fill(),
                 step.materialId(),
-                hadConflict);
+                hadConflict,
+                candidate.tipRetaining());
         }
     }
 }
