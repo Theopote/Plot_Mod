@@ -695,7 +695,23 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold) {
         return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
             crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++, tunnelThreshold,
-            sample.constructionType(), sample.allowWaterEmbankment());
+            sample.constructionType(), sample.allowWaterEmbankment()).samples();
+    }
+
+    /** 单站点两侧肩部射线：样本 + 可供急弯环带使用的剖面快照。 */
+    private record CenterSlopeBuild(
+            List<SlopeProfileSample> samples,
+            SlopeBandRasterizer.ShoulderRay leftRay,
+            SlopeBandRasterizer.ShoulderRay rightRay) {
+    }
+
+    /** 单侧肩部构建结果。 */
+    private record ShoulderSlopeBuild(
+            List<SlopeProfileSample> samples,
+            SlopeBandRasterizer.ShoulderRay bandRay) {
+        static ShoulderSlopeBuild empty() {
+            return new ShoulderSlopeBuild(List.of(), null);
+        }
     }
 
     /** 急折外侧扇区：仅当转角够大且路径采样偏稀时加密；上限避免预览算力爆炸。 */
@@ -704,7 +720,7 @@ public final class RoadCorridorPlanBuilder {
     private static final int SLOPE_FAN_MAX_STEPS = 24;
 
     /**
-     * 沿 span 采样边坡射线。急折且路径短时角向加密，填外侧三角空隙；步数封顶保预览性能。
+     * 沿 span 采样边坡射线。急折时角向加密射线算高，外侧相邻射线再以二维环带补齐三角空隙。
      */
     private static List<SlopeProfileSample> mergeSlopeSpan(
             RoadCorridorPlan plan,
@@ -723,8 +739,13 @@ public final class RoadCorridorPlanBuilder {
         Vec2d fromNormal = normalize(from.leftNormal());
         Vec2d toNormal = normalize(to.leftNormal());
         double turn = signedAngle(fromNormal, toNormal);
+        boolean significantTurn = Math.abs(turn) >= SLOPE_FAN_MIN_TURN_RADIANS;
+        // turn>0：左法向逆时针扫，外侧肩为 RIGHT；turn<0：外侧肩为 LEFT。
+        SlopeRayId.ShoulderSide outerSide = turn > 0
+            ? SlopeRayId.ShoulderSide.RIGHT
+            : SlopeRayId.ShoulderSide.LEFT;
         int steps = pathLast;
-        if (Math.abs(turn) >= SLOPE_FAN_MIN_TURN_RADIANS) {
+        if (significantTurn) {
             int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
             double maxGapRadians = SLOPE_FAN_GAP_BLOCKS / Math.max(1, maxRun);
             int angularSteps = Math.max(1, (int) Math.ceil(Math.abs(turn) / maxGapRadians));
@@ -732,13 +753,15 @@ public final class RoadCorridorPlanBuilder {
                 steps = Math.max(pathLast, Math.min(angularSteps, SLOPE_FAN_MAX_STEPS));
             }
         }
+        List<SlopeBandRasterizer.ShoulderRay> outerRays = new ArrayList<>();
         if (steps <= 0) {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
             boolean allowWater = resolveStepAllowWaterEmbankment(from, to, 1.0, profileWaterCrossings);
             if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
-                samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
+                CenterSlopeBuild built = mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
                     crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                    tunnelThreshold, stepType, allowWater));
+                    tunnelThreshold, stepType, allowWater);
+                samples.addAll(built.samples());
             }
             return samples;
         }
@@ -754,9 +777,24 @@ public final class RoadCorridorPlanBuilder {
             if (!RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 continue;
             }
-            samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,
+            CenterSlopeBuild built = mergeSlopeAtCenter(plan, center, leftNormal, targetY,
                 crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                tunnelThreshold, stepType, allowWater));
+                tunnelThreshold, stepType, allowWater);
+            samples.addAll(built.samples());
+            if (significantTurn) {
+                SlopeBandRasterizer.ShoulderRay outer = outerSide == SlopeRayId.ShoulderSide.LEFT
+                    ? built.leftRay()
+                    : built.rightRay();
+                if (outer != null) {
+                    outerRays.add(outer);
+                }
+            }
+        }
+        if (significantTurn) {
+            for (int i = 0; i + 1 < outerRays.size(); i++) {
+                samples.addAll(SlopeBandRasterizer.fillBetweenRays(
+                    outerRays.get(i), outerRays.get(i + 1), terrain, host));
+            }
         }
         return samples;
     }
@@ -813,7 +851,7 @@ public final class RoadCorridorPlanBuilder {
         return WaterCrossingConstructionResolver.isCausewayFillStation(crossings, station);
     }
 
-    private static List<SlopeProfileSample> mergeSlopeAtCenter(
+    private static CenterSlopeBuild mergeSlopeAtCenter(
             RoadCorridorPlan plan,
             Vec2d center,
             Vec2d leftNormal,
@@ -836,19 +874,21 @@ public final class RoadCorridorPlanBuilder {
         float fillRatio = crossSection.fillSlopeRatio;
         float cutRatio = crossSection.cutSlopeRatio;
 
-        List<SlopeProfileSample> samples = new ArrayList<>();
-        samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
+        ShoulderSlopeBuild left = mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT),
-            tunnelThreshold, constructionType, allowWaterEmbankment));
-        samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
+            tunnelThreshold, constructionType, allowWaterEmbankment);
+        ShoulderSlopeBuild right = mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT),
-            tunnelThreshold, constructionType, allowWaterEmbankment));
-        return samples;
+            tunnelThreshold, constructionType, allowWaterEmbankment);
+        List<SlopeProfileSample> samples = new ArrayList<>(left.samples().size() + right.samples().size());
+        samples.addAll(left.samples());
+        samples.addAll(right.samples());
+        return new CenterSlopeBuild(samples, left.bandRay(), right.bandRay());
     }
 
-    private static List<SlopeProfileSample> mergeSlopeAtShoulder(
+    private static ShoulderSlopeBuild mergeSlopeAtShoulder(
             RoadCorridorPlan plan,
             Vec2d center,
             int targetY,
@@ -873,27 +913,27 @@ public final class RoadCorridorPlanBuilder {
         Vec2d normal = normalize(outwardNormal);
         Vec2d outerEdge = center.add(leftNormal.multiply(signedOuterLateral * scale));
         if (!terrain.isChunkLoaded(outerEdge)) {
-            return samples;
+            return ShoulderSlopeBuild.empty();
         }
         int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
         if (targetY == groundAtEdge) {
-            return samples;
+            return ShoulderSlopeBuild.empty();
         }
         boolean isFill = targetY > groundAtEdge;
         int heightAboveGround = Math.abs(targetY - groundAtEdge);
         // 挂壁/半隧靠山侧：外缘覆土已达结构高度+盖层，不开敞削坡
         if (RoadEarthworkPolicy.suppressShoulderCutBatter(
                 isFill, groundAtEdge - targetY, host.tunnelStyle(), tunnelThreshold)) {
-            return samples;
+            return ShoulderSlopeBuild.empty();
         }
         // 高架填方：路底相对地面净高超过桥阈值则不堆土坡（交给桥梁/净空）
         if (RoadEarthworkPolicy.suppressFillBatter(isFill, heightAboveGround, host.bridgeThreshold())) {
-            return samples;
+            return ShoulderSlopeBuild.empty();
         }
         // 水面柱禁止普通填方；仅授权堤道（CAUSEWAY）例外，普通 FILL 不放行
         if (RoadEarthworkPolicy.suppressFillOverWater(
                 isFill, allowWaterEmbankment, terrain.findExposedWaterSurface(outerEdge))) {
-            return samples;
+            return ShoulderSlopeBuild.empty();
         }
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
@@ -920,7 +960,7 @@ public final class RoadCorridorPlanBuilder {
 
         if (profile.size() <= 1) {
             plan.noteUnresolvedSlopeConstruction();
-            return samples;
+            return ShoulderSlopeBuild.empty();
         }
 
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
@@ -958,7 +998,20 @@ public final class RoadCorridorPlanBuilder {
             previousHeight = slopeHeight;
             previousOffset = horizontalOffset;
         }
-        return samples;
+        int maxProfileOffset = profile.stream().mapToInt(p -> p[0]).max().orElse(0);
+        maxProfileOffset = Math.min(maxProfileOffset, maxHorizontalRun);
+        SlopeBandRasterizer.ShoulderRay bandRay = new SlopeBandRasterizer.ShoulderRay(
+            rayId,
+            outerEdge,
+            normal,
+            SlopeBandRasterizer.heightTableFromProfile(profile, maxProfileOffset),
+            isFill,
+            materialId,
+            slopeRatio,
+            outcome,
+            allowWaterEmbankment,
+            scale);
+        return new ShoulderSlopeBuild(samples, bandRay);
     }
 
     private static void addSlopeSample(

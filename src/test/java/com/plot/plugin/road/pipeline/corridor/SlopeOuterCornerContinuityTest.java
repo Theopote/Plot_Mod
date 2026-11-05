@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -16,10 +17,12 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 急折外侧：按段垂向伸出的边坡射线会在远端张开成三角空隙；角向加密后应覆盖该楔形。
+ * 急折外侧：射线算高 + 二维环带补齐三角空隙；覆盖按世界柱逐格校验。
  */
 class SlopeOuterCornerContinuityTest {
 
@@ -30,11 +33,11 @@ class SlopeOuterCornerContinuityTest {
         path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
         path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(40, 40)));
 
-        // 覆土 8 < 默认深埋门槛(净高+衬砌+隧道阈值≈10)，仍属普通路堑，应有连续外侧边坡
+        // 覆土 8 < 默认深埋门槛，仍属普通路堑，应有连续外侧边坡
         RoadCorridorPlan plan = buildCutPlan(path, 64, 72);
         assertTrue(plan.slopeEntries().size() > 20, "cut L-turn should emit many slope columns");
 
-        // 折点 (40,0) 外侧 SE：角向加密应盖住楔形（覆土 8 → 边坡水平约 10 格内）
+        // 折点 (40,0) 外侧 SE：二维环带应逐格盖住楔形（覆土 8 → 边坡水平约 10 格内）
         List<Vec2d> probes = List.of(
             new Vec2d(45, -4),
             new Vec2d(47, -6),
@@ -42,11 +45,69 @@ class SlopeOuterCornerContinuityTest {
             new Vec2d(48, -5),
             new Vec2d(46, -8));
         for (Vec2d probe : probes) {
-            assertTrue(hasNearbySlope(plan, probe, 2),
+            assertTrue(hasNearbySlope(plan, probe, 1),
                 "outer corner wedge missing slope near " + probe);
-            assertTrue(hasNearbyClearance(plan, probe, 2),
+            assertTrue(hasNearbyClearance(plan, probe, 1),
                 "outer corner wedge missing clearance near " + probe);
         }
+    }
+
+    @Test
+    void sharpLTurnOuterWedgeColumnsAreCoveredCellByCell() {
+        List<Vec2d> path = new ArrayList<>();
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(40, 40)));
+        RoadCorridorPlan plan = buildCutPlan(path, 64, 72);
+
+        // 在折点外侧扇区内，距路肩约 4～8 格的弧带逐格要求有边坡
+        for (int ox = 4; ox <= 8; ox++) {
+            for (int oz = -8; oz <= -4; oz++) {
+                double dist = Math.hypot(ox, oz);
+                if (dist < 4.5 || dist > 8.5) {
+                    continue;
+                }
+                // 仅东南象限楔形（x>0,z<0）
+                ColumnKey key = new ColumnKey(40 + ox, oz);
+                assertNotNull(plan.slopeCell(key),
+                    "90° outer wedge must cover column " + key);
+            }
+        }
+    }
+
+    @Test
+    void sharp135TurnOuterWedgeHasContinuousSlope() {
+        // 东行再西北折 ~135° 外角
+        List<Vec2d> path = new ArrayList<>();
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(12, 28)));
+        RoadCorridorPlan plan = buildCutPlan(path, 64, 72);
+        assertTrue(plan.slopeEntries().size() > 20, "135° cut should emit slope columns");
+
+        List<Vec2d> probes = List.of(
+            new Vec2d(46, -3),
+            new Vec2d(48, -5),
+            new Vec2d(45, -6),
+            new Vec2d(47, -7));
+        for (Vec2d probe : probes) {
+            assertTrue(hasNearbySlope(plan, probe, 1),
+                "135° outer wedge missing slope near " + probe);
+        }
+    }
+
+    @Test
+    void outerBandDoesNotExceedMaxBatterWidth() {
+        List<Vec2d> path = new ArrayList<>();
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(40, 40)));
+        RoadCorridorPlan plan = buildCutPlan(path, 64, 72);
+
+        int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+        // 路肩约在 x=40±半宽；取折点外侧远点，距中心超过 maxRun+半宽 应无边坡
+        int far = maxRun + 12;
+        assertNull(plan.slopeCell(new ColumnKey(40 + far, -far)),
+            "band must not stamp beyond max batter run");
+        assertNull(plan.slopeCell(new ColumnKey(40 + far, 0)),
+            "east of corner beyond max run must stay empty");
     }
 
     private static boolean hasNearbySlope(RoadCorridorPlan plan, Vec2d probe, int radius) {
