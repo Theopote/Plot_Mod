@@ -75,7 +75,26 @@ public final class TunnelStyleControls {
         return FLOATING.isInteractionBlocked();
     }
 
-    /** @return true 若应阻止离开编辑 Tab */
+    public static boolean hasDirtyEditor() {
+        return FLOATING.isOpen() && FLOATING.isDirty();
+    }
+
+    /**
+     * 导航门禁：脏则弹确认并拦截，干净则保持打开。
+     *
+     * @return true 若应阻止导航
+     */
+    public static boolean promptDirtyAndBlockLeave(RoadUiContext ctx) {
+        if (isInteractionBlocked()) {
+            return true;
+        }
+        if (!hasDirtyEditor()) {
+            return false;
+        }
+        return FLOATING.finishOrPrompt(ctx) == RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
+    }
+
+    /** 停用或强制收起：脏弹确认，干净关闭。 @return true 若应阻止离开 */
     public static boolean finishOrPromptLeaving(RoadUiContext ctx) {
         return FLOATING.finishOrPrompt(ctx) == RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
     }

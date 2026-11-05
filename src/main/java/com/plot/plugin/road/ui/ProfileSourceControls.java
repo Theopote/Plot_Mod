@@ -35,10 +35,9 @@ final class ProfileSourceControls {
                 applyProfileSource(ctx, network, road, ProfileSource.AUTO);
             }
         }
-        ImGui.sameLine();
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_source_auto_hint"));
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_auto_hint"));
+        }
 
         ImGui.beginDisabled(!canActivateEdited);
         boolean editedSelected = current == ProfileSource.EDITED;
@@ -49,14 +48,14 @@ final class ProfileSourceControls {
                 applyProfileSource(ctx, network, road, ProfileSource.EDITED);
             }
         }
-        if (!canActivateEdited && hasStoredCurve && ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            if (!canActivateEdited && hasStoredCurve) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
+            } else {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_hint"));
+            }
         }
         ImGui.endDisabled();
-        ImGui.sameLine();
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_source_edited_hint"));
 
         ImGui.spacing();
         renderStatus(network, road, hasStoredCurve, canActivateEdited);

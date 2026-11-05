@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -118,5 +119,31 @@ class RoadEditScopeGuardTest {
         ctx.clearPendingNavigation();
         assertEquals(Set.of(roadA), manager.getSelectedRoadIds());
         assertNull(ctx.pendingNavigation());
+    }
+
+    @Test
+    void navigationLeaveCheckDoesNotCloseCleanEditorOpenedAfterCommit() {
+        // 模拟 RoadUIManager：草稿检查通过 → commit 打开干净编辑器 → 帧末再次离开检查。
+        manager.selectRoad(roadA, false);
+        ctx.setActiveTab(RoadUiTab.ROUTE);
+        assertFalse(editPanel.tryLeaveEdit());
+
+        manager.selectRoad(roadB, false);
+        host.openOrFocus(ctx, RoadFloatingEditorKind.CROSS_SECTION, roadB);
+        ctx.setActiveTab(RoadUiTab.CROSS_SECTION);
+
+        assertTrue(host.isOpen(RoadFloatingEditorKind.CROSS_SECTION));
+        assertFalse(editPanel.tryLeaveEdit());
+        assertTrue(host.isOpen(RoadFloatingEditorKind.CROSS_SECTION));
+    }
+
+    @Test
+    void finishPendingEditsStillClosesCleanEditorsOnDeactivate() {
+        manager.selectRoad(roadB, false);
+        host.openOrFocus(ctx, RoadFloatingEditorKind.CENTERLINE, roadB);
+        assertTrue(host.isOpen(RoadFloatingEditorKind.CENTERLINE));
+
+        assertFalse(editPanel.finishPendingEdits());
+        assertFalse(host.isOpen(RoadFloatingEditorKind.CENTERLINE));
     }
 }

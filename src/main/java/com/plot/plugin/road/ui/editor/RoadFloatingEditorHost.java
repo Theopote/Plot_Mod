@@ -51,10 +51,44 @@ public final class RoadFloatingEditorHost {
         }
     }
 
+    /** 是否存在未保存浮动编辑草稿（不含干净打开的窗口）。 */
+    public boolean hasDirtyEditors() {
+        for (RoadFloatingEditor editor : activeEditors()) {
+            if (editor.isDirty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
-     * 作用域切换或离开编辑 Tab：脏窗口弹出确认，不静默写回其他道路。
+     * 导航 / 切标签门禁：仅对脏窗口弹确认并拦截；干净窗口保持打开。
+     * <p>
+     * 与 {@link #finishOrPromptAll} 不同：后者会关闭干净窗口，不可用于跨标签导航后的二次检查。
      *
-     * @return true 若用户选择继续编辑并应阻止作用域切换
+     * @return true 若应阻止导航
+     */
+    public boolean promptDirtyAndBlockLeave(RoadUiContext ctx) {
+        if (hasInteractionBlocked()) {
+            return true;
+        }
+        boolean blocked = false;
+        for (RoadFloatingEditor editor : activeEditors()) {
+            if (!editor.isDirty()) {
+                continue;
+            }
+            RoadFloatingEditor.FinishResult result = editor.finishOrPrompt(ctx);
+            if (result == RoadFloatingEditor.FinishResult.PROMPT_SHOWN) {
+                blocked = true;
+            }
+        }
+        return blocked;
+    }
+
+    /**
+     * 停用插件或强制收起：脏窗口弹出确认，干净窗口关闭。
+     *
+     * @return true 若用户选择继续编辑并应阻止
      */
     public boolean finishOrPromptAll(RoadUiContext ctx) {
         boolean blocked = false;

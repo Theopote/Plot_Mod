@@ -21,6 +21,8 @@ public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
+    private long cachedPreflightKey = Long.MIN_VALUE;
+    private RoadNetworkValidationReport cachedPreflightReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -235,9 +237,20 @@ public final class RoadGeneratePanel {
     }
 
     private RoadNetworkValidationReport preflightReport(RoadNetwork network) {
-        return RoadNetworkEngineeringValidator.analyzePreGeneration(
-            network,
-            RoadElevationBoundsResolver.resolveClientWorld(ctx.host().coordinates()));
+        var elevationBounds = RoadElevationBoundsResolver.resolveClientWorld(ctx.host().coordinates());
+        long terrainRevision = ctx.previewManager() != null
+            ? ctx.previewManager().getTerrainRevision()
+            : 0L;
+        long key = ctx.networkManager().getNetworkRevision() * 31L
+            + terrainRevision * 17L
+            + elevationBounds.hashCode();
+        if (key != cachedPreflightKey) {
+            cachedPreflightReport = RoadNetworkEngineeringValidator.analyzePreGeneration(
+                network,
+                elevationBounds);
+            cachedPreflightKey = key;
+        }
+        return cachedPreflightReport;
     }
 
     private RoadNetworkValidationReport validationReport() {

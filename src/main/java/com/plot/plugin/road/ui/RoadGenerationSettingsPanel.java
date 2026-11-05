@@ -9,7 +9,6 @@ import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.NetworkElevationMode;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
@@ -25,12 +24,19 @@ public final class RoadGenerationSettingsPanel {
     private RoadGenerationSettingsPanel() {
     }
 
-    /** 单选水平道路时隐藏地形适应与全局最大坡度预设。 */
+    /**
+     * 未选道路时展示全局地形/坡度默认；单选非水平道路时同理。
+     * 多选不得落到此路径（避免无提示改写主选道路或误用全局控件冒充批量）。
+     */
     public static boolean showsTerrainAdaptiveControls(RoadUiContext ctx) {
         if (NetworkElevationAuthority.isUniformFlat(ctx.networkManager().getNetwork())) {
             return false;
         }
-        if (ctx.networkManager().getSelectedRoadIds().size() != 1) {
+        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        if (mode == RoadSelectionHeader.Mode.MULTI) {
+            return false;
+        }
+        if (mode == RoadSelectionHeader.Mode.NONE) {
             return true;
         }
         Road road = ctx.networkManager().getPrimarySelectedRoad();
@@ -40,14 +46,16 @@ public final class RoadGenerationSettingsPanel {
         return RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT;
     }
 
-    /** 单选地形适应道路时，生成设置展示道路级坡度/地形/纵断面来源。 */
+    /** 仅单选且为地形适应时展示逐路坡度/地形/纵断面来源。 */
     public static boolean showsPerRoadTerrainControls(RoadUiContext ctx, Road road) {
         if (NetworkElevationAuthority.isUniformFlat(ctx.networkManager().getNetwork())) {
             return false;
         }
+        if (RoadSelectionHeader.resolveMode(ctx) != RoadSelectionHeader.Mode.SINGLE) {
+            return false;
+        }
         return road != null
-            && RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE
-            && showsTerrainAdaptiveControls(ctx);
+            && RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE;
     }
 
     /**
@@ -79,25 +87,38 @@ public final class RoadGenerationSettingsPanel {
             ImGui.spacing();
         }
 
-        if (!uniformFlat) {
-            Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
-            if (showsPerRoadTerrainControls(ctx, activeRoad)) {
-                RoadStyleProductControls.renderRoadMaxSlopePresets(
-                    ctx, activeRoad, ctx.networkManager()::pushHistory);
-                RoadStyleProductControls.renderRoadTerrainStylePresets(
-                    ctx, activeRoad, ctx.networkManager()::pushHistory);
-                ProfileSourceControls.render(
-                    ctx,
-                    network,
-                    activeRoad,
-                    openProfileEditorForSelectedRoad);
-            } else if (showsTerrainAdaptiveControls(ctx)) {
-                RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
-                RoadStyleProductControls.renderTerrainStylePresets(ctx);
-            } else {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.road.generate.flat_terrain_controls_hidden"));
+        if (uniformFlat) {
+            return;
+        }
+
+        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        switch (mode) {
+            case MULTI -> {
+                // 批量纵向已由 pathPropertyPanel 渲染；禁止再显示主选道路的逐路 ProfileSource。
+            }
+            case SINGLE -> {
+                Road activeRoad = ctx.networkManager().getPrimarySelectedRoad();
+                if (showsPerRoadTerrainControls(ctx, activeRoad)) {
+                    RoadStyleProductControls.renderRoadMaxSlopePresets(
+                        ctx, activeRoad, ctx.networkManager()::pushHistory);
+                    RoadStyleProductControls.renderRoadTerrainStylePresets(
+                        ctx, activeRoad, ctx.networkManager()::pushHistory);
+                    ProfileSourceControls.render(
+                        ctx,
+                        network,
+                        activeRoad,
+                        openProfileEditorForSelectedRoad);
+                } else {
+                    RoadUiWidgets.textWrappedColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.road.generate.flat_terrain_controls_hidden"));
+                }
+            }
+            case NONE -> {
+                if (showsTerrainAdaptiveControls(ctx)) {
+                    RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
+                    RoadStyleProductControls.renderTerrainStylePresets(ctx);
+                }
             }
         }
     }

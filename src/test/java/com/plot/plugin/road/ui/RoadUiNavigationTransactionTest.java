@@ -9,6 +9,7 @@ import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,15 +19,20 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 导航事务：草稿检查通过前不得改选择 / 打开编辑器；取消时须清除全部待执行副作用。
+ * 另覆盖 RoadUIManager 协调路径中的「二次离开检查不得关掉刚打开的干净编辑器」。
  */
 class RoadUiNavigationTransactionTest {
 
     private RoadNetworkManager manager;
     private RoadUiContext ctx;
+    private RoadFloatingEditorHost host;
+    private RoadEditPanel editPanel;
     private String roadA;
     private String roadB;
     private String edgeB;
@@ -59,6 +65,8 @@ class RoadUiNavigationTransactionTest {
             null);
         ctx = new RoadUiContext(
             manager, null, null, null, new RoadProjectStatus(), pluginContext);
+        host = new RoadFloatingEditorHost();
+        editPanel = new RoadEditPanel(ctx, new RoadDefaultParamsPanel(ctx), host);
     }
 
     @Test
@@ -115,4 +123,26 @@ class RoadUiNavigationTransactionTest {
         assertEquals(edgeB, ctx.pendingNavigation().edgeId());
         assertNull(ctx.pendingNavigation().roadId());
     }
+
+    @Test
+    void managerStyleNavigationCommitKeepsCleanEditorAfterSecondLeaveCheck() {
+        manager.selectRoad(roadA, false);
+        ctx.setActiveTab(RoadUiTab.ROUTE);
+        ctx.requestEditCrossSection(roadB);
+
+        // 1) 草稿门禁（干净）
+        assertFalse(editPanel.tryLeaveEdit());
+        // 2) 提交选择 + 打开编辑器（对应 commitNavigation）
+        var nav = ctx.pendingNavigation();
+        manager.selectRoad(nav.roadId(), false);
+        host.openOrFocus(ctx, nav.editorKind(), nav.roadId());
+        ctx.setActiveTab(nav.targetTab());
+        ctx.clearPendingNavigation();
+        // 3) 帧末二次离开检查不得关掉刚打开的干净窗口
+        assertFalse(editPanel.tryLeaveEdit());
+        assertTrue(host.isOpen(RoadFloatingEditorKind.CROSS_SECTION));
+        assertEquals(Set.of(roadB), manager.getSelectedRoadIds());
+        assertEquals(RoadUiTab.CROSS_SECTION, ctx.activeTab());
+    }
+
 }

@@ -10,7 +10,11 @@ import imgui.ImGui;
 
 import java.util.List;
 
-/** 生成 Tab：当前编辑道路切换（上一/下一 + 下拉），类似建筑生成器目标选择。 */
+/**
+ * 纵断面工作区：当前查看道路切换（下拉 + 上一/下一）。
+ * <p>
+ * 无有效选择时仅展示列表首条只读概览，不在渲染中改写全局道路选择。
+ */
 final class RoadGenerateTargetBar {
     private RoadGenerateTargetBar() {
     }
@@ -25,35 +29,23 @@ final class RoadGenerateTargetBar {
         }
 
         Road primary = ctx.networkManager().getPrimarySelectedRoad();
-        if (primary == null || RoadProfileRoadNavigator.indexOf(roads, primary.getId()) < 0) {
-            selectRoad(ctx, roads.getFirst().getId());
-            primary = ctx.networkManager().getPrimarySelectedRoad();
-        }
-        String activeRoadId = primary != null ? primary.getId() : roads.getFirst().getId();
-        int currentIndex = Math.max(0, RoadProfileRoadNavigator.indexOf(roads, activeRoadId));
+        boolean selectionIsStationable = primary != null
+            && RoadProfileRoadNavigator.indexOf(roads, primary.getId()) >= 0;
+        // 无选择 / 选择不可桩号：展示首条概览，但不自动 selectRoad。
+        String viewingRoadId = selectionIsStationable
+            ? primary.getId()
+            : roads.getFirst().getId();
+        int currentIndex = Math.max(0, RoadProfileRoadNavigator.indexOf(roads, viewingRoadId));
         Road currentRoad = roads.get(currentIndex);
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##generate_target_prev")) {
-            selectRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, activeRoadId));
-        }
-        ImGui.sameLine();
-
         var coordinates = ctx.host().coordinates();
         String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad, coordinates);
-        float indexWidth = ImGui.calcTextSize(
-            PlotI18n.tr("plugin.road.profile_overview_road_index", roads.size(), roads.size())).x
-            + ImGui.getStyle().getItemSpacingX() * 2f;
-        float comboWidth = Math.max(
-            160f,
-            ImGui.getContentRegionAvailX()
-                - ImGui.getFrameHeight()
-                - indexWidth
-                - ImGui.getStyle().getItemSpacingX() * 2f);
-        ImGui.setNextItemWidth(comboWidth);
+
+        // 第一行：道路下拉占满可用宽度，避免窄面板与 prev/next/序号挤在一行溢出。
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.beginCombo("##generate_target_road_combo", preview)) {
             for (Road candidate : roads) {
                 String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate, coordinates);
-                boolean selected = candidate.getId().equals(activeRoadId);
+                boolean selected = selectionIsStationable && candidate.getId().equals(viewingRoadId);
                 if (ImGui.selectable(label, selected)) {
                     selectRoad(ctx, candidate.getId());
                 }
@@ -63,9 +55,14 @@ final class RoadGenerateTargetBar {
             }
             ImGui.endCombo();
         }
+
+        // 第二行：上一 / 下一 + 道路序号。
+        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##generate_target_prev")) {
+            selectRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, viewingRoadId));
+        }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_next") + "##generate_target_next")) {
-            selectRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, activeRoadId));
+            selectRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, viewingRoadId));
         }
         ImGui.sameLine();
         ImGui.textColored(

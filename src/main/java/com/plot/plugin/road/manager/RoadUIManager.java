@@ -169,6 +169,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.clearPendingNavigation();
         }
 
+        // ImGui 原生点选标签：仅草稿门禁拦截；不得关闭本帧导航刚打开的干净浮动窗。
         if (tabAtFrameStart != ctx.activeTab() && tryBlockLeave(tabAtFrameStart)) {
             ctx.setActiveTab(tabAtFrameStart);
             forceReselectBlockedTab = true;

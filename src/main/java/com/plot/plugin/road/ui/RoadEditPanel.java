@@ -85,7 +85,7 @@ public final class RoadEditPanel {
     }
 
     /**
-     * 离开编辑 Tab：干净关闭浮动窗，脏则弹确认。
+     * 停用插件等强制收起：干净关闭浮动窗，脏则弹确认。
      *
      * @return true 若应阻止切走
      */
@@ -103,15 +103,20 @@ public final class RoadEditPanel {
     }
 
     /**
-     * 尝试离开编辑 Tab：已有弹窗或脏草稿都会阻止。
+     * 导航 / 切标签门禁：仅拦截未保存草稿，不关闭干净浮动窗。
+     * <p>
+     * 跨标签打开编辑器后的二次离开检查必须用此方法，避免刚打开的干净窗口被收起。
      *
-     * @return true 若应留在编辑 Tab
+     * @return true 若应阻止导航并留在当前工作区
      */
     public boolean tryLeaveEdit() {
         if (hasLeaveBlocked()) {
             return true;
         }
-        return finishPendingEdits();
+        segmentEditor.finishOrCancelSlopeOverrideEdit(ctx);
+        boolean blocked = floatingEditorHost.promptDirtyAndBlockLeave(ctx);
+        blocked |= TunnelStyleControls.promptDirtyAndBlockLeave(ctx);
+        return blocked;
     }
 
     private boolean finishPendingEditsForScope(Set<String> selectedRoadIds) {
