@@ -116,15 +116,16 @@ public final class RoadCorridorSolidEmitter {
 
         // 立交上跨边：禁止开敞填方边坡/路基堆土（会掉进下层净空或成悬浮土堤）
         boolean elevatedEdge = gradeSeparation != null && gradeSeparation.elevatedRoadEdge();
-        boolean allowWaterEmbankment = plan.allowsWaterEmbankment(key);
-        boolean waterBlocksFill = RoadEarthworkPolicy.suppressFillOverWater(
-            true, allowWaterEmbankment, terrain.findExposedWaterSurface(planPoint));
-        boolean allowOpenFill = !elevatedEdge
+        var waterSurface = terrain.findExposedWaterSurface(planPoint);
+        boolean waterBlocksSlopeFill = RoadEarthworkPolicy.suppressFillOverWater(
+            true, plan.allowsSlopeWaterFill(key), waterSurface);
+        boolean waterBlocksRoadbedFill = RoadEarthworkPolicy.suppressFillOverWater(
+            true, plan.allowsRoadbedWaterFill(key), waterSurface);
+        boolean allowOpenFillBase = !elevatedEdge
             && !bridgeClearance
-            && !waterBlocksFill
             && (constructionType == null
                 || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill());
-        if (allowOpenFill && slope != null && slope.hasFill()) {
+        if (allowOpenFillBase && !waterBlocksSlopeFill && slope != null && slope.hasFill()) {
             int fillTop = surfaceY != null
                 ? Math.min(slope.fillSurfaceY(), surfaceY - 1)
                 : slope.fillSurfaceY();
@@ -141,8 +142,9 @@ public final class RoadCorridorSolidEmitter {
                     }
                 }
             }
-        } else if (allowOpenFill && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
-                constructionType, surfaceY, groundY, bridgeThreshold)) {
+        } else if (allowOpenFillBase && !waterBlocksRoadbedFill && surfaceY != null
+                && groundY < surfaceY - 1
+                && shouldFillSubgrade(constructionType, surfaceY, groundY, bridgeThreshold)) {
             for (int y = groundY + 1; y < surfaceY; y++) {
                 if (gradeSeparation != null && gradeSeparation.protects(planPoint, y)) {
                     continue;
@@ -196,7 +198,8 @@ public final class RoadCorridorSolidEmitter {
                     y,
                     RoadSolidLayer.TUNNEL,
                     "minecraft:air",
-                    RoadSolidMaterialPriority.AIR);
+                    RoadSolidMaterialPriority.AIR,
+                    ClearancePurpose.SLOPE_EXCAVATION);
                 if (metrics != null && !cutCountedInClearance) {
                     metrics.cutVolume++;
                 }
@@ -211,7 +214,7 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
-        if (slope != null && slope.needsRetainingFinish() && !waterBlocksFill) {
+        if (slope != null && slope.needsRetainingFinish() && !waterBlocksSlopeFill) {
             emitRetainingFinish(
                 solids, slope, planPoint, groundY, defaultFillMaterialId, gradeSeparation);
         }

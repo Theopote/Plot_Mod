@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadPlacementRecorder;
 import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
 import net.minecraft.util.math.BlockPos;
@@ -234,7 +235,7 @@ class RoadCorridorSolidEmitterEarthworkTest {
     void authorizedCausewayMayEmbankOverWater() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey key = new ColumnKey(10, 0);
-        plan.markAllowWaterEmbankment(key);
+        plan.markAllowSlopeWaterFill(key);
         plan.surfaceMask().put(key, new SurfaceCell(
             new Vec2d(10, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
         plan.putClearance(key, new ClearanceCell(
@@ -261,6 +262,37 @@ class RoadCorridorSolidEmitterEarthworkTest {
         org.junit.jupiter.api.Assertions.assertTrue(dirt > 0, "authorized causeway may embank over water");
         org.junit.jupiter.api.Assertions.assertTrue(metrics.fillVolume > 0,
             "slope fill path must count fillVolume");
+    }
+
+    @Test
+    void roadbedWaterAuthDoesNotAllowSlopeFillOverWater() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(11, 0);
+        plan.markAllowRoadbedWaterFill(key);
+        plan.surfaceMask().put(key, new SurfaceCell(
+            new Vec2d(11, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(key, new ClearanceCell(
+            new Vec2d(11, 0), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.FILL));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(key, new Vec2d(11, 0));
+        slope.mergeFill(63, "minecraft:dirt");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            lakeTerrain(60, 62),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:dirt");
+
+        long dirt = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        assertEquals(0, dirt,
+            "roadbed causeway auth must not authorize ordinary slope fill over water");
     }
 
     @Test
@@ -360,6 +392,90 @@ class RoadCorridorSolidEmitterEarthworkTest {
             org.junit.jupiter.api.Assertions.assertEquals(
                 RoadSolidLayer.RETAINING_WALL, layers.get(pos));
         }
+    }
+
+    @Test
+    void causewayRoadbedOrdinarySlopeAndTunnelClearanceStaySeparated() {
+        // 岸边重叠：堤道路基授权柱、普通边坡填方柱、隧道净空柱 + 合法截断挡墙。
+        ColumnKey causewayRoadbed = new ColumnKey(50, 0);
+        ColumnKey ordinarySlope = new ColumnKey(51, 0);
+        ColumnKey retainingTip = new ColumnKey(52, 0);
+        ColumnKey tunnelClearance = new ColumnKey(53, 0);
+
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        plan.markAllowRoadbedWaterFill(causewayRoadbed);
+        plan.surfaceMask().put(causewayRoadbed, new SurfaceCell(
+            new Vec2d(50, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(causewayRoadbed, new ClearanceCell(
+            new Vec2d(50, 0), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.FILL));
+
+        // 普通道路边坡落在相邻柱：不得继承堤道路基授权。
+        plan.putClearance(ordinarySlope, new ClearanceCell(
+            new Vec2d(51, 0), 64, 68,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.FILL));
+        SlopeColumnCell ordinary = plan.slopeCellOrCreate(ordinarySlope, new Vec2d(51, 0));
+        ordinary.mergeFill(63, "minecraft:dirt");
+
+        SlopeColumnCell tip = plan.slopeCellOrCreate(retainingTip, new Vec2d(52, 0));
+        tip.mergeCut(70, "minecraft:stone");
+        tip.markRetainingFinish();
+        plan.putClearance(retainingTip, new ClearanceCell(
+            new Vec2d(52, 0), 70, 80,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        TerrainSampler lake = lakeTerrain(60, 62);
+        TerrainSampler mountain = mountainTerrain();
+
+        RoadCorridorSolidEmitter.emit(solids, plan, lake, host, null, "minecraft:dirt");
+
+        long ordinarySlopeDirt = solids.primitives().stream()
+            .filter(p -> Math.round(p.planPoint().x) == 51)
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .filter(p -> "minecraft:dirt".equals(p.materialId()))
+            .count();
+        assertEquals(0, ordinarySlopeDirt,
+            "ordinary slope must not inherit neighboring causeway roadbed water auth");
+
+        RoadSolidModel cutSolids = new RoadSolidModel();
+        RoadCorridorClearancePass.apply(cutSolids, plan, mountain, host);
+        RoadCorridorSolidEmitter.emit(cutSolids, plan, mountain, host, null, "minecraft:stone");
+        // 隧道净空与挡墙冲突：跨结果合并时隧道 AIR 必须压倒挡墙。
+        var slopeEdge = new com.plot.plugin.road.solid.RoadGenerationResult(0);
+        var tunnelEdge = new com.plot.plugin.road.solid.RoadGenerationResult(0);
+        BlockPos retainingPos = new BlockPos(52, 75, 0);
+        BlockPos tunnelPos = new BlockPos(53, 66, 0);
+        slopeEdge.recordPlacementByLayerPriority(
+            retainingPos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+        slopeEdge.recordPlacementByLayerPriority(
+            retainingPos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.SLOPE_EXCAVATION);
+        tunnelEdge.recordPlacementByLayerPriority(
+            tunnelPos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
+        tunnelEdge.recordPlacementByLayerPriority(
+            tunnelPos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+
+        var merged = new com.plot.plugin.road.solid.RoadGenerationResult(0);
+        merged.mergeFrom(slopeEdge);
+        merged.mergeFrom(tunnelEdge);
+
+        assertEquals("minecraft:cobblestone",
+            merged.placementRecords.get(retainingPos).newBlockId,
+            "legal retaining must survive own slope excavation air");
+        assertEquals("minecraft:air",
+            merged.placementRecords.get(tunnelPos).newBlockId,
+            "tunnel interior must not keep foreign retaining wall");
+        assertEquals(RoadSolidLayer.TUNNEL, merged.placementLayers.get(tunnelPos));
     }
 
     @Test

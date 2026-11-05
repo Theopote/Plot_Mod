@@ -3,6 +3,7 @@ package com.plot.plugin.road.solid;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -95,8 +97,33 @@ public final class RoadSolidModel {
                         && primitive.materialId() != null
                         && (existing.materialId() == null
                             || primitive.materialId().compareTo(existing.materialId()) > 0))) {
-                primitives.set(existingIndex, primitive);
+                ClearancePurpose purpose = ClearancePurpose.preferProtected(
+                    existing.clearancePurpose(), primitive.clearancePurpose());
+                primitives.set(existingIndex, purpose == primitive.clearancePurpose()
+                    ? primitive
+                    : new RoadSolidPrimitive(
+                        primitive.planPoint(),
+                        primitive.elevation(),
+                        primitive.layer(),
+                        primitive.materialId(),
+                        primitive.materialPriority(),
+                        purpose));
                 return true;
+            }
+            if (primitive.materialPriority() == existing.materialPriority()
+                    && Objects.equals(primitive.materialId(), existing.materialId())) {
+                ClearancePurpose merged = ClearancePurpose.preferProtected(
+                    existing.clearancePurpose(), primitive.clearancePurpose());
+                if (merged != existing.clearancePurpose()) {
+                    primitives.set(existingIndex, new RoadSolidPrimitive(
+                        existing.planPoint(),
+                        existing.elevation(),
+                        existing.layer(),
+                        existing.materialId(),
+                        existing.materialPriority(),
+                        merged));
+                    return true;
+                }
             }
             return false;
         }
@@ -146,6 +173,17 @@ public final class RoadSolidModel {
             String materialId,
             int materialPriority) {
         return add(new RoadSolidPrimitive(planPoint, elevation, layer, materialId, materialPriority));
+    }
+
+    public boolean add(
+            Vec2d planPoint,
+            int elevation,
+            RoadSolidLayer layer,
+            String materialId,
+            int materialPriority,
+            ClearancePurpose clearancePurpose) {
+        return add(new RoadSolidPrimitive(
+            planPoint, elevation, layer, materialId, materialPriority, clearancePurpose));
     }
 
     public void addSpan(Vec2d left, Vec2d right, int elevation, RoadSolidLayer layer, String materialId) {

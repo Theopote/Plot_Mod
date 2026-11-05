@@ -2,6 +2,7 @@ package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
 import com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
@@ -28,6 +29,8 @@ public class RoadGenerationResult {
     public final Map<BlockPos, RoadSolidLayer> placementLayers = new LinkedHashMap<>();
     /** 与 {@link #placementRecords} 同步：记录各 BlockPos 当前生效的同层材质优先级。 */
     public final Map<BlockPos, Integer> placementMaterialPriorities = new LinkedHashMap<>();
+    /** 与 {@link #placementRecords} 同步：AIR 清障用途（挡墙仅可覆盖边坡开挖）。 */
+    public final Map<BlockPos, ClearancePurpose> placementClearancePurposes = new LinkedHashMap<>();
     /** Sparse reserved headroom above open-road surfaces; no air records for already-empty terrain. */
     public final Map<BlockPos, Integer> openRoadClearanceTops = new LinkedHashMap<>();
     /**
@@ -132,15 +135,28 @@ public class RoadGenerationResult {
             String newBlockId,
             RoadSolidLayer layer,
             int materialPriority) {
+        recordPlacementByLayerPriority(
+            pos, previousBlockId, newBlockId, layer, materialPriority, null);
+    }
+
+    public void recordPlacementByLayerPriority(
+            BlockPos pos,
+            String previousBlockId,
+            String newBlockId,
+            RoadSolidLayer layer,
+            int materialPriority,
+            ClearancePurpose clearancePurpose) {
         RoadPlacementRecorder.recordByLayerPriority(
             placementRecords,
             placementLayers,
             placementMaterialPriorities,
+            placementClearancePurposes,
             pos,
             previousBlockId,
             newBlockId,
             layer,
-            materialPriority);
+            materialPriority,
+            clearancePurpose);
     }
 
     public void mergeFrom(RoadGenerationResult source) {
@@ -186,25 +202,34 @@ public class RoadGenerationResult {
                     && incoming != null && !incomingAir
                     && (isElevatedDeckSupport(incomingLayer, pos, source)
                         || isElevatedDeckSupport(incomingLayer, pos, this));
-            // 截断挡墙可覆盖他路清障 AIR，但不得借 isProtectedSurface 侵入行车净空。
+            ClearancePurpose existingPurpose = placementClearancePurposes.get(pos);
+            ClearancePurpose incomingPurpose = source.placementClearancePurposes.get(pos);
+            // 挡墙仅可覆盖边坡开挖 AIR；隧道/行车/立交净空保持空气。
             boolean replaceWithRetaining = existing != null
                     && "minecraft:air".equals(existing.newBlockId)
-                    && incomingRetaining;
+                    && incomingRetaining
+                    && isSlopeExcavationAir(existingPurpose);
             // The union of approach clearance volumes opens tunnel junctions;
             // first-claim would retain another approach's wall across the lane.
             // Do not let underpass AIR erase elevated deck underside (SUBGRADE/BRIDGE under ROAD).
-            // 也不允许他路边坡清障 AIR 抹掉已落盘的截断挡墙。
+            // 边坡开挖 AIR 不得抹掉挡墙；真正的行车/隧道净空 AIR 可以。
             boolean existingDeckSupport = existing != null
                     && !existingSurface
                     && isElevatedDeckSupport(existingLayer, pos, this);
             boolean replaceWithClearance = existing != null && incomingAir && !existingSurface
                     && !existingDeckSupport
-                    && !existingRetaining;
+                    && (!existingRetaining || !isSlopeExcavationAir(incomingPurpose));
             if (replaceWithSurface || replaceWithDeckSupport || replaceWithRetaining || replaceWithClearance) {
                 recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
                 placementLayers.put(pos, incomingLayer);
                 placementMaterialPriorities.put(pos, source.placementMaterialPriorities.getOrDefault(
                     pos, RoadSolidMaterialPriority.DEFAULT));
+                if (incomingAir) {
+                    placementClearancePurposes.put(
+                        pos, ClearancePurpose.preferProtected(existingPurpose, incomingPurpose));
+                } else if (incomingRetaining) {
+                    placementClearancePurposes.remove(pos);
+                }
             } else {
                 placementRecords.putIfAbsent(pos, incoming);
             }
@@ -214,6 +239,10 @@ public class RoadGenerationResult {
         }
         for (Map.Entry<BlockPos, Integer> entry : source.placementMaterialPriorities.entrySet()) {
             placementMaterialPriorities.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        for (Map.Entry<BlockPos, ClearancePurpose> entry : source.placementClearancePurposes.entrySet()) {
+            placementClearancePurposes.merge(
+                entry.getKey(), entry.getValue(), ClearancePurpose::preferProtected);
         }
         cutVolume += source.cutVolume;
         fillVolume += source.fillVolume;
@@ -258,6 +287,11 @@ public class RoadGenerationResult {
             && record != null
             && record.newBlockId != null
             && !"minecraft:air".equals(record.newBlockId);
+    }
+
+    /** 未标注用途的 AIR 按边坡开挖处理，保持同边生成兼容；显式净空用途则拒绝挡墙覆盖。 */
+    private static boolean isSlopeExcavationAir(ClearancePurpose purpose) {
+        return purpose == null || purpose.allowsRetainingWallOverride();
     }
 
     /**

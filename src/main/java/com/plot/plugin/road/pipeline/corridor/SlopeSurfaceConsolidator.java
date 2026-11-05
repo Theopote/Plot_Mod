@@ -101,9 +101,9 @@ public final class SlopeSurfaceConsolidator {
             if (resolution.retainingFinish()) {
                 cell.markRetainingFinish();
             }
-            // 水域授权绑定最终胜出列，避免落败的堤道射线污染普通道路柱。
+            // 边坡水域授权绑定最终胜出列；不授予路基、也不保留落败堤道射线的污染。
             if (resolution.allowWaterEmbankment()) {
-                plan.markAllowWaterEmbankment(key);
+                plan.markAllowSlopeWaterFill(key);
             }
             written.add(key);
         }

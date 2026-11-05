@@ -86,7 +86,8 @@ public final class RoadCorridorClearancePass {
         }
         int topY = Math.max(cell.clearTopY(), designY);
         if (cell.mode() == RoadCorridorConstructionMode.TUNNEL && host != null) {
-            return clearTunnelInterior(solids, cell, key, terrain, host, designY, topY);
+            return clearTunnelInterior(
+                solids, cell, key, terrain, host, designY, topY, ClearancePurpose.TUNNEL_INTERIOR);
         }
         if (host != null && portalGuard != null) {
             ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
@@ -116,7 +117,8 @@ public final class RoadCorridorClearancePass {
                 if (lateral == null && !portalAllowsClearanceAtY(mask, y)) {
                     continue;
                 }
-                cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
+                cleared += clearObstruction(
+                    solids, cell, key, terrain, y, gradeSeparation, ClearancePurpose.GRADE_SEPARATION);
             }
             return cleared;
         }
@@ -126,7 +128,8 @@ public final class RoadCorridorClearancePass {
             if (retainingFinishOccupies(slope, groundY, y)) {
                 continue;
             }
-            cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
+            ClearancePurpose purpose = resolveOpenClearancePurpose(cell, slope, deckCap, y);
+            cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation, purpose);
         }
         // OPEN/BRIDGE: strip trees and other clearable decoration above the solid clear
         // envelope (cave/local top) without excavating mountain rock beyond topY.
@@ -136,6 +139,23 @@ public final class RoadCorridorClearancePass {
                 solids, cell, key, terrain, designY, topY, deckCap, gradeSeparation, slope, groundY);
         }
         return cleared;
+    }
+
+    private static ClearancePurpose resolveOpenClearancePurpose(
+            ClearanceCell cell,
+            SlopeColumnCell slope,
+            Integer deckCap,
+            int y) {
+        if (deckCap != null) {
+            return ClearancePurpose.GRADE_SEPARATION;
+        }
+        if (slope != null && slope.hasCut() && y > slope.cutSurfaceY()) {
+            return ClearancePurpose.SLOPE_EXCAVATION;
+        }
+        if (cell != null && cell.mode() == RoadCorridorConstructionMode.BRIDGE) {
+            return ClearancePurpose.GRADE_SEPARATION;
+        }
+        return ClearancePurpose.ROAD_HEADROOM;
     }
 
     /**
@@ -189,7 +209,8 @@ public final class RoadCorridorClearancePass {
                 y,
                 RoadSolidLayer.TUNNEL,
                 "minecraft:air",
-                RoadSolidMaterialPriority.AIR);
+                RoadSolidMaterialPriority.AIR,
+                deckCap != null ? ClearancePurpose.GRADE_SEPARATION : ClearancePurpose.ROAD_HEADROOM);
             cleared++;
         }
         return cleared;
@@ -277,7 +298,8 @@ public final class RoadCorridorClearancePass {
             TerrainSampler terrain,
             RoadCorridorPlanBuilder.PlanHost host,
             int designY,
-            int topY) {
+            int topY,
+            ClearancePurpose purpose) {
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
         int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
         var tunnelStyle = host.tunnelStyle();
@@ -297,7 +319,8 @@ public final class RoadCorridorClearancePass {
             if (lateral != null && mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {
                 continue;
             }
-            cleared += clearObstruction(solids, cell, key, terrain, y, GradeSeparationBuildContext.NONE);
+            cleared += clearObstruction(
+                solids, cell, key, terrain, y, GradeSeparationBuildContext.NONE, purpose);
         }
         return cleared;
     }
@@ -308,7 +331,8 @@ public final class RoadCorridorClearancePass {
             ColumnKey key,
             TerrainSampler terrain,
             int y,
-            GradeSeparationBuildContext gradeSeparation) {
+            GradeSeparationBuildContext gradeSeparation,
+            ClearancePurpose purpose) {
         if (gradeSeparation != null && gradeSeparation.protectsClearance(cell.planPoint(), y)) {
             return 0;
         }
@@ -320,7 +344,8 @@ public final class RoadCorridorClearancePass {
             y,
             RoadSolidLayer.TUNNEL,
             "minecraft:air",
-            RoadSolidMaterialPriority.AIR);
+            RoadSolidMaterialPriority.AIR,
+            purpose != null ? purpose : ClearancePurpose.ROAD_HEADROOM);
         return 1;
     }
 

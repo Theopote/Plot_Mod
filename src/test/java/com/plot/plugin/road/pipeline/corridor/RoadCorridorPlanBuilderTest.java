@@ -554,4 +554,42 @@ class RoadCorridorPlanBuilderTest {
         assertEquals(RoadConstructionType.TUNNEL,
             plan.clearanceCell(new ColumnKey(15, 0)).constructionType());
     }
+
+    @Test
+    void causewayBoundarySplitUsesRealStationNotMidpoint() {
+        // Span 20→30；堤道真实起点 22。中点近似会在 25 切换，应按桩号约在 22。
+        var causeway = new com.plot.plugin.road.pipeline.profile.environment.WaterCrossing(
+            22.0, 24.0, 40.0, 42.0,
+            24.0, 40.0, 16.0, 1.0, 1.5,
+            64, 64, 63,
+            com.plot.plugin.road.pipeline.profile.environment.WaterCrossingStrategy.CAUSEWAY);
+        double splitT = RoadCorridorPlanBuilder.causewayBoundarySplitT(
+            20.0, 30.0, false, List.of(causeway));
+        double splitStation = 20.0 + 10.0 * splitT;
+        assertTrue(splitStation >= 21.5 && splitStation <= 22.5,
+            "split must track real causeway start (~22), not span midpoint 25; got " + splitStation);
+
+        // 堤道在桩号 28 结束：from 已授权、to 未授权，应切在约 28 而非中点 25。
+        var exiting = new com.plot.plugin.road.pipeline.profile.environment.WaterCrossing(
+            10.0, 12.0, 26.0, 28.0,
+            12.0, 26.0, 14.0, 1.0, 1.5,
+            64, 64, 63,
+            com.plot.plugin.road.pipeline.profile.environment.WaterCrossingStrategy.CAUSEWAY);
+        double exitT = RoadCorridorPlanBuilder.causewayBoundarySplitT(
+            20.0, 30.0, true, List.of(exiting));
+        double exitStation = 20.0 + 10.0 * exitT;
+        assertTrue(exitStation >= 27.5 && exitStation <= 28.5,
+            "split must track real causeway exit (~28), not span midpoint 25; got " + exitStation);
+
+        var lateBoundary = new com.plot.plugin.road.pipeline.profile.environment.WaterCrossing(
+            28.0, 30.0, 50.0, 52.0,
+            30.0, 50.0, 20.0, 1.0, 1.5,
+            64, 64, 63,
+            com.plot.plugin.road.pipeline.profile.environment.WaterCrossingStrategy.CAUSEWAY);
+        double lateT = RoadCorridorPlanBuilder.causewayBoundarySplitT(
+            20.0, 30.0, false, List.of(lateBoundary));
+        double lateStation = 20.0 + 10.0 * lateT;
+        assertTrue(lateStation >= 27.5 && lateStation <= 28.5,
+            "split must track late causeway start (~28), not midpoint 25; got " + lateStation);
+    }
 }

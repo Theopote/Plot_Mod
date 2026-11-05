@@ -1,6 +1,7 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
 
 /**
  * 平面坐标 + 标高 + 层类型 + 材质（体素蓝图，不含 BlockPos）。
@@ -10,13 +11,23 @@ public record RoadSolidPrimitive(
         int elevation,
         RoadSolidLayer layer,
         String materialId,
-        int materialPriority) {
+        int materialPriority,
+        ClearancePurpose clearancePurpose) {
     public RoadSolidPrimitive(Vec2d planPoint, int elevation, RoadSolidLayer layer) {
-        this(planPoint, elevation, layer, null, RoadSolidMaterialPriority.DEFAULT);
+        this(planPoint, elevation, layer, null, RoadSolidMaterialPriority.DEFAULT, null);
     }
 
     public RoadSolidPrimitive(Vec2d planPoint, int elevation, RoadSolidLayer layer, String materialId) {
-        this(planPoint, elevation, layer, materialId, RoadSolidMaterialPriority.DEFAULT);
+        this(planPoint, elevation, layer, materialId, RoadSolidMaterialPriority.DEFAULT, null);
+    }
+
+    public RoadSolidPrimitive(
+            Vec2d planPoint,
+            int elevation,
+            RoadSolidLayer layer,
+            String materialId,
+            int materialPriority) {
+        this(planPoint, elevation, layer, materialId, materialPriority, null);
     }
 
     public RoadSolidPrimitive {

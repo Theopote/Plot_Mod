@@ -108,8 +108,20 @@ class SlopeSurfaceConsolidatorTest {
 
         // Closest shoulder offset (ordinary ray offset 2) wins over causeway offset 8.
         assertEquals(70, plan.slopeCell(shared).fillSurfaceY());
-        assertFalse(plan.allowsWaterEmbankment(shared),
-            "losing causeway candidate must not leave water embankment auth on the column");
+        assertFalse(plan.allowsSlopeWaterFill(shared),
+            "losing causeway candidate must not leave slope water auth on the column");
+        assertFalse(plan.allowsRoadbedWaterFill(shared),
+            "slope consolidator must not grant roadbed water auth");
+    }
+
+    @Test
+    void roadbedWaterAuthDoesNotAuthorizeOrdinarySlopeFill() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(41, 0);
+        plan.markAllowRoadbedWaterFill(key);
+        assertTrue(plan.allowsRoadbedWaterFill(key));
+        assertFalse(plan.allowsSlopeWaterFill(key),
+            "roadbed causeway clearance must not authorize slope embankment");
     }
 
     @Test

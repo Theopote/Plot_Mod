@@ -85,7 +85,7 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
-    void mergingRetainingWallAndOtherEdgesClearanceAirIsOrderIndependent() {
+    void mergingRetainingWallAndSlopeExcavationAirIsOrderIndependent() {
         var pos = new BlockPos(8, 71, 0);
         var retaining = new RoadGenerationResult(0);
         retaining.recordPlacementByLayerPriority(
@@ -94,7 +94,8 @@ class RoadPlacementRecorderTest {
         var clearance = new RoadGenerationResult(0);
         clearance.recordPlacementByLayerPriority(
             pos, "minecraft:stone", "minecraft:air",
-            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            com.plot.plugin.road.pipeline.corridor.ClearancePurpose.SLOPE_EXCAVATION);
 
         for (boolean retainingFirst : new boolean[]{true, false}) {
             var merged = new RoadGenerationResult(0);
@@ -103,8 +104,33 @@ class RoadPlacementRecorderTest {
             assertEquals(
                 "minecraft:cobblestone",
                 merged.placementRecords.get(pos).newBlockId,
-                "retaining must survive either merge order; retainingFirst=" + retainingFirst);
+                "retaining must survive slope excavation air; retainingFirst=" + retainingFirst);
             assertEquals(RoadSolidLayer.RETAINING_WALL, merged.placementLayers.get(pos));
+        }
+    }
+
+    @Test
+    void tunnelInteriorAirBeatsRetainingWallInEitherMergeOrder() {
+        var pos = new BlockPos(9, 66, 0);
+        var retaining = new RoadGenerationResult(0);
+        retaining.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+        var tunnelAir = new RoadGenerationResult(0);
+        tunnelAir.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            com.plot.plugin.road.pipeline.corridor.ClearancePurpose.TUNNEL_INTERIOR);
+
+        for (boolean retainingFirst : new boolean[]{true, false}) {
+            var merged = new RoadGenerationResult(0);
+            merged.mergeFrom(retainingFirst ? retaining : tunnelAir);
+            merged.mergeFrom(retainingFirst ? tunnelAir : retaining);
+            assertEquals(
+                "minecraft:air",
+                merged.placementRecords.get(pos).newBlockId,
+                "tunnel interior must not be blocked by retaining; retainingFirst=" + retainingFirst);
+            assertEquals(RoadSolidLayer.TUNNEL, merged.placementLayers.get(pos));
         }
     }
 
@@ -266,23 +292,28 @@ class RoadPlacementRecorderTest {
         Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
         Map<BlockPos, RoadSolidLayer> layers = new LinkedHashMap<>();
         Map<BlockPos, Integer> materialPriorities = new LinkedHashMap<>();
+        Map<BlockPos, com.plot.plugin.road.pipeline.corridor.ClearancePurpose> purposes =
+            new LinkedHashMap<>();
         BlockPos pos = new BlockPos(5, 71, 0);
 
         RoadPlacementRecorder.recordByLayerPriority(
-            records, layers, materialPriorities, pos, "minecraft:stone",
-            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+            records, layers, materialPriorities, purposes, pos, "minecraft:stone",
+            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            com.plot.plugin.road.pipeline.corridor.ClearancePurpose.SLOPE_EXCAVATION);
         RoadPlacementRecorder.recordByLayerPriority(
-            records, layers, materialPriorities, pos, "minecraft:stone",
-            "minecraft:cobblestone", RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+            records, layers, materialPriorities, purposes, pos, "minecraft:stone",
+            "minecraft:cobblestone", RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT,
+            null);
 
         assertEquals("minecraft:cobblestone", records.get(pos).newBlockId);
         assertEquals(RoadSolidLayer.RETAINING_WALL, layers.get(pos));
 
         RoadPlacementRecorder.recordByLayerPriority(
-            records, layers, materialPriorities, pos, "minecraft:stone",
-            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+            records, layers, materialPriorities, purposes, pos, "minecraft:stone",
+            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            com.plot.plugin.road.pipeline.corridor.ClearancePurpose.SLOPE_EXCAVATION);
         assertEquals("minecraft:cobblestone", records.get(pos).newBlockId,
-            "later clearance AIR must not erase retaining wall");
+            "later slope excavation AIR must not erase retaining wall");
     }
 
     @Test

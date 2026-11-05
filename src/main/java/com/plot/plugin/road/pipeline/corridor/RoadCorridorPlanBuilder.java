@@ -129,7 +129,7 @@ public final class RoadCorridorPlanBuilder {
                     || shouldSuppressCorridorBatter(stations, i - 1, terrain, tunnelStyle, tunnelThreshold);
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
                     unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples,
-                    stationSampleSeq, suppressSpanBatter, segments);
+                    stationSampleSeq, suppressSpanBatter, segments, profileWaterCrossings);
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
@@ -245,7 +245,7 @@ public final class RoadCorridorPlanBuilder {
                 RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection),
                 unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0));
         }
-        plan.setWaterEmbankmentMarkingActive(sample.allowWaterEmbankment());
+        plan.setRoadbedWaterMarkingActive(sample.allowWaterEmbankment());
         try {
             rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
                 sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
@@ -258,7 +258,7 @@ public final class RoadCorridorPlanBuilder {
                     tunnelThreshold));
             }
         } finally {
-            plan.setWaterEmbankmentMarkingActive(false);
+            plan.setRoadbedWaterMarkingActive(false);
         }
     }
 
@@ -276,42 +276,48 @@ public final class RoadCorridorPlanBuilder {
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq,
             boolean suppressSpanBatter,
-            List<PathSegment> polylineSegments) {
+            List<PathSegment> polylineSegments,
+            List<WaterCrossing> profileWaterCrossings) {
         ResolvedCrossSection toSection = crossSection;
         RoadConstructionType fromType = from.constructionType();
         RoadConstructionType toType = to.constructionType();
-        // Split type-boundary spans so PORTAL→TUNNEL / ROAD→BRIDGE does not tag the
-        // transition half as STRUCTURE_ONLY (which strips slope and skips open clearance).
-        // 水面授权按桩号半段划分，禁止用端点 OR 把堤道权限扩散到整段普通道路。
+        // Split type-boundary / 堤道边界 spans，按真实桩号切分而非固定中点。
         boolean waterAuthDiffers = from.allowWaterEmbankment() != to.allowWaterEmbankment();
         if (fromType == toType && !waterAuthDiffers) {
-            plan.setWaterEmbankmentMarkingActive(from.allowWaterEmbankment());
+            plan.setRoadbedWaterMarkingActive(from.allowWaterEmbankment());
             try {
                 rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
                     from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
                     seedKey, host, toType, config, tunnelThreshold, polylineSegments);
             } finally {
-                plan.setWaterEmbankmentMarkingActive(false);
+                plan.setRoadbedWaterMarkingActive(false);
             }
         } else {
-            Vec2d midCenter = from.center().lerp(to.center(), 0.5);
-            int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * 0.5);
-            Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), 0.5));
-            plan.setWaterEmbankmentMarkingActive(from.allowWaterEmbankment());
+            double splitT = waterAuthDiffers
+                ? causewayBoundarySplitT(
+                    from.chainage(),
+                    to.chainage(),
+                    from.allowWaterEmbankment(),
+                    profileWaterCrossings)
+                : 0.5;
+            Vec2d midCenter = from.center().lerp(to.center(), splitT);
+            int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * splitT);
+            Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), splitT));
+            plan.setRoadbedWaterMarkingActive(from.allowWaterEmbankment());
             try {
                 rasterizeSurfaceBands(plan, from.center(), midCenter, from.leftNormal(), midNormal,
                     from.targetY(), midY, toSection, terrain, unitsPerBlock,
                     seedKey, host, fromType, config, tunnelThreshold, polylineSegments);
             } finally {
-                plan.setWaterEmbankmentMarkingActive(false);
+                plan.setRoadbedWaterMarkingActive(false);
             }
-            plan.setWaterEmbankmentMarkingActive(to.allowWaterEmbankment());
+            plan.setRoadbedWaterMarkingActive(to.allowWaterEmbankment());
             try {
                 rasterizeSurfaceBands(plan, midCenter, to.center(), midNormal, to.leftNormal(),
                     midY, to.targetY(), toSection, terrain, unitsPerBlock,
                     seedKey, host, toType, config, tunnelThreshold, polylineSegments);
             } finally {
-                plan.setWaterEmbankmentMarkingActive(false);
+                plan.setRoadbedWaterMarkingActive(false);
             }
         }
         // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体。
@@ -322,8 +328,31 @@ public final class RoadCorridorPlanBuilder {
                 && RoadEarthworkPolicy.allowsCorridorBatter(toType)) {
             slopeSamples.addAll(mergeSlopeSpan(
                 plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq,
-                tunnelThreshold));
+                tunnelThreshold, profileWaterCrossings));
         }
+    }
+
+    /**
+     * 在 from→to 桩号区间内按真实堤道边界定位授权切换点；找不到时回退 0.5。
+     * 包可见供单元测试校验，避免固定中点近似。
+     */
+    static double causewayBoundarySplitT(
+            double startStation,
+            double endStation,
+            boolean fromAllow,
+            List<WaterCrossing> crossings) {
+        if (Math.abs(endStation - startStation) < 1e-9) {
+            return 0.5;
+        }
+        for (int i = 1; i <= 64; i++) {
+            double t = i / 64.0;
+            double station = startStation + (endStation - startStation) * t;
+            boolean allow = WaterCrossingConstructionResolver.isCausewayFillStation(crossings, station);
+            if (allow != fromAllow) {
+                return t;
+            }
+        }
+        return 0.5;
     }
 
     private static void rasterizeSurfaceBands(
@@ -686,7 +715,8 @@ public final class RoadCorridorPlanBuilder {
             double unitsPerBlock,
             PlanHost host,
             long[] stationSampleSeq,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            List<WaterCrossing> profileWaterCrossings) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
         int pathLast = Math.max(0, span.size() - 1);
@@ -704,7 +734,7 @@ public final class RoadCorridorPlanBuilder {
         }
         if (steps <= 0) {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
-            boolean allowWater = resolveStepAllowWaterEmbankment(from, to, 1.0);
+            boolean allowWater = resolveStepAllowWaterEmbankment(from, to, 1.0, profileWaterCrossings);
             if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 samples.addAll(mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
                     crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
@@ -720,7 +750,7 @@ public final class RoadCorridorPlanBuilder {
                 ? toNormal
                 : normalize(fromNormal.rotate(turn * t));
             RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
-            boolean allowWater = resolveStepAllowWaterEmbankment(from, to, t);
+            boolean allowWater = resolveStepAllowWaterEmbankment(from, to, t, profileWaterCrossings);
             if (!RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 continue;
             }
@@ -774,13 +804,13 @@ public final class RoadCorridorPlanBuilder {
     private static boolean resolveStepAllowWaterEmbankment(
             StationSample from,
             StationSample to,
-            double t) {
-        boolean fromAllow = from.allowWaterEmbankment();
-        boolean toAllow = to.allowWaterEmbankment();
-        if (fromAllow == toAllow) {
-            return fromAllow;
+            double t,
+            List<WaterCrossing> crossings) {
+        if (from.allowWaterEmbankment() == to.allowWaterEmbankment()) {
+            return from.allowWaterEmbankment();
         }
-        return t <= 0.5 ? fromAllow : toAllow;
+        double station = from.chainage() + (to.chainage() - from.chainage()) * t;
+        return WaterCrossingConstructionResolver.isCausewayFillStation(crossings, station);
     }
 
     private static List<SlopeProfileSample> mergeSlopeAtCenter(

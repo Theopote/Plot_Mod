@@ -209,7 +209,8 @@ public final class RoadVoxelRasterizer {
             projectionHandler.getBlockIdAt(pos),
             primitive.materialId(),
             primitive.layer(),
-            primitive.materialPriority());
+            primitive.materialPriority(),
+            primitive.clearancePurpose());
     }
 
     private static void writeJunctionPlacementRecord(
@@ -248,7 +249,8 @@ public final class RoadVoxelRasterizer {
             projectionHandler.getBlockIdAt(pos),
             blockId,
             primitive.layer(),
-            primitive.materialPriority());
+            primitive.materialPriority(),
+            primitive.clearancePurpose());
     }
 
     private static boolean isJunctionPlazaSurface(RoadSolidLayer layer) {

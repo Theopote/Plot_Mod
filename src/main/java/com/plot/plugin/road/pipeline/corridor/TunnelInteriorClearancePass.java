@@ -142,7 +142,13 @@ public final class TunnelInteriorClearancePass {
             if (!RoadCorridorClearancePass.hasObstruction(terrain, worldX, y, worldZ)) {
                 return;
             }
-            solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+            solids.add(
+                point,
+                y,
+                RoadSolidLayer.TUNNEL,
+                "minecraft:air",
+                RoadSolidMaterialPriority.AIR,
+                ClearancePurpose.TUNNEL_INTERIOR);
             cleared[0]++;
         });
         return cleared[0];

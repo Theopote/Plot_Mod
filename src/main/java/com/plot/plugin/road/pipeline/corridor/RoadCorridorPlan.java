@@ -10,10 +10,13 @@ public final class RoadCorridorPlan {
     private final Map<ColumnKey, ClearanceCell> clearanceCells = new LinkedHashMap<>();
     private final Map<ColumnKey, SlopeColumnCell> slopeCells = new LinkedHashMap<>();
     private final Set<ColumnKey> incompleteSlopeColumns = new HashSet<>();
-    /** 明确授权水域堤道填筑的列（CAUSEWAY 区间），与普通 FILL 分类无关。 */
-    private final Set<ColumnKey> waterEmbankmentColumns = new HashSet<>();
-    /** 站点栅格化期间：后续 putClearance / mark 写入的列一并授权水域填筑。 */
-    private boolean waterEmbankmentMarkingActive;
+    /**
+     * 列级水域施工授权：路基与边坡分权。
+     * putClearance 仅写路基；边坡胜出列仅写边坡，互不冒充。
+     */
+    private final Map<ColumnKey, WaterConstructionPermission> waterPermissions = new HashMap<>();
+    /** 站点栅格化期间：putClearance 写入的列获得路基水域填筑授权（不含边坡）。 */
+    private boolean roadbedWaterMarkingActive;
     /** Shoulder batter horizontal run hit {@link com.plot.plugin.road.geometry.RoadCorridorWidth#MAX_SLOPE_BATTER_RUN_BLOCKS}. */
     private int slopeBatterWidthCapCount;
     /** Outward slope columns that fail to connect smoothly to neighbors along the batter. */
@@ -58,13 +61,19 @@ public final class RoadCorridorPlan {
             slopeCells.remove(key);
         }
         clearanceCells.put(key, merged);
-        if (waterEmbankmentMarkingActive) {
-            waterEmbankmentColumns.add(key);
+        if (roadbedWaterMarkingActive) {
+            markAllowRoadbedWaterFill(key);
         }
     }
 
+    void setRoadbedWaterMarkingActive(boolean active) {
+        roadbedWaterMarkingActive = active;
+    }
+
+    /** @deprecated 使用 {@link #setRoadbedWaterMarkingActive(boolean)} */
+    @Deprecated
     void setWaterEmbankmentMarkingActive(boolean active) {
-        waterEmbankmentMarkingActive = active;
+        setRoadbedWaterMarkingActive(active);
     }
 
     public List<PortalBackfillSite> portalBackfillSites() {
@@ -209,14 +218,53 @@ public final class RoadCorridorPlan {
         return key != null && incompleteSlopeColumns.contains(key);
     }
 
-    void markAllowWaterEmbankment(ColumnKey key) {
-        if (key != null) {
-            waterEmbankmentColumns.add(key);
+    void markAllowRoadbedWaterFill(ColumnKey key) {
+        if (key == null) {
+            return;
         }
+        waterPermissions.merge(
+            key,
+            new WaterConstructionPermission(true, false),
+            WaterConstructionPermission::merge);
     }
 
+    void markAllowSlopeWaterFill(ColumnKey key) {
+        if (key == null) {
+            return;
+        }
+        waterPermissions.merge(
+            key,
+            new WaterConstructionPermission(false, true),
+            WaterConstructionPermission::merge);
+    }
+
+    public WaterConstructionPermission waterPermission(ColumnKey key) {
+        if (key == null) {
+            return WaterConstructionPermission.NONE;
+        }
+        return waterPermissions.getOrDefault(key, WaterConstructionPermission.NONE);
+    }
+
+    public boolean allowsRoadbedWaterFill(ColumnKey key) {
+        return waterPermission(key).allowRoadbedFill();
+    }
+
+    public boolean allowsSlopeWaterFill(ColumnKey key) {
+        return waterPermission(key).allowSlopeFill();
+    }
+
+    /** @deprecated 仅兼容旧测试；等价于边坡或路基任一授权。 */
+    @Deprecated
+    void markAllowWaterEmbankment(ColumnKey key) {
+        markAllowSlopeWaterFill(key);
+        markAllowRoadbedWaterFill(key);
+    }
+
+    /** @deprecated 使用 {@link #allowsSlopeWaterFill(ColumnKey)} / {@link #allowsRoadbedWaterFill(ColumnKey)} */
+    @Deprecated
     public boolean allowsWaterEmbankment(ColumnKey key) {
-        return key != null && waterEmbankmentColumns.contains(key);
+        WaterConstructionPermission permission = waterPermission(key);
+        return permission.allowRoadbedFill() || permission.allowSlopeFill();
     }
 
     public int slopeBatterWidthCapCount() {
@@ -267,6 +315,6 @@ public final class RoadCorridorPlan {
         clearanceCells.remove(key);
         slopeCells.remove(key);
         incompleteSlopeColumns.remove(key);
-        waterEmbankmentColumns.remove(key);
+        waterPermissions.remove(key);
     }
 }
