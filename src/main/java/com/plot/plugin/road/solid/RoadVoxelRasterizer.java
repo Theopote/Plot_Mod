@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -235,6 +236,8 @@ public final class RoadVoxelRasterizer {
             result.recordPlacementOverride(pos, projectionHandler.getBlockIdAt(pos), blockId);
             result.placementLayers.put(pos, primitive.layer());
             result.placementMaterialPriorities.put(pos, primitive.materialPriority());
+            result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+                pos, blockId, primitive.layer(), result.edgeId != null ? result.edgeId : ""));
             return;
         }
         // A sloping upper deck can be below the node's nominal clearance plane.

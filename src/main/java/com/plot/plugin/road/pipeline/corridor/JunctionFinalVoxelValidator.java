@@ -39,20 +39,60 @@ public final class JunctionFinalVoxelValidator {
         }
         Set<ColumnKey> footprintColumns = footprintColumns(manifest, coordinateTransformer);
         SurfaceCounts surface = countSurfaceExpectations(manifest, aggregate);
+        SurfaceCounts expectedPavement = countExpectedPavement(aggregate, footprintColumns);
         int protectedLosses = countProtectedLosses(manifest, aggregate);
         int crossLayerLeaks = countCrossLayerLeaks(
             manifest, aggregate, index, footprintColumns);
         int disconnected = countDisconnectedTunnelComponents(
             manifest, aggregate, index, footprintColumns);
         return new PostMergeReport(
-            surface.missingColumns(),
-            surface.semanticMismatches(),
+            surface.missingColumns() + expectedPavement.missingColumns(),
+            surface.semanticMismatches() + expectedPavement.semanticMismatches(),
             protectedLosses,
             disconnected,
             crossLayerLeaks);
     }
 
-    private record SurfaceCounts(int missingColumns, int semanticMismatches) {
+    /**
+     * 对照设计期望路面（{@link ExpectedRoadSurface}）：缺失或错材质计入缺口/语义偏差。
+     */
+    static SurfaceCounts countExpectedPavement(
+            RoadGenerationResult aggregate,
+            Set<ColumnKey> footprintColumns) {
+        if (aggregate == null
+                || aggregate.expectedRoadSurfaces.isEmpty()
+                || footprintColumns == null
+                || footprintColumns.isEmpty()) {
+            return new SurfaceCounts(0, 0);
+        }
+        Set<ColumnKey> missing = new HashSet<>();
+        Set<ColumnKey> wrongMaterial = new HashSet<>();
+        for (ExpectedRoadSurface expected : aggregate.expectedRoadSurfaces.values()) {
+            if (expected == null || !expected.isCarriageway()) {
+                continue;
+            }
+            BlockPos pos = expected.position();
+            ColumnKey column = new ColumnKey(pos.getX(), pos.getZ());
+            if (!footprintColumns.contains(column)) {
+                continue;
+            }
+            BlockRecord actual = aggregate.placementRecords.get(pos);
+            if (actual == null || "minecraft:air".equals(actual.newBlockId)) {
+                missing.add(column);
+                continue;
+            }
+            RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+            if (layer == RoadSolidLayer.MARKING) {
+                continue;
+            }
+            if (!expected.materialId().equals(actual.newBlockId)) {
+                wrongMaterial.add(column);
+            }
+        }
+        return new SurfaceCounts(missing.size(), wrongMaterial.size());
+    }
+
+    record SurfaceCounts(int missingColumns, int semanticMismatches) {
     }
 
     private static SurfaceCounts countSurfaceExpectations(

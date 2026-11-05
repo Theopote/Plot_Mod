@@ -96,7 +96,7 @@ class RoadSurfacePlacementPassTest {
     }
 
     @Test
-    void clearIntrudingFillPreservesElevatedSubgradeUnderside() {
+    void clearIntrudingFillReplacesTerrainSubgradeUnderElevatedDeck() {
         var underpass = new RoadGenerationResult(0);
         var surface = new BlockPos(0, 64, 0);
         underpass.recordPlacementByLayerPriority(surface, "minecraft:air", "minecraft:white_concrete",
@@ -104,6 +104,7 @@ class RoadSurfacePlacementPassTest {
         underpass.openRoadClearanceTops.put(surface, 68);
 
         var elevated = new RoadGenerationResult(0);
+        // 十字形残留：泥土 SUBGRADE 贴在上层路面底部
         elevated.recordPlacementByLayerPriority(surface.up(4), "minecraft:air", "minecraft:dirt",
             RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
         elevated.recordPlacementByLayerPriority(surface.up(5), "minecraft:air", "minecraft:white_concrete",
@@ -114,35 +115,87 @@ class RoadSurfacePlacementPassTest {
         merged.mergeFrom(elevated);
         RoadSurfacePlacementPass.clearIntrudingFill(merged);
 
-        assertEquals("minecraft:dirt",
+        assertEquals(JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK,
             merged.placementRecords.get(surface.up(4)).newBlockId,
-            "elevated SUBGRADE underside must survive underpass headroom clear");
+            "dirt/grass SUBGRADE under elevated deck must become structural BRIDGE underlay");
+        assertEquals(RoadSolidLayer.BRIDGE, merged.placementLayers.get(surface.up(4)));
     }
 
     @Test
-    void underpassPavementSealFillsMissingCrossUnderElevatedDeck() {
+    void clearIntrudingFillRemovesCrossTerrainOnElevatedOverhang() {
+        // 上层比下层宽：悬挑柱没有 openRoadClearanceTops，仍须清掉贴底泥土
+        var result = new RoadGenerationResult(0);
+        BlockPos lower = new BlockPos(0, 64, 0);
+        BlockPos overhang = new BlockPos(3, 64, 0);
+        result.recordPlacementByLayerPriority(lower, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(lower.up(5), "minecraft:air", "minecraft:dirt_path",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(lower.up(4), "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
+        // 悬挑：只有上层路面 + 泥土贴底，无下层路面记录
+        result.recordPlacementByLayerPriority(overhang.up(5), "minecraft:air", "minecraft:dirt_path",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(overhang.up(4), "minecraft:grass_block", "minecraft:grass_block",
+            RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(overhang.up(3), "minecraft:dirt", "minecraft:dirt",
+            RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
+        // 人为制造“上下层同柱”以便悬挑柱进入 stacked pavement 路径
+        result.recordPlacementByLayerPriority(overhang, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+
+        RoadSurfacePlacementPass.clearIntrudingFill(result);
+
+        assertEquals(JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK,
+            result.placementRecords.get(overhang.up(4)).newBlockId);
+        assertEquals("minecraft:air",
+            result.placementRecords.get(overhang.up(3)).newBlockId,
+            "terrain residue below elevated underside must be cleared");
+    }
+
+    @Test
+    void underpassPavementSealRestoresFromExpectedSurfacesWithoutClearanceHint() {
         var result = new RoadGenerationResult(0);
         BlockPos paved = new BlockPos(0, 64, 0);
         BlockPos hole = new BlockPos(1, 64, 0);
+        BlockPos farHole = new BlockPos(3, 65, 0); // 连续缺口 + 坡度不同 Y
         result.recordPlacementByLayerPriority(
-            paved, "minecraft:grass_block", "minecraft:white_concrete",
+            paved, "minecraft:grass_block", "minecraft:stone_bricks",
             RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
-        result.openRoadClearanceTops.put(paved, 68);
-        result.openRoadClearanceTops.put(hole, 68);
-        // 上层路面投影覆盖空洞柱；空洞本身无下层路面记录 → 原地形会透出
+        // 故意不写 openRoadClearanceTops：封口必须只依赖设计期望
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            paved, "minecraft:stone_bricks", RoadSolidLayer.ROAD, "underpass"));
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            hole, "minecraft:stone_bricks", RoadSolidLayer.ROAD, "underpass"));
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            farHole, "minecraft:stone_bricks", RoadSolidLayer.ROAD, "underpass"));
+        // 错材质残留
         result.recordPlacementByLayerPriority(
-            hole.up(6), "minecraft:air", "minecraft:dirt_path",
-            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
-        result.recordPlacementByLayerPriority(
-            paved.up(6), "minecraft:air", "minecraft:dirt_path",
-            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+            hole, "minecraft:dirt", "minecraft:dirt",
+            RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
 
         UnderpassPavementSealPass.apply(result);
 
-        assertEquals("minecraft:white_concrete",
-            result.placementRecords.get(hole).newBlockId,
-            "missing underpass pavement under elevated deck must be sealed");
+        assertEquals("minecraft:stone_bricks", result.placementRecords.get(hole).newBlockId);
         assertEquals(RoadSolidLayer.ROAD, result.placementLayers.get(hole));
+        assertEquals("minecraft:stone_bricks", result.placementRecords.get(farHole).newBlockId,
+            "continuous hole without clearance hint must restore at design Y/material");
+        assertEquals(RoadSolidLayer.ROAD, result.placementLayers.get(farHole));
+        assertFalse(result.placementRecords.containsKey(new BlockPos(2, 64, 0)),
+            "must not invent pavement outside expected footprint");
+    }
+
+    @Test
+    void surfacePlacementRecordsExpectedRoadSurfaces() {
+        var result = new RoadGenerationResult(0);
+        result.edgeId = "edge-a";
+        RoadSurfacePlacementPass.apply(result, plan(), 5);
+        var surface = new BlockPos(3, 69, -3);
+        ExpectedRoadSurface expected = result.expectedRoadSurfaces.get(surface);
+        assertNotNull(expected);
+        assertEquals("minecraft:white_concrete", expected.materialId());
+        assertEquals(RoadSolidLayer.ROAD, expected.layer());
+        assertEquals("edge-a", expected.roadId());
     }
 
     @Test

@@ -25,6 +25,9 @@ public final class JunctionTerrainClearance {
      */
     public static final int ELEVATED_DECK_SUPPORT_DEPTH = 1;
 
+    /** 上层路面承重层默认方块（与桥面板 underlay 一致）。 */
+    public static final String ELEVATED_DECK_SUPPORT_BLOCK = "minecraft:stone_bricks";
+
     private JunctionTerrainClearance() {
     }
 
@@ -52,19 +55,6 @@ public final class JunctionTerrainClearance {
             }
         }
         return tops;
-    }
-
-    public static void clearOverheadInPolygon(
-            RoadSolidModel solids,
-            List<Vec2d> polygon,
-            int junctionY,
-            int tunnelThreshold,
-            TerrainSampler terrain,
-            int worldX,
-            int worldZ,
-            Vec2d planPoint) {
-        clearOverheadInPolygon(
-            solids, polygon, junctionY, tunnelThreshold, terrain, worldX, worldZ, planPoint, null, junctionY);
     }
 
     public static void clearOverheadInPolygon(

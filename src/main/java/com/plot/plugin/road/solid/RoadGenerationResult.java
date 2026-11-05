@@ -2,6 +2,7 @@ package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import com.plot.plugin.road.profile.ConstructionRunChartMarker;
@@ -29,6 +30,11 @@ public class RoadGenerationResult {
     public final Map<BlockPos, Integer> placementMaterialPriorities = new LinkedHashMap<>();
     /** Sparse reserved headroom above open-road surfaces; no air records for already-empty terrain. */
     public final Map<BlockPos, Integer> openRoadClearanceTops = new LinkedHashMap<>();
+    /**
+     * 设计路面期望（走廊 surfaceMask / 路口铺装）。最终封口按此逐格校验，
+     * 不得从 placementRecords 反推。
+     */
+    public final Map<BlockPos, ExpectedRoadSurface> expectedRoadSurfaces = new LinkedHashMap<>();
     /**
      * Aggregate-network stage timings in nanoseconds (0 when not recorded).
      * Used for large-network profiling; safe to ignore in normal gameplay paths.
@@ -105,6 +111,13 @@ public class RoadGenerationResult {
         this.pathLength = pathLength;
     }
 
+    public void recordExpectedRoadSurface(ExpectedRoadSurface expected) {
+        if (expected == null) {
+            return;
+        }
+        expectedRoadSurfaces.put(expected.position(), expected);
+    }
+
     public void recordPlacementIfAbsent(BlockPos pos, String previousBlockId, String newBlockId) {
         RoadPlacementRecorder.recordIfAbsent(placementRecords, pos, previousBlockId, newBlockId);
     }
@@ -135,6 +148,8 @@ public class RoadGenerationResult {
             return;
         }
         source.openRoadClearanceTops.forEach((pos, top) -> openRoadClearanceTops.merge(pos, top, Math::max));
+        // 后写入的同柱期望覆盖先前（路口权威高于走廊边缘）。
+        expectedRoadSurfaces.putAll(source.expectedRoadSurfaces);
         roadBlocks.addAll(source.roadBlocks);
         sidewalkBlocks.addAll(source.sidewalkBlocks);
         bridgeBlocks.addAll(source.bridgeBlocks);
@@ -229,7 +244,8 @@ public class RoadGenerationResult {
     }
 
     /**
-     * SUBGRADE / BRIDGE shell immediately under pavement in the same column.
+     * BRIDGE shell immediately under pavement in the same column.
+     * 不含 SUBGRADE：立交净空里残留的泥土/草方路基不得当作上层底板保护。
      * Looks up pavement in {@code owner} so incoming deck support can replace prior AIR
      * even when this aggregate does not yet hold the elevated ROAD.
      */
@@ -237,8 +253,7 @@ public class RoadGenerationResult {
             RoadSolidLayer layer,
             BlockPos pos,
             RoadGenerationResult owner) {
-        if (pos == null || owner == null
-                || (layer != RoadSolidLayer.SUBGRADE && layer != RoadSolidLayer.BRIDGE)) {
+        if (pos == null || owner == null || layer != RoadSolidLayer.BRIDGE) {
             return false;
         }
         for (int dy = 1; dy <= 2; dy++) {

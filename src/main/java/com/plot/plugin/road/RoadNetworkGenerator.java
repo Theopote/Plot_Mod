@@ -557,7 +557,9 @@ public class RoadNetworkGenerator {
                 profileNetwork,
                 edgeResults,
                 roadGenerator.getConfig());
-            RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), networkResult);
+            // 路口几何与材质必须基于物化后的 generationNetwork，
+            // 否则 Crossing 拆出的新节点在 sourceNetwork 中为 null，材质会回退全局默认。
+            RoadGenerationResult aggregate = aggregateNetworkResult(session.generationNetwork(), networkResult);
             applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
             networkResult.recordAdjacentJunctionProfileViolations(
                 AdjacentJunctionProfileContinuity.find(

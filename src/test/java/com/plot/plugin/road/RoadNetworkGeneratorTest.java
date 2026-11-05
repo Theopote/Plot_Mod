@@ -29,9 +29,60 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkGeneratorTest {
+
+    @Test
+    void materializedCrossingJunctionResolvesUnderpassMaterialNotGlobalDefault() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setSelectedMaterial("minecraft:dirt"); // 全局默认故意不同于下层
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setDefaultCrossingClearance(6.0);
+
+        RoadNetwork source = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        builder.adoptShape(source, new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), false), config);
+        builder.adoptShape(source, new PolylineShape(
+            List.of(new Vec2d(20, -20), new Vec2d(20, 20)), false), config);
+        RoadCrossingReconciler.reconcileCrossings(source);
+        assertFalse(source.getCrossings().isEmpty());
+        RoadCrossing crossing = source.getCrossings().values().iterator().next();
+
+        String elevatedId = crossing.roadBId(); // 竖直道路抬升
+        String underpassId = crossing.otherRoadId(elevatedId);
+        Road underpass = source.getRoad(underpassId);
+        Road overpass = source.getRoad(elevatedId);
+        assertNotNull(underpass);
+        assertNotNull(overpass);
+        underpass.setWidth(5);
+        underpass.setMaterial("minecraft:white_concrete");
+        overpass.setWidth(9);
+        overpass.setMaterial("minecraft:dirt_path");
+        assertTrue(source.setCrossingGradeSeparation(
+            crossing.id(), CrossingType.GRADE_SEPARATED, elevatedId, 6.0));
+
+        RoadNetwork generation = RoadCrossingMaterializer.materializeForSnapshot(source);
+        RoadNode junction = generation.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElse(null);
+        assertNotNull(junction, "Crossing 物化必须产生路口节点");
+        assertNull(source.getNode(junction.getId()),
+            "物化路口节点不应存在于 sourceNetwork");
+
+        assertEquals(
+            "minecraft:white_concrete",
+            RoadGenerationResultAssembler.resolveJunctionMaterial(junction, generation, config, false),
+            "generationNetwork 上应解析到下层白色混凝土");
+        assertEquals(
+            "minecraft:dirt",
+            RoadGenerationResultAssembler.resolveJunctionMaterial(null, source, config, false),
+            "sourceNetwork 找不到节点时会错误回退全局默认——聚合不得走这条路径");
+    }
 
     @Test
     void resolveJunctionMaterialIgnoresElevatedRoadEvenIfWider() {
