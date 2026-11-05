@@ -74,7 +74,6 @@ public final class SlopeBandRasterizer {
         Vec2d normalB = normalize(b.outwardNormal());
         double scaleA = a.scale();
         double scaleB = b.scale();
-        SlopeConstructionOutcome outcome = SlopeConstructionOutcome.merge(a.outcome(), b.outcome());
 
         // 负向合成 id，避免环带柱并入父射线后破坏按偏移的单调校正。
         long bandSeed = mixRayIds(a.rayId(), b.rayId());
@@ -103,6 +102,7 @@ public final class SlopeBandRasterizer {
                 SlopeRayId bandRayId = new SlopeRayId(
                     bandSeed - stampIndex++,
                     parent.rayId().side());
+                // 环带只补覆盖：固定 COMPLETE，不继承父射线挡墙末端判定。
                 samples.add(new SlopeProfileSample(
                     key,
                     planPoint,
@@ -112,8 +112,9 @@ public final class SlopeBandRasterizer {
                     bandRayId,
                     offset,
                     parent.slopeRatio(),
-                    outcome,
-                    parent.allowWaterEmbankment()));
+                    SlopeConstructionOutcome.COMPLETE,
+                    parent.allowWaterEmbankment(),
+                    true));
             }
         }
         return samples;

@@ -13,7 +13,9 @@ public record SlopeProfileSample(
         int horizontalOffset,
         float slopeRatio,
         SlopeConstructionOutcome outcome,
-        boolean allowWaterEmbankment) {
+        boolean allowWaterEmbankment,
+        /** 急弯环带插值格：只补覆盖，不独立触发末端接地/挡墙。 */
+        boolean bandInterpolation) {
 
     public SlopeProfileSample {
         outcome = outcome != null ? outcome : SlopeConstructionOutcome.COMPLETE;
@@ -28,9 +30,24 @@ public record SlopeProfileSample(
             SlopeRayId rayId,
             int horizontalOffset,
             float slopeRatio,
+            SlopeConstructionOutcome outcome,
+            boolean allowWaterEmbankment) {
+        this(columnKey, planPoint, slopeSurfaceY, fill, materialId, rayId, horizontalOffset,
+            slopeRatio, outcome, allowWaterEmbankment, false);
+    }
+
+    public SlopeProfileSample(
+            ColumnKey columnKey,
+            Vec2d planPoint,
+            int slopeSurfaceY,
+            boolean fill,
+            String materialId,
+            SlopeRayId rayId,
+            int horizontalOffset,
+            float slopeRatio,
             SlopeConstructionOutcome outcome) {
         this(columnKey, planPoint, slopeSurfaceY, fill, materialId, rayId, horizontalOffset,
-            slopeRatio, outcome, false);
+            slopeRatio, outcome, false, false);
     }
 
     public SlopeProfileSample(
@@ -43,6 +60,6 @@ public record SlopeProfileSample(
             int horizontalOffset,
             float slopeRatio) {
         this(columnKey, planPoint, slopeSurfaceY, fill, materialId, rayId, horizontalOffset,
-            slopeRatio, SlopeConstructionOutcome.COMPLETE, false);
+            slopeRatio, SlopeConstructionOutcome.COMPLETE, false, false);
     }
 }

@@ -138,6 +138,32 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void airAirSamePriorityKeepsStrongerClearancePurposeEitherOrder() {
+        var pos = new BlockPos(11, 70, 0);
+        var slopeAir = new RoadGenerationResult(0);
+        slopeAir.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.SLOPE_EXCAVATION);
+        var tunnelAir = new RoadGenerationResult(0);
+        tunnelAir.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
+
+        for (boolean slopeFirst : new boolean[]{true, false}) {
+            var merged = new RoadGenerationResult(0);
+            merged.mergeFrom(slopeFirst ? slopeAir : tunnelAir);
+            merged.mergeFrom(slopeFirst ? tunnelAir : slopeAir);
+            assertEquals("minecraft:air", merged.placementRecords.get(pos).newBlockId);
+            assertEquals(
+                ClearancePurpose.TUNNEL_INTERIOR,
+                merged.placementClearancePurposes.get(pos),
+                "AIR↔AIR must keep stronger purpose; slopeFirst=" + slopeFirst);
+        }
+    }
+
+    @Test
     void mergingRoadSurfaceAndOtherEdgesExcavationIsOrderIndependent() {
         var pos = new BlockPos(2, 76, 0);
         var air = new RoadGenerationResult(0);

@@ -115,6 +115,15 @@ public final class RoadPlacementRecorder {
                 }
                 if (materialPriority == existingMaterialPriority) {
                     if (existingBlockId != null && newBlockId.compareTo(existingBlockId) <= 0) {
+                        // AIR↔AIR：方块不变，但用途仍须 preferProtected，避免隧道净空被边坡用途盖住。
+                        if (placementClearancePurposes != null
+                                && isAirBlockId(newBlockId)
+                                && isAirBlockId(existingBlockId)
+                                && clearancePurpose != null) {
+                            placementClearancePurposes.put(
+                                pos,
+                                ClearancePurpose.preferProtected(existingPurpose, clearancePurpose));
+                        }
                         return;
                     }
                 }

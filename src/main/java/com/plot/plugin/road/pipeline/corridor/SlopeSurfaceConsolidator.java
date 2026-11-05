@@ -35,12 +35,15 @@ public final class SlopeSurfaceConsolidator {
         for (var rayEntry : byRay.entrySet()) {
             List<SlopeProfileSample> raySamples = new ArrayList<>(rayEntry.getValue());
             raySamples.sort(Comparator.comparingInt(SlopeProfileSample::horizontalOffset));
+            // 环带补格是空间插值，不是完整肩部射线：跳过末端接地与挡墙收尾。
+            boolean bandInterpolationRay = raySamples.stream()
+                .allMatch(SlopeProfileSample::bandInterpolation);
 
             SlopeConstructionOutcome rayOutcome = raySamples.stream()
                 .map(SlopeProfileSample::outcome)
                 .reduce(SlopeConstructionOutcome.COMPLETE, SlopeConstructionOutcome::merge);
 
-            if (rayOutcome == SlopeConstructionOutcome.UNRESOLVED) {
+            if (!bandInterpolationRay && rayOutcome == SlopeConstructionOutcome.UNRESOLVED) {
                 plan.noteUnresolvedSlopeConstruction();
                 for (SlopeProfileSample sample : raySamples) {
                     touchedByUnresolvedRay.add(sample.columnKey());
@@ -48,7 +51,9 @@ public final class SlopeSurfaceConsolidator {
             }
 
             List<RayStep> steps = new ArrayList<>(raySamples.size());
-            SlopeConstructionOutcome rayOutcomeForSteps = rayOutcome;
+            SlopeConstructionOutcome rayOutcomeForSteps = bandInterpolationRay
+                ? SlopeConstructionOutcome.COMPLETE
+                : rayOutcome;
             for (SlopeProfileSample sample : raySamples) {
                 steps.add(new RayStep(
                     sample.columnKey(),
@@ -61,17 +66,20 @@ public final class SlopeSurfaceConsolidator {
                     sample.outcome(),
                     sample.allowWaterEmbankment()));
             }
-            enforceMonotonicRay(steps);
-            // 软接地等末端微调发生在单调校正之前；校正后必须再验证，否则 COMPLETE 名不副实。
-            rayOutcomeForSteps = finalizeTipAfterMonotonic(steps, rayOutcomeForSteps, terrain);
-            // 诊断计数以校正后的最终末端状态为准，避免「需要挡墙」与已接地矛盾。
-            if (rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
-                plan.noteNeedsRetainingWall();
+            if (!bandInterpolationRay) {
+                enforceMonotonicRay(steps);
+                // 软接地等末端微调发生在单调校正之前；校正后必须再验证，否则 COMPLETE 名不副实。
+                rayOutcomeForSteps = finalizeTipAfterMonotonic(steps, rayOutcomeForSteps, terrain);
+                // 诊断计数以校正后的最终末端状态为准，避免「需要挡墙」与已接地矛盾。
+                if (rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
+                    plan.noteNeedsRetainingWall();
+                }
             }
 
             int tipOffset = steps.stream().mapToInt(RayStep::horizontalOffset).max().orElse(0);
             for (RayStep step : steps) {
-                boolean tipRetaining = rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL
+                boolean tipRetaining = !bandInterpolationRay
+                    && rayOutcomeForSteps == SlopeConstructionOutcome.NEEDS_RETAINING_WALL
                     && step.horizontalOffset() == tipOffset;
                 columnCandidates
                     .computeIfAbsent(step.columnKey(), ignored -> new ArrayList<>())

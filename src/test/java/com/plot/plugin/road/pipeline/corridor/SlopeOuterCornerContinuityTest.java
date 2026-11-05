@@ -11,6 +11,8 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import org.junit.jupiter.api.Test;
 
@@ -92,6 +94,30 @@ class SlopeOuterCornerContinuityTest {
             assertTrue(hasNearbySlope(plan, probe, 1),
                 "135° outer wedge missing slope near " + probe);
         }
+    }
+
+    @Test
+    void sharpLTurnBandCellsDoNotEmitSpuriousRetainingWalls() {
+        List<Vec2d> path = new ArrayList<>();
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(40, 40)));
+        RoadCorridorPlan plan = buildCutPlan(path, 64, 72);
+
+        // 覆土仅 8，开敞挖方应接地完成；环带补格不得把中间坡面标成挡墙末端。
+        assertTrue(plan.needsRetainingWallCount() < plan.slopeEntries().size() / 4,
+            "band fill must not mass-mark retaining tips; retaining="
+                + plan.needsRetainingWallCount() + " slopes=" + plan.slopeEntries().size());
+
+        RoadSolidModel solids = new RoadSolidModel();
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        RoadCorridorSolidEmitter.emit(
+            solids, plan, new FlatTerrainSampler(72), host, null, "minecraft:stone");
+        long retaining = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.RETAINING_WALL)
+            .count();
+        assertTrue(retaining == 0,
+            "ordinary open cut L-turn must not emit retaining walls from band mid-cells; got "
+                + retaining);
     }
 
     @Test

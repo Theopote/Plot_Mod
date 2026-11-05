@@ -237,4 +237,29 @@ class SlopeSurfaceConsolidatorTest {
 
         assertEquals(72, plan.slopeCell(key).cutSurfaceY());
     }
+
+    @Test
+    void bandInterpolationMidCellsDoNotBecomeRetainingTips() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        // 环带中间格：相对地面高差大，若被当成完整射线末端会误判挡墙。
+        ColumnKey midA = new ColumnKey(50, -4);
+        ColumnKey midB = new ColumnKey(51, -5);
+        SlopeRayId bandA = new SlopeRayId(-100L, SlopeRayId.ShoulderSide.RIGHT);
+        SlopeRayId bandB = new SlopeRayId(-101L, SlopeRayId.ShoulderSide.RIGHT);
+
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                midA, new Vec2d(50, -4), 64, false, "minecraft:stone", bandA, 5, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, true),
+            new SlopeProfileSample(
+                midB, new Vec2d(51, -5), 64, false, "minecraft:stone", bandB, 6, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, true)),
+            new FlatTerrainSampler(72));
+
+        assertEquals(0, plan.needsRetainingWallCount(),
+            "band interpolation cells must not count as retaining tips");
+        assertFalse(plan.slopeCell(midA).needsRetainingFinish());
+        assertFalse(plan.slopeCell(midB).needsRetainingFinish());
+        assertEquals(64, plan.slopeCell(midA).cutSurfaceY());
+    }
 }

@@ -226,7 +226,9 @@ public class RoadGenerationResult {
                     && !existingDeckSupport
                     && (!existingRetaining || !isSlopeExcavationAir(incomingPurpose));
             if (replaceWithSurface || replaceWithDeckSupport || replaceWithRetaining || replaceWithClearance) {
-                recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
+                if (incoming != null) {
+                    recordPlacementOverride(pos, incoming.previousBlockId, incoming.newBlockId);
+                }
                 placementLayers.put(pos, incomingLayer);
                 placementMaterialPriorities.put(pos, source.placementMaterialPriorities.getOrDefault(
                     pos, RoadSolidMaterialPriority.DEFAULT));
