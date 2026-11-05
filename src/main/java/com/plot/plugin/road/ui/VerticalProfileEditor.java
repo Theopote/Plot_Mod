@@ -187,38 +187,12 @@ final class VerticalProfileEditor {
         focusEditorOnOpen = true;
     }
 
-    void renderCompactMissingProfile(RoadUiContext ctx, RoadNetwork network, Road road) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
-        if (road == null || ctx.previewManager() == null) {
-            return;
-        }
-        RoadUiWidgets.flowButtons(
-            new String[] {
-                PlotI18n.tr("plugin.road.terrain_profile.read_update"),
-                PlotI18n.tr("plugin.road.profile_overview_edit")
-            },
-            new Runnable[] {
-                () -> ctx.previewManager().refreshTerrainProfile(network, road.getId()),
-                () -> openEditorForRoad(ctx, road.getId())
-            });
-    }
-
     void setOnAlignmentCommitted(Runnable onProfileConfirmed) {
         this.onProfileConfirmed = onProfileConfirmed;
     }
 
     void setFlatOverlayResolver(Function<Road, FlatElevationProfileOverlay> flatOverlayResolver) {
         this.flatOverlayResolver = flatOverlayResolver != null ? flatOverlayResolver : road -> null;
-    }
-
-    boolean isEditorOpen() {
-        return editorWindowOpen.get();
-    }
-
-    String getEditorRoadId() {
-        return editorRoadId;
     }
 
     void renderEditorWindow(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -902,17 +876,11 @@ final class VerticalProfileEditor {
         }
         if (!wrapMeta) {
             ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, indexText);
-            if (dirty) {
-                ImGui.sameLine();
-                ImGui.textColored(PluginUiColors.WARNING, dirtyText);
-            }
-        } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, indexText);
-            if (dirty) {
-                ImGui.sameLine();
-                ImGui.textColored(PluginUiColors.WARNING, dirtyText);
-            }
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, indexText);
+        if (dirty) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.WARNING, dirtyText);
         }
 
         boolean hasSelection =

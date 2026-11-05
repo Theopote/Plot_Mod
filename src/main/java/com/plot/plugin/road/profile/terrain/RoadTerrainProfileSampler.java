@@ -65,9 +65,8 @@ public final class RoadTerrainProfileSampler {
             return null;
         }
         double spacing = resolveSpacing(config);
-        int sampleCount = Math.min(
-            MAX_SAMPLES,
-            Math.max(2, (int) Math.floor(totalStation / spacing) + 1));
+        int sampleCount = Math.clamp((int) Math.floor(totalStation / spacing) + 1, 2,
+                MAX_SAMPLES);
         List<Double> stations = new ArrayList<>(sampleCount + 1);
         List<Double> terrainY = new ArrayList<>(sampleCount + 1);
         List<Double> waterY = new ArrayList<>(sampleCount + 1);

@@ -19,24 +19,6 @@ public final class RoadTerrainProfileCache {
         return byRoadId.get(roadId);
     }
 
-    public boolean isFresh(RoadNetwork network, Road road, long terrainRevision) {
-        RoadTerrainProfileData data = get(road != null ? road.getId() : null);
-        if (data == null || network == null || road == null) {
-            return false;
-        }
-        long geometry = RoadTerrainProfileSampler.geometryFingerprint(network, road);
-        return data.matches(geometry, terrainRevision) && data.hasRenderableTerrain();
-    }
-
-    public boolean isStale(RoadNetwork network, Road road, long terrainRevision) {
-        RoadTerrainProfileData data = get(road != null ? road.getId() : null);
-        if (data == null || network == null || road == null) {
-            return false;
-        }
-        long geometry = RoadTerrainProfileSampler.geometryFingerprint(network, road);
-        return !data.matches(geometry, terrainRevision);
-    }
-
     public RoadTerrainProfileData put(RoadTerrainProfileData data) {
         if (data == null) {
             return null;

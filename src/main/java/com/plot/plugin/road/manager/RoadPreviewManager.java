@@ -15,7 +15,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.terrain.RoadTerrainProfileCache;
 import com.plot.plugin.road.profile.terrain.RoadTerrainProfileData;
@@ -187,13 +186,6 @@ public final class RoadPreviewManager {
             networkGenerator.getConfig());
     }
 
-    public Integer getLastNodeElevation(String nodeId) {
-        if (nodeId == null || lastNodeElevations.isEmpty()) {
-            return null;
-        }
-        return lastNodeElevations.get(nodeId);
-    }
-
     public RoadGenerationResult getLastGenerationResult() {
         return lastGenerationResult;
     }
@@ -204,10 +196,6 @@ public final class RoadPreviewManager {
 
     public RoadNetwork getLastProfileNetwork() {
         return lastProfileNetwork;
-    }
-
-    public Map<String, RoadProfileChartData> getLastRoadProfiles() {
-        return lastRoadProfiles;
     }
 
     public RoadProfileChartData getRoadProfileChart(String roadId) {
@@ -303,28 +291,6 @@ public final class RoadPreviewManager {
             status.success(PlotI18n.tr("plugin.road.terrain_profile.ready"));
         }
         return true;
-    }
-
-    public boolean hasRoadProfileChart(String roadId) {
-        RoadProfileChartData chart = getRoadProfileChart(roadId);
-        return chart != null && chart.hasProfileData();
-    }
-
-    public boolean hasIncompleteProfileSampling(RoadNetwork liveNetwork, Road road) {
-        if (road == null || liveNetwork == null || lastEdgeResults.isEmpty()) {
-            return false;
-        }
-        RoadProfileChartData chart = getRoadProfileChart(road.getId());
-        if (chart != null && chart.hasProfileData()) {
-            return !chart.hasCompleteRoadProfile();
-        }
-        RoadNetwork profileNetwork = lastProfileNetwork != null ? lastProfileNetwork : liveNetwork;
-        Road profileRoad = profileNetwork.getRoad(road.getId());
-        if (profileRoad == null || !RoadStationing.isStationable(profileNetwork, profileRoad)) {
-            return false;
-        }
-        return RoadProfileChartAssembler.hasIncompleteProfileSampling(
-            profileNetwork, profileRoad, lastEdgeResults);
     }
 
     public RoadNetworkGenerator.NetworkGenerationResult getLastNetworkGenerationResult() {

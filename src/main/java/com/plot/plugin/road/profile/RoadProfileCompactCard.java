@@ -20,29 +20,6 @@ public final class RoadProfileCompactCard {
     private RoadProfileCompactCard() {
     }
 
-    public static void renderOverview(
-            RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<RoadProfileIntersection> intersections,
-            float chartHeight,
-            FlatElevationProfileOverlay flatOverlay,
-            ProfileChartRenderMode chartMode,
-            RoadVerticalMode verticalMode,
-            boolean flatMode,
-            boolean buildPreviewStale) {
-        renderOverview(
-            chart,
-            design,
-            intersections,
-            chartHeight,
-            flatOverlay,
-            chartMode,
-            verticalMode,
-            flatMode,
-            buildPreviewStale,
-            false);
-    }
-
     /**
      * @param workspaceLegend true 时图例包含设计线（内联工作区）；false 为列表卡片的地形+建造图例
      */
