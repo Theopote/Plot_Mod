@@ -13,8 +13,13 @@ import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.RoadPlacementVisibility;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.core.terrain.MinecraftTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
+import com.plot.plugin.road.profile.terrain.RoadTerrainProfileCache;
+import com.plot.plugin.road.profile.terrain.RoadTerrainProfileData;
+import com.plot.plugin.road.profile.terrain.RoadTerrainProfileSampler;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
 import com.plot.plugin.road.terrain.RoadWorldTerrainProbe;
@@ -46,6 +51,7 @@ public final class RoadPreviewManager {
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
     private Map<String, RoadProfileChartData> lastRoadProfiles = Collections.emptyMap();
+    private final RoadTerrainProfileCache terrainProfileCache = new RoadTerrainProfileCache();
     private RoadNetworkGenerator.NetworkGenerationResult lastNetworkGenerationResult;
     private long terrainRevision = 0L;
     private boolean previewNeedsRecalc = false;
@@ -209,6 +215,94 @@ public final class RoadPreviewManager {
             return null;
         }
         return lastRoadProfiles.get(roadId);
+    }
+
+    /**
+     * 概览优先返回完整采样图表；否则用 Level-1 地形数据适配为可渲染图表。
+     */
+    public RoadProfileChartData getOverviewChart(RoadNetwork network, String roadId) {
+        RoadProfileChartData full = getRoadProfileChart(roadId);
+        if (full != null && full.canRenderChart()) {
+            return full;
+        }
+        RoadTerrainProfileData terrain = getTerrainProfile(network, roadId);
+        if (terrain == null) {
+            return null;
+        }
+        return RoadProfileChartData.fromTerrain(terrain);
+    }
+
+    public RoadTerrainProfileData getTerrainProfile(RoadNetwork network, String roadId) {
+        RoadTerrainProfileData data = terrainProfileCache.get(roadId);
+        if (data == null || network == null || roadId == null) {
+            return null;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return null;
+        }
+        long geometry = RoadTerrainProfileSampler.geometryFingerprint(network, road);
+        if (data.geometryFingerprint() != geometry) {
+            return data; // 调用方用 isTerrainProfileStale 区分；仍可显示过期灰线
+        }
+        return data;
+    }
+
+    public boolean isTerrainProfileFresh(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return false;
+        }
+        RoadTerrainProfileData data = terrainProfileCache.get(road.getId());
+        if (data == null || !data.hasRenderableTerrain()) {
+            return false;
+        }
+        return data.geometryFingerprint()
+            == RoadTerrainProfileSampler.geometryFingerprint(network, road);
+    }
+
+    public boolean isTerrainProfileStale(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return false;
+        }
+        RoadTerrainProfileData data = terrainProfileCache.get(road.getId());
+        if (data == null) {
+            return false;
+        }
+        return data.geometryFingerprint()
+            != RoadTerrainProfileSampler.geometryFingerprint(network, road);
+    }
+
+    /**
+     * Level-1：仅读取当前道路中心线地形。不改设计权威、不启动正式建造预览。
+     */
+    public boolean refreshTerrainProfile(RoadNetwork network, String roadId) {
+        if (network == null || roadId == null || roadId.isBlank()) {
+            return false;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null || !RoadStationing.isStationable(network, road)) {
+            status.warning(PlotI18n.tr("plugin.road.terrain_profile.unavailable"));
+            return false;
+        }
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return false;
+        }
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        var config = networkGenerator != null ? networkGenerator.getConfig() : null;
+        RoadTerrainProfileData sampled = terrainProfileCache.refresh(
+            network, road, terrain, config, terrainRevision);
+        if (sampled == null || !sampled.hasRenderableTerrain()) {
+            status.warning(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+            return false;
+        }
+        if (!sampled.fullyLoaded()) {
+            status.warning(PlotI18n.tr("plugin.road.terrain_profile.partial"));
+        } else {
+            status.success(PlotI18n.tr("plugin.road.terrain_profile.ready"));
+        }
+        return true;
     }
 
     public boolean hasRoadProfileChart(String roadId) {
@@ -895,6 +989,7 @@ public final class RoadPreviewManager {
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
         lastRoadProfiles = Collections.emptyMap();
+        // Level-1 地形缓存按几何指纹惰性失效，不随建造预览清空而抹掉。
     }
 
     private void clearGhostBlocksSafely() {

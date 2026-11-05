@@ -55,21 +55,14 @@ public final class RoadVerticalProfilePanel {
                 }
             });
 
-        boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
-        if (!uniformFlat) {
-            ImGui.separator();
-            RoadUiSections.section("plugin.road.generate.profile_section");
-            RoadProfileOverviewSection.render(
-                ctx,
-                network,
-                profileEditor,
-                road -> resolveFlatProfileOverlay(network, road));
-        } else {
-            ImGui.separator();
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
-        }
+        ImGui.separator();
+        RoadUiSections.section("plugin.road.generate.profile_section");
+        // 统一标高仍展示地形概览；PVI 编辑入口在卡片内禁用。
+        RoadProfileOverviewSection.render(
+            ctx,
+            network,
+            profileEditor,
+            road -> resolveFlatProfileOverlay(network, road));
     }
 
     public void openProfileForEdge(String edgeId) {

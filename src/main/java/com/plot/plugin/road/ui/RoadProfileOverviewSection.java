@@ -6,6 +6,8 @@ import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.ProfileQualitySummary;
 import com.plot.plugin.road.profile.RoadProfileCompactCard;
+import com.plot.plugin.road.profile.terrain.RoadTerrainProfileData;
+import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
@@ -19,7 +21,7 @@ import imgui.ImGui;
 import java.util.List;
 import java.util.function.Function;
 
-/** Generate Tab 纵断面总览：全部可桩号化 Road 的缩略图卡片。 */
+/** 纵断面工作区总览：可桩号道路缩略图 + Level-1 地形读取入口。 */
 public final class RoadProfileOverviewSection {
 
     public static final float MINI_CHART_HEIGHT = RoadProfileCompactCard.CHART_HEIGHT;
@@ -41,9 +43,17 @@ public final class RoadProfileOverviewSection {
             return;
         }
 
-        Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
-        String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
+        boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
+        if (uniformFlat) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.terrain_profile.uniform_flat_overview_hint"));
+        }
 
+        Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
+        renderActiveTerrainToolbar(ctx, network, profileEditor, activeRoad, uniformFlat);
+
+        String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
         for (int index = 0; index < roads.size(); index++) {
             Road road = roads.get(index);
             boolean active = road.getId().equals(activeRoadId);
@@ -55,11 +65,62 @@ public final class RoadProfileOverviewSection {
                 index + 1,
                 roads.size(),
                 active,
-                flatOverlayForRoad.apply(road));
+                flatOverlayForRoad.apply(road),
+                uniformFlat);
             if (index + 1 < roads.size()) {
                 ImGui.spacing();
             }
         }
+    }
+
+    private static void renderActiveTerrainToolbar(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            VerticalProfileEditor profileEditor,
+            Road activeRoad,
+            boolean uniformFlat) {
+        if (activeRoad == null) {
+            return;
+        }
+        renderTerrainStatus(ctx, network, activeRoad);
+        RoadUiWidgets.flowButtons(
+            new String[] {
+                PlotI18n.tr("plugin.road.terrain_profile.read_update"),
+                PlotI18n.tr("plugin.road.profile_overview_edit")
+            },
+            new Runnable[] {
+                () -> ctx.previewManager().refreshTerrainProfile(network, activeRoad.getId()),
+                () -> {
+                    if (uniformFlat) {
+                        ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+                        return;
+                    }
+                    profileEditor.openEditorForRoad(ctx, activeRoad.getId());
+                }
+            });
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+    }
+
+    private static void renderTerrainStatus(RoadUiContext ctx, RoadNetwork network, Road road) {
+        if (ctx.previewManager().isTerrainProfileFresh(network, road)) {
+            RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, road.getId());
+            String key = data != null && !data.fullyLoaded()
+                ? "plugin.road.terrain_profile.status_partial"
+                : "plugin.road.terrain_profile.status_ready";
+            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr(key));
+            return;
+        }
+        if (ctx.previewManager().isTerrainProfileStale(network, road)) {
+            ImGui.textColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.terrain_profile.status_stale"));
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.terrain_profile.status_none"));
     }
 
     private static void renderRoadCard(
@@ -70,7 +131,8 @@ public final class RoadProfileOverviewSection {
             int roadIndex,
             int roadCount,
             boolean active,
-            FlatElevationProfileOverlay flatOverlay) {
+            FlatElevationProfileOverlay flatOverlay,
+            boolean uniformFlat) {
         ImGui.pushID(road.getId());
         try {
             String header = PlotI18n.tr(
@@ -96,17 +158,22 @@ public final class RoadProfileOverviewSection {
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.profile_overview_edit") + "##overview_edit")) {
-                profileEditor.openEditorForRoad(ctx, road.getId());
+                if (uniformFlat) {
+                    ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+                } else {
+                    profileEditor.openEditorForRoad(ctx, road.getId());
+                }
             }
 
             float chartHeight = active ? ACTIVE_CHART_HEIGHT : MINI_CHART_HEIGHT;
-            RoadProfileChartData chartData = ctx.previewManager().getRoadProfileChart(road.getId());
-            if (chartData == null || !chartData.hasProfileData()) {
-                profileEditor.renderCompactMissingProfile(ctx, network, road);
+            RoadProfileChartData chartData = ctx.previewManager().getOverviewChart(network, road.getId());
+            if (chartData == null || !chartData.canRenderChart()) {
+                renderMissingTerrainActions(ctx, network, profileEditor, road, uniformFlat);
             } else {
                 List<RoadProfileIntersection> intersections = chartData.intersections();
                 ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
-                boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
+                boolean flatMode = uniformFlat
+                    || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
                 boolean showDesign = !flatMode
                     && (road.getEffectiveProfileSource() == ProfileSource.EDITED
                         || profileEditor.hasUnconfirmedEditsForRoad(road.getId()));
@@ -124,7 +191,7 @@ public final class RoadProfileOverviewSection {
                     flatMode,
                     ctx.previewManager().needsPreviewRecalc(),
                     showDesign && design != null);
-                if (active) {
+                if (active && chartData.hasProfileData()) {
                     String qualityLine = ProfileQualitySummary.compactLine(
                         chartData,
                         road,
@@ -139,5 +206,31 @@ public final class RoadProfileOverviewSection {
         } finally {
             ImGui.popID();
         }
+    }
+
+    private static void renderMissingTerrainActions(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            VerticalProfileEditor profileEditor,
+            Road road,
+            boolean uniformFlat) {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
+        RoadUiWidgets.flowButtons(
+            new String[] {
+                PlotI18n.tr("plugin.road.terrain_profile.read_update"),
+                PlotI18n.tr("plugin.road.profile_overview_edit")
+            },
+            new Runnable[] {
+                () -> ctx.previewManager().refreshTerrainProfile(network, road.getId()),
+                () -> {
+                    if (uniformFlat) {
+                        ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+                        return;
+                    }
+                    profileEditor.openEditorForRoad(ctx, road.getId());
+                }
+            });
     }
 }

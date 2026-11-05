@@ -57,7 +57,7 @@ public final class RoadProfileCompactCard {
             boolean flatMode,
             boolean buildPreviewStale,
             boolean workspaceLegend) {
-        if (chart == null || !chart.hasProfileData()) {
+        if (chart == null || !chart.canRenderChart()) {
             return;
         }
         RoadProfileChartRenderer.renderOverview(

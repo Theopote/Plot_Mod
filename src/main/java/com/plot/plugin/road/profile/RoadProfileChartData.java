@@ -1,7 +1,9 @@
 package com.plot.plugin.road.profile;
 
 import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
+import com.plot.plugin.road.profile.terrain.RoadTerrainProfileData;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -207,15 +209,76 @@ public record RoadProfileChartData(
 
     private static final double EPSILON = 1e-6;
 
+    /** 仅地形序列有效即可绘制灰线（Level-1）；不要求设计/建造高程。 */
+    public boolean hasTerrainSeries() {
+        if (stations == null || stations.size() < 2
+                || groundElevations == null
+                || groundElevations.size() != stations.size()) {
+            return false;
+        }
+        int finite = 0;
+        for (Double y : groundElevations) {
+            if (y != null && Double.isFinite(y)) {
+                finite++;
+            }
+        }
+        return finite >= 2;
+    }
+
+    /** 概览/编辑器图表门禁：有地形即可渲染；完整设计预览仍用 {@link #hasProfileData()}。 */
+    public boolean canRenderChart() {
+        return hasTerrainSeries();
+    }
+
     public boolean hasProfileData() {
-        return stations != null
-            && stations.size() >= 2
-            && groundElevations != null
-            && groundElevations.size() == stations.size()
+        return hasTerrainSeries()
             && previewElevations != null
             && previewElevations.size() == stations.size()
             && buildElevations != null
-            && buildElevations.size() == stations.size();
+            && buildElevations.size() == stations.size()
+            && finiteCount(previewElevations) >= 2
+            && finiteCount(buildElevations) >= 2;
+    }
+
+    private static int finiteCount(List<Double> values) {
+        if (values == null) {
+            return 0;
+        }
+        int count = 0;
+        for (Double value : values) {
+            if (value != null && Double.isFinite(value)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** 由 Level-1 地形数据构造可渲染图表（无设计线、无建造阶梯）。 */
+    public static RoadProfileChartData fromTerrain(RoadTerrainProfileData terrain) {
+        if (terrain == null || !terrain.hasRenderableTerrain()) {
+            return null;
+        }
+        List<Double> ground = new ArrayList<>(terrain.terrainY());
+        List<Double> empty = new ArrayList<>(ground.size());
+        for (int i = 0; i < ground.size(); i++) {
+            empty.add(Double.NaN);
+        }
+        return new RoadProfileChartData(
+            terrain.roadId(),
+            terrain.totalStation(),
+            terrain.stations(),
+            ground,
+            empty,
+            empty,
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            true,
+            true,
+            terrain.waterY(),
+            List.of(),
+            List.of());
     }
 
     public boolean hasBuildSamples() {

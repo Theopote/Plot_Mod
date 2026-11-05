@@ -54,7 +54,7 @@ public final class RoadProfileChartRenderer {
             FlatElevationProfileOverlay flatOverlay,
             ProfileChartRenderMode mode,
             RoadVerticalMode verticalMode) {
-        if (chart == null || !chart.hasProfileData()) {
+        if (chart == null || !chart.canRenderChart()) {
             return;
         }
         float width = ImGui.getContentRegionAvail().x;
@@ -105,7 +105,7 @@ public final class RoadProfileChartRenderer {
             RoadVerticalAlignment insertAlignment,
             boolean buildProfileStale,
             boolean showBuildProfileLine) {
-        if (chart == null || !chart.hasProfileData()) {
+        if (chart == null || !chart.canRenderChart()) {
             return new ProfileChartInteraction.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
         }

@@ -190,7 +190,19 @@ final class VerticalProfileEditor {
     void renderCompactMissingProfile(RoadUiContext ctx, RoadNetwork network, Road road) {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_overview_no_preview"));
+            PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
+        if (road == null || ctx.previewManager() == null) {
+            return;
+        }
+        RoadUiWidgets.flowButtons(
+            new String[] {
+                PlotI18n.tr("plugin.road.terrain_profile.read_update"),
+                PlotI18n.tr("plugin.road.profile_overview_edit")
+            },
+            new Runnable[] {
+                () -> ctx.previewManager().refreshTerrainProfile(network, road.getId()),
+                () -> openEditorForRoad(ctx, road.getId())
+            });
     }
 
     void setOnAlignmentCommitted(Runnable onProfileConfirmed) {
@@ -273,7 +285,7 @@ final class VerticalProfileEditor {
                         PlotI18n.tr("plugin.road.profile_discontinuous_road_hint"));
                 } else {
                     RoadProfileChartData chartData = resolveChartData(ctx, liveNetwork, road);
-                    if (chartData == null || !chartData.hasProfileData()) {
+                    if (chartData == null || !chartData.canRenderChart()) {
                         renderMissingProfileActions(ctx, liveNetwork, road);
                     } else {
                         FlatElevationProfileOverlay flatOverlay = resolveFlatOverlay(road);
@@ -1016,8 +1028,8 @@ final class VerticalProfileEditor {
         double roadLength = network != null
             ? RoadStationing.canonicalLength(network, road)
             : Double.NaN;
-        RoadProfileChartData chart = ctx.previewManager().getRoadProfileChart(road.getId());
-        if (chart != null && chart.hasProfileData()) {
+        RoadProfileChartData chart = ctx.previewManager().getOverviewChart(network, road.getId());
+        if (chart != null && chart.canRenderChart()) {
             rememberChartFallback(chart, road.getId(), networkRevision, terrainRevision);
             return chart;
         }
@@ -1089,19 +1101,16 @@ final class VerticalProfileEditor {
     }
 
     private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
-        String hint = road != null && ctx.previewManager().hasIncompleteProfileSampling(network, road)
-            ? PlotI18n.tr("plugin.road.profile_incomplete_preview_hint")
-            : PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required");
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, hint);
-        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
-            ctx.previewManager().calculateProfileSamplingOnly(network);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
+        if (road != null
+                && ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update") + "##editor_missing_terrain")) {
+            ctx.previewManager().refreshTerrainProfile(network, road.getId());
         }
         ImGui.sameLine();
-        String fullPreviewLabel = ctx.previewManager().needsPreviewRecalc()
-            ? PlotI18n.tr("plugin.road.recalculate_preview")
-            : PlotI18n.tr("plugin.road.calc_preview");
-        if (ImGui.button(fullPreviewLabel + "##profile_full_preview")) {
-            ctx.previewManager().startNetworkPreview(network);
+        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
+            ctx.previewManager().calculateProfileSamplingOnly(network);
         }
     }
 
