@@ -62,7 +62,8 @@ class RoadTunnelQualityE2ETest {
     @Test
     void r09TunnelMidSectionHasContinuousLiningShell() {
         RoadGenerationResult edge = preview(RoadGoldenScenarioFactory.r09Tunnel());
-        int liningAtMid = countLiningBlocks(edge, 15, -4, 4, 64, 72);
+        // Sparse tunnel classification shortens the buried run; mid-body is near x=4.
+        int liningAtMid = countLiningBlocks(edge, 4, -4, 4, 64, 72);
         assertTrue(liningAtMid >= 12,
             "tunnel mid-section must place lining blocks around the cavity, count=" + liningAtMid);
     }

@@ -766,11 +766,11 @@ public class RoadNetwork {
         }
         if (elevatedRoadId != null && !elevatedRoadId.isBlank()) {
             Set<String> roadIds = getDistinctRoadIdsAtNode(nodeId);
-            if (roadIds.contains(elevatedRoadId)) {
-                node.setElevatedRoadId(elevatedRoadId);
-            } else {
-                node.setElevatedRoadId(null);
+            if (!roadIds.contains(elevatedRoadId)) {
+                // Unknown / not-incident road must not silently enable grade separation.
+                return false;
             }
+            node.setElevatedRoadId(elevatedRoadId);
         } else {
             node.setElevatedRoadId(null);
         }

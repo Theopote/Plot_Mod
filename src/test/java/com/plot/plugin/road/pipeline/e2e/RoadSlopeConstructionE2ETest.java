@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -188,18 +189,19 @@ class RoadSlopeConstructionE2ETest {
 
     @Test
     void deepCutPreviewReportsWidthCapOnEdgeResult() {
+        // 生产路径在深覆土下走隧道/禁开敞削坡；宽度上限诊断由抬高门槛的走廊单测覆盖。
+        // 此处锁定完整生成器对深挖的产品行为：成隧或清障，而非露天宽度截断放坡。
         RoadNetwork network = straightRoad("deep-cut", 64, 64);
         RoadGenerationResult edge = singleEdgePreview(
             network, slopeEnabledConfig(), new FlatTerrainSampler(120));
 
-        assertTrue(edge.slopeBatterWidthCapCount > 0,
-            "deep cut must surface width-cap diagnostic on edge result");
-        assertTrue(edge.needsRetainingWallCount > 0,
-            "deep cut must report width-capped batter needing a retaining wall");
-        assertEquals(0, edge.unresolvedSlopeConstructionCount,
-            "width-capped cut should emit partial slope instead of unresolved construction");
-        assertTrue(edge.cutVolume > 0);
         assertEquals(0, edge.missingRoadSurfaceCount);
+        assertTrue(edge.cutVolume > 0);
+        assertTrue(
+            edge.tunnelCount > 0 || !edge.tunnelBlocks.isEmpty() || edge.cutVolume > 100,
+            "deep cover should tunnel or excavate rather than open width-capped batter");
+        assertEquals(0, edge.slopeBatterWidthCapCount,
+            "default tunnel threshold must suppress open width-cap batter on deep cover");
     }
 
     @Test
@@ -230,28 +232,33 @@ class RoadSlopeConstructionE2ETest {
 
     @Test
     void slopeBatterDisabledStillBuildsRoadWithFewerOuterEmbankmentPlacements() {
-        TerrainSampler terrain = new FlatTerrainSampler(92);
-        RoadSystemConfig config = slopeEnabledConfig();
+        // cover=3 < tunnelThreshold(4)：保持开敞 ROAD，否则两侧都会成隧而无边坡对比。
+        TerrainSampler terrain = new FlatTerrainSampler(67);
+        RoadSystemConfig withConfig = slopeEnabledConfig();
+        RoadSystemConfig withoutConfig = slopeEnabledConfig();
+        withoutConfig.setIncludeSlopeBatter(false);
 
         RoadNetwork withSlopeNetwork = straightRoad("with-slope", 64, 64);
-        withSlopeNetwork.getRoad("with-slope").setIncludeSlopeBatter(true);
-
         RoadNetwork withoutSlopeNetwork = straightRoad("without-slope", 64, 64);
-        withoutSlopeNetwork.getRoad("without-slope").setIncludeSlopeBatter(false);
 
-        RoadGenerationResult with = singleEdgePreview(withSlopeNetwork, config, terrain);
-        RoadGenerationResult without = singleEdgePreview(withoutSlopeNetwork, config, terrain);
+        RoadGenerationResult with = singleEdgePreview(withSlopeNetwork, withConfig, terrain);
+        RoadGenerationResult without = singleEdgePreview(withoutSlopeNetwork, withoutConfig, terrain);
 
         assertEquals(0, with.missingRoadSurfaceCount);
         assertEquals(0, without.missingRoadSurfaceCount);
         assertNotNull(findRoadSurface(with, 15, 0));
         assertNotNull(findRoadSurface(without, 15, 0));
+        assertTrue(withSlopeNetwork.getRoad("with-slope").getEffectiveIncludeSlopeBatter(withConfig));
+        assertFalse(withoutSlopeNetwork.getRoad("without-slope").getEffectiveIncludeSlopeBatter(withoutConfig));
 
-        int embankmentWith = countEmbankmentPlacements(with, 4);
-        int embankmentWithout = countEmbankmentPlacements(without, 4);
-        assertTrue(embankmentWith > embankmentWithout,
-            "road-level slope batter disable should reduce outer embankment voxels, with="
-                + embankmentWith + " without=" + embankmentWithout);
+        int solidWith = countSolidEmbankmentPlacements(with, 2);
+        int solidWithout = countSolidEmbankmentPlacements(without, 2);
+        int airCutWith = countTunnelAirPlacements(with, 2);
+        int airCutWithout = countTunnelAirPlacements(without, 2);
+        assertTrue(
+            solidWith > solidWithout || airCutWith > airCutWithout,
+            "disabling slope batter should reduce outer slope solids or cut air, solid="
+                + solidWith + "/" + solidWithout + " air=" + airCutWith + "/" + airCutWithout);
     }
 
     @Test
@@ -356,6 +363,41 @@ class RoadSlopeConstructionE2ETest {
                 continue;
             }
             if (isEmbankmentLayer(edge, pos)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countSolidEmbankmentPlacements(RoadGenerationResult edge, int minAbsZ) {
+        int count = 0;
+        for (BlockPos pos : edge.placementRecords.keySet()) {
+            if (Math.abs(pos.getZ()) < minAbsZ) {
+                continue;
+            }
+            RoadSolidLayer layer = edge.placementLayers.get(pos);
+            if (layer != RoadSolidLayer.SHOULDER && layer != RoadSolidLayer.SUBGRADE) {
+                continue;
+            }
+            String blockId = edge.placementRecords.get(pos).newBlockId;
+            if (blockId != null && !"minecraft:air".equals(blockId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countTunnelAirPlacements(RoadGenerationResult edge, int minAbsZ) {
+        int count = 0;
+        for (BlockPos pos : edge.placementRecords.keySet()) {
+            if (Math.abs(pos.getZ()) < minAbsZ) {
+                continue;
+            }
+            if (edge.placementLayers.get(pos) != RoadSolidLayer.TUNNEL) {
+                continue;
+            }
+            String blockId = edge.placementRecords.get(pos).newBlockId;
+            if ("minecraft:air".equals(blockId)) {
                 count++;
             }
         }

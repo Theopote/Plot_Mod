@@ -29,11 +29,12 @@ class SlopeSurfaceContinuityTest {
 
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
         List<PathSegment> segments = List.of(segment);
+        // cover≈8 < deepDaylight(~10)：保证开敞放坡不被深覆土策略关掉。
         List<SegmentHeightInfo> heightInfos = List.of(
-            new SegmentHeightInfo(segment, 95, 95, 64, 80, 0.4));
+            new SegmentHeightInfo(segment, 72, 72, 64, 70, 0.4));
         List<RoadConstructionType> constructionTypes = List.of(RoadConstructionType.ROAD);
 
-        TerrainSampler highGround = new FlatTerrainSampler(95);
+        TerrainSampler highGround = new FlatTerrainSampler(72);
 
         RoadCorridorPlanBuilder.PlanHost host = CorridorTestFixtures.planHost(config);
         RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
@@ -79,6 +80,7 @@ class SlopeSurfaceContinuityTest {
 
         TerrainSampler cliff = new FlatTerrainSampler(120);
 
+        // 抬高隧道覆土门槛，使深挖仍走开敞放坡，从而触发宽度上限诊断。
         RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
             segments,
             heightInfos,
@@ -90,7 +92,7 @@ class SlopeSurfaceContinuityTest {
             1.0,
             "deep-cut",
             JunctionCorridorBuildContext.NONE,
-            CorridorTestFixtures.planHost(config));
+            CorridorTestFixtures.planHost(config, 64, 3));
 
         int requiredRun = (int) Math.ceil(56 * Math.max(0.5f, crossSection.cutSlopeRatio)) + 2;
         if (requiredRun > RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS) {

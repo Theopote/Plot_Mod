@@ -210,9 +210,10 @@ public final class ResolvedCrossSection {
         float cutRatio = slopeBatter.getCutRatio() != null
             ? slopeBatter.getCutRatio()
             : config.getCutSlopeRatio();
+        // 道路未显式覆盖时继承全局配置；不得仅因默认坡比>0就强行开启边坡。
         boolean slopeEnabled = slopeBatter.getEnabled() != null
             ? slopeBatter.getEnabled()
-            : (fillRatio > 0f || cutRatio > 0f);
+            : config.isIncludeSlopeBatter();
         String fillSlopeMaterial = slopeBatter.getFillMaterial() != null && !slopeBatter.getFillMaterial().isBlank()
             ? slopeBatter.getFillMaterial()
             : config.getFillSlopeMaterial();

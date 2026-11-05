@@ -79,8 +79,9 @@ class RoadEdgeListHelperTest {
     @Test
     void formatRoadDisplayNameFallsBackToOrdinalWhenNameCleared() {
         RoadNetwork network = new RoadNetwork();
-        Road first = network.createRoad();
-        Road second = network.createRoad();
+        // Stable ids: resolveRoadOrdinal sorts by id, not creation order.
+        Road first = network.createRoad("road-a");
+        Road second = network.createRoad("road-b");
         first.setName(null);
         second.setName(null);
 

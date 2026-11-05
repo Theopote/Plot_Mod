@@ -34,7 +34,9 @@ class GradingZoneMinecraftDefaultsTest {
         assertEquals(0, pit.getDesignSurface().getFoundationDepth());
         assertEquals(0, pit.getDesignSurface().getPitWorkingAllowance());
         assertEquals(6, pit.getDesignSurface().getDigDownBlocks());
-        assertEquals(0, pit.getDesignSurface().getWorkingMarginBlocks());
+        // 默认留水平工作面，避免近乎竖直坑壁；与 DesignSurface 缺省一致。
+        assertEquals(DesignSurface.DEFAULT_WORKING_MARGIN_BLOCKS,
+            pit.getDesignSurface().getWorkingMarginBlocks());
         assertFalse(pit.isAutoAdjustElevation());
     }
 

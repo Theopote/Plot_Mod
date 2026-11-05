@@ -123,4 +123,23 @@ class ResolvedCrossSectionTest {
         assertEquals(6, resolved.carriagewayWidth);
         assertTrue(resolved.includeSidewalk);
     }
+
+    @Test
+    void nullSlopeBatterEnabledInheritsConfigFlagEvenWhenRatiosPositive() {
+        RoadSystemConfig off = new RoadSystemConfig("slope-off");
+        off.setIncludeSlopeBatter(false);
+        off.setFillSlopeRatio(1.0f);
+        off.setCutSlopeRatio(1.0f);
+
+        ResolvedCrossSection resolved = new RoadCrossSection().resolve(off);
+        assertFalse(resolved.includeSlopeBatter);
+        assertEquals(0f, resolved.fillSlopeRatio, 1e-6);
+        assertEquals(0f, resolved.cutSlopeRatio, 1e-6);
+
+        RoadSystemConfig on = new RoadSystemConfig("slope-on");
+        on.setIncludeSlopeBatter(true);
+        on.setFillSlopeRatio(1.0f);
+        on.setCutSlopeRatio(1.0f);
+        assertTrue(new RoadCrossSection().resolve(on).includeSlopeBatter);
+    }
 }

@@ -152,10 +152,14 @@ public final class RoadSurfacePlacementPass {
                 continue;
             }
             if (record == null) {
-                // 开敞路与立交净空柱：补齐缺失 AIR，避免纵坡台阶处未进入 solids 的地形残留在路面上。
-                result.recordPlacementOverride(pos, "minecraft:air", "minecraft:air");
-                result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
-                result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
+                // 仅立交下层净空：补齐缺失 AIR，清除未进入 placement 的原地形。
+                // 普通开敞路不得写入 air→air，否则空天空也会膨胀 placementRecords（破坏 golden）。
+                // 纵坡台阶漏清由 clearance designY←surfaceMask 修正，不依赖此处灌空气记录。
+                if (elevatedPavementY != null) {
+                    result.recordPlacementOverride(pos, "minecraft:air", "minecraft:air");
+                    result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+                    result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
+                }
                 continue;
             }
             if ("minecraft:air".equals(record.newBlockId)) {

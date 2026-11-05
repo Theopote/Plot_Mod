@@ -33,6 +33,7 @@ class TunnelPortalBackfillPassTest {
             plan, host, center, forward, 8, 1.0));
         assertTrue(TunnelPortalBackfillPass.isOpenApproachColumn(plan, host, new Vec2d(-3, 0)));
 
+        // 稳定固体覆土不再重写；用洞顶上方气隙模拟过清障，验证仅山侧回填。
         TerrainSampler hill = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d point) {
@@ -41,6 +42,9 @@ class TunnelPortalBackfillPassTest {
 
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
+                if (y >= 71 && y <= 75) {
+                    return false; // roof-gap air that backfill must seal
+                }
                 return y <= 80;
             }
         };
