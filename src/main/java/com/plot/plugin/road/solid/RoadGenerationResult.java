@@ -179,10 +179,17 @@ public class RoadGenerationResult {
             BlockRecord existing = placementRecords.get(pos);
             boolean incomingAir = incoming != null && "minecraft:air".equals(incoming.newBlockId);
             boolean existingSurface = isProtectedSurface(placementLayers.get(pos));
+            ClearancePurpose incomingPurpose = source.placementClearancePurposes.get(pos);
             if (incomingAir && existing != null && "minecraft:air".equals(existing.newBlockId)) {
-                recordPlacementByLayerPriority(pos, incoming.previousBlockId, incoming.newBlockId,
-                    source.placementLayers.get(pos), source.placementMaterialPriorities.getOrDefault(
-                        pos, RoadSolidMaterialPriority.DEFAULT));
+                // AIR↔AIR：方块与清障用途一并裁决，避免用途丢失或残留。
+                recordPlacementByLayerPriority(
+                    pos,
+                    incoming.previousBlockId,
+                    incoming.newBlockId,
+                    source.placementLayers.get(pos),
+                    source.placementMaterialPriorities.getOrDefault(
+                        pos, RoadSolidMaterialPriority.DEFAULT),
+                    incomingPurpose);
                 continue;
             }
             RoadSolidLayer incomingLayer = source.placementLayers.get(pos);
@@ -203,7 +210,6 @@ public class RoadGenerationResult {
                     && (isElevatedDeckSupport(incomingLayer, pos, source)
                         || isElevatedDeckSupport(incomingLayer, pos, this));
             ClearancePurpose existingPurpose = placementClearancePurposes.get(pos);
-            ClearancePurpose incomingPurpose = source.placementClearancePurposes.get(pos);
             // 挡墙仅可覆盖边坡开挖 AIR；隧道/行车/立交净空保持空气。
             boolean replaceWithRetaining = existing != null
                     && "minecraft:air".equals(existing.newBlockId)
@@ -224,14 +230,13 @@ public class RoadGenerationResult {
                 placementLayers.put(pos, incomingLayer);
                 placementMaterialPriorities.put(pos, source.placementMaterialPriorities.getOrDefault(
                     pos, RoadSolidMaterialPriority.DEFAULT));
-                if (incomingAir) {
-                    placementClearancePurposes.put(
-                        pos, ClearancePurpose.preferProtected(existingPurpose, incomingPurpose));
-                } else if (incomingRetaining) {
-                    placementClearancePurposes.remove(pos);
+                // 用途只描述最终获胜的 AIR；实体方块覆盖后必须清除。
+                syncClearancePurposeAfterMerge(pos, incomingAir, existingPurpose, incomingPurpose);
+            } else if (!placementRecords.containsKey(pos)) {
+                placementRecords.put(pos, incoming);
+                if (incomingAir && incomingPurpose != null) {
+                    placementClearancePurposes.put(pos, incomingPurpose);
                 }
-            } else {
-                placementRecords.putIfAbsent(pos, incoming);
             }
         }
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : source.placementLayers.entrySet()) {
@@ -240,10 +245,8 @@ public class RoadGenerationResult {
         for (Map.Entry<BlockPos, Integer> entry : source.placementMaterialPriorities.entrySet()) {
             placementMaterialPriorities.putIfAbsent(entry.getKey(), entry.getValue());
         }
-        for (Map.Entry<BlockPos, ClearancePurpose> entry : source.placementClearancePurposes.entrySet()) {
-            placementClearancePurposes.merge(
-                entry.getKey(), entry.getValue(), ClearancePurpose::preferProtected);
-        }
+        // 失败的清障请求不得污染已获胜的实体方块；用途表只保留最终 AIR。
+        scrubStaleClearancePurposes();
         cutVolume += source.cutVolume;
         fillVolume += source.fillVolume;
         bridgeCount += source.bridgeCount;
@@ -292,6 +295,34 @@ public class RoadGenerationResult {
     /** 未标注用途的 AIR 按边坡开挖处理，保持同边生成兼容；显式净空用途则拒绝挡墙覆盖。 */
     private static boolean isSlopeExcavationAir(ClearancePurpose purpose) {
         return purpose == null || purpose.allowsRetainingWallOverride();
+    }
+
+    /**
+     * 合并裁决后同步清障用途：获胜 AIR 写入/强化用途，实体方块清除用途。
+     */
+    private void syncClearancePurposeAfterMerge(
+            BlockPos pos,
+            boolean incomingAir,
+            ClearancePurpose existingPurpose,
+            ClearancePurpose incomingPurpose) {
+        if (!incomingAir) {
+            placementClearancePurposes.remove(pos);
+            return;
+        }
+        ClearancePurpose merged = ClearancePurpose.preferProtected(existingPurpose, incomingPurpose);
+        if (merged != null) {
+            placementClearancePurposes.put(pos, merged);
+        } else {
+            placementClearancePurposes.remove(pos);
+        }
+    }
+
+    /** 用途表不变量：仅最终仍为 AIR 的方块可保留 ClearancePurpose。 */
+    private void scrubStaleClearancePurposes() {
+        placementClearancePurposes.entrySet().removeIf(entry -> {
+            BlockRecord record = placementRecords.get(entry.getKey());
+            return record == null || !"minecraft:air".equals(record.newBlockId);
+        });
     }
 
     /**

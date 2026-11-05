@@ -1,6 +1,7 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
@@ -10,6 +11,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RoadPlacementRecorderTest {
 
@@ -139,7 +142,8 @@ class RoadPlacementRecorderTest {
         var pos = new BlockPos(2, 76, 0);
         var air = new RoadGenerationResult(0);
         air.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:air",
-            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
         for (var layer : java.util.List.of(RoadSolidLayer.ROAD, RoadSolidLayer.SHOULDER, RoadSolidLayer.BRIDGE)) {
             var surface = new RoadGenerationResult(0);
             surface.recordPlacementByLayerPriority(pos, "minecraft:stone", "minecraft:white_concrete",
@@ -152,7 +156,105 @@ class RoadPlacementRecorderTest {
                 assertEquals("minecraft:stone", merged.placementRecords.get(pos).previousBlockId);
                 assertEquals(layer, merged.placementLayers.get(pos));
                 assertEquals(RoadSolidMaterialPriority.DEFAULT, merged.placementMaterialPriorities.get(pos));
+                assertFalse(merged.placementClearancePurposes.containsKey(pos),
+                    "surface over AIR must clear clearance purpose; layer=" + layer
+                        + " airFirst=" + airFirst);
             }
+        }
+    }
+
+    @Test
+    void roadCoveringAirClearsClearancePurpose() {
+        var pos = new BlockPos(4, 70, 0);
+        var clearance = new RoadGenerationResult(0);
+        clearance.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.GRADE_SEPARATION);
+        var road = new RoadGenerationResult(0);
+        road.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+
+        var merged = new RoadGenerationResult(0);
+        merged.mergeFrom(clearance);
+        merged.mergeFrom(road);
+
+        assertEquals("minecraft:white_concrete", merged.placementRecords.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.ROAD, merged.placementLayers.get(pos));
+        assertNull(merged.placementClearancePurposes.get(pos),
+            "ROAD covering AIR must not keep GRADE_SEPARATION purpose");
+    }
+
+    @Test
+    void losingAirPurposeDoesNotPolluteWinningSolid() {
+        var pos = new BlockPos(5, 66, 0);
+        var retaining = new RoadGenerationResult(0);
+        retaining.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+        var losingTunnelAir = new RoadGenerationResult(0);
+        // 边坡开挖 AIR 不得抹掉挡墙；用途也不应残留到实体方块上。
+        losingTunnelAir.recordPlacementByLayerPriority(
+            pos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.SLOPE_EXCAVATION);
+
+        var merged = new RoadGenerationResult(0);
+        merged.mergeFrom(retaining);
+        merged.mergeFrom(losingTunnelAir);
+
+        assertEquals("minecraft:cobblestone", merged.placementRecords.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.RETAINING_WALL, merged.placementLayers.get(pos));
+        assertFalse(merged.placementClearancePurposes.containsKey(pos),
+            "losing AIR request must not leave clearance purpose on winning solid");
+    }
+
+    @Test
+    void multiEdgeMergeKeepsWinningBlockAndClearancePurposeAligned() {
+        var slopePos = new BlockPos(6, 71, 0);
+        var tunnelPos = new BlockPos(7, 66, 0);
+
+        var slopeEdge = new RoadGenerationResult(0);
+        slopeEdge.recordPlacementByLayerPriority(
+            slopePos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.SLOPE_EXCAVATION);
+        slopeEdge.recordPlacementByLayerPriority(
+            slopePos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+        slopeEdge.recordPlacementByLayerPriority(
+            tunnelPos, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.RETAINING_WALL, RoadSolidMaterialPriority.DEFAULT);
+
+        var tunnelEdge = new RoadGenerationResult(0);
+        tunnelEdge.recordPlacementByLayerPriority(
+            tunnelPos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
+        // 失败的边坡开挖 AIR：不得抹掉挡墙，也不得留下用途残留。
+        tunnelEdge.recordPlacementByLayerPriority(
+            slopePos, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.SLOPE_EXCAVATION);
+
+        for (boolean slopeFirst : new boolean[]{true, false}) {
+            var merged = new RoadGenerationResult(0);
+            merged.mergeFrom(slopeFirst ? slopeEdge : tunnelEdge);
+            merged.mergeFrom(slopeFirst ? tunnelEdge : slopeEdge);
+
+            assertEquals("minecraft:cobblestone",
+                merged.placementRecords.get(slopePos).newBlockId,
+                "legal retaining survives; slopeFirst=" + slopeFirst);
+            assertFalse(merged.placementClearancePurposes.containsKey(slopePos),
+                "retaining cell must not keep clearance purpose; slopeFirst=" + slopeFirst);
+
+            assertEquals("minecraft:air",
+                merged.placementRecords.get(tunnelPos).newBlockId,
+                "tunnel interior wins; slopeFirst=" + slopeFirst);
+            assertEquals(ClearancePurpose.TUNNEL_INTERIOR,
+                merged.placementClearancePurposes.get(tunnelPos),
+                "winning AIR purpose must stay TUNNEL_INTERIOR; slopeFirst=" + slopeFirst);
         }
     }
 
