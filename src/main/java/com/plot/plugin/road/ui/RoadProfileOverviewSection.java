@@ -83,33 +83,67 @@ public final class RoadProfileOverviewSection {
             return;
         }
         renderTerrainStatus(ctx, network, activeRoad);
-        RoadUiWidgets.flowButtons(
-            new String[] {
-                PlotI18n.tr("plugin.road.terrain_profile.read_update"),
-                PlotI18n.tr("plugin.road.profile_overview_edit")
-            },
-            new Runnable[] {
-                () -> ctx.previewManager().refreshTerrainProfile(network, activeRoad.getId()),
-                () -> {
-                    if (uniformFlat) {
-                        ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
-                        return;
+        if (ctx.previewManager().isTerrainProfileJobRunning()) {
+            RoadUiWidgets.flowButtons(
+                new String[] {
+                    PlotI18n.tr("plugin.road.terrain_profile.cancel"),
+                    PlotI18n.tr("plugin.road.profile_overview_edit")
+                },
+                new Runnable[] {
+                    () -> ctx.previewManager().cancelTerrainProfileJob(),
+                    () -> {
+                        if (uniformFlat) {
+                            ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+                            return;
+                        }
+                        profileEditor.openEditorForRoad(ctx, activeRoad.getId());
                     }
-                    profileEditor.openEditorForRoad(ctx, activeRoad.getId());
-                }
-            });
+                });
+        } else {
+            RoadUiWidgets.flowButtons(
+                new String[] {
+                    PlotI18n.tr("plugin.road.terrain_profile.read_update"),
+                    PlotI18n.tr("plugin.road.profile_overview_edit")
+                },
+                new Runnable[] {
+                    () -> ctx.previewManager().refreshTerrainProfile(network, activeRoad.getId()),
+                    () -> {
+                        if (uniformFlat) {
+                            ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+                            return;
+                        }
+                        profileEditor.openEditorForRoad(ctx, activeRoad.getId());
+                    }
+                });
+        }
         ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();
     }
 
     private static void renderTerrainStatus(RoadUiContext ctx, RoadNetwork network, Road road) {
+        if (ctx.previewManager().isTerrainProfileJobRunning()) {
+            var job = ctx.previewManager().terrainProfileJob();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.terrain_profile.status_sampling",
+                    job != null ? job.processedWorkUnits() : 0,
+                    job != null ? job.totalWorkUnits() : 0));
+            return;
+        }
+        RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, road.getId());
         if (ctx.previewManager().isTerrainProfileFresh(network, road)) {
-            RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, road.getId());
             String key = data != null && !data.fullyLoaded()
                 ? "plugin.road.terrain_profile.status_partial"
                 : "plugin.road.terrain_profile.status_ready";
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr(key));
+            return;
+        }
+        if (data != null && data.hasAnyValidSample() && !data.hasDrawableSegment()) {
+            ImGui.textColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.terrain_profile.status_sparse"));
             return;
         }
         if (ctx.previewManager().isTerrainProfileStale(network, road)) {

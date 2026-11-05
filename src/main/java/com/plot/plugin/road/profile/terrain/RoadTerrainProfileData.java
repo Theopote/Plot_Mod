@@ -10,17 +10,15 @@ import java.util.Objects;
  * {@code terrainY} 亦为 NaN，图表应画成缺口而非假海平面。
  */
 public record RoadTerrainProfileData(
-        String roadId,
+        TerrainProfileKey key,
         double totalStation,
         List<Double> stations,
         List<Double> terrainY,
         List<Double> waterY,
-        List<Boolean> loaded,
-        long geometryFingerprint,
-        long terrainRevision) {
+        List<Boolean> loaded) {
 
     public RoadTerrainProfileData {
-        Objects.requireNonNull(roadId, "roadId");
+        Objects.requireNonNull(key, "key");
         stations = List.copyOf(Objects.requireNonNull(stations, "stations"));
         terrainY = List.copyOf(Objects.requireNonNull(terrainY, "terrainY"));
         waterY = List.copyOf(Objects.requireNonNull(waterY, "waterY"));
@@ -36,14 +34,44 @@ public record RoadTerrainProfileData(
         }
     }
 
-    public boolean hasRenderableTerrain() {
-        int loadedCount = 0;
-        for (Boolean flag : loaded) {
-            if (Boolean.TRUE.equals(flag)) {
-                loadedCount++;
+    public String roadId() {
+        return key.roadId();
+    }
+
+    public long geometryFingerprint() {
+        return key.geometryFingerprint();
+    }
+
+    public long terrainEpoch() {
+        return key.terrainEpoch();
+    }
+
+    /** 至少一个真实地形采样点。 */
+    public boolean hasAnyValidSample() {
+        for (int i = 0; i < loaded.size(); i++) {
+            if (Boolean.TRUE.equals(loaded.get(i)) && Double.isFinite(terrainY.get(i))) {
+                return true;
             }
         }
-        return loadedCount >= 2;
+        return false;
+    }
+
+    /** 至少一组相邻有效采样点，折线才能画出可见灰线。 */
+    public boolean hasDrawableSegment() {
+        for (int i = 1; i < loaded.size(); i++) {
+            if (Boolean.TRUE.equals(loaded.get(i - 1))
+                    && Boolean.TRUE.equals(loaded.get(i))
+                    && Double.isFinite(terrainY.get(i - 1))
+                    && Double.isFinite(terrainY.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 可渲染：需要至少一段连续有效地形折线。 */
+    public boolean hasRenderableTerrain() {
+        return hasDrawableSegment();
     }
 
     public boolean fullyLoaded() {
@@ -55,8 +83,26 @@ public record RoadTerrainProfileData(
         return true;
     }
 
-    public boolean matches(long geometryFingerprint, long terrainRevision) {
-        return this.geometryFingerprint == geometryFingerprint
-            && this.terrainRevision == terrainRevision;
+    public boolean matches(TerrainProfileKey expected) {
+        return key.matches(expected);
+    }
+
+    public double nearestFiniteTerrainY(double station) {
+        if (stations.isEmpty()) {
+            return Double.NaN;
+        }
+        int best = -1;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < stations.size(); i++) {
+            if (!Boolean.TRUE.equals(loaded.get(i)) || !Double.isFinite(terrainY.get(i))) {
+                continue;
+            }
+            double dist = Math.abs(stations.get(i) - station);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        return best >= 0 ? terrainY.get(best) : Double.NaN;
     }
 }

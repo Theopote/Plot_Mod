@@ -120,6 +120,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.roadListRename().tickFrame();
         ctx.previewManager().tickPreviewJob();
         ctx.previewManager().tickTerrainPrefetch();
+        ctx.previewManager().tickTerrainProfileJob();
 
         verticalProfilePanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
         floatingEditorHost.renderAll(ctx);
@@ -376,6 +377,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.toolManager().cancel();
         ctx.cancelPreviewJobSilently();
         ctx.previewManager().clearPreview();
+        ctx.previewManager().clearTerrainProfileCache();
         ctx.clearTransientUiState();
         RoadAutoRepairUi.invalidateCache();
     }

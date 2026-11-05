@@ -474,7 +474,8 @@ final class VerticalProfileEditor {
                 windowSession.markTouched(road);
             }
             if (road != null) {
-                RoadProfileChartData chart = ctx.previewManager().getRoadProfileChart(roadId);
+                RoadProfileChartData chart = ctx.previewManager().getOverviewChart(
+                    windowSession.editingNetwork(), roadId);
                 windowSession.ensureRoadEditorAlignment(
                     road,
                     ctx.networkManager().getConfig(),

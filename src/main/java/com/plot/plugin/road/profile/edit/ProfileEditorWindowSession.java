@@ -150,6 +150,10 @@ public final class ProfileEditorWindowSession {
         if (fallbackChart != null && fallbackChart.hasProfileData()) {
             return bootstrapEndpointAlignmentFromChart(road, fallbackChart);
         }
+        // Level-1 仅地形：用有效起终点地形标高创建可编辑 PVI 草稿（不改 ProfileSource）。
+        if (fallbackChart != null && fallbackChart.canRenderChart()) {
+            return bootstrapEditorAlignmentFromTerrain(road, fallbackChart);
+        }
         return false;
     }
 
@@ -183,6 +187,37 @@ public final class ProfileEditorWindowSession {
         if (!Double.isFinite(end)) {
             end = chart.groundElevationAt(length);
         }
+        if (!Double.isFinite(start) || !Double.isFinite(end)) {
+            return false;
+        }
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, start),
+            PointOfVerticalIntersection.of(length, end)));
+        applyAlignmentToWorkingAndSnapshot(road, alignment);
+        return true;
+    }
+
+    /**
+     * 仅有 Level-1 地形时：用可靠起终点地形标高初始化编辑器工作副本 PVI。
+     * 不切换 ProfileSource，不覆盖既有可评估曲线。
+     */
+    boolean bootstrapEditorAlignmentFromTerrain(Road road, RoadProfileChartData terrainChart) {
+        if (road == null || terrainChart == null) {
+            return false;
+        }
+        if (!RoadStationing.isStationable(workingNetwork, road) || !terrainChart.canRenderChart()) {
+            return false;
+        }
+        if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
+                && !VerticalAlignmentChartSeeding.isOverdenseAutoSeed(road)) {
+            return false;
+        }
+        double length = RoadStationing.canonicalLength(workingNetwork, road);
+        if (!Double.isFinite(length) || length <= 1e-6) {
+            return false;
+        }
+        double start = terrainChart.nearestFiniteGroundElevation(0.0);
+        double end = terrainChart.nearestFiniteGroundElevation(length);
         if (!Double.isFinite(start) || !Double.isFinite(end)) {
             return false;
         }

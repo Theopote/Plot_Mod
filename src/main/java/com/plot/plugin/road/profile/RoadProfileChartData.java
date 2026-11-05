@@ -281,6 +281,55 @@ public record RoadProfileChartData(
             List.of());
     }
 
+    /**
+     * 用 Level-1 地形替换灰线/水面，保留既有设计/建造序列的桩号域时尽量插值对齐；
+     * 桩号网格不同则以地形站为准并清空建造阶梯（避免旧预览冒充新地形）。
+     */
+    public RoadProfileChartData withTerrainGround(RoadTerrainProfileData terrain) {
+        if (terrain == null || !terrain.hasRenderableTerrain()) {
+            return this;
+        }
+        List<Double> preview = new ArrayList<>(terrain.stations().size());
+        List<Double> build = new ArrayList<>(terrain.stations().size());
+        for (double station : terrain.stations()) {
+            preview.add(previewElevationAt(station));
+            build.add(buildElevationAt(station));
+        }
+        return new RoadProfileChartData(
+            terrain.roadId(),
+            terrain.totalStation(),
+            terrain.stations(),
+            terrain.terrainY(),
+            preview,
+            build,
+            List.of(),
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
+            terrain.waterY(),
+            waterCrossings,
+            constructionRuns);
+    }
+
+    public double nearestFiniteGroundElevation(double station) {
+        int best = -1;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < stations.size(); i++) {
+            Double y = groundElevations.get(i);
+            if (y == null || !Double.isFinite(y)) {
+                continue;
+            }
+            double dist = Math.abs(stations.get(i) - station);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        return best >= 0 ? groundElevations.get(best) : Double.NaN;
+    }
+
     public boolean hasBuildSamples() {
         return buildSamples != null && buildSamples.size() >= 2;
     }

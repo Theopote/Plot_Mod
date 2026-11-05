@@ -1,14 +1,9 @@
 package com.plot.plugin.road.profile.terrain;
 
-import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.model.RoadNetwork;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 按道路缓存 Level-1 地形纵断面；几何或地形版本变化即失效。 */
+/** 按道路缓存 Level-1 地形纵断面；统一用 {@link TerrainProfileKey} 判定命中。 */
 public final class RoadTerrainProfileCache {
     private final Map<String, RoadTerrainProfileData> byRoadId = new LinkedHashMap<>();
 
@@ -19,29 +14,30 @@ public final class RoadTerrainProfileCache {
         return byRoadId.get(roadId);
     }
 
+    public boolean isFresh(TerrainProfileKey expected) {
+        if (expected == null) {
+            return false;
+        }
+        RoadTerrainProfileData data = get(expected.roadId());
+        return data != null
+            && data.hasRenderableTerrain()
+            && data.matches(expected);
+    }
+
+    public boolean isStale(TerrainProfileKey expected) {
+        if (expected == null) {
+            return false;
+        }
+        RoadTerrainProfileData data = get(expected.roadId());
+        return data != null && !data.matches(expected);
+    }
+
     public RoadTerrainProfileData put(RoadTerrainProfileData data) {
         if (data == null) {
             return null;
         }
         byRoadId.put(data.roadId(), data);
         return data;
-    }
-
-    public RoadTerrainProfileData refresh(
-            RoadNetwork network,
-            Road road,
-            TerrainSampler terrain,
-            RoadSystemConfig config,
-            long terrainRevision) {
-        RoadTerrainProfileData sampled = RoadTerrainProfileSampler.sample(
-            network, road, terrain, config, terrainRevision);
-        if (sampled == null) {
-            if (road != null) {
-                byRoadId.remove(road.getId());
-            }
-            return null;
-        }
-        return put(sampled);
     }
 
     public void invalidate(String roadId) {
