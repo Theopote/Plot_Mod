@@ -19,6 +19,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TunnelPortalPlannerTest {
@@ -33,8 +34,8 @@ class TunnelPortalPlannerTest {
         // Thin cover near entry (x<4); thick cover deeper in the mountain.
         TerrainSampler terrain = coverFromX(4, roofY + 5, roofY);
 
-        List<TunnelPortalPlanner.PortalStation> portals = plan(segment, style, terrain);
-        TunnelPortalPlanner.PortalStation entry = portals.stream()
+        TunnelPortalPlanner.PortalPlanResult plan = plan(segment, style, terrain);
+        TunnelPortalPlanner.PortalStation entry = plan.stations().stream()
             .filter(TunnelPortalPlanner.PortalStation::entry)
             .findFirst()
             .orElse(null);
@@ -42,6 +43,8 @@ class TunnelPortalPlannerTest {
         assertNotNull(entry);
         assertTrue(entry.worldStation() >= 4.0 - 1e-6);
         assertTrue(entry.worldStation() <= 20.0 + 1e-6);
+        assertEquals(1.0, entry.inwardDirection(), 1e-9);
+        assertTrue(plan.foundCount() >= 1);
     }
 
     @Test
@@ -52,8 +55,8 @@ class TunnelPortalPlannerTest {
         // Thin cover near exit (x>36); thick cover inward.
         TerrainSampler terrain = coverUntilX(36, roofY + 5, roofY);
 
-        List<TunnelPortalPlanner.PortalStation> portals = plan(segment, style, terrain);
-        TunnelPortalPlanner.PortalStation exit = portals.stream()
+        TunnelPortalPlanner.PortalPlanResult plan = plan(segment, style, terrain);
+        TunnelPortalPlanner.PortalStation exit = plan.stations().stream()
             .filter(p -> !p.entry())
             .findFirst()
             .orElse(null);
@@ -61,17 +64,26 @@ class TunnelPortalPlannerTest {
         assertNotNull(exit);
         assertTrue(exit.worldStation() <= 36.0 + 1e-6);
         assertTrue(exit.worldStation() >= 20.0 - 1e-6);
+        assertEquals(-1.0, exit.inwardDirection(), 1e-9);
     }
 
     @Test
-    void noFeasiblePortalReturnsEmpty() {
+    void noFeasiblePortalReturnsExplicitNotFound() {
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int roofY = ROAD_Y + style.roofTopOffset();
         TerrainSampler thinEverywhere = solidUpTo(roofY); // zero cover above roof
 
-        List<TunnelPortalPlanner.PortalStation> portals = plan(segment, style, thinEverywhere);
-        assertTrue(portals.isEmpty());
+        TunnelPortalPlanner.PortalPlanResult plan = plan(segment, style, thinEverywhere);
+        assertTrue(plan.stations().isEmpty());
+        assertEquals(0, plan.foundCount());
+        assertEquals(2, plan.notFoundCount());
+        assertEquals(2, plan.boundaries().size());
+        for (TunnelPortalPlanner.PortalBoundaryResult boundary : plan.boundaries()) {
+            assertEquals(TunnelPortalPlanner.PortalStationStatus.NOT_FOUND, boundary.status());
+            assertNull(boundary.station());
+            assertFalse(boundary.found());
+        }
     }
 
     @Test
@@ -81,23 +93,23 @@ class TunnelPortalPlannerTest {
         int roofY = ROAD_Y + style.roofTopOffset();
         TerrainSampler thick = solidUpTo(roofY + 8);
 
-        List<TunnelPortalPlanner.PortalStation> portals = plan(segment, style, thick);
-        assertFalse(portals.isEmpty());
-        for (TunnelPortalPlanner.PortalStation portal : portals) {
+        TunnelPortalPlanner.PortalPlanResult plan = plan(segment, style, thick);
+        assertFalse(plan.stations().isEmpty());
+        for (TunnelPortalPlanner.PortalStation portal : plan.stations()) {
             assertTrue(portal.worldStation() >= -1e-6);
             assertTrue(portal.worldStation() <= 40.0 + 1e-6);
         }
     }
 
     @Test
-    void findPortalStationReturnsNullWhenSearchBudgetExhaustedInsideThinCover() {
+    void findPortalStationReturnsNotFoundWhenSearchBudgetExhaustedInsideThinCover() {
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int roofY = ROAD_Y + style.roofTopOffset();
         // Cover only past half-run search budget (maxSteps = 20 for length 40).
         TerrainSampler terrain = coverFromX(25, roofY + 5, roofY);
 
-        TunnelPortalPlanner.PortalStation entry = TunnelPortalPlanner.findPortalStation(
+        TunnelPortalPlanner.PortalBoundaryResult entry = TunnelPortalPlanner.findPortalStation(
             0.0, 40.0, true, 40.0,
             List.of(segment),
             List.of(new SegmentHeightInfo(segment, 80, 80, ROAD_Y, ROAD_Y, 0.0)),
@@ -112,10 +124,12 @@ class TunnelPortalPlannerTest {
             columnResolver(),
             (c, y) -> y);
 
-        assertEquals(null, entry);
+        assertEquals(TunnelPortalPlanner.PortalStationStatus.NOT_FOUND, entry.status());
+        assertNull(entry.station());
+        assertEquals(1.0, entry.inwardDirection(), 1e-9);
     }
 
-    private static List<TunnelPortalPlanner.PortalStation> plan(
+    private static TunnelPortalPlanner.PortalPlanResult plan(
             PathSegment segment,
             ResolvedTunnelStyle style,
             TerrainSampler terrain) {

@@ -134,4 +134,24 @@ class RoadCorridorPlanClearanceMergeTest {
             "slope-step merge must not drop designSurfaceY when a later stamp has higher clearTop");
         assertEquals(71, merged.clearTopY());
     }
+
+    @Test
+    void structureMergeKeepsWiderStationEnvelope() {
+        ClearanceCell narrow = new ClearanceCell(
+            new Vec2d(0, 0), 64, 72,
+            RoadCorridorConstructionMode.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            null,
+            5);
+        ClearanceCell wide = new ClearanceCell(
+            new Vec2d(0, 0), 64, 71,
+            RoadCorridorConstructionMode.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            null,
+            9);
+        ClearanceCell merged = RoadCorridorPlan.mergeClearance(narrow, wide);
+        assertEquals(9, merged.envelopeWidthBlocks());
+        assertEquals(72, merged.clearTopY(),
+            "same-rank merge still prefers the higher clearTop while widening envelope");
+    }
 }

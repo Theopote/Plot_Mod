@@ -104,8 +104,7 @@ public final class RoadCorridorClearancePass {
             topY = Math.max(designY, deckCap);
         }
         if (cell.mode() == RoadCorridorConstructionMode.PORTAL && host != null) {
-            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
-            int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+            int envelopeWidth = resolveEnvelopeWidth(cell, host);
             TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
                 host.tunnelStyle(), envelopeWidth, designY);
             topY = Math.min(topY, mask.roofTopY());
@@ -300,8 +299,7 @@ public final class RoadCorridorClearancePass {
             int designY,
             int topY,
             ClearancePurpose purpose) {
-        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        int envelopeWidth = resolveEnvelopeWidth(cell, host);
         var tunnelStyle = host.tunnelStyle();
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             tunnelStyle.shape(),
@@ -353,6 +351,14 @@ public final class RoadCorridorClearancePass {
         return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
             || terrain.isSolidBlock(worldX, y, worldZ)
             || terrain.isRoadClearableDecoration(worldX, y, worldZ);
+    }
+
+    private static int resolveEnvelopeWidth(ClearanceCell cell, RoadCorridorPlanBuilder.PlanHost host) {
+        if (cell.envelopeWidthBlocks() != null && cell.envelopeWidthBlocks() > 0) {
+            return cell.envelopeWidthBlocks();
+        }
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+        return RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
     }
 
     private static boolean portalAllowsClearanceAtY(TunnelPortalExcavationMask mask, int y) {

@@ -50,6 +50,10 @@ public class RoadGenerationResult {
     public int fillVolume;
     public int bridgeCount;
     public int tunnelCount;
+    /** Feasible tunnel portal stations found during structure generation. */
+    public int portalFoundCount;
+    /** Tunnel-run boundaries where portal search exhausted without cover. */
+    public int portalNotFoundCount;
     public int streetlightCount;
     /** 因实体图元硬顶上限而丢弃的方块数（>0 表示结果不完整） */
     public int droppedSolidCount;

@@ -8,4 +8,8 @@ public final class RoadEdgeBuildMetrics {
     public int fillVolume;
     public int bridgeCount;
     public int tunnelCount;
+    /** Feasible portal stations placed by {@link com.plot.plugin.road.tunnel.TunnelPortalPlanner}. */
+    public int portalFoundCount;
+    /** Tunnel-run boundary attempts that found no feasible cover station. */
+    public int portalNotFoundCount;
 }

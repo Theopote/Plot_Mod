@@ -150,9 +150,11 @@ public final class RoadCorridorPlan {
         int clearTopY = Math.max(preferred.clearTopY(), other.clearTopY());
         int designSurfaceY = Math.max(preferred.designSurfaceY(), other.designSurfaceY());
         Integer lateral = mergedLateral(preferred, other);
+        Integer envelope = mergedEnvelopeWidth(preferred, other);
         if (clearTopY == preferred.clearTopY()
                 && designSurfaceY == preferred.designSurfaceY()
-                && Objects.equals(lateral, preferred.corridorLateral())) {
+                && Objects.equals(lateral, preferred.corridorLateral())
+                && Objects.equals(envelope, preferred.envelopeWidthBlocks())) {
             return preferred;
         }
         return new ClearanceCell(
@@ -161,12 +163,15 @@ public final class RoadCorridorPlan {
             clearTopY,
             preferred.mode(),
             preferred.constructionType(),
-            lateral);
+            lateral,
+            envelope);
     }
 
     private static ClearanceCell withMergedLateral(ClearanceCell primary, ClearanceCell secondary) {
         Integer lateral = mergedLateral(primary, secondary);
-        if (Objects.equals(lateral, primary.corridorLateral())) {
+        Integer envelope = mergedEnvelopeWidth(primary, secondary);
+        if (Objects.equals(lateral, primary.corridorLateral())
+                && Objects.equals(envelope, primary.envelopeWidthBlocks())) {
             return primary;
         }
         return new ClearanceCell(
@@ -175,11 +180,22 @@ public final class RoadCorridorPlan {
             primary.clearTopY(),
             primary.mode(),
             primary.constructionType(),
-            lateral);
+            lateral,
+            envelope);
     }
 
     private static Integer mergedLateral(ClearanceCell a, ClearanceCell b) {
         return a.corridorLateral() != null ? a.corridorLateral() : b.corridorLateral();
+    }
+
+    private static Integer mergedEnvelopeWidth(ClearanceCell a, ClearanceCell b) {
+        if (a.envelopeWidthBlocks() == null) {
+            return b.envelopeWidthBlocks();
+        }
+        if (b.envelopeWidthBlocks() == null) {
+            return a.envelopeWidthBlocks();
+        }
+        return Math.max(a.envelopeWidthBlocks(), b.envelopeWidthBlocks());
     }
 
     /** Higher rank wins when open corridor and structure volumes share a world column. */

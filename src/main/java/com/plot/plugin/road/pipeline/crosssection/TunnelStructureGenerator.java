@@ -74,9 +74,14 @@ public final class TunnelStructureGenerator {
                 || constructionTypes.stream().noneMatch(type -> type.isTunnelFamily() || type.isRockShelter())) {
             return;
         }
-        List<TunnelPortalPlanner.PortalStation> portals = planPortalStations(
+        TunnelPortalPlanner.PortalPlanResult portalPlan = planPortalStations(
             detection, segments, heightInfos, constructionTypes, crossSections, terrain, unitsPerBlock,
             tunnelStyle, designElevation, buildProfile, profileWaterCrossings, columnResolver, host);
+        List<TunnelPortalPlanner.PortalStation> portals = portalPlan.stations();
+        if (metrics != null) {
+            metrics.portalFoundCount += portalPlan.foundCount();
+            metrics.portalNotFoundCount += portalPlan.notFoundCount();
+        }
 
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
@@ -284,28 +289,6 @@ public final class TunnelStructureGenerator {
             RoadSolidMaterialPriority.STRUCTURAL,
             terrain, columnResolver, canvasUnitsPerBlock, portalFrame,
             null, null, null, 0.0, null);
-    }
-
-    static RoadRoadbedGradingUtils.GradingVolumes placeCrossSection(
-            RoadSolidModel solids,
-            ResolvedTunnelStyle tunnelStyle,
-            Vec2d center,
-            Vec2d leftNormal,
-            int roadEnvelopeWidth,
-            int roadY,
-            String liningMaterialId,
-            TerrainSampler terrain,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            double canvasUnitsPerBlock,
-            boolean portalFrame,
-            PathSegment previous,
-            PathSegment next,
-            double carriageHalf) {
-        return placeCrossSection(
-            solids, tunnelStyle, center, leftNormal, roadEnvelopeWidth, roadY, liningMaterialId,
-            RoadSolidMaterialPriority.STRUCTURAL,
-            terrain, columnResolver, canvasUnitsPerBlock, portalFrame,
-            null, previous, next, carriageHalf, null);
     }
 
     static RoadRoadbedGradingUtils.GradingVolumes placeCrossSection(
@@ -531,23 +514,6 @@ public final class TunnelStructureGenerator {
         }
     }
 
-    /**
-     * Protruding lights need an adjacent LINING cell that would actually be placed;
-     * embedded lights sit on a LINING cell that must itself receive lining.
-     */
-    static boolean lightHasLiningMount(
-            TunnelCrossSectionMask mask,
-            TunnelLightPlacementResolver.LightPosition light,
-            TunnelLightMount mount,
-            TerrainSampler terrain,
-            Vec2d center,
-            Vec2d normal,
-            double scale,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
-        return lightHasLiningMount(
-            mask, light, mount, terrain, center, normal, scale, columnResolver, Set.of());
-    }
-
     static boolean lightHasLiningMount(
             TunnelCrossSectionMask mask,
             TunnelLightPlacementResolver.LightPosition light,
@@ -644,7 +610,7 @@ public final class TunnelStructureGenerator {
         solids.add(point, y, RoadSolidLayer.TUNNEL, lightMaterial, RoadSolidMaterialPriority.DECORATIVE);
     }
 
-    private static List<TunnelPortalPlanner.PortalStation> planPortalStations(
+    private static TunnelPortalPlanner.PortalPlanResult planPortalStations(
             ConstructionDetection detection,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
@@ -659,7 +625,7 @@ public final class TunnelStructureGenerator {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             Host host) {
         if (detection == null || detection.runs() == null) {
-            return List.of();
+            return TunnelPortalPlanner.PortalPlanResult.empty();
         }
         return TunnelPortalPlanner.planPortals(
             detection.runs(),
@@ -706,7 +672,9 @@ public final class TunnelStructureGenerator {
             if (location == null) {
                 continue;
             }
-            double direction = portal.entry() ? 1.0 : -1.0;
+            double direction = portal.inwardDirection() != 0.0
+                ? portal.inwardDirection()
+                : (portal.entry() ? 1.0 : -1.0);
             for (int depth = 0; depth < PORTAL_FRAME_DEPTH_BLOCKS; depth++) {
                 double geometryLocal = location.geometryLocal() + direction * depth * scale;
                 if (geometryLocal < -EPSILON) {

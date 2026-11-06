@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -138,18 +139,21 @@ public final class CrossSectionSpanRasterizer {
                 if (worldX == lastX && worldZ == lastZ) continue;
                 lastX = worldX;
                 lastZ = worldZ;
+                Integer envelopeTag = constructionType != null && constructionType.isTunnelFamily()
+                    ? RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection)
+                    : null;
                 if (spec.materialMix() != null) {
                     BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
                     String materialId = MaterialMixResolver.resolve(
                         spec.materialMix(), pos, seedKey, host::resolveBlockId);
                     RoadCorridorPlanBuilder.writeSurfaceAndClearance(
                         plan, planPoint, surfaceY, spec.layer(), materialId, host,
-                        terrain, constructionType, tunnelThreshold);
+                        terrain, constructionType, tunnelThreshold, envelopeTag);
                 } else {
                     String materialId = host.resolveBlockId(spec.materialId());
                     RoadCorridorPlanBuilder.writeSurfaceAndClearance(
                         plan, planPoint, surfaceY, spec.layer(), materialId, host,
-                        terrain, constructionType, tunnelThreshold);
+                        terrain, constructionType, tunnelThreshold, envelopeTag);
                 }
             }
         }

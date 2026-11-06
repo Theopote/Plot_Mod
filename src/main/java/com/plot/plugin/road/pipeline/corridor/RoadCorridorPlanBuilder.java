@@ -122,7 +122,7 @@ public final class RoadCorridorPlanBuilder {
                 stations, i, terrain, tunnelStyle, tunnelThreshold);
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
                 carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq,
-                suppressBatter, segments);
+                suppressBatter, segments, stations, i);
             if (i > 0) {
                 // 邻接洞门/洞身/深覆土的路基站及其 span 都不放坡，避免边坡贴到洞口掏山
                 boolean suppressSpanBatter = suppressBatter
@@ -219,6 +219,39 @@ public final class RoadCorridorPlanBuilder {
         return false;
     }
 
+    /**
+     * +1 along station-order forward is into the hill / tunnel; -1 is the open approach.
+     * 0 when neighbors do not clearly indicate a side (backfill falls back to column voting).
+     */
+    static int inferPortalIntoHillSign(List<StationSample> stations, int index) {
+        if (stations == null || index < 0 || index >= stations.size()) {
+            return 0;
+        }
+        int tunnelPlus = 0;
+        int tunnelMinus = 0;
+        for (int d = 1; d <= 3; d++) {
+            if (index + d < stations.size()) {
+                RoadConstructionType type = stations.get(index + d).constructionType();
+                if (type != null && type.isTunnelFamily()) {
+                    tunnelPlus++;
+                }
+            }
+            if (index - d >= 0) {
+                RoadConstructionType type = stations.get(index - d).constructionType();
+                if (type != null && type.isTunnelFamily()) {
+                    tunnelMinus++;
+                }
+            }
+        }
+        if (tunnelPlus > tunnelMinus) {
+            return 1;
+        }
+        if (tunnelMinus > tunnelPlus) {
+            return -1;
+        }
+        return 0;
+    }
+
     private static void rasterizeStation(
             RoadCorridorPlan plan,
             StationSample sample,
@@ -232,7 +265,9 @@ public final class RoadCorridorPlanBuilder {
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq,
             boolean suppressBatter,
-            List<PathSegment> polylineSegments) {
+            List<PathSegment> polylineSegments,
+            List<StationSample> stations,
+            int stationIndex) {
         if (sample.constructionType() == RoadConstructionType.TUNNEL_PORTAL) {
             Vec2d leftNormal = normalize(sample.leftNormal());
             // leftNormal = (-fy, fx) for forward (fx, fy) → forward = (ly, -lx)
@@ -243,7 +278,8 @@ public final class RoadCorridorPlanBuilder {
                 forward,
                 sample.targetY(),
                 RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection),
-                unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0));
+                unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0,
+                inferPortalIntoHillSign(stations, stationIndex)));
         }
         plan.setRoadbedWaterMarkingActive(sample.allowWaterEmbankment());
         try {
@@ -411,12 +447,16 @@ public final class RoadCorridorPlanBuilder {
         if (envelopeWidth <= 0) {
             return;
         }
+        int gradingEnvelope = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        Integer envelopeTag = constructionType != null && constructionType.isTunnelFamily()
+            ? gradingEnvelope
+            : null;
         int minOffset = RoadDimensionUtils.minLateralOffset(envelopeWidth);
         int maxOffset = RoadDimensionUtils.maxLateralOffset(envelopeWidth);
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
             double offset = lateral * scale;
             writeClearanceSpan(plan, fromCenter, toCenter, fromNormal, toNormal, offset, fromY, toY,
-                terrain, constructionType, tunnelThreshold, host, lateral);
+                terrain, constructionType, tunnelThreshold, host, lateral, envelopeTag);
         }
     }
 
@@ -433,7 +473,8 @@ public final class RoadCorridorPlanBuilder {
             RoadConstructionType constructionType,
             int tunnelThreshold,
             PlanHost host,
-            int corridorLateral) {
+            int corridorLateral,
+            Integer envelopeWidthBlocks) {
         Vec2d startNormal = normalize(fromNormal);
         Vec2d endNormal = normalize(toNormal);
         double turn = signedAngle(startNormal, endNormal);
@@ -469,12 +510,13 @@ public final class RoadCorridorPlanBuilder {
             }
             ColumnKey key = new ColumnKey(worldX, worldZ);
             RoadCorridorConstructionMode mode = toMode(constructionType);
-            int clearTopY = computeClearTopY(mode, surfaceY, planPoint, terrain, tunnelThreshold, host);
+            int clearTopY = computeClearTopY(
+                mode, surfaceY, planPoint, terrain, tunnelThreshold, host, envelopeWidthBlocks);
             Integer lateralTag = constructionType == RoadConstructionType.TUNNEL_PORTAL
                 ? corridorLateral
                 : null;
             plan.putClearance(key, new ClearanceCell(
-                planPoint, surfaceY, clearTopY, mode, constructionType, lateralTag));
+                planPoint, surfaceY, clearTopY, mode, constructionType, lateralTag, envelopeWidthBlocks));
         }
     }
 
@@ -667,6 +709,22 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
+        writeSurfaceAndClearance(
+            plan, planPoint, surfaceY, layer, materialId, host, terrain, constructionType,
+            tunnelThreshold, null);
+    }
+
+    static void writeSurfaceAndClearance(
+            RoadCorridorPlan plan,
+            Vec2d planPoint,
+            int surfaceY,
+            RoadSolidLayer layer,
+            String materialId,
+            PlanHost host,
+            TerrainSampler terrain,
+            RoadConstructionType constructionType,
+            int tunnelThreshold,
+            Integer envelopeWidthBlocks) {
         planPoint = host.canonicalColumnPoint(planPoint);
         BlockPos worldPos = host.canvasToBlockPos(planPoint);
         int worldX = worldPos.getX();
@@ -680,8 +738,15 @@ public final class RoadCorridorPlanBuilder {
         int designY = finalSurface != null ? finalSurface.surfaceY() : surfaceY;
 
         RoadCorridorConstructionMode mode = toMode(constructionType);
-        int clearTopY = computeClearTopY(mode, designY, planPoint, terrain, tunnelThreshold, host);
-        plan.putClearance(key, new ClearanceCell(planPoint, designY, clearTopY, mode, constructionType));
+        Integer envelopeTag = envelopeWidthBlocks;
+        if (envelopeTag == null && constructionType != null && constructionType.isTunnelFamily()) {
+            // Caller forgot station width; keep null so merge/clearance can still fall back.
+            envelopeTag = null;
+        }
+        int clearTopY = computeClearTopY(
+            mode, designY, planPoint, terrain, tunnelThreshold, host, envelopeTag);
+        plan.putClearance(key, new ClearanceCell(
+            planPoint, designY, clearTopY, mode, constructionType, null, envelopeTag));
     }
 
     private static List<SlopeProfileSample> mergeSlopeWedge(
@@ -1137,13 +1202,14 @@ public final class RoadCorridorPlanBuilder {
             Vec2d planPoint,
             TerrainSampler terrain,
             int tunnelThreshold,
-            PlanHost host) {
+            PlanHost host,
+            Integer envelopeWidthBlocks) {
         return switch (mode) {
             case BRIDGE -> Math.max(
                 designSurfaceY + host.tunnelStyle().clearHeight(),
                 terrain.sampleColumnTopY(planPoint));
-            case TUNNEL -> tunnelInteriorRoofTopY(host, designSurfaceY);
-            case PORTAL -> portalRoofTopY(host, designSurfaceY);
+            case TUNNEL -> tunnelInteriorRoofTopY(host, designSurfaceY, envelopeWidthBlocks);
+            case PORTAL -> portalRoofTopY(host, designSurfaceY, envelopeWidthBlocks);
             case SHELTER -> designSurfaceY + host.tunnelStyle().clearHeight();
             case OPEN -> openCorridorClearTopY(
                 designSurfaceY, planPoint, terrain, tunnelThreshold, host);
@@ -1216,15 +1282,27 @@ public final class RoadCorridorPlanBuilder {
     }
 
     static int portalRoofTopY(PlanHost host, int designSurfaceY) {
-        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        return portalRoofTopY(host, designSurfaceY, null);
+    }
+
+    static int portalRoofTopY(PlanHost host, int designSurfaceY, Integer envelopeWidthBlocks) {
+        int envelopeWidth = envelopeWidthBlocks != null && envelopeWidthBlocks > 0
+            ? envelopeWidthBlocks
+            : RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                ResolvedCrossSection.fromConfig(host.config()));
         return TunnelPortalExcavationMask.forPortal(
             host.tunnelStyle(), envelopeWidth, designSurfaceY).roofTopY();
     }
 
     static int tunnelInteriorRoofTopY(PlanHost host, int designSurfaceY) {
-        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        return tunnelInteriorRoofTopY(host, designSurfaceY, null);
+    }
+
+    static int tunnelInteriorRoofTopY(PlanHost host, int designSurfaceY, Integer envelopeWidthBlocks) {
+        int envelopeWidth = envelopeWidthBlocks != null && envelopeWidthBlocks > 0
+            ? envelopeWidthBlocks
+            : RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                ResolvedCrossSection.fromConfig(host.config()));
         ResolvedTunnelStyle tunnelStyle = host.tunnelStyle();
         return TunnelCrossSectionMask.build(
             tunnelStyle.shape(),

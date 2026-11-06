@@ -566,8 +566,10 @@ public final class RoadGenerationIntegrityValidator {
         if (cell.mode() == RoadCorridorConstructionMode.PORTAL
                 && cell.corridorLateral() != null
                 && host != null) {
-            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
-            int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+            int envelopeWidth = cell.envelopeWidthBlocks() != null && cell.envelopeWidthBlocks() > 0
+                ? cell.envelopeWidthBlocks()
+                : RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+                    ResolvedCrossSection.fromConfig(host.config()));
             TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
                 host.tunnelStyle(), envelopeWidth, cell.designSurfaceY());
             for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {

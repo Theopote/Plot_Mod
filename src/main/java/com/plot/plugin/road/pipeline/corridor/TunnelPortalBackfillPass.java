@@ -56,7 +56,9 @@ public final class TunnelPortalBackfillPass {
             com.plot.plugin.road.tunnel.TunnelStyle.MAX_LINING_THICKNESS,
             tunnelStyle.liningThickness() + 1);
         RoadTerrainClearanceColumnResolver columnResolver = new RoadTerrainClearanceColumnResolver(host);
-        int intoHill = resolveIntoHillSign(plan, host, site.center(), forward, transitionBand, scale);
+        int intoHill = site.intoHillSign() != 0
+            ? site.intoHillSign()
+            : resolveIntoHillSign(plan, host, site.center(), forward, transitionBand, scale);
 
         for (int step = -transitionBand; step <= transitionBand; step++) {
             if (intoHill != 0 && Integer.signum(step) == -intoHill) {

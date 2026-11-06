@@ -33,10 +33,50 @@ public final class TunnelPortalPlanner {
     private TunnelPortalPlanner() {
     }
 
-    public record PortalStation(double worldStation, boolean entry) {
+    public enum PortalStationStatus {
+        FOUND,
+        NOT_FOUND
     }
 
-    public static List<PortalStation> planPortals(
+    /**
+     * Placed portal station. {@code inwardDirection} is +1 / -1 along world station
+     * toward the tunnel interior from the run boundary that produced this portal.
+     */
+    public record PortalStation(double worldStation, boolean entry, double inwardDirection) {
+        public PortalStation(double worldStation, boolean entry) {
+            this(worldStation, entry, entry ? 1.0 : -1.0);
+        }
+    }
+
+    /** One boundary attempt: either a feasible station or an explicit miss. */
+    public record PortalBoundaryResult(
+            double boundaryStation,
+            boolean entry,
+            double inwardDirection,
+            PortalStationStatus status,
+            PortalStation station) {
+        public boolean found() {
+            return status == PortalStationStatus.FOUND && station != null;
+        }
+    }
+
+    /** Aggregate of portal boundary attempts for one planPortals call. */
+    public record PortalPlanResult(
+            List<PortalStation> stations,
+            List<PortalBoundaryResult> boundaries,
+            int foundCount,
+            int notFoundCount) {
+        public PortalPlanResult {
+            stations = stations != null ? List.copyOf(stations) : List.of();
+            boundaries = boundaries != null ? List.copyOf(boundaries) : List.of();
+        }
+
+        public static PortalPlanResult empty() {
+            return new PortalPlanResult(List.of(), List.of(), 0, 0);
+        }
+    }
+
+    public static PortalPlanResult planPortals(
             List<ConstructionRun> runs,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
@@ -51,25 +91,38 @@ public final class TunnelPortalPlanner {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             PortalElevationSnapper elevationSnapper) {
         if (runs == null || style == null) {
-            return List.of();
+            return PortalPlanResult.empty();
         }
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         Set<String> dedupe = new LinkedHashSet<>();
         List<PortalStation> portals = new ArrayList<>();
+        List<PortalBoundaryResult> boundaries = new ArrayList<>();
+        int foundCount = 0;
+        int notFoundCount = 0;
         for (ConstructionRun run : runs) {
             if (run.type() != RoadConstructionType.TUNNEL || run.length() < EPSILON) {
                 continue;
             }
-            addPortal(portals, dedupe, findPortalStation(
+            PortalBoundaryResult entry = findPortalStation(
                 run.startStation(), run.endStation(), true, run.length(),
                 segments, heightInfos, constructionTypes, crossSections, terrain, scale, style,
-                designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper));
-            addPortal(portals, dedupe, findPortalStation(
+                designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper);
+            PortalBoundaryResult exit = findPortalStation(
                 run.endStation(), run.startStation(), false, run.length(),
                 segments, heightInfos, constructionTypes, crossSections, terrain, scale, style,
-                designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper));
+                designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper);
+            if (recordBoundary(portals, boundaries, dedupe, entry)) {
+                foundCount++;
+            } else {
+                notFoundCount++;
+            }
+            if (recordBoundary(portals, boundaries, dedupe, exit)) {
+                foundCount++;
+            } else {
+                notFoundCount++;
+            }
         }
-        return List.copyOf(portals);
+        return new PortalPlanResult(portals, boundaries, foundCount, notFoundCount);
     }
 
     public static PortalStation findPortalNear(List<PortalStation> portals, double worldStation) {
@@ -84,17 +137,29 @@ public final class TunnelPortalPlanner {
         return null;
     }
 
-    private static void addPortal(List<PortalStation> portals, Set<String> dedupe, PortalStation station) {
-        if (station == null) {
-            return;
+    /**
+     * @return true when the boundary yielded a newly recorded FOUND station
+     */
+    private static boolean recordBoundary(
+            List<PortalStation> portals,
+            List<PortalBoundaryResult> boundaries,
+            Set<String> dedupe,
+            PortalBoundaryResult result) {
+        boundaries.add(result);
+        if (!result.found()) {
+            return false;
         }
+        PortalStation station = result.station();
         String key = String.format("%.3f:%s", station.worldStation(), station.entry());
         if (dedupe.add(key)) {
             portals.add(station);
+            return true;
         }
+        // Duplicate FOUND still counts as found for metrics of this boundary.
+        return true;
     }
 
-    static PortalStation findPortalStation(
+    static PortalBoundaryResult findPortalStation(
             double boundaryStation,
             double inwardTargetStation,
             boolean entry,
@@ -127,10 +192,20 @@ public final class TunnelPortalPlanner {
             if (isFeasiblePortalStation(
                 station, segments, heightInfos, constructionTypes, crossSections, terrain, scale, style,
                 designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper)) {
-                return new PortalStation(station, entry);
+                return new PortalBoundaryResult(
+                    boundaryStation,
+                    entry,
+                    direction,
+                    PortalStationStatus.FOUND,
+                    new PortalStation(station, entry, direction));
             }
         }
-        return null;
+        return new PortalBoundaryResult(
+            boundaryStation,
+            entry,
+            direction,
+            PortalStationStatus.NOT_FOUND,
+            null);
     }
 
     private static boolean isFeasiblePortalStation(

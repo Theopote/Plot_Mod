@@ -200,6 +200,8 @@ public final class RoadGenerationResultAssembler {
         result.fillVolume = metrics.fillVolume;
         result.bridgeCount = metrics.bridgeCount;
         result.tunnelCount = metrics.tunnelCount;
+        result.portalFoundCount = metrics.portalFoundCount;
+        result.portalNotFoundCount = metrics.portalNotFoundCount;
     }
 
     public static void applyConstructionStats(RoadGenerationResult result, ConstructionDetection detection) {

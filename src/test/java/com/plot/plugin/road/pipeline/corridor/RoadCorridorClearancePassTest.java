@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import org.junit.jupiter.api.Test;
@@ -152,6 +153,50 @@ class RoadCorridorClearancePassTest {
         assertTrue(solids.primitives().stream()
             .noneMatch(p -> p.elevation() > roofTop && "minecraft:air".equals(p.materialId())),
             "tunnel clearance must not carve air above roof shell");
+    }
+
+    @Test
+    void tunnelModeUsesStationEnvelopeWidthOnClearanceCell() {
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        int narrowEnvelope = 3;
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64, narrowEnvelope);
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                new Vec2d(0, 0),
+                64,
+                roofTop,
+                RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL,
+                0,
+                narrowEnvelope));
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 80;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 80;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(solids, plan, mountain, host);
+
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 65 && "minecraft:air".equals(p.materialId())));
+        assertTrue(solids.primitives().stream()
+            .noneMatch(p -> p.elevation() > roofTop && "minecraft:air".equals(p.materialId())),
+            "narrow station envelope must drive roof cap, not global config width");
     }
 
     @Test
