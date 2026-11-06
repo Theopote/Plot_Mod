@@ -127,6 +127,11 @@ public final class PrefetchedGroundTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+        return fallback.isGravityAffectedBlock(worldX, y, worldZ);
+    }
+
+    @Override
     public boolean isChunkLoaded(int worldX, int worldZ) {
         long key = packColumn(worldX, worldZ);
         if (knownColumns.contains(key)) {

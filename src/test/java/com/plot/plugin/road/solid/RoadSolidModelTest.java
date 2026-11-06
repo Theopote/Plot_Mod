@@ -48,6 +48,41 @@ class RoadSolidModelTest {
     }
 
     @Test
+    void accentRingBeatsOrdinaryLiningRegardlessOfBlockIdOrder() {
+        // Mountain Classic: cobblestone lining vs chiseled_stone_bricks accent
+        // 字典序 chiseled < cobblestone，旧逻辑会丢掉装饰环。
+        Vec2d point = new Vec2d(1, 0);
+        for (boolean accentFirst : new boolean[]{true, false}) {
+            RoadSolidModel model = new RoadSolidModel();
+            if (accentFirst) {
+                assertTrue(model.add(point, 70, RoadSolidLayer.TUNNEL,
+                    "minecraft:chiseled_stone_bricks", RoadSolidMaterialPriority.ACCENT_RING));
+                assertFalse(model.add(point, 70, RoadSolidLayer.TUNNEL,
+                    "minecraft:cobblestone", RoadSolidMaterialPriority.STRUCTURAL));
+            } else {
+                assertTrue(model.add(point, 70, RoadSolidLayer.TUNNEL,
+                    "minecraft:cobblestone", RoadSolidMaterialPriority.STRUCTURAL));
+                assertTrue(model.add(point, 70, RoadSolidLayer.TUNNEL,
+                    "minecraft:chiseled_stone_bricks", RoadSolidMaterialPriority.ACCENT_RING));
+            }
+            assertEquals("minecraft:chiseled_stone_bricks",
+                model.primitives().getFirst().materialId(),
+                "accent must beat lining; accentFirst=" + accentFirst);
+        }
+    }
+
+    @Test
+    void tunnelLightBeatsAccentRing() {
+        RoadSolidModel model = new RoadSolidModel();
+        Vec2d point = new Vec2d(2, 0);
+        assertTrue(model.add(point, 71, RoadSolidLayer.TUNNEL,
+            "minecraft:chiseled_stone_bricks", RoadSolidMaterialPriority.ACCENT_RING));
+        assertTrue(model.add(point, 71, RoadSolidLayer.TUNNEL,
+            "minecraft:lantern", RoadSolidMaterialPriority.DECORATIVE));
+        assertEquals("minecraft:lantern", model.primitives().getFirst().materialId());
+    }
+
+    @Test
     void equalMaterialPriorityUsesSameTieBreakRegardlessOfInsertionOrder() {
         RoadSolidModel model = new RoadSolidModel();
         Vec2d point = new Vec2d(0, 2);

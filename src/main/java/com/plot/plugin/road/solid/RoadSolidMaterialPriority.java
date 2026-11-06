@@ -10,10 +10,12 @@ public final class RoadSolidMaterialPriority {
     public static final int AIR = 0;
     /** 隧道衬砌、洞门等结构材质。 */
     public static final int STRUCTURAL = 1;
-    /** 隧道灯光、装饰等应覆盖结构/空气的材质。 */
-    public static final int DECORATIVE = 2;
+    /** 装饰环：覆盖普通衬砌，但低于灯具。 */
+    public static final int ACCENT_RING = 2;
+    /** 隧道灯光等应覆盖结构/装饰环/空气的材质。 */
+    public static final int DECORATIVE = 3;
     /** 路口占位清场：压过边残留的衬砌/路面，保证路口柱可通行。 */
-    public static final int CLEARANCE = 3;
+    public static final int CLEARANCE = 4;
 
     private RoadSolidMaterialPriority() {
     }

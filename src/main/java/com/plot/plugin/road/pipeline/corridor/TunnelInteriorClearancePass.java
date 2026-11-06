@@ -13,6 +13,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -67,9 +68,24 @@ public final class TunnelInteriorClearancePass {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
-            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            // 与 TunnelStructureGenerator 对齐：对角线/急弯加密，锐折顶点邻域跳过，避免清障与衬砌覆盖不一致。
+            boolean diagonal = Math.abs(leftNormal.x) > EPSILON && Math.abs(leftNormal.y) > EPSILON;
+            boolean acuteIncoming = i > 0
+                && TunnelStructureGenerator.isAcutePolylineTurn(segments.get(i - 1), segment);
+            boolean acuteOutgoing = i + 1 < segments.size()
+                && TunnelStructureGenerator.isAcutePolylineTurn(segment, segments.get(i + 1));
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale
+                * (diagonal || acuteIncoming || acuteOutgoing ? 3 : 1)));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
+                double along = segment.distance * t;
+                double skipRadius = Math.max(scale, 1.25 * scale);
+                if (acuteIncoming && along < skipRadius) {
+                    continue;
+                }
+                if (acuteOutgoing && segment.distance - along < skipRadius) {
+                    continue;
+                }
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
                 double worldStation = geometryLocal / scale;

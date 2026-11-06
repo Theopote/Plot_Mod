@@ -8,6 +8,7 @@ import com.plot.plugin.road.pipeline.corridor.RoadCorridorClearancePass;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlanBuilder;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorSolidEmitter;
 import com.plot.plugin.road.pipeline.corridor.RoadGenerationIntegrityValidator;
+import com.plot.plugin.road.pipeline.corridor.TunnelFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.TunnelInteriorClearancePass;
 import com.plot.plugin.road.pipeline.corridor.TunnelPortalBackfillPass;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
@@ -42,7 +43,8 @@ import org.slf4j.LoggerFactory;
  *    ├─ TunnelPortalBackfillPass
  *    ├─ RoadVoxelRasterizerPass
  *    ├─ RoadSurfacePlacementPass
- *    └─ RoadGenerationIntegrityValidator
+ *    ├─ RoadGenerationIntegrityValidator
+ *    └─ TunnelFinalVoxelValidator
  * </pre>
  *
  * <p>Profile solving runs upstream via {@link com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator}.
@@ -220,6 +222,8 @@ public final class RoadGenerationPipeline {
                 request.gradeSeparation(),
                 previousBlockId);
             RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain(), planHost);
+            TunnelFinalVoxelValidator.applyReportToResult(
+                result, TunnelFinalVoxelValidator.validate(result, ctx.terrain()));
             stage("surface-validate", stageStarted, edgeId);
             stage("pipeline-total", pipelineStarted, edgeId);
             return result;
