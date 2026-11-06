@@ -237,20 +237,6 @@ public final class RoadSolidModel {
     }
 
     /**
-     * 沿法线方向铺设固定方块宽度的条带（1 格 = 1 方块）。
-     * 使用默认画布缩放（1 画布单位 = 1 方块），适用于无坐标变换器的测试场景。
-     */
-    public void addLateralStrip(
-            Vec2d center,
-            Vec2d leftNormal,
-            int widthBlocks,
-            int elevation,
-            RoadSolidLayer layer,
-            String materialId) {
-        addLateralStrip(center, leftNormal, widthBlocks, elevation, layer, materialId, 1.0);
-    }
-
-    /**
      * 沿法线方向铺设固定方块宽度的条带，横向步进按画布/世界缩放补偿。
      *
      * @param canvasUnitsPerBlock 1 个世界方块对应的画布坐标长度；1.0 表示画布单位已与方块对齐

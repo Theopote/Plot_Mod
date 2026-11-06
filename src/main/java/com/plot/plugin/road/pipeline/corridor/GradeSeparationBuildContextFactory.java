@@ -110,7 +110,10 @@ public final class GradeSeparationBuildContextFactory {
         if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
             return;
         }
-        addUnderpassZone(network, node, networkNodeElevations, config, elevatedRoadId, zones);
+        // 下层净空上界须覆盖上层路面投影；斜交时仅 underpass 臂多边形会漏柱，
+        // 导致 openRoadClearanceTops 顶到 deckY 并清掉承重层高度。
+        addUnderpassZone(network, node, networkNodeElevations, config, elevatedRoadId, zones,
+            /*includeElevatedInPolygon*/ true);
     }
 
     private static void addUnderpassZone(
@@ -120,6 +123,17 @@ public final class GradeSeparationBuildContextFactory {
             RoadSystemConfig config,
             String elevatedRoadId,
             List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones) {
+        addUnderpassZone(network, node, networkNodeElevations, config, elevatedRoadId, zones, false);
+    }
+
+    private static void addUnderpassZone(
+            RoadNetwork network,
+            RoadNode node,
+            Map<String, Integer> networkNodeElevations,
+            RoadSystemConfig config,
+            String elevatedRoadId,
+            List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones,
+            boolean includeElevatedInPolygon) {
         Integer underpassY = networkNodeElevations.get(node.getId());
         if (underpassY == null) {
             return;
@@ -127,7 +141,8 @@ public final class GradeSeparationBuildContextFactory {
         double clearance = GradeSeparationClearance.forNode(
             node.getCrossingClearance(), node, network, elevatedRoadId, config);
         int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
-        List<Vec2d> polygon = junctionPolygon(network, node, config, elevatedRoadId);
+        List<Vec2d> polygon = junctionPolygon(
+            network, node, config, includeElevatedInPolygon ? null : elevatedRoadId);
         if (polygon.size() >= 3) {
             zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY, underpassY));
         }

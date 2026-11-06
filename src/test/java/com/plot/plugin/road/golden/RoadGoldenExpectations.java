@@ -38,12 +38,12 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
         206, 49, 35, 0, 0, 37, 0, 35, 49, 241, 0, 0, List.of());
 
-    // Bridge/tunnel classification and portal excavation after tunnel sparse sampling.
+    // Bridge/tunnel cut volume after portal envelope / clearance tuning.
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
-        217, 0, 5390, 0, 108, 1230, 0, 5390, 0, 1555, 1, 2, List.of());
+        217, 0, 5286, 0, 108, 1216, 0, 5286, 0, 1541, 1, 2, List.of());
 
     public static final RoadGoldenMetrics R09 = new RoadGoldenMetrics(
-        401, 0, 3896, 0, 0, 2112, 0, 3896, 0, 2513, 0, 1, List.of());
+        401, 0, 3851, 0, 0, 2112, 0, 3851, 0, 2513, 0, 1, List.of());
 
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());

@@ -60,16 +60,18 @@ public record GradeSeparationBuildContext(
     /**
      * For lower (at-grade) edges under a deck: max Y that open clearance may clear.
      * {@code floorY} is elevated pavement Y；净空停在承重层（pavement − supportDepth）之下。
+     * <p>
+     * Cap applies for the whole lower-edge build context (not only in-polygon samples).
+     * Skew crossings place underpass corridor columns just outside the junction fill
+     * polygon while still clearing up into the elevated underside plane; polygon-only
+     * gating left those columns with {@code openRoadClearanceTops} through {@code floorY}.
      */
     public Integer maxOpenClearTopY(Vec2d planPoint) {
-        if (elevatedRoadEdge || planPoint == null || protectedZones.isEmpty()) {
+        if (elevatedRoadEdge || protectedZones.isEmpty()) {
             return null;
         }
         Integer max = null;
         for (ProtectedUnderpassZone zone : protectedZones) {
-            if (!RoadGeometryUtils.pointInPolygon(planPoint, zone.polygon())) {
-                continue;
-            }
             int supportBottom = zone.floorY() - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
             int cap = supportBottom - 1;
             max = max == null ? cap : Math.min(max, cap);

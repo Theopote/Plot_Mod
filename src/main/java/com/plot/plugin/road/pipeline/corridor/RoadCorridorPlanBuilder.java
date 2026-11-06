@@ -765,22 +765,6 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold,
-            Integer envelopeWidthBlocks) {
-        writeSurfaceAndClearance(
-            plan, planPoint, surfaceY, layer, materialId, host, terrain, constructionType,
-            tunnelThreshold, envelopeWidthBlocks, null);
-    }
-
-    static void writeSurfaceAndClearance(
-            RoadCorridorPlan plan,
-            Vec2d planPoint,
-            int surfaceY,
-            RoadSolidLayer layer,
-            String materialId,
-            PlanHost host,
-            TerrainSampler terrain,
-            RoadConstructionType constructionType,
-            int tunnelThreshold,
             Integer envelopeWidthBlocks,
             Integer corridorLateral) {
         planPoint = host.canonicalColumnPoint(planPoint);
