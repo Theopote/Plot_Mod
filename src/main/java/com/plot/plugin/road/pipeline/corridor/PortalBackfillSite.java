@@ -6,6 +6,7 @@ import com.plot.api.geometry.Vec2d;
  * One tunnel portal station for {@link TunnelPortalBackfillPass}: real plan geometry,
  * not a collapsed canvas-X bucket.
  * <p>
+ * {@code forward} points toward increasing chainage (station-increasing tangent).
  * {@code intoHillSign}: +1 / -1 along {@link #forward()} toward tunnel interior;
  * 0 means unknown (backfill pass falls back to column voting).
  */

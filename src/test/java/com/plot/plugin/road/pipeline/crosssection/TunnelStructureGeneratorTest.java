@@ -658,6 +658,19 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
+    void designedOuterShellAtCarriageHalfPlusClearanceIsNotClipped() {
+        // R09-style ARCH shell at |lateral|≈3 with carriageHalf≈2.5 must survive:
+        // VOXEL_MARGIN must not eat the design lining (3 < 2.5+0.55 was the CI false positive).
+        PathSegment owner = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
+        assertFalse(TunnelStructureGenerator.liningIntrudesCarriageway(
+            new Vec2d(10, 3.0), owner, null, null, List.of(owner), 2.5, 1.0));
+        assertFalse(TunnelStructureGenerator.liningIntrudesCarriageway(
+            new Vec2d(10, 3.0), owner, null, null, null, 2.5, 1.0));
+        assertTrue(TunnelStructureGenerator.liningIntrudesCarriageway(
+            new Vec2d(10, 2.0), owner, null, null, List.of(owner), 2.5, 1.0));
+    }
+
+    @Test
     void acuteHairpinConvertsNeighborCarriagewayLiningToAir() {
         // 接近 180° 回头：上一段水平，下一段几乎折回
         PathSegment previous = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));

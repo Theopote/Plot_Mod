@@ -39,6 +39,14 @@ public class RoadGenerationResult {
      */
     public final Map<BlockPos, ExpectedRoadSurface> expectedRoadSurfaces = new LinkedHashMap<>();
     /**
+     * 计划隧道洞腔世界格（与最终 AIR 用途表脱钩；实体覆盖后仍保留）。
+     */
+    public final java.util.Set<BlockPos> expectedTunnelCavity = new java.util.LinkedHashSet<>();
+    /**
+     * 计划隧道衬砌世界格（与最终放置胜出结果脱钩）。
+     */
+    public final java.util.Set<BlockPos> expectedTunnelLining = new java.util.LinkedHashSet<>();
+    /**
      * Aggregate-network stage timings in nanoseconds (0 when not recorded).
      * Used for large-network profiling; safe to ignore in normal gameplay paths.
      */
@@ -131,6 +139,18 @@ public class RoadGenerationResult {
         expectedRoadSurfaces.put(expected.position(), expected);
     }
 
+    public void recordExpectedTunnelCavity(BlockPos pos) {
+        if (pos != null) {
+            expectedTunnelCavity.add(pos.toImmutable());
+        }
+    }
+
+    public void recordExpectedTunnelLining(BlockPos pos) {
+        if (pos != null) {
+            expectedTunnelLining.add(pos.toImmutable());
+        }
+    }
+
     public void recordPlacementIfAbsent(BlockPos pos, String previousBlockId, String newBlockId) {
         RoadPlacementRecorder.recordIfAbsent(placementRecords, pos, previousBlockId, newBlockId);
     }
@@ -176,6 +196,8 @@ public class RoadGenerationResult {
         source.openRoadClearanceTops.forEach((pos, top) -> openRoadClearanceTops.merge(pos, top, Math::max));
         // 后写入的同柱期望覆盖先前（路口权威高于走廊边缘）。
         expectedRoadSurfaces.putAll(source.expectedRoadSurfaces);
+        expectedTunnelCavity.addAll(source.expectedTunnelCavity);
+        expectedTunnelLining.addAll(source.expectedTunnelLining);
         roadBlocks.addAll(source.roadBlocks);
         sidewalkBlocks.addAll(source.sidewalkBlocks);
         bridgeBlocks.addAll(source.bridgeBlocks);

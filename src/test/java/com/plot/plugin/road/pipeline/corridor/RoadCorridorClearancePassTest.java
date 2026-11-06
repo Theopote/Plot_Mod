@@ -125,7 +125,8 @@ class RoadCorridorClearancePassTest {
         plan.putClearance(
             new ColumnKey(0, 0),
             new ClearanceCell(
-                point, 64, roofTop, RoadCorridorConstructionMode.TUNNEL, null, 0));
+                point, 64, roofTop, RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL, 0));
 
         TerrainSampler mountain = new TerrainSampler() {
             @Override
@@ -153,6 +154,42 @@ class RoadCorridorClearancePassTest {
         assertTrue(solids.primitives().stream()
             .noneMatch(p -> p.elevation() > roofTop && "minecraft:air".equals(p.materialId())),
             "tunnel clearance must not carve air above roof shell");
+    }
+
+    @Test
+    void tunnelModeWithoutLateralDoesNotClear() {
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64, 5);
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                new Vec2d(0, 0),
+                64,
+                roofTop,
+                RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL,
+                null,
+                5));
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 80;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(solids, plan, mountain, host);
+        assertEquals(0, solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .count(),
+            "null corridorLateral must fail-closed and skip tunnel-column clearance");
     }
 
     @Test
@@ -294,6 +331,61 @@ class RoadCorridorClearancePassTest {
         assertTrue(solids.primitives().stream()
             .noneMatch(p -> p.elevation() >= 71 && "minecraft:air".equals(p.materialId())),
             "must not punch into elevated underside or pavement");
+    }
+
+    @Test
+    void gradeSepTunnelUnderpassRespectsDeckCap() {
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        // Tall cavity would clear through the elevated deck without deckCap (default height
+        // only reaches ~designY+5 and never hits the deck).
+        var config = CorridorTestFixtures.baseConfig();
+        config.getTunnelStyle().setClearHeight(12);
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                point, 64, 80, RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL, 0, 5));
+        GradeSeparationBuildContext underpass = new GradeSeparationBuildContext(
+            false,
+            List.of(new GradeSeparationBuildContext.ProtectedUnderpassZone(
+                List.of(
+                    new Vec2d(-2, -2), new Vec2d(2, -2),
+                    new Vec2d(2, 2), new Vec2d(-2, 2)),
+                72)));
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 90;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 90;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 90;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(
+            solids,
+            plan,
+            mountain,
+            CorridorTestFixtures.planHost(config),
+            null,
+            underpass);
+
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 70 && "minecraft:air".equals(p.materialId())),
+            "tunnel underpass may clear up to deckCap");
+        assertTrue(solids.primitives().stream()
+            .noneMatch(p -> p.elevation() >= 71 && "minecraft:air".equals(p.materialId())),
+            "tunnel underpass must not punch into elevated deck / pavement");
     }
 
     @Test

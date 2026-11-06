@@ -116,7 +116,7 @@ final class CorridorTestFixtures {
 
             @Override
             public ResolvedTunnelStyle tunnelStyle() {
-                return ResolvedTunnelStyle.defaults();
+                return ResolvedTunnelStyle.from(config.getTunnelStyle());
             }
         };
     }

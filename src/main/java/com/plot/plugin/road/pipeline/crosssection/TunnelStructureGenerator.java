@@ -12,6 +12,7 @@ import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.ConstructionRun;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
+import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
 import com.plot.plugin.road.pipeline.corridor.NeighborCarriagewayClip;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
@@ -428,19 +429,25 @@ public final class TunnelStructureGenerator {
                     if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
                         cutHolder[0]++;
                     }
-                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                    solids.add(
+                        point, y, RoadSolidLayer.TUNNEL, "minecraft:air",
+                        RoadSolidMaterialPriority.AIR, ClearancePurpose.TUNNEL_INTERIOR);
                 } else if (Math.abs(lateral) * scale + 1e-9 >= carriageHalf
                         && liningIntrudesCarriageway(
                             point, owner, previous, next, polyline, carriageHalf, scale)) {
                     if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
                         cutHolder[0]++;
                     }
-                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                    solids.add(
+                        point, y, RoadSolidLayer.TUNNEL, "minecraft:air",
+                        RoadSolidMaterialPriority.AIR, ClearancePurpose.TUNNEL_INTERIOR);
                 } else if (!shouldPlaceLining(terrain, worldX, y, worldZ, point)
                         && terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
                     // Only clearable decoration — not engineering solid — when lining is refused.
                     // Punching air through near-surface shell solids recreates roof holes / gravel falls.
-                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+                    solids.add(
+                        point, y, RoadSolidLayer.TUNNEL, "minecraft:air",
+                        RoadSolidMaterialPriority.AIR, ClearancePurpose.TUNNEL_INTERIOR);
                     cutHolder[0]++;
                 }
             }
@@ -710,7 +717,7 @@ public final class TunnelStructureGenerator {
                 PathSegment previous = si > 0 ? segments.get(si - 1) : null;
                 PathSegment next = si + 1 < segments.size() ? segments.get(si + 1) : null;
                 double carriageHalf = Math.max(0.5, crossSection.carriagewayHalfWidth()) * scale;
-                // 洞门加厚与洞身共用路径裁剪，避免急弯洞口墙体侵入车行道。
+                // 洞门帧只用本段/邻段裁剪：整条 polyline 会把直线洞口外壳误裁成空气。
                 total = total.add(placeCrossSection(
                     solids,
                     tunnelStyle,
@@ -728,7 +735,7 @@ public final class TunnelStructureGenerator {
                     previous,
                     next,
                     carriageHalf,
-                    segments));
+                    null));
             }
         }
         return total;
@@ -796,11 +803,12 @@ public final class TunnelStructureGenerator {
     }
 
     /**
-     * 侧壁衬砌是否侵入行车道（含体素余量）。
+     * 侧壁衬砌是否侵入行车道。
      * <ul>
-     *   <li>邻段：始终检测（回头弯对侧串壁）</li>
-     *   <li>本段：尖角时侧壁落点可折回本段车行道，也须裁成空气；调用方须保证仅对
-     *       {@code |lateral|≥carriageHalf} 的侧壁格调用（顶板 lateral≈0 不调用）</li>
+     *   <li>本段 / polyline / 共线邻段：严格 {@code carriageHalf}（不加体素余量），避免把设计壳层
+     *       （约 {@code |lateral| ≈ carriageHalf + sideClearance}）误裁成空气</li>
+     *   <li>急弯邻段：才加 {@link NeighborCarriagewayClip#VOXEL_MARGIN}，挡住回头弯对侧串壁</li>
+     *   <li>调用方须保证仅对 {@code |lateral|≥carriageHalf} 的侧壁格调用（顶板 lateral≈0 不调用）</li>
      * </ul>
      */
     static boolean liningIntrudesCarriageway(
@@ -814,26 +822,35 @@ public final class TunnelStructureGenerator {
         if (point == null || carriageHalf <= 0.0) {
             return false;
         }
-        double margin = NeighborCarriagewayClip.VOXEL_MARGIN * Math.max(scale, 1e-9);
         if (polyline != null && !polyline.isEmpty()) {
             for (PathSegment segment : polyline) {
                 if (segment == null) {
                     continue;
                 }
                 if (com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
-                        point, segment.start, segment.end) + 1e-9 < carriageHalf + margin) {
+                        point, segment.start, segment.end) + 1e-9 < carriageHalf) {
                     return true;
                 }
             }
-            return false;
-        }
-        if (owner != null
+        } else if (owner != null
                 && com.plot.core.geometry.GeometryUtils.pointToSegmentDistance(
-                    point, owner.start, owner.end) + 1e-9 < carriageHalf + margin) {
+                    point, owner.start, owner.end) + 1e-9 < carriageHalf) {
             return true;
         }
+        double acuteMargin = NeighborCarriagewayClip.VOXEL_MARGIN * Math.max(scale, 1e-9);
+        if (previous != null && owner != null && isAcutePolylineTurn(previous, owner)
+                && NeighborCarriagewayClip.insideNeighborCarriageway(
+                    point, previous, null, carriageHalf, acuteMargin)) {
+            return true;
+        }
+        if (next != null && owner != null && isAcutePolylineTurn(owner, next)
+                && NeighborCarriagewayClip.insideNeighborCarriageway(
+                    point, null, next, carriageHalf, acuteMargin)) {
+            return true;
+        }
+        // 共线邻段不加 margin：否则 |lateral|≈carriageHalf+sideClearance 的设计壳会被误裁。
         return NeighborCarriagewayClip.insideNeighborCarriageway(
-            point, previous, next, carriageHalf, margin);
+            point, previous, next, carriageHalf, 0.0);
     }
 
     /**

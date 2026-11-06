@@ -87,7 +87,8 @@ public final class RoadCorridorClearancePass {
         int topY = Math.max(cell.clearTopY(), designY);
         if (cell.mode() == RoadCorridorConstructionMode.TUNNEL && host != null) {
             return clearTunnelInterior(
-                solids, cell, key, terrain, host, designY, topY, ClearancePurpose.TUNNEL_INTERIOR);
+                solids, cell, key, terrain, host, designY, topY, gradeSeparation,
+                ClearancePurpose.TUNNEL_INTERIOR);
         }
         if (host != null && portalGuard != null) {
             ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
@@ -298,6 +299,7 @@ public final class RoadCorridorClearancePass {
             RoadCorridorPlanBuilder.PlanHost host,
             int designY,
             int topY,
+            GradeSeparationBuildContext gradeSeparation,
             ClearancePurpose purpose) {
         int envelopeWidth = resolveEnvelopeWidth(cell, host);
         var tunnelStyle = host.tunnelStyle();
@@ -311,14 +313,24 @@ public final class RoadCorridorClearancePass {
             false);
         int roofTop = mask.maxY();
         topY = Math.min(topY, roofTop);
-        int cleared = 0;
+        Integer deckCap = gradeSeparation != null
+            ? gradeSeparation.maxOpenClearTopY(cell.planPoint())
+            : null;
+        if (deckCap != null) {
+            topY = Math.min(topY, Math.max(designY, deckCap));
+        }
         Integer lateral = cell.corridorLateral();
+        // 无横向坐标时无法把世界柱映射到掩膜格：fail-closed，避免整柱挖穿衬砌壳。
+        if (lateral == null) {
+            return 0;
+        }
+        int cleared = 0;
         for (int y = designY + 1; y <= topY; y++) {
-            if (lateral != null && mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {
+            if (mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {
                 continue;
             }
             cleared += clearObstruction(
-                solids, cell, key, terrain, y, GradeSeparationBuildContext.NONE, purpose);
+                solids, cell, key, terrain, y, gradeSeparation, purpose);
         }
         return cleared;
     }

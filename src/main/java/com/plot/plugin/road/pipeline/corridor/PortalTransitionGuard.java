@@ -87,7 +87,7 @@ final class PortalTransitionGuard {
         if (designY == null) {
             return requestedTopY;
         }
-        int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
+        int roofTop = portalRoofTopNear(planPoint, host, designY);
         return Math.min(requestedTopY, roofTop);
     }
 
@@ -101,7 +101,7 @@ final class PortalTransitionGuard {
         if (designY == null) {
             return groundY;
         }
-        int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
+        int roofTop = portalRoofTopNear(planPoint, host, designY);
         return Math.min(groundY, roofTop);
     }
 
@@ -139,7 +139,37 @@ final class PortalTransitionGuard {
         if (designY == null) {
             return requestedSurfaceY;
         }
-        int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
+        int roofTop = portalRoofTopNear(planPoint, host, designY);
         return Math.min(requestedSurfaceY, roofTop - 1);
+    }
+
+    private int portalRoofTopNear(
+            Vec2d planPoint,
+            RoadCorridorPlanBuilder.PlanHost host,
+            int designY) {
+        Integer envelope = nearestSiteEnvelopeWidth(planPoint, host);
+        return RoadCorridorPlanBuilder.portalRoofTopY(host, designY, envelope);
+    }
+
+    private Integer nearestSiteEnvelopeWidth(
+            Vec2d planPoint,
+            RoadCorridorPlanBuilder.PlanHost host) {
+        if (sites.isEmpty() || planPoint == null || host == null) {
+            return null;
+        }
+        PortalBackfillSite best = null;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (PortalBackfillSite site : sites) {
+            double scale = site.unitsPerBlock() > 1e-9 ? site.unitsPerBlock() : 1.0;
+            double dist = planPoint.subtract(site.center()).length() / scale;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = site;
+            }
+        }
+        if (best == null || best.envelopeWidthBlocks() <= 0) {
+            return null;
+        }
+        return best.envelopeWidthBlocks();
     }
 }

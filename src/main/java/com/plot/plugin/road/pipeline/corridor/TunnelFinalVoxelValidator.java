@@ -8,10 +8,12 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 隧道最终体素校验：洞腔残留、灯具无衬砌安装面等专项指标。
- * 与 {@link RoadGenerationIntegrityValidator} 的开放走廊清障互补（后者跳过 TUNNEL mode）。
+ * 隧道最终体素校验：洞腔残留、灯具无衬砌安装面、衬砌缺失等专项指标。
+ * 洞腔/衬砌期望来自 {@link RoadGenerationResult#expectedTunnelCavity} /
+ * {@link RoadGenerationResult#expectedTunnelLining}，不得用最终 AIR 用途表反推。
  */
 public final class TunnelFinalVoxelValidator {
     private TunnelFinalVoxelValidator() {
@@ -36,7 +38,8 @@ public final class TunnelFinalVoxelValidator {
         }
         int uncleared = countUnclearedTunnelCavity(result, terrain);
         int floatingLights = countFloatingTunnelLights(result);
-        return new Report(uncleared, floatingLights, 0);
+        int missingLining = countMissingTunnelLining(result);
+        return new Report(uncleared, floatingLights, missingLining);
     }
 
     public static void applyReportToResult(RoadGenerationResult result, Report report) {
@@ -49,15 +52,15 @@ public final class TunnelFinalVoxelValidator {
     }
 
     /**
-     * 计划为隧道净空 AIR，但最终仍非空气，且原始/当前采样仍见实体障碍。
+     * 计划为隧道净空，但最终仍非空气，且原始/当前采样仍见实体障碍。
      */
     static int countUnclearedTunnelCavity(RoadGenerationResult result, TerrainSampler terrain) {
+        Set<BlockPos> expected = result.expectedTunnelCavity;
+        if (expected == null || expected.isEmpty()) {
+            return 0;
+        }
         int count = 0;
-        for (Map.Entry<BlockPos, ClearancePurpose> entry : result.placementClearancePurposes.entrySet()) {
-            if (entry.getValue() != ClearancePurpose.TUNNEL_INTERIOR) {
-                continue;
-            }
-            BlockPos pos = entry.getKey();
+        for (BlockPos pos : expected) {
             BlockRecord record = result.placementRecords.get(pos);
             if (record != null && "minecraft:air".equals(record.newBlockId)) {
                 continue;
@@ -73,6 +76,10 @@ public final class TunnelFinalVoxelValidator {
                     continue;
                 }
             }
+            if (isLiningSolid(result, pos)) {
+                // 合法衬砌占据计划洞腔（掩膜/采样偏移）不计残留
+                continue;
+            }
             if (terrain != null
                     && terrain.isChunkLoaded(pos.getX(), pos.getZ())
                     && isObstruction(terrain, pos.getX(), pos.getY(), pos.getZ())) {
@@ -81,7 +88,29 @@ public final class TunnelFinalVoxelValidator {
                     && record.newBlockId != null
                     && !"minecraft:air".equals(record.newBlockId)
                     && layer != RoadSolidLayer.TUNNEL) {
-                // 无地形上下文时：非隧道层实体占洞腔也计残留
+                count++;
+            } else if (record != null
+                    && record.newBlockId != null
+                    && !"minecraft:air".equals(record.newBlockId)
+                    && layer == RoadSolidLayer.TUNNEL
+                    && (result.placementMaterialPriorities.get(pos) == null
+                        || result.placementMaterialPriorities.get(pos) < RoadSolidMaterialPriority.DECORATIVE)
+                    && !isLiningSolid(result, pos)) {
+                // 无地形时：非灯具隧道实体占洞腔
+                count++;
+            }
+        }
+        return count;
+    }
+
+    static int countMissingTunnelLining(RoadGenerationResult result) {
+        Set<BlockPos> expected = result.expectedTunnelLining;
+        if (expected == null || expected.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (BlockPos pos : expected) {
+            if (!isLiningSolid(result, pos) && !hasCardinalLining(result, pos)) {
                 count++;
             }
         }
@@ -120,6 +149,15 @@ public final class TunnelFinalVoxelValidator {
             }
         }
         return count;
+    }
+
+    private static boolean hasCardinalLining(RoadGenerationResult result, BlockPos pos) {
+        return isLiningSolid(result, pos.add(1, 0, 0))
+            || isLiningSolid(result, pos.add(-1, 0, 0))
+            || isLiningSolid(result, pos.add(0, 1, 0))
+            || isLiningSolid(result, pos.add(0, -1, 0))
+            || isLiningSolid(result, pos.add(0, 0, 1))
+            || isLiningSolid(result, pos.add(0, 0, -1));
     }
 
     private static boolean isLiningSolid(RoadGenerationResult result, BlockPos pos) {

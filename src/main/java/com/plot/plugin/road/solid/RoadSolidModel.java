@@ -38,6 +38,11 @@ public final class RoadSolidModel {
     private final List<RoadSolidPrimitive> primitives = new ArrayList<>();
     private final Set<String> dedupKeys = new LinkedHashSet<>();
     private final Map<String, Integer> keyToIndex = new HashMap<>();
+    /**
+     * 隧道设计期望（跨 overflow {@link #clear()} 保留）：与最终胜出图元无关。
+     */
+    private final Set<BlockPos> expectedTunnelCavity = new LinkedHashSet<>();
+    private final Set<BlockPos> expectedTunnelLining = new LinkedHashSet<>();
     private OverflowHandler overflowHandler;
     private ICoordinateService coordinateService;
     private int droppedDueToLimit;
@@ -70,6 +75,7 @@ public final class RoadSolidModel {
         if (primitive == null) {
             return false;
         }
+        rememberTunnelExpectation(primitive);
 
         if (dedupKeys.size() >= maxDedupKeys) {
             flushOverflowChunk();
@@ -144,6 +150,44 @@ public final class RoadSolidModel {
             + '@' + pos.getX()
             + ',' + pos.getY()
             + ',' + pos.getZ();
+    }
+
+    private void rememberTunnelExpectation(RoadSolidPrimitive primitive) {
+        if (primitive.layer() != RoadSolidLayer.TUNNEL) {
+            return;
+        }
+        BlockPos pos = expectationBlockPos(primitive);
+        String materialId = primitive.materialId();
+        if ("minecraft:air".equals(materialId)
+                && primitive.clearancePurpose() == ClearancePurpose.TUNNEL_INTERIOR) {
+            expectedTunnelCavity.add(pos.toImmutable());
+            return;
+        }
+        if (materialId != null
+                && !"minecraft:air".equals(materialId)
+                && primitive.materialPriority() >= RoadSolidMaterialPriority.STRUCTURAL
+                && primitive.materialPriority() < RoadSolidMaterialPriority.DECORATIVE) {
+            expectedTunnelLining.add(pos.toImmutable());
+        }
+    }
+
+    private BlockPos expectationBlockPos(RoadSolidPrimitive primitive) {
+        if (coordinateService != null) {
+            return RoadVoxelRasterizer.toBlockPos(
+                primitive.planPoint(), primitive.elevation(), coordinateService);
+        }
+        return new BlockPos(
+            (int) Math.round(primitive.planPoint().x),
+            primitive.elevation(),
+            (int) Math.round(primitive.planPoint().y));
+    }
+
+    public Set<BlockPos> expectedTunnelCavityPositions() {
+        return Collections.unmodifiableSet(expectedTunnelCavity);
+    }
+
+    public Set<BlockPos> expectedTunnelLiningPositions() {
+        return Collections.unmodifiableSet(expectedTunnelLining);
     }
 
     private void flushOverflowChunk() {

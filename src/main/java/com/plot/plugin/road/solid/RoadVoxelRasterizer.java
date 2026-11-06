@@ -103,6 +103,7 @@ public final class RoadVoxelRasterizer {
         if (solids.getDroppedDueToLimit() > 0) {
             result.droppedSolidCount += solids.getDroppedDueToLimit();
         }
+        transferTunnelExpectations(result, solids);
         if (solids.isEmpty()) {
             return;
         }
@@ -112,6 +113,17 @@ public final class RoadVoxelRasterizer {
             RoadVoxelRasterizer::writePlacementRecord);
 
         result.streetlightCount = result.streetlightBlocks.size();
+    }
+
+    private static void transferTunnelExpectations(
+            RoadGenerationResult result,
+            RoadSolidModel solids) {
+        for (BlockPos pos : solids.expectedTunnelCavityPositions()) {
+            result.recordExpectedTunnelCavity(pos);
+        }
+        for (BlockPos pos : solids.expectedTunnelLiningPositions()) {
+            result.recordExpectedTunnelLining(pos);
+        }
     }
 
     /**

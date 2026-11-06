@@ -142,18 +142,21 @@ public final class CrossSectionSpanRasterizer {
                 Integer envelopeTag = constructionType != null && constructionType.isTunnelFamily()
                     ? RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection)
                     : null;
+                Integer lateralTag = constructionType != null && constructionType.isTunnelFamily()
+                    ? lateral
+                    : null;
                 if (spec.materialMix() != null) {
                     BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
                     String materialId = MaterialMixResolver.resolve(
                         spec.materialMix(), pos, seedKey, host::resolveBlockId);
                     RoadCorridorPlanBuilder.writeSurfaceAndClearance(
                         plan, planPoint, surfaceY, spec.layer(), materialId, host,
-                        terrain, constructionType, tunnelThreshold, envelopeTag);
+                        terrain, constructionType, tunnelThreshold, envelopeTag, lateralTag);
                 } else {
                     String materialId = host.resolveBlockId(spec.materialId());
                     RoadCorridorPlanBuilder.writeSurfaceAndClearance(
                         plan, planPoint, surfaceY, spec.layer(), materialId, host,
-                        terrain, constructionType, tunnelThreshold, envelopeTag);
+                        terrain, constructionType, tunnelThreshold, envelopeTag, lateralTag);
                 }
             }
         }

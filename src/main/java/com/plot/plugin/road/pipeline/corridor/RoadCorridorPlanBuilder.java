@@ -220,27 +220,69 @@ public final class RoadCorridorPlanBuilder {
     }
 
     /**
-     * +1 along station-order forward is into the hill / tunnel; -1 is the open approach.
-     * 0 when neighbors do not clearly indicate a side (backfill falls back to column voting).
+     * Unit tangent pointing toward increasing {@link StationSample#chainage()}.
+     * Independent of {@code samplingOriented().forward()} / leftNormal flip.
+     */
+    static Vec2d stationIncreasingForward(List<StationSample> stations, int index) {
+        if (stations == null || index < 0 || index >= stations.size()) {
+            return new Vec2d(1, 0);
+        }
+        StationSample sample = stations.get(index);
+        StationSample higher = null;
+        StationSample lower = null;
+        for (int i = 0; i < stations.size(); i++) {
+            if (i == index) {
+                continue;
+            }
+            StationSample other = stations.get(i);
+            if (other.chainage() > sample.chainage() + 1e-9) {
+                if (higher == null || other.chainage() < higher.chainage()) {
+                    higher = other;
+                }
+            } else if (other.chainage() < sample.chainage() - 1e-9) {
+                if (lower == null || other.chainage() > lower.chainage()) {
+                    lower = other;
+                }
+            }
+        }
+        if (higher != null) {
+            Vec2d delta = higher.center().subtract(sample.center());
+            if (delta.lengthSquared() > 1e-12) {
+                return delta.normalize();
+            }
+        }
+        if (lower != null) {
+            Vec2d delta = sample.center().subtract(lower.center());
+            if (delta.lengthSquared() > 1e-12) {
+                return delta.normalize();
+            }
+        }
+        Vec2d leftNormal = normalize(sample.leftNormal());
+        return new Vec2d(leftNormal.y, -leftNormal.x);
+    }
+
+    /**
+     * +1 along {@link #stationIncreasingForward} is into the hill / tunnel; -1 is the open approach.
+     * Compares tunnel-family density by chainage, not list index (reverse sampling flips normals
+     * but keeps geometric list order).
      */
     static int inferPortalIntoHillSign(List<StationSample> stations, int index) {
         if (stations == null || index < 0 || index >= stations.size()) {
             return 0;
         }
+        double chainage = stations.get(index).chainage();
         int tunnelPlus = 0;
         int tunnelMinus = 0;
-        for (int d = 1; d <= 3; d++) {
-            if (index + d < stations.size()) {
-                RoadConstructionType type = stations.get(index + d).constructionType();
-                if (type != null && type.isTunnelFamily()) {
-                    tunnelPlus++;
-                }
+        for (StationSample other : stations) {
+            RoadConstructionType type = other.constructionType();
+            if (type == null || !type.isTunnelFamily()) {
+                continue;
             }
-            if (index - d >= 0) {
-                RoadConstructionType type = stations.get(index - d).constructionType();
-                if (type != null && type.isTunnelFamily()) {
-                    tunnelMinus++;
-                }
+            double delta = other.chainage() - chainage;
+            if (delta > 1e-9 && delta <= 3.0 + 1e-9) {
+                tunnelPlus++;
+            } else if (delta < -1e-9 && delta >= -3.0 - 1e-9) {
+                tunnelMinus++;
             }
         }
         if (tunnelPlus > tunnelMinus) {
@@ -270,8 +312,7 @@ public final class RoadCorridorPlanBuilder {
             int stationIndex) {
         if (sample.constructionType() == RoadConstructionType.TUNNEL_PORTAL) {
             Vec2d leftNormal = normalize(sample.leftNormal());
-            // leftNormal = (-fy, fx) for forward (fx, fy) → forward = (ly, -lx)
-            Vec2d forward = new Vec2d(leftNormal.y, -leftNormal.x);
+            Vec2d forward = stationIncreasingForward(stations, stationIndex);
             plan.registerPortalBackfillSite(new PortalBackfillSite(
                 sample.center(),
                 leftNormal,
@@ -512,7 +553,7 @@ public final class RoadCorridorPlanBuilder {
             RoadCorridorConstructionMode mode = toMode(constructionType);
             int clearTopY = computeClearTopY(
                 mode, surfaceY, planPoint, terrain, tunnelThreshold, host, envelopeWidthBlocks);
-            Integer lateralTag = constructionType == RoadConstructionType.TUNNEL_PORTAL
+            Integer lateralTag = constructionType != null && constructionType.isTunnelFamily()
                 ? corridorLateral
                 : null;
             plan.putClearance(key, new ClearanceCell(
@@ -711,7 +752,7 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold) {
         writeSurfaceAndClearance(
             plan, planPoint, surfaceY, layer, materialId, host, terrain, constructionType,
-            tunnelThreshold, null);
+            tunnelThreshold, null, null);
     }
 
     static void writeSurfaceAndClearance(
@@ -725,6 +766,23 @@ public final class RoadCorridorPlanBuilder {
             RoadConstructionType constructionType,
             int tunnelThreshold,
             Integer envelopeWidthBlocks) {
+        writeSurfaceAndClearance(
+            plan, planPoint, surfaceY, layer, materialId, host, terrain, constructionType,
+            tunnelThreshold, envelopeWidthBlocks, null);
+    }
+
+    static void writeSurfaceAndClearance(
+            RoadCorridorPlan plan,
+            Vec2d planPoint,
+            int surfaceY,
+            RoadSolidLayer layer,
+            String materialId,
+            PlanHost host,
+            TerrainSampler terrain,
+            RoadConstructionType constructionType,
+            int tunnelThreshold,
+            Integer envelopeWidthBlocks,
+            Integer corridorLateral) {
         planPoint = host.canonicalColumnPoint(planPoint);
         BlockPos worldPos = host.canvasToBlockPos(planPoint);
         int worldX = worldPos.getX();
@@ -739,14 +797,13 @@ public final class RoadCorridorPlanBuilder {
 
         RoadCorridorConstructionMode mode = toMode(constructionType);
         Integer envelopeTag = envelopeWidthBlocks;
-        if (envelopeTag == null && constructionType != null && constructionType.isTunnelFamily()) {
-            // Caller forgot station width; keep null so merge/clearance can still fall back.
-            envelopeTag = null;
-        }
+        Integer lateralTag = constructionType != null && constructionType.isTunnelFamily()
+            ? corridorLateral
+            : null;
         int clearTopY = computeClearTopY(
             mode, designY, planPoint, terrain, tunnelThreshold, host, envelopeTag);
         plan.putClearance(key, new ClearanceCell(
-            planPoint, designY, clearTopY, mode, constructionType, null, envelopeTag));
+            planPoint, designY, clearTopY, mode, constructionType, lateralTag, envelopeTag));
     }
 
     private static List<SlopeProfileSample> mergeSlopeWedge(
