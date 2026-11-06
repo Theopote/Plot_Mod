@@ -83,7 +83,12 @@ public final class SlopeSurfaceConsolidator {
                     && step.horizontalOffset() == tipOffset;
                 columnCandidates
                     .computeIfAbsent(step.columnKey(), ignored -> new ArrayList<>())
-                    .add(new ColumnCandidate(step, rayEntry.getKey(), rayOutcomeForSteps, tipRetaining));
+                    .add(new ColumnCandidate(
+                        step,
+                        rayEntry.getKey(),
+                        rayOutcomeForSteps,
+                        tipRetaining,
+                        bandInterpolationRay));
             }
         }
 
@@ -150,11 +155,17 @@ public final class SlopeSurfaceConsolidator {
             return ColumnResolution.from(candidates.getFirst(), false);
         }
 
-        SlopeConstructionOutcome bestOutcome = candidates.stream()
+        // 真实肩部射线优先于环带插值：COMPLETE 环带不得靠 outcome 排序取消合法挡墙终点。
+        List<ColumnCandidate> shoulder = candidates.stream()
+            .filter(candidate -> !candidate.bandInterpolation())
+            .toList();
+        List<ColumnCandidate> pool = shoulder.isEmpty() ? candidates : shoulder;
+
+        SlopeConstructionOutcome bestOutcome = pool.stream()
             .map(ColumnCandidate::rayOutcome)
             .min(Comparator.comparingInt(SlopeConstructionOutcome::ordinal))
             .orElse(SlopeConstructionOutcome.COMPLETE);
-        List<ColumnCandidate> preferredOutcome = candidates.stream()
+        List<ColumnCandidate> preferredOutcome = pool.stream()
             .filter(candidate -> candidate.rayOutcome() == bestOutcome)
             .toList();
         if (preferredOutcome.size() == 1) {
@@ -335,7 +346,8 @@ public final class SlopeSurfaceConsolidator {
             RayStep step,
             SlopeRayId rayId,
             SlopeConstructionOutcome rayOutcome,
-            boolean tipRetaining) {
+            boolean tipRetaining,
+            boolean bandInterpolation) {
     }
 
     private record RayStep(

@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -97,6 +99,45 @@ class SlopeOuterCornerContinuityTest {
     }
 
     @Test
+    void fillLTurnDoesNotBridgeBandAcrossWaterSuppressedGap() {
+        // 急弯外侧中段为水面禁填：两侧陆地射线不得跨水面连环带。
+        List<Vec2d> path = new ArrayList<>();
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
+        path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(40, 0), new Vec2d(40, 40)));
+
+        TerrainSampler shoreWithWaterPocket = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return 58;
+            }
+
+            @Override
+            public java.util.OptionalInt findExposedWaterSurface(Vec2d planPoint) {
+                // 折点外侧 SE 楔形为水面
+                if (planPoint.x >= 42 && planPoint.y <= -2) {
+                    return java.util.OptionalInt.of(62);
+                }
+                return java.util.OptionalInt.empty();
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 58;
+            }
+        };
+
+        RoadCorridorPlan plan = buildPlan(path, 64, shoreWithWaterPocket, true);
+        for (int x = 44; x <= 50; x++) {
+            for (int z = -8; z <= -3; z++) {
+                ColumnKey key = new ColumnKey(x, z);
+                assertNull(plan.slopeCell(key),
+                    "band must not stamp unauthorized water gap column " + key);
+                assertFalse(plan.allowsSlopeWaterFill(key));
+            }
+        }
+    }
+
+    @Test
     void sharpLTurnBandCellsDoNotEmitSpuriousRetainingWalls() {
         List<Vec2d> path = new ArrayList<>();
         path.addAll(RoadVoxelRasterizer.sampleSpanPoints(new Vec2d(0, 0), new Vec2d(40, 0)));
@@ -163,6 +204,14 @@ class SlopeOuterCornerContinuityTest {
     }
 
     private static RoadCorridorPlan buildCutPlan(List<Vec2d> path, int roadY, int terrainY) {
+        return buildPlan(path, roadY, new FlatTerrainSampler(terrainY), false);
+    }
+
+    private static RoadCorridorPlan buildPlan(
+            List<Vec2d> path,
+            int roadY,
+            TerrainSampler terrain,
+            boolean fillBias) {
         List<PathSegment> segments = new ArrayList<>();
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
         List<RoadConstructionType> types = new ArrayList<>();
@@ -174,7 +223,12 @@ class SlopeOuterCornerContinuityTest {
         }
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();
         config.setCutSlopeRatio(1.0f);
+        config.setFillSlopeRatio(1.0f);
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        // 填方场景抬高桥门槛，避免高填被改判为桥梁而不放坡。
+        var host = fillBias
+            ? CorridorTestFixtures.planHost(config, 32, 32)
+            : CorridorTestFixtures.planHost(config);
         return RoadCorridorPlanBuilder.build(
             segments,
             heightInfos,
@@ -182,10 +236,10 @@ class SlopeOuterCornerContinuityTest {
             types,
             DesignElevationSource.inactive(),
             BuildHeightProfile.inactive(),
-            new FlatTerrainSampler(terrainY),
+            terrain,
             1.0,
             "outer-corner",
             JunctionCorridorBuildContext.NONE,
-            CorridorTestFixtures.planHost(config));
+            host);
     }
 }

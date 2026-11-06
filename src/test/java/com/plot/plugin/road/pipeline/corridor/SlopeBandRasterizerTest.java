@@ -82,6 +82,32 @@ class SlopeBandRasterizerTest {
     }
 
     @Test
+    void canConnectBandRequiresMatchingFillAndWaterAuth() {
+        int[] heights = {64, 63, 62};
+        var authorizedFill = new SlopeBandRasterizer.ShoulderRay(
+            new SlopeRayId(1L, SlopeRayId.ShoulderSide.LEFT),
+            new Vec2d(0, 0), new Vec2d(1, 0), heights, true, "dirt", 1.0f,
+            SlopeConstructionOutcome.COMPLETE, true, 1.0);
+        var unauthorizedFill = new SlopeBandRasterizer.ShoulderRay(
+            new SlopeRayId(2L, SlopeRayId.ShoulderSide.LEFT),
+            new Vec2d(2, 0), new Vec2d(1, 0), heights, true, "dirt", 1.0f,
+            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+        var cut = new SlopeBandRasterizer.ShoulderRay(
+            new SlopeRayId(3L, SlopeRayId.ShoulderSide.LEFT),
+            new Vec2d(4, 0), new Vec2d(1, 0), heights, false, "stone", 1.0f,
+            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+
+        assertTrue(SlopeBandRasterizer.canConnectBand(authorizedFill, authorizedFill));
+        assertFalse(SlopeBandRasterizer.canConnectBand(authorizedFill, unauthorizedFill),
+            "causeway auth mismatch must break band connection");
+        assertFalse(SlopeBandRasterizer.canConnectBand(unauthorizedFill, cut),
+            "fill/cut mismatch must break band connection");
+        assertTrue(SlopeBandRasterizer.fillBetweenRays(
+            authorizedFill, unauthorizedFill, new FlatTerrainSampler(60),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig())).isEmpty());
+    }
+
+    @Test
     void mismatchedFillCutRaysEmitNothing() {
         int[] heights = {64, 63, 62, 61};
         var fill = new SlopeBandRasterizer.ShoulderRay(

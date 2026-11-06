@@ -753,7 +753,9 @@ public final class RoadCorridorPlanBuilder {
                 steps = Math.max(pathLast, Math.min(angularSteps, SLOPE_FAN_MAX_STEPS));
             }
         }
-        List<SlopeBandRasterizer.ShoulderRay> outerRays = new ArrayList<>();
+        // 连续有效外侧射线分组；禁坡/抑制站点打断，禁止跨水面或结构空隙连环带。
+        List<List<SlopeBandRasterizer.ShoulderRay>> outerRayGroups = new ArrayList<>();
+        List<SlopeBandRasterizer.ShoulderRay> currentOuterGroup = new ArrayList<>();
         if (steps <= 0) {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, 1.0);
             boolean allowWater = resolveStepAllowWaterEmbankment(from, to, 1.0, profileWaterCrossings);
@@ -775,28 +777,50 @@ public final class RoadCorridorPlanBuilder {
             RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
             boolean allowWater = resolveStepAllowWaterEmbankment(from, to, t, profileWaterCrossings);
             if (!RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
+                flushOuterRayGroup(outerRayGroups, currentOuterGroup);
                 continue;
             }
             CenterSlopeBuild built = mergeSlopeAtCenter(plan, center, leftNormal, targetY,
                 crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
                 tunnelThreshold, stepType, allowWater);
             samples.addAll(built.samples());
-            if (significantTurn) {
-                SlopeBandRasterizer.ShoulderRay outer = outerSide == SlopeRayId.ShoulderSide.LEFT
-                    ? built.leftRay()
-                    : built.rightRay();
-                if (outer != null) {
-                    outerRays.add(outer);
+            if (!significantTurn) {
+                continue;
+            }
+            SlopeBandRasterizer.ShoulderRay outer = outerSide == SlopeRayId.ShoulderSide.LEFT
+                ? built.leftRay()
+                : built.rightRay();
+            if (outer == null) {
+                // 水面禁填、未加载或高架抑制：中断环带连接。
+                flushOuterRayGroup(outerRayGroups, currentOuterGroup);
+                continue;
+            }
+            if (!currentOuterGroup.isEmpty()
+                    && !SlopeBandRasterizer.canConnectBand(currentOuterGroup.getLast(), outer)) {
+                flushOuterRayGroup(outerRayGroups, currentOuterGroup);
+            }
+            currentOuterGroup.add(outer);
+        }
+        flushOuterRayGroup(outerRayGroups, currentOuterGroup);
+        if (significantTurn) {
+            for (List<SlopeBandRasterizer.ShoulderRay> group : outerRayGroups) {
+                for (int i = 0; i + 1 < group.size(); i++) {
+                    samples.addAll(SlopeBandRasterizer.fillBetweenRays(
+                        group.get(i), group.get(i + 1), terrain, host));
                 }
             }
         }
-        if (significantTurn) {
-            for (int i = 0; i + 1 < outerRays.size(); i++) {
-                samples.addAll(SlopeBandRasterizer.fillBetweenRays(
-                    outerRays.get(i), outerRays.get(i + 1), terrain, host));
-            }
-        }
         return samples;
+    }
+
+    private static void flushOuterRayGroup(
+            List<List<SlopeBandRasterizer.ShoulderRay>> groups,
+            List<SlopeBandRasterizer.ShoulderRay> current) {
+        if (current == null || current.isEmpty()) {
+            return;
+        }
+        groups.add(List.copyOf(current));
+        current.clear();
     }
 
     private static Vec2d centerAlongSpan(
@@ -1028,6 +1052,11 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             boolean allowWaterEmbankment) {
         if (samplePoint == null || !terrain.isChunkLoaded(samplePoint)) {
+            return;
+        }
+        // 射线剖面逐步外扩时，每柱复核水面禁填，避免岸上起点把样本写入禁填水域。
+        if (RoadEarthworkPolicy.suppressFillOverWater(
+                isFill, allowWaterEmbankment, terrain.findExposedWaterSurface(samplePoint))) {
             return;
         }
         Vec2d planPoint = host.canonicalColumnPoint(samplePoint);

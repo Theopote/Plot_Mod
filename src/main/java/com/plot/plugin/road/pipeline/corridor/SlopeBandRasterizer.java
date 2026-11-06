@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 
 import java.util.ArrayList;
@@ -46,6 +47,18 @@ public final class SlopeBandRasterizer {
     }
 
     /**
+     * 两条外侧射线是否允许形成环带：挖填类型与堤道授权必须一致。
+     * 禁坡/水面打断由调用方在连续分组时处理。
+     */
+    public static boolean canConnectBand(ShoulderRay a, ShoulderRay b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        return a.fill() == b.fill()
+            && a.allowWaterEmbankment() == b.allowWaterEmbankment();
+    }
+
+    /**
      * 在两条同侧肩部射线之间，按共享水平偏移环带戳印世界柱。
      * 仅用于急弯外侧；调用方负责只传入外侧肩。
      */
@@ -58,7 +71,7 @@ public final class SlopeBandRasterizer {
         if (a == null || b == null || terrain == null || host == null) {
             return samples;
         }
-        if (a.fill() != b.fill()) {
+        if (!canConnectBand(a, b)) {
             return samples;
         }
         if (a.outerEdge() == null || b.outerEdge() == null
@@ -97,6 +110,13 @@ public final class SlopeBandRasterizer {
                 }
                 boolean closerToA = t <= 0.5;
                 ShoulderRay parent = closerToA ? a : b;
+                // 弦向补格不得进入未授权水面；端点陆地不能把禁填水域连成坡面。
+                if (RoadEarthworkPolicy.suppressFillOverWater(
+                        parent.fill(),
+                        parent.allowWaterEmbankment(),
+                        terrain.findExposedWaterSurface(samplePoint))) {
+                    continue;
+                }
                 Vec2d planPoint = host.canonicalColumnPoint(samplePoint);
                 ColumnKey key = new ColumnKey(host.worldX(planPoint), host.worldZ(planPoint));
                 SlopeRayId bandRayId = new SlopeRayId(

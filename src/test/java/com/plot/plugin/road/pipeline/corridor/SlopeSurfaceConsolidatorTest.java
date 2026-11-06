@@ -262,4 +262,27 @@ class SlopeSurfaceConsolidatorTest {
         assertFalse(plan.slopeCell(midB).needsRetainingFinish());
         assertEquals(64, plan.slopeCell(midA).cutSurfaceY());
     }
+
+    @Test
+    void shoulderRetainingTipBeatsOverlappingBandComplete() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey tip = new ColumnKey(60, 0);
+        SlopeRayId shoulder = new SlopeRayId(40L, SlopeRayId.ShoulderSide.RIGHT);
+        SlopeRayId band = new SlopeRayId(-200L, SlopeRayId.ShoulderSide.RIGHT);
+
+        // 真实宽度截断射线末端需要挡墙；同柱环带 COMPLETE 不得取消。
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(
+                tip, new Vec2d(60, 0), 70, false, "minecraft:stone", shoulder, 8, 1.0f,
+                SlopeConstructionOutcome.NEEDS_RETAINING_WALL, false, false),
+            new SlopeProfileSample(
+                tip, new Vec2d(60, 0), 68, false, "minecraft:stone", band, 8, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, true)),
+            new FlatTerrainSampler(90));
+
+        assertTrue(plan.slopeCell(tip).needsRetainingFinish(),
+            "real width-cap retaining tip must survive overlapping band COMPLETE");
+        assertEquals(70, plan.slopeCell(tip).cutSurfaceY());
+        assertEquals(1, plan.needsRetainingWallCount());
+    }
 }
