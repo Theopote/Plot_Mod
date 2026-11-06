@@ -30,6 +30,8 @@ public final class WaterCrossingConstructionResolver {
             RoadSystemConfig config,
             TerrainSampler terrain,
             RoadConstructionClassifier.CanvasBlockPosResolver canvasToBlockPos) {
+        // terrain / canvasToBlockPos retained for call-site compatibility; water rewrite
+        // must not re-validate tunnels (see rebuildAfterWaterStrategy).
         if (base == null || crossings == null || crossings.isEmpty()) {
             return base;
         }
@@ -48,12 +50,14 @@ public final class WaterCrossingConstructionResolver {
                 config));
             station = segmentEnd;
         }
-        return RoadConstructionClassifier.finalizeDetection(
+        // Only water-overlapping segments were rewritten above. Rebuild structure runs /
+        // portal marks without re-validating non-water tunnels under default style params.
+        return RoadConstructionClassifier.rebuildAfterWaterStrategy(
             types,
             base.segmentDistances(),
             heightInfos,
-            canvasToBlockPos,
-            terrain);
+            scale,
+            base.localDaylightSegments());
     }
 
     public static WaterCrossingStrategy strategyAtWorldStation(

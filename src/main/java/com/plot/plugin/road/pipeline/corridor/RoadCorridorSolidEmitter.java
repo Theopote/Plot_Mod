@@ -162,12 +162,14 @@ public final class RoadCorridorSolidEmitter {
         boolean mountainProtected = mountainProtection != null && mountainProtection.protects(key);
         // 仅填方边坡时 cutSurfaceY 为 null，不可拆箱
         int designY = resolveDesignY(surfaceY, slope, groundY);
-        boolean deepCoverColumn = RoadEarthworkPolicy.suppressOpenDaylightBatter(
-            constructionType,
-            false,
-            groundY - designY,
-            host.tunnelStyle(),
-            host.tunnelThreshold());
+        boolean localDaylightCut = plan.allowsLocalDaylightCut(key);
+        boolean deepCoverColumn = !localDaylightCut
+            && RoadEarthworkPolicy.suppressOpenDaylightBatter(
+                constructionType,
+                false,
+                groundY - designY,
+                host.tunnelStyle(),
+                host.tunnelThreshold());
         // SlopeEnvelopeClearancePass 已为切坡列建清障时，挖方量只在 ClearancePass 计一次。
         boolean cutCountedInClearance = clearance != null
             && clearance.mode() == RoadCorridorConstructionMode.OPEN

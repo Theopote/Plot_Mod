@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.construction;
 import com.plot.plugin.road.RoadConstructionType;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Construction classification for each sampled segment (Normal / Fill / Cut / Bridge / Tunnel).
@@ -12,14 +13,25 @@ public record ConstructionDetection(
         List<TunnelSegment> tunnels,
         List<RoadConstructionType> constructionTypes,
         List<Double> segmentDistances,
-        List<ConstructionRun> runs) {
+        List<ConstructionRun> runs,
+        /** Segment indices converted by {@link LocalDaylightCut} — open-cut deep-cover exception. */
+        Set<Integer> localDaylightSegments) {
 
     public ConstructionDetection(
             List<BridgeSegment> bridges,
             List<TunnelSegment> tunnels,
             List<RoadConstructionType> constructionTypes,
             List<Double> segmentDistances) {
-        this(bridges, tunnels, constructionTypes, segmentDistances, List.of());
+        this(bridges, tunnels, constructionTypes, segmentDistances, List.of(), Set.of());
+    }
+
+    public ConstructionDetection(
+            List<BridgeSegment> bridges,
+            List<TunnelSegment> tunnels,
+            List<RoadConstructionType> constructionTypes,
+            List<Double> segmentDistances,
+            List<ConstructionRun> runs) {
+        this(bridges, tunnels, constructionTypes, segmentDistances, runs, Set.of());
     }
 
     public ConstructionDetection {
@@ -28,9 +40,14 @@ public record ConstructionDetection(
         constructionTypes = List.copyOf(constructionTypes);
         segmentDistances = List.copyOf(segmentDistances);
         runs = List.copyOf(runs);
+        localDaylightSegments = localDaylightSegments == null ? Set.of() : Set.copyOf(localDaylightSegments);
     }
 
     public long runCount(RoadConstructionType type) {
         return runs.stream().filter(run -> run.type() == type).count();
+    }
+
+    public boolean isLocalDaylightSegment(int segmentIndex) {
+        return localDaylightSegments.contains(segmentIndex);
     }
 }

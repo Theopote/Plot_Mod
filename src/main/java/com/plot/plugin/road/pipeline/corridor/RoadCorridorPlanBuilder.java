@@ -33,6 +33,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 构建连续道路施工计划：1-block 栅格化路径 span + 列级边坡 envelope 合并。
@@ -48,7 +49,8 @@ public final class RoadCorridorPlanBuilder {
             double chainage,
             int segmentIndex,
             RoadConstructionType constructionType,
-            boolean allowWaterEmbankment) {
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized) {
     }
 
     public static RoadCorridorPlan build(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
@@ -66,7 +68,8 @@ public final class RoadCorridorPlanBuilder {
             ctx.carriagewaySeedKey(),
             ctx.request().junctionCorridor(),
             planHost,
-            ctx.request().profileWaterCrossings());
+            ctx.request().profileWaterCrossings(),
+            ctx.detection() != null ? ctx.detection().localDaylightSegments() : Set.of());
         return plan;
     }
 
@@ -100,13 +103,34 @@ public final class RoadCorridorPlanBuilder {
             JunctionCorridorBuildContext junctionCorridor,
             PlanHost host,
             List<WaterCrossing> profileWaterCrossings) {
+        return build(
+            segments, heightInfos, crossSections, constructionTypes,
+            designElevation, buildProfile, terrain, unitsPerBlock, carriagewaySeedKey,
+            junctionCorridor, host, profileWaterCrossings, Set.of());
+    }
+
+    static RoadCorridorPlan build(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            List<RoadConstructionType> constructionTypes,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            TerrainSampler terrain,
+            double unitsPerBlock,
+            String carriagewaySeedKey,
+            JunctionCorridorBuildContext junctionCorridor,
+            PlanHost host,
+            List<WaterCrossing> profileWaterCrossings,
+            Set<Integer> localDaylightSegments) {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         List<StationSample> stations = collectStations(
             segments, heightInfos, crossSections, constructionTypes,
             designElevation, buildProfile, host::snapEndpointElevation, unitsPerBlock,
             junctionCorridor != null && junctionCorridor.exclusionPolygons().isEmpty()
                 ? junctionCorridor.endpointTrim() : null,
-            profileWaterCrossings);
+            profileWaterCrossings,
+            localDaylightSegments != null ? localDaylightSegments : Set.of());
         if (stations.isEmpty()) {
             return plan;
         }
@@ -155,7 +179,9 @@ public final class RoadCorridorPlanBuilder {
             RoadPathStationSampler.ElevationSnapper snapper,
             double unitsPerBlock,
             com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
-            List<WaterCrossing> profileWaterCrossings) {
+            List<WaterCrossing> profileWaterCrossings,
+            Set<Integer> localDaylightSegments) {
+        Set<Integer> daylight = localDaylightSegments != null ? localDaylightSegments : Set.of();
         List<StationSample> stations = new ArrayList<>();
         RoadPathStationSampler.forEach(
             segments,
@@ -175,7 +201,8 @@ public final class RoadCorridorPlanBuilder {
                     segmentIndex,
                     RoadConstructionClassifier.constructionTypeAt(constructionTypes, segmentIndex),
                     WaterCrossingConstructionResolver.isCausewayFillStation(
-                        profileWaterCrossings, chainage))));
+                        profileWaterCrossings, chainage),
+                    daylight.contains(segmentIndex))));
         return stations;
     }
 
@@ -192,6 +219,10 @@ public final class RoadCorridorPlanBuilder {
             return false;
         }
         StationSample sample = stations.get(index);
+        // Approved local daylight CUT may carve deep one-sided outcrops.
+        if (sample.localDaylightAuthorized()) {
+            return false;
+        }
         boolean nearTunnel = adjacentTunnelOrShelter(stations, index);
         int cover = 0;
         if (terrain != null && sample.center() != null && terrain.isChunkLoaded(sample.center())) {
@@ -323,6 +354,7 @@ public final class RoadCorridorPlanBuilder {
                 inferPortalIntoHillSign(stations, stationIndex)));
         }
         plan.setRoadbedWaterMarkingActive(sample.allowWaterEmbankment());
+        plan.setLocalDaylightMarkingActive(sample.localDaylightAuthorized());
         try {
             rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
                 sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
@@ -335,6 +367,7 @@ public final class RoadCorridorPlanBuilder {
                     tunnelThreshold));
             }
         } finally {
+            plan.setLocalDaylightMarkingActive(false);
             plan.setRoadbedWaterMarkingActive(false);
         }
     }
@@ -362,11 +395,14 @@ public final class RoadCorridorPlanBuilder {
         boolean waterAuthDiffers = from.allowWaterEmbankment() != to.allowWaterEmbankment();
         if (fromType == toType && !waterAuthDiffers) {
             plan.setRoadbedWaterMarkingActive(from.allowWaterEmbankment());
+            plan.setLocalDaylightMarkingActive(
+                from.localDaylightAuthorized() || to.localDaylightAuthorized());
             try {
                 rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
                     from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
                     seedKey, host, toType, config, tunnelThreshold, polylineSegments);
             } finally {
+                plan.setLocalDaylightMarkingActive(false);
                 plan.setRoadbedWaterMarkingActive(false);
             }
         } else {
@@ -381,19 +417,23 @@ public final class RoadCorridorPlanBuilder {
             int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * splitT);
             Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), splitT));
             plan.setRoadbedWaterMarkingActive(from.allowWaterEmbankment());
+            plan.setLocalDaylightMarkingActive(from.localDaylightAuthorized());
             try {
                 rasterizeSurfaceBands(plan, from.center(), midCenter, from.leftNormal(), midNormal,
                     from.targetY(), midY, toSection, terrain, unitsPerBlock,
                     seedKey, host, fromType, config, tunnelThreshold, polylineSegments);
             } finally {
+                plan.setLocalDaylightMarkingActive(false);
                 plan.setRoadbedWaterMarkingActive(false);
             }
             plan.setRoadbedWaterMarkingActive(to.allowWaterEmbankment());
+            plan.setLocalDaylightMarkingActive(to.localDaylightAuthorized());
             try {
                 rasterizeSurfaceBands(plan, midCenter, to.center(), midNormal, to.leftNormal(),
                     midY, to.targetY(), toSection, terrain, unitsPerBlock,
                     seedKey, host, toType, config, tunnelThreshold, polylineSegments);
             } finally {
+                plan.setLocalDaylightMarkingActive(false);
                 plan.setRoadbedWaterMarkingActive(false);
             }
         }
@@ -552,7 +592,7 @@ public final class RoadCorridorPlanBuilder {
             ColumnKey key = new ColumnKey(worldX, worldZ);
             RoadCorridorConstructionMode mode = toMode(constructionType);
             int clearTopY = computeClearTopY(
-                mode, surfaceY, planPoint, terrain, tunnelThreshold, host, envelopeWidthBlocks);
+                plan, mode, surfaceY, planPoint, terrain, tunnelThreshold, host, envelopeWidthBlocks);
             Integer lateralTag = constructionType != null && constructionType.isTunnelFamily()
                 ? corridorLateral
                 : null;
@@ -785,7 +825,7 @@ public final class RoadCorridorPlanBuilder {
             ? corridorLateral
             : null;
         int clearTopY = computeClearTopY(
-            mode, designY, planPoint, terrain, tunnelThreshold, host, envelopeTag);
+            plan, mode, designY, planPoint, terrain, tunnelThreshold, host, envelopeTag);
         plan.putClearance(key, new ClearanceCell(
             planPoint, designY, clearTopY, mode, constructionType, lateralTag, envelopeTag));
     }
@@ -1054,8 +1094,10 @@ public final class RoadCorridorPlanBuilder {
         boolean isFill = targetY > groundAtEdge;
         int heightAboveGround = Math.abs(targetY - groundAtEdge);
         // 挂壁/半隧靠山侧：外缘覆土已达结构高度+盖层，不开敞削坡
-        if (RoadEarthworkPolicy.suppressShoulderCutBatter(
-                isFill, groundAtEdge - targetY, host.tunnelStyle(), tunnelThreshold)) {
+        // LocalDaylightCut 已批准的短段例外：允许削掉单侧矮土堆。
+        if (!plan.isLocalDaylightMarkingActive()
+                && RoadEarthworkPolicy.suppressShoulderCutBatter(
+                    isFill, groundAtEdge - targetY, host.tunnelStyle(), tunnelThreshold)) {
             return ShoulderSlopeBuild.empty();
         }
         // 高架填方：路底相对地面净高超过桥阈值则不堆土坡（交给桥梁/净空）
@@ -1240,6 +1282,7 @@ public final class RoadCorridorPlanBuilder {
     }
 
     private static int computeClearTopY(
+            RoadCorridorPlan plan,
             RoadCorridorConstructionMode mode,
             int designSurfaceY,
             Vec2d planPoint,
@@ -1255,7 +1298,8 @@ public final class RoadCorridorPlanBuilder {
             case PORTAL -> portalRoofTopY(host, designSurfaceY, envelopeWidthBlocks);
             case SHELTER -> designSurfaceY + host.tunnelStyle().clearHeight();
             case OPEN -> openCorridorClearTopY(
-                designSurfaceY, planPoint, terrain, tunnelThreshold, host);
+                designSurfaceY, planPoint, terrain, tunnelThreshold, host,
+                plan != null && plan.isLocalDaylightMarkingActive());
         };
     }
 
@@ -1265,6 +1309,7 @@ public final class RoadCorridorPlanBuilder {
      * <p>
      * 覆土与洞穴判定只用工程实体地体；树冠等可清理装饰不计入「深覆土/洞穴」，
      * 否则林冠下的空隙会被误判为隧道/洞穴净空，边坡被抑制且树叶残留。
+     * LocalDaylightCut 已批准时改为清到柱顶（短段单侧土堆削坡）。
      */
     static int openCorridorClearTopY(
             int designSurfaceY,
@@ -1272,6 +1317,17 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             int tunnelThreshold,
             PlanHost host) {
+        return openCorridorClearTopY(
+            designSurfaceY, planPoint, terrain, tunnelThreshold, host, false);
+    }
+
+    static int openCorridorClearTopY(
+            int designSurfaceY,
+            Vec2d planPoint,
+            TerrainSampler terrain,
+            int tunnelThreshold,
+            PlanHost host,
+            boolean localDaylightAuthorized) {
         int clearHeight = Math.max(1, host.tunnelStyle().clearHeight());
         int localTop = designSurfaceY + clearHeight;
         if (terrain == null || planPoint == null) {
@@ -1280,6 +1336,9 @@ public final class RoadCorridorPlanBuilder {
         int columnTop = terrain.sampleColumnTopY(planPoint);
         if (columnTop <= localTop) {
             return Math.max(columnTop, localTop);
+        }
+        if (localDaylightAuthorized) {
+            return columnTop;
         }
         int worldX = host.worldX(planPoint);
         int worldZ = host.worldZ(planPoint);

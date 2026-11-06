@@ -74,6 +74,46 @@ class LocalDaylightCutTest {
     }
 
     @Test
+    void oneSidedOutcropWithOpenCenterlineBecomesCut() {
+        // Centerline at design grade; left shoulder has a tall 3-block-long dirt knob.
+        List<RoadConstructionType> types = new ArrayList<>(List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROCK_SHELTER_LEFT,
+            RoadConstructionType.ROAD));
+        List<Double> distances = List.of(10.0, 3.0, 10.0);
+        List<SegmentHeightInfo> heights = List.of(
+            height(0, 10, 64, 64),
+            height(10, 13, 64, 64),
+            height(13, 23, 64, 64));
+        TerrainSampler oneSided = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                // Path along +X; left normal is +Y. Tall dirt only on +Y laterals.
+                if (planPoint.y > 0.5 && planPoint.x >= 10 && planPoint.x <= 13) {
+                    return 90;
+                }
+                return 64;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= sampleSurfaceY(new Vec2d(worldX, worldZ));
+            }
+        };
+        var converted = LocalDaylightCut.apply(
+            types, distances, heights, oneSided, 7,
+            ResolvedTunnelStyle.defaults(), resolver(), 1.0);
+        assertEquals(RoadConstructionType.CUT, types.get(1),
+            "one-sided outcrop with open centerline must still daylight-cut");
+        assertTrue(converted.contains(1));
+    }
+
+    @Test
     void excavationOverBudgetRefusesDaylight() {
         List<RoadConstructionType> types = new ArrayList<>(List.of(
             RoadConstructionType.CUT,

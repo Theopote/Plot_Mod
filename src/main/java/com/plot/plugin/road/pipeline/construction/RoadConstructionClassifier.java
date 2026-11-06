@@ -120,9 +120,9 @@ public final class RoadConstructionClassifier {
         }
 
         mergeShortTunnelGaps(resolvedTypes, segmentDistances, unitsPerBlock);
-        // After tunnel continuity merge: short shelter/tunnel islands between open road
+        // After tunnel continuity merge: short shelter islands between open road
         // may daylight-cut instead of generating portals/lining for a few dirt blocks.
-        LocalDaylightCut.apply(
+        var localDaylight = LocalDaylightCut.apply(
             resolvedTypes,
             segmentDistances,
             heightInfos,
@@ -141,46 +141,39 @@ public final class RoadConstructionClassifier {
             tunnels,
             resolvedTypes,
             segmentDistances,
-            buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+            buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights),
+            localDaylight);
     }
 
-    static ConstructionDetection finalizeDetection(
+    /**
+     * Rebuild bridge/tunnel runs and portal/abutment marks after water strategies rewrite
+     * overlapping segments only. Does <strong>not</strong> re-validate tunnels with default
+     * style/envelope (that would destabilize mountain tunnels on the same road).
+     */
+    static ConstructionDetection rebuildAfterWaterStrategy(
             List<RoadConstructionType> resolvedTypes,
             List<Double> segmentDistances,
             List<SegmentHeightInfo> heightInfos,
-            CanvasBlockPosResolver canvasToBlockPos,
-            TerrainSampler terrain) {
+            double unitsPerBlock,
+            java.util.Set<Integer> preservedLocalDaylight) {
         List<Integer> groundHeights = new ArrayList<>();
         List<Integer> targetHeights = new ArrayList<>();
         for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
             groundHeights.add(averageHeight(info.groundStart, info.groundEnd));
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
-            RoadConstructionType type = resolvedTypes.get(i);
-            if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
-                if (isSubmerged(info)) {
-                    resolvedTypes.set(i, RoadConstructionType.CUT);
-                } else if (!validateTunnelSegment(
-                    info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true, 1.0)) {
-                    ResolvedTunnelStyle defaults = ResolvedTunnelStyle.defaults();
-                    if (!hasSolidWithinClearHeight(
-                            info, terrain, canvasToBlockPos, 0, defaults, null, true, 1.0)
-                            || !hasRoofOverburden(info, terrain, defaults)) {
-                        resolvedTypes.set(i, RoadConstructionType.ROAD);
-                    }
+        }
+        mergeShortTunnelGaps(resolvedTypes, segmentDistances, unitsPerBlock);
+        java.util.Set<Integer> localDaylight = new java.util.LinkedHashSet<>();
+        if (preservedLocalDaylight != null) {
+            for (int index : preservedLocalDaylight) {
+                if (index >= 0
+                        && index < resolvedTypes.size()
+                        && resolvedTypes.get(index) == RoadConstructionType.CUT) {
+                    localDaylight.add(index);
                 }
             }
         }
-        mergeShortTunnelGaps(resolvedTypes, segmentDistances, 1.0);
-        LocalDaylightCut.apply(
-            resolvedTypes,
-            segmentDistances,
-            heightInfos,
-            terrain,
-            0,
-            ResolvedTunnelStyle.defaults(),
-            null,
-            1.0);
         List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();
         collectStructureSegments(resolvedTypes, heightInfos, bridges, tunnels);
@@ -190,7 +183,20 @@ public final class RoadConstructionClassifier {
             tunnels,
             List.copyOf(resolvedTypes),
             segmentDistances,
-            buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+            buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights),
+            localDaylight);
+    }
+
+    /** @deprecated Prefer {@link #rebuildAfterWaterStrategy}; kept for binary/test callers. */
+    @Deprecated
+    static ConstructionDetection finalizeDetection(
+            List<RoadConstructionType> resolvedTypes,
+            List<Double> segmentDistances,
+            List<SegmentHeightInfo> heightInfos,
+            CanvasBlockPosResolver canvasToBlockPos,
+            TerrainSampler terrain) {
+        return rebuildAfterWaterStrategy(
+            resolvedTypes, segmentDistances, heightInfos, 1.0, java.util.Set.of());
     }
 
     private static void collectStructureSegments(

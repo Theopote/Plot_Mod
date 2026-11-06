@@ -17,6 +17,8 @@ public final class RoadCorridorPlan {
     private final Map<ColumnKey, WaterConstructionPermission> waterPermissions = new HashMap<>();
     /** 站点栅格化期间：putClearance 写入的列获得路基水域填筑授权（不含边坡）。 */
     private boolean roadbedWaterMarkingActive;
+    /** 站点栅格化期间：putClearance 写入的列获得局部削坡（LocalDaylightCut）授权。 */
+    private boolean localDaylightMarkingActive;
     /** Shoulder batter horizontal run hit {@link com.plot.plugin.road.geometry.RoadCorridorWidth#MAX_SLOPE_BATTER_RUN_BLOCKS}. */
     private int slopeBatterWidthCapCount;
     /** Outward slope columns that fail to connect smoothly to neighbors along the batter. */
@@ -29,9 +31,24 @@ public final class RoadCorridorPlan {
     private int roadShoulderSeamGapCount;
     private final List<PortalBackfillSite> portalBackfillSites = new ArrayList<>();
     private final Set<ColumnKey> portalBackfillSiteKeys = new HashSet<>();
+    /**
+     * Columns under a {@link com.plot.plugin.road.pipeline.construction.LocalDaylightCut}
+     * approval — may excavate deep cover that would otherwise stay rock-shelter protected.
+     */
+    private final Set<ColumnKey> localDaylightCutColumns = new HashSet<>();
 
     public RoadSurfaceMask surfaceMask() {
         return surfaceMask;
+    }
+
+    void markLocalDaylightCut(ColumnKey key) {
+        if (key != null) {
+            localDaylightCutColumns.add(key);
+        }
+    }
+
+    public boolean allowsLocalDaylightCut(ColumnKey key) {
+        return key != null && localDaylightCutColumns.contains(key);
     }
 
     public ClearanceCell clearanceCell(ColumnKey key) {
@@ -64,10 +81,21 @@ public final class RoadCorridorPlan {
         if (roadbedWaterMarkingActive) {
             markAllowRoadbedWaterFill(key);
         }
+        if (localDaylightMarkingActive) {
+            markLocalDaylightCut(key);
+        }
     }
 
     void setRoadbedWaterMarkingActive(boolean active) {
         roadbedWaterMarkingActive = active;
+    }
+
+    void setLocalDaylightMarkingActive(boolean active) {
+        localDaylightMarkingActive = active;
+    }
+
+    boolean isLocalDaylightMarkingActive() {
+        return localDaylightMarkingActive;
     }
 
     /** @deprecated 使用 {@link #setRoadbedWaterMarkingActive(boolean)} */

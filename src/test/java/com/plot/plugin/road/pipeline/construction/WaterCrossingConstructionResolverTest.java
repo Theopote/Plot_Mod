@@ -142,6 +142,48 @@ class WaterCrossingConstructionResolverTest {
     }
 
     @Test
+    void waterCrossingDoesNotReclassifyUnrelatedMountainTunnel() {
+        // Mountain tunnel upstream, then open road, then a river bridge — water rewrite
+        // must not demote the tunnel via default-style revalidation.
+        ConstructionDetection base = new ConstructionDetection(
+            List.of(),
+            List.of(),
+            List.of(
+                RoadConstructionType.TUNNEL,
+                RoadConstructionType.TUNNEL,
+                RoadConstructionType.ROAD,
+                RoadConstructionType.ROAD),
+            List.of(20.0, 20.0, 10.0, 30.0),
+            List.of(),
+            java.util.Set.of());
+        WaterCrossing bridge = new WaterCrossing(
+            50.0, 55.0, 75.0, 80.0,
+            60.0, 70.0, 20.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            heightInfo(0.0, 20.0, 90, 90, null, null, 64, 64),
+            heightInfo(20.0, 40.0, 90, 90, null, null, 64, 64),
+            heightInfo(40.0, 50.0, 68, 68, null, null, 64, 64),
+            heightInfo(50.0, 80.0, 68, 55, 69, 55, 68, 68));
+
+        ConstructionDetection resolved = WaterCrossingConstructionResolver.apply(
+            base,
+            List.of(bridge),
+            heightInfos,
+            1.0,
+            new RoadSystemConfig("test"),
+            null,
+            canvas -> new net.minecraft.util.math.BlockPos(0, 0, 0));
+
+        assertTrue(resolved.constructionTypes().get(0).isTunnelFamily(),
+            "mountain tunnel must stay tunnel-family after water rewrite");
+        assertTrue(resolved.constructionTypes().get(1).isTunnelFamily(),
+            "mountain tunnel body must not be demoted to ROAD/CUT");
+        assertTrue(resolved.constructionTypes().get(3).isBridgeFamily(),
+            "water span must still become bridge-family");
+    }
+
+    @Test
     void adjacentBridgeAndTunnelDoNotCrossContaminateStrategy() {
         ConstructionDetection base = detection(List.of(
             RoadConstructionType.ROAD,
