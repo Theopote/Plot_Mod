@@ -120,6 +120,17 @@ public final class RoadConstructionClassifier {
         }
 
         mergeShortTunnelGaps(resolvedTypes, segmentDistances, unitsPerBlock);
+        // After tunnel continuity merge: short shelter/tunnel islands between open road
+        // may daylight-cut instead of generating portals/lining for a few dirt blocks.
+        LocalDaylightCut.apply(
+            resolvedTypes,
+            segmentDistances,
+            heightInfos,
+            terrain,
+            gradingEnvelopeWidth,
+            tunnelStyle,
+            columnResolver,
+            unitsPerBlock);
         List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();
         collectStructureSegments(resolvedTypes, heightInfos, bridges, tunnels);
@@ -161,6 +172,15 @@ public final class RoadConstructionClassifier {
             }
         }
         mergeShortTunnelGaps(resolvedTypes, segmentDistances, 1.0);
+        LocalDaylightCut.apply(
+            resolvedTypes,
+            segmentDistances,
+            heightInfos,
+            terrain,
+            0,
+            ResolvedTunnelStyle.defaults(),
+            null,
+            1.0);
         List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();
         collectStructureSegments(resolvedTypes, heightInfos, bridges, tunnels);

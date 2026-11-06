@@ -178,6 +178,11 @@ public final class RoadSurfacePlacementPass {
 
     /**
      * 上层路面正下方一格必须是结构性底板；缺失或泥土/草方残留时补 BRIDGE。
+     * <ul>
+     *   <li>已有有效 BRIDGE 底板：保留原材质</li>
+     *   <li>已有隧道/棚洞结构实体：保留（真实山体下穿），不换成桥面石材</li>
+     *   <li>缺失时：优先继承邻近同高 BRIDGE 底板材质，否则用桥面板缺省石材</li>
+     * </ul>
      */
     static void sealElevatedDeckSupport(RoadGenerationResult result, int worldX, int elevatedPavementY, int worldZ) {
         int supportY = elevatedPavementY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
@@ -189,13 +194,55 @@ public final class RoadSurfacePlacementPass {
                 && !isTerrainResidueBlock(record.newBlockId)) {
             return;
         }
+        // Legitimate tunnel/shelter lining under the deck — do not replace with bridge underlay.
+        if (record != null
+                && layer == RoadSolidLayer.TUNNEL
+                && record.newBlockId != null
+                && !"minecraft:air".equals(record.newBlockId)
+                && !isTerrainResidueBlock(record.newBlockId)) {
+            return;
+        }
         String previous = record != null ? record.previousBlockId : "minecraft:air";
         if (previous == null || previous.isBlank()) {
             previous = "minecraft:air";
         }
-        result.recordPlacementOverride(support, previous, JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK);
+        String material = resolveElevatedDeckSupportMaterial(result, worldX, supportY, worldZ);
+        result.recordPlacementOverride(support, previous, material);
         result.placementLayers.put(support, RoadSolidLayer.BRIDGE);
         result.placementMaterialPriorities.put(support, RoadSolidMaterialPriority.STRUCTURAL);
+    }
+
+    /**
+     * Prefer an existing BRIDGE underlay material near this column so open grade-sep
+     * decks stay visually continuous with the elevated road's own slab.
+     */
+    static String resolveElevatedDeckSupportMaterial(
+            RoadGenerationResult result, int worldX, int supportY, int worldZ) {
+        if (result == null) {
+            return JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK;
+        }
+        // Search a few blocks — elevated decks often overhang the lower corridor.
+        int[][] dirs = {
+            {0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {2, 0}, {-2, 0}, {0, 2}, {0, -2},
+            {3, 0}, {-3, 0}, {0, 3}, {0, -3},
+            {4, 0}, {-4, 0}, {0, 4}, {0, -4}
+        };
+        for (int[] dir : dirs) {
+            BlockPos neighbor = new BlockPos(worldX + dir[0], supportY, worldZ + dir[1]);
+            if (result.placementLayers.get(neighbor) != RoadSolidLayer.BRIDGE) {
+                continue;
+            }
+            var record = result.placementRecords.get(neighbor);
+            if (record == null || record.newBlockId == null || isTerrainResidueBlock(record.newBlockId)) {
+                continue;
+            }
+            if ("minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            return record.newBlockId;
+        }
+        return JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK;
     }
 
     static boolean isTerrainResidueBlock(String blockId) {

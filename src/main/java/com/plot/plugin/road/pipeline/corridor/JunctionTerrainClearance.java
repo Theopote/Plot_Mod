@@ -25,8 +25,12 @@ public final class JunctionTerrainClearance {
      */
     public static final int ELEVATED_DECK_SUPPORT_DEPTH = 1;
 
-    /** 上层路面承重层默认方块（与桥面板 underlay 一致）。 */
-    public static final String ELEVATED_DECK_SUPPORT_BLOCK = "minecraft:stone_bricks";
+    /**
+     * 上层路面承重层缺省方块：与 {@link com.plot.plugin.road.pipeline.crosssection.BridgeStructureGenerator}
+     * {@code DECK_SLAB_MATERIAL}（{@code material.plot.stone} → {@code minecraft:stone}）一致。
+     * 不得使用隧道衬砌石砖，否则开放立交桥底会出现与底板不符的石砖带。
+     */
+    public static final String ELEVATED_DECK_SUPPORT_BLOCK = "minecraft:stone";
 
     private JunctionTerrainClearance() {
     }

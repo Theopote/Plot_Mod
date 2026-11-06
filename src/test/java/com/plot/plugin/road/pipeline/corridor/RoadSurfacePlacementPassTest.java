@@ -96,6 +96,32 @@ class RoadSurfacePlacementPassTest {
     }
 
     @Test
+    void sealElevatedDeckSupportKeepsTunnelLiningAndInheritsNearbyBridge() {
+        var result = new RoadGenerationResult(0);
+        BlockPos pavement = new BlockPos(0, 70, 0);
+        BlockPos support = pavement.down();
+        BlockPos neighborSupport = support.east();
+        result.recordPlacementByLayerPriority(pavement, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(neighborSupport, "minecraft:air", "minecraft:andesite",
+            RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
+        // Missing support under pavement — should inherit andesite from neighbor.
+        RoadSurfacePlacementPass.sealElevatedDeckSupport(result, 0, 70, 0);
+        assertEquals("minecraft:andesite", result.placementRecords.get(support).newBlockId);
+
+        // Tunnel lining under another deck column must not be overwritten.
+        BlockPos tunnelPavement = new BlockPos(5, 70, 0);
+        BlockPos tunnelSupport = tunnelPavement.down();
+        result.recordPlacementByLayerPriority(tunnelPavement, "minecraft:air", "minecraft:white_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(tunnelSupport, "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        RoadSurfacePlacementPass.sealElevatedDeckSupport(result, 5, 70, 0);
+        assertEquals("minecraft:stone_bricks", result.placementRecords.get(tunnelSupport).newBlockId);
+        assertEquals(RoadSolidLayer.TUNNEL, result.placementLayers.get(tunnelSupport));
+    }
+
+    @Test
     void clearIntrudingFillReplacesTerrainSubgradeUnderElevatedDeck() {
         var underpass = new RoadGenerationResult(0);
         var surface = new BlockPos(0, 64, 0);
@@ -115,10 +141,12 @@ class RoadSurfacePlacementPassTest {
         merged.mergeFrom(elevated);
         RoadSurfacePlacementPass.clearIntrudingFill(merged);
 
-        assertEquals(JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK,
+        assertEquals("minecraft:stone",
             merged.placementRecords.get(surface.up(4)).newBlockId,
-            "dirt/grass SUBGRADE under elevated deck must become structural BRIDGE underlay");
+            "dirt/grass SUBGRADE under elevated deck must become bridge deck underlay (not tunnel lining bricks)");
         assertEquals(RoadSolidLayer.BRIDGE, merged.placementLayers.get(surface.up(4)));
+        assertEquals(JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK,
+            merged.placementRecords.get(surface.up(4)).newBlockId);
     }
 
     @Test
@@ -146,8 +174,9 @@ class RoadSurfacePlacementPassTest {
 
         RoadSurfacePlacementPass.clearIntrudingFill(result);
 
-        assertEquals(JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_BLOCK,
-            result.placementRecords.get(overhang.up(4)).newBlockId);
+        assertEquals("minecraft:stone_bricks",
+            result.placementRecords.get(overhang.up(4)).newBlockId,
+            "must inherit nearby elevated BRIDGE underlay material");
         assertEquals("minecraft:air",
             result.placementRecords.get(overhang.up(3)).newBlockId,
             "terrain residue below elevated underside must be cleared");
