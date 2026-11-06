@@ -74,16 +74,24 @@ public final class TunnelInteriorClearancePass {
                 && TunnelStructureGenerator.isAcutePolylineTurn(segments.get(i - 1), segment);
             boolean acuteOutgoing = i + 1 < segments.size()
                 && TunnelStructureGenerator.isAcutePolylineTurn(segment, segments.get(i + 1));
+            PathSegment previous = i > 0 ? segments.get(i - 1) : null;
+            double skipRadius = AcuteCornerSector.skipRadius(scale);
+            boolean shortLeg = segment.distance + 1e-9 < 2.0 * skipRadius;
+            if (acuteIncoming && previous != null) {
+                cleared += clearAcuteCornerSector(
+                    solids, tunnelStyle, previous, segment, chainForward,
+                    geometryLocalBase, info, crossSections, designElevation, buildProfile,
+                    terrain, columnResolver, scale, portalFrame);
+            }
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale
                 * (diagonal || acuteIncoming || acuteOutgoing ? 3 : 1)));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 double along = segment.distance * t;
-                double skipRadius = Math.max(scale, 1.25 * scale);
-                if (acuteIncoming && along < skipRadius) {
-                    continue;
-                }
-                if (acuteOutgoing && segment.distance - along < skipRadius) {
+                boolean nearIncoming = acuteIncoming && along < skipRadius;
+                boolean nearOutgoing = acuteOutgoing && segment.distance - along < skipRadius;
+                boolean midForced = shortLeg && (acuteIncoming || acuteOutgoing) && j == samples / 2;
+                if ((nearIncoming || nearOutgoing) && !midForced) {
                     continue;
                 }
                 Vec2d center = segment.start.lerp(segment.end, t);
@@ -120,6 +128,50 @@ public final class TunnelInteriorClearancePass {
         if (metrics != null) {
             metrics.cutVolume += cleared;
         }
+    }
+
+    private static int clearAcuteCornerSector(
+            RoadSolidModel solids,
+            ResolvedTunnelStyle tunnelStyle,
+            PathSegment incoming,
+            PathSegment outgoing,
+            boolean chainForward,
+            double geometryLocalAtVertex,
+            SegmentHeightInfo outgoingInfo,
+            CrossSectionBuildContext crossSections,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double scale,
+            boolean portalFrame) {
+        Vec2d center = outgoing.start;
+        Vec2d fromNormal = PathSegmentGeometry.chainLeftNormal(incoming, chainForward);
+        Vec2d toNormal = PathSegmentGeometry.chainLeftNormal(outgoing, chainForward);
+        double worldStation = geometryLocalAtVertex / scale;
+        int targetY = DesignElevationSource.resolveTargetElevation(
+            designElevation, buildProfile, outgoingInfo, geometryLocalAtVertex, 0.0, worldStation);
+        double chainage = crossSections.chainageAtGeometryLocal(geometryLocalAtVertex);
+        ResolvedCrossSection crossSection = crossSections.resolve(chainage);
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        if (envelopeWidth <= 0) {
+            return 0;
+        }
+        // Clearance may fan more freely (air-only); cover the triangular gore.
+        int[] cleared = {0};
+        AcuteCornerSector.forEachTunnelNormal(fromNormal, toNormal, normal ->
+            cleared[0] += clearCrossSection(
+                solids,
+                tunnelStyle,
+                center,
+                normal,
+                envelopeWidth,
+                targetY,
+                terrain,
+                columnResolver,
+                scale,
+                portalFrame));
+        return cleared[0];
     }
 
     private static int clearCrossSection(

@@ -8,6 +8,9 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Fills vertical air gaps between the tunnel lining roof and original terrain above,
  * and stabilizes gravity-affected stacks so sand/gravel cannot cascade into the cavity.
@@ -23,6 +26,8 @@ public final class TunnelRoofGapSealer {
      * Does not rewrite ordinary solid terrain.
      */
     private static final int STABILIZE_GRAVITY_LAYERS = 8;
+    /** Match lining/cavity insets so diagonal world columns are not missed. */
+    private static final double[] CELL_INSETS = {0.0, -0.25, 0.25};
 
     private TunnelRoofGapSealer() {
     }
@@ -60,59 +65,82 @@ public final class TunnelRoofGapSealer {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
+        double resolvedScale = scale > 1e-9 ? scale : 1.0;
+        Set<Long> sealedColumns = new HashSet<>();
 
         for (int lateral = outerMin; lateral <= outerMax; lateral++) {
             int roofTop = columnRoofTop(mask, resolved, lateral, halfCavity, roadY, clearHeight, liningThickness);
             if (roofTop == Integer.MIN_VALUE) {
                 continue;
             }
-            Vec2d point = center.add(normal.multiply(lateral * scale));
-            int worldX = columnResolver.worldX(point);
-            int worldZ = columnResolver.worldZ(point);
-            if (!terrain.isChunkLoaded(worldX, worldZ)) {
+            for (double inset : CELL_INSETS) {
+                Vec2d point = center.add(normal.multiply((lateral + inset) * resolvedScale));
+                int worldX = columnResolver.worldX(point);
+                int worldZ = columnResolver.worldZ(point);
+                long columnKey = (((long) worldX) << 32) ^ (worldZ & 0xffffffffL);
+                if (!sealedColumns.add(columnKey)) {
+                    continue;
+                }
+                sealColumn(
+                    solids, point, worldX, worldZ, roofTop, terrain, shellMaterialId, restoreId);
+            }
+        }
+    }
+
+    private static void sealColumn(
+            RoadSolidModel solids,
+            Vec2d point,
+            int worldX,
+            int worldZ,
+            int roofTop,
+            TerrainSampler terrain,
+            String shellMaterialId,
+            String restoreId) {
+        if (!terrain.isChunkLoaded(worldX, worldZ)) {
+            return;
+        }
+        int surfaceY = terrain.sampleSurfaceY(point);
+        // Shallow cover: still stabilize at least the cell above the roof even when
+        // sampleSurfaceY sits at/below roofTop (previously skipped entire columns).
+        int columnTop = Math.max(terrain.sampleColumnTopY(point), surfaceY);
+        if (columnTop <= roofTop) {
+            columnTop = roofTop + 1;
+        }
+        int gravityStabilized = 0;
+        boolean reachedOverburden = false;
+        for (int y = roofTop + 1; y <= columnTop; y++) {
+            if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
                 continue;
             }
-            int surfaceY = terrain.sampleSurfaceY(point);
-            if (roofTop >= surfaceY) {
-                continue;
-            }
-            int columnTop = Math.min(terrain.sampleColumnTopY(point), surfaceY);
-            int gravityStabilized = 0;
-            boolean reachedOverburden = false;
-            for (int y = roofTop + 1; y <= columnTop; y++) {
-                if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
-                    continue;
-                }
-                if (terrain.isGravityAffectedBlock(worldX, y, worldZ)) {
-                    solids.add(
-                        point,
-                        y,
-                        RoadSolidLayer.TUNNEL,
-                        restoreId,
-                        RoadSolidMaterialPriority.STRUCTURAL);
-                    gravityStabilized++;
-                    reachedOverburden = true;
-                    if (gravityStabilized >= STABILIZE_GRAVITY_LAYERS) {
-                        break;
-                    }
-                    continue;
-                }
-                if (terrain.isSolidBlock(worldX, y, worldZ)) {
-                    // Stable solid — leave in place; stop filling air gaps above it.
-                    reachedOverburden = true;
-                    continue;
-                }
-                if (reachedOverburden) {
-                    // Air after overburden — do not fill caves above the roof stack.
-                    break;
-                }
+            if (terrain.isGravityAffectedBlock(worldX, y, worldZ)) {
                 solids.add(
                     point,
                     y,
                     RoadSolidLayer.TUNNEL,
-                    shellMaterialId,
+                    restoreId,
                     RoadSolidMaterialPriority.STRUCTURAL);
+                gravityStabilized++;
+                reachedOverburden = true;
+                if (gravityStabilized >= STABILIZE_GRAVITY_LAYERS) {
+                    break;
+                }
+                continue;
             }
+            if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                // Stable solid — leave in place; stop filling air gaps above it.
+                reachedOverburden = true;
+                continue;
+            }
+            if (reachedOverburden) {
+                // Air after overburden — do not fill caves above the roof stack.
+                break;
+            }
+            solids.add(
+                point,
+                y,
+                RoadSolidLayer.TUNNEL,
+                shellMaterialId,
+                RoadSolidMaterialPriority.STRUCTURAL);
         }
     }
 

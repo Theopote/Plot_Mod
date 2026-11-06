@@ -219,9 +219,53 @@ public final class RoadCorridorSolidEmitter {
                 solids, slope, planPoint, groundY, defaultFillMaterialId, gradeSeparation);
         }
 
+        // Longitudinal 1-block step: clad the exposed riser under the upper pavement with
+        // subgrade — do not excavate it (would float the higher road).
+        if (surface != null && surfaceY != null
+                && (constructionType == null
+                    || (!constructionType.isTunnelFamily() && !constructionType.isRockShelter()))) {
+            cladLongitudinalStepRiser(
+                solids, plan, key, planPoint, surfaceY, defaultFillMaterialId, gradeSeparation);
+        }
+
         if (surface != null) {
             solids.add(planPoint, surface.surfaceY(), surface.layer(), surface.materialId());
         }
+    }
+
+    /**
+     * When a neighboring ROAD column sits exactly one block lower, the natural dirt face
+     * at {@code surfaceY - 1} on this (upper) column is a structural riser — cover it.
+     */
+    private static void cladLongitudinalStepRiser(
+            RoadSolidModel solids,
+            RoadCorridorPlan plan,
+            ColumnKey key,
+            Vec2d planPoint,
+            int surfaceY,
+            String fillMaterialId,
+            GradeSeparationBuildContext gradeSeparation) {
+        if (fillMaterialId == null || fillMaterialId.isBlank()) {
+            return;
+        }
+        int riserY = surfaceY - 1;
+        boolean hasLowerNeighbor = false;
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] dir : dirs) {
+            SurfaceCell neighbor = plan.surfaceMask().get(
+                new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]));
+            if (neighbor != null && neighbor.surfaceY() == riserY) {
+                hasLowerNeighbor = true;
+                break;
+            }
+        }
+        if (!hasLowerNeighbor) {
+            return;
+        }
+        if (gradeSeparation != null && gradeSeparation.protects(planPoint, riserY)) {
+            return;
+        }
+        solids.add(planPoint, riserY, RoadSolidLayer.SUBGRADE, fillMaterialId);
     }
 
     /**

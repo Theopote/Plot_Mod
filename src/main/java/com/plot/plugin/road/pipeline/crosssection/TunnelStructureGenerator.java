@@ -12,6 +12,7 @@ import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.ConstructionRun;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
+import com.plot.plugin.road.pipeline.corridor.AcuteCornerSector;
 import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
 import com.plot.plugin.road.pipeline.corridor.NeighborCarriagewayClip;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -99,17 +100,26 @@ public final class TunnelStructureGenerator {
             boolean acuteOutgoing = i + 1 < segments.size() && isAcutePolylineTurn(segment, segments.get(i + 1));
             PathSegment previous = i > 0 ? segments.get(i - 1) : null;
             PathSegment next = i + 1 < segments.size() ? segments.get(i + 1) : null;
+            double skipRadius = AcuteCornerSector.skipRadius(scale);
+            boolean shortLeg = segment.distance + 1e-9 < 2.0 * skipRadius;
+            // Shared acute vertex: fixed-center normal fan replaces skipped near-vertex stamps.
+            if (acuteIncoming && previous != null && type.isTunnelFamily()) {
+                total = total.add(placeAcuteCornerSector(
+                    host, solids, tunnelStyle, previous, segment, chainForward,
+                    geometryLocalBase, info, crossSections, designElevation, buildProfile,
+                    portals, terrain, columnResolver, unitsPerBlock, scale));
+            }
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale
                 * (diagonal || acuteIncoming || acuteOutgoing ? 3 : 1)));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 // 锐折顶点邻域整段跳过：仅跳 j==0 仍会把近顶点断面衬砌扫进对侧车行道
                 double along = segment.distance * t;
-                double skipRadius = Math.max(scale, 1.25 * scale);
-                if (acuteIncoming && along < skipRadius) {
-                    continue;
-                }
-                if (acuteOutgoing && segment.distance - along < skipRadius) {
+                boolean nearIncoming = acuteIncoming && along < skipRadius;
+                boolean nearOutgoing = acuteOutgoing && segment.distance - along < skipRadius;
+                // Short legs would be wiped by both skip radii; keep the mid stamp.
+                boolean midForced = shortLeg && (acuteIncoming || acuteOutgoing) && j == samples / 2;
+                if ((nearIncoming || nearOutgoing) && !midForced) {
                     continue;
                 }
                 Vec2d center = segment.start.lerp(segment.end, t);
@@ -784,6 +794,67 @@ public final class TunnelStructureGenerator {
         return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
             || terrain.isSolidBlock(worldX, y, worldZ)
             || terrain.isRoadClearableDecoration(worldX, y, worldZ);
+    }
+
+    /**
+     * Fixed-center lining/cavity fan at an acute shared vertex. Along-path samples near the
+     * vertex remain skipped so dual axis-aligned sections do not sweep into the opposite
+     * carriageway; this sector covers the triangular gore those skips leave behind.
+     */
+    private static RoadRoadbedGradingUtils.GradingVolumes placeAcuteCornerSector(
+            Host host,
+            RoadSolidModel solids,
+            ResolvedTunnelStyle tunnelStyle,
+            PathSegment incoming,
+            PathSegment outgoing,
+            boolean chainForward,
+            double geometryLocalAtVertex,
+            SegmentHeightInfo outgoingInfo,
+            CrossSectionBuildContext crossSections,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            List<TunnelPortalPlanner.PortalStation> portals,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            double scale) {
+        Vec2d center = outgoing.start;
+        Vec2d toNormal = PathSegmentGeometry.chainLeftNormal(outgoing, chainForward);
+        double worldStation = geometryLocalAtVertex / scale;
+        int resolvedY = DesignElevationSource.resolveTargetElevation(
+            designElevation, buildProfile, outgoingInfo, geometryLocalAtVertex, 0.0, worldStation);
+        final int targetY = host.snapEndpointElevation(center, resolvedY);
+        double chainage = crossSections.chainageAtGeometryLocal(geometryLocalAtVertex);
+        ResolvedCrossSection crossSection = crossSections.resolve(chainage);
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        if (envelopeWidth <= 0) {
+            return RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        }
+        double carriageHalf = Math.max(0.5, crossSection.carriagewayHalfWidth()) * scale;
+        boolean portalFrame = TunnelPortalPlanner.findPortalNear(portals, worldStation) != null;
+        String liningId = host.resolveBlockId(tunnelStyle.liningMaterial());
+        List<PathSegment> polyline = List.of(incoming, outgoing);
+        // Restore one axis-aligned section at the shared vertex (outgoing normal).
+        // Bisector/fan stamps create diagonal shells that fail 6-connected lining checks
+        // and can punch neighbors; intrusion clip still guards the previous carriageway.
+        return placeCrossSection(
+            solids,
+            tunnelStyle,
+            center,
+            toNormal,
+            envelopeWidth,
+            targetY,
+            liningId,
+            RoadSolidMaterialPriority.STRUCTURAL,
+            terrain,
+            columnResolver,
+            unitsPerBlock,
+            portalFrame,
+            outgoing,
+            incoming,
+            null,
+            carriageHalf,
+            polyline);
     }
 
     /** 折线转向 |θ|≥90° ⇒ 内角为锐角；共点双断面易堵洞。 */

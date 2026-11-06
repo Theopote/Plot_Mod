@@ -24,6 +24,43 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadCorridorSolidEmitterEarthworkTest {
 
     @Test
+    void longitudinalStepCladsUpperRiserWithSubgrade() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey lower = new ColumnKey(0, 0);
+        ColumnKey upper = new ColumnKey(1, 0);
+        plan.surfaceMask().put(lower, new SurfaceCell(
+            new Vec2d(0, 0), 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.surfaceMask().put(upper, new SurfaceCell(
+            new Vec2d(1, 0), 65, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(lower, new ClearanceCell(
+            new Vec2d(0, 0), 64, 70, RoadCorridorConstructionMode.OPEN, RoadConstructionType.CUT));
+        plan.putClearance(upper, new ClearanceCell(
+            new Vec2d(1, 0), 65, 70, RoadCorridorConstructionMode.OPEN, RoadConstructionType.FILL));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            mountainTerrain(),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:cobblestone");
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                Math.round(p.planPoint().x) == 1
+                    && Math.round(p.planPoint().y) == 0
+                    && p.elevation() == 64
+                    && p.layer() == RoadSolidLayer.SUBGRADE
+                    && "minecraft:cobblestone".equals(p.materialId())),
+            "upper step column must clad Y=surfaceY-1 with subgrade, not leave natural dirt");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                Math.round(p.planPoint().x) == 1
+                    && p.elevation() == 65
+                    && p.layer() == RoadSolidLayer.ROAD),
+            "upper pavement must remain at Y=65");
+    }
+
+    @Test
     void doesNotEmitOpenFillUnderBridgeInteriorClearance() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey deck = new ColumnKey(15, 0);

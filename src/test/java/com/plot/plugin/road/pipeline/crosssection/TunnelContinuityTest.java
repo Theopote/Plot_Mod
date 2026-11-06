@@ -65,6 +65,7 @@ class TunnelContinuityTest {
         }
         args.add(Arguments.of(new Scenario("forty-five-degree", fortyFiveDegreePath(), 9, TunnelShape.RECTANGULAR)));
         args.add(Arguments.of(new Scenario("s-curve", sCurvePath(), 9, TunnelShape.RECTANGULAR)));
+        args.add(Arguments.of(new Scenario("short-zigzag", shortZigzagPath(), 9, TunnelShape.RECTANGULAR)));
         return args.stream();
     }
 
@@ -81,6 +82,26 @@ class TunnelContinuityTest {
             args.add(Arguments.of(new Scenario("s-curve", sCurvePath(), 9, shape), clear));
         }
         return args.stream();
+    }
+
+    @org.junit.jupiter.api.Test
+    void shortZigzagCornerKeepsCavityAirAtSharedVertex() {
+        RoadGenerationResult result = generateTunnel(
+            new Scenario("short-zigzag", shortZigzagPath(), 9, TunnelShape.RECTANGULAR), 5);
+        // Shared vertices (10,0) and (10,2): cavity must not stay solid rock.
+        boolean cornerAir = result.placementRecords.entrySet().stream().anyMatch(e -> {
+            BlockPos pos = e.getKey();
+            if (!"minecraft:air".equals(e.getValue().newBlockId)) {
+                return false;
+            }
+            if (pos.getY() < ROAD_Y + 1 || pos.getY() > ROAD_Y + 5) {
+                return false;
+            }
+            return Math.abs(pos.getX() - 10) <= 2
+                && (Math.abs(pos.getZ()) <= 2 || Math.abs(pos.getZ() - 2) <= 2);
+        });
+        assertTrue(cornerAir,
+            "acute short-leg corner sector must carve cavity air near shared vertices");
     }
 
     @ParameterizedTest(name = "{0}")
@@ -453,6 +474,14 @@ class TunnelContinuityTest {
         return List.of(
             new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0)),
             new PathSegment(new Vec2d(24, 0), new Vec2d(24, 24)));
+    }
+
+    /** 90° → ~2-block leg → 90°: acute skip would wipe the middle without corner sector + mid stamp. */
+    private static List<PathSegment> shortZigzagPath() {
+        return List.of(
+            new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new PathSegment(new Vec2d(10, 0), new Vec2d(10, 2)),
+            new PathSegment(new Vec2d(10, 2), new Vec2d(20, 2)));
     }
 
     private static List<PathSegment> fortyFiveDegreePath() {

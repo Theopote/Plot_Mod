@@ -154,6 +154,75 @@ class TunnelRoofGapSealerTest {
     }
 
     @Test
+    void shallowCoverStillStabilizesGravityAtRoofPlusOne() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int envelopeWidth = 9;
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.clearHeight(),
+            style.liningThickness(),
+            ROAD_Y,
+            false);
+        int roofTop = mask.maxY();
+        RoadSolidModel solids = new RoadSolidModel();
+        // sampleSurfaceY sits at roofTop — previously skipped the whole column.
+        TerrainSampler shallow = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return roofTop;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return roofTop;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= roofTop + 1;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y == roofTop + 1;
+            }
+        };
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            style.shape(),
+            ROAD_Y,
+            style.clearHeight(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.liningThickness(),
+            new Vec2d(10, 0),
+            new Vec2d(0, 1),
+            1.0,
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.y);
+                }
+            },
+            shallow,
+            "minecraft:stone_bricks",
+            "minecraft:stone");
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == roofTop + 1
+                    && "minecraft:stone".equals(p.materialId())),
+            "shallow gravel sitting just above roof must still be stabilized");
+    }
+
+    @Test
     void stabilizesGravityStacksButLeavesStableSolids() {
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int envelopeWidth = 9;

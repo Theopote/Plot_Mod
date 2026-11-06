@@ -855,6 +855,8 @@ public final class RoadCorridorPlanBuilder {
             int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
             double maxGapRadians = SLOPE_FAN_GAP_BLOCKS / Math.max(1, maxRun);
             int angularSteps = Math.max(1, (int) Math.ceil(Math.abs(turn) / maxGapRadians));
+            // Shared vertex (pathLast==0): angular fan still runs; early-return below is
+            // only for non-significant turns with coincident centers.
             if (angularSteps > pathLast) {
                 steps = Math.max(pathLast, Math.min(angularSteps, SLOPE_FAN_MAX_STEPS));
             }
