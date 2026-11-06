@@ -285,4 +285,42 @@ class SlopeSurfaceConsolidatorTest {
         assertEquals(70, plan.slopeCell(tip).cutSurfaceY());
         assertEquals(1, plan.needsRetainingWallCount());
     }
+
+    @Test
+    void competingRaysGrantDaylightOnlyInsideApprovedFootprint() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        // Roadbed seed from an approved local-daylight span (rasterizeSpan marks these).
+        plan.markLocalDaylightCut(new ColumnKey(10, 0));
+        plan.markLocalDaylightCut(new ColumnKey(11, 0));
+        plan.markLocalDaylightCut(new ColumnKey(12, 0));
+
+        ColumnKey inside = new ColumnKey(11, 4);
+        ColumnKey outside = new ColumnKey(40, 20);
+        SlopeRayId daylightRay = new SlopeRayId(1L, SlopeRayId.ShoulderSide.LEFT);
+        SlopeRayId plainRay = new SlopeRayId(2L, SlopeRayId.ShoulderSide.LEFT);
+
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            // Inside footprint: unauthorized winner + daylight overlap → keep auth.
+            new SlopeProfileSample(
+                inside, new Vec2d(11, 4), 66, false, "minecraft:dirt", plainRay, 4, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, false, false),
+            new SlopeProfileSample(
+                inside, new Vec2d(11, 4), 67, false, "minecraft:stone", daylightRay, 5, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, true, false),
+            // Outside footprint: same overlap pattern must NOT inherit carve auth.
+            new SlopeProfileSample(
+                outside, new Vec2d(40, 20), 66, false, "minecraft:dirt", plainRay, 4, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, false, false),
+            new SlopeProfileSample(
+                outside, new Vec2d(40, 20), 67, false, "minecraft:stone", daylightRay, 5, 1.0f,
+                SlopeConstructionOutcome.COMPLETE, false, true, false)),
+            new FlatTerrainSampler(80));
+
+        assertTrue(plan.allowsLocalDaylightCut(inside),
+            "overlap inside approved daylight footprint must keep carve auth");
+        assertFalse(plan.allowsLocalDaylightCut(outside),
+            "overlap outside approved footprint must not inherit carve auth");
+        assertTrue(plan.slopeCell(inside).hasCut());
+        assertTrue(plan.slopeCell(outside).hasCut());
+    }
 }

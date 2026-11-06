@@ -391,12 +391,13 @@ public final class RoadCorridorPlanBuilder {
         ResolvedCrossSection toSection = crossSection;
         RoadConstructionType fromType = from.constructionType();
         RoadConstructionType toType = to.constructionType();
-        // Split type-boundary / 堤道边界 spans，按真实桩号切分而非固定中点。
+        // Split type-boundary / 堤道边界 / 局部明挖授权边界 spans，按真实桩号切分而非固定中点。
+        // Daylight auth must NOT OR across a CUT↔CUT span — matches resolveStepLocalDaylight.
         boolean waterAuthDiffers = from.allowWaterEmbankment() != to.allowWaterEmbankment();
-        if (fromType == toType && !waterAuthDiffers) {
+        boolean daylightAuthDiffers = from.localDaylightAuthorized() != to.localDaylightAuthorized();
+        if (fromType == toType && !waterAuthDiffers && !daylightAuthDiffers) {
             plan.setRoadbedWaterMarkingActive(from.allowWaterEmbankment());
-            plan.setLocalDaylightMarkingActive(
-                from.localDaylightAuthorized() || to.localDaylightAuthorized());
+            plan.setLocalDaylightMarkingActive(from.localDaylightAuthorized());
             try {
                 rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
                     from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,

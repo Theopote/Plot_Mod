@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 
 import java.util.ArrayList;
@@ -16,6 +17,14 @@ import java.util.Set;
  * Processing order: group by explicit {@link SlopeRayId}, monotonic fix per ray, then merge columns.
  */
 public final class SlopeSurfaceConsolidator {
+    /**
+     * Max Chebyshev distance from a roadbed-approved daylight column to an outer
+     * batter column that may still inherit the carve exception via candidate overlap.
+     * Tight enough to reject distant mountain columns touched only by ray bleed.
+     */
+    static final int DAYLIGHT_AUTH_PAD_BLOCKS =
+        Math.min(10, RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS);
+
     private SlopeSurfaceConsolidator() {
     }
 
@@ -27,6 +36,8 @@ public final class SlopeSurfaceConsolidator {
             return;
         }
         plan.clearSlopeCells();
+        // Roadbed marks from rasterizeSpan — spatial gate for overlap anyDaylight.
+        Set<ColumnKey> daylightRoadbedSeed = plan.localDaylightCutColumnSnapshot();
 
         Map<SlopeRayId, List<SlopeProfileSample>> byRay = groupByRay(samples);
         Map<ColumnKey, List<ColumnCandidate>> columnCandidates = new LinkedHashMap<>();
@@ -119,9 +130,9 @@ public final class SlopeSurfaceConsolidator {
             if (resolution.allowWaterEmbankment()) {
                 plan.markAllowSlopeWaterFill(key);
             }
-            // Any daylight-authorized batter sample that touched this column stamps the
-            // carve exception — winner may be a neighboring ROAD ray without the flag.
-            if (resolution.localDaylightAuthorized()) {
+            // Overlap-compatible daylight: a neighboring ROAD ray may win the column, but
+            // auth still requires the column to lie within the approved daylight footprint.
+            if (acceptLocalDaylightAuth(key, resolution.localDaylightAuthorized(), daylightRoadbedSeed)) {
                 plan.markLocalDaylightCut(key);
             }
             written.add(key);
@@ -148,6 +159,38 @@ public final class SlopeSurfaceConsolidator {
             return false;
         }
         return RoadEarthworkPolicy.of(clearance.constructionType()) == RoadEarthworkPolicy.STRUCTURE_ONLY;
+    }
+
+    /**
+     * Keep candidate-overlap anyDaylight, but require the column to sit inside the
+     * roadbed-approved daylight AABB (+ pad). Empty seed (unit tests without corridor
+     * rasterization) falls back to the candidate flag alone.
+     */
+    static boolean acceptLocalDaylightAuth(
+            ColumnKey key,
+            boolean candidateDaylight,
+            Set<ColumnKey> daylightRoadbedSeed) {
+        if (!candidateDaylight || key == null) {
+            return false;
+        }
+        if (daylightRoadbedSeed == null || daylightRoadbedSeed.isEmpty()) {
+            return true;
+        }
+        if (daylightRoadbedSeed.contains(key)) {
+            return true;
+        }
+        return nearDaylightRoadbed(key, daylightRoadbedSeed, DAYLIGHT_AUTH_PAD_BLOCKS);
+    }
+
+    private static boolean nearDaylightRoadbed(ColumnKey key, Set<ColumnKey> seed, int pad) {
+        for (ColumnKey auth : seed) {
+            int dx = Math.abs(auth.worldX() - key.worldX());
+            int dz = Math.abs(auth.worldZ() - key.worldZ());
+            if (Math.max(dx, dz) <= pad) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ColumnResolution resolveColumnWinner(

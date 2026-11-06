@@ -51,6 +51,11 @@ public final class RoadCorridorPlan {
         return key != null && localDaylightCutColumns.contains(key);
     }
 
+    /** Snapshot of roadbed daylight columns (before slope consolidator expands the set). */
+    Set<ColumnKey> localDaylightCutColumnSnapshot() {
+        return Set.copyOf(localDaylightCutColumns);
+    }
+
     public ClearanceCell clearanceCell(ColumnKey key) {
         return clearanceCells.get(key);
     }
