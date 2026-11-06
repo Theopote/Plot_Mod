@@ -12,6 +12,7 @@ import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
+import com.plot.plugin.road.pipeline.corridor.TunnelFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
 import com.plot.plugin.road.pipeline.profile.AdjacentJunctionProfileContinuity;
 import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
@@ -561,6 +562,9 @@ public class RoadNetworkGenerator {
             // 否则 Crossing 拆出的新节点在 sourceNetwork 中为 null，材质会回退全局默认。
             RoadGenerationResult aggregate = aggregateNetworkResult(session.generationNetwork(), networkResult);
             applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
+            // 合并后其它边/路口可能覆盖洞壁、灯具或净空；专项指标以聚合结果重算为准。
+            TunnelFinalVoxelValidator.applyReportToResult(
+                aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
             networkResult.recordAdjacentJunctionProfileViolations(
                 AdjacentJunctionProfileContinuity.find(
                     profileNetwork,

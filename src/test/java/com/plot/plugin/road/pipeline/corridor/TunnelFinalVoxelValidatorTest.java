@@ -109,6 +109,75 @@ class TunnelFinalVoxelValidatorTest {
     }
 
     @Test
+    void missingLiningExactCountsGapEvenWhenNeighborHasLining() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos missing = new BlockPos(20, 70, 0);
+        BlockPos neighbor = missing.east();
+        result.recordExpectedTunnelLining(missing);
+        result.recordPlacementByLayerPriority(
+            neighbor, "minecraft:stone", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
+        assertEquals(1, report.missingTunnelLiningCount(),
+            "adjacent lining must not fulfill the missing expected cell");
+        assertEquals(1, report.missingTunnelLiningToleratedCount(),
+            "neighbor coverage is diagnostic only");
+    }
+
+    @Test
+    void unauthorizedLiningInsideExpectedCavityCountsAsUncleared() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(21, 66, 0);
+        result.recordExpectedTunnelCavity(cavity);
+        // Structural lining in cavity without being expected lining → intrusion.
+        result.recordPlacementByLayerPriority(
+            cavity, "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
+        assertEquals(1, report.unclearedTunnelCavityCount(),
+            "lining that is not an authorized expected lining must block the cavity");
+    }
+
+    @Test
+    void authorizedExpectedLiningInsideCavityIsNotUncleared() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(22, 66, 0);
+        result.recordExpectedTunnelCavity(pos);
+        result.recordExpectedTunnelLining(pos);
+        result.recordPlacementByLayerPriority(
+            pos, "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
+        assertEquals(0, report.unclearedTunnelCavityCount());
+        assertEquals(0, report.missingTunnelLiningCount());
+    }
+
+    @Test
+    void aggregateRevalidationDetectsPostMergeLiningOverwrite() {
+        RoadGenerationResult tunnelEdge = new RoadGenerationResult(0);
+        BlockPos lining = new BlockPos(30, 67, 0);
+        tunnelEdge.recordExpectedTunnelLining(lining);
+        tunnelEdge.recordPlacementByLayerPriority(
+            lining, "minecraft:stone", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        assertEquals(0, TunnelFinalVoxelValidator.validate(tunnelEdge, null).missingTunnelLiningCount());
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.mergeFrom(tunnelEdge);
+        // Another edge overwrites the shell after merge.
+        aggregate.recordPlacementOverride(lining, "minecraft:stone_bricks", "minecraft:oak_planks");
+        aggregate.placementLayers.put(lining, RoadSolidLayer.ROAD);
+        aggregate.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.DEFAULT);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(aggregate, null);
+        assertEquals(1, report.missingTunnelLiningCount(),
+            "post-merge overwrite of expected lining must be visible on aggregate revalidation");
+    }
+
+    @Test
     void floatingLightWithoutAdjacentLiningIsCounted() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos light = new BlockPos(12, 70, 0);

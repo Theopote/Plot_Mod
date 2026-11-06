@@ -110,7 +110,7 @@ public class RoadGenerationResult {
     public int unclearedTunnelCavityCount;
     /** 隧道灯具缺少相邻衬砌安装面。 */
     public int floatingTunnelLightCount;
-    /** 设计衬砌壳层缺失（预留；当前校验主路径为 0）。 */
+    /** 期望衬砌世界格缺失 STRUCTURAL/ACCENT 实体（严格逐格）。 */
     public int missingTunnelLiningCount;
     /** 落地铁轨格数（含普通/动力/探测轨）。 */
     public int railBlockCount;

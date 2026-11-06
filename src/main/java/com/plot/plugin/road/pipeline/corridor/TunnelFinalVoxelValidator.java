@@ -22,8 +22,13 @@ public final class TunnelFinalVoxelValidator {
     public record Report(
             int unclearedTunnelCavityCount,
             int floatingTunnelLightCount,
-            int missingTunnelLiningCount) {
-        public static final Report ZERO = new Report(0, 0, 0);
+            /** 严格逐格：期望衬砌位无 STRUCTURAL/ACCENT 实体。 */
+            int missingTunnelLiningCount,
+            /**
+             * 诊断用：期望位缺失但六邻有衬砌（采样偏移）。不得当作设计已满足。
+             */
+            int missingTunnelLiningToleratedCount) {
+        public static final Report ZERO = new Report(0, 0, 0, 0);
 
         public boolean isClean() {
             return unclearedTunnelCavityCount == 0
@@ -38,8 +43,9 @@ public final class TunnelFinalVoxelValidator {
         }
         int uncleared = countUnclearedTunnelCavity(result, terrain);
         int floatingLights = countFloatingTunnelLights(result);
-        int missingLining = countMissingTunnelLining(result);
-        return new Report(uncleared, floatingLights, missingLining);
+        int missingExact = countMissingTunnelLiningExact(result);
+        int missingTolerated = countMissingTunnelLiningTolerated(result);
+        return new Report(uncleared, floatingLights, missingExact, missingTolerated);
     }
 
     public static void applyReportToResult(RoadGenerationResult result, Report report) {
@@ -59,6 +65,7 @@ public final class TunnelFinalVoxelValidator {
         if (expected == null || expected.isEmpty()) {
             return 0;
         }
+        Set<BlockPos> authorizedLining = result.expectedTunnelLining;
         int count = 0;
         for (BlockPos pos : expected) {
             BlockRecord record = result.placementRecords.get(pos);
@@ -76,8 +83,10 @@ public final class TunnelFinalVoxelValidator {
                     continue;
                 }
             }
-            if (isLiningSolid(result, pos)) {
-                // 合法衬砌占据计划洞腔（掩膜/采样偏移）不计残留
+            // 仅当该格本身是计划衬砌时，才允许结构衬砌占洞腔（掩膜交叠授权）。
+            if (isLiningSolid(result, pos)
+                    && authorizedLining != null
+                    && authorizedLining.contains(pos)) {
                 continue;
             }
             if (terrain != null
@@ -94,23 +103,44 @@ public final class TunnelFinalVoxelValidator {
                     && !"minecraft:air".equals(record.newBlockId)
                     && layer == RoadSolidLayer.TUNNEL
                     && (result.placementMaterialPriorities.get(pos) == null
-                        || result.placementMaterialPriorities.get(pos) < RoadSolidMaterialPriority.DECORATIVE)
-                    && !isLiningSolid(result, pos)) {
-                // 无地形时：非灯具隧道实体占洞腔
+                        || result.placementMaterialPriorities.get(pos) < RoadSolidMaterialPriority.DECORATIVE)) {
+                // 无地形时：非灯具隧道实体占洞腔（含未授权衬砌侵入）
                 count++;
             }
         }
         return count;
     }
 
+    /** 严格逐格：期望衬砌位必须有衬砌实体；邻格有衬砌不算满足。 */
     static int countMissingTunnelLining(RoadGenerationResult result) {
+        return countMissingTunnelLiningExact(result);
+    }
+
+    static int countMissingTunnelLiningExact(RoadGenerationResult result) {
         Set<BlockPos> expected = result.expectedTunnelLining;
         if (expected == null || expected.isEmpty()) {
             return 0;
         }
         int count = 0;
         for (BlockPos pos : expected) {
-            if (!isLiningSolid(result, pos) && !hasCardinalLining(result, pos)) {
+            if (!isLiningSolid(result, pos)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 期望位缺失、但六邻至少有一格衬砌——仅作采样偏移诊断，不写入验收主指标。
+     */
+    static int countMissingTunnelLiningTolerated(RoadGenerationResult result) {
+        Set<BlockPos> expected = result.expectedTunnelLining;
+        if (expected == null || expected.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (BlockPos pos : expected) {
+            if (!isLiningSolid(result, pos) && hasCardinalLining(result, pos)) {
                 count++;
             }
         }
