@@ -180,7 +180,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y : clearanceYsToValidate(plan, cell, host)) {
+            for (int y : clearanceYsToValidate(plan, key, cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -511,7 +511,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y : clearanceYsToValidate(plan, cell, host)) {
+            for (int y : clearanceYsToValidate(plan, key, cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -539,7 +539,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y : clearanceYsToValidate(plan, cell, host)) {
+            for (int y : clearanceYsToValidate(plan, key, cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -556,12 +556,21 @@ public final class RoadGenerationIntegrityValidator {
      * Portal / transition clearance Ys must match {@link RoadCorridorClearancePass}:
      * PORTAL columns only clear cavity AIR; OPEN columns near a portal roof are capped
      * by {@link PortalTransitionGuard} so peaked shells are not required to excavate above the crown.
+     * Final surface mask is the sole clearance floor when present.
      */
     private static List<Integer> clearanceYsToValidate(
             RoadCorridorPlan plan,
+            ColumnKey key,
             ClearanceCell cell,
             RoadCorridorPlanBuilder.PlanHost host) {
-        int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
+        int designY = cell.designSurfaceY();
+        if (plan != null && key != null) {
+            SurfaceCell surface = plan.surfaceMask().get(key);
+            if (surface != null) {
+                designY = surface.surfaceY();
+            }
+        }
+        int topY = Math.max(cell.clearTopY(), designY);
         List<Integer> ys = new ArrayList<>();
         if (cell.mode() == RoadCorridorConstructionMode.PORTAL
                 && cell.corridorLateral() != null
@@ -571,8 +580,8 @@ public final class RoadGenerationIntegrityValidator {
                 : RoadCorridorWidth.gradingEnvelopeWidthBlocks(
                     ResolvedCrossSection.fromConfig(host.config()));
             TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
-                host.tunnelStyle(), envelopeWidth, cell.designSurfaceY());
-            for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+                host.tunnelStyle(), envelopeWidth, designY);
+            for (int y = designY + 1; y <= topY; y++) {
                 if (mask.allowsClearance(cell.corridorLateral(), y)) {
                     ys.add(y);
                 }
@@ -587,7 +596,7 @@ public final class RoadGenerationIntegrityValidator {
             PortalTransitionGuard portalGuard = PortalTransitionGuard.from(plan);
             topY = portalGuard.capClearTopY(cell.planPoint(), topY, host, roadHalfWidth);
         }
-        for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+        for (int y = designY + 1; y <= topY; y++) {
             ys.add(y);
         }
         return ys;

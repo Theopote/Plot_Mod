@@ -78,11 +78,13 @@ public final class RoadCorridorClearancePass {
             PortalTransitionGuard portalGuard,
             GradeSeparationBuildContext gradeSeparation) {
         int cleared = 0;
-        // 以最终路面 mask 为准：纵坡台阶同柱可能留下偏高的 clearance.designY 或偏低的 surfaceY。
+        // Final pavement mask is the sole clearance floor. expandClearanceEnvelope can leave
+        // clearance.designY above the stamped surface at 1-block grade steps; Math.max would
+        // keep that high floor and leave dirt coplanar with the upper pavement.
         int designY = cell.designSurfaceY();
         SurfaceCell surface = plan != null ? plan.surfaceMask().get(key) : null;
         if (surface != null) {
-            designY = Math.max(designY, surface.surfaceY());
+            designY = surface.surfaceY();
         }
         int topY = Math.max(cell.clearTopY(), designY);
         if (cell.mode() == RoadCorridorConstructionMode.TUNNEL && host != null) {

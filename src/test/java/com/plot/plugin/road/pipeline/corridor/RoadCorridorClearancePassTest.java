@@ -427,6 +427,45 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
+    void staleHighClearanceDesignYStillClearsAboveFinalSurface() {
+        // expandClearanceEnvelope can leave clearance.designY=65 while surface stays 64 at a
+        // longitudinal step — dirt at Y=65 sits coplanar with the upper white pavement.
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        ColumnKey key = new ColumnKey(0, 0);
+        plan.surfaceMask().put(key, new SurfaceCell(point, 64, RoadSolidLayer.ROAD, "minecraft:white_concrete"));
+        plan.putClearance(key, new ClearanceCell(point, 65, 70, RoadCorridorConstructionMode.OPEN, null));
+
+        TerrainSampler hill = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 70;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 70;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 70;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(
+            solids, plan, hill, CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()));
+
+        assertTrue(solids.primitives().stream()
+            .noneMatch(p -> p.elevation() == 64 && "minecraft:air".equals(p.materialId())),
+            "final pavement Y must not be excavated");
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 65 && "minecraft:air".equals(p.materialId())),
+            "stale-high clearance.designY must not leave dirt coplanar with upper pavement");
+    }
+
+    @Test
     void surfaceMaskKeepsHigherYOnEqualLayerSlopeStep() {
         RoadSurfaceMask mask = new RoadSurfaceMask();
         ColumnKey key = new ColumnKey(1, 2);
