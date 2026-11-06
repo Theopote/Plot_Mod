@@ -131,7 +131,8 @@ public final class LocalDaylightCut {
         }
         int width = Math.max(1, gradingEnvelopeWidth);
         int halfWidth = width / 2;
-        int structureHeight = Math.max(1, tunnelStyle.clearHeight());
+        // Budget uses full peak cover — do NOT clamp to clearHeight. A 30-block dirt
+        // tower over a 3×7 footprint is ~630 cells even though clearHeight≈6.
         double lengthBlocks = 0.0;
         int coverSum = 0;
         int coverSamples = 0;
@@ -151,7 +152,7 @@ public final class LocalDaylightCut {
                 if (peakCover < 0) {
                     return false; // unloaded column in envelope
                 }
-                coverSum += Math.min(peakCover, structureHeight);
+                coverSum += peakCover;
                 coverSamples++;
             }
         }

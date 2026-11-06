@@ -841,7 +841,8 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold) {
         return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
             crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++, tunnelThreshold,
-            sample.constructionType(), sample.allowWaterEmbankment()).samples();
+            sample.constructionType(), sample.allowWaterEmbankment(),
+            sample.localDaylightAuthorized()).samples();
     }
 
     /** 单站点两侧肩部射线：样本 + 可供急弯环带使用的剖面快照。 */
@@ -910,7 +911,8 @@ public final class RoadCorridorPlanBuilder {
             if (RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 CenterSlopeBuild built = mergeSlopeAtCenter(plan, to.center(), toNormal, to.targetY(),
                     crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                    tunnelThreshold, stepType, allowWater);
+                    tunnelThreshold, stepType, allowWater,
+                    resolveStepLocalDaylight(from, to, 1.0));
                 samples.addAll(built.samples());
             }
             return samples;
@@ -924,13 +926,14 @@ public final class RoadCorridorPlanBuilder {
                 : normalize(fromNormal.rotate(turn * t));
             RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
             boolean allowWater = resolveStepAllowWaterEmbankment(from, to, t, profileWaterCrossings);
+            boolean localDaylight = resolveStepLocalDaylight(from, to, t);
             if (!RoadEarthworkPolicy.allowsCorridorBatter(stepType)) {
                 flushOuterRayGroup(outerRayGroups, currentOuterGroup);
                 continue;
             }
             CenterSlopeBuild built = mergeSlopeAtCenter(plan, center, leftNormal, targetY,
                 crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++,
-                tunnelThreshold, stepType, allowWater);
+                tunnelThreshold, stepType, allowWater, localDaylight);
             samples.addAll(built.samples());
             if (!significantTurn) {
                 continue;
@@ -1023,6 +1026,17 @@ public final class RoadCorridorPlanBuilder {
         return WaterCrossingConstructionResolver.isCausewayFillStation(crossings, station);
     }
 
+    /**
+     * Local-daylight authorization follows the nearer endpoint — never OR across a
+     * ROAD↔CUT boundary (would widen the deep-cover carve exception).
+     */
+    private static boolean resolveStepLocalDaylight(StationSample from, StationSample to, double t) {
+        if (from.localDaylightAuthorized() == to.localDaylightAuthorized()) {
+            return from.localDaylightAuthorized();
+        }
+        return t <= 0.5 ? from.localDaylightAuthorized() : to.localDaylightAuthorized();
+    }
+
     private static CenterSlopeBuild mergeSlopeAtCenter(
             RoadCorridorPlan plan,
             Vec2d center,
@@ -1035,7 +1049,8 @@ public final class RoadCorridorPlanBuilder {
             long stationSampleId,
             int tunnelThreshold,
             RoadConstructionType constructionType,
-            boolean allowWaterEmbankment) {
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized) {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
@@ -1049,11 +1064,11 @@ public final class RoadCorridorPlanBuilder {
         ShoulderSlopeBuild left = mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT),
-            tunnelThreshold, constructionType, allowWaterEmbankment);
+            tunnelThreshold, constructionType, allowWaterEmbankment, localDaylightAuthorized);
         ShoulderSlopeBuild right = mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
             normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT),
-            tunnelThreshold, constructionType, allowWaterEmbankment);
+            tunnelThreshold, constructionType, allowWaterEmbankment, localDaylightAuthorized);
         List<SlopeProfileSample> samples = new ArrayList<>(left.samples().size() + right.samples().size());
         samples.addAll(left.samples());
         samples.addAll(right.samples());
@@ -1078,7 +1093,8 @@ public final class RoadCorridorPlanBuilder {
             SlopeRayId rayId,
             int tunnelThreshold,
             RoadConstructionType constructionType,
-            boolean allowWaterEmbankment) {
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d leftNormal = normalize(corridorLeftNormal);
@@ -1094,8 +1110,8 @@ public final class RoadCorridorPlanBuilder {
         boolean isFill = targetY > groundAtEdge;
         int heightAboveGround = Math.abs(targetY - groundAtEdge);
         // 挂壁/半隧靠山侧：外缘覆土已达结构高度+盖层，不开敞削坡
-        // LocalDaylightCut 已批准的短段例外：允许削掉单侧矮土堆。
-        if (!plan.isLocalDaylightMarkingActive()
+        // LocalDaylightCut 已批准的短段例外：允许削掉单侧矮土堆（显式参数，不依赖临时标记）。
+        if (!localDaylightAuthorized
                 && RoadEarthworkPolicy.suppressShoulderCutBatter(
                     isFill, groundAtEdge - targetY, host.tunnelStyle(), tunnelThreshold)) {
             return ShoulderSlopeBuild.empty();
@@ -1161,12 +1177,13 @@ public final class RoadCorridorPlanBuilder {
                     int offset = (int) Math.round(previousOffset + (horizontalOffset - previousOffset) * t);
                     addSlopeSample(
                         samples, span.get(i), y, isFill, materialId, rayId, offset, slopeRatio,
-                        outcome, terrain, host, allowWaterEmbankment);
+                        outcome, terrain, host, allowWaterEmbankment, localDaylightAuthorized);
                 }
             } else {
                 addSlopeSample(
                     samples, samplePoint, slopeHeight, isFill, materialId, rayId,
-                    horizontalOffset, slopeRatio, outcome, terrain, host, allowWaterEmbankment);
+                    horizontalOffset, slopeRatio, outcome, terrain, host, allowWaterEmbankment,
+                    localDaylightAuthorized);
             }
             previousPoint = samplePoint;
             previousHeight = slopeHeight;
@@ -1184,6 +1201,7 @@ public final class RoadCorridorPlanBuilder {
             slopeRatio,
             outcome,
             allowWaterEmbankment,
+            localDaylightAuthorized,
             scale);
         return new ShoulderSlopeBuild(samples, bandRay);
     }
@@ -1200,7 +1218,8 @@ public final class RoadCorridorPlanBuilder {
             SlopeConstructionOutcome outcome,
             TerrainSampler terrain,
             PlanHost host,
-            boolean allowWaterEmbankment) {
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized) {
         if (samplePoint == null || !terrain.isChunkLoaded(samplePoint)) {
             return;
         }
@@ -1213,7 +1232,8 @@ public final class RoadCorridorPlanBuilder {
         ColumnKey key = new ColumnKey(host.worldX(planPoint), host.worldZ(planPoint));
         samples.add(new SlopeProfileSample(
             key, planPoint, slopeHeight, isFill, materialId, rayId,
-            horizontalOffset, slopeRatio, outcome, allowWaterEmbankment));
+            horizontalOffset, slopeRatio, outcome, allowWaterEmbankment, localDaylightAuthorized,
+            false));
     }
 
     /**

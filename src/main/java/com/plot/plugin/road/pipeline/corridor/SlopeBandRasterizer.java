@@ -27,11 +27,28 @@ public final class SlopeBandRasterizer {
             float slopeRatio,
             SlopeConstructionOutcome outcome,
             boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized,
             double scale) {
         public ShoulderRay {
             heightByOffset = heightByOffset != null ? heightByOffset.clone() : new int[0];
             outcome = outcome != null ? outcome : SlopeConstructionOutcome.COMPLETE;
             scale = scale > 1e-9 ? scale : 1.0;
+        }
+
+        /** Compatibility: rays without local-daylight flag. */
+        public ShoulderRay(
+                SlopeRayId rayId,
+                Vec2d outerEdge,
+                Vec2d outwardNormal,
+                int[] heightByOffset,
+                boolean fill,
+                String materialId,
+                float slopeRatio,
+                SlopeConstructionOutcome outcome,
+                boolean allowWaterEmbankment,
+                double scale) {
+            this(rayId, outerEdge, outwardNormal, heightByOffset, fill, materialId, slopeRatio,
+                outcome, allowWaterEmbankment, false, scale);
         }
 
         public int maxOffset() {
@@ -134,6 +151,9 @@ public final class SlopeBandRasterizer {
                     parent.slopeRatio(),
                     SlopeConstructionOutcome.COMPLETE,
                     parent.allowWaterEmbankment(),
+                    // Only inherit when both parent rays are daylight-authorized — avoids
+                    // spreading CUT exceptions across a ROAD↔daylight span band.
+                    a.localDaylightAuthorized() && b.localDaylightAuthorized(),
                     true));
             }
         }

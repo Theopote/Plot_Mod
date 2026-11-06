@@ -64,7 +64,8 @@ public final class SlopeSurfaceConsolidator {
                     sample.horizontalOffset(),
                     sample.slopeRatio(),
                     sample.outcome(),
-                    sample.allowWaterEmbankment()));
+                    sample.allowWaterEmbankment(),
+                    sample.localDaylightAuthorized()));
             }
             if (!bandInterpolationRay) {
                 enforceMonotonicRay(steps);
@@ -118,6 +119,11 @@ public final class SlopeSurfaceConsolidator {
             if (resolution.allowWaterEmbankment()) {
                 plan.markAllowSlopeWaterFill(key);
             }
+            // Any daylight-authorized batter sample that touched this column stamps the
+            // carve exception — winner may be a neighboring ROAD ray without the flag.
+            if (resolution.localDaylightAuthorized()) {
+                plan.markLocalDaylightCut(key);
+            }
             written.add(key);
         }
 
@@ -151,8 +157,10 @@ public final class SlopeSurfaceConsolidator {
         if (candidates == null || candidates.isEmpty()) {
             return null;
         }
+        boolean anyDaylight = candidates.stream()
+            .anyMatch(candidate -> candidate.step().localDaylightAuthorized());
         if (candidates.size() == 1) {
-            return ColumnResolution.from(candidates.getFirst(), false);
+            return ColumnResolution.from(candidates.getFirst(), false, anyDaylight);
         }
 
         // 真实肩部射线优先于环带插值：COMPLETE 环带不得靠 outcome 排序取消合法挡墙终点。
@@ -169,7 +177,7 @@ public final class SlopeSurfaceConsolidator {
             .filter(candidate -> candidate.rayOutcome() == bestOutcome)
             .toList();
         if (preferredOutcome.size() == 1) {
-            return ColumnResolution.from(preferredOutcome.getFirst(), false);
+            return ColumnResolution.from(preferredOutcome.getFirst(), false, anyDaylight);
         }
 
         int minOffset = preferredOutcome.stream()
@@ -181,7 +189,7 @@ public final class SlopeSurfaceConsolidator {
             .toList();
 
         if (closest.size() == 1) {
-            return ColumnResolution.from(closest.getFirst(), false);
+            return ColumnResolution.from(closest.getFirst(), false, anyDaylight);
         }
 
         boolean mixedFillCut = closest.stream().anyMatch(c -> c.step().fill())
@@ -194,7 +202,7 @@ public final class SlopeSurfaceConsolidator {
                 : closest.stream()
                     .min(Comparator.comparingInt(c -> c.step().slopeSurfaceY()))
                     .orElse(closest.getFirst());
-            return ColumnResolution.from(merged, false);
+            return ColumnResolution.from(merged, false, anyDaylight);
         }
 
         int groundY = sampleGroundY(key, closest.getFirst().step().planPoint(), terrain);
@@ -209,10 +217,10 @@ public final class SlopeSurfaceConsolidator {
                 .min(Comparator.comparingInt(c -> c.step().slopeSurfaceY()))
                 .orElseThrow();
             ColumnCandidate chosen = bestFill.step().slopeSurfaceY() > groundY ? bestFill : bestCut;
-            return ColumnResolution.from(chosen, true);
+            return ColumnResolution.from(chosen, true, anyDaylight);
         }
 
-        return ColumnResolution.from(closest.getFirst(), true);
+        return ColumnResolution.from(closest.getFirst(), true, anyDaylight);
     }
 
     private static int sampleGroundY(ColumnKey key, com.plot.api.geometry.Vec2d planPoint, TerrainSampler terrain) {
@@ -359,12 +367,13 @@ public final class SlopeSurfaceConsolidator {
             int horizontalOffset,
             float slopeRatio,
             SlopeConstructionOutcome outcome,
-            boolean allowWaterEmbankment) {
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized) {
 
         RayStep withSlopeSurfaceY(int y) {
             return new RayStep(
                 columnKey, planPoint, y, fill, materialId, horizontalOffset, slopeRatio, outcome,
-                allowWaterEmbankment);
+                allowWaterEmbankment, localDaylightAuthorized);
         }
     }
 
@@ -375,9 +384,13 @@ public final class SlopeSurfaceConsolidator {
             String materialId,
             boolean hadConflict,
             boolean retainingFinish,
-            boolean allowWaterEmbankment) {
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized) {
 
-        static ColumnResolution from(ColumnCandidate candidate, boolean hadConflict) {
+        static ColumnResolution from(
+                ColumnCandidate candidate,
+                boolean hadConflict,
+                boolean localDaylightAuthorized) {
             RayStep step = candidate.step();
             return new ColumnResolution(
                 step.planPoint(),
@@ -386,7 +399,8 @@ public final class SlopeSurfaceConsolidator {
                 step.materialId(),
                 hadConflict,
                 candidate.tipRetaining(),
-                step.allowWaterEmbankment());
+                step.allowWaterEmbankment(),
+                localDaylightAuthorized || step.localDaylightAuthorized());
         }
     }
 }

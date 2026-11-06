@@ -25,12 +25,13 @@ class LocalDaylightCutTest {
             RoadConstructionType.ROCK_SHELTER_LEFT,
             RoadConstructionType.ROAD));
         List<Double> distances = List.of(10.0, 3.0, 10.0);
+        // Cover 4 → prism ≈ 3×7×4 = 84 ≤ 150 (full-height budget, not clearHeight clamp).
         List<SegmentHeightInfo> heights = List.of(
-            height(0, 10, 64, 80),
-            height(10, 13, 64, 80),
-            height(13, 23, 64, 80));
+            height(0, 10, 64, 68),
+            height(10, 13, 64, 68),
+            height(13, 23, 64, 68));
         LocalDaylightCut.apply(
-            types, distances, heights, hill(80), 7,
+            types, distances, heights, hill(68), 7,
             ResolvedTunnelStyle.defaults(), resolver(), 1.0);
         assertEquals(RoadConstructionType.CUT, types.get(1),
             "3-block rock-shelter island flanked by open road must daylight-cut");
@@ -75,7 +76,8 @@ class LocalDaylightCutTest {
 
     @Test
     void oneSidedOutcropWithOpenCenterlineBecomesCut() {
-        // Centerline at design grade; left shoulder has a tall 3-block-long dirt knob.
+        // Centerline at design grade; left shoulder has a short 3-block dirt knob (~4 high).
+        // Prism ≈ 3×7×4 = 84 ≤ 150; taller towers are refused by full-height budget.
         List<RoadConstructionType> types = new ArrayList<>(List.of(
             RoadConstructionType.ROAD,
             RoadConstructionType.ROCK_SHELTER_LEFT,
@@ -88,9 +90,9 @@ class LocalDaylightCutTest {
         TerrainSampler oneSided = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d planPoint) {
-                // Path along +X; left normal is +Y. Tall dirt only on +Y laterals.
+                // Path along +X; left normal is +Y. Modest dirt only on +Y laterals.
                 if (planPoint.y > 0.5 && planPoint.x >= 10 && planPoint.x <= 13) {
-                    return 90;
+                    return 68;
                 }
                 return 64;
             }
@@ -130,6 +132,44 @@ class LocalDaylightCutTest {
             ResolvedTunnelStyle.defaults(), resolver(), 1.0);
         assertEquals(RoadConstructionType.ROCK_SHELTER_RIGHT, types.get(1),
             "oversized cut volume must keep shelter");
+    }
+
+    @Test
+    void shortButVeryTallOutcropIsRefusedByFullHeightBudget() {
+        // Length 3, envelope 7, cover 30 → ~630 blocks; must NOT clamp to clearHeight≈6.
+        List<RoadConstructionType> types = new ArrayList<>(List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROCK_SHELTER_LEFT,
+            RoadConstructionType.ROAD));
+        List<Double> distances = List.of(10.0, 3.0, 10.0);
+        List<SegmentHeightInfo> heights = List.of(
+            height(0, 10, 64, 64),
+            height(10, 13, 64, 64),
+            height(13, 23, 64, 64));
+        TerrainSampler tallKnob = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                if (planPoint.y > 0.5 && planPoint.x >= 10 && planPoint.x <= 13) {
+                    return 94; // 30 above design
+                }
+                return 64;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= sampleSurfaceY(new Vec2d(worldX, worldZ));
+            }
+        };
+        LocalDaylightCut.apply(
+            types, distances, heights, tallKnob, 7,
+            ResolvedTunnelStyle.defaults(), resolver(), 1.0);
+        assertEquals(RoadConstructionType.ROCK_SHELTER_LEFT, types.get(1),
+            "short but very tall outcrop must stay shelter when full-height prism exceeds budget");
     }
 
     @Test
