@@ -87,6 +87,28 @@ public final class TunnelRoofGapSealer {
         }
     }
 
+    /**
+     * Stabilize gravity blocks above a single world column whose cavity was cleared
+     * without a full cross-section stamp (corridor tunnel clearance / acute gore).
+     */
+    public static void stabilizeGravityColumn(
+            RoadSolidModel solids,
+            Vec2d planPoint,
+            int worldX,
+            int worldZ,
+            int roofTop,
+            TerrainSampler terrain,
+            String terrainRestoreMaterialId) {
+        if (solids == null || planPoint == null || terrain == null || roofTop == Integer.MIN_VALUE) {
+            return;
+        }
+        String restoreId = terrainRestoreMaterialId != null && !terrainRestoreMaterialId.isBlank()
+            ? terrainRestoreMaterialId
+            : DEFAULT_TERRAIN_RESTORE;
+        // Gravity-only: do not invent shell fill for columns without a designed roof stamp.
+        sealColumn(solids, planPoint, worldX, worldZ, roofTop, terrain, null, restoreId);
+    }
+
     private static void sealColumn(
             RoadSolidModel solids,
             Vec2d point,
@@ -105,6 +127,19 @@ public final class TunnelRoofGapSealer {
         int columnTop = Math.max(terrain.sampleColumnTopY(point), surfaceY);
         if (columnTop <= roofTop) {
             columnTop = roofTop + 1;
+        }
+        // Roof cell itself: lining may be skipped at/above surface (shouldPlaceLining),
+        // leaving gravel/sand as the "roof" — rewrite before cavity air removes support.
+        if (terrain.isGravityAffectedBlock(worldX, roofTop, worldZ)) {
+            String roofFill = shellMaterialId != null && !shellMaterialId.isBlank()
+                ? shellMaterialId
+                : restoreId;
+            solids.add(
+                point,
+                roofTop,
+                RoadSolidLayer.TUNNEL,
+                roofFill,
+                RoadSolidMaterialPriority.STRUCTURAL);
         }
         int gravityStabilized = 0;
         boolean reachedOverburden = false;
@@ -134,6 +169,10 @@ public final class TunnelRoofGapSealer {
             if (reachedOverburden) {
                 // Air after overburden — do not fill caves above the roof stack.
                 break;
+            }
+            if (shellMaterialId == null || shellMaterialId.isBlank()) {
+                // Gravity-only column stabilize: leave air gaps; only rewrite falling blocks.
+                continue;
             }
             solids.add(
                 point,

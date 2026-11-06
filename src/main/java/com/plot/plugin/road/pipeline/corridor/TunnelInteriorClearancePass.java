@@ -19,6 +19,8 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
+import com.plot.plugin.road.tunnel.TunnelRoofGapSealer;
+import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
@@ -185,17 +187,37 @@ public final class TunnelInteriorClearancePass {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             double scale,
             boolean portalFrame) {
+        int lining = portalFrame
+            ? Math.min(TunnelStyle.MAX_LINING_THICKNESS, tunnelStyle.liningThickness() + 1)
+            : tunnelStyle.liningThickness();
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             tunnelStyle.shape(),
             roadEnvelopeWidth,
             tunnelStyle.sideClearance(),
             tunnelStyle.clearHeight(),
-            tunnelStyle.liningThickness(),
+            lining,
             roadY,
             portalFrame);
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
+        // Stabilize gravel/sand above the roof before cavity air removes support.
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            tunnelStyle.shape(),
+            roadY,
+            tunnelStyle.clearHeight(),
+            roadEnvelopeWidth,
+            tunnelStyle.sideClearance(),
+            lining,
+            center,
+            normal,
+            scale,
+            columnResolver,
+            terrain,
+            tunnelStyle.liningMaterial(),
+            "minecraft:stone");
         int[] cleared = {0};
         mask.forEach((lateral, y, kind) -> {
             if (kind != TunnelCrossSectionMask.CellKind.AIR) {

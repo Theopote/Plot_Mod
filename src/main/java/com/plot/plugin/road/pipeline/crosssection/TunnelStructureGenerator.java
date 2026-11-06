@@ -819,6 +819,7 @@ public final class TunnelStructureGenerator {
             double unitsPerBlock,
             double scale) {
         Vec2d center = outgoing.start;
+        Vec2d fromNormal = PathSegmentGeometry.chainLeftNormal(incoming, chainForward);
         Vec2d toNormal = PathSegmentGeometry.chainLeftNormal(outgoing, chainForward);
         double worldStation = geometryLocalAtVertex / scale;
         int resolvedY = DesignElevationSource.resolveTargetElevation(
@@ -834,9 +835,38 @@ public final class TunnelStructureGenerator {
         boolean portalFrame = TunnelPortalPlanner.findPortalNear(portals, worldStation) != null;
         String liningId = host.resolveBlockId(tunnelStyle.liningMaterial());
         List<PathSegment> polyline = List.of(incoming, outgoing);
+        // Seal-only fan matches clearance gore normals so gravel above intermediate
+        // orientations is stabilized without stacking conflicting lining shells.
+        int lining = portalFrame
+            ? Math.min(TunnelStyle.MAX_LINING_THICKNESS, tunnelStyle.liningThickness() + 1)
+            : tunnelStyle.liningThickness();
+        TunnelCrossSectionMask sealMask = TunnelCrossSectionMask.build(
+            tunnelStyle.shape(),
+            envelopeWidth,
+            tunnelStyle.sideClearance(),
+            tunnelStyle.clearHeight(),
+            lining,
+            targetY,
+            portalFrame);
+        AcuteCornerSector.forEachTunnelNormal(fromNormal, toNormal, normal ->
+            TunnelRoofGapSealer.sealAboveRoofShell(
+                solids,
+                sealMask,
+                tunnelStyle.shape(),
+                targetY,
+                tunnelStyle.clearHeight(),
+                envelopeWidth,
+                tunnelStyle.sideClearance(),
+                lining,
+                center,
+                normal,
+                scale,
+                columnResolver,
+                terrain,
+                liningId,
+                "minecraft:stone"));
         // Restore one axis-aligned section at the shared vertex (outgoing normal).
-        // Bisector/fan stamps create diagonal shells that fail 6-connected lining checks
-        // and can punch neighbors; intrusion clip still guards the previous carriageway.
+        // Bisector/fan lining stamps create diagonal shells that fail 6-connected checks.
         return placeCrossSection(
             solids,
             tunnelStyle,
@@ -940,6 +970,11 @@ public final class TunnelStructureGenerator {
         }
         if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
             return false;
+        }
+        // Gravity blocks at the shell must become lining even when they form the
+        // engineering surface — otherwise cavity air under them lets gravel fall in.
+        if (terrain.isGravityAffectedBlock(worldX, y, worldZ)) {
+            return true;
         }
         int surfaceY = terrain.sampleSurfaceY(planPoint);
         return y < surfaceY;

@@ -157,6 +157,51 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
+    void tunnelModeStabilizesGravelAboveRoofBeforeCavityAir() {
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64);
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                point, 64, roofTop, RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL, 0));
+
+        TerrainSampler gravelCap = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return roofTop + 2;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return roofTop + 2;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= roofTop + 2;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+                return y == roofTop + 1 || y == roofTop + 2;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(solids, plan, gravelCap, host);
+
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == roofTop + 1 && "minecraft:stone".equals(p.materialId())),
+            "corridor tunnel clearance must stabilize gravel above roof before excavating");
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 65 && "minecraft:air".equals(p.materialId())),
+            "cavity air must still be written under the sealed roof");
+    }
+
+    @Test
     void tunnelModeWithoutLateralDoesNotClear() {
         var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
         int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64, 5);

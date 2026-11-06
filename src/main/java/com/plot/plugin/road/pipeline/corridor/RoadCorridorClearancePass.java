@@ -8,6 +8,7 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
+import com.plot.plugin.road.tunnel.TunnelRoofGapSealer;
 import com.plot.core.terrain.TerrainSampler;
 
 /**
@@ -112,6 +113,23 @@ public final class RoadCorridorClearancePass {
                 host.tunnelStyle(), envelopeWidth, designY);
             topY = Math.min(topY, mask.roofTopY());
             Integer lateral = cell.corridorLateral();
+            // Portal envelope columns may be cleared here before structure/backfill
+            // stamps a roof — stabilize gravel/sand above the portal roof first.
+            int portalRoof = mask.roofTopY();
+            if (lateral != null) {
+                int columnRoof = mask.crossSection().outerTopY(lateral);
+                if (columnRoof != Integer.MIN_VALUE) {
+                    portalRoof = columnRoof;
+                }
+            }
+            TunnelRoofGapSealer.stabilizeGravityColumn(
+                solids,
+                cell.planPoint(),
+                key.worldX(),
+                key.worldZ(),
+                portalRoof,
+                terrain,
+                "minecraft:stone");
             for (int y = designY + 1; y <= topY; y++) {
                 if (lateral != null && !mask.allowsClearance(lateral, y)) {
                     continue;
@@ -326,6 +344,20 @@ public final class RoadCorridorClearancePass {
         if (lateral == null) {
             return 0;
         }
+        // Stabilize gravity above this cavity column before excavating — plan columns
+        // cleared here may never receive a later structure Phase B seal.
+        int columnRoof = mask.outerTopY(lateral);
+        if (columnRoof == Integer.MIN_VALUE) {
+            columnRoof = roofTop;
+        }
+        TunnelRoofGapSealer.stabilizeGravityColumn(
+            solids,
+            cell.planPoint(),
+            key.worldX(),
+            key.worldZ(),
+            columnRoof,
+            terrain,
+            "minecraft:stone");
         int cleared = 0;
         for (int y = designY + 1; y <= topY; y++) {
             if (mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {

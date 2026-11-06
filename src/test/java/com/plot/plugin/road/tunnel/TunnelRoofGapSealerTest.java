@@ -154,6 +154,109 @@ class TunnelRoofGapSealerTest {
     }
 
     @Test
+    void sealRewritesGravelSittingInRoofCellAtSurface() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int envelopeWidth = 9;
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.clearHeight(),
+            style.liningThickness(),
+            ROAD_Y,
+            false);
+        int roofTop = mask.maxY();
+        RoadSolidModel solids = new RoadSolidModel();
+        TerrainSampler gravelRoof = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return roofTop;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return roofTop;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= roofTop;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y == roofTop;
+            }
+        };
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            style.shape(),
+            ROAD_Y,
+            style.clearHeight(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.liningThickness(),
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            1.0,
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.y);
+                }
+            },
+            gravelRoof,
+            "minecraft:stone_bricks",
+            "minecraft:stone");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == roofTop
+                    && ("minecraft:stone_bricks".equals(p.materialId())
+                        || "minecraft:stone".equals(p.materialId()))),
+            "surface gravel occupying the roof cell must be rewritten before cavity dig");
+    }
+
+    @Test
+    void stabilizeGravityColumnRewritesGravelWithoutShellFill() {
+        RoadSolidModel solids = new RoadSolidModel();
+        int roofTop = 70;
+        TerrainSampler gravel = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return roofTop + 3;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return roofTop + 3;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y > roofTop && y <= roofTop + 3;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y == roofTop + 1 || y == roofTop + 2;
+            }
+        };
+        TunnelRoofGapSealer.stabilizeGravityColumn(
+            solids, new Vec2d(5, 0), 5, 0, roofTop, gravel, "minecraft:stone");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == roofTop + 1 && "minecraft:stone".equals(p.materialId())),
+            "corridor-cleared column must stabilize gravel above roof");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() == roofTop + 3 && "minecraft:stone_bricks".equals(p.materialId())),
+            "gravity-only stabilize must not invent lining shell fill");
+    }
+
+    @Test
     void shallowCoverStillStabilizesGravityAtRoofPlusOne() {
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int envelopeWidth = 9;
