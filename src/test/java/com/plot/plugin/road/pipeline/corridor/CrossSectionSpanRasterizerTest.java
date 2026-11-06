@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CrossSectionSpanRasterizerTest {
 
     @Test
-    void zeroDistanceSignificantTurnFansAngularStamps() {
+    void zeroDistanceAcuteTurnFansAngularStamps() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         var config = CorridorTestFixtures.baseConfig();
         var host = CorridorTestFixtures.planHost(config);
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
         Vec2d center = new Vec2d(10, 10);
-        // Shared vertex: eastbound left-normal (0,1) → northbound left-normal (-1,0)
+        // Shared vertex acute (≥90°): eastbound left-normal (0,1) → northbound left-normal (-1,0)
         CrossSectionSpanRasterizer.rasterizeSpan(
             plan,
             center,

@@ -64,7 +64,9 @@ public final class CrossSectionSpanRasterizer {
         double worldDistance = Math.hypot(toWorld.getX() - fromWorld.getX(), toWorld.getZ() - fromWorld.getZ());
         double carriageHalf = Math.max(0.5, crossSection.carriagewayHalfWidth()) * scale;
         // Shared vertex: same world column, different normals — distance densify cannot fan.
-        if (worldDistance < 1e-9 && AcuteCornerSector.needsAngularFan(turn)) {
+        // Only true acute (≥90°) turns: milder bends still stamp once; fanning them with
+        // carriageway clip leaves lateral ROAD/SHOULDER band holes on S-curves.
+        if (worldDistance < 1e-9 && acute) {
             double halfWidthBlocks = Math.max(1.0, carriageHalf / Math.max(scale, 1e-9));
             int surfaceY = (int) Math.round(0.5 * (fromY + toY));
             AcuteCornerSector.forEachNormal(startNormal, endNormal, halfWidthBlocks, normal ->

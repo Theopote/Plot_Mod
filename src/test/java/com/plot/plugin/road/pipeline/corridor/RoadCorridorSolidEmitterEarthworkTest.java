@@ -24,6 +24,37 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadCorridorSolidEmitterEarthworkTest {
 
     @Test
+    void longitudinalStepDoesNotCladBridgeDeckRiser() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey lower = new ColumnKey(0, 0);
+        ColumnKey upper = new ColumnKey(1, 0);
+        plan.surfaceMask().put(lower, new SurfaceCell(
+            new Vec2d(0, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.surfaceMask().put(upper, new SurfaceCell(
+            new Vec2d(1, 0), 65, RoadSolidLayer.ROAD, "minecraft:stone"));
+        plan.putClearance(lower, new ClearanceCell(
+            new Vec2d(0, 0), 64, 72,
+            RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+        plan.putClearance(upper, new ClearanceCell(
+            new Vec2d(1, 0), 65, 72,
+            RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            valleyTerrain(),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()),
+            null,
+            "minecraft:cobblestone");
+
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.layer() == RoadSolidLayer.SUBGRADE
+                    && "minecraft:cobblestone".equals(p.materialId())),
+            "bridge deck 1-block step must not clad valley with open subgrade fill");
+    }
+
+    @Test
     void longitudinalStepCladsUpperRiserWithSubgrade() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey lower = new ColumnKey(0, 0);

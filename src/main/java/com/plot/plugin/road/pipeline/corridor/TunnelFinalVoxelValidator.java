@@ -111,11 +111,6 @@ public final class TunnelFinalVoxelValidator {
         return count;
     }
 
-    /** 严格逐格：期望衬砌位必须有衬砌实体；邻格有衬砌不算满足。 */
-    static int countMissingTunnelLining(RoadGenerationResult result) {
-        return countMissingTunnelLiningExact(result);
-    }
-
     static int countMissingTunnelLiningExact(RoadGenerationResult result) {
         Set<BlockPos> expected = result.expectedTunnelLining;
         if (expected == null || expected.isEmpty()) {

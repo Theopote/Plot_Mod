@@ -221,9 +221,8 @@ public final class RoadCorridorSolidEmitter {
 
         // Longitudinal 1-block step: clad the exposed riser under the upper pavement with
         // subgrade — do not excavate it (would float the higher road).
-        if (surface != null && surfaceY != null
-                && (constructionType == null
-                    || (!constructionType.isTunnelFamily() && !constructionType.isRockShelter()))) {
+        // Reuse allowOpenFillBase so bridge/tunnel interiors never get valley fill.
+        if (surface != null && surfaceY != null && allowOpenFillBase) {
             cladLongitudinalStepRiser(
                 solids, plan, key, planPoint, surfaceY, defaultFillMaterialId, gradeSeparation);
         }

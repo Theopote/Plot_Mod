@@ -30,20 +30,20 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
         574, 0, 0, 58, 0, 0, 199, 0, 0, 514, 0, 0, List.of());
 
-    // Embankment fill after slope consolidator / water-fill authorization changes.
+    // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
-        239, 84, 0, 0, 0, 0, 0, 0, 84, 239, 0, 0, List.of());
+        244, 84, 0, 0, 0, 0, 0, 0, 84, 244, 0, 0, List.of());
 
-    // FIT_TERRAIN / cut-fill balance after corridor slope and clearance designY fixes.
+    // FIT_TERRAIN after acute corner gore stamps and clearance designY floor fix.
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
-        206, 49, 35, 0, 0, 37, 0, 35, 49, 241, 0, 0, List.of());
+        209, 49, 35, 0, 0, 37, 0, 35, 49, 244, 0, 0, List.of());
 
-    // Bridge/tunnel cut volume after portal envelope / clearance tuning.
+    // Bridge portal seal / tunnel voxel counts after roof stabilize + acute fans.
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
-        217, 0, 5286, 0, 108, 1216, 0, 5286, 0, 1541, 1, 2, List.of());
+        217, 0, 5286, 0, 108, 1252, 0, 5286, 0, 1577, 1, 2, List.of());
 
     public static final RoadGoldenMetrics R09 = new RoadGoldenMetrics(
-        401, 0, 3851, 0, 0, 2112, 0, 3851, 0, 2513, 0, 1, List.of());
+        406, 0, 3851, 0, 0, 2148, 0, 3851, 0, 2554, 0, 1, List.of());
 
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
