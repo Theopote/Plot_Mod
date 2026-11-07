@@ -143,8 +143,9 @@ public final class RoadJunctionGeometry {
             maxHalf = Math.max(maxHalf, halfWidth);
             approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
         }
-        // 真实中心线局部条带（弯曲/变宽进口）；直线恒宽时退化为矩形 stub
-        double bandLength = Math.max(effectivePlaza, maxHalf * 3.0 + 2.0);
+        // 真实中心线局部条带（弯曲/变宽进口）；直线恒宽时退化为矩形 stub。
+        // 臂长由广场半径驱动，避免 maxHalf*3 下限把 plazaRadius 拉平。
+        double bandLength = Math.max(effectivePlaza, maxHalf + 1.0);
         double back = maxHalf + 1.0;
         for (RoadEdge edge : edges) {
             if (edge == null) {
@@ -174,10 +175,11 @@ public final class RoadJunctionGeometry {
         JunctionRegionGeometry region = JunctionRegionGeometry.empty();
         if (approachBands.size() >= 3 && approaches.size() >= 3) {
             region = JunctionRegionBuilder.buildFromApproachBands(
-                center, approaches, approachBands, cornerRadius);
+                center, approaches, approachBands, cornerRadius, effectivePlaza);
         }
         if (!region.hasPavement()) {
-            region = JunctionRegionBuilder.buildFromApproaches(center, approaches, cornerRadius);
+            region = JunctionRegionBuilder.buildFromApproaches(
+                center, approaches, cornerRadius, effectivePlaza);
         }
         if (region.hasPavement()) {
             return region.toJunctionGeometryResult();

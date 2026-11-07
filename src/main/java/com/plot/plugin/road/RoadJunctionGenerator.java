@@ -140,19 +140,8 @@ public class RoadJunctionGenerator {
             return blocks;
         }
 
-        // 立交过滤上层后若只剩两臂连续道路：保持走廊，不生成虚构平交广场
-        boolean gradeSepUnderpass = node.isGradeSeparated() || node.isStackGradeSeparated();
-        if (gradeSepUnderpass && connectedEdges.size() <= 2) {
-            LOGGER.debug("立交下层两臂节点 {} 跳过平交广场生成", node.getId());
-            Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, network, generator.getConfig());
-            if (elevatedDeckY != null) {
-                List<RoadEdge> elevatedEdges = collectElevatedJunctionEdges(node, network, terrain);
-                markingGenerator.generateElevatedRailwayContinuation(
-                    blocks, node, network, elevatedEdges, elevatedDeckY);
-            }
-            return blocks;
-        }
-
+        // 立交过滤上层后可能只剩两臂：区域几何会拒绝虚构四臂广场并回退简单包络，
+        // 仍需走清障/保护清单，不能整段跳过路口生成。
         if (degree >= 5) {
             LOGGER.debug("复杂路口（{}条道路汇聚），使用多边形填充（必要时回退凸包）", degree);
         }

@@ -159,35 +159,85 @@ public final class JunctionExpectedProtectedCollector {
             RoadNode node,
             RoadSystemConfig config,
             String elevatedRoadId) {
-        List<RoadEdge> connected = new ArrayList<>();
+        List<RoadEdge> underpass = new ArrayList<>();
+        List<RoadEdge> allArms = new ArrayList<>();
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge connectedEdge = network.getEdge(edgeId);
             if (connectedEdge == null) {
                 continue;
             }
+            allArms.add(connectedEdge);
             if (elevatedRoadId != null
                     && connectedEdge.getRoadId() != null
                     && elevatedRoadId.equals(connectedEdge.getRoadId())) {
                 continue;
             }
-            connected.add(connectedEdge);
+            underpass.add(connectedEdge);
         }
-        if (connected.isEmpty()) {
+        List<Vec2d> polygon = fillPolygonForEdges(network, node, config, underpass);
+        if (polygon.size() >= 3) {
+            return polygon;
+        }
+        // 立交过滤上层后仅两臂时区域式不造虚构平交广场；保护范围改用全部进口（含上层）足迹。
+        polygon = fillPolygonForEdges(network, node, config, allArms);
+        if (polygon.size() >= 3) {
+            return polygon;
+        }
+        return simpleProtectionEnvelope(node, underpass.isEmpty() ? allArms : underpass, network, config);
+    }
+
+    private static List<Vec2d> fillPolygonForEdges(
+            RoadNetwork network,
+            RoadNode node,
+            RoadSystemConfig config,
+            List<RoadEdge> edges) {
+        if (edges == null || edges.isEmpty()) {
             return List.of();
         }
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            connected,
+            edges,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
-            connected,
+            edges,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
             0.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
+    }
+
+    /** 与路口生成器简单包络同口径：按最大硬表面半宽扩圆，保证上层甲板仍有保护列。 */
+    private static List<Vec2d> simpleProtectionEnvelope(
+            RoadNode node,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        if (node == null || node.getPosition() == null || edges == null || edges.isEmpty()) {
+            return List.of();
+        }
+        int maxWidth = 5;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            maxWidth = Math.max(
+                maxWidth,
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks());
+        }
+        int radius = maxWidth + 2;
+        Vec2d center = node.getPosition();
+        int segments = Math.max(12, radius * 4);
+        List<Vec2d> polygon = new ArrayList<>(segments);
+        for (int i = 0; i < segments; i++) {
+            double angle = (Math.PI * 2.0 * i) / segments;
+            polygon.add(new Vec2d(
+                center.x + radius * Math.cos(angle),
+                center.y + radius * Math.sin(angle)));
+        }
+        return polygon;
     }
 
     private static List<Vec2d> stackJunctionPolygon(

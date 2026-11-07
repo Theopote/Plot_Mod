@@ -71,10 +71,11 @@ public final class JunctionRegionBuilder {
             return JunctionRegionGeometry.empty();
         }
 
-        // 最终铺装臂长由重叠平行四边形投影决定（不随 R 变化），避免锐角斜交裁掉核区角点
+        // 铺装臂长至少覆盖重叠核；显式 extent（广场半径）只可加长、不随圆角 R 变化
+        double fromOverlap = pavementExtentFromOverlap(center, roadA, roadB, overlap);
         double pavementExtent = Double.isFinite(extent) && extent > 0
-            ? extent
-            : pavementExtentFromOverlap(center, roadA, roadB, overlap);
+            ? Math.max(fromOverlap, extent)
+            : fromOverlap;
         double computeExtent = Math.max(
             pavementExtent,
             pavementExtent + Math.max(0.0, requested) + 1.0);
@@ -138,6 +139,18 @@ public final class JunctionRegionBuilder {
             List<JunctionCurbFilletBuilder.Approach> tangents,
             List<List<Vec2d>> bandPolygons,
             double cornerRadius) {
+        return buildFromApproachBands(center, tangents, bandPolygons, cornerRadius, Double.NaN);
+    }
+
+    /**
+     * @param minExtent 广场最小臂长（通常为有效 plazaRadius）；与重叠核取较大值
+     */
+    public static JunctionRegionGeometry buildFromApproachBands(
+            Vec2d center,
+            List<JunctionCurbFilletBuilder.Approach> tangents,
+            List<List<Vec2d>> bandPolygons,
+            double cornerRadius,
+            double minExtent) {
         if (center == null || tangents == null || bandPolygons == null) {
             return JunctionRegionGeometry.empty();
         }
@@ -145,7 +158,7 @@ public final class JunctionRegionBuilder {
             return JunctionRegionGeometry.empty();
         }
         // 先用切线拓扑求重叠核（十字/T）；失败则无法区域式
-        JunctionRegionGeometry tangentCore = buildFromApproaches(center, tangents, 0.0);
+        JunctionRegionGeometry tangentCore = buildFromApproaches(center, tangents, 0.0, minExtent);
         if (!tangentCore.hasPavement() || tangentCore.overlapRegion().size() < 3) {
             return JunctionRegionGeometry.empty();
         }
@@ -180,6 +193,8 @@ public final class JunctionRegionBuilder {
             }
         }
         candidates.addAll(tangentCore.overlapRegion());
+        // 广场半径加长的切线条带并集，避免仅靠远端条带顶点无法扩大核区
+        candidates.addAll(tangentCore.originalRoadUnion());
         List<Vec2d> pavementUnion = sortCcw(center, dedupe(candidates));
         if (pavementUnion.size() < 3) {
             return JunctionRegionGeometry.empty();
@@ -200,7 +215,8 @@ public final class JunctionRegionBuilder {
         }
         // 圆角仍用切线条带求解（边长足够，半径不被折线锯齿卡住）；
         // 原始并集轮廓保留真实弯曲条带。
-        JunctionRegionGeometry filletedTangents = buildFromApproaches(center, tangents, requested);
+        JunctionRegionGeometry filletedTangents = buildFromApproaches(
+            center, tangents, requested, minExtent);
         if (!filletedTangents.hasPavement() || filletedTangents.curbArcs().isEmpty()) {
             return new JunctionRegionGeometry(
                 tangentCore.overlapRegion(),
@@ -287,6 +303,17 @@ public final class JunctionRegionBuilder {
             Vec2d center,
             List<JunctionCurbFilletBuilder.Approach> approaches,
             double cornerRadius) {
+        return buildFromApproaches(center, approaches, cornerRadius, Double.NaN);
+    }
+
+    /**
+     * @param minExtent 广场最小臂长；与重叠核投影取较大值。NaN 表示仅用重叠核。
+     */
+    public static JunctionRegionGeometry buildFromApproaches(
+            Vec2d center,
+            List<JunctionCurbFilletBuilder.Approach> approaches,
+            double cornerRadius,
+            double minExtent) {
         if (center == null || approaches == null) {
             return JunctionRegionGeometry.empty();
         }
@@ -299,7 +326,7 @@ public final class JunctionRegionBuilder {
             }
         }
         if (valid.size() == 3) {
-            return buildTFromApproaches(center, valid, cornerRadius);
+            return buildTFromApproaches(center, valid, cornerRadius, minExtent);
         }
         if (valid.size() != 4) {
             return JunctionRegionGeometry.empty();
@@ -310,7 +337,7 @@ public final class JunctionRegionBuilder {
         if (roadA == null || roadB == null) {
             return JunctionRegionGeometry.empty();
         }
-        return build(center, roadA, roadB, cornerRadius);
+        return build(center, roadA, roadB, cornerRadius, minExtent, 10);
     }
 
     /**
@@ -353,9 +380,10 @@ public final class JunctionRegionBuilder {
             return JunctionRegionGeometry.empty();
         }
 
+        double fromOverlap = pavementExtentFromOverlap(center, through, stemRoad, overlap);
         double pavementExtent = Double.isFinite(extent) && extent > 0
-            ? extent
-            : pavementExtentFromOverlap(center, through, stemRoad, overlap);
+            ? Math.max(fromOverlap, extent)
+            : fromOverlap;
         double computeExtent = Math.max(
             pavementExtent,
             pavementExtent + Math.max(0.0, requested) + 1.0);
@@ -414,7 +442,8 @@ public final class JunctionRegionBuilder {
     private static JunctionRegionGeometry buildTFromApproaches(
             Vec2d center,
             List<JunctionCurbFilletBuilder.Approach> valid,
-            double cornerRadius) {
+            double cornerRadius,
+            double minExtent) {
         // 找对向贯通对；其余为支路
         for (int i = 0; i < valid.size(); i++) {
             for (int j = i + 1; j < valid.size(); j++) {
@@ -426,7 +455,7 @@ public final class JunctionRegionBuilder {
                     if (k == i || k == j) {
                         continue;
                     }
-                    return buildT(center, through, valid.get(k), cornerRadius);
+                    return buildT(center, through, valid.get(k), cornerRadius, minExtent, 10);
                 }
             }
         }

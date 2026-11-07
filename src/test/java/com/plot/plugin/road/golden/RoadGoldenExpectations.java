@@ -49,10 +49,10 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
 
-    // 立交下层两臂不再生成虚构平交广场；修复 slope fan clamp 后恢复边坡填方。
-    // surfaceBlocks 在共享顶点扇区栅格边界可能 ±3 抖动，见 RoadGoldenTolerance。
+    // 立交下层两臂：区域式不造虚构四臂广场，回退简单包络清障并保留上层保护；
+    // 修复 slope fan clamp 后含边坡填方。surfaceBlocks 见 RoadGoldenTolerance ±3。
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        508, 82, 0, 0, 119, 0, 0, 0, 82, 647, 1, 0, List.of());
+        669, 82, 0, 0, 119, 158, 305, 0, 82, 778, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());
