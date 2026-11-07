@@ -19,9 +19,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
-    // 区域式/路缘圆角在 T 字街角外扩合法补铺；junctionBlocks 随圆角足迹增加。
+    // T 字区域式：贯通条带∪支路 stub，路口固体仅核区∪两处街角补铺。
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        343, 0, 0, 36, 0, 0, 88, 0, 0, 299, 0, 0, List.of());
+        333, 0, 0, 36, 0, 0, 63, 0, 0, 299, 0, 0, List.of());
 
     // 十字路口：路口固体仅含重叠核∪圆角补铺，进口路臂归各道路走廊（junctionBlocks 下降）。
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(

@@ -210,6 +210,51 @@ class JunctionRegionBuilderTest {
     }
 
     @Test
+    void orthogonalTJunctionHasTwoCurbFilletsAndNoSouthStem() {
+        Vec2d center = new Vec2d(0, 0);
+        JunctionRegionGeometry sharp = JunctionRegionBuilder.buildT(
+            center,
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, 1), 2.0),
+            0.0);
+        JunctionRegionGeometry filleted = JunctionRegionBuilder.buildT(
+            center,
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, 1), 2.0),
+            3.0);
+
+        assertTrue(sharp.hasPavement());
+        assertEquals(4, sharp.overlapRegion().size());
+        // 贯通道路背侧不应被支路铺装覆盖
+        assertFalse(RoadGeometryUtils.pointInPolygon(new Vec2d(0, -6), sharp.originalRoadUnion()),
+            "T must not invent a south stem arm");
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 5), sharp.originalRoadUnion()),
+            "stem stub must extend north");
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(5, 0), sharp.originalRoadUnion()),
+            "through road must remain");
+
+        assertTrue(filleted.curbArcs().size() >= 2, "T has two street-corner fillets");
+        Vec2d neStreet = new Vec2d(2.0 + 0.5, 3.0 + 0.5);
+        assertFalse(RoadGeometryUtils.pointInPolygon(neStreet, sharp.finalPavementRegion()));
+        assertTrue(RoadGeometryUtils.pointInPolygon(neStreet, filleted.finalPavementRegion()),
+            "fillet must expand NE T-corner");
+    }
+
+    @Test
+    void threeApproachesBuildTViaBuildFromApproaches() {
+        List<JunctionCurbFilletBuilder.Approach> tee = List.of(
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(-1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, 1), 2.5)
+        );
+        JunctionRegionGeometry geo =
+            JunctionRegionBuilder.buildFromApproaches(new Vec2d(0, 0), tee, 2.0);
+        assertTrue(geo.hasPavement());
+        assertTrue(geo.hasPavement() && geo.toJunctionGeometryResult().hasRegionZones());
+        assertTrue(geo.curbArcs().size() >= 2);
+    }
+
+    @Test
     void filletInfluenceOnlyExpandsStreetCorners() {
         Vec2d center = new Vec2d(0, 0);
         JunctionRegionBuilder.StraightRoad wide =

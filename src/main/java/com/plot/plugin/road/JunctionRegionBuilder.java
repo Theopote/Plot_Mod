@@ -7,9 +7,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 两条直线道路的平交路口区域几何：重叠核区 + 铺装并集 + 凹角路缘圆角。
+ * 直线道路平交路口区域几何：重叠核区 + 铺装并集 + 凹角路缘圆角。
  * <p>
- * 不从交叉点外推 plaza，而是用两条道路的局部铺装条带求交/并，再在并集外环凹角补弧。
+ * 支持两条贯通道路十字，以及「一对贯通 + 一条支路」的 T 字。
+ * 不从交叉点外推 plaza，而是用局部铺装条带求交/并，再在并集外环凹角补弧。
  */
 public final class JunctionRegionBuilder {
     private static final double MIN_RADIUS = 0.15;
@@ -129,8 +130,12 @@ public final class JunctionRegionBuilder {
     }
 
     /**
-     * 从多条进口配对成两条贯通直线道路。
-     * 首版仅接受四条有效进口（两组近似反向且半宽一致）；两臂节点不得扩张成四臂十字。
+     * 从进口列表构建区域几何。
+     * <ul>
+     *   <li>4 进口：两组对向贯通 → 十字</li>
+     *   <li>3 进口：一对对向贯通 + 一条支路 → T 字</li>
+     *   <li>2 进口：拒绝（不得扩张成四臂）</li>
+     * </ul>
      */
     public static JunctionRegionGeometry buildFromApproaches(
             Vec2d center,
@@ -147,7 +152,9 @@ public final class JunctionRegionBuilder {
                 valid.add(approach);
             }
         }
-        // 禁止两臂自动扩张为四臂完整道路（立交下层弯折等）
+        if (valid.size() == 3) {
+            return buildTFromApproaches(center, valid, cornerRadius);
+        }
         if (valid.size() != 4) {
             return JunctionRegionGeometry.empty();
         }
@@ -158,6 +165,126 @@ public final class JunctionRegionBuilder {
             return JunctionRegionGeometry.empty();
         }
         return build(center, roadA, roadB, cornerRadius);
+    }
+
+    /**
+     * T 字：贯通道路双向条带 ∪ 支路单向 stub，重叠核取贯通路与支路无限条带交，
+     * 并集仅保留支路半平面侧的核区角点作为凹角。
+     */
+    public static JunctionRegionGeometry buildT(
+            Vec2d center,
+            StraightRoad through,
+            JunctionCurbFilletBuilder.Approach stem,
+            double cornerRadius) {
+        return buildT(center, through, stem, cornerRadius, Double.NaN, 10);
+    }
+
+    public static JunctionRegionGeometry buildT(
+            Vec2d center,
+            StraightRoad through,
+            JunctionCurbFilletBuilder.Approach stem,
+            double cornerRadius,
+            double extent,
+            int arcSegments) {
+        if (center == null || through == null || stem == null) {
+            return JunctionRegionGeometry.empty();
+        }
+        if (through.halfWidth() <= 1e-9 || stem.halfWidth() <= 1e-9) {
+            return JunctionRegionGeometry.empty();
+        }
+        if (stem.outward().lengthSquared() < 1e-12) {
+            return JunctionRegionGeometry.empty();
+        }
+        StraightRoad stemRoad = new StraightRoad(stem.outward(), stem.halfWidth());
+        double absSin = Math.abs(through.direction().cross(stemRoad.direction()));
+        if (absSin < MIN_ABS_SIN) {
+            return JunctionRegionGeometry.empty();
+        }
+
+        double requested = Math.max(0.0, cornerRadius);
+        List<Vec2d> overlap = buildOverlapParallelogram(center, through, stemRoad);
+        if (overlap.size() < 3) {
+            return JunctionRegionGeometry.empty();
+        }
+
+        double pavementExtent = Double.isFinite(extent) && extent > 0
+            ? extent
+            : pavementExtentFromOverlap(center, through, stemRoad, overlap);
+        double computeExtent = Math.max(
+            pavementExtent,
+            pavementExtent + Math.max(0.0, requested) + 1.0);
+        double backIntoThrough = through.halfWidth() / absSin;
+
+        List<Vec2d> throughStrip = buildStripRectangle(center, through, pavementExtent);
+        List<Vec2d> stemStub = buildStemStub(
+            center, stemRoad.direction(), stemRoad.halfWidth(), backIntoThrough, pavementExtent);
+        List<Vec2d> stemSideOverlap = filterOverlapOnStemSide(center, stemRoad.direction(), overlap);
+        if (stemSideOverlap.size() < 2) {
+            stemSideOverlap = overlap;
+        }
+
+        List<Vec2d> pavementUnion = buildUnionCross(center, throughStrip, stemStub, stemSideOverlap);
+        if (pavementUnion.size() < 3) {
+            return JunctionRegionGeometry.empty();
+        }
+
+        List<JunctionRegionGeometry.ApproachBoundary> approachBounds = List.of(
+            approachBoundary(center, through, pavementExtent),
+            new JunctionRegionGeometry.ApproachBoundary(
+                stemRoad.direction(),
+                stemRoad.halfWidth(),
+                stemMouthCorners(center, stemRoad, pavementExtent)));
+
+        if (requested < MIN_RADIUS) {
+            return new JunctionRegionGeometry(
+                overlap,
+                pavementUnion,
+                pavementUnion,
+                List.of(),
+                List.of(),
+                approachBounds,
+                requested,
+                List.of());
+        }
+
+        List<Vec2d> computeThrough = buildStripRectangle(center, through, computeExtent);
+        List<Vec2d> computeStem = buildStemStub(
+            center, stemRoad.direction(), stemRoad.halfWidth(), backIntoThrough, computeExtent);
+        List<Vec2d> computeUnion = buildUnionCross(
+            center, computeThrough, computeStem, stemSideOverlap);
+        FilletPass fillets = applyConcaveFillets(
+            pavementUnion, computeUnion, requested, Math.max(3, arcSegments));
+        return new JunctionRegionGeometry(
+            overlap,
+            pavementUnion,
+            fillets.finalRing(),
+            fillets.additions(),
+            fillets.arcs(),
+            approachBounds,
+            requested,
+            fillets.effectiveRadii());
+    }
+
+    private static JunctionRegionGeometry buildTFromApproaches(
+            Vec2d center,
+            List<JunctionCurbFilletBuilder.Approach> valid,
+            double cornerRadius) {
+        // 找对向贯通对；其余为支路
+        for (int i = 0; i < valid.size(); i++) {
+            for (int j = i + 1; j < valid.size(); j++) {
+                StraightRoad through = pairOpposite(valid.get(i), valid.get(j));
+                if (through == null) {
+                    continue;
+                }
+                for (int k = 0; k < valid.size(); k++) {
+                    if (k == i || k == j) {
+                        continue;
+                    }
+                    return buildT(center, through, valid.get(k), cornerRadius);
+                }
+            }
+        }
+        return JunctionRegionGeometry.empty();
     }
 
     /**
@@ -250,6 +377,49 @@ public final class JunctionRegionBuilder {
             center.subtract(along).subtract(across),
             center.subtract(along).add(across));
         return sortCcw(center, rect);
+    }
+
+    /** 支路单向 stub：向贯通道路内侧回伸 back，向外延伸 forward。 */
+    static List<Vec2d> buildStemStub(
+            Vec2d center,
+            Vec2d stemOut,
+            double stemHalfWidth,
+            double back,
+            double forward) {
+        Vec2d u = stemOut.normalize();
+        Vec2d n = u.perpendicular();
+        Vec2d near = center.subtract(u.multiply(Math.max(0.0, back)));
+        Vec2d far = center.add(u.multiply(Math.max(forward, back + 1.0)));
+        Vec2d across = n.multiply(stemHalfWidth);
+        List<Vec2d> rect = List.of(
+            far.add(across),
+            far.subtract(across),
+            near.subtract(across),
+            near.add(across));
+        return sortCcw(center, rect);
+    }
+
+    static List<Vec2d> filterOverlapOnStemSide(Vec2d center, Vec2d stemOut, List<Vec2d> overlap) {
+        Vec2d unit = stemOut.normalize();
+        List<Vec2d> kept = new ArrayList<>();
+        for (Vec2d corner : overlap) {
+            if (corner == null) {
+                continue;
+            }
+            // 保留支路半平面（含过中心的分界线），去掉贯通道路背侧虚假凹角
+            if (corner.subtract(center).dot(unit) >= -1e-4) {
+                kept.add(corner);
+            }
+        }
+        return kept;
+    }
+
+    private static List<Vec2d> stemMouthCorners(Vec2d center, StraightRoad stem, double extent) {
+        Vec2d mouth = center.add(stem.direction().multiply(extent));
+        Vec2d n = stem.normal();
+        return List.of(
+            mouth.add(n.multiply(stem.halfWidth())),
+            mouth.subtract(n.multiply(stem.halfWidth())));
     }
 
     /**
