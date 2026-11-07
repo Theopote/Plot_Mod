@@ -23,9 +23,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
         343, 0, 0, 36, 0, 0, 88, 0, 0, 299, 0, 0, List.of());
 
-    // 十字路口四处路缘补弧增加少量表面方块。
+    // 十字路口：路口固体仅含重叠核∪圆角补铺，进口路臂归各道路走廊（junctionBlocks 下降）。
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        449, 0, 0, 60, 0, 0, 159, 0, 0, 389, 0, 0, List.of());
+        449, 0, 0, 60, 0, 0, 89, 0, 0, 389, 0, 0, List.of());
 
     // 五岔回退旧圆角构建器后，街角外扩铺装更完整。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(

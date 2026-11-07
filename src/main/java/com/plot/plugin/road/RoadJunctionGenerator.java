@@ -237,10 +237,10 @@ public class RoadJunctionGenerator {
             return List.of();
         }
 
-        // 铺装栅格取锐角∪圆角足迹（保证进近接缝不漏柱）；表面层仅保留圆角内，
-        // 清障外形使用倒圆角多边形。尖角差集自然形成路缘弧外轮廓。
+        // 清障外形用完整倒圆角足迹；表面铺装责任区优先为重叠核∪圆角补铺，
+        // 进口路臂交给各道路走廊保留原材质。
         fillPolygon(
-            blocks, node, network, edges, polygon, geometry.sharpPolygon(),
+            blocks, node, network, edges, polygon, geometry.sharpPolygon(), geometry,
             center, junctionY, terrain, edgeResults, networkNodeElevations);
         return polygon;
     }
@@ -323,28 +323,73 @@ public class RoadJunctionGenerator {
             List<RoadEdge> edges,
             List<Vec2d> filletedPolygon,
             List<Vec2d> sharpPolygon,
+            JunctionGeometryResult geometry,
             Vec2d center,
             int junctionY,
             TerrainSampler terrain,
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations) {
-        // 倒圆角多边形决定铺装与净空外轮廓；锐角足迹用于走廊裁剪。
-        // 尖角差集（锐角\圆角）故意留空以形成路缘弧；接缝由进近走廊与圆角内铺装相接保证。
-        List<Vec2d> coverage = filletedPolygon != null && filletedPolygon.size() >= 3
+        // 清障外形：完整倒圆角足迹。表面铺装：区域式时仅重叠核∪圆角补铺。
+        List<Vec2d> clearance = filletedPolygon != null && filletedPolygon.size() >= 3
             ? filletedPolygon
             : sharpPolygon;
-        if (coverage == null || coverage.size() < 3) {
-            coverage = filletedPolygon;
+        if (clearance == null || clearance.size() < 3) {
+            clearance = filletedPolygon;
         }
+        List<Vec2d> stampFootprint = junctionSurfaceFootprint(geometry, clearance, sharpPolygon);
         List<Vec2d> cells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
-            coverage,
+            stampFootprint,
             generator.coordinateTransformer()));
+        // 圆角补铺可能是多个小多边形，合并栅格
+        if (geometry != null && geometry.hasRegionZones()) {
+            for (List<Vec2d> addition : geometry.filletAdditions()) {
+                if (addition == null || addition.size() < 3) {
+                    continue;
+                }
+                cells.addAll(RoadGeometryUtils.collectWorldCellPlanPoints(
+                    addition, generator.coordinateTransformer()));
+            }
+            cells = dedupePlanCells(cells);
+        }
         if (cells.isEmpty() && center != null) {
             cells = List.of(center);
         }
         fillJunctionCells(
-            blocks, cells, coverage, node, network, edges, junctionY, terrain, edgeResults,
+            blocks, cells, clearance, node, network, edges, junctionY, terrain, edgeResults,
             networkNodeElevations);
+    }
+
+    /**
+     * 区域式：路口表面责任区 = 重叠核（圆角补铺另栅格合并）。
+     * 旧路径：整块 fill/sharp 足迹。
+     */
+    private static List<Vec2d> junctionSurfaceFootprint(
+            JunctionGeometryResult geometry,
+            List<Vec2d> clearance,
+            List<Vec2d> sharpPolygon) {
+        if (geometry != null && geometry.hasRegionZones()) {
+            return geometry.overlapRegion();
+        }
+        if (clearance != null && clearance.size() >= 3) {
+            return clearance;
+        }
+        return sharpPolygon != null ? sharpPolygon : List.of();
+    }
+
+    private static List<Vec2d> dedupePlanCells(List<Vec2d> cells) {
+        if (cells == null || cells.isEmpty()) {
+            return List.of();
+        }
+        java.util.LinkedHashMap<Long, Vec2d> unique = new java.util.LinkedHashMap<>();
+        for (Vec2d cell : cells) {
+            if (cell == null) {
+                continue;
+            }
+            int x = (int) Math.floor(cell.x);
+            int z = (int) Math.floor(cell.y);
+            unique.putIfAbsent((((long) x) << 32) ^ (z & 0xffffffffL), cell);
+        }
+        return new ArrayList<>(unique.values());
     }
 
     private void fillJunctionCells(

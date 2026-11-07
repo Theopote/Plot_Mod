@@ -78,7 +78,9 @@ public record JunctionRegionGeometry(
             boundaries,
             requestedCornerRadius,
             minEffectiveCornerRadius(),
-            fillets);
+            fillets,
+            overlapRegion,
+            filletAdditions);
     }
 
     private static List<Vec2d> copyRing(List<Vec2d> ring) {
