@@ -342,11 +342,12 @@ public final class RoadJunctionGeometry {
                 continue;
             }
 
+            double sweep = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
             result.add(tangentStart);
-            appendArcPoints(result, center, tangentStart, tangentEnd, effectiveRadius, segments, angle);
+            appendArcPoints(result, center, tangentStart, tangentEnd, effectiveRadius, segments, sweep);
             result.add(tangentEnd);
             corners.add(new JunctionGeometryResult.FilletCorner(
-                center, tangentStart, tangentEnd, effectiveRadius, angle));
+                center, tangentStart, tangentEnd, effectiveRadius, angle, sweep));
             minEffective = Math.min(minEffective, effectiveRadius);
         }
         if (result.size() >= 3 && !isSimplePolygon(result)) {
@@ -356,9 +357,7 @@ public final class RoadJunctionGeometry {
         return new FilletBuild(result, corners, reported);
     }
 
-    /**
-     * 沿短弧从 start 扫到 end。优先选择与 cornerAngle 接近的扫掠，避免外侧长弧回绕。
-     */
+    /** 沿切点间短弧采样中间点（不含起终，由调用方写入）。 */
     private static void appendArcPoints(
             List<Vec2d> out,
             Vec2d center,
@@ -366,30 +365,12 @@ public final class RoadJunctionGeometry {
             Vec2d end,
             double radius,
             int segments,
-            double cornerAngle) {
-        double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-        double endAngle = Math.atan2(end.y - center.y, end.x - center.x);
-        double sweep = endAngle - startAngle;
-        while (sweep <= -Math.PI) {
-            sweep += Math.PI * 2.0;
-        }
-        while (sweep > Math.PI) {
-            sweep -= Math.PI * 2.0;
-        }
-        // 仅当短弧明显不是目标转角、而长弧才是时才反向；目标角须 ≤π，避免锐角街角被翻成近整圆
-        if (cornerAngle > 1e-6 && cornerAngle <= Math.PI + 1e-6
-                && Math.abs(Math.abs(sweep) - cornerAngle) > 0.35
-                && Math.abs(Math.abs(sweep) - (Math.PI * 2.0 - cornerAngle)) < 0.35
-                && (Math.PI * 2.0 - cornerAngle) <= Math.PI + 1e-6) {
-            sweep = sweep > 0 ? sweep - Math.PI * 2.0 : sweep + Math.PI * 2.0;
-        }
-        for (int i = 1; i < segments; i++) {
-            double t = (double) i / segments;
-            double angle = startAngle + sweep * t;
-            out.add(new Vec2d(
-                center.x + Math.cos(angle) * radius,
-                center.y + Math.sin(angle) * radius
-            ));
+            double sweepRadians) {
+        FilletArcSweep.ListSamples samples =
+            FilletArcSweep.sample(center, start, end, radius, sweepRadians, segments);
+        List<Vec2d> points = samples.points();
+        for (int i = 1; i < points.size() - 1; i++) {
+            out.add(points.get(i));
         }
     }
 

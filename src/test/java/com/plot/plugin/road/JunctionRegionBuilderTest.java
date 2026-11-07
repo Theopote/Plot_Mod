@@ -30,6 +30,49 @@ class JunctionRegionBuilderTest {
     }
 
     @Test
+    void orthogonalNeStreetCornerFilletCenterIsOutsidePavement() {
+        // 半宽 3 → NE 锐点 (3,3)；R=4、φ=90° → 圆心 (7,7)；切点 (7,3)/(3,7)
+        Vec2d junction = new Vec2d(0, 0);
+        Vec2d neCorner = new Vec2d(3, 3);
+        JunctionRegionBuilder.StraightRoad eastWest =
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 3.0);
+        JunctionRegionBuilder.StraightRoad northSouth =
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(0, 1), 3.0);
+
+        JunctionRegionBuilder.CornerFillet fillet = JunctionRegionBuilder.streetCornerFillet(
+            junction, neCorner, eastWest, northSouth, 4.0, 20.0);
+        assertTrue(fillet != null, "NE orthogonal curb return must solve");
+        assertEquals(7.0, fillet.center().x, 1e-6);
+        assertEquals(7.0, fillet.center().y, 1e-6);
+        assertEquals(Math.PI / 2.0, fillet.cornerAngle(), 1e-6);
+        assertTrue(Math.abs(fillet.sweepRadians()) <= Math.PI + 1e-9);
+        assertTrue(Math.abs(Math.abs(fillet.sweepRadians()) - Math.PI / 2.0) < 0.05,
+            "orthogonal short arc sweep ≈ 90°, got " + Math.toDegrees(fillet.sweepRadians()));
+
+        Vec2d tA = fillet.tangentStart();
+        Vec2d tB = fillet.tangentEnd();
+        boolean hasEast = near(tA, 7, 3) || near(tB, 7, 3);
+        boolean hasNorth = near(tA, 3, 7) || near(tB, 3, 7);
+        assertTrue(hasEast && hasNorth, "tangents must be (7,3) and (3,7); got " + tA + " / " + tB);
+
+        JunctionRegionGeometry geo = JunctionRegionBuilder.build(
+            junction, eastWest, northSouth, 4.0);
+        JunctionRegionGeometry.CurbArc neArc = null;
+        for (JunctionRegionGeometry.CurbArc arc : geo.curbArcs()) {
+            if (arc.center().distance(new Vec2d(7, 7)) < 0.05) {
+                neArc = arc;
+                break;
+            }
+        }
+        assertTrue(neArc != null, "build() must emit NE curb arc centered at (7,7)");
+        assertEquals(fillet.sweepRadians(), neArc.sweepRadians(), 1e-9);
+    }
+
+    private static boolean near(Vec2d p, double x, double y) {
+        return p != null && Math.hypot(p.x - x, p.y - y) < 0.05;
+    }
+
+    @Test
     void skewedOverlapIsParallelogramAndAreaFollowsSinTheta() {
         Vec2d center = new Vec2d(0, 0);
         double halfA = 2.0;

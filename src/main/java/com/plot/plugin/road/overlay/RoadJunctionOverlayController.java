@@ -1,6 +1,7 @@
 package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.JunctionPreviewGeometry;
@@ -37,6 +38,21 @@ public final class RoadJunctionOverlayController {
             String selectedCrossingId,
             String selectedNodeId,
             boolean showFilletPreview) {
+        return snapshot(
+            network, builder, config, null, selectedCrossingId, selectedNodeId, showFilletPreview);
+    }
+
+    /**
+     * @param coordinates 主画布投影；非空时倒圆角半宽/半径与道路走廊叠加层同尺度
+     */
+    public static List<RoadJunctionOverlayEntry> snapshot(
+            RoadNetwork network,
+            RoadNetworkBuilder builder,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            String selectedCrossingId,
+            String selectedNodeId,
+            boolean showFilletPreview) {
         if (network == null || builder == null) {
             return List.of();
         }
@@ -44,7 +60,7 @@ public final class RoadJunctionOverlayController {
         List<List<Vec2d>> filletArcs = List.of();
         if (showFilletPreview && config != null) {
             JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
-                network, config, selectedNodeId, selectedCrossingId);
+                network, config, selectedNodeId, selectedCrossingId, coordinates);
             if (geometry.hasFillPolygon() || !geometry.fillets().isEmpty()) {
                 sharpOutline = geometry.sharpPolygon();
                 filletArcs = JunctionFilletArcSampler.sampleArcs(geometry);

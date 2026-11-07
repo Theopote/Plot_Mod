@@ -335,6 +335,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.networkManager().getNetwork(),
             ctx.networkManager().getNetworkBuilder(),
             ctx.networkManager().getConfig(),
+            ctx.host().coordinates(),
             ctx.networkManager().getSelectedCrossingId(),
             ctx.networkManager().getSelectedNodeId(),
             ctx.isJunctionFilletPreviewVisible());

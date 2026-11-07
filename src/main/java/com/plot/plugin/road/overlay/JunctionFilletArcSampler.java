@@ -43,20 +43,13 @@ public final class JunctionFilletArcSampler {
                 || fillet.radius() <= 1e-9) {
             return List.of();
         }
-        Vec2d center = fillet.center();
-        Vec2d start = fillet.tangentStart();
-        Vec2d end = fillet.tangentEnd();
-        double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-        // 切点圆心角与草地楔形互补；只用短弧，勿用草地角把扫掠翻成近整圆
-        double sweep = FilletArcSweep.resolveShort(center, start, end);
-        int segs = Math.max(3, segments);
-        List<Vec2d> out = new ArrayList<>(segs + 1);
-        out.add(start.copy());
-        for (int i = 1; i < segs; i++) {
-            double t = (double) i / segs;
-            out.add(FilletArcSweep.pointOnArc(center, fillet.radius(), startAngle + sweep * t));
-        }
-        out.add(end.copy());
-        return out;
+        // 使用求解阶段已固化的 sweep，预览与 Minecraft 补铺同一几何
+        return FilletArcSweep.sample(
+            fillet.center(),
+            fillet.tangentStart(),
+            fillet.tangentEnd(),
+            fillet.radius(),
+            fillet.sweepRadians(),
+            segments).points();
     }
 }

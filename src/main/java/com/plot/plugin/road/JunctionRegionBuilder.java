@@ -633,7 +633,8 @@ public final class JunctionRegionBuilder {
                 fillet.tangentEnd(),
                 fillet.radius(),
                 fillet.cornerAngle(),
-                fillet.shrinkReason()));
+                fillet.shrinkReason(),
+                fillet.sweepRadians()));
             additions.add(filletAddition(corner, fillet, arcSegments));
         }
         // 最终轮廓环保持锐角并集：圆角只体现在 curbArcs / filletAdditions。
@@ -680,7 +681,8 @@ public final class JunctionRegionBuilder {
             CornerFillet fillet = new CornerFillet(
                 best.center(), best.tangentStart(), best.tangentEnd(),
                 best.radius(), best.cornerAngle(),
-                best.shrinkReason() != null ? best.shrinkReason() : "");
+                best.shrinkReason() != null ? best.shrinkReason() : "",
+                best.sweepRadians());
             appendArc(out, fillet, Math.max(3, arcSegments));
         }
         List<Vec2d> ring = dedupe(out);
@@ -749,7 +751,7 @@ public final class JunctionRegionBuilder {
         }
         Vec2d outA = roadA.normal().multiply(sideA);
         Vec2d outB = roadB.normal().multiply(sideB);
-        double normalCos = Math.max(-1.0, Math.min(1.0, outA.dot(outB)));
+        double normalCos = Math.clamp(outA.dot(outB), -1.0, 1.0);
         double normalAngle = Math.acos(normalCos);
         // 路缘草地楔形 = 两法向补角
         double grassAngle = Math.PI - normalAngle;
@@ -809,8 +811,9 @@ public final class JunctionRegionBuilder {
         }
 
         // 切点顺序任意：appendArc / 预览采样一律走短弧，中点会落在锐点与圆心之间（外扩）
+        double sweep = FilletArcSweep.resolveShort(filletCenter, tangentA, tangentB);
         return new CornerFillet(
-            filletCenter, tangentA, tangentB, limited, grassAngle, reason);
+            filletCenter, tangentA, tangentB, limited, grassAngle, reason, sweep);
     }
 
     /**
@@ -852,7 +855,8 @@ public final class JunctionRegionBuilder {
                 fillet.tangentEnd(),
                 fillet.radius(),
                 fillet.cornerAngle(),
-                fillet.shrinkReason()));
+                fillet.shrinkReason(),
+                fillet.sweepRadians()));
             additions.add(filletAddition(curr, fillet, arcSegments));
             appendArc(finalRing, fillet, arcSegments);
         }
@@ -955,8 +959,9 @@ public final class JunctionRegionBuilder {
             return null;
         }
 
+        double sweep = FilletArcSweep.resolveShort(filletCenter, tangentStart, tangentEnd);
         return new CornerFillet(
-            filletCenter, tangentStart, tangentEnd, limited, streetAngle, reason);
+            filletCenter, tangentStart, tangentEnd, limited, streetAngle, reason, sweep);
     }
 
     private static List<Vec2d> filletAddition(Vec2d sharpCorner, CornerFillet fillet, int segments) {
@@ -975,19 +980,17 @@ public final class JunctionRegionBuilder {
             CornerFillet fillet,
             int segments,
             Vec2d preferTowardCorner) {
-        Vec2d center = fillet.center();
-        Vec2d start = fillet.tangentStart();
-        Vec2d end = fillet.tangentEnd();
-        out.add(start);
-        double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-        double sweep = FilletArcSweep.resolve(
-            center, start, end, fillet.radius(), preferTowardCorner);
-        int segs = Math.max(3, segments);
-        for (int i = 1; i < segs; i++) {
-            double t = (double) i / segs;
-            out.add(FilletArcSweep.pointOnArc(center, fillet.radius(), startAngle + sweep * t));
+        FilletArcSweep.ListSamples samples = FilletArcSweep.sample(
+            fillet.center(),
+            fillet.tangentStart(),
+            fillet.tangentEnd(),
+            fillet.radius(),
+            fillet.sweepRadians(),
+            segments);
+        List<Vec2d> points = samples.points();
+        for (int i = out.isEmpty() ? 0 : 1; i < points.size(); i++) {
+            out.add(points.get(i));
         }
-        out.add(end);
     }
 
     private static Vec2d projectToSegmentLine(Vec2d point, Vec2d a, Vec2d b) {
@@ -1145,6 +1148,15 @@ public final class JunctionRegionBuilder {
             Vec2d tangentEnd,
             double radius,
             double cornerAngle,
-            String shrinkReason) {
+            String shrinkReason,
+            double sweepRadians) {
+        CornerFillet {
+            shrinkReason = shrinkReason != null ? shrinkReason : "";
+            if (!Double.isFinite(sweepRadians) || Math.abs(sweepRadians) < 1e-12) {
+                sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
+            } else if (Math.abs(sweepRadians) > Math.PI + 1e-9) {
+                sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
+            }
+        }
     }
 }

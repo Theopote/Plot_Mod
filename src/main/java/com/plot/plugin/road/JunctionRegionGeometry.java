@@ -87,7 +87,12 @@ public record JunctionRegionGeometry(
             .toList();
         List<JunctionGeometryResult.FilletCorner> fillets = curbArcs.stream()
             .map(arc -> new JunctionGeometryResult.FilletCorner(
-                arc.center(), arc.tangentStart(), arc.tangentEnd(), arc.radius(), arc.cornerAngle()))
+                arc.center(),
+                arc.tangentStart(),
+                arc.tangentEnd(),
+                arc.radius(),
+                arc.cornerAngle(),
+                arc.sweepRadians()))
             .toList();
         // fillPolygon：在重叠核角织入路缘弧，供清障外形 / 预览轮廓；与锐角 final 环分离
         List<Vec2d> fill = JunctionRegionBuilder.expandUnionWithStreetArcs(
@@ -133,7 +138,25 @@ public record JunctionRegionGeometry(
             Vec2d tangentEnd,
             double radius,
             double cornerAngle,
-            String shrinkReason) {
+            String shrinkReason,
+            double sweepRadians) {
+        public CurbArc(
+                Vec2d center,
+                Vec2d tangentStart,
+                Vec2d tangentEnd,
+                double radius,
+                double cornerAngle,
+                String shrinkReason) {
+            this(
+                center,
+                tangentStart,
+                tangentEnd,
+                radius,
+                cornerAngle,
+                shrinkReason,
+                FilletArcSweep.resolveShort(center, tangentStart, tangentEnd));
+        }
+
         public CurbArc {
             if (center != null) {
                 center = center.copy();
@@ -147,6 +170,11 @@ public record JunctionRegionGeometry(
             radius = Math.max(0.0, radius);
             cornerAngle = Math.max(0.0, cornerAngle);
             shrinkReason = shrinkReason != null ? shrinkReason : "";
+            if (!Double.isFinite(sweepRadians) || Math.abs(sweepRadians) < 1e-12) {
+                sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
+            } else if (Math.abs(sweepRadians) > Math.PI + 1e-9) {
+                sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
+            }
         }
     }
 }

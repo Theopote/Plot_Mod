@@ -90,7 +90,8 @@ public final class JunctionCurbFilletBuilder {
                     fillet.tangentStart(),
                     fillet.tangentEnd(),
                     fillet.radius(),
-                    fillet.cornerAngle()));
+                    fillet.cornerAngle(),
+                    fillet.sweepRadians()));
             }
         }
         double effective = meta.isEmpty() ? 0.0 : minEffective;
@@ -202,17 +203,17 @@ public final class JunctionCurbFilletBuilder {
         if (corner == null || requestedRadius < MIN_RADIUS) {
             return null;
         }
-        double dot = clamp(a.outward().dot(b.outward()), -1.0, 1.0);
-        double approachAngle = Math.acos(dot);
-        double cornerAngle = Math.PI - approachAngle;
-        if (cornerAngle < MIN_CORNER_ANGLE || cornerAngle > MAX_CORNER_ANGLE) {
-            return null;
-        }
-
+        // 街角外侧法向：与 JunctionRegionBuilder.streetCornerFillet 一致，
+        // 草地楔形 φ = π − 法向夹角；不得一律用 π − 进口夹角（斜交会算反）。
         Vec2d outA = a.leftNormal();
         Vec2d outB = b.leftNormal().multiply(-1.0);
-        // cornerAngle = π - 进口夹角，即街角草地楔形 φ
-        double halfPhi = cornerAngle * 0.5;
+        double normalCos = clamp(outA.dot(outB), -1.0, 1.0);
+        double normalAngle = Math.acos(normalCos);
+        double grassAngle = Math.PI - normalAngle;
+        if (grassAngle < MIN_CORNER_ANGLE || grassAngle > MAX_CORNER_ANGLE) {
+            return null;
+        }
+        double halfPhi = grassAngle * 0.5;
         double sinHalf = Math.sin(halfPhi);
         double tanHalf = Math.tan(halfPhi);
         if (sinHalf < 1e-6 || tanHalf < 1e-6) {
@@ -259,26 +260,23 @@ public final class JunctionCurbFilletBuilder {
                 || Math.abs(filletCenter.distance(tangentOnA) - radius) > 0.2) {
             return null;
         }
-        return new CurbFillet(filletCenter, tangentOnB, tangentOnA, radius, cornerAngle);
+        double sweep = FilletArcSweep.resolveShort(filletCenter, tangentOnB, tangentOnA);
+        return new CurbFillet(filletCenter, tangentOnB, tangentOnA, radius, grassAngle, sweep);
     }
 
     private static void appendArc(List<Vec2d> out, CurbFillet fillet, int segments) {
-        Vec2d center = fillet.center();
-        Vec2d start = fillet.tangentStart();
-        Vec2d end = fillet.tangentEnd();
-        out.add(start);
-        double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-        double sweep = FilletArcSweep.resolveShort(center, start, end);
-        int segs = Math.max(3, segments);
-        for (int i = 1; i < segs; i++) {
-            double t = (double) i / segs;
-            out.add(FilletArcSweep.pointOnArc(center, radiusOr(fillet), startAngle + sweep * t));
+        FilletArcSweep.ListSamples samples = FilletArcSweep.sample(
+            fillet.center(),
+            fillet.tangentStart(),
+            fillet.tangentEnd(),
+            fillet.radius(),
+            fillet.sweepRadians(),
+            segments);
+        // sample 已含起终切点；边界环上起点可能已写入，跳过重复首点
+        List<Vec2d> points = samples.points();
+        for (int i = out.isEmpty() ? 0 : 1; i < points.size(); i++) {
+            out.add(points.get(i));
         }
-        out.add(end);
-    }
-
-    private static double radiusOr(CurbFillet fillet) {
-        return fillet.radius();
     }
 
     private static Vec2d lineIntersection(Vec2d p1, Vec2d d1, Vec2d p2, Vec2d d2) {
@@ -310,6 +308,10 @@ public final class JunctionCurbFilletBuilder {
             Vec2d tangentStart,
             Vec2d tangentEnd,
             double radius,
-            double cornerAngle) {
+            double cornerAngle,
+            double sweepRadians) {
+        CurbFillet {
+            sweepRadians = Double.isFinite(sweepRadians) ? sweepRadians : 0.0;
+        }
     }
 }

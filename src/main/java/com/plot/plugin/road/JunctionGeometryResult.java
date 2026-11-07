@@ -71,14 +71,31 @@ public record JunctionGeometryResult(
     }
 
     /**
-     * 单个路缘圆角：圆心在角内侧，弧连接两条相邻进口边界上的切点。
+     * 单个路缘圆角：圆心在铺装外侧，弧连接两条相邻进口边界上的切点。
+     * {@code sweepRadians} 为 start→end 已确定的短弧扫掠（|sweep|≤π），预览与建造共用。
      */
     public record FilletCorner(
             Vec2d center,
             Vec2d tangentStart,
             Vec2d tangentEnd,
             double radius,
-            double cornerAngleRadians) {
+            double cornerAngleRadians,
+            double sweepRadians) {
+        public FilletCorner(
+                Vec2d center,
+                Vec2d tangentStart,
+                Vec2d tangentEnd,
+                double radius,
+                double cornerAngleRadians) {
+            this(
+                center,
+                tangentStart,
+                tangentEnd,
+                radius,
+                cornerAngleRadians,
+                FilletArcSweep.resolveShort(center, tangentStart, tangentEnd));
+        }
+
         public FilletCorner {
             if (center != null) {
                 center = center.copy();
@@ -91,6 +108,11 @@ public record JunctionGeometryResult(
             }
             radius = Math.max(0.0, radius);
             cornerAngleRadians = Math.max(0.0, cornerAngleRadians);
+            if (!Double.isFinite(sweepRadians) || Math.abs(sweepRadians) < 1e-12) {
+                sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
+            } else if (Math.abs(sweepRadians) > Math.PI + 1e-9) {
+                sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
+            }
         }
     }
 }
