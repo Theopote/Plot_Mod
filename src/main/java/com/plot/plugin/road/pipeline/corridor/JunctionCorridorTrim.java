@@ -112,7 +112,8 @@ public final class JunctionCorridorTrim {
         if (geometry.hasRegionZones()) {
             polygons.add(geometry.overlapRegion());
             // 圆角补铺用用户圆角再求一次，避免 R=0 几何丢掉补铺区
-            double corner = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+            double corner = com.plot.plugin.road.RoadJunctionGenerator.resolveCornerRadius(
+                node, network, config);
             if (corner > 1e-6) {
                 JunctionGeometryResult filleted = resolveJunctionGeometry(network, node, config, corner);
                 for (List<Vec2d> addition : filleted.filletAdditions()) {

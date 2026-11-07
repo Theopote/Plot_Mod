@@ -3,6 +3,8 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
@@ -210,7 +212,7 @@ public class RoadJunctionGenerator {
             edge -> hardSurfaceHalfExtent(network, edge),
             node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
-        double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
+        double cornerRadius = resolveCornerRadius(node, network, generator.getConfig());
         JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
             node.getId(),
             edges,
@@ -490,10 +492,28 @@ public class RoadJunctionGenerator {
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
         Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, network, generator.getConfig());
-        // 净空上限停在上层底板之下，避免清掉 targetY-1 承重层。
+        Map<String, Integer> elevations = networkNodeElevations != null
+            ? networkNodeElevations
+            : Map.of(node.getId(), junctionY);
+        Map<String, RoadGenerationResult> safeEdgeResults =
+            edgeResults != null ? edgeResults : Map.of();
+        // 必须在广场清障/放坡之前收集隧道进口，否则会按露天逻辑掏穿洞顶。
+        List<TunnelJunctionSeedResolver.TunnelApproach> tunnelApproaches =
+            TunnelJunctionSeedResolver.collectTunnelApproaches(
+                network,
+                node,
+                safeEdgeResults,
+                elevations,
+                generator.getConfig(),
+                (path, segments) -> unitsPerBlock);
+        Integer tunnelCavityCap = TunnelJunctionSeedResolver.resolveTunnelCavityClearCap(tunnelApproaches);
+        // 净空上限：立交桥底与隧道洞腔顶取更严者。
         Integer maxClearY = elevatedDeckY != null
             ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
             : null;
+        if (tunnelCavityCap != null) {
+            maxClearY = maxClearY == null ? tunnelCavityCap : Math.min(maxClearY, tunnelCavityCap);
+        }
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
@@ -558,7 +578,8 @@ public class RoadJunctionGenerator {
                     column.getZ(),
                     point,
                     elevatedDeckY,
-                    leftoverTop);
+                    leftoverTop,
+                    tunnelCavityCap);
             }
         }
 
@@ -576,7 +597,8 @@ public class RoadJunctionGenerator {
             0,
             0));
 
-        if (stampSurface) {
+        // 隧道进口禁止开敞切坡：与走廊 RoadEarthworkPolicy 一致，避免洞内十字边坡掏山。
+        if (stampSurface && tunnelApproaches.isEmpty()) {
             JunctionCrossSectionFill.stampApproachSlopeBatters(
                 blocks.getSolids(),
                 node.getPosition(),
@@ -596,19 +618,6 @@ public class RoadJunctionGenerator {
         List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3
             ? List.copyOf(clearancePolygon)
             : List.of();
-        Map<String, Integer> elevations = networkNodeElevations != null
-            ? networkNodeElevations
-            : Map.of(node.getId(), junctionY);
-        Map<String, RoadGenerationResult> safeEdgeResults =
-            edgeResults != null ? edgeResults : Map.of();
-        List<TunnelJunctionSeedResolver.TunnelApproach> tunnelApproaches =
-            TunnelJunctionSeedResolver.collectTunnelApproaches(
-                network,
-                node,
-                safeEdgeResults,
-                elevations,
-                generator.getConfig(),
-                (path, segments) -> unitsPerBlock);
         List<TunnelPortalSeed> portalSeeds = TunnelJunctionSeedResolver.collectPortalSeeds(
             tunnelApproaches, footprint, generator.coordinateTransformer());
         TunnelJunctionSeedResolver.UnderpassYBand underpassBand =
@@ -727,5 +736,41 @@ public class RoadJunctionGenerator {
         return RoadDimensionUtils.halfExtentFromCenter(
             RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig())
                 .totalHardSurfaceWidthBlocks());
+    }
+
+    /**
+     * 与画布预览一致：平交圆角以 Crossing 为权威，否则用节点/网络默认。
+     */
+    public static double resolveCornerRadius(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
+        double networkDefault = config != null ? config.getDefaultCornerRadius() : RoadNode.DEFAULT_CORNER_RADIUS;
+        if (node != null && (node.isGradeSeparated() || node.isStackGradeSeparated())) {
+            return 0.0;
+        }
+        RoadCrossing crossing = findAtGradeCrossingNear(network, node);
+        if (crossing != null) {
+            return crossing.effectiveCornerRadius(networkDefault);
+        }
+        return node != null ? node.getEffectiveCornerRadius(networkDefault) : networkDefault;
+    }
+
+    private static RoadCrossing findAtGradeCrossingNear(RoadNetwork network, RoadNode node) {
+        if (network == null || node == null || node.getPosition() == null) {
+            return null;
+        }
+        RoadCrossing best = null;
+        double bestDistance = 0.75;
+        for (RoadCrossing crossing : network.getCrossings().values()) {
+            if (crossing == null
+                    || crossing.type() != CrossingType.AT_GRADE
+                    || crossing.position() == null) {
+                continue;
+            }
+            double distance = crossing.position().distance(node.getPosition());
+            if (distance <= bestDistance) {
+                bestDistance = distance;
+                best = crossing;
+            }
+        }
+        return best;
     }
 }

@@ -72,6 +72,23 @@ public final class JunctionTerrainClearance {
             Vec2d planPoint,
             Integer elevatedDeckY,
             int leftoverTopY) {
+        clearOverheadInPolygon(
+            solids, polygon, cellY, tunnelThreshold, terrain, worldX, worldZ, planPoint,
+            elevatedDeckY, leftoverTopY, null);
+    }
+
+    public static void clearOverheadInPolygon(
+            RoadSolidModel solids,
+            List<Vec2d> polygon,
+            int cellY,
+            int tunnelThreshold,
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            Vec2d planPoint,
+            Integer elevatedDeckY,
+            int leftoverTopY,
+            Integer absoluteClearTopY) {
         if (solids == null || polygon == null || polygon.size() < 3 || planPoint == null || terrain == null) {
             return;
         }
@@ -79,7 +96,8 @@ public final class JunctionTerrainClearance {
             return;
         }
         clearOverheadColumn(
-            solids, cellY, tunnelThreshold, terrain, worldX, worldZ, planPoint, elevatedDeckY, leftoverTopY);
+            solids, cellY, tunnelThreshold, terrain, worldX, worldZ, planPoint,
+            elevatedDeckY, leftoverTopY, absoluteClearTopY);
     }
 
     /**
@@ -96,6 +114,26 @@ public final class JunctionTerrainClearance {
             Vec2d planPoint,
             Integer elevatedDeckY,
             int leftoverTopY) {
+        clearOverheadColumn(
+            solids, cellY, tunnelThreshold, terrain, worldX, worldZ, planPoint,
+            elevatedDeckY, leftoverTopY, null);
+    }
+
+    /**
+     * @param absoluteClearTopY 绝对净空上限（含隧道洞腔顶）；与 elevatedDeckY 取更严者。
+     *                          隧道平交必须传入洞腔顶，否则会按地表/残留衬砌把洞顶掏穿。
+     */
+    public static void clearOverheadColumn(
+            RoadSolidModel solids,
+            int cellY,
+            int tunnelThreshold,
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            Vec2d planPoint,
+            Integer elevatedDeckY,
+            int leftoverTopY,
+            Integer absoluteClearTopY) {
         if (solids == null || planPoint == null || terrain == null) {
             return;
         }
@@ -110,12 +148,16 @@ public final class JunctionTerrainClearance {
         // 树冠可达十余格；heightmap/隧道阈值都可能偏矮，装饰扫描至少留 24 格净空。
         int headroom = Math.max(24, tunnelThreshold);
         int decoCeil = Math.max(topY, cellY + headroom);
+        Integer clearCap = absoluteClearTopY;
         if (elevatedDeckY != null) {
             // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
             // 净空只清到 supportBottom - 1。
             int deckCap = elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1;
-            topY = Math.min(topY, deckCap);
-            decoCeil = Math.min(decoCeil, deckCap);
+            clearCap = clearCap == null ? deckCap : Math.min(clearCap, deckCap);
+        }
+        if (clearCap != null) {
+            topY = Math.min(topY, clearCap);
+            decoCeil = Math.min(decoCeil, clearCap);
         }
         punchColumn(solids, planPoint, cellY, topY);
         clearDecorationsAbove(solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);

@@ -138,6 +138,27 @@ public final class TunnelJunctionSeedResolver {
         return List.copyOf(seeds);
     }
 
+    /**
+     * 平交广场净空绝对上限：各隧道进口设计洞腔顶（roadY+clearHeight）的最小值。
+     * <p>
+     * 不含衬砌壳（{@code mask.maxY} 含 lining）；广场 {@code punchColumn} 无掩膜过滤，
+     * 必须停在洞腔顶，否则会把洞顶衬砌与覆土当「上方障碍」掏穿成十字露天边坡。
+     */
+    public static Integer resolveTunnelCavityClearCap(List<TunnelApproach> approaches) {
+        if (approaches == null || approaches.isEmpty()) {
+            return null;
+        }
+        int cap = Integer.MAX_VALUE;
+        for (TunnelApproach approach : approaches) {
+            if (approach == null || approach.tunnelStyle() == null) {
+                continue;
+            }
+            int clearHeight = Math.max(1, approach.tunnelStyle().clearHeight());
+            cap = Math.min(cap, approach.roadY() + clearHeight);
+        }
+        return cap == Integer.MAX_VALUE ? null : cap;
+    }
+
     public static UnderpassYBand resolveUnderpassYBand(List<TunnelApproach> approaches) {
         if (approaches == null || approaches.isEmpty()) {
             return UnderpassYBand.NONE;
@@ -147,8 +168,7 @@ public final class TunnelJunctionSeedResolver {
         for (TunnelApproach approach : approaches) {
             int[] band = approachYBand(approach);
             minY = Math.min(minY, band[0]);
-            maxY = Math.max(maxY, band[1]);
-        }
+            maxY = Math.max(maxY, band[1]);        }
         if (minY == Integer.MAX_VALUE) {
             return UnderpassYBand.NONE;
         }

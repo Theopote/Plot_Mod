@@ -146,6 +146,73 @@ class BridgeTunnelJunctionInterfaceTest {
     }
 
     @Test
+    void tunnelTJunctionUnderMountainDoesNotPunchRoofOrStampDaylightBatters() {
+        RoadNetwork network = tunnelTJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        junction.setCornerRadius(4.0);
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 80;
+            }
+        };
+
+        RoadSystemConfig config = new RoadSystemConfig("tunnel-roof");
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
+        config.setDefaultCornerRadius(4.0f);
+        RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance()));
+        RoadNetworkGenerator.PreviewResult preview = networkGenerator.generatePreview(network, mountain);
+
+        int plazaY = preview.nodeElevations().get(junction.getId());
+        var junctionBlocks = preview.networkResult().getJunctionResults().get(junction.getId());
+        assertTrue(junctionBlocks != null && !junctionBlocks.isEmpty(), "tunnel T plaza must generate");
+
+        int clearHeight = 5; // tunnelTJunctionNetwork rectangular clearHeight
+        int cavityTop = plazaY + clearHeight;
+        long airAboveCavity = 0;
+        long farBatterSubgrade = 0;
+        long filletRoad = 0;
+        for (var primitive : junctionBlocks.getSolids().primitives()) {
+            double px = primitive.planPoint().x;
+            double pz = primitive.planPoint().y;
+            if (Math.abs(px) <= 6 && Math.abs(pz) <= 6
+                    && "minecraft:air".equals(primitive.materialId())
+                    && primitive.elevation() > cavityTop) {
+                airAboveCavity++;
+            }
+            // 十字露天边坡：远离核区的 SUBGRADE/切坡 AIR
+            if ((Math.abs(px) > 10 || Math.abs(pz) > 10)
+                    && (primitive.layer() == RoadSolidLayer.SUBGRADE
+                        || ("minecraft:air".equals(primitive.materialId())
+                            && primitive.elevation() > plazaY + 1))) {
+                farBatterSubgrade++;
+            }
+            if (primitive.layer() == RoadSolidLayer.ROAD
+                    && primitive.elevation() == plazaY
+                    && Math.abs(px) >= 2.5 && Math.abs(pz) >= 2.5
+                    && Math.abs(px) <= 7 && Math.abs(pz) <= 7) {
+                filletRoad++;
+            }
+        }
+        assertEquals(0, airAboveCavity,
+            "plaza clearance must not punch air above tunnel cavity/roof; cavityTop=" + cavityTop);
+        assertEquals(0, farBatterSubgrade,
+            "tunnel junction must not stamp open-cut cross batters into the mountain");
+        assertTrue(filletRoad > 0,
+            "corner radius must still stamp curb-return pavement inside the tunnel plaza");
+    }
+
+    @Test
     void valleyBridgeApproachIntoAtGradeTJunctionHasNoPostMergeDeckLeak() {
         RoadNetwork network = tJunctionNetwork();
         RoadNode junction = network.getNodes().values().stream()
