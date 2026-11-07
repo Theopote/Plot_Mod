@@ -100,6 +100,8 @@ public final class RoadJunctionGeometry {
         Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
         double effectivePlaza = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
         List<JunctionCurbFilletBuilder.Approach> approaches = new ArrayList<>();
+        List<List<Vec2d>> approachBands = new ArrayList<>();
+        double maxHalf = 0.0;
         for (RoadEdge edge : edges) {
             if (edge == null) {
                 continue;
@@ -113,11 +115,44 @@ public final class RoadJunctionGeometry {
             if (halfWidth <= 1e-9) {
                 continue;
             }
+            maxHalf = Math.max(maxHalf, halfWidth);
             approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
         }
-        // 两条贯通直线道路交叉：优先区域式几何（重叠核 + 铺装并集凹角圆角）
-        JunctionRegionGeometry region = JunctionRegionBuilder.buildFromApproaches(
-            center, approaches, cornerRadius);
+        // 真实中心线局部条带（弯曲进口）；直线时退化为矩形 stub
+        double bandLength = Math.max(effectivePlaza, maxHalf * 3.0 + 2.0);
+        double back = maxHalf + 1.0;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            double halfWidth = halfWidthResolver.applyAsDouble(edge);
+            if (halfWidth <= 1e-9) {
+                continue;
+            }
+            List<Vec2d> outward = extractApproachCenterline(
+                centerlineResolver.apply(edge), edge, nodeId, bandLength);
+            if (outward.size() < 2) {
+                continue;
+            }
+            // 将起点钉到路口中心，避免节点坐标与中心线端点微偏
+            List<Vec2d> fromCenter = new ArrayList<>(outward.size());
+            fromCenter.add(center);
+            for (int i = 1; i < outward.size(); i++) {
+                fromCenter.add(outward.get(i));
+            }
+            List<Vec2d> band = JunctionPavementBand.buildStubPolygon(fromCenter, halfWidth, back);
+            if (band.size() >= 3) {
+                approachBands.add(band);
+            }
+        }
+        JunctionRegionGeometry region = JunctionRegionGeometry.empty();
+        if (approachBands.size() >= 3 && approaches.size() >= 3) {
+            region = JunctionRegionBuilder.buildFromApproachBands(
+                center, approaches, approachBands, cornerRadius);
+        }
+        if (!region.hasPavement()) {
+            region = JunctionRegionBuilder.buildFromApproaches(center, approaches, cornerRadius);
+        }
         if (region.hasPavement()) {
             return region.toJunctionGeometryResult();
         }

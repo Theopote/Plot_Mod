@@ -56,9 +56,9 @@ class JunctionRegionMaterialOwnershipVoxelTest {
         assertApproachMaterial(r4, 14, 0, WIDE_MATERIAL, "R4 wide arm");
         assertApproachMaterial(r12, 14, 0, WIDE_MATERIAL, "R12 wide arm");
 
-        // 窄路远端（约 60° 方向）：保持窄路材质
-        int nx = (int) Math.round(14 * Math.cos(theta));
-        int nz = (int) Math.round(14 * Math.sin(theta));
+        // 窄路远端中心线附近：保持窄路材质（避开街角圆角影响区）
+        int nx = (int) Math.round(16 * Math.cos(theta));
+        int nz = (int) Math.round(16 * Math.sin(theta));
         assertApproachMaterial(r0, nx, nz, NARROW_MATERIAL, "R0 narrow arm");
         assertApproachMaterial(r4, nx, nz, NARROW_MATERIAL, "R4 narrow arm");
         assertApproachMaterial(r12, nx, nz, NARROW_MATERIAL, "R12 narrow arm");

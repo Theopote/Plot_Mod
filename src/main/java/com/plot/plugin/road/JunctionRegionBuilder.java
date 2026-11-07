@@ -130,6 +130,154 @@ public final class JunctionRegionBuilder {
     }
 
     /**
+     * 进口局部真实条带（可弯曲）并集 + 切线重叠核。
+     * {@code tangents} 用于重叠平行四边形/T 识别；{@code bandPolygons} 为各进口 stub 多边形。
+     */
+    public static JunctionRegionGeometry buildFromApproachBands(
+            Vec2d center,
+            List<JunctionCurbFilletBuilder.Approach> tangents,
+            List<List<Vec2d>> bandPolygons,
+            double cornerRadius) {
+        if (center == null || tangents == null || bandPolygons == null) {
+            return JunctionRegionGeometry.empty();
+        }
+        if (bandPolygons.size() < 3) {
+            return JunctionRegionGeometry.empty();
+        }
+        // 先用切线拓扑求重叠核（十字/T）；失败则无法区域式
+        JunctionRegionGeometry tangentCore = buildFromApproaches(center, tangents, 0.0);
+        if (!tangentCore.hasPavement() || tangentCore.overlapRegion().size() < 3) {
+            return JunctionRegionGeometry.empty();
+        }
+
+        List<Vec2d> candidates = new ArrayList<>();
+        for (int i = 0; i < bandPolygons.size(); i++) {
+            List<Vec2d> band = bandPolygons.get(i);
+            if (band == null || band.size() < 3) {
+                continue;
+            }
+            for (Vec2d vertex : band) {
+                boolean insideOther = false;
+                for (int j = 0; j < bandPolygons.size(); j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    List<Vec2d> other = bandPolygons.get(j);
+                    if (other != null && other.size() >= 3 && strictlyInside(vertex, other)) {
+                        insideOther = true;
+                        break;
+                    }
+                }
+                if (!insideOther) {
+                    candidates.add(vertex);
+                }
+            }
+        }
+        // 条带边交点（弯曲时凹凸衔接）
+        for (int i = 0; i < bandPolygons.size(); i++) {
+            for (int j = i + 1; j < bandPolygons.size(); j++) {
+                candidates.addAll(segmentIntersections(bandPolygons.get(i), bandPolygons.get(j)));
+            }
+        }
+        for (Vec2d corner : tangentCore.overlapRegion()) {
+            candidates.add(corner);
+        }
+        List<Vec2d> pavementUnion = sortCcw(center, dedupe(candidates));
+        if (pavementUnion.size() < 3) {
+            return JunctionRegionGeometry.empty();
+        }
+
+        double requested = Math.max(0.0, cornerRadius);
+        List<JunctionRegionGeometry.ApproachBoundary> bounds = tangentCore.approaches();
+        if (requested < MIN_RADIUS) {
+            return new JunctionRegionGeometry(
+                tangentCore.overlapRegion(),
+                pavementUnion,
+                pavementUnion,
+                List.of(),
+                List.of(),
+                bounds,
+                requested,
+                List.of());
+        }
+        // 圆角仍用切线条带求解（边长足够，半径不被折线锯齿卡住）；
+        // 原始并集轮廓保留真实弯曲条带。
+        JunctionRegionGeometry filletedTangents = buildFromApproaches(center, tangents, requested);
+        if (!filletedTangents.hasPavement() || filletedTangents.curbArcs().isEmpty()) {
+            return new JunctionRegionGeometry(
+                tangentCore.overlapRegion(),
+                pavementUnion,
+                pavementUnion,
+                List.of(),
+                List.of(),
+                bounds,
+                requested,
+                List.of());
+        }
+        List<Vec2d> finalRing = weaveFilletArcsIntoUnion(
+            pavementUnion, filletedTangents.curbArcs(), 10);
+        if (finalRing.size() < 3) {
+            finalRing = filletedTangents.finalPavementRegion();
+        }
+        return new JunctionRegionGeometry(
+            tangentCore.overlapRegion(),
+            pavementUnion,
+            finalRing,
+            filletedTangents.filletAdditions(),
+            filletedTangents.curbArcs(),
+            bounds,
+            requested,
+            filletedTangents.effectiveCornerRadii());
+    }
+
+    /**
+     * 将切线求解的路缘圆弧织入真实条带并集：靠近各圆弧锐角的凹角顶点替换为弧。
+     */
+    private static List<Vec2d> weaveFilletArcsIntoUnion(
+            List<Vec2d> union,
+            List<JunctionRegionGeometry.CurbArc> arcs,
+            int arcSegments) {
+        if (union == null || union.size() < 3 || arcs == null || arcs.isEmpty()) {
+            return union != null ? union : List.of();
+        }
+        int n = union.size();
+        List<Vec2d> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            Vec2d prev = union.get((i - 1 + n) % n);
+            Vec2d curr = union.get(i);
+            Vec2d next = union.get((i + 1) % n);
+            if (!isConcaveVertex(prev, curr, next)) {
+                out.add(curr);
+                continue;
+            }
+            JunctionRegionGeometry.CurbArc best = null;
+            double bestDist = Double.POSITIVE_INFINITY;
+            for (JunctionRegionGeometry.CurbArc arc : arcs) {
+                if (arc == null || arc.radius() < MIN_RADIUS) {
+                    continue;
+                }
+                // 锐角约在两切点弦的中点外侧；用圆心到顶点距离近似匹配
+                double d = curr.distance(arc.center());
+                double expect = arc.radius() / Math.max(1e-3, Math.sin(Math.max(arc.cornerAngle(), 0.2) * 0.5));
+                double score = Math.abs(d - expect);
+                if (score < bestDist && d < arc.radius() * 4.0) {
+                    bestDist = score;
+                    best = arc;
+                }
+            }
+            if (best == null || bestDist > Math.max(2.0, best.radius())) {
+                out.add(curr);
+                continue;
+            }
+            CornerFillet fillet = new CornerFillet(
+                best.center(), best.tangentStart(), best.tangentEnd(),
+                best.radius(), best.cornerAngle(), best.shrinkReason());
+            appendArc(out, fillet, Math.max(3, arcSegments));
+        }
+        return dedupe(out);
+    }
+
+    /**
      * 从进口列表构建区域几何。
      * <ul>
      *   <li>4 进口：两组对向贯通 → 十字</li>
@@ -762,6 +910,44 @@ public final class JunctionRegionBuilder {
         if (point != null) {
             out.add(point);
         }
+    }
+
+    private static List<Vec2d> segmentIntersections(List<Vec2d> polyA, List<Vec2d> polyB) {
+        List<Vec2d> hits = new ArrayList<>();
+        if (polyA == null || polyB == null || polyA.size() < 2 || polyB.size() < 2) {
+            return hits;
+        }
+        int nA = polyA.size();
+        int nB = polyB.size();
+        for (int i = 0; i < nA; i++) {
+            Vec2d a0 = polyA.get(i);
+            Vec2d a1 = polyA.get((i + 1) % nA);
+            for (int j = 0; j < nB; j++) {
+                Vec2d b0 = polyB.get(j);
+                Vec2d b1 = polyB.get((j + 1) % nB);
+                Vec2d hit = segmentIntersection(a0, a1, b0, b1);
+                if (hit != null) {
+                    hits.add(hit);
+                }
+            }
+        }
+        return hits;
+    }
+
+    private static Vec2d segmentIntersection(Vec2d a0, Vec2d a1, Vec2d b0, Vec2d b1) {
+        Vec2d dA = a1.subtract(a0);
+        Vec2d dB = b1.subtract(b0);
+        double cross = dA.x * dB.y - dA.y * dB.x;
+        if (Math.abs(cross) < 1e-10) {
+            return null;
+        }
+        Vec2d ab = b0.subtract(a0);
+        double t = (ab.x * dB.y - ab.y * dB.x) / cross;
+        double u = (ab.x * dA.y - ab.y * dA.x) / cross;
+        if (t < -1e-6 || t > 1.0 + 1e-6 || u < -1e-6 || u > 1.0 + 1e-6) {
+            return null;
+        }
+        return a0.add(dA.multiply(t));
     }
 
     private static Vec2d lineIntersection(Vec2d p1, Vec2d d1, Vec2d p2, Vec2d d2) {
