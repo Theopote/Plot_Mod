@@ -109,16 +109,9 @@ public final class JunctionRegionBuilder {
                 List.of());
         }
 
-        List<Vec2d> computeUnion = computeExtent > pavementExtent + 1e-6
-            ? buildUnionCross(
-                center,
-                buildStripRectangle(center, roadA, computeExtent),
-                buildStripRectangle(center, roadB, computeExtent),
-                overlap)
-            : pavementUnion;
-        // 在长边界上求圆弧，再把补弧接到固定铺装并集的凹角上
-        FilletPass fillets = applyConcaveFillets(
-            pavementUnion, computeUnion, requested, Math.max(3, arcSegments));
+        // 只在重叠核四角做街角圆角；勿对极角排序并集的远端假凹角倒圆（斜交会拉出路臂弧）
+        FilletPass fillets = applyStreetCornerFillets(
+            center, roadA, roadB, clippedOverlap, pavementUnion, requested, Math.max(3, arcSegments));
         return new JunctionRegionGeometry(
             overlap,
             pavementUnion,
@@ -228,15 +221,10 @@ public final class JunctionRegionBuilder {
                 requested,
                 List.of());
         }
-        List<Vec2d> finalRing = weaveFilletArcsIntoUnion(
-            pavementUnion, filletedTangents.curbArcs(), 10);
-        if (finalRing.size() < 3) {
-            finalRing = filletedTangents.finalPavementRegion();
-        }
         return new JunctionRegionGeometry(
             tangentCore.overlapRegion(),
             pavementUnion,
-            finalRing,
+            pavementUnion,
             filletedTangents.filletAdditions(),
             filletedTangents.curbArcs(),
             bounds,
@@ -244,52 +232,6 @@ public final class JunctionRegionBuilder {
             filletedTangents.effectiveCornerRadii());
     }
 
-    /**
-     * 将切线求解的路缘圆弧织入真实条带并集：靠近各圆弧锐角的凹角顶点替换为弧。
-     */
-    private static List<Vec2d> weaveFilletArcsIntoUnion(
-            List<Vec2d> union,
-            List<JunctionRegionGeometry.CurbArc> arcs,
-            int arcSegments) {
-        if (union == null || union.size() < 3 || arcs == null || arcs.isEmpty()) {
-            return union != null ? union : List.of();
-        }
-        int n = union.size();
-        List<Vec2d> out = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            Vec2d prev = union.get((i - 1 + n) % n);
-            Vec2d curr = union.get(i);
-            Vec2d next = union.get((i + 1) % n);
-            if (!isConcaveVertex(prev, curr, next)) {
-                out.add(curr);
-                continue;
-            }
-            JunctionRegionGeometry.CurbArc best = null;
-            double bestDist = Double.POSITIVE_INFINITY;
-            for (JunctionRegionGeometry.CurbArc arc : arcs) {
-                if (arc == null || arc.radius() < MIN_RADIUS) {
-                    continue;
-                }
-                // 锐角约在两切点弦的中点外侧；用圆心到顶点距离近似匹配
-                double d = curr.distance(arc.center());
-                double expect = arc.radius() / Math.max(1e-3, Math.sin(Math.max(arc.cornerAngle(), 0.2) * 0.5));
-                double score = Math.abs(d - expect);
-                if (score < bestDist && d < arc.radius() * 4.0) {
-                    bestDist = score;
-                    best = arc;
-                }
-            }
-            if (best == null || bestDist > Math.max(2.0, best.radius())) {
-                out.add(curr);
-                continue;
-            }
-            CornerFillet fillet = new CornerFillet(
-                best.center(), best.tangentStart(), best.tangentEnd(),
-                best.radius(), best.cornerAngle(), best.shrinkReason());
-            appendArc(out, fillet, Math.max(3, arcSegments));
-        }
-        return dedupe(out);
-    }
 
     /**
      * 从进口列表构建区域几何。
@@ -421,13 +363,9 @@ public final class JunctionRegionBuilder {
                 List.of());
         }
 
-        List<Vec2d> computeThrough = buildStripRectangle(center, through, computeExtent);
-        List<Vec2d> computeStem = buildStemStub(
-            center, stemRoad.direction(), stemRoad.halfWidth(), backIntoThrough, computeExtent);
-        List<Vec2d> computeUnion = buildUnionCross(
-            center, computeThrough, computeStem, stemSideOverlap);
-        FilletPass fillets = applyConcaveFillets(
-            pavementUnion, computeUnion, requested, Math.max(3, arcSegments));
+        FilletPass fillets = applyStreetCornerFillets(
+            center, through, stemRoad, stemSideOverlap, pavementUnion, requested,
+            Math.max(3, arcSegments));
         return new JunctionRegionGeometry(
             overlap,
             pavementUnion,
@@ -658,9 +596,216 @@ public final class JunctionRegionBuilder {
     }
 
     /**
-     * 在固定铺装并集上替换凹角；圆弧半径上限可参考更长计算环上的同角边长。
+     * 仅在重叠核四角做街角圆角，避免极角排序并集的远端假凹角。
+     * 圆弧由两条路缘带在该角的外法向偏置求交得到，不依赖并集环邻接（极角排序会接错边）。
      */
-    private static FilletPass applyConcaveFillets(
+    private static FilletPass applyStreetCornerFillets(
+            Vec2d center,
+            StraightRoad roadA,
+            StraightRoad roadB,
+            List<Vec2d> overlapCorners,
+            List<Vec2d> pavementUnion,
+            double requested,
+            int arcSegments) {
+        List<List<Vec2d>> additions = new ArrayList<>();
+        List<JunctionRegionGeometry.CurbArc> arcs = new ArrayList<>();
+        List<Double> radii = new ArrayList<>();
+        if (center == null || roadA == null || roadB == null
+                || overlapCorners == null || pavementUnion == null || requested < MIN_RADIUS) {
+            return new FilletPass(
+                pavementUnion != null ? pavementUnion : List.of(),
+                List.of(), List.of(), List.of());
+        }
+        double maxSetback = streetCornerMaxSetback(center, roadA, roadB, overlapCorners, requested);
+        for (Vec2d corner : overlapCorners) {
+            if (corner == null) {
+                continue;
+            }
+            CornerFillet fillet = streetCornerFillet(center, corner, roadA, roadB, requested, maxSetback);
+            if (fillet == null) {
+                radii.add(0.0);
+                continue;
+            }
+            radii.add(fillet.radius());
+            arcs.add(new JunctionRegionGeometry.CurbArc(
+                fillet.center(),
+                fillet.tangentStart(),
+                fillet.tangentEnd(),
+                fillet.radius(),
+                fillet.cornerAngle(),
+                fillet.shrinkReason()));
+            additions.add(filletAddition(corner, fillet, arcSegments));
+        }
+        // 最终轮廓环保持锐角并集：圆角只体现在 curbArcs / filletAdditions。
+        // 生成/预览的 fillPolygon 经 {@link #expandUnionWithStreetArcs} 在重叠核角局部织入弧。
+        return new FilletPass(pavementUnion, List.copyOf(additions), List.copyOf(arcs), List.copyOf(radii));
+    }
+
+    /**
+     * 仅在重叠核角顶点处把锐角并集换成路缘弧，供 fillPolygon / 清障外形使用。
+     * 不碰极角排序产生的远端假凹角。
+     */
+    public static List<Vec2d> expandUnionWithStreetArcs(
+            List<Vec2d> union,
+            List<Vec2d> overlapCorners,
+            List<JunctionRegionGeometry.CurbArc> arcs,
+            int arcSegments) {
+        if (union == null || union.size() < 3 || arcs == null || arcs.isEmpty()) {
+            return union != null ? union : List.of();
+        }
+        int n = union.size();
+        List<Vec2d> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            Vec2d curr = union.get(i);
+            if (!isNearAny(curr, overlapCorners, 0.75)) {
+                out.add(curr);
+                continue;
+            }
+            JunctionRegionGeometry.CurbArc best = null;
+            double bestDist = Double.POSITIVE_INFINITY;
+            for (JunctionRegionGeometry.CurbArc arc : arcs) {
+                if (arc == null || arc.radius() < MIN_RADIUS || arc.center() == null) {
+                    continue;
+                }
+                double d = curr.distance(arc.center());
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = arc;
+                }
+            }
+            if (best == null || bestDist > best.radius() * 3.0 + 2.0) {
+                out.add(curr);
+                continue;
+            }
+            CornerFillet fillet = new CornerFillet(
+                best.center(), best.tangentStart(), best.tangentEnd(),
+                best.radius(), best.cornerAngle(),
+                best.shrinkReason() != null ? best.shrinkReason() : "");
+            appendArc(out, fillet, Math.max(3, arcSegments));
+        }
+        List<Vec2d> ring = dedupe(out);
+        return ring.size() >= 3 ? ring : union;
+    }
+
+    private static boolean isNearAny(Vec2d point, List<Vec2d> candidates, double tol) {
+        if (point == null || candidates == null) {
+            return false;
+        }
+        for (Vec2d candidate : candidates) {
+            if (candidate != null && point.distance(candidate) <= tol) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static double streetCornerMaxSetback(
+            Vec2d center,
+            StraightRoad roadA,
+            StraightRoad roadB,
+            List<Vec2d> overlapCorners,
+            double requested) {
+        // 正交街角 setback≈R，故上限至少为请求 R；再参考路宽，避免钝角楔形沿路臂拉出长假弧
+        double widthSpan = 2.0 * Math.max(roadA.halfWidth(), roadB.halfWidth());
+        return Math.max(Math.max(3.0, requested), widthSpan);
+    }
+
+    /**
+     * 重叠核角点处：对 A/B 路缘外法向各偏置 R，交点为圆心；切点落在两条路缘上。
+     */
+    static CornerFillet streetCornerFillet(
+            Vec2d center,
+            Vec2d corner,
+            StraightRoad roadA,
+            StraightRoad roadB,
+            double requested,
+            double maxSetback) {
+        if (center == null || corner == null || roadA == null || roadB == null) {
+            return null;
+        }
+        if (requested < MIN_RADIUS) {
+            return null;
+        }
+        Vec2d radial = corner.subtract(center);
+        if (radial.lengthSquared() < 1e-12) {
+            return null;
+        }
+        double sideA = Math.signum(radial.dot(roadA.normal()));
+        double sideB = Math.signum(radial.dot(roadB.normal()));
+        if (Math.abs(sideA) < 1e-9 || Math.abs(sideB) < 1e-9) {
+            return null;
+        }
+        Vec2d outA = roadA.normal().multiply(sideA);
+        Vec2d outB = roadB.normal().multiply(sideB);
+        // 两外法向夹角 = 该象限街角（草地楔形）
+        double cos = Math.max(-1.0, Math.min(1.0, outA.dot(outB)));
+        double streetAngle = Math.acos(cos);
+        if (streetAngle < MIN_CORNER_ANGLE || streetAngle > MAX_CORNER_ANGLE) {
+            return null;
+        }
+        double halfPhi = streetAngle * 0.5;
+        double tanHalf = Math.tan(halfPhi);
+        if (tanHalf < 1e-6) {
+            return null;
+        }
+        // 偏置圆角：切点后退 ≈ R·tan(φ/2)。钝角楔形 tan 大，必须用 maxSetback/tan 限 R，
+        // 否则 R=12 会在钝角落出数十米路臂假弧。
+        double maxBySetback = Math.max(0.0, maxSetback) / tanHalf * 0.95;
+        double limited = Math.min(requested, maxBySetback);
+        String reason = "";
+        if (limited + 1e-6 < requested) {
+            reason = "adjacent_edge_too_short";
+        }
+        if (limited < MIN_RADIUS) {
+            return null;
+        }
+
+        double normalDot = outA.dot(outB);
+        if (normalDot <= -0.999) {
+            return null;
+        }
+        // (C-corner)·outA = (C-corner)·outB = R  →  C = corner + R/(1+outA·outB)·(outA+outB)
+        Vec2d filletCenter = corner.add(outA.add(outB).multiply(limited / (1.0 + normalDot)));
+        if (filletCenter.subtract(corner).dot(radial.normalize()) <= 0.0) {
+            return null;
+        }
+        Vec2d tangentA = filletCenter.subtract(outA.multiply(limited));
+        Vec2d tangentB = filletCenter.subtract(outB.multiply(limited));
+        if (Math.abs(filletCenter.distance(tangentA) - limited) > 0.35
+                || Math.abs(filletCenter.distance(tangentB) - limited) > 0.35) {
+            return null;
+        }
+        // 切点须落在角点附近（后退 ≤ maxSetback）
+        if (corner.distance(tangentA) > maxSetback + 1e-3
+                || corner.distance(tangentB) > maxSetback + 1e-3) {
+            return null;
+        }
+        Vec2d tangentStart = tangentA;
+        Vec2d tangentEnd = tangentB;
+        double startAngle = Math.atan2(
+            tangentStart.y - filletCenter.y, tangentStart.x - filletCenter.x);
+        double endAngle = Math.atan2(
+            tangentEnd.y - filletCenter.y, tangentEnd.x - filletCenter.x);
+        double sweep = endAngle - startAngle;
+        while (sweep <= -Math.PI) {
+            sweep += Math.PI * 2.0;
+        }
+        while (sweep > Math.PI) {
+            sweep -= Math.PI * 2.0;
+        }
+        if (Math.abs(Math.abs(sweep) - streetAngle) > 0.75) {
+            tangentStart = tangentB;
+            tangentEnd = tangentA;
+        }
+        return new CornerFillet(
+            filletCenter, tangentStart, tangentEnd, limited, streetAngle, reason);
+    }
+
+    /**
+     * 在固定铺装并集上替换凹角；圆弧半径上限可参考更长计算环上的同角边长。
+     * 保留给测试/调试；正式十字/T 请用 {@link #applyStreetCornerFillets}。
+     */
+    static FilletPass applyConcaveFillets(
             List<Vec2d> pavementUnion,
             List<Vec2d> computeUnion,
             double requested,

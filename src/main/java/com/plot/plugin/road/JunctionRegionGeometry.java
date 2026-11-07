@@ -42,6 +42,23 @@ public record JunctionRegionGeometry(
         return finalPavementRegion.size() >= 3;
     }
 
+    /** 锐角并集或任一街角补铺覆盖该点（圆角不再并入最终环，避免极角拼接扇形膨胀）。 */
+    public boolean containsPavement(Vec2d point) {
+        if (point == null) {
+            return false;
+        }
+        if (RoadGeometryUtils.pointInPolygon(point, finalPavementRegion)) {
+            return true;
+        }
+        for (List<Vec2d> addition : filletAdditions) {
+            if (addition != null && addition.size() >= 3
+                    && RoadGeometryUtils.pointInPolygon(point, addition)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public double minEffectiveCornerRadius() {
         double min = Double.POSITIVE_INFINITY;
         for (double radius : effectiveCornerRadii) {
@@ -72,8 +89,14 @@ public record JunctionRegionGeometry(
             .map(arc -> new JunctionGeometryResult.FilletCorner(
                 arc.center(), arc.tangentStart(), arc.tangentEnd(), arc.radius(), arc.cornerAngle()))
             .toList();
+        // fillPolygon：在重叠核角织入路缘弧，供清障外形 / 预览轮廓；与锐角 final 环分离
+        List<Vec2d> fill = JunctionRegionBuilder.expandUnionWithStreetArcs(
+            originalRoadUnion, overlapRegion, curbArcs, 10);
+        if (fill.size() < 3) {
+            fill = finalPavementRegion;
+        }
         return new JunctionGeometryResult(
-            finalPavementRegion,
+            fill,
             originalRoadUnion,
             boundaries,
             requestedCornerRadius,

@@ -78,6 +78,27 @@ public final class JunctionTerrainClearance {
         if (!RoadGeometryUtils.pointInPolygon(planPoint, polygon)) {
             return;
         }
+        clearOverheadColumn(
+            solids, cellY, tunnelThreshold, terrain, worldX, worldZ, planPoint, elevatedDeckY, leftoverTopY);
+    }
+
+    /**
+     * 对已确定属于路口责任区的世界列清障（不再二次 point-in-polygon）。
+     * 铺装栅格 ∪ 圆角补铺列应走此入口，避免补铺落在外形多边形外时漏清树木。
+     */
+    public static void clearOverheadColumn(
+            RoadSolidModel solids,
+            int cellY,
+            int tunnelThreshold,
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            Vec2d planPoint,
+            Integer elevatedDeckY,
+            int leftoverTopY) {
+        if (solids == null || planPoint == null || terrain == null) {
+            return;
+        }
         if (!terrain.isChunkLoaded(worldX, worldZ)) {
             return;
         }
@@ -86,12 +107,18 @@ public final class JunctionTerrainClearance {
         int surfaceY = terrain.sampleSurfaceY(planPoint);
         int columnTopY = terrain.sampleColumnTopY(planPoint);
         int topY = Math.max(leftoverTopY, Math.max(surfaceY, columnTopY));
+        // 树冠可达十余格；heightmap/隧道阈值都可能偏矮，装饰扫描至少留 24 格净空。
+        int headroom = Math.max(24, tunnelThreshold);
+        int decoCeil = Math.max(topY, cellY + headroom);
         if (elevatedDeckY != null) {
             // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
             // 净空只清到 supportBottom - 1。
-            topY = Math.min(topY, elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1);
+            int deckCap = elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1;
+            topY = Math.min(topY, deckCap);
+            decoCeil = Math.min(decoCeil, deckCap);
         }
         punchColumn(solids, planPoint, cellY, topY);
+        clearDecorationsAbove(solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);
     }
 
     static void punchColumn(RoadSolidModel solids, Vec2d planPoint, int cellY, int topY) {
@@ -99,6 +126,35 @@ public final class JunctionTerrainClearance {
             return;
         }
         for (int y = cellY + 1; y <= topY; y++) {
+            solids.add(
+                planPoint,
+                y,
+                RoadSolidLayer.TUNNEL,
+                "minecraft:air",
+                RoadSolidMaterialPriority.CLEARANCE);
+        }
+    }
+
+    /**
+     * 在实心清障顶以上继续摘除可清自然装饰（树叶/树干等），避免路口路面残留树木。
+     */
+    static void clearDecorationsAbove(
+            RoadSolidModel solids,
+            Vec2d planPoint,
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            int cellY,
+            int solidTopY,
+            int decoCeil) {
+        if (solids == null || planPoint == null || terrain == null || decoCeil <= solidTopY) {
+            return;
+        }
+        int fromY = Math.max(cellY + 1, solidTopY + 1);
+        for (int y = fromY; y <= decoCeil; y++) {
+            if (!terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                continue;
+            }
             solids.add(
                 planPoint,
                 y,

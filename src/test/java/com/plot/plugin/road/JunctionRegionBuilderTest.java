@@ -137,16 +137,47 @@ class JunctionRegionBuilderTest {
         assertFalse(filleted.filletAdditions().isEmpty());
 
         Vec2d neStreet = new Vec2d(half + 0.6, half + 0.6);
-        assertFalse(RoadGeometryUtils.pointInPolygon(neStreet, sharp.finalPavementRegion()),
-            "R=0 leaves NE street empty");
-        assertTrue(RoadGeometryUtils.pointInPolygon(neStreet, filleted.finalPavementRegion()),
+        assertFalse(sharp.containsPavement(neStreet), "R=0 leaves NE street empty");
+        assertTrue(filleted.containsPavement(neStreet),
             "R>0 must add pavement into NE street corner; arcs=" + filleted.curbArcs().size()
                 + " minR=" + filleted.minEffectiveCornerRadius());
+        assertFalse(filleted.filletAdditions().isEmpty());
+        double addArea = filleted.filletAdditions().stream()
+            .mapToDouble(JunctionRegionBuilder::polygonArea)
+            .sum();
+        assertTrue(addArea > 1.0, "fillet additions must cover street corners");
+    }
 
-        assertTrue(
-            JunctionRegionBuilder.polygonArea(filleted.finalPavementRegion())
-                > JunctionRegionBuilder.polygonArea(sharp.finalPavementRegion()) + 1.0,
-            "filleted pavement area must exceed sharp union");
+    @Test
+    void acuteSkewFilletsStayAtOverlapCornersNotFarArms() {
+        Vec2d center = new Vec2d(0, 0);
+        double theta = Math.toRadians(35);
+        JunctionRegionBuilder.StraightRoad a =
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 2.5);
+        JunctionRegionBuilder.StraightRoad b =
+            new JunctionRegionBuilder.StraightRoad(
+                new Vec2d(Math.cos(theta), Math.sin(theta)), 1.5);
+        JunctionRegionGeometry geo = JunctionRegionBuilder.build(center, a, b, 12.0);
+
+        assertTrue(geo.curbArcs().size() >= 4, "cross needs four curb returns");
+        for (var arc : geo.curbArcs()) {
+            double nearCorner = Double.POSITIVE_INFINITY;
+            for (Vec2d corner : geo.overlapRegion()) {
+                nearCorner = Math.min(nearCorner, Math.min(
+                    arc.tangentStart().distance(corner),
+                    arc.tangentEnd().distance(corner)));
+            }
+            // 偏置圆角后退 ≈ R·tan(φ/2)
+            double maxSetback = arc.radius()
+                * Math.tan(Math.max(0.05, arc.cornerAngle() * 0.5)) + 1.5;
+            assertTrue(nearCorner <= maxSetback,
+                "arc tangents must belong to an overlap street corner; near=" + nearCorner
+                    + " maxSetback=" + maxSetback + " ang=" + Math.toDegrees(arc.cornerAngle()));
+            double oA = Math.abs(arc.center().dot(a.normal()));
+            double oB = Math.abs(arc.center().dot(b.normal()));
+            assertTrue(oA > a.halfWidth() - 1e-3 && oB > b.halfWidth() - 1e-3,
+                "fillet center must lie outside both strips; oA=" + oA + " oB=" + oB);
+        }
     }
 
     @Test
@@ -162,10 +193,10 @@ class JunctionRegionBuilderTest {
         JunctionRegionGeometry r8 = JunctionRegionBuilder.build(center, a, b, 8.0);
         JunctionRegionGeometry r12 = JunctionRegionBuilder.build(center, a, b, 12.0);
 
-        double a0 = JunctionRegionBuilder.polygonArea(r0.finalPavementRegion());
-        double a4 = JunctionRegionBuilder.polygonArea(r4.finalPavementRegion());
-        double a8 = JunctionRegionBuilder.polygonArea(r8.finalPavementRegion());
-        double a12 = JunctionRegionBuilder.polygonArea(r12.finalPavementRegion());
+        double a0 = r0.filletAdditions().stream().mapToDouble(JunctionRegionBuilder::polygonArea).sum();
+        double a4 = r4.filletAdditions().stream().mapToDouble(JunctionRegionBuilder::polygonArea).sum();
+        double a8 = r8.filletAdditions().stream().mapToDouble(JunctionRegionBuilder::polygonArea).sum();
+        double a12 = r12.filletAdditions().stream().mapToDouble(JunctionRegionBuilder::polygonArea).sum();
         assertTrue(a4 > a0 + 0.5);
         assertTrue(a8 > a4 + 0.5);
         assertTrue(a12 > a8 + 0.25 || r12.maxEffectiveCornerRadius() >= r8.maxEffectiveCornerRadius());
@@ -235,9 +266,8 @@ class JunctionRegionBuilderTest {
 
         assertTrue(filleted.curbArcs().size() >= 2, "T has two street-corner fillets");
         Vec2d neStreet = new Vec2d(2.0 + 0.5, 3.0 + 0.5);
-        assertFalse(RoadGeometryUtils.pointInPolygon(neStreet, sharp.finalPavementRegion()));
-        assertTrue(RoadGeometryUtils.pointInPolygon(neStreet, filleted.finalPavementRegion()),
-            "fillet must expand NE T-corner");
+        assertFalse(sharp.containsPavement(neStreet));
+        assertTrue(filleted.containsPavement(neStreet), "fillet must expand NE T-corner");
     }
 
     @Test
@@ -273,15 +303,20 @@ class JunctionRegionBuilderTest {
             JunctionRegionBuilder.polygonArea(r12.originalRoadUnion()),
             1e-6);
 
-        // 采样格：仅街角补铺区可随 R 变化；沿路臂远端必须一致
+        // 锐角并集环不随 R 变；仅补铺多边形随 R 变，且不得侵上路臂远端
+        assertEquals(
+            JunctionRegionBuilder.polygonArea(r0.finalPavementRegion()),
+            JunctionRegionBuilder.polygonArea(r12.finalPavementRegion()),
+            1e-6,
+            "final ring stays sharp union; fillets live in additions");
         int cornerChanged = 0;
         int armChanged = 0;
         for (int ix = -20; ix <= 20; ix++) {
             for (int iz = -20; iz <= 20; iz++) {
                 Vec2d p = new Vec2d(ix + 0.5, iz + 0.5);
-                boolean in0 = RoadGeometryUtils.pointInPolygon(p, r0.finalPavementRegion());
-                boolean in4 = RoadGeometryUtils.pointInPolygon(p, r4.finalPavementRegion());
-                boolean in12 = RoadGeometryUtils.pointInPolygon(p, r12.finalPavementRegion());
+                boolean in0 = r0.containsPavement(p);
+                boolean in4 = r4.containsPavement(p);
+                boolean in12 = r12.containsPavement(p);
                 if (in0 == in4 && in4 == in12) {
                     continue;
                 }
@@ -329,8 +364,11 @@ class JunctionRegionBuilderTest {
             3.0);
         JunctionGeometryResult adapted = geo.toJunctionGeometryResult();
         assertTrue(adapted.hasFillPolygon());
-        assertEquals(geo.finalPavementRegion().size(), adapted.fillPolygon().size());
+        assertEquals(geo.originalRoadUnion(), adapted.sharpPolygon());
+        assertTrue(adapted.fillPolygon().size() > geo.finalPavementRegion().size(),
+            "fillPolygon weaves curb arcs into the sharp union");
         assertFalse(adapted.fillets().isEmpty());
+        assertEquals(geo.filletAdditions().size(), adapted.filletAdditions().size());
     }
 
     @Test

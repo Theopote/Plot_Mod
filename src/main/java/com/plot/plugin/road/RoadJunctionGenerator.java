@@ -535,16 +535,22 @@ public class RoadJunctionGenerator {
         }
 
         if (clearancePolygon != null && clearancePolygon.size() >= 3) {
-            for (Vec2d point : clearCells) {
+            // 清障列 = 外形栅格 ∪ 实际铺装列，避免核区/补铺落点因栅格缝漏清树木
+            List<Vec2d> overheadCells = new ArrayList<>(clearCells);
+            if (stampSurface && !stamp.isEmpty()) {
+                overheadCells.addAll(stamp);
+                overheadCells = dedupePlanCells(overheadCells);
+            }
+            for (Vec2d point : overheadCells) {
                 if (point == null) {
                     continue;
                 }
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 BlockPos column = generator.toBlockPos(point, 0);
                 int leftoverTop = leftoverTops.getOrDefault(columnKey, junctionY);
-                JunctionTerrainClearance.clearOverheadInPolygon(
+                // 列集已由外形∪铺装栅格确定；勿再 point-in-polygon，否则圆角补铺列会漏清树木
+                JunctionTerrainClearance.clearOverheadColumn(
                     blocks.getSolids(),
-                    clearancePolygon,
                     junctionY,
                     tunnelThreshold,
                     terrain,

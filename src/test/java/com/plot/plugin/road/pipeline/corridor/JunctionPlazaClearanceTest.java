@@ -117,6 +117,48 @@ class JunctionPlazaClearanceTest {
     }
 
     @Test
+    void atGradePlazaClearsDecorationsAboveShortColumnTop() {
+        RoadSystemConfig config = new RoadSystemConfig("plaza-deco");
+        RoadGenerator generator = new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
+        RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
+        RoadNetwork network = crossNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        // heightmap 只到 65，但 70/75 仍是可清树木装饰——必须靠装饰扫描摘除
+        TerrainSampler trees = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 64;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return 65;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return Math.abs(x) <= 2 && Math.abs(z) <= 2 && (y == 70 || y == 75);
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 64 || isRoadClearableDecoration(x, y, z);
+            }
+        };
+
+        var blocks = junctionGenerator.generateJunction(
+            junction, network, trees, Map.of(junction.getId(), 64));
+
+        assertTrue(hasAirNearOrigin(blocks, 70), "tree trunk decoration must be cleared");
+        assertTrue(hasAirNearOrigin(blocks, 75), "tree canopy decoration must be cleared");
+    }
+
+    @Test
     void gradeSeparatedTwoArmDoesNotStampCircularPlazaRoad() {
         RoadSystemConfig config = new RoadSystemConfig("plaza-subgrade");
         config.setIncludeShoulder(false);
