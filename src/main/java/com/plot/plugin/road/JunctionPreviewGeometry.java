@@ -5,6 +5,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
+import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -98,7 +100,8 @@ public final class JunctionPreviewGeometry {
     }
 
     /**
-     * 未物化平交：按两条道路在交叉桩号处的切线各生成双向进口，再倒圆角。
+     * 未物化平交：先物化快照共享节点，再走与生成相同的 {@link RoadJunctionGeometry}；
+     * 物化失败时回退交叉桩号切线近似。
      */
     public static JunctionGeometryResult fromCrossing(
             RoadNetwork network,
@@ -110,6 +113,25 @@ public final class JunctionPreviewGeometry {
         if (crossing.type() != CrossingType.AT_GRADE) {
             return JunctionGeometryResult.empty();
         }
+        RoadNetwork materialized = RoadCrossingMaterializer.materializeForSnapshot(network);
+        RoadNode junction = findNearbyJunction(materialized, crossing.position(), 1.25);
+        if (junction != null && junction.isJunction() && !junction.isGradeSeparated()) {
+            if (crossing.cornerRadius() != null) {
+                junction.setCornerRadius(crossing.cornerRadius());
+            }
+            JunctionGeometryResult fromNode = fromNode(materialized, config, junction, crossing);
+            if (fromNode.hasFillPolygon()) {
+                return fromNode;
+            }
+        }
+        return fromCrossingTangentFallback(network, config, crossing);
+    }
+
+    /** 切线近似回退：正交直线恒宽时与物化路径接近。 */
+    static JunctionGeometryResult fromCrossingTangentFallback(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            RoadCrossing crossing) {
         List<Approach> approaches = new ArrayList<>();
         collectRoadApproaches(network, config, crossing.roadAId(), crossing.stationA(), approaches);
         collectRoadApproaches(network, config, crossing.roadBId(), crossing.stationB(), approaches);

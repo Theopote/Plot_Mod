@@ -117,12 +117,17 @@ class JunctionPlazaClearanceTest {
     }
 
     @Test
-    void gradeSeparatedPlazaGradesSubgradeBelowDeckClearance() {
+    void gradeSeparatedTwoArmDoesNotStampCircularPlazaRoad() {
         RoadSystemConfig config = new RoadSystemConfig("plaza-subgrade");
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
         RoadNetwork network = twoRoadCrossNetwork();
+        // 下层 roadB 宽 9：保护圆半径≈11，若误铺则圆外角会落在 |x| 或 |z| 较大处
+        network.getRoad("roadB").setWidth(9);
+        network.getRoad("roadA").setWidth(6);
         RoadNode junction = network.getNodes().values().stream()
             .filter(node -> node.getDegree() >= 3)
             .findFirst()
@@ -132,13 +137,20 @@ class JunctionPlazaClearanceTest {
         var blocks = junctionGenerator.generateJunction(
             junction, network, hillTerrain(61, 61), Map.of(junction.getId(), 64));
 
-        assertTrue(
-            blocks.getSolids().primitives().stream()
-                .anyMatch(p -> p.layer() == com.plot.plugin.road.solid.RoadSolidLayer.SUBGRADE
-                    && p.elevation() > 61 && p.elevation() <= 64
-                    && Math.abs(p.planPoint().x) <= 2.5
-                    && Math.abs(p.planPoint().y) <= 2.5),
-            "underpass plaza must still receive subgrade fill below deck clearance");
+        // 下层半宽约 4.5；圆外（例如对角 8,8）不得出现路口新铺 ROAD
+        long strayRoad = blocks.getSolids().primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.ROAD && p.elevation() == 64)
+            .filter(p -> {
+                double ax = Math.abs(p.planPoint().x);
+                double az = Math.abs(p.planPoint().y);
+                // 超出下层东西向条带（|z|>5）且明显偏离中心线的格子
+                return az > 5.0 || (ax > 5.0 && az > 5.0);
+            })
+            .count();
+        assertEquals(0, strayRoad,
+            "two-arm underpass must not invent circular plaza ROAD outside underpass band");
+        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
+        assertEquals(69, deckY);
     }
 
     @Test

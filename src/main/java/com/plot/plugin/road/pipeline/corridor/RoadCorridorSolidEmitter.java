@@ -206,7 +206,10 @@ public final class RoadCorridorSolidEmitter {
                     metrics.cutVolume++;
                 }
             }
-            if ((surface == null || cutFaceY < surface.surfaceY()) && cutFaceY < cutTopY) {
+            // 开敞立交上跨边：只允许净空空气，禁止切坡面泥土贴在桥底板边缘
+            if (!elevatedEdge
+                    && (surface == null || cutFaceY < surface.surfaceY())
+                    && cutFaceY < cutTopY) {
                 String batterId = slope.cutMaterialId() != null && !slope.cutMaterialId().isBlank()
                     ? slope.cutMaterialId()
                     : defaultFillMaterialId;
@@ -216,7 +219,7 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
-        if (slope != null && slope.needsRetainingFinish() && !waterBlocksSlopeFill) {
+        if (!elevatedEdge && slope != null && slope.needsRetainingFinish() && !waterBlocksSlopeFill) {
             emitRetainingFinish(
                 solids, slope, planPoint, groundY, defaultFillMaterialId, gradeSeparation);
         }

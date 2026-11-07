@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.overlay.IntersectionHit;
+import com.plot.plugin.road.overlay.JunctionFilletArcSampler;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayController;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayEntry;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayKind;
@@ -222,10 +223,9 @@ public final class RoadNetworkOverviewRenderer {
         }
         JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
             network, config, selectedNodeId, selectedCrossingId);
-        if (!geometry.hasFillPolygon()) {
+        if (!geometry.hasFillPolygon() && geometry.fillets().isEmpty()) {
             return;
         }
-        List<Vec2d> polygon = geometry.fillPolygon();
 
         // 淡色锐角边界参照（圆角前的进口路缘），便于对照倒圆效果。
         List<Vec2d> sharp = geometry.sharpPolygon();
@@ -241,32 +241,16 @@ public final class RoadNetworkOverviewRenderer {
             }
         }
 
-        ImVec2[] screenPoints = new ImVec2[polygon.size()];
-        for (int i = 0; i < polygon.size(); i++) {
-            screenPoints[i] = new ImVec2(
-                toScreenX(polygon.get(i).x, viewport),
-                toScreenY(polygon.get(i).y, viewport)
-            );
-        }
-        // 圆角后轮廓可能非凸：只描边填充用折线环，避免 addConvexPolyFilled 错填。
-        if (RoadJunctionGeometry.isSimplePolygon(polygon) && isStrictlyConvex(polygon)) {
-            drawList.addConvexPolyFilled(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL);
-        } else {
-            drawList.addPolyline(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL, 0, 3.0f);
-        }
-        for (int i = 0; i < screenPoints.length; i++) {
-            ImVec2 a = screenPoints[i];
-            ImVec2 b = screenPoints[(i + 1) % screenPoints.length];
-            drawList.addLine(a.x, a.y, b.x, b.y, COLOR_JUNCTION_PREVIEW_BORDER, 1.5f);
-        }
-        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
-            drawList.addCircle(
-                toScreenX(fillet.center().x, viewport),
-                toScreenY(fillet.center().y, viewport),
-                2.0f,
-                COLOR_JUNCTION_PREVIEW_BORDER,
-                8,
-                1.0f);
+        // 街角路缘圆弧（开折线），不再画绕交叉点的整圈铺装环
+        for (List<Vec2d> arc : JunctionFilletArcSampler.sampleArcs(geometry)) {
+            for (int i = 0; i < arc.size() - 1; i++) {
+                Vec2d a = arc.get(i);
+                Vec2d b = arc.get(i + 1);
+                drawList.addLine(
+                    toScreenX(a.x, viewport), toScreenY(a.y, viewport),
+                    toScreenX(b.x, viewport), toScreenY(b.y, viewport),
+                    COLOR_JUNCTION_PREVIEW_BORDER, 1.5f);
+            }
         }
     }
 

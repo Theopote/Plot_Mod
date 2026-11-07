@@ -63,8 +63,10 @@ class RoadJunctionFinalWorldStateIntegrationTest {
         assertNotNull(junctionBlocks, "junction solids must be stored on network result");
         JunctionValidationManifest manifest = junctionBlocks.validationManifest();
         assertNotNull(manifest);
-        assertFalse(manifest.surfaceExpectations().isEmpty(), "manifest must capture stamped surface cells");
+        // 两臂下穿：路口不铺圆形广场，表面由走廊负责；manifest 仍应记录立交净空与保护列
         assertTrue(manifest.hasGradeSeparation(), "grade-separated node must record elevatedDeckY");
+        assertFalse(manifest.expectedProtectedBlocks().isEmpty(),
+            "underpass clearance must still list elevated deck protected columns");
 
         JunctionConstructionReport report = preview.networkResult().getJunctionReports().get(junction.getId());
         assertNotNull(report);

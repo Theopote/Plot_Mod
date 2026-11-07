@@ -212,31 +212,46 @@ public final class GradeSeparationBuildContextFactory {
             RoadNode node,
             RoadSystemConfig config,
             String elevatedRoadId) {
-        List<RoadEdge> connected = new ArrayList<>();
+        List<RoadEdge> underpass = new ArrayList<>();
+        List<RoadEdge> allArms = new ArrayList<>();
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge connectedEdge = network.getEdge(edgeId);
             if (connectedEdge == null) {
                 continue;
             }
+            allArms.add(connectedEdge);
             if (elevatedRoadId != null
                     && connectedEdge.getRoadId() != null
                     && elevatedRoadId.equals(connectedEdge.getRoadId())) {
                 continue;
             }
-            connected.add(connectedEdge);
+            underpass.add(connectedEdge);
         }
-        if (connected.isEmpty()) {
+        List<Vec2d> polygon = fillPolygonForEdges(network, node, config, underpass);
+        if (polygon.size() >= 3) {
+            return polygon;
+        }
+        // 两臂下穿区域式为空时，用全进口足迹保证上跨边仍被标为 elevatedRoadEdge（禁开敞填方）
+        return fillPolygonForEdges(network, node, config, allArms);
+    }
+
+    private static List<Vec2d> fillPolygonForEdges(
+            RoadNetwork network,
+            RoadNode node,
+            RoadSystemConfig config,
+            List<RoadEdge> edges) {
+        if (edges == null || edges.isEmpty()) {
             return List.of();
         }
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            connected,
+            edges,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
         // 净空/保护范围保持锐角足迹，与铺装倒圆角解耦。
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
-            connected,
+            edges,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,

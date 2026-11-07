@@ -40,14 +40,14 @@ public final class RoadJunctionOverlayController {
         if (network == null || builder == null) {
             return List.of();
         }
-        List<Vec2d> filletOutline = List.of();
         List<Vec2d> sharpOutline = List.of();
+        List<List<Vec2d>> filletArcs = List.of();
         if (showFilletPreview && config != null) {
             JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
                 network, config, selectedNodeId, selectedCrossingId);
-            if (geometry.hasFillPolygon()) {
-                filletOutline = geometry.fillPolygon();
+            if (geometry.hasFillPolygon() || !geometry.fillets().isEmpty()) {
                 sharpOutline = geometry.sharpPolygon();
+                filletArcs = JunctionFilletArcSampler.sampleArcs(geometry);
             }
         }
 
@@ -65,8 +65,8 @@ public final class RoadJunctionOverlayController {
                 crossing.position(),
                 resolveCrossingKind(crossing, selected),
                 selected,
-                selected ? filletOutline : List.of(),
-                selected ? sharpOutline : List.of()));
+                selected ? sharpOutline : List.of(),
+                selected ? filletArcs : List.of()));
             coveredPositions.add(positionKey(crossing.position()));
         }
 
@@ -103,8 +103,8 @@ public final class RoadJunctionOverlayController {
                 node.getPosition(),
                 resolveLegacyKind(node, network, builder, selected),
                 selected,
-                selected ? filletOutline : List.of(),
-                selected ? sharpOutline : List.of()));
+                selected ? sharpOutline : List.of(),
+                selected ? filletArcs : List.of()));
         }
         return entries;
     }

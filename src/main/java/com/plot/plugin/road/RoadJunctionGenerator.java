@@ -223,6 +223,13 @@ public class RoadJunctionGenerator {
         List<Vec2d> polygon = geometry.fillPolygon();
 
         if (polygon.size() < 3) {
+            // 立交下层两臂：保护区与铺装区分离——扩大圆仅用于净空/保护，不铺圆形广场路面
+            if (node.isGradeSeparated() || node.isStackGradeSeparated()) {
+                generateUnderpassClearanceWithoutPlaza(
+                    blocks, node, network, center, edges, junctionY, terrain, edgeResults,
+                    networkNodeElevations);
+                return List.of();
+            }
             generateSimpleEnvelope(
                 blocks, node, network, center, edges, junctionY, terrain, edgeResults, networkNodeElevations);
             return List.of();
@@ -266,30 +273,71 @@ public class RoadJunctionGenerator {
         if (edges.isEmpty()) {
             LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
             fillJunctionCells(
-                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults,
-                networkNodeElevations);
+                blocks, List.of(center), List.of(center), null, node, network, edges, junctionY, terrain,
+                edgeResults, networkNodeElevations, true);
             return;
         }
 
-        int maxWidth = edges.stream()
-            .mapToInt(edge -> RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig())
-                .totalHardSurfaceWidthBlocks())
-            .max()
-            .orElse(5);
-        int radius = maxWidth + 2;
-
-        List<Vec2d> circle = approximateCirclePolygon(center, radius);
+        List<Vec2d> circle = protectionCircle(center, edges, network);
         List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
             circle, generator.coordinateTransformer());
         if (cells.isEmpty()) {
             LOGGER.warn("路口世界格扫描为空，回退到中心点");
             fillJunctionCells(
-                blocks, List.of(center), circle, node, network, edges, junctionY, terrain, edgeResults,
-                networkNodeElevations);
+                blocks, List.of(center), List.of(center), circle, node, network, edges, junctionY, terrain,
+                edgeResults, networkNodeElevations, true);
             return;
         }
         fillJunctionCells(
-            blocks, cells, circle, node, network, edges, junctionY, terrain, edgeResults, networkNodeElevations);
+            blocks, cells, cells, circle, node, network, edges, junctionY, terrain, edgeResults,
+            networkNodeElevations, true);
+    }
+
+    /**
+     * 立交下层连续道路：ProtectionFootprint 用扩大圆做净空与上层保护；
+     * SurfaceFootprint 为空——路面留给走廊自身，禁止圆形广场误铺。
+     */
+    private void generateUnderpassClearanceWithoutPlaza(
+            JunctionBlocks blocks,
+            RoadNode node,
+            RoadNetwork network,
+            Vec2d center,
+            List<RoadEdge> edges,
+            int junctionY,
+            TerrainSampler terrain,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> networkNodeElevations) {
+        if (center == null) {
+            return;
+        }
+        List<Vec2d> protection = protectionCircle(center, edges, network);
+        if (protection.size() < 3) {
+            protection = approximateCirclePolygon(center, 6);
+        }
+        List<Vec2d> clearanceCells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            protection, generator.coordinateTransformer());
+        if (clearanceCells.isEmpty()) {
+            clearanceCells = List.of(center);
+        }
+        fillJunctionCells(
+            blocks, List.of(), clearanceCells, protection, node, network, edges, junctionY, terrain,
+            edgeResults, networkNodeElevations, /*stampSurface*/ false);
+    }
+
+    private List<Vec2d> protectionCircle(Vec2d center, List<RoadEdge> edges, RoadNetwork network) {
+        int maxWidth = 5;
+        if (edges != null) {
+            for (RoadEdge edge : edges) {
+                if (edge == null) {
+                    continue;
+                }
+                maxWidth = Math.max(
+                    maxWidth,
+                    RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig())
+                        .totalHardSurfaceWidthBlocks());
+            }
+        }
+        return approximateCirclePolygon(center, maxWidth + 2);
     }
 
     private static List<Vec2d> approximateCirclePolygon(Vec2d center, int radius) {
@@ -328,7 +376,7 @@ public class RoadJunctionGenerator {
             clearance = filletedPolygon;
         }
         List<Vec2d> stampFootprint = junctionSurfaceFootprint(geometry, clearance, sharpPolygon);
-        List<Vec2d> cells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
+        List<Vec2d> surfaceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
             stampFootprint,
             generator.coordinateTransformer()));
         // 圆角补铺可能是多个小多边形，合并栅格
@@ -337,17 +385,25 @@ public class RoadJunctionGenerator {
                 if (addition == null || addition.size() < 3) {
                     continue;
                 }
-                cells.addAll(RoadGeometryUtils.collectWorldCellPlanPoints(
+                surfaceCells.addAll(RoadGeometryUtils.collectWorldCellPlanPoints(
                     addition, generator.coordinateTransformer()));
             }
-            cells = dedupePlanCells(cells);
+            surfaceCells = dedupePlanCells(surfaceCells);
         }
-        if (cells.isEmpty() && center != null) {
-            cells = List.of(center);
+        // 清障按完整倒圆角外形栅格；表面按核区∪补铺——二者不得绑死
+        List<Vec2d> clearanceCells = clearance != null && clearance.size() >= 3
+            ? new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
+                clearance, generator.coordinateTransformer()))
+            : List.of();
+        if (surfaceCells.isEmpty() && center != null) {
+            surfaceCells = List.of(center);
+        }
+        if (clearanceCells.isEmpty()) {
+            clearanceCells = surfaceCells;
         }
         fillJunctionCells(
-            blocks, cells, clearance, node, network, edges, junctionY, terrain, edgeResults,
-            networkNodeElevations);
+            blocks, surfaceCells, clearanceCells, clearance, node, network, edges, junctionY, terrain,
+            edgeResults, networkNodeElevations, true);
     }
 
     /**
@@ -385,7 +441,8 @@ public class RoadJunctionGenerator {
 
     private void fillJunctionCells(
             JunctionBlocks blocks,
-            List<Vec2d> cells,
+            List<Vec2d> surfaceCells,
+            List<Vec2d> clearanceCells,
             List<Vec2d> clearancePolygon,
             RoadNode node,
             RoadNetwork network,
@@ -393,8 +450,16 @@ public class RoadJunctionGenerator {
             int junctionY,
             TerrainSampler terrain,
             Map<String, RoadGenerationResult> edgeResults,
-            Map<String, Integer> networkNodeElevations) {
-        if (cells == null || cells.isEmpty() || node == null || network == null || edges == null) {
+            Map<String, Integer> networkNodeElevations,
+            boolean stampSurface) {
+        if (node == null || network == null || edges == null) {
+            return;
+        }
+        List<Vec2d> stamp = surfaceCells != null ? surfaceCells : List.of();
+        List<Vec2d> clearCells = clearanceCells != null && !clearanceCells.isEmpty()
+            ? clearanceCells
+            : stamp;
+        if (stamp.isEmpty() && clearCells.isEmpty()) {
             return;
         }
         int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(generator.getConfig());
@@ -434,42 +499,53 @@ public class RoadJunctionGenerator {
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
         int unresolvedClearance = 0;
 
-        for (Vec2d point : cells) {
-            ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
-            surfaceMask.expectColumn(columnKey);
-            int cellY = junctionY;
-            boolean stamped = JunctionCrossSectionFill.fillCell(
-                blocks.getSolids(),
-                point,
-                cellY,
-                node.getId(),
-                edges,
-                network,
-                generator.getConfig(),
-                materials,
-                columnResolver,
-                unitsPerBlock,
-                terrain,
-                tunnelThreshold,
-                bridgeThreshold,
-                fillMaterialId,
-                maxClearY);
-            if (stamped) {
-                surfaceMask.markStamped(columnKey);
-                RoadSolidLayer surfaceLayer = JunctionCrossSectionFill.resolveSurfaceLayer(
-                    point, node.getId(), edges, network, generator.getConfig(), unitsPerBlock);
-                BlockPos surfacePos = JunctionCrossSectionFill.surfaceBlockPos(point, cellY, materials);
-                surfaceExpectations.add(new JunctionSurfaceExpectation(surfacePos, surfaceLayer));
-            } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
-                unresolvedClearance++;
+        if (stampSurface) {
+            for (Vec2d point : stamp) {
+                if (point == null) {
+                    continue;
+                }
+                ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
+                surfaceMask.expectColumn(columnKey);
+                boolean stamped = JunctionCrossSectionFill.fillCell(
+                    blocks.getSolids(),
+                    point,
+                    junctionY,
+                    node.getId(),
+                    edges,
+                    network,
+                    generator.getConfig(),
+                    materials,
+                    columnResolver,
+                    unitsPerBlock,
+                    terrain,
+                    tunnelThreshold,
+                    bridgeThreshold,
+                    fillMaterialId,
+                    maxClearY);
+                if (stamped) {
+                    surfaceMask.markStamped(columnKey);
+                    RoadSolidLayer surfaceLayer = JunctionCrossSectionFill.resolveSurfaceLayer(
+                        point, node.getId(), edges, network, generator.getConfig(), unitsPerBlock);
+                    BlockPos surfacePos = JunctionCrossSectionFill.surfaceBlockPos(point, junctionY, materials);
+                    surfaceExpectations.add(new JunctionSurfaceExpectation(surfacePos, surfaceLayer));
+                } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+                    unresolvedClearance++;
+                }
             }
-            if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+        }
+
+        if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+            for (Vec2d point : clearCells) {
+                if (point == null) {
+                    continue;
+                }
+                ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 BlockPos column = generator.toBlockPos(point, 0);
-                int leftoverTop = leftoverTops.getOrDefault(columnKey, cellY);
+                int leftoverTop = leftoverTops.getOrDefault(columnKey, junctionY);
                 JunctionTerrainClearance.clearOverheadInPolygon(
                     blocks.getSolids(),
                     clearancePolygon,
-                    cellY,
+                    junctionY,
                     tunnelThreshold,
                     terrain,
                     column.getX(),
@@ -494,20 +570,22 @@ public class RoadJunctionGenerator {
             0,
             0));
 
-        JunctionCrossSectionFill.stampApproachSlopeBatters(
-            blocks.getSolids(),
-            node.getPosition(),
-            junctionY,
-            node.getId(),
-            edges,
-            network,
-            generator.getConfig(),
-            materials,
-            columnResolver,
-            unitsPerBlock,
-            terrain,
-            bridgeThreshold,
-            maxClearY);
+        if (stampSurface) {
+            JunctionCrossSectionFill.stampApproachSlopeBatters(
+                blocks.getSolids(),
+                node.getPosition(),
+                junctionY,
+                node.getId(),
+                edges,
+                network,
+                generator.getConfig(),
+                materials,
+                columnResolver,
+                unitsPerBlock,
+                terrain,
+                bridgeThreshold,
+                maxClearY);
+        }
 
         List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3
             ? List.copyOf(clearancePolygon)
