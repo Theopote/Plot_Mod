@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -105,6 +106,24 @@ class JunctionCurbFilletRadiusDiffVoxelTest {
             "added cells should appear in all four curb corners; ne=" + ne
                 + " nw=" + nw + " se=" + se + " sw=" + sw
                 + " sourceSize=" + cornerSource.size());
+
+        // 圆角不得把进口路臂远端纳入差异（铺装 extent 与 R 解耦）
+        assertEquals(
+            RoadGeometryUtils.pointInPolygon(new Vec2d(12.5, 0.5), zero.geometry.fillPolygon()),
+            RoadGeometryUtils.pointInPolygon(new Vec2d(12.5, 0.5), six.geometry.fillPolygon()),
+            "far east arm coverage must not change with R");
+        int farArmGeomDiff = 0;
+        for (long key : geomOnly) {
+            int x = (int) (key >> 32);
+            int z = (int) key;
+            boolean farArm = (Math.abs(x) >= 10 && Math.abs(z) <= 2)
+                || (Math.abs(z) >= 10 && Math.abs(x) <= 2);
+            if (farArm) {
+                farArmGeomDiff++;
+            }
+        }
+        assertEquals(0, farArmGeomDiff,
+            "geometry raster diffs must stay at curb corners, not far arms; far=" + farArmGeomDiff);
     }
 
     private static Fixture build(double cornerRadius) {

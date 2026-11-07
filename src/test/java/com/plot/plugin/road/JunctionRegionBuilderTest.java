@@ -128,6 +128,110 @@ class JunctionRegionBuilderTest {
     }
 
     @Test
+    void pavementArmLengthIndependentOfCornerRadius() {
+        Vec2d center = new Vec2d(0, 0);
+        JunctionRegionBuilder.StraightRoad a =
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 3.0);
+        JunctionRegionBuilder.StraightRoad b =
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(0, 1), 3.0);
+
+        JunctionRegionGeometry r0 = JunctionRegionBuilder.build(center, a, b, 0.0);
+        JunctionRegionGeometry r12 = JunctionRegionBuilder.build(center, a, b, 12.0);
+
+        assertEquals(
+            JunctionRegionBuilder.polygonArea(r0.originalRoadUnion()),
+            JunctionRegionBuilder.polygonArea(r12.originalRoadUnion()),
+            1e-6,
+            "original union must not grow with R");
+        // 远离开口嘴部：应同属原始并集，不因 R 进出最终铺装
+        Vec2d farEastMouth = new Vec2d(6.5, 0.0);
+        assertTrue(RoadGeometryUtils.pointInPolygon(farEastMouth, r0.originalRoadUnion()));
+        assertTrue(RoadGeometryUtils.pointInPolygon(farEastMouth, r0.finalPavementRegion()));
+        assertTrue(RoadGeometryUtils.pointInPolygon(farEastMouth, r12.finalPavementRegion()));
+        // 更远的路臂外点：两种 R 都不应覆盖（禁止因 extent 随 R 变长而吞路）
+        Vec2d beyondArm = new Vec2d(15.0, 0.0);
+        assertFalse(RoadGeometryUtils.pointInPolygon(beyondArm, r0.finalPavementRegion()));
+        assertFalse(RoadGeometryUtils.pointInPolygon(beyondArm, r12.finalPavementRegion()));
+    }
+
+    @Test
+    void twoApproachesDoNotExpandIntoFourArmCross() {
+        List<JunctionCurbFilletBuilder.Approach> twoArms = List.of(
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0.2, 1), 3.0)
+        );
+        JunctionRegionGeometry geo =
+            JunctionRegionBuilder.buildFromApproaches(new Vec2d(0, 0), twoArms, 4.0);
+        assertFalse(geo.hasPavement(), "two-arm nodes must not synthesize a 4-arm cross");
+    }
+
+    @Test
+    void filletInfluenceOnlyExpandsStreetCorners() {
+        Vec2d center = new Vec2d(0, 0);
+        JunctionRegionBuilder.StraightRoad wide =
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 4.5); // width 9
+        JunctionRegionBuilder.StraightRoad narrow =
+            new JunctionRegionBuilder.StraightRoad(
+                new Vec2d(Math.cos(Math.toRadians(60)), Math.sin(Math.toRadians(60))),
+                2.5); // width 5
+
+        JunctionRegionGeometry r0 = JunctionRegionBuilder.build(center, wide, narrow, 0.0);
+        JunctionRegionGeometry r4 = JunctionRegionBuilder.build(center, wide, narrow, 4.0);
+        JunctionRegionGeometry r12 = JunctionRegionBuilder.build(center, wide, narrow, 12.0);
+
+        assertEquals(
+            JunctionRegionBuilder.polygonArea(r0.originalRoadUnion()),
+            JunctionRegionBuilder.polygonArea(r12.originalRoadUnion()),
+            1e-6);
+
+        // 采样格：仅街角补铺区可随 R 变化；沿路臂远端必须一致
+        int cornerChanged = 0;
+        int armChanged = 0;
+        for (int ix = -20; ix <= 20; ix++) {
+            for (int iz = -20; iz <= 20; iz++) {
+                Vec2d p = new Vec2d(ix + 0.5, iz + 0.5);
+                boolean in0 = RoadGeometryUtils.pointInPolygon(p, r0.finalPavementRegion());
+                boolean in4 = RoadGeometryUtils.pointInPolygon(p, r4.finalPavementRegion());
+                boolean in12 = RoadGeometryUtils.pointInPolygon(p, r12.finalPavementRegion());
+                if (in0 == in4 && in4 == in12) {
+                    continue;
+                }
+                boolean nearAnyFillet = false;
+                for (var addition : r12.filletAdditions()) {
+                    if (RoadGeometryUtils.pointInPolygon(p, addition)
+                            || distanceToPolygon(p, addition) < 1.25) {
+                        nearAnyFillet = true;
+                        break;
+                    }
+                }
+                if (nearAnyFillet) {
+                    cornerChanged++;
+                } else {
+                    armChanged++;
+                }
+            }
+        }
+        assertTrue(cornerChanged > 0, "street corners must change with R");
+        assertEquals(0, armChanged, "cells far from curb fillets must not change with R");
+    }
+
+    private static double distanceToPolygon(Vec2d point, List<Vec2d> polygon) {
+        double min = Double.POSITIVE_INFINITY;
+        if (polygon == null || polygon.size() < 2) {
+            return min;
+        }
+        for (int i = 0; i < polygon.size(); i++) {
+            Vec2d a = polygon.get(i);
+            Vec2d b = polygon.get((i + 1) % polygon.size());
+            Vec2d ab = b.subtract(a);
+            double len2 = ab.lengthSquared();
+            double t = len2 < 1e-18 ? 0.0 : Math.max(0.0, Math.min(1.0, point.subtract(a).dot(ab) / len2));
+            min = Math.min(min, point.distance(a.add(ab.multiply(t))));
+        }
+        return min;
+    }
+
+    @Test
     void toJunctionGeometryResultPreservesFillAndFillets() {
         JunctionRegionGeometry geo = JunctionRegionBuilder.build(
             new Vec2d(0, 0),

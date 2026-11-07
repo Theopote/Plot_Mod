@@ -63,36 +63,58 @@ public final class JunctionRegionBuilder {
             return JunctionRegionGeometry.empty();
         }
 
-        double resolvedExtent = Double.isFinite(extent) && extent > 0
+        double requested = Math.max(0.0, cornerRadius);
+        // 最终铺装臂长与 R 无关；仅圆角计算可读取更长路缘以放开切点限制
+        double pavementExtent = Double.isFinite(extent) && extent > 0
             ? extent
-            : defaultExtent(roadA.halfWidth(), roadB.halfWidth(), absSin, cornerRadius);
+            : pavementExtent(roadA.halfWidth(), roadB.halfWidth(), absSin);
+        double computeExtent = Math.max(
+            pavementExtent,
+            pavementExtent + Math.max(0.0, requested) + 1.0);
 
         List<Vec2d> overlap = buildOverlapParallelogram(center, roadA, roadB);
         if (overlap.size() < 3) {
             return JunctionRegionGeometry.empty();
         }
 
-        List<Vec2d> stripA = buildStripRectangle(center, roadA, resolvedExtent);
-        List<Vec2d> stripB = buildStripRectangle(center, roadB, resolvedExtent);
-        List<Vec2d> union = buildUnionCross(center, stripA, stripB, overlap);
-        if (union.size() < 3) {
+        List<Vec2d> pavementUnion = buildUnionCross(
+            center,
+            buildStripRectangle(center, roadA, pavementExtent),
+            buildStripRectangle(center, roadB, pavementExtent),
+            overlap);
+        if (pavementUnion.size() < 3) {
             return JunctionRegionGeometry.empty();
         }
 
         List<JunctionRegionGeometry.ApproachBoundary> approaches = List.of(
-            approachBoundary(center, roadA, resolvedExtent),
-            approachBoundary(center, roadB, resolvedExtent));
+            approachBoundary(center, roadA, pavementExtent),
+            approachBoundary(center, roadB, pavementExtent));
 
-        double requested = Math.max(0.0, cornerRadius);
         if (requested < MIN_RADIUS) {
             return new JunctionRegionGeometry(
-                overlap, union, union, List.of(), List.of(), approaches, requested, List.of());
+                overlap,
+                pavementUnion,
+                pavementUnion,
+                List.of(),
+                List.of(),
+                approaches,
+                requested,
+                List.of());
         }
 
-        FilletPass fillets = applyConcaveFillets(union, requested, Math.max(3, arcSegments));
+        List<Vec2d> computeUnion = computeExtent > pavementExtent + 1e-6
+            ? buildUnionCross(
+                center,
+                buildStripRectangle(center, roadA, computeExtent),
+                buildStripRectangle(center, roadB, computeExtent),
+                overlap)
+            : pavementUnion;
+        // 在长边界上求圆弧，再把补弧接到固定铺装并集的凹角上
+        FilletPass fillets = applyConcaveFillets(
+            pavementUnion, computeUnion, requested, Math.max(3, arcSegments));
         return new JunctionRegionGeometry(
             overlap,
-            union,
+            pavementUnion,
             fillets.finalRing(),
             fillets.additions(),
             fillets.arcs(),
@@ -102,14 +124,14 @@ public final class JunctionRegionBuilder {
     }
 
     /**
-     * 从多条进口（中心线外向 + 半宽）尝试配对成两条直线道路。
-     * 仅当恰好两对反向进口且同对半宽一致时成功。
+     * 从多条进口配对成两条贯通直线道路。
+     * 首版仅接受四条有效进口（两组近似反向且半宽一致）；两臂节点不得扩张成四臂十字。
      */
     public static JunctionRegionGeometry buildFromApproaches(
             Vec2d center,
             List<JunctionCurbFilletBuilder.Approach> approaches,
             double cornerRadius) {
-        if (center == null || approaches == null || approaches.size() < 2) {
+        if (center == null || approaches == null) {
             return JunctionRegionGeometry.empty();
         }
         List<JunctionCurbFilletBuilder.Approach> valid = new ArrayList<>();
@@ -120,13 +142,7 @@ public final class JunctionRegionBuilder {
                 valid.add(approach);
             }
         }
-        if (valid.size() == 2) {
-            return build(
-                center,
-                new StraightRoad(valid.get(0).outward(), valid.get(0).halfWidth()),
-                new StraightRoad(valid.get(1).outward(), valid.get(1).halfWidth()),
-                cornerRadius);
-        }
+        // 禁止两臂自动扩张为四臂完整道路（立交下层弯折等）
         if (valid.size() != 4) {
             return JunctionRegionGeometry.empty();
         }
@@ -139,9 +155,15 @@ public final class JunctionRegionBuilder {
         return build(center, roadA, roadB, cornerRadius);
     }
 
-    static double defaultExtent(double halfA, double halfB, double absSin, double cornerRadius) {
+    /** 最终路口铺装条带单侧长度：覆盖重叠核 + 一截进口，不随圆角半径增长。 */
+    static double pavementExtent(double halfA, double halfB, double absSin) {
         double overlapHalf = Math.max(halfA, halfB) / Math.max(absSin, MIN_ABS_SIN);
-        return overlapHalf + Math.max(0.0, cornerRadius) + Math.max(halfA, halfB) + 1.0;
+        return overlapHalf + Math.max(halfA, halfB) + 1.0;
+    }
+
+    /** 计算用延伸长度（含圆角裕量）；最终铺装仍用 {@link #pavementExtent}。 */
+    static double computeExtent(double halfA, double halfB, double absSin, double cornerRadius) {
+        return pavementExtent(halfA, halfB, absSin) + Math.max(0.0, cornerRadius);
     }
 
     /** 无限条带交：四条路缘线交成平行四边形（正交时为矩形）。 */
@@ -239,22 +261,32 @@ public final class JunctionRegionBuilder {
             List<Double> effectiveRadii) {
     }
 
-    private static FilletPass applyConcaveFillets(List<Vec2d> union, double requested, int arcSegments) {
-        int n = union.size();
+    /**
+     * 在固定铺装并集上替换凹角；圆弧半径上限可参考更长计算环上的同角边长。
+     */
+    private static FilletPass applyConcaveFillets(
+            List<Vec2d> pavementUnion,
+            List<Vec2d> computeUnion,
+            double requested,
+            int arcSegments) {
+        int n = pavementUnion.size();
         List<Vec2d> finalRing = new ArrayList<>();
         List<List<Vec2d>> additions = new ArrayList<>();
         List<JunctionRegionGeometry.CurbArc> arcs = new ArrayList<>();
         List<Double> radii = new ArrayList<>();
 
         for (int i = 0; i < n; i++) {
-            Vec2d prev = union.get((i - 1 + n) % n);
-            Vec2d curr = union.get(i);
-            Vec2d next = union.get((i + 1) % n);
+            Vec2d prev = pavementUnion.get((i - 1 + n) % n);
+            Vec2d curr = pavementUnion.get(i);
+            Vec2d next = pavementUnion.get((i + 1) % n);
             if (!isConcaveVertex(prev, curr, next)) {
                 finalRing.add(curr);
                 continue;
             }
-            CornerFillet fillet = computeConcaveFillet(prev, curr, next, requested);
+            CornerTriple longCorner = matchConcaveCorner(computeUnion, curr);
+            Vec2d filletPrev = longCorner != null ? longCorner.prev() : prev;
+            Vec2d filletNext = longCorner != null ? longCorner.next() : next;
+            CornerFillet fillet = computeConcaveFillet(filletPrev, curr, filletNext, requested);
             if (fillet == null) {
                 finalRing.add(curr);
                 radii.add(0.0);
@@ -272,6 +304,28 @@ public final class JunctionRegionBuilder {
             appendArc(finalRing, fillet, arcSegments);
         }
         return new FilletPass(dedupe(finalRing), List.copyOf(additions), List.copyOf(arcs), List.copyOf(radii));
+    }
+
+    private record CornerTriple(Vec2d prev, Vec2d curr, Vec2d next) {
+    }
+
+    private static CornerTriple matchConcaveCorner(List<Vec2d> ring, Vec2d corner) {
+        if (ring == null || corner == null || ring.size() < 3) {
+            return null;
+        }
+        int n = ring.size();
+        for (int i = 0; i < n; i++) {
+            Vec2d curr = ring.get(i);
+            if (curr.distance(corner) > 1e-3) {
+                continue;
+            }
+            Vec2d prev = ring.get((i - 1 + n) % n);
+            Vec2d next = ring.get((i + 1) % n);
+            if (isConcaveVertex(prev, curr, next)) {
+                return new CornerTriple(prev, curr, next);
+            }
+        }
+        return null;
     }
 
     /** CCW 环：右拐（cross &lt; 0）为凹角。 */

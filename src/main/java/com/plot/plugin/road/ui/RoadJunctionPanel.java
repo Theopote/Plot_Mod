@@ -5,7 +5,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
-import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.JunctionMarkingSetting;
@@ -31,22 +30,6 @@ public final class RoadJunctionPanel {
 
     public RoadJunctionPanel(RoadUiContext ctx) {
         this.ctx = ctx;
-    }
-
-    public void renderSummary() {
-        renderSelection(false);
-    }
-
-    public void renderEditor() {
-        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
-            return;
-        }
-        ImGui.separator();
-        renderSelection(false);
-    }
-
-    public void renderPropertySection() {
-        renderSelection(true);
     }
 
     /** 指定节点的路口几何（圆角/标线）；编辑 Tab 与 Crossing 选中时复用。 */
@@ -253,9 +236,10 @@ public final class RoadJunctionPanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
-        EffectiveRadiusDisplay effective = resolveDisplayedEffectiveRadii(
-            manager, config, cornerRadius[0]);
-        if (effective.max() > effective.min() + 1e-3) {
+        EffectiveRadiusDisplay effective = resolveDisplayedEffectiveRadii(manager, config);
+        if (filletsEnabled.get() && cornerRadius[0] > 1e-3 && effective.max() <= 1e-6) {
+            ImGui.textDisabled(PlotI18n.tr("plugin.road.junction_corner_radius_unavailable"));
+        } else if (effective.max() > effective.min() + 1e-3) {
             ImGui.textDisabled(PlotI18n.tr(
                 "plugin.road.junction_corner_radius_effective_range",
                 RoadUiFormat.format(effective.min()),
@@ -291,8 +275,7 @@ public final class RoadJunctionPanel {
 
     private EffectiveRadiusDisplay resolveDisplayedEffectiveRadii(
             RoadNetworkManager manager,
-            RoadSystemConfig config,
-            float requested) {
+            RoadSystemConfig config) {
         if (RoadIntersectionPropertySupport.isGradeSeparatedSelection(manager)) {
             return new EffectiveRadiusDisplay(0.0, 0.0);
         }
@@ -317,7 +300,8 @@ public final class RoadJunctionPanel {
             double value = geometry.effectiveCornerRadius();
             return new EffectiveRadiusDisplay(value, value);
         }
-        return new EffectiveRadiusDisplay(requested, requested);
+        // 无有效圆弧时显示 0，不回退到请求值（避免 R=12 全部失败仍显示 12）
+        return new EffectiveRadiusDisplay(0.0, 0.0);
     }
 
     private record EffectiveRadiusDisplay(double min, double max) {

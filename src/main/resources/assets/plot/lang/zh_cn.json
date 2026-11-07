@@ -2103,6 +2103,7 @@
   "plugin.road.junction_corner_radius": "路缘石圆角半径",
   "plugin.road.junction_corner_radius_effective": "生效半径: %s 米",
   "plugin.road.junction_corner_radius_effective_range": "生效半径: %s–%s 米",
+  "plugin.road.junction_corner_radius_unavailable": "生效半径: 0 米（当前几何无法生成圆角）",
   "plugin.road.junction_plaza_radius": "路口广场基准 %s 米 · 有效 %s 米",
   "plugin.road.junction_apply_default_plaza": "广场恢复默认",
   "plugin.road.junction_fit_plaza": "按进口拟合",
