@@ -96,8 +96,7 @@ public final class RoadJunctionPanel {
             renderFilletControls(compact);
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
-            manager.clearCrossingSelection();
-            manager.clearNodeSelection();
+            manager.clearCanvasSelection();
         }
     }
 

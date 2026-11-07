@@ -118,36 +118,6 @@ public final class RoadJunctionGeometry {
         return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
     }
 
-    /**
-     * 各进口在路口嘴部的左/右路缘点（未排序），用于预览淡色参照线。
-     */
-    public static List<Vec2d> collectApproachBoundaryPoints(
-            String nodeId,
-            List<RoadEdge> edges,
-            ToDoubleFunction<RoadEdge> halfWidthResolver,
-            double junctionRadius,
-            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
-        if (nodeId == null || edges == null || halfWidthResolver == null || centerlineResolver == null) {
-            return List.of();
-        }
-        Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
-        double effectiveRadius = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
-        List<Vec2d> corners = new ArrayList<>();
-        for (RoadEdge edge : edges) {
-            collectApproachCorners(
-                nodeId, center, edge, halfWidthResolver.applyAsDouble(edge),
-                effectiveRadius, centerlineResolver, corners);
-        }
-        return dedupeNearbyVertices(corners);
-    }
-
-    /**
-     * 对多边形外凸角施加统一路缘石圆角，替代手动 CAD 倒角。
-     */
-    public static List<Vec2d> applyCornerFillets(List<Vec2d> polygon, double radius) {
-        return applyCornerFillets(polygon, radius, 6);
-    }
-
     static List<Vec2d> applyCornerFillets(List<Vec2d> polygon, double radius, int arcSegments) {
         return filletPolygon(polygon, radius, arcSegments).polygon();
     }

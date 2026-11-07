@@ -308,22 +308,6 @@ public class RoadJunctionGenerator {
             RoadNode node,
             RoadNetwork network,
             List<RoadEdge> edges,
-            List<Vec2d> polygon,
-            Vec2d center,
-            int junctionY,
-            TerrainSampler terrain,
-            Map<String, RoadGenerationResult> edgeResults,
-            Map<String, Integer> networkNodeElevations) {
-        fillPolygon(
-            blocks, node, network, edges, polygon, null, center, junctionY, terrain, edgeResults,
-            networkNodeElevations);
-    }
-
-    private void fillPolygon(
-            JunctionBlocks blocks,
-            RoadNode node,
-            RoadNetwork network,
-            List<RoadEdge> edges,
             List<Vec2d> filletedPolygon,
             List<Vec2d> sharpPolygon,
             Vec2d center,

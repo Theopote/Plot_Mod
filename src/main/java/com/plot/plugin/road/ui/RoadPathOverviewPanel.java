@@ -82,15 +82,6 @@ public final class RoadPathOverviewPanel {
             });
     }
 
-    public void renderCompactNetworkSummary() {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
-            network.getRoads().size(),
-            RoadIntersectionInventory.count(network),
-            RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
-                network, ctx.host().coordinates()))));
-    }
-
     public void renderHealthWarnings(RoadNetwork network) {
         if (network.getEdges().isEmpty()) {
             return;

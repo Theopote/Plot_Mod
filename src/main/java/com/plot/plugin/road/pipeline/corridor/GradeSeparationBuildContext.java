@@ -119,7 +119,7 @@ public record GradeSeparationBuildContext(
             return ex * ex + ey * ey;
         }
         double t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq;
-        t = Math.max(0.0, Math.min(1.0, t));
+        t = Math.clamp(t, 0.0, 1.0);
         double px = a.x + t * dx;
         double py = a.y + t * dy;
         double ex = point.x - px;

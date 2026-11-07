@@ -182,7 +182,7 @@ public final class JunctionPreviewGeometry {
             }
             accumulated += segmentLength;
         }
-        Vec2d last = points.get(points.size() - 1);
+        Vec2d last = points.getLast();
         Vec2d prev = points.get(points.size() - 2);
         return last.subtract(prev);
     }

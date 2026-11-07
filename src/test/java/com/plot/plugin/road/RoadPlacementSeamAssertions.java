@@ -64,13 +64,6 @@ public final class RoadPlacementSeamAssertions {
     public static StationPavement inspectColumn(
             RoadGenerationResult placements,
             double station,
-            Vec2d planPoint) {
-        return inspectColumn(placements, station, planPoint, new Vec2d(0, 1));
-    }
-
-    public static StationPavement inspectColumn(
-            RoadGenerationResult placements,
-            double station,
             Vec2d planPoint,
             Vec2d leftNormal) {
         int worldX = (int) Math.round(planPoint.x);

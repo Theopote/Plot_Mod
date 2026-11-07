@@ -251,6 +251,16 @@ public final class RoadNetworkManager {
         selectedCrossingId = "";
     }
 
+    /**
+     * 清空画布道路选择（路径/节点/交叉点）。用于画布空白点击取消选中。
+     */
+    public void clearCanvasSelection() {
+        selectedEdgeIds.clear();
+        lastSelectedEdgeId = "";
+        selectedNodeId = "";
+        selectedCrossingId = "";
+    }
+
     public void handleCrossingSelect(String crossingId) {
         setSelectedCrossingId(crossingId);
     }

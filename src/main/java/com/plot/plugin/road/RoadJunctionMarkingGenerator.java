@@ -595,36 +595,41 @@ public final class RoadJunctionMarkingGenerator {
             return;
         }
         Vec2d center = node.getPosition();
-        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
-        );
+        double junctionRadius = 0;
+        if (edges != null) {
+            junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+                edges,
+                edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
+                node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
+            );
+        }
         double markingOrbit = markingOrbitRadius(
             junctionRadius,
             node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()));
 
         var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
-        for (RoadEdge edge : edges) {
-            ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
-                network, edge, generator.getConfig());
-            if (crossSection.centerLineStyle == CenterLineStyle.RAIL) {
-                continue;
-            }
+        if (edges != null) {
+            for (RoadEdge edge : edges) {
+                ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
+                    network, edge, generator.getConfig());
+                if (crossSection.centerLineStyle == CenterLineStyle.RAIL) {
+                    continue;
+                }
 
-            List<Vec2d> centerline = centerlineResolver.apply(edge);
-            Vec2d direction = RoadJunctionGeometry.computeApproachDirection(centerline, edge, node.getId());
-            if (direction.lengthSquared() < 1e-12) {
-                continue;
-            }
+                List<Vec2d> centerline = centerlineResolver.apply(edge);
+                Vec2d direction = RoadJunctionGeometry.computeApproachDirection(centerline, edge, node.getId());
+                if (direction.lengthSquared() < 1e-12) {
+                    continue;
+                }
 
-            Vec2d unit = direction.normalize();
-            Vec2d perpendicular = unit.perpendicular();
-            double halfWidth = Math.max(1.0, crossSection.carriagewayWidth / 2.0);
-            Vec2d stopCenter = center.add(unit.multiply(markingOrbit * STOP_LINE_INSET_RATIO));
+                Vec2d unit = direction.normalize();
+                Vec2d perpendicular = unit.perpendicular();
+                double halfWidth = Math.max(1.0, crossSection.carriagewayWidth / 2.0);
+                Vec2d stopCenter = center.add(unit.multiply(markingOrbit * STOP_LINE_INSET_RATIO));
 
-            for (int offset = -(int) Math.ceil(halfWidth); offset <= (int) Math.ceil(halfWidth); offset++) {
-                addMarking(blocks, stopCenter.add(perpendicular.multiply(offset)), junctionY);
+                for (int offset = -(int) Math.ceil(halfWidth); offset <= (int) Math.ceil(halfWidth); offset++) {
+                    addMarking(blocks, stopCenter.add(perpendicular.multiply(offset)), junctionY);
+                }
             }
         }
     }

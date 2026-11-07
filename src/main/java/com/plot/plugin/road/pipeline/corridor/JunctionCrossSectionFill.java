@@ -177,24 +177,6 @@ public final class JunctionCrossSectionFill {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             double unitsPerBlock,
             TerrainSampler terrain,
-            int bridgeThreshold) {
-        stampApproachSlopeBatters(
-            solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
-            columnResolver, unitsPerBlock, terrain, bridgeThreshold, null);
-    }
-
-    public static void stampApproachSlopeBatters(
-            RoadSolidModel solids,
-            Vec2d junctionCenter,
-            int junctionY,
-            String nodeId,
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            MaterialResolver materials,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            double unitsPerBlock,
-            TerrainSampler terrain,
             int bridgeThreshold,
             Integer maxClearY) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()

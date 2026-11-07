@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
@@ -30,22 +29,6 @@ public final class RoadIntersectionPropertySupport {
         }
         RoadNode node = manager.getSelectedNode();
         return node != null && node.getDegree() >= 2;
-    }
-
-    /** 是否可展示/编辑平交路缘圆角（立交与栈式立交禁用）。 */
-    public static boolean canEditFillets(RoadNetworkManager manager) {
-        if (manager == null || isGradeSeparatedSelection(manager)) {
-            return false;
-        }
-        RoadCrossing crossing = manager.getSelectedCrossing();
-        if (crossing != null) {
-            return crossing.type() == CrossingType.AT_GRADE;
-        }
-        if (manager.getSelectedStackCrossing() != null) {
-            return false;
-        }
-        RoadNode node = manager.getSelectedNode();
-        return node != null && node.getDegree() >= 2 && !node.isGradeSeparated();
     }
 
     public static boolean isGradeSeparatedSelection(RoadNetworkManager manager) {
@@ -78,28 +61,6 @@ public final class RoadIntersectionPropertySupport {
             return null;
         }
         return findNodeNear(network, position);
-    }
-
-    /** 当前选中对象的有效圆角（Crossing 优先于 Node）。 */
-    public static double resolveEffectiveCornerRadius(
-            RoadNetworkManager manager,
-            RoadSystemConfig config) {
-        double networkDefault = config != null ? config.getDefaultCornerRadius() : 0.0;
-        if (manager == null) {
-            return networkDefault;
-        }
-        if (isGradeSeparatedSelection(manager)) {
-            return 0.0;
-        }
-        RoadCrossing crossing = manager.getSelectedCrossing();
-        if (crossing != null && crossing.type() == CrossingType.AT_GRADE) {
-            return crossing.effectiveCornerRadius(networkDefault);
-        }
-        RoadNode node = resolveJunctionNode(manager.getNetwork(), manager);
-        if (node != null) {
-            return node.getEffectiveCornerRadius(networkDefault);
-        }
-        return networkDefault;
     }
 
     /** 原始存储值：null = 跟随网络默认。Crossing 优先。 */

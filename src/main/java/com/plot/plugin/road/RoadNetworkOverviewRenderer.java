@@ -18,7 +18,6 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
