@@ -364,6 +364,8 @@ public final class RoadPlacementSeamAssertions {
         return layer == RoadSolidLayer.ROAD
             || layer == RoadSolidLayer.SHOULDER
             || layer == RoadSolidLayer.SIDEWALK
-            || layer == RoadSolidLayer.BIKE_LANE;
+            || layer == RoadSolidLayer.BIKE_LANE
+            // 路口标线画在路面同高程；接缝连续性仍视为铺装表面。
+            || layer == RoadSolidLayer.MARKING;
     }
 }

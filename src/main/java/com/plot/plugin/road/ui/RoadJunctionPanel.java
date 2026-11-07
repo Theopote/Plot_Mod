@@ -74,10 +74,30 @@ public final class RoadJunctionPanel {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
         }
 
-        double effectiveRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        boolean gradeSeparatedSelection = RoadIntersectionPropertySupport.isGradeSeparatedSelection(ctx.networkManager());
+        imgui.type.ImBoolean filletsEnabled = new imgui.type.ImBoolean(
+            !gradeSeparatedSelection
+                && (node.getCornerRadius() == null || node.getCornerRadius() > 1e-6));
+        ImGui.beginDisabled(gradeSeparatedSelection);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.junction_enable_fillets"), filletsEnabled)) {
+            ctx.networkManager().pushHistory();
+            applyCornerRadius(node, filletsEnabled.get() ? null : 0.0);
+        }
+        ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(
+                gradeSeparatedSelection
+                    ? "hint.plot.road.junction_fillets_grade_sep"
+                    : "hint.plot.road.junction_corner_radius"));
+        }
+
+        double effectiveRadius = gradeSeparatedSelection
+            ? 0.0
+            : node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         float[] cornerRadius = {(float) (node.getCornerRadius() != null
             ? node.getCornerRadius()
             : config.getDefaultCornerRadius())};
+        ImGui.beginDisabled(gradeSeparatedSelection || !filletsEnabled.get());
         boolean radiusChanged = ImGui.sliderFloat(
             PlotI18n.tr("plugin.road.junction_corner_radius", RoadUiFormat.format(effectiveRadius)),
             cornerRadius,
@@ -89,16 +109,24 @@ public final class RoadJunctionPanel {
             ctx.networkManager().pushHistory();
         }
         if (radiusChanged) {
-            node.setCornerRadius((double) cornerRadius[0]);
+            applyCornerRadius(node, (double) cornerRadius[0]);
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.junction_fillet_auto_clamp"));
 
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_radius"))) {
             ctx.networkManager().pushHistory();
-            node.setCornerRadius(null);
+            applyCornerRadius(node, null);
         }
+        ImGui.endDisabled();
+
+        ImGui.checkbox(
+            PlotI18n.tr("plugin.road.junction_show_fillet_preview"),
+            ctx.showJunctionFilletPreview());
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         List<RoadEdge> connected = connectedEdges(network, node);
@@ -218,6 +246,16 @@ public final class RoadJunctionPanel {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_railway_mode"));
+        }
+    }
+
+    private void applyCornerRadius(RoadNode node, Double cornerRadius) {
+        if (node != null) {
+            node.setCornerRadius(cornerRadius);
+        }
+        var crossing = ctx.networkManager().getSelectedCrossing();
+        if (crossing != null && crossing.type() == com.plot.plugin.road.crossing.CrossingType.AT_GRADE) {
+            ctx.networkManager().getNetwork().setCrossingCornerRadius(crossing.id(), cornerRadius);
         }
     }
 

@@ -40,7 +40,7 @@ class GradeSeparationBuildContextTest {
     }
 
     @Test
-    void maxOpenClearTopYDoesNotAffectFarCorridorColumns() {
+    void maxOpenClearTopYAppliesForWholeLowerEdgeContext() {
         List<Vec2d> square = List.of(
             new Vec2d(-5, -5),
             new Vec2d(5, -5),
@@ -53,10 +53,13 @@ class GradeSeparationBuildContextTest {
 
         assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(0, 0)));
         assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(5.5, 0)),
-            "one-block residual outside polygon still under deck projection");
-        assertNull(underpass.maxOpenClearTopY(new Vec2d(500, 500)),
-            "far corridor columns must keep local clear height");
-        assertNull(underpass.maxOpenClearTopY(new Vec2d(20, 0)),
-            "columns well outside junction polygon must not inherit deckCap");
+            "skew residual outside polygon still capped on lower GS edges");
+        assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(20, 0)),
+            "lower-edge GS context applies deckCap along the whole approach");
+        assertNull(new GradeSeparationBuildContext(true, List.of(
+                new GradeSeparationBuildContext.ProtectedUnderpassZone(square, 72)))
+                .maxOpenClearTopY(new Vec2d(0, 0)),
+            "elevated edges do not publish open-clearance deckCap");
+        assertNull(GradeSeparationBuildContext.NONE.maxOpenClearTopY(new Vec2d(0, 0)));
     }
 }

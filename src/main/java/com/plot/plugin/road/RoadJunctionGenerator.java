@@ -206,13 +206,14 @@ public class RoadJunctionGenerator {
             node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
         double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
-        List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
+        JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
             node.getId(),
             edges,
             edge -> hardSurfaceHalfExtent(network, edge),
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));
+        List<Vec2d> polygon = geometry.fillPolygon();
 
         if (polygon.size() < 3) {
             generateSimpleEnvelope(
@@ -220,8 +221,12 @@ public class RoadJunctionGenerator {
             return List.of();
         }
 
+        // 铺装栅格以锐角足迹收集柱位（保证进近接缝），清障/外形仍用倒圆角多边形。
+        // 圆角视觉由路缘弧切掉的尖角柱自然体现：fillCell 对弧外尖角仍可落在锐角集内，
+        // 但 clearancePolygon=filleted 决定开敞净空范围。
         fillPolygon(
-            blocks, node, network, edges, polygon, center, junctionY, terrain, edgeResults, networkNodeElevations);
+            blocks, node, network, edges, polygon, geometry.sharpPolygon(),
+            center, junctionY, terrain, edgeResults, networkNodeElevations);
         return polygon;
     }
 
@@ -291,14 +296,39 @@ public class RoadJunctionGenerator {
             TerrainSampler terrain,
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations) {
-        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
-            polygon,
-            generator.coordinateTransformer());
+        fillPolygon(
+            blocks, node, network, edges, polygon, null, center, junctionY, terrain, edgeResults,
+            networkNodeElevations);
+    }
+
+    private void fillPolygon(
+            JunctionBlocks blocks,
+            RoadNode node,
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            List<Vec2d> filletedPolygon,
+            List<Vec2d> sharpPolygon,
+            Vec2d center,
+            int junctionY,
+            TerrainSampler terrain,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> networkNodeElevations) {
+        // 倒圆角多边形用于铺装与净空；锐角仅作回退。
+        List<Vec2d> coverage = filletedPolygon != null && filletedPolygon.size() >= 3
+            ? filletedPolygon
+            : sharpPolygon;
+        if (coverage == null || coverage.size() < 3) {
+            coverage = filletedPolygon;
+        }
+        List<Vec2d> cells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
+            coverage,
+            generator.coordinateTransformer()));
         if (cells.isEmpty() && center != null) {
             cells = List.of(center);
         }
         fillJunctionCells(
-            blocks, cells, polygon, node, network, edges, junctionY, terrain, edgeResults, networkNodeElevations);
+            blocks, cells, coverage, node, network, edges, junctionY, terrain, edgeResults,
+            networkNodeElevations);
     }
 
     private void fillJunctionCells(

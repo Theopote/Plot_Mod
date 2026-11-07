@@ -30,6 +30,8 @@ public final class RoadUiContext {
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
     private final ImBoolean showRoadOverlay = new ImBoolean(true);
     private final ImBoolean showSlopeBatterOverlay = new ImBoolean(false);
+    /** 画布/概览上显示路口圆角预览线（仅 2D 几何，不触发生成）。 */
+    private final ImBoolean showJunctionFilletPreview = new ImBoolean(true);
     private final ImString edgeSearchBuffer = new ImString(128);
     private RoadEdgeListHelper.SortMode edgeSortMode = RoadEdgeListHelper.SortMode.ROAD_GROUP;
     private boolean coordFilterEnabled = false;
@@ -211,6 +213,14 @@ public final class RoadUiContext {
 
     public ImBoolean showSlopeBatterOverlay() {
         return showSlopeBatterOverlay;
+    }
+
+    public ImBoolean showJunctionFilletPreview() {
+        return showJunctionFilletPreview;
+    }
+
+    public boolean isJunctionFilletPreviewVisible() {
+        return showJunctionFilletPreview.get();
     }
 
     public boolean isRoadOverlayVisible() {

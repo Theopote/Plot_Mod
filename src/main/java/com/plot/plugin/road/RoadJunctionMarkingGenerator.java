@@ -55,6 +55,10 @@ public final class RoadJunctionMarkingGenerator {
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
             node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
+        // 圆角路缘内缩：斑马线/停车线轨道半径随有效圆角回缩，避免落到弯缘上。
+        double markingOrbit = markingOrbitRadius(
+            junctionRadius,
+            node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()));
 
         boolean anySidewalk = edges.stream().anyMatch(edge ->
             RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig()).includeSidewalk);
@@ -90,14 +94,14 @@ public final class RoadJunctionMarkingGenerator {
             boolean wantCrosswalk = node.getCrosswalks().resolve(
                 crossSection.includeSidewalk || (junctionDegree >= 3 && anySidewalk));
             if (wantCrosswalk && (crossSection.includeSidewalk || anySidewalk)) {
-                generateCrosswalk(blocks, center, direction, junctionRadius, junctionY, crossSection);
+                generateCrosswalk(blocks, center, direction, markingOrbit, junctionY, crossSection);
             }
 
             // 转向箭头：三岔及以上路口按出口拓扑自动生成，不依赖用户开标线
             boolean wantArrows = node.getTurnArrows().resolve(junctionDegree >= 3);
             if (wantArrows) {
                 TurnOptions turns = resolveTurnOptions(approach, approaches);
-                generateTurnArrows(blocks, center, direction, junctionRadius, junctionY, turns);
+                generateTurnArrows(blocks, center, direction, markingOrbit, junctionY, turns);
             }
         }
         placeRailwayTurnoutMarkers(
@@ -596,6 +600,9 @@ public final class RoadJunctionMarkingGenerator {
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
             node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
+        double markingOrbit = markingOrbitRadius(
+            junctionRadius,
+            node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()));
 
         var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         for (RoadEdge edge : edges) {
@@ -614,12 +621,22 @@ public final class RoadJunctionMarkingGenerator {
             Vec2d unit = direction.normalize();
             Vec2d perpendicular = unit.perpendicular();
             double halfWidth = Math.max(1.0, crossSection.carriagewayWidth / 2.0);
-            Vec2d stopCenter = center.add(unit.multiply(junctionRadius * STOP_LINE_INSET_RATIO));
+            Vec2d stopCenter = center.add(unit.multiply(markingOrbit * STOP_LINE_INSET_RATIO));
 
             for (int offset = -(int) Math.ceil(halfWidth); offset <= (int) Math.ceil(halfWidth); offset++) {
                 addMarking(blocks, stopCenter.add(perpendicular.multiply(offset)), junctionY);
             }
         }
+    }
+
+    /**
+     * 标线环半径：在广场半径基础上按圆角内缩，防止斑马线/停车线压到弯缘。
+     */
+    static double markingOrbitRadius(double junctionRadius, double cornerRadius) {
+        double safeJunction = Math.max(0.5, junctionRadius);
+        // 轻量内缩：避开弯缘即可，过强会把停车线压到中心线接缝柱上覆盖 ROAD 层。
+        double pullIn = Math.min(Math.max(0.0, cornerRadius) * 0.25, safeJunction * 0.12);
+        return Math.max(safeJunction * 0.7, safeJunction - pullIn);
     }
 
     private void addMarking(RoadJunctionGenerator.JunctionBlocks blocks, Vec2d point, int junctionY) {

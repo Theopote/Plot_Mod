@@ -19,16 +19,16 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
-    // Exact plaza ownership now retains the approach cells at junction seams.
+    // Interior-center curb fillets shrink plaza vs exterior-arc bug; seams treat MARKING as surface.
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        384, 0, 0, 36, 0, 0, 147, 0, 0, 349, 0, 0, List.of());
+        330, 0, 0, 36, 0, 0, 75, 0, 0, 299, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        479, 0, 0, 52, 0, 0, 163, 0, 0, 429, 0, 0, List.of());
+        447, 0, 0, 60, 0, 0, 107, 0, 0, 389, 0, 0, List.of());
 
     // Dense rotated approaches retain complete pavement at the five-way plaza seam.
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        574, 0, 0, 58, 0, 0, 199, 0, 0, 514, 0, 0, List.of());
+        539, 0, 0, 63, 0, 0, 114, 0, 0, 474, 0, 0, List.of());
 
     // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
@@ -48,9 +48,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
 
-    // Grade-sep clearance floored to underpass tunnel clearHeight; deck/bridge counts updated.
+    // GS protection uses sharp plaza footprint; curb fillets no longer shrink deck-cap coverage.
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        531, 0, 0, 0, 240, 75, 186, 0, 0, 758, 1, 0, List.of());
+        451, 0, 0, 0, 240, 65, 96, 0, 0, 690, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

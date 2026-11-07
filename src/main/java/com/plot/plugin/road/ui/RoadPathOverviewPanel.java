@@ -63,6 +63,7 @@ public final class RoadPathOverviewPanel {
             ctx.networkManager().getSelectedEdgeIds(),
             ctx.networkManager().getSelectedCrossingId(),
             ctx.networkManager().getSelectedNodeId(),
+            ctx.isJunctionFilletPreviewVisible(),
             edgeId -> {
                 ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl());
                 ctx.requestOverlayRefresh();

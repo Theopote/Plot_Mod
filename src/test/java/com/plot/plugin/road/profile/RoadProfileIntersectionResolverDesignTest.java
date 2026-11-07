@@ -46,7 +46,7 @@ class RoadProfileIntersectionResolverDesignTest {
             CrossingType.GRADE_SEPARATED,
             null,
             6.0,
-            null));
+            null, null));
 
         var upperMarker = RoadProfileIntersectionResolver.forRoadDesign(network, upper, config).getFirst();
         var lowerMarker = RoadProfileIntersectionResolver.forRoadDesign(network, lower, config).getFirst();

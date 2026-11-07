@@ -69,7 +69,7 @@ public final class RoadJunctionGeometry {
     }
 
     /**
-     * 构建路口铺装多边形：先收集边界角点，再按路缘石圆角半径统一倒圆角。
+     * 构建路口铺装多边形：先收集各进口真实半宽边界角点，再按路缘圆角倒角。
      */
     public static List<Vec2d> buildJunctionFillPolygon(
             String nodeId,
@@ -78,12 +78,61 @@ public final class RoadJunctionGeometry {
             double junctionRadius,
             double cornerRadius,
             Function<RoadEdge, List<Vec2d>> centerlineResolver) {
-        List<Vec2d> polygon = collectPolygonVertices(
+        return buildJunctionGeometry(
+            nodeId, edges, halfWidthResolver, junctionRadius, cornerRadius, centerlineResolver)
+            .fillPolygon();
+    }
+
+    /**
+     * 从相邻进口道路边界构造路口几何（含圆角元数据）。
+     * 不等宽进口通过 per-edge halfWidth 体现在 approachBoundaryPoints / sharpPolygon 上。
+     */
+    public static JunctionGeometryResult buildJunctionGeometry(
+            String nodeId,
+            List<RoadEdge> edges,
+            ToDoubleFunction<RoadEdge> halfWidthResolver,
+            double junctionRadius,
+            double cornerRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
+        List<Vec2d> boundaries = collectApproachBoundaryPoints(
             nodeId, edges, halfWidthResolver, junctionRadius, centerlineResolver);
-        if (polygon.size() < 3 || cornerRadius <= 1e-6) {
-            return polygon;
+        List<Vec2d> sharp = collectPolygonVertices(
+            nodeId, edges, halfWidthResolver, junctionRadius, centerlineResolver);
+        if (sharp.size() < 3 || cornerRadius <= 1e-6) {
+            List<Vec2d> poly = sharp.size() >= 3 ? sharp : boundaries;
+            return new JunctionGeometryResult(poly, sharp, boundaries, cornerRadius, 0.0, List.of());
         }
-        return applyCornerFillets(polygon, cornerRadius);
+        FilletBuild fillet = filletPolygon(sharp, cornerRadius, 6);
+        return new JunctionGeometryResult(
+            fillet.polygon(),
+            sharp,
+            boundaries,
+            cornerRadius,
+            fillet.effectiveRadius(),
+            fillet.corners());
+    }
+
+    /**
+     * 各进口在路口嘴部的左/右路缘点（未排序），用于预览淡色参照线。
+     */
+    public static List<Vec2d> collectApproachBoundaryPoints(
+            String nodeId,
+            List<RoadEdge> edges,
+            ToDoubleFunction<RoadEdge> halfWidthResolver,
+            double junctionRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
+        if (nodeId == null || edges == null || halfWidthResolver == null || centerlineResolver == null) {
+            return List.of();
+        }
+        Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
+        double effectiveRadius = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
+        List<Vec2d> corners = new ArrayList<>();
+        for (RoadEdge edge : edges) {
+            collectApproachCorners(
+                nodeId, center, edge, halfWidthResolver.applyAsDouble(edge),
+                effectiveRadius, centerlineResolver, corners);
+        }
+        return dedupeNearbyVertices(corners);
     }
 
     /**
@@ -94,13 +143,26 @@ public final class RoadJunctionGeometry {
     }
 
     static List<Vec2d> applyCornerFillets(List<Vec2d> polygon, double radius, int arcSegments) {
+        return filletPolygon(polygon, radius, arcSegments).polygon();
+    }
+
+    private record FilletBuild(
+            List<Vec2d> polygon,
+            List<JunctionGeometryResult.FilletCorner> corners,
+            double effectiveRadius) {
+    }
+
+    private static FilletBuild filletPolygon(List<Vec2d> polygon, double radius, int arcSegments) {
         if (polygon == null || polygon.size() < 3 || radius <= 1e-6) {
-            return polygon == null ? List.of() : new ArrayList<>(polygon);
+            List<Vec2d> copy = polygon == null ? List.of() : new ArrayList<>(polygon);
+            return new FilletBuild(copy, List.of(), 0.0);
         }
 
         int count = polygon.size();
         List<Vec2d> result = new ArrayList<>();
+        List<JunctionGeometryResult.FilletCorner> corners = new ArrayList<>();
         int segments = Math.max(2, arcSegments);
+        double minEffective = Double.POSITIVE_INFINITY;
 
         for (int i = 0; i < count; i++) {
             Vec2d prev = polygon.get((i - 1 + count) % count);
@@ -125,6 +187,7 @@ public final class RoadJunctionGeometry {
                 continue;
             }
 
+            // CCW 凸包：dirPrev×dirNext < 0 表示外凸转角（可倒圆角）。
             double cross = dirPrev.x * dirNext.y - dirPrev.y * dirNext.x;
             if (cross >= 0) {
                 result.add(curr);
@@ -137,6 +200,7 @@ public final class RoadJunctionGeometry {
                 continue;
             }
 
+            // t = R / tan(θ/2)；进口可用边长不足时自动减小有效半径。
             double tangentDist = radius / tanHalf;
             tangentDist = Math.min(tangentDist, lenPrev * 0.49);
             tangentDist = Math.min(tangentDist, lenNext * 0.49);
@@ -148,37 +212,59 @@ public final class RoadJunctionGeometry {
 
             Vec2d tangentStart = curr.add(dirPrev.multiply(tangentDist));
             Vec2d tangentEnd = curr.add(dirNext.multiply(tangentDist));
-            Vec2d outward = dirPrev.add(dirNext);
-            if (outward.lengthSquared() < 1e-12) {
+            // dirPrev+dirNext 指向角平分线内侧；勿取反，否则圆心落到多边形外侧。
+            Vec2d inward = dirPrev.add(dirNext);
+            if (inward.lengthSquared() < 1e-12) {
                 result.add(curr);
                 continue;
             }
-            outward = outward.normalize().multiply(-1.0);
+            inward = inward.normalize();
             double centerDistance = effectiveRadius / Math.sin(angle / 2.0);
-            Vec2d center = curr.add(outward.multiply(centerDistance));
+            Vec2d center = curr.add(inward.multiply(centerDistance));
+            if (Math.abs(center.distance(tangentStart) - effectiveRadius) > 1e-3
+                    || Math.abs(center.distance(tangentEnd) - effectiveRadius) > 1e-3) {
+                result.add(curr);
+                continue;
+            }
 
             result.add(tangentStart);
-            appendArcPoints(result, center, tangentStart, tangentEnd, effectiveRadius, segments);
+            appendArcPoints(result, center, tangentStart, tangentEnd, effectiveRadius, segments, angle);
             result.add(tangentEnd);
+            corners.add(new JunctionGeometryResult.FilletCorner(
+                center, tangentStart, tangentEnd, effectiveRadius, angle));
+            minEffective = Math.min(minEffective, effectiveRadius);
         }
-        return result;
+        if (result.size() >= 3 && !isSimplePolygon(result)) {
+            return new FilletBuild(new ArrayList<>(polygon), List.of(), 0.0);
+        }
+        double reported = corners.isEmpty() ? 0.0 : minEffective;
+        return new FilletBuild(result, corners, reported);
     }
 
+    /**
+     * 沿短弧从 start 扫到 end。优先选择与 cornerAngle 接近的扫掠，避免外侧长弧回绕。
+     */
     private static void appendArcPoints(
             List<Vec2d> out,
             Vec2d center,
             Vec2d start,
             Vec2d end,
             double radius,
-            int segments) {
+            int segments,
+            double cornerAngle) {
         double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
         double endAngle = Math.atan2(end.y - center.y, end.x - center.x);
         double sweep = endAngle - startAngle;
-        while (sweep <= 0) {
+        while (sweep <= -Math.PI) {
             sweep += Math.PI * 2.0;
         }
-        while (sweep > Math.PI * 2.0) {
+        while (sweep > Math.PI) {
             sweep -= Math.PI * 2.0;
+        }
+        // 若最短弧与目标转角相差过大，改走另一方向（仍取较短的一侧目标）。
+        if (Math.abs(Math.abs(sweep) - cornerAngle) > 0.35
+                && Math.abs(Math.abs(sweep) - (Math.PI * 2.0 - cornerAngle)) < 0.35) {
+            sweep = sweep > 0 ? sweep - Math.PI * 2.0 : sweep + Math.PI * 2.0;
         }
         for (int i = 1; i < segments; i++) {
             double t = (double) i / segments;
@@ -360,7 +446,7 @@ public final class RoadJunctionGeometry {
         return deduped;
     }
 
-    static boolean isSimplePolygon(List<Vec2d> vertices) {
+    public static boolean isSimplePolygon(List<Vec2d> vertices) {
         int count = vertices.size();
         if (count < 3) {
             return false;

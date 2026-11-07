@@ -452,23 +452,7 @@ public final class JunctionCrossSectionFill {
             List<RoadEdge> edges,
             RoadNetwork network,
             RoadSystemConfig config) {
-        if (edges == null || edges.isEmpty() || network == null || config == null) {
-            return null;
-        }
-        RoadEdge widest = null;
-        int maxWidth = -1;
-        for (RoadEdge edge : edges) {
-            if (edge == null) {
-                continue;
-            }
-            int width = RoadModelUtils.resolveCrossSection(network, edge, config)
-                .totalHardSurfaceWidthBlocks();
-            if (width > maxWidth) {
-                maxWidth = width;
-                widest = edge;
-            }
-        }
-        return widest;
+        return JunctionMaterialPolicy.selectWidestEdge(edges, network, config);
     }
 
     private static void gradeColumn(

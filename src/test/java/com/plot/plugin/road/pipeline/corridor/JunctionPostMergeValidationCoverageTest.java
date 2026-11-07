@@ -34,7 +34,7 @@ class JunctionPostMergeValidationCoverageTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            null));
+            null, null));
 
         RoadNetworkGenerator generator = new RoadNetworkGenerator(new RoadGenerator(
             new RoadSystemConfig("junction-coverage"),

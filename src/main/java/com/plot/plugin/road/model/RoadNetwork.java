@@ -729,7 +729,17 @@ public class RoadNetwork {
             type != null ? type : com.plot.plugin.road.crossing.CrossingType.AT_GRADE,
             elevatedRoadId,
             crossingClearance,
-            crossing.sharedElevation()));
+            crossing.sharedElevation(),
+            crossing.cornerRadius()));
+        return true;
+    }
+
+    public boolean setCrossingCornerRadius(String crossingId, Double cornerRadius) {
+        com.plot.plugin.road.crossing.RoadCrossing crossing = crossings.get(crossingId);
+        if (crossing == null) {
+            return false;
+        }
+        crossings.put(crossingId, crossing.withCornerRadius(cornerRadius));
         return true;
     }
 
@@ -1260,6 +1270,7 @@ public class RoadNetwork {
         String elevatedRoadId;
         Double crossingClearance;
         Double sharedElevation;
+        Double cornerRadius;
     }
 
     static class StackCrossingData {
@@ -1377,6 +1388,7 @@ public class RoadNetwork {
                 crossingData.elevatedRoadId = crossing.elevatedRoadId();
                 crossingData.crossingClearance = crossing.crossingClearance();
                 crossingData.sharedElevation = crossing.sharedElevation();
+                crossingData.cornerRadius = crossing.cornerRadius();
                 data.crossings.add(crossingData);
             }
 
@@ -1550,7 +1562,8 @@ public class RoadNetwork {
                         com.plot.plugin.road.crossing.CrossingType.fromStored(crossingData.type),
                         crossingData.elevatedRoadId,
                         crossingData.crossingClearance,
-                        crossingData.sharedElevation));
+                        crossingData.sharedElevation,
+                        crossingData.cornerRadius));
                 }
             }
 

@@ -43,7 +43,7 @@ class RoadCrossingMaterializerGradeSeparationTest {
             CrossingType.GRADE_SEPARATED,
             through.getId(),
             4.0,
-            null);
+            null, null);
         network.registerCrossing(crossing);
 
         RoadNetwork materialized = RoadCrossingMaterializer.materializeForSnapshot(network);

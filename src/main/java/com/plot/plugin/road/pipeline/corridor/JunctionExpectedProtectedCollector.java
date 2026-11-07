@@ -180,14 +180,13 @@ public final class JunctionExpectedProtectedCollector {
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
-            cornerRadius,
+            0.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
     }
 
@@ -210,14 +209,13 @@ public final class JunctionExpectedProtectedCollector {
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
-            cornerRadius,
+            0.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
     }
 

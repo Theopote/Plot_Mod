@@ -5,10 +5,8 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.RoadEdge;
-import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.marking.RoadRailConnectivityValidator;
 import com.plot.plugin.road.pipeline.marking.RoadRailPlacementPass;
@@ -129,62 +127,27 @@ public final class RoadGenerationResultAssembler {
             RoadNetwork network,
             RoadSystemConfig config,
             boolean sidewalk) {
-        String fallback = sidewalk
-            ? config.getSelectedSidewalkMaterial()
-            : config.getSelectedMaterial().getPrimaryMaterial();
-        if (node == null || network == null) {
-            return fallback;
+        if (sidewalk) {
+            return com.plot.plugin.road.pipeline.corridor.JunctionMaterialPolicy
+                .resolveSidewalkMaterial(node, network, config);
         }
-
-        String selectedMaterial = null;
-        int widestRoad = -1;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null || isElevatedJunctionEdge(node, edge)) {
-                continue;
-            }
-            if (sidewalk && !RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)) {
-                continue;
-            }
-            int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
-            if (width >= widestRoad) {
-                widestRoad = width;
-                selectedMaterial = sidewalk
-                    ? RoadModelUtils.getEffectiveSidewalkMaterial(network, edge, config)
-                    : RoadModelUtils.getEffectiveMaterial(network, edge, config);
-            }
-        }
-        return selectedMaterial != null ? selectedMaterial : fallback;
+        return com.plot.plugin.road.pipeline.corridor.JunctionMaterialPolicy
+            .resolveCarriagewayMaterial(node, network, config);
     }
 
     public static String resolveJunctionMarkingMaterial(
             RoadNode node,
             RoadNetwork network,
             RoadSystemConfig config) {
-        if (node == null || network == null) {
-            return ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
-        }
-        String selectedMaterial = null;
-        int widestRoad = -1;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null || isElevatedJunctionEdge(node, edge)) {
-                continue;
-            }
-            int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
-            if (width >= widestRoad) {
-                widestRoad = width;
-                selectedMaterial = RoadModelUtils.resolveCrossSection(network, edge, config).markingMaterial;
-            }
-        }
-        return selectedMaterial != null ? selectedMaterial : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+        return com.plot.plugin.road.pipeline.corridor.JunctionMaterialPolicy
+            .resolveMarkingMaterial(node, network, config);
     }
 
     /**
      * 立交上层道路不参与下层路口材质选取，避免“十”字形异材质。
      * 与 {@code RoadJunctionGenerator.collectUnderpassJunctionEdges} 过滤语义对齐。
      */
-    static boolean isElevatedJunctionEdge(RoadNode node, RoadEdge edge) {
+    public static boolean isElevatedJunctionEdge(RoadNode node, RoadEdge edge) {
         if (node == null || edge == null) {
             return false;
         }

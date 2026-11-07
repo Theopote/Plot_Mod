@@ -183,7 +183,7 @@ class RoadCrossingMatcherTest {
             CrossingType.GRADE_SEPARATED,
             "road-a",
             6.0,
-            null);
+            null, null);
         RoadCrossing detected = RoadCrossing.atGrade("road-a", 55.0, "road-b", 80.0, new Vec2d(5, 5));
 
         RoadCrossing matched = RoadCrossingMatcher.matchExisting(

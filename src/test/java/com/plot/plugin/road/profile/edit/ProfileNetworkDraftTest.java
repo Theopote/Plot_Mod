@@ -84,7 +84,7 @@ class ProfileNetworkDraftTest {
         upper.setFlatVerticalIntent(new FlatVerticalIntent(88));
         FlatVerticalIntentSupport.syncCompiledAlignment(network, upper, 10);
         network.registerCrossing(new RoadCrossing("lu", "upper", 50, "lower", 50,
-            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, "upper", 6.0, null));
+            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, "upper", 6.0, null, null));
         var markers = RoadProfileIntersectionResolver.forRoadDesign(network, upper, config);
         var edit = new ProfileEditSession();
         edit.beginFlatWholeLineEdit(network, upper, markers);
@@ -220,7 +220,7 @@ class ProfileNetworkDraftTest {
             PointOfVerticalIntersection.of(0, 88), PointOfVerticalIntersection.of(50, 88),
             PointOfVerticalIntersection.of(100, 88))));
         var crossing = new RoadCrossing("lu", "upper", 50, "lower", 50,
-            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, "upper", 6.0, null);
+            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, "upper", 6.0, null, null);
         network.registerCrossing(crossing);
         var marker = new RoadProfileIntersection(RoadCrossingRef.toRef(crossing.id()),
             "upper", "lower", "lower", 50, 50, 88, 64, null, true, true, 6, false);
@@ -241,7 +241,7 @@ class ProfileNetworkDraftTest {
         upper.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 80), PointOfVerticalIntersection.of(100, 80))));
         network.registerCrossing(new RoadCrossing("auto", "upper", 50, "lower", 50,
-            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, null, 6.0, null));
+            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, null, 6.0, null, null));
         var upperMarker = RoadProfileIntersectionResolver.forRoadDesign(network, upper, config).getFirst();
         var lowerMarker = RoadProfileIntersectionResolver.forRoadDesign(network, lower, config).getFirst();
         assertTrue(upperMarker.currentRoadElevated());

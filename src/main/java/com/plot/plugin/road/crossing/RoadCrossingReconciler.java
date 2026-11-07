@@ -125,6 +125,7 @@ public final class RoadCrossingReconciler {
             detected.type(),
             detected.elevatedRoadId(),
             detected.crossingClearance(),
-            detected.sharedElevation());
+            detected.sharedElevation(),
+            detected.cornerRadius());
     }
 }

@@ -196,14 +196,14 @@ public final class GradeSeparationBuildContextFactory {
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        // 净空保护区用锐角轮廓：路缘倒圆角不得缩小立交净空上界覆盖。
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
-            cornerRadius,
+            0.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
     }
 
@@ -233,14 +233,14 @@ public final class GradeSeparationBuildContextFactory {
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        // 净空/保护范围保持锐角足迹，与铺装倒圆角解耦。
         return RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
-            cornerRadius,
+            0.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
     }
 }

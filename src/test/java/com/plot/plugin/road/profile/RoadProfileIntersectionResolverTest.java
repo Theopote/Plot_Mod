@@ -143,7 +143,7 @@ class RoadProfileIntersectionResolverTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            50.0));
+            50.0, null));
 
         RoadGenerationResult profile = profileSeries(
             List.of(0.0, 50.0),

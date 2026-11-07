@@ -191,7 +191,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            88.0));
+            88.0, null));
         RoadNode junction = network.createNode(crossingPos);
         junction.setManualElevation(88.0, ManualElevationOrigin.CROSSING);
 
@@ -281,7 +281,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            75.0));
+            75.0, null));
         RoadNode junction = network.createNode(crossingPos);
         junction.setManualElevation(75.0, ManualElevationOrigin.USER);
 
@@ -322,7 +322,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            75.0));
+            75.0, null));
 
         autoRoad.setProfileSource(ProfileSource.AUTO);
         VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, autoRoad.getId());
@@ -353,7 +353,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            72.0));
+            72.0, null));
 
         VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, autoRoad.getId());
 
@@ -387,7 +387,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            70.0));
+            70.0, null));
 
         roadA.setProfileSource(ProfileSource.AUTO);
         VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, roadA.getId());
@@ -422,7 +422,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            75.0);
+            75.0, null);
         network.registerCrossing(crossing);
 
         assertTrue(VerticalProfileGenerationPolicy
@@ -452,7 +452,7 @@ class VerticalProfileGenerationPolicyTest {
             null,
             null,
             null,
-            88.0));
+            88.0, null));
 
         VerticalProfileGenerationPolicy.applyExplicitAutoProfileSelection(network, roadA.getId());
 

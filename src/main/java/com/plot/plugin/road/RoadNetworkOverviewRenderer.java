@@ -121,6 +121,22 @@ public final class RoadNetworkOverviewRenderer {
             Consumer<String> onEdgeSelected,
             Consumer<String> onCrossingSelected,
             Consumer<String> onNodeSelected) {
+        render(
+            network, networkBuilder, config, selectedEdgeIds, selectedCrossingId, selectedNodeId,
+            true, onEdgeSelected, onCrossingSelected, onNodeSelected);
+    }
+
+    public static void render(
+            RoadNetwork network,
+            RoadNetworkBuilder networkBuilder,
+            RoadSystemConfig config,
+            Set<String> selectedEdgeIds,
+            String selectedCrossingId,
+            String selectedNodeId,
+            boolean showFilletPreview,
+            Consumer<String> onEdgeSelected,
+            Consumer<String> onCrossingSelected,
+            Consumer<String> onNodeSelected) {
         float mapWidth = ImGui.getContentRegionAvail().x;
         float mapHeight = mapHeightForWidth(mapWidth);
         ImGui.beginChild("road_network_map", 0, mapHeight, true);
@@ -153,8 +169,10 @@ public final class RoadNetworkOverviewRenderer {
         drawEdges(drawList, network, viewport, selectedEdgeIds);
         List<RoadJunctionOverlayEntry> intersectionEntries = RoadJunctionOverlayController.snapshot(
             network, networkBuilder, selectedCrossingId, selectedNodeId);
-        drawSelectedJunctionPreview(
-            drawList, network, config, viewport, selectedNodeId);
+        if (showFilletPreview) {
+            drawSelectedJunctionPreview(
+                drawList, network, config, viewport, selectedNodeId, selectedCrossingId);
+        }
         drawNodes(
             drawList, network, networkBuilder, viewport, selectedNodeId);
         drawIntersectionMarkers(drawList, intersectionEntries, viewport, false);
@@ -201,12 +219,26 @@ public final class RoadNetworkOverviewRenderer {
             RoadNetwork network,
             RoadSystemConfig config,
             MapViewport viewport,
-            String selectedNodeId) {
-        if (selectedNodeId == null || selectedNodeId.isBlank() || config == null) {
+            String selectedNodeId,
+            String selectedCrossingId) {
+        if (config == null) {
             return;
         }
-        RoadNode node = network.getNode(selectedNodeId);
+        RoadCrossing selectedCrossing = selectedCrossingId != null
+            ? network.getCrossing(selectedCrossingId) : null;
+        RoadNode node = selectedNodeId != null && !selectedNodeId.isBlank()
+            ? network.getNode(selectedNodeId) : null;
+        if ((node == null || !node.isJunction())
+                && selectedCrossing != null
+                && selectedCrossing.position() != null
+                && selectedCrossing.type() != com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
+            node = findNearestJunction(network, selectedCrossing.position());
+        }
         if (node == null || !node.isJunction()) {
+            return;
+        }
+        if (selectedCrossing != null
+                && selectedCrossing.type() == com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
             return;
         }
 
@@ -226,18 +258,35 @@ public final class RoadNetworkOverviewRenderer {
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
             halfWidthResolver,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
         );
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-        List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
+        double cornerRadius = selectedCrossing != null
+            ? selectedCrossing.effectiveCornerRadius(config.getDefaultCornerRadius())
+            : node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
             node.getId(),
             edges,
             halfWidthResolver,
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));
-        if (polygon.size() < 3) {
+        if (!geometry.hasFillPolygon()) {
             return;
+        }
+        List<Vec2d> polygon = geometry.fillPolygon();
+
+        // 淡色锐角边界参照（圆角前的进口路缘），便于对照倒圆效果。
+        List<Vec2d> sharp = geometry.sharpPolygon();
+        if (sharp.size() >= 2) {
+            int refColor = (COLOR_JUNCTION_PREVIEW_BORDER & 0x00FFFFFF) | 0x55000000;
+            for (int i = 0; i < sharp.size(); i++) {
+                Vec2d a = sharp.get(i);
+                Vec2d b = sharp.get((i + 1) % sharp.size());
+                drawList.addLine(
+                    toScreenX(a.x, viewport), toScreenY(a.y, viewport),
+                    toScreenX(b.x, viewport), toScreenY(b.y, viewport),
+                    refColor, 1.0f);
+            }
         }
 
         ImVec2[] screenPoints = new ImVec2[polygon.size()];
@@ -247,12 +296,60 @@ public final class RoadNetworkOverviewRenderer {
                 toScreenY(polygon.get(i).y, viewport)
             );
         }
-        drawList.addConvexPolyFilled(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL);
+        // 圆角后轮廓可能非凸：只描边填充用折线环，避免 addConvexPolyFilled 错填。
+        if (RoadJunctionGeometry.isSimplePolygon(polygon) && isStrictlyConvex(polygon)) {
+            drawList.addConvexPolyFilled(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL);
+        } else {
+            drawList.addPolyline(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL, 0, 3.0f);
+        }
         for (int i = 0; i < screenPoints.length; i++) {
             ImVec2 a = screenPoints[i];
             ImVec2 b = screenPoints[(i + 1) % screenPoints.length];
             drawList.addLine(a.x, a.y, b.x, b.y, COLOR_JUNCTION_PREVIEW_BORDER, 1.5f);
         }
+        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
+            drawList.addCircle(
+                toScreenX(fillet.center().x, viewport),
+                toScreenY(fillet.center().y, viewport),
+                2.0f,
+                COLOR_JUNCTION_PREVIEW_BORDER,
+                8,
+                1.0f);
+        }
+    }
+
+    private static RoadNode findNearestJunction(RoadNetwork network, Vec2d position) {
+        RoadNode best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (RoadNode candidate : network.getNodes().values()) {
+            if (candidate == null || candidate.getPosition() == null || !candidate.isJunction()) {
+                continue;
+            }
+            double distance = candidate.getPosition().distance(position);
+            if (distance < bestDistance && distance <= 0.75) {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    /** CCW 多边形是否严格凸（全部外凸转角）。 */
+    static boolean isStrictlyConvex(List<Vec2d> polygon) {
+        if (polygon == null || polygon.size() < 3) {
+            return false;
+        }
+        int n = polygon.size();
+        for (int i = 0; i < n; i++) {
+            Vec2d prev = polygon.get((i - 1 + n) % n);
+            Vec2d curr = polygon.get(i);
+            Vec2d next = polygon.get((i + 1) % n);
+            double cross = (curr.x - prev.x) * (next.y - curr.y) - (curr.y - prev.y) * (next.x - curr.x);
+            if (cross < -1e-6) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void renderCenteredHint(

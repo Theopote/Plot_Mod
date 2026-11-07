@@ -78,7 +78,7 @@ class RoadCrossingWorkflowIntegrationTest {
     }
 
     @Test
-    void focusIntersection_highlightsRoadsWithoutClearingCrossingSelection() {
+    void focusIntersection_selectsCrossingWithoutSelectingAssociatedRoads() {
         manager.adoptSelectedPaths(List.of(
             new PolylineShape(List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false),
             new PolylineShape(List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false)));
@@ -87,7 +87,8 @@ class RoadCrossingWorkflowIntegrationTest {
         manager.focusIntersection(IntersectionOverlaySource.CROSSING, crossing.id());
 
         assertEquals(crossing.id(), manager.getSelectedCrossingId());
-        assertFalse(manager.getSelectedEdgeIds().isEmpty());
+        assertTrue(manager.getSelectedEdgeIds().isEmpty(),
+            "selecting an intersection must not select roads that pass through it");
     }
 
     @Test

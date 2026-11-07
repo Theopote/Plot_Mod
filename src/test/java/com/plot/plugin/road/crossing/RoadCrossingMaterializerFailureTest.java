@@ -28,7 +28,7 @@ class RoadCrossingMaterializerFailureTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            null));
+            null, null));
 
         SnapshotMaterialization result = RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
         assertFalse(result.report().isComplete());
@@ -53,7 +53,7 @@ class RoadCrossingMaterializerFailureTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            70.0));
+            70.0, null));
 
         SnapshotMaterialization result = RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
         assertFalse(result.report().isComplete());
@@ -80,7 +80,7 @@ class RoadCrossingMaterializerFailureTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            null));
+            null, null));
 
         SnapshotMaterialization result = RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
         assertTrue(result.report().isComplete());
@@ -109,7 +109,7 @@ class RoadCrossingMaterializerFailureTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            null));
+            null, null));
         assertEquals(IntersectionResult.INCOMPLETE, RoadCrossingMaterializer.materializeInPlace(network));
     }
 

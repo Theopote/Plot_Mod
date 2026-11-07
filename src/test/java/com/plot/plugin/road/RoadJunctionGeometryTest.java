@@ -301,6 +301,162 @@ class RoadJunctionGeometryTest {
         assertEquals(junction.getId(), hit);
     }
 
+    @Test
+    void buildJunctionGeometryTracksUnequalWidthApproachesAndFillets() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
+        RoadEdge narrow = RoadTestFixtures.geometryEdge(network, "e-n", "junction", "n-end",
+            List.of(new Vec2d(0, 0), new Vec2d(0, 20)), 4);
+        RoadEdge wide = RoadTestFixtures.geometryEdge(network, "e-e", "junction", "e-end",
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)), 10);
+        RoadEdge south = RoadTestFixtures.geometryEdge(network, "e-s", "s-end", "junction",
+            List.of(new Vec2d(0, -20), new Vec2d(0, 0)), 6);
+        List<RoadEdge> edges = List.of(narrow, wide, south);
+
+        JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
+            "junction",
+            edges,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            2.0,
+            RoadJunctionCenterlineResolver.forNetwork(network));
+
+        assertTrue(geometry.hasFillPolygon());
+        assertFalse(geometry.fillets().isEmpty());
+        assertTrue(geometry.effectiveCornerRadius() > 0.1);
+        assertTrue(geometry.effectiveCornerRadius() <= 2.0 + 1e-6);
+        assertTrue(geometry.approachBoundaryPoints().stream().anyMatch(p -> Math.abs(p.x) >= 4.5),
+            "wide east approach should push boundary outward");
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), geometry.fillPolygon()));
+        assertEquals(geometry.fillPolygon(),
+            RoadJunctionGeometry.buildJunctionFillPolygon(
+                "junction", edges,
+                edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+                RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS, 2.0,
+                RoadJunctionCenterlineResolver.forNetwork(network)));
+    }
+
+    @Test
+    void applyCornerFilletsKeepsInteriorCenterAndShortArcForRightAngle() {
+        List<Vec2d> square = List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10));
+        List<Vec2d> filleted = RoadJunctionGeometry.applyCornerFillets(square, 2.0, 8);
+        assertFilletCornerGeometry(square, filleted, 2.0, Math.PI / 2.0);
+    }
+
+    @Test
+    void applyCornerFilletsHandlesAcuteAndObtuseCorners() {
+        // 等边三角形：三角均为 60°
+        List<Vec2d> acute = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(12, 0),
+            new Vec2d(6, 6 * Math.sqrt(3.0)));
+        List<Vec2d> acuteFilleted = RoadJunctionGeometry.applyCornerFillets(acute, 1.5, 10);
+        assertFilletCornerGeometry(acute, acuteFilleted, 1.5, Math.toRadians(60));
+
+        // 等腰：顶角 120°、底角 30°
+        List<Vec2d> obtuse = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(14, 0),
+            new Vec2d(7, 7 * Math.tan(Math.toRadians(30))));
+        List<Vec2d> obtuseFilleted = RoadJunctionGeometry.applyCornerFillets(obtuse, 1.5, 10);
+        assertFilletCornerGeometry(obtuse, obtuseFilleted, 1.5, Math.toRadians(120));
+    }
+
+    @Test
+    void applyCornerFilletsClampsWhenRadiusExceedsEdgeLength() {
+        List<Vec2d> square = List.of(
+            new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(4, 4), new Vec2d(0, 4));
+        List<Vec2d> filleted = RoadJunctionGeometry.applyCornerFillets(square, 10.0, 6);
+        assertTrue(filleted.size() > square.size());
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(2, 2), filleted));
+        assertTrue(RoadJunctionGeometry.isSimplePolygon(filleted));
+        // 切线距离被边长夹紧后，有效半径应远小于请求的 10
+        double maxOffset = 0;
+        for (Vec2d p : filleted) {
+            maxOffset = Math.max(maxOffset, Math.min(
+                Math.min(p.x, 4 - p.x), Math.min(p.y, 4 - p.y)));
+        }
+        assertTrue(maxOffset < 2.1, "clamped fillet must not push past half-edge");
+    }
+
+    /**
+     * 对每个被倒圆的原顶点：切点到圆心距离 = R_eff，弧扫掠接近转角且无自交。
+     */
+    private static void assertFilletCornerGeometry(
+            List<Vec2d> original,
+            List<Vec2d> filleted,
+            double requestedRadius,
+            double expectedCornerAngle) {
+        assertTrue(filleted.size() > original.size());
+        assertTrue(RoadJunctionGeometry.isSimplePolygon(filleted), "filleted polygon must stay simple");
+        Vec2d centroid = polygonCentroid(original);
+        assertTrue(RoadGeometryUtils.pointInPolygon(centroid, filleted));
+
+        int n = original.size();
+        for (int i = 0; i < n; i++) {
+            Vec2d prev = original.get((i - 1 + n) % n);
+            Vec2d curr = original.get(i);
+            Vec2d next = original.get((i + 1) % n);
+            Vec2d dirPrev = prev.subtract(curr).normalize();
+            Vec2d dirNext = next.subtract(curr).normalize();
+            double angle = Math.acos(clampDot(dirPrev.dot(dirNext)));
+            if (Math.abs(angle - expectedCornerAngle) > 0.08) {
+                continue;
+            }
+            double cross = dirPrev.x * dirNext.y - dirPrev.y * dirNext.x;
+            if (cross >= 0) {
+                continue;
+            }
+            double tanHalf = Math.tan(angle / 2.0);
+            double tangentDist = Math.min(requestedRadius / tanHalf,
+                Math.min(prev.distance(curr), next.distance(curr)) * 0.49);
+            double effectiveRadius = tangentDist * tanHalf;
+            if (effectiveRadius < 0.1) {
+                continue;
+            }
+            Vec2d tangentStart = curr.add(dirPrev.multiply(tangentDist));
+            Vec2d tangentEnd = curr.add(dirNext.multiply(tangentDist));
+            Vec2d inward = dirPrev.add(dirNext).normalize();
+            Vec2d center = curr.add(inward.multiply(effectiveRadius / Math.sin(angle / 2.0)));
+
+            assertEquals(effectiveRadius, center.distance(tangentStart), 1e-3,
+                "center must be R from tangent start at corner " + i);
+            assertEquals(effectiveRadius, center.distance(tangentEnd), 1e-3,
+                "center must be R from tangent end at corner " + i);
+            assertTrue(RoadGeometryUtils.pointInPolygon(center, original)
+                    || center.distance(centroid) < curr.distance(centroid),
+                "fillet center should lie toward polygon interior");
+
+            // 弧上采样点应大致落在半径圆上，且扫掠不超过 π（短弧）
+            List<Vec2d> nearArc = filleted.stream()
+                .filter(p -> Math.abs(p.distance(center) - effectiveRadius) < 0.15)
+                .toList();
+            assertTrue(nearArc.size() >= 2, "arc samples missing for corner " + i);
+            double maxChord = 0;
+            for (Vec2d p : nearArc) {
+                maxChord = Math.max(maxChord, p.distance(tangentStart) + p.distance(tangentEnd));
+            }
+            assertTrue(maxChord < effectiveRadius * (Math.PI + 0.5),
+                "arc must not wind around the long way");
+        }
+    }
+
+    private static Vec2d polygonCentroid(List<Vec2d> polygon) {
+        double x = 0;
+        double y = 0;
+        for (Vec2d p : polygon) {
+            x += p.x;
+            y += p.y;
+        }
+        return new Vec2d(x / polygon.size(), y / polygon.size());
+    }
+
+    private static double clampDot(double value) {
+        return Math.max(-1.0, Math.min(1.0, value));
+    }
+
     private static List<RoadEdge> tJunctionEdges(RoadNetwork network) {
         RoadEdge north = RoadTestFixtures.geometryEdge(network, "e-n", "junction", "n-end", List.of(
             new Vec2d(0, 0),

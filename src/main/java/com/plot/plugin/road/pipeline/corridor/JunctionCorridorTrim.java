@@ -112,14 +112,15 @@ public final class JunctionCorridorTrim {
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        // 走廊排除用锐角足迹：倒圆角铺装内缩不得把进近中心线排除区一起缩小，
+        // 否则广场与走廊之间会在接缝处留空。
         List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             connected,
             edge -> RoadDimensionUtils.halfExtentFromCenter(
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
-            cornerRadius,
+            0.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
         return polygon.size() >= 3 ? Optional.of(polygon) : Optional.empty();
     }

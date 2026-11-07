@@ -235,7 +235,8 @@ class RoadCrossingAdvancedScenariosTest {
         manager.focusIntersection(IntersectionOverlaySource.CROSSING, crossing.id());
 
         assertEquals(crossing.id(), manager.getSelectedCrossingId());
-        assertFalse(manager.getSelectedEdgeIds().isEmpty());
+        assertTrue(manager.getSelectedEdgeIds().isEmpty(),
+            "intersection focus must not select associated road edges");
     }
 
     @Test

@@ -17,7 +17,8 @@ public record RoadCrossing(
         CrossingType type,
         String elevatedRoadId,
         Double crossingClearance,
-        Double sharedElevation) {
+        Double sharedElevation,
+        Double cornerRadius) {
 
     public RoadCrossing {
         if (position != null) {
@@ -44,6 +45,7 @@ public record RoadCrossing(
             CrossingType.AT_GRADE,
             null,
             null,
+            null,
             null);
     }
 
@@ -65,6 +67,7 @@ public record RoadCrossing(
             CrossingType.GRADE_SEPARATED,
             elevatedRoadId,
             crossingClearance,
+            null,
             null);
     }
 
@@ -119,26 +122,41 @@ public record RoadCrossing(
             type,
             elevatedRoadId,
             crossingClearance,
-            sharedElevation);
+            sharedElevation,
+            cornerRadius);
     }
 
     public RoadCrossing withSharedElevation(Double newSharedElevation) {
         return new RoadCrossing(
             id, roadAId, stationA, roadBId, stationB,
-            position, type, elevatedRoadId, crossingClearance, newSharedElevation);
+            position, type, elevatedRoadId, crossingClearance, newSharedElevation, cornerRadius);
+    }
+
+    public RoadCrossing withCornerRadius(Double newCornerRadius) {
+        return new RoadCrossing(
+            id, roadAId, stationA, roadBId, stationB,
+            position, type, elevatedRoadId, crossingClearance, sharedElevation, newCornerRadius);
     }
 
     public RoadCrossing withStationsOnRoad(String roadId, double newStation) {
         if (roadAId.equals(roadId)) {
             return new RoadCrossing(
                 id, roadAId, newStation, roadBId, stationB,
-                position, type, elevatedRoadId, crossingClearance, sharedElevation);
+                position, type, elevatedRoadId, crossingClearance, sharedElevation, cornerRadius);
         }
         if (roadBId.equals(roadId)) {
             return new RoadCrossing(
                 id, roadAId, stationA, roadBId, newStation,
-                position, type, elevatedRoadId, crossingClearance, sharedElevation);
+                position, type, elevatedRoadId, crossingClearance, sharedElevation, cornerRadius);
         }
         throw new IllegalArgumentException("road not part of crossing: " + roadId);
+    }
+
+    /** 平交才应用圆角；立交返回 0（禁用平交路缘倒角）。 */
+    public double effectiveCornerRadius(double networkDefault) {
+        if (type == CrossingType.GRADE_SEPARATED) {
+            return 0.0;
+        }
+        return cornerRadius != null ? Math.max(0.0, cornerRadius) : Math.max(0.0, networkDefault);
     }
 }

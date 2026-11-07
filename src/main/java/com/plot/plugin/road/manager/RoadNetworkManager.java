@@ -256,7 +256,8 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 选中交叉点并高亮关联道路，不清除当前交叉点/节点选择语义。
+     * 选中交叉点/路口节点，并清除路径选中态。
+     * 交点与路径是互斥选择：点交点不应把经过交点的道路一并选中。
      */
     public void focusIntersection(
             com.plot.plugin.road.overlay.IntersectionOverlaySource source,
@@ -277,46 +278,6 @@ public final class RoadNetworkManager {
                 lastSelectedEdgeId = "";
             }
         }
-        highlightAssociatedRoads(resolveRoadIdsForIntersection(source, id));
-    }
-
-    private List<String> resolveRoadIdsForIntersection(
-            com.plot.plugin.road.overlay.IntersectionOverlaySource source,
-            String id) {
-        if (source == com.plot.plugin.road.overlay.IntersectionOverlaySource.CROSSING) {
-            com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(id);
-            if (crossing == null) {
-                return List.of();
-            }
-            return List.of(crossing.roadAId(), crossing.roadBId());
-        }
-        if (source == com.plot.plugin.road.overlay.IntersectionOverlaySource.STACK_CROSSING) {
-            com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(id);
-            if (stack == null) {
-                return List.of();
-            }
-            return List.of(stack.roadId());
-        }
-        return new ArrayList<>(network.getDistinctRoadIdsAtNode(id));
-    }
-
-    private void highlightAssociatedRoads(List<String> roadIds) {
-        for (String roadId : roadIds) {
-            if (roadId == null || roadId.isBlank()) {
-                continue;
-            }
-            Road road = network.getRoad(roadId);
-            if (road == null || road.getOrderedSegmentIds().isEmpty()) {
-                continue;
-            }
-            String edgeId = road.getOrderedSegmentIds().getFirst();
-            if (network.getEdge(edgeId) == null) {
-                continue;
-            }
-            selectedEdgeIds.add(edgeId);
-            lastSelectedEdgeId = edgeId;
-        }
-        ensureSelectionValid();
     }
 
     public boolean canUndo() {

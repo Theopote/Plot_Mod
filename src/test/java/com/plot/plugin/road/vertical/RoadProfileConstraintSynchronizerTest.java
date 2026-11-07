@@ -307,7 +307,7 @@ class RoadProfileConstraintSynchronizerTest {
         Road lower = road("lower", 64);
         Road upper = road("upper", 80);
         network.registerCrossing(new RoadCrossing("auto", "lower", 50, "upper", 50,
-            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, null, 6.0, null));
+            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, null, 6.0, null, null));
         var before = lower.getVerticalAlignment();
         raise(lower, 50, 90);
         RoadProfileConstraintSynchronizer.synchronize(network, lower, before, config);
@@ -337,7 +337,7 @@ class RoadProfileConstraintSynchronizerTest {
 
     private void separated(String id, Road lower, Road upper) {
         network.registerCrossing(new RoadCrossing(id, lower.getId(), 50, upper.getId(), 50,
-            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, upper.getId(), 6.0, null));
+            new Vec2d(50, 0), CrossingType.GRADE_SEPARATED, upper.getId(), 6.0, null, null));
     }
 
     private static void raise(Road road, double station, double elevation) {

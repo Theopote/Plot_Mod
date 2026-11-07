@@ -59,7 +59,7 @@ class MixedCrossingElevationAuthorityTest {
             CrossingType.AT_GRADE,
             null,
             null,
-            72.0));
+            72.0, null));
 
         RoadEdge autoEdge = network.getEdge(auto.getOrderedSegmentIds().getFirst());
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
@@ -107,7 +107,7 @@ class MixedCrossingElevationAuthorityTest {
             CrossingType.GRADE_SEPARATED,
             edited.getId(),
             6.0,
-            null));
+            null, null));
 
         RoadEdge flatEdge = network.getEdge(flat.getOrderedSegmentIds().getFirst());
         RoadEdge editedEdge = network.getEdge(edited.getOrderedSegmentIds().getFirst());
@@ -166,7 +166,7 @@ class MixedCrossingElevationAuthorityTest {
             CrossingType.GRADE_SEPARATED,
             main.getId(),
             5.0,
-            null));
+            null, null));
 
         var design = RoadProfileIntersectionResolver.forDesignOverlay(network, main, config);
         assertEquals(1, design.size());
