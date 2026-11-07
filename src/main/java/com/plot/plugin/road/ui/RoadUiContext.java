@@ -68,6 +68,8 @@ public final class RoadUiContext {
     private RoadUiNavigationRequest pendingNavigation = null;
     private Runnable pathsAdoptedListener;
     private boolean overlayForegroundDirty;
+    /** 仅路口圆角预览脏：拖动半径时避免重建全路网道路叠加层。 */
+    private boolean junctionFilletPreviewDirty;
 
     private final RoadListRenameController roadListRename = new RoadListRenameController(this);
     private final ImString roadNameBuffer = createRoadNameBuffer();
@@ -523,9 +525,42 @@ public final class RoadUiContext {
     /** 横断面/默认参数变更后请求画布叠加层在当帧 UI 之后重绘。 */
     public void requestOverlayRefresh() {
         overlayForegroundDirty = true;
+        junctionFilletPreviewDirty = true;
         if (CanvasAccess.isPresent()) {
             CanvasAccess.get().markToolPreviewDirty();
         }
+    }
+
+    /**
+     * 仅刷新路口圆角二维预览（拖动半径时）；不重建全路网道路走廊叠加层。
+     */
+    public void requestJunctionFilletPreviewRefresh() {
+        junctionFilletPreviewDirty = true;
+        if (CanvasAccess.isPresent()) {
+            CanvasAccess.get().markToolPreviewDirty();
+        }
+    }
+
+    public boolean isJunctionFilletPreviewDirty() {
+        return junctionFilletPreviewDirty;
+    }
+
+    public boolean consumeJunctionFilletPreviewDirty() {
+        if (!junctionFilletPreviewDirty) {
+            return false;
+        }
+        junctionFilletPreviewDirty = false;
+        return true;
+    }
+
+    /** 画布需要叠加绘制：主道路叠加层开启，或圆角预览开启且选中了路口。 */
+    public boolean shouldRenderCanvasOverlay() {
+        if (isRoadOverlayVisible()) {
+            return true;
+        }
+        return isJunctionFilletPreviewVisible()
+            && RoadIntersectionPropertySupport.hasIntersectionSelection(networkManager)
+            && !RoadIntersectionPropertySupport.isGradeSeparatedSelection(networkManager);
     }
 
     /** 道路横断面等会改变 overlay 几何的编辑：推入撤销并标记当帧前景补绘。 */

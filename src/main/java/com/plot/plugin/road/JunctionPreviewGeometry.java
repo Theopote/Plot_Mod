@@ -119,29 +119,13 @@ public final class JunctionPreviewGeometry {
         double junctionRadius = Math.max(
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
             approaches.stream().mapToDouble(Approach::halfWidth).max().orElse(0.0) + 1.0);
-
-        List<Vec2d> corners = new ArrayList<>();
+        List<JunctionCurbFilletBuilder.Approach> curbApproaches = new ArrayList<>();
         for (Approach approach : approaches) {
-            Vec2d unit = approach.direction();
-            if (unit.lengthSquared() < 1e-12) {
-                continue;
-            }
-            unit = unit.normalize();
-            Vec2d leftNormal = unit.perpendicular();
-            Vec2d mouth = center.add(unit.multiply(junctionRadius));
-            corners.add(mouth.add(leftNormal.multiply(approach.halfWidth())));
-            corners.add(mouth.subtract(leftNormal.multiply(approach.halfWidth())));
-        }
-        corners = RoadJunctionGeometry.dedupeNearbyVertices(corners);
-        List<Vec2d> sharp = RoadJunctionGeometry.sortVerticesByPolarAngle(corners, center);
-        if (sharp.size() < 3) {
-            return JunctionGeometryResult.empty();
+            curbApproaches.add(new JunctionCurbFilletBuilder.Approach(
+                approach.direction(), approach.halfWidth()));
         }
         double cornerRadius = crossing.effectiveCornerRadius(config.getDefaultCornerRadius());
-        if (cornerRadius <= 1e-6) {
-            return new JunctionGeometryResult(sharp, sharp, corners, cornerRadius, 0.0, List.of());
-        }
-        return RoadJunctionGeometry.buildJunctionGeometryFromSharp(sharp, corners, cornerRadius);
+        return JunctionCurbFilletBuilder.build(center, curbApproaches, junctionRadius, cornerRadius);
     }
 
     private static void collectRoadApproaches(

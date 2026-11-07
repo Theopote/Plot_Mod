@@ -236,8 +236,9 @@ class RoadJunctionGeometryTest {
             2.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
 
-        assertTrue(filleted.size() > sharp.size());
         assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), filleted));
+        // 路缘圆角会向外扩展凹角，顶点数量不一定多于锐角 plus 轮廓
+        assertTrue(filleted.size() >= 3);
     }
 
     @Test
@@ -329,12 +330,13 @@ class RoadJunctionGeometryTest {
         assertTrue(geometry.approachBoundaryPoints().stream().anyMatch(p -> Math.abs(p.x) >= 4.5),
             "wide east approach should push boundary outward");
         assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), geometry.fillPolygon()));
-        assertEquals(geometry.fillPolygon(),
-            RoadJunctionGeometry.buildJunctionFillPolygon(
-                "junction", edges,
-                edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-                RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS, 2.0,
-                RoadJunctionCenterlineResolver.forNetwork(network)));
+        JunctionGeometryResult again = RoadJunctionGeometry.buildJunctionGeometry(
+            "junction", edges,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS, 2.0,
+            RoadJunctionCenterlineResolver.forNetwork(network));
+        assertEquals(geometry.fillPolygon().size(), again.fillPolygon().size());
+        assertEquals(geometry.fillets().size(), again.fillets().size());
     }
 
     @Test

@@ -64,6 +64,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private List<RoadJunctionOverlayEntry> junctionOverlayEntries = List.of();
     private long overlaySnapshotRevision = -1L;
     private String overlaySelectionKey = "";
+    private String junctionFilletPreviewKey = "";
     private int overlayProjectionFingerprint = 0;
     private final RoadCanvasSelectionController canvasSelectionController = new RoadCanvasSelectionController();
     private final RoadFloatingEditorHost floatingEditorHost = new RoadFloatingEditorHost();
@@ -239,7 +240,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     }
 
     public void renderCanvasOverlay() {
-        if (!ctx.isRoadOverlayVisible() || !CanvasAccess.isPresent()) {
+        if (!ctx.shouldRenderCanvasOverlay() || !CanvasAccess.isPresent()) {
             return;
         }
         ensureOverlaySnapshot();
@@ -247,34 +248,54 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadOverlayCompositor.renderOnCanvas(
             canvas,
             canvas.getCamera(),
-            overlayEntries,
+            ctx.isRoadOverlayVisible() ? overlayEntries : List.of(),
             junctionOverlayEntries);
     }
 
     private void ensureOverlaySnapshot() {
-        if (!ctx.isRoadOverlayVisible()) {
+        if (!ctx.shouldRenderCanvasOverlay()) {
             overlayEntries = List.of();
             junctionOverlayEntries = List.of();
             overlaySnapshotRevision = -1L;
             overlaySelectionKey = "";
+            junctionFilletPreviewKey = "";
             overlayProjectionFingerprint = 0;
             ctx.consumeOverlayForegroundDirty();
+            ctx.consumeJunctionFilletPreviewDirty();
             return;
         }
         long revision = ctx.networkManager().getNetworkRevision();
         String selectionKey = overlaySelectionKey();
+        String filletKey = junctionFilletPreviewKey();
         int projectionFingerprint = currentOverlayProjectionFingerprint();
-        if (revision == overlaySnapshotRevision
-                && selectionKey.equals(overlaySelectionKey)
-                && projectionFingerprint == overlayProjectionFingerprint
-                && !ctx.isOverlayForegroundDirty()) {
-            return;
+        boolean roadOverlayOn = ctx.isRoadOverlayVisible();
+        boolean roadDirty = roadOverlayOn
+            && (revision != overlaySnapshotRevision
+                || !selectionKey.equals(overlaySelectionKey)
+                || projectionFingerprint != overlayProjectionFingerprint
+                || ctx.isOverlayForegroundDirty());
+        boolean filletDirty = ctx.isJunctionFilletPreviewDirty()
+            || !filletKey.equals(junctionFilletPreviewKey)
+            || projectionFingerprint != overlayProjectionFingerprint
+            || roadDirty;
+
+        if (roadDirty) {
+            captureRoadOverlaySnapshot();
+            overlaySnapshotRevision = revision;
+            overlaySelectionKey = selectionKey;
+            overlayProjectionFingerprint = projectionFingerprint;
+            ctx.consumeOverlayForegroundDirty();
+        } else if (!roadOverlayOn) {
+            overlayEntries = List.of();
+            ctx.consumeOverlayForegroundDirty();
         }
-        captureOverlaySnapshot();
-        overlaySnapshotRevision = revision;
-        overlaySelectionKey = selectionKey;
-        overlayProjectionFingerprint = projectionFingerprint;
-        ctx.consumeOverlayForegroundDirty();
+
+        if (filletDirty) {
+            captureJunctionOverlaySnapshot();
+            junctionFilletPreviewKey = filletKey;
+            overlayProjectionFingerprint = projectionFingerprint;
+            ctx.consumeJunctionFilletPreviewDirty();
+        }
     }
 
     private int currentOverlayProjectionFingerprint() {
@@ -290,7 +311,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         }
     }
 
-    private void captureOverlaySnapshot() {
+    private void captureRoadOverlaySnapshot() {
         RoadNetwork network = ctx.networkManager().getNetwork();
         boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
         List<Shape> candidates = pickActive ? ctx.toolManager().getPickOverlayPaths() : List.of();
@@ -307,8 +328,11 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             pickActive,
             Set.of(),
             ctx.showSlopeBatterOverlay().get());
+    }
+
+    private void captureJunctionOverlaySnapshot() {
         junctionOverlayEntries = RoadJunctionOverlayController.snapshot(
-            network,
+            ctx.networkManager().getNetwork(),
             ctx.networkManager().getNetworkBuilder(),
             ctx.networkManager().getConfig(),
             ctx.networkManager().getSelectedCrossingId(),
@@ -319,6 +343,15 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private String overlaySelectionKey() {
         LinkedHashSet<String> selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
         boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
+        return selectedRoadIds + "|"
+            + ctx.networkManager().getSelectedNodeId() + "|"
+            + ctx.networkManager().getSelectedCrossingId() + "|"
+            + pickActive + "|"
+            + ctx.toolManager().getPickOverlayPaths().size() + "|"
+            + ctx.showSlopeBatterOverlay().get();
+    }
+
+    private String junctionFilletPreviewKey() {
         var crossing = ctx.networkManager().getSelectedCrossing();
         String cornerKey = crossing != null && crossing.cornerRadius() != null
             ? String.valueOf(crossing.cornerRadius())
@@ -327,12 +360,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (crossing == null && selectedNode != null && selectedNode.getCornerRadius() != null) {
             cornerKey = String.valueOf(selectedNode.getCornerRadius());
         }
-        return selectedRoadIds + "|"
-            + ctx.networkManager().getSelectedNodeId() + "|"
+        return ctx.networkManager().getSelectedNodeId() + "|"
             + ctx.networkManager().getSelectedCrossingId() + "|"
-            + pickActive + "|"
-            + ctx.toolManager().getPickOverlayPaths().size() + "|"
-            + ctx.showSlopeBatterOverlay().get() + "|"
             + ctx.isJunctionFilletPreviewVisible() + "|"
             + cornerKey;
     }

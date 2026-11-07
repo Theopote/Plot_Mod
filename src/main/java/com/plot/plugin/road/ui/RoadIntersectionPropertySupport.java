@@ -48,7 +48,7 @@ public final class RoadIntersectionPropertySupport {
         return node != null && node.getDegree() >= 2 && !node.isGradeSeparated();
     }
 
-    static boolean isGradeSeparatedSelection(RoadNetworkManager manager) {
+    public static boolean isGradeSeparatedSelection(RoadNetworkManager manager) {
         RoadCrossing crossing = manager.getSelectedCrossing();
         if (crossing != null) {
             return crossing.type() == CrossingType.GRADE_SEPARATED;

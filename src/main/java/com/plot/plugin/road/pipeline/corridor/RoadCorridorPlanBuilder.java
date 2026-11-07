@@ -316,13 +316,7 @@ public final class RoadCorridorPlanBuilder {
                 tunnelMinus++;
             }
         }
-        if (tunnelPlus > tunnelMinus) {
-            return 1;
-        }
-        if (tunnelMinus > tunnelPlus) {
-            return -1;
-        }
-        return 0;
+        return Integer.compare(tunnelPlus, tunnelMinus);
     }
 
     private static void rasterizeStation(
@@ -900,7 +894,7 @@ public final class RoadCorridorPlanBuilder {
             // Shared vertex (pathLast==0): angular fan still runs; early-return below is
             // only for non-significant turns with coincident centers.
             if (angularSteps > pathLast) {
-                steps = Math.max(pathLast, Math.min(angularSteps, SLOPE_FAN_MAX_STEPS));
+                steps = Math.clamp(angularSteps, SLOPE_FAN_MAX_STEPS, pathLast);
             }
         }
         // 连续有效外侧射线分组；禁坡/抑制站点打断，禁止跨水面或结构空隙连环带。

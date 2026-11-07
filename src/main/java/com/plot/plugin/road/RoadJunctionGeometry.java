@@ -83,31 +83,9 @@ public final class RoadJunctionGeometry {
             .fillPolygon();
     }
 
-    /** 已有锐角顶点时直接倒圆角（用于未物化 Crossing 预览）。 */
-    public static JunctionGeometryResult buildJunctionGeometryFromSharp(
-            List<Vec2d> sharpPolygon,
-            List<Vec2d> approachBoundaryPoints,
-            double cornerRadius) {
-        List<Vec2d> sharp = sharpPolygon == null ? List.of() : List.copyOf(sharpPolygon);
-        List<Vec2d> boundaries = approachBoundaryPoints == null
-            ? List.of() : List.copyOf(approachBoundaryPoints);
-        if (sharp.size() < 3 || cornerRadius <= 1e-6) {
-            List<Vec2d> poly = sharp.size() >= 3 ? sharp : boundaries;
-            return new JunctionGeometryResult(poly, sharp, boundaries, cornerRadius, 0.0, List.of());
-        }
-        FilletBuild fillet = filletPolygon(sharp, cornerRadius, 6);
-        return new JunctionGeometryResult(
-            fillet.polygon(),
-            sharp,
-            boundaries,
-            cornerRadius,
-            fillet.effectiveRadius(),
-            fillet.corners());
-    }
-
     /**
-     * 从相邻进口道路边界构造路口几何（含圆角元数据）。
-     * 不等宽进口通过 per-edge halfWidth 体现在 approachBoundaryPoints / sharpPolygon 上。
+     * 从相邻进口道路硬路缘构造路口几何（含真正的街角路缘圆角）。
+     * 不等宽进口通过 per-edge halfWidth 体现；圆角向原铺装外扩展，而非裁剪凸顶点。
      */
     public static JunctionGeometryResult buildJunctionGeometry(
             String nodeId,
@@ -116,22 +94,28 @@ public final class RoadJunctionGeometry {
             double junctionRadius,
             double cornerRadius,
             Function<RoadEdge, List<Vec2d>> centerlineResolver) {
-        List<Vec2d> boundaries = collectApproachBoundaryPoints(
-            nodeId, edges, halfWidthResolver, junctionRadius, centerlineResolver);
-        List<Vec2d> sharp = collectPolygonVertices(
-            nodeId, edges, halfWidthResolver, junctionRadius, centerlineResolver);
-        if (sharp.size() < 3 || cornerRadius <= 1e-6) {
-            List<Vec2d> poly = sharp.size() >= 3 ? sharp : boundaries;
-            return new JunctionGeometryResult(poly, sharp, boundaries, cornerRadius, 0.0, List.of());
+        if (nodeId == null || edges == null || halfWidthResolver == null || centerlineResolver == null) {
+            return JunctionGeometryResult.empty();
         }
-        FilletBuild fillet = filletPolygon(sharp, cornerRadius, 6);
-        return new JunctionGeometryResult(
-            fillet.polygon(),
-            sharp,
-            boundaries,
-            cornerRadius,
-            fillet.effectiveRadius(),
-            fillet.corners());
+        Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
+        double effectivePlaza = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
+        List<JunctionCurbFilletBuilder.Approach> approaches = new ArrayList<>();
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> centerline = centerlineResolver.apply(edge);
+            Vec2d direction = computeApproachDirection(centerline, edge, nodeId);
+            if (direction.lengthSquared() < 1e-12) {
+                continue;
+            }
+            double halfWidth = halfWidthResolver.applyAsDouble(edge);
+            if (halfWidth <= 1e-9) {
+                continue;
+            }
+            approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
+        }
+        return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
     }
 
     /**
