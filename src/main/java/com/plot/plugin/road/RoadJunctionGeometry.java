@@ -376,9 +376,11 @@ public final class RoadJunctionGeometry {
         while (sweep > Math.PI) {
             sweep -= Math.PI * 2.0;
         }
-        // 若最短弧与目标转角相差过大，改走另一方向（仍取较短的一侧目标）。
-        if (Math.abs(Math.abs(sweep) - cornerAngle) > 0.35
-                && Math.abs(Math.abs(sweep) - (Math.PI * 2.0 - cornerAngle)) < 0.35) {
+        // 仅当短弧明显不是目标转角、而长弧才是时才反向；目标角须 ≤π，避免锐角街角被翻成近整圆
+        if (cornerAngle > 1e-6 && cornerAngle <= Math.PI + 1e-6
+                && Math.abs(Math.abs(sweep) - cornerAngle) > 0.35
+                && Math.abs(Math.abs(sweep) - (Math.PI * 2.0 - cornerAngle)) < 0.35
+                && (Math.PI * 2.0 - cornerAngle) <= Math.PI + 1e-6) {
             sweep = sweep > 0 ? sweep - Math.PI * 2.0 : sweep + Math.PI * 2.0;
         }
         for (int i = 1; i < segments; i++) {

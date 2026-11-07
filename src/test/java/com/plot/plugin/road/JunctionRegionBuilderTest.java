@@ -167,9 +167,9 @@ class JunctionRegionBuilderTest {
                     arc.tangentStart().distance(corner),
                     arc.tangentEnd().distance(corner)));
             }
-            // 偏置圆角后退 ≈ R·tan(φ/2)
+            // 正确后退 t = R / tan(φ/2)
             double maxSetback = arc.radius()
-                * Math.tan(Math.max(0.05, arc.cornerAngle() * 0.5)) + 1.5;
+                / Math.max(0.05, Math.tan(arc.cornerAngle() * 0.5)) + 1.5;
             assertTrue(nearCorner <= maxSetback,
                 "arc tangents must belong to an overlap street corner; near=" + nearCorner
                     + " maxSetback=" + maxSetback + " ang=" + Math.toDegrees(arc.cornerAngle()));
@@ -177,6 +177,18 @@ class JunctionRegionBuilderTest {
             double oB = Math.abs(arc.center().dot(b.normal()));
             assertTrue(oA > a.halfWidth() - 1e-3 && oB > b.halfWidth() - 1e-3,
                 "fillet center must lie outside both strips; oA=" + oA + " oB=" + oB);
+            // 弧中点应落在两条路缘带之外（街角草地），不得缩进交叉点附近
+            double sa = Math.atan2(
+                arc.tangentStart().y - arc.center().y, arc.tangentStart().x - arc.center().x);
+            double sweep = FilletArcSweep.resolveShort(
+                arc.center(), arc.tangentStart(), arc.tangentEnd());
+            assertTrue(Math.abs(sweep) <= Math.PI + 1e-6,
+                "curb arc must be a short sweep, not a near-full circle; sweepDeg="
+                    + Math.toDegrees(sweep));
+            Vec2d mid = FilletArcSweep.pointOnArc(arc.center(), arc.radius(), sa + sweep * 0.5);
+            assertTrue(Math.abs(mid.dot(a.normal())) > a.halfWidth() - 0.05
+                    && Math.abs(mid.dot(b.normal())) > b.halfWidth() - 0.05,
+                "arc midpoint must lie in the outer grass pocket, mid=" + mid);
         }
     }
 

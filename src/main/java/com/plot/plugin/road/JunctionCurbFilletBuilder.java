@@ -211,27 +211,36 @@ public final class JunctionCurbFilletBuilder {
 
         Vec2d outA = a.leftNormal();
         Vec2d outB = b.leftNormal().multiply(-1.0);
-
-        // 切线长 t = R / tan(φ/2)；切点须落在「路缘交点 → 进口嘴部」之间
+        // cornerAngle = π - 进口夹角，即街角草地楔形 φ
         double halfPhi = cornerAngle * 0.5;
+        double sinHalf = Math.sin(halfPhi);
         double tanHalf = Math.tan(halfPhi);
-        if (tanHalf < 1e-6) {
+        if (sinHalf < 1e-6 || tanHalf < 1e-6) {
             return null;
         }
         double mouthClearance = Math.max(0.75, plaza - Math.max(a.halfWidth(), b.halfWidth()) * 0.25);
+        // 后退 t = R/tan(φ/2) ≤ mouthClearance
         double radius = Math.min(requestedRadius, mouthClearance * tanHalf);
         if (radius < MIN_RADIUS) {
             return null;
         }
 
-        Vec2d aOffset = center.add(outA.multiply(a.halfWidth() + radius));
-        Vec2d bOffset = center.add(outB.multiply(b.halfWidth() + radius));
-        Vec2d filletCenter = lineIntersection(aOffset, a.outward(), bOffset, b.outward());
-        if (filletCenter == null) {
+        Vec2d bisector = outA.add(outB);
+        if (bisector.lengthSquared() < 1e-12) {
             return null;
         }
-        // 圆心必须在街角外侧
+        bisector = bisector.normalize();
+        Vec2d fromCorner = corner.subtract(center);
+        if (fromCorner.lengthSquared() > 1e-12 && bisector.dot(fromCorner.normalize()) <= 0.0) {
+            bisector = bisector.multiply(-1.0);
+        }
+        // 圆心在草地角平分线上，距角点 R/sin(φ/2)，保证到两路缘垂距为 R
+        Vec2d filletCenter = corner.add(bisector.multiply(radius / sinHalf));
         if (filletCenter.distance(center) < corner.distance(center) - 1e-6) {
+            return null;
+        }
+        if (filletCenter.subtract(corner).dot(outA) <= 0.0
+                || filletCenter.subtract(corner).dot(outB) <= 0.0) {
             return null;
         }
 
@@ -250,7 +259,6 @@ public final class JunctionCurbFilletBuilder {
                 || Math.abs(filletCenter.distance(tangentOnA) - radius) > 0.2) {
             return null;
         }
-        // 遍历顺序：先碰到 B 侧切点，再扫到 A 侧切点（与 CCW 进口顺序一致）
         return new CurbFillet(filletCenter, tangentOnB, tangentOnA, radius, cornerAngle);
     }
 
@@ -260,24 +268,11 @@ public final class JunctionCurbFilletBuilder {
         Vec2d end = fillet.tangentEnd();
         out.add(start);
         double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-        double endAngle = Math.atan2(end.y - center.y, end.x - center.x);
-        double sweep = endAngle - startAngle;
-        while (sweep <= -Math.PI) {
-            sweep += Math.PI * 2.0;
-        }
-        while (sweep > Math.PI) {
-            sweep -= Math.PI * 2.0;
-        }
-        // 外扩凹角弧应接近 cornerAngle；若最短弧偏差过大则取反向
-        if (Math.abs(Math.abs(sweep) - fillet.cornerAngle()) > 0.75) {
-            sweep = sweep > 0 ? sweep - Math.PI * 2.0 : sweep + Math.PI * 2.0;
-        }
-        for (int i = 1; i < segments; i++) {
-            double t = (double) i / segments;
-            double angle = startAngle + sweep * t;
-            out.add(new Vec2d(
-                center.x + Math.cos(angle) * radiusOr(fillet),
-                center.y + Math.sin(angle) * radiusOr(fillet)));
+        double sweep = FilletArcSweep.resolveShort(center, start, end);
+        int segs = Math.max(3, segments);
+        for (int i = 1; i < segs; i++) {
+            double t = (double) i / segs;
+            out.add(FilletArcSweep.pointOnArc(center, radiusOr(fillet), startAngle + sweep * t));
         }
         out.add(end);
     }

@@ -699,19 +699,31 @@ public final class JunctionRegionBuilder {
         return false;
     }
 
+    /**
+     * 沿路缘从街角到进口嘴部的可用长度（用于限制切点后退）。
+     * 与 {@link JunctionCurbFilletBuilder} 的 mouthClearance 同量级。
+     */
     private static double streetCornerMaxSetback(
             Vec2d center,
             StraightRoad roadA,
             StraightRoad roadB,
             List<Vec2d> overlapCorners,
             double requested) {
-        // 正交街角 setback≈R，故上限至少为请求 R；再参考路宽，避免钝角楔形沿路臂拉出长假弧
-        double widthSpan = 2.0 * Math.max(roadA.halfWidth(), roadB.halfWidth());
-        return Math.max(Math.max(3.0, requested), widthSpan);
+        double fromOverlap = pavementExtentFromOverlap(center, roadA, roadB, overlapCorners);
+        double widthSpan = Math.max(roadA.halfWidth(), roadB.halfWidth());
+        // 至少容纳正交街角 setback≈R；锐角会再被 tan(φ/2) 缩小有效 R
+        return Math.max(Math.max(requested, fromOverlap * 0.85), widthSpan + 1.0);
     }
 
     /**
-     * 重叠核角点处：对 A/B 路缘外法向各偏置 R，交点为圆心；切点落在两条路缘上。
+     * 重叠核角点处的路缘圆角。
+     * <p>
+     * {@code outA/outB} 是条带外法向，二者夹角 α；真正的街角草地楔形是两路缘夹角
+     * {@code φ = π - α}。圆心沿草地角平分线、距角点 {@code R/sin(φ/2)}，使到两路缘的
+     * 垂距均为 R；切点后退 {@code R/tan(φ/2)}。
+     * <p>
+     * 若误把 α 当 φ，锐角草地几乎不外扩（弧贴在交点），钝角草地却把弧甩到路臂远处——
+     * 正是预览里「绿弧围着交叉点、外围看不到倒圆」的根因。
      */
     static CornerFillet streetCornerFillet(
             Vec2d center,
@@ -737,21 +749,21 @@ public final class JunctionRegionBuilder {
         }
         Vec2d outA = roadA.normal().multiply(sideA);
         Vec2d outB = roadB.normal().multiply(sideB);
-        // 两外法向夹角 = 该象限街角（草地楔形）
-        double cos = Math.max(-1.0, Math.min(1.0, outA.dot(outB)));
-        double streetAngle = Math.acos(cos);
-        if (streetAngle < MIN_CORNER_ANGLE || streetAngle > MAX_CORNER_ANGLE) {
+        double normalCos = Math.max(-1.0, Math.min(1.0, outA.dot(outB)));
+        double normalAngle = Math.acos(normalCos);
+        // 路缘草地楔形 = 两法向补角
+        double grassAngle = Math.PI - normalAngle;
+        if (grassAngle < MIN_CORNER_ANGLE || grassAngle > MAX_CORNER_ANGLE) {
             return null;
         }
-        double halfPhi = streetAngle * 0.5;
+        double halfPhi = grassAngle * 0.5;
+        double sinHalf = Math.sin(halfPhi);
         double tanHalf = Math.tan(halfPhi);
-        if (tanHalf < 1e-6) {
+        if (sinHalf < 1e-6 || tanHalf < 1e-6) {
             return null;
         }
-        // 偏置圆角：切点后退 ≈ R·tan(φ/2)。钝角楔形 tan 大，必须用 maxSetback/tan 限 R，
-        // 否则 R=12 会在钝角落出数十米路臂假弧。
-        double maxBySetback = Math.max(0.0, maxSetback) / tanHalf * 0.95;
-        double limited = Math.min(requested, maxBySetback);
+        // 后退 t = R/tan(φ/2) ≤ maxSetback
+        double limited = Math.min(requested, Math.max(0.0, maxSetback) * tanHalf * 0.95);
         String reason = "";
         if (limited + 1e-6 < requested) {
             reason = "adjacent_edge_too_short";
@@ -760,45 +772,45 @@ public final class JunctionRegionBuilder {
             return null;
         }
 
-        double normalDot = outA.dot(outB);
-        if (normalDot <= -0.999) {
+        Vec2d bisector = outA.add(outB);
+        if (bisector.lengthSquared() < 1e-12) {
             return null;
         }
-        // (C-corner)·outA = (C-corner)·outB = R  →  C = corner + R/(1+outA·outB)·(outA+outB)
-        Vec2d filletCenter = corner.add(outA.add(outB).multiply(limited / (1.0 + normalDot)));
-        if (filletCenter.subtract(corner).dot(radial.normalize()) <= 0.0) {
+        bisector = bisector.normalize();
+        // 必须指向交叉点外侧（草地），且落在两法向正半平面交（街角口袋）
+        if (bisector.dot(radial.normalize()) <= 0.0) {
+            bisector = bisector.multiply(-1.0);
+        }
+        double dist = limited / sinHalf;
+        Vec2d filletCenter = corner.add(bisector.multiply(dist));
+        if (filletCenter.distance(center) + 1e-6 < corner.distance(center)) {
             return null;
         }
-        Vec2d tangentA = filletCenter.subtract(outA.multiply(limited));
-        Vec2d tangentB = filletCenter.subtract(outB.multiply(limited));
+        if (filletCenter.subtract(corner).dot(outA) <= 0.0
+                || filletCenter.subtract(corner).dot(outB) <= 0.0) {
+            return null;
+        }
+
+        Vec2d edgeAPoint = center.add(outA.multiply(roadA.halfWidth()));
+        Vec2d edgeBPoint = center.add(outB.multiply(roadB.halfWidth()));
+        Vec2d tangentA = projectToSegmentLine(filletCenter, edgeAPoint, edgeAPoint.add(roadA.direction()));
+        Vec2d tangentB = projectToSegmentLine(filletCenter, edgeBPoint, edgeBPoint.add(roadB.direction()));
+        if (tangentA == null || tangentB == null) {
+            return null;
+        }
         if (Math.abs(filletCenter.distance(tangentA) - limited) > 0.35
                 || Math.abs(filletCenter.distance(tangentB) - limited) > 0.35) {
             return null;
         }
-        // 切点须落在角点附近（后退 ≤ maxSetback）
-        if (corner.distance(tangentA) > maxSetback + 1e-3
-                || corner.distance(tangentB) > maxSetback + 1e-3) {
+        double setbackLimit = limited / tanHalf + 1.0;
+        if (corner.distance(tangentA) > setbackLimit
+                || corner.distance(tangentB) > setbackLimit) {
             return null;
         }
-        Vec2d tangentStart = tangentA;
-        Vec2d tangentEnd = tangentB;
-        double startAngle = Math.atan2(
-            tangentStart.y - filletCenter.y, tangentStart.x - filletCenter.x);
-        double endAngle = Math.atan2(
-            tangentEnd.y - filletCenter.y, tangentEnd.x - filletCenter.x);
-        double sweep = endAngle - startAngle;
-        while (sweep <= -Math.PI) {
-            sweep += Math.PI * 2.0;
-        }
-        while (sweep > Math.PI) {
-            sweep -= Math.PI * 2.0;
-        }
-        if (Math.abs(Math.abs(sweep) - streetAngle) > 0.75) {
-            tangentStart = tangentB;
-            tangentEnd = tangentA;
-        }
+
+        // 切点顺序任意：appendArc / 预览采样一律走短弧，中点会落在锐点与圆心之间（外扩）
         return new CornerFillet(
-            filletCenter, tangentStart, tangentEnd, limited, streetAngle, reason);
+            filletCenter, tangentA, tangentB, limited, grassAngle, reason);
     }
 
     /**
@@ -950,34 +962,30 @@ public final class JunctionRegionBuilder {
     private static List<Vec2d> filletAddition(Vec2d sharpCorner, CornerFillet fillet, int segments) {
         List<Vec2d> poly = new ArrayList<>();
         poly.add(sharpCorner);
-        appendArc(poly, fillet, segments);
+        appendArc(poly, fillet, segments, sharpCorner);
         return dedupe(poly);
     }
 
     private static void appendArc(List<Vec2d> out, CornerFillet fillet, int segments) {
+        appendArc(out, fillet, segments, null);
+    }
+
+    private static void appendArc(
+            List<Vec2d> out,
+            CornerFillet fillet,
+            int segments,
+            Vec2d preferTowardCorner) {
         Vec2d center = fillet.center();
         Vec2d start = fillet.tangentStart();
         Vec2d end = fillet.tangentEnd();
         out.add(start);
         double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-        double endAngle = Math.atan2(end.y - center.y, end.x - center.x);
-        double sweep = endAngle - startAngle;
-        while (sweep <= -Math.PI) {
-            sweep += Math.PI * 2.0;
-        }
-        while (sweep > Math.PI) {
-            sweep -= Math.PI * 2.0;
-        }
-        // 外扩弧应接近 streetAngle；偏差过大则取反向
-        if (Math.abs(Math.abs(sweep) - fillet.cornerAngle()) > 0.75) {
-            sweep = sweep > 0 ? sweep - Math.PI * 2.0 : sweep + Math.PI * 2.0;
-        }
-        for (int i = 1; i < segments; i++) {
-            double t = (double) i / segments;
-            double angle = startAngle + sweep * t;
-            out.add(new Vec2d(
-                center.x + Math.cos(angle) * fillet.radius(),
-                center.y + Math.sin(angle) * fillet.radius()));
+        double sweep = FilletArcSweep.resolve(
+            center, start, end, fillet.radius(), preferTowardCorner);
+        int segs = Math.max(3, segments);
+        for (int i = 1; i < segs; i++) {
+            double t = (double) i / segs;
+            out.add(FilletArcSweep.pointOnArc(center, fillet.radius(), startAngle + sweep * t));
         }
         out.add(end);
     }
