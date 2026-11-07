@@ -19,16 +19,17 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
-    // Interior-center curb fillets shrink plaza vs exterior-arc bug; seams treat MARKING as surface.
+    // 区域式/路缘圆角在 T 字街角外扩合法补铺；junctionBlocks 随圆角足迹增加。
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        330, 0, 0, 36, 0, 0, 75, 0, 0, 299, 0, 0, List.of());
+        343, 0, 0, 36, 0, 0, 88, 0, 0, 299, 0, 0, List.of());
 
+    // 十字路口四处路缘补弧增加少量表面方块。
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        447, 0, 0, 60, 0, 0, 107, 0, 0, 389, 0, 0, List.of());
+        449, 0, 0, 60, 0, 0, 159, 0, 0, 389, 0, 0, List.of());
 
-    // Dense rotated approaches retain complete pavement at the five-way plaza seam.
+    // 五岔回退旧圆角构建器后，街角外扩铺装更完整。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        539, 0, 0, 63, 0, 0, 114, 0, 0, 474, 0, 0, List.of());
+        577, 0, 0, 63, 0, 0, 160, 0, 0, 480, 0, 0, List.of());
 
     // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
@@ -48,9 +49,10 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
 
-    // GS protection uses sharp plaza footprint; curb fillets no longer shrink deck-cap coverage.
+    // 立交下层两臂不再生成虚构平交广场；修复 slope fan clamp 后恢复边坡填方。
+    // surfaceBlocks 在共享顶点扇区栅格边界可能 ±3 抖动，见 RoadGoldenTolerance。
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        451, 0, 0, 0, 240, 65, 96, 0, 0, 690, 1, 0, List.of());
+        508, 82, 0, 0, 119, 0, 0, 0, 82, 647, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

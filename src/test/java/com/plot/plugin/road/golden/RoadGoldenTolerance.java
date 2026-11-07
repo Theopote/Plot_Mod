@@ -9,6 +9,7 @@ public record RoadGoldenTolerance(
         int categoryBlocks) {
 
     public static RoadGoldenTolerance standard() {
-        return new RoadGoldenTolerance(0, 0, 0);
+        // blockCounts：R11 等边坡扇区在共享顶点处表面计数可能有 ±3 边界抖动
+        return new RoadGoldenTolerance(3, 0, 0);
     }
 }

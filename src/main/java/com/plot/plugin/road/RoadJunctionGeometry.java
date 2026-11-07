@@ -115,13 +115,32 @@ public final class RoadJunctionGeometry {
             }
             approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
         }
-        // 两条直线道路交叉：优先区域式几何（重叠核 + 铺装并集凹角圆角）
+        // 两条贯通直线道路交叉：优先区域式几何（重叠核 + 铺装并集凹角圆角）
         JunctionRegionGeometry region = JunctionRegionBuilder.buildFromApproaches(
             center, approaches, cornerRadius);
         if (region.hasPavement()) {
             return region.toJunctionGeometryResult();
         }
+        // 立交下层两臂（过滤上层后仅剩连续道路）不得回退旧算法生成虚构平交广场
+        if (!isAtGradePlazaCandidate(approaches)) {
+            return JunctionGeometryResult.empty();
+        }
         return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
+    }
+
+    /**
+     * 真正需要平交广场的进口拓扑：至少三个方向，或四条已配对进口。
+     * 两臂近似共线/对穿视为连续道路，不生成额外广场。
+     */
+    static boolean isAtGradePlazaCandidate(List<JunctionCurbFilletBuilder.Approach> approaches) {
+        if (approaches == null || approaches.size() < 3) {
+            return false;
+        }
+        if (approaches.size() >= 4) {
+            return true;
+        }
+        // 三臂：T 字等合法平交
+        return approaches.size() == 3;
     }
 
     static List<Vec2d> applyCornerFillets(List<Vec2d> polygon, double radius, int arcSegments) {

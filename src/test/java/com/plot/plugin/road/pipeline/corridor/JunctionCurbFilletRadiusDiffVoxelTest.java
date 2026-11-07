@@ -68,7 +68,7 @@ class JunctionCurbFilletRadiusDiffVoxelTest {
         assertTrue(geomOnly.size() >= 8,
             "filleted geometry raster must differ from sharp; geomAdded=" + geomOnly.size());
 
-        // 路口固体本身必须随半径变化；若最终 placement 被边结果盖住，仍以路口固体为准验收几何。
+        // 路口固体与最终 placement 都必须体现半径变化（不可互相替代）
         Set<Long> junctionOnly = new HashSet<>(six.junctionRoadKeys);
         junctionOnly.removeAll(zero.junctionRoadKeys);
         assertTrue(junctionOnly.size() >= 4,
@@ -78,13 +78,13 @@ class JunctionCurbFilletRadiusDiffVoxelTest {
                 + " placementAdded=" + onlyInR6.size()
                 + " geomAdded=" + geomOnly.size());
 
-        assertTrue(onlyInR6.size() >= 4 || junctionOnly.size() >= 4,
-            "R=6 must add curb-return pavement; placementAdded=" + onlyInR6.size()
+        assertTrue(onlyInR6.size() >= 4,
+            "final placementRecords must add curb-return cells; placementAdded=" + onlyInR6.size()
                 + " junctionAdded=" + junctionOnly.size()
                 + " removed=" + onlyInR0.size()
                 + " r0=" + r0.size() + " r6=" + r6.size());
 
-        Set<Long> cornerSource = onlyInR6.size() >= 4 ? onlyInR6 : junctionOnly;
+        Set<Long> cornerSource = onlyInR6;
         int ne = 0;
         int nw = 0;
         int se = 0;

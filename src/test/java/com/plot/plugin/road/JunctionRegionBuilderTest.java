@@ -74,6 +74,50 @@ class JunctionRegionBuilderTest {
     }
 
     @Test
+    void acuteAndObliqueAnglesKeepOverlapCornersInsidePavementStrips() {
+        Vec2d center = new Vec2d(0, 0);
+        double halfA = 3.0;
+        double halfB = 3.0;
+        for (double degrees : List.of(15.0, 30.0, 45.0, 60.0, 90.0)) {
+            double theta = Math.toRadians(degrees);
+            JunctionRegionBuilder.StraightRoad a =
+                new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), halfA);
+            JunctionRegionBuilder.StraightRoad b =
+                new JunctionRegionBuilder.StraightRoad(new Vec2d(Math.cos(theta), Math.sin(theta)), halfB);
+            JunctionRegionGeometry geo = JunctionRegionBuilder.build(center, a, b, 0.0);
+            assertEquals(4, geo.overlapRegion().size(), degrees + "° overlap corners");
+            List<Vec2d> stripA = JunctionRegionBuilder.buildStripRectangle(
+                center, a, JunctionRegionBuilder.pavementExtentFromOverlap(
+                    center, a, b, geo.overlapRegion()));
+            List<Vec2d> stripB = JunctionRegionBuilder.buildStripRectangle(
+                center, b, JunctionRegionBuilder.pavementExtentFromOverlap(
+                    center, a, b, geo.overlapRegion()));
+            for (Vec2d corner : geo.overlapRegion()) {
+                assertTrue(
+                    RoadGeometryUtils.pointInPolygon(corner, stripA)
+                        || distanceToPolygon(corner, stripA) < 1e-3,
+                    degrees + "° corner must lie in strip A");
+                assertTrue(
+                    RoadGeometryUtils.pointInPolygon(corner, stripB)
+                        || distanceToPolygon(corner, stripB) < 1e-3,
+                    degrees + "° corner must lie in strip B");
+                assertTrue(
+                    RoadGeometryUtils.pointInPolygon(corner, geo.originalRoadUnion())
+                        || distanceToPolygon(corner, geo.originalRoadUnion()) < 1e-3,
+                    degrees + "° corner must lie in pavement union");
+            }
+        }
+        // 不等宽 15°
+        JunctionRegionGeometry skewed = JunctionRegionBuilder.build(
+            center,
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 4.5),
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(Math.cos(Math.toRadians(15)), Math.sin(Math.toRadians(15))), 2.5),
+            0.0);
+        assertEquals(4, skewed.overlapRegion().size());
+        assertTrue(skewed.hasPavement());
+    }
+
+    @Test
     void filletExpandsPavementAtConcaveStreetCorners() {
         Vec2d center = new Vec2d(0, 0);
         double half = 3.0;

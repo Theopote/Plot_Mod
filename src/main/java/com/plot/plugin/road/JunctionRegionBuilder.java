@@ -64,24 +64,29 @@ public final class JunctionRegionBuilder {
         }
 
         double requested = Math.max(0.0, cornerRadius);
-        // 最终铺装臂长与 R 无关；仅圆角计算可读取更长路缘以放开切点限制
-        double pavementExtent = Double.isFinite(extent) && extent > 0
-            ? extent
-            : pavementExtent(roadA.halfWidth(), roadB.halfWidth(), absSin);
-        double computeExtent = Math.max(
-            pavementExtent,
-            pavementExtent + Math.max(0.0, requested) + 1.0);
 
         List<Vec2d> overlap = buildOverlapParallelogram(center, roadA, roadB);
         if (overlap.size() < 3) {
             return JunctionRegionGeometry.empty();
         }
 
-        List<Vec2d> pavementUnion = buildUnionCross(
-            center,
-            buildStripRectangle(center, roadA, pavementExtent),
-            buildStripRectangle(center, roadB, pavementExtent),
-            overlap);
+        // 最终铺装臂长由重叠平行四边形投影决定（不随 R 变化），避免锐角斜交裁掉核区角点
+        double pavementExtent = Double.isFinite(extent) && extent > 0
+            ? extent
+            : pavementExtentFromOverlap(center, roadA, roadB, overlap);
+        double computeExtent = Math.max(
+            pavementExtent,
+            pavementExtent + Math.max(0.0, requested) + 1.0);
+
+        List<Vec2d> stripA = buildStripRectangle(center, roadA, pavementExtent);
+        List<Vec2d> stripB = buildStripRectangle(center, roadB, pavementExtent);
+        // 仅保留仍落在有限条带内（或边界上）的重叠角点，防止锐角虚假外扩
+        List<Vec2d> clippedOverlap = clipOverlapToStrips(overlap, stripA, stripB);
+        if (clippedOverlap.size() < 3) {
+            clippedOverlap = overlap;
+        }
+
+        List<Vec2d> pavementUnion = buildUnionCross(center, stripA, stripB, clippedOverlap);
         if (pavementUnion.size() < 3) {
             return JunctionRegionGeometry.empty();
         }
@@ -155,15 +160,63 @@ public final class JunctionRegionBuilder {
         return build(center, roadA, roadB, cornerRadius);
     }
 
-    /** 最终路口铺装条带单侧长度：覆盖重叠核 + 一截进口，不随圆角半径增长。 */
+    /**
+     * 由重叠平行四边形顶点投影到各道路中心线，取覆盖全部核区角点所需的最小单侧长度，
+     * 再加一截进口裕量。比统一的 maxHalf/sinθ 更能覆盖锐角斜交。
+     */
+    static double pavementExtentFromOverlap(
+            Vec2d center,
+            StraightRoad roadA,
+            StraightRoad roadB,
+            List<Vec2d> overlap) {
+        double alongA = 0.0;
+        double alongB = 0.0;
+        for (Vec2d corner : overlap) {
+            if (corner == null) {
+                continue;
+            }
+            Vec2d delta = corner.subtract(center);
+            alongA = Math.max(alongA, Math.abs(delta.dot(roadA.direction())));
+            alongB = Math.max(alongB, Math.abs(delta.dot(roadB.direction())));
+        }
+        double cover = Math.max(alongA, alongB);
+        double mouth = Math.max(roadA.halfWidth(), roadB.halfWidth()) + 1.0;
+        return cover + mouth;
+    }
+
+    /** 近似估算（测试/调试）；正式构建请用 {@link #pavementExtentFromOverlap}。 */
     static double pavementExtent(double halfA, double halfB, double absSin) {
         double overlapHalf = Math.max(halfA, halfB) / Math.max(absSin, MIN_ABS_SIN);
         return overlapHalf + Math.max(halfA, halfB) + 1.0;
     }
 
-    /** 计算用延伸长度（含圆角裕量）；最终铺装仍用 {@link #pavementExtent}。 */
-    static double computeExtent(double halfA, double halfB, double absSin, double cornerRadius) {
-        return pavementExtent(halfA, halfB, absSin) + Math.max(0.0, cornerRadius);
+    static List<Vec2d> clipOverlapToStrips(List<Vec2d> overlap, List<Vec2d> stripA, List<Vec2d> stripB) {
+        List<Vec2d> kept = new ArrayList<>();
+        for (Vec2d corner : overlap) {
+            if (corner == null) {
+                continue;
+            }
+            boolean inA = RoadGeometryUtils.pointInPolygon(corner, stripA)
+                || distanceToPolygonBoundary(corner, stripA) < 1e-4;
+            boolean inB = RoadGeometryUtils.pointInPolygon(corner, stripB)
+                || distanceToPolygonBoundary(corner, stripB) < 1e-4;
+            if (inA && inB) {
+                kept.add(corner);
+            }
+        }
+        return kept;
+    }
+
+    private static double distanceToPolygonBoundary(Vec2d point, List<Vec2d> polygon) {
+        double min = Double.POSITIVE_INFINITY;
+        if (polygon == null || polygon.size() < 2) {
+            return min;
+        }
+        int n = polygon.size();
+        for (int i = 0; i < n; i++) {
+            min = Math.min(min, distanceToSegment(point, polygon.get(i), polygon.get((i + 1) % n)));
+        }
+        return min;
     }
 
     /** 无限条带交：四条路缘线交成平行四边形（正交时为矩形）。 */
