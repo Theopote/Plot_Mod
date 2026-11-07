@@ -50,12 +50,12 @@ public final class JunctionCorridorTrim {
 
         if (shouldTrimAtEndpoint(network, edge, startNode)) {
             skipStart = skipDistanceAtNode(network, edge, startNode, crossSection, config) * scale;
-            exclusionPolygons(network, startNode, config).forEach(polygons::add);
+            polygons.addAll(exclusionPolygons(network, startNode, config));
             preserveClearance |= isGradeSeparatedLowerApproach(network, edge, startNode);
         }
         if (shouldTrimAtEndpoint(network, edge, endNode)) {
             skipEnd = skipDistanceAtNode(network, edge, endNode, crossSection, config) * scale;
-            exclusionPolygons(network, endNode, config).forEach(polygons::add);
+            polygons.addAll(exclusionPolygons(network, endNode, config));
             preserveClearance |= isGradeSeparatedLowerApproach(network, edge, endNode);
         }
 

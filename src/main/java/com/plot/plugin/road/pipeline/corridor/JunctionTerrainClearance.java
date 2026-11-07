@@ -101,25 +101,6 @@ public final class JunctionTerrainClearance {
     }
 
     /**
-     * 对已确定属于路口责任区的世界列清障（不再二次 point-in-polygon）。
-     * 铺装栅格 ∪ 圆角补铺列应走此入口，避免补铺落在外形多边形外时漏清树木。
-     */
-    public static void clearOverheadColumn(
-            RoadSolidModel solids,
-            int cellY,
-            int tunnelThreshold,
-            TerrainSampler terrain,
-            int worldX,
-            int worldZ,
-            Vec2d planPoint,
-            Integer elevatedDeckY,
-            int leftoverTopY) {
-        clearOverheadColumn(
-            solids, cellY, tunnelThreshold, terrain, worldX, worldZ, planPoint,
-            elevatedDeckY, leftoverTopY, null);
-    }
-
-    /**
      * @param absoluteClearTopY 绝对净空上限（含隧道洞腔顶）；与 elevatedDeckY 取更严者。
      *                          隧道平交必须传入洞腔顶，否则会按地表/残留衬砌把洞顶掏穿。
      */
