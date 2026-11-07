@@ -92,7 +92,9 @@ public final class JunctionPreviewGeometry {
             halfWidth,
             junctionRadius,
             cornerRadius,
-            RoadJunctionCenterlineResolver.forNetwork(network));
+            RoadJunctionCenterlineResolver.forNetwork(network),
+            network,
+            config);
     }
 
     /**

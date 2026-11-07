@@ -11,9 +11,15 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.function.DoubleUnaryOperator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -457,6 +463,72 @@ class RoadJunctionGeometryTest {
 
     private static double clampDot(double value) {
         return Math.max(-1.0, Math.min(1.0, value));
+    }
+
+    @Test
+    void halfWidthAlongApproachFollowsVariableStations() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode eastEnd = network.createNode(new Vec2d(100, 0));
+        RoadNode northEnd = network.createNode(new Vec2d(0, 40));
+        RoadNode westEnd = network.createNode(new Vec2d(-40, 0));
+
+        Road eastRoad = network.createRoad("east-var");
+        eastRoad.setWidth(6);
+        eastRoad.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(0.0, sectionWithWidth(6)),
+            StationCrossSection.at(40.0, sectionWithWidth(14))
+        ), VariableCrossSectionTransitionMode.STEP));
+        RoadEdge east = network.createEdge(
+            junction.getId(), eastEnd.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), eastRoad.getId());
+
+        Road northRoad = network.createRoad("north");
+        northRoad.setWidth(6);
+        RoadEdge north = network.createEdge(
+            junction.getId(), northEnd.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 40)), northRoad.getId());
+
+        Road westRoad = network.createRoad("west");
+        westRoad.setWidth(6);
+        RoadEdge west = network.createEdge(
+            westEnd.getId(), junction.getId(),
+            List.of(new Vec2d(-40, 0), new Vec2d(0, 0)), westRoad.getId());
+
+        double narrowHalf = RoadDimensionUtils.halfExtentFromCenter(
+            VariableCrossSectionResolver.resolve(network, eastRoad, 0.0, config)
+                .totalHardSurfaceWidthBlocks());
+        double wideHalf = RoadDimensionUtils.halfExtentFromCenter(
+            VariableCrossSectionResolver.resolve(network, eastRoad, 50.0, config)
+                .totalHardSurfaceWidthBlocks());
+        assertTrue(wideHalf > narrowHalf + 0.5, "wide station must enlarge hard-surface half-width");
+        DoubleUnaryOperator along = RoadJunctionGeometry.halfWidthAlongApproach(
+            network, config, east, junction.getId(), narrowHalf);
+
+        assertEquals(narrowHalf, along.applyAsDouble(0.0), 1e-6);
+        assertEquals(narrowHalf, along.applyAsDouble(20.0), 1e-6);
+        assertEquals(wideHalf, along.applyAsDouble(50.0), 1e-6);
+
+        JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
+            junction.getId(),
+            List.of(east, north, west),
+            edge -> RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            2.0,
+            RoadJunctionCenterlineResolver.forNetwork(network),
+            network,
+            config);
+        assertTrue(geometry.fillPolygon().size() >= 3,
+            "variable-width T should still build region pavement");
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), geometry.fillPolygon()));
+    }
+
+    private static RoadCrossSection sectionWithWidth(int width) {
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setWidth(width);
+        return section;
     }
 
     private static List<RoadEdge> tJunctionEdges(RoadNetwork network) {

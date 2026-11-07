@@ -189,7 +189,9 @@ public final class JunctionCorridorTrim {
                 RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
             junctionRadius,
             cornerRadius,
-            RoadJunctionCenterlineResolver.forNetwork(network));
+            RoadJunctionCenterlineResolver.forNetwork(network),
+            network,
+            config);
     }
 
     private static List<RoadEdge> connectedEdges(

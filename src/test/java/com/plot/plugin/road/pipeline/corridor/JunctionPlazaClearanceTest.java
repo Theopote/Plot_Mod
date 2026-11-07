@@ -117,7 +117,7 @@ class JunctionPlazaClearanceTest {
     }
 
     @Test
-    void gradeSeparatedPlazaGradesSubgradeBelowDeckClearance() {
+    void gradeSeparatedTwoArmUnderpassSkipsFictionalPlaza() {
         RoadSystemConfig config = new RoadSystemConfig("plaza-subgrade");
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
@@ -132,17 +132,19 @@ class JunctionPlazaClearanceTest {
         var blocks = junctionGenerator.generateJunction(
             junction, network, hillTerrain(61, 61), Map.of(junction.getId(), 64));
 
+        // 立交过滤上层后仅剩两臂连续道路：不生成虚构平交广场/路基
         assertTrue(
             blocks.getSolids().primitives().stream()
-                .anyMatch(p -> p.layer() == com.plot.plugin.road.solid.RoadSolidLayer.SUBGRADE
-                    && p.elevation() > 61 && p.elevation() <= 64
+                .noneMatch(p -> p.layer() == com.plot.plugin.road.solid.RoadSolidLayer.SUBGRADE
                     && Math.abs(p.planPoint().x) <= 2.5
                     && Math.abs(p.planPoint().y) <= 2.5),
-            "underpass plaza must still receive subgrade fill below deck clearance");
+            "two-arm grade-sep underpass must not invent an at-grade plaza subgrade");
+        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
+        assertEquals(69, deckY);
     }
 
     @Test
-    void gradeSeparatedPlazaStopsPunchBelowElevatedDeck() {
+    void gradeSeparatedTwoArmUnderpassDoesNotPunchDeckShaft() {
         RoadSystemConfig config = new RoadSystemConfig("plaza-deck");
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
@@ -161,18 +163,12 @@ class JunctionPlazaClearanceTest {
 
         Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
         assertEquals(69, deckY);
-        int supportBottom = deckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
-        for (int y = 65; y < supportBottom; y++) {
-            assertTrue(hasAirNearOrigin(blocks, y),
-                "underpass shaft missing air at y=" + y + " airYs=" + airElevationsNearOrigin(blocks));
-        }
         assertTrue(
             blocks.getSolids().primitives().stream()
-                .noneMatch(p -> p.elevation() >= supportBottom
-                    && "minecraft:air".equals(p.materialId())
+                .noneMatch(p -> "minecraft:air".equals(p.materialId())
                     && Math.abs(p.planPoint().x) <= 2.5
                     && Math.abs(p.planPoint().y) <= 2.5),
-            "elevated underside and pavement must not be punched by underpass plaza");
+            "skipped underpass plaza must not punch an air shaft under the elevated deck");
     }
 
     @Test

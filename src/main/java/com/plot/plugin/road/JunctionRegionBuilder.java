@@ -179,9 +179,7 @@ public final class JunctionRegionBuilder {
                 candidates.addAll(segmentIntersections(bandPolygons.get(i), bandPolygons.get(j)));
             }
         }
-        for (Vec2d corner : tangentCore.overlapRegion()) {
-            candidates.add(corner);
-        }
+        candidates.addAll(tangentCore.overlapRegion());
         List<Vec2d> pavementUnion = sortCcw(center, dedupe(candidates));
         if (pavementUnion.size() < 3) {
             return JunctionRegionGeometry.empty();
@@ -590,9 +588,7 @@ public final class JunctionRegionBuilder {
                 candidates.add(vertex);
             }
         }
-        for (Vec2d vertex : overlap) {
-            candidates.add(vertex);
-        }
+        candidates.addAll(overlap);
         return sortCcw(center, dedupe(candidates));
     }
 
@@ -856,7 +852,7 @@ public final class JunctionRegionBuilder {
         if (len2 < 1e-18) {
             return p.distance(a);
         }
-        double t = Math.max(0.0, Math.min(1.0, p.subtract(a).dot(ab) / len2));
+        double t = Math.clamp(p.subtract(a).dot(ab) / len2, 0.0, 1.0);
         return p.distance(a.add(ab.multiply(t)));
     }
 

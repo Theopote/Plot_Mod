@@ -57,6 +57,22 @@ class JunctionPavementBandTest {
     }
 
     @Test
+    void variableHalfWidthStubWidensAlongApproach() {
+        List<Vec2d> centerline = List.of(new Vec2d(0, 0), new Vec2d(20, 0));
+        List<Vec2d> band = JunctionPavementBand.buildStubPolygon(
+            centerline,
+            along -> 2.0 + along * 0.15, // 远端更宽
+            1.0);
+        assertTrue(band.size() >= 6);
+        // 近端半宽约 2：y=2.2 应在内，远端半宽约 5：y=4.5 应在内
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(2, 1.5), band));
+        assertFalse(RoadGeometryUtils.pointInPolygon(new Vec2d(2, 3.5), band),
+            "near end should stay narrow");
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(18, 4.0), band),
+            "far end should widen");
+    }
+
+    @Test
     void curvedCrossBandsProduceRegionGeometryWithFillets() {
         // 东西直线 + 北向弯曲支路 组成 T
         List<Vec2d> east = List.of(new Vec2d(0, 0), new Vec2d(12, 0));

@@ -65,7 +65,9 @@ class JunctionCorridorTrimTest {
             network, approach, crossSection, config, 1.0);
 
         double skip = Math.max(context.endpointTrim().skipStart(), context.endpointTrim().skipEnd());
-        double expected = com.plot.plugin.road.RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+        // 区域式裁剪：skip = 重叠核沿进口投影 + 余量，不再等于整圆 plaza 半径
+        assertTrue(skip > 1.0, "T-junction approach should trim past the overlap mouth");
+        double plazaFallback = com.plot.plugin.road.RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             network.getEdges().values().stream()
                 .filter(edge -> edge.getStartNodeId().equals(junction.getId())
                     || edge.getEndNodeId().equals(junction.getId()))
@@ -74,8 +76,8 @@ class JunctionCorridorTrimTest {
                 com.plot.plugin.road.model.RoadModelUtils.resolveCrossSection(network, edge, config)
                     .totalHardSurfaceWidthBlocks()),
             com.plot.plugin.road.RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        assertEquals(expected, skip, 1e-6);
-        assertTrue(skip < expected + 0.5);
+        assertTrue(skip <= plazaFallback + 1e-6,
+            "region skip should not exceed legacy plaza-radius fallback");
     }
 
     @Test

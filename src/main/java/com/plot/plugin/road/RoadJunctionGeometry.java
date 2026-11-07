@@ -1,13 +1,20 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.OptionalDouble;
+import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
@@ -94,6 +101,24 @@ public final class RoadJunctionGeometry {
             double junctionRadius,
             double cornerRadius,
             Function<RoadEdge, List<Vec2d>> centerlineResolver) {
+        return buildJunctionGeometry(
+            nodeId, edges, halfWidthResolver, junctionRadius, cornerRadius, centerlineResolver,
+            null, null);
+    }
+
+    /**
+     * @param network 非空时可按桩号解析变宽横断面，生成变宽进口条带
+     * @param config  与 network 配套的道路配置
+     */
+    public static JunctionGeometryResult buildJunctionGeometry(
+            String nodeId,
+            List<RoadEdge> edges,
+            ToDoubleFunction<RoadEdge> halfWidthResolver,
+            double junctionRadius,
+            double cornerRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver,
+            RoadNetwork network,
+            RoadSystemConfig config) {
         if (nodeId == null || edges == null || halfWidthResolver == null || centerlineResolver == null) {
             return JunctionGeometryResult.empty();
         }
@@ -111,21 +136,21 @@ public final class RoadJunctionGeometry {
             if (direction.lengthSquared() < 1e-12) {
                 continue;
             }
-            double halfWidth = halfWidthResolver.applyAsDouble(edge);
+            double halfWidth = halfWidthAtJunction(network, config, edge, nodeId, halfWidthResolver);
             if (halfWidth <= 1e-9) {
                 continue;
             }
             maxHalf = Math.max(maxHalf, halfWidth);
             approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
         }
-        // 真实中心线局部条带（弯曲进口）；直线时退化为矩形 stub
+        // 真实中心线局部条带（弯曲/变宽进口）；直线恒宽时退化为矩形 stub
         double bandLength = Math.max(effectivePlaza, maxHalf * 3.0 + 2.0);
         double back = maxHalf + 1.0;
         for (RoadEdge edge : edges) {
             if (edge == null) {
                 continue;
             }
-            double halfWidth = halfWidthResolver.applyAsDouble(edge);
+            double halfWidth = halfWidthAtJunction(network, config, edge, nodeId, halfWidthResolver);
             if (halfWidth <= 1e-9) {
                 continue;
             }
@@ -134,13 +159,14 @@ public final class RoadJunctionGeometry {
             if (outward.size() < 2) {
                 continue;
             }
-            // 将起点钉到路口中心，避免节点坐标与中心线端点微偏
             List<Vec2d> fromCenter = new ArrayList<>(outward.size());
             fromCenter.add(center);
             for (int i = 1; i < outward.size(); i++) {
                 fromCenter.add(outward.get(i));
             }
-            List<Vec2d> band = JunctionPavementBand.buildStubPolygon(fromCenter, halfWidth, back);
+            DoubleUnaryOperator widthAlong = halfWidthAlongApproach(
+                network, config, edge, nodeId, halfWidth);
+            List<Vec2d> band = JunctionPavementBand.buildStubPolygon(fromCenter, widthAlong, back);
             if (band.size() >= 3) {
                 approachBands.add(band);
             }
@@ -161,6 +187,57 @@ public final class RoadJunctionGeometry {
             return JunctionGeometryResult.empty();
         }
         return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
+    }
+
+    /** 路口处半宽：优先节点桩号上的变宽断面。 */
+    static double halfWidthAtJunction(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            RoadEdge edge,
+            String nodeId,
+            ToDoubleFunction<RoadEdge> fallback) {
+        if (network != null && config != null && edge != null && nodeId != null) {
+            Road road = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
+            if (road != null && VariableCrossSectionResolver.hasVariableSections(road)) {
+                OptionalDouble station = RoadStationing.stationAtNode(network, road, edge, nodeId);
+                if (station.isPresent()) {
+                    int blocks = VariableCrossSectionResolver.resolve(
+                        network, road, station.getAsDouble(), config).totalHardSurfaceWidthBlocks();
+                    return RoadDimensionUtils.halfExtentFromCenter(blocks);
+                }
+            }
+        }
+        return fallback != null ? fallback.applyAsDouble(edge) : 0.0;
+    }
+
+    /**
+     * 自路口沿进口向外 {@code along} 处的半宽；无变宽数据时恒为 junctionHalf。
+     */
+    static DoubleUnaryOperator halfWidthAlongApproach(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            RoadEdge edge,
+            String nodeId,
+            double junctionHalf) {
+        if (network == null || config == null || edge == null || nodeId == null) {
+            return along -> junctionHalf;
+        }
+        Road road = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
+        if (road == null || !VariableCrossSectionResolver.hasVariableSections(road)) {
+            return along -> junctionHalf;
+        }
+        OptionalDouble nodeStation = RoadStationing.stationAtNode(network, road, edge, nodeId);
+        if (nodeStation.isEmpty()) {
+            return along -> junctionHalf;
+        }
+        boolean outwardIncreases = nodeId.equals(edge.getStartNodeId());
+        double base = nodeStation.getAsDouble();
+        return along -> {
+            double station = outwardIncreases ? base + along : base - along;
+            int blocks = VariableCrossSectionResolver.resolve(
+                network, road, Math.max(0.0, station), config).totalHardSurfaceWidthBlocks();
+            return RoadDimensionUtils.halfExtentFromCenter(blocks);
+        };
     }
 
     /**

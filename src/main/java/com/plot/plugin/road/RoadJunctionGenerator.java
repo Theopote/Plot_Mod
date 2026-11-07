@@ -228,7 +228,9 @@ public class RoadJunctionGenerator {
             edge -> hardSurfaceHalfExtent(network, edge),
             junctionRadius,
             cornerRadius,
-            RoadJunctionCenterlineResolver.forNetwork(network));
+            RoadJunctionCenterlineResolver.forNetwork(network),
+            network,
+            generator.getConfig());
         List<Vec2d> polygon = geometry.fillPolygon();
 
         if (polygon.size() < 3) {
