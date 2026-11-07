@@ -253,10 +253,18 @@ public final class RoadJunctionPanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
-        double effectiveRadius = resolveDisplayedEffectiveRadius(manager, config, cornerRadius[0]);
-        ImGui.textDisabled(PlotI18n.tr(
-            "plugin.road.junction_corner_radius_effective",
-            RoadUiFormat.format(effectiveRadius)));
+        EffectiveRadiusDisplay effective = resolveDisplayedEffectiveRadii(
+            manager, config, cornerRadius[0]);
+        if (effective.max() > effective.min() + 1e-3) {
+            ImGui.textDisabled(PlotI18n.tr(
+                "plugin.road.junction_corner_radius_effective_range",
+                RoadUiFormat.format(effective.min()),
+                RoadUiFormat.format(effective.max())));
+        } else {
+            ImGui.textDisabled(PlotI18n.tr(
+                "plugin.road.junction_corner_radius_effective",
+                RoadUiFormat.format(effective.min())));
+        }
         if (!compact) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -281,22 +289,38 @@ public final class RoadJunctionPanel {
         }
     }
 
-    private double resolveDisplayedEffectiveRadius(
+    private EffectiveRadiusDisplay resolveDisplayedEffectiveRadii(
             RoadNetworkManager manager,
             RoadSystemConfig config,
             float requested) {
         if (RoadIntersectionPropertySupport.isGradeSeparatedSelection(manager)) {
-            return 0.0;
+            return new EffectiveRadiusDisplay(0.0, 0.0);
         }
         var geometry = com.plot.plugin.road.JunctionPreviewGeometry.resolve(
             manager.getNetwork(),
             config,
             manager.getSelectedNodeId(),
             manager.getSelectedCrossingId());
-        if (geometry.effectiveCornerRadius() > 1e-6) {
-            return geometry.effectiveCornerRadius();
+        double min = Double.POSITIVE_INFINITY;
+        double max = 0.0;
+        for (var fillet : geometry.fillets()) {
+            if (fillet == null || fillet.radius() <= 1e-9) {
+                continue;
+            }
+            min = Math.min(min, fillet.radius());
+            max = Math.max(max, fillet.radius());
         }
-        return requested;
+        if (Double.isFinite(min) && max > 1e-6) {
+            return new EffectiveRadiusDisplay(min, max);
+        }
+        if (geometry.effectiveCornerRadius() > 1e-6) {
+            double value = geometry.effectiveCornerRadius();
+            return new EffectiveRadiusDisplay(value, value);
+        }
+        return new EffectiveRadiusDisplay(requested, requested);
+    }
+
+    private record EffectiveRadiusDisplay(double min, double max) {
     }
 
     private static boolean hasRailwayApproach(

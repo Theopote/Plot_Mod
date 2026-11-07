@@ -115,6 +115,12 @@ public final class RoadJunctionGeometry {
             }
             approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
         }
+        // 两条直线道路交叉：优先区域式几何（重叠核 + 铺装并集凹角圆角）
+        JunctionRegionGeometry region = JunctionRegionBuilder.buildFromApproaches(
+            center, approaches, cornerRadius);
+        if (region.hasPavement()) {
+            return region.toJunctionGeometryResult();
+        }
         return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
     }
 

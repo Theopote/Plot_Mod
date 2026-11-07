@@ -70,6 +70,21 @@ class RoadNetworkManagerSelectionTest {
     }
 
     @Test
+    void clearCanvasSelectionClearsEdgesNodesAndCrossings() {
+        manager.handleEdgeSelect(edgeA, false);
+        assertFalse(manager.getSelectedEdgeIds().isEmpty());
+        manager.clearCanvasSelection();
+        assertTrue(manager.getSelectedEdgeIds().isEmpty());
+        assertTrue(manager.getPrimarySelectedEdgeId().isBlank());
+
+        manager.handleNodeSelect(nodeId);
+        assertEquals(nodeId, manager.getSelectedNodeId());
+        manager.clearCanvasSelection();
+        assertTrue(manager.getSelectedNodeId().isBlank());
+        assertTrue(manager.getSelectedCrossingId().isBlank());
+    }
+
+    @Test
     void applyUniformFlatElevationDoesNotWriteConfigMaxSlope() {
         RoadSystemConfig config = manager.getConfig();
         config.setMaxSlope(12f);

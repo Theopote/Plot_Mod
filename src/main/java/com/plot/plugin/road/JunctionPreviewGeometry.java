@@ -116,15 +116,20 @@ public final class JunctionPreviewGeometry {
         }
 
         Vec2d center = crossing.position();
-        double junctionRadius = Math.max(
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
-            approaches.stream().mapToDouble(Approach::halfWidth).max().orElse(0.0) + 1.0);
         List<JunctionCurbFilletBuilder.Approach> curbApproaches = new ArrayList<>();
         for (Approach approach : approaches) {
             curbApproaches.add(new JunctionCurbFilletBuilder.Approach(
                 approach.direction(), approach.halfWidth()));
         }
         double cornerRadius = crossing.effectiveCornerRadius(config.getDefaultCornerRadius());
+        JunctionRegionGeometry region = JunctionRegionBuilder.buildFromApproaches(
+            center, curbApproaches, cornerRadius);
+        if (region.hasPavement()) {
+            return region.toJunctionGeometryResult();
+        }
+        double junctionRadius = Math.max(
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            approaches.stream().mapToDouble(Approach::halfWidth).max().orElse(0.0) + 1.0);
         return JunctionCurbFilletBuilder.build(center, curbApproaches, junctionRadius, cornerRadius);
     }
 

@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 /**
  * 道路插件画布选择：点击/框选道路走廊与认领候选路径，空白处取消选中。
  * <p>
+ * UI 面板操作由 {@code WantCaptureMouse} 拦截，不会取消选中。
  * 在路径拾取会话中，优先通过叠加层走廊命中候选路径（比细线几何更易点选），
  * 再交由 {@link com.plot.plugin.road.RoadPathPickSession} 合并累加选择。
  */
@@ -47,16 +48,13 @@ public final class RoadCanvasSelectionController {
         if (canvas == null || appState == null || networkManager == null || overlayVisible == null) {
             return;
         }
-        if (!overlayVisible.getAsBoolean()) {
+        // ImGui 面板捕获鼠标时只重置指针，不改选择 —— UI 操作不得取消画布选中
+        if (ImGui.getIO().getWantCaptureMouse()) {
             resetPointer();
             return;
         }
         Vec2d mouseScreen = new Vec2d(ImGui.getMousePosX(), ImGui.getMousePosY());
         if (!canvas.isScreenPosInsideCanvas(mouseScreen)) {
-            resetPointer();
-            return;
-        }
-        if (ImGui.getIO().getWantCaptureMouse()) {
             resetPointer();
             return;
         }
@@ -66,8 +64,11 @@ public final class RoadCanvasSelectionController {
             return;
         }
 
+        boolean overlayOn = overlayVisible.getAsBoolean();
         Vec2d world = canvas.screenToWorld(mouseScreen);
-        if (networkManager.getLoopSeamPickSession().isActive() && ImGui.isMouseReleased(0)) {
+        if (overlayOn
+                && networkManager.getLoopSeamPickSession().isActive()
+                && ImGui.isMouseReleased(0)) {
             if (networkManager.tryApplyLoopSeamPick(world)) {
                 invalidateOverlay();
             }
@@ -87,6 +88,11 @@ public final class RoadCanvasSelectionController {
         boolean ctrl = ImGui.getIO().getKeyCtrl();
         double dragPx = pointerDownScreen != null ? pointerDownScreen.distance(mouseScreen) : 0.0;
         if (dragPx < DRAG_THRESHOLD_PX) {
+            if (!overlayOn) {
+                // 叠加层关闭时仍允许空白点击取消道路/节点/交叉点选中
+                clearEmptyCanvasSelection(appState, networkManager, ctrl, pickSessionActive);
+                return;
+            }
             handlePointClick(
                 appState,
                 networkManager,
@@ -96,7 +102,7 @@ public final class RoadCanvasSelectionController {
                 world,
                 ctrl,
                 pickSessionActive);
-        } else if (pointerDownWorld != null) {
+        } else if (pointerDownWorld != null && overlayOn) {
             handleBoxSelect(
                 appState,
                 networkManager,
@@ -105,6 +111,8 @@ public final class RoadCanvasSelectionController {
                 world,
                 ctrl,
                 pickSessionActive);
+        } else if (pointerDownWorld != null && !overlayOn) {
+            clearEmptyCanvasSelection(appState, networkManager, ctrl, pickSessionActive);
         }
     }
 
@@ -138,8 +146,7 @@ public final class RoadCanvasSelectionController {
                 if (RoadGeometryUtils.isAdoptablePath(shape)) {
                     selectCanvasShapes(appState, List.of(shape), ctrl);
                     if (!ctrl) {
-                        networkManager.clearEdgeSelection();
-                        networkManager.clearNodeSelection();
+                        networkManager.clearCanvasSelection();
                     }
                     invalidateOverlay();
                 }
@@ -153,11 +160,7 @@ public final class RoadCanvasSelectionController {
             return;
         }
 
-        if (!ctrl && !pickSessionActive) {
-            networkManager.clearEdgeSelection();
-            networkManager.clearNodeSelection();
-            invalidateOverlay();
-        }
+        clearEmptyCanvasSelection(appState, networkManager, ctrl, pickSessionActive);
     }
 
     private void handleBoxSelect(
@@ -184,11 +187,7 @@ public final class RoadCanvasSelectionController {
             : List.of();
 
         if (roadIds.isEmpty() && shapeHits.isEmpty()) {
-            if (!ctrl && !pickSessionActive) {
-                networkManager.clearEdgeSelection();
-                networkManager.clearNodeSelection();
-                invalidateOverlay();
-            }
+            clearEmptyCanvasSelection(appState, networkManager, ctrl, pickSessionActive);
             return;
         }
 
@@ -202,11 +201,23 @@ public final class RoadCanvasSelectionController {
         if (!shapeHits.isEmpty()) {
             selectCanvasShapes(appState, shapeHits, ctrl);
             if (!ctrl) {
-                networkManager.clearEdgeSelection();
-                networkManager.clearNodeSelection();
+                networkManager.clearCanvasSelection();
             }
         }
 
+        invalidateOverlay();
+    }
+
+    private static void clearEmptyCanvasSelection(
+            AppState appState,
+            RoadNetworkManager networkManager,
+            boolean ctrl,
+            boolean pickSessionActive) {
+        if (ctrl || pickSessionActive) {
+            return;
+        }
+        networkManager.clearCanvasSelection();
+        appState.setSelectedShapes(List.of());
         invalidateOverlay();
     }
 
