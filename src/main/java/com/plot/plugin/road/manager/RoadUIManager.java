@@ -310,19 +310,31 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         junctionOverlayEntries = RoadJunctionOverlayController.snapshot(
             network,
             ctx.networkManager().getNetworkBuilder(),
+            ctx.networkManager().getConfig(),
             ctx.networkManager().getSelectedCrossingId(),
-            ctx.networkManager().getSelectedNodeId());
+            ctx.networkManager().getSelectedNodeId(),
+            ctx.isJunctionFilletPreviewVisible());
     }
 
     private String overlaySelectionKey() {
         LinkedHashSet<String> selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
         boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
+        var crossing = ctx.networkManager().getSelectedCrossing();
+        String cornerKey = crossing != null && crossing.cornerRadius() != null
+            ? String.valueOf(crossing.cornerRadius())
+            : "default";
+        RoadNode selectedNode = ctx.networkManager().getSelectedNode();
+        if (crossing == null && selectedNode != null && selectedNode.getCornerRadius() != null) {
+            cornerKey = String.valueOf(selectedNode.getCornerRadius());
+        }
         return selectedRoadIds + "|"
             + ctx.networkManager().getSelectedNodeId() + "|"
             + ctx.networkManager().getSelectedCrossingId() + "|"
             + pickActive + "|"
             + ctx.toolManager().getPickOverlayPaths().size() + "|"
-            + ctx.showSlopeBatterOverlay().get();
+            + ctx.showSlopeBatterOverlay().get() + "|"
+            + ctx.isJunctionFilletPreviewVisible() + "|"
+            + cornerKey;
     }
 
     private void tickCanvasSelection() {

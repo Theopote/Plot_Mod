@@ -83,6 +83,28 @@ public final class RoadJunctionGeometry {
             .fillPolygon();
     }
 
+    /** 已有锐角顶点时直接倒圆角（用于未物化 Crossing 预览）。 */
+    public static JunctionGeometryResult buildJunctionGeometryFromSharp(
+            List<Vec2d> sharpPolygon,
+            List<Vec2d> approachBoundaryPoints,
+            double cornerRadius) {
+        List<Vec2d> sharp = sharpPolygon == null ? List.of() : List.copyOf(sharpPolygon);
+        List<Vec2d> boundaries = approachBoundaryPoints == null
+            ? List.of() : List.copyOf(approachBoundaryPoints);
+        if (sharp.size() < 3 || cornerRadius <= 1e-6) {
+            List<Vec2d> poly = sharp.size() >= 3 ? sharp : boundaries;
+            return new JunctionGeometryResult(poly, sharp, boundaries, cornerRadius, 0.0, List.of());
+        }
+        FilletBuild fillet = filletPolygon(sharp, cornerRadius, 6);
+        return new JunctionGeometryResult(
+            fillet.polygon(),
+            sharp,
+            boundaries,
+            cornerRadius,
+            fillet.effectiveRadius(),
+            fillet.corners());
+    }
+
     /**
      * 从相邻进口道路边界构造路口几何（含圆角元数据）。
      * 不等宽进口通过 per-edge halfWidth 体现在 approachBoundaryPoints / sharpPolygon 上。

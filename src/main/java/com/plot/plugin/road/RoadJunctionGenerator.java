@@ -126,6 +126,9 @@ public class RoadJunctionGenerator {
             return blocks;
         }
 
+        // 自动上跨判定结果钉到节点，材质策略/走廊过滤与路口填充共用同一上层道路 ID。
+        pinResolvedElevatedRoadId(node, network, terrain);
+
         int junctionY;
         if (networkNodeElevations != null && networkNodeElevations.containsKey(node.getId())) {
             junctionY = networkNodeElevations.get(node.getId());
@@ -221,13 +224,28 @@ public class RoadJunctionGenerator {
             return List.of();
         }
 
-        // 铺装栅格以锐角足迹收集柱位（保证进近接缝），清障/外形仍用倒圆角多边形。
-        // 圆角视觉由路缘弧切掉的尖角柱自然体现：fillCell 对弧外尖角仍可落在锐角集内，
-        // 但 clearancePolygon=filleted 决定开敞净空范围。
+        // 铺装栅格取锐角∪圆角足迹（保证进近接缝不漏柱）；表面层仅保留圆角内，
+        // 清障外形使用倒圆角多边形。尖角差集自然形成路缘弧外轮廓。
         fillPolygon(
             blocks, node, network, edges, polygon, geometry.sharpPolygon(),
             center, junctionY, terrain, edgeResults, networkNodeElevations);
         return polygon;
+    }
+
+    private void pinResolvedElevatedRoadId(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        if (node == null || !node.isGradeSeparated()) {
+            return;
+        }
+        if (node.getElevatedRoadId() != null && !node.getElevatedRoadId().isBlank()) {
+            return;
+        }
+        String resolved = generator.resolveElevatedRoadId(node, network, terrain);
+        if (resolved != null && !resolved.isBlank()) {
+            node.setElevatedRoadId(resolved);
+        }
     }
 
     private void generateSimpleEnvelope(
@@ -313,7 +331,8 @@ public class RoadJunctionGenerator {
             TerrainSampler terrain,
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations) {
-        // 倒圆角多边形用于铺装与净空；锐角仅作回退。
+        // 倒圆角多边形决定铺装与净空外轮廓；锐角足迹用于走廊裁剪。
+        // 尖角差集（锐角\圆角）故意留空以形成路缘弧；接缝由进近走廊与圆角内铺装相接保证。
         List<Vec2d> coverage = filletedPolygon != null && filletedPolygon.size() >= 3
             ? filletedPolygon
             : sharpPolygon;

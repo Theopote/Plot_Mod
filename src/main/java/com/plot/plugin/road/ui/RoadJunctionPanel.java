@@ -6,6 +6,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.JunctionMarkingSetting;
 import com.plot.plugin.road.model.RailwayJunctionMode;
@@ -23,7 +24,7 @@ import java.util.List;
 
 /**
  * 交叉口几何属性（圆角/标线）：路径 Tab 与属性侧栏共用。
- * 标线默认全自动生成，高级覆盖折叠收起，减少日常操作负担。
+ * 平交圆角直接读写 {@link RoadCrossing}；标线/广场仍需要真实节点。
  */
 public final class RoadJunctionPanel {
     private final RoadUiContext ctx;
@@ -33,26 +34,19 @@ public final class RoadJunctionPanel {
     }
 
     public void renderSummary() {
-        renderForNode(resolveSelectedJunctionNode(), false);
+        renderSelection(false);
     }
 
     public void renderEditor() {
-        RoadNode node = resolveSelectedJunctionNode();
-        if (node == null) {
+        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
             return;
         }
         ImGui.separator();
-        renderForNode(node, false);
+        renderSelection(false);
     }
 
     public void renderPropertySection() {
-        renderForNode(resolveSelectedJunctionNode(), true);
-    }
-
-    private RoadNode resolveSelectedJunctionNode() {
-        return RoadIntersectionPropertySupport.resolveJunctionNode(
-            ctx.networkManager().getNetwork(),
-            ctx.networkManager());
+        renderSelection(true);
     }
 
     /** 指定节点的路口几何（圆角/标线）；编辑 Tab 与 Crossing 选中时复用。 */
@@ -61,6 +55,44 @@ public final class RoadJunctionPanel {
             return;
         }
         renderControls(node, compact);
+    }
+
+    /** 当前选中路口：无共享节点的普通 RoadCrossing 也可编辑圆角。 */
+    public void renderSelection(boolean compact) {
+        RoadNetworkManager manager = ctx.networkManager();
+        if (!RoadIntersectionPropertySupport.hasIntersectionSelection(manager)) {
+            return;
+        }
+        RoadNetwork network = manager.getNetwork();
+        RoadNode node = RoadIntersectionPropertySupport.resolveJunctionNode(network, manager);
+        if (node != null) {
+            renderControls(node, compact);
+            return;
+        }
+        renderCrossingOnlyControls(compact);
+    }
+
+    private void renderCrossingOnlyControls(boolean compact) {
+        RoadNetworkManager manager = ctx.networkManager();
+        RoadCrossing crossing = manager.getSelectedCrossing();
+        if (crossing == null || crossing.position() == null) {
+            return;
+        }
+        Vec2d pos = crossing.position();
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.junction_selected",
+            PlotI18n.tr("plugin.road.crossing_type_at_grade"),
+            pos.x, pos.y, 2));
+
+        if (!compact) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
+        }
+        renderFilletControls(compact);
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
+            manager.clearCrossingSelection();
+            manager.clearNodeSelection();
+        }
     }
 
     private void renderControls(RoadNode node, boolean compact) {
@@ -74,59 +106,7 @@ public final class RoadJunctionPanel {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
         }
 
-        boolean gradeSeparatedSelection = RoadIntersectionPropertySupport.isGradeSeparatedSelection(ctx.networkManager());
-        imgui.type.ImBoolean filletsEnabled = new imgui.type.ImBoolean(
-            !gradeSeparatedSelection
-                && (node.getCornerRadius() == null || node.getCornerRadius() > 1e-6));
-        ImGui.beginDisabled(gradeSeparatedSelection);
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.junction_enable_fillets"), filletsEnabled)) {
-            ctx.networkManager().pushHistory();
-            applyCornerRadius(node, filletsEnabled.get() ? null : 0.0);
-        }
-        ImGui.endDisabled();
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(
-                gradeSeparatedSelection
-                    ? "hint.plot.road.junction_fillets_grade_sep"
-                    : "hint.plot.road.junction_corner_radius"));
-        }
-
-        double effectiveRadius = gradeSeparatedSelection
-            ? 0.0
-            : node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-        float[] cornerRadius = {(float) (node.getCornerRadius() != null
-            ? node.getCornerRadius()
-            : config.getDefaultCornerRadius())};
-        ImGui.beginDisabled(gradeSeparatedSelection || !filletsEnabled.get());
-        boolean radiusChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.junction_corner_radius", RoadUiFormat.format(effectiveRadius)),
-            cornerRadius,
-            0.0f,
-            (float) RoadNode.MAX_CORNER_RADIUS,
-            RoadUiFormat.SLIDER_METERS
-        );
-        if (ImGui.isItemActivated()) {
-            ctx.networkManager().pushHistory();
-        }
-        if (radiusChanged) {
-            applyCornerRadius(node, (double) cornerRadius[0]);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.junction_fillet_auto_clamp"));
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_radius"))) {
-            ctx.networkManager().pushHistory();
-            applyCornerRadius(node, null);
-        }
-        ImGui.endDisabled();
-
-        ImGui.checkbox(
-            PlotI18n.tr("plugin.road.junction_show_fillet_preview"),
-            ctx.showJunctionFilletPreview());
+        renderFilletControls(compact);
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         List<RoadEdge> connected = connectedEdges(network, node);
@@ -181,7 +161,6 @@ public final class RoadJunctionPanel {
         }
 
         ImGui.spacing();
-        // 默认自动：只展示说明，不强迫用户点四个下拉框
         RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.junction_markings_auto_status"));
         if (!compact) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_auto_detail"));
@@ -210,6 +189,69 @@ public final class RoadJunctionPanel {
                 node.setTurnArrows(JunctionMarkingSetting.AUTO);
                 node.setRailwayJunctionMode(RailwayJunctionMode.DECORATIVE);
             }
+        }
+    }
+
+    private void renderFilletControls(boolean compact) {
+        RoadNetworkManager manager = ctx.networkManager();
+        RoadSystemConfig config = manager.getConfig();
+        boolean gradeSeparatedSelection = RoadIntersectionPropertySupport.isGradeSeparatedSelection(manager);
+        Double stored = RoadIntersectionPropertySupport.resolveStoredCornerRadius(manager);
+        imgui.type.ImBoolean filletsEnabled = new imgui.type.ImBoolean(
+            !gradeSeparatedSelection && (stored == null || stored > 1e-6));
+        ImGui.beginDisabled(gradeSeparatedSelection);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.junction_enable_fillets"), filletsEnabled)) {
+            manager.pushHistory();
+            RoadIntersectionPropertySupport.applyCornerRadius(
+                manager, filletsEnabled.get() ? null : 0.0);
+            ctx.requestOverlayRefresh();
+        }
+        ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(
+                gradeSeparatedSelection
+                    ? "hint.plot.road.junction_fillets_grade_sep"
+                    : "hint.plot.road.junction_corner_radius"));
+        }
+
+        double effectiveRadius = RoadIntersectionPropertySupport.resolveEffectiveCornerRadius(manager, config);
+        float[] cornerRadius = {(float) (stored != null ? stored : config.getDefaultCornerRadius())};
+        ImGui.beginDisabled(gradeSeparatedSelection || !filletsEnabled.get());
+        boolean radiusChanged = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.junction_corner_radius", RoadUiFormat.format(effectiveRadius)),
+            cornerRadius,
+            0.0f,
+            (float) RoadNode.MAX_CORNER_RADIUS,
+            RoadUiFormat.SLIDER_METERS
+        );
+        if (ImGui.isItemActivated()) {
+            manager.pushHistory();
+        }
+        if (radiusChanged) {
+            RoadIntersectionPropertySupport.applyCornerRadius(manager, (double) cornerRadius[0]);
+            ctx.requestOverlayRefresh();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
+        }
+        if (!compact) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.junction_fillet_auto_clamp"));
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_radius"))) {
+            manager.pushHistory();
+            RoadIntersectionPropertySupport.applyCornerRadius(manager, null);
+            ctx.requestOverlayRefresh();
+        }
+        ImGui.endDisabled();
+
+        ImGui.checkbox(
+            PlotI18n.tr("plugin.road.junction_show_fillet_preview"),
+            ctx.showJunctionFilletPreview());
+        if (ImGui.isItemEdited()) {
+            ctx.requestOverlayRefresh();
         }
     }
 
@@ -246,16 +288,6 @@ public final class RoadJunctionPanel {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_railway_mode"));
-        }
-    }
-
-    private void applyCornerRadius(RoadNode node, Double cornerRadius) {
-        if (node != null) {
-            node.setCornerRadius(cornerRadius);
-        }
-        var crossing = ctx.networkManager().getSelectedCrossing();
-        if (crossing != null && crossing.type() == com.plot.plugin.road.crossing.CrossingType.AT_GRADE) {
-            ctx.networkManager().getNetwork().setCrossingCornerRadius(crossing.id(), cornerRadius);
         }
     }
 

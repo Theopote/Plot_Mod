@@ -1,6 +1,9 @@
 package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.JunctionGeometryResult;
+import com.plot.plugin.road.JunctionPreviewGeometry;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
@@ -24,9 +27,30 @@ public final class RoadJunctionOverlayController {
             RoadNetworkBuilder builder,
             String selectedCrossingId,
             String selectedNodeId) {
+        return snapshot(network, builder, null, selectedCrossingId, selectedNodeId, false);
+    }
+
+    public static List<RoadJunctionOverlayEntry> snapshot(
+            RoadNetwork network,
+            RoadNetworkBuilder builder,
+            RoadSystemConfig config,
+            String selectedCrossingId,
+            String selectedNodeId,
+            boolean showFilletPreview) {
         if (network == null || builder == null) {
             return List.of();
         }
+        List<Vec2d> filletOutline = List.of();
+        List<Vec2d> sharpOutline = List.of();
+        if (showFilletPreview && config != null) {
+            JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
+                network, config, selectedNodeId, selectedCrossingId);
+            if (geometry.hasFillPolygon()) {
+                filletOutline = geometry.fillPolygon();
+                sharpOutline = geometry.sharpPolygon();
+            }
+        }
+
         List<RoadJunctionOverlayEntry> entries = new ArrayList<>();
         Set<String> coveredPositions = new HashSet<>();
 
@@ -40,7 +64,9 @@ public final class RoadJunctionOverlayController {
                 crossing.id(),
                 crossing.position(),
                 resolveCrossingKind(crossing, selected),
-                selected));
+                selected,
+                selected ? filletOutline : List.of(),
+                selected ? sharpOutline : List.of()));
             coveredPositions.add(positionKey(crossing.position()));
         }
 
@@ -69,13 +95,16 @@ public final class RoadJunctionOverlayController {
                     && coveredPositions.contains(positionKey(node.getPosition()))) {
                 continue;
             }
-            boolean selected = node.getId().equals(selectedNodeId);
+            boolean selected = node.getId().equals(selectedNodeId)
+                && (selectedCrossingId == null || selectedCrossingId.isBlank());
             entries.add(new RoadJunctionOverlayEntry(
                 IntersectionOverlaySource.LEGACY_NODE,
                 node.getId(),
                 node.getPosition(),
                 resolveLegacyKind(node, network, builder, selected),
-                selected));
+                selected,
+                selected ? filletOutline : List.of(),
+                selected ? sharpOutline : List.of()));
         }
         return entries;
     }

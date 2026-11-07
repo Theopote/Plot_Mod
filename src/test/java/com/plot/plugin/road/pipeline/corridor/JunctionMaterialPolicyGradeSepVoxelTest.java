@@ -124,5 +124,37 @@ class JunctionMaterialPolicyGradeSepVoxelTest {
         assertFalse(elevatedLeak > 0,
             "elevated material must not appear on underpass plaza Y; leaks=" + elevatedLeak
                 + " plaza=" + underpassPlaza);
+
+        int elevatedDeck = 0;
+        int underpassLeakOnDeck = 0;
+        int deckY = 64 + 6;
+        for (var entry : aggregate.placementRecords.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (Math.abs(pos.getX()) > 8 || Math.abs(pos.getZ()) > 8) {
+                continue;
+            }
+            if (pos.getY() != deckY) {
+                continue;
+            }
+            BlockRecord record = entry.getValue();
+            RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+            if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            if (layer != RoadSolidLayer.ROAD && layer != RoadSolidLayer.MARKING) {
+                continue;
+            }
+            // 上层桥面应主要位于上跨道路走廊（|x| 较大或 |z| 较小取决于东西向）
+            if (Math.abs(pos.getZ()) <= 3) {
+                elevatedDeck++;
+                if (underpassMaterial.equals(record.newBlockId)) {
+                    underpassLeakOnDeck++;
+                }
+            }
+        }
+        assertTrue(elevatedDeck > 0, "elevated deck must keep ROAD near junction");
+        assertFalse(underpassLeakOnDeck > 0,
+            "underpass material must not replace elevated deck; leaks=" + underpassLeakOnDeck
+                + " deck=" + elevatedDeck);
     }
 }

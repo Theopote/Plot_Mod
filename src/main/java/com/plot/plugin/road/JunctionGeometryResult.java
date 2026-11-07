@@ -26,6 +26,10 @@ public record JunctionGeometryResult(
         effectiveCornerRadius = Math.max(0.0, effectiveCornerRadius);
     }
 
+    public static JunctionGeometryResult empty() {
+        return new JunctionGeometryResult(List.of(), List.of(), List.of(), 0.0, 0.0, List.of());
+    }
+
     public boolean hasFillPolygon() {
         return fillPolygon.size() >= 3;
     }

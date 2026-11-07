@@ -148,13 +148,26 @@ public final class RoadGenerationResultAssembler {
      * 与 {@code RoadJunctionGenerator.collectUnderpassJunctionEdges} 过滤语义对齐。
      */
     public static boolean isElevatedJunctionEdge(RoadNode node, RoadEdge edge) {
+        return isElevatedJunctionEdge(node, edge, null);
+    }
+
+    /**
+     * @param resolvedElevatedRoadId 生成前已解析的上层道路（含 AUTO 判定结果）；
+     *     为 null 时回退到 {@link RoadNode#getElevatedRoadId()}。
+     */
+    public static boolean isElevatedJunctionEdge(
+            RoadNode node,
+            RoadEdge edge,
+            String resolvedElevatedRoadId) {
         if (node == null || edge == null) {
             return false;
         }
         if (node.isStackGradeSeparated() && node.isStackUpperEdge(edge.getId())) {
             return true;
         }
-        String elevatedRoadId = node.getElevatedRoadId();
+        String elevatedRoadId = resolvedElevatedRoadId != null && !resolvedElevatedRoadId.isBlank()
+            ? resolvedElevatedRoadId
+            : node.getElevatedRoadId();
         return elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId());
     }
 

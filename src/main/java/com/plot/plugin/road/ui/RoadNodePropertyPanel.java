@@ -62,10 +62,10 @@ public final class RoadNodePropertyPanel {
         if (junctionNode != null) {
             ImGui.separator();
             RoadNodeElevationControls.render(ctx, junctionNode, network, config);
-
-            ImGui.separator();
-            junctionPanel.renderForNode(junctionNode, true);
         }
+
+        ImGui.separator();
+        junctionPanel.renderSelection(true);
     }
 
     private static String formatNodeLabel(RoadNode node) {

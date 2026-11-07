@@ -2,12 +2,10 @@ package com.plot.plugin.road;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.overlay.IntersectionHit;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayController;
@@ -24,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.ToDoubleFunction;
 
 /**
  * 路网概览缩略图：在 ImGui 面板内绘制节点/边的俯视图。
@@ -224,52 +221,8 @@ public final class RoadNetworkOverviewRenderer {
         if (config == null) {
             return;
         }
-        RoadCrossing selectedCrossing = selectedCrossingId != null
-            ? network.getCrossing(selectedCrossingId) : null;
-        RoadNode node = selectedNodeId != null && !selectedNodeId.isBlank()
-            ? network.getNode(selectedNodeId) : null;
-        if ((node == null || !node.isJunction())
-                && selectedCrossing != null
-                && selectedCrossing.position() != null
-                && selectedCrossing.type() != com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
-            node = findNearestJunction(network, selectedCrossing.position());
-        }
-        if (node == null || !node.isJunction()) {
-            return;
-        }
-        if (selectedCrossing != null
-                && selectedCrossing.type() == com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
-            return;
-        }
-
-        List<RoadEdge> edges = new ArrayList<>();
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null) {
-                edges.add(edge);
-            }
-        }
-        if (edges.isEmpty()) {
-            return;
-        }
-
-        ToDoubleFunction<RoadEdge> halfWidthResolver =
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0;
-        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            edges,
-            halfWidthResolver,
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
-        );
-        double cornerRadius = selectedCrossing != null
-            ? selectedCrossing.effectiveCornerRadius(config.getDefaultCornerRadius())
-            : node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-        JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
-            node.getId(),
-            edges,
-            halfWidthResolver,
-            junctionRadius,
-            cornerRadius,
-            RoadJunctionCenterlineResolver.forNetwork(network));
+        JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
+            network, config, selectedNodeId, selectedCrossingId);
         if (!geometry.hasFillPolygon()) {
             return;
         }
@@ -318,24 +271,8 @@ public final class RoadNetworkOverviewRenderer {
         }
     }
 
-    private static RoadNode findNearestJunction(RoadNetwork network, Vec2d position) {
-        RoadNode best = null;
-        double bestDistance = Double.MAX_VALUE;
-        for (RoadNode candidate : network.getNodes().values()) {
-            if (candidate == null || candidate.getPosition() == null || !candidate.isJunction()) {
-                continue;
-            }
-            double distance = candidate.getPosition().distance(position);
-            if (distance < bestDistance && distance <= 0.75) {
-                bestDistance = distance;
-                best = candidate;
-            }
-        }
-        return best;
-    }
-
     /** CCW 多边形是否严格凸（全部外凸转角）。 */
-    static boolean isStrictlyConvex(List<Vec2d> polygon) {
+    public static boolean isStrictlyConvex(List<Vec2d> polygon) {
         if (polygon == null || polygon.size() < 3) {
             return false;
         }

@@ -452,7 +452,7 @@ public final class JunctionCrossSectionFill {
             List<RoadEdge> edges,
             RoadNetwork network,
             RoadSystemConfig config) {
-        return JunctionMaterialPolicy.selectWidestEdge(edges, network, config);
+        return JunctionMaterialPolicy.selectMaterialOwner(edges, network, config);
     }
 
     private static void gradeColumn(

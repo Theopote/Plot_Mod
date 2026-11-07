@@ -40,7 +40,7 @@ class GradeSeparationBuildContextTest {
     }
 
     @Test
-    void maxOpenClearTopYAppliesForWholeLowerEdgeContext() {
+    void maxOpenClearTopYAppliesNearProtectedFootprintWithSkewMargin() {
         List<Vec2d> square = List.of(
             new Vec2d(-5, -5),
             new Vec2d(5, -5),
@@ -53,9 +53,11 @@ class GradeSeparationBuildContextTest {
 
         assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(0, 0)));
         assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(5.5, 0)),
-            "skew residual outside polygon still capped on lower GS edges");
-        assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(20, 0)),
-            "lower-edge GS context applies deckCap along the whole approach");
+            "skew residual just outside polygon still capped within margin");
+        assertEquals(70, underpass.maxOpenClearTopY(new Vec2d(8.5, 0)),
+            "within DECK_CAP_PLAN_MARGIN_BLOCKS of polygon edge");
+        assertNull(underpass.maxOpenClearTopY(new Vec2d(20, 0)),
+            "distant approach on long lower edge must not inherit deckCap");
         assertNull(new GradeSeparationBuildContext(true, List.of(
                 new GradeSeparationBuildContext.ProtectedUnderpassZone(square, 72)))
                 .maxOpenClearTopY(new Vec2d(0, 0)),
