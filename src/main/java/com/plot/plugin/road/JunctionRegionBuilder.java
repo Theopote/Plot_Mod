@@ -424,12 +424,6 @@ public final class JunctionRegionBuilder {
         return cover + mouth;
     }
 
-    /** 近似估算（测试/调试）；正式构建请用 {@link #pavementExtentFromOverlap}。 */
-    static double pavementExtent(double halfA, double halfB, double absSin) {
-        double overlapHalf = Math.max(halfA, halfB) / Math.max(absSin, MIN_ABS_SIN);
-        return overlapHalf + Math.max(halfA, halfB) + 1.0;
-    }
-
     static List<Vec2d> clipOverlapToStrips(List<Vec2d> overlap, List<Vec2d> stripA, List<Vec2d> stripB) {
         List<Vec2d> kept = new ArrayList<>();
         for (Vec2d corner : overlap) {
@@ -655,10 +649,17 @@ public final class JunctionRegionBuilder {
             return union != null ? union : List.of();
         }
         int n = union.size();
+        // 画布尺度下半宽/半径可变大：固定 0.75 会漏掉重叠核角，倒圆外形织不进 fillPolygon
+        double matchTol = 0.75;
+        for (JunctionRegionGeometry.CurbArc arc : arcs) {
+            if (arc != null && arc.radius() > matchTol) {
+                matchTol = Math.max(matchTol, arc.radius() * 0.15);
+            }
+        }
         List<Vec2d> out = new ArrayList<>();
         for (int i = 0; i < n; i++) {
             Vec2d curr = union.get(i);
-            if (!isNearAny(curr, overlapCorners, 0.75)) {
+            if (!isNearAny(curr, overlapCorners, matchTol)) {
                 out.add(curr);
                 continue;
             }

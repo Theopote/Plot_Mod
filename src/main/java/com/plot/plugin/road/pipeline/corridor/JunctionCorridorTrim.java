@@ -3,8 +3,9 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
-import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -16,6 +17,7 @@ import com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
 
 /**
  * Computes how far an edge corridor should stay away from junction nodes.
@@ -49,13 +51,14 @@ public final class JunctionCorridorTrim {
         boolean preserveClearance = false;
 
         if (shouldTrimAtEndpoint(network, edge, startNode)) {
-            skipStart = skipDistanceAtNode(network, edge, startNode, crossSection, config) * scale;
-            polygons.addAll(exclusionPolygons(network, startNode, config));
+            // skipDistance 已按画布尺度返回（半宽/核区随 scale）
+            skipStart = skipDistanceAtNode(network, edge, startNode, crossSection, config, scale);
+            polygons.addAll(exclusionPolygons(network, startNode, config, scale));
             preserveClearance |= isGradeSeparatedLowerApproach(network, edge, startNode);
         }
         if (shouldTrimAtEndpoint(network, edge, endNode)) {
-            skipEnd = skipDistanceAtNode(network, edge, endNode, crossSection, config) * scale;
-            polygons.addAll(exclusionPolygons(network, endNode, config));
+            skipEnd = skipDistanceAtNode(network, edge, endNode, crossSection, config, scale);
+            polygons.addAll(exclusionPolygons(network, endNode, config, scale));
             preserveClearance |= isGradeSeparatedLowerApproach(network, edge, endNode);
         }
 
@@ -102,23 +105,32 @@ public final class JunctionCorridorTrim {
     /**
      * 走廊排除区：区域式优先用重叠核 + 圆角补铺（不含进口路臂），
      * 使路臂保留各道路原材质；旧路径回退完整锐角足迹。
+     * 几何与 {@link RoadJunctionGenerator} 相同画布尺度，避免排除区偏小、走廊盖住街角倒圆。
      */
     private static List<List<Vec2d>> exclusionPolygons(
             RoadNetwork network,
             RoadNode node,
-            RoadSystemConfig config) {
-        JunctionGeometryResult geometry = resolveJunctionGeometry(network, node, config, /*cornerRadius*/ 0.0);
+            RoadSystemConfig config,
+            double canvasScale) {
+        JunctionGeometryResult geometry = resolveJunctionGeometry(
+            network, node, config, /*cornerRadiusBlocks*/ 0.0, canvasScale);
         List<List<Vec2d>> polygons = new ArrayList<>();
         if (geometry.hasRegionZones()) {
             polygons.add(geometry.overlapRegion());
-            // 圆角补铺用用户圆角再求一次，避免 R=0 几何丢掉补铺区
-            double corner = com.plot.plugin.road.RoadJunctionGenerator.resolveCornerRadius(
-                node, network, config);
-            if (corner > 1e-6) {
-                JunctionGeometryResult filleted = resolveJunctionGeometry(network, node, config, corner);
+            double cornerBlocks = RoadJunctionGenerator.resolveCornerRadius(node, network, config);
+            if (cornerBlocks > 1e-6) {
+                JunctionGeometryResult filleted = resolveJunctionGeometry(
+                    network, node, config, cornerBlocks, canvasScale);
                 for (List<Vec2d> addition : filleted.filletAdditions()) {
                     if (addition != null && addition.size() >= 3) {
                         polygons.add(addition);
+                    }
+                }
+                // 补铺 gore 与生成侧 collectFilletGoreCells 对齐，避免走廊盖住街角外扩
+                for (JunctionGeometryResult.FilletCorner fillet : filleted.fillets()) {
+                    List<Vec2d> gore = RoadJunctionGenerator.filletGorePolygon(fillet);
+                    if (gore.size() >= 3) {
+                        polygons.add(gore);
                     }
                 }
             }
@@ -137,7 +149,9 @@ public final class JunctionCorridorTrim {
             RoadEdge edge,
             RoadNode node,
             ResolvedCrossSection crossSection,
-            RoadSystemConfig config) {
+            RoadSystemConfig config,
+            double canvasScale) {
+        double scale = canvasScale > 1e-9 ? canvasScale : 1.0;
         List<RoadEdge> connected = connectedEdges(
             network,
             node,
@@ -145,9 +159,9 @@ public final class JunctionCorridorTrim {
         if (connected.isEmpty()) {
             return Math.max(
                 1.0,
-                crossSection.carriagewayWidth + crossSection.outerBandBlockCount() + 0.5);
+                (crossSection.carriagewayWidth + crossSection.outerBandBlockCount() + 0.5) * scale);
         }
-        JunctionGeometryResult geometry = resolveJunctionGeometry(network, node, config, 0.0);
+        JunctionGeometryResult geometry = resolveJunctionGeometry(network, node, config, 0.0, scale);
         if (geometry.hasRegionZones() && node.getPosition() != null) {
             Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
             Vec2d approach = RoadJunctionGeometry.computeApproachDirection(
@@ -158,41 +172,51 @@ public final class JunctionCorridorTrim {
                 for (Vec2d corner : geometry.overlapRegion()) {
                     along = Math.max(along, Math.abs(corner.subtract(node.getPosition()).dot(unit)));
                 }
-                return Math.max(1.0, along + 0.75);
+                return Math.max(scale, along + 0.75 * scale);
             }
         }
+        ToDoubleFunction<RoadEdge> halfWidthCanvas = canvasHalfWidth(network, config, scale);
         return RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
-            e -> RoadDimensionUtils.halfExtentFromCenter(
-                RoadModelUtils.resolveCrossSection(network, e, config).totalHardSurfaceWidthBlocks()),
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
+            halfWidthCanvas,
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale);
     }
 
     private static JunctionGeometryResult resolveJunctionGeometry(
             RoadNetwork network,
             RoadNode node,
             RoadSystemConfig config,
-            double cornerRadius) {
+            double cornerRadiusBlocks,
+            double canvasScale) {
         String elevatedRoadId = node.isGradeSeparated() ? node.getElevatedRoadId() : null;
         List<RoadEdge> connected = connectedEdges(network, node, elevatedRoadId);
         if (connected.isEmpty()) {
             return JunctionGeometryResult.empty();
         }
+        double scale = canvasScale > 1e-9 ? canvasScale : 1.0;
+        ToDoubleFunction<RoadEdge> halfWidthCanvas = canvasHalfWidth(network, config, scale);
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             connected,
-            edge -> RoadDimensionUtils.halfExtentFromCenter(
-                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
+            halfWidthCanvas,
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale);
         return RoadJunctionGeometry.buildJunctionGeometry(
             node.getId(),
             connected,
-            edge -> RoadDimensionUtils.halfExtentFromCenter(
-                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()),
+            halfWidthCanvas,
             junctionRadius,
-            cornerRadius,
+            Math.max(0.0, cornerRadiusBlocks) * scale,
             RoadJunctionCenterlineResolver.forNetwork(network),
-            network,
-            config);
+            null,
+            null);
+    }
+
+    private static ToDoubleFunction<RoadEdge> canvasHalfWidth(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            double canvasScale) {
+        double scale = canvasScale > 1e-9 ? canvasScale : 1.0;
+        return edge -> RoadDimensionUtils.halfExtentFromCenter(
+            RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()) * scale;
     }
 
     private static List<RoadEdge> connectedEdges(
@@ -221,4 +245,5 @@ public final class JunctionCorridorTrim {
         }
         return Math.min(skip, edgeLength);
     }
+
 }

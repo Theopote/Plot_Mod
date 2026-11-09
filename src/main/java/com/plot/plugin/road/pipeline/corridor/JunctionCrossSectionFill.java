@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.FilletArcSweep;
+import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadRoadbedGradingUtils;
@@ -179,6 +181,26 @@ public final class JunctionCrossSectionFill {
             TerrainSampler terrain,
             int bridgeThreshold,
             Integer maxClearY) {
+        stampApproachSlopeBatters(
+            solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
+            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, List.of());
+    }
+
+    public static void stampApproachSlopeBatters(
+            RoadSolidModel solids,
+            Vec2d junctionCenter,
+            int junctionY,
+            String nodeId,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            MaterialResolver materials,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            TerrainSampler terrain,
+            int bridgeThreshold,
+            Integer maxClearY,
+            List<JunctionGeometryResult.FilletCorner> fillets) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null
                 || columnResolver == null) {
@@ -218,12 +240,92 @@ public final class JunctionCrossSectionFill {
             stationSampleId++;
         }
 
+        samples.addAll(collectFilletArcBatterSamples(
+            fillets, junctionY, edges, network, config, materials, scale, maxHorizontalRun,
+            terrain, columnResolver, stationSampleId));
+
         if (samples.isEmpty()) {
             return;
         }
         RoadCorridorPlan slopePlan = new RoadCorridorPlan();
         SlopeSurfaceConsolidator.apply(slopePlan, samples, terrain);
         emitConsolidatedSlopeColumns(solids, slopePlan, terrain, columnResolver, bridgeThreshold, maxClearY);
+    }
+
+    /**
+     * 沿路缘圆角短弧向外打边坡：圆心在草地侧，弧上点外法向指向草地（{@code center - arcPoint}）。
+     * 材质/坡比跟随路口材质主道路；关闭 {@code includeSlopeBatter} 时跳过。
+     */
+    private static List<SlopeProfileSample> collectFilletArcBatterSamples(
+            List<JunctionGeometryResult.FilletCorner> fillets,
+            int junctionY,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            MaterialResolver materials,
+            double scale,
+            int maxHorizontalRun,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            long rayIdBase) {
+        if (fillets == null || fillets.isEmpty() || materials == null) {
+            return List.of();
+        }
+        RoadEdge owner = selectWidestEdge(edges, network, config);
+        if (owner == null) {
+            return List.of();
+        }
+        ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, owner, config);
+        if (!crossSection.includeSlopeBatter) {
+            return List.of();
+        }
+        String fillBlockId = materials.resolve(crossSection.fillSlopeMaterial);
+        String cutBlockId = crossSection.cutSlopeMaterial != null && !crossSection.cutSlopeMaterial.isBlank()
+            ? materials.resolve(crossSection.cutSlopeMaterial)
+            : null;
+        List<SlopeProfileSample> samples = new ArrayList<>();
+        long rayId = rayIdBase + 1_000L;
+        for (int filletIndex = 0; filletIndex < fillets.size(); filletIndex++) {
+            JunctionGeometryResult.FilletCorner fillet = fillets.get(filletIndex);
+            if (fillet == null
+                    || fillet.center() == null
+                    || fillet.tangentStart() == null
+                    || fillet.tangentEnd() == null
+                    || fillet.radius() <= 1e-6) {
+                continue;
+            }
+            double sweep = fillet.sweepRadians();
+            if (!Double.isFinite(sweep) || Math.abs(sweep) < 1e-9) {
+                sweep = FilletArcSweep.resolveShort(
+                    fillet.center(), fillet.tangentStart(), fillet.tangentEnd());
+            }
+            if (Math.abs(sweep) < 1e-9 || Math.abs(sweep) > Math.PI + 1e-6) {
+                continue;
+            }
+            double arcLengthBlocks = fillet.radius() * Math.abs(sweep) / Math.max(scale, 1e-9);
+            int segs = Math.max(3, (int) Math.ceil(arcLengthBlocks));
+            double startAngle = Math.atan2(
+                fillet.tangentStart().y - fillet.center().y,
+                fillet.tangentStart().x - fillet.center().x);
+            for (int i = 0; i <= segs; i++) {
+                double t = (double) i / segs;
+                Vec2d onArc = FilletArcSweep.pointOnArc(
+                    fillet.center(), fillet.radius(), startAngle + sweep * t);
+                Vec2d outward = fillet.center().subtract(onArc);
+                if (outward.lengthSquared() < 1e-12) {
+                    continue;
+                }
+                outward = outward.normalize();
+                // signedOuterLateral=0：弧点即路缘外缘
+                samples.addAll(collectShoulderBatterSamples(
+                    onArc, outward, junctionY, 0,
+                    terrain, scale, outward, fillBlockId, cutBlockId,
+                    crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, maxHorizontalRun,
+                    columnResolver,
+                    new SlopeRayId(rayId + filletIndex * 64L + i, SlopeRayId.ShoulderSide.LEFT)));
+            }
+        }
+        return samples;
     }
 
     private static List<SlopeProfileSample> collectShoulderBatterSamples(

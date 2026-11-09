@@ -19,17 +19,17 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
-    // T 字：街角后退预算随 R 增长后，核区∪补铺固体略增。
+    // T 字：街角补铺 gore（锐点→弧）栅格，不含草地侧扇形。
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        334, 0, 0, 36, 0, 0, 64, 0, 0, 299, 0, 0, List.of());
+        339, 0, 0, 36, 0, 0, 69, 0, 0, 303, 0, 0, List.of());
 
-    // 十字：局部中心线条带并集（直线退化为矩形 stub）+ 切线圆角。
+    // 十字：画布尺度半宽 + gore 街角补铺。
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        449, 0, 0, 60, 0, 0, 89, 0, 0, 389, 0, 0, List.of());
+        459, 0, 0, 60, 0, 0, 99, 0, 0, 394, 0, 0, List.of());
 
-    // 五岔：锐角后退预算随 R 增长 + 倒圆外形补栅格，街角外扩铺装更完整。
+    // 五岔：gore 栅格保证投影下街角外扩进入世界方块。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        575, 0, 0, 63, 0, 0, 158, 0, 0, 480, 0, 0, List.of());
+        585, 0, 0, 63, 0, 0, 167, 0, 0, 484, 0, 0, List.of());
 
     // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(

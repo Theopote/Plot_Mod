@@ -207,21 +207,27 @@ public class RoadJunctionGenerator {
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations) {
         Vec2d center = node.getPosition();
+        // 中心线为画布坐标；半宽/半径是方块数，必须乘 unitsPerBlock 才与走廊断面同尺度。
+        // 否则投影下倒圆角缩在交点旁，Minecraft 里看起来像「没有生成圆角」。
+        double unitsPerBlock = estimateUnitsPerBlock(network, edges);
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        java.util.function.ToDoubleFunction<RoadEdge> canvasHalfWidth =
+            edge -> hardSurfaceHalfExtent(network, edge) * scale;
+        double plazaCanvas = node.getEffectivePlazaRadius(
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale;
+        double cornerCanvas = resolveCornerRadius(node, network, generator.getConfig()) * scale;
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            edges,
-            edge -> hardSurfaceHalfExtent(network, edge),
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
-        );
-        double cornerRadius = resolveCornerRadius(node, network, generator.getConfig());
+            edges, canvasHalfWidth, plazaCanvas);
         JunctionGeometryResult geometry = RoadJunctionGeometry.buildJunctionGeometry(
             node.getId(),
             edges,
-            edge -> hardSurfaceHalfExtent(network, edge),
+            canvasHalfWidth,
             junctionRadius,
-            cornerRadius,
+            cornerCanvas,
             RoadJunctionCenterlineResolver.forNetwork(network),
-            network,
-            generator.getConfig());
+            // 恒用已缩放半宽；避免变宽断面再注入未缩放的方块半宽
+            null,
+            null);
         List<Vec2d> polygon = geometry.fillPolygon();
 
         if (polygon.size() < 3) {
@@ -276,7 +282,7 @@ public class RoadJunctionGenerator {
             LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
             fillJunctionCells(
                 blocks, List.of(center), List.of(center), null, node, network, edges, junctionY, terrain,
-                edgeResults, networkNodeElevations, true);
+                edgeResults, networkNodeElevations, true, List.of());
             return;
         }
 
@@ -287,12 +293,12 @@ public class RoadJunctionGenerator {
             LOGGER.warn("路口世界格扫描为空，回退到中心点");
             fillJunctionCells(
                 blocks, List.of(center), List.of(center), circle, node, network, edges, junctionY, terrain,
-                edgeResults, networkNodeElevations, true);
+                edgeResults, networkNodeElevations, true, List.of());
             return;
         }
         fillJunctionCells(
             blocks, cells, cells, circle, node, network, edges, junctionY, terrain, edgeResults,
-            networkNodeElevations, true);
+            networkNodeElevations, true, List.of());
     }
 
     /**
@@ -323,7 +329,7 @@ public class RoadJunctionGenerator {
         }
         fillJunctionCells(
             blocks, List.of(), clearanceCells, protection, node, network, edges, junctionY, terrain,
-            edgeResults, networkNodeElevations, /*stampSurface*/ false);
+            edgeResults, networkNodeElevations, /*stampSurface*/ false, List.of());
     }
 
     private List<Vec2d> protectionCircle(Vec2d center, List<RoadEdge> edges, RoadNetwork network) {
@@ -381,7 +387,7 @@ public class RoadJunctionGenerator {
         List<Vec2d> surfaceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
             stampFootprint,
             generator.coordinateTransformer()));
-        // 圆角补铺：显式 additions + 倒圆角外形相对锐角并集多出的街角栅格（避免薄三角漏栅格）
+        // 圆角补铺：additions + fill\sharp + 扇形栅格（投影下薄三角容易漏世界格）
         if (geometry != null && geometry.hasRegionZones()) {
             for (List<Vec2d> addition : geometry.filletAdditions()) {
                 if (addition == null || addition.size() < 3) {
@@ -404,6 +410,11 @@ public class RoadJunctionGenerator {
                     }
                 }
             }
+            surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
+            surfaceCells = dedupePlanCells(surfaceCells);
+        } else if (geometry != null && !geometry.fillets().isEmpty()) {
+            // 旧路径无 region zones 时仍按街角补铺 gore 栅格，避免只有预览弧、世界无铺装
+            surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
             surfaceCells = dedupePlanCells(surfaceCells);
         }
         // 清障按完整倒圆角外形栅格；表面按核区∪补铺——二者不得绑死
@@ -419,7 +430,8 @@ public class RoadJunctionGenerator {
         }
         fillJunctionCells(
             blocks, surfaceCells, clearanceCells, clearance, node, network, edges, junctionY, terrain,
-            edgeResults, networkNodeElevations, true);
+            edgeResults, networkNodeElevations, true,
+            geometry != null ? geometry.fillets() : List.of());
     }
 
     /**
@@ -455,6 +467,103 @@ public class RoadJunctionGenerator {
         return new ArrayList<>(unique.values());
     }
 
+    /**
+     * 街角补铺 gore（锐角点 → 短弧），不是圆心→弧的草地扇形。
+     * 圆心在铺装外侧：扇形会落到弧外草地，锐角凹口仍空，Minecraft 里就像「没倒圆」。
+     * 另做径向加密采样，避免投影下薄三角漏世界格。
+     */
+    static List<Vec2d> collectFilletGoreCells(
+            JunctionGeometryResult geometry,
+            com.plot.api.world.ICoordinateService transformer) {
+        if (geometry == null || geometry.fillets().isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> cells = new ArrayList<>();
+        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
+            List<Vec2d> gore = filletGorePolygon(fillet);
+            if (gore.size() < 3) {
+                continue;
+            }
+            cells.addAll(RoadGeometryUtils.collectWorldCellPlanPoints(gore, transformer));
+            // 径向加密：锐点到弧上采样点的插值，不依赖多边形栅格命中
+            Vec2d sharp = gore.getFirst();
+            for (int i = 1; i < gore.size(); i++) {
+                Vec2d onArc = gore.get(i);
+                if (onArc == null) {
+                    continue;
+                }
+                cells.add(onArc);
+                cells.add(sharp.add(onArc.subtract(sharp).multiply(0.35)));
+                cells.add(sharp.add(onArc.subtract(sharp).multiply(0.65)));
+            }
+            cells.add(sharp);
+        }
+        return cells;
+    }
+
+    /**
+     * 补铺多边形：锐角交点 + 切点短弧（与 {@link JunctionRegionBuilder} 的 filletAddition 同侧）。
+     */
+    public static List<Vec2d> filletGorePolygon(JunctionGeometryResult.FilletCorner fillet) {
+        if (fillet == null
+                || fillet.center() == null
+                || fillet.tangentStart() == null
+                || fillet.tangentEnd() == null
+                || fillet.radius() <= 1e-6) {
+            return List.of();
+        }
+        Vec2d center = fillet.center();
+        double radius = fillet.radius();
+        double sweep = fillet.sweepRadians();
+        if (!Double.isFinite(sweep) || Math.abs(sweep) < 1e-9) {
+            sweep = FilletArcSweep.resolveShort(center, fillet.tangentStart(), fillet.tangentEnd());
+        }
+        if (Math.abs(sweep) < 1e-9 || Math.abs(sweep) > Math.PI + 1e-6) {
+            return List.of();
+        }
+        Vec2d sharp = reconstructFilletSharpCorner(fillet, sweep);
+        if (sharp == null) {
+            return List.of();
+        }
+        double startAngle = Math.atan2(
+            fillet.tangentStart().y - center.y, fillet.tangentStart().x - center.x);
+        int segs = Math.max(6, (int) Math.ceil(Math.abs(sweep) / (Math.PI / 12.0)));
+        List<Vec2d> ring = new ArrayList<>(segs + 2);
+        ring.add(sharp);
+        for (int i = 0; i <= segs; i++) {
+            double t = (double) i / segs;
+            ring.add(FilletArcSweep.pointOnArc(center, radius, startAngle + sweep * t));
+        }
+        return ring;
+    }
+
+    /**
+     * 路缘圆角圆心在草地楔形内，锐角点在圆心沿短弧中点方向、距圆心 {@code R / sin(φ/2)} 处。
+     */
+    static Vec2d reconstructFilletSharpCorner(
+            JunctionGeometryResult.FilletCorner fillet,
+            double sweepRadians) {
+        if (fillet == null || fillet.center() == null || fillet.radius() <= 1e-6) {
+            return null;
+        }
+        double phi = fillet.cornerAngleRadians();
+        double sinHalf = Math.sin(phi * 0.5);
+        if (sinHalf < 1e-6) {
+            return null;
+        }
+        double startAngle = Math.atan2(
+            fillet.tangentStart().y - fillet.center().y,
+            fillet.tangentStart().x - fillet.center().x);
+        Vec2d mid = FilletArcSweep.pointOnArc(
+            fillet.center(), fillet.radius(), startAngle + sweepRadians * 0.5);
+        Vec2d fromCenter = mid.subtract(fillet.center());
+        if (fromCenter.lengthSquared() < 1e-12) {
+            return null;
+        }
+        // |mid−center|=R；锐点更远，在同一射线上
+        return fillet.center().add(fromCenter.multiply(1.0 / sinHalf));
+    }
+
     private void fillJunctionCells(
             JunctionBlocks blocks,
             List<Vec2d> surfaceCells,
@@ -467,7 +576,8 @@ public class RoadJunctionGenerator {
             TerrainSampler terrain,
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations,
-            boolean stampSurface) {
+            boolean stampSurface,
+            List<JunctionGeometryResult.FilletCorner> fillets) {
         if (node == null || network == null || edges == null) {
             return;
         }
@@ -626,7 +736,8 @@ public class RoadJunctionGenerator {
                 unitsPerBlock,
                 terrain,
                 bridgeThreshold,
-                maxClearY);
+                maxClearY,
+                fillets);
         }
 
         List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3
