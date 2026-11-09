@@ -42,16 +42,18 @@ class JunctionPavementBandUnionVoxelTest {
             new Vec2d(0, 0), tangents, bands, 2.0, 6.0);
         assertTrue(region.hasPavement(), "curved T bands should build region pavement");
 
+        // 期望仅来自原始条带栅格并集（+ 重叠核）；不得把待验 originalRoadUnion/final 并入期望
         Set<Long> expected = rasterUnion(bands, -16, 16, -4, 16);
-        // 切线并集顶点也会进入候选，一并并入期望（验收报告指出的风险边界）
-        expected.addAll(rasterPolygon(region.originalRoadUnion(), -16, 16, -4, 16));
-        Set<Long> actual = rasterPolygon(region.finalPavementRegion(), -16, 16, -4, 16);
-        assertTrue(actual.size() >= 8, "final pavement should cover junction core cells");
+        if (region.overlapRegion().size() >= 3) {
+            expected.addAll(rasterPolygon(region.overlapRegion(), -16, 16, -4, 16));
+        }
+        Set<Long> actual = rasterPolygon(region.originalRoadUnion(), -16, 16, -4, 16);
+        assertTrue(actual.size() >= 8, "union pavement should cover junction core cells");
 
         Set<Long> spill = new HashSet<>(actual);
         spill.removeAll(dilate(expected, 1));
         assertEquals(0, spill.size(),
-            "polar-sort union must not invent cells outside dilated band∪tangent raster; spill="
+            "polar-sort union must not invent cells outside dilated band∪overlap raster; spill="
                 + spill.size());
     }
 

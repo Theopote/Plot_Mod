@@ -1,0 +1,120 @@
+package com.plot.plugin.road.pipeline.corridor;
+
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.JunctionGeometryResult;
+import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.DoubleUnaryOperator;
+import java.util.function.ToDoubleFunction;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * 变宽道路圆角：方块半宽先解析再 × canvasUnitsPerBlock，须接到加宽后的路缘。
+ */
+class JunctionVariableWidthFilletGenerationTest {
+
+    @Test
+    void variableWidthApproachFilletReachesWidenedCurbUnderProjection() {
+        double scale = 2.0;
+        RoadSystemConfig config = new RoadSystemConfig("var-width-fillet");
+        config.setTerrainStyle(RoadTerrainStyle.SMOOTH);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setDefaultCornerRadius(4.0f);
+        config.setRoadWidth(7);
+
+        RoadNetwork network = new RoadNetwork();
+        Road widening = network.createRoad("widen");
+        widening.setWidth(5);
+        widening.setVariableCrossSections(new RoadVariableCrossSections(
+            List.of(
+                StationCrossSection.at(0.0, sectionWithWidth(5)),
+                StationCrossSection.at(10.0, sectionWithWidth(11))),
+            VariableCrossSectionTransitionMode.STEP));
+
+        Road westRoad = network.createRoad("west");
+        westRoad.setWidth(5);
+        Road constant = network.createRoad("const");
+        constant.setWidth(7);
+
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setCornerRadius(4.0);
+        RoadNode e = network.createNode(new Vec2d(40, 0));
+        RoadNode w = network.createNode(new Vec2d(-40, 0));
+        RoadNode n = network.createNode(new Vec2d(0, 40));
+        RoadNode s = network.createNode(new Vec2d(0, -40));
+        // 变宽仅挂在东向单边，保证路口桩号为 0
+        RoadEdge east = network.createEdge(junction.getId(), e.getId(),
+            List.of(junction.getPosition(), e.getPosition()), widening.getId());
+        network.createEdge(junction.getId(), w.getId(),
+            List.of(junction.getPosition(), w.getPosition()), westRoad.getId());
+        network.createEdge(junction.getId(), n.getId(),
+            List.of(junction.getPosition(), n.getPosition()), constant.getId());
+        network.createEdge(junction.getId(), s.getId(),
+            List.of(junction.getPosition(), s.getPosition()), constant.getId());
+
+        List<RoadEdge> edges = new ArrayList<>();
+        for (String id : junction.getConnectedEdgeIds()) {
+            edges.add(network.getEdge(id));
+        }
+        ToDoubleFunction<RoadEdge> half = edge ->
+            RoadDimensionUtils.halfExtentFromCenter(
+                RoadModelUtils.resolveCrossSection(network, edge, config).totalHardSurfaceWidthBlocks()) * scale;
+
+        double narrowCanvas = RoadDimensionUtils.halfExtentFromCenter(5) * scale;
+        double wideCanvas = RoadDimensionUtils.halfExtentFromCenter(11) * scale;
+        DoubleUnaryOperator along = RoadJunctionGeometry.halfWidthAlongApproach(
+            network, config, east, junction.getId(), narrowCanvas, scale);
+        assertEquals(narrowCanvas, along.applyAsDouble(0.0), 1e-6);
+        assertEquals(narrowCanvas, along.applyAsDouble(5.0), 1e-6);
+        assertEquals(wideCanvas, along.applyAsDouble(12.0), 1e-6);
+
+        assertEquals(narrowCanvas,
+            RoadJunctionGeometry.halfWidthAtJunction(
+                network, config, east, junction.getId(), half, scale),
+            1e-6);
+
+        // 直接构造东向变宽条带，确认宽断面进入路缘多边形（不经极角并集稀释）
+        List<Vec2d> spine = List.of(new Vec2d(0, 0), new Vec2d(20, 0));
+        List<Vec2d> varBand = com.plot.plugin.road.JunctionPavementBand.buildStubPolygon(
+            spine, along, 1.0);
+        List<Vec2d> constBand = com.plot.plugin.road.JunctionPavementBand.buildStubPolygon(
+            spine, a -> narrowCanvas, 1.0);
+        assertTrue(
+            RoadGeometryUtils.pointInPolygon(new Vec2d(12.0, wideCanvas - 0.75), varBand),
+            "variable stub must include widened curb at station 12");
+        assertTrue(
+            !RoadGeometryUtils.pointInPolygon(new Vec2d(12.0, wideCanvas - 0.75), constBand),
+            "constant stub must stay at narrow half-width");
+
+        JunctionGeometryResult withVar = RoadJunctionGeometry.buildJunctionGeometry(
+            junction.getId(), edges, half, 10.0 * scale, 4.0 * scale,
+            RoadJunctionCenterlineResolver.forNetwork(network), network, config, scale);
+        assertTrue(withVar.fillPolygon().size() >= 3, "scaled variable-width junction must build");
+    }
+
+    private static RoadCrossSection sectionWithWidth(int width) {
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setWidth(width);
+        return section;
+    }
+}

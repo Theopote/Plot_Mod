@@ -116,8 +116,10 @@ public final class JunctionPreviewGeometry {
         double corner = scaleBlocksNear(cornerBlocks, node.getPosition(), edges, centerlines, coordinates);
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges, halfWidth, plaza);
-        // 画布路径只用已缩放的半宽解析器，避免变宽断面再回退到方块半宽
-        boolean canvasSpace = coordinates != null;
+        // 变宽：方块半宽 × 画布尺度；恒宽仍走已缩放 halfWidth 回退
+        double unitsPerBlock = coordinates == null
+            ? 1.0
+            : scaleBlocksNear(1.0, node.getPosition(), edges, centerlines, coordinates);
         return RoadJunctionGeometry.buildJunctionGeometry(
             node.getId(),
             edges,
@@ -125,8 +127,9 @@ public final class JunctionPreviewGeometry {
             junctionRadius,
             corner,
             centerlines,
-            canvasSpace ? null : network,
-            canvasSpace ? null : config);
+            network,
+            config,
+            unitsPerBlock);
     }
 
     /**

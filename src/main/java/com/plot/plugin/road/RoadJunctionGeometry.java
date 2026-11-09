@@ -103,7 +103,7 @@ public final class RoadJunctionGeometry {
             Function<RoadEdge, List<Vec2d>> centerlineResolver) {
         return buildJunctionGeometry(
             nodeId, edges, halfWidthResolver, junctionRadius, cornerRadius, centerlineResolver,
-            null, null);
+            null, null, 1.0);
     }
 
     /**
@@ -119,9 +119,29 @@ public final class RoadJunctionGeometry {
             Function<RoadEdge, List<Vec2d>> centerlineResolver,
             RoadNetwork network,
             RoadSystemConfig config) {
+        return buildJunctionGeometry(
+            nodeId, edges, halfWidthResolver, junctionRadius, cornerRadius, centerlineResolver,
+            network, config, 1.0);
+    }
+
+    /**
+     * @param canvasUnitsPerBlock 方块半宽→画布半宽的尺度；变宽断面先按方块求出再乘此系数，
+     *     避免与已缩放的 {@code halfWidthResolver} 混用单位。
+     */
+    public static JunctionGeometryResult buildJunctionGeometry(
+            String nodeId,
+            List<RoadEdge> edges,
+            ToDoubleFunction<RoadEdge> halfWidthResolver,
+            double junctionRadius,
+            double cornerRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            double canvasUnitsPerBlock) {
         if (nodeId == null || edges == null || halfWidthResolver == null || centerlineResolver == null) {
             return JunctionGeometryResult.empty();
         }
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
         double effectivePlaza = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
         List<JunctionCurbFilletBuilder.Approach> approaches = new ArrayList<>();
@@ -136,7 +156,8 @@ public final class RoadJunctionGeometry {
             if (direction.lengthSquared() < 1e-12) {
                 continue;
             }
-            double halfWidth = halfWidthAtJunction(network, config, edge, nodeId, halfWidthResolver);
+            double halfWidth = halfWidthAtJunction(
+                network, config, edge, nodeId, halfWidthResolver, scale);
             if (halfWidth <= 1e-9) {
                 continue;
             }
@@ -151,7 +172,8 @@ public final class RoadJunctionGeometry {
             if (edge == null) {
                 continue;
             }
-            double halfWidth = halfWidthAtJunction(network, config, edge, nodeId, halfWidthResolver);
+            double halfWidth = halfWidthAtJunction(
+                network, config, edge, nodeId, halfWidthResolver, scale);
             if (halfWidth <= 1e-9) {
                 continue;
             }
@@ -166,7 +188,7 @@ public final class RoadJunctionGeometry {
                 fromCenter.add(outward.get(i));
             }
             DoubleUnaryOperator widthAlong = halfWidthAlongApproach(
-                network, config, edge, nodeId, halfWidth);
+                network, config, edge, nodeId, halfWidth, scale);
             List<Vec2d> band = JunctionPavementBand.buildStubPolygon(fromCenter, widthAlong, back);
             if (band.size() >= 3) {
                 approachBands.add(band);
@@ -191,13 +213,24 @@ public final class RoadJunctionGeometry {
         return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
     }
 
-    /** 路口处半宽：优先节点桩号上的变宽断面。 */
-    static double halfWidthAtJunction(
+    /** 路口处半宽：优先节点桩号上的变宽断面（方块半宽 × canvasUnitsPerBlock）。 */
+    public static double halfWidthAtJunction(
             RoadNetwork network,
             RoadSystemConfig config,
             RoadEdge edge,
             String nodeId,
             ToDoubleFunction<RoadEdge> fallback) {
+        return halfWidthAtJunction(network, config, edge, nodeId, fallback, 1.0);
+    }
+
+    public static double halfWidthAtJunction(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            RoadEdge edge,
+            String nodeId,
+            ToDoubleFunction<RoadEdge> fallback,
+            double canvasUnitsPerBlock) {
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         if (network != null && config != null && edge != null && nodeId != null) {
             Road road = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
             if (road != null && VariableCrossSectionResolver.hasVariableSections(road)) {
@@ -205,7 +238,7 @@ public final class RoadJunctionGeometry {
                 if (station.isPresent()) {
                     int blocks = VariableCrossSectionResolver.resolve(
                         network, road, station.getAsDouble(), config).totalHardSurfaceWidthBlocks();
-                    return RoadDimensionUtils.halfExtentFromCenter(blocks);
+                    return RoadDimensionUtils.halfExtentFromCenter(blocks) * scale;
                 }
             }
         }
@@ -214,13 +247,24 @@ public final class RoadJunctionGeometry {
 
     /**
      * 自路口沿进口向外 {@code along} 处的半宽；无变宽数据时恒为 junctionHalf。
+     * {@code along} 与中心线同为画布单位；变宽断面方块半宽再乘 {@code canvasUnitsPerBlock}。
      */
-    static DoubleUnaryOperator halfWidthAlongApproach(
+    public static DoubleUnaryOperator halfWidthAlongApproach(
             RoadNetwork network,
             RoadSystemConfig config,
             RoadEdge edge,
             String nodeId,
             double junctionHalf) {
+        return halfWidthAlongApproach(network, config, edge, nodeId, junctionHalf, 1.0);
+    }
+
+    public static DoubleUnaryOperator halfWidthAlongApproach(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            RoadEdge edge,
+            String nodeId,
+            double junctionHalf,
+            double canvasUnitsPerBlock) {
         if (network == null || config == null || edge == null || nodeId == null) {
             return along -> junctionHalf;
         }
@@ -232,13 +276,15 @@ public final class RoadJunctionGeometry {
         if (nodeStation.isEmpty()) {
             return along -> junctionHalf;
         }
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         boolean outwardIncreases = nodeId.equals(edge.getStartNodeId());
         double base = nodeStation.getAsDouble();
         return along -> {
+            // 中心线与桩号同为画布沿程；断面宽度为方块数，乘 scale 才是画布半宽
             double station = outwardIncreases ? base + along : base - along;
             int blocks = VariableCrossSectionResolver.resolve(
                 network, road, Math.max(0.0, station), config).totalHardSurfaceWidthBlocks();
-            return RoadDimensionUtils.halfExtentFromCenter(blocks);
+            return RoadDimensionUtils.halfExtentFromCenter(blocks) * scale;
         };
     }
 

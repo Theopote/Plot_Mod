@@ -206,8 +206,9 @@ public final class JunctionCorridorTrim {
             junctionRadius,
             Math.max(0.0, cornerRadiusBlocks) * scale,
             RoadJunctionCenterlineResolver.forNetwork(network),
-            null,
-            null);
+            network,
+            config,
+            scale);
     }
 
     private static ToDoubleFunction<RoadEdge> canvasHalfWidth(

@@ -226,9 +226,10 @@ public class RoadJunctionGenerator {
             junctionRadius,
             cornerCanvas,
             RoadJunctionCenterlineResolver.forNetwork(network),
-            // 恒用已缩放半宽；避免变宽断面再注入未缩放的方块半宽
-            null,
-            null);
+            // 变宽断面按方块求出后再 × scale，与 canvasHalfWidth 同单位
+            network,
+            generator.getConfig(),
+            scale);
         List<Vec2d> polygon = geometry.fillPolygon();
 
         if (polygon.size() < 3) {
@@ -412,11 +413,11 @@ public class RoadJunctionGenerator {
                 }
             }
             surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-            surfaceCells = dedupePlanCells(surfaceCells);
+            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells);
         } else if (geometry != null && !geometry.fillets().isEmpty()) {
             // 旧路径无 region zones 时仍按街角补铺 gore 栅格，避免只有预览弧、世界无铺装
             surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-            surfaceCells = dedupePlanCells(surfaceCells);
+            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells);
         }
         // 清障按完整倒圆角外形栅格；表面按核区∪补铺——二者不得绑死
         List<Vec2d> clearanceCells = clearance != null && clearance.size() >= 3
@@ -452,20 +453,34 @@ public class RoadJunctionGenerator {
         return sharpPolygon != null ? sharpPolygon : List.of();
     }
 
-    private static List<Vec2d> dedupePlanCells(List<Vec2d> cells) {
+    /**
+     * 按 Minecraft 世界 XZ 列去重；同列多个画布采样取均值作为代表点，
+     * 避免投影下重复铺装/多标高写入。
+     */
+    private List<Vec2d> dedupePlanCellsByWorldColumn(List<Vec2d> cells) {
         if (cells == null || cells.isEmpty()) {
             return List.of();
         }
-        java.util.LinkedHashMap<Long, Vec2d> unique = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<Long, double[]> sums = new java.util.LinkedHashMap<>();
         for (Vec2d cell : cells) {
             if (cell == null) {
                 continue;
             }
-            int x = (int) Math.floor(cell.x);
-            int z = (int) Math.floor(cell.y);
-            unique.putIfAbsent((((long) x) << 32) ^ (z & 0xffffffffL), cell);
+            BlockPos world = generator != null
+                ? generator.toBlockPos(cell, 0)
+                : new BlockPos((int) Math.floor(cell.x), 0, (int) Math.floor(cell.y));
+            long key = (((long) world.getX()) << 32) ^ (world.getZ() & 0xffffffffL);
+            double[] acc = sums.computeIfAbsent(key, ignored -> new double[3]);
+            acc[0] += cell.x;
+            acc[1] += cell.y;
+            acc[2] += 1.0;
         }
-        return new ArrayList<>(unique.values());
+        List<Vec2d> unique = new ArrayList<>(sums.size());
+        for (double[] acc : sums.values()) {
+            double n = acc[2] > 0.0 ? acc[2] : 1.0;
+            unique.add(new Vec2d(acc[0] / n, acc[1] / n));
+        }
+        return unique;
     }
 
     /**
@@ -688,7 +703,7 @@ public class RoadJunctionGenerator {
             List<Vec2d> overheadCells = new ArrayList<>(clearCells);
             if (stampSurface && !stamp.isEmpty()) {
                 overheadCells.addAll(stamp);
-                overheadCells = dedupePlanCells(overheadCells);
+                overheadCells = dedupePlanCellsByWorldColumn(overheadCells);
             }
             for (Vec2d point : overheadCells) {
                 if (point == null) {
