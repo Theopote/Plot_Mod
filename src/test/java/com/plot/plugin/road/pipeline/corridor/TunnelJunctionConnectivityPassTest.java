@@ -107,24 +107,31 @@ class TunnelJunctionConnectivityPassTest {
         int junctionX = (int) Math.round(junction.getPosition().x);
         int junctionZ = (int) Math.round(junction.getPosition().y);
         int junctionY = preview.nodeElevations().get(junction.getId());
+        // Match applyTunnelStyle clearHeight: travel envelope is (junctionY, cavityTop].
+        // Roof lining above cavityTop must remain (see BridgeTunnelJunctionInterfaceTest).
+        int clearHeight = 5;
+        int cavityTop = junctionY + clearHeight;
 
-        long tunnelLiningAtCrossing = preview.aggregate().placementRecords.entrySet().stream()
+        long tunnelLiningInCavity = preview.aggregate().placementRecords.entrySet().stream()
             .filter(entry -> entry.getKey().getX() == junctionX
                 && entry.getKey().getZ() == junctionZ
-                && entry.getKey().getY() > junctionY)
+                && entry.getKey().getY() > junctionY
+                && entry.getKey().getY() <= cavityTop)
             .filter(entry -> preview.aggregate().placementLayers.get(entry.getKey()) == RoadSolidLayer.TUNNEL)
             .filter(entry -> entry.getValue().newBlockId != null
                 && !"minecraft:air".equals(entry.getValue().newBlockId))
             .count();
-        assertEquals(0, tunnelLiningAtCrossing, "junction center column must not retain tunnel lining");
+        assertEquals(0, tunnelLiningInCavity,
+            "junction center cavity must not retain tunnel lining below cavityTop=" + cavityTop);
 
-        long airAtCrossing = preview.aggregate().placementRecords.entrySet().stream()
+        long airInCavity = preview.aggregate().placementRecords.entrySet().stream()
             .filter(entry -> entry.getKey().getX() == junctionX
                 && entry.getKey().getZ() == junctionZ
-                && entry.getKey().getY() > junctionY)
+                && entry.getKey().getY() > junctionY
+                && entry.getKey().getY() <= cavityTop)
             .filter(entry -> "minecraft:air".equals(entry.getValue().newBlockId))
             .count();
-        assertTrue(airAtCrossing > 0, "junction center must contain carved tunnel air");
+        assertTrue(airInCavity > 0, "junction center cavity must contain carved tunnel air");
     }
 
     @Test
