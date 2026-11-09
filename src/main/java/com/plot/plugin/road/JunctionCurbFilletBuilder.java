@@ -220,8 +220,10 @@ public final class JunctionCurbFilletBuilder {
             return null;
         }
         double mouthClearance = Math.max(0.75, plaza - Math.max(a.halfWidth(), b.halfWidth()) * 0.25);
-        // 后退 t = R/tan(φ/2) ≤ mouthClearance
-        double radius = Math.min(requestedRadius, mouthClearance * tanHalf);
+        // 随请求 R 加长后退预算，避免锐角有效半径卡在 plaza 导出的平台期
+        double setbackBudget = mouthClearance + Math.max(0.0, requestedRadius);
+        // 后退 t = R/tan(φ/2) ≤ setbackBudget
+        double radius = Math.min(requestedRadius, setbackBudget * tanHalf);
         if (radius < MIN_RADIUS) {
             return null;
         }

@@ -702,8 +702,10 @@ public final class JunctionRegionBuilder {
     }
 
     /**
-     * 沿路缘从街角到进口嘴部的可用长度（用于限制切点后退）。
-     * 与 {@link JunctionCurbFilletBuilder} 的 mouthClearance 同量级。
+     * 沿路缘从街角向外的可用切点后退预算（用于限制 t = R/tan(φ/2)）。
+     * <p>
+     * 仅用重叠核投影时，锐角草地 tan(φ/2)&lt;1，有效 R 会卡在核边长平台期——滑条继续加大却无可见变化。
+     * 预算随请求半径加长：补铺落在街角草地口袋，不拉长锐角并集路臂。
      */
     private static double streetCornerMaxSetback(
             Vec2d center,
@@ -713,8 +715,9 @@ public final class JunctionRegionBuilder {
             double requested) {
         double fromOverlap = pavementExtentFromOverlap(center, roadA, roadB, overlapCorners);
         double widthSpan = Math.max(roadA.halfWidth(), roadB.halfWidth());
-        // 至少容纳正交街角 setback≈R；锐角会再被 tan(φ/2) 缩小有效 R
-        return Math.max(Math.max(requested, fromOverlap * 0.85), widthSpan + 1.0);
+        double armBudget = Math.max(fromOverlap * 0.85, widthSpan + 1.0);
+        // 随 R 增长，避免锐角 limited=armBudget*tan(φ/2) 平台；正交时仍约可容纳 setback≈R
+        return armBudget + Math.max(0.0, requested);
     }
 
     /**

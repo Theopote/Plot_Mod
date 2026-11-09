@@ -381,7 +381,7 @@ public class RoadJunctionGenerator {
         List<Vec2d> surfaceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
             stampFootprint,
             generator.coordinateTransformer()));
-        // 圆角补铺可能是多个小多边形，合并栅格
+        // 圆角补铺：显式 additions + 倒圆角外形相对锐角并集多出的街角栅格（避免薄三角漏栅格）
         if (geometry != null && geometry.hasRegionZones()) {
             for (List<Vec2d> addition : geometry.filletAdditions()) {
                 if (addition == null || addition.size() < 3) {
@@ -389,6 +389,20 @@ public class RoadJunctionGenerator {
                 }
                 surfaceCells.addAll(RoadGeometryUtils.collectWorldCellPlanPoints(
                     addition, generator.coordinateTransformer()));
+            }
+            List<Vec2d> sharp = geometry.sharpPolygon();
+            List<Vec2d> filleted = geometry.fillPolygon();
+            if (filleted != null && filleted.size() >= 3) {
+                for (Vec2d cell : RoadGeometryUtils.collectWorldCellPlanPoints(
+                        filleted, generator.coordinateTransformer())) {
+                    if (cell == null) {
+                        continue;
+                    }
+                    if (sharp == null || sharp.size() < 3
+                            || !RoadGeometryUtils.pointInPolygon(cell, sharp)) {
+                        surfaceCells.add(cell);
+                    }
+                }
             }
             surfaceCells = dedupePlanCells(surfaceCells);
         }
