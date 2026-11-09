@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionFilletOpposingGradeContinuityTest {
 
     @Test
-    void opposingGradeCurbsKeepNeighborFilletStepsWithinOneBlock() {
+    void opposingGradeCurbsKeepNeighborFilletStepsWithinTwoBlocks() {
         Vec2d center = new Vec2d(6, 6);
         Vec2d tStart = new Vec2d(2, 6);
         Vec2d tEnd = new Vec2d(6, 2);

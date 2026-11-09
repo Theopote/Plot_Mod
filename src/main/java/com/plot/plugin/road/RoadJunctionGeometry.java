@@ -278,10 +278,15 @@ public final class RoadJunctionGeometry {
         }
         double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         boolean outwardIncreases = nodeId.equals(edge.getStartNodeId());
-        double base = nodeStation.getAsDouble();
+        // stationAtNode 为 canonical；条带 along 为实例折线几何距离，先换算再回 canonical 查断面
+        double baseCanonical = nodeStation.getAsDouble();
+        double baseInstance = RoadStationing.toInstanceChainage(network, road, baseCanonical);
         return along -> {
-            // 中心线与桩号同为画布沿程；断面宽度为方块数，乘 scale 才是画布半宽
-            double station = outwardIncreases ? base + along : base - along;
+            double instanceStation = outwardIncreases
+                ? baseInstance + along
+                : baseInstance - along;
+            double station = RoadStationing.toCanonicalChainage(
+                network, road, Math.max(0.0, instanceStation));
             int blocks = VariableCrossSectionResolver.resolve(
                 network, road, Math.max(0.0, station), config).totalHardSurfaceWidthBlocks();
             return RoadDimensionUtils.halfExtentFromCenter(blocks) * scale;

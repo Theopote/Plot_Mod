@@ -42,19 +42,33 @@ class JunctionPavementBandUnionVoxelTest {
             new Vec2d(0, 0), tangents, bands, 2.0, 6.0);
         assertTrue(region.hasPavement(), "curved T bands should build region pavement");
 
-        // 期望仅来自原始条带栅格并集（+ 重叠核）；不得把待验 originalRoadUnion/final 并入期望
-        Set<Long> expected = rasterUnion(bands, -16, 16, -4, 16);
-        if (region.overlapRegion().size() >= 3) {
-            expected.addAll(rasterPolygon(region.overlapRegion(), -16, 16, -4, 16));
-        }
+        // 期望仅来自原始条带栅格并集；重叠核用固定坐标交核独立验证，不把待验结果并入期望
+        Set<Long> expectedBands = rasterUnion(bands, -16, 16, -4, 16);
         Set<Long> actual = rasterPolygon(region.originalRoadUnion(), -16, 16, -4, 16);
         assertTrue(actual.size() >= 8, "union pavement should cover junction core cells");
 
-        Set<Long> spill = new HashSet<>(actual);
-        spill.removeAll(dilate(expected, 1));
-        assertEquals(0, spill.size(),
-            "polar-sort union must not invent cells outside dilated band∪overlap raster; spill="
-                + spill.size());
+        Set<Long> extra = new HashSet<>(actual);
+        extra.removeAll(dilate(expectedBands, 1));
+        assertEquals(0, extra.size(),
+            "Extra=Actual−Expected must be empty outside dilated band raster; extra=" + extra.size());
+
+        Set<Long> missing = new HashSet<>(expectedBands);
+        missing.removeAll(dilate(actual, 1));
+        // 远端臂尖允许少量栅格舍入缺失，但核心附近不得大片漏铺
+        long missingNearCore = missing.stream()
+            .filter(key -> {
+                int x = (int) (key >> 32);
+                int z = (int) (long) key;
+                return Math.abs(x) <= 8 && Math.abs(z) <= 8;
+            })
+            .count();
+        assertTrue(missingNearCore <= 2,
+            "Missing=Expected−Actual near core must stay tiny; missingNearCore=" + missingNearCore
+                + " missingTotal=" + missing.size());
+
+        // 固定坐标：东西×北向曲线在核区应有交叠，不依赖 region.overlapRegion()
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0.5, 0.5), region.originalRoadUnion()),
+            "union must cover fixed junction core sample");
     }
 
     @Test

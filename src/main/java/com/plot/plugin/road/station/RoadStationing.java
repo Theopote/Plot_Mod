@@ -609,7 +609,7 @@ public final class RoadStationing {
     /**
      * Canonical 桩号 → 实例折线链上弧长（{@link OrientedRoadSegment} 域）。
      */
-    static double toInstanceChainage(RoadNetwork network, Road road, double canonicalChainage) {
+    public static double toInstanceChainage(RoadNetwork network, Road road, double canonicalChainage) {
         double canonicalTotal = canonicalLength(network, road);
         double instanceTotal = instanceLength(network, road);
         if (!Double.isFinite(canonicalChainage) || canonicalTotal <= STATION_EPSILON) {

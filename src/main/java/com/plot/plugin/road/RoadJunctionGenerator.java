@@ -413,11 +413,11 @@ public class RoadJunctionGenerator {
                 }
             }
             surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells);
+            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
         } else if (geometry != null && !geometry.fillets().isEmpty()) {
             // 旧路径无 region zones 时仍按街角补铺 gore 栅格，避免只有预览弧、世界无铺装
             surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells);
+            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
         }
         // 清障按完整倒圆角外形栅格；表面按核区∪补铺——二者不得绑死
         List<Vec2d> clearanceCells = clearance != null && clearance.size() >= 3
@@ -458,10 +458,19 @@ public class RoadJunctionGenerator {
      * 避免投影下重复铺装/多标高写入。
      */
     private List<Vec2d> dedupePlanCellsByWorldColumn(List<Vec2d> cells) {
+        return dedupePlanCellsByWorldColumn(cells, null);
+    }
+
+    /**
+     * 世界列去重。若提供路口几何，同列在均值落到 gore 外时改选仍位于 gore 内的采样点，
+     * 避免放样标高误回退到 junctionY。
+     */
+    private List<Vec2d> dedupePlanCellsByWorldColumn(List<Vec2d> cells, JunctionGeometryResult geometry) {
         if (cells == null || cells.isEmpty()) {
             return List.of();
         }
-        java.util.LinkedHashMap<Long, double[]> sums = new java.util.LinkedHashMap<>();
+        List<List<Vec2d>> gorePolygons = geometry != null ? filletGorePolygons(geometry) : List.of();
+        java.util.LinkedHashMap<Long, List<Vec2d>> byColumn = new java.util.LinkedHashMap<>();
         for (Vec2d cell : cells) {
             if (cell == null) {
                 continue;
@@ -470,17 +479,62 @@ public class RoadJunctionGenerator {
                 ? generator.toBlockPos(cell, 0)
                 : new BlockPos((int) Math.floor(cell.x), 0, (int) Math.floor(cell.y));
             long key = (((long) world.getX()) << 32) ^ (world.getZ() & 0xffffffffL);
-            double[] acc = sums.computeIfAbsent(key, ignored -> new double[3]);
-            acc[0] += cell.x;
-            acc[1] += cell.y;
-            acc[2] += 1.0;
+            byColumn.computeIfAbsent(key, ignored -> new ArrayList<>()).add(cell);
         }
-        List<Vec2d> unique = new ArrayList<>(sums.size());
-        for (double[] acc : sums.values()) {
-            double n = acc[2] > 0.0 ? acc[2] : 1.0;
-            unique.add(new Vec2d(acc[0] / n, acc[1] / n));
+        List<Vec2d> unique = new ArrayList<>(byColumn.size());
+        for (List<Vec2d> group : byColumn.values()) {
+            unique.add(pickWorldColumnRepresentative(group, gorePolygons));
         }
         return unique;
+    }
+
+    private static List<List<Vec2d>> filletGorePolygons(JunctionGeometryResult geometry) {
+        if (geometry == null || geometry.fillets().isEmpty()) {
+            return List.of();
+        }
+        List<List<Vec2d>> polygons = new ArrayList<>();
+        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
+            List<Vec2d> gore = filletGorePolygon(fillet);
+            if (gore.size() >= 3) {
+                polygons.add(gore);
+            }
+        }
+        return polygons;
+    }
+
+    private static Vec2d pickWorldColumnRepresentative(List<Vec2d> group, List<List<Vec2d>> gorePolygons) {
+        if (group == null || group.isEmpty()) {
+            return null;
+        }
+        double sx = 0.0;
+        double sy = 0.0;
+        for (Vec2d p : group) {
+            sx += p.x;
+            sy += p.y;
+        }
+        Vec2d average = new Vec2d(sx / group.size(), sy / group.size());
+        if (gorePolygons == null || gorePolygons.isEmpty()) {
+            return average;
+        }
+        boolean averageInGore = false;
+        for (List<Vec2d> gore : gorePolygons) {
+            if (RoadGeometryUtils.pointInPolygon(average, gore)) {
+                averageInGore = true;
+                break;
+            }
+        }
+        if (averageInGore) {
+            return average;
+        }
+        // 均值已离开 gore：优先选仍在 gore 内的采样，保留放样标高资格
+        for (Vec2d candidate : group) {
+            for (List<Vec2d> gore : gorePolygons) {
+                if (RoadGeometryUtils.pointInPolygon(candidate, gore)) {
+                    return candidate;
+                }
+            }
+        }
+        return average;
     }
 
     /**
