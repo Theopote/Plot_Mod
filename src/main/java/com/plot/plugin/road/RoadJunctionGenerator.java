@@ -778,8 +778,14 @@ public class RoadJunctionGenerator {
             0,
             0));
 
-        // 开敞街角放坡；深覆土圆角由 filletCornerAllowsOpenBatter 逐角跳过，交给隧道壳。
+        // 开敞进口/街角放坡；隧道进口路肩禁止露天切坡，深覆土圆角交给隧道壳。
         if (stampSurface) {
+            java.util.Set<String> tunnelEdgeIds = new java.util.LinkedHashSet<>();
+            for (TunnelJunctionSeedResolver.TunnelApproach approach : tunnelApproaches) {
+                if (approach != null && approach.edge() != null) {
+                    tunnelEdgeIds.add(approach.edge().getId());
+                }
+            }
             JunctionCrossSectionFill.stampApproachSlopeBatters(
                 blocks.getSolids(),
                 node.getPosition(),
@@ -795,7 +801,8 @@ public class RoadJunctionGenerator {
                 bridgeThreshold,
                 maxClearY,
                 fillets,
-                filletLoft);
+                filletLoft,
+                tunnelEdgeIds);
         }
 
         List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3

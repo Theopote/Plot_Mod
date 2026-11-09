@@ -2,13 +2,10 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.FilletArcSweep;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadDimensionUtils;
-import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
@@ -16,7 +13,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -26,6 +23,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,15 +32,25 @@ import java.util.function.BiFunction;
 import java.util.function.ToDoubleFunction;
 
 /**
- * 隧道路口圆角联合洞腔 / 弧形侧墙 / 顶衬施工。
+ * 隧道路口圆角联合洞腔 / 边界侧墙 / 顶衬施工。
  * <p>
- * {@link TunnelJunctionConnectivityPass} 只清阻挡连通的衬砌；本 Pass 在连通前按路口圆角外缘
- * 重建侧墙与洞顶，并仅在设计洞腔内写空气，避免露天街角强行盖顶。
+ * 仅对「逐列覆土充足」的封闭隧道列施工；浅覆土/露天街角不开挖、不封顶。
+ * 最终体素归属由 {@link VoxelRole} 掩膜决定：落在 {@link VoxelRole#CAVITY_AIR} 的旧衬砌一律清除，
+ * 仅 {@link VoxelRole#WALL_LINING}/{@link VoxelRole#ROOF_LINING} 可保留或写入衬砌。
  */
 public final class TunnelJunctionShellPass {
     private static final double EPSILON = 1e-9;
     private static final String FALLBACK_LINING = "minecraft:stone_bricks";
     private static final String GRAVITY_RESTORE = "minecraft:stone";
+    /** 洞顶以上至少还需多少覆土才视为封闭隧道列（含衬砌厚度外再留裕量）。 */
+    private static final int MIN_EXTRA_COVER_ABOVE_ROOF = 1;
+
+    /** 设计洞腔最终体素角色。 */
+    public enum VoxelRole {
+        CAVITY_AIR,
+        WALL_LINING,
+        ROOF_LINING
+    }
 
     @FunctionalInterface
     public interface MaterialResolver {
@@ -70,6 +78,7 @@ public final class TunnelJunctionShellPass {
         MaterialResolver resolvedMaterials = materials != null
             ? materials
             : material -> material != null && !material.isBlank() ? material : FALLBACK_LINING;
+        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(config);
 
         for (RoadNode node : network.getNodes().values()) {
             if (node == null || node.getDegree() < 3) {
@@ -119,40 +128,73 @@ public final class TunnelJunctionShellPass {
                 continue;
             }
 
-            Set<ColumnKey> cavityColumns = expandCavityColumns(footprint, sideClearance);
-            Set<ColumnKey> wallColumns = new LinkedHashSet<>();
-            if (!geometry.fillets().isEmpty()) {
-                wallColumns.addAll(collectFilletWallColumns(
-                    geometry.fillets(), sideClearance, liningThickness, scale, coordinateTransformer));
-            } else {
-                wallColumns.addAll(perimeterColumns(cavityColumns));
+            // 候选洞腔列：铺装责任区 + 侧向净距；不再用 clearance 外扩格做开挖底盘。
+            Set<ColumnKey> candidateColumns = expandPaveBySideClearance(footprint.paveColumns(), sideClearance);
+            Set<ColumnKey> enclosedColumns = new LinkedHashSet<>();
+            for (ColumnKey column : candidateColumns) {
+                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                if (columnHasEnclosedCover(
+                        terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
+                    enclosedColumns.add(column);
+                }
+            }
+            if (enclosedColumns.isEmpty()) {
+                continue;
             }
 
-            // Phase A/B — 侧墙与顶衬先于洞腔开挖，避免重力块坠入。
-            for (ColumnKey column : wallColumns) {
+            // 墙体 = 封闭洞腔边界外一圈（仍需覆土），不再离散圆弧采样。
+            Set<ColumnKey> wallColumns = wallRingAround(enclosedColumns, liningThickness);
+            wallColumns.removeIf(column -> {
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                placeWallColumn(
-                    carriers, column, plan, roadY, roofY, liningThickness, liningId,
-                    terrain, previousBlockResolver);
+                return !columnHasEnclosedCover(
+                    terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold);
+            });
+
+            Map<VoxelRole, Set<BlockPos>> roles = buildRoleMasks(
+                enclosedColumns, wallColumns, roadY, roofY, liningThickness);
+
+            // Phase A/B — 先写墙/顶，再按掩膜清洞腔（旧衬砌落在 CAVITY_AIR 必清）。
+            for (BlockPos pos : roles.get(VoxelRole.WALL_LINING)) {
+                Vec2d plan = planPoint(footprint, new ColumnKey(pos.getX(), pos.getZ()), coordinateTransformer);
+                if (yAtOrAboveNaturalSurface(terrain, plan, pos.getY())) {
+                    continue;
+                }
+                if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
+                    continue;
+                }
+                writeLining(carriers, pos, liningId, previousBlockResolver);
             }
-            for (ColumnKey column : cavityColumns) {
+            for (BlockPos pos : roles.get(VoxelRole.ROOF_LINING)) {
+                Vec2d plan = planPoint(footprint, new ColumnKey(pos.getX(), pos.getZ()), coordinateTransformer);
+                if (yAtOrAboveNaturalSurface(terrain, plan, pos.getY())) {
+                    continue;
+                }
+                if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
+                    continue;
+                }
+                writeLining(carriers, pos, liningId, previousBlockResolver);
+            }
+            for (ColumnKey column : enclosedColumns) {
                 if (wallColumns.contains(column)) {
                     continue;
                 }
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                placeRoofIfCovered(
-                    carriers, column, plan, roofY, liningThickness, liningId,
-                    terrain, previousBlockResolver);
+                int surfaceY = terrain.sampleSurfaceY(plan);
+                stabilizeBelowSurface(
+                    carriers, column, roofY + liningThickness - 1, surfaceY, previousBlockResolver, terrain);
             }
 
-            // Phase C — 仅清设计洞腔内部空气，不动合法侧墙。
-            for (ColumnKey column : cavityColumns) {
-                if (wallColumns.contains(column)) {
+            Set<BlockPos> keepLining = new LinkedHashSet<>();
+            keepLining.addAll(roles.get(VoxelRole.WALL_LINING));
+            keepLining.addAll(roles.get(VoxelRole.ROOF_LINING));
+            for (BlockPos pos : roles.get(VoxelRole.CAVITY_AIR)) {
+                if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
                     continue;
                 }
-                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                clearCavityColumn(
-                    carriers, column, plan, roadY, roofY, terrain, previousBlockResolver);
+                if (keepLining.contains(pos)) {
+                    continue;
+                }
+                writeAir(carriers, pos, previousBlockResolver);
             }
         }
     }
@@ -210,6 +252,122 @@ public final class TunnelJunctionShellPass {
         return geometry.sharpPolygon();
     }
 
+    /**
+     * 封闭隧道列：相对路面覆土达到隧道门槛，且自然地表盖过设计洞顶 + 衬砌 + 裕量。
+     * 浅覆土/洞口列返回 false，不得开挖或封顶。
+     */
+    static boolean columnHasEnclosedCover(
+            TerrainSampler terrain,
+            Vec2d plan,
+            ColumnKey column,
+            int roadY,
+            int clearHeight,
+            int liningThickness,
+            int tunnelThreshold) {
+        if (terrain == null || column == null) {
+            return false;
+        }
+        if (plan == null) {
+            plan = new Vec2d(column.worldX(), column.worldZ());
+        }
+        if (!terrain.isChunkLoaded(plan) && !terrain.isChunkLoaded(column.worldX(), column.worldZ())) {
+            return false;
+        }
+        int roofY = roadY + Math.max(1, clearHeight);
+        int lining = Math.max(1, liningThickness);
+        int surfaceY = terrain.sampleSurfaceY(plan);
+        int coverAboveRoad = surfaceY - roadY;
+        int minCoverAboveRoad = Math.max(
+            tunnelThreshold,
+            clearHeight + lining + MIN_EXTRA_COVER_ABOVE_ROOF);
+        if (coverAboveRoad < minCoverAboveRoad) {
+            return false;
+        }
+        return surfaceY >= roofY + lining + MIN_EXTRA_COVER_ABOVE_ROOF - 1;
+    }
+
+    private static Map<VoxelRole, Set<BlockPos>> buildRoleMasks(
+            Set<ColumnKey> enclosedColumns,
+            Set<ColumnKey> wallColumns,
+            int roadY,
+            int roofY,
+            int liningThickness) {
+        Map<VoxelRole, Set<BlockPos>> roles = new EnumMap<>(VoxelRole.class);
+        roles.put(VoxelRole.CAVITY_AIR, new LinkedHashSet<>());
+        roles.put(VoxelRole.WALL_LINING, new LinkedHashSet<>());
+        roles.put(VoxelRole.ROOF_LINING, new LinkedHashSet<>());
+
+        for (ColumnKey column : wallColumns) {
+            for (int y = roadY; y <= roofY + liningThickness - 1; y++) {
+                roles.get(VoxelRole.WALL_LINING).add(
+                    new BlockPos(column.worldX(), y, column.worldZ()));
+            }
+        }
+        for (ColumnKey column : enclosedColumns) {
+            if (wallColumns.contains(column)) {
+                continue;
+            }
+            for (int y = roadY + 1; y < roofY; y++) {
+                roles.get(VoxelRole.CAVITY_AIR).add(
+                    new BlockPos(column.worldX(), y, column.worldZ()));
+            }
+            for (int y = roofY; y < roofY + liningThickness; y++) {
+                roles.get(VoxelRole.ROOF_LINING).add(
+                    new BlockPos(column.worldX(), y, column.worldZ()));
+            }
+        }
+        return roles;
+    }
+
+    private static Set<ColumnKey> expandPaveBySideClearance(Set<ColumnKey> pave, int sideClearance) {
+        if (pave == null || pave.isEmpty()) {
+            return Set.of();
+        }
+        if (sideClearance <= 0) {
+            return new LinkedHashSet<>(pave);
+        }
+        Set<ColumnKey> expanded = new LinkedHashSet<>(pave);
+        for (ColumnKey key : pave) {
+            for (int dx = -sideClearance; dx <= sideClearance; dx++) {
+                for (int dz = -sideClearance; dz <= sideClearance; dz++) {
+                    expanded.add(new ColumnKey(key.worldX() + dx, key.worldZ() + dz));
+                }
+            }
+        }
+        return expanded;
+    }
+
+    /**
+     * 洞腔外侧一圈墙体列：边界列的 4-邻域中不属于洞腔的格子，厚度随 liningThickness。
+     */
+    private static Set<ColumnKey> wallRingAround(Set<ColumnKey> enclosed, int liningThickness) {
+        Set<ColumnKey> walls = new LinkedHashSet<>();
+        int ring = Math.max(1, liningThickness);
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (ColumnKey key : enclosed) {
+            boolean border = false;
+            for (int[] dir : dirs) {
+                if (!enclosed.contains(new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]))) {
+                    border = true;
+                    break;
+                }
+            }
+            if (!border) {
+                continue;
+            }
+            for (int[] dir : dirs) {
+                for (int t = 1; t <= ring; t++) {
+                    ColumnKey outside = new ColumnKey(
+                        key.worldX() + dir[0] * t, key.worldZ() + dir[1] * t);
+                    if (!enclosed.contains(outside)) {
+                        walls.add(outside);
+                    }
+                }
+            }
+        }
+        return walls;
+    }
+
     private static double dominantScale(List<TunnelJunctionSeedResolver.TunnelApproach> approaches) {
         double scale = 1.0;
         for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
@@ -233,80 +391,6 @@ public final class TunnelJunctionShellPass {
         return carriers;
     }
 
-    private static Set<ColumnKey> expandCavityColumns(JunctionWorldFootprint footprint, int sideClearance) {
-        Set<ColumnKey> base = new LinkedHashSet<>(footprint.clearance());
-        base.addAll(footprint.paveColumns());
-        if (sideClearance <= 0) {
-            return base;
-        }
-        Set<ColumnKey> expanded = new LinkedHashSet<>(base);
-        for (ColumnKey key : base) {
-            for (int dx = -sideClearance; dx <= sideClearance; dx++) {
-                for (int dz = -sideClearance; dz <= sideClearance; dz++) {
-                    expanded.add(new ColumnKey(key.worldX() + dx, key.worldZ() + dz));
-                }
-            }
-        }
-        return expanded;
-    }
-
-    private static Set<ColumnKey> collectFilletWallColumns(
-            List<JunctionGeometryResult.FilletCorner> fillets,
-            int sideClearance,
-            int liningThickness,
-            double scale,
-            ICoordinateService transformer) {
-        Set<ColumnKey> walls = new LinkedHashSet<>();
-        double outward = Math.max(0.5, sideClearance + liningThickness * 0.5) * (scale > EPSILON ? scale : 1.0);
-        for (JunctionGeometryResult.FilletCorner fillet : fillets) {
-            if (fillet == null || fillet.center() == null || fillet.radius() <= EPSILON) {
-                continue;
-            }
-            double sweep = fillet.sweepRadians();
-            if (!Double.isFinite(sweep) || Math.abs(sweep) < EPSILON) {
-                sweep = FilletArcSweep.resolveShort(
-                    fillet.center(), fillet.tangentStart(), fillet.tangentEnd());
-            }
-            if (Math.abs(sweep) < EPSILON) {
-                continue;
-            }
-            double startAngle = Math.atan2(
-                fillet.tangentStart().y - fillet.center().y,
-                fillet.tangentStart().x - fillet.center().x);
-            int segs = Math.max(8, (int) Math.ceil(Math.abs(sweep) / (Math.PI / 16.0)));
-            for (int i = 0; i <= segs; i++) {
-                double t = (double) i / segs;
-                Vec2d onArc = FilletArcSweep.pointOnArc(
-                    fillet.center(), fillet.radius(), startAngle + sweep * t);
-                // 圆心在铺装外侧：朝圆心方向为进入山体/楔形的外法向
-                Vec2d towardRock = fillet.center().subtract(onArc);
-                if (towardRock.lengthSquared() < 1e-12) {
-                    continue;
-                }
-                Vec2d unit = towardRock.normalize();
-                for (int layer = 0; layer < Math.max(1, liningThickness); layer++) {
-                    Vec2d wallPoint = onArc.add(unit.multiply(outward + layer * (scale > EPSILON ? scale : 1.0)));
-                    walls.add(JunctionWorldFootprint.keyOf(wallPoint, transformer));
-                }
-            }
-        }
-        return walls;
-    }
-
-    private static Set<ColumnKey> perimeterColumns(Set<ColumnKey> columns) {
-        Set<ColumnKey> perimeter = new LinkedHashSet<>();
-        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-        for (ColumnKey key : columns) {
-            for (int[] dir : dirs) {
-                if (!columns.contains(new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]))) {
-                    perimeter.add(key);
-                    break;
-                }
-            }
-        }
-        return perimeter;
-    }
-
     private static Vec2d planPoint(
             JunctionWorldFootprint footprint,
             ColumnKey column,
@@ -318,95 +402,29 @@ public final class TunnelJunctionShellPass {
         return new Vec2d(column.worldX(), column.worldZ());
     }
 
-    private static void placeWallColumn(
-            Collection<RoadGenerationResult> carriers,
-            ColumnKey column,
-            Vec2d plan,
-            int roadY,
-            int roofY,
-            int liningThickness,
-            String liningId,
-            TerrainSampler terrain,
-            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver) {
-        for (int y = roadY; y <= roofY + liningThickness - 1; y++) {
-            BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-            if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
-                continue;
-            }
-            if (!TunnelStructureGenerator.shouldPlaceLining(
-                    terrain, column.worldX(), y, column.worldZ(), plan)) {
-                continue;
-            }
-            writeLining(carriers, pos, liningId, previousBlockResolver);
+    private static boolean yAtOrAboveNaturalSurface(TerrainSampler terrain, Vec2d plan, int y) {
+        if (terrain == null || plan == null) {
+            return true;
         }
-        stabilizeAbove(carriers, column, plan, roofY + liningThickness - 1, terrain, previousBlockResolver);
+        return y >= terrain.sampleSurfaceY(plan);
     }
 
-    private static void placeRoofIfCovered(
+    /**
+     * 仅在自然地表以下稳定重力块；绝不改写地表及其上方。
+     */
+    private static void stabilizeBelowSurface(
             Collection<RoadGenerationResult> carriers,
             ColumnKey column,
-            Vec2d plan,
-            int roofY,
-            int liningThickness,
-            String liningId,
-            TerrainSampler terrain,
-            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver) {
-        boolean anyLining = false;
-        for (int y = roofY; y < roofY + liningThickness; y++) {
-            BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-            if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
-                continue;
-            }
-            if (!TunnelStructureGenerator.shouldPlaceLining(
-                    terrain, column.worldX(), y, column.worldZ(), plan)) {
-                continue;
-            }
-            writeLining(carriers, pos, liningId, previousBlockResolver);
-            anyLining = true;
-        }
-        if (anyLining) {
-            stabilizeAbove(carriers, column, plan, roofY + liningThickness - 1, terrain, previousBlockResolver);
-        }
-    }
-
-    private static void clearCavityColumn(
-            Collection<RoadGenerationResult> carriers,
-            ColumnKey column,
-            Vec2d plan,
-            int roadY,
-            int roofY,
-            TerrainSampler terrain,
-            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver) {
-        // 路面以上、洞顶以下清为空气；路面层留给路口铺装
-        for (int y = roadY + 1; y < roofY; y++) {
-            BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-            if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
-                continue;
-            }
-            // 已有合法衬砌（本 Pass 刚写的墙/顶）不删
-            if (hasStructuralTunnelLining(carriers, pos)) {
-                continue;
-            }
-            writeAir(carriers, pos, previousBlockResolver);
-        }
-    }
-
-    private static void stabilizeAbove(
-            Collection<RoadGenerationResult> carriers,
-            ColumnKey column,
-            Vec2d plan,
             int roofTop,
-            TerrainSampler terrain,
-            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver) {
-        if (terrain == null) {
+            int surfaceY,
+            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver,
+            TerrainSampler terrain) {
+        if (terrain == null || carriers == null || carriers.isEmpty()) {
             return;
         }
-        for (int dy = 1; dy <= 8; dy++) {
-            int y = roofTop + dy;
+        int maxY = Math.min(roofTop + 8, surfaceY - 1);
+        for (int y = roofTop + 1; y <= maxY; y++) {
             BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-            if (!terrain.isChunkLoaded(column.worldX(), column.worldZ())) {
-                break;
-            }
             if (!terrain.isGravityAffectedBlock(column.worldX(), y, column.worldZ())) {
                 if (terrain.isSolidBlock(column.worldX(), y, column.worldZ())) {
                     break;
@@ -418,25 +436,6 @@ public final class TunnelJunctionShellPass {
             }
             writeLining(carriers, pos, GRAVITY_RESTORE, previousBlockResolver);
         }
-    }
-
-    private static boolean hasStructuralTunnelLining(
-            Collection<RoadGenerationResult> carriers,
-            BlockPos pos) {
-        for (RoadGenerationResult result : carriers) {
-            BlockRecord record = result.placementRecords.get(pos);
-            if (record == null || "minecraft:air".equals(record.newBlockId)) {
-                continue;
-            }
-            RoadSolidLayer layer = result.placementLayers.get(pos);
-            Integer priority = result.placementMaterialPriorities.get(pos);
-            if (layer == RoadSolidLayer.TUNNEL
-                    && priority != null
-                    && priority >= RoadSolidMaterialPriority.STRUCTURAL) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static void writeLining(
@@ -459,14 +458,19 @@ public final class TunnelJunctionShellPass {
             Collection<RoadGenerationResult> carriers,
             BlockPos pos,
             TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver) {
-        RoadGenerationResult carrier = carriers.iterator().next();
-        String previous = TunnelJunctionConnectivityPass.resolvePreviousBlockId(
-            pos, carrier.placementRecords.get(pos), carriers, previousBlockResolver);
-        carrier.recordPlacementOverride(pos, previous, "minecraft:air");
-        carrier.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
-        carrier.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
-        if (!carrier.tunnelBlocks.contains(pos)) {
-            carrier.tunnelBlocks.add(pos);
+        // 每个进口边载体都清：旧横断面衬砌可能分散写在多条边上。
+        for (RoadGenerationResult carrier : carriers) {
+            if (carrier == null) {
+                continue;
+            }
+            String previous = TunnelJunctionConnectivityPass.resolvePreviousBlockId(
+                pos, carrier.placementRecords.get(pos), carriers, previousBlockResolver);
+            carrier.recordPlacementOverride(pos, previous, "minecraft:air");
+            carrier.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+            carrier.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
+            if (!carrier.tunnelBlocks.contains(pos)) {
+                carrier.tunnelBlocks.add(pos);
+            }
         }
     }
 }

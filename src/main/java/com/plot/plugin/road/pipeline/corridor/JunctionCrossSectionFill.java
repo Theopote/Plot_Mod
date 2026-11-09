@@ -27,6 +27,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -210,32 +211,18 @@ public final class JunctionCrossSectionFill {
             double unitsPerBlock,
             TerrainSampler terrain,
             int bridgeThreshold,
-            Integer maxClearY) {
-        stampApproachSlopeBatters(
-            solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
-            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, List.of(), null);
-    }
-
-    public static void stampApproachSlopeBatters(
-            RoadSolidModel solids,
-            Vec2d junctionCenter,
-            int junctionY,
-            String nodeId,
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            MaterialResolver materials,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            double unitsPerBlock,
-            TerrainSampler terrain,
-            int bridgeThreshold,
             Integer maxClearY,
-            List<JunctionGeometryResult.FilletCorner> fillets) {
+            List<JunctionGeometryResult.FilletCorner> fillets,
+            JunctionFilletElevationLoft filletLoft) {
         stampApproachSlopeBatters(
             solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
-            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, fillets, null);
+            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, fillets, filletLoft,
+            Set.of());
     }
 
+    /**
+     * @param tunnelApproachEdgeIds 隧道进口边：禁止开敞路肩边坡；圆弧边坡仍按逐角覆土判定。
+     */
     public static void stampApproachSlopeBatters(
             RoadSolidModel solids,
             Vec2d junctionCenter,
@@ -251,12 +238,14 @@ public final class JunctionCrossSectionFill {
             int bridgeThreshold,
             Integer maxClearY,
             List<JunctionGeometryResult.FilletCorner> fillets,
-            JunctionFilletElevationLoft filletLoft) {
+            JunctionFilletElevationLoft filletLoft,
+            Set<String> tunnelApproachEdgeIds) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null
                 || columnResolver == null) {
             return;
         }
+        Set<String> tunnelEdges = tunnelApproachEdgeIds != null ? tunnelApproachEdgeIds : Set.of();
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
@@ -265,6 +254,10 @@ public final class JunctionCrossSectionFill {
         long stationSampleId = 0L;
 
         for (RoadEdge edge : edges) {
+            if (edge != null && tunnelEdges.contains(edge.getId())) {
+                // 隧道进口禁止从广场中心向外打露天路肩边坡，避免洞内掏山。
+                continue;
+            }
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
             if (!crossSection.includeSlopeBatter) {
                 continue;
@@ -574,15 +567,6 @@ public final class JunctionCrossSectionFill {
             return slopeHeight <= groundHeight + 1;
         }
         return slopeHeight >= groundHeight - 1;
-    }
-
-    private static void emitConsolidatedSlopeColumns(
-            RoadSolidModel solids,
-            RoadCorridorPlan plan,
-            TerrainSampler terrain,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            int bridgeThreshold) {
-        emitConsolidatedSlopeColumns(solids, plan, terrain, columnResolver, bridgeThreshold, null);
     }
 
     private static void emitConsolidatedSlopeColumns(
