@@ -137,12 +137,16 @@ public final class JunctionTerrainClearance {
             int deckCap = elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1;
             clearCap = clearCap == null ? deckCap : Math.min(clearCap, deckCap);
         }
-        if (clearCap != null) {
+        int coverAboveRoad = surfaceY - cellY;
+        // 浅覆土（含开敞平交、洞口广场）：即使调用方传了隧道洞顶 cap，也按露天清到地表，
+        // 否则 resolveTunnelSolidPunchTop 会因 surface<=roof 整列停挖，圆角铺装被地形盖住。
+        boolean shallowCover = coverAboveRoad < tunnelThreshold;
+        if (clearCap != null && !shallowCover) {
             int solidPunchTop = resolveTunnelSolidPunchTop(cellY, surfaceY, clearCap);
             topY = Math.min(topY, solidPunchTop);
             decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
         } else {
-            // 无洞顶 cap 时仍禁止写出 ≥ 自然地表的空气（露天路堑最多挖到 surfaceY-1）。
+            // 无洞顶 cap 或浅覆：露天路堑最多挖到 surfaceY-1，装饰扫描保留完整 headroom。
             topY = Math.min(topY, surfaceY - 1);
         }
         punchColumn(solids, planPoint, cellY, topY);

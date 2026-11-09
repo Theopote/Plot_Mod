@@ -25,8 +25,10 @@ public final class JunctionFinalVoxelValidator {
             int surfaceSemanticMismatches,
             int protectedLosses,
             int disconnectedTunnelComponents,
-            int crossLayerLeaks) {
-        public static final PostMergeReport CLEAN = new PostMergeReport(0, 0, 0, 0, 0);
+            int crossLayerLeaks,
+            /** 期望路面 Y 缺失，但同列另有路面层——典型 merge/Y 错位镂空。 */
+            int surfaceYMismatches) {
+        public static final PostMergeReport CLEAN = new PostMergeReport(0, 0, 0, 0, 0, 0);
     }
 
     public static PostMergeReport validateNode(
@@ -38,7 +40,7 @@ public final class JunctionFinalVoxelValidator {
             return PostMergeReport.CLEAN;
         }
         Set<ColumnKey> footprintColumns = footprintColumns(manifest, coordinateTransformer);
-        SurfaceCounts surface = countSurfaceExpectations(manifest, aggregate);
+        SurfaceExpectationCounts surface = countSurfaceExpectations(manifest, aggregate, index);
         SurfaceCounts expectedPavement = countExpectedPavement(aggregate, footprintColumns);
         int protectedLosses = countProtectedLosses(manifest, aggregate);
         int crossLayerLeaks = countCrossLayerLeaks(
@@ -50,7 +52,8 @@ public final class JunctionFinalVoxelValidator {
             surface.semanticMismatches() + expectedPavement.semanticMismatches(),
             protectedLosses,
             disconnected,
-            crossLayerLeaks);
+            crossLayerLeaks,
+            surface.yMismatches());
     }
 
     /**
@@ -95,26 +98,59 @@ public final class JunctionFinalVoxelValidator {
     record SurfaceCounts(int missingColumns, int semanticMismatches) {
     }
 
-    private static SurfaceCounts countSurfaceExpectations(
+    record SurfaceExpectationCounts(int missingColumns, int semanticMismatches, int yMismatches) {
+    }
+
+    private static SurfaceExpectationCounts countSurfaceExpectations(
             JunctionValidationManifest manifest,
-            RoadGenerationResult aggregate) {
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index) {
         Set<ColumnKey> missingColumns = new HashSet<>();
         Set<ColumnKey> semanticColumns = new HashSet<>();
+        Set<ColumnKey> yMismatchColumns = new HashSet<>();
         for (JunctionSurfaceExpectation expectation : manifest.surfaceExpectations()) {
             if (expectation == null || expectation.position() == null) {
                 continue;
             }
             BlockPos pos = expectation.position();
             ColumnKey column = new ColumnKey(pos.getX(), pos.getZ());
-            if (!hasStructuralSurface(aggregate, pos)) {
-                missingColumns.add(column);
+            if (hasStructuralSurface(aggregate, pos)) {
+                if (!hasSemanticSurface(aggregate, pos, expectation.expectedLayer())) {
+                    semanticColumns.add(column);
+                }
                 continue;
             }
-            if (!hasSemanticSurface(aggregate, pos, expectation.expectedLayer())) {
-                semanticColumns.add(column);
+            // 期望 Y 无路面：同列若另有路面，记为 Y/merge 错位，而非「整列缺铺」
+            if (hasStructuralSurfaceElsewhereInColumn(aggregate, index, column, pos.getY())) {
+                yMismatchColumns.add(column);
+            } else {
+                missingColumns.add(column);
             }
         }
-        return new SurfaceCounts(missingColumns.size(), semanticColumns.size());
+        return new SurfaceExpectationCounts(
+            missingColumns.size(), semanticColumns.size(), yMismatchColumns.size());
+    }
+
+    /**
+     * 同世界列在非期望 Y 上是否仍有广场路面层（诊断 merge 把路面留在错误高度）。
+     */
+    static boolean hasStructuralSurfaceElsewhereInColumn(
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index,
+            ColumnKey column,
+            int expectedY) {
+        if (aggregate == null || index == null || column == null) {
+            return false;
+        }
+        for (BlockPos candidate : index.positionsInColumn(column.worldX(), column.worldZ())) {
+            if (candidate == null || candidate.getY() == expectedY) {
+                continue;
+            }
+            if (hasStructuralSurface(aggregate, candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Non-air placement in the plaza surface family (including MARKING overlay). */

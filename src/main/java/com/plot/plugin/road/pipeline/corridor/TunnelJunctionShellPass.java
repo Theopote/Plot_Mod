@@ -6,8 +6,10 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -24,12 +26,14 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
 
 /**
  * 隧道路口圆角联合洞腔 / 边界侧墙 / 顶衬施工。
@@ -118,21 +122,34 @@ public final class TunnelJunctionShellPass {
             if (liningId == null || liningId.isBlank()) {
                 liningId = FALLBACK_LINING;
             }
-            int roadY = primary.roadY();
+            int junctionY = elevations.getOrDefault(node.getId(), primary.roadY());
             int clearHeight = Math.max(1, style.clearHeight());
             int sideClearance = Math.max(0, style.sideClearance());
             int liningThickness = Math.max(1, style.liningThickness());
-            int roofY = roadY + clearHeight;
             Collection<RoadGenerationResult> carriers = approachCarriers(approaches, edgeResults);
             if (carriers.isEmpty()) {
                 continue;
             }
 
+            // 倒圆区顶衬必须跟下方路面 loft 同趋势，禁止整广场用单一 roadY 压成平顶。
+            List<RoadEdge> connected = connectedEdges(network, node);
+            RoadTerrainClearanceUtils.BlockColumnResolver columns =
+                columnResolver(coordinateTransformer);
+            JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
+                geometry.fillets(), edgeResults, connected, network, columns, junctionY);
+            ToIntFunction<ColumnKey> roadYAt = column -> {
+                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                return filletLoft.surfaceY(plan);
+            };
+
             // 候选洞腔列：铺装责任区 + 侧向净距；不再用 clearance 外扩格做开挖底盘。
             Set<ColumnKey> candidateColumns = expandPaveBySideClearance(footprint.paveColumns(), sideClearance);
             Set<ColumnKey> enclosedColumns = new LinkedHashSet<>();
+            Map<ColumnKey, Integer> roadYByColumn = new HashMap<>();
             for (ColumnKey column : candidateColumns) {
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                int roadY = roadYAt.applyAsInt(column);
+                roadYByColumn.put(column, roadY);
                 if (columnHasEnclosedCover(
                         terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
                     enclosedColumns.add(column);
@@ -146,12 +163,19 @@ public final class TunnelJunctionShellPass {
             Set<ColumnKey> wallColumns = wallRingAround(enclosedColumns, liningThickness);
             wallColumns.removeIf(column -> {
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                int roadY = roadYByColumn.computeIfAbsent(column, c -> roadYAt.applyAsInt(c));
                 return !columnHasEnclosedCover(
                     terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold);
             });
 
             Map<VoxelRole, Set<BlockPos>> roles = buildRoleMasks(
-                enclosedColumns, wallColumns, roadY, roofY, liningThickness, terrain, footprint,
+                enclosedColumns,
+                wallColumns,
+                roadYByColumn,
+                clearHeight,
+                liningThickness,
+                terrain,
+                footprint,
                 coordinateTransformer);
 
             // Phase A/B — 先写墙/顶，再按掩膜清洞腔（旧衬砌落在 CAVITY_AIR 必清）。
@@ -181,8 +205,10 @@ public final class TunnelJunctionShellPass {
                 }
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
                 int surfaceY = terrain.sampleSurfaceY(plan);
+                int roadY = roadYByColumn.getOrDefault(column, junctionY);
+                int roofTop = roadY + clearHeight + liningThickness - 1;
                 stabilizeBelowSurface(
-                    carriers, column, roofY + liningThickness - 1, surfaceY, previousBlockResolver, terrain);
+                    carriers, column, roofTop, surfaceY, previousBlockResolver, terrain);
             }
 
             Set<BlockPos> keepLining = new LinkedHashSet<>();
@@ -294,8 +320,8 @@ public final class TunnelJunctionShellPass {
     private static Map<VoxelRole, Set<BlockPos>> buildRoleMasks(
             Set<ColumnKey> enclosedColumns,
             Set<ColumnKey> wallColumns,
-            int roadY,
-            int roofY,
+            Map<ColumnKey, Integer> roadYByColumn,
+            int clearHeight,
             int liningThickness,
             TerrainSampler terrain,
             JunctionWorldFootprint footprint,
@@ -304,11 +330,15 @@ public final class TunnelJunctionShellPass {
         roles.put(VoxelRole.CAVITY_AIR, new LinkedHashSet<>());
         roles.put(VoxelRole.WALL_LINING, new LinkedHashSet<>());
         roles.put(VoxelRole.ROOF_LINING, new LinkedHashSet<>());
+        int clear = Math.max(1, clearHeight);
+        int lining = Math.max(1, liningThickness);
 
         for (ColumnKey column : wallColumns) {
             Vec2d plan = planPoint(footprint, column, transformer);
+            int roadY = roadYByColumn.getOrDefault(column, 0);
+            int roofY = roadY + clear;
             int surfaceY = terrain != null ? terrain.sampleSurfaceY(plan) : Integer.MAX_VALUE;
-            for (int y = roadY; y <= roofY + liningThickness - 1; y++) {
+            for (int y = roadY; y <= roofY + lining - 1; y++) {
                 if (y >= surfaceY) {
                     continue;
                 }
@@ -321,13 +351,15 @@ public final class TunnelJunctionShellPass {
                 continue;
             }
             Vec2d plan = planPoint(footprint, column, transformer);
+            int roadY = roadYByColumn.getOrDefault(column, 0);
+            int roofY = roadY + clear;
             int surfaceY = terrain != null ? terrain.sampleSurfaceY(plan) : Integer.MAX_VALUE;
             int cavityTop = Math.min(roofY - 1, surfaceY - 1);
             for (int y = roadY + 1; y <= cavityTop; y++) {
                 roles.get(VoxelRole.CAVITY_AIR).add(
                     new BlockPos(column.worldX(), y, column.worldZ()));
             }
-            for (int y = roofY; y < roofY + liningThickness; y++) {
+            for (int y = roofY; y < roofY + lining; y++) {
                 if (y >= surfaceY) {
                     continue;
                 }
@@ -336,6 +368,41 @@ public final class TunnelJunctionShellPass {
             }
         }
         return roles;
+    }
+
+    private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {
+        List<RoadEdge> connected = new ArrayList<>();
+        if (network == null || node == null) {
+            return connected;
+        }
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null) {
+                connected.add(edge);
+            }
+        }
+        return connected;
+    }
+
+    private static RoadTerrainClearanceUtils.BlockColumnResolver columnResolver(
+            ICoordinateService transformer) {
+        return new RoadTerrainClearanceUtils.BlockColumnResolver() {
+            @Override
+            public int worldX(Vec2d planPoint) {
+                if (planPoint == null) {
+                    return 0;
+                }
+                return RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer).getX();
+            }
+
+            @Override
+            public int worldZ(Vec2d planPoint) {
+                if (planPoint == null) {
+                    return 0;
+                }
+                return RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer).getZ();
+            }
+        };
     }
 
     private static Set<ColumnKey> expandPaveBySideClearance(Set<ColumnKey> pave, int sideClearance) {

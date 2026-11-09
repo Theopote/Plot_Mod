@@ -15,27 +15,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionTerrainClearanceTunnelCoverTest {
 
     @Test
-    void shallowCoverFilletColumnDoesNotPunchThroughSurface() {
+    void shallowCoverWithTunnelCapStillClearsOpenPlazaTowardSurface() {
         RoadSolidModel solids = new RoadSolidModel();
         int roadY = 64;
-        int roofY = 69; // clearCap
-        int surfaceY = 67; // 圆角浅覆土：地表低于洞顶
+        int roofY = 69; // 误传/洞口浅覆的洞顶 cap
+        int surfaceY = 67; // 浅覆土：cover=3 < tunnelThreshold
+        int tunnelThreshold = 4;
         Vec2d plan = new Vec2d(10, 10);
         TerrainSampler terrain = surfaceAt(surfaceY);
 
         JunctionTerrainClearance.clearOverheadColumn(
-            solids, roadY, 4, terrain, 10, 10, plan, null, surfaceY, roofY);
+            solids, roadY, tunnelThreshold, terrain, 10, 10, plan, null, surfaceY, roofY);
 
         long airAboveSurface = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
             .filter(p -> p.elevation() >= surfaceY)
             .count();
-        assertEquals(0L, airAboveSurface, "shallow fillet must not punch natural surface or above");
+        assertEquals(0L, airAboveSurface, "must not punch natural surface or above");
         long cavityAir = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
             .filter(p -> p.elevation() > roadY && p.elevation() < surfaceY)
             .count();
-        assertEquals(0L, cavityAir, "insufficient cover must skip solid cavity punch");
+        assertTrue(cavityAir > 0,
+            "shallow open plaza must still clear toward surface despite tunnel cap");
     }
 
     @Test
@@ -82,6 +84,36 @@ class JunctionTerrainClearanceTunnelCoverTest {
         assertEquals(68, JunctionTerrainClearance.resolveTunnelSolidPunchTop(64, 80, 69));
         assertTrue(JunctionTerrainClearance.resolveTunnelSolidPunchTop(64, 80, 69) < 69);
         assertTrue(JunctionTerrainClearance.resolveTunnelSolidPunchTop(64, 80, 69) < 80);
+    }
+
+    @Test
+    void gradedFilletUsesLoftedRoofCapNotFlatJunctionCap() {
+        // 坡降圆角：路面 loft 到 60，若仍用平坦 junction 洞顶 69，会挖穿应落顶衬的 65
+        int loftRoadY = 60;
+        int clearHeight = 5;
+        int loftRoofY = loftRoadY + clearHeight; // 65
+        int flatJunctionRoofY = 69;
+        int surfaceY = 80;
+        Vec2d plan = new Vec2d(8, 8);
+        TerrainSampler terrain = surfaceAt(surfaceY);
+
+        Integer columnCap = com.plot.plugin.road.RoadJunctionGenerator.columnClearCap(
+            loftRoadY, clearHeight, flatJunctionRoofY, null);
+        assertEquals(loftRoofY, columnCap);
+
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, loftRoadY, 4, terrain, 8, 8, plan, null, surfaceY, columnCap);
+
+        int maxAirY = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .filter(p -> p.layer() == RoadSolidLayer.TUNNEL)
+            .mapToInt(p -> p.elevation())
+            .max()
+            .orElse(loftRoadY);
+        assertTrue(maxAirY < loftRoofY, "punch must stop below lofted roof, maxAir=" + maxAirY);
+        assertTrue(maxAirY < flatJunctionRoofY - 1 || maxAirY < loftRoofY,
+            "must not excavate up to flat junction roof through lofted lining band");
     }
 
     private static TerrainSampler surfaceAt(int surfaceY) {

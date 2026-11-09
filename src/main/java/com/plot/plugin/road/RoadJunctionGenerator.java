@@ -690,17 +690,16 @@ public class RoadJunctionGenerator {
                 elevations,
                 generator.getConfig(),
                 (path, segments) -> unitsPerBlock);
+        // 洞顶 cap / clearHeight 只认本节点隧道进口。禁止用「整边含隧道族」兜底：
+        // 同一条路远处有隧道时，会把开敞平交误判成浅覆土洞腔，清障与放坡整片停摆，圆角也看不见。
         Integer tunnelCavityCap = TunnelJunctionSeedResolver.resolveTunnelCavityClearCap(tunnelApproaches);
-        // 进口邻域未命中但整边含隧道族时，仅补洞顶 cap（不清成隧道进口，避免误禁露天圆角边坡）。
-        if (tunnelCavityCap == null) {
-            tunnelCavityCap = TunnelJunctionSeedResolver.inferTunnelCavityClearCapFromEdges(
-                network, edges, safeEdgeResults, junctionY, generator.getConfig());
-        }
-        // 净空上限：立交桥底与隧道洞腔顶取更严者。
-        Integer maxClearY = elevatedDeckY != null
+        Integer tunnelClearHeight = TunnelJunctionSeedResolver.resolveTunnelClearHeight(tunnelApproaches);
+        // 立交桥底净空（绝对标高）；有隧道进口时洞顶按逐列 loft 路面 + clearHeight。
+        Integer elevatedClearCap = elevatedDeckY != null
             ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
             : null;
-        if (tunnelCavityCap != null) {
+        Integer maxClearY = elevatedClearCap;
+        if (tunnelCavityCap != null && tunnelClearHeight == null) {
             maxClearY = maxClearY == null ? tunnelCavityCap : Math.min(maxClearY, tunnelCavityCap);
         }
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
@@ -718,6 +717,8 @@ public class RoadJunctionGenerator {
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
                 int surfaceY = filletLoft.surfaceY(point);
+                Integer columnMaxClearY = columnClearCap(
+                    surfaceY, tunnelClearHeight, tunnelCavityCap, elevatedClearCap);
                 boolean stamped = JunctionCrossSectionFill.fillCell(
                     blocks.getSolids(),
                     point,
@@ -733,7 +734,7 @@ public class RoadJunctionGenerator {
                     tunnelThreshold,
                     bridgeThreshold,
                     fillMaterialId,
-                    maxClearY,
+                    columnMaxClearY,
                     surfaceY);
                 if (stamped) {
                     surfaceMask.markStamped(columnKey);
@@ -762,6 +763,8 @@ public class RoadJunctionGenerator {
                 BlockPos column = generator.toBlockPos(point, 0);
                 int surfaceY = filletLoft.surfaceY(point);
                 int leftoverTop = leftoverTops.getOrDefault(columnKey, surfaceY);
+                Integer columnTunnelCap = columnClearCap(
+                    surfaceY, tunnelClearHeight, tunnelCavityCap, null);
                 // 列集已由外形∪铺装栅格确定；勿再 point-in-polygon，否则圆角补铺列会漏清树木
                 JunctionTerrainClearance.clearOverheadColumn(
                     blocks.getSolids(),
@@ -773,7 +776,7 @@ public class RoadJunctionGenerator {
                     point,
                     elevatedDeckY,
                     leftoverTop,
-                    tunnelCavityCap);
+                    columnTunnelCap);
             }
         }
 
@@ -785,6 +788,7 @@ public class RoadJunctionGenerator {
             0,
             unresolvedClearance,
             false,
+            0,
             0,
             0,
             0,
@@ -917,6 +921,30 @@ public class RoadJunctionGenerator {
 
     public static Integer resolveElevatedDeckY(RoadNode node, int junctionY, RoadSystemConfig config) {
         return resolveElevatedDeckY(node, junctionY, null, config);
+    }
+
+    /**
+     * 逐列净空顶：隧道优先 {@code loftSurfaceY + clearHeight}，与壳顶衬同趋势；
+     * 无净空高度时回退平坦 cavityCap；再与立交桥底 cap 取更严。
+     */
+    public static Integer columnClearCap(
+            int loftSurfaceY,
+            Integer tunnelClearHeight,
+            Integer flatTunnelCavityCap,
+            Integer elevatedClearCap) {
+        Integer tunnelCap = null;
+        if (tunnelClearHeight != null) {
+            tunnelCap = loftSurfaceY + Math.max(1, tunnelClearHeight);
+        } else if (flatTunnelCavityCap != null) {
+            tunnelCap = flatTunnelCavityCap;
+        }
+        if (tunnelCap == null) {
+            return elevatedClearCap;
+        }
+        if (elevatedClearCap == null) {
+            return tunnelCap;
+        }
+        return Math.min(tunnelCap, elevatedClearCap);
     }
 
     private double estimateUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {

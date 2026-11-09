@@ -84,11 +84,41 @@ class JunctionFinalVoxelValidatorTest {
         JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
             manifest, aggregate, index, IdentityCoordinateService.INSTANCE);
         assertEquals(0, report.missingSurfaceColumns(), "manifest uses actual cellY=72");
+        assertEquals(0, report.surfaceYMismatches());
 
         assertTrue(
             aggregate.placementRecords.get(wrongY71) == null
                 || "minecraft:air".equals(aggregate.placementRecords.get(wrongY71).newBlockId),
             "looking up uniform junctionY=71 would miss the real surface");
+    }
+
+    @Test
+    void surfaceYMismatchDiagnosedWhenPavementExistsAtWrongHeight() {
+        BlockPos expected = new BlockPos(0, 72, 0);
+        BlockPos actualWrongY = new BlockPos(0, 64, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(new JunctionSurfaceExpectation(expected, RoadSolidLayer.ROAD)),
+            List.of(),
+            List.of(),
+            squareFootprint(),
+            72,
+            null,
+            0,
+            0);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(actualWrongY, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(actualWrongY, RoadSolidLayer.ROAD);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.missingSurfaceColumns(), "column still has pavement elsewhere");
+        assertEquals(1, report.surfaceYMismatches(), "must flag merge/Y hollow separately");
     }
 
     @Test

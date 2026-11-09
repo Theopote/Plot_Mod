@@ -141,7 +141,8 @@ public final class TunnelJunctionSeedResolver {
      * 必须停在洞腔顶，否则会把洞顶衬砌与覆土当「上方障碍」掏穿成十字露天边坡。
      */
     public static Integer resolveTunnelCavityClearCap(List<TunnelApproach> approaches) {
-        if (approaches == null || approaches.isEmpty()) {
+        Integer clearHeight = resolveTunnelClearHeight(approaches);
+        if (clearHeight == null || approaches == null || approaches.isEmpty()) {
             return null;
         }
         int cap = Integer.MAX_VALUE;
@@ -149,10 +150,56 @@ public final class TunnelJunctionSeedResolver {
             if (approach == null || approach.tunnelStyle() == null) {
                 continue;
             }
-            int clearHeight = Math.max(1, approach.tunnelStyle().clearHeight());
             cap = Math.min(cap, approach.roadY() + clearHeight);
         }
         return cap == Integer.MAX_VALUE ? null : cap;
+    }
+
+    /**
+     * 各隧道进口净空高度取更严（更小）者；用于逐列洞顶 = loft 路面 Y + clearHeight。
+     */
+    public static Integer resolveTunnelClearHeight(List<TunnelApproach> approaches) {
+        if (approaches == null || approaches.isEmpty()) {
+            return null;
+        }
+        int clear = Integer.MAX_VALUE;
+        for (TunnelApproach approach : approaches) {
+            if (approach == null || approach.tunnelStyle() == null) {
+                continue;
+            }
+            clear = Math.min(clear, Math.max(1, approach.tunnelStyle().clearHeight()));
+        }
+        return clear == Integer.MAX_VALUE ? null : clear;
+    }
+
+    /**
+     * 进口漏检时从边隧道预设取更严净空高度。
+     */
+    public static Integer inferTunnelClearHeightFromEdges(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            Map<String, RoadGenerationResult> edgeResults,
+            RoadSystemConfig config) {
+        if (network == null || edges == null || edges.isEmpty() || edgeResults == null || config == null) {
+            return null;
+        }
+        int clear = Integer.MAX_VALUE;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            RoadGenerationResult result = edgeResults.get(edge.getId());
+            if (!edgeHasTunnelFamilyConstruction(result)) {
+                continue;
+            }
+            Road road = RoadModelUtils.resolveRoad(network, edge);
+            ResolvedTunnelStyle style = TunnelStyle.resolve(road, config);
+            if (style == null) {
+                continue;
+            }
+            clear = Math.min(clear, Math.max(1, style.clearHeight()));
+        }
+        return clear == Integer.MAX_VALUE ? null : clear;
     }
 
     /**

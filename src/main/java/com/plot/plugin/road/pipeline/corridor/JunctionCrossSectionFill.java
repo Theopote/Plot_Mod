@@ -198,28 +198,6 @@ public final class JunctionCrossSectionFill {
         return materials.canvasToBlockPos(cellPoint).withY(cellY);
     }
 
-    public static void stampApproachSlopeBatters(
-            RoadSolidModel solids,
-            Vec2d junctionCenter,
-            int junctionY,
-            String nodeId,
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            MaterialResolver materials,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            double unitsPerBlock,
-            TerrainSampler terrain,
-            int bridgeThreshold,
-            Integer maxClearY,
-            List<JunctionGeometryResult.FilletCorner> fillets,
-            JunctionFilletElevationLoft filletLoft) {
-        stampApproachSlopeBatters(
-            solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
-            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, fillets, filletLoft,
-            Set.of());
-    }
-
     /**
      * @param tunnelApproachEdgeIds 隧道进口边：禁止开敞路肩边坡；圆弧边坡仍按逐角覆土判定。
      */
@@ -790,7 +768,21 @@ public final class JunctionCrossSectionFill {
         }
         if (maxClearY != null) {
             int groundY = terrain.sampleSurfaceY(planPoint);
-            // 隧道/立交净空上限：禁止经 gradeColumn 掏穿覆土或挖掉洞顶格。
+            // 浅覆土按露天路基处理：开敞平交/洞口不得因洞顶 cap 跳过切坡。
+            if (groundY - junctionY < tunnelThreshold) {
+                RoadRoadbedGradingUtils.gradeColumn(
+                    solids,
+                    planPoint,
+                    junctionY,
+                    tunnelThreshold,
+                    bridgeThreshold,
+                    fillMaterialId,
+                    worldX,
+                    worldZ,
+                    terrain);
+                return;
+            }
+            // 深覆土隧道/立交净空上限：禁止经 gradeColumn 掏穿覆土或挖掉洞顶格。
             // （旧逻辑 min(surface, maxClearY) 会在浅覆土圆角把山体挖穿到地表。）
             int cutTop = JunctionTerrainClearance.resolveTunnelSolidPunchTop(
                 junctionY, groundY, maxClearY);
