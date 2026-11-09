@@ -101,8 +101,9 @@ public final class JunctionTerrainClearance {
     }
 
     /**
-     * @param absoluteClearTopY 绝对净空上限（含隧道洞腔顶）；与 elevatedDeckY 取更严者。
-     *                          隧道平交必须传入洞腔顶，否则会按地表/残留衬砌把洞顶掏穿。
+     * @param absoluteClearTopY 绝对净空上限（隧道设计洞腔顶 = roadY+clearHeight）；与 elevatedDeckY 取更严者。
+     *                          隧道平交必须传入；实体清障止于 {@code min(cap-1, surfaceY-1)}，
+     *                          浅覆土列（地表未高出洞顶）禁止掏穿自然地表。
      */
     public static void clearOverheadColumn(
             RoadSolidModel solids,
@@ -137,11 +138,26 @@ public final class JunctionTerrainClearance {
             clearCap = clearCap == null ? deckCap : Math.min(clearCap, deckCap);
         }
         if (clearCap != null) {
-            topY = Math.min(topY, clearCap);
-            decoCeil = Math.min(decoCeil, clearCap);
+            int solidPunchTop = resolveTunnelSolidPunchTop(cellY, surfaceY, clearCap);
+            topY = Math.min(topY, solidPunchTop);
+            decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
+        } else {
+            // 无洞顶 cap 时仍禁止写出 ≥ 自然地表的空气（露天路堑最多挖到 surfaceY-1）。
+            topY = Math.min(topY, surfaceY - 1);
         }
         punchColumn(solids, planPoint, cellY, topY);
         clearDecorationsAbove(solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);
+    }
+
+    /**
+     * 隧道路口实体开挖顶：永不挖到自然地表，永不挖掉设计洞顶衬砌格。
+     * 浅覆土（地表未高出洞顶）返回 {@code cellY}，表示不开挖。
+     */
+    public static int resolveTunnelSolidPunchTop(int cellY, int naturalSurfaceY, int designRoofY) {
+        if (naturalSurfaceY <= designRoofY) {
+            return cellY;
+        }
+        return Math.min(designRoofY - 1, naturalSurfaceY - 1);
     }
 
     static void punchColumn(RoadSolidModel solids, Vec2d planPoint, int cellY, int topY) {
@@ -156,6 +172,23 @@ public final class JunctionTerrainClearance {
                 "minecraft:air",
                 RoadSolidMaterialPriority.CLEARANCE);
         }
+    }
+
+    /**
+     * 带自然地表硬夹的开挖：任何调用方都不得把空气写到地表及以上。
+     */
+    public static void punchColumnBelowSurface(
+            RoadSolidModel solids,
+            Vec2d planPoint,
+            int cellY,
+            int requestedTopY,
+            TerrainSampler terrain) {
+        if (solids == null || planPoint == null || terrain == null) {
+            return;
+        }
+        int surfaceY = terrain.sampleSurfaceY(planPoint);
+        int topY = Math.min(requestedTopY, surfaceY - 1);
+        punchColumn(solids, planPoint, cellY, topY);
     }
 
     /**

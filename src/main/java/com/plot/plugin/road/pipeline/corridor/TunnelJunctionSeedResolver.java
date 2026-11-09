@@ -93,7 +93,9 @@ public final class TunnelJunctionSeedResolver {
                 unitsPerBlock = 1.0;
             }
             if (!TunnelJunctionConnectivityPass.tunnelAtNode(
-                    network, node, edge, result, config, centerline, segments, unitsPerBlock)) {
+                    network, node, edge, result, config, centerline, segments, unitsPerBlock)
+                    && !edgeHasTunnelFamilyConstruction(result)) {
+                // tunnelAtNode 窗口过紧时，整边已是隧道族仍按隧道进口处理，避免广场无 cap 掏穿覆土。
                 continue;
             }
             if (node.isStackGradeSeparated() && node.isStackUpperEdge(edgeId)) {
@@ -153,6 +155,23 @@ public final class TunnelJunctionSeedResolver {
             cap = Math.min(cap, approach.roadY() + clearHeight);
         }
         return cap == Integer.MAX_VALUE ? null : cap;
+    }
+
+    /**
+     * 边结果是否含隧道族施工（不限节点邻域）。用于清障 cap 兜底，防止漏检进口后广场挖穿覆土。
+     */
+    static boolean edgeHasTunnelFamilyConstruction(RoadGenerationResult result) {
+        if (result == null) {
+            return false;
+        }
+        if (result.constructionTypes != null) {
+            for (var type : result.constructionTypes) {
+                if (type != null && type.isTunnelFamily()) {
+                    return true;
+                }
+            }
+        }
+        return result.tunnelBlocks != null && !result.tunnelBlocks.isEmpty();
     }
 
     public static UnderpassYBand resolveUnderpassYBand(List<TunnelApproach> approaches) {
@@ -390,6 +409,14 @@ public final class TunnelJunctionSeedResolver {
     }
 
     private static Vec2d blockToPlan(BlockPos pos, ICoordinateService coordinateTransformer) {
+        return planPointForBlock(pos, coordinateTransformer);
+    }
+
+    /** 世界方块 → 画布平面点（连通/壳层地表保护共用）。 */
+    public static Vec2d planPointForBlock(BlockPos pos, ICoordinateService coordinateTransformer) {
+        if (pos == null) {
+            return new Vec2d(0, 0);
+        }
         if (coordinateTransformer != null) {
             Vec2d world = new Vec2d(pos.getX(), pos.getZ());
             var snapshot = coordinateTransformer.captureProjection();

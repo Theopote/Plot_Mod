@@ -648,7 +648,8 @@ public class RoadNetworkGenerator {
             roadGenerator.coordinateTransformer(),
             roadGenerator::estimateCanvasUnitsPerBlock,
             roadGenerator.projectionHandler()::getBlockIdAt,
-            session.networkResult().junctionReports);
+            session.networkResult().junctionReports,
+            session.terrain());
     }
 
     private void applyPostMergeJunctionValidation(

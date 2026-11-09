@@ -151,7 +151,8 @@ public final class TunnelJunctionShellPass {
             });
 
             Map<VoxelRole, Set<BlockPos>> roles = buildRoleMasks(
-                enclosedColumns, wallColumns, roadY, roofY, liningThickness);
+                enclosedColumns, wallColumns, roadY, roofY, liningThickness, terrain, footprint,
+                coordinateTransformer);
 
             // Phase A/B — 先写墙/顶，再按掩膜清洞腔（旧衬砌落在 CAVITY_AIR 必清）。
             for (BlockPos pos : roles.get(VoxelRole.WALL_LINING)) {
@@ -188,6 +189,10 @@ public final class TunnelJunctionShellPass {
             keepLining.addAll(roles.get(VoxelRole.WALL_LINING));
             keepLining.addAll(roles.get(VoxelRole.ROOF_LINING));
             for (BlockPos pos : roles.get(VoxelRole.CAVITY_AIR)) {
+                Vec2d plan = planPoint(footprint, new ColumnKey(pos.getX(), pos.getZ()), coordinateTransformer);
+                if (yAtOrAboveNaturalSurface(terrain, plan, pos.getY())) {
+                    continue;
+                }
                 if (TunnelJunctionConnectivityPass.hasProtectedPlacement(carriers, pos)) {
                     continue;
                 }
@@ -291,14 +296,22 @@ public final class TunnelJunctionShellPass {
             Set<ColumnKey> wallColumns,
             int roadY,
             int roofY,
-            int liningThickness) {
+            int liningThickness,
+            TerrainSampler terrain,
+            JunctionWorldFootprint footprint,
+            ICoordinateService transformer) {
         Map<VoxelRole, Set<BlockPos>> roles = new EnumMap<>(VoxelRole.class);
         roles.put(VoxelRole.CAVITY_AIR, new LinkedHashSet<>());
         roles.put(VoxelRole.WALL_LINING, new LinkedHashSet<>());
         roles.put(VoxelRole.ROOF_LINING, new LinkedHashSet<>());
 
         for (ColumnKey column : wallColumns) {
+            Vec2d plan = planPoint(footprint, column, transformer);
+            int surfaceY = terrain != null ? terrain.sampleSurfaceY(plan) : Integer.MAX_VALUE;
             for (int y = roadY; y <= roofY + liningThickness - 1; y++) {
+                if (y >= surfaceY) {
+                    continue;
+                }
                 roles.get(VoxelRole.WALL_LINING).add(
                     new BlockPos(column.worldX(), y, column.worldZ()));
             }
@@ -307,11 +320,17 @@ public final class TunnelJunctionShellPass {
             if (wallColumns.contains(column)) {
                 continue;
             }
-            for (int y = roadY + 1; y < roofY; y++) {
+            Vec2d plan = planPoint(footprint, column, transformer);
+            int surfaceY = terrain != null ? terrain.sampleSurfaceY(plan) : Integer.MAX_VALUE;
+            int cavityTop = Math.min(roofY - 1, surfaceY - 1);
+            for (int y = roadY + 1; y <= cavityTop; y++) {
                 roles.get(VoxelRole.CAVITY_AIR).add(
                     new BlockPos(column.worldX(), y, column.worldZ()));
             }
             for (int y = roofY; y < roofY + liningThickness; y++) {
+                if (y >= surfaceY) {
+                    continue;
+                }
                 roles.get(VoxelRole.ROOF_LINING).add(
                     new BlockPos(column.worldX(), y, column.worldZ()));
             }

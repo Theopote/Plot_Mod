@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadJunctionGeometry;
@@ -52,7 +53,8 @@ public final class TunnelJunctionConnectivityPass {
             RoadSystemConfig config,
             ICoordinateService coordinateTransformer,
             BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator) {
-        apply(network, edgeResults, nodeElevations, config, coordinateTransformer, unitsPerBlockEstimator, null, null);
+        apply(network, edgeResults, nodeElevations, config, coordinateTransformer,
+            unitsPerBlockEstimator, null, null, null);
     }
 
     public static void apply(
@@ -71,6 +73,7 @@ public final class TunnelJunctionConnectivityPass {
             coordinateTransformer,
             unitsPerBlockEstimator,
             previousBlockResolver,
+            null,
             null);
     }
 
@@ -83,6 +86,28 @@ public final class TunnelJunctionConnectivityPass {
             BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
             PreviousBlockResolver previousBlockResolver,
             Map<String, JunctionConstructionReport> reportSink) {
+        apply(
+            network,
+            edgeResults,
+            nodeElevations,
+            config,
+            coordinateTransformer,
+            unitsPerBlockEstimator,
+            previousBlockResolver,
+            reportSink,
+            null);
+    }
+
+    public static void apply(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
+            PreviousBlockResolver previousBlockResolver,
+            Map<String, JunctionConstructionReport> reportSink,
+            TerrainSampler terrain) {
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
@@ -130,6 +155,9 @@ public final class TunnelJunctionConnectivityPass {
                     polygon,
                     approachResults,
                     coordinateTransformer);
+                // 膨胀可能把空气顶到自然地表；连通清障不得改写地表及以上。
+                openVolume = retainBelowNaturalSurface(
+                    openVolume, terrain, coordinateTransformer);
                 if (openVolume.isEmpty()) {
                     continue;
                 }
@@ -154,6 +182,30 @@ public final class TunnelJunctionConnectivityPass {
                 connectivityApplied,
                 disconnectedComponents);
         }
+    }
+
+    static Set<BlockPos> retainBelowNaturalSurface(
+            Set<BlockPos> volume,
+            TerrainSampler terrain,
+            ICoordinateService coordinateTransformer) {
+        if (volume == null || volume.isEmpty() || terrain == null) {
+            return volume != null ? volume : Set.of();
+        }
+        Set<BlockPos> kept = new LinkedHashSet<>();
+        for (BlockPos pos : volume) {
+            if (pos == null) {
+                continue;
+            }
+            Vec2d plan = TunnelJunctionSeedResolver.planPointForBlock(pos, coordinateTransformer);
+            if (!terrain.isChunkLoaded(plan) && !terrain.isChunkLoaded(pos.getX(), pos.getZ())) {
+                continue;
+            }
+            if (pos.getY() >= terrain.sampleSurfaceY(plan)) {
+                continue;
+            }
+            kept.add(pos);
+        }
+        return kept;
     }
 
     private static void mergeTunnelReport(

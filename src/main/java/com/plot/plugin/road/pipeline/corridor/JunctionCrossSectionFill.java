@@ -609,12 +609,22 @@ public final class JunctionCrossSectionFill {
                 }
             }
             if (slope.hasCut() && groundY > slope.cutSurfaceY()) {
-                int cutTop = maxClearY != null ? Math.min(groundY, maxClearY) : groundY;
+                // 隧道净空上限下禁止开敞切坡挖穿地表；浅覆土直接跳过挖方。
+                if (maxClearY != null && groundY <= maxClearY) {
+                    continue;
+                }
+                int cutTop = maxClearY != null
+                    ? JunctionTerrainClearance.resolveTunnelSolidPunchTop(
+                        slope.cutSurfaceY(), groundY, maxClearY)
+                    : groundY - 1;
                 int cutFaceY = maxClearY != null
-                    ? Math.min(slope.cutSurfaceY(), maxClearY)
+                    ? Math.min(slope.cutSurfaceY(), maxClearY - 1)
                     : slope.cutSurfaceY();
                 if (cutTop > cutFaceY) {
                     for (int y = cutFaceY + 1; y <= cutTop; y++) {
+                        if (y >= groundY) {
+                            break;
+                        }
                         solids.add(
                             planPoint,
                             y,
@@ -623,7 +633,7 @@ public final class JunctionCrossSectionFill {
                             RoadSolidMaterialPriority.AIR);
                     }
                     String batterId = slope.cutMaterialId();
-                    if (batterId != null && !batterId.isBlank() && cutFaceY < cutTop) {
+                    if (batterId != null && !batterId.isBlank() && cutFaceY < cutTop && cutFaceY < groundY) {
                         solids.add(planPoint, cutFaceY, RoadSolidLayer.SUBGRADE, batterId);
                     }
                 }
@@ -780,11 +790,13 @@ public final class JunctionCrossSectionFill {
         }
         if (maxClearY != null) {
             int groundY = terrain.sampleSurfaceY(planPoint);
-            int columnTop = terrain.sampleColumnTopY(planPoint);
-            // 立交下层：清到桥底（含柱顶/残留），不只 engineering surface
-            int cutTop = Math.min(Math.max(groundY, columnTop), maxClearY);
+            // 隧道/立交净空上限：禁止经 gradeColumn 掏穿覆土或挖掉洞顶格。
+            // （旧逻辑 min(surface, maxClearY) 会在浅覆土圆角把山体挖穿到地表。）
+            int cutTop = JunctionTerrainClearance.resolveTunnelSolidPunchTop(
+                junctionY, groundY, maxClearY);
             if (cutTop > junctionY) {
-                JunctionTerrainClearance.punchColumn(solids, planPoint, junctionY, cutTop);
+                JunctionTerrainClearance.punchColumnBelowSurface(
+                    solids, planPoint, junctionY, cutTop, terrain);
             }
             int gradingGroundY = Math.min(groundY, maxClearY);
             if (gradingGroundY < junctionY && junctionY - gradingGroundY <= bridgeThreshold) {
