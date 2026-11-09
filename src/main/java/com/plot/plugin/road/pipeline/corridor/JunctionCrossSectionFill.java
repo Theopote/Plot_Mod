@@ -114,9 +114,9 @@ public final class JunctionCrossSectionFill {
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         EdgeProjection projection = nearestEdgeProjection(cellPoint, nodeId, edges, centerlineResolver);
-        RoadEdge widestEdge = selectWidestEdge(edges, network, config);
+        RoadEdge widestEdge = selectWidestEdge(edges, network, config, nodeId);
         ResolvedCrossSection widestSection = widestEdge != null
-            ? RoadModelUtils.resolveCrossSection(network, widestEdge, config)
+            ? RoadModelUtils.resolveCrossSectionAtNode(network, widestEdge, nodeId, config)
             : null;
         if (projection == null) {
             stampPlazaRoad(solids, cellPoint, stampY, widestSection, widestEdge, materials);
@@ -126,7 +126,8 @@ public final class JunctionCrossSectionFill {
             return true;
         }
 
-        ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, projection.edge(), config);
+        ResolvedCrossSection crossSection = resolveApproachCrossSection(
+            network, projection, nodeId, config, centerlineResolver, unitsPerBlock);
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d leftNormal = approachLeftNormal(projection.edge(), nodeId, centerlineResolver);
         double lateralDistance = cellPoint.subtract(projection.projectedCenter()).dot(leftNormal);
@@ -171,7 +172,8 @@ public final class JunctionCrossSectionFill {
         if (projection == null) {
             return RoadSolidLayer.ROAD;
         }
-        ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, projection.edge(), config);
+        ResolvedCrossSection crossSection = resolveApproachCrossSection(
+            network, projection, nodeId, config, centerlineResolver, unitsPerBlock);
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d leftNormal = approachLeftNormal(projection.edge(), nodeId, centerlineResolver);
         double lateralDistance = cellPoint.subtract(projection.projectedCenter()).dot(leftNormal);
@@ -585,7 +587,92 @@ public final class JunctionCrossSectionFill {
             List<RoadEdge> edges,
             RoadNetwork network,
             RoadSystemConfig config) {
-        return JunctionMaterialPolicy.selectMaterialOwner(edges, network, config);
+        return selectWidestEdge(edges, network, config, null);
+    }
+
+    static RoadEdge selectWidestEdge(
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            String nodeId) {
+        return JunctionMaterialPolicy.selectMaterialOwner(
+            edges, network, config, nodeId, edge -> true);
+    }
+
+    /** 在进口投影点对应的局部桩号解析横断面（变宽路段条带分类）。 */
+    private static ResolvedCrossSection resolveApproachCrossSection(
+            RoadNetwork network,
+            EdgeProjection projection,
+            String nodeId,
+            RoadSystemConfig config,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver,
+            double unitsPerBlock) {
+        if (projection == null || projection.edge() == null) {
+            return ResolvedCrossSection.fromConfig(config);
+        }
+        double alongCanvas = distanceAlongFromNode(
+            centerlineResolver.apply(projection.edge()),
+            projection.edge(),
+            nodeId,
+            projection.projectedCenter());
+        // along 与桩号域一致：画布距离；unitsPerBlock 仅供调用方横向分带使用
+        return RoadModelUtils.resolveCrossSectionAlongApproach(
+            network, projection.edge(), nodeId, alongCanvas, config);
+    }
+
+    private static double distanceAlongFromNode(
+            List<Vec2d> centerline,
+            RoadEdge edge,
+            String nodeId,
+            Vec2d projectedCenter) {
+        if (centerline == null || centerline.size() < 2 || projectedCenter == null || edge == null) {
+            return 0.0;
+        }
+        boolean fromStart = nodeId != null && nodeId.equals(edge.getStartNodeId());
+        double along = 0.0;
+        if (fromStart) {
+            for (int i = 0; i < centerline.size() - 1; i++) {
+                Vec2d a = centerline.get(i);
+                Vec2d b = centerline.get(i + 1);
+                Vec2d foot = RoadGeometryUtils.projectPointOnSegment(a, b, projectedCenter);
+                double seg = a.distance(b);
+                double toFoot = a.distance(foot);
+                if (foot.distance(projectedCenter) < 1e-4 || toFoot <= seg + 1e-6) {
+                    if (Math.abs(foot.x - projectedCenter.x) < 1e-3
+                            && Math.abs(foot.y - projectedCenter.y) < 1e-3) {
+                        return along + toFoot;
+                    }
+                }
+                // 累计到包含投影的线段
+                Vec2d ab = b.subtract(a);
+                double len2 = ab.lengthSquared();
+                if (len2 > 1e-12) {
+                    double t = projectedCenter.subtract(a).dot(ab) / len2;
+                    if (t >= -1e-6 && t <= 1.0 + 1e-6) {
+                        return along + Math.clamp(t, 0.0, 1.0) * seg;
+                    }
+                }
+                along += seg;
+            }
+            return along;
+        }
+        // 自 end 节点向外：从尾端反向累计
+        along = 0.0;
+        for (int i = centerline.size() - 1; i > 0; i--) {
+            Vec2d a = centerline.get(i);
+            Vec2d b = centerline.get(i - 1);
+            double seg = a.distance(b);
+            Vec2d ab = b.subtract(a);
+            double len2 = ab.lengthSquared();
+            if (len2 > 1e-12) {
+                double t = projectedCenter.subtract(a).dot(ab) / len2;
+                if (t >= -1e-6 && t <= 1.0 + 1e-6) {
+                    return along + Math.clamp(t, 0.0, 1.0) * seg;
+                }
+            }
+            along += seg;
+        }
+        return along;
     }
 
     private static void gradeColumn(

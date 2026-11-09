@@ -277,7 +277,9 @@ public final class RoadJunctionGeometry {
             return along -> junctionHalf;
         }
         double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
-        boolean outwardIncreases = nodeId.equals(edge.getStartNodeId());
+        // 按道路链定向判断：路口在 entry 则向外桩号递增；在 exit 则递减。
+        // 不可用 Edge 起终点——forward==false 时存储方向与链方向相反。
+        boolean outwardIncreases = outwardIncreasesStation(network, road, edge, nodeId);
         // stationAtNode 为 canonical；条带 along 为实例折线几何距离，先换算再回 canonical 查断面
         double baseCanonical = nodeStation.getAsDouble();
         double baseInstance = RoadStationing.toInstanceChainage(network, road, baseCanonical);
@@ -291,6 +293,22 @@ public final class RoadJunctionGeometry {
                 network, road, Math.max(0.0, station), config).totalHardSurfaceWidthBlocks();
             return RoadDimensionUtils.halfExtentFromCenter(blocks) * scale;
         };
+    }
+
+    /**
+     * 自路口节点沿进口向外时，道路 canonical/instance 桩号是否递增。
+     */
+    public static boolean outwardIncreasesStation(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            String nodeId) {
+        if (network == null || road == null || edge == null || nodeId == null) {
+            return true;
+        }
+        return RoadStationing.orientedSegment(network, road, edge.getId())
+            .map(oriented -> nodeId.equals(oriented.entryNodeId()))
+            .orElseGet(() -> nodeId.equals(edge.getStartNodeId()));
     }
 
     /**

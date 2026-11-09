@@ -80,7 +80,8 @@ public record JunctionGeometryResult(
             Vec2d tangentEnd,
             double radius,
             double cornerAngleRadians,
-            double sweepRadians) {
+            double sweepRadians,
+            Vec2d sharpCorner) {
         public FilletCorner(
                 Vec2d center,
                 Vec2d tangentStart,
@@ -93,7 +94,18 @@ public record JunctionGeometryResult(
                 tangentEnd,
                 radius,
                 cornerAngleRadians,
-                FilletArcSweep.resolveShort(center, tangentStart, tangentEnd));
+                FilletArcSweep.resolveShort(center, tangentStart, tangentEnd),
+                null);
+        }
+
+        public FilletCorner(
+                Vec2d center,
+                Vec2d tangentStart,
+                Vec2d tangentEnd,
+                double radius,
+                double cornerAngleRadians,
+                double sweepRadians) {
+            this(center, tangentStart, tangentEnd, radius, cornerAngleRadians, sweepRadians, null);
         }
 
         public FilletCorner {
@@ -105,6 +117,9 @@ public record JunctionGeometryResult(
             }
             if (tangentEnd != null) {
                 tangentEnd = tangentEnd.copy();
+            }
+            if (sharpCorner != null) {
+                sharpCorner = sharpCorner.copy();
             }
             radius = Math.max(0.0, radius);
             cornerAngleRadians = Math.max(0.0, cornerAngleRadians);

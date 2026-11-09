@@ -24,13 +24,28 @@ public final class JunctionMaterialPolicy {
     private JunctionMaterialPolicy() {
     }
 
-    /** 路口车行道材质所有权比较用的宽度（格）。 */
+    /** 路口车行道材质所有权比较用的宽度（格）；无节点时回退 Edge 起点断面。 */
     public static int carriagewayWidthScore(
             RoadNetwork network,
             RoadEdge edge,
             RoadSystemConfig config) {
+        return carriagewayWidthScore(network, edge, config, null);
+    }
+
+    /**
+     * 路口车行道宽度分：优先交叉点节点桩号处的有效车行道宽，避免变宽道路用错 Edge 起点断面。
+     */
+    public static int carriagewayWidthScore(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadSystemConfig config,
+            String nodeId) {
         if (network == null || edge == null || config == null) {
             return -1;
+        }
+        if (nodeId != null) {
+            return RoadModelUtils.resolveCrossSectionAtNode(network, edge, nodeId, config)
+                .carriagewayWidth;
         }
         return RoadModelUtils.getEffectiveWidth(network, edge, config);
     }
@@ -42,13 +57,22 @@ public final class JunctionMaterialPolicy {
             List<RoadEdge> edges,
             RoadNetwork network,
             RoadSystemConfig config) {
-        return selectMaterialOwner(edges, network, config, edge -> true);
+        return selectMaterialOwner(edges, network, config, null, edge -> true);
     }
 
     public static RoadEdge selectMaterialOwner(
             List<RoadEdge> edges,
             RoadNetwork network,
             RoadSystemConfig config,
+            Predicate<RoadEdge> eligible) {
+        return selectMaterialOwner(edges, network, config, null, eligible);
+    }
+
+    public static RoadEdge selectMaterialOwner(
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            String nodeId,
             Predicate<RoadEdge> eligible) {
         if (edges == null || edges.isEmpty() || network == null || config == null) {
             return null;
@@ -57,7 +81,7 @@ public final class JunctionMaterialPolicy {
         return edges.stream()
             .filter(Objects::nonNull)
             .filter(filter)
-            .max(materialOwnerComparator(network, config))
+            .max(materialOwnerComparator(network, config, nodeId))
             .orElse(null);
     }
 
@@ -99,6 +123,7 @@ public final class JunctionMaterialPolicy {
             edges,
             network,
             config,
+            node.getId(),
             edge -> !RoadGenerationResultAssembler.isElevatedJunctionEdge(
                 node, edge, resolvedElevatedRoadId));
     }
@@ -122,7 +147,10 @@ public final class JunctionMaterialPolicy {
         if (widest == null) {
             return fallback;
         }
-        String material = RoadModelUtils.getEffectiveMaterial(network, widest, config);
+        var section = RoadModelUtils.resolveCrossSectionAtNode(network, widest, node.getId(), config);
+        String material = section.carriagewayMaterial != null
+            ? section.carriagewayMaterial.getPrimaryMaterial()
+            : null;
         return material != null ? material : fallback;
     }
 
@@ -155,13 +183,16 @@ public final class JunctionMaterialPolicy {
             edges,
             network,
             config,
+            node.getId(),
             edge -> !RoadGenerationResultAssembler.isElevatedJunctionEdge(
                     node, edge, resolvedElevatedRoadId)
-                && RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config));
+                && RoadModelUtils.resolveCrossSectionAtNode(network, edge, node.getId(), config)
+                    .includeSidewalk);
         if (widest == null) {
             return fallback;
         }
-        String material = RoadModelUtils.getEffectiveSidewalkMaterial(network, widest, config);
+        String material = RoadModelUtils.resolveCrossSectionAtNode(
+            network, widest, node.getId(), config).sidewalkMaterial;
         return material != null ? material : fallback;
     }
 
@@ -181,7 +212,8 @@ public final class JunctionMaterialPolicy {
         if (widest == null || network == null || config == null) {
             return ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         }
-        String material = RoadModelUtils.resolveCrossSection(network, widest, config).markingMaterial;
+        String material = RoadModelUtils.resolveCrossSectionAtNode(
+            network, widest, node.getId(), config).markingMaterial;
         return material != null ? material : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     }
 
@@ -190,9 +222,10 @@ public final class JunctionMaterialPolicy {
      */
     private static Comparator<RoadEdge> materialOwnerComparator(
             RoadNetwork network,
-            RoadSystemConfig config) {
+            RoadSystemConfig config,
+            String nodeId) {
         return Comparator
-            .comparingInt((RoadEdge edge) -> carriagewayWidthScore(network, edge, config))
+            .comparingInt((RoadEdge edge) -> carriagewayWidthScore(network, edge, config, nodeId))
             .thenComparing(
                 RoadEdge::getId,
                 Comparator.nullsLast(Comparator.reverseOrder()));

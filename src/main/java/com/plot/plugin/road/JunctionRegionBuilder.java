@@ -220,13 +220,17 @@ public final class JunctionRegionBuilder {
                 requested,
                 List.of());
         }
-        FilletPass refined = refineFilletsOntoBandCurbs(
-            center,
-            bandPolygons,
-            tangentCore.overlapRegion(),
-            filletedTangents.curbArcs(),
-            requested,
-            10);
+        // 仅当进口条带半宽相对切线 halfWidth 有明显变宽/收窄时才精修，恒宽（含弯曲）走切线解
+        FilletPass refined = bandsIndicateVariableWidth(tangents, bandPolygons)
+            ? refineFilletsOntoBandCurbs(
+                center,
+                tangents,
+                bandPolygons,
+                tangentCore.overlapRegion(),
+                filletedTangents.curbArcs(),
+                requested,
+                10)
+            : new FilletPass(List.of(), List.of(), List.of(), List.of());
         List<List<Vec2d>> additions = refined.additions().isEmpty()
             ? filletedTangents.filletAdditions() : refined.additions();
         List<JunctionRegionGeometry.CurbArc> arcs = refined.arcs().isEmpty()
@@ -601,19 +605,61 @@ public final class JunctionRegionBuilder {
             List<Double> effectiveRadii) {
     }
 
+    /** 条带横向跨度相对进口 halfWidth 明显更大或更小 → 存在变宽/收窄。 */
+    private static boolean bandsIndicateVariableWidth(
+            List<JunctionCurbFilletBuilder.Approach> tangents,
+            List<List<Vec2d>> bandPolygons) {
+        if (tangents == null || bandPolygons == null) {
+            return false;
+        }
+        int n = Math.min(tangents.size(), bandPolygons.size());
+        for (int i = 0; i < n; i++) {
+            JunctionCurbFilletBuilder.Approach approach = tangents.get(i);
+            List<Vec2d> band = bandPolygons.get(i);
+            if (approach == null || band == null || band.size() < 3) {
+                continue;
+            }
+            double expected = 2.0 * approach.halfWidth();
+            double actual = bandCrossExtent(band, approach.outward());
+            // 阈值需大于斜交/弯曲条带相对进口法向的投影膨胀，避免五岔恒宽误触发
+            if (actual > expected + 4.0 || (expected > 2.0 && actual < expected - 4.0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static double bandCrossExtent(List<Vec2d> band, Vec2d along) {
+        if (band == null || along == null || along.lengthSquared() < 1e-12) {
+            return 0.0;
+        }
+        Vec2d normal = along.normalize().perpendicular();
+        double min = Double.POSITIVE_INFINITY;
+        double max = Double.NEGATIVE_INFINITY;
+        for (Vec2d p : band) {
+            if (p == null) {
+                continue;
+            }
+            double lat = p.dot(normal);
+            min = Math.min(min, lat);
+            max = Math.max(max, lat);
+        }
+        return Double.isFinite(min) && Double.isFinite(max) ? max - min : 0.0;
+    }
+
     /**
-     * 将切线近似求出的街角弧切点投影到真实进口条带外缘，并按局部路缘法向重求解。
-     * 用种子切点定位变宽/弯曲路缘上的实际切点位置，避免在交叉中心窄断面处取样。
-     * 失败的角回退原切线弧，保证恒宽正交不受损。
+     * 将切线近似圆角精修到「该街角所属两条进口的外侧路缘」上。
+     * 只在指定外侧路缘折线上吸附，不扫端盖/内部重叠边；变宽与收窄均触发。
      */
     static FilletPass refineFilletsOntoBandCurbs(
             Vec2d center,
+            List<JunctionCurbFilletBuilder.Approach> tangents,
             List<List<Vec2d>> bandPolygons,
             List<Vec2d> overlapCorners,
             List<JunctionRegionGeometry.CurbArc> seedArcs,
             double requested,
             int arcSegments) {
-        if (center == null || bandPolygons == null
+        if (center == null || bandPolygons == null || tangents == null
                 || seedArcs == null || seedArcs.isEmpty() || requested < MIN_RADIUS) {
             return new FilletPass(List.of(), List.of(), List.of(), List.of());
         }
@@ -625,18 +671,32 @@ public final class JunctionRegionBuilder {
             if (seed == null || seed.radius() < MIN_RADIUS) {
                 continue;
             }
-            // 仅当种子切点落在真实条带内部（距外缘>容差）时才吸附——
-            // 说明真实路缘在切线半宽之外（变宽/弯曲），恒宽贴边则保持切线解。
-            CornerFillet snapped = seedTangentsInteriorToBands(seed, bandPolygons)
-                ? snapFilletOntoBandCurbs(center, seed, bandPolygons)
-                : null;
-            boolean moved = snapped != null && filletTangentsMoved(seed, snapped, 0.45);
+            Vec2d overlapSharp = nearestOverlapCorner(overlapCorners, seed);
+            StreetCornerBands cornerBands = resolveStreetCornerBands(
+                center, overlapSharp, seed, tangents, bandPolygons);
+            CornerFillet snapped = null;
+            Vec2d sharp = overlapSharp;
+            // 仅当种子相对指定外侧路缘明显内偏（变宽）或外偏（收窄）时精修
+            if (cornerBands != null && seedNeedsOuterCurbSnap(seed, cornerBands)) {
+                snapped = snapFilletOntoOuterCurbs(center, seed, cornerBands);
+                if (snapped != null) {
+                    Vec2d bandSharp = outerCurbIntersection(cornerBands, overlapSharp);
+                    if (bandSharp != null) {
+                        sharp = bandSharp;
+                    }
+                }
+            }
+            double moveTol = Math.max(1.0, 0.2 * seed.radius());
+            boolean moved = snapped != null && filletTangentsMoved(seed, snapped, moveTol);
             CornerFillet use = moved ? snapped : seedAsFillet(seed);
             if (use == null) {
                 continue;
             }
             if (moved) {
                 anySnap = true;
+            }
+            if (sharp == null) {
+                sharp = seed.sharpCorner() != null ? seed.sharpCorner() : reconstructSharpFromFillet(use);
             }
             radii.add(use.radius());
             arcs.add(new JunctionRegionGeometry.CurbArc(
@@ -646,21 +706,12 @@ public final class JunctionRegionBuilder {
                 use.radius(),
                 use.cornerAngle(),
                 use.shrinkReason(),
-                use.sweepRadians()));
-            Vec2d sharp = nearestOverlapCorner(overlapCorners, seed);
-            if (sharp == null) {
-                sharp = reconstructSharpFromFillet(use);
-            } else if (moved) {
-                Vec2d bandSharp = nearestBandIntersectionNear(bandPolygons, sharp);
-                if (bandSharp != null) {
-                    sharp = bandSharp;
-                }
-            }
+                use.sweepRadians(),
+                sharp));
             if (sharp != null) {
                 additions.add(filletAddition(sharp, use, Math.max(3, arcSegments)));
             }
         }
-        // 无切点实质移动时交还空结果，调用方继续使用切线拓扑圆角（恒宽黄金期望不受扰）
         if (!anySnap) {
             return new FilletPass(List.of(), List.of(), List.of(), List.of());
         }
@@ -683,50 +734,263 @@ public final class JunctionRegionBuilder {
         return Math.max(d1, d2) >= minMove;
     }
 
+    private record StreetCornerBands(
+            JunctionCurbFilletBuilder.Approach approachA,
+            JunctionCurbFilletBuilder.Approach approachB,
+            List<Vec2d> outerCurbA,
+            List<Vec2d> outerCurbB,
+            List<Vec2d> bandA,
+            List<Vec2d> bandB) {
+    }
+
     /**
-     * 种子切点是否深入其最近条带内部（真实路缘在切线半宽之外）。
-     * 只检查最近条带，避免五岔等多臂重叠时误把邻臂并集当成“变宽”。
+     * 由街角锐点确定两条进口，并各自提取面向草地的外侧路缘折线（排除端盖）。
      */
-    private static boolean seedTangentsInteriorToBands(
+    private static StreetCornerBands resolveStreetCornerBands(
+            Vec2d center,
+            Vec2d corner,
             JunctionRegionGeometry.CurbArc seed,
-            List<List<Vec2d>> bands) {
-        if (seed == null || bands == null) {
-            return false;
+            List<JunctionCurbFilletBuilder.Approach> tangents,
+            List<List<Vec2d>> bandPolygons) {
+        Vec2d sharp = corner != null ? corner : (seed != null ? seed.center() : null);
+        if (center == null || sharp == null || tangents == null || bandPolygons == null) {
+            return null;
         }
-        return pointInteriorToClosestBand(seed.tangentStart(), bands)
-            || pointInteriorToClosestBand(seed.tangentEnd(), bands);
+        int[] pair = nearestApproachPair(center, sharp, tangents);
+        if (pair == null) {
+            return null;
+        }
+        JunctionCurbFilletBuilder.Approach a = tangents.get(pair[0]);
+        JunctionCurbFilletBuilder.Approach b = tangents.get(pair[1]);
+        List<Vec2d> bandA = bandForApproach(pair[0], tangents, bandPolygons);
+        List<Vec2d> bandB = bandForApproach(pair[1], tangents, bandPolygons);
+        if (a == null || b == null || bandA == null || bandB == null) {
+            return null;
+        }
+        List<Vec2d> curbA = extractOuterCurbPolyline(center, sharp, a, bandA);
+        List<Vec2d> curbB = extractOuterCurbPolyline(center, sharp, b, bandB);
+        if (curbA.size() < 2 || curbB.size() < 2) {
+            return null;
+        }
+        return new StreetCornerBands(a, b, curbA, curbB, bandA, bandB);
     }
 
-    private static boolean pointInteriorToClosestBand(Vec2d point, List<List<Vec2d>> bands) {
-        BoundaryHit hit = closestBoundaryHit(point, bands);
-        if (hit == null || hit.bandIndex() < 0 || hit.bandIndex() >= bands.size()) {
-            return false;
+    private static int[] nearestApproachPair(
+            Vec2d center,
+            Vec2d corner,
+            List<JunctionCurbFilletBuilder.Approach> tangents) {
+        if (tangents == null || tangents.size() < 2) {
+            return null;
         }
-        List<Vec2d> band = bands.get(hit.bandIndex());
-        if (band == null || band.size() < 3 || point == null) {
-            return false;
+        Vec2d radial = corner.subtract(center);
+        if (radial.lengthSquared() < 1e-12) {
+            return null;
         }
-        return RoadGeometryUtils.pointInPolygon(point, band)
-            && distanceToPolygonBoundary(point, band) > 0.45;
+        radial = radial.normalize();
+        int bestI = -1;
+        int bestJ = -1;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < tangents.size(); i++) {
+            for (int j = i + 1; j < tangents.size(); j++) {
+                JunctionCurbFilletBuilder.Approach a = tangents.get(i);
+                JunctionCurbFilletBuilder.Approach b = tangents.get(j);
+                if (a == null || b == null) {
+                    continue;
+                }
+                double sideA = Math.signum(radial.dot(a.leftNormal()));
+                double sideB = Math.signum(radial.dot(b.leftNormal()));
+                if (Math.abs(sideA) < 1e-9 || Math.abs(sideB) < 1e-9) {
+                    continue;
+                }
+                Vec2d outA = a.leftNormal().multiply(sideA);
+                Vec2d outB = b.leftNormal().multiply(sideB);
+                double score = outA.dot(radial) + outB.dot(radial);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestI = i;
+                    bestJ = j;
+                }
+            }
+        }
+        return bestI >= 0 ? new int[]{bestI, bestJ} : null;
+    }
+
+    private static List<Vec2d> bandForApproach(
+            int approachIndex,
+            List<JunctionCurbFilletBuilder.Approach> tangents,
+            List<List<Vec2d>> bandPolygons) {
+        if (approachIndex < 0 || approachIndex >= tangents.size()) {
+            return null;
+        }
+        if (approachIndex < bandPolygons.size() && bandPolygons.get(approachIndex) != null) {
+            return bandPolygons.get(approachIndex);
+        }
+        JunctionCurbFilletBuilder.Approach approach = tangents.get(approachIndex);
+        if (approach == null || approach.outward().lengthSquared() < 1e-12) {
+            return null;
+        }
+        Vec2d dir = approach.outward().normalize();
+        List<Vec2d> best = null;
+        double bestDot = -2.0;
+        for (List<Vec2d> band : bandPolygons) {
+            if (band == null || band.size() < 3) {
+                continue;
+            }
+            Vec2d c = polygonCentroid(band);
+            if (c == null || c.lengthSquared() < 1e-12) {
+                continue;
+            }
+            double dot = c.normalize().dot(dir);
+            if (dot > bestDot) {
+                bestDot = dot;
+                best = band;
+            }
+        }
+        return best;
+    }
+
+    private static Vec2d polygonCentroid(List<Vec2d> ring) {
+        double sx = 0.0;
+        double sy = 0.0;
+        int n = 0;
+        for (Vec2d p : ring) {
+            if (p == null) {
+                continue;
+            }
+            sx += p.x;
+            sy += p.y;
+            n++;
+        }
+        return n == 0 ? null : new Vec2d(sx / n, sy / n);
     }
 
     /**
-     * 把种子弧的两个切点分别吸附到最近真实条带外缘，再以局部外法向偏置 R 求圆心。
+     * 提取面向街角草地的外侧路缘折线；跳过与进口方向近乎垂直的端盖边。
      */
-    static CornerFillet snapFilletOntoBandCurbs(
+    private static List<Vec2d> extractOuterCurbPolyline(
+            Vec2d center,
+            Vec2d corner,
+            JunctionCurbFilletBuilder.Approach approach,
+            List<Vec2d> band) {
+        if (band == null || band.size() < 2 || approach == null) {
+            return List.of();
+        }
+        Vec2d radial = corner.subtract(center);
+        if (radial.lengthSquared() < 1e-12) {
+            return List.of();
+        }
+        radial = radial.normalize();
+        double side = Math.signum(radial.dot(approach.leftNormal()));
+        if (Math.abs(side) < 1e-9) {
+            side = 1.0;
+        }
+        Vec2d desiredOut = approach.leftNormal().multiply(side).normalize();
+        Vec2d along = approach.outward().normalize();
+        List<Vec2d> curb = new ArrayList<>();
+        int n = band.size();
+        for (int i = 0; i < n; i++) {
+            Vec2d a = band.get(i);
+            Vec2d b = band.get((i + 1) % n);
+            if (a == null || b == null) {
+                continue;
+            }
+            Vec2d ab = b.subtract(a);
+            double len2 = ab.lengthSquared();
+            if (len2 < 1e-12) {
+                continue;
+            }
+            Vec2d tangent = ab.normalize();
+            // 端盖：近似垂直于进口方向
+            if (Math.abs(tangent.dot(along)) < 0.35) {
+                continue;
+            }
+            Vec2d mid = new Vec2d(0.5 * (a.x + b.x), 0.5 * (a.y + b.y));
+            Vec2d outward = tangent.perpendicular();
+            if (outward.dot(mid.subtract(center)) < 0.0) {
+                outward = outward.multiply(-1.0);
+            }
+            if (outward.normalize().dot(desiredOut) < 0.25) {
+                continue;
+            }
+            if (curb.isEmpty() || curb.getLast().distance(a) > 1e-4) {
+                curb.add(a);
+            }
+            curb.add(b);
+        }
+        return curb.size() >= 2 ? curb : List.of();
+    }
+
+    /**
+     * 种子切点是否已落在该街角两条指定外侧路缘上；任一偏离超过半宽比例容差则需精修。
+     * 只量到外侧路缘的距离，避免邻臂条带重叠造成的内外误判。
+     */
+    private static boolean seedNeedsOuterCurbSnap(
+            JunctionRegionGeometry.CurbArc seed,
+            StreetCornerBands bands) {
+        if (seed == null || bands == null
+                || bands.approachA() == null || bands.approachB() == null) {
+            return false;
+        }
+        double tol = Math.max(
+            1.0,
+            0.25 * Math.max(bands.approachA().halfWidth(), bands.approachB().halfWidth()));
+        return tangentOffDesignatedOuterCurb(seed.tangentStart(), bands, tol)
+            || tangentOffDesignatedOuterCurb(seed.tangentEnd(), bands, tol);
+    }
+
+    private static boolean tangentOffDesignatedOuterCurb(
+            Vec2d tangent,
+            StreetCornerBands bands,
+            double tol) {
+        if (tangent == null) {
+            return false;
+        }
+        double toOuter = distanceToNearestOuterCurb(tangent, bands);
+        if (toOuter <= tol) {
+            return false;
+        }
+        // 提取外侧路缘失败/不全时，种子仍可能贴在完整条带边界上——此时不精修
+        double toBand = Math.min(
+            distanceToPolygonBoundary(tangent, bands.bandA()),
+            distanceToPolygonBoundary(tangent, bands.bandB()));
+        return toBand > tol;
+    }
+
+    private static double distanceToNearestOuterCurb(Vec2d point, StreetCornerBands bands) {
+        if (point == null || bands == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return Math.min(
+            distanceToPolyline(point, bands.outerCurbA()),
+            distanceToPolyline(point, bands.outerCurbB()));
+    }
+
+    /**
+     * 仅在两条指定外侧路缘上吸附种子切点，再按外法向偏置求圆心。
+     */
+    static CornerFillet snapFilletOntoOuterCurbs(
             Vec2d center,
             JunctionRegionGeometry.CurbArc seed,
-            List<List<Vec2d>> bandPolygons) {
-        if (center == null || seed == null || bandPolygons == null || bandPolygons.size() < 2) {
+            StreetCornerBands bands) {
+        if (center == null || seed == null || bands == null) {
             return null;
         }
-        BoundaryHit hitA = closestBoundaryHit(seed.tangentStart(), bandPolygons);
-        BoundaryHit hitB = closestBoundaryHit(seed.tangentEnd(), bandPolygons);
+        BoundaryHit directA = closestHitOnPolyline(seed.tangentStart(), bands.outerCurbA(), 0);
+        BoundaryHit directB = closestHitOnPolyline(seed.tangentEnd(), bands.outerCurbB(), 1);
+        BoundaryHit swapA = closestHitOnPolyline(seed.tangentStart(), bands.outerCurbB(), 1);
+        BoundaryHit swapB = closestHitOnPolyline(seed.tangentEnd(), bands.outerCurbA(), 0);
+        double directCost = hitPairCost(seed.tangentStart(), seed.tangentEnd(), directA, directB);
+        double swapCost = hitPairCost(seed.tangentStart(), seed.tangentEnd(), swapA, swapB);
+        BoundaryHit hitA;
+        BoundaryHit hitB;
+        if (directCost <= swapCost) {
+            hitA = directA;
+            hitB = directB;
+        } else {
+            hitA = swapA;
+            hitB = swapB;
+        }
         if (hitA == null || hitB == null) {
-            return null;
-        }
-        // 两个切点应落在不同条带上；同带则几何退化
-        if (hitA.bandIndex() == hitB.bandIndex()) {
             return null;
         }
         Vec2d outA = hitA.outwardNormal(center);
@@ -739,12 +1003,10 @@ public final class JunctionRegionBuilder {
         Vec2d offsetB = hitB.point().add(outB.multiply(radius));
         Vec2d filletCenter = lineIntersection(offsetA, hitA.tangent(), offsetB, hitB.tangent());
         if (filletCenter == null) {
-            // 平行路缘：用两偏置中点近似
             filletCenter = new Vec2d(
                 0.5 * (offsetA.x + offsetB.x),
                 0.5 * (offsetA.y + offsetB.y));
         }
-        // 圆心应在草地侧（相对路口中心比切点更外）
         if (filletCenter.distance(center) + 1e-6 < hitA.point().distance(center)
                 && filletCenter.distance(center) + 1e-6 < hitB.point().distance(center)) {
             return null;
@@ -760,8 +1022,12 @@ public final class JunctionRegionBuilder {
                 || Math.abs(filletCenter.distance(tangentB) - radius) > 0.55) {
             return null;
         }
-        if (distanceToPolygonBoundary(tangentA, bandPolygons.get(hitA.bandIndex())) > 0.85
-                || distanceToPolygonBoundary(tangentB, bandPolygons.get(hitB.bandIndex())) > 0.85) {
+        if (distanceToPolyline(tangentA, bands.outerCurbA()) > 0.85
+                && distanceToPolyline(tangentA, bands.outerCurbB()) > 0.85) {
+            return null;
+        }
+        if (distanceToPolyline(tangentB, bands.outerCurbA()) > 0.85
+                && distanceToPolyline(tangentB, bands.outerCurbB()) > 0.85) {
             return null;
         }
         double normalCos = Math.clamp(outA.dot(outB), -1.0, 1.0);
@@ -772,6 +1038,41 @@ public final class JunctionRegionBuilder {
         double sweep = FilletArcSweep.resolveShort(filletCenter, tangentA, tangentB);
         return new CornerFillet(
             filletCenter, tangentA, tangentB, radius, grassAngle, "band_curb", sweep);
+    }
+
+    private static Vec2d outerCurbIntersection(StreetCornerBands bands, Vec2d near) {
+        if (bands == null) {
+            return null;
+        }
+        Vec2d best = null;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (Vec2d hit : openPolylineIntersections(bands.outerCurbA(), bands.outerCurbB())) {
+            if (hit == null) {
+                continue;
+            }
+            double d = near != null ? hit.distance(near) : hit.lengthSquared();
+            if (d < bestDist) {
+                bestDist = d;
+                best = hit;
+            }
+        }
+        return bestDist < 6.0 ? best : null;
+    }
+
+    private static List<Vec2d> openPolylineIntersections(List<Vec2d> a, List<Vec2d> b) {
+        List<Vec2d> hits = new ArrayList<>();
+        if (a == null || b == null || a.size() < 2 || b.size() < 2) {
+            return hits;
+        }
+        for (int i = 0; i < a.size() - 1; i++) {
+            for (int j = 0; j < b.size() - 1; j++) {
+                Vec2d hit = segmentIntersection(a.get(i), a.get(i + 1), b.get(j), b.get(j + 1));
+                if (hit != null) {
+                    hits.add(hit);
+                }
+            }
+        }
+        return hits;
     }
 
     private record BoundaryHit(Vec2d point, Vec2d tangent, int bandIndex) {
@@ -787,39 +1088,44 @@ public final class JunctionRegionBuilder {
         }
     }
 
-    private static BoundaryHit closestBoundaryHit(Vec2d query, List<List<Vec2d>> bands) {
-        if (query == null || bands == null) {
+    private static BoundaryHit closestHitOnPolyline(Vec2d query, List<Vec2d> polyline, int id) {
+        if (query == null || polyline == null || polyline.size() < 2) {
             return null;
         }
         BoundaryHit best = null;
         double bestDist = Double.POSITIVE_INFINITY;
-        for (int b = 0; b < bands.size(); b++) {
-            List<Vec2d> ring = bands.get(b);
-            if (ring == null || ring.size() < 2) {
+        for (int i = 0; i < polyline.size() - 1; i++) {
+            Vec2d a = polyline.get(i);
+            Vec2d c = polyline.get(i + 1);
+            if (a == null || c == null) {
                 continue;
             }
-            int n = ring.size();
-            for (int i = 0; i < n; i++) {
-                Vec2d a = ring.get(i);
-                Vec2d c = ring.get((i + 1) % n);
-                if (a == null || c == null) {
-                    continue;
-                }
-                Vec2d ab = c.subtract(a);
-                double len2 = ab.lengthSquared();
-                if (len2 < 1e-12) {
-                    continue;
-                }
-                double t = Math.clamp(query.subtract(a).dot(ab) / len2, 0.0, 1.0);
-                Vec2d foot = a.add(ab.multiply(t));
-                double d = query.distance(foot);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = new BoundaryHit(foot, ab.normalize(), b);
-                }
+            Vec2d ab = c.subtract(a);
+            double len2 = ab.lengthSquared();
+            if (len2 < 1e-12) {
+                continue;
+            }
+            double t = Math.clamp(query.subtract(a).dot(ab) / len2, 0.0, 1.0);
+            Vec2d foot = a.add(ab.multiply(t));
+            double d = query.distance(foot);
+            if (d < bestDist) {
+                bestDist = d;
+                best = new BoundaryHit(foot, ab.normalize(), id);
             }
         }
         return best;
+    }
+
+    private static double hitPairCost(Vec2d q0, Vec2d q1, BoundaryHit h0, BoundaryHit h1) {
+        if (h0 == null || h1 == null || q0 == null || q1 == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return q0.distance(h0.point()) + q1.distance(h1.point());
+    }
+
+    private static double distanceToPolyline(Vec2d point, List<Vec2d> polyline) {
+        BoundaryHit hit = closestHitOnPolyline(point, polyline, 0);
+        return hit == null ? Double.POSITIVE_INFINITY : point.distance(hit.point());
     }
 
     private static Vec2d nearestOverlapCorner(
@@ -841,29 +1147,6 @@ public final class JunctionRegionBuilder {
             }
         }
         return best;
-    }
-
-    private static Vec2d nearestBandIntersectionNear(List<List<Vec2d>> bands, Vec2d near) {
-        if (bands == null || near == null) {
-            return null;
-        }
-        Vec2d best = null;
-        double bestDist = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < bands.size(); i++) {
-            for (int j = i + 1; j < bands.size(); j++) {
-                for (Vec2d hit : segmentIntersections(bands.get(i), bands.get(j))) {
-                    if (hit == null) {
-                        continue;
-                    }
-                    double d = hit.distance(near);
-                    if (d < bestDist) {
-                        bestDist = d;
-                        best = hit;
-                    }
-                }
-            }
-        }
-        return bestDist < 4.0 ? best : null;
     }
 
     private static CornerFillet seedAsFillet(JunctionRegionGeometry.CurbArc seed) {
@@ -940,7 +1223,8 @@ public final class JunctionRegionBuilder {
                 fillet.radius(),
                 fillet.cornerAngle(),
                 fillet.shrinkReason(),
-                fillet.sweepRadians()));
+                fillet.sweepRadians(),
+                corner));
             additions.add(filletAddition(corner, fillet, arcSegments));
         }
         // 最终轮廓环保持锐角并集：圆角只体现在 curbArcs / filletAdditions。
@@ -1172,7 +1456,8 @@ public final class JunctionRegionBuilder {
                 fillet.radius(),
                 fillet.cornerAngle(),
                 fillet.shrinkReason(),
-                fillet.sweepRadians()));
+                fillet.sweepRadians(),
+                curr));
             additions.add(filletAddition(curr, fillet, arcSegments));
             appendArc(finalRing, fillet, arcSegments);
         }

@@ -591,7 +591,9 @@ public class RoadJunctionGenerator {
         if (Math.abs(sweep) < 1e-9 || Math.abs(sweep) > Math.PI + 1e-6) {
             return List.of();
         }
-        Vec2d sharp = reconstructFilletSharpCorner(fillet, sweep);
+        Vec2d sharp = fillet.sharpCorner() != null
+            ? fillet.sharpCorner()
+            : reconstructFilletSharpCorner(fillet, sweep);
         if (sharp == null) {
             return List.of();
         }

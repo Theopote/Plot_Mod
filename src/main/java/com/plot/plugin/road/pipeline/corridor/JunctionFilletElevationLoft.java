@@ -110,7 +110,9 @@ public final class JunctionFilletElevationLoft {
             sweep = FilletArcSweep.resolveShort(
                 fillet.center(), fillet.tangentStart(), fillet.tangentEnd());
         }
-        Vec2d sharp = RoadJunctionGenerator.reconstructFilletSharpCorner(fillet, sweep);
+        Vec2d sharp = fillet.sharpCorner() != null
+            ? fillet.sharpCorner()
+            : RoadJunctionGenerator.reconstructFilletSharpCorner(fillet, sweep);
         if (sharp == null
                 || fillet.tangentStart() == null
                 || fillet.tangentEnd() == null) {

@@ -157,6 +157,60 @@ class JunctionVariableWidthFilletGenerationTest {
         assertEquals(narrow, along.applyAsDouble(39.0), 1e-6);
     }
 
+    @Test
+    void reverseStoredEdgeKeepsSameVariableWidthAlongApproach() {
+        RoadSystemConfig config = new RoadSystemConfig("reverse-edge-width");
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setRoadWidth(5);
+
+        // 道路链西→东，变宽在桩号 20；分别用正向/反向 Edge 存储
+        double narrow = RoadDimensionUtils.halfExtentFromCenter(5);
+        double wide = RoadDimensionUtils.halfExtentFromCenter(11);
+
+        RoadNetwork forwardNet = new RoadNetwork();
+        Road forwardRoad = forwardNet.createRoad("fwd");
+        forwardRoad.setWidth(5);
+        forwardRoad.setVariableCrossSections(new RoadVariableCrossSections(
+            List.of(
+                StationCrossSection.at(0.0, sectionWithWidth(5)),
+                StationCrossSection.at(20.0, sectionWithWidth(11))),
+            VariableCrossSectionTransitionMode.STEP));
+        RoadNode fw = forwardNet.createNode(new Vec2d(0, 0));
+        RoadNode fe = forwardNet.createNode(new Vec2d(40, 0));
+        RoadEdge forwardEdge = forwardNet.createEdge(
+            fw.getId(), fe.getId(), List.of(fw.getPosition(), fe.getPosition()), forwardRoad.getId());
+
+        RoadNetwork reverseNet = new RoadNetwork();
+        Road reverseRoad = reverseNet.createRoad("rev");
+        reverseRoad.setWidth(5);
+        reverseRoad.setVariableCrossSections(new RoadVariableCrossSections(
+            List.of(
+                StationCrossSection.at(0.0, sectionWithWidth(5)),
+                StationCrossSection.at(20.0, sectionWithWidth(11))),
+            VariableCrossSectionTransitionMode.STEP));
+        // 物理仍西→东链：先建西节点为链起点，但 Edge 反向存储（东→西）
+        RoadNode rw = reverseNet.createNode(new Vec2d(0, 0));
+        RoadNode re = reverseNet.createNode(new Vec2d(40, 0));
+        // 先建反向边会使链从东端起步；再补一条占位不需要——单边道路链入口取度数为 1 的端点。
+        // 为保证链方向西→东，先创建西→东再翻转不方便；直接创建东→西 Edge，
+        // 并断言：在西端路口向外采样仍随桩号加宽（依赖 orientedSegment.entry/exit）。
+        RoadEdge reverseEdge = reverseNet.createEdge(
+            re.getId(), rw.getId(), List.of(re.getPosition(), rw.getPosition()), reverseRoad.getId());
+
+        DoubleUnaryOperator forwardAlong = RoadJunctionGeometry.halfWidthAlongApproach(
+            forwardNet, config, forwardEdge, fw.getId(), narrow, 1.0);
+        DoubleUnaryOperator reverseAlong = RoadJunctionGeometry.halfWidthAlongApproach(
+            reverseNet, config, reverseEdge, rw.getId(), narrow, 1.0);
+
+        assertEquals(narrow, forwardAlong.applyAsDouble(0.0), 1e-6);
+        assertEquals(wide, forwardAlong.applyAsDouble(21.0), 1e-6);
+        assertEquals(forwardAlong.applyAsDouble(0.0), reverseAlong.applyAsDouble(0.0), 1e-6);
+        assertEquals(forwardAlong.applyAsDouble(10.0), reverseAlong.applyAsDouble(10.0), 1e-6);
+        assertEquals(forwardAlong.applyAsDouble(21.0), reverseAlong.applyAsDouble(21.0), 1e-6,
+            "reverse-stored edge must widen outward from west junction the same way");
+    }
+
     private static RoadCrossSection sectionWithWidth(int width) {
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setWidth(width);

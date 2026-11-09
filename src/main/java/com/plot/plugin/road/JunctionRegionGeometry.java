@@ -92,7 +92,8 @@ public record JunctionRegionGeometry(
                 arc.tangentEnd(),
                 arc.radius(),
                 arc.cornerAngle(),
-                arc.sweepRadians()))
+                arc.sweepRadians(),
+                arc.sharpCorner()))
             .toList();
         // fillPolygon：在重叠核角织入路缘弧，供清障外形 / 预览轮廓；与锐角 final 环分离
         List<Vec2d> fill = JunctionRegionBuilder.expandUnionWithStreetArcs(
@@ -131,7 +132,7 @@ public record JunctionRegionGeometry(
         }
     }
 
-    /** 单个街角路缘圆弧（圆心在铺装外侧，弧向街角扩展）。 */
+    /** 单个街角路缘圆弧（圆心在铺装外侧，弧向街角扩展）；{@code sharpCorner} 为权威街角锐点。 */
     public record CurbArc(
             Vec2d center,
             Vec2d tangentStart,
@@ -139,7 +140,8 @@ public record JunctionRegionGeometry(
             double radius,
             double cornerAngle,
             String shrinkReason,
-            double sweepRadians) {
+            double sweepRadians,
+            Vec2d sharpCorner) {
         public CurbArc(
                 Vec2d center,
                 Vec2d tangentStart,
@@ -154,7 +156,19 @@ public record JunctionRegionGeometry(
                 radius,
                 cornerAngle,
                 shrinkReason,
-                FilletArcSweep.resolveShort(center, tangentStart, tangentEnd));
+                FilletArcSweep.resolveShort(center, tangentStart, tangentEnd),
+                null);
+        }
+
+        public CurbArc(
+                Vec2d center,
+                Vec2d tangentStart,
+                Vec2d tangentEnd,
+                double radius,
+                double cornerAngle,
+                String shrinkReason,
+                double sweepRadians) {
+            this(center, tangentStart, tangentEnd, radius, cornerAngle, shrinkReason, sweepRadians, null);
         }
 
         public CurbArc {
@@ -166,6 +180,9 @@ public record JunctionRegionGeometry(
             }
             if (tangentEnd != null) {
                 tangentEnd = tangentEnd.copy();
+            }
+            if (sharpCorner != null) {
+                sharpCorner = sharpCorner.copy();
             }
             radius = Math.max(0.0, radius);
             cornerAngle = Math.max(0.0, cornerAngle);
