@@ -87,6 +87,26 @@ class JunctionTerrainClearanceTunnelCoverTest {
     }
 
     @Test
+    void trenchSurfaceBelowRoadStillClearsCavityLiningUnderRoof() {
+        // 路堑：heightmap 低于路面时不得被当成浅覆土而整列停挖
+        assertEquals(68, JunctionTerrainClearance.resolveTunnelSolidPunchTop(64, 50, 69));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        Vec2d plan = new Vec2d(5, -3);
+        TerrainSampler trench = surfaceAt(50);
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, 64, 4, trench, 5, -3, plan, null, 68, 69);
+
+        int maxAirY = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .mapToInt(p -> p.elevation())
+            .max()
+            .orElse(64);
+        assertTrue(maxAirY >= 67 && maxAirY < 69,
+            "trench column must clear cavity lining under roof, maxAir=" + maxAirY);
+    }
+
+    @Test
     void gradedFilletUsesLoftedRoofCapNotFlatJunctionCap() {
         // 坡降圆角：路面 loft 到 60，若仍用平坦 junction 洞顶 69，会挖穿应落顶衬的 65
         int loftRoadY = 60;

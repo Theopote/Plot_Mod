@@ -101,9 +101,10 @@ public final class JunctionTerrainClearance {
     }
 
     /**
-     * @param absoluteClearTopY 绝对净空上限（隧道设计洞腔顶 = roadY+clearHeight）；与 elevatedDeckY 取更严者。
-     *                          隧道平交必须传入；实体清障止于 {@code min(cap-1, surfaceY-1)}，
-     *                          浅覆土列（地表未高出洞顶）禁止掏穿自然地表。
+     * @param absoluteClearTopY 隧道设计洞腔顶（roadY+clearHeight）。仅隧道进口传入；
+     *                          深覆土实体清障止于 {@code min(roof-1, surfaceY-1)}，浅覆土按露天清到地表下。
+     *                          开敞平交必须传 null，以便清掉残留边路与柱顶树冠（可高于 heightmap）。
+     *                          立交桥底上限由 {@code elevatedDeckY} 单独约束，勿与洞顶 cap 混用 {@code roof-1}。
      */
     public static void clearOverheadColumn(
             RoadSolidModel solids,
@@ -130,24 +131,27 @@ public final class JunctionTerrainClearance {
         // 树冠可达十余格；heightmap/隧道阈值都可能偏矮，装饰扫描至少留 24 格净空。
         int headroom = Math.max(24, tunnelThreshold);
         int decoCeil = Math.max(topY, cellY + headroom);
-        Integer clearCap = absoluteClearTopY;
-        if (elevatedDeckY != null) {
-            // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
-            // 净空只清到 supportBottom - 1。
-            int deckCap = elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1;
-            clearCap = clearCap == null ? deckCap : Math.min(clearCap, deckCap);
-        }
+
+        boolean hasTunnelRoofCap = absoluteClearTopY != null;
         int coverAboveRoad = surfaceY - cellY;
-        // 浅覆土（含开敞平交、洞口广场）：即使调用方传了隧道洞顶 cap，也按露天清到地表，
-        // 否则 resolveTunnelSolidPunchTop 会因 surface<=roof 整列停挖，圆角铺装被地形盖住。
-        boolean shallowCover = coverAboveRoad < tunnelThreshold;
-        if (clearCap != null && !shallowCover) {
-            int solidPunchTop = resolveTunnelSolidPunchTop(cellY, surfaceY, clearCap);
+        // 浅覆土 = 地表仍高于路面且覆土不足阈值。地表≤路面（路堑/填方）不是浅覆：
+        // 那时 surfaceY-1 会落在路面以下，整列停挖，洞腔残留衬砌清不掉。
+        boolean shallowTunnelCover = hasTunnelRoofCap && surfaceY > cellY && coverAboveRoad < tunnelThreshold;
+        if (hasTunnelRoofCap && !shallowTunnelCover) {
+            int solidPunchTop = resolveTunnelSolidPunchTop(cellY, surfaceY, absoluteClearTopY);
             topY = Math.min(topY, solidPunchTop);
             decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
-        } else {
-            // 无洞顶 cap 或浅覆：露天路堑最多挖到 surfaceY-1，装饰扫描保留完整 headroom。
+        } else if (shallowTunnelCover) {
+            // 洞口/浅覆土：即使有洞顶 cap 也按露天清到地表下，避免整列停挖盖住圆角。
             topY = Math.min(topY, surfaceY - 1);
+        }
+
+        if (elevatedDeckY != null) {
+            // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
+            // 净空只清到 supportBottom - 1（deckCap 已是可写空气的最高 Y，勿再 -1）。
+            int deckCap = elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1;
+            topY = Math.min(topY, deckCap);
+            decoCeil = Math.min(decoCeil, deckCap);
         }
         punchColumn(solids, planPoint, cellY, topY);
         clearDecorationsAbove(solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);
@@ -155,9 +159,16 @@ public final class JunctionTerrainClearance {
 
     /**
      * 隧道路口实体开挖顶：永不挖到自然地表，永不挖掉设计洞顶衬砌格。
-     * 浅覆土（地表未高出洞顶）返回 {@code cellY}，表示不开挖。
+     * <ul>
+     *   <li>地表 ≤ 路面：路面以上可清到洞顶下（清残留衬砌），不会掏穿地表</li>
+     *   <li>路面 &lt; 地表 ≤ 洞顶：浅覆土，返回 {@code cellY}（不开挖）</li>
+     *   <li>地表 &gt; 洞顶：深覆土，返回 {@code min(roof-1, surface-1)}</li>
+     * </ul>
      */
     public static int resolveTunnelSolidPunchTop(int cellY, int naturalSurfaceY, int designRoofY) {
+        if (naturalSurfaceY <= cellY) {
+            return designRoofY - 1;
+        }
         if (naturalSurfaceY <= designRoofY) {
             return cellY;
         }
