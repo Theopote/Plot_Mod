@@ -163,7 +163,7 @@ public final class TunnelJunctionShellPass {
             Set<ColumnKey> wallColumns = wallRingAround(enclosedColumns, liningThickness);
             wallColumns.removeIf(column -> {
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                int roadY = roadYByColumn.computeIfAbsent(column, c -> roadYAt.applyAsInt(c));
+                int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
                 return !columnHasEnclosedCover(
                     terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold);
             });

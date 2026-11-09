@@ -24,44 +24,6 @@ public record JunctionConstructionReport(
         return new JunctionConstructionReport(nodeId, 0, 0, 0, 0, 0, false, 0, 0, 0, 0, 0, 0);
     }
 
-    public boolean hasSurfaceGaps() {
-        return missingSurfaceColumns > 0
-            || postMergeMissingSurfaceColumns > 0
-            || postMergeSurfaceSemanticMismatches > 0
-            || postMergeSurfaceYMismatches > 0;
-    }
-
-    public boolean hasConflicts() {
-        return blockedTunnelAirBlocks > 0
-            || protectedStructureConflicts > 0
-            || unresolvedClearanceBlocks > 0
-            || postMergeProtectedLosses > 0
-            || postMergeSurfaceSemanticMismatches > 0
-            || disconnectedTunnelComponents > 0
-            || crossLayerLeaks > 0
-            || postMergeSurfaceYMismatches > 0;
-    }
-
-    public JunctionConstructionReport withLocalSurface(
-            int expectedSurfaceColumns,
-            int missingSurfaceColumns,
-            int unresolvedClearanceBlocks) {
-        return new JunctionConstructionReport(
-            nodeId,
-            expectedSurfaceColumns,
-            missingSurfaceColumns,
-            blockedTunnelAirBlocks,
-            protectedStructureConflicts,
-            unresolvedClearanceBlocks,
-            tunnelConnectivityApplied,
-            postMergeMissingSurfaceColumns,
-            postMergeSurfaceSemanticMismatches,
-            postMergeProtectedLosses,
-            disconnectedTunnelComponents,
-            crossLayerLeaks,
-            postMergeSurfaceYMismatches);
-    }
-
     public JunctionConstructionReport withTunnelConnectivity(
             int blockedTunnelAirBlocks,
             int protectedStructureConflicts,
@@ -81,21 +43,6 @@ public record JunctionConstructionReport(
             disconnectedTunnelComponents,
             crossLayerLeaks,
             postMergeSurfaceYMismatches);
-    }
-
-    public JunctionConstructionReport withPostMerge(
-            int postMergeMissingSurfaceColumns,
-            int postMergeSurfaceSemanticMismatches,
-            int postMergeProtectedLosses,
-            int disconnectedTunnelComponents,
-            int crossLayerLeaks) {
-        return withPostMerge(
-            postMergeMissingSurfaceColumns,
-            postMergeSurfaceSemanticMismatches,
-            postMergeProtectedLosses,
-            disconnectedTunnelComponents,
-            crossLayerLeaks,
-            0);
     }
 
     public JunctionConstructionReport withPostMerge(

@@ -167,37 +167,7 @@ public final class TunnelJunctionSeedResolver {
             if (approach == null || approach.tunnelStyle() == null) {
                 continue;
             }
-            clear = Math.min(clear, Math.max(1, approach.tunnelStyle().clearHeight()));
-        }
-        return clear == Integer.MAX_VALUE ? null : clear;
-    }
-
-    /**
-     * 进口漏检时从边隧道预设取更严净空高度。
-     */
-    public static Integer inferTunnelClearHeightFromEdges(
-            RoadNetwork network,
-            List<RoadEdge> edges,
-            Map<String, RoadGenerationResult> edgeResults,
-            RoadSystemConfig config) {
-        if (network == null || edges == null || edges.isEmpty() || edgeResults == null || config == null) {
-            return null;
-        }
-        int clear = Integer.MAX_VALUE;
-        for (RoadEdge edge : edges) {
-            if (edge == null) {
-                continue;
-            }
-            RoadGenerationResult result = edgeResults.get(edge.getId());
-            if (!edgeHasTunnelFamilyConstruction(result)) {
-                continue;
-            }
-            Road road = RoadModelUtils.resolveRoad(network, edge);
-            ResolvedTunnelStyle style = TunnelStyle.resolve(road, config);
-            if (style == null) {
-                continue;
-            }
-            clear = Math.min(clear, Math.max(1, style.clearHeight()));
+            clear = Math.clamp(approach.tunnelStyle().clearHeight(), 1, clear);
         }
         return clear == Integer.MAX_VALUE ? null : clear;
     }
