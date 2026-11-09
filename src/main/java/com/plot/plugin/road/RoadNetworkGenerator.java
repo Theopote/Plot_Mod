@@ -14,6 +14,7 @@ import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.pipeline.corridor.TunnelFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
+import com.plot.plugin.road.pipeline.corridor.TunnelJunctionShellPass;
 import com.plot.plugin.road.pipeline.profile.AdjacentJunctionProfileContinuity;
 import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.profile.RoadProfileChartData;
@@ -628,6 +629,17 @@ public class RoadNetworkGenerator {
         if (session == null || !session.isPrepared()) {
             return;
         }
+        // 圆角弧形侧墙/顶衬须在连通清障之前写入，避免只剩挖空而无壳。
+        TunnelJunctionShellPass.apply(
+            session.generationNetwork(),
+            session.networkResult().getEdgeResults(),
+            session.nodeElevations(),
+            roadGenerator.getConfig(),
+            roadGenerator.coordinateTransformer(),
+            roadGenerator::estimateCanvasUnitsPerBlock,
+            session.terrain(),
+            roadGenerator::getBlockIdFromMaterial,
+            roadGenerator.projectionHandler()::getBlockIdAt);
         TunnelJunctionConnectivityPass.apply(
             session.generationNetwork(),
             session.networkResult().getEdgeResults(),

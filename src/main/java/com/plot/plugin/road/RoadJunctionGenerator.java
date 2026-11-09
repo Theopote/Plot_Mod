@@ -14,6 +14,7 @@ import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceExpectation;
 import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceMask;
 import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
 import com.plot.plugin.road.pipeline.corridor.JunctionValidationManifest;
+import com.plot.plugin.road.pipeline.corridor.JunctionWorldFootprint;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionSeedResolver;
 import com.plot.plugin.road.pipeline.corridor.TunnelPortalSeed;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
@@ -378,52 +379,31 @@ public class RoadJunctionGenerator {
             TerrainSampler terrain,
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations) {
-        // 清障外形：完整倒圆角足迹。表面铺装：区域式时仅重叠核∪圆角补铺。
+        // 清障外形：完整倒圆角足迹。表面铺装：与走廊裁剪共用 JunctionWorldFootprint 世界列。
         List<Vec2d> clearance = filletedPolygon != null && filletedPolygon.size() >= 3
             ? filletedPolygon
             : sharpPolygon;
         if (clearance == null || clearance.size() < 3) {
             clearance = filletedPolygon;
         }
-        List<Vec2d> stampFootprint = junctionSurfaceFootprint(geometry, clearance, sharpPolygon);
-        List<Vec2d> surfaceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
-            stampFootprint,
-            generator.coordinateTransformer()));
-        // 圆角补铺：additions + fill\sharp + 扇形栅格（投影下薄三角容易漏世界格）
-        if (geometry != null && geometry.hasRegionZones()) {
-            for (List<Vec2d> addition : geometry.filletAdditions()) {
-                if (addition == null || addition.size() < 3) {
-                    continue;
-                }
-                surfaceCells.addAll(RoadGeometryUtils.collectWorldCellPlanPoints(
-                    addition, generator.coordinateTransformer()));
+        JunctionWorldFootprint footprint = JunctionWorldFootprint.from(
+            geometry, generator.coordinateTransformer());
+        List<Vec2d> surfaceCells = footprint.planPointsFor(footprint.paveColumns());
+        List<Vec2d> clearanceCells = footprint.planPointsFor(footprint.clearance());
+        if (surfaceCells.isEmpty()) {
+            // 回退：掩膜为空时仍走旧栅格，避免无几何时整路口空白
+            List<Vec2d> stampFootprint = junctionSurfaceFootprint(geometry, clearance, sharpPolygon);
+            surfaceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
+                stampFootprint, generator.coordinateTransformer()));
+            if (geometry != null && !geometry.fillets().isEmpty()) {
+                surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
+                surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
             }
-            List<Vec2d> sharp = geometry.sharpPolygon();
-            List<Vec2d> filleted = geometry.fillPolygon();
-            if (filleted != null && filleted.size() >= 3) {
-                for (Vec2d cell : RoadGeometryUtils.collectWorldCellPlanPoints(
-                        filleted, generator.coordinateTransformer())) {
-                    if (cell == null) {
-                        continue;
-                    }
-                    if (sharp == null || sharp.size() < 3
-                            || !RoadGeometryUtils.pointInPolygon(cell, sharp)) {
-                        surfaceCells.add(cell);
-                    }
-                }
-            }
-            surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
-        } else if (geometry != null && !geometry.fillets().isEmpty()) {
-            // 旧路径无 region zones 时仍按街角补铺 gore 栅格，避免只有预览弧、世界无铺装
-            surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
         }
-        // 清障按完整倒圆角外形栅格；表面按核区∪补铺——二者不得绑死
-        List<Vec2d> clearanceCells = clearance != null && clearance.size() >= 3
-            ? new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
-                clearance, generator.coordinateTransformer()))
-            : List.of();
+        if (clearanceCells.isEmpty() && clearance != null && clearance.size() >= 3) {
+            clearanceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
+                clearance, generator.coordinateTransformer()));
+        }
         if (surfaceCells.isEmpty() && center != null) {
             surfaceCells = List.of(center);
         }
@@ -798,8 +778,8 @@ public class RoadJunctionGenerator {
             0,
             0));
 
-        // 隧道进口禁止开敞切坡：与走廊 RoadEarthworkPolicy 一致，避免洞内十字边坡掏山。
-        if (stampSurface && tunnelApproaches.isEmpty()) {
+        // 开敞街角放坡；深覆土圆角由 filletCornerAllowsOpenBatter 逐角跳过，交给隧道壳。
+        if (stampSurface) {
             JunctionCrossSectionFill.stampApproachSlopeBatters(
                 blocks.getSolids(),
                 node.getPosition(),

@@ -84,8 +84,48 @@ public final class SlopeBandRasterizer {
             ShoulderRay b,
             TerrainSampler terrain,
             RoadCorridorPlanBuilder.PlanHost host) {
+        if (host == null) {
+            return List.of();
+        }
+        return fillBetweenRays(
+            a,
+            b,
+            terrain,
+            host::canonicalColumnPoint,
+            host::worldX,
+            host::worldZ);
+    }
+
+    /**
+     * 路口圆角等无完整 {@link RoadCorridorPlanBuilder.PlanHost} 的调用方：仅需世界列换算。
+     */
+    public static List<SlopeProfileSample> fillBetweenRays(
+            ShoulderRay a,
+            ShoulderRay b,
+            TerrainSampler terrain,
+            com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
+        if (columnResolver == null) {
+            return List.of();
+        }
+        return fillBetweenRays(
+            a,
+            b,
+            terrain,
+            point -> point,
+            columnResolver::worldX,
+            columnResolver::worldZ);
+    }
+
+    private static List<SlopeProfileSample> fillBetweenRays(
+            ShoulderRay a,
+            ShoulderRay b,
+            TerrainSampler terrain,
+            java.util.function.UnaryOperator<Vec2d> canonicalColumnPoint,
+            java.util.function.ToIntFunction<Vec2d> worldX,
+            java.util.function.ToIntFunction<Vec2d> worldZ) {
         List<SlopeProfileSample> samples = new ArrayList<>();
-        if (a == null || b == null || terrain == null || host == null) {
+        if (a == null || b == null || terrain == null
+                || canonicalColumnPoint == null || worldX == null || worldZ == null) {
             return samples;
         }
         if (!canConnectBand(a, b)) {
@@ -134,8 +174,8 @@ public final class SlopeBandRasterizer {
                         terrain.findExposedWaterSurface(samplePoint))) {
                     continue;
                 }
-                Vec2d planPoint = host.canonicalColumnPoint(samplePoint);
-                ColumnKey key = new ColumnKey(host.worldX(planPoint), host.worldZ(planPoint));
+                Vec2d planPoint = canonicalColumnPoint.apply(samplePoint);
+                ColumnKey key = new ColumnKey(worldX.applyAsInt(planPoint), worldZ.applyAsInt(planPoint));
                 SlopeRayId bandRayId = new SlopeRayId(
                     bandSeed - stampIndex++,
                     parent.rayId().side());

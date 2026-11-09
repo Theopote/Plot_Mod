@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadDimensionUtils;
@@ -34,6 +35,16 @@ public final class JunctionCorridorTrim {
             ResolvedCrossSection crossSection,
             RoadSystemConfig config,
             double unitsPerBlock) {
+        return forEdge(network, edge, crossSection, config, unitsPerBlock, null);
+    }
+
+    public static JunctionCorridorBuildContext forEdge(
+            RoadNetwork network,
+            RoadEdge edge,
+            ResolvedCrossSection crossSection,
+            RoadSystemConfig config,
+            double unitsPerBlock,
+            ICoordinateService coordinateTransformer) {
         if (network == null || edge == null || crossSection == null) {
             return JunctionCorridorBuildContext.NONE;
         }
@@ -48,17 +59,22 @@ public final class JunctionCorridorTrim {
         double skipStart = 0.0;
         double skipEnd = 0.0;
         List<List<Vec2d>> polygons = new ArrayList<>();
+        JunctionWorldFootprint footprint = JunctionWorldFootprint.empty();
         boolean preserveClearance = false;
 
         if (shouldTrimAtEndpoint(network, edge, startNode)) {
             // skipDistance 已按画布尺度返回（半宽/核区随 scale）
             skipStart = skipDistanceAtNode(network, edge, startNode, crossSection, config, scale);
-            polygons.addAll(exclusionPolygons(network, startNode, config, scale));
+            ExclusionBundle startBundle = exclusionBundle(network, startNode, config, scale, coordinateTransformer);
+            polygons.addAll(startBundle.polygons());
+            footprint = footprint.union(startBundle.footprint());
             preserveClearance |= isGradeSeparatedLowerApproach(network, edge, startNode);
         }
         if (shouldTrimAtEndpoint(network, edge, endNode)) {
             skipEnd = skipDistanceAtNode(network, edge, endNode, crossSection, config, scale);
-            polygons.addAll(exclusionPolygons(network, endNode, config, scale));
+            ExclusionBundle endBundle = exclusionBundle(network, endNode, config, scale, coordinateTransformer);
+            polygons.addAll(endBundle.polygons());
+            footprint = footprint.union(endBundle.footprint());
             preserveClearance |= isGradeSeparatedLowerApproach(network, edge, endNode);
         }
 
@@ -72,7 +88,8 @@ public final class JunctionCorridorTrim {
         return new JunctionCorridorBuildContext(
             new StationFacilityJunctionTrim.FacilityEndpointTrim(skipStart, skipEnd),
             List.copyOf(polygons),
-            preserveClearance);
+            preserveClearance,
+            footprint);
     }
 
     /** Lower road at a grade-sep node: keep underpass clearance when plaza surface is handed to junction. */
@@ -106,21 +123,25 @@ public final class JunctionCorridorTrim {
      * 走廊排除区：区域式优先用重叠核 + 圆角补铺（不含进口路臂），
      * 使路臂保留各道路原材质；旧路径回退完整锐角足迹。
      * 几何与 {@link RoadJunctionGenerator} 相同画布尺度，避免排除区偏小、走廊盖住街角倒圆。
+     * 同时产出与路口铺装/清障共用的 {@link JunctionWorldFootprint}。
      */
-    private static List<List<Vec2d>> exclusionPolygons(
+    private static ExclusionBundle exclusionBundle(
             RoadNetwork network,
             RoadNode node,
             RoadSystemConfig config,
-            double canvasScale) {
+            double canvasScale,
+            ICoordinateService coordinateTransformer) {
         JunctionGeometryResult geometry = resolveJunctionGeometry(
             network, node, config, /*cornerRadiusBlocks*/ 0.0, canvasScale);
         List<List<Vec2d>> polygons = new ArrayList<>();
+        JunctionGeometryResult footprintGeometry = geometry;
         if (geometry.hasRegionZones()) {
             polygons.add(geometry.overlapRegion());
             double cornerBlocks = RoadJunctionGenerator.resolveCornerRadius(node, network, config);
             if (cornerBlocks > 1e-6) {
                 JunctionGeometryResult filleted = resolveJunctionGeometry(
                     network, node, config, cornerBlocks, canvasScale);
+                footprintGeometry = filleted;
                 for (List<Vec2d> addition : filleted.filletAdditions()) {
                     if (addition != null && addition.size() >= 3) {
                         polygons.add(addition);
@@ -134,14 +155,23 @@ public final class JunctionCorridorTrim {
                     }
                 }
             }
-            return polygons;
+            return new ExclusionBundle(
+                polygons, JunctionWorldFootprint.from(footprintGeometry, coordinateTransformer));
         }
         if (geometry.sharpPolygon().size() >= 3) {
             polygons.add(geometry.sharpPolygon());
         } else if (geometry.fillPolygon().size() >= 3) {
             polygons.add(geometry.fillPolygon());
         }
-        return polygons;
+        return new ExclusionBundle(
+            polygons, JunctionWorldFootprint.from(footprintGeometry, coordinateTransformer));
+    }
+
+    private record ExclusionBundle(List<List<Vec2d>> polygons, JunctionWorldFootprint footprint) {
+        private ExclusionBundle {
+            polygons = polygons != null ? List.copyOf(polygons) : List.of();
+            footprint = footprint != null ? footprint : JunctionWorldFootprint.empty();
+        }
     }
 
     private static double skipDistanceAtNode(

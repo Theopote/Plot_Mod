@@ -12,21 +12,33 @@ import java.util.List;
  * <p>
  * Grade-separated lower approaches keep clearance columns inside the plaza so the underpass
  * headroom is cleared even when the junction surface stamp does not emit air.
+ * <p>
+ * When {@link #worldFootprint()} is non-empty, corridor trim prefers exact {@link ColumnKey}
+ * membership so junction pave/clearance and corridor exclusion share one world-column mask.
  */
 public record JunctionCorridorBuildContext(
         StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
         List<List<Vec2d>> exclusionPolygons,
-        boolean preserveClearanceInExclusion) {
+        boolean preserveClearanceInExclusion,
+        JunctionWorldFootprint worldFootprint) {
 
     public static final JunctionCorridorBuildContext NONE = new JunctionCorridorBuildContext(
         StationFacilityJunctionTrim.FacilityEndpointTrim.NONE,
         List.of(),
-        false);
+        false,
+        JunctionWorldFootprint.empty());
 
     public JunctionCorridorBuildContext(
             StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
             List<List<Vec2d>> exclusionPolygons) {
-        this(endpointTrim, exclusionPolygons, false);
+        this(endpointTrim, exclusionPolygons, false, JunctionWorldFootprint.empty());
+    }
+
+    public JunctionCorridorBuildContext(
+            StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
+            List<List<Vec2d>> exclusionPolygons,
+            boolean preserveClearanceInExclusion) {
+        this(endpointTrim, exclusionPolygons, preserveClearanceInExclusion, JunctionWorldFootprint.empty());
     }
 
     public JunctionCorridorBuildContext {
@@ -38,5 +50,12 @@ public record JunctionCorridorBuildContext(
         } else {
             exclusionPolygons = List.copyOf(exclusionPolygons);
         }
+        if (worldFootprint == null) {
+            worldFootprint = JunctionWorldFootprint.empty();
+        }
+    }
+
+    public boolean hasColumnMask() {
+        return worldFootprint != null && !worldFootprint.isEmpty();
     }
 }

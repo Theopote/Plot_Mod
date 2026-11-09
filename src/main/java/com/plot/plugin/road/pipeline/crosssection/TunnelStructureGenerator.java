@@ -959,7 +959,7 @@ public final class TunnelStructureGenerator {
      * Air pockets in the shell still get lining so gravity blocks (gravel/sand) cannot fall through.
      * Open air at/above the surface and clearable decoration (trees) stay without lining.
      */
-    static boolean shouldPlaceLining(
+    public static boolean shouldPlaceLining(
             TerrainSampler terrain,
             int worldX,
             int y,

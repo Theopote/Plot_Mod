@@ -17,6 +17,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -303,7 +305,8 @@ public final class JunctionCrossSectionFill {
 
     /**
      * 沿路缘圆角短弧向外打边坡：圆心在草地侧，弧上点外法向指向草地（{@code center - arcPoint}）。
-     * 材质/坡比跟随路口材质主道路；关闭 {@code includeSlopeBatter} 时跳过。
+     * 相邻圆弧射线之间用 {@link SlopeBandRasterizer#fillBetweenRays} 补三角空隙。
+     * 深覆土（隧道路角）跳过开敞放坡，交给隧道壳。
      */
     private static List<SlopeProfileSample> collectFilletArcBatterSamples(
             List<JunctionGeometryResult.FilletCorner> fillets,
@@ -333,6 +336,7 @@ public final class JunctionCrossSectionFill {
         String cutBlockId = crossSection.cutSlopeMaterial != null && !crossSection.cutSlopeMaterial.isBlank()
             ? materials.resolve(crossSection.cutSlopeMaterial)
             : null;
+        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(config);
         List<SlopeProfileSample> samples = new ArrayList<>();
         long rayId = rayIdBase + 1_000L;
         for (int filletIndex = 0; filletIndex < fillets.size(); filletIndex++) {
@@ -342,6 +346,9 @@ public final class JunctionCrossSectionFill {
                     || fillet.tangentStart() == null
                     || fillet.tangentEnd() == null
                     || fillet.radius() <= 1e-6) {
+                continue;
+            }
+            if (!filletCornerAllowsOpenBatter(fillet, junctionY, terrain, tunnelThreshold, scale)) {
                 continue;
             }
             double sweep = fillet.sweepRadians();
@@ -357,6 +364,7 @@ public final class JunctionCrossSectionFill {
             double startAngle = Math.atan2(
                 fillet.tangentStart().y - fillet.center().y,
                 fillet.tangentStart().x - fillet.center().x);
+            List<SlopeBandRasterizer.ShoulderRay> arcRays = new ArrayList<>();
             for (int i = 0; i <= segs; i++) {
                 double t = (double) i / segs;
                 Vec2d onArc = FilletArcSweep.pointOnArc(
@@ -367,19 +375,89 @@ public final class JunctionCrossSectionFill {
                 }
                 outward = outward.normalize();
                 int arcY = filletLoft != null ? filletLoft.surfaceY(onArc) : junctionY;
-                // signedOuterLateral=0：弧点即路缘外缘
-                samples.addAll(collectShoulderBatterSamples(
+                ShoulderBatterBuild build = buildShoulderBatter(
                     onArc, outward, arcY, 0,
                     terrain, scale, outward, fillBlockId, cutBlockId,
                     crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, maxHorizontalRun,
                     columnResolver,
-                    new SlopeRayId(rayId + filletIndex * 64L + i, SlopeRayId.ShoulderSide.LEFT)));
+                    new SlopeRayId(rayId + filletIndex * 64L + i, SlopeRayId.ShoulderSide.LEFT));
+                samples.addAll(build.samples());
+                if (build.ray() != null) {
+                    arcRays.add(build.ray());
+                }
+            }
+            for (int i = 1; i < arcRays.size(); i++) {
+                samples.addAll(SlopeBandRasterizer.fillBetweenRays(
+                    arcRays.get(i - 1), arcRays.get(i), terrain, columnResolver));
             }
         }
         return samples;
     }
 
+    /**
+     * 街角覆土达到隧道门槛时视为洞内圆角：不做开敞放坡。
+     * 混合洞口路口仅对仍开敞的街角放坡。
+     */
+    static boolean filletCornerAllowsOpenBatter(
+            JunctionGeometryResult.FilletCorner fillet,
+            int junctionY,
+            TerrainSampler terrain,
+            int tunnelThreshold,
+            double scale) {
+        if (fillet == null || fillet.center() == null || terrain == null) {
+            return false;
+        }
+        Vec2d probe = fillet.center();
+        if (fillet.tangentStart() != null && fillet.tangentEnd() != null && fillet.radius() > 1e-6) {
+            double sweep = fillet.sweepRadians();
+            if (!Double.isFinite(sweep) || Math.abs(sweep) < 1e-9) {
+                sweep = FilletArcSweep.resolveShort(
+                    fillet.center(), fillet.tangentStart(), fillet.tangentEnd());
+            }
+            double startAngle = Math.atan2(
+                fillet.tangentStart().y - fillet.center().y,
+                fillet.tangentStart().x - fillet.center().x);
+            probe = FilletArcSweep.pointOnArc(
+                fillet.center(), fillet.radius(), startAngle + sweep * 0.5);
+        }
+        if (!terrain.isChunkLoaded(probe)) {
+            return false;
+        }
+        int cover = terrain.sampleSurfaceY(probe) - junctionY;
+        int threshold = Math.max(2, tunnelThreshold);
+        return cover < threshold;
+    }
+
+    private record ShoulderBatterBuild(
+            List<SlopeProfileSample> samples,
+            SlopeBandRasterizer.ShoulderRay ray) {
+        private ShoulderBatterBuild {
+            samples = samples != null ? List.copyOf(samples) : List.of();
+        }
+    }
+
     private static List<SlopeProfileSample> collectShoulderBatterSamples(
+            Vec2d center,
+            Vec2d corridorLeftNormal,
+            int targetY,
+            int signedOuterLateral,
+            TerrainSampler terrain,
+            double scale,
+            Vec2d outwardNormal,
+            String fillBlockId,
+            String cutBlockId,
+            float fillRatio,
+            float cutRatio,
+            int maxHorizontalRun,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            SlopeRayId rayId) {
+        return buildShoulderBatter(
+            center, corridorLeftNormal, targetY, signedOuterLateral, terrain, scale, outwardNormal,
+            fillBlockId, cutBlockId, fillRatio, cutRatio, maxHorizontalRun, columnResolver, rayId)
+            .samples();
+    }
+
+    private static ShoulderBatterBuild buildShoulderBatter(
             Vec2d center,
             Vec2d corridorLeftNormal,
             int targetY,
@@ -399,17 +477,17 @@ public final class JunctionCrossSectionFill {
         Vec2d normal = normalize(outwardNormal);
         Vec2d outerEdge = center.add(leftNormal.multiply(signedOuterLateral * scale));
         if (!terrain.isChunkLoaded(outerEdge)) {
-            return samples;
+            return new ShoulderBatterBuild(samples, null);
         }
         int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
         if (targetY == groundAtEdge) {
-            return samples;
+            return new ShoulderBatterBuild(samples, null);
         }
         boolean isFill = targetY > groundAtEdge;
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
         if (slopeRatio <= 0f) {
-            return samples;
+            return new ShoulderBatterBuild(samples, null);
         }
         int heightDifference = Math.abs(targetY - groundAtEdge);
         int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
@@ -417,7 +495,7 @@ public final class JunctionCrossSectionFill {
         int usefulHorizontalRun = Math.clamp(unconstrainedRun, 2, maxHorizontalRun);
         String materialId = isFill ? fillBlockId : cutBlockId;
         if (materialId == null || materialId.isBlank()) {
-            return samples;
+            return new ShoulderBatterBuild(samples, null);
         }
 
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
@@ -434,11 +512,12 @@ public final class JunctionCrossSectionFill {
             usefulHorizontalRun);
 
         if (profile.size() <= 1) {
-            return samples;
+            return new ShoulderBatterBuild(samples, null);
         }
 
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
         SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
+        boolean allowWaterEmbankment = false;
 
         for (int step = 0; step < profile.size(); step++) {
             int[] point = profile.get(step);
@@ -448,12 +527,29 @@ public final class JunctionCrossSectionFill {
             if (!terrain.isChunkLoaded(samplePoint)) {
                 continue;
             }
+            if (RoadEarthworkPolicy.suppressFillOverWater(
+                    isFill, allowWaterEmbankment, terrain.findExposedWaterSurface(samplePoint))) {
+                continue;
+            }
             ColumnKey key = new ColumnKey(columnResolver.worldX(samplePoint), columnResolver.worldZ(samplePoint));
             samples.add(new SlopeProfileSample(
                 key, samplePoint, slopeHeight, isFill, materialId, rayId,
-                horizontalOffset, slopeRatio, outcome));
+                horizontalOffset, slopeRatio, outcome, allowWaterEmbankment));
         }
-        return samples;
+        int maxProfileOffset = profile.stream().mapToInt(p -> p[0]).max().orElse(0);
+        maxProfileOffset = Math.min(maxProfileOffset, maxHorizontalRun);
+        SlopeBandRasterizer.ShoulderRay ray = new SlopeBandRasterizer.ShoulderRay(
+            rayId,
+            outerEdge,
+            normal,
+            SlopeBandRasterizer.heightTableFromProfile(profile, maxProfileOffset),
+            isFill,
+            materialId,
+            slopeRatio,
+            outcome,
+            allowWaterEmbankment,
+            scale);
+        return new ShoulderBatterBuild(samples, ray);
     }
 
     private static boolean slopeProfileMeetsTerrain(
@@ -509,7 +605,12 @@ public final class JunctionCrossSectionFill {
                 continue;
             }
             int groundY = terrain.sampleSurfaceY(planPoint);
-            if (slope.hasFill()) {
+            // 路口圆角边坡不授权水面堤道；与走廊 suppressFillOverWater 一致。
+            if (slope.hasFill()
+                    && !RoadEarthworkPolicy.suppressFillOverWater(
+                        true,
+                        false,
+                        terrain.findExposedWaterSurface(planPoint))) {
                 int fillTop = slope.fillSurfaceY();
                 if (maxClearY != null) {
                     fillTop = Math.min(fillTop, maxClearY);

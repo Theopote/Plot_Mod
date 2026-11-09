@@ -5,9 +5,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
-import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
-import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -105,7 +103,14 @@ public final class TunnelJunctionConnectivityPass {
                 mergeTunnelReport(reportSink, node.getId(), 0, 0, false, 0);
                 continue;
             }
-            List<Vec2d> polygon = buildJunctionPolygon(network, node, config);
+            double canvasScale = 1.0;
+            for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
+                if (approach != null && approach.unitsPerBlock() > EPSILON) {
+                    canvasScale = Math.max(canvasScale, approach.unitsPerBlock());
+                }
+            }
+            List<Vec2d> polygon = TunnelJunctionShellPass.resolveJunctionPolygon(
+                network, node, config, canvasScale);
             if (polygon.size() < 3) {
                 mergeTunnelReport(reportSink, node.getId(), 0, 0, false, 0);
                 continue;
@@ -272,39 +277,6 @@ public final class TunnelJunctionConnectivityPass {
         }
 
         return false;
-    }
-
-    private static List<Vec2d> buildJunctionPolygon(
-            RoadNetwork network,
-            RoadNode node,
-            RoadSystemConfig config) {
-        List<RoadEdge> connected = connectedEdges(network, node);
-        if (connected.isEmpty()) {
-            return List.of();
-        }
-        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-        return RoadJunctionGeometry.buildJunctionFillPolygon(
-            node.getId(),
-            connected,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            junctionRadius,
-            cornerRadius,
-            RoadJunctionCenterlineResolver.forNetwork(network, config.getPathSampleDistance()));
-    }
-
-    private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {
-        List<RoadEdge> edges = new ArrayList<>();
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null) {
-                edges.add(edge);
-            }
-        }
-        return edges;
     }
 
     private record OpenVolumeStats(int blockedByProtection, int protectedConflicts) {

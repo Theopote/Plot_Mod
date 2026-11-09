@@ -127,7 +127,9 @@ public final class RoadCorridorPlanBuilder {
         List<StationSample> stations = collectStations(
             segments, heightInfos, crossSections, constructionTypes,
             designElevation, buildProfile, host::snapEndpointElevation, unitsPerBlock,
-            junctionCorridor != null && junctionCorridor.exclusionPolygons().isEmpty()
+            junctionCorridor != null
+                    && junctionCorridor.exclusionPolygons().isEmpty()
+                    && !junctionCorridor.hasColumnMask()
                 ? junctionCorridor.endpointTrim() : null,
             profileWaterCrossings,
             localDaylightSegments != null ? localDaylightSegments : Set.of());

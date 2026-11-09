@@ -142,7 +142,8 @@ public final class RoadEdgeBuildOrchestrator {
                 heightCalculation.profileWaterCrossings(),
                 terrainStyle,
                 tunnelStyle,
-                JunctionCorridorTrim.forEdge(network, edge, crossSection, host.config(), unitsPerBlock),
+                JunctionCorridorTrim.forEdge(
+                    network, edge, crossSection, host.config(), unitsPerBlock, host.coordinateTransformer()),
                 GradeSeparationBuildContextFactory.forEdge(
                     network,
                     edge,
@@ -264,7 +265,7 @@ public final class RoadEdgeBuildOrchestrator {
         Integer endY = endpointSnapElevation(
             endNode, edge, network, networkNodeElevations, heightInfos, false, elevatedResolver);
         JunctionCorridorBuildContext trim = JunctionCorridorTrim.forEdge(
-            network, edge, crossSection, host.config(), unitsPerBlock);
+            network, edge, crossSection, host.config(), unitsPerBlock, host.coordinateTransformer());
         double skipStart = trim.endpointTrim().skipStart();
         double skipEnd = trim.endpointTrim().skipEnd();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
