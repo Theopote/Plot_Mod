@@ -8,6 +8,7 @@ import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
+import com.plot.plugin.road.pipeline.corridor.JunctionFilletElevationLoft;
 import com.plot.plugin.road.pipeline.corridor.JunctionExpectedProtectedCollector;
 import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceExpectation;
 import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceMask;
@@ -540,7 +541,7 @@ public class RoadJunctionGenerator {
     /**
      * 路缘圆角圆心在草地楔形内，锐角点在圆心沿短弧中点方向、距圆心 {@code R / sin(φ/2)} 处。
      */
-    static Vec2d reconstructFilletSharpCorner(
+    public static Vec2d reconstructFilletSharpCorner(
             JunctionGeometryResult.FilletCorner fillet,
             double sweepRadians) {
         if (fillet == null || fillet.center() == null || fillet.radius() <= 1e-6) {
@@ -639,6 +640,8 @@ public class RoadJunctionGenerator {
             maxClearY = maxClearY == null ? tunnelCavityCap : Math.min(maxClearY, tunnelCavityCap);
         }
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
+        JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
+            fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
         int unresolvedClearance = 0;
@@ -650,6 +653,7 @@ public class RoadJunctionGenerator {
                 }
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
+                int surfaceY = filletLoft.surfaceY(point);
                 boolean stamped = JunctionCrossSectionFill.fillCell(
                     blocks.getSolids(),
                     point,
@@ -665,12 +669,13 @@ public class RoadJunctionGenerator {
                     tunnelThreshold,
                     bridgeThreshold,
                     fillMaterialId,
-                    maxClearY);
+                    maxClearY,
+                    surfaceY);
                 if (stamped) {
                     surfaceMask.markStamped(columnKey);
                     RoadSolidLayer surfaceLayer = JunctionCrossSectionFill.resolveSurfaceLayer(
                         point, node.getId(), edges, network, generator.getConfig(), unitsPerBlock);
-                    BlockPos surfacePos = JunctionCrossSectionFill.surfaceBlockPos(point, junctionY, materials);
+                    BlockPos surfacePos = JunctionCrossSectionFill.surfaceBlockPos(point, surfaceY, materials);
                     surfaceExpectations.add(new JunctionSurfaceExpectation(surfacePos, surfaceLayer));
                 } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
                     unresolvedClearance++;
@@ -691,11 +696,12 @@ public class RoadJunctionGenerator {
                 }
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 BlockPos column = generator.toBlockPos(point, 0);
-                int leftoverTop = leftoverTops.getOrDefault(columnKey, junctionY);
+                int surfaceY = filletLoft.surfaceY(point);
+                int leftoverTop = leftoverTops.getOrDefault(columnKey, surfaceY);
                 // 列集已由外形∪铺装栅格确定；勿再 point-in-polygon，否则圆角补铺列会漏清树木
                 JunctionTerrainClearance.clearOverheadColumn(
                     blocks.getSolids(),
-                    junctionY,
+                    surfaceY,
                     tunnelThreshold,
                     terrain,
                     column.getX(),
@@ -737,7 +743,8 @@ public class RoadJunctionGenerator {
                 terrain,
                 bridgeThreshold,
                 maxClearY,
-                fillets);
+                fillets,
+                filletLoft);
         }
 
         List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3

@@ -81,10 +81,36 @@ public final class JunctionCrossSectionFill {
             int bridgeThreshold,
             String fillMaterialId,
             Integer maxClearY) {
+        return fillCell(
+            solids, cellPoint, junctionY, nodeId, edges, network, config, materials, columnResolver,
+            unitsPerBlock, terrain, tunnelThreshold, bridgeThreshold, fillMaterialId, maxClearY, junctionY);
+    }
+
+    /**
+     * @param surfaceY 本格路面标高；倒圆补铺可为路缘放样值，核区一般为 {@code junctionY}
+     */
+    public static boolean fillCell(
+            RoadSolidModel solids,
+            Vec2d cellPoint,
+            int junctionY,
+            String nodeId,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            MaterialResolver materials,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            TerrainSampler terrain,
+            int tunnelThreshold,
+            int bridgeThreshold,
+            String fillMaterialId,
+            Integer maxClearY,
+            int surfaceY) {
         if (solids == null || cellPoint == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null) {
             return false;
         }
+        int stampY = surfaceY;
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         EdgeProjection projection = nearestEdgeProjection(cellPoint, nodeId, edges, centerlineResolver);
@@ -93,9 +119,9 @@ public final class JunctionCrossSectionFill {
             ? RoadModelUtils.resolveCrossSection(network, widestEdge, config)
             : null;
         if (projection == null) {
-            stampPlazaRoad(solids, cellPoint, junctionY, widestSection, widestEdge, materials);
+            stampPlazaRoad(solids, cellPoint, stampY, widestSection, widestEdge, materials);
             gradeColumn(
-                solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
+                solids, cellPoint, stampY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
                 maxClearY);
             return true;
         }
@@ -111,17 +137,17 @@ public final class JunctionCrossSectionFill {
             ResolvedCrossSection.SurfaceBandSpec spec = band.get();
             // 行车道：路口统一用最宽道路材质；路肩/人行道仍跟最近进口断面
             if (spec.layer() == RoadSolidLayer.ROAD && widestSection != null) {
-                stampPlazaRoad(solids, cellPoint, junctionY, widestSection, widestEdge, materials);
+                stampPlazaRoad(solids, cellPoint, stampY, widestSection, widestEdge, materials);
             } else {
                 stampSurfaceBand(
-                    solids, cellPoint, junctionY, spec, projection.edge().getId(), materials);
+                    solids, cellPoint, stampY, spec, projection.edge().getId(), materials);
             }
         } else {
             // Polygon cell outside nearest approach band: still pave the junction interior.
-            stampPlazaRoad(solids, cellPoint, junctionY, widestSection, widestEdge, materials);
+            stampPlazaRoad(solids, cellPoint, stampY, widestSection, widestEdge, materials);
         }
         gradeColumn(
-            solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
+            solids, cellPoint, stampY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
             maxClearY);
         return true;
     }
@@ -183,7 +209,7 @@ public final class JunctionCrossSectionFill {
             Integer maxClearY) {
         stampApproachSlopeBatters(
             solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
-            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, List.of());
+            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, List.of(), null);
     }
 
     public static void stampApproachSlopeBatters(
@@ -201,6 +227,27 @@ public final class JunctionCrossSectionFill {
             int bridgeThreshold,
             Integer maxClearY,
             List<JunctionGeometryResult.FilletCorner> fillets) {
+        stampApproachSlopeBatters(
+            solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
+            columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, fillets, null);
+    }
+
+    public static void stampApproachSlopeBatters(
+            RoadSolidModel solids,
+            Vec2d junctionCenter,
+            int junctionY,
+            String nodeId,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            MaterialResolver materials,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            TerrainSampler terrain,
+            int bridgeThreshold,
+            Integer maxClearY,
+            List<JunctionGeometryResult.FilletCorner> fillets,
+            JunctionFilletElevationLoft filletLoft) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null
                 || columnResolver == null) {
@@ -242,7 +289,7 @@ public final class JunctionCrossSectionFill {
 
         samples.addAll(collectFilletArcBatterSamples(
             fillets, junctionY, edges, network, config, materials, scale, maxHorizontalRun,
-            terrain, columnResolver, stationSampleId));
+            terrain, columnResolver, stationSampleId, filletLoft));
 
         if (samples.isEmpty()) {
             return;
@@ -267,7 +314,8 @@ public final class JunctionCrossSectionFill {
             int maxHorizontalRun,
             TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            long rayIdBase) {
+            long rayIdBase,
+            JunctionFilletElevationLoft filletLoft) {
         if (fillets == null || fillets.isEmpty() || materials == null) {
             return List.of();
         }
@@ -316,9 +364,10 @@ public final class JunctionCrossSectionFill {
                     continue;
                 }
                 outward = outward.normalize();
+                int arcY = filletLoft != null ? filletLoft.surfaceY(onArc) : junctionY;
                 // signedOuterLateral=0：弧点即路缘外缘
                 samples.addAll(collectShoulderBatterSamples(
-                    onArc, outward, junctionY, 0,
+                    onArc, outward, arcY, 0,
                     terrain, scale, outward, fillBlockId, cutBlockId,
                     crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, maxHorizontalRun,
                     columnResolver,
