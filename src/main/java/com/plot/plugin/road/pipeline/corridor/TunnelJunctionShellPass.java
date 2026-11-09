@@ -538,6 +538,12 @@ public final class TunnelJunctionShellPass {
         if (!carrier.tunnelBlocks.contains(pos)) {
             carrier.tunnelBlocks.add(pos);
         }
+        // 写入 VoxelRole 合法衬砌期望，供 ConnectivityPass 保护，禁止后续连通清障删掉新顶衬/侧墙。
+        for (RoadGenerationResult peer : carriers) {
+            if (peer != null) {
+                peer.recordExpectedTunnelLining(pos);
+            }
+        }
     }
 
     private static void writeAir(
@@ -557,6 +563,7 @@ public final class TunnelJunctionShellPass {
             if (!carrier.tunnelBlocks.contains(pos)) {
                 carrier.tunnelBlocks.add(pos);
             }
+            carrier.recordExpectedTunnelCavity(pos);
         }
     }
 }

@@ -27,9 +27,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
         459, 0, 0, 60, 0, 0, 109, 0, 0, 399, 0, 0, List.of());
 
-    // 五岔：世界列去重后街角外扩。
+    // 五岔：圆角 gore 同源加密 + 清障列对齐；junction/surface 允许 ±3（见 RoadGoldenTolerance）。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        595, 0, 0, 63, 0, 0, 177, 0, 0, 492, 0, 0, List.of());
+        594, 0, 0, 63, 0, 0, 176, 0, 0, 491, 0, 0, List.of());
 
     // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(

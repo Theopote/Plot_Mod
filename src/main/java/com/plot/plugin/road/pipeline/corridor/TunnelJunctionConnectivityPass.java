@@ -433,6 +433,9 @@ public final class TunnelJunctionConnectivityPass {
         if (edgeResults == null) {
             return false;
         }
+        if (isExpectedJunctionShellLining(edgeResults, pos)) {
+            return true;
+        }
         for (RoadGenerationResult result : edgeResults) {
             BlockRecord record = result.placementRecords.get(pos);
             if (record == null || "minecraft:air".equals(record.newBlockId)) {
@@ -456,11 +459,36 @@ public final class TunnelJunctionConnectivityPass {
         return false;
     }
 
+    /**
+     * {@link TunnelJunctionShellPass} 写入的合法 WALL/ROOF 衬砌：连通清障不得删除。
+     */
+    static boolean isExpectedJunctionShellLining(
+            Collection<RoadGenerationResult> edgeResults,
+            BlockPos pos) {
+        if (edgeResults == null || pos == null) {
+            return false;
+        }
+        for (RoadGenerationResult result : edgeResults) {
+            if (result != null
+                    && result.expectedTunnelLining != null
+                    && result.expectedTunnelLining.contains(pos)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static boolean isTunnelLiningRecord(
             RoadGenerationResult result,
             BlockPos pos,
             BlockRecord record) {
         if (record == null || "minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        // 圆角壳最终角色为 WALL/ROOF 的衬砌不是「阻挡连通的旧墙」
+        if (result != null
+                && result.expectedTunnelLining != null
+                && result.expectedTunnelLining.contains(pos)) {
             return false;
         }
         RoadSolidLayer layer = result.placementLayers.get(pos);

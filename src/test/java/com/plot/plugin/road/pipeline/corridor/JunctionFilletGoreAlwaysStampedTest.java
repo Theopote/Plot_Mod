@@ -53,16 +53,12 @@ class JunctionFilletGoreAlwaysStampedTest {
         for (Vec2d cell : goreCells) {
             goreKeys.add(JunctionWorldFootprint.keyOf(cell, null));
         }
-        // 掩膜经同源 densify 应吸收绝大部分 gore；铺装侧仍会无条件并入作双保险
-        int covered = 0;
+        // 同源 densify：铺装/清障掩膜必须完整吸收 gore 世界列（不再用 75% 宽松门槛）
         for (ColumnKey key : goreKeys) {
-            if (footprint.paveColumns().contains(key) || footprint.clearance().contains(key)) {
-                covered++;
-            }
+            assertTrue(
+                footprint.paveColumns().contains(key) || footprint.clearance().contains(key),
+                "footprint must own every gore densify column: " + key);
         }
-        assertTrue(covered * 4 >= goreKeys.size() * 3,
-            "footprint should own >=75% of gore densify columns; covered="
-                + covered + "/" + goreKeys.size());
     }
 
     private static JunctionGeometryResult buildGeometry(

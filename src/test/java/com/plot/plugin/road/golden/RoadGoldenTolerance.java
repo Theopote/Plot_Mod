@@ -9,7 +9,8 @@ public record RoadGoldenTolerance(
         int categoryBlocks) {
 
     public static RoadGoldenTolerance standard() {
-        // blockCounts：R11 等边坡扇区在共享顶点处表面计数可能有 ±3 边界抖动
-        return new RoadGoldenTolerance(3, 0, 0);
+        // blockCounts / categoryBlocks：多岔圆角与边坡在共享顶点处计数可能有 ±3 边界抖动
+        // （五岔 R05 的 junctionBlocks 在不同 JVM 上可见 175↔177）
+        return new RoadGoldenTolerance(3, 0, 3);
     }
 }
