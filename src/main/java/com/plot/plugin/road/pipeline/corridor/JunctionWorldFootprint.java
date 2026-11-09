@@ -267,25 +267,9 @@ public final class JunctionWorldFootprint {
             ICoordinateService transformer,
             Map<ColumnKey, Vec2d> planPoints,
             Set<ColumnKey> target) {
-        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
-            List<Vec2d> gore = RoadJunctionGenerator.filletGorePolygon(fillet);
-            if (gore.size() >= 3) {
-                addPolygonColumns(gore, transformer, planPoints, target);
-            }
-            if (gore.isEmpty()) {
-                continue;
-            }
-            Vec2d sharp = gore.getFirst();
-            for (int i = 1; i < gore.size(); i++) {
-                Vec2d onArc = gore.get(i);
-                if (onArc == null) {
-                    continue;
-                }
-                addPoint(onArc, transformer, planPoints, target);
-                addPoint(sharp.add(onArc.subtract(sharp).multiply(0.35)), transformer, planPoints, target);
-                addPoint(sharp.add(onArc.subtract(sharp).multiply(0.65)), transformer, planPoints, target);
-            }
-            addPoint(sharp, transformer, planPoints, target);
+        // 与铺装侧 collectFilletGoreCells 同源，保证走廊裁剪列 ⊆ 路口补铺列
+        for (Vec2d cell : RoadJunctionGenerator.collectFilletGoreCells(geometry, transformer)) {
+            addPoint(cell, transformer, planPoints, target);
         }
     }
 

@@ -93,9 +93,7 @@ public final class TunnelJunctionSeedResolver {
                 unitsPerBlock = 1.0;
             }
             if (!TunnelJunctionConnectivityPass.tunnelAtNode(
-                    network, node, edge, result, config, centerline, segments, unitsPerBlock)
-                    && !edgeHasTunnelFamilyConstruction(result)) {
-                // tunnelAtNode 窗口过紧时，整边已是隧道族仍按隧道进口处理，避免广场无 cap 掏穿覆土。
+                    network, node, edge, result, config, centerline, segments, unitsPerBlock)) {
                 continue;
             }
             if (node.isStackGradeSeparated() && node.isStackUpperEdge(edgeId)) {
@@ -158,7 +156,7 @@ public final class TunnelJunctionSeedResolver {
     }
 
     /**
-     * 边结果是否含隧道族施工（不限节点邻域）。用于清障 cap 兜底，防止漏检进口后广场挖穿覆土。
+     * 边结果是否含隧道族施工（不限节点邻域）。仅用于洞顶 cap 兜底，不提升为隧道进口。
      */
     static boolean edgeHasTunnelFamilyConstruction(RoadGenerationResult result) {
         if (result == null) {
@@ -172,6 +170,38 @@ public final class TunnelJunctionSeedResolver {
             }
         }
         return result.tunnelBlocks != null && !result.tunnelBlocks.isEmpty();
+    }
+
+    /**
+     * 进口窗口漏检时，用相连边的隧道预设推断广场洞顶 cap，避免无 cap 掏穿覆土。
+     * 不把这些边登记为 {@link TunnelApproach}，以免误禁露天圆角边坡。
+     */
+    public static Integer inferTunnelCavityClearCapFromEdges(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            Map<String, RoadGenerationResult> edgeResults,
+            int junctionY,
+            RoadSystemConfig config) {
+        if (network == null || edges == null || edges.isEmpty() || edgeResults == null || config == null) {
+            return null;
+        }
+        int cap = Integer.MAX_VALUE;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            RoadGenerationResult result = edgeResults.get(edge.getId());
+            if (!edgeHasTunnelFamilyConstruction(result)) {
+                continue;
+            }
+            Road road = RoadModelUtils.resolveRoad(network, edge);
+            ResolvedTunnelStyle style = TunnelStyle.resolve(road, config);
+            if (style == null) {
+                continue;
+            }
+            cap = Math.min(cap, junctionY + Math.max(1, style.clearHeight()));
+        }
+        return cap == Integer.MAX_VALUE ? null : cap;
     }
 
     public static UnderpassYBand resolveUnderpassYBand(List<TunnelApproach> approaches) {

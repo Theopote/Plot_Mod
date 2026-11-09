@@ -388,21 +388,29 @@ public class RoadJunctionGenerator {
         }
         JunctionWorldFootprint footprint = JunctionWorldFootprint.from(
             geometry, generator.coordinateTransformer());
-        List<Vec2d> surfaceCells = footprint.planPointsFor(footprint.paveColumns());
-        List<Vec2d> clearanceCells = footprint.planPointsFor(footprint.clearance());
+        List<Vec2d> surfaceCells = new ArrayList<>(footprint.planPointsFor(footprint.paveColumns()));
+        List<Vec2d> clearanceCells = new ArrayList<>(footprint.planPointsFor(footprint.clearance()));
         if (surfaceCells.isEmpty()) {
             // 回退：掩膜为空时仍走旧栅格，避免无几何时整路口空白
             List<Vec2d> stampFootprint = junctionSurfaceFootprint(geometry, clearance, sharpPolygon);
             surfaceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
                 stampFootprint, generator.coordinateTransformer()));
-            if (geometry != null && !geometry.fillets().isEmpty()) {
-                surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
-                surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
-            }
+        }
+        // 掩膜非空时也必须并入 gore 径向加密：薄三角楔常漏世界格，
+        // 若仅在 surfaceCells.isEmpty() 时补铺，核区有铺装但圆角会整块缺失。
+        if (geometry != null && !geometry.fillets().isEmpty()) {
+            surfaceCells.addAll(collectFilletGoreCells(geometry, generator.coordinateTransformer()));
+            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
         }
         if (clearanceCells.isEmpty() && clearance != null && clearance.size() >= 3) {
             clearanceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
                 clearance, generator.coordinateTransformer()));
+        }
+        // 清障列同步并入实际铺装列，避免加密补铺格漏清
+        if (!surfaceCells.isEmpty()) {
+            clearanceCells = new ArrayList<>(clearanceCells);
+            clearanceCells.addAll(surfaceCells);
+            clearanceCells = dedupePlanCellsByWorldColumn(clearanceCells, geometry);
         }
         if (surfaceCells.isEmpty() && center != null) {
             surfaceCells = List.of(center);
@@ -522,7 +530,7 @@ public class RoadJunctionGenerator {
      * 圆心在铺装外侧：扇形会落到弧外草地，锐角凹口仍空，Minecraft 里就像「没倒圆」。
      * 另做径向加密采样，避免投影下薄三角漏世界格。
      */
-    static List<Vec2d> collectFilletGoreCells(
+    public static List<Vec2d> collectFilletGoreCells(
             JunctionGeometryResult geometry,
             com.plot.api.world.ICoordinateService transformer) {
         if (geometry == null || geometry.fillets().isEmpty()) {
@@ -683,6 +691,11 @@ public class RoadJunctionGenerator {
                 generator.getConfig(),
                 (path, segments) -> unitsPerBlock);
         Integer tunnelCavityCap = TunnelJunctionSeedResolver.resolveTunnelCavityClearCap(tunnelApproaches);
+        // 进口邻域未命中但整边含隧道族时，仅补洞顶 cap（不清成隧道进口，避免误禁露天圆角边坡）。
+        if (tunnelCavityCap == null) {
+            tunnelCavityCap = TunnelJunctionSeedResolver.inferTunnelCavityClearCapFromEdges(
+                network, edges, safeEdgeResults, junctionY, generator.getConfig());
+        }
         // 净空上限：立交桥底与隧道洞腔顶取更严者。
         Integer maxClearY = elevatedDeckY != null
             ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
