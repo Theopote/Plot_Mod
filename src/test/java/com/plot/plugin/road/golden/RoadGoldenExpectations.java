@@ -19,13 +19,13 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
-    // T 字：世界列去重 + 变宽尺度贯通后核区∪补铺。
+    // T 字：JunctionWorldFootprint 走廊/路口列归属去重后（roadBlocks 不再双边重复计入）。
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        343, 0, 0, 36, 0, 0, 73, 0, 0, 305, 0, 0, List.of());
+        340, 0, 0, 36, 0, 0, 73, 0, 0, 305, 0, 0, List.of());
 
-    // 十字：世界列均值代表点栅格。
+    // 十字：世界列掩膜统一裁剪归属，消除走廊与广场重复 surface 计数。
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        469, 0, 0, 60, 0, 0, 109, 0, 0, 399, 0, 0, List.of());
+        459, 0, 0, 60, 0, 0, 109, 0, 0, 399, 0, 0, List.of());
 
     // 五岔：世界列去重后街角外扩。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
