@@ -21,11 +21,14 @@ import java.util.function.Function;
 
 /**
  * 倒圆补铺标高：沿相邻两进口路缘边线采样走廊实际路面高程，对角向参数放样。
+ * 每条路缘只读取其所属进口道路的路面/纵断面，禁止串用邻路 ±2 格高程。
  * 重叠核等非补铺区仍回退 {@code junctionY}。
  */
 public final class JunctionFilletElevationLoft {
     private static final double EPSILON = 1e-9;
     private static final double MAX_CURB_SAMPLE = 24.0;
+    /** 切点到中心线允许的侧向距离（含宽路路缘）。 */
+    private static final double TANGENT_OWNER_MAX_DIST = 16.0;
 
     private final int junctionY;
     private final List<FilletLoftCorner> corners;
@@ -49,12 +52,12 @@ public final class JunctionFilletElevationLoft {
         if (fillets == null || fillets.isEmpty() || columns == null) {
             return inactive(junctionY);
         }
-        Map<ColumnKey, Integer> roadY = indexRoadSurfaceY(edgeResults);
+        Map<String, Map<ColumnKey, Integer>> roadYByEdge = indexRoadSurfaceYByEdge(edgeResults);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         List<FilletLoftCorner> corners = new ArrayList<>();
         for (JunctionGeometryResult.FilletCorner fillet : fillets) {
             FilletLoftCorner corner = buildCorner(
-                fillet, roadY, edgeResults, edges, network, centerlines, columns, junctionY);
+                fillet, roadYByEdge, edgeResults, edges, network, centerlines, columns, junctionY);
             if (corner != null) {
                 corners.add(corner);
             }
@@ -94,7 +97,7 @@ public final class JunctionFilletElevationLoft {
 
     private static FilletLoftCorner buildCorner(
             JunctionGeometryResult.FilletCorner fillet,
-            Map<ColumnKey, Integer> roadY,
+            Map<String, Map<ColumnKey, Integer>> roadYByEdge,
             Map<String, RoadGenerationResult> edgeResults,
             List<RoadEdge> edges,
             RoadNetwork network,
@@ -125,50 +128,128 @@ public final class JunctionFilletElevationLoft {
         }
         dirA = dirA.normalize();
         dirB = dirB.normalize();
+        RoadEdge ownerA = resolveTangentOwner(fillet.tangentStart(), edges, centerlines);
+        RoadEdge ownerB = resolveTangentOwner(fillet.tangentEnd(), edges, centerlines);
         CurbElevationCurve curbA = sampleCurb(
-            sharp, dirA, roadY, edgeResults, edges, network, centerlines, columns, junctionY);
+            sharp, dirA, fillet.tangentStart(), ownerA, roadYByEdge, edgeResults, centerlines, columns, junctionY);
         CurbElevationCurve curbB = sampleCurb(
-            sharp, dirB, roadY, edgeResults, edges, network, centerlines, columns, junctionY);
+            sharp, dirB, fillet.tangentEnd(), ownerB, roadYByEdge, edgeResults, centerlines, columns, junctionY);
         return new FilletLoftCorner(gore, sharp, dirA, dirB, curbA, curbB);
+    }
+
+    /**
+     * 切点归属：距中心线最近且在侧向容差内的进口边。
+     */
+    static RoadEdge resolveTangentOwner(
+            Vec2d tangent,
+            List<RoadEdge> edges,
+            Function<RoadEdge, List<Vec2d>> centerlines) {
+        if (tangent == null || edges == null || centerlines == null) {
+            return null;
+        }
+        RoadEdge best = null;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> centerline = centerlines.apply(edge);
+            if (centerline == null || centerline.size() < 2) {
+                continue;
+            }
+            Projection proj = projectToPolyline(tangent, centerline);
+            if (proj == null || proj.distance >= bestDist) {
+                continue;
+            }
+            bestDist = proj.distance;
+            best = edge;
+        }
+        if (best == null || bestDist > TANGENT_OWNER_MAX_DIST) {
+            return null;
+        }
+        return best;
     }
 
     private static CurbElevationCurve sampleCurb(
             Vec2d origin,
             Vec2d direction,
-            Map<ColumnKey, Integer> roadY,
+            Vec2d tangentPoint,
+            RoadEdge ownerEdge,
+            Map<String, Map<ColumnKey, Integer>> roadYByEdge,
             Map<String, RoadGenerationResult> edgeResults,
-            List<RoadEdge> edges,
-            RoadNetwork network,
             Function<RoadEdge, List<Vec2d>> centerlines,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY) {
+        Map<ColumnKey, Integer> scoped = scopedRoadY(ownerEdge, roadYByEdge);
         List<Double> distances = new ArrayList<>();
         List<Integer> elevations = new ArrayList<>();
         distances.add(0.0);
-        elevations.add(lookupElevation(
-            origin, roadY, edgeResults, edges, network, centerlines, columns, junctionY));
+        // 锐角点通常不在任一路面列上：用路口共识，避免两侧进口互串。
+        elevations.add(junctionY);
         for (double s = 1.0; s <= MAX_CURB_SAMPLE; s += 1.0) {
             Vec2d sample = origin.add(direction.multiply(s));
             int y = lookupElevation(
-                sample, roadY, edgeResults, edges, network, centerlines, columns, junctionY);
+                sample, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
             distances.add(s);
             elevations.add(y);
+        }
+        // 切点处强制钉在所属进口路面高程，保证与原路缘衔接。
+        if (tangentPoint != null) {
+            double pinS = origin.distance(tangentPoint);
+            int tangentY = lookupElevation(
+                tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
+            pinElevation(distances, elevations, pinS, tangentY);
         }
         return new CurbElevationCurve(distances, elevations);
     }
 
+    private static void pinElevation(
+            List<Double> distances,
+            List<Integer> elevations,
+            double pinS,
+            int pinY) {
+        if (distances.isEmpty() || pinS < 0.0) {
+            return;
+        }
+        for (int i = 0; i < distances.size(); i++) {
+            if (Math.abs(distances.get(i) - pinS) < 0.51) {
+                elevations.set(i, pinY);
+                return;
+            }
+        }
+        // 插入切点采样
+        for (int i = 0; i < distances.size(); i++) {
+            if (distances.get(i) > pinS) {
+                distances.add(i, pinS);
+                elevations.add(i, pinY);
+                return;
+            }
+        }
+        distances.add(pinS);
+        elevations.add(pinY);
+    }
+
+    private static Map<ColumnKey, Integer> scopedRoadY(
+            RoadEdge ownerEdge,
+            Map<String, Map<ColumnKey, Integer>> roadYByEdge) {
+        if (ownerEdge == null || roadYByEdge == null) {
+            return Map.of();
+        }
+        Map<ColumnKey, Integer> scoped = roadYByEdge.get(ownerEdge.getId());
+        return scoped != null ? scoped : Map.of();
+    }
+
     private static int lookupElevation(
             Vec2d planPoint,
-            Map<ColumnKey, Integer> roadY,
+            Map<ColumnKey, Integer> scopedRoadY,
+            RoadEdge ownerEdge,
             Map<String, RoadGenerationResult> edgeResults,
-            List<RoadEdge> edges,
-            RoadNetwork network,
             Function<RoadEdge, List<Vec2d>> centerlines,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY) {
         int wx = columns.worldX(planPoint);
         int wz = columns.worldZ(planPoint);
-        Integer exact = roadY.get(new ColumnKey(wx, wz));
+        Integer exact = scopedRoadY.get(new ColumnKey(wx, wz));
         if (exact != null) {
             return exact;
         }
@@ -179,7 +260,7 @@ public final class JunctionFilletElevationLoft {
                 if (dx == 0 && dz == 0) {
                     continue;
                 }
-                Integer y = roadY.get(new ColumnKey(wx + dx, wz + dz));
+                Integer y = scopedRoadY.get(new ColumnKey(wx + dx, wz + dz));
                 if (y == null) {
                     continue;
                 }
@@ -193,59 +274,47 @@ public final class JunctionFilletElevationLoft {
         if (near != null) {
             return near;
         }
-        Integer fromProfile = elevationFromBuildProfile(
-            planPoint, edgeResults, edges, network, centerlines);
+        Integer fromProfile = elevationFromOwnedProfile(
+            planPoint, ownerEdge, edgeResults, centerlines);
         return fromProfile != null ? fromProfile : junctionY;
     }
 
-    private static Integer elevationFromBuildProfile(
+    private static Integer elevationFromOwnedProfile(
             Vec2d planPoint,
+            RoadEdge ownerEdge,
             Map<String, RoadGenerationResult> edgeResults,
-            List<RoadEdge> edges,
-            RoadNetwork network,
             Function<RoadEdge, List<Vec2d>> centerlines) {
-        if (edgeResults == null || edges == null || planPoint == null) {
+        if (ownerEdge == null || edgeResults == null || planPoint == null || centerlines == null) {
             return null;
         }
-        RoadEdge best = null;
-        double bestDist = Double.POSITIVE_INFINITY;
-        double bestStation = 0.0;
-        for (RoadEdge edge : edges) {
-            if (edge == null) {
-                continue;
-            }
-            List<Vec2d> centerline = centerlines.apply(edge);
-            if (centerline == null || centerline.size() < 2) {
-                continue;
-            }
-            Projection proj = projectToPolyline(planPoint, centerline);
-            if (proj == null || proj.distance > bestDist) {
-                continue;
-            }
-            bestDist = proj.distance;
-            best = edge;
-            bestStation = proj.station;
-        }
-        if (best == null || bestDist > 8.0) {
+        List<Vec2d> centerline = centerlines.apply(ownerEdge);
+        if (centerline == null || centerline.size() < 2) {
             return null;
         }
-        RoadGenerationResult result = edgeResults.get(best.getId());
+        Projection proj = projectToPolyline(planPoint, centerline);
+        if (proj == null || proj.distance > TANGENT_OWNER_MAX_DIST) {
+            return null;
+        }
+        RoadGenerationResult result = edgeResults.get(ownerEdge.getId());
         if (result == null || result.buildProfile == null || !result.buildProfile.isActive()) {
             return null;
         }
-        return result.buildProfile.elevationAtWorldStation(bestStation);
+        return result.buildProfile.elevationAtWorldStation(proj.station);
     }
 
-    private static Map<ColumnKey, Integer> indexRoadSurfaceY(
+    private static Map<String, Map<ColumnKey, Integer>> indexRoadSurfaceYByEdge(
             Map<String, RoadGenerationResult> edgeResults) {
-        Map<ColumnKey, Integer> roadY = new HashMap<>();
+        Map<String, Map<ColumnKey, Integer>> byEdge = new HashMap<>();
         if (edgeResults == null) {
-            return roadY;
+            return byEdge;
         }
-        for (RoadGenerationResult result : edgeResults.values()) {
-            if (result == null || result.placementRecords == null) {
+        for (Map.Entry<String, RoadGenerationResult> edgeEntry : edgeResults.entrySet()) {
+            String edgeId = edgeEntry.getKey();
+            RoadGenerationResult result = edgeEntry.getValue();
+            if (edgeId == null || result == null || result.placementRecords == null) {
                 continue;
             }
+            Map<ColumnKey, Integer> roadY = byEdge.computeIfAbsent(edgeId, ignored -> new HashMap<>());
             for (Map.Entry<BlockPos, ?> entry : result.placementRecords.entrySet()) {
                 BlockPos pos = entry.getKey();
                 if (pos == null) {
@@ -264,7 +333,7 @@ public final class JunctionFilletElevationLoft {
                 roadY.merge(key, pos.getY(), Math::max);
             }
         }
-        return roadY;
+        return byEdge;
     }
 
     private static Projection projectToPolyline(Vec2d point, List<Vec2d> polyline) {

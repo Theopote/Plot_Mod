@@ -8,10 +8,10 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.FilletArcSweep;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadGenerator;
-import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionFilletElevationLoftIntegrationTest {
 
     @Test
-    void filletGoreLoftsBetweenTwoCurbElevations() {
+    void filletGoreLoftsBetweenOwnerScopedCurbElevations() {
         // 正交街角：锐点(2,2)，切点(2,6)/(6,2)，圆心(6,6)
         Vec2d center = new Vec2d(6, 6);
         Vec2d tStart = new Vec2d(2, 6);
@@ -40,15 +40,28 @@ class JunctionFilletElevationLoftIntegrationTest {
         JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
             center, tStart, tEnd, 4.0, Math.PI / 2.0, sweep);
 
-        // 北向路缘 Y=64，东向路缘 Y=72
-        RoadGenerationResult fake = new RoadGenerationResult(0);
+        RoadNetwork network = orthogonalApproaches();
+        RoadEdge ns = edgeToward(network, new Vec2d(0, 40));
+        RoadEdge ew = edgeToward(network, new Vec2d(40, 0));
+
+        // 北向路缘只挂在 NS；东向只挂在 EW —— 禁止串用邻路 ±2 格
+        RoadGenerationResult nsResult = new RoadGenerationResult(0);
         for (int z = 2; z <= 14; z++) {
-            putRoad(fake, 2, z, 64);
+            putRoad(nsResult, 2, z, 64);
         }
+        RoadGenerationResult ewResult = new RoadGenerationResult(0);
         for (int x = 2; x <= 14; x++) {
-            putRoad(fake, x, 2, 72);
+            putRoad(ewResult, x, 2, 72);
         }
-        Map<String, RoadGenerationResult> edgeResults = Map.of("e", fake);
+        // 污染列：若未按 owner 隔离，北缘会误读到东缘高程
+        putRoad(ewResult, 2, 4, 90);
+        putRoad(ewResult, 2, 5, 90);
+        putRoad(nsResult, 4, 2, 40);
+        putRoad(nsResult, 5, 2, 40);
+
+        Map<String, RoadGenerationResult> edgeResults = new HashMap<>();
+        edgeResults.put(ns.getId(), nsResult);
+        edgeResults.put(ew.getId(), ewResult);
 
         RoadTerrainClearanceUtils.BlockColumnResolver columns =
             new RoadTerrainClearanceUtils.BlockColumnResolver() {
@@ -64,7 +77,12 @@ class JunctionFilletElevationLoftIntegrationTest {
             };
 
         JunctionFilletElevationLoft loft = JunctionFilletElevationLoft.build(
-            List.of(fillet), edgeResults, List.of(), null, columns, 64);
+            List.of(fillet),
+            edgeResults,
+            List.copyOf(network.getEdges().values()),
+            network,
+            columns,
+            64);
 
         Vec2d nearNorthCurb = new Vec2d(2.4, 3.5);
         Vec2d nearEastCurb = new Vec2d(3.5, 2.4);
@@ -80,6 +98,8 @@ class JunctionFilletElevationLoftIntegrationTest {
         assertTrue(yN <= yM && yM <= yE,
             "loft Y should rise from north curb toward east curb; yN=" + yN + " yM=" + yM + " yE=" + yE);
         assertTrue(yE - yN >= 4, "elevation span across fillet should be visible; span=" + (yE - yN));
+        assertTrue(yN <= 66, "north curb must not absorb east pollution Y=90; yN=" + yN);
+        assertTrue(yE >= 68, "east curb must not absorb north pollution Y=40; yE=" + yE);
         assertEquals(64, loft.surfaceY(new Vec2d(0, 0)), "core/outside gore stays junctionY");
     }
 
@@ -145,6 +165,34 @@ class JunctionFilletElevationLoftIntegrationTest {
         }
         assertTrue(filletCells >= 4, "expected curb-return ROAD cells; found=" + filletCells);
         assertEquals(minY, maxY, "same-height approaches keep fillet flat; " + minY + ".." + maxY);
+    }
+
+    private static RoadNetwork orthogonalApproaches() {
+        RoadNetwork network = new RoadNetwork();
+        Road nsRoad = network.createRoad("ns");
+        nsRoad.setWidth(7);
+        Road ewRoad = network.createRoad("ew");
+        ewRoad.setWidth(7);
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 40));
+        RoadNode east = network.createNode(new Vec2d(40, 0));
+        network.createEdge(junction.getId(), north.getId(),
+            List.of(junction.getPosition(), north.getPosition()), nsRoad.getId());
+        network.createEdge(junction.getId(), east.getId(),
+            List.of(junction.getPosition(), east.getPosition()), ewRoad.getId());
+        return network;
+    }
+
+    private static RoadEdge edgeToward(RoadNetwork network, Vec2d leaf) {
+        return network.getEdges().values().stream()
+            .filter(edge -> {
+                RoadNode start = network.getNode(edge.getStartNodeId());
+                RoadNode end = network.getNode(edge.getEndNodeId());
+                return (start != null && start.getPosition().distance(leaf) < 1.0)
+                    || (end != null && end.getPosition().distance(leaf) < 1.0);
+            })
+            .findFirst()
+            .orElseThrow();
     }
 
     private static void putRoad(RoadGenerationResult result, int x, int z, int y) {

@@ -6,6 +6,10 @@ import com.plot.plugin.road.FilletArcSweep;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import net.minecraft.util.math.BlockPos;
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,13 +38,20 @@ class JunctionFilletOpposingGradeContinuityTest {
             center, tStart, tEnd, 4.0, Math.PI / 2.0, sweep);
         Vec2d sharp = RoadJunctionGenerator.reconstructFilletSharpCorner(fillet, sweep);
 
-        // 北向缓升、东向缓降（同中心标高），避免对角放样产生单格悬崖
-        RoadGenerationResult fake = new RoadGenerationResult(0);
+        RoadNetwork network = orthogonalApproaches();
+        RoadEdge ns = edgeToward(network, new Vec2d(0, 40));
+        RoadEdge ew = edgeToward(network, new Vec2d(40, 0));
+
+        // 北向缓升、东向缓降（同中心标高），按进口隔离写入
+        RoadGenerationResult nsResult = new RoadGenerationResult(0);
+        RoadGenerationResult ewResult = new RoadGenerationResult(0);
         for (int s = 0; s <= 12; s++) {
-            putRoad(fake, 2, 2 + s, 64 + s / 4);
-            putRoad(fake, 2 + s, 2, 64 - s / 4);
+            putRoad(nsResult, 2, 2 + s, 64 + s / 4);
+            putRoad(ewResult, 2 + s, 2, 64 - s / 4);
         }
-        Map<String, RoadGenerationResult> edgeResults = Map.of("e", fake);
+        Map<String, RoadGenerationResult> edgeResults = new HashMap<>();
+        edgeResults.put(ns.getId(), nsResult);
+        edgeResults.put(ew.getId(), ewResult);
 
         RoadTerrainClearanceUtils.BlockColumnResolver columns =
             new RoadTerrainClearanceUtils.BlockColumnResolver() {
@@ -55,7 +67,12 @@ class JunctionFilletOpposingGradeContinuityTest {
             };
 
         JunctionFilletElevationLoft loft = JunctionFilletElevationLoft.build(
-            List.of(fillet), edgeResults, List.of(), null, columns, 64);
+            List.of(fillet),
+            edgeResults,
+            List.copyOf(network.getEdges().values()),
+            network,
+            columns,
+            64);
 
         List<int[]> goreCells = new ArrayList<>();
         for (int x = 2; x <= 6; x++) {
@@ -93,6 +110,34 @@ class JunctionFilletOpposingGradeContinuityTest {
         assertTrue(Math.abs(yNearNorth - 64) <= 2, "north curb seam; y=" + yNearNorth);
         assertTrue(Math.abs(yNearEast - 64) <= 2, "east curb seam; y=" + yNearEast);
         assertTrue(sharp != null);
+    }
+
+    private static RoadNetwork orthogonalApproaches() {
+        RoadNetwork network = new RoadNetwork();
+        Road nsRoad = network.createRoad("ns");
+        nsRoad.setWidth(7);
+        Road ewRoad = network.createRoad("ew");
+        ewRoad.setWidth(7);
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 40));
+        RoadNode east = network.createNode(new Vec2d(40, 0));
+        network.createEdge(junction.getId(), north.getId(),
+            List.of(junction.getPosition(), north.getPosition()), nsRoad.getId());
+        network.createEdge(junction.getId(), east.getId(),
+            List.of(junction.getPosition(), east.getPosition()), ewRoad.getId());
+        return network;
+    }
+
+    private static RoadEdge edgeToward(RoadNetwork network, Vec2d leaf) {
+        return network.getEdges().values().stream()
+            .filter(edge -> {
+                RoadNode start = network.getNode(edge.getStartNodeId());
+                RoadNode end = network.getNode(edge.getEndNodeId());
+                return (start != null && start.getPosition().distance(leaf) < 1.0)
+                    || (end != null && end.getPosition().distance(leaf) < 1.0);
+            })
+            .findFirst()
+            .orElseThrow();
     }
 
     private static void putRoad(RoadGenerationResult result, int x, int z, int y) {

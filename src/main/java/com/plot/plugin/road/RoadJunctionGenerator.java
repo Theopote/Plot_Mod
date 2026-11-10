@@ -16,9 +16,9 @@ import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
 import com.plot.plugin.road.pipeline.corridor.JunctionValidationManifest;
 import com.plot.plugin.road.pipeline.corridor.JunctionWorldFootprint;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionSeedResolver;
-import com.plot.plugin.road.pipeline.corridor.TunnelJunctionShellPass;
 import com.plot.plugin.road.pipeline.corridor.TunnelPortalSeed;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadEdge;
@@ -407,6 +407,12 @@ public class RoadJunctionGenerator {
             clearanceCells = new ArrayList<>(RoadGeometryUtils.collectWorldCellPlanPoints(
                 clearance, generator.coordinateTransformer()));
         }
+        // 接缝闭合：在清障外形内对铺装列做 1 格四邻域膨胀，补走廊↔圆角之间的漏列，
+        // 不越出 fillPolygon，避免误铺到边坡外侧。
+        if (!surfaceCells.isEmpty() && clearance != null && clearance.size() >= 3) {
+            surfaceCells = dilateSurfaceCellsWithinClearance(surfaceCells, clearance);
+            surfaceCells = dedupePlanCellsByWorldColumn(surfaceCells, geometry);
+        }
         // 清障列同步并入实际铺装列，避免加密补铺格漏清
         if (!surfaceCells.isEmpty()) {
             clearanceCells = new ArrayList<>(clearanceCells);
@@ -440,6 +446,61 @@ public class RoadJunctionGenerator {
             return clearance;
         }
         return sharpPolygon != null ? sharpPolygon : List.of();
+    }
+
+    /**
+     * 在清障多边形内对已有铺装列做 4-邻域一格膨胀，闭合走廊裁剪与圆角补铺之间的单列缝隙。
+     */
+    List<Vec2d> dilateSurfaceCellsWithinClearance(List<Vec2d> surfaceCells, List<Vec2d> clearancePolygon) {
+        if (surfaceCells == null || surfaceCells.isEmpty()
+                || clearancePolygon == null || clearancePolygon.size() < 3) {
+            return surfaceCells != null ? surfaceCells : List.of();
+        }
+        java.util.LinkedHashMap<Long, Vec2d> byColumn = new java.util.LinkedHashMap<>();
+        for (Vec2d cell : surfaceCells) {
+            if (cell == null) {
+                continue;
+            }
+            BlockPos world = generator.toBlockPos(cell, 0);
+            long key = (((long) world.getX()) << 32) ^ (world.getZ() & 0xffffffffL);
+            byColumn.putIfAbsent(key, cell);
+        }
+        int[][] offsets = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        List<Vec2d> extras = new ArrayList<>();
+        for (Vec2d cell : List.copyOf(byColumn.values())) {
+            BlockPos world = generator.toBlockPos(cell, 0);
+            for (int[] offset : offsets) {
+                int nx = world.getX() + offset[0];
+                int nz = world.getZ() + offset[1];
+                long nKey = (((long) nx) << 32) ^ (nz & 0xffffffffL);
+                if (byColumn.containsKey(nKey)) {
+                    continue;
+                }
+                // 世界列回到画布再做外形内判定，避免越界铺到草地。
+                Vec2d neighborPlan = new Vec2d(nx + 0.5, nz + 0.5);
+                if (generator.coordinateTransformer() != null) {
+                    try {
+                        var snapshot = generator.coordinateTransformer().captureProjection();
+                        if (snapshot != null && snapshot.isValid()) {
+                            neighborPlan = snapshot.toCanvas(new Vec2d(nx, nz));
+                        }
+                    } catch (RuntimeException ignored) {
+                        neighborPlan = new Vec2d(nx + 0.5, nz + 0.5);
+                    }
+                }
+                if (!RoadGeometryUtils.pointInPolygon(neighborPlan, clearancePolygon)) {
+                    continue;
+                }
+                byColumn.put(nKey, neighborPlan);
+                extras.add(neighborPlan);
+            }
+        }
+        if (extras.isEmpty()) {
+            return surfaceCells;
+        }
+        List<Vec2d> merged = new ArrayList<>(surfaceCells);
+        merged.addAll(extras);
+        return merged;
     }
 
     /**
@@ -719,7 +780,7 @@ public class RoadJunctionGenerator {
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
                 int surfaceY = filletLoft.surfaceY(point);
-                // 仅封闭覆土列保留隧道 cap；开敞/浅覆圆角按露天路基切坡，否则圆角上方地形残留。
+                // 逐列与走廊同一门：顶衬低于地表 → 洞顶 cap；否则露天清障（对齐邻接道路）。
                 Integer columnMaxClearY = enclosedTunnelColumnClearCap(
                     terrain, point, columnKey, surfaceY,
                     tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
@@ -768,7 +829,7 @@ public class RoadJunctionGenerator {
                 BlockPos column = generator.toBlockPos(point, 0);
                 int surfaceY = filletLoft.surfaceY(point);
                 int leftoverTop = leftoverTops.getOrDefault(columnKey, surfaceY);
-                // 与壳侧 columnHasEnclosedCover 同门：非封闭列 cap=null → 露天清到地表下。
+                // 逐列门控：封闭覆土保留洞顶；开敞/浅覆与邻接走廊一样露天清到地表。
                 Integer columnTunnelCap = enclosedTunnelColumnClearCap(
                     terrain, point, columnKey, surfaceY,
                     tunnelClearHeight, tunnelCavityCap, null,
@@ -812,6 +873,9 @@ public class RoadJunctionGenerator {
                     tunnelEdgeIds.add(approach.edge().getId());
                 }
             }
+            java.util.Set<ColumnKey> pavedForBatter = new java.util.LinkedHashSet<>(
+                surfaceMask.stampedColumns());
+            pavedForBatter.addAll(surfaceMask.expectedColumns());
             JunctionCrossSectionFill.stampApproachSlopeBatters(
                 blocks.getSolids(),
                 node.getPosition(),
@@ -828,7 +892,8 @@ public class RoadJunctionGenerator {
                 maxClearY,
                 fillets,
                 filletLoft,
-                tunnelEdgeIds);
+                tunnelEdgeIds,
+                pavedForBatter);
         }
 
         List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3
@@ -957,8 +1022,15 @@ public class RoadJunctionGenerator {
     }
 
     /**
-     * 仅对壳侧「封闭覆土」列施加隧道洞顶 cap；开敞/浅覆圆角返回立交 cap（或 null），
-     * 避免整节点有隧道进口时把街角圆角上方地形整列停挖。
+     * 隧道路口逐列洞顶 cap，与走廊 {@link TunnelColumnConstruction} 同门：
+     * <ul>
+     *   <li>设计顶衬最高格严格低于自然地表 → 封闭洞腔：返回洞顶 cap，清障止于洞顶下并保留覆土</li>
+     *   <li>否则（浅覆/洞口/开敞）→ 返回立交 cap 或 {@code null}，按露天清到地表，
+     *       与邻接已清障道路一致，避免路口核区/圆角上方残留土柱</li>
+     * </ul>
+     * 门控用「顶衬顶」而非更严的壳侧 {@code columnHasEnclosedCover}，以免几乎封闭的覆土列
+     * 被误判露天而打穿整座山；同时浅覆列不会因「整节点有隧道」而整片停挖。
+     * {@code tunnelThreshold} 保留兼容调用方。
      */
     public static Integer enclosedTunnelColumnClearCap(
             TerrainSampler terrain,
@@ -973,14 +1045,21 @@ public class RoadJunctionGenerator {
         if (tunnelClearHeight == null && flatTunnelCavityCap == null) {
             return elevatedClearCap;
         }
-        int clearHeight = tunnelClearHeight != null
-            ? Math.max(1, tunnelClearHeight)
-            : Math.max(1, flatTunnelCavityCap - loftSurfaceY);
-        if (!TunnelJunctionShellPass.columnHasEnclosedCover(
-                terrain, planPoint, column, loftSurfaceY, clearHeight, liningThickness, tunnelThreshold)) {
+        Integer cavityCap = columnClearCap(
+            loftSurfaceY, tunnelClearHeight, flatTunnelCavityCap, elevatedClearCap);
+        if (cavityCap == null) {
             return elevatedClearCap;
         }
-        return columnClearCap(loftSurfaceY, tunnelClearHeight, flatTunnelCavityCap, elevatedClearCap);
+        Vec2d plan = planPoint;
+        if (plan == null && column != null) {
+            plan = new Vec2d(column.worldX(), column.worldZ());
+        }
+        // 与壳/走廊一致：顶衬最高格 = 洞腔顶 + lining - 1
+        int liningTop = cavityCap + Math.max(1, liningThickness) - 1;
+        if (!TunnelColumnConstruction.allowsClosedCavity(terrain, plan, liningTop)) {
+            return elevatedClearCap;
+        }
+        return cavityCap;
     }
 
     private double estimateUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {

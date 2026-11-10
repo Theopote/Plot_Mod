@@ -27,7 +27,8 @@ class JunctionFilletArcSlopeBatterTest {
     @Test
     void filletOuterArcStampsFillBatterBeyondCurbReturn() {
         RoadSystemConfig config = new RoadSystemConfig("fillet-arc-slope");
-        config.setTerrainStyle(RoadTerrainStyle.SMOOTH);
+        // FOLLOW：bridgeThreshold=6，允许可观测填方高度；SMOOTH(=2) 会 suppressFillBatter。
+        config.setTerrainStyle(RoadTerrainStyle.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
         config.setIncludeSlopeBatter(true);
@@ -47,7 +48,8 @@ class JunctionFilletArcSlopeBatterTest {
         ew.setIncludeSlopeBatter(true);
 
         RoadNode junction = network.createNode(new Vec2d(0, 0));
-        junction.setManualElevation(68.0);
+        // 填方高度 4 ≤ FOLLOW bridgeThreshold(6)，否则 emit 会整段跳过边坡
+        junction.setManualElevation(64.0);
         junction.setCornerRadius(6.0);
         RoadNode n = network.createNode(new Vec2d(0, 40));
         RoadNode s = network.createNode(new Vec2d(0, -40));
@@ -62,7 +64,6 @@ class JunctionFilletArcSlopeBatterTest {
         network.createEdge(junction.getId(), w.getId(),
             List.of(junction.getPosition(), w.getPosition()), ew.getId());
 
-        // 路口面 68，原地形 60 → 外侧需填方边坡
         TerrainSampler lowTerrain = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d point) {
@@ -78,7 +79,7 @@ class JunctionFilletArcSlopeBatterTest {
         RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(
             new RoadGenerator(config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance()));
         var blocks = junctionGenerator.generateJunction(
-            junction, network, lowTerrain, Map.of(junction.getId(), 68));
+            junction, network, lowTerrain, Map.of(junction.getId(), 64));
 
         int outerNeSubgrade = 0;
         int innerPocketSubgrade = 0;

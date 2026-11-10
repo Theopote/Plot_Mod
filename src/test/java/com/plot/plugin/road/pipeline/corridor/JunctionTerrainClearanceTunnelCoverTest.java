@@ -47,34 +47,94 @@ class JunctionTerrainClearanceTunnelCoverTest {
     }
 
     @Test
-    void openFilletWithholdsTunnelCapAndClearsTowardSurface() {
-        // 节点有隧道 clearHeight，但本列覆土不足封闭 → 不得施加洞顶 cap，圆角上方应露天清障
+    void shallowTunnelContextFilletDaylightsLikeAdjacentOpenRoad() {
+        // 顶衬未低于地表 → 与走廊非封闭列一样露天清到地表，避免路口/圆角残留土柱。
         int roadY = 64;
         int clearHeight = 5;
         int flatCap = roadY + clearHeight; // 69
-        int surfaceY = 67; // cover=3，不满足隧道封闭覆土
+        int surfaceY = 67; // 地表落在路面与洞顶之间
         int tunnelThreshold = 4;
         Vec2d plan = new Vec2d(14, 14);
         ColumnKey column = new ColumnKey(14, 14);
         TerrainSampler terrain = surfaceAt(surfaceY);
 
-        assertFalse(TunnelJunctionShellPass.columnHasEnclosedCover(
-            terrain, plan, column, roadY, clearHeight, 1, tunnelThreshold));
+        assertFalse(com.plot.plugin.road.tunnel.TunnelColumnConstruction.allowsClosedCavity(
+            terrain, plan, flatCap));
         Integer gated = com.plot.plugin.road.RoadJunctionGenerator.enclosedTunnelColumnClearCap(
             terrain, plan, column, roadY, clearHeight, flatCap, null, 1, tunnelThreshold);
-        assertEquals(null, gated, "shallow fillet must withhold tunnel cap");
+        assertEquals(null, gated, "shallow fillet must daylight like adjacent open corridor");
 
         RoadSolidModel solids = new RoadSolidModel();
         JunctionTerrainClearance.clearOverheadColumn(
             solids, roadY, tunnelThreshold, terrain, 14, 14, plan, null, surfaceY, gated);
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == surfaceY && "minecraft:air".equals(p.materialId())),
+            "open/shallow fillet must clear the engineering surface block");
         long cavityAir = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
             .filter(p -> p.elevation() > roadY && p.elevation() <= surfaceY)
             .count();
-        assertTrue(cavityAir > 0, "open/shallow fillet must clear terrain above pavement");
+        assertTrue(cavityAir > 0, "must clear leftover terrain above pavement");
+    }
+
+    @Test
+    void enclosedTunnelFilletKeepsOverburdenAboveRoof() {
+        // 顶衬严格低于地表 → 封闭洞腔：清到洞顶下，保留覆土（即使未过更严的壳侧门槛）。
+        int roadY = 64;
+        int clearHeight = 5;
+        int flatCap = roadY + clearHeight; // 69
+        int lining = 1;
+        int surfaceY = 80; // liningTop=69 < 80
+        int tunnelThreshold = 4;
+        Vec2d plan = new Vec2d(20, 20);
+        ColumnKey column = new ColumnKey(20, 20);
+        TerrainSampler terrain = surfaceAt(surfaceY);
+
+        assertTrue(com.plot.plugin.road.tunnel.TunnelColumnConstruction.allowsClosedCavity(
+            terrain, plan, flatCap + lining - 1));
+        Integer gated = com.plot.plugin.road.RoadJunctionGenerator.enclosedTunnelColumnClearCap(
+            terrain, plan, column, roadY, clearHeight, flatCap, null, lining, tunnelThreshold);
+        assertEquals(flatCap, gated, "enclosed column must keep cavity roof cap");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, tunnelThreshold, terrain, 20, 20, plan, null, surfaceY, gated);
+
+        int maxAirY = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .mapToInt(p -> p.elevation())
+            .max()
+            .orElse(roadY);
+        assertTrue(maxAirY < surfaceY, "must not daylight mountain above tunnel fillet; maxAir=" + maxAirY);
+        assertTrue(maxAirY < flatCap, "must stop below design roof; maxAir=" + maxAirY);
+        assertTrue(maxAirY > roadY, "enclosed fillet should still excavate cavity");
+    }
+
+    @Test
+    void thinCoverAboveCavityDaylightsWhenLiningWouldPokeSurface() {
+        // 洞腔顶略低于地表、但顶衬会戳出地表 → 与走廊一样改露天，清掉路口残留。
+        int roadY = 64;
+        int clearHeight = 5;
+        int flatCap = roadY + clearHeight; // 69
+        int lining = 3; // liningTop = 71
+        int surfaceY = 70;
+        int tunnelThreshold = 4;
+        Vec2d plan = new Vec2d(21, 21);
+        ColumnKey column = new ColumnKey(21, 21);
+        TerrainSampler terrain = surfaceAt(surfaceY);
+
+        assertFalse(com.plot.plugin.road.tunnel.TunnelColumnConstruction.allowsClosedCavity(
+            terrain, plan, flatCap + lining - 1));
+        Integer gated = com.plot.plugin.road.RoadJunctionGenerator.enclosedTunnelColumnClearCap(
+            terrain, plan, column, roadY, clearHeight, flatCap, null, lining, tunnelThreshold);
+        assertEquals(null, gated);
+
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, tunnelThreshold, terrain, 21, 21, plan, null, surfaceY, gated);
         assertTrue(solids.primitives().stream().anyMatch(p ->
                 p.elevation() == surfaceY && "minecraft:air".equals(p.materialId())),
-            "open fillet must clear the top engineering surface block itself");
+            "non-enclosed thin cover must daylight plaza/fillet leftovers");
     }
 
     @Test
