@@ -146,7 +146,7 @@ public final class JunctionTerrainClearance {
                 decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
             }
         }
-        // 无洞顶 cap：开敞平交，实心清到地表下（topY 已含 leftover/columnTop，下方再夹 surface）
+        // 无洞顶 cap：开敞平交，自然地表夹到 surface-1；高于地表的 leftover/columnTop 仍可写入。
 
         if (elevatedDeckY != null) {
             // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
@@ -155,8 +155,12 @@ public final class JunctionTerrainClearance {
             topY = Math.min(topY, deckCap);
             decoCeil = Math.min(decoCeil, deckCap);
         } else if (!hasTunnelRoofCap) {
-            // 开敞：实体开挖不得写出 ≥ 自然地表的空气
-            topY = Math.min(topY, surfaceY - 1);
+            // 开敞：自然地表实体开挖止于 surface-1；遗留边路 / 柱顶树冠可高于 heightmap，必须保留。
+            int naturalCap = surfaceY - 1;
+            int engineeringTop = Math.max(leftoverTopY, columnTopY);
+            topY = engineeringTop > surfaceY
+                ? Math.max(naturalCap, engineeringTop)
+                : naturalCap;
         }
         punchColumn(solids, planPoint, cellY, topY);
         clearFloatingAndDecorationsAbove(
