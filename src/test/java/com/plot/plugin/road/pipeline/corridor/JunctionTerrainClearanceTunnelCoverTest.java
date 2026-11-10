@@ -15,29 +15,56 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionTerrainClearanceTunnelCoverTest {
 
     @Test
-    void shallowCoverWithTunnelCapStillClearsOpenPlazaTowardSurface() {
+    void shallowTunnelCoverDoesNotDaylightUnderSurface() {
         RoadSolidModel solids = new RoadSolidModel();
         int roadY = 64;
-        int roofY = 69; // 误传/洞口浅覆的洞顶 cap
-        int surfaceY = 67; // 浅覆土：cover=3 < tunnelThreshold
+        int roofY = 69;
+        int surfaceY = 67; // 浅覆土：cover=3，地表落在路面与洞顶之间
         int tunnelThreshold = 4;
         Vec2d plan = new Vec2d(10, 10);
         TerrainSampler terrain = surfaceAt(surfaceY);
 
+        assertTrue(JunctionTerrainClearance.isShallowTunnelCover(
+            roadY, surfaceY, tunnelThreshold, true));
+        assertEquals(roadY, JunctionTerrainClearance.resolveTunnelSolidPunchTop(roadY, surfaceY, roofY));
+
         JunctionTerrainClearance.clearOverheadColumn(
             solids, roadY, tunnelThreshold, terrain, 10, 10, plan, null, surfaceY, roofY);
 
-        long airAboveSurface = solids.primitives().stream()
+        long underSurfaceAir = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .filter(p -> p.elevation() > roadY && p.elevation() < surfaceY)
+            .count();
+        assertEquals(0L, underSurfaceAir,
+            "shallow tunnel cover must not excavate under natural surface");
+        long airAtOrAboveSurface = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
             .filter(p -> p.elevation() >= surfaceY)
             .count();
-        assertEquals(0L, airAboveSurface, "must not punch natural surface or above");
+        assertEquals(0L, airAtOrAboveSurface, "must not punch natural surface or above");
+    }
+
+    @Test
+    void openPlazaWithoutTunnelCapStillClearsTowardSurface() {
+        RoadSolidModel solids = new RoadSolidModel();
+        int roadY = 64;
+        int surfaceY = 67;
+        Vec2d plan = new Vec2d(11, 11);
+        TerrainSampler terrain = surfaceAt(surfaceY);
+
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, 4, terrain, 11, 11, plan, null, surfaceY, null);
+
         long cavityAir = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
             .filter(p -> p.elevation() > roadY && p.elevation() < surfaceY)
             .count();
-        assertTrue(cavityAir > 0,
-            "shallow open plaza must still clear toward surface despite tunnel cap");
+        assertTrue(cavityAir > 0, "open plaza must clear toward surface without tunnel cap");
+        long airAtOrAboveSurface = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .filter(p -> p.elevation() >= surfaceY)
+            .count();
+        assertEquals(0L, airAtOrAboveSurface, "open plaza must not punch at or above surface");
     }
 
     @Test
@@ -134,6 +161,61 @@ class JunctionTerrainClearanceTunnelCoverTest {
         assertTrue(maxAirY < loftRoofY, "punch must stop below lofted roof, maxAir=" + maxAirY);
         assertTrue(maxAirY < flatJunctionRoofY - 1 || maxAirY < loftRoofY,
             "must not excavate up to flat junction roof through lofted lining band");
+    }
+
+    @Test
+    void floatingRemnantAboveOpenPlazaIsCleared() {
+        RoadSolidModel solids = new RoadSolidModel();
+        int roadY = 64;
+        int surfaceY = 66;
+        int floatingY = 70;
+        Vec2d plan = new Vec2d(3, 3);
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return surfaceY;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return floatingY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                if (y == floatingY) {
+                    return true;
+                }
+                return y < surfaceY;
+            }
+
+            @Override
+            public boolean isConstructionVolumeObstruction(int x, int y, int z) {
+                return y == floatingY;
+            }
+
+            @Override
+            public boolean isChunkLoaded(int x, int z) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return true;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return false;
+            }
+        };
+
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, 4, terrain, 3, 3, plan, null, floatingY, null);
+
+        boolean clearedFloating = solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == floatingY && "minecraft:air".equals(p.materialId()));
+        assertTrue(clearedFloating, "floating remnant above open plaza must be cleared");
     }
 
     private static TerrainSampler surfaceAt(int surfaceY) {

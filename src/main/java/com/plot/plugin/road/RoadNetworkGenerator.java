@@ -689,7 +689,8 @@ public class RoadNetworkGenerator {
                 postMerge.protectedLosses(),
                 postMerge.disconnectedTunnelComponents(),
                 postMerge.crossLayerLeaks(),
-                postMerge.surfaceYMismatches()));
+                postMerge.surfaceYMismatches(),
+                postMerge.undesignedProtrusions()));
         }
     }
 

@@ -102,7 +102,8 @@ public final class JunctionTerrainClearance {
 
     /**
      * @param absoluteClearTopY 隧道设计洞腔顶（roadY+clearHeight）。仅隧道进口传入；
-     *                          深覆土实体清障止于 {@code min(roof-1, surfaceY-1)}，浅覆土按露天清到地表下。
+     *                          深覆土实体清障止于 {@code min(roof-1, surfaceY-1)}；
+     *                          浅覆土（地表落在路面与洞顶之间）与壳侧一致：不开挖实体，只摘装饰/悬空残留。
      *                          开敞平交必须传 null，以便清掉残留边路与柱顶树冠（可高于 heightmap）。
      *                          立交桥底上限由 {@code elevatedDeckY} 单独约束，勿与洞顶 cap 混用 {@code roof-1}。
      */
@@ -133,18 +134,19 @@ public final class JunctionTerrainClearance {
         int decoCeil = Math.max(topY, cellY + headroom);
 
         boolean hasTunnelRoofCap = absoluteClearTopY != null;
-        int coverAboveRoad = surfaceY - cellY;
-        // 浅覆土 = 地表仍高于路面且覆土不足阈值。地表≤路面（路堑/填方）不是浅覆：
-        // 那时 surfaceY-1 会落在路面以下，整列停挖，洞腔残留衬砌清不掉。
-        boolean shallowTunnelCover = hasTunnelRoofCap && surfaceY > cellY && coverAboveRoad < tunnelThreshold;
-        if (hasTunnelRoofCap && !shallowTunnelCover) {
+        if (hasTunnelRoofCap) {
+            // 与 TunnelJunctionShellPass.columnHasEnclosedCover / resolveTunnelSolidPunchTop 同一判定：
+            // 浅覆土不开挖实体（避免剩单格悬空地表）；深覆土止于洞顶下；路堑仍可清洞腔。
             int solidPunchTop = resolveTunnelSolidPunchTop(cellY, surfaceY, absoluteClearTopY);
             topY = Math.min(topY, solidPunchTop);
-            decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
-        } else if (shallowTunnelCover) {
-            // 洞口/浅覆土：即使有洞顶 cap 也按露天清到地表下，避免整列停挖盖住圆角。
-            topY = Math.min(topY, surfaceY - 1);
+            if (solidPunchTop <= cellY) {
+                // 浅覆：实体开挖关闭，装饰扫描仍可摘树冠（不掏覆土）
+                decoCeil = Math.max(decoCeil, cellY + headroom);
+            } else {
+                decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
+            }
         }
+        // 无洞顶 cap：开敞平交，实心清到地表下（topY 已含 leftover/columnTop，下方再夹 surface）
 
         if (elevatedDeckY != null) {
             // elevatedDeckY 是上层路面；保留其下连续 DECK_SUPPORT_DEPTH 格承重层，
@@ -152,9 +154,21 @@ public final class JunctionTerrainClearance {
             int deckCap = elevatedDeckY - ELEVATED_DECK_SUPPORT_DEPTH - 1;
             topY = Math.min(topY, deckCap);
             decoCeil = Math.min(decoCeil, deckCap);
+        } else if (!hasTunnelRoofCap) {
+            // 开敞：实体开挖不得写出 ≥ 自然地表的空气
+            topY = Math.min(topY, surfaceY - 1);
         }
         punchColumn(solids, planPoint, cellY, topY);
-        clearDecorationsAbove(solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);
+        clearFloatingAndDecorationsAbove(
+            solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);
+    }
+
+    /**
+     * 浅覆土隧道列：地表仍高于路面且覆土不足门槛（与壳侧「不封闭施工」同义的清障侧判定）。
+     */
+    public static boolean isShallowTunnelCover(
+            int cellY, int surfaceY, int tunnelThreshold, boolean hasTunnelRoofCap) {
+        return hasTunnelRoofCap && surfaceY > cellY && (surfaceY - cellY) < tunnelThreshold;
     }
 
     /**
@@ -207,9 +221,10 @@ public final class JunctionTerrainClearance {
     }
 
     /**
-     * 在实心清障顶以上继续摘除可清自然装饰（树叶/树干等），避免路口路面残留树木。
+     * 实心清障顶以上：摘除可清装饰，以及下方已悬空的残留实心（边坡掏空后挂住的土块/短树干）。
+     * 自下而上清，使上层失去支撑后连锁清理。
      */
-    static void clearDecorationsAbove(
+    static void clearFloatingAndDecorationsAbove(
             RoadSolidModel solids,
             Vec2d planPoint,
             TerrainSampler terrain,
@@ -222,16 +237,50 @@ public final class JunctionTerrainClearance {
             return;
         }
         int fromY = Math.max(cellY + 1, solidTopY + 1);
+        boolean[] cleared = new boolean[Math.max(0, decoCeil - fromY + 1)];
         for (int y = fromY; y <= decoCeil; y++) {
-            if (!terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+            boolean decoration = terrain.isRoadClearableDecoration(worldX, y, worldZ);
+            boolean solidOrObstruction = terrain.isSolidBlock(worldX, y, worldZ)
+                || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
+            if (!decoration && !solidOrObstruction) {
                 continue;
             }
-            solids.add(
-                planPoint,
-                y,
-                RoadSolidLayer.TUNNEL,
-                "minecraft:air",
-                RoadSolidMaterialPriority.CLEARANCE);
+            if (decoration) {
+                writeClearanceAir(solids, planPoint, y);
+                cleared[y - fromY] = true;
+                continue;
+            }
+            boolean belowCleared = y > fromY && cleared[y - 1 - fromY];
+            boolean belowAirInWorld = !terrain.isSolidBlock(worldX, y - 1, worldZ);
+            if (!belowCleared && !belowAirInWorld) {
+                continue;
+            }
+            writeClearanceAir(solids, planPoint, y);
+            cleared[y - fromY] = true;
         }
+    }
+
+    /** @deprecated 使用 {@link #clearFloatingAndDecorationsAbove} */
+    @Deprecated
+    static void clearDecorationsAbove(
+            RoadSolidModel solids,
+            Vec2d planPoint,
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            int cellY,
+            int solidTopY,
+            int decoCeil) {
+        clearFloatingAndDecorationsAbove(
+            solids, planPoint, terrain, worldX, worldZ, cellY, solidTopY, decoCeil);
+    }
+
+    private static void writeClearanceAir(RoadSolidModel solids, Vec2d planPoint, int y) {
+        solids.add(
+            planPoint,
+            y,
+            RoadSolidLayer.TUNNEL,
+            "minecraft:air",
+            RoadSolidMaterialPriority.CLEARANCE);
     }
 }

@@ -18,10 +18,12 @@ public record JunctionConstructionReport(
         int disconnectedTunnelComponents,
         int crossLayerLeaks,
         /** 期望路面 Y 缺失但同列另有路面：merge/Y 错位镂空。 */
-        int postMergeSurfaceYMismatches) {
+        int postMergeSurfaceYMismatches,
+        /** 设计路面以上未授权实体（落顶衬砌/悬空残留等）。 */
+        int postMergeUndesignedProtrusions) {
 
     public static JunctionConstructionReport empty(String nodeId) {
-        return new JunctionConstructionReport(nodeId, 0, 0, 0, 0, 0, false, 0, 0, 0, 0, 0, 0);
+        return new JunctionConstructionReport(nodeId, 0, 0, 0, 0, 0, false, 0, 0, 0, 0, 0, 0, 0);
     }
 
     public JunctionConstructionReport withTunnelConnectivity(
@@ -42,7 +44,8 @@ public record JunctionConstructionReport(
             postMergeProtectedLosses,
             disconnectedTunnelComponents,
             crossLayerLeaks,
-            postMergeSurfaceYMismatches);
+            postMergeSurfaceYMismatches,
+            postMergeUndesignedProtrusions);
     }
 
     public JunctionConstructionReport withPostMerge(
@@ -51,7 +54,8 @@ public record JunctionConstructionReport(
             int postMergeProtectedLosses,
             int disconnectedTunnelComponents,
             int crossLayerLeaks,
-            int postMergeSurfaceYMismatches) {
+            int postMergeSurfaceYMismatches,
+            int postMergeUndesignedProtrusions) {
         return new JunctionConstructionReport(
             nodeId,
             expectedSurfaceColumns,
@@ -65,7 +69,8 @@ public record JunctionConstructionReport(
             postMergeProtectedLosses,
             disconnectedTunnelComponents,
             crossLayerLeaks,
-            postMergeSurfaceYMismatches);
+            postMergeSurfaceYMismatches,
+            postMergeUndesignedProtrusions);
     }
 
     public static JunctionConstructionReport merge(
@@ -93,6 +98,7 @@ public record JunctionConstructionReport(
             Math.max(base.postMergeProtectedLosses(), overlay.postMergeProtectedLosses()),
             Math.max(base.disconnectedTunnelComponents(), overlay.disconnectedTunnelComponents()),
             Math.max(base.crossLayerLeaks(), overlay.crossLayerLeaks()),
-            Math.max(base.postMergeSurfaceYMismatches(), overlay.postMergeSurfaceYMismatches()));
+            Math.max(base.postMergeSurfaceYMismatches(), overlay.postMergeSurfaceYMismatches()),
+            Math.max(base.postMergeUndesignedProtrusions(), overlay.postMergeUndesignedProtrusions()));
     }
 }

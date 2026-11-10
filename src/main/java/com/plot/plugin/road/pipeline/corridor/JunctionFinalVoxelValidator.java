@@ -27,8 +27,10 @@ public final class JunctionFinalVoxelValidator {
             int disconnectedTunnelComponents,
             int crossLayerLeaks,
             /** 期望路面 Y 缺失，但同列另有路面层——典型 merge/Y 错位镂空。 */
-            int surfaceYMismatches) {
-        public static final PostMergeReport CLEAN = new PostMergeReport(0, 0, 0, 0, 0, 0);
+            int surfaceYMismatches,
+            /** 设计路面以上未授权实体（落顶衬砌 / 悬空残留等）。 */
+            int undesignedProtrusions) {
+        public static final PostMergeReport CLEAN = new PostMergeReport(0, 0, 0, 0, 0, 0, 0);
     }
 
     public static PostMergeReport validateNode(
@@ -47,13 +49,15 @@ public final class JunctionFinalVoxelValidator {
             manifest, aggregate, index, footprintColumns);
         int disconnected = countDisconnectedTunnelComponents(
             manifest, aggregate, index, footprintColumns);
+        int protrusions = countUndesignedProtrusions(manifest, aggregate, index);
         return new PostMergeReport(
             surface.missingColumns() + expectedPavement.missingColumns(),
             surface.semanticMismatches() + expectedPavement.semanticMismatches(),
             protectedLosses,
             disconnected,
             crossLayerLeaks,
-            surface.yMismatches());
+            surface.yMismatches(),
+            protrusions);
     }
 
     /**
@@ -204,6 +208,49 @@ public final class JunctionFinalVoxelValidator {
             }
         }
         return losses;
+    }
+
+    /**
+     * 设计路面以上的未授权实体：不计 MARKING、广场面层（已由 Y mismatch 覆盖）、
+     * 受保护结构与期望隧道衬砌。
+     */
+    static int countUndesignedProtrusions(
+            JunctionValidationManifest manifest,
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index) {
+        if (manifest == null || aggregate == null || index == null) {
+            return 0;
+        }
+        Set<BlockPos> protectedBlocks = new HashSet<>(manifest.expectedProtectedBlocks());
+        Set<BlockPos> expectedLining = aggregate.expectedTunnelLining != null
+            ? aggregate.expectedTunnelLining
+            : Set.of();
+        Set<BlockPos> protrusions = new HashSet<>();
+        for (JunctionSurfaceExpectation expectation : manifest.surfaceExpectations()) {
+            if (expectation == null || expectation.position() == null) {
+                continue;
+            }
+            BlockPos surface = expectation.position();
+            int expectedY = surface.getY();
+            for (BlockPos candidate : index.positionsInColumn(surface.getX(), surface.getZ())) {
+                if (candidate == null || candidate.getY() <= expectedY) {
+                    continue;
+                }
+                BlockRecord record = aggregate.placementRecords.get(candidate);
+                if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                    continue;
+                }
+                RoadSolidLayer layer = aggregate.placementLayers.get(candidate);
+                if (layer == RoadSolidLayer.MARKING || isPlazaSurfaceLayer(layer)) {
+                    continue;
+                }
+                if (protectedBlocks.contains(candidate) || expectedLining.contains(candidate)) {
+                    continue;
+                }
+                protrusions.add(candidate);
+            }
+        }
+        return protrusions.size();
     }
 
     private static int countCrossLayerLeaks(

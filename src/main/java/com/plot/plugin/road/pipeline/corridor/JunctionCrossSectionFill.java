@@ -768,22 +768,8 @@ public final class JunctionCrossSectionFill {
         }
         if (maxClearY != null) {
             int groundY = terrain.sampleSurfaceY(planPoint);
-            // 浅覆土按露天路基处理：开敞平交/洞口不得因洞顶 cap 跳过切坡。
-            if (groundY - junctionY < tunnelThreshold) {
-                RoadRoadbedGradingUtils.gradeColumn(
-                    solids,
-                    planPoint,
-                    junctionY,
-                    tunnelThreshold,
-                    bridgeThreshold,
-                    fillMaterialId,
-                    worldX,
-                    worldZ,
-                    terrain);
-                return;
-            }
-            // 深覆土隧道/立交净空上限：禁止经 gradeColumn 掏穿覆土或挖掉洞顶格。
-            // （旧逻辑 min(surface, maxClearY) 会在浅覆土圆角把山体挖穿到地表。）
+            // 与 clearOverhead / shell 共用 resolveTunnelSolidPunchTop：
+            // 浅覆土 cutTop==junctionY → 不切穿覆土；深覆土止于洞顶下。
             int cutTop = JunctionTerrainClearance.resolveTunnelSolidPunchTop(
                 junctionY, groundY, maxClearY);
             if (cutTop > junctionY) {

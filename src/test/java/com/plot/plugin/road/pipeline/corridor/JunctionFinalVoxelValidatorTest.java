@@ -119,6 +119,68 @@ class JunctionFinalVoxelValidatorTest {
 
         assertEquals(0, report.missingSurfaceColumns(), "column still has pavement elsewhere");
         assertEquals(1, report.surfaceYMismatches(), "must flag merge/Y hollow separately");
+        assertEquals(0, report.undesignedProtrusions());
+    }
+
+    @Test
+    void undesignedProtrusionDiagnosedAboveDesignedSurface() {
+        BlockPos surface = new BlockPos(0, 64, 0);
+        BlockPos leftoverLining = new BlockPos(0, 70, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(new JunctionSurfaceExpectation(surface, RoadSolidLayer.ROAD)),
+            List.of(),
+            List.of(),
+            squareFootprint(),
+            64,
+            null,
+            0,
+            0);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(surface, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(surface, RoadSolidLayer.ROAD);
+        aggregate.recordPlacementOverride(leftoverLining, "minecraft:air", "minecraft:stone_bricks");
+        aggregate.placementLayers.put(leftoverLining, RoadSolidLayer.TUNNEL);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(1, report.undesignedProtrusions(), "leftover lining above road must be flagged");
+    }
+
+    @Test
+    void expectedTunnelLiningAboveSurfaceIsNotUndesignedProtrusion() {
+        BlockPos surface = new BlockPos(0, 64, 0);
+        BlockPos roofLining = new BlockPos(0, 69, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(new JunctionSurfaceExpectation(surface, RoadSolidLayer.ROAD)),
+            List.of(),
+            List.of(),
+            squareFootprint(),
+            64,
+            null,
+            0,
+            0);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(surface, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(surface, RoadSolidLayer.ROAD);
+        aggregate.recordPlacementOverride(roofLining, "minecraft:air", "minecraft:stone_bricks");
+        aggregate.placementLayers.put(roofLining, RoadSolidLayer.TUNNEL);
+        aggregate.expectedTunnelLining.add(roofLining);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.undesignedProtrusions());
     }
 
     @Test
