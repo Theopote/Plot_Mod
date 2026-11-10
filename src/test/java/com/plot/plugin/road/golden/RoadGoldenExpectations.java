@@ -39,12 +39,12 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
         209, 49, 35, 0, 0, 37, 0, 35, 49, 244, 0, 0, List.of());
 
-    // Bridge portal seal / tunnel voxel counts after roof stabilize + acute fans.
+    // Bridge/tunnel：禁地表及以上凭空衬砌与清障后，tunnelBlocks/placement 各减 36。
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
-        217, 0, 5286, 0, 108, 1252, 0, 5286, 0, 1577, 1, 2, List.of());
+        217, 0, 5286, 0, 108, 1216, 0, 5286, 0, 1541, 1, 2, List.of());
 
     public static final RoadGoldenMetrics R09 = new RoadGoldenMetrics(
-        406, 0, 3851, 0, 0, 2148, 0, 3851, 0, 2554, 0, 1, List.of());
+        406, 0, 3851, 0, 0, 2112, 0, 3851, 0, 2518, 0, 1, List.of());
 
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
