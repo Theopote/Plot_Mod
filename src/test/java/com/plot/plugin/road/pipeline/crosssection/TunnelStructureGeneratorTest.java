@@ -313,6 +313,57 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
+    void shallowSurfaceGravelDoesNotGetCavityUndercut() {
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(), 3, style.sideClearance(), style.clearHeight(), style.liningThickness(), 64, false);
+        int roofTop = mask.outerTopY(0);
+        assertTrue(roofTop > 64, "fixture must have a designed roof cell");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        TerrainSampler gravelAtRoof = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return roofTop;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= roofTop;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y == roofTop;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            gravelAtRoof,
+            columnResolver(),
+            1.0,
+            false);
+
+        assertFalse(TunnelStructureGenerator.columnAllowsClosedCavity(
+            gravelAtRoof, new Vec2d(0, 0), roofTop));
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() >= roofTop && "minecraft:stone_bricks".equals(p.materialId())),
+            "surface gravel must not become lining");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                "minecraft:air".equals(p.materialId())
+                    && p.elevation() > 64
+                    && p.elevation() < roofTop),
+            "must not excavate closed cavity under unsupported surface gravel");
+    }
+
+    @Test
     void nonPortalStationsAlsoSealRoofGaps() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);

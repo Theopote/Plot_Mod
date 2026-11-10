@@ -476,4 +476,73 @@ class TunnelRoofGapSealerTest {
                     && p.elevation() <= roofTop + 5),
             "stable dirt/stone overburden must not be mass-replaced with stone");
     }
+
+    @Test
+    void doesNotRewriteGravityAboveStableBearingLayer() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int envelopeWidth = 9;
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.clearHeight(),
+            style.liningThickness(),
+            ROAD_Y,
+            false);
+        int roofTop = mask.maxY();
+        RoadSolidModel solids = new RoadSolidModel();
+        // 洞顶 → 稳定石头 → 更高处沙砾：上层沙砾已有承托，不得改写
+        TerrainSampler stoneThenGravel = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return roofTop + 4;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return roofTop + 4;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y > roofTop && y <= roofTop + 4;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y == roofTop + 2 || y == roofTop + 3;
+            }
+        };
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            style.shape(),
+            ROAD_Y,
+            style.clearHeight(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.liningThickness(),
+            new Vec2d(10, 0),
+            new Vec2d(0, 1),
+            1.0,
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.y);
+                }
+            },
+            stoneThenGravel,
+            "minecraft:stone_bricks",
+            "minecraft:stone");
+
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                "minecraft:stone".equals(p.materialId())
+                    && (p.elevation() == roofTop + 2 || p.elevation() == roofTop + 3)),
+            "gravel above a stable bearing layer must not be rewritten");
+    }
 }

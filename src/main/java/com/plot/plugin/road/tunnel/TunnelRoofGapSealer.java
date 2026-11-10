@@ -165,9 +165,8 @@ public final class TunnelRoofGapSealer {
                 continue;
             }
             if (terrain.isSolidBlock(worldX, y, worldZ)) {
-                // Stable solid — leave in place; stop filling air gaps above it.
-                reachedOverburden = true;
-                continue;
+                // 稳定承重层：支撑链到此结束。不得 continue 扫到更高处无关沙砾再改写。
+                break;
             }
             if (reachedOverburden) {
                 // Air after overburden — do not fill caves above the roof stack.
