@@ -310,7 +310,6 @@ public final class TunnelStructureGenerator {
             Vec2d leftNormal,
             int roadEnvelopeWidth,
             int roadY,
-            String liningMaterialId,
             TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             double canvasUnitsPerBlock,
@@ -321,7 +320,7 @@ public final class TunnelStructureGenerator {
             double carriageHalf,
             List<PathSegment> polyline) {
         return placeCrossSection(
-            solids, tunnelStyle, center, leftNormal, roadEnvelopeWidth, roadY, liningMaterialId,
+            solids, tunnelStyle, center, leftNormal, roadEnvelopeWidth, roadY, "minecraft:stone_bricks",
             RoadSolidMaterialPriority.STRUCTURAL,
             terrain, columnResolver, canvasUnitsPerBlock, portalFrame,
             owner, previous, next, carriageHalf, polyline);
@@ -469,16 +468,6 @@ public final class TunnelStructureGenerator {
             }
         });
         return new RoadRoadbedGradingUtils.GradingVolumes(cutHolder[0], 0);
-    }
-
-    /**
-     * @see TunnelColumnConstruction#allowsClosedCavity
-     */
-    public static boolean columnAllowsClosedCavity(
-            TerrainSampler terrain,
-            Vec2d planPoint,
-            int designedRoofTopY) {
-        return TunnelColumnConstruction.allowsClosedCavity(terrain, planPoint, designedRoofTopY);
     }
 
     /**

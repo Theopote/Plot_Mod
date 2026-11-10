@@ -817,8 +817,8 @@ class TunnelStructureGeneratorTest {
         Vec2d center = new Vec2d(18, 0.2);
         Vec2d normal = PathSegmentGeometry.leftNormal(current);
         TunnelStructureGenerator.placeCrossSection(
-            solids, style, center, normal, 7, 64, "minecraft:stone_bricks",
-            columnTerrain(100, 100, 100), columnResolver(), 1.0, false,
+            solids, style, center, normal, 7, 64,
+                columnTerrain(100, 100, 100), columnResolver(), 1.0, false,
             current, previous, null, 3.0, List.of(previous, current));
 
         // 仅检查行车净高带内的侧壁衬砌；洞顶横向可落在邻段投影内
