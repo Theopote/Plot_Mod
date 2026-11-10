@@ -377,7 +377,7 @@ public final class JunctionCrossSectionFill {
         double safeScale = scale > 1e-9 ? scale : 1.0;
         int radiusBlocks = Math.max(1, (int) Math.floor(Math.max(0.0, radius) / safeScale));
         int beforeCenter = Math.max(1, radiusBlocks - 1);
-        return Math.min(Math.max(1, maxHorizontalRun), beforeCenter);
+        return Math.clamp(maxHorizontalRun, 1, beforeCenter);
     }
 
     private record IndexedShoulderRay(int sampleIndex, SlopeBandRasterizer.ShoulderRay ray) {
@@ -461,7 +461,7 @@ public final class JunctionCrossSectionFill {
         int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
         boolean widthCapped = unconstrainedRun > maxHorizontalRun;
         // 圆角半径很小时 maxHorizontalRun 可能为 1；Math.clamp 下界不得超过上界。
-        int minRun = Math.min(2, Math.max(1, maxHorizontalRun));
+        int minRun = Math.clamp(maxHorizontalRun, 1, 2);
         int usefulHorizontalRun = Math.clamp(unconstrainedRun, minRun, Math.max(minRun, maxHorizontalRun));
         String materialId = isFill ? fillBlockId : cutBlockId;
         if (materialId == null || materialId.isBlank()) {
@@ -544,17 +544,6 @@ public final class JunctionCrossSectionFill {
             return slopeHeight <= groundHeight + 1;
         }
         return slopeHeight >= groundHeight - 1;
-    }
-
-    private static void emitConsolidatedSlopeColumns(
-            RoadSolidModel solids,
-            RoadCorridorPlan plan,
-            TerrainSampler terrain,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            int bridgeThreshold,
-            Integer maxClearY) {
-        emitConsolidatedSlopeColumns(
-            solids, plan, terrain, columnResolver, bridgeThreshold, maxClearY, Set.of());
     }
 
     private static void emitConsolidatedSlopeColumns(
