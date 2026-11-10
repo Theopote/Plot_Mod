@@ -955,9 +955,10 @@ public final class TunnelStructureGenerator {
     }
 
     /**
-     * Lining seals the structural shell below the engineering surface.
-     * Air pockets in the shell still get lining so gravity blocks (gravel/sand) cannot fall through.
-     * Open air at/above the surface and clearable decoration (trees) stay without lining.
+     * Lining seals the structural shell strictly below the engineering surface.
+     * Air pockets below the surface still get lining; gravity blocks at/above the
+     * natural surface are never replaced (portal / shallow daylight must not grow
+     * a brick pile on top of the ground).
      */
     public static boolean shouldPlaceLining(
             TerrainSampler terrain,
@@ -970,11 +971,6 @@ public final class TunnelStructureGenerator {
         }
         if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
             return false;
-        }
-        // Gravity blocks at the shell must become lining even when they form the
-        // engineering surface — otherwise cavity air under them lets gravel fall in.
-        if (terrain.isGravityAffectedBlock(worldX, y, worldZ)) {
-            return true;
         }
         int surfaceY = terrain.sampleSurfaceY(planPoint);
         return y < surfaceY;

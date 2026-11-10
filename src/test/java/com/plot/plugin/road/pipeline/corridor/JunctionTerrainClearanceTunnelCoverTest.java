@@ -69,9 +69,12 @@ class JunctionTerrainClearanceTunnelCoverTest {
             solids, roadY, tunnelThreshold, terrain, 14, 14, plan, null, surfaceY, gated);
         long cavityAir = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
-            .filter(p -> p.elevation() > roadY && p.elevation() < surfaceY)
+            .filter(p -> p.elevation() > roadY && p.elevation() <= surfaceY)
             .count();
         assertTrue(cavityAir > 0, "open/shallow fillet must clear terrain above pavement");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == surfaceY && "minecraft:air".equals(p.materialId())),
+            "open fillet must clear the top engineering surface block itself");
     }
 
     @Test
@@ -87,14 +90,18 @@ class JunctionTerrainClearanceTunnelCoverTest {
 
         long cavityAir = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
-            .filter(p -> p.elevation() > roadY && p.elevation() < surfaceY)
+            .filter(p -> p.elevation() > roadY && p.elevation() <= surfaceY)
             .count();
-        assertTrue(cavityAir > 0, "open plaza must clear toward surface without tunnel cap");
-        long airAtOrAboveSurface = solids.primitives().stream()
+        assertTrue(cavityAir > 0, "open plaza must clear toward and including surface");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == surfaceY && "minecraft:air".equals(p.materialId())),
+            "open plaza must clear the top engineering terrain block at surfaceY");
+        long airAboveSurface = solids.primitives().stream()
             .filter(p -> "minecraft:air".equals(p.materialId()))
-            .filter(p -> p.elevation() >= surfaceY)
+            .filter(p -> p.elevation() > surfaceY)
             .count();
-        assertEquals(0L, airAtOrAboveSurface, "open plaza must not punch at or above surface");
+        assertEquals(0L, airAboveSurface,
+            "with equal columnTop, open plaza must not invent air above surface");
     }
 
     @Test

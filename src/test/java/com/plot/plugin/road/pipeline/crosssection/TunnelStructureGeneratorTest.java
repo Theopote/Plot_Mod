@@ -232,7 +232,49 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
-    void liningReplacesSurfaceGravelAtRoofSoCavityCannotUndercutIt() {
+    void liningReplacesUndergroundGravelAtRoofSoCavityCannotUndercutIt() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        TerrainSampler gravelRoof = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 74;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 74;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y == 70;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            gravelRoof,
+            columnResolver(),
+            1.0,
+            false);
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == 70 && "minecraft:stone_bricks".equals(p.materialId())),
+            "underground gravel at the roof cell must become lining before cavity air is written");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() == 70 && "minecraft:air".equals(p.materialId())),
+            "roof gravel must not be left as excavation air");
+    }
+
+    @Test
+    void liningDoesNotReplaceNaturalSurfaceGravel() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
         TerrainSampler gravelSurface = new TerrainSampler() {
@@ -265,12 +307,9 @@ class TunnelStructureGeneratorTest {
             1.0,
             false);
 
-        assertTrue(solids.primitives().stream().anyMatch(p ->
-                p.elevation() == 70 && "minecraft:stone_bricks".equals(p.materialId())),
-            "surface gravel at the roof cell must become lining before cavity air is written");
         assertTrue(solids.primitives().stream().noneMatch(p ->
-                p.elevation() == 70 && "minecraft:air".equals(p.materialId())),
-            "roof gravel must not be left as excavation air");
+                p.elevation() >= 70 && "minecraft:stone_bricks".equals(p.materialId())),
+            "natural surface gravel must not be replaced by tunnel lining");
     }
 
     @Test

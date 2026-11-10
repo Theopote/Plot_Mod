@@ -104,7 +104,8 @@ public final class JunctionTerrainClearance {
      * @param absoluteClearTopY 隧道设计洞腔顶（roadY+clearHeight）。仅隧道进口传入；
      *                          深覆土实体清障止于 {@code min(roof-1, surfaceY-1)}；
      *                          浅覆土（地表落在路面与洞顶之间）与壳侧一致：不开挖实体，只摘装饰/悬空残留。
-     *                          开敞平交必须传 null，以便清掉残留边路与柱顶树冠（可高于 heightmap）。
+     *                          开敞平交必须传 null：实体清障包含工程地表顶层（{@code surfaceY}），
+     *                          并可清掉更高的残留边路与柱顶树冠；封闭隧道仍止于地表以下。
      *                          立交桥底上限由 {@code elevatedDeckY} 单独约束，勿与洞顶 cap 混用 {@code roof-1}。
      */
     public static void clearOverheadColumn(
@@ -155,12 +156,11 @@ public final class JunctionTerrainClearance {
             topY = Math.min(topY, deckCap);
             decoCeil = Math.min(decoCeil, deckCap);
         } else if (!hasTunnelRoofCap) {
-            // 开敞：自然地表实体开挖止于 surface-1；遗留边路 / 柱顶树冠可高于 heightmap，必须保留。
-            int naturalCap = surfaceY - 1;
+            // 开敞责任列：包含工程地表顶层方块本身（sampleSurfaceY = 最高自然实心 Y）。
+            // 遗留边路 / 柱顶树冠可高于地表，取 max 一并清掉；立交承重由 elevatedDeckY 分支夹死。
+            int naturalCap = surfaceY;
             int engineeringTop = Math.max(leftoverTopY, columnTopY);
-            topY = engineeringTop > surfaceY
-                ? Math.max(naturalCap, engineeringTop)
-                : naturalCap;
+            topY = Math.max(naturalCap, engineeringTop);
         }
         punchColumn(solids, planPoint, cellY, topY);
         clearFloatingAndDecorationsAbove(

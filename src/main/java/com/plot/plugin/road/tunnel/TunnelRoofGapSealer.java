@@ -122,15 +122,13 @@ public final class TunnelRoofGapSealer {
             return;
         }
         int surfaceY = terrain.sampleSurfaceY(point);
-        // Shallow cover: still stabilize at least the cell above the roof even when
-        // sampleSurfaceY sits at/below roofTop (previously skipped entire columns).
-        int columnTop = Math.max(terrain.sampleColumnTopY(point), surfaceY);
-        if (columnTop <= roofTop) {
-            columnTop = roofTop + 1;
+        // 硬上限：自然工程地表及其上方不得补衬砌/补强（浅覆土洞口禁止凭空抬到 roofTop+1）。
+        int maxAuthorizedY = surfaceY - 1;
+        if (maxAuthorizedY < roofTop) {
+            return;
         }
-        // Roof cell itself: lining may be skipped at/above surface (shouldPlaceLining),
-        // leaving gravel/sand as the "roof" — rewrite before cavity air removes support.
-        if (terrain.isGravityAffectedBlock(worldX, roofTop, worldZ)) {
+        // 仅当设计顶衬格仍在地表以下时，才把该格重力块改写为承重。
+        if (roofTop < surfaceY && terrain.isGravityAffectedBlock(worldX, roofTop, worldZ)) {
             String roofFill = shellMaterialId != null && !shellMaterialId.isBlank()
                 ? shellMaterialId
                 : restoreId;
@@ -140,6 +138,11 @@ public final class TunnelRoofGapSealer {
                 RoadSolidLayer.TUNNEL,
                 roofFill,
                 RoadSolidMaterialPriority.STRUCTURAL);
+        }
+        int columnTop = Math.max(terrain.sampleColumnTopY(point), surfaceY);
+        columnTop = Math.min(columnTop, maxAuthorizedY);
+        if (columnTop <= roofTop) {
+            return;
         }
         int gravityStabilized = 0;
         boolean reachedOverburden = false;
