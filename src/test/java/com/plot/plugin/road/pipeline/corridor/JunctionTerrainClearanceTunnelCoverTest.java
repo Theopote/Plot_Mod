@@ -6,7 +6,9 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import org.junit.jupiter.api.Test;
 
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -42,6 +44,34 @@ class JunctionTerrainClearanceTunnelCoverTest {
             .filter(p -> p.elevation() >= surfaceY)
             .count();
         assertEquals(0L, airAtOrAboveSurface, "must not punch natural surface or above");
+    }
+
+    @Test
+    void openFilletWithholdsTunnelCapAndClearsTowardSurface() {
+        // 节点有隧道 clearHeight，但本列覆土不足封闭 → 不得施加洞顶 cap，圆角上方应露天清障
+        int roadY = 64;
+        int clearHeight = 5;
+        int flatCap = roadY + clearHeight; // 69
+        int surfaceY = 67; // cover=3，不满足隧道封闭覆土
+        int tunnelThreshold = 4;
+        Vec2d plan = new Vec2d(14, 14);
+        ColumnKey column = new ColumnKey(14, 14);
+        TerrainSampler terrain = surfaceAt(surfaceY);
+
+        assertFalse(TunnelJunctionShellPass.columnHasEnclosedCover(
+            terrain, plan, column, roadY, clearHeight, 1, tunnelThreshold));
+        Integer gated = com.plot.plugin.road.RoadJunctionGenerator.enclosedTunnelColumnClearCap(
+            terrain, plan, column, roadY, clearHeight, flatCap, null, 1, tunnelThreshold);
+        assertEquals(null, gated, "shallow fillet must withhold tunnel cap");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, tunnelThreshold, terrain, 14, 14, plan, null, surfaceY, gated);
+        long cavityAir = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .filter(p -> p.elevation() > roadY && p.elevation() < surfaceY)
+            .count();
+        assertTrue(cavityAir > 0, "open/shallow fillet must clear terrain above pavement");
     }
 
     @Test

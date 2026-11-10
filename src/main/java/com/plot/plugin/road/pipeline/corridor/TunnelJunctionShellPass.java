@@ -287,7 +287,7 @@ public final class TunnelJunctionShellPass {
      * 封闭隧道列：相对路面覆土达到隧道门槛，且自然地表盖过设计洞顶 + 衬砌 + 裕量。
      * 浅覆土/洞口列返回 false，不得开挖或封顶。
      */
-    static boolean columnHasEnclosedCover(
+    public static boolean columnHasEnclosedCover(
             TerrainSampler terrain,
             Vec2d plan,
             ColumnKey column,

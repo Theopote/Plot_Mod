@@ -173,6 +173,23 @@ public final class TunnelJunctionSeedResolver {
     }
 
     /**
+     * 各隧道进口衬砌厚度取更严（更大）者；与壳侧封闭覆土判定对齐。
+     */
+    public static int resolveTunnelLiningThickness(List<TunnelApproach> approaches) {
+        int lining = 1;
+        if (approaches == null || approaches.isEmpty()) {
+            return lining;
+        }
+        for (TunnelApproach approach : approaches) {
+            if (approach == null || approach.tunnelStyle() == null) {
+                continue;
+            }
+            lining = Math.max(lining, Math.max(1, approach.tunnelStyle().liningThickness()));
+        }
+        return lining;
+    }
+
+    /**
      * 边结果是否含隧道族施工（不限节点邻域）。仅用于洞顶 cap 兜底，不提升为隧道进口。
      */
     static boolean edgeHasTunnelFamilyConstruction(RoadGenerationResult result) {
