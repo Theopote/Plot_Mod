@@ -47,8 +47,8 @@ class JunctionTerrainClearanceTunnelCoverTest {
     }
 
     @Test
-    void shallowTunnelContextFilletKeepsCapAndDoesNotPunchCover() {
-        // 有隧道上下文即使浅覆也必须保留洞顶 cap，禁止改露天打穿路面上方覆土。
+    void shallowCoverDoesNotInstallTunnelCapSoOpenPlazaCanDaylight() {
+        // 浅覆土未达封闭门槛：不得安装洞顶 cap，否则平交圆角残土会整列停挖。
         int roadY = 64;
         int clearHeight = 5;
         int flatCap = roadY + clearHeight; // 69
@@ -60,19 +60,14 @@ class JunctionTerrainClearanceTunnelCoverTest {
 
         Integer gated = com.plot.plugin.road.RoadJunctionGenerator.enclosedTunnelColumnClearCap(
             terrain, plan, column, roadY, clearHeight, flatCap, null, 1, tunnelThreshold);
-        assertEquals(flatCap, gated, "tunnel context must keep cavity roof cap even for shallow cover");
+        assertEquals(null, gated, "shallow cover must not install enclosed tunnel roof cap");
 
         RoadSolidModel solids = new RoadSolidModel();
         JunctionTerrainClearance.clearOverheadColumn(
             solids, roadY, tunnelThreshold, terrain, 14, 14, plan, null, surfaceY, gated);
-        long underSurfaceAir = solids.primitives().stream()
-            .filter(p -> "minecraft:air".equals(p.materialId()))
-            .filter(p -> p.elevation() > roadY && p.elevation() <= surfaceY)
-            .count();
-        assertEquals(0L, underSurfaceAir, "shallow tunnel fillet must not excavate cover under surface");
-        assertFalse(solids.primitives().stream().anyMatch(p ->
+        assertTrue(solids.primitives().stream().anyMatch(p ->
                 p.elevation() == surfaceY && "minecraft:air".equals(p.materialId())),
-            "must not punch natural surface above shallow tunnel fillet");
+            "shallow/open plaza must still clear engineering surface");
     }
 
     @Test
@@ -107,8 +102,8 @@ class JunctionTerrainClearanceTunnelCoverTest {
     }
 
     @Test
-    void thinCoverAboveCavityKeepsCapWhenLiningWouldPokeSurface() {
-        // 洞腔顶略低于地表、顶衬会戳出：仍保留 cap，禁止改露天打穿洞顶覆土。
+    void thinCoverNotEnclosedDaylightsInsteadOfLeavingPlazaDirt() {
+        // 覆土不足封闭门槛时不装 cap：平交/洞口过渡按露天清，避免圆角残土。
         int roadY = 64;
         int clearHeight = 5;
         int flatCap = roadY + clearHeight; // 69
@@ -121,21 +116,14 @@ class JunctionTerrainClearanceTunnelCoverTest {
 
         Integer gated = com.plot.plugin.road.RoadJunctionGenerator.enclosedTunnelColumnClearCap(
             terrain, plan, column, roadY, clearHeight, flatCap, null, lining, tunnelThreshold);
-        assertEquals(flatCap, gated, "thin cover with lining poke must still keep cavity cap");
+        assertEquals(null, gated, "thin cover below enclosed threshold must not keep tunnel cap");
 
         RoadSolidModel solids = new RoadSolidModel();
         JunctionTerrainClearance.clearOverheadColumn(
             solids, roadY, tunnelThreshold, terrain, 21, 21, plan, null, surfaceY, gated);
-        assertFalse(solids.primitives().stream().anyMatch(p ->
+        assertTrue(solids.primitives().stream().anyMatch(p ->
                 p.elevation() == surfaceY && "minecraft:air".equals(p.materialId())),
-            "must not daylight-punch thin overburden above tunnel fillet");
-        int maxAirY = solids.primitives().stream()
-            .filter(p -> "minecraft:air".equals(p.materialId()))
-            .mapToInt(p -> p.elevation())
-            .max()
-            .orElse(roadY);
-        assertTrue(maxAirY < surfaceY, "maxAir must stay below natural surface; maxAir=" + maxAirY);
-        assertTrue(maxAirY < flatCap, "maxAir must stay below design roof; maxAir=" + maxAirY);
+            "non-enclosed plaza/fillet must clear engineering surface");
     }
 
     @Test
@@ -288,6 +276,62 @@ class JunctionTerrainClearanceTunnelCoverTest {
         assertTrue(maxAirY < loftRoofY, "punch must stop below lofted roof, maxAir=" + maxAirY);
         assertTrue(maxAirY < flatJunctionRoofY - 1 || maxAirY < loftRoofY,
             "must not excavate up to flat junction roof through lofted lining band");
+    }
+
+    @Test
+    void tunnelContextDoesNotChainDeleteNaturalRockAboveCave() {
+        // 浅覆土隧道列：覆土下有天然洞穴时，不得因 belowAir 把上方山体连锁清成竖井。
+        RoadSolidModel solids = new RoadSolidModel();
+        int roadY = 64;
+        int roofY = 69;
+        int caveY = 71;       // 天然空腔
+        int rockY = 72;       // 空腔上方自然岩石
+        int surfaceY = 75;
+        Vec2d plan = new Vec2d(40, 40);
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return surfaceY;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return surfaceY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                if (y == caveY) {
+                    return false;
+                }
+                return y < surfaceY;
+            }
+
+            @Override
+            public boolean isChunkLoaded(int x, int z) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return true;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return false;
+            }
+        };
+
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, 4, terrain, 40, 40, plan, null, surfaceY, roofY);
+
+        assertFalse(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == rockY && "minecraft:air".equals(p.materialId())),
+            "tunnel context must not clear natural rock above a pre-existing cave");
+        assertFalse(solids.primitives().stream().anyMatch(p ->
+                p.elevation() >= surfaceY && "minecraft:air".equals(p.materialId())),
+            "must not punch natural surface via floating chain");
     }
 
     @Test

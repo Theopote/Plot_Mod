@@ -117,7 +117,8 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
-    void shallowTunnelModeClearsDaylightHeadroomWithoutUndercutOnly() {
+    void shallowTunnelModePreservesOverburdenInsteadOfDaylighting() {
+        // 浅覆土 TUNNEL 不得自行改露天打穿覆土；露天净空留给 PORTAL / 明确路堑。
         var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
         int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64);
         RoadSolidModel solids = new RoadSolidModel();
@@ -157,19 +158,17 @@ class RoadCorridorClearancePassTest {
 
         RoadCorridorClearancePass.apply(solids, plan, gravelSurface, host);
 
-        assertTrue(solids.primitives().stream().anyMatch(p ->
+        assertTrue(solids.primitives().stream().noneMatch(p ->
                 p.elevation() == roofTop && "minecraft:air".equals(p.materialId())),
-            "shallow TUNNEL must open-cut the surface gravel itself");
+            "shallow TUNNEL must keep natural overburden at surface");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                "minecraft:air".equals(p.materialId())
+                    && p.elevation() > 64
+                    && p.elevation() < roofTop),
+            "shallow TUNNEL must not undercut a closed cavity either");
         assertTrue(solids.primitives().stream().noneMatch(p ->
                 p.elevation() >= roofTop && "minecraft:stone".equals(p.materialId())),
             "shallow TUNNEL must not invent restore stone at/above surface");
-        boolean cavityWithoutSurface = solids.primitives().stream().anyMatch(p ->
-                "minecraft:air".equals(p.materialId())
-                    && p.elevation() > 64
-                    && p.elevation() < roofTop)
-            && solids.primitives().stream().noneMatch(p ->
-                p.elevation() == roofTop && "minecraft:air".equals(p.materialId()));
-        assertFalse(cavityWithoutSurface, "must not undercut while leaving surface gravel");
     }
 
     @Test

@@ -259,9 +259,22 @@ public final class TunnelJunctionSeedResolver {
             List<Vec2d> polygon,
             Collection<RoadGenerationResult> edgeResults,
             ICoordinateService coordinateTransformer) {
+        return collectOpenVolume(approaches, polygon, edgeResults, coordinateTransformer, null);
+    }
+
+    /**
+     * @param roadYAt 可选的逐点路面标高；为 null 时回退进口节点 {@link TunnelApproach#roadY()}。
+     */
+    public static Set<BlockPos> collectOpenVolume(
+            List<TunnelApproach> approaches,
+            List<Vec2d> polygon,
+            Collection<RoadGenerationResult> edgeResults,
+            ICoordinateService coordinateTransformer,
+            java.util.function.ToIntFunction<Vec2d> roadYAt) {
         Set<BlockPos> sampledAir = new HashSet<>();
         for (TunnelApproach approach : approaches) {
-            sampledAir.addAll(collectSampledApproachAir(approach, polygon, coordinateTransformer));
+            sampledAir.addAll(collectSampledApproachAir(
+                approach, polygon, coordinateTransformer, edgeResults, roadYAt));
         }
         Set<BlockPos> dilatedAir = dilateBlockPositions(sampledAir);
         Set<BlockPos> openVolume = new HashSet<>(sampledAir);
@@ -292,11 +305,13 @@ public final class TunnelJunctionSeedResolver {
     }
 
     public static int[] approachYBand(TunnelApproach approach) {
-        TunnelCrossSectionMask mask = buildMask(approach);
+        TunnelCrossSectionMask mask = buildMask(approach, approach.roadY());
         if (mask == null) {
             return new int[] {approach.roadY(), approach.roadY()};
         }
-        return new int[] {mask.minY(), mask.maxY()};
+        // 纵坡路口：连通扫掠会相对节点 roadY 上下偏移，衬砌匹配需留坡差余量。
+        int gradeSlack = 16;
+        return new int[] {mask.minY() - gradeSlack, mask.maxY() + gradeSlack};
     }
 
     private static List<BlockPos> collectFirstFrameApproachAir(
@@ -304,7 +319,7 @@ public final class TunnelJunctionSeedResolver {
             List<Vec2d> polygon,
             ICoordinateService coordinateTransformer) {
         List<BlockPos> positions = new ArrayList<>();
-        TunnelCrossSectionMask mask = buildMask(approach);
+        TunnelCrossSectionMask mask = buildMask(approach, approach.roadY());
         if (mask == null) {
             return positions;
         }
@@ -317,7 +332,7 @@ public final class TunnelJunctionSeedResolver {
         Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
         double scale = approach.unitsPerBlock();
         Set<BlockPos> unique = new HashSet<>();
-        projectMaskAir(mask, segment.start, leftNormal, scale, polygon, coordinateTransformer, unique);
+        projectMaskAir(mask, segment.start, leftNormal, scale, polygon, coordinateTransformer, unique, 0);
         positions.addAll(unique);
         return positions;
     }
@@ -325,10 +340,12 @@ public final class TunnelJunctionSeedResolver {
     private static Set<BlockPos> collectSampledApproachAir(
             TunnelApproach approach,
             List<Vec2d> polygon,
-            ICoordinateService coordinateTransformer) {
+            ICoordinateService coordinateTransformer,
+            Collection<RoadGenerationResult> edgeResults,
+            java.util.function.ToIntFunction<Vec2d> roadYAt) {
         Set<BlockPos> positions = new HashSet<>();
-        TunnelCrossSectionMask mask = buildMask(approach);
-        if (mask == null) {
+        TunnelCrossSectionMask baseMask = buildMask(approach, approach.roadY());
+        if (baseMask == null) {
             return positions;
         }
         boolean chainForward = approach.crossSections().samplingOriented().forward();
@@ -347,10 +364,70 @@ public final class TunnelJunctionSeedResolver {
                     leftPolygon = true;
                     break;
                 }
-                projectMaskAir(mask, center, leftNormal, scale, polygon, coordinateTransformer, positions);
+                int localRoadY = resolveStationRoadY(approach, center, edgeResults, roadYAt);
+                int yOffset = localRoadY - approach.roadY();
+                projectMaskAir(
+                    baseMask, center, leftNormal, scale, polygon, coordinateTransformer, positions, yOffset);
             }
         }
         return positions;
+    }
+
+    private static int resolveStationRoadY(
+            TunnelApproach approach,
+            Vec2d station,
+            Collection<RoadGenerationResult> edgeResults,
+            java.util.function.ToIntFunction<Vec2d> roadYAt) {
+        if (roadYAt != null && station != null) {
+            return roadYAt.applyAsInt(station);
+        }
+        if (approach == null) {
+            return 0;
+        }
+        if (edgeResults != null && approach.edge() != null && station != null) {
+            String edgeId = approach.edge().getId();
+            for (RoadGenerationResult result : edgeResults) {
+                if (result == null || result.buildProfile == null || !result.buildProfile.isActive()) {
+                    continue;
+                }
+                if (edgeId != null && result.edgeId != null && !edgeId.equals(result.edgeId)) {
+                    continue;
+                }
+                if (approach.centerline() == null || approach.centerline().size() < 2) {
+                    continue;
+                }
+                double stationAlong = stationDistanceAlong(approach.centerline(), station);
+                if (!Double.isFinite(stationAlong)) {
+                    continue;
+                }
+                return result.buildProfile.elevationAtWorldStation(stationAlong);
+            }
+        }
+        return approach.roadY();
+    }
+
+    private static double stationDistanceAlong(List<Vec2d> centerline, Vec2d point) {
+        double bestDist = Double.POSITIVE_INFINITY;
+        double bestStation = Double.NaN;
+        double walked = 0.0;
+        for (int i = 0; i < centerline.size() - 1; i++) {
+            Vec2d a = centerline.get(i);
+            Vec2d b = centerline.get(i + 1);
+            Vec2d ab = b.subtract(a);
+            double len = ab.length();
+            if (len < EPSILON) {
+                continue;
+            }
+            double t = Math.clamp(point.subtract(a).dot(ab) / (len * len), 0.0, 1.0);
+            Vec2d proj = a.add(ab.multiply(t));
+            double dist = point.distance(proj);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestStation = walked + t * len;
+            }
+            walked += len;
+        }
+        return bestStation;
     }
 
     private static Set<BlockPos> collectBlockingLining(
@@ -427,7 +504,7 @@ public final class TunnelJunctionSeedResolver {
         return segments;
     }
 
-    private static TunnelCrossSectionMask buildMask(TunnelApproach approach) {
+    private static TunnelCrossSectionMask buildMask(TunnelApproach approach, int roadY) {
         int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(approach.crossSection());
         if (envelopeWidth <= 0) {
             return null;
@@ -438,7 +515,7 @@ public final class TunnelJunctionSeedResolver {
             approach.tunnelStyle().sideClearance(),
             approach.tunnelStyle().clearHeight(),
             approach.tunnelStyle().liningThickness(),
-            approach.roadY(),
+            roadY,
             false);
     }
 
@@ -449,7 +526,8 @@ public final class TunnelJunctionSeedResolver {
             double scale,
             List<Vec2d> polygon,
             ICoordinateService coordinateTransformer,
-            Set<BlockPos> positions) {
+            Set<BlockPos> positions,
+            int yOffset) {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
@@ -461,7 +539,7 @@ public final class TunnelJunctionSeedResolver {
             if (!RoadGeometryUtils.pointInPolygon(planPoint, polygon)) {
                 return;
             }
-            positions.add(toBlockPos(planPoint, y, coordinateTransformer));
+            positions.add(toBlockPos(planPoint, y + yOffset, coordinateTransformer));
         });
     }
 

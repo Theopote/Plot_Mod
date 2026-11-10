@@ -3,17 +3,24 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.FilletArcSweep;
 import com.plot.plugin.road.JunctionGeometryResult;
+import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.solid.RoadSolidLayer;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +53,52 @@ class JunctionFilletElevationLoftTest {
         assertTrue(sharp != null);
         assertEquals(2.0, sharp.x, 0.15);
         assertEquals(2.0, sharp.y, 0.15);
+    }
+
+    @Test
+    void nonGoreSurfaceYFollowsPinnedApproachPavementNotFixedJunctionY() {
+        RoadNetwork network = orthogonalNetwork();
+        RoadEdge ns = edgeToward(network, new Vec2d(0, 40));
+        int junctionY = 64;
+        int approachY = 70;
+
+        RoadGenerationResult nsResult = new RoadGenerationResult(0);
+        BlockPos paved = new BlockPos(0, approachY, 12);
+        nsResult.recordPlacementOverride(paved, "minecraft:air", "minecraft:stone");
+        nsResult.placementLayers.put(paved, RoadSolidLayer.ROAD);
+
+        Map<String, RoadGenerationResult> edgeResults = new HashMap<>();
+        edgeResults.put(ns.getId(), nsResult);
+        for (RoadEdge edge : network.getEdges().values()) {
+            edgeResults.putIfAbsent(edge.getId(), new RoadGenerationResult(0));
+        }
+
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+
+        JunctionFilletElevationLoft loft = JunctionFilletElevationLoft.build(
+            List.of(),
+            edgeResults,
+            List.copyOf(network.getEdges().values()),
+            network,
+            columns,
+            junctionY);
+
+        Vec2d onApproach = new Vec2d(0.4, 12.4);
+        assertEquals(approachY, loft.surfaceY(onApproach),
+            "non-gore approach column must pin to existing pavement Y");
+        assertNotEquals(junctionY, loft.surfaceY(onApproach),
+            "must not fall back to fixed junctionY on graded approach pavement");
     }
 
     @Test

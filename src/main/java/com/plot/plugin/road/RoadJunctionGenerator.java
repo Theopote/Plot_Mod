@@ -16,6 +16,7 @@ import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
 import com.plot.plugin.road.pipeline.corridor.JunctionValidationManifest;
 import com.plot.plugin.road.pipeline.corridor.JunctionWorldFootprint;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionSeedResolver;
+import com.plot.plugin.road.pipeline.corridor.TunnelJunctionShellPass;
 import com.plot.plugin.road.pipeline.corridor.TunnelPortalSeed;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -773,10 +774,9 @@ public class RoadJunctionGenerator {
         Integer elevatedClearCap = elevatedDeckY != null
             ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
             : null;
+        // 圆角边坡默认不套整广场隧道 cap：逐列由 enclosedTunnelColumnClearCap 判定封闭覆土。
+        // 否则浅覆土/误判隧道进口会让开敞平交切坡整片停挖，圆角残土清不掉。
         Integer maxClearY = elevatedClearCap;
-        if (tunnelCavityCap != null && tunnelClearHeight == null) {
-            maxClearY = maxClearY == null ? tunnelCavityCap : Math.min(maxClearY, tunnelCavityCap);
-        }
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
             fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
@@ -1039,14 +1039,12 @@ public class RoadJunctionGenerator {
     /**
      * 隧道路口逐列洞顶 cap：
      * <ul>
-     *   <li>无隧道进口上下文 → 立交 cap / {@code null}：开敞平交露天清到地表（含地表顶层）</li>
-     *   <li>有隧道进口 → 始终返回洞腔顶 cap：禁止改露天打穿交叉核/圆角上方覆土；
-     *       浅覆由 {@link JunctionTerrainClearance#resolveTunnelSolidPunchTop} 停挖，
-     *       深覆止于洞顶下</li>
+     *   <li>无隧道净空参数 → 立交 cap / {@code null}：开敞平交露天清到地表</li>
+     *   <li>有隧道参数且该列 {@link TunnelJunctionShellPass#columnHasEnclosedCover 封闭覆土}
+     *       → 返回洞腔顶：保留山体，清障止于洞顶下</li>
+     *   <li>有隧道参数但该列浅覆土/见天 → {@code null}（或仅立交 cap）：按露天清干净，
+     *       避免把平交圆角残土误当成浅覆土隧道而整列停挖</li>
      * </ul>
-     * 不得再用「顶衬是否戳出地表 / allowsClosedCavity」把隧道路口改露天——那会把洞顶覆土清穿。
-     * {@code terrain}/{@code planPoint}/{@code liningThickness}/{@code tunnelThreshold}
-     * 保留兼容调用方。
      */
     public static Integer enclosedTunnelColumnClearCap(
             TerrainSampler terrain,
@@ -1059,6 +1057,20 @@ public class RoadJunctionGenerator {
             int liningThickness,
             int tunnelThreshold) {
         if (tunnelClearHeight == null && flatTunnelCavityCap == null) {
+            return elevatedClearCap;
+        }
+        int clearHeight = tunnelClearHeight != null
+            ? Math.max(1, tunnelClearHeight)
+            : Math.max(1, flatTunnelCavityCap - loftSurfaceY);
+        if (!TunnelJunctionShellPass.columnHasEnclosedCover(
+                terrain,
+                planPoint,
+                column,
+                loftSurfaceY,
+                clearHeight,
+                Math.max(1, liningThickness),
+                tunnelThreshold)) {
+            // 开敞/浅覆土列：不安装洞顶 cap，允许清到自然地表。
             return elevatedClearCap;
         }
         Integer cavityCap = columnClearCap(

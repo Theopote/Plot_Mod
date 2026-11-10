@@ -100,8 +100,8 @@ public final class JunctionWorldFootprint {
             : geometry.sharpPolygon();
         addPolygonColumns(clearancePoly, transformer, planPoints, clearance);
         clearance.addAll(pave);
-        // 清障比铺装外扩 1 格，接住边界上走廊已让出但栅格未命中的原地形列
-        for (ColumnKey key : dilate(pave, 1)) {
+        // 清障比铺装外扩 2 格：圆角外缘与走廊让出带常有 1 格漏清；隧道列仍受洞顶 cap，不会因此打穿覆土。
+        for (ColumnKey key : dilate(pave, 2)) {
             clearance.add(key);
             planPoints.putIfAbsent(key, synthesizePlanPoint(key, transformer));
         }

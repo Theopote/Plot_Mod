@@ -20,26 +20,37 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * 倒圆补铺标高：沿相邻两进口路缘边线采样走廊实际路面高程，对角向参数放样。
- * 每条路缘只读取其所属进口道路的路面/纵断面，禁止串用邻路 ±2 格高程。
- * 重叠核等非补铺区仍回退 {@code junctionY}。
+ * 路口铺装标高场：圆角 gore 内沿两侧路缘放样；其余铺装/过渡列按最近进口路面与纵断面约束，
+ * 禁止整片回退固定 {@code junctionY} 造成纵坡接缝台阶。
  */
 public final class JunctionFilletElevationLoft {
     private static final double EPSILON = 1e-9;
     private static final double MAX_CURB_SAMPLE = 24.0;
     /** 切点到中心线允许的侧向距离（含宽路路缘）。 */
     private static final double TANGENT_OWNER_MAX_DIST = 16.0;
+    private static final double APPROACH_BLEND_MAX_DIST = 24.0;
 
     private final int junctionY;
     private final List<FilletLoftCorner> corners;
+    private final Map<ColumnKey, Integer> approachRoadY;
+    private final List<ApproachElevationConstraint> approaches;
+    private final RoadTerrainClearanceUtils.BlockColumnResolver columns;
 
-    private JunctionFilletElevationLoft(int junctionY, List<FilletLoftCorner> corners) {
+    private JunctionFilletElevationLoft(
+            int junctionY,
+            List<FilletLoftCorner> corners,
+            Map<ColumnKey, Integer> approachRoadY,
+            List<ApproachElevationConstraint> approaches,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns) {
         this.junctionY = junctionY;
         this.corners = List.copyOf(corners);
+        this.approachRoadY = approachRoadY != null ? Map.copyOf(approachRoadY) : Map.of();
+        this.approaches = approaches != null ? List.copyOf(approaches) : List.of();
+        this.columns = columns;
     }
 
     public static JunctionFilletElevationLoft inactive(int junctionY) {
-        return new JunctionFilletElevationLoft(junctionY, List.of());
+        return new JunctionFilletElevationLoft(junctionY, List.of(), Map.of(), List.of(), null);
     }
 
     public static JunctionFilletElevationLoft build(
@@ -49,11 +60,16 @@ public final class JunctionFilletElevationLoft {
             RoadNetwork network,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY) {
-        if (fillets == null || fillets.isEmpty() || columns == null) {
-            return inactive(junctionY);
-        }
         Map<String, Map<ColumnKey, Integer>> roadYByEdge = indexRoadSurfaceYByEdge(edgeResults);
+        // 只合并本路口责任进口（立交下层生成时 edges 已排除上层），禁止 max 到上层桥面 Y。
+        Map<ColumnKey, Integer> mergedRoadY = mergeApproachRoadY(roadYByEdge, edges);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+        List<ApproachElevationConstraint> approachConstraints = buildApproachConstraints(
+            edges, roadYByEdge, edgeResults, centerlines);
+        if (fillets == null || fillets.isEmpty() || columns == null) {
+            return new JunctionFilletElevationLoft(
+                junctionY, List.of(), mergedRoadY, approachConstraints, columns);
+        }
         List<FilletLoftCorner> corners = new ArrayList<>();
         for (JunctionGeometryResult.FilletCorner fillet : fillets) {
             FilletLoftCorner corner = buildCorner(
@@ -62,16 +78,19 @@ public final class JunctionFilletElevationLoft {
                 corners.add(corner);
             }
         }
-        return new JunctionFilletElevationLoft(junctionY, corners);
+        return new JunctionFilletElevationLoft(
+            junctionY, corners, mergedRoadY, approachConstraints, columns);
     }
 
     public int junctionY() {
         return junctionY;
     }
 
-    /** 补铺 gore 内放样；否则共识标高。 */
+    /**
+     * 逐点路面标高：gore 内放样；否则优先命中进口已铺装列，再按进口中心线约束混合，最后才用 junctionY。
+     */
     public int surfaceY(Vec2d planPoint) {
-        if (planPoint == null || corners.isEmpty()) {
+        if (planPoint == null) {
             return junctionY;
         }
         for (FilletLoftCorner corner : corners) {
@@ -80,7 +99,12 @@ public final class JunctionFilletElevationLoft {
             }
             return corner.loftY(planPoint, junctionY);
         }
-        return junctionY;
+        Integer pinned = lookupPinnedApproachRoadY(planPoint);
+        if (pinned != null) {
+            return pinned;
+        }
+        Integer blended = blendApproachElevations(planPoint);
+        return blended != null ? blended : junctionY;
     }
 
     public boolean isFilletGore(Vec2d planPoint) {
@@ -93,6 +117,112 @@ public final class JunctionFilletElevationLoft {
             }
         }
         return false;
+    }
+
+    private Integer lookupPinnedApproachRoadY(Vec2d planPoint) {
+        if (columns == null || approachRoadY.isEmpty()) {
+            return null;
+        }
+        int wx = columns.worldX(planPoint);
+        int wz = columns.worldZ(planPoint);
+        Integer exact = approachRoadY.get(new ColumnKey(wx, wz));
+        if (exact != null) {
+            return exact;
+        }
+        Integer near = null;
+        int bestDist = Integer.MAX_VALUE;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                Integer y = approachRoadY.get(new ColumnKey(wx + dx, wz + dz));
+                if (y == null) {
+                    continue;
+                }
+                int dist = Math.abs(dx) + Math.abs(dz);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    near = y;
+                }
+            }
+        }
+        return near;
+    }
+
+    private Integer blendApproachElevations(Vec2d planPoint) {
+        if (approaches.isEmpty()) {
+            return null;
+        }
+        double weightSum = 0.0;
+        double elevSum = 0.0;
+        for (ApproachElevationConstraint approach : approaches) {
+            Projection proj = projectToPolyline(planPoint, approach.centerline());
+            if (proj == null || proj.distance > APPROACH_BLEND_MAX_DIST) {
+                continue;
+            }
+            Integer y = approach.elevationAt(proj.station);
+            if (y == null) {
+                continue;
+            }
+            double weight = 1.0 / Math.max(proj.distance, 0.25);
+            weightSum += weight;
+            elevSum += weight * y;
+        }
+        if (weightSum <= EPSILON) {
+            return null;
+        }
+        return (int) Math.round(elevSum / weightSum);
+    }
+
+    private static Map<ColumnKey, Integer> mergeApproachRoadY(
+            Map<String, Map<ColumnKey, Integer>> roadYByEdge,
+            List<RoadEdge> edges) {
+        Map<ColumnKey, Integer> merged = new HashMap<>();
+        if (roadYByEdge == null || edges == null) {
+            return merged;
+        }
+        for (RoadEdge edge : edges) {
+            if (edge == null || edge.getId() == null) {
+                continue;
+            }
+            Map<ColumnKey, Integer> perEdge = roadYByEdge.get(edge.getId());
+            if (perEdge == null) {
+                continue;
+            }
+            for (Map.Entry<ColumnKey, Integer> entry : perEdge.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null) {
+                    continue;
+                }
+                // 同列多进口：取更低者，避免立交/叠层把下层清障起点抬到桥面。
+                merged.merge(entry.getKey(), entry.getValue(), Math::min);
+            }
+        }
+        return merged;
+    }
+
+    private static List<ApproachElevationConstraint> buildApproachConstraints(
+            List<RoadEdge> edges,
+            Map<String, Map<ColumnKey, Integer>> roadYByEdge,
+            Map<String, RoadGenerationResult> edgeResults,
+            Function<RoadEdge, List<Vec2d>> centerlines) {
+        List<ApproachElevationConstraint> constraints = new ArrayList<>();
+        if (edges == null || centerlines == null) {
+            return constraints;
+        }
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> centerline = centerlines.apply(edge);
+            if (centerline == null || centerline.size() < 2) {
+                continue;
+            }
+            Map<ColumnKey, Integer> scoped = scopedRoadY(edge, roadYByEdge);
+            RoadGenerationResult result = edgeResults != null ? edgeResults.get(edge.getId()) : null;
+            constraints.add(new ApproachElevationConstraint(centerline, scoped, result));
+        }
+        return constraints;
     }
 
     private static FilletLoftCorner buildCorner(
@@ -387,6 +517,65 @@ public final class JunctionFilletElevationLoft {
     }
 
     private record Projection(double distance, double station) {
+    }
+
+    private record ApproachElevationConstraint(
+            List<Vec2d> centerline,
+            Map<ColumnKey, Integer> roadYByColumn,
+            RoadGenerationResult edgeResult) {
+        Integer elevationAt(double station) {
+            if (edgeResult != null
+                    && edgeResult.buildProfile != null
+                    && edgeResult.buildProfile.isActive()) {
+                return edgeResult.buildProfile.elevationAtWorldStation(station);
+            }
+            if (roadYByColumn == null || roadYByColumn.isEmpty() || centerline == null || centerline.isEmpty()) {
+                return null;
+            }
+            // 无纵断面时：取中心线附近已铺装列的众数近似。
+            Vec2d sample = pointAtStation(centerline, station);
+            if (sample == null) {
+                return null;
+            }
+            Integer best = null;
+            double bestDist = Double.POSITIVE_INFINITY;
+            for (Map.Entry<ColumnKey, Integer> entry : roadYByColumn.entrySet()) {
+                ColumnKey key = entry.getKey();
+                if (key == null || entry.getValue() == null) {
+                    continue;
+                }
+                double dist = Math.hypot(key.worldX() + 0.5 - sample.x, key.worldZ() + 0.5 - sample.y);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = entry.getValue();
+                }
+            }
+            return bestDist <= 3.0 ? best : null;
+        }
+    }
+
+    private static Vec2d pointAtStation(List<Vec2d> centerline, double station) {
+        if (centerline == null || centerline.isEmpty()) {
+            return null;
+        }
+        if (station <= 0.0) {
+            return centerline.getFirst();
+        }
+        double walked = 0.0;
+        for (int i = 0; i < centerline.size() - 1; i++) {
+            Vec2d a = centerline.get(i);
+            Vec2d b = centerline.get(i + 1);
+            double len = a.distance(b);
+            if (len < EPSILON) {
+                continue;
+            }
+            if (walked + len >= station) {
+                double t = (station - walked) / len;
+                return a.lerp(b, t);
+            }
+            walked += len;
+        }
+        return centerline.getLast();
     }
 
     private record CurbElevationCurve(List<Double> distances, List<Integer> elevations) {

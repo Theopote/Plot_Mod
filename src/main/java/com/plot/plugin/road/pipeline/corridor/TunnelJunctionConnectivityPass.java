@@ -5,8 +5,11 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.ToIntFunction;
 
 /**
  * 平交路口处合并多条隧道边的洞身空腔，移除相互阻挡的衬砌。
@@ -146,6 +150,21 @@ public final class TunnelJunctionConnectivityPass {
             boolean connectivityApplied = false;
             int disconnectedComponents = 0;
 
+            Integer clearHeight = TunnelJunctionSeedResolver.resolveTunnelClearHeight(approaches);
+            JunctionGeometryResult geometry = TunnelJunctionShellPass.resolveJunctionGeometry(
+                network, node, config, canvasScale);
+            List<RoadEdge> connected = connectedEdges(network, node);
+            int junctionY = elevations.getOrDefault(node.getId(), approaches.getFirst().roadY());
+            JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
+                geometry.fillets(),
+                edgeResults,
+                connected,
+                network,
+                columnResolver(coordinateTransformer),
+                junctionY);
+            ToIntFunction<Vec2d> roadYAt = filletLoft::surfaceY;
+            int resolvedClear = clearHeight != null ? Math.max(1, clearHeight) : 0;
+
             for (List<TunnelJunctionSeedResolver.TunnelApproach> layerApproaches
                     : groupApproachesBySpatialBand(approaches)) {
                 Collection<RoadGenerationResult> approachResults =
@@ -154,10 +173,11 @@ public final class TunnelJunctionConnectivityPass {
                     layerApproaches,
                     polygon,
                     approachResults,
-                    coordinateTransformer);
-                // 膨胀可能把空气顶到自然地表；连通清障不得改写地表及以上。
-                openVolume = retainBelowNaturalSurface(
-                    openVolume, terrain, coordinateTransformer);
+                    coordinateTransformer,
+                    roadYAt);
+                // 膨胀可能把空气顶到自然地表或设计洞顶以上；连通清障必须同时夹地表与洞腔顶。
+                openVolume = retainBelowDesignEnvelope(
+                    openVolume, terrain, coordinateTransformer, roadYAt, resolvedClear);
                 if (openVolume.isEmpty()) {
                     continue;
                 }
@@ -188,8 +208,23 @@ public final class TunnelJunctionConnectivityPass {
             Set<BlockPos> volume,
             TerrainSampler terrain,
             ICoordinateService coordinateTransformer) {
-        if (volume == null || volume.isEmpty() || terrain == null) {
+        return retainBelowDesignEnvelope(volume, terrain, coordinateTransformer, null, 0);
+    }
+
+    /**
+     * 连通清障体积硬夹：{@code Y < 自然地表}，且在提供路面标高场时 {@code Y < roadY + clearHeight}。
+     */
+    static Set<BlockPos> retainBelowDesignEnvelope(
+            Set<BlockPos> volume,
+            TerrainSampler terrain,
+            ICoordinateService coordinateTransformer,
+            ToIntFunction<Vec2d> roadYAt,
+            int clearHeight) {
+        if (volume == null || volume.isEmpty()) {
             return volume != null ? volume : Set.of();
+        }
+        if (terrain == null && (roadYAt == null || clearHeight <= 0)) {
+            return volume;
         }
         Set<BlockPos> kept = new LinkedHashSet<>();
         for (BlockPos pos : volume) {
@@ -197,15 +232,59 @@ public final class TunnelJunctionConnectivityPass {
                 continue;
             }
             Vec2d plan = TunnelJunctionSeedResolver.planPointForBlock(pos, coordinateTransformer);
-            if (!terrain.isChunkLoaded(plan) && !terrain.isChunkLoaded(pos.getX(), pos.getZ())) {
-                continue;
+            if (terrain != null) {
+                if (!terrain.isChunkLoaded(plan) && !terrain.isChunkLoaded(pos.getX(), pos.getZ())) {
+                    continue;
+                }
+                if (pos.getY() >= terrain.sampleSurfaceY(plan)) {
+                    continue;
+                }
             }
-            if (pos.getY() >= terrain.sampleSurfaceY(plan)) {
-                continue;
+            if (roadYAt != null && clearHeight > 0 && plan != null) {
+                int cavityTop = roadYAt.applyAsInt(plan) + clearHeight;
+                // 洞腔顶为 roadY+clearHeight；空气格不得触及或超过该标高（衬砌起始）。
+                if (pos.getY() >= cavityTop) {
+                    continue;
+                }
             }
             kept.add(pos);
         }
         return kept;
+    }
+
+    private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {
+        List<RoadEdge> connected = new ArrayList<>();
+        if (network == null || node == null) {
+            return connected;
+        }
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null) {
+                connected.add(edge);
+            }
+        }
+        return connected;
+    }
+
+    private static RoadTerrainClearanceUtils.BlockColumnResolver columnResolver(
+            ICoordinateService transformer) {
+        return new RoadTerrainClearanceUtils.BlockColumnResolver() {
+            @Override
+            public int worldX(Vec2d planPoint) {
+                if (planPoint == null) {
+                    return 0;
+                }
+                return RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer).getX();
+            }
+
+            @Override
+            public int worldZ(Vec2d planPoint) {
+                if (planPoint == null) {
+                    return 0;
+                }
+                return RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer).getZ();
+            }
+        };
     }
 
     private static void mergeTunnelReport(
@@ -291,6 +370,9 @@ public final class TunnelJunctionConnectivityPass {
     /**
      * True only when tunnel-family construction exists within the node approach window,
      * not merely anywhere on the edge.
+     * <p>
+     * 窗口需覆盖洞门过渡带与短段 ROAD→TUNNEL 衔接；过窄会漏检隧道路口，广场按露天打穿覆土。
+     * 仍禁止整边远处隧道毒化开敞平交（见 {@code OpenJunctionNotPoisonedByDistantTunnelTest}）。
      */
     static boolean tunnelAtNode(
             RoadNetwork network,
@@ -304,30 +386,35 @@ public final class TunnelJunctionConnectivityPass {
         if (node == null || edge == null || result == null || centerline == null || approachSegments.isEmpty()) {
             return false;
         }
+        double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             List.of(edge),
             e -> RoadModelUtils.getEffectiveWidth(network, e, config) / 2.0,
             node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS));
+        // 窗口 = 路口半径 / 洞门过渡带 / 首段长：覆盖紧邻洞门，但不把远处洞身算进开敞平交。
         double window = Math.max(
             junctionRadius,
             Math.max(
-                RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS * unitsPerBlock,
+                RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS * scale,
                 approachSegments.getFirst().distance));
 
         boolean fromStart = edge.getStartNodeId().equals(node.getId());
         double accumulated = 0.0;
-        if (!result.constructionTypes.isEmpty()) {
-            for (int i = 0; i < approachSegments.size() && accumulated <= window + EPSILON; i++) {
-                accumulated += approachSegments.get(i).distance;
-                int typeIndex = fromStart ? i : (centerline.size() - 2 - i);
-                RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(
-                    result.constructionTypes, typeIndex);
-                if (type.isTunnelFamily()) {
-                    return true;
-                }
-            }
+        if (result.constructionTypes == null || result.constructionTypes.isEmpty()) {
+            return false;
         }
-
+        for (int i = 0; i < approachSegments.size(); i++) {
+            if (accumulated > window + EPSILON) {
+                break;
+            }
+            int typeIndex = fromStart ? i : (centerline.size() - 2 - i);
+            RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(
+                result.constructionTypes, typeIndex);
+            if (type != null && type.isTunnelFamily()) {
+                return true;
+            }
+            accumulated += Math.max(0.0, approachSegments.get(i).distance);
+        }
         return false;
     }
 

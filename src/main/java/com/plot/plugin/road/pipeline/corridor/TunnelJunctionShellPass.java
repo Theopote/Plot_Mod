@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
@@ -123,9 +124,17 @@ public final class TunnelJunctionShellPass {
                 liningId = FALLBACK_LINING;
             }
             int junctionY = elevations.getOrDefault(node.getId(), primary.roadY());
-            int clearHeight = Math.max(1, style.clearHeight());
+            // 与广场清障同源：更严净空（min）+ 更厚衬砌（max），禁止只取第一条进口。
+            Integer resolvedClear = TunnelJunctionSeedResolver.resolveTunnelClearHeight(approaches);
+            int clearHeight = resolvedClear != null ? Math.max(1, resolvedClear) : Math.max(1, style.clearHeight());
             int sideClearance = Math.max(0, style.sideClearance());
-            int liningThickness = Math.max(1, style.liningThickness());
+            for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
+                if (approach != null && approach.tunnelStyle() != null) {
+                    sideClearance = Math.max(sideClearance, Math.max(0, approach.tunnelStyle().sideClearance()));
+                }
+            }
+            int liningThickness = Math.max(
+                1, TunnelJunctionSeedResolver.resolveTunnelLiningThickness(approaches));
             Collection<RoadGenerationResult> carriers = approachCarriers(approaches, edgeResults);
             if (carriers.isEmpty()) {
                 continue;
@@ -481,9 +490,22 @@ public final class TunnelJunctionShellPass {
             JunctionWorldFootprint footprint,
             ColumnKey column,
             ICoordinateService transformer) {
-        Vec2d plan = footprint.planPoint(column);
-        if (plan != null) {
-            return plan;
+        if (column == null) {
+            return null;
+        }
+        if (footprint != null) {
+            Vec2d plan = footprint.planPoint(column);
+            if (plan != null) {
+                return plan;
+            }
+        }
+        WorldProjectionSnapshot snapshot = transformer != null ? transformer.captureProjection() : null;
+        if (snapshot != null && snapshot.isValid()) {
+            try {
+                return snapshot.toCanvas(new Vec2d(column.worldX(), column.worldZ()));
+            } catch (RuntimeException ignored) {
+                // fall through
+            }
         }
         return new Vec2d(column.worldX(), column.worldZ());
     }

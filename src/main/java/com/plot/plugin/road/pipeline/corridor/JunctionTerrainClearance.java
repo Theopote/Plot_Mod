@@ -140,6 +140,10 @@ public final class JunctionTerrainClearance {
             // 浅覆土不开挖实体（避免剩单格悬空地表）；深覆土止于洞顶下；路堑仍可清洞腔。
             int solidPunchTop = resolveTunnelSolidPunchTop(cellY, surfaceY, absoluteClearTopY);
             topY = Math.min(topY, solidPunchTop);
+            // 有覆土时硬夹：隧道上下文永不把空气写到自然地表及以上。
+            if (surfaceY > cellY) {
+                topY = Math.min(topY, surfaceY - 1);
+            }
             if (solidPunchTop <= cellY) {
                 // 浅覆：实体开挖关闭，装饰扫描仍可摘树冠（不掏覆土）
                 decoCeil = Math.max(decoCeil, cellY + headroom);
@@ -164,7 +168,7 @@ public final class JunctionTerrainClearance {
         }
         punchColumn(solids, planPoint, cellY, topY);
         clearFloatingAndDecorationsAbove(
-            solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil);
+            solids, planPoint, terrain, worldX, worldZ, cellY, topY, decoCeil, hasTunnelRoofCap);
     }
 
     /**
@@ -227,6 +231,9 @@ public final class JunctionTerrainClearance {
     /**
      * 实心清障顶以上：摘除可清装饰，以及下方已悬空的残留实心（边坡掏空后挂住的土块/短树干）。
      * 自下而上清，使上层失去支撑后连锁清理。
+     * <p>
+     * 隧道洞顶上下文（{@code protectNaturalOverburden=true}）：非装饰实心不得仅凭
+     * 「下方是空气 / 下方刚被清除」连锁删除——天然洞穴、岩石悬挑与覆土不能当成工程残留。
      */
     static void clearFloatingAndDecorationsAbove(
             RoadSolidModel solids,
@@ -237,6 +244,20 @@ public final class JunctionTerrainClearance {
             int cellY,
             int solidTopY,
             int decoCeil) {
+        clearFloatingAndDecorationsAbove(
+            solids, planPoint, terrain, worldX, worldZ, cellY, solidTopY, decoCeil, false);
+    }
+
+    static void clearFloatingAndDecorationsAbove(
+            RoadSolidModel solids,
+            Vec2d planPoint,
+            TerrainSampler terrain,
+            int worldX,
+            int worldZ,
+            int cellY,
+            int solidTopY,
+            int decoCeil,
+            boolean protectNaturalOverburden) {
         if (solids == null || planPoint == null || terrain == null || decoCeil <= solidTopY) {
             return;
         }
@@ -252,6 +273,10 @@ public final class JunctionTerrainClearance {
             if (decoration) {
                 writeClearanceAir(solids, planPoint, y);
                 cleared[y - fromY] = true;
+                continue;
+            }
+            if (protectNaturalOverburden) {
+                // 隧道列：无设计净空授权时，禁止把自然实心当悬空残留向上掏穿。
                 continue;
             }
             boolean belowCleared = y > fromY && cleared[y - 1 - fromY];
@@ -276,7 +301,7 @@ public final class JunctionTerrainClearance {
             int solidTopY,
             int decoCeil) {
         clearFloatingAndDecorationsAbove(
-            solids, planPoint, terrain, worldX, worldZ, cellY, solidTopY, decoCeil);
+            solids, planPoint, terrain, worldX, worldZ, cellY, solidTopY, decoCeil, false);
     }
 
     private static void writeClearanceAir(RoadSolidModel solids, Vec2d planPoint, int y) {

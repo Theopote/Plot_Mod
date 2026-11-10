@@ -362,9 +362,10 @@ public final class RoadCorridorClearancePass {
         TunnelColumnConstruction.Mode columnMode = TunnelColumnConstruction.resolve(
             false, terrain, cell.planPoint(), columnRoof);
         if (columnMode != TunnelColumnConstruction.Mode.ENCLOSED) {
-            // 与 TunnelStructureGenerator 同一浅覆土判定：禁止封闭洞腔掏空，改露天净空。
-            return clearDaylightHeadroom(
-                solids, cell, key, terrain, designY, gradeSeparation, purpose, null, null);
+            // 浅覆土隧道：禁止改露天清到地表（路口壳仍期望保留覆土）。
+            // 仅摘装饰；实体开挖交给洞口 PORTAL 分支或明确露天路堑。
+            return clearDecorationsAbove(
+                solids, cell, key, terrain, designY, designY, deckCap, gradeSeparation);
         }
         TunnelRoofGapSealer.stabilizeGravityColumn(
             solids,
