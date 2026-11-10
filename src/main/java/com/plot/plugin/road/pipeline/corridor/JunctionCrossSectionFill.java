@@ -571,12 +571,13 @@ public final class JunctionCrossSectionFill {
                 continue;
             }
             int groundY = terrain.sampleSurfaceY(planPoint);
+            boolean waterBlocksFill = RoadEarthworkPolicy.suppressFillOverWater(
+                true,
+                false,
+                terrain.findExposedWaterSurface(planPoint));
+            boolean retainingTip = slope.needsRetainingFinish();
             // 路口圆角边坡不授权水面堤道；与走廊 suppressFillOverWater 一致。
-            if (slope.hasFill()
-                    && !RoadEarthworkPolicy.suppressFillOverWater(
-                        true,
-                        false,
-                        terrain.findExposedWaterSurface(planPoint))) {
+            if (slope.hasFill() && !waterBlocksFill) {
                 int fillTop = slope.fillSurfaceY();
                 if (maxClearY != null) {
                     fillTop = Math.min(fillTop, maxClearY);
@@ -608,6 +609,10 @@ public final class JunctionCrossSectionFill {
                         if (y > groundY) {
                             break;
                         }
+                        // 挡墙将占据 faceY..groundY-1；同柱清障 AIR 不得抢占。
+                        if (retainingTip && y >= cutFaceY && y < groundY) {
+                            continue;
+                        }
                         solids.add(
                             planPoint,
                             y,
@@ -620,6 +625,14 @@ public final class JunctionCrossSectionFill {
                         solids.add(planPoint, cutFaceY, RoadSolidLayer.SUBGRADE, batterId);
                     }
                 }
+            }
+            // 宽度截断收尾：与走廊 emitRetainingFinish 同一竖向支撑，避免半坡悬空。
+            if (retainingTip && !(slope.hasFill() && waterBlocksFill)) {
+                String fallback = slope.hasCut()
+                    ? slope.cutMaterialId()
+                    : slope.fillMaterialId();
+                RoadCorridorSolidEmitter.emitRetainingFinish(
+                    solids, slope, planPoint, groundY, fallback, null);
             }
         }
     }

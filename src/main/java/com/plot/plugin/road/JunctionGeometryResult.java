@@ -73,6 +73,8 @@ public record JunctionGeometryResult(
     /**
      * 单个路缘圆角：圆心在铺装外侧，弧连接两条相邻进口边界上的切点。
      * {@code sweepRadians} 为 start→end 已确定的短弧扫掠（|sweep|≤π），预览与建造共用。
+     * {@code ownerStartEdgeId}/{@code ownerEndEdgeId} 为切点所属进口边（几何生成时绑定），
+     * 供倒圆放样按路读取纵断，避免事后「最近中心线」在不等宽时选错。
      */
     public record FilletCorner(
             Vec2d center,
@@ -81,7 +83,9 @@ public record JunctionGeometryResult(
             double radius,
             double cornerAngleRadians,
             double sweepRadians,
-            Vec2d sharpCorner) {
+            Vec2d sharpCorner,
+            String ownerStartEdgeId,
+            String ownerEndEdgeId) {
         public FilletCorner(
                 Vec2d center,
                 Vec2d tangentStart,
@@ -95,6 +99,8 @@ public record JunctionGeometryResult(
                 radius,
                 cornerAngleRadians,
                 FilletArcSweep.resolveShort(center, tangentStart, tangentEnd),
+                null,
+                null,
                 null);
         }
 
@@ -105,7 +111,18 @@ public record JunctionGeometryResult(
                 double radius,
                 double cornerAngleRadians,
                 double sweepRadians) {
-            this(center, tangentStart, tangentEnd, radius, cornerAngleRadians, sweepRadians, null);
+            this(center, tangentStart, tangentEnd, radius, cornerAngleRadians, sweepRadians, null, null, null);
+        }
+
+        public FilletCorner(
+                Vec2d center,
+                Vec2d tangentStart,
+                Vec2d tangentEnd,
+                double radius,
+                double cornerAngleRadians,
+                double sweepRadians,
+                Vec2d sharpCorner) {
+            this(center, tangentStart, tangentEnd, radius, cornerAngleRadians, sweepRadians, sharpCorner, null, null);
         }
 
         public FilletCorner {
@@ -128,6 +145,22 @@ public record JunctionGeometryResult(
             } else if (Math.abs(sweepRadians) > Math.PI + 1e-9) {
                 sweepRadians = FilletArcSweep.resolveShort(center, tangentStart, tangentEnd);
             }
+            if (ownerStartEdgeId != null && ownerStartEdgeId.isBlank()) {
+                ownerStartEdgeId = null;
+            }
+            if (ownerEndEdgeId != null && ownerEndEdgeId.isBlank()) {
+                ownerEndEdgeId = null;
+            }
+        }
+
+        public FilletCorner withOwners(String startEdgeId, String endEdgeId) {
+            return new FilletCorner(
+                center, tangentStart, tangentEnd, radius, cornerAngleRadians, sweepRadians,
+                sharpCorner, startEdgeId, endEdgeId);
+        }
+
+        public boolean hasOwners() {
+            return ownerStartEdgeId != null && ownerEndEdgeId != null;
         }
     }
 }

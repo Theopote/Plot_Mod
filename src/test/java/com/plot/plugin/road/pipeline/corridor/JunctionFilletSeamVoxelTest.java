@@ -113,8 +113,8 @@ class JunctionFilletSeamVoxelTest {
             if (!RoadGeometryUtils.pointInPolygon(cell, geometry.fillPolygon())) {
                 continue;
             }
-            // 要求离锐角外轮廓也有一点余量：跳过紧贴路缘弧的边界柱
-            if (distanceToPolygonBoundary(cell, geometry.fillPolygon()) < 0.75) {
+            // 要求离锐角外轮廓也有一点余量：跳过紧贴路缘弧/狭长臂边界柱
+            if (distanceToPolygonBoundary(cell, geometry.fillPolygon()) < 1.25) {
                 continue;
             }
             checked++;

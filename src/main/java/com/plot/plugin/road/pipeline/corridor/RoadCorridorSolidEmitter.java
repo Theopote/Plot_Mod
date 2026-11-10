@@ -274,8 +274,9 @@ public final class RoadCorridorSolidEmitter {
 
     /**
      * 宽度上限截断收尾：在最外坡柱用竖向支撑接到自然地面，避免悬空半坡。
+     * 路口圆角边坡与走廊共用，避免截断后半坡悬空。
      */
-    private static void emitRetainingFinish(
+    public static void emitRetainingFinish(
             RoadSolidModel solids,
             SlopeColumnCell slope,
             Vec2d planPoint,

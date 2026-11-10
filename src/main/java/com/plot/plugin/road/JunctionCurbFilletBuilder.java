@@ -20,8 +20,12 @@ public final class JunctionCurbFilletBuilder {
     private JunctionCurbFilletBuilder() {
     }
 
-    /** 一条进口：中心线向外方向 + 硬表面半宽。 */
-    public record Approach(Vec2d outward, double halfWidth) {
+    /** 一条进口：中心线向外方向 + 硬表面半宽 + 可选边 id（切点归属）。 */
+    public record Approach(Vec2d outward, double halfWidth, String edgeId) {
+        public Approach(Vec2d outward, double halfWidth) {
+            this(outward, halfWidth, null);
+        }
+
         public Approach {
             if (outward == null) {
                 outward = new Vec2d(0, 0);
@@ -29,6 +33,9 @@ public final class JunctionCurbFilletBuilder {
                 outward = outward.normalize();
             }
             halfWidth = Math.max(0.0, halfWidth);
+            if (edgeId != null && edgeId.isBlank()) {
+                edgeId = null;
+            }
         }
 
         public Vec2d leftNormal() {
@@ -83,16 +90,23 @@ public final class JunctionCurbFilletBuilder {
         }
 
         List<JunctionGeometryResult.FilletCorner> meta = new ArrayList<>();
-        for (CurbFillet fillet : fillets) {
-            if (fillet != null) {
-                meta.add(new JunctionGeometryResult.FilletCorner(
-                    fillet.center(),
-                    fillet.tangentStart(),
-                    fillet.tangentEnd(),
-                    fillet.radius(),
-                    fillet.cornerAngle(),
-                    fillet.sweepRadians()));
+        for (int i = 0; i < count; i++) {
+            CurbFillet fillet = fillets.get(i);
+            if (fillet == null) {
+                continue;
             }
+            Approach start = sorted.get(i);
+            Approach end = sorted.get((i + 1) % count);
+            meta.add(new JunctionGeometryResult.FilletCorner(
+                fillet.center(),
+                fillet.tangentStart(),
+                fillet.tangentEnd(),
+                fillet.radius(),
+                fillet.cornerAngle(),
+                fillet.sweepRadians(),
+                null,
+                start.edgeId(),
+                end.edgeId()));
         }
         double effective = meta.isEmpty() ? 0.0 : minEffective;
         return new JunctionGeometryResult(fill, sharp, boundaries, requested, effective, meta);

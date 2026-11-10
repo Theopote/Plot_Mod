@@ -106,8 +106,69 @@ public final class JunctionWorldFootprint {
             planPoints.putIfAbsent(key, synthesizePlanPoint(key, transformer));
         }
 
+        // 接缝缺列：仅从圆角补铺/既有接缝列做 4-邻域补缺（不从 roadCore 外扩），
+        // 避免把进口走廊合法路面吞进路口材质；补入 seamTransition 后 corridorTrim≡pave。
+        fillSeamGaps(filletAdditions, seamTransition, pave, clearance, planPoints, transformer);
+
         return new JunctionWorldFootprint(
             roadCore, filletAdditions, seamTransition, clearance, planPoints);
+    }
+
+    /**
+     * 在清障责任内补真正的接缝缺列（写入 {@code seamTransition}，保持 corridorTrim≡pave）：
+     * <ul>
+     *   <li>邻接圆角补铺/既有接缝列 → 走廊↔圆角单列缝</li>
+     *   <li>或四邻域已有 ≥3 个铺装列 → 被围住的栅格空洞</li>
+     * </ul>
+     * 仅邻接核区的进口臂列不会被吞入路口材质。
+     */
+    public static void fillSeamGaps(
+            Set<ColumnKey> filletAdditions,
+            Set<ColumnKey> seamTransition,
+            Set<ColumnKey> pave,
+            Set<ColumnKey> clearance,
+            Map<ColumnKey, Vec2d> planPoints,
+            ICoordinateService transformer) {
+        if (pave == null || clearance == null || seamTransition == null || pave.isEmpty()) {
+            return;
+        }
+        Set<ColumnKey> filletOrSeam = new LinkedHashSet<>();
+        if (filletAdditions != null) {
+            filletOrSeam.addAll(filletAdditions);
+        }
+        filletOrSeam.addAll(seamTransition);
+        int[][] orth = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        List<ColumnKey> extras = new java.util.ArrayList<>();
+        for (ColumnKey candidate : List.copyOf(clearance)) {
+            if (candidate == null || pave.contains(candidate)) {
+                continue;
+            }
+            int paveNeighbors = 0;
+            boolean touchesFilletOrSeam = false;
+            for (int[] d : orth) {
+                ColumnKey neighbor = new ColumnKey(
+                    candidate.worldX() + d[0], candidate.worldZ() + d[1]);
+                if (!pave.contains(neighbor)) {
+                    continue;
+                }
+                paveNeighbors++;
+                if (filletOrSeam.contains(neighbor)) {
+                    touchesFilletOrSeam = true;
+                }
+            }
+            if ((paveNeighbors >= 1 && touchesFilletOrSeam) || paveNeighbors >= 3) {
+                extras.add(candidate);
+            }
+        }
+        for (ColumnKey gap : extras) {
+            if (pave.add(gap)) {
+                seamTransition.add(gap);
+                clearance.add(gap);
+                if (planPoints != null) {
+                    planPoints.putIfAbsent(gap, synthesizePlanPoint(gap, transformer));
+                }
+            }
+        }
     }
 
     public JunctionWorldFootprint union(JunctionWorldFootprint other) {
@@ -286,7 +347,7 @@ public final class JunctionWorldFootprint {
         target.add(key);
     }
 
-    static ColumnKey keyOf(Vec2d planPoint, ICoordinateService transformer) {
+    public static ColumnKey keyOf(Vec2d planPoint, ICoordinateService transformer) {
         BlockPos block = RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer);
         return new ColumnKey(block.getX(), block.getZ());
     }

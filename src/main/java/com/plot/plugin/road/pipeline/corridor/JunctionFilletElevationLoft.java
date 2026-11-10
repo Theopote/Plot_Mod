@@ -128,8 +128,15 @@ public final class JunctionFilletElevationLoft {
         }
         dirA = dirA.normalize();
         dirB = dirB.normalize();
-        RoadEdge ownerA = resolveTangentOwner(fillet.tangentStart(), edges, centerlines);
-        RoadEdge ownerB = resolveTangentOwner(fillet.tangentEnd(), edges, centerlines);
+        // 优先几何生成写入的切点归属；仅缺省时回退最近中心线。
+        RoadEdge ownerA = edgeById(fillet.ownerStartEdgeId(), edges);
+        if (ownerA == null) {
+            ownerA = resolveTangentOwner(fillet.tangentStart(), edges, centerlines);
+        }
+        RoadEdge ownerB = edgeById(fillet.ownerEndEdgeId(), edges);
+        if (ownerB == null) {
+            ownerB = resolveTangentOwner(fillet.tangentEnd(), edges, centerlines);
+        }
         CurbElevationCurve curbA = sampleCurb(
             sharp, dirA, fillet.tangentStart(), ownerA, roadYByEdge, edgeResults, centerlines, columns, junctionY);
         CurbElevationCurve curbB = sampleCurb(
@@ -137,8 +144,21 @@ public final class JunctionFilletElevationLoft {
         return new FilletLoftCorner(gore, sharp, dirA, dirB, curbA, curbB);
     }
 
+    static RoadEdge edgeById(String edgeId, List<RoadEdge> edges) {
+        if (edgeId == null || edgeId.isBlank() || edges == null) {
+            return null;
+        }
+        for (RoadEdge edge : edges) {
+            if (edge != null && edgeId.equals(edge.getId())) {
+                return edge;
+            }
+        }
+        return null;
+    }
+
     /**
-     * 切点归属：距中心线最近且在侧向容差内的进口边。
+     * 切点归属回退：距中心线最近且在侧向容差内的进口边。
+     * 不等宽场景应优先使用 {@link JunctionGeometryResult.FilletCorner} 携带的 owner id。
      */
     static RoadEdge resolveTangentOwner(
             Vec2d tangent,
@@ -203,21 +223,24 @@ public final class JunctionFilletElevationLoft {
         return new CurbElevationCurve(distances, elevations);
     }
 
-    private static void pinElevation(
+    /**
+     * 在切点真实站距插入（或精确覆盖）采样，保证 curb.at(pinS) == pinY。
+     * 不再把切点并入 ±0.5 的整数格，避免插值后切点 Y 漂移。
+     */
+    static void pinElevation(
             List<Double> distances,
             List<Integer> elevations,
             double pinS,
             int pinY) {
-        if (distances.isEmpty() || pinS < 0.0) {
+        if (distances == null || elevations == null || distances.isEmpty() || pinS < 0.0) {
             return;
         }
         for (int i = 0; i < distances.size(); i++) {
-            if (Math.abs(distances.get(i) - pinS) < 0.51) {
+            if (Math.abs(distances.get(i) - pinS) < EPSILON) {
                 elevations.set(i, pinY);
                 return;
             }
         }
-        // 插入切点采样
         for (int i = 0; i < distances.size(); i++) {
             if (distances.get(i) > pinS) {
                 distances.add(i, pinS);

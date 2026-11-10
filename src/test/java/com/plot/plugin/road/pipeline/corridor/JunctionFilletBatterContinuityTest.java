@@ -179,6 +179,67 @@ class JunctionFilletBatterContinuityTest {
     }
 
     @Test
+    void widthCappedFilletFillEmitsRetainingFinish() {
+        // 小半径限制跑距 + 大填方高差 → 截断尖端需竖向挡墙接到地面（复用走廊收尾）。
+        RoadSystemConfig config = new RoadSystemConfig("fillet-retain");
+        config.setTerrainStyle(RoadTerrainStyle.FOLLOW);
+        config.setIncludeSlopeBatter(true);
+        config.setFillSlopeRatio(1.5f);
+        config.setCutSlopeRatio(1.0f);
+        config.setDefaultCornerRadius(4.0f);
+        config.setRoadWidth(7);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r");
+        road.setWidth(7);
+        road.setIncludeSlopeBatter(true);
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setCornerRadius(4.0);
+        RoadNode n = network.createNode(new Vec2d(0, 40));
+        RoadNode e = network.createNode(new Vec2d(40, 0));
+        network.createEdge(junction.getId(), n.getId(),
+            List.of(junction.getPosition(), n.getPosition()), road.getId());
+        network.createEdge(junction.getId(), e.getId(),
+            List.of(junction.getPosition(), e.getPosition()), road.getId());
+
+        JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
+            new Vec2d(6, 6),
+            new Vec2d(2, 6),
+            new Vec2d(6, 2),
+            4.0,
+            Math.PI / 2.0);
+        TerrainSampler lowGround = surfaceAt(50);
+        RoadGenerator generator = new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
+
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionCrossSectionFill.stampApproachSlopeBatters(
+            solids,
+            junction.getPosition(),
+            64,
+            junction.getId(),
+            network.getEdges().values().stream().toList(),
+            network,
+            config,
+            materials(generator),
+            columns(generator),
+            1.0,
+            lowGround,
+            20, // 允许部分 SUBGRADE；尖端仍因跑距截断走挡墙
+            null,
+            List.of(fillet),
+            null,
+            Set.of(),
+            Set.of());
+
+        long walls = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.RETAINING_WALL)
+            .count();
+        assertTrue(walls > 0,
+            "width-capped fillet fill tip must emit retaining finish; walls=" + walls);
+    }
+
+    @Test
     void adjacentArcRaysCanFormRingBand() {
         Vec2d center = new Vec2d(10, 10);
         double radius = 6.0;

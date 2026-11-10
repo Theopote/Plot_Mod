@@ -162,7 +162,7 @@ public final class RoadJunctionGeometry {
                 continue;
             }
             maxHalf = Math.max(maxHalf, halfWidth);
-            approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth));
+            approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth, edge.getId()));
         }
         // 真实中心线局部条带（弯曲/变宽进口）；直线恒宽时退化为矩形 stub。
         // 臂长由广场半径驱动，避免 maxHalf*3 下限把 plazaRadius 拉平。
@@ -204,13 +204,95 @@ public final class RoadJunctionGeometry {
                 center, approaches, cornerRadius, effectivePlaza);
         }
         if (region.hasPavement()) {
-            return region.toJunctionGeometryResult();
+            return bindFilletOwnersFromApproaches(region.toJunctionGeometryResult(), approaches, center);
         }
         // 立交下层两臂（过滤上层后仅剩连续道路）不得回退旧算法生成虚构平交广场
         if (!isAtGradePlazaCandidate(approaches)) {
             return JunctionGeometryResult.empty();
         }
         return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
+    }
+
+    /**
+     * 区域式圆角未携带边 id 时，按切点到各进口路缘线的距离绑定归属
+     * （|侧向距−半宽| 最小），避免「最近中心线」在不等宽时选错。
+     */
+    static JunctionGeometryResult bindFilletOwnersFromApproaches(
+            JunctionGeometryResult geometry,
+            List<JunctionCurbFilletBuilder.Approach> approaches,
+            Vec2d junctionCenter) {
+        if (geometry == null || geometry.fillets().isEmpty() || approaches == null || approaches.isEmpty()) {
+            return geometry != null ? geometry : JunctionGeometryResult.empty();
+        }
+        boolean anyMissing = false;
+        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
+            if (fillet != null && !fillet.hasOwners()) {
+                anyMissing = true;
+                break;
+            }
+        }
+        if (!anyMissing) {
+            return geometry;
+        }
+        List<JunctionGeometryResult.FilletCorner> rebound = new ArrayList<>(geometry.fillets().size());
+        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
+            if (fillet == null) {
+                continue;
+            }
+            if (fillet.hasOwners()) {
+                rebound.add(fillet);
+                continue;
+            }
+            String startOwner = resolveCurbOwnerEdgeId(fillet.tangentStart(), approaches, junctionCenter);
+            String endOwner = resolveCurbOwnerEdgeId(fillet.tangentEnd(), approaches, junctionCenter);
+            rebound.add(fillet.withOwners(startOwner, endOwner));
+        }
+        return new JunctionGeometryResult(
+            geometry.fillPolygon(),
+            geometry.sharpPolygon(),
+            geometry.approachBoundaryPoints(),
+            geometry.requestedCornerRadius(),
+            geometry.effectiveCornerRadius(),
+            rebound,
+            geometry.overlapRegion(),
+            geometry.filletAdditions());
+    }
+
+    /**
+     * 切点归属：到「中心线+半宽路缘」侧向误差最小的进口边，而非到中心线最近。
+     */
+    public static String resolveCurbOwnerEdgeId(
+            Vec2d tangent,
+            List<JunctionCurbFilletBuilder.Approach> approaches,
+            Vec2d junctionCenter) {
+        if (tangent == null || approaches == null || approaches.isEmpty()) {
+            return null;
+        }
+        String bestId = null;
+        double bestScore = Double.POSITIVE_INFINITY;
+        for (JunctionCurbFilletBuilder.Approach approach : approaches) {
+            if (approach == null || approach.edgeId() == null || approach.halfWidth() <= 1e-9) {
+                continue;
+            }
+            Vec2d outward = approach.outward();
+            if (outward == null || outward.lengthSquared() < 1e-12) {
+                continue;
+            }
+            Vec2d origin = junctionCenter != null ? junctionCenter : new Vec2d(0, 0);
+            Vec2d relative = tangent.subtract(origin);
+            double along = relative.dot(outward);
+            // 切点应在进口嘴侧附近；明显反向的进口跳过
+            if (along < -approach.halfWidth()) {
+                continue;
+            }
+            double lateral = Math.abs(relative.dot(approach.leftNormal()));
+            double score = Math.abs(lateral - approach.halfWidth());
+            if (score < bestScore) {
+                bestScore = score;
+                bestId = approach.edgeId();
+            }
+        }
+        return bestId;
     }
 
     /** 路口处半宽：优先节点桩号上的变宽断面（方块半宽 × canvasUnitsPerBlock）。 */
