@@ -19,6 +19,7 @@ import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.plugin.road.tunnel.TunnelProfile;
 import net.minecraft.util.math.BlockPos;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
@@ -351,7 +352,7 @@ class TunnelStructureGeneratorTest {
             1.0,
             false);
 
-        assertFalse(TunnelStructureGenerator.columnAllowsClosedCavity(
+        assertFalse(TunnelColumnConstruction.allowsClosedCavity(
             gravelAtRoof, new Vec2d(0, 0), roofTop));
         assertTrue(solids.primitives().stream().noneMatch(p ->
                 p.elevation() >= roofTop && "minecraft:stone_bricks".equals(p.materialId())),
@@ -362,6 +363,7 @@ class TunnelStructureGeneratorTest {
                     && p.elevation() < roofTop),
             "must not excavate closed cavity under unsupported surface gravel");
     }
+
 
     @Test
     void nonPortalStationsAlsoSealRoofGaps() {

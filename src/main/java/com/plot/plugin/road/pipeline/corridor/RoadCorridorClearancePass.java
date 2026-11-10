@@ -6,6 +6,7 @@ import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.plugin.road.tunnel.TunnelRoofGapSealer;
@@ -121,6 +122,14 @@ public final class RoadCorridorClearancePass {
                 if (columnRoof != Integer.MIN_VALUE) {
                     portalRoof = columnRoof;
                 }
+            }
+            TunnelColumnConstruction.Mode columnMode = TunnelColumnConstruction.resolve(
+                true, terrain, cell.planPoint(), portalRoof);
+            if (columnMode != TunnelColumnConstruction.Mode.ENCLOSED) {
+                // 浅覆土洞口：按露天净空清到地表（含顶层），禁止封闭掏空留悬空沙砾。
+                return clearDaylightHeadroom(
+                    solids, cell, key, terrain, designY, gradeSeparation,
+                    ClearancePurpose.GRADE_SEPARATION, mask, lateral);
             }
             TunnelRoofGapSealer.stabilizeGravityColumn(
                 solids,
@@ -350,6 +359,13 @@ public final class RoadCorridorClearancePass {
         if (columnRoof == Integer.MIN_VALUE) {
             columnRoof = roofTop;
         }
+        TunnelColumnConstruction.Mode columnMode = TunnelColumnConstruction.resolve(
+            false, terrain, cell.planPoint(), columnRoof);
+        if (columnMode != TunnelColumnConstruction.Mode.ENCLOSED) {
+            // 与 TunnelStructureGenerator 同一浅覆土判定：禁止封闭洞腔掏空，改露天净空。
+            return clearDaylightHeadroom(
+                solids, cell, key, terrain, designY, gradeSeparation, purpose, null, null);
+        }
         TunnelRoofGapSealer.stabilizeGravityColumn(
             solids,
             cell.planPoint(),
@@ -362,6 +378,44 @@ public final class RoadCorridorClearancePass {
         for (int y = designY + 1; y <= topY; y++) {
             if (mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {
                 continue;
+            }
+            cleared += clearObstruction(
+                solids, cell, key, terrain, y, gradeSeparation, purpose);
+        }
+        return cleared;
+    }
+
+    /**
+     * 浅覆土 / 洞口露天净空：清到自然地表顶层（含），不按封闭洞腔只掏下方。
+     */
+    private static int clearDaylightHeadroom(
+            RoadSolidModel solids,
+            ClearanceCell cell,
+            ColumnKey key,
+            TerrainSampler terrain,
+            int designY,
+            GradeSeparationBuildContext gradeSeparation,
+            ClearancePurpose purpose,
+            TunnelPortalExcavationMask portalMask,
+            Integer lateral) {
+        int surfaceY = terrain.sampleSurfaceY(cell.planPoint());
+        Integer deckCap = gradeSeparation != null
+            ? gradeSeparation.maxOpenClearTopY(cell.planPoint())
+            : null;
+        int openTop = surfaceY;
+        if (deckCap != null) {
+            openTop = Math.min(openTop, Math.max(designY, deckCap));
+        }
+        int cleared = 0;
+        for (int y = designY + 1; y <= openTop; y++) {
+            // 露天净空必须含地表顶层；洞口掩膜常止于 roof-1，不得因此留下「只掏下方」的悬空沙砾。
+            if (portalMask != null && y < openTop) {
+                if (lateral != null && !portalMask.allowsClearance(lateral, y)) {
+                    continue;
+                }
+                if (lateral == null && !portalAllowsClearanceAtY(portalMask, y)) {
+                    continue;
+                }
             }
             cleared += clearObstruction(
                 solids, cell, key, terrain, y, gradeSeparation, purpose);

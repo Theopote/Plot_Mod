@@ -26,6 +26,7 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelLightMount;
 import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
@@ -436,9 +437,9 @@ public final class TunnelStructureGenerator {
                     continue;
                 }
                 if (kind == TunnelCrossSectionMask.CellKind.AIR) {
-                    // 联合约束：设计顶衬格无法落在自然地表以下时，禁止封闭洞腔开挖，
-                    // 否则地表沙砾保留却被掏空支撑（浅覆土/洞口应走露天逻辑）。
-                    if (!columnAllowsClosedCavity(terrain, point, mask.outerTopY(lateral))) {
+                    // 与走廊清障共用 TunnelColumnConstruction：浅覆土禁止封闭洞腔开挖。
+                    if (!TunnelColumnConstruction.allowsClosedCavity(
+                            terrain, point, mask.outerTopY(lateral))) {
                         continue;
                     }
                     if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
@@ -471,17 +472,13 @@ public final class TunnelStructureGenerator {
     }
 
     /**
-     * 封闭洞腔开挖前提：该列设计顶衬最高格必须严格低于自然工程地表，
-     * 才能在地下形成可承重的顶衬；否则为浅覆土/洞口，不得掏空地表支撑。
+     * @see TunnelColumnConstruction#allowsClosedCavity
      */
     public static boolean columnAllowsClosedCavity(
             TerrainSampler terrain,
             Vec2d planPoint,
             int designedRoofTopY) {
-        if (terrain == null || planPoint == null || designedRoofTopY == Integer.MIN_VALUE) {
-            return false;
-        }
-        return designedRoofTopY < terrain.sampleSurfaceY(planPoint);
+        return TunnelColumnConstruction.allowsClosedCavity(terrain, planPoint, designedRoofTopY);
     }
 
     /**

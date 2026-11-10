@@ -5,6 +5,7 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -113,6 +114,111 @@ class RoadCorridorClearancePassTest {
         assertEquals(4, solids.primitives().stream()
             .filter(p -> p.layer() == RoadSolidLayer.TUNNEL && "minecraft:air".equals(p.materialId()))
             .count());
+    }
+
+    @Test
+    void shallowTunnelModeClearsDaylightHeadroomWithoutUndercutOnly() {
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64);
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                point, 64, roofTop, RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL, 0));
+
+        TerrainSampler gravelSurface = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return roofTop;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return roofTop;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= roofTop;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+                return y == roofTop;
+            }
+        };
+
+        assertEquals(
+            TunnelColumnConstruction.Mode.OPEN,
+            TunnelColumnConstruction.resolve(false, gravelSurface, point, roofTop));
+
+        RoadCorridorClearancePass.apply(solids, plan, gravelSurface, host);
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == roofTop && "minecraft:air".equals(p.materialId())),
+            "shallow TUNNEL must open-cut the surface gravel itself");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() >= roofTop && "minecraft:stone".equals(p.materialId())),
+            "shallow TUNNEL must not invent restore stone at/above surface");
+        boolean cavityWithoutSurface = solids.primitives().stream().anyMatch(p ->
+                "minecraft:air".equals(p.materialId())
+                    && p.elevation() > 64
+                    && p.elevation() < roofTop)
+            && solids.primitives().stream().noneMatch(p ->
+                p.elevation() == roofTop && "minecraft:air".equals(p.materialId()));
+        assertFalse(cavityWithoutSurface, "must not undercut while leaving surface gravel");
+    }
+
+    @Test
+    void shallowPortalModeDoesNotUndercutSurfaceGravel() {
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64);
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                point, 64, roofTop, RoadCorridorConstructionMode.PORTAL,
+                RoadConstructionType.TUNNEL, 0));
+
+        TerrainSampler gravelSurface = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return roofTop;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return roofTop;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= roofTop;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+                return y == roofTop;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(solids, plan, gravelSurface, host);
+
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() >= roofTop && "minecraft:stone_bricks".equals(p.materialId())),
+            "portal daylight must not place lining on surface");
+        boolean cavityWithoutSurface = solids.primitives().stream().anyMatch(p ->
+                "minecraft:air".equals(p.materialId())
+                    && p.elevation() > 64
+                    && p.elevation() < roofTop)
+            && solids.primitives().stream().noneMatch(p ->
+                p.elevation() == roofTop && "minecraft:air".equals(p.materialId()));
+        assertFalse(cavityWithoutSurface, "portal must not undercut while leaving surface gravel");
     }
 
     @Test
