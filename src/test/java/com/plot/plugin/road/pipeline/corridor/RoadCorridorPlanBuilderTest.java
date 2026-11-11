@@ -21,6 +21,31 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoadCorridorPlanBuilderTest {
+    @Test
+    void uphillCutSideContinuesBeyondInitialShoulderHeightEstimate() {
+        var config = CorridorTestFixtures.baseConfig();
+        config.setRoadWidth(3);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeBikeLane(false);
+        config.setIncludeSlopeBatter(true);
+        config.setCutSlopeRatio(1f);
+        var segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        TerrainSampler terrain = new TerrainSampler() {
+            public int sampleSurfaceY(Vec2d p) {
+                if (p.y < 0) return 63;
+                return p.y < 1 ? 64 : p.y < 2 ? 65 : 69;
+            }
+            public boolean isSolidBlock(int x, int y, int z) { return y <= sampleSurfaceY(new Vec2d(x, z)); }
+        };
+        var plan = RoadCorridorPlanBuilder.build(List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 64, 64, 64, 64, 0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(config)), List.of(RoadConstructionType.ROAD),
+            DesignElevationSource.inactive(), BuildHeightProfile.inactive(), terrain,
+            1, "mixed-cut-fill", JunctionCorridorBuildContext.NONE, CorridorTestFixtures.planHost(config));
+        assertNotNull(plan.slopeCell(new ColumnKey(10, 5)), "cut ray must continue to rising terrain");
+        assertTrue(plan.slopeCell(new ColumnKey(10, 5)).hasCut());
+    }
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"0,1", "30,1", "45,1", "60,1", "30,4", "30,0.25"})

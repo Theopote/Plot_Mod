@@ -1125,8 +1125,6 @@ public final class RoadCorridorPlanBuilder {
         }
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
-        int heightDifference = Math.abs(targetY - groundAtEdge);
-        int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
         // Terrain can rise/fall outward: the shoulder height alone cannot bound daylight distance.
         int usefulHorizontalRun = maxHorizontalRun;
 

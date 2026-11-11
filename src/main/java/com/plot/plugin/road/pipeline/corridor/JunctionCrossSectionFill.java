@@ -457,12 +457,7 @@ public final class JunctionCrossSectionFill {
         if (slopeRatio <= 0f) {
             return new ShoulderBatterBuild(samples, null);
         }
-        int heightDifference = Math.abs(targetY - groundAtEdge);
-        int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
-        boolean widthCapped = unconstrainedRun > maxHorizontalRun;
-        // 圆角半径很小时 maxHorizontalRun 可能为 1；Math.clamp 下界不得超过上界。
-        int minRun = Math.clamp(maxHorizontalRun, 1, 2);
-        int usefulHorizontalRun = Math.clamp(unconstrainedRun, minRun, Math.max(minRun, maxHorizontalRun));
+        int usefulHorizontalRun = Math.max(1, maxHorizontalRun);
         String materialId = isFill ? fillBlockId : cutBlockId;
         if (materialId == null || materialId.isBlank()) {
             return new ShoulderBatterBuild(samples, null);
@@ -486,6 +481,7 @@ public final class JunctionCrossSectionFill {
         }
 
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
+        boolean widthCapped = !meetsTerrain && profile.getLast()[0] >= usefulHorizontalRun;
         SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
         boolean allowWaterEmbankment = false;
 
