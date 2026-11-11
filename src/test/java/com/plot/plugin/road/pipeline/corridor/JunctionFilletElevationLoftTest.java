@@ -184,6 +184,110 @@ class JunctionFilletElevationLoftTest {
         assertSame(ew, ownerEast, "east tangent belongs to EW approach");
     }
 
+    @Test
+    void mergeApproachRoadYPrefersNearestCenterlineOwnerNotMinY() {
+        RoadNetwork network = orthogonalNetwork();
+        RoadEdge ns = edgeToward(network, new Vec2d(0, 40));
+        RoadEdge ew = edgeToward(network, new Vec2d(40, 0));
+        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+
+        // 同一世界列：NS 路缘 Y=68，EW 路面 Y=65；列更靠近 NS 中心线时应取 68。
+        ColumnKey shared = new ColumnKey(1, 12);
+        Map<String, Map<ColumnKey, Integer>> byEdge = Map.of(
+            ns.getId(), Map.of(shared, 68),
+            ew.getId(), Map.of(shared, 65));
+
+        Map<ColumnKey, Integer> merged = JunctionFilletElevationLoft.mergeApproachRoadY(
+            byEdge, List.of(ns, ew), centerlines, columns);
+        assertEquals(68, merged.get(shared),
+            "shared column must follow nearest approach owner, not Math.min");
+    }
+
+    @Test
+    void mergeApproachRoadYKeepsLowerBandOnGradeSeparatedStack() {
+        RoadNetwork network = orthogonalNetwork();
+        RoadEdge ns = edgeToward(network, new Vec2d(0, 40));
+        RoadEdge ew = edgeToward(network, new Vec2d(40, 0));
+        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+
+        // 同列叠层：下层 64、上层桥面 80；即使更靠近上层中心线，也必须留在低层带。
+        ColumnKey shared = new ColumnKey(2, 2);
+        Map<String, Map<ColumnKey, Integer>> byEdge = Map.of(
+            ns.getId(), Map.of(shared, 80),
+            ew.getId(), Map.of(shared, 64));
+
+        Map<ColumnKey, Integer> merged = JunctionFilletElevationLoft.mergeApproachRoadY(
+            byEdge, List.of(ns, ew), centerlines, columns);
+        assertEquals(64, merged.get(shared),
+            "grade-separated stack must not pin underpass loft to elevated deck");
+    }
+
+    @Test
+    void fallbackElevationComparesSampleInWorldSpaceNotCanvas() {
+        // 画布缩放 2×：canvas (0,20) → world (0,40)。若误用画布坐标比距，会找不到 Y=73 钉点。
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("scaled");
+        road.setWidth(7);
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 40));
+        RoadEdge edge = network.createEdge(
+            junction.getId(), north.getId(),
+            List.of(junction.getPosition(), north.getPosition()), road.getId());
+
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos paved = new BlockPos(0, 73, 40);
+        result.recordPlacementOverride(paved, "minecraft:air", "minecraft:stone");
+        result.placementLayers.put(paved, RoadSolidLayer.ROAD);
+
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x * 2.0);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y * 2.0);
+                }
+            };
+
+        JunctionFilletElevationLoft loft = JunctionFilletElevationLoft.build(
+            List.of(),
+            Map.of(edge.getId(), result),
+            List.of(edge),
+            network,
+            columns,
+            64);
+
+        assertEquals(73, loft.surfaceY(new Vec2d(0.2, 20.2)),
+            "scaled projection must still pin approach pavement via world-space distance");
+    }
+
     private static RoadNetwork orthogonalNetwork() {
         RoadNetwork network = new RoadNetwork();
         Road nsRoad = network.createRoad("ns");

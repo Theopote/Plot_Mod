@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -31,13 +32,14 @@ public final class JunctionFilletElevationLoft {
     private static final double TANGENT_OWNER_MAX_DIST = 16.0;
     private static final double APPROACH_BLEND_MAX_DIST = 24.0;
     /**
-     * 路口核区半径：核内遗留边路不得 pin 为设计路面标高（应交清掉并按 junctionY 重建）；
-     * 核外进口已铺装列仍可 pin，避免纵坡接缝台阶。
+     * 路口核区半径下限：核内遗留边路不得 pin 为设计路面标高；
+     * 实际半径按进口硬质半宽放大，避免宽路核区外缘误 pin。
      */
     static final double APPROACH_PIN_MIN_DIST = 6.0;
 
     private final int junctionY;
     private final Vec2d junctionPlan;
+    private final double approachPinMinDist;
     private final List<FilletLoftCorner> corners;
     private final Map<ColumnKey, Integer> approachRoadY;
     private final List<ApproachElevationConstraint> approaches;
@@ -46,12 +48,14 @@ public final class JunctionFilletElevationLoft {
     private JunctionFilletElevationLoft(
             int junctionY,
             Vec2d junctionPlan,
+            double approachPinMinDist,
             List<FilletLoftCorner> corners,
             Map<ColumnKey, Integer> approachRoadY,
             List<ApproachElevationConstraint> approaches,
             RoadTerrainClearanceUtils.BlockColumnResolver columns) {
         this.junctionY = junctionY;
         this.junctionPlan = junctionPlan;
+        this.approachPinMinDist = Math.max(APPROACH_PIN_MIN_DIST, approachPinMinDist);
         this.corners = List.copyOf(corners);
         this.approachRoadY = approachRoadY != null ? Map.copyOf(approachRoadY) : Map.of();
         this.approaches = approaches != null ? List.copyOf(approaches) : List.of();
@@ -59,7 +63,8 @@ public final class JunctionFilletElevationLoft {
     }
 
     public static JunctionFilletElevationLoft inactive(int junctionY) {
-        return new JunctionFilletElevationLoft(junctionY, null, List.of(), Map.of(), List.of(), null);
+        return new JunctionFilletElevationLoft(
+            junctionY, null, APPROACH_PIN_MIN_DIST, List.of(), Map.of(), List.of(), null);
     }
 
     public static JunctionFilletElevationLoft build(
@@ -70,15 +75,16 @@ public final class JunctionFilletElevationLoft {
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY) {
         Vec2d junctionPlan = inferJunctionPlan(edges, network);
+        double pinMinDist = resolveApproachPinMinDist(edges, network);
         Map<String, Map<ColumnKey, Integer>> roadYByEdge = indexRoadSurfaceYByEdge(edgeResults);
-        // 只合并本路口责任进口（立交下层生成时 edges 已排除上层），禁止 max 到上层桥面 Y。
-        Map<ColumnKey, Integer> mergedRoadY = mergeApproachRoadY(roadYByEdge, edges);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+        // 同列多进口：按最近中心线归属（与横断面材质归属一致），禁止盲目 Math::min。
+        Map<ColumnKey, Integer> mergedRoadY = mergeApproachRoadY(roadYByEdge, edges, centerlines, columns);
         List<ApproachElevationConstraint> approachConstraints = buildApproachConstraints(
-            edges, roadYByEdge, edgeResults, centerlines, junctionPlan);
+            edges, roadYByEdge, edgeResults, centerlines, junctionPlan, columns, pinMinDist);
         if (fillets == null || fillets.isEmpty() || columns == null) {
             return new JunctionFilletElevationLoft(
-                junctionY, junctionPlan, List.of(), mergedRoadY, approachConstraints, columns);
+                junctionY, junctionPlan, pinMinDist, List.of(), mergedRoadY, approachConstraints, columns);
         }
         List<FilletLoftCorner> corners = new ArrayList<>();
         for (JunctionGeometryResult.FilletCorner fillet : fillets) {
@@ -89,7 +95,7 @@ public final class JunctionFilletElevationLoft {
             }
         }
         return new JunctionFilletElevationLoft(
-            junctionY, junctionPlan, corners, mergedRoadY, approachConstraints, columns);
+            junctionY, junctionPlan, pinMinDist, corners, mergedRoadY, approachConstraints, columns);
     }
 
     public int junctionY() {
@@ -168,14 +174,15 @@ public final class JunctionFilletElevationLoft {
     }
 
     private boolean insideJunctionCore(Vec2d planPoint) {
-        return insideJunctionCore(planPoint, junctionPlan);
+        return insideJunctionCore(planPoint, junctionPlan, approachPinMinDist);
     }
 
-    private static boolean insideJunctionCore(Vec2d planPoint, Vec2d junctionPlan) {
+    private static boolean insideJunctionCore(Vec2d planPoint, Vec2d junctionPlan, double pinMinDist) {
         if (planPoint == null || junctionPlan == null) {
             return false;
         }
-        return planPoint.distance(junctionPlan) < APPROACH_PIN_MIN_DIST;
+        double radius = pinMinDist > 0.0 ? pinMinDist : APPROACH_PIN_MIN_DIST;
+        return planPoint.distance(junctionPlan) < radius;
     }
 
     private Integer blendApproachElevations(Vec2d planPoint) {
@@ -203,30 +210,150 @@ public final class JunctionFilletElevationLoft {
         return (int) Math.round(elevSum / weightSum);
     }
 
-    private static Map<ColumnKey, Integer> mergeApproachRoadY(
+    /**
+     * 同层纵坡/路缘冲突的最大 Y 跨度；超过则视为立交叠层，只在低层带内选归属。
+     */
+    static final int SAME_LEVEL_Y_SPAN = 3;
+
+    /**
+     * 同世界列多进口路面 Y：
+     * <ul>
+     *   <li>同层（ΔY ≤ {@link #SAME_LEVEL_Y_SPAN}）：归属最近中心线进口，与横断面材质一致</li>
+     *   <li>立交叠层（ΔY 更大）：只保留最低层带（minY..minY+1），禁止抬到桥面</li>
+     * </ul>
+     * 距离并列时取字典序更小的 edgeId，保证确定性。
+     */
+    static Map<ColumnKey, Integer> mergeApproachRoadY(
             Map<String, Map<ColumnKey, Integer>> roadYByEdge,
-            List<RoadEdge> edges) {
+            List<RoadEdge> edges,
+            Function<RoadEdge, List<Vec2d>> centerlines,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns) {
         Map<ColumnKey, Integer> merged = new HashMap<>();
         if (roadYByEdge == null || edges == null) {
             return merged;
         }
+        Map<ColumnKey, List<ApproachYCandidate>> candidates = new HashMap<>();
         for (RoadEdge edge : edges) {
             if (edge == null || edge.getId() == null) {
                 continue;
             }
             Map<ColumnKey, Integer> perEdge = roadYByEdge.get(edge.getId());
-            if (perEdge == null) {
+            if (perEdge == null || perEdge.isEmpty()) {
                 continue;
             }
+            List<Vec2d> centerline = centerlines != null ? centerlines.apply(edge) : null;
             for (Map.Entry<ColumnKey, Integer> entry : perEdge.entrySet()) {
                 if (entry.getKey() == null || entry.getValue() == null) {
                     continue;
                 }
-                // 同列多进口：取更低者，避免立交/叠层把下层清障起点抬到桥面。
-                merged.merge(entry.getKey(), entry.getValue(), Math::min);
+                ColumnKey key = entry.getKey();
+                double dist = distanceColumnToCenterline(key, centerline, columns);
+                candidates.computeIfAbsent(key, ignored -> new ArrayList<>())
+                    .add(new ApproachYCandidate(edge.getId(), entry.getValue(), dist));
+            }
+        }
+        for (Map.Entry<ColumnKey, List<ApproachYCandidate>> entry : candidates.entrySet()) {
+            ApproachYCandidate chosen = selectApproachYOwner(entry.getValue());
+            if (chosen != null) {
+                merged.put(entry.getKey(), chosen.y());
             }
         }
         return merged;
+    }
+
+    static ApproachYCandidate selectApproachYOwner(List<ApproachYCandidate> all) {
+        if (all == null || all.isEmpty()) {
+            return null;
+        }
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        for (ApproachYCandidate candidate : all) {
+            if (candidate == null) {
+                continue;
+            }
+            minY = Math.min(minY, candidate.y());
+            maxY = Math.max(maxY, candidate.y());
+        }
+        if (minY == Integer.MAX_VALUE) {
+            return null;
+        }
+        boolean gradeSeparatedStack = maxY - minY > SAME_LEVEL_Y_SPAN;
+        int bandTop = gradeSeparatedStack ? minY + 1 : maxY;
+        ApproachYCandidate best = null;
+        for (ApproachYCandidate candidate : all) {
+            if (candidate == null || candidate.y() > bandTop) {
+                continue;
+            }
+            if (best == null
+                    || candidate.dist() < best.dist() - EPSILON
+                    || (Math.abs(candidate.dist() - best.dist()) <= EPSILON
+                        && candidate.edgeId().compareTo(best.edgeId()) < 0)) {
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    record ApproachYCandidate(String edgeId, int y, double dist) {
+    }
+
+    /**
+     * 世界列到画布中心线的距离：沿中心线采样并经 {@code columns} 投到世界 XZ，避免画布/世界混比。
+     */
+    static double distanceColumnToCenterline(
+            ColumnKey key,
+            List<Vec2d> centerline,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns) {
+        if (key == null || centerline == null || centerline.size() < 2) {
+            return Double.POSITIVE_INFINITY;
+        }
+        double best = Double.POSITIVE_INFINITY;
+        double cx = key.worldX() + 0.5;
+        double cz = key.worldZ() + 0.5;
+        for (int i = 0; i < centerline.size() - 1; i++) {
+            Vec2d a = centerline.get(i);
+            Vec2d b = centerline.get(i + 1);
+            if (a == null || b == null) {
+                continue;
+            }
+            double len = a.distance(b);
+            int steps = Math.max(1, (int) Math.ceil(len * 2.0));
+            for (int s = 0; s <= steps; s++) {
+                double t = (double) s / (double) steps;
+                Vec2d sample = a.lerp(b, t);
+                double wx;
+                double wz;
+                if (columns != null) {
+                    wx = columns.worldX(sample) + 0.5;
+                    wz = columns.worldZ(sample) + 0.5;
+                } else {
+                    wx = sample.x;
+                    wz = sample.y;
+                }
+                best = Math.min(best, Math.hypot(cx - wx, cz - wz));
+            }
+        }
+        return best;
+    }
+
+    static double resolveApproachPinMinDist(List<RoadEdge> edges, RoadNetwork network) {
+        double radius = APPROACH_PIN_MIN_DIST;
+        if (edges == null || network == null) {
+            return radius;
+        }
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            Road road = network.getRoadForEdge(edge);
+            if (road == null || road.getWidth() == null) {
+                continue;
+            }
+            double half = Math.max(0.5, road.getWidth() / 2.0);
+            // 半宽 + 路缘裕量，覆盖宽路实际路口核。
+            radius = Math.max(radius, half + 2.0);
+        }
+        return radius;
     }
 
     private static List<ApproachElevationConstraint> buildApproachConstraints(
@@ -234,7 +361,9 @@ public final class JunctionFilletElevationLoft {
             Map<String, Map<ColumnKey, Integer>> roadYByEdge,
             Map<String, RoadGenerationResult> edgeResults,
             Function<RoadEdge, List<Vec2d>> centerlines,
-            Vec2d junctionPlan) {
+            Vec2d junctionPlan,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns,
+            double pinMinDist) {
         List<ApproachElevationConstraint> constraints = new ArrayList<>();
         if (edges == null || centerlines == null) {
             return constraints;
@@ -249,7 +378,8 @@ public final class JunctionFilletElevationLoft {
             }
             Map<ColumnKey, Integer> scoped = scopedRoadY(edge, roadYByEdge);
             RoadGenerationResult result = edgeResults != null ? edgeResults.get(edge.getId()) : null;
-            constraints.add(new ApproachElevationConstraint(centerline, scoped, result, junctionPlan));
+            constraints.add(new ApproachElevationConstraint(
+                centerline, scoped, result, junctionPlan, columns, pinMinDist));
         }
         return constraints;
     }
@@ -589,7 +719,9 @@ public final class JunctionFilletElevationLoft {
             List<Vec2d> centerline,
             Map<ColumnKey, Integer> roadYByColumn,
             RoadGenerationResult edgeResult,
-            Vec2d junctionPlan) {
+            Vec2d junctionPlan,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns,
+            double pinMinDist) {
         Integer elevationAt(double station) {
             if (edgeResult != null
                     && edgeResult.buildProfile != null
@@ -599,10 +731,20 @@ public final class JunctionFilletElevationLoft {
             if (roadYByColumn == null || roadYByColumn.isEmpty() || centerline == null || centerline.isEmpty()) {
                 return null;
             }
-            // 无纵断面时：取中心线附近已铺装列的众数近似；核内遗留边路忽略。
+            // 无纵断面时：取中心线附近已铺装列；核内遗留边路忽略。
             Vec2d sample = pointAtStation(centerline, station);
-            if (sample == null || insideJunctionCore(sample, junctionPlan)) {
+            if (sample == null || insideJunctionCore(sample, junctionPlan, pinMinDist)) {
                 return null;
+            }
+            // 统一在世界 XZ 比较：sample 是画布点，须经 columns 投影后再与 ColumnKey 比距。
+            double sampleWorldX;
+            double sampleWorldZ;
+            if (columns != null) {
+                sampleWorldX = columns.worldX(sample) + 0.5;
+                sampleWorldZ = columns.worldZ(sample) + 0.5;
+            } else {
+                sampleWorldX = sample.x;
+                sampleWorldZ = sample.y;
             }
             Integer best = null;
             double bestDist = Double.POSITIVE_INFINITY;
@@ -611,7 +753,9 @@ public final class JunctionFilletElevationLoft {
                 if (key == null || entry.getValue() == null) {
                     continue;
                 }
-                double dist = Math.hypot(key.worldX() + 0.5 - sample.x, key.worldZ() + 0.5 - sample.y);
+                double dist = Math.hypot(
+                    key.worldX() + 0.5 - sampleWorldX,
+                    key.worldZ() + 0.5 - sampleWorldZ);
                 if (dist < bestDist) {
                     bestDist = dist;
                     best = entry.getValue();

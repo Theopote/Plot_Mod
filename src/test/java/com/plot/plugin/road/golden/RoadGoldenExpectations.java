@@ -49,9 +49,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
 
-    // 立交：下层不铺圆形广场；上跨边禁开敞切坡泥土贴底板边缘。±3 见 RoadGoldenTolerance。
+    // 立交：浅覆土路口与走廊统一洞腔 cap 后，隧道路口固体不再被露天切坡掏掉。
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        420, 0, 0, 0, 240, 150, 150, 0, 0, 741, 1, 0, List.of());
+        420, 0, 0, 0, 252, 185, 185, 0, 0, 785, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

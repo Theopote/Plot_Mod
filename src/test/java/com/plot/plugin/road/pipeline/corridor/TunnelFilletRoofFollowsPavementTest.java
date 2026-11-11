@@ -111,6 +111,7 @@ class TunnelFilletRoofFollowsPavementTest {
             }
         }
         int matchedColumns = 0;
+        int exactClearHeightColumns = 0;
         for (Map.Entry<Long, Integer> roofEntry : roofYByColumn.entrySet()) {
             Integer roadY = roadYByColumn.get(roofEntry.getKey());
             if (roadY == null) {
@@ -126,9 +127,15 @@ class TunnelFilletRoofFollowsPavementTest {
                 "column roof must track pavement clearHeight; roadY=" + roadY
                     + " roofY=" + actualRoof + " offset=" + offset);
             matchedColumns++;
+            if (offset == CLEAR_HEIGHT) {
+                exactClearHeightColumns++;
+            }
         }
-        assertTrue(matchedColumns >= 2,
-            "need per-column roof/pavement matches, got " + matchedColumns);
+        assertTrue(matchedColumns >= 4,
+            "need denser per-column roof/pavement coverage, got " + matchedColumns);
+        assertTrue(exactClearHeightColumns >= 2,
+            "at least two columns must sit exactly at roadY+clearHeight, got "
+                + exactClearHeightColumns);
     }
 
     private static void seedGradedApproachPavement(Map<String, RoadGenerationResult> edgeResults) {

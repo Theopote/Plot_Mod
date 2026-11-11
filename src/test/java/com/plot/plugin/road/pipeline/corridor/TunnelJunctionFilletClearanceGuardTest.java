@@ -135,9 +135,9 @@ class TunnelJunctionFilletClearanceGuardTest {
     }
 
     @Test
-    void hillsidePlazaClearsEvenWhenApproachTypesClaimTunnelButCoverIsShallow() {
-        // 分类器写了 TUNNEL，但覆土未封闭：仍按露天清干净，不能整列停挖留残土。
-        RoadSystemConfig config = new RoadSystemConfig("hillside-false-tunnel");
+    void hillsideShallowTunnelContextDoesNotDaylightOverburden() {
+        // 进口声称 TUNNEL 且有隧道净空参数：浅覆土与走廊一致，不得露天掏穿自然覆土。
+        RoadSystemConfig config = new RoadSystemConfig("hillside-shallow-tunnel");
         config.setDefaultCornerRadius(6.0f);
         config.setSelectedMaterial("minecraft:stone");
 
@@ -162,11 +162,11 @@ class TunnelJunctionFilletClearanceGuardTest {
             .generateJunction(
                 junction, network, surfaceAt(surfaceY), Map.of(junction.getId(), roadY), edgeResults);
 
-        assertTrue(blocks.getSolids().primitives().stream().anyMatch(p ->
+        assertFalse(blocks.getSolids().primitives().stream().anyMatch(p ->
                 p != null
                     && "minecraft:air".equals(p.materialId())
                     && p.elevation() == surfaceY),
-            "non-enclosed hillside plaza/fillet must clear surface dirt");
+            "shallow tunnel junction must not daylight natural overburden");
     }
 
     private static RoadNetwork crossNetwork(boolean tunnelStyle) {

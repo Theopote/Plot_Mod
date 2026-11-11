@@ -20,6 +20,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -241,9 +242,17 @@ public final class TunnelJunctionConnectivityPass {
                 }
             }
             if (roadYAt != null && clearHeight > 0 && plan != null) {
-                int cavityTop = roadYAt.applyAsInt(plan) + clearHeight;
+                int roadY = roadYAt.applyAsInt(plan);
+                int cavityTop = roadY + clearHeight;
                 // 洞腔顶为 roadY+clearHeight；空气格不得触及或超过该标高（衬砌起始）。
                 if (pos.getY() >= cavityTop) {
+                    continue;
+                }
+                // 浅覆土／洞口过渡列禁止连通清障掏出未授权地下洞腔（与走廊 Mode 一致）。
+                int designedRoofTopY = cavityTop;
+                if (terrain != null
+                        && !TunnelColumnConstruction.allowsClosedCavity(
+                            terrain, plan, designedRoofTopY)) {
                     continue;
                 }
             }

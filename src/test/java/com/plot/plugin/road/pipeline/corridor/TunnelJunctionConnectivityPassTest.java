@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -515,6 +516,47 @@ class TunnelJunctionConnectivityPassTest {
         network.createEdge(junction.getId(), west.getId(),
             List.of(junction.getPosition(), west.getPosition()), roadB.getId());
         return network;
+    }
+
+    @Test
+    void retainBelowDesignEnvelopeDropsShallowCoverUnauthorizedCavity() {
+        // 浅覆土：设计洞顶不低于自然地表 → 连通清障不得保留该列地下空气。
+        int roadY = 64;
+        int clearHeight = 5;
+        int surfaceY = 67; // roadY + clearHeight = 69 ≥ surface → 非封闭
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return surfaceY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y < surfaceY;
+            }
+
+            @Override
+            public boolean isChunkLoaded(int x, int z) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return true;
+            }
+        };
+        Set<BlockPos> volume = Set.of(
+            new BlockPos(0, 65, 0),
+            new BlockPos(0, 66, 0),
+            new BlockPos(0, 68, 0));
+        Set<BlockPos> kept = TunnelJunctionConnectivityPass.retainBelowDesignEnvelope(
+            volume,
+            terrain,
+            IdentityCoordinateService.INSTANCE,
+            plan -> roadY,
+            clearHeight);
+        assertTrue(kept.isEmpty(),
+            "shallow-cover columns must not keep unauthorized underground cavity air");
     }
 
     private static void applyTunnelStyle(Road road) {
