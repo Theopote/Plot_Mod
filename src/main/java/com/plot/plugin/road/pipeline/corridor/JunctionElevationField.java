@@ -78,9 +78,31 @@ public final class JunctionElevationField {
             int y = safeLoft.surfaceY(plan, safeFootprint);
             targets.put(key, y);
         }
-        // 先消孤立尖峰，再对圆角/接缝强制相邻 |ΔY|≤1，避免纵坡圆角棋盘起伏与顶衬跟着下沉。
+        // 进口路面锚点：同列 exact 与足迹外邻接进口列。松弛不得把路缘↔圆角交界从坡道上拉开。
+        Map<ColumnKey, Integer> approachAnchors = new LinkedHashMap<>();
+        Map<ColumnKey, Integer> approachRoadY = safeLoft.approachRoadY();
+        if (approachRoadY != null) {
+            for (Map.Entry<ColumnKey, Integer> entry : approachRoadY.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    approachAnchors.put(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+        Set<ColumnKey> pinnedAnchors = new java.util.LinkedHashSet<>();
+        for (ColumnKey key : pave) {
+            JunctionWorldFootprint.ElevationRole role = roles.get(key);
+            if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
+                continue;
+            }
+            Integer ay = approachAnchors.get(key);
+            if (ay != null) {
+                targets.put(key, ay);
+                pinnedAnchors.add(key);
+            }
+        }
+
         for (int pass = 0; pass < 6; pass++) {
-            if (clampIsolatedSpikes(targets) == 0) {
+            if (clampIsolatedSpikes(targets, pinnedAnchors) == 0) {
                 break;
             }
         }
@@ -89,22 +111,29 @@ public final class JunctionElevationField {
             if (entry.getKey() == null || entry.getValue() == null) {
                 continue;
             }
+            if (pinnedAnchors.contains(entry.getKey())) {
+                continue;
+            }
             if (entry.getValue() == JunctionWorldFootprint.ElevationRole.FILLET
                     || entry.getValue() == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
                 soft.add(entry.getKey());
             }
         }
         for (int pass = 0; pass < 24; pass++) {
-            if (enforceAdjacentStepLimit(targets, soft) == 0) {
+            if (enforceAdjacentStepLimit(targets, soft, approachAnchors) == 0) {
                 break;
             }
         }
-        // |ΔY|≤1 仍可能留下 64/65 棋盘；对圆角列再做邻域均值松弛，压掉视觉粗糙。
+        // 有坡交界：未钉住的软列先贴齐邻接进口锚点，再内部消棋盘。
+        for (int pass = 0; pass < 12; pass++) {
+            if (alignSoftColumnsToApproachSeam(targets, soft, approachAnchors) == 0) {
+                break;
+            }
+        }
         Set<ColumnKey> filletOnly = new java.util.LinkedHashSet<>();
-        for (Map.Entry<ColumnKey, JunctionWorldFootprint.ElevationRole> entry : roles.entrySet()) {
-            if (entry.getKey() != null
-                    && entry.getValue() == JunctionWorldFootprint.ElevationRole.FILLET) {
-                filletOnly.add(entry.getKey());
+        for (ColumnKey key : soft) {
+            if (roles.get(key) == JunctionWorldFootprint.ElevationRole.FILLET) {
+                filletOnly.add(key);
             }
         }
         for (int pass = 0; pass < 8; pass++) {
@@ -112,8 +141,20 @@ public final class JunctionElevationField {
                 break;
             }
         }
+        // 松弛后再次钉回进口 exact，避免交界被核区均值拉偏（下沉/突起 + 顶衬跟着走）。
+        for (ColumnKey key : pinnedAnchors) {
+            Integer ay = approachAnchors.get(key);
+            if (ay != null) {
+                targets.put(key, ay);
+            }
+        }
+        for (int pass = 0; pass < 12; pass++) {
+            if (alignSoftColumnsToApproachSeam(targets, soft, approachAnchors) == 0) {
+                break;
+            }
+        }
         for (int pass = 0; pass < 8; pass++) {
-            if (enforceAdjacentStepLimit(targets, soft) == 0) {
+            if (enforceAdjacentStepLimit(targets, soft, approachAnchors) == 0) {
                 break;
             }
         }
@@ -178,15 +219,20 @@ public final class JunctionElevationField {
      * @return 本轮修正列数
      */
     static int clampIsolatedSpikes(Map<ColumnKey, Integer> targets) {
+        return clampIsolatedSpikes(targets, Set.of());
+    }
+
+    static int clampIsolatedSpikes(Map<ColumnKey, Integer> targets, Set<ColumnKey> frozen) {
         if (targets == null || targets.size() < 4) {
             return 0;
         }
+        Set<ColumnKey> frozenKeys = frozen != null ? frozen : Set.of();
         Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
         int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
         for (Map.Entry<ColumnKey, Integer> entry : targets.entrySet()) {
             ColumnKey key = entry.getKey();
             Integer y = entry.getValue();
-            if (key == null || y == null) {
+            if (key == null || y == null || frozenKeys.contains(key)) {
                 continue;
             }
             List<Integer> neighborYs = new ArrayList<>(4);
@@ -233,6 +279,13 @@ public final class JunctionElevationField {
      */
     static int enforceAdjacentStepLimit(
             Map<ColumnKey, Integer> targets, Set<ColumnKey> softColumns) {
+        return enforceAdjacentStepLimit(targets, softColumns, Map.of());
+    }
+
+    static int enforceAdjacentStepLimit(
+            Map<ColumnKey, Integer> targets,
+            Set<ColumnKey> softColumns,
+            Map<ColumnKey, Integer> approachAnchors) {
         if (targets == null || targets.isEmpty() || softColumns == null || softColumns.isEmpty()) {
             return 0;
         }
@@ -247,7 +300,8 @@ public final class JunctionElevationField {
             int maxStep = 0;
             List<Integer> neighborYs = new ArrayList<>(4);
             for (int[] dir : dirs) {
-                Integer ny = targets.get(new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]));
+                ColumnKey neighbor = new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]);
+                Integer ny = resolveNeighborY(targets, approachAnchors, neighbor);
                 if (ny == null) {
                     continue;
                 }
@@ -281,6 +335,66 @@ public final class JunctionElevationField {
         }
         targets.putAll(adjusted);
         return adjusted.size();
+    }
+
+    /**
+     * 路缘↔圆角交界：软列向邻接进口锚点收一格，优先贴齐坡道而不是被核区均值拉开。
+     * @return 本轮修正列数
+     */
+    static int alignSoftColumnsToApproachSeam(
+            Map<ColumnKey, Integer> targets,
+            Set<ColumnKey> softColumns,
+            Map<ColumnKey, Integer> approachAnchors) {
+        if (targets == null || softColumns == null || softColumns.isEmpty()
+                || approachAnchors == null || approachAnchors.isEmpty()) {
+            return 0;
+        }
+        Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (ColumnKey key : softColumns) {
+            Integer y = targets.get(key);
+            if (key == null || y == null) {
+                continue;
+            }
+            int pull = 0;
+            int seen = 0;
+            for (int[] dir : dirs) {
+                ColumnKey neighbor = new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]);
+                Integer ay = approachAnchors.get(neighbor);
+                if (ay == null) {
+                    continue;
+                }
+                seen++;
+                if (y > ay + 1) {
+                    pull--;
+                } else if (y < ay - 1) {
+                    pull++;
+                }
+            }
+            if (seen == 0 || pull == 0) {
+                continue;
+            }
+            int next = y + (pull > 0 ? 1 : -1);
+            if (next != y) {
+                adjusted.put(key, next);
+            }
+        }
+        targets.putAll(adjusted);
+        return adjusted.size();
+    }
+
+    private static Integer resolveNeighborY(
+            Map<ColumnKey, Integer> targets,
+            Map<ColumnKey, Integer> approachAnchors,
+            ColumnKey neighbor) {
+        if (neighbor == null) {
+            return null;
+        }
+        Integer inField = targets != null ? targets.get(neighbor) : null;
+        if (inField != null) {
+            return inField;
+        }
+        return approachAnchors != null ? approachAnchors.get(neighbor) : null;
     }
 
     /**

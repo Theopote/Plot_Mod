@@ -188,7 +188,7 @@ public final class TunnelJunctionShellPass {
                 continue;
             }
             // 侧向净距外扩列可能未进铺装高程场：补钳制，避免孤立下沉把顶衬跟着压低。
-            stabilizeShellRoadY(roadYByColumn, footprint);
+            stabilizeShellRoadY(roadYByColumn, footprint, filletLoft.approachRoadY());
 
             // 墙体 = 最终洞腔外缘（仍需覆土）；禁止写到合法 ROAD 净空列。
             Set<ColumnKey> wallColumns = wallRingAround(finalCavityColumns, liningThickness);
@@ -459,21 +459,47 @@ public final class TunnelJunctionShellPass {
 
     /**
      * 壳侧 roadY 表可能含足迹外扩列（未进 {@link JunctionElevationField} 目标表）。
-     * 对软列强制邻接 |ΔY|≤1，并消孤立尖峰，保证顶衬不跟随局部下沉。
+     * 对软列强制邻接 |ΔY|≤1，并钉住进口锚点，保证顶衬不跟随交界局部下沉。
      */
     static void stabilizeShellRoadY(
             Map<ColumnKey, Integer> roadYByColumn, JunctionWorldFootprint footprint) {
+        stabilizeShellRoadY(roadYByColumn, footprint, Map.of());
+    }
+
+    static void stabilizeShellRoadY(
+            Map<ColumnKey, Integer> roadYByColumn,
+            JunctionWorldFootprint footprint,
+            Map<ColumnKey, Integer> approachRoadY) {
         if (roadYByColumn == null || roadYByColumn.isEmpty()) {
             return;
         }
+        Map<ColumnKey, Integer> approachAnchors = approachRoadY != null
+            ? new HashMap<>(approachRoadY)
+            : Map.of();
+        Set<ColumnKey> pinnedAnchors = new LinkedHashSet<>();
+        for (Map.Entry<ColumnKey, Integer> entry : approachAnchors.entrySet()) {
+            ColumnKey key = entry.getKey();
+            Integer ay = entry.getValue();
+            if (key == null || ay == null || !roadYByColumn.containsKey(key)) {
+                continue;
+            }
+            JunctionWorldFootprint.ElevationRole role = footprint != null
+                ? footprint.elevationRole(key)
+                : JunctionWorldFootprint.ElevationRole.OUTSIDE;
+            if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
+                continue;
+            }
+            roadYByColumn.put(key, ay);
+            pinnedAnchors.add(key);
+        }
         for (int pass = 0; pass < 6; pass++) {
-            if (JunctionElevationField.clampIsolatedSpikes(roadYByColumn) == 0) {
+            if (JunctionElevationField.clampIsolatedSpikes(roadYByColumn, pinnedAnchors) == 0) {
                 break;
             }
         }
         Set<ColumnKey> soft = new LinkedHashSet<>();
         for (ColumnKey key : roadYByColumn.keySet()) {
-            if (key == null) {
+            if (key == null || pinnedAnchors.contains(key)) {
                 continue;
             }
             JunctionWorldFootprint.ElevationRole role = footprint != null
@@ -484,7 +510,14 @@ public final class TunnelJunctionShellPass {
             }
         }
         for (int pass = 0; pass < 12; pass++) {
-            if (JunctionElevationField.enforceAdjacentStepLimit(roadYByColumn, soft) == 0) {
+            if (JunctionElevationField.enforceAdjacentStepLimit(
+                    roadYByColumn, soft, approachAnchors) == 0) {
+                break;
+            }
+        }
+        for (int pass = 0; pass < 12; pass++) {
+            if (JunctionElevationField.alignSoftColumnsToApproachSeam(
+                    roadYByColumn, soft, approachAnchors) == 0) {
                 break;
             }
         }
@@ -502,11 +535,63 @@ public final class TunnelJunctionShellPass {
                 break;
             }
         }
-        for (int pass = 0; pass < 8; pass++) {
-            if (JunctionElevationField.enforceAdjacentStepLimit(roadYByColumn, soft) == 0) {
+        for (ColumnKey key : pinnedAnchors) {
+            Integer ay = approachAnchors.get(key);
+            if (ay != null) {
+                roadYByColumn.put(key, ay);
+            }
+        }
+        for (int pass = 0; pass < 12; pass++) {
+            if (JunctionElevationField.alignSoftColumnsToApproachSeam(
+                    roadYByColumn, soft, approachAnchors) == 0) {
                 break;
             }
         }
+        for (int pass = 0; pass < 8; pass++) {
+            if (JunctionElevationField.enforceAdjacentStepLimit(
+                    roadYByColumn, soft, approachAnchors) == 0) {
+                break;
+            }
+        }
+        // 顶衬底座：圆角列不得低于邻域进口/软列的局部最小可连台阶，避免单列下沉把洞顶拽下去。
+        liftFilletRoofBases(roadYByColumn, filletOnly);
+    }
+
+    /**
+     * 若圆角列相对所有邻域低 ≥2，抬到 min(邻居)-0 的可连台阶，专防顶衬跟随下沉。
+     */
+    static void liftFilletRoofBases(
+            Map<ColumnKey, Integer> roadYByColumn, Set<ColumnKey> filletColumns) {
+        if (roadYByColumn == null || filletColumns == null || filletColumns.isEmpty()) {
+            return;
+        }
+        Map<ColumnKey, Integer> adjusted = new HashMap<>();
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (ColumnKey key : filletColumns) {
+            Integer y = roadYByColumn.get(key);
+            if (key == null || y == null) {
+                continue;
+            }
+            int minNeighbor = Integer.MAX_VALUE;
+            int count = 0;
+            for (int[] dir : dirs) {
+                Integer ny = roadYByColumn.get(
+                    new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]));
+                if (ny == null) {
+                    continue;
+                }
+                minNeighbor = Math.min(minNeighbor, ny);
+                count++;
+            }
+            if (count < 2 || y >= minNeighbor - 1) {
+                continue;
+            }
+            int next = minNeighbor - 1;
+            if (next != y) {
+                adjusted.put(key, next);
+            }
+        }
+        roadYByColumn.putAll(adjusted);
     }
 
     static Set<ColumnKey> cavityColumnsFromOpenVolume(Set<BlockPos> openVolume) {

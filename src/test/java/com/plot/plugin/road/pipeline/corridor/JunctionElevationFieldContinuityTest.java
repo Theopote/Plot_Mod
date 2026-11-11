@@ -132,6 +132,18 @@ class JunctionElevationFieldContinuityTest {
                 "curb samples must be step-continuous after smooth");
         }
 
+        Map<ColumnKey, Integer> seam = new HashMap<>();
+        seam.put(new ColumnKey(1, 0), 70);
+        Map<ColumnKey, Integer> anchors = Map.of(new ColumnKey(0, 0), 64);
+        java.util.Set<ColumnKey> softSeam = java.util.Set.of(new ColumnKey(1, 0));
+        for (int pass = 0; pass < 12; pass++) {
+            if (JunctionElevationField.alignSoftColumnsToApproachSeam(seam, softSeam, anchors) == 0) {
+                break;
+            }
+        }
+        assertTrue(Math.abs(seam.get(new ColumnKey(1, 0)) - 64) <= 1,
+            "fillet/seam column must step toward adjacent graded approach anchor");
+
         int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
         for (Map.Entry<ColumnKey, Integer> entry : field.targetYByColumn().entrySet()) {
             ColumnKey key = entry.getKey();
