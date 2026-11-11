@@ -216,6 +216,10 @@ tasks.test {
 	} else {
 		systemProperty "plot.road.benchmark", System.getProperty("plot.road.benchmark", "")
 	}
+	// Gradle 9.x 偶发：clean/首跑时 binary/in-progress-results-generic.bin 父目录尚未就绪。
+	doFirst {
+		file("${layout.buildDirectory.get().asFile}/test-results/test/binary").mkdirs()
+	}
 }
 
 jacoco {

@@ -305,7 +305,14 @@ public class GenerateRoadCommand implements Command {
             return List.of();
         }
         List<BlockRecord> ordered = new ArrayList<>(source);
-        ordered.sort((a, b) -> Boolean.compare(isExcavationAir(a), isExcavationAir(b)));
+        ordered.sort((a, b) -> {
+            int phase = Boolean.compare(isExcavationAir(a), isExcavationAir(b));
+            if (phase != 0) return phase;
+            // Excavation spans ticks: remove upper falling blocks before their supports.
+            return isExcavationAir(a)
+                ? Integer.compare(b.pos.getY(), a.pos.getY())
+                : 0;
+        });
         return List.copyOf(ordered);
     }
 

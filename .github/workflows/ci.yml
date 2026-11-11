@@ -110,8 +110,18 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"
         run: >
-          ./gradlew test --no-daemon --stacktrace
+          ./gradlew clean test --no-daemon --stacktrace
           --tests "com.plot.plugin.road.*"
+
+      - name: Upload road test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: road-suite-test-reports
+          path: |
+            build/reports/tests/test/
+            build/test-results/test/
+          if-no-files-found: ignore
 
   server-smoke:
     name: dedicated-server smoke

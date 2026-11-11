@@ -350,7 +350,7 @@ public final class JunctionCrossSectionFill {
                     terrain, scale, outward, fillBlockId, cutBlockId,
                     crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, cappedRun,
                     columnResolver,
-                    new SlopeRayId(rayId + filletIndex * 64L + i, SlopeRayId.ShoulderSide.LEFT));
+                    new SlopeRayId(rayId++, SlopeRayId.ShoulderSide.LEFT));
                 samples.addAll(build.samples());
                 if (build.ray() != null) {
                     arcRays.add(new IndexedShoulderRay(i, build.ray()));

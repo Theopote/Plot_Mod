@@ -348,6 +348,15 @@ class GenerateRoadCommandTest {
     }
 
     @Test
+    void excavationRemovesUpperBlocksBeforeTheirSupports() {
+        var lower = new BlockRecord(new BlockPos(0, 65, 0), "minecraft:sand", "minecraft:air");
+        var upper = new BlockRecord(new BlockPos(0, 80, 0), "minecraft:gravel", "minecraft:air");
+        var roof = new BlockRecord(new BlockPos(0, 81, 0), "minecraft:gravel", "minecraft:stone_bricks");
+        assertEquals(List.of(roof, upper, lower),
+            GenerateRoadCommand.orderForWorldConstruction(List.of(lower, upper, roof)));
+    }
+
+    @Test
     void orderForWorldConstructionPlacesNonAirBeforeExcavationAir() {
         BlockPos lining = new BlockPos(0, 70, 0);
         BlockPos cavity = new BlockPos(0, 68, 0);

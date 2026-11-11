@@ -269,11 +269,16 @@ public final class JunctionFilletElevationLoft {
         String bestId = null;
         int bestHits = 0;
         for (Map.Entry<String, Integer> entry : endpointHits.entrySet()) {
-            if (entry.getValue() == null || entry.getValue() <= bestHits) {
+            if (entry.getKey() == null || entry.getValue() == null) {
                 continue;
             }
-            bestHits = entry.getValue();
-            bestId = entry.getKey();
+            int hits = entry.getValue();
+            // 平票时按 nodeId 稳定选取，避免 HashMap 遍历顺序导致路口中心抖动。
+            if (hits > bestHits
+                    || (hits == bestHits && (bestId == null || entry.getKey().compareTo(bestId) < 0))) {
+                bestHits = hits;
+                bestId = entry.getKey();
+            }
         }
         RoadNode node = bestId != null ? network.getNode(bestId) : null;
         return node != null ? node.getPosition() : null;
