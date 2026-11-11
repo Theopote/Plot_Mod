@@ -231,7 +231,7 @@ public final class RoadCorridorPlanBuilder {
             cover = terrain.sampleSurfaceY(sample.center()) - sample.targetY();
         }
         return RoadEarthworkPolicy.suppressOpenDaylightBatter(
-            sample.constructionType(), nearTunnel, cover, tunnelStyle, tunnelThreshold);
+            sample.constructionType(), nearTunnel && cover > 0, cover, tunnelStyle, tunnelThreshold);
     }
 
     private static boolean adjacentTunnelOrShelter(List<StationSample> stations, int index) {
@@ -1127,11 +1127,8 @@ public final class RoadCorridorPlanBuilder {
         float slopeRatio = isFill ? fillRatio : cutRatio;
         int heightDifference = Math.abs(targetY - groundAtEdge);
         int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
-        boolean widthCapped = unconstrainedRun > maxHorizontalRun;
-        if (widthCapped) {
-            plan.noteSlopeBatterWidthCap();
-        }
-        int usefulHorizontalRun = Math.clamp(unconstrainedRun, 2, maxHorizontalRun);
+        // Terrain can rise/fall outward: the shoulder height alone cannot bound daylight distance.
+        int usefulHorizontalRun = maxHorizontalRun;
 
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
             targetY,
@@ -1152,6 +1149,10 @@ public final class RoadCorridorPlanBuilder {
         }
 
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
+        boolean widthCapped = !meetsTerrain && profile.getLast()[0] >= maxHorizontalRun;
+        if (widthCapped) {
+            plan.noteSlopeBatterWidthCap();
+        }
         if (widthCapped && !meetsTerrain) {
             meetsTerrain = trySoftGroundWidthCap(profile, isFill, outerEdge, normal, scale, terrain);
         }
