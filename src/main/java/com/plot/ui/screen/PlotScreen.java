@@ -140,6 +140,9 @@ public class PlotScreen extends Screen {
 
         // 记录打开界面前的世界时间，关闭界面时恢复
         com.plot.client.WorldTimeManager.getInstance().saveCurrentTime();
+
+        // 打开界面期间强制晴天（关闭雨雪），关闭界面时恢复
+        com.plot.client.WorldWeatherManager.getInstance().saveAndForceClear();
         
         // 设置 Plot 屏幕打开状态（用于控制云渲染和雾渲染）
         PlotScreenState.setPlotScreenOpen(true);
@@ -966,6 +969,9 @@ public class PlotScreen extends Screen {
 
         // 恢复打开界面之前的世界时间
         com.plot.client.WorldTimeManager.getInstance().restoreSavedTime();
+
+        // 恢复打开界面之前的天气
+        com.plot.client.WorldWeatherManager.getInstance().restoreSavedWeather();
 
         super.removed();
     }
