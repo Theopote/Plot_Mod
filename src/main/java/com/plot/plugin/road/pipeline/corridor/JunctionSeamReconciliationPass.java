@@ -15,9 +15,12 @@ import java.util.Set;
 
 /**
  * 最终体素局部接缝修整：在道路/路口合并之后、世界写入之前，
- * 仅修正授权范围内的标高冲突与洞腔内残留侧墙；不重算几何，不补边坡。
+ * 仅修正授权范围内的标高冲突、圆角叠层残留与洞腔内残留侧墙；不重算几何，不补边坡。
  */
 public final class JunctionSeamReconciliationPass {
+    /** 圆角抬高时，向下剥离进口路面/衬砌/装饰环的最大深度（格）。 */
+    static final int UNDER_PAVEMENT_STRIP_DEPTH = 8;
+
     private JunctionSeamReconciliationPass() {
     }
 
@@ -73,6 +76,7 @@ public final class JunctionSeamReconciliationPass {
             JunctionWorldFootprint.ElevationRole role) {
         List<BlockPos> roadAtColumn = new ArrayList<>();
         List<BlockPos> tunnelSolids = new ArrayList<>();
+        List<BlockPos> plazaFamilyBelow = new ArrayList<>();
         for (Map.Entry<BlockPos, BlockRecord> entry : aggregate.placementRecords.entrySet()) {
             BlockPos pos = entry.getKey();
             BlockRecord record = entry.getValue();
@@ -93,6 +97,11 @@ public final class JunctionSeamReconciliationPass {
                 roadAtColumn.add(pos);
             } else if (layer == RoadSolidLayer.TUNNEL) {
                 tunnelSolids.add(pos);
+            }
+            if (pos.getY() < targetY
+                    && pos.getY() >= targetY - UNDER_PAVEMENT_STRIP_DEPTH
+                    && isStackedLeftoverLayer(layer)) {
+                plazaFamilyBelow.add(pos);
             }
         }
 
@@ -122,6 +131,24 @@ public final class JunctionSeamReconciliationPass {
             }
         }
 
+        // 圆角叠层：进口路缘 / 衬砌 / 装饰环落在设计路面之下时清掉，避免破坏顶面后露出下层突起。
+        if (role == JunctionWorldFootprint.ElevationRole.FILLET
+                || role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
+            for (BlockPos pos : plazaFamilyBelow) {
+                clearLeftover(aggregate, pos);
+            }
+            for (BlockPos pos : roadAtColumn) {
+                if (pos.getY() < targetY && pos.getY() >= targetY - UNDER_PAVEMENT_STRIP_DEPTH) {
+                    clearLeftover(aggregate, pos);
+                }
+            }
+            for (BlockPos pos : tunnelSolids) {
+                if (pos.getY() < targetY && pos.getY() >= targetY - UNDER_PAVEMENT_STRIP_DEPTH) {
+                    clearLeftover(aggregate, pos);
+                }
+            }
+        }
+
         // 圆角/接缝列：仅清紧贴路面上的残留侧墙；禁止清到洞顶高度（避免路面局部下沉时顺带掏掉顶衬）。
         if (role == JunctionWorldFootprint.ElevationRole.FILLET
                 || role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
@@ -133,12 +160,32 @@ public final class JunctionSeamReconciliationPass {
                 if (protectedBlocks.contains(pos)) {
                     continue;
                 }
-                BlockRecord existing = aggregate.placementRecords.get(pos);
-                String previous = existing != null ? existing.previousBlockId : "minecraft:stone";
-                aggregate.recordPlacementOverride(pos, previous, "minecraft:air");
-                aggregate.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
-                aggregate.placementMaterialPriorities.put(pos, Integer.valueOf(RoadSolidMaterialPriority.CLEARANCE));
+                clearLeftover(aggregate, pos);
             }
         }
+    }
+
+    /** 可叠在圆角路面下的进口残留层：硬质路面族 + 隧道衬砌/装饰环（非空气）。 */
+    static boolean isStackedLeftoverLayer(RoadSolidLayer layer) {
+        if (layer == null) {
+            return false;
+        }
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN
+            || layer == RoadSolidLayer.MARKING
+            || layer == RoadSolidLayer.TUNNEL
+            || layer == RoadSolidLayer.GUARDRAIL
+            || layer == RoadSolidLayer.STREETLIGHT;
+    }
+
+    private static void clearLeftover(RoadGenerationResult aggregate, BlockPos pos) {
+        BlockRecord existing = aggregate.placementRecords.get(pos);
+        String previous = existing != null ? existing.previousBlockId : "minecraft:stone";
+        aggregate.recordPlacementOverride(pos, previous, "minecraft:air");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+        aggregate.placementMaterialPriorities.put(pos, Integer.valueOf(RoadSolidMaterialPriority.CLEARANCE));
     }
 }

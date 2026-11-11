@@ -121,10 +121,16 @@ public final class JunctionFilletElevationLoft {
         ColumnKey key = columns != null
             ? new ColumnKey(columns.worldX(planPoint), columns.worldZ(planPoint))
             : null;
-        boolean allowApproachPin = allowApproachPin(key, planPoint, footprint);
-        // A gore can overlap an approach voxel after rasterization. Share its exact
-        // elevation rather than lofting a second, disconnected surface in that column.
-        if (allowApproachPin && key != null) {
+        // 同列已有进口路面：圆角/接缝必须钉在该 Y，禁止 loft 抬高后再叠一层（破坏顶面可见下层路缘/衬砌）。
+        // 仅 exact 列；邻域 pin 仍限接缝外缘，避免两进口互相污染 gore。
+        if (key != null && allowExactApproachPin(key, planPoint, footprint)) {
+            Integer exact = approachRoadY.get(key);
+            if (exact != null) {
+                return exact;
+            }
+        }
+        boolean allowNeighborhoodPin = allowNeighborhoodApproachPin(key, planPoint, footprint);
+        if (allowNeighborhoodPin && key != null) {
             Integer existing = approachRoadY.get(key);
             if (existing != null) {
                 return existing;
@@ -145,10 +151,23 @@ public final class JunctionFilletElevationLoft {
     }
 
     /**
-     * 进口 pin 仅用于接缝/清障外缘：圆角 gore（FILLET）必须走 curb loft，否则两进口重叠列
-     * 会在圆角内钉出跳变台阶，造成起伏、镂空与顶衬跟着下沉。
+     * 同列 exact pin：核区仍拒绝遗留边路；FILLET/SEAM/清障可钉，避免圆角叠在进口路面之上。
      */
-    private boolean allowApproachPin(
+    private boolean allowExactApproachPin(
+            ColumnKey key, Vec2d planPoint, JunctionWorldFootprint footprint) {
+        if (columns == null) {
+            return false;
+        }
+        if (footprint != null && !footprint.isEmpty() && key != null) {
+            return footprint.elevationRole(key) != JunctionWorldFootprint.ElevationRole.ROAD_CORE;
+        }
+        return !insideJunctionCore(planPoint);
+    }
+
+    /**
+     * 邻域 pin 仅接缝/清障外缘：gore 内禁止邻域污染，否则两进口会钉出棋盘台阶。
+     */
+    private boolean allowNeighborhoodApproachPin(
             ColumnKey key, Vec2d planPoint, JunctionWorldFootprint footprint) {
         if (columns == null) {
             return false;
@@ -159,7 +178,6 @@ public final class JunctionFilletElevationLoft {
                 || role == JunctionWorldFootprint.ElevationRole.CLEARANCE_ONLY
                 || role == JunctionWorldFootprint.ElevationRole.OUTSIDE;
         }
-        // 无足迹：gore 内禁止 pin，核区外可 pin。
         if (isFilletGore(planPoint)) {
             return false;
         }
@@ -183,7 +201,7 @@ public final class JunctionFilletElevationLoft {
             ? new ColumnKey(columns.worldX(planPoint), columns.worldZ(planPoint))
             : null;
         if (columns == null || approachRoadY.isEmpty()
-                || !allowApproachPin(key, planPoint, footprint)) {
+                || !allowNeighborhoodApproachPin(key, planPoint, footprint)) {
             return null;
         }
         int wx = columns.worldX(planPoint);
