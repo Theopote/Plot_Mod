@@ -25,6 +25,29 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JunctionFilletElevationLoftTest {
+    @Test
+    void goreOverlapKeepsExactApproachVoxelElevation() {
+        var network = orthogonalNetwork();
+        var edge = edgeToward(network, new Vec2d(0, 40));
+        var result = new RoadGenerationResult(0);
+        var pos = new BlockPos(2, 71, 8);
+        result.recordPlacementOverride(pos, "minecraft:air", "minecraft:stone");
+        result.placementLayers.put(pos, RoadSolidLayer.ROAD);
+        var center = new Vec2d(10, 10);
+        var start = new Vec2d(2, 10);
+        var end = new Vec2d(10, 2);
+        var fillet = new JunctionGeometryResult.FilletCorner(center, start, end, 8, Math.PI / 2,
+            FilletArcSweep.resolveShort(center, start, end));
+        var columns = new RoadTerrainClearanceUtils.BlockColumnResolver() {
+            public int worldX(Vec2d p) { return (int) Math.floor(p.x); }
+            public int worldZ(Vec2d p) { return (int) Math.floor(p.y); }
+        };
+        var loft = JunctionFilletElevationLoft.build(List.of(fillet), Map.of(edge.getId(), result),
+            List.copyOf(network.getEdges().values()), network, columns, 64);
+        var point = new Vec2d(2.1, 8);
+        assertTrue(loft.isFilletGore(point));
+        assertEquals(71, loft.surfaceY(point));
+    }
 
     @Test
     void angularBlendSweepsFromStartCurbToEndCurb() {

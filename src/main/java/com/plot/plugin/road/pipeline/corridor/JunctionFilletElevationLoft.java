@@ -103,6 +103,13 @@ public final class JunctionFilletElevationLoft {
         if (planPoint == null) {
             return junctionY;
         }
+        // A gore can overlap an approach voxel after rasterization. Share its exact
+        // elevation rather than lofting a second, disconnected surface in that column.
+        if (columns != null && !insideJunctionCore(planPoint)) {
+            Integer existing = approachRoadY.get(new ColumnKey(
+                columns.worldX(planPoint), columns.worldZ(planPoint)));
+            if (existing != null) return existing;
+        }
         for (FilletLoftCorner corner : corners) {
             if (!RoadGeometryUtils.pointInPolygon(planPoint, corner.gore())) {
                 continue;
