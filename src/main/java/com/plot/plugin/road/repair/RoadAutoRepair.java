@@ -50,7 +50,7 @@ public final class RoadAutoRepair {
         }
 
         public boolean fullyRepaired() {
-            return issuesBefore.isEmpty() ? false : issuesAfter.isEmpty();
+            return !issuesBefore.isEmpty() && issuesAfter.isEmpty();
         }
     }
 

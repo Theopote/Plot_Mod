@@ -27,7 +27,7 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
         473, 0, 0, 60, 0, 0, 147, 0, 0, 413, 0, 0, List.of());
 
-    // 五岔：gore/接缝加密后路口固体与表面同步上升；±3 见 RoadGoldenTolerance。
+    // 五岔：gore/接缝加密后路口固体与表面同步上升；placement ±5 见 RoadGoldenTolerance。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
         637, 0, 0, 63, 0, 0, 219, 0, 0, 509, 0, 0, List.of());
 
