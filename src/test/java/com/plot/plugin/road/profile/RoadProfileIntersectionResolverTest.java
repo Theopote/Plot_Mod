@@ -215,8 +215,8 @@ class RoadProfileIntersectionResolverTest {
         assertEquals(50.0, crossing.roadStation(), 1e-6);
         assertTrue(crossing.gradeSeparated());
         assertTrue(crossing.currentRoadElevated());
-        // Explicit 4.0 is raised to underpass tunnel clearHeight floor (default 5).
-        assertEquals(5.0, crossing.clearance(), 1e-6);
+        // Explicit 4.0 is raised to underpass tunnel clearHeight + support depth (default 5+1).
+        assertEquals(6.0, crossing.clearance(), 1e-6);
     }
 
     private static void markEdited(Road road, List<PointOfVerticalIntersection> pvis) {

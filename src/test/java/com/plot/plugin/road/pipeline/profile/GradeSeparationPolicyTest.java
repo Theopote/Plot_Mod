@@ -36,7 +36,8 @@ class GradeSeparationPolicyTest {
         junction.setCrossingClearance(4.1);
         GradeSeparationPolicy policy = new GradeSeparationPolicy(STUB_CONTEXT);
         TerrainSampler terrain = new FlatTerrainSampler(64);
-        assertEquals(69, policy.resolveElevatedCrossingHeight(edge, junction, network, terrain,
+        // 显式 4.1 < 隧道净高 5 + 承重层 1 → 下限 6；64 + 6 = 70
+        assertEquals(70, policy.resolveElevatedCrossingHeight(edge, junction, network, terrain,
             (n, net, t, roadId) -> 64, (e, n, net, t) -> 64, 64));
 
         upper.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.MANUAL_PROFILE);
@@ -131,7 +132,7 @@ class GradeSeparationPolicyTest {
         TerrainSampler terrain = new FlatTerrainSampler(64);
 
         assertEquals(
-            69,
+            70,
             policy.resolveElevatedCrossingHeight(
                 upper, junction, network, terrain,
                 (n, net, t, roadId) -> 64,
@@ -155,7 +156,7 @@ class GradeSeparationPolicyTest {
         RoadNode junction = network.createNode(new Vec2d(0, 0));
         junction.setGradeSeparated(true);
         junction.setElevatedRoadId(roadA.getId());
-        // 显式 4 < 默认隧道净高 5：下限抬升 → underpassY 68 + 5 = 73
+        // 显式 4 < 默认隧道净高 5 + 承重层 1：下限抬升 → underpassY 68 + 6 = 74
         junction.setCrossingClearance(4.0);
         RoadNode north = network.createNode(new Vec2d(0, 40));
         RoadNode east = network.createNode(new Vec2d(40, 0));
@@ -170,7 +171,7 @@ class GradeSeparationPolicyTest {
         TerrainSampler terrain = new FlatTerrainSampler(64);
 
         assertEquals(
-            73,
+            74,
             policy.resolveElevatedCrossingHeight(
                 elevated, junction, network, terrain,
                 (n, net, t, roadId) -> 70,

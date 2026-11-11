@@ -89,8 +89,8 @@ class RoadStackCrossingGenerationTest {
         assertTrue(underpassY != null);
 
         int upperSurfaceAtCrossing = 0;
-        // Explicit 4.0 is raised to underpass tunnel clearHeight floor (default 5).
-        int expectedUpperY = underpassY + 5;
+        // Explicit 4.0 is raised to underpass tunnel clearHeight + support depth (default 5+1).
+        int expectedUpperY = underpassY + 6;
         for (var edgeResult : preview.edgeResults().values()) {
             for (var entry : edgeResult.placementRecords.entrySet()) {
                 var pos = entry.getKey();

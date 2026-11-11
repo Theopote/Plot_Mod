@@ -379,8 +379,8 @@ class RoadGeneratorTerrainTest {
         int elevatedHeight = generator.getTargetHeightAtNode(eastEdge, junction, network, terrain);
 
         assertEquals(70, underpassHeight);
-        // Explicit 3.0 is raised to underpass tunnel clearHeight floor (default 5).
-        assertEquals(75, elevatedHeight);
+        // Explicit 3.0 is raised to underpass tunnel clearHeight + support depth (default 5+1).
+        assertEquals(76, elevatedHeight);
     }
 
     @Test
@@ -417,8 +417,8 @@ class RoadGeneratorTerrainTest {
 
         assertEquals(eastAtJunction, westAtJunction);
         assertEquals(68, southAtJunction);
-        // Explicit 4.0 is raised to underpass tunnel clearHeight floor (default 5).
-        assertEquals(73, eastAtJunction);
+        // Explicit 4.0 is raised to underpass tunnel clearHeight + support depth (default 5+1).
+        assertEquals(74, eastAtJunction);
     }
 
     @Test
@@ -448,9 +448,9 @@ class RoadGeneratorTerrainTest {
             junction.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -12)), roadA.getId());
         network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 3.0);
 
-        // 下穿 = 手动标高；上跨 = 手动标高 + max(显式净空, 下穿隧道净高下限)
+        // 下穿 = 手动标高；上跨 = 手动标高 + max(显式净空, 下穿隧道净高 + 承重层)
         assertEquals(80, generator.getTargetHeightAtNode(northEdge, junction, network, terrain));
-        assertEquals(85, generator.getTargetHeightAtNode(eastEdge, junction, network, terrain));
+        assertEquals(86, generator.getTargetHeightAtNode(eastEdge, junction, network, terrain));
     }
 
     @Test

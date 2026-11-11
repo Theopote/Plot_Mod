@@ -136,8 +136,8 @@ class RoadWorkflowTest {
         int underpassHeight = generator.getTargetHeightAtNode(underpassEdge, junction, network, terrain);
         int elevatedHeight = generator.getTargetHeightAtNode(elevatedEdge, junction, network, terrain);
         assertEquals(70, underpassHeight);
-        // Explicit 3.0 is raised to underpass tunnel clearHeight floor (default 5).
-        assertEquals(75, elevatedHeight);
+        // Explicit 3.0 is raised to underpass tunnel clearHeight + support depth (default 5+1).
+        assertEquals(76, elevatedHeight);
 
         var underpassResult = generator.generateEdge(
             network,
@@ -157,7 +157,7 @@ class RoadWorkflowTest {
         // A short lower approach can lie entirely inside the plaza footprint;
         // its pavement is then owned by the junction in the final network result.
         var preview = new RoadNetworkGenerator(generator).generatePreview(network, terrain);
-        for (int y : new int[]{70, 75}) {
+        for (int y : new int[]{70, 76}) {
             var pos = new net.minecraft.util.math.BlockPos(5, y, 5);
             var record = preview.aggregate().placementRecords.get(pos);
             assertNotNull(record, "crossing pavement missing at " + pos);
@@ -167,7 +167,7 @@ class RoadWorkflowTest {
         }
         assertFalse(elevatedResult.roadBlocks.isEmpty());
         assertEquals(70, (int) underpassResult.profileBuildHeights.getFirst());
-        assertEquals(75, (int) elevatedResult.profileBuildHeights.getFirst());
+        assertEquals(76, (int) elevatedResult.profileBuildHeights.getFirst());
     }
 
     @Test
