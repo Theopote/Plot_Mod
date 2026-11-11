@@ -84,14 +84,20 @@ class OpenJunctionNotPoisonedByDistantTunnelTest {
             }
             if ("minecraft:air".equals(p.materialId())
                     && p.elevation() > junctionY
-                    && p.elevation() < groundY) {
+                    && p.elevation() <= groundY) {
                 hasClearanceAirAboveRoad = true;
             }
         }
         assertTrue(hasPavement, "open plaza must stamp pavement including fillet responsibility");
         assertTrue(hasClearanceAirAboveRoad,
-            "open plaza must clear terrain above road toward natural surface; "
+            "open plaza must clear terrain through natural surface (inclusive); "
                 + "distant edge tunnel must not install shallow-cover punch skip");
+        boolean clearedSurfaceLayer = blocks.getSolids().primitives().stream().anyMatch(p ->
+            p != null
+                && "minecraft:air".equals(p.materialId())
+                && p.elevation() == groundY);
+        assertTrue(clearedSurfaceLayer,
+            "open plaza must remove the natural surface block itself in paved fillet columns");
 
         // 边级 infer 仍可能算出 cap，但生成路径不得采用（无真实进口）
         Integer inferred = TunnelJunctionSeedResolver.inferTunnelCavityClearCapFromEdges(

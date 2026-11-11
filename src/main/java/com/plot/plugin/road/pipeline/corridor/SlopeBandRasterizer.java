@@ -136,6 +136,7 @@ public final class SlopeBandRasterizer {
             return samples;
         }
         int sharedMax = Math.min(a.maxOffset(), b.maxOffset());
+        // 绝对上限；实际跑距已由各射线采样时的配置 maxHorizontalRun 收窄。
         sharedMax = Math.min(sharedMax, RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS);
         if (sharedMax < 1) {
             return samples;

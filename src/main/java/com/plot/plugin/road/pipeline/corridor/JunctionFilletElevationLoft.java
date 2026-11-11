@@ -104,17 +104,31 @@ public final class JunctionFilletElevationLoft {
 
     /**
      * 逐点路面标高：gore 内放样；否则优先命中进口已铺装列，再按进口中心线约束混合，最后才用 junctionY。
+     * 无足迹时回退固定核区半径（兼容旧调用）。
      */
     public int surfaceY(Vec2d planPoint) {
+        return surfaceY(planPoint, null);
+    }
+
+    /**
+     * 足迹感知高程：{@link JunctionWorldFootprint.ElevationRole#ROAD_CORE} 独占列禁止遗留边路 pin；
+     * 圆角/接缝/清障列可信任进口接口 Y（即使靠近交叉点）。
+     */
+    public int surfaceY(Vec2d planPoint, JunctionWorldFootprint footprint) {
         if (planPoint == null) {
             return junctionY;
         }
+        ColumnKey key = columns != null
+            ? new ColumnKey(columns.worldX(planPoint), columns.worldZ(planPoint))
+            : null;
+        boolean allowApproachPin = allowApproachPin(key, planPoint, footprint);
         // A gore can overlap an approach voxel after rasterization. Share its exact
         // elevation rather than lofting a second, disconnected surface in that column.
-        if (columns != null && !insideJunctionCore(planPoint)) {
-            Integer existing = approachRoadY.get(new ColumnKey(
-                columns.worldX(planPoint), columns.worldZ(planPoint)));
-            if (existing != null) return existing;
+        if (allowApproachPin && key != null) {
+            Integer existing = approachRoadY.get(key);
+            if (existing != null) {
+                return existing;
+            }
         }
         for (FilletLoftCorner corner : corners) {
             if (!RoadGeometryUtils.pointInPolygon(planPoint, corner.gore())) {
@@ -122,12 +136,34 @@ public final class JunctionFilletElevationLoft {
             }
             return corner.loftY(planPoint, junctionY);
         }
-        Integer pinned = lookupPinnedApproachRoadY(planPoint);
+        Integer pinned = lookupPinnedApproachRoadY(planPoint, footprint);
         if (pinned != null) {
             return pinned;
         }
         Integer blended = blendApproachElevations(planPoint);
         return blended != null ? blended : junctionY;
+    }
+
+    /**
+     * 进口 pin 仅用于接缝/清障外缘：圆角 gore（FILLET）必须走 curb loft，否则两进口重叠列
+     * 会在圆角内钉出跳变台阶，造成起伏、镂空与顶衬跟着下沉。
+     */
+    private boolean allowApproachPin(
+            ColumnKey key, Vec2d planPoint, JunctionWorldFootprint footprint) {
+        if (columns == null) {
+            return false;
+        }
+        if (footprint != null && !footprint.isEmpty() && key != null) {
+            JunctionWorldFootprint.ElevationRole role = footprint.elevationRole(key);
+            return role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION
+                || role == JunctionWorldFootprint.ElevationRole.CLEARANCE_ONLY
+                || role == JunctionWorldFootprint.ElevationRole.OUTSIDE;
+        }
+        // 无足迹：gore 内禁止 pin，核区外可 pin。
+        if (isFilletGore(planPoint)) {
+            return false;
+        }
+        return !insideJunctionCore(planPoint);
     }
 
     public boolean isFilletGore(Vec2d planPoint) {
@@ -142,8 +178,12 @@ public final class JunctionFilletElevationLoft {
         return false;
     }
 
-    private Integer lookupPinnedApproachRoadY(Vec2d planPoint) {
-        if (columns == null || approachRoadY.isEmpty() || insideJunctionCore(planPoint)) {
+    private Integer lookupPinnedApproachRoadY(Vec2d planPoint, JunctionWorldFootprint footprint) {
+        ColumnKey key = columns != null
+            ? new ColumnKey(columns.worldX(planPoint), columns.worldZ(planPoint))
+            : null;
+        if (columns == null || approachRoadY.isEmpty()
+                || !allowApproachPin(key, planPoint, footprint)) {
             return null;
         }
         int wx = columns.worldX(planPoint);
@@ -159,7 +199,13 @@ public final class JunctionFilletElevationLoft {
                 if (dx == 0 && dz == 0) {
                     continue;
                 }
-                Integer y = approachRoadY.get(new ColumnKey(wx + dx, wz + dz));
+                ColumnKey neighbor = new ColumnKey(wx + dx, wz + dz);
+                if (footprint != null && !footprint.isEmpty()
+                        && footprint.elevationRole(neighbor)
+                        == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
+                    continue;
+                }
+                Integer y = approachRoadY.get(neighbor);
                 if (y == null) {
                     continue;
                 }
@@ -171,6 +217,10 @@ public final class JunctionFilletElevationLoft {
             }
         }
         return near;
+    }
+
+    Map<ColumnKey, Integer> approachRoadY() {
+        return approachRoadY;
     }
 
     private boolean insideJunctionCore(Vec2d planPoint) {
@@ -546,7 +596,36 @@ public final class JunctionFilletElevationLoft {
                 tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
             pinElevation(distances, elevations, pinS, tangentY);
         }
+        // 体素邻域查找会把走廊 ±1 台阶噪声写进路缘；沿弧消抖后再 loft，避免圆角棋盘粗糙。
+        smoothCurbElevations(elevations);
         return new CurbElevationCurve(distances, elevations);
+    }
+
+    /**
+     * 沿路缘采样序列强制相邻 |ΔY|≤1（双向扫），消除离散路面查找引入的尖峰。
+     */
+    static void smoothCurbElevations(List<Integer> elevations) {
+        if (elevations == null || elevations.size() < 2) {
+            return;
+        }
+        for (int i = 1; i < elevations.size(); i++) {
+            int prev = elevations.get(i - 1);
+            int cur = elevations.get(i);
+            if (cur > prev + 1) {
+                elevations.set(i, prev + 1);
+            } else if (cur < prev - 1) {
+                elevations.set(i, prev - 1);
+            }
+        }
+        for (int i = elevations.size() - 2; i >= 0; i--) {
+            int next = elevations.get(i + 1);
+            int cur = elevations.get(i);
+            if (cur > next + 1) {
+                elevations.set(i, next + 1);
+            } else if (cur < next - 1) {
+                elevations.set(i, next - 1);
+            }
+        }
     }
 
     /**
@@ -596,6 +675,12 @@ public final class JunctionFilletElevationLoft {
             Function<RoadEdge, List<Vec2d>> centerlines,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY) {
+        // 优先连续纵断面：离散路面列含 Minecraft 台阶噪声，直接 loft 会让圆角看起来粗糙。
+        Integer fromProfile = elevationFromOwnedProfile(
+            planPoint, ownerEdge, edgeResults, centerlines);
+        if (fromProfile != null) {
+            return fromProfile;
+        }
         int wx = columns.worldX(planPoint);
         int wz = columns.worldZ(planPoint);
         Integer exact = scopedRoadY.get(new ColumnKey(wx, wz));
@@ -623,9 +708,7 @@ public final class JunctionFilletElevationLoft {
         if (near != null) {
             return near;
         }
-        Integer fromProfile = elevationFromOwnedProfile(
-            planPoint, ownerEdge, edgeResults, centerlines);
-        return fromProfile != null ? fromProfile : junctionY;
+        return junctionY;
     }
 
     private static Integer elevationFromOwnedProfile(
@@ -825,7 +908,18 @@ public final class JunctionFilletElevationLoft {
             int ya = curbA.at(s);
             int yb = curbB.at(s);
             double u = angularBlend(sharp, dirA, dirB, planPoint);
-            return (int) Math.round((1.0 - u) * ya + u * yb);
+            // 角向混合后取整：贴近路缘时锁到该缘标高，避免 round 在中间带抖出 ±1 棋盘。
+            if (u <= 0.15) {
+                return ya;
+            }
+            if (u >= 0.85) {
+                return yb;
+            }
+            double blended = (1.0 - u) * ya + u * yb;
+            int rounded = (int) Math.round(blended);
+            int lo = Math.min(ya, yb);
+            int hi = Math.max(ya, yb);
+            return Math.max(lo, Math.min(hi, rounded));
         }
     }
 

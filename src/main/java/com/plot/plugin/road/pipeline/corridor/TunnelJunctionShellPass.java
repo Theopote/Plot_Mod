@@ -146,10 +146,9 @@ public final class TunnelJunctionShellPass {
                 columnResolver(coordinateTransformer);
             JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
                 geometry.fillets(), edgeResults, connected, network, columns, junctionY);
-            ToIntFunction<ColumnKey> roadYAt = column -> {
-                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                return filletLoft.surfaceY(plan);
-            };
+            JunctionElevationField elevationField = JunctionElevationField.build(
+                footprint, filletLoft, columns, junctionY);
+            ToIntFunction<ColumnKey> roadYAt = elevationField::surfaceY;
 
             // 候选洞腔列：铺装责任区 + 侧向净距；不再用 clearance 外扩格做开挖底盘。
             Set<ColumnKey> candidateColumns = expandPaveBySideClearance(footprint.paveColumns(), sideClearance);
@@ -164,13 +163,39 @@ public final class TunnelJunctionShellPass {
                     enclosedColumns.add(column);
                 }
             }
-            if (enclosedColumns.isEmpty()) {
+            // 同层：进口隧道洞腔 ∪ 圆角封闭列 → 最终洞腔；墙只出在并集外缘，避免连接处残留分隔柱。
+            List<Vec2d> polygon = resolveJunctionPolygon(network, node, config, scale);
+            Set<ColumnKey> approachCavityColumns = cavityColumnsFromOpenVolume(
+                TunnelJunctionSeedResolver.collectOpenVolume(
+                    approaches,
+                    polygon,
+                    carriers,
+                    coordinateTransformer,
+                    plan -> {
+                        ColumnKey key = new ColumnKey(
+                            columns.worldX(plan), columns.worldZ(plan));
+                        return roadYAt.applyAsInt(key);
+                    }));
+            Set<ColumnKey> finalCavityColumns = new LinkedHashSet<>(enclosedColumns);
+            for (ColumnKey column : approachCavityColumns) {
+                if (column == null || !candidateColumns.contains(column)) {
+                    continue;
+                }
+                finalCavityColumns.add(column);
+                roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
+            }
+            if (finalCavityColumns.isEmpty()) {
                 continue;
             }
+            // 侧向净距外扩列可能未进铺装高程场：补钳制，避免孤立下沉把顶衬跟着压低。
+            stabilizeShellRoadY(roadYByColumn, footprint);
 
-            // 墙体 = 封闭洞腔边界外一圈（仍需覆土），不再离散圆弧采样。
-            Set<ColumnKey> wallColumns = wallRingAround(enclosedColumns, liningThickness);
+            // 墙体 = 最终洞腔外缘（仍需覆土）；禁止写到合法 ROAD 净空列。
+            Set<ColumnKey> wallColumns = wallRingAround(finalCavityColumns, liningThickness);
             wallColumns.removeIf(column -> {
+                if (hasRoadSurfaceColumn(carriers, column)) {
+                    return true;
+                }
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
                 int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
                 return !columnHasEnclosedCover(
@@ -178,7 +203,7 @@ public final class TunnelJunctionShellPass {
             });
 
             Map<VoxelRole, Set<BlockPos>> roles = buildRoleMasks(
-                enclosedColumns,
+                finalCavityColumns,
                 wallColumns,
                 roadYByColumn,
                 clearHeight,
@@ -208,7 +233,7 @@ public final class TunnelJunctionShellPass {
                 }
                 writeLining(carriers, pos, liningId, previousBlockResolver);
             }
-            for (ColumnKey column : enclosedColumns) {
+            for (ColumnKey column : finalCavityColumns) {
                 if (wallColumns.contains(column)) {
                     continue;
                 }
@@ -433,9 +458,96 @@ public final class TunnelJunctionShellPass {
     }
 
     /**
+     * 壳侧 roadY 表可能含足迹外扩列（未进 {@link JunctionElevationField} 目标表）。
+     * 对软列强制邻接 |ΔY|≤1，并消孤立尖峰，保证顶衬不跟随局部下沉。
+     */
+    static void stabilizeShellRoadY(
+            Map<ColumnKey, Integer> roadYByColumn, JunctionWorldFootprint footprint) {
+        if (roadYByColumn == null || roadYByColumn.isEmpty()) {
+            return;
+        }
+        for (int pass = 0; pass < 6; pass++) {
+            if (JunctionElevationField.clampIsolatedSpikes(roadYByColumn) == 0) {
+                break;
+            }
+        }
+        Set<ColumnKey> soft = new LinkedHashSet<>();
+        for (ColumnKey key : roadYByColumn.keySet()) {
+            if (key == null) {
+                continue;
+            }
+            JunctionWorldFootprint.ElevationRole role = footprint != null
+                ? footprint.elevationRole(key)
+                : JunctionWorldFootprint.ElevationRole.OUTSIDE;
+            if (role != JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
+                soft.add(key);
+            }
+        }
+        for (int pass = 0; pass < 12; pass++) {
+            if (JunctionElevationField.enforceAdjacentStepLimit(roadYByColumn, soft) == 0) {
+                break;
+            }
+        }
+        Set<ColumnKey> filletOnly = new LinkedHashSet<>();
+        for (ColumnKey key : soft) {
+            if (key == null || footprint == null) {
+                continue;
+            }
+            if (footprint.elevationRole(key) == JunctionWorldFootprint.ElevationRole.FILLET) {
+                filletOnly.add(key);
+            }
+        }
+        for (int pass = 0; pass < 8; pass++) {
+            if (JunctionElevationField.relaxFilletTowardNeighbors(roadYByColumn, filletOnly) == 0) {
+                break;
+            }
+        }
+        for (int pass = 0; pass < 8; pass++) {
+            if (JunctionElevationField.enforceAdjacentStepLimit(roadYByColumn, soft) == 0) {
+                break;
+            }
+        }
+    }
+
+    static Set<ColumnKey> cavityColumnsFromOpenVolume(Set<BlockPos> openVolume) {
+        Set<ColumnKey> columns = new LinkedHashSet<>();
+        if (openVolume == null) {
+            return columns;
+        }
+        for (BlockPos pos : openVolume) {
+            if (pos != null) {
+                columns.add(new ColumnKey(pos.getX(), pos.getZ()));
+            }
+        }
+        return columns;
+    }
+
+    static boolean hasRoadSurfaceColumn(
+            Collection<RoadGenerationResult> carriers, ColumnKey column) {
+        if (carriers == null || column == null) {
+            return false;
+        }
+        for (RoadGenerationResult result : carriers) {
+            if (result == null || result.placementLayers == null) {
+                continue;
+            }
+            for (Map.Entry<BlockPos, RoadSolidLayer> entry : result.placementLayers.entrySet()) {
+                BlockPos pos = entry.getKey();
+                if (pos == null || entry.getValue() != RoadSolidLayer.ROAD) {
+                    continue;
+                }
+                if (pos.getX() == column.worldX() && pos.getZ() == column.worldZ()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * 洞腔外侧一圈墙体列：边界列的 4-邻域中不属于洞腔的格子，厚度随 liningThickness。
      */
-    private static Set<ColumnKey> wallRingAround(Set<ColumnKey> enclosed, int liningThickness) {
+    static Set<ColumnKey> wallRingAround(Set<ColumnKey> enclosed, int liningThickness) {
         Set<ColumnKey> walls = new LinkedHashSet<>();
         int ring = Math.max(1, liningThickness);
         int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};

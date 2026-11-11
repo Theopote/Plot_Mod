@@ -9,15 +9,19 @@ import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 
 /**
- * 立交上下净空：<strong>不低于</strong>下穿道路的隧道设计净高（{@link ResolvedTunnelStyle#clearHeight()}）。
- * 未显式指定时取该下限；显式值更大时保留显式值，更小时抬到下限。
+ * 立交上下层<strong>路面标高差</strong>下限（下层路面 Y → 上层路面 Y）。
+ * <p>
+ * 语义不是「下层路面到桥底」：桥底 = 上层路面 − {@link
+ * com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance#ELEVATED_DECK_SUPPORT_DEPTH}。
+ * 因此下限 = 下穿隧道设计净高 {@link ResolvedTunnelStyle#clearHeight()} + 承重层厚度。
+ * 未显式指定时取该下限；显式值更大时保留，更小时抬到下限。
  */
 public final class GradeSeparationClearance {
     private GradeSeparationClearance() {
     }
 
     /**
-     * @param explicitClearance 节点/交叉上已保存的净空；null 时用下穿隧道净高下限
+     * @param explicitClearance 节点/交叉上已保存的<strong>路面高差</strong>；null 时用下穿下限
      * @param underpassRoad     下穿道路；可为 null（退回配置隧道净高）
      */
     public static double resolve(
@@ -27,14 +31,14 @@ public final class GradeSeparationClearance {
         return atLeast(explicitClearance, fromUnderpassRoad(underpassRoad, config));
     }
 
-    /** 下穿道路隧道净高下限；无道路时用配置默认隧道净高。 */
+    /** 下穿道路对应的最小路面高差；无道路时用配置默认隧道净高 + 承重层。 */
     public static double fromUnderpassRoad(Road underpassRoad, RoadSystemConfig config) {
         ResolvedTunnelStyle style = TunnelStyle.resolve(underpassRoad, config);
         return minimumSurfaceSeparation(style.clearHeight());
     }
 
     /**
-     * 路口立交：下限为非上跨道路中最大隧道净高（多肢下穿时取最严）。
+     * 路口立交：下限为非上跨道路中最大隧道净高换算的路面高差（多肢下穿时取最严）。
      */
     public static double forNode(
             Double explicitClearance,
@@ -45,7 +49,7 @@ public final class GradeSeparationClearance {
         return atLeast(explicitClearance, minimumForNode(node, network, elevatedRoadId, config));
     }
 
-    /** 路口立交净空下限（下穿侧隧道净高）。 */
+    /** 路口立交最小路面高差（下穿侧隧道净高 + 承重层）。 */
     public static double minimumForNode(
             RoadNode node,
             RoadNetwork network,
@@ -75,13 +79,16 @@ public final class GradeSeparationClearance {
         return minimumSurfaceSeparation(maxClear);
     }
 
-    /** Constraints operate on pavement elevations; the upper support layer consumes headroom. */
+    /**
+     * 路面标高差下限：隧道净高占用可通行净空，上层承重层再占一格，故两者相加。
+     * 桥底净空格数 ≈ 返回值 − {@code ELEVATED_DECK_SUPPORT_DEPTH}。
+     */
     private static double minimumSurfaceSeparation(int tunnelClearHeight) {
         return RoadParameterLimits.clampCrossingClearance(tunnelClearHeight
             + com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH);
     }
 
-    /** 两路交叉：不低于下穿侧隧道净高。 */
+    /** 两路交叉：不低于下穿侧对应的最小路面高差。 */
     public static double forTwoRoadCrossing(
             Double explicitClearance,
             RoadNetwork network,

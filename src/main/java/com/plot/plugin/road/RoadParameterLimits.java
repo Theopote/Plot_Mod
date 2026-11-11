@@ -30,6 +30,10 @@ public final class RoadParameterLimits {
     public static final int MAX_TUNNEL_THRESHOLD = 30;
     public static final double MIN_PATH_SAMPLE_DISTANCE = 0.5;
     public static final double MAX_PATH_SAMPLE_DISTANCE = 5.0;
+    /** 边坡水平开挖/填筑最大跑距（格）：路径面板滑动条。 */
+    public static final int MIN_SLOPE_BATTER_RUN_BLOCKS = 5;
+    public static final int MAX_SLOPE_BATTER_RUN_BLOCKS = 50;
+    public static final int DEFAULT_SLOPE_BATTER_RUN_BLOCKS = 32;
 
     private RoadParameterLimits() {
     }
@@ -94,6 +98,10 @@ public final class RoadParameterLimits {
             return null;
         }
         return Math.clamp(spacing, MIN_STREETLIGHT_SPACING, MAX_STREETLIGHT_SPACING);
+    }
+
+    public static int clampSlopeBatterRunBlocks(int blocks) {
+        return Math.clamp(blocks, MIN_SLOPE_BATTER_RUN_BLOCKS, MAX_SLOPE_BATTER_RUN_BLOCKS);
     }
 
 }

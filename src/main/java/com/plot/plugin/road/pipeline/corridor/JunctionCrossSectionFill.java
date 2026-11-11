@@ -22,6 +22,7 @@ import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -216,12 +217,12 @@ public final class JunctionCrossSectionFill {
             int bridgeThreshold,
             Integer maxClearY,
             List<JunctionGeometryResult.FilletCorner> fillets,
-            JunctionFilletElevationLoft filletLoft,
+            JunctionElevationField elevationField,
             Set<String> tunnelApproachEdgeIds) {
         stampApproachSlopeBatters(
             solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
             columnResolver, unitsPerBlock, terrain, bridgeThreshold, maxClearY, fillets,
-            filletLoft, tunnelApproachEdgeIds, Set.of());
+            elevationField, tunnelApproachEdgeIds, Set.of());
     }
 
     /**
@@ -243,7 +244,7 @@ public final class JunctionCrossSectionFill {
             int bridgeThreshold,
             Integer maxClearY,
             List<JunctionGeometryResult.FilletCorner> fillets,
-            JunctionFilletElevationLoft filletLoft,
+            JunctionElevationField elevationField,
             Set<String> tunnelApproachEdgeIds,
             Set<ColumnKey> pavedColumns) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()
@@ -253,10 +254,10 @@ public final class JunctionCrossSectionFill {
         }
         // junctionCenter / tunnelApproachEdgeIds 保留于签名以兼容调用方；中心路肩已取消。
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+        int maxHorizontalRun = RoadCorridorWidth.slopeBatterMaxRunBlocks(config);
         List<SlopeProfileSample> samples = new ArrayList<>(collectFilletArcBatterSamples(
             fillets, junctionY, edges, network, config, materials, scale, maxHorizontalRun,
-            terrain, columnResolver, 0L, filletLoft));
+            terrain, columnResolver, 0L, elevationField, tunnelApproachEdgeIds));
 
         Set<ColumnKey> forbidden = pavedColumns != null ? pavedColumns : Set.of();
         if (!forbidden.isEmpty()) {
@@ -288,23 +289,15 @@ public final class JunctionCrossSectionFill {
             TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             long rayIdBase,
-            JunctionFilletElevationLoft filletLoft) {
+            JunctionElevationField elevationField,
+            Set<String> tunnelApproachEdgeIds) {
         if (fillets == null || fillets.isEmpty() || materials == null) {
             return List.of();
         }
-        RoadEdge owner = selectWidestEdge(edges, network, config);
-        if (owner == null) {
-            return List.of();
-        }
-        ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, owner, config);
-        if (!crossSection.includeSlopeBatter) {
-            return List.of();
-        }
-        String fillBlockId = materials.resolve(crossSection.fillSlopeMaterial);
-        String cutBlockId = crossSection.cutSlopeMaterial != null && !crossSection.cutSlopeMaterial.isBlank()
-            ? materials.resolve(crossSection.cutSlopeMaterial)
-            : null;
-        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(config);
+        boolean hasTunnelApproaches = tunnelApproachEdgeIds != null && !tunnelApproachEdgeIds.isEmpty();
+        int clearHeight = Math.max(1, RoadConstructionHeuristics.tunnelThreshold(config) + 1);
+        int liningThickness = 1;
+        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         List<SlopeProfileSample> samples = new ArrayList<>();
         long rayId = rayIdBase + 1_000L;
         for (int filletIndex = 0; filletIndex < fillets.size(); filletIndex++) {
@@ -316,9 +309,15 @@ public final class JunctionCrossSectionFill {
                     || fillet.radius() <= 1e-6) {
                 continue;
             }
-            if (!filletCornerAllowsOpenBatter(fillet, junctionY, terrain, tunnelThreshold, scale)) {
+            ResolvedCrossSection crossSection = resolveFilletBatterCrossSection(
+                fillet, edges, network, config, centerlines);
+            if (crossSection == null || !crossSection.includeSlopeBatter) {
                 continue;
             }
+            String fillBlockId = materials.resolve(crossSection.fillSlopeMaterial);
+            String cutBlockId = crossSection.cutSlopeMaterial != null && !crossSection.cutSlopeMaterial.isBlank()
+                ? materials.resolve(crossSection.cutSlopeMaterial)
+                : null;
             double sweep = fillet.sweepRadians();
             if (!Double.isFinite(sweep) || Math.abs(sweep) < 1e-9) {
                 sweep = FilletArcSweep.resolveShort(
@@ -332,8 +331,9 @@ public final class JunctionCrossSectionFill {
             double startAngle = Math.atan2(
                 fillet.tangentStart().y - fillet.center().y,
                 fillet.tangentStart().x - fillet.center().x);
-            // 外法向指向圆心：水平跑距不得超过半径，否则穿心与对侧射线交叉堆块。
-            int cappedRun = maxFilletBatterRunBlocks(fillet.radius(), scale, maxHorizontalRun);
+            int arcRun = maxFilletBatterRunBlocks(fillet.radius(), scale, maxHorizontalRun);
+            // 外缘续坡：突破半径上限以接走廊边坡，但限制在合理带宽，避免整片山坡被单角扫光。
+            int continueRun = Math.min(8, Math.max(0, maxHorizontalRun - arcRun));
             List<IndexedShoulderRay> arcRays = new ArrayList<>();
             for (int i = 0; i <= segs; i++) {
                 double t = (double) i / segs;
@@ -344,19 +344,35 @@ public final class JunctionCrossSectionFill {
                     continue;
                 }
                 outward = outward.normalize();
-                int arcY = filletLoft != null ? filletLoft.surfaceY(onArc) : junctionY;
+                int arcY = elevationField != null ? elevationField.surfaceY(onArc) : junctionY;
+                if (!filletSampleAllowsOpenBatter(
+                        onArc, arcY, terrain, hasTunnelApproaches, clearHeight, liningThickness)) {
+                    continue;
+                }
                 ShoulderBatterBuild build = buildShoulderBatter(
                     onArc, outward, arcY, 0,
                     terrain, scale, outward, fillBlockId, cutBlockId,
-                    crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, cappedRun,
+                    crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, arcRun,
                     columnResolver,
                     new SlopeRayId(rayId++, SlopeRayId.ShoulderSide.LEFT));
                 samples.addAll(build.samples());
+                if (continueRun > 0) {
+                    Vec2d outerOrigin = onArc.add(outward.multiply(arcRun * Math.max(scale, 1e-9)));
+                    if (filletSampleAllowsOpenBatter(
+                            outerOrigin, arcY, terrain, hasTunnelApproaches, clearHeight, liningThickness)) {
+                        ShoulderBatterBuild cont = buildShoulderBatter(
+                            outerOrigin, outward, arcY, 0,
+                            terrain, scale, outward, fillBlockId, cutBlockId,
+                            crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, continueRun,
+                            columnResolver,
+                            new SlopeRayId(rayId++, SlopeRayId.ShoulderSide.LEFT));
+                        samples.addAll(cont.samples());
+                    }
+                }
                 if (build.ray() != null) {
                     arcRays.add(new IndexedShoulderRay(i, build.ray()));
                 }
             }
-            // 只连接原始采样序号相邻的射线，跳过缺射线造成的跨空环带。
             for (int i = 1; i < arcRays.size(); i++) {
                 IndexedShoulderRay prev = arcRays.get(i - 1);
                 IndexedShoulderRay curr = arcRays.get(i);
@@ -372,6 +388,7 @@ public final class JunctionCrossSectionFill {
 
     /**
      * 圆角外弧边坡最大水平跑距：不超过半径内侧一格，避免射线穿心。
+     * 外缘续坡另用走廊 {@code maxHorizontalRun}，不受此上限。
      */
     static int maxFilletBatterRunBlocks(double radius, double scale, int maxHorizontalRun) {
         double safeScale = scale > 1e-9 ? scale : 1.0;
@@ -384,15 +401,48 @@ public final class JunctionCrossSectionFill {
     }
 
     /**
-     * 街角覆土达到隧道门槛时视为洞内圆角：不做开敞放坡。
-     * 混合洞口路口仅对仍开敞的街角放坡。
+     * 开敞边坡逐列判定：无隧道进口时允许；有隧道进口时仅非 {@link TunnelColumnConstruction.Mode#ENCLOSED} 列放坡。
+     * 不再用自然覆土阈值把开敞路堑误判成隧道。
      */
+    static boolean filletSampleAllowsOpenBatter(
+            Vec2d planPoint,
+            int roadY,
+            TerrainSampler terrain,
+            boolean hasTunnelApproaches,
+            int clearHeight,
+            int liningThickness) {
+        if (planPoint == null || terrain == null) {
+            return false;
+        }
+        if (!terrain.isChunkLoaded(planPoint)) {
+            return false;
+        }
+        if (!hasTunnelApproaches) {
+            return true;
+        }
+        int roofTop = roadY + Math.max(1, clearHeight) + Math.max(1, liningThickness) - 1;
+        TunnelColumnConstruction.Mode mode = TunnelColumnConstruction.resolve(
+            false, terrain, planPoint, roofTop);
+        return mode != TunnelColumnConstruction.Mode.ENCLOSED;
+    }
+
+    /** 兼容旧测试：无隧道上下文时开敞路堑允许；有隧道上下文时按中点 Mode。 */
     static boolean filletCornerAllowsOpenBatter(
             JunctionGeometryResult.FilletCorner fillet,
             int junctionY,
             TerrainSampler terrain,
             int tunnelThreshold,
             double scale) {
+        return filletCornerAllowsOpenBatter(fillet, junctionY, terrain, tunnelThreshold, scale, false);
+    }
+
+    static boolean filletCornerAllowsOpenBatter(
+            JunctionGeometryResult.FilletCorner fillet,
+            int junctionY,
+            TerrainSampler terrain,
+            int tunnelThreshold,
+            double scale,
+            boolean hasTunnelApproaches) {
         if (fillet == null || fillet.center() == null || terrain == null) {
             return false;
         }
@@ -409,12 +459,42 @@ public final class JunctionCrossSectionFill {
             probe = FilletArcSweep.pointOnArc(
                 fillet.center(), fillet.radius(), startAngle + sweep * 0.5);
         }
-        if (!terrain.isChunkLoaded(probe)) {
-            return false;
+        int clearHeight = Math.max(1, tunnelThreshold + 1);
+        return filletSampleAllowsOpenBatter(probe, junctionY, terrain, hasTunnelApproaches, clearHeight, 1);
+    }
+
+    static ResolvedCrossSection resolveFilletBatterCrossSection(
+            JunctionGeometryResult.FilletCorner fillet,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Function<RoadEdge, List<Vec2d>> centerlines) {
+        if (fillet == null || edges == null || network == null || config == null) {
+            return null;
         }
-        int cover = terrain.sampleSurfaceY(probe) - junctionY;
-        int threshold = Math.max(2, tunnelThreshold);
-        return cover < threshold;
+        RoadEdge startOwner = JunctionFilletElevationLoft.resolveTangentOwner(
+            fillet.tangentStart(), edges, centerlines);
+        RoadEdge endOwner = JunctionFilletElevationLoft.resolveTangentOwner(
+            fillet.tangentEnd(), edges, centerlines);
+        ResolvedCrossSection startCs = startOwner != null
+            ? RoadModelUtils.resolveCrossSection(network, startOwner, config) : null;
+        ResolvedCrossSection endCs = endOwner != null
+            ? RoadModelUtils.resolveCrossSection(network, endOwner, config) : null;
+        boolean startOn = startCs != null && startCs.includeSlopeBatter;
+        boolean endOn = endCs != null && endCs.includeSlopeBatter;
+        if (!startOn && !endOn) {
+            return startCs != null ? startCs : endCs;
+        }
+        if (startOn && !endOn) {
+            return startCs;
+        }
+        if (endOn && !startOn) {
+            return endCs;
+        }
+        // 两侧都开：取更宽者材料
+        int startW = startCs != null ? startCs.totalHardSurfaceWidthBlocks() : 0;
+        int endW = endCs != null ? endCs.totalHardSurfaceWidthBlocks() : 0;
+        return endW > startW ? endCs : startCs;
     }
 
     private record ShoulderBatterBuild(
@@ -621,11 +701,10 @@ public final class JunctionCrossSectionFill {
                         solids.add(planPoint, cutFaceY, RoadSolidLayer.SUBGRADE, batterId);
                     }
                     if (maxClearY == null) {
-                        // Open corner batters extend beyond plaza clearance columns.
-                        // Remove vegetation above excavated ground without extending solid excavation.
+                        // 开敞街角边坡：摘装饰与悬空残留；不得按隧道覆土保护把自然实心留下。
                         JunctionTerrainClearance.clearFloatingAndDecorationsAbove(
                             solids, planPoint, terrain, worldX, worldZ, cutFaceY, groundY,
-                            Math.max(terrain.sampleColumnTopY(planPoint), groundY + 24), true);
+                            Math.max(terrain.sampleColumnTopY(planPoint), groundY + 24), false);
                     }
                 }
             }
@@ -787,8 +866,8 @@ public final class JunctionCrossSectionFill {
         if (!terrain.isChunkLoaded(worldX, worldZ)) {
             return;
         }
+        int groundY = terrain.sampleSurfaceY(planPoint);
         if (maxClearY != null) {
-            int groundY = terrain.sampleSurfaceY(planPoint);
             // 与 clearOverhead / shell 共用 resolveTunnelSolidPunchTop：
             // 浅覆土 cutTop==junctionY → 不切穿覆土；深覆土止于洞顶下。
             int cutTop = JunctionTerrainClearance.resolveTunnelSolidPunchTop(
@@ -805,16 +884,35 @@ public final class JunctionCrossSectionFill {
             }
             return;
         }
-        RoadRoadbedGradingUtils.gradeColumn(
-            solids,
-            planPoint,
-            junctionY,
-            tunnelThreshold,
-            bridgeThreshold,
-            fillMaterialId,
-            worldX,
-            worldZ,
-            terrain);
+        // 开敞平交：铺装列直接露天清到自然地表（CLEARANCE），不再走隧道阈值局部掏挖。
+        // clearOverheadColumn 仍会再扫一遍装饰/柱顶；此处保证圆角铺装列即使漏进清障栅格也能去土。
+        if (groundY > junctionY) {
+            for (int y = junctionY + 1; y <= groundY; y++) {
+                solids.add(
+                    planPoint,
+                    y,
+                    RoadSolidLayer.TUNNEL,
+                    "minecraft:air",
+                    RoadSolidMaterialPriority.CLEARANCE);
+            }
+            int columnTop = terrain.sampleColumnTopY(planPoint);
+            JunctionTerrainClearance.clearFloatingAndDecorationsAbove(
+                solids,
+                planPoint,
+                terrain,
+                worldX,
+                worldZ,
+                junctionY,
+                groundY,
+                Math.max(columnTop, groundY + 24),
+                false);
+        } else if (groundY < junctionY && junctionY - groundY <= bridgeThreshold) {
+            if (fillMaterialId != null && !fillMaterialId.isBlank()) {
+                for (int y = groundY + 1; y < junctionY; y++) {
+                    solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillMaterialId);
+                }
+            }
+        }
     }
 
     private static Vec2d approachLeftNormal(

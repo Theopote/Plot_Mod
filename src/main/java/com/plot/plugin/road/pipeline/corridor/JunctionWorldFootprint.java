@@ -191,6 +191,15 @@ public final class JunctionWorldFootprint {
         return new JunctionWorldFootprint(core, fillets, seams, clear, plans);
     }
 
+    /** 铺装责任角色：高程场 pin / loft 归属依据足迹，不用固定核区半径。 */
+    public enum ElevationRole {
+        ROAD_CORE,
+        FILLET,
+        SEAM_TRANSITION,
+        CLEARANCE_ONLY,
+        OUTSIDE
+    }
+
     public Set<ColumnKey> roadCore() {
         return roadCore;
     }
@@ -205,6 +214,29 @@ public final class JunctionWorldFootprint {
 
     public Set<ColumnKey> clearance() {
         return clearance;
+    }
+
+    /**
+     * 列角色：fillet / seam 优先于 core（栅格重叠时圆角接口仍可信任进口 Y）；
+     * 仅 roadCore 独占列禁止遗留边路 pin。
+     */
+    public ElevationRole elevationRole(ColumnKey key) {
+        if (key == null) {
+            return ElevationRole.OUTSIDE;
+        }
+        if (filletAdditions.contains(key)) {
+            return ElevationRole.FILLET;
+        }
+        if (seamTransition.contains(key)) {
+            return ElevationRole.SEAM_TRANSITION;
+        }
+        if (roadCore.contains(key)) {
+            return ElevationRole.ROAD_CORE;
+        }
+        if (clearance.contains(key)) {
+            return ElevationRole.CLEARANCE_ONLY;
+        }
+        return ElevationRole.OUTSIDE;
     }
 
     public Map<ColumnKey, Vec2d> planPoints() {

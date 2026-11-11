@@ -156,14 +156,18 @@ public final class TunnelJunctionConnectivityPass {
                 network, node, config, canvasScale);
             List<RoadEdge> connected = connectedEdges(network, node);
             int junctionY = elevations.getOrDefault(node.getId(), approaches.getFirst().roadY());
+            JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, coordinateTransformer);
+            RoadTerrainClearanceUtils.BlockColumnResolver columns = columnResolver(coordinateTransformer);
             JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
                 geometry.fillets(),
                 edgeResults,
                 connected,
                 network,
-                columnResolver(coordinateTransformer),
+                columns,
                 junctionY);
-            ToIntFunction<Vec2d> roadYAt = filletLoft::surfaceY;
+            JunctionElevationField elevationField = JunctionElevationField.build(
+                footprint, filletLoft, columns, junctionY);
+            ToIntFunction<Vec2d> roadYAt = elevationField::surfaceY;
             int resolvedClear = clearHeight != null ? Math.max(1, clearHeight) : 0;
 
             for (List<TunnelJunctionSeedResolver.TunnelApproach> layerApproaches

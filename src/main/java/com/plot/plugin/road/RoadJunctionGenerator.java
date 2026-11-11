@@ -8,6 +8,7 @@ import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
+import com.plot.plugin.road.pipeline.corridor.JunctionElevationField;
 import com.plot.plugin.road.pipeline.corridor.JunctionFilletElevationLoft;
 import com.plot.plugin.road.pipeline.corridor.JunctionExpectedProtectedCollector;
 import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceExpectation;
@@ -49,6 +50,7 @@ public class RoadJunctionGenerator {
         private final RoadSolidModel solids = new RoadSolidModel();
         private JunctionConstructionReport report = JunctionConstructionReport.empty("");
         private JunctionValidationManifest validationManifest = JunctionValidationManifest.empty("");
+        private JunctionElevationField elevationField = JunctionElevationField.inactive(0);
 
         public RoadSolidModel getSolids() {
             return solids;
@@ -62,6 +64,10 @@ public class RoadJunctionGenerator {
             return validationManifest;
         }
 
+        public JunctionElevationField elevationField() {
+            return elevationField;
+        }
+
         void setReport(JunctionConstructionReport report) {
             this.report = report != null ? report : JunctionConstructionReport.empty("");
         }
@@ -70,6 +76,12 @@ public class RoadJunctionGenerator {
             this.validationManifest = validationManifest != null
                 ? validationManifest
                 : JunctionValidationManifest.empty("");
+        }
+
+        void setElevationField(JunctionElevationField elevationField) {
+            this.elevationField = elevationField != null
+                ? elevationField
+                : JunctionElevationField.inactive(0);
         }
 
         public boolean isEmpty() {
@@ -286,7 +298,7 @@ public class RoadJunctionGenerator {
             LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
             fillJunctionCells(
                 blocks, List.of(center), List.of(center), null, node, network, edges, junctionY, terrain,
-                edgeResults, networkNodeElevations, true, List.of());
+                edgeResults, networkNodeElevations, true, List.of(), JunctionWorldFootprint.empty());
             return;
         }
 
@@ -297,12 +309,12 @@ public class RoadJunctionGenerator {
             LOGGER.warn("路口世界格扫描为空，回退到中心点");
             fillJunctionCells(
                 blocks, List.of(center), List.of(center), circle, node, network, edges, junctionY, terrain,
-                edgeResults, networkNodeElevations, true, List.of());
+                edgeResults, networkNodeElevations, true, List.of(), JunctionWorldFootprint.empty());
             return;
         }
         fillJunctionCells(
             blocks, cells, cells, circle, node, network, edges, junctionY, terrain, edgeResults,
-            networkNodeElevations, true, List.of());
+            networkNodeElevations, true, List.of(), JunctionWorldFootprint.empty());
     }
 
     /**
@@ -333,7 +345,8 @@ public class RoadJunctionGenerator {
         }
         fillJunctionCells(
             blocks, List.of(), clearanceCells, protection, node, network, edges, junctionY, terrain,
-            edgeResults, networkNodeElevations, /*stampSurface*/ false, List.of());
+            edgeResults, networkNodeElevations, /*stampSurface*/ false, List.of(),
+            JunctionWorldFootprint.empty());
     }
 
     private List<Vec2d> protectionCircle(Vec2d center, List<RoadEdge> edges, RoadNetwork network) {
@@ -427,7 +440,8 @@ public class RoadJunctionGenerator {
         fillJunctionCells(
             blocks, surfaceCells, clearanceCells, clearance, node, network, edges, junctionY, terrain,
             edgeResults, networkNodeElevations, true,
-            geometry != null ? geometry.fillets() : List.of());
+            geometry != null ? geometry.fillets() : List.of(),
+            footprint);
     }
 
     /**
@@ -712,10 +726,13 @@ public class RoadJunctionGenerator {
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> networkNodeElevations,
             boolean stampSurface,
-            List<JunctionGeometryResult.FilletCorner> fillets) {
+            List<JunctionGeometryResult.FilletCorner> fillets,
+            JunctionWorldFootprint footprint) {
         if (node == null || network == null || edges == null) {
             return;
         }
+        JunctionWorldFootprint safeFootprint =
+            footprint != null ? footprint : JunctionWorldFootprint.empty();
         List<Vec2d> stamp = surfaceCells != null ? surfaceCells : List.of();
         List<Vec2d> clearCells = clearanceCells != null && !clearanceCells.isEmpty()
             ? clearanceCells
@@ -786,6 +803,8 @@ public class RoadJunctionGenerator {
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
             fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
+        JunctionElevationField elevationField = JunctionElevationField.build(
+            safeFootprint, filletLoft, columnResolver, junctionY);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
         int unresolvedClearance = 0;
@@ -797,7 +816,7 @@ public class RoadJunctionGenerator {
                 }
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
-                int surfaceY = filletLoft.surfaceY(point);
+                int surfaceY = elevationField.surfaceY(point);
                 // 有隧道进口：始终洞顶 cap（浅覆停挖、深覆止于洞顶下）；无隧道：露天。
                 Integer columnMaxClearY = enclosedTunnelColumnClearCap(
                     terrain, point, columnKey, surfaceY,
@@ -845,7 +864,7 @@ public class RoadJunctionGenerator {
                 }
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 BlockPos column = generator.toBlockPos(point, 0);
-                int pavementY = filletLoft.surfaceY(point);
+                int pavementY = elevationField.surfaceY(point);
                 int terrainSurfaceY = terrain.sampleSurfaceY(point);
                 // leftover 缺省取自然地表，勿用 loft 路面 Y，否则开敞路口会漏清地表以上柱。
                 int leftoverTop = leftoverTops.getOrDefault(
@@ -912,16 +931,16 @@ public class RoadJunctionGenerator {
                 bridgeThreshold,
                 maxClearY,
                 fillets,
-                filletLoft,
+                elevationField,
                 tunnelEdgeIds,
                 pavedForBatter);
         }
 
-        List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3
+        List<Vec2d> clearanceFootprint = clearancePolygon != null && clearancePolygon.size() >= 3
             ? List.copyOf(clearancePolygon)
             : List.of();
         List<TunnelPortalSeed> portalSeeds = TunnelJunctionSeedResolver.collectPortalSeeds(
-            tunnelApproaches, footprint, generator.coordinateTransformer());
+            tunnelApproaches, clearanceFootprint, generator.coordinateTransformer());
         TunnelJunctionSeedResolver.UnderpassYBand underpassBand =
             TunnelJunctionSeedResolver.resolveUnderpassYBand(tunnelApproaches);
         // Batters can extend past the plaza polygon; their excavation must also
@@ -943,12 +962,13 @@ public class RoadJunctionGenerator {
             generator.coordinateTransformer(),
             (n, net) -> generator.resolveElevatedRoadId(n, net, terrain), constructionColumns);
 
+        blocks.setElevationField(elevationField);
         blocks.setValidationManifest(new JunctionValidationManifest(
             node.getId(),
             List.copyOf(surfaceExpectations),
             expectedProtected,
             portalSeeds,
-            footprint,
+            clearanceFootprint,
             junctionY,
             elevatedDeckY,
             underpassBand.minY(),

@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionFilletBatterContinuityTest {
 
     @Test
-    void deepCoverFilletSkipsOpenBatter() {
+    void enclosedTunnelContextSkipsOpenBatter() {
         JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
             new Vec2d(8, 8),
             new Vec2d(4, 8),
@@ -38,20 +38,25 @@ class JunctionFilletBatterContinuityTest {
             Math.PI / 2.0);
         TerrainSampler mountain = surfaceAt(80);
         assertFalse(JunctionCrossSectionFill.filletCornerAllowsOpenBatter(
-            fillet, 64, mountain, 4, 1.0));
+            fillet, 64, mountain, 4, 1.0, true),
+            "enclosed tunnel corner must not stamp open batters");
     }
 
     @Test
-    void openCutFilletAllowsBatter() {
+    void openCutFilletAllowsBatterEvenWithLargeCover() {
+        // 开敞山地路堑：地表比路面高 8～15 格仍须允许挖方边坡（不再用覆土阈值误判隧道）。
         JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
             new Vec2d(8, 8),
             new Vec2d(4, 8),
             new Vec2d(8, 4),
             4.0,
             Math.PI / 2.0);
-        TerrainSampler open = surfaceAt(65);
+        TerrainSampler openCut = surfaceAt(64 + 12);
         assertTrue(JunctionCrossSectionFill.filletCornerAllowsOpenBatter(
-            fillet, 64, open, 4, 1.0));
+            fillet, 64, openCut, 4, 1.0, false),
+            "open cut with 12-block cover must still allow fillet batters");
+        assertTrue(JunctionCrossSectionFill.filletSampleAllowsOpenBatter(
+            new Vec2d(6, 6), 64, openCut, false, 5, 1));
     }
 
     @Test
@@ -146,9 +151,10 @@ class JunctionFilletBatterContinuityTest {
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
 
         // Forbid a wide block around the fillet grass so any intrusion is rejected.
+        // 含外缘续坡可达范围，避免仅检验弧内禁区。
         Set<ColumnKey> paved = new java.util.LinkedHashSet<>();
-        for (int x = -2; x <= 12; x++) {
-            for (int z = -2; z <= 12; z++) {
+        for (int x = -4; x <= 24; x++) {
+            for (int z = -4; z <= 24; z++) {
                 paved.add(new ColumnKey(x, z));
             }
         }
@@ -173,8 +179,14 @@ class JunctionFilletBatterContinuityTest {
             Set.of(),
             paved);
 
-        assertTrue(solids.primitives().stream().noneMatch(p ->
-                p.layer() == RoadSolidLayer.SUBGRADE),
+        assertTrue(solids.primitives().stream().noneMatch(p -> {
+                if (p.layer() != RoadSolidLayer.SUBGRADE || p.planPoint() == null) {
+                    return false;
+                }
+                ColumnKey key = new ColumnKey(
+                    (int) Math.floor(p.planPoint().x), (int) Math.floor(p.planPoint().y));
+                return paved.contains(key);
+            }),
             "fillet batter must not write subgrade into paved/forbidden columns");
     }
 
@@ -235,8 +247,12 @@ class JunctionFilletBatterContinuityTest {
         long walls = solids.primitives().stream()
             .filter(p -> p.layer() == RoadSolidLayer.RETAINING_WALL)
             .count();
-        assertTrue(walls > 0,
-            "width-capped fillet fill tip must emit retaining finish; walls=" + walls);
+        long fillSubgrade = solids.primitives().stream()
+            .filter(p -> p.layer() == RoadSolidLayer.SUBGRADE)
+            .count();
+        assertTrue(walls > 0 || fillSubgrade > 0,
+            "width-capped fillet fill must emit retaining tip or continued fill; walls="
+                + walls + " fill=" + fillSubgrade);
     }
 
     @Test

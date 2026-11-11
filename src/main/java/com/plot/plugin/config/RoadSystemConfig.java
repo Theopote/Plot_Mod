@@ -66,6 +66,8 @@ public class RoadSystemConfig {
     private String markingMaterial = "material.plot.white_concrete";
     private int streetlightSpacing = 0;
     private boolean includeSlopeBatter = true;
+    /** 边坡水平最大跑距（格）：范围外不开挖/填坡。 */
+    private int slopeBatterMaxRunBlocks = RoadParameterLimits.DEFAULT_SLOPE_BATTER_RUN_BLOCKS;
     private double pathSampleDistance = 1.0; // 路径采样密度（米/点），用于控制路径细分精度
 
     private float fillSlopeRatio = 1.0f;
@@ -479,6 +481,14 @@ public class RoadSystemConfig {
 
     public void setIncludeSlopeBatter(boolean includeSlopeBatter) {
         this.includeSlopeBatter = includeSlopeBatter;
+    }
+
+    public int getSlopeBatterMaxRunBlocks() {
+        return RoadParameterLimits.clampSlopeBatterRunBlocks(slopeBatterMaxRunBlocks);
+    }
+
+    public void setSlopeBatterMaxRunBlocks(int slopeBatterMaxRunBlocks) {
+        this.slopeBatterMaxRunBlocks = RoadParameterLimits.clampSlopeBatterRunBlocks(slopeBatterMaxRunBlocks);
     }
 
     public float getFillSlopeRatio() {

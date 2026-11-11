@@ -890,7 +890,7 @@ public final class RoadCorridorPlanBuilder {
             : SlopeRayId.ShoulderSide.LEFT;
         int steps = pathLast;
         if (significantTurn) {
-            int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+            int maxRun = RoadCorridorWidth.slopeBatterMaxRunBlocks(host.config());
             double maxGapRadians = SLOPE_FAN_GAP_BLOCKS / Math.max(1, maxRun);
             int angularSteps = Math.max(1, (int) Math.ceil(Math.abs(turn) / maxGapRadians));
             // Shared vertex (pathLast==0): angular fan still runs; early-return below is
@@ -1049,7 +1049,7 @@ public final class RoadCorridorPlanBuilder {
             RoadConstructionType constructionType,
             boolean allowWaterEmbankment,
             boolean localDaylightAuthorized) {
-        int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+        int maxHorizontalRun = RoadCorridorWidth.slopeBatterMaxRunBlocks(host.config());
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
         String fillBlockId = host.resolveBlockId(crossSection.fillSlopeMaterial);

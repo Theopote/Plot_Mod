@@ -10,12 +10,26 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
  * 道路走廊横向包络（方块数）：画布叠加、土方与路基清理共用。
  */
 public final class RoadCorridorWidth {
-    /** 边坡水平外扩与走廊裕量上限（格）。 */
-    public static final int MAX_SLOPE_BATTER_RUN_BLOCKS = 32;
+    /**
+     * 边坡水平外扩绝对上限（格）。施工跑距取配置值，经
+     * {@link #slopeBatterMaxRunBlocks(RoadSystemConfig)} 钳到
+     * {@link com.plot.plugin.road.RoadParameterLimits#MIN_SLOPE_BATTER_RUN_BLOCKS}–
+     * {@link com.plot.plugin.road.RoadParameterLimits#MAX_SLOPE_BATTER_RUN_BLOCKS}。
+     */
+    public static final int MAX_SLOPE_BATTER_RUN_BLOCKS =
+        com.plot.plugin.road.RoadParameterLimits.MAX_SLOPE_BATTER_RUN_BLOCKS;
     /** 洞门/桥台过渡段 OPEN 清障最大半宽（格）。 */
     public static final int PORTAL_TRANSITION_CLEAR_BAND_BLOCKS = 8;
 
     private RoadCorridorWidth() {
+    }
+
+    /** 当前配置允许的边坡最大水平跑距（格）；范围外不施工。 */
+    public static int slopeBatterMaxRunBlocks(RoadSystemConfig config) {
+        if (config == null) {
+            return com.plot.plugin.road.RoadParameterLimits.DEFAULT_SLOPE_BATTER_RUN_BLOCKS;
+        }
+        return config.getSlopeBatterMaxRunBlocks();
     }
 
     /** 硬质路面半宽（行车道 + 外侧条带）。 */
@@ -26,11 +40,11 @@ public final class RoadCorridorWidth {
         return Math.max(0.5, section.carriagewayHalfWidth() + section.outerBandWidth());
     }
 
-    /** 画布叠加层半宽：硬质路面 + 可选边坡外缘估计。 */
+    /** 画布叠加层半宽：硬质路面 + 可选边坡施工上限（与路径面板滑动条一致）。 */
     public static double overlayHalfWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
         double halfWidth = pavementHalfWidthBlocks(section);
         if (section != null && section.includeSlopeBatter) {
-            halfWidth += slopeBatterMarginBlocks(section, config);
+            halfWidth += slopeBatterMaxRunBlocks(config);
         }
         return halfWidth;
     }
@@ -102,6 +116,7 @@ public final class RoadCorridorWidth {
             ? section.cutSlopeRatio
             : 1.0f;
         ratio = Math.max(0.5f, ratio);
-        return Math.clamp((int) Math.ceil(maxCutHeight * ratio) + 2, 2, MAX_SLOPE_BATTER_RUN_BLOCKS);
+        int cap = slopeBatterMaxRunBlocks(config);
+        return Math.clamp((int) Math.ceil(maxCutHeight * ratio) + 2, 2, cap);
     }
 }
