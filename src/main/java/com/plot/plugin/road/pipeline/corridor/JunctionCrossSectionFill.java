@@ -620,6 +620,13 @@ public final class JunctionCrossSectionFill {
                     if (batterId != null && !batterId.isBlank() && cutFaceY < cutTop && cutFaceY < groundY) {
                         solids.add(planPoint, cutFaceY, RoadSolidLayer.SUBGRADE, batterId);
                     }
+                    if (maxClearY == null) {
+                        // Open corner batters extend beyond plaza clearance columns.
+                        // Remove vegetation above excavated ground without extending solid excavation.
+                        JunctionTerrainClearance.clearFloatingAndDecorationsAbove(
+                            solids, planPoint, terrain, worldX, worldZ, cutFaceY, groundY,
+                            Math.max(terrain.sampleColumnTopY(planPoint), groundY + 24), true);
+                    }
                 }
             }
             // 宽度截断收尾：与走廊 emitRetainingFinish 同一竖向支撑，避免半坡悬空。

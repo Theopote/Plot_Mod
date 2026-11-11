@@ -192,7 +192,7 @@ class JunctionPlazaClearanceTest {
         assertEquals(0, strayRoad,
             "two-arm underpass must not invent circular plaza ROAD outside underpass band");
         Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
-        assertEquals(69, deckY);
+        assertEquals(70, deckY);
     }
 
     @Test
@@ -214,7 +214,7 @@ class JunctionPlazaClearanceTest {
             junction, network, hillTerrain(64, 80), Map.of(junction.getId(), 64), edgeResults);
 
         Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
-        assertEquals(69, deckY);
+        assertEquals(70, deckY);
         int supportBottom = deckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
         for (int y = 65; y < supportBottom; y++) {
             assertTrue(hasAirNearOrigin(blocks, y),

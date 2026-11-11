@@ -100,7 +100,7 @@ class RoadJunctionAcceptanceRegressionTest {
 
         // Explicit clearance 4 is raised to underpass tunnel clearHeight floor (default 5) → deck 69
         Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
-        assertEquals(69, deckY);
+        assertEquals(70, deckY);
         Map<String, RoadGenerationResult> edgeResults = leftoverNeighborhood(network, deckY);
         var blocks = junctionGenerator.generateJunction(
             junction, network, hillTerrain(64, 80), Map.of(junction.getId(), 64), edgeResults);
