@@ -9,6 +9,7 @@ import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import net.minecraft.util.math.BlockPos;
@@ -29,8 +30,14 @@ public final class JunctionFilletElevationLoft {
     /** 切点到中心线允许的侧向距离（含宽路路缘）。 */
     private static final double TANGENT_OWNER_MAX_DIST = 16.0;
     private static final double APPROACH_BLEND_MAX_DIST = 24.0;
+    /**
+     * 路口核区半径：核内遗留边路不得 pin 为设计路面标高（应交清掉并按 junctionY 重建）；
+     * 核外进口已铺装列仍可 pin，避免纵坡接缝台阶。
+     */
+    static final double APPROACH_PIN_MIN_DIST = 6.0;
 
     private final int junctionY;
+    private final Vec2d junctionPlan;
     private final List<FilletLoftCorner> corners;
     private final Map<ColumnKey, Integer> approachRoadY;
     private final List<ApproachElevationConstraint> approaches;
@@ -38,11 +45,13 @@ public final class JunctionFilletElevationLoft {
 
     private JunctionFilletElevationLoft(
             int junctionY,
+            Vec2d junctionPlan,
             List<FilletLoftCorner> corners,
             Map<ColumnKey, Integer> approachRoadY,
             List<ApproachElevationConstraint> approaches,
             RoadTerrainClearanceUtils.BlockColumnResolver columns) {
         this.junctionY = junctionY;
+        this.junctionPlan = junctionPlan;
         this.corners = List.copyOf(corners);
         this.approachRoadY = approachRoadY != null ? Map.copyOf(approachRoadY) : Map.of();
         this.approaches = approaches != null ? List.copyOf(approaches) : List.of();
@@ -50,7 +59,7 @@ public final class JunctionFilletElevationLoft {
     }
 
     public static JunctionFilletElevationLoft inactive(int junctionY) {
-        return new JunctionFilletElevationLoft(junctionY, List.of(), Map.of(), List.of(), null);
+        return new JunctionFilletElevationLoft(junctionY, null, List.of(), Map.of(), List.of(), null);
     }
 
     public static JunctionFilletElevationLoft build(
@@ -60,15 +69,16 @@ public final class JunctionFilletElevationLoft {
             RoadNetwork network,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY) {
+        Vec2d junctionPlan = inferJunctionPlan(edges, network);
         Map<String, Map<ColumnKey, Integer>> roadYByEdge = indexRoadSurfaceYByEdge(edgeResults);
         // 只合并本路口责任进口（立交下层生成时 edges 已排除上层），禁止 max 到上层桥面 Y。
         Map<ColumnKey, Integer> mergedRoadY = mergeApproachRoadY(roadYByEdge, edges);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         List<ApproachElevationConstraint> approachConstraints = buildApproachConstraints(
-            edges, roadYByEdge, edgeResults, centerlines);
+            edges, roadYByEdge, edgeResults, centerlines, junctionPlan);
         if (fillets == null || fillets.isEmpty() || columns == null) {
             return new JunctionFilletElevationLoft(
-                junctionY, List.of(), mergedRoadY, approachConstraints, columns);
+                junctionY, junctionPlan, List.of(), mergedRoadY, approachConstraints, columns);
         }
         List<FilletLoftCorner> corners = new ArrayList<>();
         for (JunctionGeometryResult.FilletCorner fillet : fillets) {
@@ -79,7 +89,7 @@ public final class JunctionFilletElevationLoft {
             }
         }
         return new JunctionFilletElevationLoft(
-            junctionY, corners, mergedRoadY, approachConstraints, columns);
+            junctionY, junctionPlan, corners, mergedRoadY, approachConstraints, columns);
     }
 
     public int junctionY() {
@@ -120,7 +130,7 @@ public final class JunctionFilletElevationLoft {
     }
 
     private Integer lookupPinnedApproachRoadY(Vec2d planPoint) {
-        if (columns == null || approachRoadY.isEmpty()) {
+        if (columns == null || approachRoadY.isEmpty() || insideJunctionCore(planPoint)) {
             return null;
         }
         int wx = columns.worldX(planPoint);
@@ -148,6 +158,17 @@ public final class JunctionFilletElevationLoft {
             }
         }
         return near;
+    }
+
+    private boolean insideJunctionCore(Vec2d planPoint) {
+        return insideJunctionCore(planPoint, junctionPlan);
+    }
+
+    private static boolean insideJunctionCore(Vec2d planPoint, Vec2d junctionPlan) {
+        if (planPoint == null || junctionPlan == null) {
+            return false;
+        }
+        return planPoint.distance(junctionPlan) < APPROACH_PIN_MIN_DIST;
     }
 
     private Integer blendApproachElevations(Vec2d planPoint) {
@@ -205,7 +226,8 @@ public final class JunctionFilletElevationLoft {
             List<RoadEdge> edges,
             Map<String, Map<ColumnKey, Integer>> roadYByEdge,
             Map<String, RoadGenerationResult> edgeResults,
-            Function<RoadEdge, List<Vec2d>> centerlines) {
+            Function<RoadEdge, List<Vec2d>> centerlines,
+            Vec2d junctionPlan) {
         List<ApproachElevationConstraint> constraints = new ArrayList<>();
         if (edges == null || centerlines == null) {
             return constraints;
@@ -220,9 +242,41 @@ public final class JunctionFilletElevationLoft {
             }
             Map<ColumnKey, Integer> scoped = scopedRoadY(edge, roadYByEdge);
             RoadGenerationResult result = edgeResults != null ? edgeResults.get(edge.getId()) : null;
-            constraints.add(new ApproachElevationConstraint(centerline, scoped, result));
+            constraints.add(new ApproachElevationConstraint(centerline, scoped, result, junctionPlan));
         }
         return constraints;
+    }
+
+    /**
+     * 责任边端点中出现次数最多的节点视为路口中心（立交下层 edges 已不含上层跨线）。
+     */
+    private static Vec2d inferJunctionPlan(List<RoadEdge> edges, RoadNetwork network) {
+        if (edges == null || network == null || edges.isEmpty()) {
+            return null;
+        }
+        Map<String, Integer> endpointHits = new HashMap<>();
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            if (edge.getStartNodeId() != null) {
+                endpointHits.merge(edge.getStartNodeId(), 1, Integer::sum);
+            }
+            if (edge.getEndNodeId() != null) {
+                endpointHits.merge(edge.getEndNodeId(), 1, Integer::sum);
+            }
+        }
+        String bestId = null;
+        int bestHits = 0;
+        for (Map.Entry<String, Integer> entry : endpointHits.entrySet()) {
+            if (entry.getValue() == null || entry.getValue() <= bestHits) {
+                continue;
+            }
+            bestHits = entry.getValue();
+            bestId = entry.getKey();
+        }
+        RoadNode node = bestId != null ? network.getNode(bestId) : null;
+        return node != null ? node.getPosition() : null;
     }
 
     private static FilletLoftCorner buildCorner(
@@ -522,7 +576,8 @@ public final class JunctionFilletElevationLoft {
     private record ApproachElevationConstraint(
             List<Vec2d> centerline,
             Map<ColumnKey, Integer> roadYByColumn,
-            RoadGenerationResult edgeResult) {
+            RoadGenerationResult edgeResult,
+            Vec2d junctionPlan) {
         Integer elevationAt(double station) {
             if (edgeResult != null
                     && edgeResult.buildProfile != null
@@ -532,9 +587,9 @@ public final class JunctionFilletElevationLoft {
             if (roadYByColumn == null || roadYByColumn.isEmpty() || centerline == null || centerline.isEmpty()) {
                 return null;
             }
-            // 无纵断面时：取中心线附近已铺装列的众数近似。
+            // 无纵断面时：取中心线附近已铺装列的众数近似；核内遗留边路忽略。
             Vec2d sample = pointAtStation(centerline, station);
-            if (sample == null) {
+            if (sample == null || insideJunctionCore(sample, junctionPlan)) {
                 return null;
             }
             Integer best = null;

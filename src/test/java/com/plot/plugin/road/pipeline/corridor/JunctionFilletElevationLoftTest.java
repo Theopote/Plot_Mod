@@ -102,6 +102,50 @@ class JunctionFilletElevationLoftTest {
     }
 
     @Test
+    void junctionCoreIgnoresLeftoverPavementPins() {
+        RoadNetwork network = orthogonalNetwork();
+        int junctionY = 64;
+        int leftoverY = 72;
+
+        Map<String, RoadGenerationResult> edgeResults = new HashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(0);
+            for (int x = -2; x <= 2; x++) {
+                for (int z = -2; z <= 2; z++) {
+                    BlockPos pos = new BlockPos(x, leftoverY, z);
+                    result.recordPlacementOverride(pos, "minecraft:air", "minecraft:stone");
+                    result.placementLayers.put(pos, RoadSolidLayer.ROAD);
+                }
+            }
+            edgeResults.put(edge.getId(), result);
+        }
+
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+
+        JunctionFilletElevationLoft loft = JunctionFilletElevationLoft.build(
+            List.of(),
+            edgeResults,
+            List.copyOf(network.getEdges().values()),
+            network,
+            columns,
+            junctionY);
+
+        assertEquals(junctionY, loft.surfaceY(new Vec2d(0.4, 0.4)),
+            "junction core must not adopt leftover edge ROAD as design pavement Y");
+    }
+
+    @Test
     void resolveTangentOwnerBindsEachCurbToNearestApproach() {
         RoadNetwork network = orthogonalNetwork();
         RoadEdge ns = edgeToward(network, new Vec2d(0, 40));
