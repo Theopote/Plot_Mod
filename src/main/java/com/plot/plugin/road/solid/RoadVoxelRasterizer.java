@@ -255,7 +255,11 @@ public final class RoadVoxelRasterizer {
         }
         // A sloping upper deck can be below the node's nominal clearance plane.
         // Junction excavation must respect the actual road and bridge placements.
-        if ("minecraft:air".equals(blockId) && protectedPlacements.contains(pos)) return;
+        if (protectedPlacements.contains(pos)
+                && ("minecraft:air".equals(blockId)
+                    || primitive.layer() == RoadSolidLayer.TUNNEL
+                    || primitive.layer() == RoadSolidLayer.SUBGRADE
+                    || primitive.layer() == RoadSolidLayer.BRIDGE)) return;
         result.recordPlacementByLayerPriority(
             pos,
             projectionHandler.getBlockIdAt(pos),

@@ -9,6 +9,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadVoxelRasterizerTest {
+    @Test
+    void lowerJunctionStructuresCannotReplaceProtectedUpperDeckSupport() {
+        for (var layer : List.of(RoadSolidLayer.TUNNEL, RoadSolidLayer.SUBGRADE, RoadSolidLayer.BRIDGE)) {
+            var support = new net.minecraft.util.math.BlockPos(3, 68, 0);
+            var aggregate = new RoadGenerationResult(0);
+            aggregate.recordPlacementByLayerPriority(support, "minecraft:air", "minecraft:stone",
+                RoadSolidLayer.BRIDGE, RoadSolidMaterialPriority.STRUCTURAL);
+            var solids = new RoadSolidModel();
+            solids.add(new Vec2d(3, 0), 68, layer, "minecraft:stone_bricks", RoadSolidMaterialPriority.STRUCTURAL);
+            RoadVoxelRasterizer.flushJunctionSolids(aggregate, solids,
+                com.plot.test.world.IdentityCoordinateService.INSTANCE,
+                com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance(), null, null, null,
+                java.util.Set.of(support));
+            assertEquals("minecraft:stone", aggregate.placementRecords.get(support).newBlockId);
+            assertEquals(RoadSolidLayer.BRIDGE, aggregate.placementLayers.get(support));
+        }
+    }
 
     @Test
     void junctionExcavationProtectsAnActualSlopingDeckBelowNominalClearancePlane() {

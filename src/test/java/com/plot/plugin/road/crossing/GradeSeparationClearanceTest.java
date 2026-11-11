@@ -27,9 +27,9 @@ class GradeSeparationClearanceTest {
         Road lower = network.createRoad("lower");
         lower.setTunnelStyle(tunnel.copy());
 
-        assertEquals(7.0, GradeSeparationClearance.resolve(null, lower, config), 1e-6);
+        assertEquals(8.0, GradeSeparationClearance.resolve(null, lower, config), 1e-6);
         assertEquals(
-            7.0,
+            8.0,
             GradeSeparationClearance.forTwoRoadCrossing(
                 null, network, upper.getId(), upper.getId(), lower.getId(), config),
             1e-6);
@@ -45,7 +45,7 @@ class GradeSeparationClearanceTest {
         Road lower = network.createRoad("lower");
         lower.setTunnelStyle(config.getTunnelStyle().copy());
 
-        assertEquals(7.0, GradeSeparationClearance.resolve(4.0, lower, config), 1e-6);
+        assertEquals(8.0, GradeSeparationClearance.resolve(4.0, lower, config), 1e-6);
     }
 
     @Test
@@ -96,11 +96,11 @@ class GradeSeparationClearanceTest {
         junction.setElevatedRoadId(elevated.getId());
 
         assertEquals(
-            8.0,
+            9.0,
             GradeSeparationClearance.forNode(null, junction, network, elevated.getId(), config),
             1e-6);
         assertEquals(
-            8.0,
+            9.0,
             GradeSeparationClearance.forNode(5.0, junction, network, elevated.getId(), config),
             1e-6);
         assertEquals(
@@ -116,6 +116,6 @@ class GradeSeparationClearanceTest {
         config.getTunnelStyle().setClearHeight(6);
         config.getTunnelStyle().ensureConfigDefaults();
 
-        assertEquals(6.0, GradeSeparationClearance.fromUnderpassRoad(null, config), 1e-6);
+        assertEquals(7.0, GradeSeparationClearance.fromUnderpassRoad(null, config), 1e-6);
     }
 }

@@ -30,7 +30,7 @@ public final class GradeSeparationClearance {
     /** 下穿道路隧道净高下限；无道路时用配置默认隧道净高。 */
     public static double fromUnderpassRoad(Road underpassRoad, RoadSystemConfig config) {
         ResolvedTunnelStyle style = TunnelStyle.resolve(underpassRoad, config);
-        return RoadParameterLimits.clampCrossingClearance(style.clearHeight());
+        return minimumSurfaceSeparation(style.clearHeight());
     }
 
     /**
@@ -72,7 +72,13 @@ public final class GradeSeparationClearance {
             }
             return fromUnderpassRoad(null, config);
         }
-        return RoadParameterLimits.clampCrossingClearance(maxClear);
+        return minimumSurfaceSeparation(maxClear);
+    }
+
+    /** Constraints operate on pavement elevations; the upper support layer consumes headroom. */
+    private static double minimumSurfaceSeparation(int tunnelClearHeight) {
+        return RoadParameterLimits.clampCrossingClearance(tunnelClearHeight
+            + com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH);
     }
 
     /** 两路交叉：不低于下穿侧隧道净高。 */
