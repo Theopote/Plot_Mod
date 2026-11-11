@@ -14,6 +14,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoadSurfacePlacementPassTest {
     @Test
+    void raisedCurbIsNotAnOverpassAndMustNotReplacePavementBelow() {
+        var result = new RoadGenerationResult(0);
+        var road = new BlockPos(0, 64, 0);
+        var curb = road.up();
+        result.recordPlacementByLayerPriority(road, "minecraft:air", "minecraft:black_concrete",
+            RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        result.recordPlacementByLayerPriority(curb, "minecraft:air", "minecraft:stone_slab",
+            RoadSolidLayer.SIDEWALK, RoadSolidMaterialPriority.DEFAULT);
+        RoadSurfacePlacementPass.clearIntrudingFill(result);
+        RoadSurfacePlacementPass.sealElevatedDeckSupport(result, 0, 65, 0);
+        assertEquals("minecraft:black_concrete", result.placementRecords.get(road).newBlockId);
+        assertEquals(RoadSolidLayer.ROAD, result.placementLayers.get(road));
+        assertNull(RoadSurfacePlacementPass.lowestProtectedPavementAbove(
+            RoadSurfacePlacementPass.buildPavementYIndex(result), 0, 64, 0));
+    }
+
+    @Test
     void pavementWinsOverTunnelAliasingAndRetainsOriginalUndoState() {
         var plan = plan();
         for (String obstructingMaterial : List.of("minecraft:air", "minecraft:stone_bricks")) {

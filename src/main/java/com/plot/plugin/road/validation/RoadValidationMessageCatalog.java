@@ -74,8 +74,10 @@ public final class RoadValidationMessageCatalog {
     }
 
     public static RoadValidationMessage fromCenterlineKind(RoadCenterlineViolationKind kind) {
+        if (kind == null) {
+            return null;
+        }
         return switch (kind) {
-            case SELF_INTERSECTION -> null; // 平面自交合法，不展示为校验问题
             case SELF_OVERLAP -> RoadValidationMessage.of(
                 RoadNetworkValidationReport.Level.WARNING,
                 "centerline_self_overlap_single");
@@ -83,6 +85,8 @@ public final class RoadValidationMessageCatalog {
                 RoadNetworkValidationReport.Level.WARNING,
                 "centerline_non_linear_single",
                 RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
+            // SELF_INTERSECTION 已弃用：平面自交合法，不展示为校验问题
+            default -> null;
         };
     }
 

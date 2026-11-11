@@ -125,6 +125,9 @@ public final class RoadSurfacePlacementPass {
                 if (lowerY == null) {
                     continue;
                 }
+                if (elevatedY - lowerY <= JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH + 1) {
+                    continue;
+                }
                 int clearTo = elevatedY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1;
                 clearShaftColumn(result, column.worldX(), column.worldZ(), lowerY, clearTo, elevatedY);
                 sealElevatedDeckSupport(result, column.worldX(), elevatedY, column.worldZ());
@@ -189,6 +192,10 @@ public final class RoadSurfacePlacementPass {
         BlockPos support = new BlockPos(worldX, supportY, worldZ);
         var record = result.placementRecords.get(support);
         var layer = result.placementLayers.get(support);
+        if (record != null && !"minecraft:air".equals(record.newBlockId)
+                && isElevatedPavementLayer(layer)) {
+            return;
+        }
         if (record != null
                 && layer == RoadSolidLayer.BRIDGE
                 && !isTerrainResidueBlock(record.newBlockId)) {
@@ -295,7 +302,7 @@ public final class RoadSurfacePlacementPass {
         if (ys == null || ys.isEmpty()) {
             return null;
         }
-        return ys.higher(surfaceY);
+        return ys.higher(surfaceY + JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH + 1);
     }
 
     private static boolean isElevatedPavementLayer(RoadSolidLayer layer) {

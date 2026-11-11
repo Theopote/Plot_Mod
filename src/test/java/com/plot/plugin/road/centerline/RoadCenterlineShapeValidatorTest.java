@@ -121,7 +121,6 @@ class RoadCenterlineShapeValidatorTest {
             overlap.getId());
 
         var counts = RoadCenterlineShapeValidator.countByKind(network);
-        assertEquals(0, counts.get(RoadCenterlineViolationKind.SELF_INTERSECTION));
         assertTrue(counts.get(RoadCenterlineViolationKind.NON_LINEAR_ROAD_TOPOLOGY) >= 1);
         assertTrue(counts.get(RoadCenterlineViolationKind.SELF_OVERLAP) >= 1);
         assertEquals(2, RoadCenterlineShapeValidator.countRoadsWithViolations(network));

@@ -76,8 +76,8 @@ public final class RoadValidationDrillDown {
             case "road_branching" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_BRANCHING);
             case "road_cycle" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_CYCLE);
             case "road_order_mismatch" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_ORDER_MISMATCH);
-            case "centerline_self_intersection" -> roadsWithCenterlineKind(
-                network, RoadCenterlineViolationKind.SELF_INTERSECTION);
+            // 平面自交已合法化，校验器不再产出 SELF_INTERSECTION；保留 issueId 兼容旧报告。
+            case "centerline_self_intersection" -> List.of();
             case "centerline_self_overlap" -> roadsWithCenterlineKind(
                 network, RoadCenterlineViolationKind.SELF_OVERLAP);
             case "centerline_non_linear" -> roadsWithCenterlineKind(
