@@ -8,6 +8,7 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,17 +31,40 @@ public final class JunctionSeamReconciliationPass {
         if (aggregate == null || junctionResults == null || junctionResults.isEmpty()) {
             return;
         }
+        // 一次扫描建列索引，避免每个路口列都扫整网 O(C×B)。
+        Map<ColumnKey, List<BlockPos>> solidsByColumn = indexSolidPlacements(aggregate);
         for (RoadJunctionGenerator.JunctionBlocks blocks : junctionResults.values()) {
             if (blocks == null) {
                 continue;
             }
-            reconcileJunction(aggregate, blocks);
+            reconcileJunction(aggregate, blocks, solidsByColumn);
         }
+    }
+
+    /**
+     * 合并结果中非空气放置按世界列归桶；接缝修整只遍历相关列。
+     */
+    public static Map<ColumnKey, List<BlockPos>> indexSolidPlacements(RoadGenerationResult aggregate) {
+        Map<ColumnKey, List<BlockPos>> byColumn = new HashMap<>();
+        if (aggregate == null || aggregate.placementRecords == null) {
+            return byColumn;
+        }
+        for (Map.Entry<BlockPos, BlockRecord> entry : aggregate.placementRecords.entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockRecord record = entry.getValue();
+            if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            ColumnKey key = new ColumnKey(pos.getX(), pos.getZ());
+            byColumn.computeIfAbsent(key, ignored -> new ArrayList<>()).add(pos);
+        }
+        return byColumn;
     }
 
     private static void reconcileJunction(
             RoadGenerationResult aggregate,
-            RoadJunctionGenerator.JunctionBlocks blocks) {
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            Map<ColumnKey, List<BlockPos>> solidsByColumn) {
         JunctionElevationField field = blocks.elevationField();
         JunctionValidationManifest manifest = blocks.validationManifest();
         if (field == null || field.targetYByColumn().isEmpty()) {
@@ -50,6 +74,7 @@ public final class JunctionSeamReconciliationPass {
             ? new HashSet<>(manifest.expectedProtectedBlocks())
             : Set.of();
         Integer elevatedDeckY = manifest != null ? manifest.elevatedDeckY() : null;
+        Map<ColumnKey, List<BlockPos>> index = solidsByColumn != null ? solidsByColumn : Map.of();
 
         for (Map.Entry<ColumnKey, Integer> entry : field.targetYByColumn().entrySet()) {
             ColumnKey column = entry.getKey();
@@ -59,7 +84,8 @@ public final class JunctionSeamReconciliationPass {
             }
             JunctionWorldFootprint.ElevationRole role = field.role(column);
             reconcileColumn(
-                aggregate, column, targetY, elevatedDeckY, protectedBlocks, role);
+                aggregate, column, targetY, elevatedDeckY, protectedBlocks, role,
+                index.getOrDefault(column, List.of()));
         }
     }
 
@@ -69,17 +95,18 @@ public final class JunctionSeamReconciliationPass {
             int targetY,
             Integer elevatedDeckY,
             Set<BlockPos> protectedBlocks,
-            JunctionWorldFootprint.ElevationRole role) {
+            JunctionWorldFootprint.ElevationRole role,
+            List<BlockPos> columnSolids) {
         List<BlockPos> roadAtColumn = new ArrayList<>();
         List<BlockPos> tunnelSolids = new ArrayList<>();
         List<BlockPos> plazaFamilyBelow = new ArrayList<>();
-        for (Map.Entry<BlockPos, BlockRecord> entry : aggregate.placementRecords.entrySet()) {
-            BlockPos pos = entry.getKey();
-            BlockRecord record = entry.getValue();
-            if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
+        List<BlockPos> solids = columnSolids != null ? columnSolids : List.of();
+        for (BlockPos pos : solids) {
+            if (pos == null) {
                 continue;
             }
-            if (pos.getX() != column.worldX() || pos.getZ() != column.worldZ()) {
+            BlockRecord record = aggregate.placementRecords.get(pos);
+            if (record == null || "minecraft:air".equals(record.newBlockId)) {
                 continue;
             }
             if (elevatedDeckY != null && pos.getY() >= elevatedDeckY - 1) {
@@ -103,7 +130,7 @@ public final class JunctionSeamReconciliationPass {
 
         // 核区/圆角/接缝：高出设计路面的进口残留必须剥掉，否则缓坡一侧和广场内会出现零星突起。
         stripPavementAboveTarget(
-            aggregate, column, targetY, elevatedDeckY, protectedBlocks);
+            aggregate, targetY, elevatedDeckY, protectedBlocks, solids);
 
         if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
             return;
@@ -171,18 +198,17 @@ public final class JunctionSeamReconciliationPass {
 
     private static void stripPavementAboveTarget(
             RoadGenerationResult aggregate,
-            ColumnKey column,
             int targetY,
             Integer elevatedDeckY,
-            Set<BlockPos> protectedBlocks) {
+            Set<BlockPos> protectedBlocks,
+            List<BlockPos> columnSolids) {
         List<BlockPos> extra = new ArrayList<>();
-        for (Map.Entry<BlockPos, BlockRecord> entry : aggregate.placementRecords.entrySet()) {
-            BlockPos pos = entry.getKey();
-            BlockRecord record = entry.getValue();
-            if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
+        for (BlockPos pos : columnSolids) {
+            if (pos == null) {
                 continue;
             }
-            if (pos.getX() != column.worldX() || pos.getZ() != column.worldZ()) {
+            BlockRecord record = aggregate.placementRecords.get(pos);
+            if (record == null || "minecraft:air".equals(record.newBlockId)) {
                 continue;
             }
             if (pos.getY() <= targetY || pos.getY() > targetY + UNDER_PAVEMENT_STRIP_DEPTH) {

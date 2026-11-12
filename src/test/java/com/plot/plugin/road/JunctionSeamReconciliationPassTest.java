@@ -31,6 +31,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionSeamReconciliationPassTest {
 
     @Test
+    void indexSolidPlacementsGroupsByWorldColumn() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        plant(aggregate, new BlockPos(3, 64, 5), "minecraft:stone", RoadSolidLayer.ROAD);
+        plant(aggregate, new BlockPos(3, 65, 5), "minecraft:stone_bricks", RoadSolidLayer.TUNNEL);
+        plant(aggregate, new BlockPos(4, 64, 5), "minecraft:stone", RoadSolidLayer.ROAD);
+        aggregate.recordPlacementOverride(
+            new BlockPos(3, 70, 5), "minecraft:stone", "minecraft:air");
+        aggregate.placementLayers.put(new BlockPos(3, 70, 5), RoadSolidLayer.TUNNEL);
+
+        Map<ColumnKey, List<BlockPos>> index =
+            JunctionSeamReconciliationPass.indexSolidPlacements(aggregate);
+        assertEquals(2, index.size(), "two solid columns");
+        assertEquals(2, index.get(new ColumnKey(3, 5)).size(),
+            "air placements must not enter the solid column index");
+        assertEquals(1, index.get(new ColumnKey(4, 5)).size());
+    }
+
+    @Test
     void stripsStackedEdgeAndLiningUnderFilletPavement() {
         JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
             new Vec2d(8, 8),

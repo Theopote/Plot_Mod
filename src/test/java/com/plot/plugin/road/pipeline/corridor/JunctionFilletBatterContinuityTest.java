@@ -21,6 +21,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -65,6 +66,20 @@ class JunctionFilletBatterContinuityTest {
         assertEquals(1, JunctionCrossSectionFill.maxFilletBatterRunBlocks(2.0, 1.0, 100));
         assertEquals(3, JunctionCrossSectionFill.maxFilletBatterRunBlocks(8.0, 1.0, 3),
             "global maxHorizontalRun still caps");
+        // 小半径不得再靠「续坡 8 格」穿心：总跑距仍夹在圆心前。
+        assertEquals(3, JunctionCrossSectionFill.maxFilletBatterRunBlocks(4.0, 1.0, 50),
+            "R=4 continuous batter must stop before center, not arc+8 continue");
+    }
+
+    @Test
+    void openSlopeColumnIgnoresJunctionTunnelClearCap() {
+        // 混合路口：开敞边坡列必须露天挖到地表，不得被路口级洞顶 cap 提前截断。
+        JunctionCrossSectionFill.ColumnClearCapResolver openDaylight =
+            (column, plan, designY) -> null;
+        JunctionCrossSectionFill.ColumnClearCapResolver tunnelCap =
+            JunctionCrossSectionFill.constantClearCap(69);
+        assertNull(openDaylight.resolve(new ColumnKey(1, 1), new Vec2d(1.5, 1.5), 64));
+        assertEquals(69, tunnelCap.resolve(new ColumnKey(1, 1), new Vec2d(1.5, 1.5), 64));
     }
 
     @Test
@@ -173,7 +188,7 @@ class JunctionFilletBatterContinuityTest {
             1.0,
             hillside,
             8,
-            null,
+            (Integer) null,
             List.of(fillet),
             null,
             Set.of(),
@@ -238,7 +253,7 @@ class JunctionFilletBatterContinuityTest {
             1.0,
             lowGround,
             20, // 允许部分 SUBGRADE；尖端仍因跑距截断走挡墙
-            null,
+            (Integer) null,
             List.of(fillet),
             null,
             Set.of(),

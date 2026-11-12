@@ -792,15 +792,8 @@ public class RoadJunctionGenerator {
         Integer elevatedClearCap = elevatedDeckY != null
             ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
             : null;
-        // 有隧道进口时边坡与广场共用洞腔顶 cap：浅覆土跳过露天切坡（与走廊一致），
-        // 禁止圆角外缘在走廊保留覆土的同时自行掏到地表。无隧道进口则仅保留立交 cap。
-        Integer maxClearY = elevatedClearCap;
-        if (tunnelClearHeight != null || tunnelCavityCap != null) {
-            int cavityCap = tunnelCavityCap != null
-                ? tunnelCavityCap
-                : junctionY + Math.max(1, tunnelClearHeight);
-            maxClearY = elevatedClearCap != null ? Math.min(cavityCap, elevatedClearCap) : cavityCap;
-        }
+        // 广场铺装/清障/边坡均走 resolvePlazaColumnClearCap 逐列决策；
+        // 禁止再合成路口级 maxClearY 套到开敞边坡上。
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
@@ -921,6 +914,13 @@ public class RoadJunctionGenerator {
             java.util.Set<ColumnKey> pavedForBatter = new java.util.LinkedHashSet<>(
                 surfaceMask.stampedColumns());
             pavedForBatter.addAll(surfaceMask.expectedColumns());
+            // 边坡逐列 cap：开敞列露天挖方；封闭隧道列保覆土；立交另夹上层承重。
+            JunctionCrossSectionFill.ColumnClearCapResolver slopeClearCap =
+                (column, planPoint, designY) -> resolvePlazaColumnClearCap(
+                    terrain, planPoint, column, designY,
+                    edges, safeEdgeResults, centerlines,
+                    tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
+                    tunnelLiningThickness, tunnelThreshold);
             JunctionCrossSectionFill.stampApproachSlopeBatters(
                 blocks.getSolids(),
                 node.getPosition(),
@@ -934,7 +934,7 @@ public class RoadJunctionGenerator {
                 unitsPerBlock,
                 terrain,
                 bridgeThreshold,
-                maxClearY,
+                slopeClearCap,
                 fillets,
                 elevationField,
                 tunnelEdgeIds,
