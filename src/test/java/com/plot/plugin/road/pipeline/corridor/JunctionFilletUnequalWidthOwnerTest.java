@@ -75,13 +75,13 @@ class JunctionFilletUnequalWidthOwnerTest {
     @Test
     void pinElevationInsertsExactTangentStation() {
         java.util.List<Double> distances = new java.util.ArrayList<>(List.of(0.0, 1.0, 2.0, 3.0, 4.0));
-        java.util.List<Integer> elevations = new java.util.ArrayList<>(List.of(64, 64, 65, 66, 67));
-        JunctionFilletElevationLoft.pinElevation(distances, elevations, 2.4, 70);
+        java.util.List<Double> elevations = new java.util.ArrayList<>(List.of(64.0, 64.0, 65.0, 66.0, 67.0));
+        JunctionFilletElevationLoft.pinElevation(distances, elevations, 2.4, 70.0);
         assertTrue(distances.contains(2.4));
         int idx = distances.indexOf(2.4);
-        assertEquals(70, elevations.get(idx));
+        assertEquals(70.0, elevations.get(idx), 1e-9);
         // 邻近整数格不得被改成切点高程
-        assertEquals(65, elevations.get(distances.indexOf(2.0)));
-        assertEquals(66, elevations.get(distances.indexOf(3.0)));
+        assertEquals(65.0, elevations.get(distances.indexOf(2.0)), 1e-9);
+        assertEquals(66.0, elevations.get(distances.indexOf(3.0)), 1e-9);
     }
 }

@@ -46,7 +46,63 @@ class JunctionFilletElevationLoftTest {
             List.copyOf(network.getEdges().values()), network, columns, 64);
         var point = new Vec2d(2.1, 8);
         assertTrue(loft.isFilletGore(point));
-        assertEquals(71, loft.surfaceY(point));
+        int y = loft.surfaceY(point);
+        assertTrue(y >= 64 && y < 71,
+            "gore lofts along curb rails; leftover voxel in the column must not pin the patch; y=" + y);
+    }
+
+    @Test
+    void slopedCurbRailsLoftIgnoresVoxelNoiseAlongTheGore() {
+        var network = orthogonalNetwork();
+        var ns = edgeToward(network, new Vec2d(0, 40));
+        var ew = edgeToward(network, new Vec2d(40, 0));
+        var nsResult = new RoadGenerationResult(0);
+        var ewResult = new RoadGenerationResult(0);
+        for (int z = 2; z <= 14; z++) {
+            nsResult.recordPlacementOverride(new BlockPos(2, 64, z), "minecraft:air", "minecraft:stone");
+            nsResult.placementLayers.put(new BlockPos(2, 64, z), RoadSolidLayer.ROAD);
+        }
+        for (int x = 2; x <= 14; x++) {
+            int y = 64 + Math.min(8, x - 2);
+            ewResult.recordPlacementOverride(new BlockPos(x, y, 2), "minecraft:air", "minecraft:stone");
+            ewResult.placementLayers.put(new BlockPos(x, y, 2), RoadSolidLayer.ROAD);
+        }
+        // 圆角内部体素噪声：旧实现会沿路缘逐格拾取，坡度一大就起伏。
+        nsResult.recordPlacementOverride(new BlockPos(3, 71, 4), "minecraft:air", "minecraft:stone");
+        nsResult.placementLayers.put(new BlockPos(3, 71, 4), RoadSolidLayer.ROAD);
+        ewResult.recordPlacementOverride(new BlockPos(4, 59, 3), "minecraft:air", "minecraft:stone");
+        ewResult.placementLayers.put(new BlockPos(4, 59, 3), RoadSolidLayer.ROAD);
+
+        var center = new Vec2d(6, 6);
+        var start = new Vec2d(2, 6);
+        var end = new Vec2d(6, 2);
+        var fillet = new JunctionGeometryResult.FilletCorner(
+            center, start, end, 4.0, Math.PI / 2,
+            FilletArcSweep.resolveShort(center, start, end));
+        var columns = new RoadTerrainClearanceUtils.BlockColumnResolver() {
+            public int worldX(Vec2d p) { return (int) Math.floor(p.x); }
+            public int worldZ(Vec2d p) { return (int) Math.floor(p.y); }
+        };
+        var loft = JunctionFilletElevationLoft.build(
+            List.of(fillet),
+            Map.of(ns.getId(), nsResult, ew.getId(), ewResult),
+            List.copyOf(network.getEdges().values()),
+            network,
+            columns,
+            64);
+
+        int prev = loft.surfaceY(new Vec2d(2.3, 2.3));
+        for (double t = 0.15; t <= 0.9; t += 0.1) {
+            Vec2d p = new Vec2d(2.3 + t * 3.2, 2.3 + (1.0 - t) * 0.2);
+            if (!loft.isFilletGore(p)) {
+                continue;
+            }
+            int y = loft.surfaceY(p);
+            assertTrue(Math.abs(y - prev) <= 2, "lofted fillet must not jump; y=" + y + " prev=" + prev);
+            assertTrue(y >= 63 && y <= 73, "loft stays between curb rails; y=" + y);
+            assertTrue(y != 71 && y != 59, "interior voxel noise must not become fillet Y; y=" + y);
+            prev = y;
+        }
     }
 
     @Test

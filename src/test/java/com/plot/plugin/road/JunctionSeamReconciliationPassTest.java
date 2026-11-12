@@ -157,8 +157,9 @@ class JunctionSeamReconciliationPassTest {
             List.of(fillet), edgeResults, List.of(ns), network, columns, 67);
         Vec2d plan = new Vec2d(filletColumn.worldX() + 0.5, filletColumn.worldZ() + 0.5);
         assertEquals(JunctionWorldFootprint.ElevationRole.FILLET, footprint.elevationRole(filletColumn));
-        assertEquals(64, loft.surfaceY(plan, footprint),
-            "exact leftover approach column must pin fillet Y, not loft above it");
+        int y = loft.surfaceY(plan, footprint);
+        assertEquals(67, y,
+            "fillet gore lofts between curb rails; leftover approach Y is stripped later, not pinned");
     }
 
     private static void plant(

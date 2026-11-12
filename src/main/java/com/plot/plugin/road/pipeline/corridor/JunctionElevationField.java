@@ -91,7 +91,8 @@ public final class JunctionElevationField {
         Set<ColumnKey> pinnedAnchors = new java.util.LinkedHashSet<>();
         for (ColumnKey key : pave) {
             JunctionWorldFootprint.ElevationRole role = roles.get(key);
-            if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
+            if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE
+                    || role == JunctionWorldFootprint.ElevationRole.FILLET) {
                 continue;
             }
             Integer ay = approachAnchors.get(key);
@@ -138,6 +139,11 @@ public final class JunctionElevationField {
         }
         for (int pass = 0; pass < 8; pass++) {
             if (relaxFilletTowardNeighbors(targets, filletOnly) == 0) {
+                break;
+            }
+        }
+        for (int pass = 0; pass < 6; pass++) {
+            if (flattenFilletCheckerboard(targets, filletOnly) == 0) {
                 break;
             }
         }
@@ -430,6 +436,57 @@ public final class JunctionElevationField {
             int next = (int) Math.round((y + mean) * 0.5);
             if (next != y) {
                 adjusted.put(key, next);
+            }
+        }
+        targets.putAll(adjusted);
+        return adjusted.size();
+    }
+
+    /**
+     * 拆掉圆角 2×2 棋盘（对角同高、邻格差 1）：取整放样在 0.5 等高线会抖成起起伏伏。
+     * 四格收到同一标高，相邻 2×2 仍可按坡差一格，看起来是整阶而不是麻点。
+     */
+    static int flattenFilletCheckerboard(
+            Map<ColumnKey, Integer> targets, Set<ColumnKey> filletColumns) {
+        if (targets == null || filletColumns == null || filletColumns.size() < 4) {
+            return 0;
+        }
+        Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
+        for (ColumnKey key : filletColumns) {
+            if (key == null) {
+                continue;
+            }
+            ColumnKey east = new ColumnKey(key.worldX() + 1, key.worldZ());
+            ColumnKey north = new ColumnKey(key.worldX(), key.worldZ() + 1);
+            ColumnKey northEast = new ColumnKey(key.worldX() + 1, key.worldZ() + 1);
+            if (!filletColumns.contains(east)
+                    || !filletColumns.contains(north)
+                    || !filletColumns.contains(northEast)) {
+                continue;
+            }
+            Integer a = targets.get(key);
+            Integer b = targets.get(east);
+            Integer c = targets.get(north);
+            Integer d = targets.get(northEast);
+            if (a == null || b == null || c == null || d == null) {
+                continue;
+            }
+            boolean checker = a.equals(d) && b.equals(c) && !a.equals(b) && Math.abs(a - b) == 1;
+            if (!checker) {
+                continue;
+            }
+            int flat = (int) Math.round((a + b + c + d) / 4.0);
+            if (a != flat) {
+                adjusted.put(key, flat);
+            }
+            if (b != flat) {
+                adjusted.put(east, flat);
+            }
+            if (c != flat) {
+                adjusted.put(north, flat);
+            }
+            if (d != flat) {
+                adjusted.put(northEast, flat);
             }
         }
         targets.putAll(adjusted);

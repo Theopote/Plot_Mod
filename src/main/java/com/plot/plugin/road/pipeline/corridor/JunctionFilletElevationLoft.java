@@ -27,7 +27,6 @@ import java.util.function.Function;
  */
 public final class JunctionFilletElevationLoft {
     private static final double EPSILON = 1e-9;
-    private static final double MAX_CURB_SAMPLE = 24.0;
     /** 切点到中心线允许的侧向距离（含宽路路缘）。 */
     private static final double TANGENT_OWNER_MAX_DIST = 16.0;
     private static final double APPROACH_BLEND_MAX_DIST = 24.0;
@@ -121,9 +120,11 @@ public final class JunctionFilletElevationLoft {
         ColumnKey key = columns != null
             ? new ColumnKey(columns.worldX(planPoint), columns.worldZ(planPoint))
             : null;
-        // 同列已有进口路面：圆角/接缝必须钉在该 Y，禁止 loft 抬高后再叠一层（破坏顶面可见下层路缘/衬砌）。
-        // 仅 exact 列；邻域 pin 仍限接缝外缘，避免两进口互相污染 gore。
-        if (key != null && allowExactApproachPin(key, planPoint, footprint)) {
+        // 同列已有进口路面：接缝/清障钉在该 Y。圆角 gore 必须走两条路缘放样，
+        // 进口残留由接缝剥离，不能把补铺钉成两路拼贴台阶。
+        if (key != null
+                && !isFilletGore(planPoint)
+                && allowExactApproachPin(key, planPoint, footprint)) {
             Integer exact = approachRoadY.get(key);
             if (exact != null) {
                 return exact;
@@ -146,6 +147,10 @@ public final class JunctionFilletElevationLoft {
         if (pinned != null) {
             return pinned;
         }
+        if (footprint != null && key != null
+                && footprint.elevationRole(key) == JunctionWorldFootprint.ElevationRole.FILLET) {
+            return junctionY;
+        }
         Integer blended = blendApproachElevations(planPoint);
         return blended != null ? blended : junctionY;
     }
@@ -159,7 +164,10 @@ public final class JunctionFilletElevationLoft {
             return false;
         }
         if (footprint != null && !footprint.isEmpty() && key != null) {
-            return footprint.elevationRole(key) != JunctionWorldFootprint.ElevationRole.ROAD_CORE;
+            JunctionWorldFootprint.ElevationRole role = footprint.elevationRole(key);
+            return role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION
+                || role == JunctionWorldFootprint.ElevationRole.CLEARANCE_ONLY
+                || role == JunctionWorldFootprint.ElevationRole.OUTSIDE;
         }
         return !insideJunctionCore(planPoint);
     }
@@ -596,37 +604,22 @@ public final class JunctionFilletElevationLoft {
             int junctionY) {
         Map<ColumnKey, Integer> scoped = scopedRoadY(ownerEdge, roadYByEdge);
         List<Double> distances = new ArrayList<>();
-        List<Integer> elevations = new ArrayList<>();
+        List<Double> elevations = new ArrayList<>();
         distances.add(0.0);
-        // 锐角点通常不在任一路面列上：用路口共识，避免两侧进口互串。
-        elevations.add(junctionY);
-        for (double s = 1.0; s <= MAX_CURB_SAMPLE; s += 1.0) {
-            Vec2d sample = origin.add(direction.multiply(s));
-            int y = lookupElevation(
-                sample, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
-            distances.add(s);
-            elevations.add(y);
-        }
-        // 切点处强制钉在所属进口路面高程，保证与原路缘衔接。
-        Double pinS = null;
-        Integer pinY = null;
+        // 锐角点用路口共识；切点钉在所属进口路面。中间按两条路缘端点线性放样，
+        // 不再沿路缘逐格查体素（坡道路面台阶 + 邻路串扰会让圆角起起伏伏）。
+        // direction 是路缘射线，与切点一起定义放样轨；标高只取两端。
+        elevations.add((double) junctionY);
         if (tangentPoint != null) {
-            pinS = origin.distance(tangentPoint);
-            pinY = lookupElevation(
+            double pinS = origin.distance(tangentPoint);
+            double pinY = lookupElevation(
                 tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
-            pinElevation(distances, elevations, pinS, pinY);
-        }
-        int startY = elevations.getFirst();
-        boolean steepGrade = pinY != null && Math.abs(pinY - startY) > 2;
-        if (steepGrade) {
-            // 真实纵坡/立交：|ΔY|≤1 消抖会抹掉路缘平台（64→72 在 s=1 就应是 72）。
-            despikeCurbElevations(elevations);
-        } else {
-            // 近乎平坦：体素邻域噪声用相邻 |ΔY|≤1 双向消抖。
-            smoothCurbElevations(elevations);
-        }
-        if (pinS != null && pinY != null) {
-            pinElevation(distances, elevations, pinS, pinY);
+            if (pinS > EPSILON) {
+                distances.add(pinS);
+                elevations.add(pinY);
+            } else {
+                elevations.set(0, pinY);
+            }
         }
         return new CurbElevationCurve(distances, elevations);
     }
@@ -658,33 +651,15 @@ public final class JunctionFilletElevationLoft {
         }
     }
 
-    /** 单点尖峰：两侧接近而中点偏离超过 1 格时取两侧均值。 */
-    static void despikeCurbElevations(List<Integer> elevations) {
-        if (elevations == null || elevations.size() < 3) {
-            return;
-        }
-        List<Integer> snapshot = List.copyOf(elevations);
-        for (int i = 1; i < snapshot.size() - 1; i++) {
-            int prev = snapshot.get(i - 1);
-            int next = snapshot.get(i + 1);
-            int cur = snapshot.get(i);
-            if (Math.abs(prev - next) <= 1
-                    && Math.abs(cur - prev) > 1
-                    && Math.abs(cur - next) > 1) {
-                elevations.set(i, (prev + next) / 2);
-            }
-        }
-    }
-
     /**
      * 在切点真实站距插入（或精确覆盖）采样，保证 curb.at(pinS) == pinY。
      * 不再把切点并入 ±0.5 的整数格，避免插值后切点 Y 漂移。
      */
     static void pinElevation(
             List<Double> distances,
-            List<Integer> elevations,
+            List<Double> elevations,
             double pinS,
-            int pinY) {
+            double pinY) {
         if (distances == null || elevations == null || distances.isEmpty() || pinS < 0.0) {
             return;
         }
@@ -920,10 +895,10 @@ public final class JunctionFilletElevationLoft {
         return centerline.getLast();
     }
 
-    private record CurbElevationCurve(List<Double> distances, List<Integer> elevations) {
-        int at(double s) {
+    private record CurbElevationCurve(List<Double> distances, List<Double> elevations) {
+        double at(double s) {
             if (distances.isEmpty()) {
-                return 0;
+                return 0.0;
             }
             if (s <= distances.getFirst()) {
                 return elevations.getFirst();
@@ -938,7 +913,7 @@ public final class JunctionFilletElevationLoft {
                     continue;
                 }
                 double t = d1 - d0 < EPSILON ? 0.0 : (s - d0) / (d1 - d0);
-                return (int) Math.round(elevations.get(i) + t * (elevations.get(i + 1) - elevations.get(i)));
+                return elevations.get(i) + t * (elevations.get(i + 1) - elevations.get(i));
             }
             return elevations.getLast();
         }
@@ -953,20 +928,20 @@ public final class JunctionFilletElevationLoft {
             CurbElevationCurve curbB) {
         int loftY(Vec2d planPoint, int fallback) {
             double s = planPoint.distance(sharp);
-            int ya = curbA.at(s);
-            int yb = curbB.at(s);
+            double ya = curbA.at(s);
+            double yb = curbB.at(s);
             double u = angularBlend(sharp, dirA, dirB, planPoint);
-            // 角向混合后取整：贴近路缘时锁到该缘标高，避免 round 在中间带抖出 ±1 棋盘。
+            // 角向连续放样后取整：贴近路缘时锁到该缘标高，避免 round 在中间带抖出 ±1 棋盘。
             if (u <= 0.15) {
-                return ya;
+                return (int) Math.round(ya);
             }
             if (u >= 0.85) {
-                return yb;
+                return (int) Math.round(yb);
             }
             double blended = (1.0 - u) * ya + u * yb;
             int rounded = (int) Math.round(blended);
-            int lo = Math.min(ya, yb);
-            int hi = Math.max(ya, yb);
+            int lo = (int) Math.floor(Math.min(ya, yb));
+            int hi = (int) Math.ceil(Math.max(ya, yb));
             return Math.max(lo, Math.min(hi, rounded));
         }
     }

@@ -125,6 +125,19 @@ class JunctionElevationFieldContinuityTest {
             new ColumnKey(0, 0), new ColumnKey(1, 0), new ColumnKey(0, 1), new ColumnKey(1, 1));
         assertTrue(JunctionElevationField.relaxFilletTowardNeighbors(checker, filletKeys) > 0);
 
+        Map<ColumnKey, Integer> checkerboard = new HashMap<>();
+        checkerboard.put(new ColumnKey(0, 0), 64);
+        checkerboard.put(new ColumnKey(1, 0), 65);
+        checkerboard.put(new ColumnKey(0, 1), 65);
+        checkerboard.put(new ColumnKey(1, 1), 64);
+        assertTrue(JunctionElevationField.flattenFilletCheckerboard(checkerboard, filletKeys) > 0);
+        int flat = checkerboard.get(new ColumnKey(0, 0));
+        assertTrue(
+            checkerboard.get(new ColumnKey(1, 0)) == flat
+                && checkerboard.get(new ColumnKey(0, 1)) == flat
+                && checkerboard.get(new ColumnKey(1, 1)) == flat,
+            "2x2 fillet checkerboard must collapse to one elevation");
+
         List<Integer> curb = new java.util.ArrayList<>(List.of(67, 70, 64, 64, 71));
         JunctionFilletElevationLoft.smoothCurbElevations(curb);
         for (int i = 1; i < curb.size(); i++) {
@@ -179,6 +192,20 @@ class JunctionElevationFieldContinuityTest {
                     }
                     assertTrue(Math.abs(y - ny) <= 1,
                         "soft-soft step >1 at " + key + " y=" + y + " neighbor=" + nk + " ny=" + ny);
+                }
+                Integer eastY = field.targetYByColumn().get(new ColumnKey(key.worldX() + 1, key.worldZ()));
+                Integer northY = field.targetYByColumn().get(new ColumnKey(key.worldX(), key.worldZ() + 1));
+                Integer northEastY = field.targetYByColumn().get(
+                    new ColumnKey(key.worldX() + 1, key.worldZ() + 1));
+                if (eastY != null && northY != null && northEastY != null
+                        && field.role(new ColumnKey(key.worldX() + 1, key.worldZ())) == role
+                        && field.role(new ColumnKey(key.worldX(), key.worldZ() + 1)) == role
+                        && field.role(new ColumnKey(key.worldX() + 1, key.worldZ() + 1)) == role) {
+                    boolean isChecker = y == northEastY && eastY.equals(northY)
+                        && y != eastY && Math.abs(y - eastY) == 1;
+                    assertTrue(!isChecker,
+                        "fillet 2x2 checkerboard at " + key
+                            + " y=" + y + "/" + eastY + "/" + northY + "/" + northEastY);
                 }
             }
         }
