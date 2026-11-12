@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * 路口路面生成
@@ -801,6 +802,7 @@ public class RoadJunctionGenerator {
             maxClearY = elevatedClearCap != null ? Math.min(cavityCap, elevatedClearCap) : cavityCap;
         }
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
+        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
             fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
         JunctionElevationField elevationField = JunctionElevationField.build(
@@ -817,11 +819,15 @@ public class RoadJunctionGenerator {
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
                 int surfaceY = elevationField.surfaceY(point);
-                // 有隧道进口：始终洞顶 cap（浅覆停挖、深覆止于洞顶下）；无隧道：露天。
-                Integer columnMaxClearY = enclosedTunnelColumnClearCap(
-                    terrain, point, columnKey, surfaceY,
-                    tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
-                    tunnelLiningThickness, tunnelThreshold);
+                // 隧道 cap 只加在最近进口本身是隧道族的列上，与走廊逐段判定一致。
+                // 开敞路堑打穿地形时，圆角不得因为更远处有隧道而保留洞顶。
+                Integer columnMaxClearY = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                        point, edges, safeEdgeResults, centerlines)
+                    ? enclosedTunnelColumnClearCap(
+                        terrain, point, columnKey, surfaceY,
+                        tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
+                        tunnelLiningThickness, tunnelThreshold)
+                    : elevatedClearCap;
                 boolean stamped = JunctionCrossSectionFill.fillCell(
                     blocks.getSolids(),
                     point,
@@ -869,11 +875,14 @@ public class RoadJunctionGenerator {
                 // leftover 缺省取自然地表，勿用 loft 路面 Y，否则开敞路口会漏清地表以上柱。
                 int leftoverTop = leftoverTops.getOrDefault(
                     columnKey, Math.max(pavementY, terrainSurfaceY));
-                // 逐列门控：洞腔顶低于地表 → 保留覆土；否则露天清到地表。
-                Integer columnTunnelCap = enclosedTunnelColumnClearCap(
-                    terrain, point, columnKey, pavementY,
-                    tunnelClearHeight, tunnelCavityCap, null,
-                    tunnelLiningThickness, tunnelThreshold);
+                // 逐列门控：最近进口为隧道族才保留洞顶；开敞进口与道路一样露天清到地表。
+                Integer columnTunnelCap = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                        point, edges, safeEdgeResults, centerlines)
+                    ? enclosedTunnelColumnClearCap(
+                        terrain, point, columnKey, pavementY,
+                        tunnelClearHeight, tunnelCavityCap, null,
+                        tunnelLiningThickness, tunnelThreshold)
+                    : null;
                 // 列集已由外形∪铺装栅格确定；勿再 point-in-polygon，否则圆角补铺列会漏清树木
                 JunctionTerrainClearance.clearOverheadColumn(
                     blocks.getSolids(),

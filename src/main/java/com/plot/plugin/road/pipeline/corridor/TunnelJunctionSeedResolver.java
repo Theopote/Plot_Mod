@@ -3,10 +3,12 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -29,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Shared tunnel approach, portal seed, and open-volume resolution for junction passes.
@@ -113,6 +116,110 @@ public final class TunnelJunctionSeedResolver {
                 crossSection, tunnelStyle, junctionY));
         }
         return approaches;
+    }
+
+    /**
+     * 路口某列最近进口在该站的施工类型是否为隧道族。
+     * 与走廊逐段判定对齐：开敞路堑/缓坡切方列不得因为同一条路更远处有隧道而封顶。
+     */
+    public static boolean isTunnelFamilyAtPlan(
+            Vec2d planPoint,
+            List<RoadEdge> edges,
+            Map<String, RoadGenerationResult> edgeResults,
+            Function<RoadEdge, List<Vec2d>> centerlines) {
+        RoadConstructionType type = constructionTypeAtPlan(planPoint, edges, edgeResults, centerlines);
+        return type != null && type.isTunnelFamily();
+    }
+
+    static RoadConstructionType constructionTypeAtPlan(
+            Vec2d planPoint,
+            List<RoadEdge> edges,
+            Map<String, RoadGenerationResult> edgeResults,
+            Function<RoadEdge, List<Vec2d>> centerlines) {
+        if (planPoint == null || edges == null || edgeResults == null || centerlines == null) {
+            return null;
+        }
+        RoadEdge best = null;
+        List<Vec2d> bestLine = null;
+        double bestDist = Double.POSITIVE_INFINITY;
+        double bestStation = 0.0;
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> centerline = centerlines.apply(edge);
+            if (centerline == null || centerline.size() < 2) {
+                continue;
+            }
+            double[] proj = projectStation(planPoint, centerline);
+            if (proj == null || proj[0] >= bestDist) {
+                continue;
+            }
+            bestDist = proj[0];
+            bestStation = proj[1];
+            best = edge;
+            bestLine = centerline;
+        }
+        if (best == null) {
+            return null;
+        }
+        RoadGenerationResult result = edgeResults.get(best.getId());
+        if (result == null || result.constructionTypes == null || result.constructionTypes.isEmpty()) {
+            return RoadConstructionType.ROAD;
+        }
+        int index = segmentIndexAtStation(bestLine, bestStation);
+        return RoadConstructionClassifier.constructionTypeAt(result.constructionTypes, index);
+    }
+
+    private static double[] projectStation(Vec2d point, List<Vec2d> polyline) {
+        double bestDist = Double.POSITIVE_INFINITY;
+        double bestStation = 0.0;
+        double walked = 0.0;
+        for (int i = 0; i < polyline.size() - 1; i++) {
+            Vec2d a = polyline.get(i);
+            Vec2d b = polyline.get(i + 1);
+            if (a == null || b == null) {
+                continue;
+            }
+            Vec2d ab = b.subtract(a);
+            double len = ab.length();
+            if (len < EPSILON) {
+                continue;
+            }
+            double t = Math.clamp(point.subtract(a).dot(ab) / (len * len), 0.0, 1.0);
+            Vec2d proj = a.add(ab.multiply(t));
+            double dist = point.distance(proj);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestStation = walked + t * len;
+            }
+            walked += len;
+        }
+        if (!Double.isFinite(bestDist)) {
+            return null;
+        }
+        return new double[] {bestDist, bestStation};
+    }
+
+    private static int segmentIndexAtStation(List<Vec2d> centerline, double station) {
+        if (centerline == null || centerline.size() < 2) {
+            return 0;
+        }
+        double walked = 0.0;
+        double target = Math.max(0.0, station);
+        for (int i = 0; i < centerline.size() - 1; i++) {
+            Vec2d a = centerline.get(i);
+            Vec2d b = centerline.get(i + 1);
+            if (a == null || b == null) {
+                continue;
+            }
+            double len = a.distance(b);
+            if (walked + len >= target - EPSILON) {
+                return i;
+            }
+            walked += len;
+        }
+        return Math.max(0, centerline.size() - 2);
     }
 
     public static List<TunnelPortalSeed> collectPortalSeeds(

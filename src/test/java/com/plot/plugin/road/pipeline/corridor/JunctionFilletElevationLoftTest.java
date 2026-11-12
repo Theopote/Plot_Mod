@@ -106,6 +106,55 @@ class JunctionFilletElevationLoftTest {
     }
 
     @Test
+    void gentleGradeFilletDoesNotRiseAheadOfOwnedRoad() {
+        // 东西向从路口每 8 格抬 1 格；南北向保持 64。圆角靠近东路缘时不得提前抬到 65。
+        var network = orthogonalNetwork();
+        var ns = edgeToward(network, new Vec2d(0, 40));
+        var ew = edgeToward(network, new Vec2d(40, 0));
+        var nsResult = new RoadGenerationResult(0);
+        var ewResult = new RoadGenerationResult(0);
+        for (int z = 0; z <= 16; z++) {
+            for (int x = -3; x <= 3; x++) {
+                nsResult.recordPlacementOverride(new BlockPos(x, 64, z), "minecraft:air", "minecraft:stone");
+                nsResult.placementLayers.put(new BlockPos(x, 64, z), RoadSolidLayer.ROAD);
+            }
+        }
+        for (int x = 0; x <= 20; x++) {
+            int y = 64 + x / 8;
+            for (int z = -3; z <= 3; z++) {
+                ewResult.recordPlacementOverride(new BlockPos(x, y, z), "minecraft:air", "minecraft:stone");
+                ewResult.placementLayers.put(new BlockPos(x, y, z), RoadSolidLayer.ROAD);
+            }
+        }
+        var center = new Vec2d(12, 12);
+        var start = new Vec2d(4, 12);
+        var end = new Vec2d(12, 4);
+        var fillet = new JunctionGeometryResult.FilletCorner(
+            center, start, end, 8.0, Math.PI / 2,
+            FilletArcSweep.resolveShort(center, start, end));
+        var columns = new RoadTerrainClearanceUtils.BlockColumnResolver() {
+            public int worldX(Vec2d p) { return (int) Math.floor(p.x); }
+            public int worldZ(Vec2d p) { return (int) Math.floor(p.y); }
+        };
+        var loft = JunctionFilletElevationLoft.build(
+            List.of(fillet),
+            Map.of(ns.getId(), nsResult, ew.getId(), ewResult),
+            List.copyOf(network.getEdges().values()),
+            network,
+            columns,
+            64);
+        Vec2d midEastCurb = new Vec2d(8.2, 4.4);
+        assertTrue(loft.isFilletGore(midEastCurb), "sample must sit in gore");
+        int y = loft.surfaceY(midEastCurb);
+        int roadYAtSample = 64 + 8 / 8; // x=8 刚到下一台阶，道路仍按 floor 站距停在 64 直到走完
+        assertTrue(y <= 64,
+            "gentle rising curb must not step to 65 before the owned road; y=" + y
+                + " roadStep=" + roadYAtSample);
+        assertEquals(64, loft.surfaceY(new Vec2d(0.4, 0.4)),
+            "plaza core must stay at junctionY on a gentle one-sided grade");
+    }
+
+    @Test
     void angularBlendSweepsFromStartCurbToEndCurb() {
         Vec2d sharp = new Vec2d(2, 2);
         Vec2d dirA = new Vec2d(0, 1); // north curb

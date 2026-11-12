@@ -58,10 +58,6 @@ public final class JunctionSeamReconciliationPass {
                 continue;
             }
             JunctionWorldFootprint.ElevationRole role = field.role(column);
-            // 核内遗留边路不在此强行钉高；接缝/圆角列才校正。
-            if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
-                continue;
-            }
             reconcileColumn(
                 aggregate, column, targetY, elevatedDeckY, protectedBlocks, role);
         }
@@ -103,6 +99,14 @@ public final class JunctionSeamReconciliationPass {
                     && isStackedLeftoverLayer(layer)) {
                 plazaFamilyBelow.add(pos);
             }
+        }
+
+        // 核区/圆角/接缝：高出设计路面的进口残留必须剥掉，否则缓坡一侧和广场内会出现零星突起。
+        stripPavementAboveTarget(
+            aggregate, column, targetY, elevatedDeckY, protectedBlocks);
+
+        if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
+            return;
         }
 
         boolean hasTargetRoad = false;
@@ -165,6 +169,41 @@ public final class JunctionSeamReconciliationPass {
         }
     }
 
+    private static void stripPavementAboveTarget(
+            RoadGenerationResult aggregate,
+            ColumnKey column,
+            int targetY,
+            Integer elevatedDeckY,
+            Set<BlockPos> protectedBlocks) {
+        List<BlockPos> extra = new ArrayList<>();
+        for (Map.Entry<BlockPos, BlockRecord> entry : aggregate.placementRecords.entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockRecord record = entry.getValue();
+            if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            if (pos.getX() != column.worldX() || pos.getZ() != column.worldZ()) {
+                continue;
+            }
+            if (pos.getY() <= targetY || pos.getY() > targetY + UNDER_PAVEMENT_STRIP_DEPTH) {
+                continue;
+            }
+            if (elevatedDeckY != null && pos.getY() >= elevatedDeckY - 1) {
+                continue;
+            }
+            if (protectedBlocks.contains(pos)) {
+                continue;
+            }
+            RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+            if (isStackedPavementLayer(layer)) {
+                extra.add(pos);
+            }
+        }
+        for (BlockPos pos : extra) {
+            clearLeftover(aggregate, pos);
+        }
+    }
+
     /** 可叠在圆角路面下的进口残留层：硬质路面族 + 隧道衬砌/装饰环（非空气）。 */
     static boolean isStackedLeftoverLayer(RoadSolidLayer layer) {
         if (layer == null) {
@@ -179,6 +218,14 @@ public final class JunctionSeamReconciliationPass {
             || layer == RoadSolidLayer.TUNNEL
             || layer == RoadSolidLayer.GUARDRAIL
             || layer == RoadSolidLayer.STREETLIGHT;
+    }
+
+    /** 高出设计路面的突起：只剥硬质路面族，不动合法洞顶衬砌。 */
+    static boolean isStackedPavementLayer(RoadSolidLayer layer) {
+        if (layer == null || layer == RoadSolidLayer.TUNNEL) {
+            return false;
+        }
+        return isStackedLeftoverLayer(layer);
     }
 
     private static void clearLeftover(RoadGenerationResult aggregate, BlockPos pos) {

@@ -7,6 +7,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -98,6 +99,91 @@ class TunnelJunctionFilletClearanceGuardTest {
             approach,
             1.0),
             "short ROAD stub before TUNNEL within expanded window must still count as tunnel approach");
+    }
+
+    @Test
+    void openRoadStubAtJunctionDaylightsFilletEvenIfTunnelContinues() {
+        RoadSystemConfig config = new RoadSystemConfig("open-then-tunnel-fillet");
+        config.setDefaultCornerRadius(6.0f);
+        config.setSelectedMaterial("minecraft:stone");
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("cross");
+        TunnelStyle style = new TunnelStyle();
+        style.setClearHeight(5);
+        style.setLiningThickness(1);
+        road.setTunnelStyle(style);
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        network.createEdge(
+            junction.getId(),
+            network.createNode(new Vec2d(0, 40)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 8), new Vec2d(0, 40)),
+            road.getId());
+        network.createEdge(
+            junction.getId(),
+            network.createNode(new Vec2d(0, -40)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, -8), new Vec2d(0, -40)),
+            road.getId());
+        network.createEdge(
+            junction.getId(),
+            network.createNode(new Vec2d(40, 0)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(8, 0), new Vec2d(40, 0)),
+            road.getId());
+        network.createEdge(
+            junction.getId(),
+            network.createNode(new Vec2d(-40, 0)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(-8, 0), new Vec2d(-40, 0)),
+            road.getId());
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            result.constructionTypes.add(RoadConstructionType.ROAD);
+            result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            edgeResults.put(edge.getId(), result);
+        }
+
+        int roadY = 64;
+        int surfaceY = 70;
+        RoadGenerator generator = new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
+        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+            .generateJunction(
+                junction, network, surfaceAt(surfaceY), Map.of(junction.getId(), roadY), edgeResults);
+
+        boolean clearedSurface = blocks.getSolids().primitives().stream().anyMatch(p ->
+            p != null
+                && "minecraft:air".equals(p.materialId())
+                && p.elevation() == surfaceY);
+        assertTrue(clearedSurface,
+            "open construction at the junction must daylight fillet/plaza like the road, "
+                + "even when the same edge becomes tunnel further away");
+    }
+
+    @Test
+    void isTunnelFamilyAtPlanFollowsNearestApproachSegment() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode east = network.createNode(new Vec2d(40, 0));
+        RoadEdge edge = network.createEdge(
+            junction.getId(),
+            east.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(8, 0), new Vec2d(40, 0)),
+            road.getId());
+        RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+        result.constructionTypes.add(RoadConstructionType.ROAD);
+        result.constructionTypes.add(RoadConstructionType.TUNNEL);
+        var centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+
+        assertFalse(
+            TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                new Vec2d(2, 1), List.of(edge), Map.of(edge.getId(), result), centerlines),
+            "station on the open stub must match the road: not tunnel");
+        assertTrue(
+            TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                new Vec2d(20, 1), List.of(edge), Map.of(edge.getId(), result), centerlines),
+            "station on the tunnel run must stay tunnel");
     }
 
     @Test

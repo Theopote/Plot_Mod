@@ -144,6 +144,7 @@ public final class TunnelJunctionShellPass {
             List<RoadEdge> connected = connectedEdges(network, node);
             RoadTerrainClearanceUtils.BlockColumnResolver columns =
                 columnResolver(coordinateTransformer);
+            var centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
             JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
                 geometry.fillets(), edgeResults, connected, network, columns, junctionY);
             JunctionElevationField elevationField = JunctionElevationField.build(
@@ -158,6 +159,11 @@ public final class TunnelJunctionShellPass {
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
                 int roadY = roadYAt.applyAsInt(column);
                 roadYByColumn.put(column, roadY);
+                // 开敞进口列与道路一致：不封顶。隧道进口列才按覆土封闭。
+                if (!TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                        plan, connected, edgeResults, centerlines)) {
+                    continue;
+                }
                 if (columnHasEnclosedCover(
                         terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
                     enclosedColumns.add(column);
@@ -185,6 +191,10 @@ public final class TunnelJunctionShellPass {
                 // 避免浅覆广场被走廊 open-volume 误开挖或封顶。
                 int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                if (!TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                        plan, connected, edgeResults, centerlines)) {
+                    continue;
+                }
                 if (!columnHasEnclosedCover(
                         terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
                     continue;

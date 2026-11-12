@@ -120,21 +120,25 @@ public final class JunctionElevationField {
                 soft.add(entry.getKey());
             }
         }
+        Set<ColumnKey> filletOnly = new java.util.LinkedHashSet<>();
+        Set<ColumnKey> seamOnly = new java.util.LinkedHashSet<>();
+        for (ColumnKey key : soft) {
+            JunctionWorldFootprint.ElevationRole role = roles.get(key);
+            if (role == JunctionWorldFootprint.ElevationRole.FILLET) {
+                filletOnly.add(key);
+            } else if (role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
+                seamOnly.add(key);
+            }
+        }
         for (int pass = 0; pass < 24; pass++) {
             if (enforceAdjacentStepLimit(targets, soft, approachAnchors) == 0) {
                 break;
             }
         }
-        // 有坡交界：未钉住的软列先贴齐邻接进口锚点，再内部消棋盘。
+        // 接缝列贴齐进口坡道；圆角列跟路缘放样，禁止被高进口锚点往上拽出突起。
         for (int pass = 0; pass < 12; pass++) {
-            if (alignSoftColumnsToApproachSeam(targets, soft, approachAnchors) == 0) {
+            if (alignSoftColumnsToApproachSeam(targets, seamOnly, approachAnchors) == 0) {
                 break;
-            }
-        }
-        Set<ColumnKey> filletOnly = new java.util.LinkedHashSet<>();
-        for (ColumnKey key : soft) {
-            if (roles.get(key) == JunctionWorldFootprint.ElevationRole.FILLET) {
-                filletOnly.add(key);
             }
         }
         for (int pass = 0; pass < 8; pass++) {
@@ -155,7 +159,7 @@ public final class JunctionElevationField {
             }
         }
         for (int pass = 0; pass < 12; pass++) {
-            if (alignSoftColumnsToApproachSeam(targets, soft, approachAnchors) == 0) {
+            if (alignSoftColumnsToApproachSeam(targets, seamOnly, approachAnchors) == 0) {
                 break;
             }
         }
@@ -443,8 +447,7 @@ public final class JunctionElevationField {
     }
 
     /**
-     * 拆掉圆角 2×2 棋盘（对角同高、邻格差 1）：取整放样在 0.5 等高线会抖成起起伏伏。
-     * 四格收到同一标高，相邻 2×2 仍可按坡差一格，看起来是整阶而不是麻点。
+     * 拆掉圆角 2×2 棋盘（对角同高、邻格差 1）。收到较低一档，避免缓坡被抬高一格高出路面。
      */
     static int flattenFilletCheckerboard(
             Map<ColumnKey, Integer> targets, Set<ColumnKey> filletColumns) {
@@ -475,7 +478,8 @@ public final class JunctionElevationField {
             if (!checker) {
                 continue;
             }
-            int flat = (int) Math.round((a + b + c + d) / 4.0);
+            // 取较低一档：round(mean) 在 0.5 会把缓坡抬高一格，圆角高出路面。
+            int flat = Math.min(a, b);
             if (a != flat) {
                 adjusted.put(key, flat);
             }
