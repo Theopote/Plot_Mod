@@ -614,15 +614,18 @@ public final class JunctionFilletElevationLoft {
         // 路缘两端都取所属进口真实标高（纵断面优先），不再把锐角点钉死在 junctionY。
         // 从路口缓坡抬升时，锐角点已经离开节点半宽，强制 junctionY 会让轨的坡比道路更陡，
         // 圆角一侧提前抬升并高出路面。direction 定义放样轨方向，标高只取两端。
-        // gore 内遗留边路由接缝剥离，不得污染路缘采样，否则补铺会被钉成进口残留标高。
+        // 锐点常落在 gore 内：禁止用同列进口残留作起点（接缝稍后剥离），否则补铺被钉成残留 Y。
+        // 切点在路缘真实站：允许 gore 边界精确命中。邻域一律要求贴齐路缘射线，避免偏列污染（Y=90）。
         int startY = lookupElevation(
-            origin, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY, filletGore);
+            origin, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY, filletGore,
+            origin, tangentPoint, false);
         int endY = startY;
         double length = 0.0;
         if (tangentPoint != null) {
             length = origin.distance(tangentPoint);
             endY = lookupElevation(
-                tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY, filletGore);
+                tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY, filletGore,
+                origin, tangentPoint, true);
             if (length <= EPSILON) {
                 startY = endY;
                 length = 0.0;
@@ -705,7 +708,10 @@ public final class JunctionFilletElevationLoft {
             Function<RoadEdge, List<Vec2d>> centerlines,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
             int junctionY,
-            List<Vec2d> filletGore) {
+            List<Vec2d> filletGore,
+            Vec2d curbOrigin,
+            Vec2d curbTangent,
+            boolean allowGoreExact) {
         // 优先连续纵断面：离散路面列含 Minecraft 台阶噪声，直接 loft 会让圆角看起来粗糙。
         Integer fromProfile = elevationFromOwnedProfile(
             planPoint, ownerEdge, edgeResults, centerlines);
@@ -717,10 +723,9 @@ public final class JunctionFilletElevationLoft {
         Vec2d sample = snapNearIntegerPlan(planPoint);
         int wx = columns.worldX(sample);
         int wz = columns.worldZ(sample);
-        // 锐点/切点落在 gore 边界上：同列精确命中仍是所属路缘真实标高，必须保留。
-        // 仅邻域扩展时剥离 gore 内接缝残留，避免搜到偏离路缘的污染列。
         Integer exact = scopedRoadY.get(new ColumnKey(wx, wz));
-        if (exact != null) {
+        boolean exactInGore = columnInsideFilletGore(wx, wz, filletGore, columns);
+        if (exact != null && (!exactInGore || allowGoreExact)) {
             return exact;
         }
         Integer near = null;
@@ -736,6 +741,9 @@ public final class JunctionFilletElevationLoft {
                 if (y == null || columnInsideFilletGore(nx, nz, filletGore, columns)) {
                     continue;
                 }
+                if (!columnNearCurbRay(nx, nz, curbOrigin, curbTangent, columns)) {
+                    continue;
+                }
                 int dist = Math.abs(dx) + Math.abs(dz);
                 if (dist < bestDist) {
                     bestDist = dist;
@@ -747,6 +755,29 @@ public final class JunctionFilletElevationLoft {
             return near;
         }
         return junctionY;
+    }
+
+    /** 邻域命中须贴近路缘段，排除 gore 外偏列污染。 */
+    private static boolean columnNearCurbRay(
+            int worldX,
+            int worldZ,
+            Vec2d curbOrigin,
+            Vec2d curbTangent,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns) {
+        if (curbOrigin == null || curbTangent == null || columns == null) {
+            return true;
+        }
+        Vec2d a = snapNearIntegerPlan(curbOrigin);
+        Vec2d b = snapNearIntegerPlan(curbTangent);
+        Vec2d ab = b.subtract(a);
+        double lenSq = ab.lengthSquared();
+        if (lenSq < EPSILON) {
+            return true;
+        }
+        Vec2d p = new Vec2d(worldX + 0.5, worldZ + 0.5);
+        double t = Math.clamp(p.subtract(a).dot(ab) / lenSq, 0.0, 1.0);
+        double lateral = p.distance(a.add(ab.multiply(t)));
+        return lateral <= 1.25;
     }
 
     /** 将距整数 ≤ 1e-9 的平面坐标吸附到整数，避免 floor(1.999…) 落入旁列。 */

@@ -18,6 +18,9 @@ import java.util.Set;
  * Roof top is evaluated <strong>per lateral column</strong> so peaked / circular / elliptical
  * shells are not sealed as a flat rectangle at {@link TunnelCrossSectionMask#maxY()}.
  * Stable engineering solids (dirt, stone, …) are left in place — only gravity blocks are rewritten.
+ * <p>
+ * 小孔洞（≤ {@link TunnelOverburdenPolicy#SMALL_AIR_POCKET_MAX_BLOCKS}）按正常地层封填；
+ * 更大空腔视为洞穴，停止向上填充，避免整穴砌死。
  */
 public final class TunnelRoofGapSealer {
     private static final String DEFAULT_TERRAIN_RESTORE = "minecraft:stone";
@@ -146,8 +149,9 @@ public final class TunnelRoofGapSealer {
         }
         int gravityStabilized = 0;
         boolean reachedOverburden = false;
-        for (int y = roofTop + 1; y <= columnTop; y++) {
+        for (int y = roofTop + 1; y <= columnTop; ) {
             if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                y++;
                 continue;
             }
             if (terrain.isGravityAffectedBlock(worldX, y, worldZ)) {
@@ -162,6 +166,7 @@ public final class TunnelRoofGapSealer {
                 if (gravityStabilized >= STABILIZE_GRAVITY_LAYERS) {
                     break;
                 }
+                y++;
                 continue;
             }
             if (terrain.isSolidBlock(worldX, y, worldZ)) {
@@ -169,18 +174,46 @@ public final class TunnelRoofGapSealer {
                 break;
             }
             if (reachedOverburden) {
-                // Air after overburden — do not fill caves above the roof stack.
-                break;
-            }
-            if (shellMaterialId == null || shellMaterialId.isBlank()) {
-                // Gravity-only column stabilize: leave air gaps; only rewrite falling blocks.
+                // 已接到覆土后再遇空洞：大洞穴不填；小孔仍可补实后继续稳定化。
+                int voidRun = TunnelOverburdenPolicy.measureSealableVoidRun(
+                    terrain, worldX, y, worldZ, columnTop);
+                if (!TunnelOverburdenPolicy.isSmallSealableVoidRun(voidRun)) {
+                    break;
+                }
+                fillVoidRun(solids, point, y, voidRun, restoreId);
+                y += voidRun;
                 continue;
             }
+            int voidRun = TunnelOverburdenPolicy.measureSealableVoidRun(
+                terrain, worldX, y, worldZ, columnTop);
+            if (!TunnelOverburdenPolicy.isSmallSealableVoidRun(voidRun)) {
+                // 洞顶上方大空腔：不整穴用衬砌填死。
+                break;
+            }
+            // 小孔洞（含积水/岩浆格）当不存在：补实后按正常开挖继续。
+            String fillId = shellMaterialId != null && !shellMaterialId.isBlank()
+                ? shellMaterialId
+                : restoreId;
+            fillVoidRun(solids, point, y, voidRun, fillId);
+            y += voidRun;
+        }
+    }
+
+    private static void fillVoidRun(
+            RoadSolidModel solids,
+            Vec2d point,
+            int fromY,
+            int voidRun,
+            String fillId) {
+        if (solids == null || point == null || fillId == null || fillId.isBlank() || voidRun <= 0) {
+            return;
+        }
+        for (int i = 0; i < voidRun; i++) {
             solids.add(
                 point,
-                y,
+                fromY + i,
                 RoadSolidLayer.TUNNEL,
-                shellMaterialId,
+                fillId,
                 RoadSolidMaterialPriority.STRUCTURAL);
         }
     }

@@ -117,19 +117,20 @@ class TunnelFeasibilityCheckerTest {
     }
 
     @Test
-    void floatingRockAboveVoidDoesNotCountAsCover() {
+    void floatingRockAboveLargeVoidDoesNotCountAsCover() {
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
         int roofY = 64 + style.roofTopOffset();
-        // Gap immediately above the roof, then solid rock higher up.
+        int gap = TunnelOverburdenPolicy.SMALL_AIR_POCKET_MAX_BLOCKS + 1;
+        // 大于小孔阈值的空腔：上方浮石不得算盖层。
         TerrainSampler floatingLedge = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d point) {
-                return roofY + 8;
+                return roofY + gap + 4;
             }
 
             @Override
             public int sampleColumnTopY(Vec2d point) {
-                return roofY + 8;
+                return roofY + gap + 4;
             }
 
             @Override
@@ -137,7 +138,7 @@ class TunnelFeasibilityCheckerTest {
                 if (y <= 64) {
                     return true; // road / ground
                 }
-                return y >= roofY + 4 && y <= roofY + 8;
+                return y >= roofY + gap + 1 && y <= roofY + gap + 4;
             }
         };
         assertEquals(0, TunnelFeasibilityChecker.measureContinuousCoverAbove(
@@ -153,6 +154,48 @@ class TunnelFeasibilityCheckerTest {
             1.0);
         assertFalse(feasibility.valid());
         assertEquals(0, feasibility.minimumCover());
+    }
+
+    @Test
+    void smallAirPocketAboveRoofDoesNotBreakCover() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int roofY = 64 + style.roofTopOffset();
+        // 洞顶上 2 格小孔再接厚覆土：应视为可封填噪点，隧道仍成立。
+        TerrainSampler noisyCover = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return roofY + 8;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return roofY + 8;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                if (y <= 64) {
+                    return true;
+                }
+                if (y == roofY + 1 || y == roofY + 2) {
+                    return false;
+                }
+                return y <= roofY + 8;
+            }
+        };
+        int cover = TunnelFeasibilityChecker.measureContinuousCoverAbove(noisyCover, 0, 0, roofY);
+        assertTrue(cover >= TunnelFeasibility.MINIMUM_COVER_BLOCKS,
+            "small pocket must be skipped so overburden above still counts; cover=" + cover);
+        TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(
+            noisyCover,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            64,
+            5,
+            style,
+            columnResolver(),
+            1.0);
+        assertTrue(feasibility.valid(), "noisy small voids must not invalidate enclosed tunnel");
     }
 
     private static TerrainSampler solidUpTo(int maxSolidY) {

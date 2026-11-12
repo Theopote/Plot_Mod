@@ -73,16 +73,25 @@ public final class TunnelFeasibilityChecker {
 
     /**
      * Counts solid blocks stacked immediately above {@code roofY}.
-     * The first air cell ends continuous cover (even when cover is still zero),
-     * so a floating rock ledge above a void does not count as tunnel overburden.
+     * 小孔洞（≤ {@link TunnelOverburdenPolicy#SMALL_AIR_POCKET_MAX_BLOCKS}）可跨越，
+     * 视为封填后的连续覆土；更大空腔仍终止计数，避免把大洞穴上方浮石当盖层。
      */
     public static int measureContinuousCoverAbove(TerrainSampler terrain, int worldX, int worldZ, int roofY) {
         int cover = 0;
-        for (int y = roofY + 1; y <= roofY + 12; y++) {
-            if (!terrain.isSolidBlock(worldX, y, worldZ)) {
+        int maxY = roofY + 12;
+        for (int y = roofY + 1; y <= maxY; ) {
+            if (terrain.isSolidBlock(worldX, y, worldZ)) {
+                cover++;
+                y++;
+                continue;
+            }
+            int voidRun = TunnelOverburdenPolicy.measureSealableVoidRun(
+                terrain, worldX, y, worldZ, maxY);
+            if (!TunnelOverburdenPolicy.isSmallSealableVoidRun(voidRun)) {
                 break;
             }
-            cover++;
+            // 小气隙不计入盖层厚度，但允许继续向上累计实心覆土。
+            y += voidRun;
         }
         return cover;
     }
