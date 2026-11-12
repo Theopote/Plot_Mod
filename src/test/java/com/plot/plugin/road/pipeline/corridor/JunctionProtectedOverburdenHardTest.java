@@ -176,6 +176,58 @@ class JunctionProtectedOverburdenHardTest {
     }
 
     @Test
+    void tunnelFilletClearanceEdgeNeverGetsOpenDaylightCap() {
+        RoadSystemConfig config = new RoadSystemConfig("fillet-edge-no-daylight");
+        config.setDefaultCornerRadius(6.0f);
+        config.setSelectedMaterial("minecraft:stone");
+
+        RoadNetwork network = crossNetwork(true);
+        RoadNode junction = hub(network);
+        Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
+
+        int roadY = 64;
+        int surfaceY = 90;
+        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+            config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
+        JunctionConstructionContext ctx = blocks.constructionContext();
+        JunctionWorldFootprint footprint = ctx.footprint();
+
+        int clearanceOnly = 0;
+        int abutFillet = 0;
+        for (ColumnKey col : footprint.clearance()) {
+            JunctionConstructionContext.ColumnRule rule = ctx.rule(col);
+            if (rule == null) {
+                continue;
+            }
+            if (footprint.elevationRole(col) == JunctionWorldFootprint.ElevationRole.CLEARANCE_ONLY) {
+                clearanceOnly++;
+                assertTrue(
+                    rule.role() != JunctionConstructionContext.ColumnRole.OPEN
+                        || rule.maxAuthorizedClearY() != null,
+                    "CLEARANCE_ONLY fillet-edge must not daylight; col=" + col + " role=" + rule.role());
+                assertNotNull(rule.maxAuthorizedClearY(),
+                    "CLEARANCE_ONLY edge needs roof cap; col=" + col);
+                assertTrue(rule.maxAuthorizedClearY() < surfaceY);
+            }
+            if (JunctionConstructionContext.isAdjacentToFillet(col, footprint.filletAdditions())) {
+                abutFillet++;
+                assertNotNull(rule.maxAuthorizedClearY(),
+                    "fillet-adjacent edge needs roof cap; col=" + col);
+            }
+        }
+        assertTrue(clearanceOnly > 0 || abutFillet > 0,
+            "precondition: junction has clearance-edge or fillet-adjacent columns");
+
+        for (RoadSolidPrimitive p : blocks.getSolids().primitives()) {
+            if (p == null || !"minecraft:air".equals(p.materialId())) {
+                continue;
+            }
+            assertTrue(p.elevation() < surfaceY,
+                "fillet-edge solids must not daylight surface; airY=" + p.elevation());
+        }
+    }
+
+    @Test
     void tunnelFilletColumnsNeverGetOpenDaylightCap() {
         RoadSystemConfig config = new RoadSystemConfig("fillet-no-daylight");
         config.setDefaultCornerRadius(6.0f);

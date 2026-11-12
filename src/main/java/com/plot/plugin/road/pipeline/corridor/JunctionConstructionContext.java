@@ -326,8 +326,12 @@ public final class JunctionConstructionContext {
         List<RoadEdge> connected = edges != null ? edges : List.of();
         Collection<RoadGenerationResult> carriers = approachCarriers(approaches, edgeResults);
 
+        // 候选列 = 铺装外扩 ∪ 清障足迹：圆角外缘草地楔形多为 CLEARANCE_ONLY，
+        // 若不纳入规则表，侧向外扩后又会落入 OPEN 露天挖穿。
         Set<ColumnKey> candidates = TunnelJunctionShellPass.expandPaveBySideClearancePublic(
             safeFootprint.paveColumns(), side);
+        candidates = new LinkedHashSet<>(candidates);
+        candidates.addAll(safeFootprint.clearance());
         // 必须传入路口填筑多边形：空多边形会使 open-volume 在第二采样点立即退出，
         // 洞腔掩膜几乎为空，圆角列被误标 OPEN 并露天挖穿山体。
         List<Vec2d> polygon = junctionPolygon != null && junctionPolygon.size() >= 3
@@ -343,9 +347,13 @@ public final class JunctionConstructionContext {
                     ColumnKey key = new ColumnKey(columns.worldX(plan), columns.worldZ(plan));
                     return field.surfaceY(key);
                 }));
+        Set<ColumnKey> filletColumns = safeFootprint.filletAdditions();
+        // 进口首段即为隧道族：真地下广场。开敞 stub（首段 ROAD、远端才隧道）为 false，
+        // 允许清障外缘露天，避免「远处有洞」毒化开敞街角。
+        boolean tunnelEntryPlaza = approachesHaveTunnelFamilyAtEntry(approaches, edgeResults);
 
         // 共享洞腔：进口 open-volume 扫掠到的封闭列一律保护（不要求最近中心线为隧道族）。
-        // 圆角/接缝列在有隧道进口时禁止 OPEN 露天——它们常更靠近开敞中心线但仍处地下几何内。
+        // 圆角铺装/接缝始终保护；清障外缘仅在真隧道进口广场保护。
         for (ColumnKey column : candidates) {
             if (column == null) {
                 continue;
@@ -359,8 +367,8 @@ public final class JunctionConstructionContext {
             boolean tunnelFamily = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
                 plan, connected, edgeResults != null ? edgeResults : Map.of(), centerlines);
             JunctionWorldFootprint.ElevationRole elevRole = safeFootprint.elevationRole(column);
-            boolean filletLike = elevRole == JunctionWorldFootprint.ElevationRole.FILLET
-                || elevRole == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION;
+            boolean filletZone = isFilletProtectionZone(
+                elevRole, column, filletColumns, tunnelEntryPlaza);
 
             Integer roofY = designY + resolvedClear;
             if (flatTunnelCavityCap != null) {
@@ -370,17 +378,18 @@ public final class JunctionConstructionContext {
             ColumnRole role;
             Integer maxClear;
             boolean destructive;
-            if (enclosed && (inApproachCavity || tunnelFamily || filletLike)) {
+            boolean spatialProtect = inApproachCavity || tunnelFamily || filletZone;
+            if (enclosed && spatialProtect) {
                 role = ColumnRole.ENCLOSED_TUNNEL;
                 maxClear = roofY;
                 destructive = true;
                 protectedColumns.add(column);
-            } else if (tunnelFamily || inApproachCavity || filletLike) {
-                // 浅覆 / 洞口 / 隧道路口圆角：不得露天打穿；清障止于洞顶 cap。
+            } else if (spatialProtect) {
+                // 浅覆 / 洞口 / 隧道路口圆角外缘：不得露天打穿；清障止于洞顶 cap。
                 role = ColumnRole.PORTAL_TRANSITION;
                 maxClear = roofY;
                 destructive = true;
-                if (filletLike) {
+                if (filletZone) {
                     protectedColumns.add(column);
                 }
             } else {
@@ -502,6 +511,67 @@ public final class JunctionConstructionContext {
             return null;
         }
         return new Vec2d(column.worldX() + 0.5, column.worldZ() + 0.5);
+    }
+
+    /**
+     * 圆角保护带：圆角铺装与接缝始终纳入。
+     * 清障楔形 / 邻接外缘仅在「进口首段为隧道族」的地下广场纳入——
+     * 否则开敞 stub 街角无法露天清到地表。
+     */
+    static boolean isFilletProtectionZone(
+            JunctionWorldFootprint.ElevationRole elevRole,
+            ColumnKey column,
+            Set<ColumnKey> filletColumns,
+            boolean tunnelEntryPlaza) {
+        if (elevRole == JunctionWorldFootprint.ElevationRole.FILLET
+                || elevRole == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
+            return true;
+        }
+        if (!tunnelEntryPlaza) {
+            return false;
+        }
+        if (elevRole == JunctionWorldFootprint.ElevationRole.CLEARANCE_ONLY) {
+            return true;
+        }
+        return isAdjacentToFillet(column, filletColumns);
+    }
+
+    static boolean approachesHaveTunnelFamilyAtEntry(
+            List<TunnelJunctionSeedResolver.TunnelApproach> approaches,
+            Map<String, RoadGenerationResult> edgeResults) {
+        if (approaches == null || approaches.isEmpty() || edgeResults == null) {
+            return false;
+        }
+        for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
+            if (approach == null || approach.edge() == null) {
+                continue;
+            }
+            RoadGenerationResult result = edgeResults.get(approach.edge().getId());
+            if (result == null || result.constructionTypes == null || result.constructionTypes.isEmpty()) {
+                continue;
+            }
+            com.plot.plugin.road.RoadConstructionType type =
+                com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier.constructionTypeAt(
+                    result.constructionTypes, 0);
+            if (type != null && type.isTunnelFamily()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean isAdjacentToFillet(ColumnKey column, Set<ColumnKey> filletColumns) {
+        if (column == null || filletColumns == null || filletColumns.isEmpty()) {
+            return false;
+        }
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+        for (int[] dir : dirs) {
+            if (filletColumns.contains(
+                    new ColumnKey(column.worldX() + dir[0], column.worldZ() + dir[1]))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -15,7 +15,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
-import orgjunit.jupiter.api.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
