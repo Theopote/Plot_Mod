@@ -277,6 +277,19 @@ public final class EngineeringTerrainService {
         return isWireObstruction(worldX, y, worldZ);
     }
 
+    /** 水/岩浆等流体：隧道洞腔与道路净空必须清成空气。 */
+    public boolean isFluidBlock(int worldX, int y, int worldZ) {
+        if (world == null || !isChunkLoaded(worldX, worldZ)) {
+            return false;
+        }
+        try {
+            BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
+            return state != null && !state.getFluidState().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public boolean isClearableNaturalDecoration(int worldX, int y, int worldZ) {
         if (world == null || !isChunkLoaded(worldX, worldZ)) {
             return false;

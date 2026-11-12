@@ -99,6 +99,11 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public boolean isFluidBlock(int worldX, int y, int worldZ) {
+        return terrainService.isFluidBlock(worldX, y, worldZ);
+    }
+
+    @Override
     public boolean isChunkLoaded(int worldX, int worldZ) {
         return terrainService.isChunkLoaded(worldX, worldZ);
     }

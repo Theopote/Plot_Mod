@@ -712,10 +712,13 @@ public final class JunctionFilletElevationLoft {
         if (fromProfile != null) {
             return fromProfile;
         }
-        int wx = columns.worldX(planPoint);
-        int wz = columns.worldZ(planPoint);
+        // 锐点由圆心/三角函数重建时常为 1.999…；floor 会落到旁列，再被 gore 剥离后
+        // 邻域误命中偏离路缘的污染标高（集成测试中的 Y=90）。近整数先吸附再投影。
+        Vec2d sample = snapNearIntegerPlan(planPoint);
+        int wx = columns.worldX(sample);
+        int wz = columns.worldZ(sample);
         // 锐点/切点落在 gore 边界上：同列精确命中仍是所属路缘真实标高，必须保留。
-        // 仅邻域扩展时剥离 gore 内接缝残留，避免搜到偏离路缘的污染列（如测试中的 Y=90）。
+        // 仅邻域扩展时剥离 gore 内接缝残留，避免搜到偏离路缘的污染列。
         Integer exact = scopedRoadY.get(new ColumnKey(wx, wz));
         if (exact != null) {
             return exact;
@@ -744,6 +747,23 @@ public final class JunctionFilletElevationLoft {
             return near;
         }
         return junctionY;
+    }
+
+    /** 将距整数 ≤ 1e-9 的平面坐标吸附到整数，避免 floor(1.999…) 落入旁列。 */
+    static Vec2d snapNearIntegerPlan(Vec2d planPoint) {
+        if (planPoint == null) {
+            return null;
+        }
+        double x = planPoint.x;
+        double y = planPoint.y;
+        long rx = Math.round(x);
+        long ry = Math.round(y);
+        boolean snapX = Math.abs(x - rx) <= 1e-9;
+        boolean snapY = Math.abs(y - ry) <= 1e-9;
+        if (!snapX && !snapY) {
+            return planPoint;
+        }
+        return new Vec2d(snapX ? rx : x, snapY ? ry : y);
     }
 
     private static boolean columnInsideFilletGore(

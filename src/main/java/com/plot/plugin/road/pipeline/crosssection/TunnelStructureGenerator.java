@@ -798,7 +798,8 @@ public final class TunnelStructureGenerator {
     private static boolean hasTerrainObstruction(TerrainSampler terrain, int worldX, int y, int worldZ) {
         return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
             || terrain.isSolidBlock(worldX, y, worldZ)
-            || terrain.isRoadClearableDecoration(worldX, y, worldZ);
+            || terrain.isRoadClearableDecoration(worldX, y, worldZ)
+            || terrain.isFluidBlock(worldX, y, worldZ);
     }
 
     /**

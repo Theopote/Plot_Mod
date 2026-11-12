@@ -84,6 +84,14 @@ public interface TerrainSampler {
     }
 
     /**
+     * 水、岩浆等流体。隧道洞腔/道路净空清障必须写成空气，否则会残留积水或岩浆。
+     * 默认 false；世界采样器按方块流体状态判定。
+     */
+    default boolean isFluidBlock(int worldX, int y, int worldZ) {
+        return false;
+    }
+
+    /**
      * 该世界列所在区块是否已加载。未加载时不得把默认地面 64 当成真实地形做挖填。
      * 无世界上下文的实现默认视为已加载。
      */

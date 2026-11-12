@@ -200,6 +200,7 @@ public final class TunnelFinalVoxelValidator {
     private static boolean isObstruction(TerrainSampler terrain, int x, int y, int z) {
         return terrain.isConstructionVolumeObstruction(x, y, z)
             || terrain.isSolidBlock(x, y, z)
-            || terrain.isRoadClearableDecoration(x, y, z);
+            || terrain.isRoadClearableDecoration(x, y, z)
+            || terrain.isFluidBlock(x, y, z);
     }
 }

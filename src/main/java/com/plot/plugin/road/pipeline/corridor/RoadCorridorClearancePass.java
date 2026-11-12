@@ -451,7 +451,9 @@ public final class RoadCorridorClearancePass {
     static boolean hasObstruction(TerrainSampler terrain, int worldX, int y, int worldZ) {
         return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
             || terrain.isSolidBlock(worldX, y, worldZ)
-            || terrain.isRoadClearableDecoration(worldX, y, worldZ);
+            || terrain.isRoadClearableDecoration(worldX, y, worldZ)
+            // 流体原先不算障碍，隧道洞腔会残留水/岩浆；净空内必须清成空气。
+            || terrain.isFluidBlock(worldX, y, worldZ);
     }
 
     private static int resolveEnvelopeWidth(ClearanceCell cell, RoadCorridorPlanBuilder.PlanHost host) {

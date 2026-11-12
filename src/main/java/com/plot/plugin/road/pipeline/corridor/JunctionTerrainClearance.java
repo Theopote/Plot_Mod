@@ -265,12 +265,23 @@ public final class JunctionTerrainClearance {
         boolean[] cleared = new boolean[Math.max(0, decoCeil - fromY + 1)];
         for (int y = fromY; y <= decoCeil; y++) {
             boolean decoration = terrain.isRoadClearableDecoration(worldX, y, worldZ);
+            boolean fluid = terrain.isFluidBlock(worldX, y, worldZ);
             boolean solidOrObstruction = terrain.isSolidBlock(worldX, y, worldZ)
                 || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
-            if (!decoration && !solidOrObstruction) {
+            if (!decoration && !solidOrObstruction && !fluid) {
                 continue;
             }
             if (decoration) {
+                writeClearanceAir(solids, planPoint, y);
+                cleared[y - fromY] = true;
+                continue;
+            }
+            if (fluid) {
+                // 开敞净空内的水/岩浆清掉；隧道覆土扫描不得把山上湖水/含水层一并掏空
+                // （洞腔内流体由 punchColumn / 走廊 hasObstruction 负责）。
+                if (protectNaturalOverburden) {
+                    continue;
+                }
                 writeClearanceAir(solids, planPoint, y);
                 cleared[y - fromY] = true;
                 continue;

@@ -127,6 +127,11 @@ public final class PrefetchedGroundTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public boolean isFluidBlock(int worldX, int y, int worldZ) {
+        return fallback.isFluidBlock(worldX, y, worldZ);
+    }
+
+    @Override
     public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
         return fallback.isGravityAffectedBlock(worldX, y, worldZ);
     }
