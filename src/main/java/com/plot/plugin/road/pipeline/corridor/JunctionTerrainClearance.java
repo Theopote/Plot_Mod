@@ -145,11 +145,12 @@ public final class JunctionTerrainClearance {
                 topY = Math.min(topY, surfaceY - 1);
             }
             if (solidPunchTop <= cellY) {
-                // 浅覆：实体开挖关闭，装饰扫描仍可摘树冠（不掏覆土）
-                decoCeil = Math.max(decoCeil, cellY + headroom);
+                // 浅覆：实体开挖关闭；装饰只扫洞腔内（地表以下），禁止摘掉地表草/雪造成穿孔。
+                decoCeil = Math.min(Math.max(decoCeil, cellY + headroom), surfaceY - 1);
             } else {
-                decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY, cellY + 2)));
+                decoCeil = Math.min(decoCeil, Math.max(solidPunchTop, Math.min(surfaceY - 1, cellY + 2)));
             }
+            decoCeil = Math.min(decoCeil, surfaceY - 1);
         }
         // 无洞顶 cap：开敞平交，自然地表夹到 surface-1；高于地表的 leftover/columnTop 仍可写入。
 
@@ -261,9 +262,20 @@ public final class JunctionTerrainClearance {
         if (solids == null || planPoint == null || terrain == null || decoCeil <= solidTopY) {
             return;
         }
+        int surfaceY = terrain.sampleSurfaceY(planPoint);
+        // 隧道覆土保护：装饰扫描也不得写到自然地表及以上（草/雪层打成空气即「零星穿孔」）。
+        int scanCeil = protectNaturalOverburden
+            ? Math.min(decoCeil, surfaceY - 1)
+            : decoCeil;
+        if (scanCeil <= solidTopY) {
+            return;
+        }
         int fromY = Math.max(cellY + 1, solidTopY + 1);
-        boolean[] cleared = new boolean[Math.max(0, decoCeil - fromY + 1)];
-        for (int y = fromY; y <= decoCeil; y++) {
+        boolean[] cleared = new boolean[Math.max(0, scanCeil - fromY + 1)];
+        for (int y = fromY; y <= scanCeil; y++) {
+            if (protectNaturalOverburden && y >= surfaceY) {
+                continue;
+            }
             boolean decoration = terrain.isRoadClearableDecoration(worldX, y, worldZ);
             boolean fluid = terrain.isFluidBlock(worldX, y, worldZ);
             boolean solidOrObstruction = terrain.isSolidBlock(worldX, y, worldZ)

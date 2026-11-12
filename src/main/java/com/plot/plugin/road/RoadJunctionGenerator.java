@@ -1167,7 +1167,17 @@ public class RoadJunctionGenerator {
                 if (!rule.destructiveClearAllowed()) {
                     return JunctionConstructionContext.CLEAR_DENIED;
                 }
-                return rule.maxAuthorizedClearY();
+                Integer cap = rule.maxAuthorizedClearY();
+                // 真隧道进口广场：OPEN/null 邻接列仍强制洞顶 cap，堵住零星穿孔。
+                // 开敞 stub（远处才有隧道）保持 null 露天。
+                if (cap == null && context.tunnelEntryPlaza()) {
+                    return enclosedTunnelColumnClearCap(
+                        terrain, planPoint, column, loftSurfaceY,
+                        tunnelClearHeight != null ? tunnelClearHeight : context.tunnelClearHeight(),
+                        flatTunnelCavityCap, elevatedClearCap,
+                        liningThickness, tunnelThreshold);
+                }
+                return cap;
             }
             if (context.failClosed() && context.undergroundJunction()) {
                 return JunctionConstructionContext.CLEAR_DENIED;

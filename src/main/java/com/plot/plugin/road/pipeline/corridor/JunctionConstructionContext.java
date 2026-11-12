@@ -54,6 +54,7 @@ public final class JunctionConstructionContext {
     private final Map<ColumnKey, ColumnRule> rulesByColumn;
     private final Set<ColumnKey> protectedCavityColumns;
     private final boolean undergroundJunction;
+    private final boolean tunnelEntryPlaza;
     private final boolean failClosed;
     private final String failClosedReason;
     private final Integer tunnelClearHeight;
@@ -67,6 +68,7 @@ public final class JunctionConstructionContext {
             Map<ColumnKey, ColumnRule> rulesByColumn,
             Set<ColumnKey> protectedCavityColumns,
             boolean undergroundJunction,
+            boolean tunnelEntryPlaza,
             boolean failClosed,
             String failClosedReason,
             Integer tunnelClearHeight,
@@ -80,6 +82,7 @@ public final class JunctionConstructionContext {
         this.rulesByColumn = Collections.unmodifiableMap(new LinkedHashMap<>(rulesByColumn));
         this.protectedCavityColumns = Collections.unmodifiableSet(new LinkedHashSet<>(protectedCavityColumns));
         this.undergroundJunction = undergroundJunction;
+        this.tunnelEntryPlaza = tunnelEntryPlaza;
         this.failClosed = failClosed;
         this.failClosedReason = failClosedReason;
         this.tunnelClearHeight = tunnelClearHeight;
@@ -98,6 +101,7 @@ public final class JunctionConstructionContext {
             elevationField,
             Map.of(),
             Set.of(),
+            false,
             false,
             false,
             null,
@@ -120,6 +124,11 @@ public final class JunctionConstructionContext {
 
     public boolean undergroundJunction() {
         return undergroundJunction;
+    }
+
+    /** 进口首段即为隧道族（非开敞 stub 远端才进洞）。 */
+    public boolean tunnelEntryPlaza() {
+        return tunnelEntryPlaza;
     }
 
     public boolean failClosed() {
@@ -283,7 +292,7 @@ public final class JunctionConstructionContext {
             }
             return new JunctionConstructionContext(
                 nodeId, safeFootprint, field, rules, protectedColumns,
-                true, false, null, clearHeight, elevatedClearCap, diagnostics);
+                true, false, false, null, clearHeight, elevatedClearCap, diagnostics);
         }
 
         if (!hasApproaches) {
@@ -302,12 +311,12 @@ public final class JunctionConstructionContext {
                 }
                 return new JunctionConstructionContext(
                     nodeId, safeFootprint, field, rules, protectedColumns,
-                    true, true, failReason, clearHeight, elevatedClearCap, diagnostics);
+                    true, true, true, failReason, clearHeight, elevatedClearCap, diagnostics);
             }
             // 纯开敞平交
             return new JunctionConstructionContext(
                 nodeId, safeFootprint, field, Map.of(), Set.of(),
-                false, false, null, null, elevatedClearCap, diagnostics);
+                false, false, false, null, null, elevatedClearCap, diagnostics);
         }
 
         int resolvedClear = clearHeight != null ? Math.max(1, clearHeight) : 5;
@@ -413,13 +422,65 @@ public final class JunctionConstructionContext {
             underground = true;
         }
 
+        // 保护带外扩一圈：堵住与洞腔/圆角邻接但仍标 OPEN 的零星列，避免棋盘格穿孔。
+        dilateProtectedClearCaps(rules, protectedColumns, resolvedClear, flatTunnelCavityCap, elevatedClearCap);
+
         boolean undergroundFinal = underground;
         LOG.fine(() -> "junction " + nodeId + " protectedColumns=" + protectedColumns.size()
             + " rules=" + rules.size() + " underground=" + undergroundFinal);
 
         return new JunctionConstructionContext(
             nodeId, safeFootprint, field, rules, protectedColumns,
-            undergroundFinal, failClosed, failReason, resolvedClear, elevatedClearCap, diagnostics);
+            undergroundFinal, tunnelEntryPlaza, failClosed, failReason,
+            resolvedClear, elevatedClearCap, diagnostics);
+    }
+
+    /**
+     * 将仍为 OPEN/null 的邻接列升级为 PORTAL 洞顶 cap，消除保护边界上的零星露天穿孔。
+     */
+    static void dilateProtectedClearCaps(
+            Map<ColumnKey, ColumnRule> rules,
+            Set<ColumnKey> protectedColumns,
+            int resolvedClear,
+            Integer flatTunnelCavityCap,
+            Integer elevatedClearCap) {
+        if (rules == null || protectedColumns == null || protectedColumns.isEmpty()) {
+            return;
+        }
+        List<ColumnKey> seeds = new java.util.ArrayList<>(protectedColumns);
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (ColumnKey seed : seeds) {
+            if (seed == null) {
+                continue;
+            }
+            for (int[] dir : dirs) {
+                ColumnKey neighbor = new ColumnKey(seed.worldX() + dir[0], seed.worldZ() + dir[1]);
+                ColumnRule existing = rules.get(neighbor);
+                if (existing == null) {
+                    continue;
+                }
+                if (existing.role() != ColumnRole.OPEN
+                        || existing.maxAuthorizedClearY() != null) {
+                    continue;
+                }
+                int designY = existing.designRoadY();
+                int roofY = designY + Math.max(1, resolvedClear);
+                if (flatTunnelCavityCap != null) {
+                    roofY = Math.min(roofY, flatTunnelCavityCap);
+                }
+                if (elevatedClearCap != null) {
+                    roofY = Math.min(roofY, elevatedClearCap);
+                }
+                rules.put(neighbor, new ColumnRule(
+                    ColumnRole.PORTAL_TRANSITION,
+                    designY,
+                    roofY,
+                    existing.naturalSurfaceY(),
+                    roofY,
+                    true));
+                protectedColumns.add(neighbor);
+            }
+        }
     }
 
     private static boolean hasNearNodeTunnelEvidence(

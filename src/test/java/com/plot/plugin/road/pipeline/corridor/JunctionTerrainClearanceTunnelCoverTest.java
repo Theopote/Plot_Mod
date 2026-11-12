@@ -17,6 +17,54 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionTerrainClearanceTunnelCoverTest {
 
     @Test
+    void tunnelOverburdenDoesNotClearSurfaceDecorationAsHole() {
+        // 山上草/雪若被当装饰清掉，会出现「零星穿孔」到地表。
+        int roadY = 64;
+        int roofY = 69;
+        int surfaceY = 80;
+        Vec2d plan = new Vec2d(5.5, 5.5);
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return surfaceY;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return surfaceY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y < surfaceY;
+            }
+
+            @Override
+            public boolean isChunkLoaded(int x, int z) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return true;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return y == surfaceY; // 地表草
+            }
+        };
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, 4, terrain, 5, 5, plan, null, surfaceY, roofY);
+        assertFalse(solids.primitives().stream().anyMatch(p ->
+                p != null
+                    && "minecraft:air".equals(p.materialId())
+                    && p.elevation() >= surfaceY),
+            "tunnel overburden must not clear surface decoration into a hole");
+    }
+
+    @Test
     void shallowTunnelCoverDoesNotDaylightUnderSurface() {
         RoadSolidModel solids = new RoadSolidModel();
         int roadY = 64;
