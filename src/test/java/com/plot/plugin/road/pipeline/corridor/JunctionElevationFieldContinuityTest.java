@@ -189,7 +189,7 @@ class JunctionElevationFieldContinuityTest {
         assertTrue(lowSide.get(new ColumnKey(1, 0)) >= 64,
             "low-side fillet must not sink below adjacent approach pavement");
 
-        // 有坡：仅邻高侧时只压顶不抬底，避免把缓坡圆角整列拽成高侧突起。
+        // 有坡：邻域进口最高路面是天花板；介于高低之间的缓坡列不得被抬到高侧。
         Map<ColumnKey, Integer> graded = new HashMap<>();
         graded.put(new ColumnKey(1, 0), 68);
         Map<ColumnKey, Integer> gradedAnchors = Map.of(
@@ -199,6 +199,31 @@ class JunctionElevationFieldContinuityTest {
             graded, java.util.Set.of(new ColumnKey(1, 0)), gradedAnchors);
         assertTrue(graded.get(new ColumnKey(1, 0)) == 68,
             "interior fillet beside both grades must not be forced onto the high approach");
+
+        Map<ColumnKey, Integer> bulge = new HashMap<>();
+        bulge.put(new ColumnKey(1, 0), 73);
+        Map<ColumnKey, Integer> bulgeAnchors = Map.of(
+            new ColumnKey(0, 0), 64,
+            new ColumnKey(2, 0), 70);
+        for (int pass = 0; pass < 8; pass++) {
+            if (JunctionElevationField.clampFilletToApproachGradeBands(
+                    bulge, java.util.Set.of(new ColumnKey(1, 0)), bulgeAnchors) == 0) {
+                break;
+            }
+        }
+        assertTrue(bulge.get(new ColumnKey(1, 0)) <= 70,
+            "fillet bulge above nearby approach max must be shaved down");
+
+        Map<ColumnKey, Integer> peak = new HashMap<>();
+        peak.put(new ColumnKey(0, 0), 70);
+        peak.put(new ColumnKey(1, 0), 68);
+        peak.put(new ColumnKey(-1, 0), 68);
+        peak.put(new ColumnKey(0, 1), 68);
+        peak.put(new ColumnKey(0, -1), 68);
+        assertTrue(JunctionElevationField.shaveFilletLocalMaxima(
+            peak, java.util.Set.of(new ColumnKey(0, 0)), Map.of()) > 0);
+        assertTrue(peak.get(new ColumnKey(0, 0)) <= 69,
+            "strict local fillet maximum must drop one step");
 
         int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
         for (Map.Entry<ColumnKey, Integer> entry : field.targetYByColumn().entrySet()) {

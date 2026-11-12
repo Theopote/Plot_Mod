@@ -25,6 +25,19 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JunctionFilletElevationLoftTest {
+
+    @Test
+    void projectedCurbStationUsesRayNotRadialDistance() {
+        Vec2d sharp = new Vec2d(0, 0);
+        Vec2d dirA = new Vec2d(1, 0);
+        // 点在 45° 方向、欧氏距离约 5；沿 A 轴投影应为 ~3.5 而非 5。
+        Vec2d point = new Vec2d(3.5, 3.5);
+        double s = JunctionFilletElevationLoft.projectedCurbStation(point, sharp, dirA, 8.0);
+        assertTrue(Math.abs(s - 3.5) < 1e-6, "projected station along curb A; s=" + s);
+        assertTrue(s < point.distance(sharp) - 0.5,
+            "projection must be shorter than polar radius so grade does not advance early");
+    }
+
     @Test
     void goreOverlapKeepsExactApproachVoxelElevation() {
         var network = orthogonalNetwork();

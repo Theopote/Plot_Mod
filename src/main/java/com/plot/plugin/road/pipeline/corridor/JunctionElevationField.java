@@ -163,16 +163,21 @@ public final class JunctionElevationField {
                 break;
             }
         }
-        // 有坡圆角：低侧旁抬到不低于路面，高侧旁压到不高于路面；与台阶限幅交替，最后以台阶限幅收束。
+        // 有坡圆角：低侧旁抬到不低于路面，高侧旁压到不高于路面；削局部鼓包；与台阶限幅交替。
         for (int pass = 0; pass < 16; pass++) {
             int band = clampFilletToApproachGradeBands(targets, filletOnly, approachAnchors);
+            int shave = shaveFilletLocalMaxima(targets, filletOnly, approachAnchors);
+            int toLoft = pullFilletDownTowardLoft(
+                targets, filletOnly, roles, safeLoft, safeFootprint, columns);
             int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
-            if (band == 0 && step == 0) {
+            if (band == 0 && shave == 0 && toLoft == 0 && step == 0) {
                 break;
             }
         }
         for (int pass = 0; pass < 8; pass++) {
-            if (enforceAdjacentStepLimit(targets, soft, approachAnchors) == 0) {
+            int shave = shaveFilletLocalMaxima(targets, filletOnly, approachAnchors);
+            int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
+            if (shave == 0 && step == 0) {
                 break;
             }
         }
@@ -402,8 +407,8 @@ public final class JunctionElevationField {
     }
 
     /**
-     * 有坡圆角带约束：只对全局低侧进口施加地板、对全局高侧进口施加天花板。
-     * 低侧旁圆角不得低于该路面；高侧旁圆角不得高于该路面；每轮最多收 ±1 以配合台阶限幅。
+     * 有坡圆角带约束：邻域进口（切比雪夫半径 ≤2）内，相对低侧抬底、相对高侧压顶；
+     * 并始终不得高于邻域进口最高路面（削鼓包）。每轮最多 ±1 以配合台阶限幅。
      * @return 本轮修正列数
      */
     static int clampFilletToApproachGradeBands(
@@ -427,7 +432,6 @@ public final class JunctionElevationField {
             return 0;
         }
         Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
-        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
         for (ColumnKey key : filletColumns) {
             Integer y = targets.get(key);
             if (key == null || y == null) {
@@ -435,32 +439,117 @@ public final class JunctionElevationField {
             }
             Integer floor = null;
             Integer ceiling = null;
-            for (int[] dir : dirs) {
-                ColumnKey neighbor = new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]);
-                Integer ay = approachAnchors.get(neighbor);
-                if (ay == null) {
-                    continue;
-                }
-                // 平坦（高低同值）时两侧同时钉死；有坡时仅低侧抬底、高侧压顶。
-                if (ay <= globalLow) {
-                    floor = floor == null ? ay : Math.max(floor, ay);
-                }
-                if (ay >= globalHigh) {
-                    ceiling = ceiling == null ? ay : Math.min(ceiling, ay);
+            Integer localMax = null;
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    if (dx == 0 && dz == 0) {
+                        continue;
+                    }
+                    ColumnKey neighbor = new ColumnKey(key.worldX() + dx, key.worldZ() + dz);
+                    Integer ay = approachAnchors.get(neighbor);
+                    if (ay == null) {
+                        continue;
+                    }
+                    localMax = localMax == null ? ay : Math.max(localMax, ay);
+                    // 平坦时高低同值：两侧同时钉死；有坡时仅低侧抬底、高侧压顶。
+                    if (ay <= globalLow) {
+                        floor = floor == null ? ay : Math.max(floor, ay);
+                    }
+                    if (ay >= globalHigh) {
+                        ceiling = ceiling == null ? ay : Math.min(ceiling, ay);
+                    }
                 }
             }
-            if (floor == null && ceiling == null) {
+            if (floor == null && ceiling == null && localMax == null) {
                 continue;
             }
             int next = y;
             if (floor != null && next < floor) {
                 next = Math.min(floor, y + 1);
             }
-            if (ceiling != null && next > ceiling) {
-                next = Math.max(ceiling, y - 1);
+            // 邻域进口最高路面是硬天花板：高出的鼓包必须压回。
+            Integer hardCeiling = ceiling;
+            if (localMax != null) {
+                hardCeiling = hardCeiling == null ? localMax : Math.min(hardCeiling, localMax);
+            }
+            if (hardCeiling != null && next > hardCeiling) {
+                next = Math.max(hardCeiling, y - 1);
             }
             if (next != y) {
                 adjusted.put(key, next);
+            }
+        }
+        targets.putAll(adjusted);
+        return adjusted.size();
+    }
+
+    /**
+     * 圆角局部严格极大值削峰：高于全部四邻（含进口锚点）则降 1 格。
+     */
+    static int shaveFilletLocalMaxima(
+            Map<ColumnKey, Integer> targets,
+            Set<ColumnKey> filletColumns,
+            Map<ColumnKey, Integer> approachAnchors) {
+        if (targets == null || filletColumns == null || filletColumns.isEmpty()) {
+            return 0;
+        }
+        Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (ColumnKey key : filletColumns) {
+            Integer y = targets.get(key);
+            if (key == null || y == null) {
+                continue;
+            }
+            int maxNeighbor = Integer.MIN_VALUE;
+            int count = 0;
+            for (int[] dir : dirs) {
+                Integer ny = resolveNeighborY(
+                    targets, approachAnchors,
+                    new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]));
+                if (ny == null) {
+                    continue;
+                }
+                maxNeighbor = Math.max(maxNeighbor, ny);
+                count++;
+            }
+            if (count < 2 || y <= maxNeighbor) {
+                continue;
+            }
+            adjusted.put(key, y - 1);
+        }
+        targets.putAll(adjusted);
+        return adjusted.size();
+    }
+
+    /**
+     * 圆角不得被松弛/台阶限幅抬到高于路缘放样：向 loft 收一格。
+     */
+    static int pullFilletDownTowardLoft(
+            Map<ColumnKey, Integer> targets,
+            Set<ColumnKey> filletColumns,
+            Map<ColumnKey, JunctionWorldFootprint.ElevationRole> roles,
+            JunctionFilletElevationLoft loft,
+            JunctionWorldFootprint footprint,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns) {
+        if (targets == null || filletColumns == null || filletColumns.isEmpty() || loft == null) {
+            return 0;
+        }
+        Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
+        for (ColumnKey key : filletColumns) {
+            Integer y = targets.get(key);
+            if (key == null || y == null) {
+                continue;
+            }
+            Vec2d plan = footprint != null ? footprint.planPoint(key) : null;
+            if (plan == null && columns != null) {
+                plan = new Vec2d(key.worldX() + 0.5, key.worldZ() + 0.5);
+            }
+            if (plan == null) {
+                continue;
+            }
+            int loftY = loft.surfaceY(plan, footprint);
+            if (y > loftY) {
+                adjusted.put(key, y - 1);
             }
         }
         targets.putAll(adjusted);

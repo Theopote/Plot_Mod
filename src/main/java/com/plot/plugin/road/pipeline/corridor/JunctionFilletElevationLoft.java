@@ -988,18 +988,46 @@ public final class JunctionFilletElevationLoft {
             CurbElevationCurve curbA,
             CurbElevationCurve curbB) {
         int loftY(Vec2d planPoint, int fallback) {
-            double s = planPoint.distance(sharp);
-            int ya = curbA.at(s);
-            int yb = curbB.at(s);
+            if (planPoint == null || sharp == null) {
+                return fallback;
+            }
+            // 各路缘用该点在射线方向上的投影站距，禁止共用「到锐点的欧氏距离」：
+            // 有坡时后者会在锐点内侧抬出鼓包，外侧又与真实路缘站距错位。
+            double sA = projectedCurbStation(planPoint, sharp, dirA, curbA.length());
+            double sB = projectedCurbStation(planPoint, sharp, dirB, curbB.length());
+            int ya = curbA.at(sA);
+            int yb = curbB.at(sB);
             double u = angularBlend(sharp, dirA, dirB, planPoint);
+            int blended;
             if (u <= 0.15) {
-                return ya;
+                blended = ya;
+            } else if (u >= 0.85) {
+                blended = yb;
+            } else {
+                blended = VoxelElevationDiscretizer.linearElevationAtRatio(ya, yb, u);
             }
-            if (u >= 0.85) {
-                return yb;
-            }
-            return VoxelElevationDiscretizer.linearElevationAtRatio(ya, yb, u);
+            // 硬夹在两路缘之间，避免角向离散把补铺抬出坡道包络。
+            int lo = Math.min(ya, yb);
+            int hi = Math.max(ya, yb);
+            return Math.max(lo, Math.min(hi, blended));
         }
+    }
+
+    /**
+     * 点到路缘射线的投影站距，夹在 [0, curbLength]。
+     */
+    static double projectedCurbStation(
+            Vec2d planPoint, Vec2d sharp, Vec2d curbDir, double curbLength) {
+        if (planPoint == null || sharp == null || curbDir == null) {
+            return 0.0;
+        }
+        double len = Math.max(0.0, curbLength);
+        Vec2d dir = curbDir.lengthSquared() > EPSILON ? curbDir.normalize() : curbDir;
+        double s = planPoint.subtract(sharp).dot(dir);
+        if (!Double.isFinite(s)) {
+            return 0.0;
+        }
+        return Math.clamp(s, 0.0, len);
     }
 
     /** 锐点处从路缘 A 扫到 B 的角向参数 ∈ [0,1]。 */
