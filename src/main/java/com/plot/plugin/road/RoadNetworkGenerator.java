@@ -263,7 +263,7 @@ public class RoadNetworkGenerator {
         while (session.hasMoreEdges()) {
             tickPreviewSessionEdges(session, Integer.MAX_VALUE);
         }
-        applyTunnelJunctionConnectivity(session);
+        applyPreviewSessionTunnelConnectivity(session);
         while (session.hasMoreJunctions()) {
             tickPreviewSessionJunctions(session, Integer.MAX_VALUE);
         }
@@ -450,11 +450,91 @@ public class RoadNetworkGenerator {
         return processed;
     }
 
+    /**
+     * 边生成完成后、路口生成前应用隧道路口壳与连通（与同步路径一致）。
+     * 已应用过则跳过，避免汇总阶段重复重算。
+     */
+    public void applyPreviewSessionTunnelConnectivity(RoadNetworkPreviewSession session) {
+        if (session == null || !session.isPrepared() || session.isTunnelConnectivityApplied()) {
+            return;
+        }
+        applyTunnelJunctionConnectivity(session);
+        session.markTunnelConnectivityApplied();
+    }
+
+    /**
+     * 分帧汇总：每调用推进一档（纵断面装配 → 合并 → 校验），完成后返回 true。
+     */
+    public boolean tickPreviewSessionAggregation(RoadNetworkPreviewSession session) {
+        if (session == null || !session.isValid()) {
+            return true;
+        }
+        if (session.aggregationStep() == RoadNetworkPreviewSession.AggregationStep.DONE
+            && session.completedPreview() != null) {
+            return true;
+        }
+        try (var ignored = session.stationingCache().activate()) {
+            switch (session.aggregationStep()) {
+                case PENDING, PROFILES -> {
+                    applyPreviewSessionTunnelConnectivity(session);
+                    Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
+                        session.generationNetwork(),
+                        session.networkResult().getEdgeResults(),
+                        roadGenerator.getConfig());
+                    session.setPendingRoadProfiles(roadProfiles);
+                    session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.MERGE);
+                    return false;
+                }
+                case MERGE -> {
+                    RoadGenerationResult aggregate = aggregateNetworkResult(
+                        session.generationNetwork(), session.networkResult());
+                    session.setPendingAggregate(aggregate);
+                    session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.VALIDATE);
+                    return false;
+                }
+                case VALIDATE -> {
+                    RoadNetwork profileNetwork = session.generationNetwork();
+                    NetworkGenerationResult networkResult = session.networkResult();
+                    RoadGenerationResult aggregate = session.pendingAggregate();
+                    if (aggregate == null) {
+                        aggregate = aggregateNetworkResult(profileNetwork, networkResult);
+                        session.setPendingAggregate(aggregate);
+                    }
+                    applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
+                    TunnelFinalVoxelValidator.applyReportToResult(
+                        aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
+                    networkResult.recordAdjacentJunctionProfileViolations(
+                        AdjacentJunctionProfileContinuity.find(
+                            profileNetwork,
+                            networkResult.getNodeElevations(),
+                            roadGenerator.getConfig()));
+                    session.setCompletedPreview(new PreviewResult(
+                        profileNetwork,
+                        aggregate,
+                        networkResult.getEdgeResults(),
+                        networkResult.getNodeElevations(),
+                        networkResult,
+                        session.pendingRoadProfiles()));
+                    session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.DONE);
+                    return true;
+                }
+                case DONE -> {
+                    return true;
+                }
+            }
+        }
+        return session.aggregationStep() == RoadNetworkPreviewSession.AggregationStep.DONE;
+    }
+
     public PreviewResult completePreviewSession(RoadNetworkPreviewSession session) {
         if (session == null || !session.isValid()) {
             return emptyPreviewResult();
         }
-        return buildPreviewResult(session);
+        while (!tickPreviewSessionAggregation(session)) {
+            // drain remaining aggregation steps synchronously
+        }
+        PreviewResult completed = session.completedPreview();
+        return completed != null ? completed : emptyPreviewResult();
     }
 
     private void logGenerationSummary(NetworkGenerationResult networkResult, Map<String, Integer> nodeElevations) {
@@ -550,35 +630,11 @@ public class RoadNetworkGenerator {
     }
 
     private PreviewResult buildPreviewResult(RoadNetworkPreviewSession session) {
-        try (var ignored = session.stationingCache().activate()) {
-            applyTunnelJunctionConnectivity(session);
-            RoadNetwork profileNetwork = session.generationNetwork();
-            NetworkGenerationResult networkResult = session.networkResult();
-            Map<String, RoadGenerationResult> edgeResults = networkResult.getEdgeResults();
-            Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
-                profileNetwork,
-                edgeResults,
-                roadGenerator.getConfig());
-            // 路口几何与材质必须基于物化后的 generationNetwork，
-            // 否则 Crossing 拆出的新节点在 sourceNetwork 中为 null，材质会回退全局默认。
-            RoadGenerationResult aggregate = aggregateNetworkResult(session.generationNetwork(), networkResult);
-            applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
-            // 合并后其它边/路口可能覆盖洞壁、灯具或净空；专项指标以聚合结果重算为准。
-            TunnelFinalVoxelValidator.applyReportToResult(
-                aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
-            networkResult.recordAdjacentJunctionProfileViolations(
-                AdjacentJunctionProfileContinuity.find(
-                    profileNetwork,
-                    networkResult.getNodeElevations(),
-                    roadGenerator.getConfig()));
-            return new PreviewResult(
-                profileNetwork,
-                aggregate,
-                edgeResults,
-                networkResult.getNodeElevations(),
-                networkResult,
-                roadProfiles);
+        while (!tickPreviewSessionAggregation(session)) {
+            // sync path drains aggregation in one call
         }
+        PreviewResult completed = session.completedPreview();
+        return completed != null ? completed : emptyPreviewResult();
     }
 
     private static PreviewResult emptyPreviewResult() {

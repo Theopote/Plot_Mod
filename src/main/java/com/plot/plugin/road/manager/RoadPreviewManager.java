@@ -44,12 +44,18 @@ import java.util.function.Supplier;
  */
 public final class RoadPreviewManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadPreview");
+    /** 每帧上传的幽灵方块数，避免汇总完成后单帧卡死。 */
+    static final int GHOST_BLOCKS_PER_TICK = 6_000;
 
     private final RoadProjectStatus status;
     private final PluginContext host;
     private RoadNetworkGenerator networkGenerator;
     private RoadGenerationResult lastGenerationResult;
     private RoadNetwork previewNetwork;
+    private List<Map.Entry<net.minecraft.util.math.BlockPos, String>> pendingGhostUpload;
+    private int pendingGhostUploadIndex;
+    private int pendingGhostUploadTotal;
+    private boolean pendingGhostClear;
     private RoadNetwork lastProfileNetwork;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
@@ -727,6 +733,7 @@ public final class RoadPreviewManager {
             return;
         }
         previewJob.cancel();
+        cancelPendingGhostProjection();
         if (previewJob.isRunning()) {
             previewJob.tick();
         } else {
@@ -740,7 +747,12 @@ public final class RoadPreviewManager {
             return;
         }
         String message = PlotI18n.tr(job.phaseTranslationKey());
-        if (job.totalWorkUnits() > 0) {
+        if (job.phase() == RoadNetworkPreviewJob.Phase.PROJECTING && pendingGhostUploadTotal > 0) {
+            message += " — " + PlotI18n.tr(
+                "plugin.road.preview_ghost_uploading",
+                pendingGhostUploadIndex,
+                pendingGhostUploadTotal);
+        } else if (job.totalWorkUnits() > 0) {
             message += " — " + PlotI18n.tr(
                 "plugin.road.preview_progress_detail",
                 job.processedWorkUnits(),
@@ -756,18 +768,31 @@ public final class RoadPreviewManager {
         if (previewJob != job) {
             return;
         }
-        previewJob = null;
         if (hasPendingNetworkEdit()) {
             // 拖动等未提交编辑期间完成的旧作业不得标为当前可建造预览。
+            previewJob = null;
+            cancelPendingGhostProjection();
             lastGenerationResult = null;
             previewNetwork = null;
             lastNetworkGenerationResult = null;
             previewNeedsRecalc = true;
             clearGhostBlocksSafely();
+            job.markFailed();
             status.warning(PlotI18n.tr("plugin.road.preview_blocked_pending_edit"));
             return;
         }
-        applyPreviewResult(job.sourceNetwork(), previewResult, autoProjectGhosts);
+        // Keep job alive while ghost batches upload so progress UI stays visible.
+        applyPreviewResult(job.sourceNetwork(), previewResult, autoProjectGhosts, true);
+        if (!autoProjectGhosts || !hasPendingGhostProjection()) {
+            previewJob = null;
+        }
+    }
+
+    void finishPreviewJobProjection(RoadNetworkPreviewJob job) {
+        if (previewJob == job) {
+            previewJob = null;
+        }
+        applyPreviewReadyStatus();
     }
 
     void failPreviewJob(RoadNetworkPreviewJob job) {
@@ -775,6 +800,7 @@ public final class RoadPreviewManager {
     }
 
     void failPreviewJob(RoadNetworkPreviewJob job, RuntimeException error) {
+        cancelPendingGhostProjection();
         if (previewJob == job) {
             previewJob = null;
         }
@@ -789,6 +815,7 @@ public final class RoadPreviewManager {
     }
 
     void finishCancelledPreviewJob(RoadNetworkPreviewJob job) {
+        cancelPendingGhostProjection();
         if (previewJob == job) {
             previewJob = null;
         }
@@ -796,15 +823,19 @@ public final class RoadPreviewManager {
 
     /** 静默取消预览 job（切 Tab / 失效预览时使用，不写入状态栏）。 */
     public void cancelPreviewJobSilently() {
-        if (previewJob == null) {
+        if (previewJob == null && pendingGhostUpload == null) {
             return;
         }
-        previewJob.cancel();
-        if (previewJob.isRunning()) {
-            previewJob.tick();
-        } else {
-            previewJob = null;
+        if (previewJob != null) {
+            previewJob.cancel();
+            if (previewJob.isRunning()) {
+                previewJob.tick();
+            } else {
+                previewJob = null;
+            }
         }
+        cancelPendingGhostProjection();
+        previewJob = null;
     }
 
     /**
@@ -872,6 +903,14 @@ public final class RoadPreviewManager {
             RoadNetwork network,
             RoadNetworkGenerator.PreviewResult previewResult,
             boolean autoProjectGhosts) {
+        applyPreviewResult(network, previewResult, autoProjectGhosts, false);
+    }
+
+    private void applyPreviewResult(
+            RoadNetwork network,
+            RoadNetworkGenerator.PreviewResult previewResult,
+            boolean autoProjectGhosts,
+            boolean incrementalGhosts) {
         lastGenerationResult = previewResult.aggregate();
         previewNetwork = network;
         applyProfileSamplingState(previewResult);
@@ -901,10 +940,102 @@ public final class RoadPreviewManager {
         // afterwards, do not immediately flip this successful preview back to stale.
         previewNeedsRecalc = false;
         pendingFullPreviewTerrainRefresh = false;
-        applyPreviewReadyStatus();
-        if (autoProjectGhosts) {
-            projectRoadPreview();
+        if (!autoProjectGhosts) {
+            applyPreviewReadyStatus();
+            return;
         }
+        if (incrementalGhosts) {
+            beginGhostProjection(lastGenerationResult);
+            if (!hasPendingGhostProjection()) {
+                applyPreviewReadyStatus();
+            } else {
+                status.progress(PlotI18n.tr(
+                    "plugin.road.preview_ghost_uploading",
+                    0,
+                    pendingGhostUploadTotal));
+            }
+            return;
+        }
+        projectRoadPreview();
+        applyPreviewReadyStatus();
+    }
+
+    boolean hasPendingGhostProjection() {
+        return pendingGhostUpload != null;
+    }
+
+    int ghostProjectionProcessed() {
+        return pendingGhostUploadIndex;
+    }
+
+    int ghostProjectionTotal() {
+        return pendingGhostUploadTotal;
+    }
+
+    /**
+     * @return true if more ghost batches remain
+     */
+    boolean tickGhostProjection() {
+        if (pendingGhostUpload == null) {
+            return false;
+        }
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager == null) {
+            cancelPendingGhostProjection();
+            return false;
+        }
+        if (pendingGhostClear) {
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
+            pendingGhostClear = false;
+        }
+        int end = Math.min(pendingGhostUploadIndex + GHOST_BLOCKS_PER_TICK, pendingGhostUpload.size());
+        if (end > pendingGhostUploadIndex) {
+            Map<net.minecraft.util.math.BlockPos, String> batch =
+                new LinkedHashMap<>(end - pendingGhostUploadIndex);
+            for (int i = pendingGhostUploadIndex; i < end; i++) {
+                Map.Entry<net.minecraft.util.math.BlockPos, String> entry = pendingGhostUpload.get(i);
+                batch.put(entry.getKey(), entry.getValue());
+            }
+            ghostBlockManager.addGhostBlocks(GhostBlockOwners.ROAD, batch);
+            pendingGhostUploadIndex = end;
+        }
+        if (pendingGhostUploadIndex >= pendingGhostUpload.size()) {
+            pendingGhostUpload = null;
+            pendingGhostUploadIndex = 0;
+            pendingGhostUploadTotal = 0;
+            return false;
+        }
+        return true;
+    }
+
+    private void beginGhostProjection(RoadGenerationResult result) {
+        cancelPendingGhostProjection();
+        if (result == null || result.placementRecords.isEmpty()) {
+            clearGhostBlocksSafely();
+            return;
+        }
+        List<Map.Entry<net.minecraft.util.math.BlockPos, String>> entries =
+            new ArrayList<>(result.placementRecords.size());
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (record != null && record.pos != null && record.newBlockId != null) {
+                entries.add(Map.entry(record.pos, record.newBlockId));
+            }
+        }
+        if (entries.isEmpty()) {
+            clearGhostBlocksSafely();
+            return;
+        }
+        pendingGhostUpload = entries;
+        pendingGhostUploadIndex = 0;
+        pendingGhostUploadTotal = entries.size();
+        pendingGhostClear = true;
+    }
+
+    private void cancelPendingGhostProjection() {
+        pendingGhostUpload = null;
+        pendingGhostUploadIndex = 0;
+        pendingGhostUploadTotal = 0;
+        pendingGhostClear = false;
     }
 
     private void applyPreviewReadyStatus() {
@@ -948,6 +1079,8 @@ public final class RoadPreviewManager {
         if (lastGenerationResult == null) {
             return;
         }
+        // Manual/sync projection replaces immediately; incremental job uses beginGhostProjection.
+        cancelPendingGhostProjection();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager == null) {
             return;
@@ -963,6 +1096,7 @@ public final class RoadPreviewManager {
 
     public void clearPreview() {
         cancelPreviewJobSilently();
+        cancelPendingGhostProjection();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);

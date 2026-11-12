@@ -66,6 +66,7 @@ class RoadNetworkPreviewSessionTest {
         while (session.hasMoreEdges()) {
             generator.tickPreviewSessionEdges(session, 1);
         }
+        generator.applyPreviewSessionTunnelConnectivity(session);
         while (session.hasMoreJunctions()) {
             generator.tickPreviewSessionJunctions(session, 1);
         }

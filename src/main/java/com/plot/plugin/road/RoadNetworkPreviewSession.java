@@ -5,6 +5,8 @@ import com.plot.plugin.road.manager.RoadNetworkPreviewJob;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.profile.RoadProfileChartData;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +18,15 @@ import java.util.Map;
  */
 public final class RoadNetworkPreviewSession {
 
+    /** 汇总阶段子步进：每帧推进一档，避免边/路口完成后单帧卡死。 */
+    public enum AggregationStep {
+        PENDING,
+        PROFILES,
+        MERGE,
+        VALIDATE,
+        DONE
+    }
+
     private final RoadNetwork sourceNetwork;
     private final RoadNetwork generationNetwork;
     private final com.plot.plugin.road.station.RoadStationingReadCache stationingCache;
@@ -26,6 +37,11 @@ public final class RoadNetworkPreviewSession {
     private int edgeIndex;
     private int junctionIndex;
     private boolean prepared;
+    private boolean tunnelConnectivityApplied;
+    private AggregationStep aggregationStep = AggregationStep.PENDING;
+    private Map<String, RoadProfileChartData> pendingRoadProfiles = Map.of();
+    private RoadGenerationResult pendingAggregate;
+    private RoadNetworkGenerator.PreviewResult completedPreview;
 
     RoadNetworkPreviewSession(
             RoadNetwork sourceNetwork,
@@ -89,12 +105,67 @@ public final class RoadNetworkPreviewSession {
         prepared = true;
     }
 
+    boolean isTunnelConnectivityApplied() {
+        return tunnelConnectivityApplied;
+    }
+
+    void markTunnelConnectivityApplied() {
+        tunnelConnectivityApplied = true;
+    }
+
+    public AggregationStep aggregationStep() {
+        return aggregationStep;
+    }
+
+    void setAggregationStep(AggregationStep aggregationStep) {
+        this.aggregationStep = aggregationStep == null ? AggregationStep.PENDING : aggregationStep;
+    }
+
+    Map<String, RoadProfileChartData> pendingRoadProfiles() {
+        return pendingRoadProfiles;
+    }
+
+    void setPendingRoadProfiles(Map<String, RoadProfileChartData> pendingRoadProfiles) {
+        this.pendingRoadProfiles = pendingRoadProfiles == null ? Map.of() : pendingRoadProfiles;
+    }
+
+    RoadGenerationResult pendingAggregate() {
+        return pendingAggregate;
+    }
+
+    void setPendingAggregate(RoadGenerationResult pendingAggregate) {
+        this.pendingAggregate = pendingAggregate;
+    }
+
+    public RoadNetworkGenerator.PreviewResult completedPreview() {
+        return completedPreview;
+    }
+
+    void setCompletedPreview(RoadNetworkGenerator.PreviewResult completedPreview) {
+        this.completedPreview = completedPreview;
+    }
+
     public int totalWorkUnits() {
         return edges.size() + junctionNodes.size();
     }
 
     public int processedWorkUnits() {
         return Math.min(totalWorkUnits(), edgeIndex + junctionIndex);
+    }
+
+    /** 汇总子步进总数（profiles / merge / validate）。 */
+    public int aggregationWorkUnits() {
+        return 3;
+    }
+
+    public int processedAggregationWorkUnits() {
+        return switch (aggregationStep) {
+            case PENDING -> 0;
+            case PROFILES -> 0;
+            case MERGE -> 1;
+            case VALIDATE -> 2;
+            case DONE -> 3;
+        };
     }
 
     public boolean hasMoreEdges() {
