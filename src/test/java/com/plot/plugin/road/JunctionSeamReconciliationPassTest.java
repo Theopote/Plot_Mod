@@ -31,6 +31,61 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JunctionSeamReconciliationPassTest {
 
     @Test
+    void settlesFilletPavementThatFloatsOneBlockAboveEmptyCell() {
+        // 设计目标偏高一格：Y 有路面、Y-1 为空；旧逻辑会剥掉真正承托并留下突起。
+        JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
+            new Vec2d(8, 8),
+            new Vec2d(3, 8),
+            new Vec2d(8, 3),
+            8.0,
+            Math.PI / 2.0,
+            FilletArcSweep.resolveShort(new Vec2d(8, 8), new Vec2d(3, 8), new Vec2d(8, 3)));
+        JunctionGeometryResult geometry = new JunctionGeometryResult(
+            List.of(new Vec2d(-6, -6), new Vec2d(20, -6), new Vec2d(20, 20), new Vec2d(-6, 20)),
+            List.of(new Vec2d(-4, -4), new Vec2d(16, -4), new Vec2d(16, 16), new Vec2d(-4, 16)),
+            List.of(),
+            8.0,
+            8.0,
+            List.of(fillet),
+            List.of(new Vec2d(-2, -2), new Vec2d(10, -2), new Vec2d(10, 10), new Vec2d(-2, 10)),
+            List.of());
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+        JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, null);
+        JunctionElevationField field = JunctionElevationField.build(
+            footprint, JunctionFilletElevationLoft.inactive(67), columns, 67);
+        ColumnKey filletColumn = footprint.filletAdditions().iterator().next();
+        int highY = field.surfaceY(filletColumn);
+        int lowY = highY - 1;
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos floating = new BlockPos(filletColumn.worldX(), highY, filletColumn.worldZ());
+        BlockPos emptyBelow = new BlockPos(filletColumn.worldX(), lowY, filletColumn.worldZ());
+        plant(aggregate, floating, "minecraft:stone", RoadSolidLayer.ROAD);
+        // 正下方刻意不放固体，模拟「破坏突起后空一格」。
+
+        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        blocks.setElevationField(field);
+        blocks.setValidationManifest(JunctionValidationManifest.empty("n0"));
+        JunctionSeamReconciliationPass.apply(aggregate, Map.of("n0", blocks));
+
+        assertEquals("minecraft:air", aggregate.placementRecords.get(floating).newBlockId,
+            "floating high pavement must be cleared after settle");
+        assertEquals("minecraft:stone", aggregate.placementRecords.get(emptyBelow).newBlockId,
+            "pavement must settle into the empty cell below");
+    }
+
+    @Test
     void indexSolidPlacementsGroupsByWorldColumn() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         plant(aggregate, new BlockPos(3, 64, 5), "minecraft:stone", RoadSolidLayer.ROAD);

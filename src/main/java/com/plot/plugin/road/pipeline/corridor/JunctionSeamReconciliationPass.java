@@ -97,10 +97,18 @@ public final class JunctionSeamReconciliationPass {
             Set<BlockPos> protectedBlocks,
             JunctionWorldFootprint.ElevationRole role,
             List<BlockPos> columnSolids) {
+        List<BlockPos> solids = columnSolids != null ? columnSolids : List.of();
+        int workingTarget = targetY;
+        // 圆角/接缝：先处理「路面悬空一格」——标高偏高时下层已被掏空，破坏突起后正下方是空气。
+        if (role == JunctionWorldFootprint.ElevationRole.FILLET
+                || role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
+            workingTarget = settleMisalignedFilletPavement(
+                aggregate, column, workingTarget, elevatedDeckY, protectedBlocks, solids);
+        }
+
         List<BlockPos> roadAtColumn = new ArrayList<>();
         List<BlockPos> tunnelSolids = new ArrayList<>();
         List<BlockPos> plazaFamilyBelow = new ArrayList<>();
-        List<BlockPos> solids = columnSolids != null ? columnSolids : List.of();
         for (BlockPos pos : solids) {
             if (pos == null) {
                 continue;
@@ -121,8 +129,8 @@ public final class JunctionSeamReconciliationPass {
             } else if (layer == RoadSolidLayer.TUNNEL) {
                 tunnelSolids.add(pos);
             }
-            if (pos.getY() < targetY
-                    && pos.getY() >= targetY - UNDER_PAVEMENT_STRIP_DEPTH
+            if (pos.getY() < workingTarget
+                    && pos.getY() >= workingTarget - UNDER_PAVEMENT_STRIP_DEPTH
                     && isStackedLeftoverLayer(layer)) {
                 plazaFamilyBelow.add(pos);
             }
@@ -130,51 +138,69 @@ public final class JunctionSeamReconciliationPass {
 
         // 核区/圆角/接缝：高出设计路面的进口残留必须剥掉，否则缓坡一侧和广场内会出现零星突起。
         stripPavementAboveTarget(
-            aggregate, targetY, elevatedDeckY, protectedBlocks, solids);
+            aggregate, workingTarget, elevatedDeckY, protectedBlocks, solids);
 
         if (role == JunctionWorldFootprint.ElevationRole.ROAD_CORE) {
             return;
         }
 
-        boolean hasTargetRoad = false;
-        for (BlockPos pos : roadAtColumn) {
-            if (pos.getY() == targetY) {
-                hasTargetRoad = true;
-                break;
-            }
-        }
+        boolean hasTargetRoad = hasPavementSolid(aggregate, column, workingTarget);
         if (!hasTargetRoad && !roadAtColumn.isEmpty()
                 && (role == JunctionWorldFootprint.ElevationRole.FILLET
                 || role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION)) {
             // 接缝高度不一致：在目标 Y 恢复一层路面（沿用既有路面材料）。
-            BlockPos donor = roadAtColumn.getFirst();
-            BlockRecord donorRecord = aggregate.placementRecords.get(donor);
-            String material = donorRecord != null ? donorRecord.newBlockId : "minecraft:stone";
-            BlockPos target = new BlockPos(column.worldX(), targetY, column.worldZ());
-            if (!protectedBlocks.contains(target)
-                    && (elevatedDeckY == null || targetY < elevatedDeckY - 1)) {
-                String previous = aggregate.placementRecords.containsKey(target)
-                    ? aggregate.placementRecords.get(target).previousBlockId
-                    : "minecraft:air";
-                aggregate.recordPlacementOverride(target, previous, material);
-                aggregate.placementLayers.put(target, RoadSolidLayer.ROAD);
-                aggregate.placementMaterialPriorities.put(target, RoadSolidMaterialPriority.DEFAULT);
+            BlockPos donor = null;
+            for (BlockPos pos : roadAtColumn) {
+                BlockRecord record = aggregate.placementRecords.get(pos);
+                if (record != null && !"minecraft:air".equals(record.newBlockId)) {
+                    donor = pos;
+                    break;
+                }
+            }
+            if (donor != null) {
+                BlockRecord donorRecord = aggregate.placementRecords.get(donor);
+                String material = donorRecord != null ? donorRecord.newBlockId : "minecraft:stone";
+                BlockPos target = new BlockPos(column.worldX(), workingTarget, column.worldZ());
+                if (!protectedBlocks.contains(target)
+                        && (elevatedDeckY == null || workingTarget < elevatedDeckY - 1)) {
+                    String previous = aggregate.placementRecords.containsKey(target)
+                        ? aggregate.placementRecords.get(target).previousBlockId
+                        : "minecraft:air";
+                    aggregate.recordPlacementOverride(target, previous, material);
+                    aggregate.placementLayers.put(target, RoadSolidLayer.ROAD);
+                    aggregate.placementMaterialPriorities.put(
+                        target, RoadSolidMaterialPriority.DEFAULT);
+                }
             }
         }
 
         // 圆角叠层：进口路缘 / 衬砌 / 装饰环落在设计路面之下时清掉，避免破坏顶面后露出下层突起。
+        // 紧贴路面下一格的硬质路面若是唯一承托则不再剥（已由 settle 回落处理）。
         if (role == JunctionWorldFootprint.ElevationRole.FILLET
                 || role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
             for (BlockPos pos : plazaFamilyBelow) {
+                if (pos.getY() == workingTarget - 1 && isStackedPavementLayer(
+                        aggregate.placementLayers.get(pos))
+                        && !hasNonAirSolid(aggregate, column, workingTarget)) {
+                    continue;
+                }
                 clearLeftover(aggregate, pos);
             }
             for (BlockPos pos : roadAtColumn) {
-                if (pos.getY() < targetY && pos.getY() >= targetY - UNDER_PAVEMENT_STRIP_DEPTH) {
+                if (pos.getY() < workingTarget && pos.getY() >= workingTarget - UNDER_PAVEMENT_STRIP_DEPTH) {
+                    BlockRecord record = aggregate.placementRecords.get(pos);
+                    if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                        continue;
+                    }
+                    if (pos.getY() == workingTarget - 1
+                            && !hasNonAirSolid(aggregate, column, workingTarget)) {
+                        continue;
+                    }
                     clearLeftover(aggregate, pos);
                 }
             }
             for (BlockPos pos : tunnelSolids) {
-                if (pos.getY() < targetY && pos.getY() >= targetY - UNDER_PAVEMENT_STRIP_DEPTH) {
+                if (pos.getY() < workingTarget && pos.getY() >= workingTarget - UNDER_PAVEMENT_STRIP_DEPTH) {
                     clearLeftover(aggregate, pos);
                 }
             }
@@ -183,9 +209,9 @@ public final class JunctionSeamReconciliationPass {
         // 圆角/接缝列：仅清紧贴路面上的残留侧墙；禁止清到洞顶高度（避免路面局部下沉时顺带掏掉顶衬）。
         if (role == JunctionWorldFootprint.ElevationRole.FILLET
                 || role == JunctionWorldFootprint.ElevationRole.SEAM_TRANSITION) {
-            int cavityCeiling = targetY + 2;
+            int cavityCeiling = workingTarget + 2;
             for (BlockPos pos : tunnelSolids) {
-                if (pos.getY() <= targetY || pos.getY() > cavityCeiling) {
+                if (pos.getY() <= workingTarget || pos.getY() > cavityCeiling) {
                     continue;
                 }
                 if (protectedBlocks.contains(pos)) {
@@ -194,6 +220,98 @@ public final class JunctionSeamReconciliationPass {
                 clearLeftover(aggregate, pos);
             }
         }
+    }
+
+    /**
+     * 圆角/接缝错位回落（最多一格）：
+     * <ul>
+     *   <li>路面仅在 Y+1、Y 为空 → 落到 Y</li>
+     *   <li>路面在 Y、Y-1 为空 → 落到 Y-1（设计目标偏高，随后 under-strip 会掏空正下方）</li>
+     * </ul>
+     * @return 修正后的工作目标标高
+     */
+    static int settleMisalignedFilletPavement(
+            RoadGenerationResult aggregate,
+            ColumnKey column,
+            int targetY,
+            Integer elevatedDeckY,
+            Set<BlockPos> protectedBlocks,
+            List<BlockPos> columnSolids) {
+        if (aggregate == null || column == null) {
+            return targetY;
+        }
+        if (elevatedDeckY != null && targetY >= elevatedDeckY - 1) {
+            return targetY;
+        }
+        // 先收高一格的悬空突起到设计目标。
+        if (hasPavementSolid(aggregate, column, targetY + 1)
+                && !hasNonAirSolid(aggregate, column, targetY)) {
+            movePavementDown(
+                aggregate, column, targetY + 1, targetY, elevatedDeckY, protectedBlocks);
+        }
+        // 设计目标本身偏高一格：路面脚下是空的，回落并下调工作目标，避免剥掉真正承托。
+        if (hasPavementSolid(aggregate, column, targetY)
+                && !hasNonAirSolid(aggregate, column, targetY - 1)) {
+            movePavementDown(
+                aggregate, column, targetY, targetY - 1, elevatedDeckY, protectedBlocks);
+            return targetY - 1;
+        }
+        return targetY;
+    }
+
+    private static boolean hasPavementSolid(
+            RoadGenerationResult aggregate, ColumnKey column, int y) {
+        BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
+        BlockRecord record = aggregate.placementRecords.get(pos);
+        if (record == null || "minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        return isStackedPavementLayer(aggregate.placementLayers.get(pos));
+    }
+
+    private static boolean hasNonAirSolid(
+            RoadGenerationResult aggregate, ColumnKey column, int y) {
+        BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
+        BlockRecord record = aggregate.placementRecords.get(pos);
+        return record != null && record.newBlockId != null
+            && !"minecraft:air".equals(record.newBlockId);
+    }
+
+    private static void movePavementDown(
+            RoadGenerationResult aggregate,
+            ColumnKey column,
+            int fromY,
+            int toY,
+            Integer elevatedDeckY,
+            Set<BlockPos> protectedBlocks) {
+        if (toY >= fromY) {
+            return;
+        }
+        BlockPos from = new BlockPos(column.worldX(), fromY, column.worldZ());
+        BlockPos to = new BlockPos(column.worldX(), toY, column.worldZ());
+        if (protectedBlocks != null && protectedBlocks.contains(from)) {
+            return;
+        }
+        if (elevatedDeckY != null && (fromY >= elevatedDeckY - 1 || toY >= elevatedDeckY - 1)) {
+            return;
+        }
+        BlockRecord donor = aggregate.placementRecords.get(from);
+        if (donor == null || "minecraft:air".equals(donor.newBlockId)) {
+            return;
+        }
+        RoadSolidLayer layer = aggregate.placementLayers.getOrDefault(from, RoadSolidLayer.ROAD);
+        if (!isStackedPavementLayer(layer)) {
+            return;
+        }
+        String previous = aggregate.placementRecords.containsKey(to)
+            ? aggregate.placementRecords.get(to).previousBlockId
+            : "minecraft:air";
+        aggregate.recordPlacementOverride(to, previous, donor.newBlockId);
+        aggregate.placementLayers.put(to, layer);
+        Integer priority = aggregate.placementMaterialPriorities.get(from);
+        aggregate.placementMaterialPriorities.put(
+            to, priority != null ? priority : RoadSolidMaterialPriority.DEFAULT);
+        clearLeftover(aggregate, from);
     }
 
     private static void stripPavementAboveTarget(
