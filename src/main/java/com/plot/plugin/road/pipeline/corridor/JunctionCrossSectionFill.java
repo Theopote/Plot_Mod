@@ -908,6 +908,11 @@ public final class JunctionCrossSectionFill {
             return;
         }
         int groundY = terrain.sampleSurfaceY(planPoint);
+        // fail-closed：禁止破坏性清障（不得退化为露天挖到地表）。
+        if (maxClearY != null
+                && maxClearY == JunctionConstructionContext.CLEAR_DENIED) {
+            return;
+        }
         if (maxClearY != null) {
             // 与 clearOverhead / shell 共用 resolveTunnelSolidPunchTop：
             // 浅覆土 cutTop==junctionY → 不切穿覆土；深覆土止于洞顶下。

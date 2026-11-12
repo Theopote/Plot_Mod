@@ -254,8 +254,17 @@ public class RoadGenerationResult {
             boolean existingDeckSupport = existing != null
                     && !existingSurface
                     && isElevatedDeckSupport(existingLayer, pos, this);
+            boolean existingAuthorizedLining = existing != null
+                    && expectedTunnelLining != null
+                    && expectedTunnelLining.contains(pos)
+                    && !"minecraft:air".equals(existing.newBlockId);
+            // 合法壳层顶衬/侧墙：禁止被边坡开挖空气抹掉。
+            // 覆土保护主路径是清障 cap（Phase 1）；洞腔/立交/行车净空仍可打开误入行驶包络的衬砌。
+            boolean authorizedLiningBlocksClearance = existingAuthorizedLining
+                    && incomingPurpose == ClearancePurpose.SLOPE_EXCAVATION;
             boolean replaceWithClearance = existing != null && incomingAir && !existingSurface
                     && !existingDeckSupport
+                    && !authorizedLiningBlocksClearance
                     && (!existingRetaining || !isSlopeExcavationAir(incomingPurpose));
             if (replaceWithSurface || replaceWithDeckSupport || replaceWithRetaining || replaceWithClearance) {
                 if (incoming != null) {

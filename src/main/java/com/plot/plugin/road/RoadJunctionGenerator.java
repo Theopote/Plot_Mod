@@ -6,6 +6,7 @@ import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.corridor.JunctionConstructionContext;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
 import com.plot.plugin.road.pipeline.corridor.JunctionElevationField;
@@ -52,6 +53,9 @@ public class RoadJunctionGenerator {
         private JunctionConstructionReport report = JunctionConstructionReport.empty("");
         private JunctionValidationManifest validationManifest = JunctionValidationManifest.empty("");
         private JunctionElevationField elevationField = JunctionElevationField.inactive(0);
+        private JunctionConstructionContext constructionContext =
+            JunctionConstructionContext.openOnly("", JunctionWorldFootprint.empty(),
+                JunctionElevationField.inactive(0), null);
 
         public RoadSolidModel getSolids() {
             return solids;
@@ -69,6 +73,10 @@ public class RoadJunctionGenerator {
             return elevationField;
         }
 
+        public JunctionConstructionContext constructionContext() {
+            return constructionContext;
+        }
+
         void setReport(JunctionConstructionReport report) {
             this.report = report != null ? report : JunctionConstructionReport.empty("");
         }
@@ -83,6 +91,13 @@ public class RoadJunctionGenerator {
             this.elevationField = elevationField != null
                 ? elevationField
                 : JunctionElevationField.inactive(0);
+        }
+
+        void setConstructionContext(JunctionConstructionContext constructionContext) {
+            this.constructionContext = constructionContext != null
+                ? constructionContext
+                : JunctionConstructionContext.openOnly("", JunctionWorldFootprint.empty(),
+                    JunctionElevationField.inactive(0), null);
         }
 
         public boolean isEmpty() {
@@ -792,14 +807,45 @@ public class RoadJunctionGenerator {
         Integer elevatedClearCap = elevatedDeckY != null
             ? elevatedDeckY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH - 1
             : null;
-        // 广场铺装/清障/边坡均走 resolvePlazaColumnClearCap 逐列决策；
-        // 禁止再合成路口级 maxClearY 套到开敞边坡上。
+        // 广场铺装/清障/边坡均读 JunctionConstructionContext 逐列权限；
+        // 禁止再合成路口级 maxClearY 套到开敞边坡上；漏检时 fail-closed。
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
             fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
         JunctionElevationField elevationField = JunctionElevationField.build(
             safeFootprint, filletLoft, columnResolver, junctionY);
+        int sideClearance = 0;
+        for (TunnelJunctionSeedResolver.TunnelApproach approach : tunnelApproaches) {
+            if (approach != null && approach.tunnelStyle() != null) {
+                sideClearance = Math.max(sideClearance, Math.max(0, approach.tunnelStyle().sideClearance()));
+            }
+        }
+        JunctionConstructionContext constructionContext = JunctionConstructionContext.build(
+            node,
+            network,
+            safeFootprint,
+            elevationField,
+            terrain,
+            tunnelApproaches,
+            safeEdgeResults,
+            edges,
+            generator.getConfig(),
+            generator.coordinateTransformer(),
+            tunnelClearHeight,
+            tunnelCavityCap,
+            elevatedClearCap,
+            tunnelLiningThickness,
+            tunnelThreshold,
+            sideClearance,
+            clearancePolygon != null && clearancePolygon.size() >= 3
+                ? clearancePolygon
+                : List.of());
+        blocks.setConstructionContext(constructionContext);
+        if (constructionContext.failClosed()) {
+            LOGGER.warn("junction {} fail-closed clearance: {}",
+                node.getId(), constructionContext.failClosedReason());
+        }
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
         int unresolvedClearance = 0;
@@ -812,10 +858,8 @@ public class RoadJunctionGenerator {
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
                 int surfaceY = elevationField.surfaceY(point);
-                // 隧道族列，或覆土已达封闭门槛的圆角/广场列：必须带洞顶 cap，
-                // 禁止因最近中心线落在开敞段就把山体当露天掏穿。
-                Integer columnMaxClearY = resolvePlazaColumnClearCap(
-                    terrain, point, columnKey, surfaceY,
+                Integer columnMaxClearY = resolveColumnClearCap(
+                    constructionContext, terrain, point, columnKey, surfaceY,
                     edges, safeEdgeResults, centerlines,
                     tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
                     tunnelLiningThickness, tunnelThreshold);
@@ -866,12 +910,15 @@ public class RoadJunctionGenerator {
                 // leftover 缺省取自然地表，勿用 loft 路面 Y，否则开敞路口会漏清地表以上柱。
                 int leftoverTop = leftoverTops.getOrDefault(
                     columnKey, Math.max(pavementY, terrainSurfaceY));
-                // 逐列门控：最近进口为隧道族才保留洞顶；开敞进口与道路一样露天清到地表。
-                Integer columnTunnelCap = resolvePlazaColumnClearCap(
-                    terrain, point, columnKey, pavementY,
+                Integer columnTunnelCap = resolveColumnClearCap(
+                    constructionContext, terrain, point, columnKey, pavementY,
                     edges, safeEdgeResults, centerlines,
                     tunnelClearHeight, tunnelCavityCap, null,
                     tunnelLiningThickness, tunnelThreshold);
+                if (columnTunnelCap != null
+                        && columnTunnelCap == JunctionConstructionContext.CLEAR_DENIED) {
+                    continue;
+                }
                 // 列集已由外形∪铺装栅格确定；勿再 point-in-polygon，否则圆角补铺列会漏清树木
                 JunctionTerrainClearance.clearOverheadColumn(
                     blocks.getSolids(),
@@ -916,8 +963,8 @@ public class RoadJunctionGenerator {
             pavedForBatter.addAll(surfaceMask.expectedColumns());
             // 边坡逐列 cap：开敞列露天挖方；封闭隧道列保覆土；立交另夹上层承重。
             JunctionCrossSectionFill.ColumnClearCapResolver slopeClearCap =
-                (column, planPoint, designY) -> resolvePlazaColumnClearCap(
-                    terrain, planPoint, column, designY,
+                (column, planPoint, designY) -> resolveColumnClearCap(
+                    constructionContext, terrain, planPoint, column, designY,
                     edges, safeEdgeResults, centerlines,
                     tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
                     tunnelLiningThickness, tunnelThreshold);
@@ -1098,8 +1145,60 @@ public class RoadJunctionGenerator {
     }
 
     /**
-     * 路口铺装/清障列的洞顶 cap：有隧道进口参数时，隧道族列与封闭覆土列都保护山体；
-     * 真开敞列（非隧道族且覆土不足）才露天。
+     * 优先读 {@link JunctionConstructionContext}；无 context 规则时回退旧逐列启发式（测试兼容）。
+     */
+    static Integer resolveColumnClearCap(
+            JunctionConstructionContext context,
+            TerrainSampler terrain,
+            Vec2d planPoint,
+            ColumnKey column,
+            int loftSurfaceY,
+            List<RoadEdge> edges,
+            Map<String, RoadGenerationResult> edgeResults,
+            Function<RoadEdge, List<Vec2d>> centerlines,
+            Integer tunnelClearHeight,
+            Integer flatTunnelCavityCap,
+            Integer elevatedClearCap,
+            int liningThickness,
+            int tunnelThreshold) {
+        if (context != null) {
+            JunctionConstructionContext.ColumnRule rule = context.rule(column);
+            if (rule != null) {
+                if (!rule.destructiveClearAllowed()) {
+                    return JunctionConstructionContext.CLEAR_DENIED;
+                }
+                return rule.maxAuthorizedClearY();
+            }
+            if (context.failClosed() && context.undergroundJunction()) {
+                return JunctionConstructionContext.CLEAR_DENIED;
+            }
+            if (context.undergroundJunction() && context.isProtectedCavity(column)) {
+                Integer fromCtx = context.maxAuthorizedClearY(column, loftSurfaceY);
+                if (fromCtx != null) {
+                    return fromCtx;
+                }
+            }
+            // 地下路口未登记列：禁止 null 露天；开敞路口未登记列可露天。
+            if (context.undergroundJunction()) {
+                return enclosedTunnelColumnClearCap(
+                    terrain, planPoint, column, loftSurfaceY,
+                    tunnelClearHeight != null ? tunnelClearHeight : context.tunnelClearHeight(),
+                    flatTunnelCavityCap, elevatedClearCap,
+                    liningThickness, tunnelThreshold);
+            }
+        }
+        return resolvePlazaColumnClearCap(
+            terrain, planPoint, column, loftSurfaceY,
+            edges, edgeResults, centerlines,
+            tunnelClearHeight, flatTunnelCavityCap, elevatedClearCap,
+            liningThickness, tunnelThreshold);
+    }
+
+    /**
+     * 路口铺装/清障列的洞顶 cap（无 context 时的回退）。
+     * 有隧道净空参数时：隧道族或封闭覆土列保护；真开敞列才露天。
+     * 注意：有 {@link JunctionConstructionContext} 时应走 {@link #resolveColumnClearCap}，
+     * 以进口 open-volume 掩膜为准，避免圆角靠近开敞中心线时漏保护。
      */
     public static Integer resolvePlazaColumnClearCap(
             TerrainSampler terrain,

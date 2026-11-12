@@ -163,26 +163,101 @@ public final class JunctionElevationField {
                 break;
             }
         }
-        // 有坡圆角：低侧旁抬到不低于路面，高侧旁压到不高于路面；削局部鼓包；与台阶限幅交替。
-        for (int pass = 0; pass < 16; pass++) {
-            int band = clampFilletToApproachGradeBands(targets, filletOnly, approachAnchors);
-            int shave = shaveFilletLocalMaxima(targets, filletOnly, approachAnchors);
-            int toLoft = pullFilletDownTowardLoft(
-                targets, filletOnly, roles, safeLoft, safeFootprint, columns);
-            int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
-            if (band == 0 && shave == 0 && toLoft == 0 && step == 0) {
-                break;
+        // 平坦同层：进口锚点均在 junctionY 时强制整片同高，禁止削峰/台阶把圆角压低或抬高。
+        if (isUniformFlatApproaches(approachAnchors, junctionY)) {
+            for (ColumnKey key : new java.util.ArrayList<>(targets.keySet())) {
+                if (key != null) {
+                    targets.put(key, junctionY);
+                }
             }
-        }
-        for (int pass = 0; pass < 8; pass++) {
-            int shave = shaveFilletLocalMaxima(targets, filletOnly, approachAnchors);
-            int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
-            if (shave == 0 && step == 0) {
-                break;
+        } else if (!isUniformFlatTargets(targets, junctionY)) {
+            // 有坡圆角：低侧旁抬到不低于路面，高侧旁压到不高于路面；削局部鼓包；与台阶限幅交替。
+            for (int pass = 0; pass < 16; pass++) {
+                int band = clampFilletToApproachGradeBands(targets, filletOnly, approachAnchors);
+                int shave = shaveFilletLocalMaxima(targets, filletOnly, approachAnchors);
+                int toLoft = pullFilletDownTowardLoft(
+                    targets, filletOnly, roles, safeLoft, safeFootprint, columns);
+                int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
+                if (band == 0 && shave == 0 && toLoft == 0 && step == 0) {
+                    break;
+                }
             }
+            for (int pass = 0; pass < 8; pass++) {
+                int shave = shaveFilletLocalMaxima(targets, filletOnly, approachAnchors);
+                int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
+                if (shave == 0 && step == 0) {
+                    break;
+                }
+            }
+            // 最终约束：台阶限幅之后再压回 loft/路缘高侧包络，防止鼓包被重新抬高。
+            enforceFilletFinalLoftCeiling(
+                targets, filletOnly, safeLoft, safeFootprint, columns, approachAnchors);
         }
         return new JunctionElevationField(
             junctionY, safeLoft, safeFootprint, columns, targets, roles);
+    }
+
+    static boolean isUniformFlatTargets(Map<ColumnKey, Integer> targets, int junctionY) {
+        if (targets == null || targets.isEmpty()) {
+            return true;
+        }
+        for (Integer y : targets.values()) {
+            if (y == null || y != junctionY) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static boolean isUniformFlatApproaches(Map<ColumnKey, Integer> approachAnchors, int junctionY) {
+        if (approachAnchors == null || approachAnchors.isEmpty()) {
+            return true;
+        }
+        for (Integer y : approachAnchors.values()) {
+            if (y != null && y != junctionY) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static int enforceFilletFinalLoftCeiling(
+            Map<ColumnKey, Integer> targets,
+            Set<ColumnKey> filletColumns,
+            JunctionFilletElevationLoft loft,
+            JunctionWorldFootprint footprint,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns,
+            Map<ColumnKey, Integer> approachAnchors) {
+        if (targets == null || filletColumns == null || filletColumns.isEmpty() || loft == null) {
+            return 0;
+        }
+        int changed = 0;
+        for (ColumnKey key : filletColumns) {
+            Integer y = targets.get(key);
+            if (key == null || y == null) {
+                continue;
+            }
+            Vec2d plan = footprint != null ? footprint.planPoint(key) : null;
+            if (plan == null && columns != null) {
+                plan = new Vec2d(key.worldX() + 0.5, key.worldZ() + 0.5);
+            }
+            int ceiling = loft.surfaceY(plan, footprint);
+            if (approachAnchors != null) {
+                int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+                for (int[] dir : dirs) {
+                    Integer ay = approachAnchors.get(
+                        new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]));
+                    if (ay != null) {
+                        ceiling = Math.max(ceiling, ay);
+                    }
+                }
+            }
+            if (y > ceiling) {
+                targets.put(key, ceiling);
+                changed++;
+            }
+        }
+        return changed;
     }
 
     public int junctionY() {

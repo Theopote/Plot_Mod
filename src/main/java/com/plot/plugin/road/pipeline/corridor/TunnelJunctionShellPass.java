@@ -170,6 +170,8 @@ public final class TunnelJunctionShellPass {
                 }
             }
             // 同层：进口隧道洞腔 ∪ 圆角封闭列 → 最终洞腔；墙只出在并集外缘，避免连接处残留分隔柱。
+            // 进口 open-volume 扫掠到的封闭列一律并入（不要求最近中心线为隧道族），
+            // 避免圆角更靠近开敞进口时漏保护而被广场露天挖穿。
             List<Vec2d> polygon = resolveJunctionPolygon(network, node, config, scale);
             Set<ColumnKey> approachCavityColumns = cavityColumnsFromOpenVolume(
                 TunnelJunctionSeedResolver.collectOpenVolume(
@@ -191,10 +193,6 @@ public final class TunnelJunctionShellPass {
                 // 避免浅覆广场被走廊 open-volume 误开挖或封顶。
                 int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
                 Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                if (!TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
-                        plan, connected, edgeResults, centerlines)) {
-                    continue;
-                }
                 if (!columnHasEnclosedCover(
                         terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
                     continue;
@@ -204,7 +202,7 @@ public final class TunnelJunctionShellPass {
             if (finalCavityColumns.isEmpty()) {
                 continue;
             }
-            // 侧向净距外扩列可能未进铺装高程场：补钳制，避免孤立下沉把顶衬跟着压低。
+            // 仅钳制壳层本地 roadYByColumn（顶衬基准）；不写回权威 JunctionElevationField。
             stabilizeShellRoadY(roadYByColumn, footprint, filletLoft.approachRoadY());
 
             // 墙体 = 最终洞腔外缘（仍需覆土）；禁止写到合法 ROAD 净空列。
@@ -454,6 +452,12 @@ public final class TunnelJunctionShellPass {
                 return RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer).getZ();
             }
         };
+    }
+
+    /** 铺装足迹按隧道侧向净距外扩；供壳层与 {@link JunctionConstructionContext} 共用。 */
+    public static Set<ColumnKey> expandPaveBySideClearancePublic(
+            Set<ColumnKey> pave, int sideClearance) {
+        return expandPaveBySideClearance(pave, sideClearance);
     }
 
     private static Set<ColumnKey> expandPaveBySideClearance(Set<ColumnKey> pave, int sideClearance) {
