@@ -181,8 +181,15 @@ public final class TunnelJunctionShellPass {
                 if (column == null || !candidateColumns.contains(column)) {
                     continue;
                 }
+                // 进口洞腔扫掠可能覆盖浅覆土/洞口列；只有仍封闭覆土的列才并入最终洞腔，
+                // 避免浅覆广场被走廊 open-volume 误开挖或封顶。
+                int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
+                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                if (!columnHasEnclosedCover(
+                        terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
+                    continue;
+                }
                 finalCavityColumns.add(column);
-                roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
             }
             if (finalCavityColumns.isEmpty()) {
                 continue;

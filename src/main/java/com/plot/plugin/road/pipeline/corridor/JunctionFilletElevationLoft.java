@@ -608,14 +608,26 @@ public final class JunctionFilletElevationLoft {
             elevations.add(y);
         }
         // 切点处强制钉在所属进口路面高程，保证与原路缘衔接。
+        Double pinS = null;
+        Integer pinY = null;
         if (tangentPoint != null) {
-            double pinS = origin.distance(tangentPoint);
-            int tangentY = lookupElevation(
+            pinS = origin.distance(tangentPoint);
+            pinY = lookupElevation(
                 tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
-            pinElevation(distances, elevations, pinS, tangentY);
+            pinElevation(distances, elevations, pinS, pinY);
         }
-        // 体素邻域查找会把走廊 ±1 台阶噪声写进路缘；沿弧消抖后再 loft，避免圆角棋盘粗糙。
-        smoothCurbElevations(elevations);
+        int startY = elevations.getFirst();
+        boolean steepGrade = pinY != null && Math.abs(pinY - startY) > 2;
+        if (steepGrade) {
+            // 真实纵坡/立交：|ΔY|≤1 消抖会抹掉路缘平台（64→72 在 s=1 就应是 72）。
+            despikeCurbElevations(elevations);
+        } else {
+            // 近乎平坦：体素邻域噪声用相邻 |ΔY|≤1 双向消抖。
+            smoothCurbElevations(elevations);
+        }
+        if (pinS != null && pinY != null) {
+            pinElevation(distances, elevations, pinS, pinY);
+        }
         return new CurbElevationCurve(distances, elevations);
     }
 
@@ -642,6 +654,24 @@ public final class JunctionFilletElevationLoft {
                 elevations.set(i, next + 1);
             } else if (cur < next - 1) {
                 elevations.set(i, next - 1);
+            }
+        }
+    }
+
+    /** 单点尖峰：两侧接近而中点偏离超过 1 格时取两侧均值。 */
+    static void despikeCurbElevations(List<Integer> elevations) {
+        if (elevations == null || elevations.size() < 3) {
+            return;
+        }
+        List<Integer> snapshot = List.copyOf(elevations);
+        for (int i = 1; i < snapshot.size() - 1; i++) {
+            int prev = snapshot.get(i - 1);
+            int next = snapshot.get(i + 1);
+            int cur = snapshot.get(i);
+            if (Math.abs(prev - next) <= 1
+                    && Math.abs(cur - prev) > 1
+                    && Math.abs(cur - next) > 1) {
+                elevations.set(i, (prev + next) / 2);
             }
         }
     }
