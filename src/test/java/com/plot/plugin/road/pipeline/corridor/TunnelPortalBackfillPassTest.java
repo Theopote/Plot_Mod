@@ -42,8 +42,9 @@ class TunnelPortalBackfillPassTest {
 
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
-                if (y >= 71 && y <= 75) {
-                    return false; // roof-gap air that backfill must seal
+                // 仅 2 格过清障气隙（≤ SMALL_AIR_POCKET）；更大空腔按洞穴不整填。
+                if (y >= 71 && y <= 72) {
+                    return false;
                 }
                 return y <= 80;
             }
@@ -98,7 +99,7 @@ class TunnelPortalBackfillPassTest {
 
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
-                if (y >= 71 && y <= 75) {
+                if (y >= 71 && y <= 72) {
                     return false;
                 }
                 return y <= 80;

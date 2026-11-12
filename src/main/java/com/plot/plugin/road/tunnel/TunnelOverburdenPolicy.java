@@ -8,8 +8,10 @@ public final class TunnelOverburdenPolicy {
      * 竖直方向连续空气/流体格数 ≤ 此值时，视为可忽略的小孔洞：
      * 洞顶封填按正常开挖补实，连续覆土判定可跨越。
      * 更大空腔按大洞穴处理：不整穴填死、不连锁打穿地表。
+     * <p>
+     * 取 2 而非 3：洞顶上连续 3 格气隙已属「浮石/断覆土」场景，不得再当成可跨越噪点。
      */
-    public static final int SMALL_AIR_POCKET_MAX_BLOCKS = 3;
+    public static final int SMALL_AIR_POCKET_MAX_BLOCKS = 2;
 
     private TunnelOverburdenPolicy() {
     }
