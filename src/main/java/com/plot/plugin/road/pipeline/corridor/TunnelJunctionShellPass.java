@@ -474,15 +474,6 @@ public final class TunnelJunctionShellPass {
         return expanded;
     }
 
-    /**
-     * 壳侧 roadY 表可能含足迹外扩列（未进 {@link JunctionElevationField} 目标表）。
-     * 对软列强制邻接 |ΔY|≤1，并钉住进口锚点，保证顶衬不跟随交界局部下沉。
-     */
-    static void stabilizeShellRoadY(
-            Map<ColumnKey, Integer> roadYByColumn, JunctionWorldFootprint footprint) {
-        stabilizeShellRoadY(roadYByColumn, footprint, Map.of());
-    }
-
     static void stabilizeShellRoadY(
             Map<ColumnKey, Integer> roadYByColumn,
             JunctionWorldFootprint footprint,

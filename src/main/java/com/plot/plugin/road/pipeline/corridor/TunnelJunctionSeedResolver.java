@@ -361,14 +361,6 @@ public final class TunnelJunctionSeedResolver {
         return new UnderpassYBand(minY, maxY);
     }
 
-    public static Set<BlockPos> collectOpenVolume(
-            List<TunnelApproach> approaches,
-            List<Vec2d> polygon,
-            Collection<RoadGenerationResult> edgeResults,
-            ICoordinateService coordinateTransformer) {
-        return collectOpenVolume(approaches, polygon, edgeResults, coordinateTransformer, null);
-    }
-
     /**
      * @param roadYAt 可选的逐点路面标高；为 null 时回退进口节点 {@link TunnelApproach#roadY()}。
      */
