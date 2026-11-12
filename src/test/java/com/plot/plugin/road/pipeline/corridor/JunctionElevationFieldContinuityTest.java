@@ -157,6 +157,49 @@ class JunctionElevationFieldContinuityTest {
         assertTrue(Math.abs(seam.get(new ColumnKey(1, 0)) - 64) <= 1,
             "fillet/seam column must step toward adjacent graded approach anchor");
 
+        Map<ColumnKey, Integer> highSide = new HashMap<>();
+        highSide.put(new ColumnKey(1, 0), 72);
+        Map<ColumnKey, Integer> highAnchor = Map.of(new ColumnKey(0, 0), 70);
+        int highClamped = 0;
+        for (int pass = 0; pass < 8; pass++) {
+            int n = JunctionElevationField.clampFilletToApproachGradeBands(
+                highSide, java.util.Set.of(new ColumnKey(1, 0)), highAnchor);
+            highClamped += n;
+            if (n == 0) {
+                break;
+            }
+        }
+        assertTrue(highClamped > 0);
+        assertTrue(highSide.get(new ColumnKey(1, 0)) <= 70,
+            "high-side fillet must not rise above adjacent approach pavement");
+
+        Map<ColumnKey, Integer> lowSide = new HashMap<>();
+        lowSide.put(new ColumnKey(1, 0), 62);
+        Map<ColumnKey, Integer> lowAnchor = Map.of(new ColumnKey(0, 0), 64);
+        int lowClamped = 0;
+        for (int pass = 0; pass < 8; pass++) {
+            int n = JunctionElevationField.clampFilletToApproachGradeBands(
+                lowSide, java.util.Set.of(new ColumnKey(1, 0)), lowAnchor);
+            lowClamped += n;
+            if (n == 0) {
+                break;
+            }
+        }
+        assertTrue(lowClamped > 0);
+        assertTrue(lowSide.get(new ColumnKey(1, 0)) >= 64,
+            "low-side fillet must not sink below adjacent approach pavement");
+
+        // 有坡：仅邻高侧时只压顶不抬底，避免把缓坡圆角整列拽成高侧突起。
+        Map<ColumnKey, Integer> graded = new HashMap<>();
+        graded.put(new ColumnKey(1, 0), 68);
+        Map<ColumnKey, Integer> gradedAnchors = Map.of(
+            new ColumnKey(0, 0), 64,
+            new ColumnKey(2, 0), 70);
+        JunctionElevationField.clampFilletToApproachGradeBands(
+            graded, java.util.Set.of(new ColumnKey(1, 0)), gradedAnchors);
+        assertTrue(graded.get(new ColumnKey(1, 0)) == 68,
+            "interior fillet beside both grades must not be forced onto the high approach");
+
         int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
         for (Map.Entry<ColumnKey, Integer> entry : field.targetYByColumn().entrySet()) {
             ColumnKey key = entry.getKey();

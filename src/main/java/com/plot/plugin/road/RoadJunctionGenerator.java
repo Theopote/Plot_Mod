@@ -819,15 +819,13 @@ public class RoadJunctionGenerator {
                 ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
                 surfaceMask.expectColumn(columnKey);
                 int surfaceY = elevationField.surfaceY(point);
-                // 隧道 cap 只加在最近进口本身是隧道族的列上，与走廊逐段判定一致。
-                // 开敞路堑打穿地形时，圆角不得因为更远处有隧道而保留洞顶。
-                Integer columnMaxClearY = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
-                        point, edges, safeEdgeResults, centerlines)
-                    ? enclosedTunnelColumnClearCap(
-                        terrain, point, columnKey, surfaceY,
-                        tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
-                        tunnelLiningThickness, tunnelThreshold)
-                    : elevatedClearCap;
+                // 隧道族列，或覆土已达封闭门槛的圆角/广场列：必须带洞顶 cap，
+                // 禁止因最近中心线落在开敞段就把山体当露天掏穿。
+                Integer columnMaxClearY = resolvePlazaColumnClearCap(
+                    terrain, point, columnKey, surfaceY,
+                    edges, safeEdgeResults, centerlines,
+                    tunnelClearHeight, tunnelCavityCap, elevatedClearCap,
+                    tunnelLiningThickness, tunnelThreshold);
                 boolean stamped = JunctionCrossSectionFill.fillCell(
                     blocks.getSolids(),
                     point,
@@ -876,13 +874,11 @@ public class RoadJunctionGenerator {
                 int leftoverTop = leftoverTops.getOrDefault(
                     columnKey, Math.max(pavementY, terrainSurfaceY));
                 // 逐列门控：最近进口为隧道族才保留洞顶；开敞进口与道路一样露天清到地表。
-                Integer columnTunnelCap = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
-                        point, edges, safeEdgeResults, centerlines)
-                    ? enclosedTunnelColumnClearCap(
-                        terrain, point, columnKey, pavementY,
-                        tunnelClearHeight, tunnelCavityCap, null,
-                        tunnelLiningThickness, tunnelThreshold)
-                    : null;
+                Integer columnTunnelCap = resolvePlazaColumnClearCap(
+                    terrain, point, columnKey, pavementY,
+                    edges, safeEdgeResults, centerlines,
+                    tunnelClearHeight, tunnelCavityCap, null,
+                    tunnelLiningThickness, tunnelThreshold);
                 // 列集已由外形∪铺装栅格确定；勿再 point-in-polygon，否则圆角补铺列会漏清树木
                 JunctionTerrainClearance.clearOverheadColumn(
                     blocks.getSolids(),
@@ -1099,6 +1095,44 @@ public class RoadJunctionGenerator {
         Integer cavityCap = columnClearCap(
             loftSurfaceY, tunnelClearHeight, flatTunnelCavityCap, elevatedClearCap);
         return cavityCap != null ? cavityCap : elevatedClearCap;
+    }
+
+    /**
+     * 路口铺装/清障列的洞顶 cap：有隧道进口参数时，隧道族列与封闭覆土列都保护山体；
+     * 真开敞列（非隧道族且覆土不足）才露天。
+     */
+    public static Integer resolvePlazaColumnClearCap(
+            TerrainSampler terrain,
+            Vec2d planPoint,
+            ColumnKey column,
+            int loftSurfaceY,
+            List<RoadEdge> edges,
+            Map<String, RoadGenerationResult> edgeResults,
+            Function<RoadEdge, List<Vec2d>> centerlines,
+            Integer tunnelClearHeight,
+            Integer flatTunnelCavityCap,
+            Integer elevatedClearCap,
+            int liningThickness,
+            int tunnelThreshold) {
+        if (tunnelClearHeight == null && flatTunnelCavityCap == null) {
+            return elevatedClearCap;
+        }
+        boolean tunnelFamily = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+            planPoint, edges, edgeResults, centerlines);
+        int clearHeight = tunnelClearHeight != null
+            ? Math.max(1, tunnelClearHeight)
+            : Math.max(1, flatTunnelCavityCap != null
+                ? flatTunnelCavityCap - loftSurfaceY
+                : 1);
+        boolean enclosed = TunnelJunctionShellPass.columnHasEnclosedCover(
+            terrain, planPoint, column, loftSurfaceY, clearHeight, liningThickness, tunnelThreshold);
+        if (!tunnelFamily && !enclosed) {
+            return elevatedClearCap;
+        }
+        return enclosedTunnelColumnClearCap(
+            terrain, planPoint, column, loftSurfaceY,
+            tunnelClearHeight, flatTunnelCavityCap, elevatedClearCap,
+            liningThickness, tunnelThreshold);
     }
 
     private double estimateUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {

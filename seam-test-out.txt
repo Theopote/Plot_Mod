@@ -1,0 +1,223 @@
+
+> Configure project :
+Fabric Loom: 1.15.5
+
+> Task :compileJava
+> Task :processResources
+> Task :classes
+
+> Task :compileTestJava
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:63: 警告: [deprecation] EarthworkConfig中的getTargetElevation()已过时
+        assertEquals(0.0f, config.getTargetElevation());
+                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:64: 警告: [deprecation] EarthworkConfig中的getCutVolume()已过时
+        assertEquals(0.0f, config.getCutVolume());
+                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:65: 警告: [deprecation] EarthworkConfig中的getFillVolume()已过时
+        assertEquals(0.0f, config.getFillVolume());
+                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:72: 警告: [deprecation] EarthworkConfig中的setCutVolume(float)已过时
+        config.setCutVolume(999f);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:73: 警告: [deprecation] EarthworkConfig中的setFillVolume(float)已过时
+        config.setFillVolume(888f);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:74: 警告: [deprecation] EarthworkConfig中的setTargetElevation(float)已过时
+        config.setTargetElevation(12f);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkTestFixtures.java:107: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:67: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:160: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:175: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:176: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_EARTHWORK_OPTIMIZATION已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:176: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:209: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:210: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_NONE已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_NONE);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:210: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_NONE);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:239: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:240: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:240: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:270: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:327: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:328: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:328: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:366: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:367: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:367: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:406: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        perZone.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                        ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:412: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                         ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:413: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                          ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:413: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                       ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:447: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:448: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:448: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:471: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:472: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:472: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:506: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:507: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:507: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:550: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkAnalyticalBenchmarkTest.java:177: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+    site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:230: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:231: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_UNIFORM已过时
+        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:231: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:253: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:254: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_EARTHWORK_OPTIMIZATION已过时
+        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:254: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:66: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:68: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_EARTHWORK_OPTIMIZATION已过时
+            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                             ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:67: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:114: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:116: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_EARTHWORK_OPTIMIZATION已过时
+            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                             ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:115: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:132: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_SITE_WIDE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:134: 警告: [deprecation] CompositionPolicy中的BALANCE_METHOD_EARTHWORK_OPTIMIZATION已过时
+            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                             ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\GeometricZoneOffsetBoundsTest.java:133: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        site.getCompositionPolicy().setBalanceMethod(
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\model\CompositionPolicyBalanceSemanticsTest.java:37: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        policy.setBalanceMethod("UNIFORM_OFFSET");
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\model\CompositionPolicyBalanceSemanticsTest.java:49: 警告: [deprecation] CompositionPolicy中的setBalanceMethod(String)已过时
+        policy.setBalanceMethod("ZONE_ALLOCATION");
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\PhaseDCompositionTest.java:81: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\PhaseDCompositionTest.java:140: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\PhaseDPlusCompositionTest.java:121: 警告: [deprecation] CompositionPolicy中的BALANCE_SCOPE_PER_ZONE已过时
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\road\manager\RoadPersistenceManagerTest.java:36: 警告: [deprecation] RoadNetworkHistory中的push(RoadNetwork)已过时
+        history.push(network);
+               ^
+61 个警告
+
+> Task :processTestResources
+> Task :testClasses
+
+> Task :test FAILED
+
+JunctionSeamReconciliationPassTest > filletExactApproachPinPreventsRaisingAboveLeftoverRoad() FAILED
+    org.opentest4j.AssertionFailedError at JunctionSeamReconciliationPassTest.java:216
+
+1 test completed, 1 failed
+
+[Incubating] Problems report is available at: file:///D:/development/PL/plot/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///D:/development/PL/plot/build/reports/tests/test/index.html
+
+* Try:
+
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.9.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 30s
+5 actionable tasks: 5 executed

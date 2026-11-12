@@ -428,4 +428,33 @@ class JunctionTerrainClearanceTunnelCoverTest {
             }
         };
     }
+
+    @Test
+    void enclosedFilletColumnKeepsTunnelCapEvenWhenNearestApproachIsOpen() {
+        // 圆角列覆土已封闭，但最近中心线落在开敞段：仍须洞顶 cap，不得露天掏山。
+        int roadY = 64;
+        int clearHeight = 5;
+        int surfaceY = 80;
+        Vec2d plan = new Vec2d(12, 12);
+        TerrainSampler terrain = surfaceAt(surfaceY);
+        ColumnKey column = new ColumnKey(12, 12);
+
+        Integer cap = com.plot.plugin.road.RoadJunctionGenerator.resolvePlazaColumnClearCap(
+            terrain, plan, column, roadY,
+            java.util.List.of(), java.util.Map.of(), edge -> java.util.List.of(),
+            clearHeight, null, null, 1, 4);
+        assertEquals(roadY + clearHeight, cap,
+            "enclosed cover must install tunnel roof cap without tunnel-family nearest edge");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        JunctionTerrainClearance.clearOverheadColumn(
+            solids, roadY, 4, terrain, 12, 12, plan, null, surfaceY, cap);
+        int maxAirY = solids.primitives().stream()
+            .filter(p -> "minecraft:air".equals(p.materialId()))
+            .mapToInt(p -> p.elevation())
+            .max()
+            .orElse(roadY);
+        assertTrue(maxAirY < surfaceY, "must not daylight mountain above enclosed fillet");
+        assertTrue(maxAirY < roadY + clearHeight, "must stop below design roof");
+    }
 }

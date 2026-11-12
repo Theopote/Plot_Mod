@@ -564,6 +564,15 @@ public final class TunnelJunctionShellPass {
                 break;
             }
         }
+        for (int pass = 0; pass < 16; pass++) {
+            int band = JunctionElevationField.clampFilletToApproachGradeBands(
+                roadYByColumn, filletOnly, approachAnchors);
+            int step = JunctionElevationField.enforceAdjacentStepLimit(
+                roadYByColumn, soft, approachAnchors);
+            if (band == 0 && step == 0) {
+                break;
+            }
+        }
         for (int pass = 0; pass < 8; pass++) {
             if (JunctionElevationField.enforceAdjacentStepLimit(
                     roadYByColumn, soft, approachAnchors) == 0) {

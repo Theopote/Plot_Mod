@@ -545,9 +545,11 @@ public final class JunctionFilletElevationLoft {
             ownerB = resolveTangentOwner(fillet.tangentEnd(), edges, centerlines);
         }
         CurbElevationCurve curbA = sampleCurb(
-            sharp, dirA, fillet.tangentStart(), ownerA, roadYByEdge, edgeResults, centerlines, columns, junctionY);
+            sharp, dirA, fillet.tangentStart(), ownerA, roadYByEdge, edgeResults, centerlines, columns,
+            junctionY, gore);
         CurbElevationCurve curbB = sampleCurb(
-            sharp, dirB, fillet.tangentEnd(), ownerB, roadYByEdge, edgeResults, centerlines, columns, junctionY);
+            sharp, dirB, fillet.tangentEnd(), ownerB, roadYByEdge, edgeResults, centerlines, columns,
+            junctionY, gore);
         return new FilletLoftCorner(gore, sharp, dirA, dirB, curbA, curbB);
     }
 
@@ -606,19 +608,21 @@ public final class JunctionFilletElevationLoft {
             Map<String, RoadGenerationResult> edgeResults,
             Function<RoadEdge, List<Vec2d>> centerlines,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
-            int junctionY) {
+            int junctionY,
+            List<Vec2d> filletGore) {
         Map<ColumnKey, Integer> scoped = scopedRoadY(ownerEdge, roadYByEdge);
         // 路缘两端都取所属进口真实标高（纵断面优先），不再把锐角点钉死在 junctionY。
         // 从路口缓坡抬升时，锐角点已经离开节点半宽，强制 junctionY 会让轨的坡比道路更陡，
         // 圆角一侧提前抬升并高出路面。direction 定义放样轨方向，标高只取两端。
+        // gore 内遗留边路由接缝剥离，不得污染路缘采样，否则补铺会被钉成进口残留标高。
         int startY = lookupElevation(
-            origin, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
+            origin, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY, filletGore);
         int endY = startY;
         double length = 0.0;
         if (tangentPoint != null) {
             length = origin.distance(tangentPoint);
             endY = lookupElevation(
-                tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY);
+                tangentPoint, scoped, ownerEdge, edgeResults, centerlines, columns, junctionY, filletGore);
             if (length <= EPSILON) {
                 startY = endY;
                 length = 0.0;
@@ -700,7 +704,8 @@ public final class JunctionFilletElevationLoft {
             Map<String, RoadGenerationResult> edgeResults,
             Function<RoadEdge, List<Vec2d>> centerlines,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
-            int junctionY) {
+            int junctionY,
+            List<Vec2d> filletGore) {
         // 优先连续纵断面：离散路面列含 Minecraft 台阶噪声，直接 loft 会让圆角看起来粗糙。
         Integer fromProfile = elevationFromOwnedProfile(
             planPoint, ownerEdge, edgeResults, centerlines);
@@ -710,7 +715,7 @@ public final class JunctionFilletElevationLoft {
         int wx = columns.worldX(planPoint);
         int wz = columns.worldZ(planPoint);
         Integer exact = scopedRoadY.get(new ColumnKey(wx, wz));
-        if (exact != null) {
+        if (exact != null && !columnInsideFilletGore(wx, wz, filletGore, columns)) {
             return exact;
         }
         Integer near = null;
@@ -720,8 +725,10 @@ public final class JunctionFilletElevationLoft {
                 if (dx == 0 && dz == 0) {
                     continue;
                 }
-                Integer y = scopedRoadY.get(new ColumnKey(wx + dx, wz + dz));
-                if (y == null) {
+                int nx = wx + dx;
+                int nz = wz + dz;
+                Integer y = scopedRoadY.get(new ColumnKey(nx, nz));
+                if (y == null || columnInsideFilletGore(nx, nz, filletGore, columns)) {
                     continue;
                 }
                 int dist = Math.abs(dx) + Math.abs(dz);
@@ -735,6 +742,17 @@ public final class JunctionFilletElevationLoft {
             return near;
         }
         return junctionY;
+    }
+
+    private static boolean columnInsideFilletGore(
+            int worldX,
+            int worldZ,
+            List<Vec2d> filletGore,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns) {
+        if (filletGore == null || filletGore.size() < 3) {
+            return false;
+        }
+        return RoadGeometryUtils.pointInPolygon(new Vec2d(worldX + 0.5, worldZ + 0.5), filletGore);
     }
 
     private static Integer elevationFromOwnedProfile(

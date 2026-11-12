@@ -163,6 +163,14 @@ public final class JunctionElevationField {
                 break;
             }
         }
+        // 有坡圆角：低侧旁抬到不低于路面，高侧旁压到不高于路面；与台阶限幅交替，最后以台阶限幅收束。
+        for (int pass = 0; pass < 16; pass++) {
+            int band = clampFilletToApproachGradeBands(targets, filletOnly, approachAnchors);
+            int step = enforceAdjacentStepLimit(targets, soft, approachAnchors);
+            if (band == 0 && step == 0) {
+                break;
+            }
+        }
         for (int pass = 0; pass < 8; pass++) {
             if (enforceAdjacentStepLimit(targets, soft, approachAnchors) == 0) {
                 break;
@@ -348,7 +356,7 @@ public final class JunctionElevationField {
     }
 
     /**
-     * 路缘↔圆角交界：软列向邻接进口锚点收一格，优先贴齐坡道而不是被核区均值拉开。
+     * 路缘↔接缝交界：接缝列向邻接进口锚点收一格。
      * @return 本轮修正列数
      */
     static int alignSoftColumnsToApproachSeam(
@@ -385,6 +393,72 @@ public final class JunctionElevationField {
                 continue;
             }
             int next = y + (pull > 0 ? 1 : -1);
+            if (next != y) {
+                adjusted.put(key, next);
+            }
+        }
+        targets.putAll(adjusted);
+        return adjusted.size();
+    }
+
+    /**
+     * 有坡圆角带约束：只对全局低侧进口施加地板、对全局高侧进口施加天花板。
+     * 低侧旁圆角不得低于该路面；高侧旁圆角不得高于该路面；每轮最多收 ±1 以配合台阶限幅。
+     * @return 本轮修正列数
+     */
+    static int clampFilletToApproachGradeBands(
+            Map<ColumnKey, Integer> targets,
+            Set<ColumnKey> filletColumns,
+            Map<ColumnKey, Integer> approachAnchors) {
+        if (targets == null || filletColumns == null || filletColumns.isEmpty()
+                || approachAnchors == null || approachAnchors.isEmpty()) {
+            return 0;
+        }
+        int globalLow = Integer.MAX_VALUE;
+        int globalHigh = Integer.MIN_VALUE;
+        for (Integer ay : approachAnchors.values()) {
+            if (ay == null) {
+                continue;
+            }
+            globalLow = Math.min(globalLow, ay);
+            globalHigh = Math.max(globalHigh, ay);
+        }
+        if (globalLow == Integer.MAX_VALUE) {
+            return 0;
+        }
+        Map<ColumnKey, Integer> adjusted = new LinkedHashMap<>();
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (ColumnKey key : filletColumns) {
+            Integer y = targets.get(key);
+            if (key == null || y == null) {
+                continue;
+            }
+            Integer floor = null;
+            Integer ceiling = null;
+            for (int[] dir : dirs) {
+                ColumnKey neighbor = new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]);
+                Integer ay = approachAnchors.get(neighbor);
+                if (ay == null) {
+                    continue;
+                }
+                // 平坦（高低同值）时两侧同时钉死；有坡时仅低侧抬底、高侧压顶。
+                if (ay <= globalLow) {
+                    floor = floor == null ? ay : Math.max(floor, ay);
+                }
+                if (ay >= globalHigh) {
+                    ceiling = ceiling == null ? ay : Math.min(ceiling, ay);
+                }
+            }
+            if (floor == null && ceiling == null) {
+                continue;
+            }
+            int next = y;
+            if (floor != null && next < floor) {
+                next = Math.min(floor, y + 1);
+            }
+            if (ceiling != null && next > ceiling) {
+                next = Math.max(ceiling, y - 1);
+            }
             if (next != y) {
                 adjusted.put(key, next);
             }

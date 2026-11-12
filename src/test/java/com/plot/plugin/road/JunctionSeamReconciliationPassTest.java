@@ -196,8 +196,20 @@ class JunctionSeamReconciliationPassTest {
                 }
             };
         JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, null);
-        ColumnKey filletColumn = footprint.filletAdditions().stream().findFirst().orElse(null);
-        assertTrue(filletColumn != null, "precondition: fillet column exists");
+        // 取 gore 内稳定列，避免 HashSet.findFirst 在不同 JVM 哈希种子下漂移。
+        ColumnKey filletColumn = footprint.filletAdditions().stream()
+            .filter(key -> {
+                Vec2d plan = new Vec2d(key.worldX() + 0.5, key.worldZ() + 0.5);
+                return RoadGeometryUtils.pointInPolygon(
+                    plan, com.plot.plugin.road.RoadJunctionGenerator.filletGorePolygon(fillet));
+            })
+            .sorted((a, b) -> {
+                int cx = Integer.compare(a.worldX(), b.worldX());
+                return cx != 0 ? cx : Integer.compare(a.worldZ(), b.worldZ());
+            })
+            .findFirst()
+            .orElse(null);
+        assertTrue(filletColumn != null, "precondition: fillet gore column exists");
 
         Map<String, RoadGenerationResult> edgeResults = new HashMap<>();
         RoadGenerationResult nsResult = new RoadGenerationResult(0);
