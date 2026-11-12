@@ -387,6 +387,17 @@ public final class EngineeringTerrainService {
             || state.isIn(BlockTags.SAND)
             || state.isIn(BlockTags.TERRACOTTA)
             || state.isIn(BlockTags.NYLIUM)
+            // 矿石是自然地层一部分；若排除，isSolidBlock 会把矿脉当成空气缝，
+            // 路口悬空清障会沿矿脉连锁打穿地表并压掉隧道衬砌/灯光。
+            || state.isIn(BlockTags.COAL_ORES)
+            || state.isIn(BlockTags.COPPER_ORES)
+            || state.isIn(BlockTags.IRON_ORES)
+            || state.isIn(BlockTags.GOLD_ORES)
+            || state.isIn(BlockTags.REDSTONE_ORES)
+            || state.isIn(BlockTags.LAPIS_ORES)
+            || state.isIn(BlockTags.DIAMOND_ORES)
+            || state.isIn(BlockTags.EMERALD_ORES)
+            || state.isOf(Blocks.ANCIENT_DEBRIS)
             || state.isOf(Blocks.GRAVEL)
             || state.isOf(Blocks.CLAY)
             || state.isOf(Blocks.MUD)

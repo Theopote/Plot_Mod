@@ -280,13 +280,27 @@ public final class JunctionTerrainClearance {
                 continue;
             }
             boolean belowCleared = y > fromY && cleared[y - 1 - fromY];
-            boolean belowAirInWorld = !terrain.isSolidBlock(worldX, y - 1, worldZ);
-            if (!belowCleared && !belowAirInWorld) {
+            // 支撑判定必须含矿石等 OTHER_SOLID：isSolidBlock 仅认工程土石，
+            // 把矿石当「下方空气」会沿矿脉/洞穴把 CLEARANCE 空气连锁写到地表，并压掉衬砌/灯光。
+            boolean belowUnsupported = !hasWorldVerticalSupport(terrain, worldX, y - 1, worldZ);
+            if (!belowCleared && !belowUnsupported) {
                 continue;
             }
             writeClearanceAir(solids, planPoint, y);
             cleared[y - fromY] = true;
         }
+    }
+
+    /**
+     * 竖直支撑：工程土石，或任意非空气构筑/矿石障碍（与 {@link TerrainSampler#isConstructionVolumeObstruction} 对齐）。
+     */
+    static boolean hasWorldVerticalSupport(
+            TerrainSampler terrain, int worldX, int y, int worldZ) {
+        if (terrain == null) {
+            return false;
+        }
+        return terrain.isSolidBlock(worldX, y, worldZ)
+            || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
     }
 
     /** @deprecated 使用 {@link #clearFloatingAndDecorationsAbove} */

@@ -714,8 +714,10 @@ public final class JunctionFilletElevationLoft {
         }
         int wx = columns.worldX(planPoint);
         int wz = columns.worldZ(planPoint);
+        // 锐点/切点落在 gore 边界上：同列精确命中仍是所属路缘真实标高，必须保留。
+        // 仅邻域扩展时剥离 gore 内接缝残留，避免搜到偏离路缘的污染列（如测试中的 Y=90）。
         Integer exact = scopedRoadY.get(new ColumnKey(wx, wz));
-        if (exact != null && !columnInsideFilletGore(wx, wz, filletGore, columns)) {
+        if (exact != null) {
             return exact;
         }
         Integer near = null;

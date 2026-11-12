@@ -285,6 +285,71 @@ class JunctionTerrainClearanceTunnelCoverTest {
     }
 
     @Test
+    void openPlazaFloatingClearDoesNotChainThroughOreVeinToSurface() {
+        // 开敞清障：矿石曾被 isSolidBlock=false 当成「下方空气」，会沿矿脉把上方山体连锁掏成竖井。
+        RoadSolidModel solids = new RoadSolidModel();
+        int roadY = 64;
+        int solidTop = 66;   // 实体开挖顶
+        int oreY = 68;       // 矿石（原 OTHER_SOLID）
+        int rockY = 69;      // 矿石上方自然岩石
+        int surfaceY = 75;
+        Vec2d plan = new Vec2d(50, 50);
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return surfaceY;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return surfaceY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                // 模拟修复前：矿石不算工程土石；修复后真实采样会把矿石算实心，两路都应挡住连锁。
+                if (y == oreY) {
+                    return false;
+                }
+                return y < surfaceY && y != oreY;
+            }
+
+            @Override
+            public boolean isConstructionVolumeObstruction(int x, int y, int z) {
+                if (y == oreY) {
+                    return true; // 矿石仍是构筑障碍
+                }
+                return y < surfaceY;
+            }
+
+            @Override
+            public boolean isChunkLoaded(int x, int z) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return true;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return false;
+            }
+        };
+
+        JunctionTerrainClearance.clearFloatingAndDecorationsAbove(
+            solids, plan, terrain, 50, 50, roadY, solidTop, surfaceY + 2, false);
+
+        assertFalse(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == rockY && "minecraft:air".equals(p.materialId())),
+            "must not chain-clear rock above an ore vein as if the ore were air");
+        assertFalse(solids.primitives().stream().anyMatch(p ->
+                p.elevation() >= surfaceY && "minecraft:air".equals(p.materialId())),
+            "ore vein must not daylight the natural surface via floating clearance");
+    }
+
+    @Test
     void tunnelContextDoesNotChainDeleteNaturalRockAboveCave() {
         // 浅覆土隧道列：覆土下有天然洞穴时，不得因 belowAir 把上方山体连锁清成竖井。
         RoadSolidModel solids = new RoadSolidModel();
