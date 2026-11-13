@@ -97,6 +97,51 @@ class JunctionProtectedOverburdenHardTest {
     }
 
     @Test
+    void stripUnauthorizedOverburdenAirRemovesAggregatePunches() {
+        RoadSystemConfig config = new RoadSystemConfig("strip-overburden");
+        config.setDefaultCornerRadius(6.0f);
+        config.setSelectedMaterial("minecraft:stone");
+        RoadNetwork network = crossNetwork(true);
+        RoadNode junction = hub(network);
+        Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
+        int surfaceY = 90;
+        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+            config, network, junction, surfaceAt(surfaceY), 64, edgeResults);
+        RoadGenerationResult aggregate = rasterize(blocks);
+
+        ColumnKey column = null;
+        Integer roofY = null;
+        for (ColumnKey candidate : blocks.constructionContext().protectedCavityColumns()) {
+            JunctionConstructionContext.ColumnRule rule = blocks.constructionContext().rule(candidate);
+            if (rule != null
+                    && rule.role() == JunctionConstructionContext.ColumnRole.ENCLOSED_TUNNEL
+                    && rule.cavityRoofY() != null) {
+                column = candidate;
+                roofY = rule.cavityRoofY();
+                break;
+            }
+        }
+        assertNotNull(column, "need an enclosed protected column");
+        assertNotNull(roofY);
+        net.minecraft.util.math.BlockPos punch = new net.minecraft.util.math.BlockPos(
+            column.worldX(), roofY + 2, column.worldZ());
+        aggregate.placementRecords.put(
+            punch,
+            new com.plot.core.command.BlockRecord(punch, "minecraft:stone", "minecraft:air"));
+        aggregate.placementLayers.put(punch, com.plot.plugin.road.solid.RoadSolidLayer.TUNNEL);
+
+        assertTrue(JunctionProtectedOverburdenValidator.evaluate(
+            blocks, aggregate, surfaceAt(surfaceY)).protectedOverburdenAirCount() > 0);
+
+        int stripped = JunctionProtectedOverburdenValidator.stripUnauthorizedOverburdenAir(
+            blocks, aggregate);
+        assertEquals(1, stripped);
+        assertNull(aggregate.placementRecords.get(punch));
+        assertEquals(0, JunctionProtectedOverburdenValidator.evaluate(
+            blocks, aggregate, surfaceAt(surfaceY)).protectedOverburdenAirCount());
+    }
+
+    @Test
     void missingLiningIgnoresAuthorizedCavityAir() {
         RoadSystemConfig config = new RoadSystemConfig("lining-cavity");
         config.setDefaultCornerRadius(6.0f);

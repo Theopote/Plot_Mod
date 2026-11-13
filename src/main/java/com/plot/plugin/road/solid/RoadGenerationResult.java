@@ -164,6 +164,29 @@ public class RoadGenerationResult {
         RoadPlacementRecorder.recordOverride(placementRecords, pos, previousBlockId, newBlockId);
     }
 
+    /**
+     * 撤销某格的生成落点（保留天然方块）。用于合并后剔除封闭洞顶以上的非法清障空气。
+     */
+    public void clearPlacement(BlockPos pos) {
+        if (pos == null) {
+            return;
+        }
+        BlockPos key = pos.toImmutable();
+        placementRecords.remove(key);
+        placementLayers.remove(key);
+        placementMaterialPriorities.remove(key);
+        placementClearancePurposes.remove(key);
+        openRoadClearanceTops.remove(key);
+        expectedRoadSurfaces.remove(key);
+        expectedTunnelCavity.remove(key);
+        expectedTunnelLining.remove(key);
+        tunnelBlocks.remove(key);
+        roadBlocks.remove(key);
+        sidewalkBlocks.remove(key);
+        bridgeBlocks.remove(key);
+        streetlightBlocks.remove(key);
+    }
+
     public void recordPlacementByLayerPriority(
             BlockPos pos,
             String previousBlockId,

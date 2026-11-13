@@ -28,6 +28,50 @@ public final class JunctionProtectedOverburdenValidator {
             int missingAuthorizedLiningCount) {
     }
 
+    /**
+     * 合并后修复：封闭洞顶以上的非法空气落点一律撤销，保留天然覆土。
+     * 走廊/边坡清障常把空气写进路口保护列覆土层，若不剔除会既打穿地表又误拦建造。
+     *
+     * @return 撤销的空气格数
+     */
+    public static int stripUnauthorizedOverburdenAir(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            RoadGenerationResult aggregate) {
+        if (blocks == null || aggregate == null || aggregate.placementRecords == null) {
+            return 0;
+        }
+        JunctionConstructionContext context = blocks.constructionContext();
+        if (context == null) {
+            return 0;
+        }
+        int stripped = 0;
+        for (ColumnKey column : context.protectedCavityColumns()) {
+            if (column == null) {
+                continue;
+            }
+            JunctionConstructionContext.ColumnRule rule = context.rule(column);
+            if (rule == null
+                    || rule.role() != JunctionConstructionContext.ColumnRole.ENCLOSED_TUNNEL) {
+                continue;
+            }
+            Integer roofY = rule.cavityRoofY();
+            if (roofY == null) {
+                continue;
+            }
+            int surfaceY = rule.naturalSurfaceY();
+            for (int y = roofY + 1; y <= surfaceY; y++) {
+                BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
+                BlockRecord record = aggregate.placementRecords.get(pos);
+                if (record == null || !"minecraft:air".equals(record.newBlockId)) {
+                    continue;
+                }
+                aggregate.clearPlacement(pos);
+                stripped++;
+            }
+        }
+        return stripped;
+    }
+
     public static Metrics evaluate(
             RoadJunctionGenerator.JunctionBlocks blocks,
             RoadGenerationResult aggregate,

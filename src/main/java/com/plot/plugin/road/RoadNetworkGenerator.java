@@ -970,6 +970,15 @@ public class RoadNetworkGenerator {
                 "expected junction has no generation/validation result");
             return;
         }
+        int strippedOverburden = JunctionProtectedOverburdenValidator.stripUnauthorizedOverburdenAir(
+            junctionBlocks, aggregate);
+        if (strippedOverburden > 0) {
+            LOGGER.info(
+                "路口 {} 已剔除封闭洞顶以上非法覆土空气 {} 格",
+                node.getId(),
+                strippedOverburden);
+        }
+
         JunctionFinalVoxelValidator.PostMergeReport postMerge =
             JunctionFinalVoxelValidator.validateNode(
                 junctionBlocks.validationManifest(),
