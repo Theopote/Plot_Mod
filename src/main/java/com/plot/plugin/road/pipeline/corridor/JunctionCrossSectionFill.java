@@ -123,6 +123,10 @@ public final class JunctionCrossSectionFill {
                 || network == null || config == null || materials == null || terrain == null) {
             return false;
         }
+        // fail-closed：禁止破坏性施工时不得先铺装再只停开挖，避免路面埋进未清天然山体却 stamped=true。
+        if (maxClearY != null && maxClearY == JunctionConstructionContext.CLEAR_DENIED) {
+            return false;
+        }
         int stampY = surfaceY;
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);

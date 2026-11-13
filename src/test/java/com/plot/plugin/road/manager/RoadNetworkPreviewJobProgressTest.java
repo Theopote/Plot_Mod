@@ -65,9 +65,9 @@ class RoadNetworkPreviewJobProgressTest {
         assertEquals(RoadNetworkPreviewSession.AggregationStep.VALIDATE, session.aggregationStep());
         assertEquals(2, session.processedAggregationWorkUnits());
 
-        assertTrue(generator.tickPreviewSessionAggregation(session));
+        assertTrue(generator.tickPreviewSessionAggregation(session, Long.MAX_VALUE));
         assertEquals(RoadNetworkPreviewSession.AggregationStep.DONE, session.aggregationStep());
-        assertEquals(3, session.processedAggregationWorkUnits());
+        assertEquals(session.aggregationWorkUnits(), session.processedAggregationWorkUnits());
         assertFalse(session.completedPreview().aggregate().placementRecords.isEmpty());
     }
 
@@ -86,12 +86,12 @@ class RoadNetworkPreviewJobProgressTest {
 
         int base = RoadNetworkPreviewJob.PREPARE_WORK_UNITS
             + session.totalWorkUnits()
-            + RoadNetworkPreviewJob.CONNECTIVITY_WORK_UNITS
+            + session.tunnelConnectivityWorkUnits()
             + session.aggregationWorkUnits()
             + 1; // reserved projecting unit when auto ghosts
         int processedBeforeAggregate = RoadNetworkPreviewJob.PREPARE_WORK_UNITS
             + session.processedWorkUnits()
-            + RoadNetworkPreviewJob.CONNECTIVITY_WORK_UNITS;
+            + session.tunnelConnectivityWorkUnits();
         assertTrue(processedBeforeAggregate < base);
         assertTrue(processedBeforeAggregate + session.aggregationWorkUnits() <= base);
     }

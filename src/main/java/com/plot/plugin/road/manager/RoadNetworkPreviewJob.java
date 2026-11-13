@@ -17,15 +17,16 @@ public final class RoadNetworkPreviewJob {
 
     /** 准备阶段计入进度的虚拟工作量。 */
     static final int PREPARE_WORK_UNITS = 1;
-    /** 边完成后的隧道连通计入进度的虚拟工作量。 */
-    static final int CONNECTIVITY_WORK_UNITS = 1;
+    /** 壳层/连通每帧时间预算（纳秒）。 */
+    static final long CONNECTIVITY_BUDGET_NANOS = 8_000_000L;
 
     public enum Phase {
         PENDING,
         PREPARING,
         EDGES,
-        CONNECTIVITY,
+        /** 路口铺装先于壳层，便于顶衬读取权威高程场。 */
         JUNCTIONS,
+        CONNECTIVITY,
         AGGREGATING,
         PROJECTING,
         COMPLETED,
@@ -77,8 +78,8 @@ public final class RoadNetworkPreviewJob {
                 case PENDING -> beginSession(world);
                 case PREPARING -> tickPrepare();
                 case EDGES -> tickEdges();
-                case CONNECTIVITY -> tickConnectivity();
                 case JUNCTIONS -> tickJunctions();
+                case CONNECTIVITY -> tickConnectivity();
                 case AGGREGATING -> tickAggregate();
                 case PROJECTING -> tickProjecting();
                 default -> {
@@ -111,20 +112,24 @@ public final class RoadNetworkPreviewJob {
         networkGenerator.tickPreviewSessionEdges(session, RoadNetworkGenerator.PREVIEW_EDGES_PER_TICK, 8_000_000L);
         manager.updatePreviewJobProgress(this);
         if (!session.hasMoreEdges()) {
-            phase = Phase.CONNECTIVITY;
+            phase = Phase.JUNCTIONS;
         }
-    }
-
-    private void tickConnectivity() {
-        networkGenerator.applyPreviewSessionTunnelConnectivity(session);
-        phase = Phase.JUNCTIONS;
-        manager.updatePreviewJobProgress(this);
     }
 
     private void tickJunctions() {
         networkGenerator.tickPreviewSessionJunctions(session, RoadNetworkGenerator.PREVIEW_JUNCTIONS_PER_TICK, 8_000_000L);
         manager.updatePreviewJobProgress(this);
         if (!session.hasMoreJunctions()) {
+            // 路口权威高程场就绪后再写壳与连通清障。
+            phase = Phase.CONNECTIVITY;
+        }
+    }
+
+    private void tickConnectivity() {
+        boolean done = networkGenerator.tickPreviewSessionTunnelConnectivity(
+            session, CONNECTIVITY_BUDGET_NANOS);
+        manager.updatePreviewJobProgress(this);
+        if (done) {
             phase = Phase.AGGREGATING;
         }
     }
@@ -190,8 +195,10 @@ public final class RoadNetworkPreviewJob {
             processed += PREPARE_WORK_UNITS;
         }
         processed += session.processedWorkUnits();
-        if (phase.ordinal() > Phase.CONNECTIVITY.ordinal()) {
-            processed += CONNECTIVITY_WORK_UNITS;
+        if (phase == Phase.CONNECTIVITY) {
+            processed += session.processedTunnelConnectivityWorkUnits();
+        } else if (phase.ordinal() > Phase.CONNECTIVITY.ordinal()) {
+            processed += session.tunnelConnectivityWorkUnits();
         }
         if (phase == Phase.AGGREGATING
             || phase == Phase.PROJECTING
@@ -206,7 +213,8 @@ public final class RoadNetworkPreviewJob {
 
     public int totalWorkUnits() {
         int base = session != null ? session.totalWorkUnits() : 0;
-        int total = PREPARE_WORK_UNITS + base + CONNECTIVITY_WORK_UNITS;
+        int connectivity = session != null ? session.tunnelConnectivityWorkUnits() : 1;
+        int total = PREPARE_WORK_UNITS + base + connectivity;
         if (session != null) {
             total += session.aggregationWorkUnits();
         } else {

@@ -44,8 +44,10 @@ import java.util.function.Supplier;
  */
 public final class RoadPreviewManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadPreview");
-    /** 每帧上传的幽灵方块数，避免汇总完成后单帧卡死。 */
-    static final int GHOST_BLOCKS_PER_TICK = 6_000;
+    /** 每帧上传的幽灵方块数上限；再受 {@link #GHOST_UPLOAD_BUDGET_NANOS} 约束。 */
+    static final int GHOST_BLOCKS_PER_TICK = 2_500;
+    /** 幽灵上传每帧时间预算，避免投影阶段把 FPS 打到 1。 */
+    static final long GHOST_UPLOAD_BUDGET_NANOS = 6_000_000L;
 
     private final RoadProjectStatus status;
     private final PluginContext host;
@@ -987,9 +989,17 @@ public final class RoadPreviewManager {
         if (pendingGhostClear) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
             pendingGhostClear = false;
+            // 清完后本帧让出，避免与大批量上传叠在同一帧。
+            return true;
         }
-        int end = Math.min(pendingGhostUploadIndex + GHOST_BLOCKS_PER_TICK, pendingGhostUpload.size());
-        if (end > pendingGhostUploadIndex) {
+        long started = System.nanoTime();
+        int uploaded = 0;
+        while (pendingGhostUploadIndex < pendingGhostUpload.size()
+                && uploaded < GHOST_BLOCKS_PER_TICK
+                && (uploaded == 0 || System.nanoTime() - started < GHOST_UPLOAD_BUDGET_NANOS)) {
+            int end = Math.min(
+                pendingGhostUploadIndex + Math.min(512, GHOST_BLOCKS_PER_TICK - uploaded),
+                pendingGhostUpload.size());
             Map<net.minecraft.util.math.BlockPos, String> batch =
                 new LinkedHashMap<>(end - pendingGhostUploadIndex);
             for (int i = pendingGhostUploadIndex; i < end; i++) {
@@ -997,6 +1007,7 @@ public final class RoadPreviewManager {
                 batch.put(entry.getKey(), entry.getValue());
             }
             ghostBlockManager.addGhostBlocks(GhostBlockOwners.ROAD, batch);
+            uploaded += end - pendingGhostUploadIndex;
             pendingGhostUploadIndex = end;
         }
         if (pendingGhostUploadIndex >= pendingGhostUpload.size()) {

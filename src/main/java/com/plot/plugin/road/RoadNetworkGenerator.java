@@ -11,6 +11,7 @@ import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
+import com.plot.plugin.road.pipeline.corridor.JunctionProtectedOverburdenValidator;
 import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.pipeline.corridor.TunnelFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
@@ -59,6 +60,8 @@ public class RoadNetworkGenerator {
         private final Set<String> skippedEdgeIds = new LinkedHashSet<>();
         private final Set<String> skippedJunctionIds = new LinkedHashSet<>();
         private final Set<String> missingJunctionValidationIds = new LinkedHashSet<>();
+        private final Set<String> failClosedJunctionIds = new LinkedHashSet<>();
+        private final Set<String> protectedOverburdenViolationIds = new LinkedHashSet<>();
         private final List<CrossingMaterializationFailure> crossingMaterializationFailures = new ArrayList<>();
         private final List<AdjacentJunctionProfileContinuity.Violation> adjacentJunctionProfileViolations =
             new ArrayList<>();
@@ -99,6 +102,14 @@ public class RoadNetworkGenerator {
 
         public Set<String> getMissingJunctionValidationIds() {
             return Collections.unmodifiableSet(missingJunctionValidationIds);
+        }
+
+        public Set<String> getFailClosedJunctionIds() {
+            return Collections.unmodifiableSet(failClosedJunctionIds);
+        }
+
+        public Set<String> getProtectedOverburdenViolationIds() {
+            return Collections.unmodifiableSet(protectedOverburdenViolationIds);
         }
 
         public List<CrossingMaterializationFailure> getCrossingMaterializationFailures() {
@@ -181,6 +192,24 @@ public class RoadNetworkGenerator {
                 + (reason != null && !reason.isBlank() ? reason : "expected validation result missing"));
         }
 
+        void recordFailClosedJunction(String nodeId, String reason) {
+            if (nodeId == null) {
+                return;
+            }
+            failClosedJunctionIds.add(nodeId);
+            errors.add("junction " + nodeId + " tunnel-protect conflict (fail-closed): "
+                + (reason != null && !reason.isBlank() ? reason : "destructive clearance denied"));
+        }
+
+        void recordProtectedOverburdenViolation(String nodeId, String detail) {
+            if (nodeId == null) {
+                return;
+            }
+            protectedOverburdenViolationIds.add(nodeId);
+            errors.add("junction " + nodeId + " protected overburden: "
+                + (detail != null && !detail.isBlank() ? detail : "violation"));
+        }
+
         void recordAdjacentJunctionProfileViolations(
                 List<AdjacentJunctionProfileContinuity.Violation> violations) {
             if (violations == null || violations.isEmpty()) {
@@ -213,6 +242,8 @@ public class RoadNetworkGenerator {
                 || !skippedJunctionIds.isEmpty()
                 || !crossingMaterializationFailures.isEmpty()
                 || !missingJunctionValidationIds.isEmpty()
+                || !failClosedJunctionIds.isEmpty()
+                || !protectedOverburdenViolationIds.isEmpty()
                 || adjacentJunctionProfileViolations.stream().anyMatch(
                     AdjacentJunctionProfileContinuity.Violation::blocking);
         }
@@ -230,6 +261,12 @@ public class RoadNetworkGenerator {
             }
             if (!skippedJunctionIds.isEmpty()) {
                 details.add("skippedJunctions=" + skippedJunctionIds.size() + " " + skippedJunctionIds);
+            }
+            if (!failClosedJunctionIds.isEmpty()) {
+                details.add("tunnelProtectConflicts=" + failClosedJunctionIds);
+            }
+            if (!protectedOverburdenViolationIds.isEmpty()) {
+                details.add("protectedOverburdenViolations=" + protectedOverburdenViolationIds);
             }
             if (!crossingMaterializationFailures.isEmpty()) {
                 details.add("crossingMaterializationFailures=" + crossingMaterializationFailures.size());
@@ -299,10 +336,11 @@ public class RoadNetworkGenerator {
         while (session.hasMoreEdges()) {
             tickPreviewSessionEdges(session, Integer.MAX_VALUE);
         }
-        applyPreviewSessionTunnelConnectivity(session);
+        // 先路口铺装确定权威高程场，再写隧道壳顶衬，避免壳层另起一套标高。
         while (session.hasMoreJunctions()) {
             tickPreviewSessionJunctions(session, Integer.MAX_VALUE);
         }
+        applyPreviewSessionTunnelConnectivity(session);
         logGenerationSummary(session.networkResult(), session.nodeElevations());
     }
 
@@ -422,11 +460,16 @@ public class RoadNetworkGenerator {
             for (RoadEdge edge : batch) {
                 if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
                 processed++;
+                long edgeStarted = System.nanoTime();
                 RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
                 RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
                 EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
                     generationNetwork, edge, start, end, session.terrain(), nodeElevations);
                 networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
+                long edgeMs = (System.nanoTime() - edgeStarted) / 1_000_000L;
+                if (edgeMs >= 500L) {
+                    LOGGER.info("预览边生成较慢 edge={} durationMs={}", edge.getId(), edgeMs);
+                }
             }
         }
         session.advanceEdges(processed);
@@ -457,6 +500,7 @@ public class RoadNetworkGenerator {
             for (RoadNode node : batch) {
                 if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
                 processed++;
+                long junctionStarted = System.nanoTime();
                 if (!shouldGenerateJunction(node, failedEdgeIds)) {
                     networkResult.recordSkippedJunction(
                         node.getId(),
@@ -479,8 +523,18 @@ public class RoadNetworkGenerator {
                         node.getId(),
                         "no plaza generated");
                 }
+                if (junctionBlocks.constructionContext() != null
+                        && junctionBlocks.constructionContext().failClosed()) {
+                    networkResult.recordFailClosedJunction(
+                        node.getId(),
+                        junctionBlocks.constructionContext().failClosedReason());
+                }
                 if (junctionBlocks.report() != null) {
                     networkResult.mergeJunctionReport(junctionBlocks.report());
+                }
+                long junctionMs = (System.nanoTime() - junctionStarted) / 1_000_000L;
+                if (junctionMs >= 500L) {
+                    LOGGER.info("预览路口生成较慢 junction={} durationMs={}", node.getId(), junctionMs);
                 }
             }
         }
@@ -489,7 +543,7 @@ public class RoadNetworkGenerator {
     }
 
     /**
-     * 边生成完成后、路口生成前应用隧道路口壳与连通（与同步路径一致）。
+     * 边/路口完成后应用隧道路口壳与连通（同步路径一次跑完）。
      * 已应用过则跳过，避免汇总阶段重复重算。
      */
     public void applyPreviewSessionTunnelConnectivity(RoadNetworkPreviewSession session) {
@@ -501,9 +555,73 @@ public class RoadNetworkGenerator {
     }
 
     /**
+     * 分帧壳层+连通：每帧按预算处理若干路口，避免 CONNECTIVITY 单帧卡死。
+     *
+     * @return true 当壳层与连通都已完成
+     */
+    public boolean tickPreviewSessionTunnelConnectivity(
+            RoadNetworkPreviewSession session,
+            long budgetNanos) {
+        if (session == null || !session.isPrepared()) {
+            return true;
+        }
+        if (session.isTunnelConnectivityApplied()) {
+            return true;
+        }
+        long started = System.nanoTime();
+        List<RoadNode> junctions = session.junctionNodes();
+        int processed = 0;
+        if (session.tunnelPassStage() == 0) {
+            while (session.tunnelShellIndex() < junctions.size()) {
+                if (processed > 0 && System.nanoTime() - started >= budgetNanos) {
+                    return false;
+                }
+                RoadNode node = junctions.get(session.tunnelShellIndex());
+                session.setTunnelShellIndex(session.tunnelShellIndex() + 1);
+                processed++;
+                if (node == null) {
+                    continue;
+                }
+                long nodeStarted = System.nanoTime();
+                applyTunnelJunctionShellForNodes(session, Set.of(node.getId()));
+                long nodeMs = (System.nanoTime() - nodeStarted) / 1_000_000L;
+                if (nodeMs >= 500L) {
+                    LOGGER.info("预览隧道路口壳较慢 junction={} durationMs={}", node.getId(), nodeMs);
+                }
+            }
+            session.setTunnelPassStage(1);
+        }
+        if (session.tunnelPassStage() == 1) {
+            while (session.tunnelConnectivityIndex() < junctions.size()) {
+                if (processed > 0 && System.nanoTime() - started >= budgetNanos) {
+                    return false;
+                }
+                RoadNode node = junctions.get(session.tunnelConnectivityIndex());
+                session.setTunnelConnectivityIndex(session.tunnelConnectivityIndex() + 1);
+                processed++;
+                if (node == null) {
+                    continue;
+                }
+                long nodeStarted = System.nanoTime();
+                applyTunnelJunctionConnectivityForNodes(session, Set.of(node.getId()));
+                long nodeMs = (System.nanoTime() - nodeStarted) / 1_000_000L;
+                if (nodeMs >= 500L) {
+                    LOGGER.info("预览隧道连通较慢 junction={} durationMs={}", node.getId(), nodeMs);
+                }
+            }
+            session.markTunnelConnectivityApplied();
+        }
+        return true;
+    }
+
+    /**
      * 分帧汇总：每调用推进一档（纵断面装配 → 合并 → 校验），完成后返回 true。
      */
     public boolean tickPreviewSessionAggregation(RoadNetworkPreviewSession session) {
+        return tickPreviewSessionAggregation(session, 8_000_000L);
+    }
+
+    public boolean tickPreviewSessionAggregation(RoadNetworkPreviewSession session, long budgetNanos) {
         if (session == null || !session.isValid()) {
             return true;
         }
@@ -524,37 +642,23 @@ public class RoadNetworkGenerator {
                     return false;
                 }
                 case MERGE -> {
+                    long mergeStarted = System.nanoTime();
                     RoadGenerationResult aggregate = aggregateNetworkResult(
                         session.generationNetwork(), session.networkResult());
                     session.setPendingAggregate(aggregate);
+                    LOGGER.info(
+                        "预览汇总合并完成 placements={} mergeEdgesMs={} mergeJunctionsMs={} clearMs={} railMs={} totalMs={}",
+                        aggregate.placementRecords.size(),
+                        aggregate.assembleMergeEdgesNanos / 1_000_000L,
+                        aggregate.assembleMergeJunctionsNanos / 1_000_000L,
+                        aggregate.assembleClearIntrudingFillNanos / 1_000_000L,
+                        aggregate.assembleRailPassNanos / 1_000_000L,
+                        (System.nanoTime() - mergeStarted) / 1_000_000L);
                     session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.VALIDATE);
                     return false;
                 }
                 case VALIDATE -> {
-                    RoadNetwork profileNetwork = session.generationNetwork();
-                    NetworkGenerationResult networkResult = session.networkResult();
-                    RoadGenerationResult aggregate = session.pendingAggregate();
-                    if (aggregate == null) {
-                        aggregate = aggregateNetworkResult(profileNetwork, networkResult);
-                        session.setPendingAggregate(aggregate);
-                    }
-                    applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
-                    TunnelFinalVoxelValidator.applyReportToResult(
-                        aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
-                    networkResult.recordAdjacentJunctionProfileViolations(
-                        AdjacentJunctionProfileContinuity.find(
-                            profileNetwork,
-                            networkResult.getNodeElevations(),
-                            roadGenerator.getConfig()));
-                    session.setCompletedPreview(new PreviewResult(
-                        profileNetwork,
-                        aggregate,
-                        networkResult.getEdgeResults(),
-                        networkResult.getNodeElevations(),
-                        networkResult,
-                        session.pendingRoadProfiles()));
-                    session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.DONE);
-                    return true;
+                    return tickPreviewSessionValidation(session, budgetNanos);
                 }
                 case DONE -> {
                     return true;
@@ -568,7 +672,7 @@ public class RoadNetworkGenerator {
         if (session == null || !session.isValid()) {
             return emptyPreviewResult();
         }
-        while (!tickPreviewSessionAggregation(session)) {
+        while (!tickPreviewSessionAggregation(session, Long.MAX_VALUE)) {
             // drain remaining aggregation steps synchronously
         }
         PreviewResult completed = session.completedPreview();
@@ -676,8 +780,8 @@ public class RoadNetworkGenerator {
     }
 
     private PreviewResult buildPreviewResult(RoadNetworkPreviewSession session) {
-        while (!tickPreviewSessionAggregation(session)) {
-            // sync path drains aggregation in one call
+        while (!tickPreviewSessionAggregation(session, Long.MAX_VALUE)) {
+            // sync path drains aggregation without per-frame budget
         }
         PreviewResult completed = session.completedPreview();
         return completed != null ? completed : emptyPreviewResult();
@@ -728,10 +832,18 @@ public class RoadNetworkGenerator {
     }
 
     private void applyTunnelJunctionConnectivity(RoadNetworkPreviewSession session) {
+        applyTunnelJunctionShellForNodes(session, null);
+        applyTunnelJunctionConnectivityForNodes(session, null);
+    }
+
+    private void applyTunnelJunctionShellForNodes(
+            RoadNetworkPreviewSession session,
+            Set<String> onlyNodeIds) {
         if (session == null || !session.isPrepared()) {
             return;
         }
         // 圆角弧形侧墙/顶衬须在连通清障之前写入，避免只剩挖空而无壳。
+        // 路口已生成时传入 elevationField，顶衬与圆角铺装共用同一路面基准。
         TunnelJunctionShellPass.apply(
             session.generationNetwork(),
             session.networkResult().getEdgeResults(),
@@ -741,7 +853,17 @@ public class RoadNetworkGenerator {
             roadGenerator::estimateCanvasUnitsPerBlock,
             session.terrain(),
             roadGenerator::getBlockIdFromMaterial,
-            roadGenerator.projectionHandler()::getBlockIdAt);
+            roadGenerator.projectionHandler()::getBlockIdAt,
+            session.networkResult().getJunctionResults(),
+            onlyNodeIds);
+    }
+
+    private void applyTunnelJunctionConnectivityForNodes(
+            RoadNetworkPreviewSession session,
+            Set<String> onlyNodeIds) {
+        if (session == null || !session.isPrepared()) {
+            return;
+        }
         TunnelJunctionConnectivityPass.apply(
             session.generationNetwork(),
             session.networkResult().getEdgeResults(),
@@ -751,13 +873,73 @@ public class RoadNetworkGenerator {
             roadGenerator::estimateCanvasUnitsPerBlock,
             roadGenerator.projectionHandler()::getBlockIdAt,
             session.networkResult().junctionReports,
-            session.terrain());
+            session.terrain(),
+            onlyNodeIds);
+    }
+
+    /**
+     * 分帧合并后校验：每帧处理若干路口；全部完成后写隧道终态与相邻纵断连续性。
+     */
+    boolean tickPreviewSessionValidation(RoadNetworkPreviewSession session, long budgetNanos) {
+        if (session == null || !session.isValid()) {
+            return true;
+        }
+        RoadNetwork profileNetwork = session.generationNetwork();
+        NetworkGenerationResult networkResult = session.networkResult();
+        RoadGenerationResult aggregate = session.pendingAggregate();
+        if (aggregate == null) {
+            aggregate = aggregateNetworkResult(profileNetwork, networkResult);
+            session.setPendingAggregate(aggregate);
+        }
+        if (session.validationColumnIndex() == null) {
+            session.setValidationColumnIndex(PlacementRecordColumnIndex.build(aggregate));
+            session.setValidationJunctionIndex(0);
+        }
+        List<RoadNode> junctions = session.junctionNodes();
+        Set<String> skipped = networkResult.getSkippedJunctionIds();
+        PlacementRecordColumnIndex index = session.validationColumnIndex();
+        long started = System.nanoTime();
+        int processed = 0;
+        while (session.validationJunctionIndex() < junctions.size()) {
+            if (processed > 0 && System.nanoTime() - started >= budgetNanos) {
+                return false;
+            }
+            RoadNode node = junctions.get(session.validationJunctionIndex());
+            session.setValidationJunctionIndex(session.validationJunctionIndex() + 1);
+            processed++;
+            if (node == null || node.getDegree() < 3) {
+                continue;
+            }
+            // Explicit skip already marks partial failure; do not double-count as integrity gap.
+            if (skipped.contains(node.getId())) {
+                continue;
+            }
+            validateOneJunctionPostMerge(
+                node, networkResult, aggregate, index, session.terrain());
+        }
+        TunnelFinalVoxelValidator.applyReportToResult(
+            aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
+        networkResult.recordAdjacentJunctionProfileViolations(
+            AdjacentJunctionProfileContinuity.find(
+                profileNetwork,
+                networkResult.getNodeElevations(),
+                roadGenerator.getConfig()));
+        session.setCompletedPreview(new PreviewResult(
+            profileNetwork,
+            aggregate,
+            networkResult.getEdgeResults(),
+            networkResult.getNodeElevations(),
+            networkResult,
+            session.pendingRoadProfiles()));
+        session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.DONE);
+        return true;
     }
 
     private void applyPostMergeJunctionValidation(
             RoadNetwork profileNetwork,
             NetworkGenerationResult networkResult,
-            RoadGenerationResult aggregate) {
+            RoadGenerationResult aggregate,
+            TerrainSampler terrain) {
         if (profileNetwork == null || networkResult == null || aggregate == null) {
             return;
         }
@@ -767,32 +949,52 @@ public class RoadNetworkGenerator {
             if (node.getDegree() < 3) {
                 continue;
             }
-            // Explicit skip already marks partial failure; do not double-count as integrity gap.
             if (skipped.contains(node.getId())) {
                 continue;
             }
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                networkResult.getJunctionResults().get(node.getId());
-            if (junctionBlocks == null || junctionBlocks.validationManifest() == null) {
-                networkResult.recordMissingJunctionValidation(
-                    node.getId(),
-                    "expected junction has no generation/validation result");
-                continue;
-            }
-            JunctionFinalVoxelValidator.PostMergeReport postMerge =
-                JunctionFinalVoxelValidator.validateNode(
-                    junctionBlocks.validationManifest(),
-                    aggregate,
-                    index,
-                    roadGenerator.coordinateTransformer());
-            networkResult.mergeJunctionReport(JunctionConstructionReport.empty(node.getId()).withPostMerge(
-                postMerge.missingSurfaceColumns(),
-                postMerge.surfaceSemanticMismatches(),
-                postMerge.protectedLosses(),
-                postMerge.disconnectedTunnelComponents(),
-                postMerge.crossLayerLeaks(),
-                postMerge.surfaceYMismatches(),
-                postMerge.undesignedProtrusions()));
+            validateOneJunctionPostMerge(node, networkResult, aggregate, index, terrain);
+        }
+    }
+
+    private void validateOneJunctionPostMerge(
+            RoadNode node,
+            NetworkGenerationResult networkResult,
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index,
+            TerrainSampler terrain) {
+        RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+            networkResult.getJunctionResults().get(node.getId());
+        if (junctionBlocks == null || junctionBlocks.validationManifest() == null) {
+            networkResult.recordMissingJunctionValidation(
+                node.getId(),
+                "expected junction has no generation/validation result");
+            return;
+        }
+        JunctionFinalVoxelValidator.PostMergeReport postMerge =
+            JunctionFinalVoxelValidator.validateNode(
+                junctionBlocks.validationManifest(),
+                aggregate,
+                index,
+                roadGenerator.coordinateTransformer());
+        networkResult.mergeJunctionReport(JunctionConstructionReport.empty(node.getId()).withPostMerge(
+            postMerge.missingSurfaceColumns(),
+            postMerge.surfaceSemanticMismatches(),
+            postMerge.protectedLosses(),
+            postMerge.disconnectedTunnelComponents(),
+            postMerge.crossLayerLeaks(),
+            postMerge.surfaceYMismatches(),
+            postMerge.undesignedProtrusions()));
+
+        JunctionProtectedOverburdenValidator.Metrics overburden =
+            JunctionProtectedOverburdenValidator.evaluate(junctionBlocks, aggregate, terrain);
+        if (overburden.protectedOverburdenAirCount() > 0
+                || overburden.unexpectedSurfaceElevationCount() > 0
+                || overburden.missingAuthorizedLiningCount() > 0) {
+            networkResult.recordProtectedOverburdenViolation(
+                node.getId(),
+                "overburdenAir=" + overburden.protectedOverburdenAirCount()
+                    + " elevationMismatch=" + overburden.unexpectedSurfaceElevationCount()
+                    + " missingLining=" + overburden.missingAuthorizedLiningCount());
         }
     }
 

@@ -89,6 +89,14 @@ public final class RoadGeneratePanel {
             return;
         }
         if (preview.isBuildPreviewCurrent()) {
+            RoadNetworkGenerator.NetworkGenerationResult networkResult =
+                preview.getLastNetworkGenerationResult();
+            if (networkResult != null && networkResult.hasPartialFailure()) {
+                ImGui.textColored(
+                    PluginUiColors.ERROR_SOFT,
+                    PlotI18n.tr("plugin.road.preview_status_partial_failure"));
+                return;
+            }
             ImGui.textColored(
                 PluginUiColors.STATUS_OK,
                 PlotI18n.tr("plugin.road.preview_status_ready"));
@@ -200,6 +208,13 @@ public final class RoadGeneratePanel {
             && networkGenerationResult.hasPartialFailure();
         if (partialFailure) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+            if (!networkGenerationResult.getFailClosedJunctionIds().isEmpty()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.ERROR_SOFT,
+                    PlotI18n.tr(
+                        "plugin.road.junction_tunnel_protect_conflict",
+                        String.join(", ", networkGenerationResult.getFailClosedJunctionIds())));
+            }
             for (String detail : networkGenerationResult.partialFailureDetails()) {
                 if (detail == null || detail.isBlank()) {
                     continue;

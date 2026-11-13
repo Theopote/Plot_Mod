@@ -22,7 +22,12 @@ public class RoadGenerationResult {
     public final List<BlockPos> roadBlocks = new ArrayList<>();
     public final List<BlockPos> sidewalkBlocks = new ArrayList<>();
     public final List<BlockPos> bridgeBlocks = new ArrayList<>();
-    public final List<BlockPos> tunnelBlocks = new ArrayList<>();
+    /**
+     * Tunnel placement membership set. LinkedHashSet keeps stable order for golden diffs
+     * while making {@code contains} O(1) — ArrayList.contains on large tunnels was O(n²)
+     * during shell/connectivity passes.
+     */
+    public final java.util.Set<BlockPos> tunnelBlocks = new java.util.LinkedHashSet<>();
     public final List<BlockPos> streetlightBlocks = new ArrayList<>();
     public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
     /** 与 {@link #placementRecords} 同步：记录各 BlockPos 当前生效的图层优先级。 */
@@ -288,8 +293,11 @@ public class RoadGenerationResult {
         for (Map.Entry<BlockPos, Integer> entry : source.placementMaterialPriorities.entrySet()) {
             placementMaterialPriorities.putIfAbsent(entry.getKey(), entry.getValue());
         }
-        // 失败的清障请求不得污染已获胜的实体方块；用途表只保留最终 AIR。
-        scrubStaleClearancePurposes();
+        // 只 scrub 本源写入涉及的格：全表扫描会在逐边合并时变成 O(n²)，大型路网预览可卡数十分钟。
+        scrubStaleClearancePurposes(source.placementRecords.keySet());
+        if (!source.placementClearancePurposes.isEmpty()) {
+            scrubStaleClearancePurposes(source.placementClearancePurposes.keySet());
+        }
         cutVolume += source.cutVolume;
         fillVolume += source.fillVolume;
         bridgeCount += source.bridgeCount;
@@ -364,11 +372,36 @@ public class RoadGenerationResult {
     }
 
     /** 用途表不变量：仅最终仍为 AIR 的方块可保留 ClearancePurpose。 */
-    private void scrubStaleClearancePurposes() {
+    public void scrubStaleClearancePurposes() {
         placementClearancePurposes.entrySet().removeIf(entry -> {
             BlockRecord record = placementRecords.get(entry.getKey());
             return record == null || !"minecraft:air".equals(record.newBlockId);
         });
+    }
+
+    /** 仅检查候选格，避免合并阶段反复全表扫描。 */
+    public void scrubStaleClearancePurposes(java.util.Collection<BlockPos> candidates) {
+        if (candidates == null || candidates.isEmpty() || placementClearancePurposes.isEmpty()) {
+            return;
+        }
+        ArrayList<BlockPos> stale = null;
+        for (BlockPos pos : candidates) {
+            if (pos == null || !placementClearancePurposes.containsKey(pos)) {
+                continue;
+            }
+            BlockRecord record = placementRecords.get(pos);
+            if (record == null || !"minecraft:air".equals(record.newBlockId)) {
+                if (stale == null) {
+                    stale = new ArrayList<>();
+                }
+                stale.add(pos);
+            }
+        }
+        if (stale != null) {
+            for (BlockPos pos : stale) {
+                placementClearancePurposes.remove(pos);
+            }
+        }
     }
 
     /**

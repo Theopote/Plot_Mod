@@ -5,6 +5,7 @@ import com.plot.plugin.road.manager.RoadNetworkPreviewJob;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 
@@ -38,6 +39,13 @@ public final class RoadNetworkPreviewSession {
     private int junctionIndex;
     private boolean prepared;
     private boolean tunnelConnectivityApplied;
+    /** 0=壳层分帧，1=连通分帧，2=完成。 */
+    private int tunnelPassStage;
+    private int tunnelShellIndex;
+    private int tunnelConnectivityIndex;
+    /** 合并后校验的路口游标。 */
+    private int validationJunctionIndex;
+    private PlacementRecordColumnIndex validationColumnIndex;
     private AggregationStep aggregationStep = AggregationStep.PENDING;
     private Map<String, RoadProfileChartData> pendingRoadProfiles = Map.of();
     private RoadGenerationResult pendingAggregate;
@@ -111,6 +119,81 @@ public final class RoadNetworkPreviewSession {
 
     void markTunnelConnectivityApplied() {
         tunnelConnectivityApplied = true;
+        tunnelPassStage = 2;
+    }
+
+    int tunnelPassStage() {
+        return tunnelPassStage;
+    }
+
+    void setTunnelPassStage(int tunnelPassStage) {
+        this.tunnelPassStage = Math.max(0, tunnelPassStage);
+    }
+
+    int tunnelShellIndex() {
+        return tunnelShellIndex;
+    }
+
+    void setTunnelShellIndex(int tunnelShellIndex) {
+        this.tunnelShellIndex = Math.max(0, tunnelShellIndex);
+    }
+
+    int tunnelConnectivityIndex() {
+        return tunnelConnectivityIndex;
+    }
+
+    void setTunnelConnectivityIndex(int tunnelConnectivityIndex) {
+        this.tunnelConnectivityIndex = Math.max(0, tunnelConnectivityIndex);
+    }
+
+    List<RoadNode> junctionNodes() {
+        return Collections.unmodifiableList(junctionNodes);
+    }
+
+    int validationJunctionIndex() {
+        return validationJunctionIndex;
+    }
+
+    void setValidationJunctionIndex(int validationJunctionIndex) {
+        this.validationJunctionIndex = Math.max(0, validationJunctionIndex);
+    }
+
+    PlacementRecordColumnIndex validationColumnIndex() {
+        return validationColumnIndex;
+    }
+
+    void setValidationColumnIndex(PlacementRecordColumnIndex validationColumnIndex) {
+        this.validationColumnIndex = validationColumnIndex;
+    }
+
+    /** 壳层+连通各扫一遍路口队列。 */
+    public int tunnelConnectivityWorkUnits() {
+        return Math.max(1, junctionNodes.size() * 2);
+    }
+
+    public int processedTunnelConnectivityWorkUnits() {
+        if (tunnelConnectivityApplied || tunnelPassStage >= 2) {
+            return tunnelConnectivityWorkUnits();
+        }
+        int shellDone = Math.min(junctionNodes.size(), tunnelShellIndex);
+        int connectDone = tunnelPassStage >= 1
+            ? Math.min(junctionNodes.size(), tunnelConnectivityIndex)
+            : 0;
+        return shellDone + connectDone;
+    }
+
+    public int validationWorkUnits() {
+        return Math.max(1, junctionNodes.size());
+    }
+
+    public int processedValidationWorkUnits() {
+        if (aggregationStep == AggregationStep.DONE) {
+            return validationWorkUnits();
+        }
+        if (aggregationStep != AggregationStep.VALIDATE) {
+            return 0;
+        }
+        return Math.min(validationWorkUnits(), validationJunctionIndex);
     }
 
     public AggregationStep aggregationStep() {
@@ -153,18 +236,17 @@ public final class RoadNetworkPreviewSession {
         return Math.min(totalWorkUnits(), edgeIndex + junctionIndex);
     }
 
-    /** 汇总子步进总数（profiles / merge / validate）。 */
+    /** 汇总子步进：profiles + merge + 分帧校验路口数。 */
     public int aggregationWorkUnits() {
-        return 3;
+        return 2 + validationWorkUnits();
     }
 
     public int processedAggregationWorkUnits() {
         return switch (aggregationStep) {
-            case PENDING -> 0;
-            case PROFILES -> 0;
+            case PENDING, PROFILES -> 0;
             case MERGE -> 1;
-            case VALIDATE -> 2;
-            case DONE -> 3;
+            case VALIDATE -> 2 + processedValidationWorkUnits();
+            case DONE -> aggregationWorkUnits();
         };
     }
 

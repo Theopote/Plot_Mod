@@ -48,6 +48,8 @@ public final class RoadGenerationResultAssembler {
         long t3 = System.nanoTime();
         RoadRailPlacementPass.apply(aggregate);
         RoadRailConnectivityValidator.validate(aggregate);
+        // 合并阶段只做候选 scrub；这里再全表收一次，保证用途表不变量。
+        aggregate.scrubStaleClearancePurposes();
         long t4 = System.nanoTime();
         aggregate.assembleMergeEdgesNanos = t1 - t0;
         aggregate.assembleMergeJunctionsNanos = t2 - t1;

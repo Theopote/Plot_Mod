@@ -113,12 +113,42 @@ public final class TunnelJunctionConnectivityPass {
             PreviousBlockResolver previousBlockResolver,
             Map<String, JunctionConstructionReport> reportSink,
             TerrainSampler terrain) {
+        apply(
+            network,
+            edgeResults,
+            nodeElevations,
+            config,
+            coordinateTransformer,
+            unitsPerBlockEstimator,
+            previousBlockResolver,
+            reportSink,
+            terrain,
+            null);
+    }
+
+    /**
+     * @param onlyNodeIds 非空时只处理这些路口（分帧预览用）；null 表示全网。
+     */
+    public static void apply(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
+            PreviousBlockResolver previousBlockResolver,
+            Map<String, JunctionConstructionReport> reportSink,
+            TerrainSampler terrain,
+            Set<String> onlyNodeIds) {
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
         Map<String, Integer> elevations = nodeElevations != null ? nodeElevations : Map.of();
         for (RoadNode node : network.getNodes().values()) {
             if (!qualifiesForConnectivity(node)) {
+                continue;
+            }
+            if (onlyNodeIds != null && !onlyNodeIds.contains(node.getId())) {
                 continue;
             }
             List<TunnelJunctionSeedResolver.TunnelApproach> approaches =
@@ -458,6 +488,7 @@ public final class TunnelJunctionConnectivityPass {
                 BlockRecord existing = result.placementRecords.get(pos);
                 if (existing != null && "minecraft:air".equals(existing.newBlockId)) {
                     hasAir = true;
+                    result.recordExpectedTunnelCavity(pos);
                 }
             }
             if (hasAir) {
@@ -468,9 +499,8 @@ public final class TunnelJunctionConnectivityPass {
             carrier.recordPlacementOverride(pos, previous, "minecraft:air");
             carrier.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
             carrier.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
-            if (!carrier.tunnelBlocks.contains(pos)) {
-                carrier.tunnelBlocks.add(pos);
-            }
+            carrier.tunnelBlocks.add(pos);
+            carrier.recordExpectedTunnelCavity(pos);
         }
         return new OpenVolumeStats(blocked, protectedConflicts);
     }
@@ -526,6 +556,7 @@ public final class TunnelJunctionConnectivityPass {
         }
         result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
+        result.recordExpectedTunnelCavity(pos);
         return true;
     }
 

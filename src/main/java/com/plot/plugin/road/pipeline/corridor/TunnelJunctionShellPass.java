@@ -75,11 +75,52 @@ public final class TunnelJunctionShellPass {
             TerrainSampler terrain,
             MaterialResolver materials,
             TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver) {
+        apply(
+            network, edgeResults, nodeElevations, config, coordinateTransformer,
+            unitsPerBlockEstimator, terrain, materials, previousBlockResolver, Map.of());
+    }
+
+    /**
+     * @param junctionResults 已生成的路口结果；非空时优先复用其 {@link JunctionElevationField}，
+     *                        使顶衬与圆角铺装共用同一路面基准，不再本地改写标高。
+     */
+    public static void apply(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
+            TerrainSampler terrain,
+            MaterialResolver materials,
+            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver,
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
+        apply(network, edgeResults, nodeElevations, config, coordinateTransformer,
+            unitsPerBlockEstimator, terrain, materials, previousBlockResolver, junctionResults, null);
+    }
+
+    /**
+     * @param onlyNodeIds 非空时只处理这些路口（分帧预览用）；null 表示全网。
+     */
+    public static void apply(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
+            TerrainSampler terrain,
+            MaterialResolver materials,
+            TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver,
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Set<String> onlyNodeIds) {
         if (network == null || edgeResults == null || edgeResults.isEmpty()
                 || config == null || terrain == null) {
             return;
         }
         Map<String, Integer> elevations = nodeElevations != null ? nodeElevations : Map.of();
+        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions =
+            junctionResults != null ? junctionResults : Map.of();
         MaterialResolver resolvedMaterials = materials != null
             ? materials
             : material -> material != null && !material.isBlank() ? material : FALLBACK_LINING;
@@ -87,6 +128,9 @@ public final class TunnelJunctionShellPass {
 
         for (RoadNode node : network.getNodes().values()) {
             if (node == null || node.getDegree() < 3) {
+                continue;
+            }
+            if (onlyNodeIds != null && !onlyNodeIds.contains(node.getId())) {
                 continue;
             }
             if (node.isGradeSeparated() || node.isStackGradeSeparated()) {
@@ -147,8 +191,10 @@ public final class TunnelJunctionShellPass {
             var centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
             JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
                 geometry.fillets(), edgeResults, connected, network, columns, junctionY);
-            JunctionElevationField elevationField = JunctionElevationField.build(
-                footprint, filletLoft, columns, junctionY);
+            // 优先复用路口铺装阶段已确定的权威高程场；否则现场构建同一套 build()，
+            // 禁止再跑 stabilizeShellRoadY 改写路面基准（顶衬只跟随该场）。
+            JunctionElevationField elevationField = resolveShellElevationField(
+                junctions.get(node.getId()), footprint, filletLoft, columns, junctionY);
             ToIntFunction<ColumnKey> roadYAt = elevationField::surfaceY;
 
             // 候选洞腔列：铺装责任区 + 侧向净距；不再用 clearance 外扩格做开挖底盘。
@@ -202,8 +248,6 @@ public final class TunnelJunctionShellPass {
             if (finalCavityColumns.isEmpty()) {
                 continue;
             }
-            // 仅钳制壳层本地 roadYByColumn（顶衬基准）；不写回权威 JunctionElevationField。
-            stabilizeShellRoadY(roadYByColumn, footprint, filletLoft.approachRoadY());
 
             // 墙体 = 最终洞腔外缘（仍需覆土）；禁止写到合法 ROAD 净空列。
             Set<ColumnKey> wallColumns = wallRingAround(finalCavityColumns, liningThickness);
@@ -478,6 +522,27 @@ public final class TunnelJunctionShellPass {
         return expanded;
     }
 
+    static JunctionElevationField resolveShellElevationField(
+            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionWorldFootprint footprint,
+            JunctionFilletElevationLoft filletLoft,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns,
+            int junctionY) {
+        if (junctionBlocks != null) {
+            JunctionElevationField authored = junctionBlocks.elevationField();
+            if (authored != null
+                    && authored.targetYByColumn() != null
+                    && !authored.targetYByColumn().isEmpty()) {
+                return authored;
+            }
+        }
+        return JunctionElevationField.build(footprint, filletLoft, columns, junctionY);
+    }
+
+    /**
+     * @deprecated 壳层不得再独立改写路面基准；保留供历史测试/对照，生产路径已停用。
+     */
+    @Deprecated
     static void stabilizeShellRoadY(
             Map<ColumnKey, Integer> roadYByColumn,
             JunctionWorldFootprint footprint,

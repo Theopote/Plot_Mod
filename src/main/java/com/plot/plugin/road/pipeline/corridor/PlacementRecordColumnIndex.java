@@ -66,6 +66,7 @@ public final class PlacementRecordColumnIndex {
             return false;
         }
         RoadSolidLayer layer = layerAt(pos, aggregate);
+        // Prefer layer; tunnelBlocks is now a Set so contains is cheap as fallback.
         return layer == RoadSolidLayer.TUNNEL
             || (aggregate != null && aggregate.tunnelBlocks.contains(pos));
     }

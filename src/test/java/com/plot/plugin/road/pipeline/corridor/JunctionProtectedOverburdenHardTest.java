@@ -12,6 +12,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.test.world.IdentityCoordinateService;
@@ -68,6 +69,61 @@ class JunctionProtectedOverburdenHardTest {
     }
 
     @Test
+    void missingLiningDoesNotCountNetworkWideExpectations() {
+        RoadSystemConfig config = new RoadSystemConfig("lining-scope");
+        config.setDefaultCornerRadius(6.0f);
+        config.setSelectedMaterial("minecraft:stone");
+        RoadNetwork network = crossNetwork(true);
+        RoadNode junction = hub(network);
+        Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
+        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+            config, network, junction, surfaceAt(90), 64, edgeResults);
+
+        RoadGenerationResult aggregate = rasterize(blocks);
+        // 全网远处衬砌期望缺失，不得计入本路口 missingLining。
+        for (int i = 0; i < 100; i++) {
+            net.minecraft.util.math.BlockPos far =
+                new net.minecraft.util.math.BlockPos(1000 + i, 70, 1000);
+            aggregate.expectedTunnelLining.add(far);
+        }
+        int scoped = JunctionProtectedOverburdenValidator.countMissingLiningInJunctionScope(
+            blocks, aggregate);
+        assertEquals(0, scoped, "far-away expectedTunnelLining must not inflate junction missingLining");
+
+        JunctionProtectedOverburdenValidator.Metrics metrics =
+            JunctionProtectedOverburdenValidator.evaluate(blocks, aggregate, surfaceAt(90));
+        assertEquals(0, metrics.missingAuthorizedLiningCount(),
+            "evaluate must scope missing lining to this junction");
+    }
+
+    @Test
+    void missingLiningIgnoresAuthorizedCavityAir() {
+        RoadSystemConfig config = new RoadSystemConfig("lining-cavity");
+        config.setDefaultCornerRadius(6.0f);
+        config.setSelectedMaterial("minecraft:stone");
+        RoadNetwork network = crossNetwork(true);
+        RoadNode junction = hub(network);
+        Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
+        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+            config, network, junction, surfaceAt(90), 64, edgeResults);
+        RoadGenerationResult aggregate = rasterize(blocks);
+
+        // 保护列内：走廊衬砌期望 + 连通清障洞腔空气，不得计 missingLining。
+        ColumnKey column = blocks.constructionContext().protectedCavityColumns().iterator().next();
+        net.minecraft.util.math.BlockPos opened = new net.minecraft.util.math.BlockPos(
+            column.worldX(), 70, column.worldZ());
+        aggregate.expectedTunnelLining.add(opened);
+        aggregate.expectedTunnelCavity.add(opened);
+        aggregate.placementRecords.put(
+            opened,
+            new com.plot.core.command.BlockRecord(opened, "minecraft:stone", "minecraft:air"));
+
+        assertEquals(0, JunctionProtectedOverburdenValidator.countMissingLiningInJunctionScope(
+            blocks, aggregate),
+            "authorized cavity air must not count as missing lining");
+    }
+
+    @Test
     void oneTunnelThreeOpenOnlyOpenColumnsDaylight() {
         RoadSystemConfig config = new RoadSystemConfig("mixed-1t3o");
         config.setDefaultCornerRadius(6.0f);
@@ -120,6 +176,13 @@ class JunctionProtectedOverburdenHardTest {
                 "open-cut approach column must remain OPEN");
             assertNull(openRule.maxAuthorizedClearY(),
                 "OPEN column may daylight (null clear cap)");
+            // 全链路：resolveColumnClearCap 不得因 tunnelEntryPlaza 覆盖 OPEN/null。
+            Integer resolved = RoadJunctionGenerator.resolveColumnClearCap(
+                ctx, surfaceAt(surfaceY), new Vec2d(0.5, 12.5), openCol, roadY,
+                List.copyOf(network.getEdges().values()), edgeResults,
+                com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver.forNetwork(network),
+                ctx.tunnelClearHeight(), null, null, 1, 8);
+            assertNull(resolved, "resolveColumnClearCap must honor OPEN daylight null");
         }
         if (tunnelRule != null) {
             assertTrue(
@@ -128,6 +191,82 @@ class JunctionProtectedOverburdenHardTest {
                 "tunnel approach column must not be OPEN daylight");
             assertNotNull(tunnelRule.maxAuthorizedClearY());
         }
+    }
+
+    @Test
+    void tunnelEntryPlazaDetectionIsDirectionInvariant() {
+        RoadEdge forward = new RoadEdge(
+            "e-fwd", "n-hub", "n-out",
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), "r1", null);
+        RoadEdge reverse = new RoadEdge(
+            "e-rev", "n-out", "n-hub",
+            List.of(new Vec2d(40, 0), new Vec2d(0, 0)), "r1", null);
+
+        // 进口靠近 hub：TUNNEL→ROAD 或反向绘制 ROAD→TUNNEL（末端为 TUNNEL）
+        RoadGenerationResult fromStart = new RoadGenerationResult(40);
+        fromStart.constructionTypes.add(RoadConstructionType.TUNNEL);
+        fromStart.constructionTypes.add(RoadConstructionType.ROAD);
+
+        RoadGenerationResult fromEnd = new RoadGenerationResult(40);
+        fromEnd.constructionTypes.add(RoadConstructionType.ROAD);
+        fromEnd.constructionTypes.add(RoadConstructionType.TUNNEL);
+
+        var approachFwd = new TunnelJunctionSeedResolver.TunnelApproach(
+            forward, "n-hub",
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
+            null, 1.0, null, null, 64);
+        var approachRev = new TunnelJunctionSeedResolver.TunnelApproach(
+            reverse, "n-hub",
+            List.of(new Vec2d(40, 0), new Vec2d(0, 0)),
+            null, 1.0, null, null, 64);
+
+        assertTrue(JunctionConstructionContext.approachesHaveTunnelFamilyAtEntry(
+            List.of(approachFwd), Map.of(forward.getId(), fromStart)));
+        assertTrue(JunctionConstructionContext.approachesHaveTunnelFamilyAtEntry(
+            List.of(approachRev), Map.of(reverse.getId(), fromEnd)),
+            "node at edge end must read terminal construction type, not index 0");
+    }
+
+    @Test
+    void clearDeniedDoesNotReportPavementStampSuccess() {
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("deny-road");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(
+            a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        JunctionCrossSectionFill.MaterialResolver materials = new JunctionCrossSectionFill.MaterialResolver() {
+            @Override
+            public String resolve(String materialId) {
+                return "minecraft:stone";
+            }
+
+            @Override
+            public net.minecraft.util.math.BlockPos canvasToBlockPos(Vec2d planPoint) {
+                return new net.minecraft.util.math.BlockPos(
+                    (int) Math.floor(planPoint.x), 0, (int) Math.floor(planPoint.y));
+            }
+        };
+        boolean stamped = JunctionCrossSectionFill.fillCell(
+            solids,
+            new Vec2d(0.5, 0.5),
+            64,
+            a.getId(),
+            List.of(edge),
+            network,
+            new RoadSystemConfig("deny"),
+            materials,
+            null,
+            1.0,
+            surfaceAt(80),
+            8,
+            12,
+            "minecraft:dirt",
+            JunctionConstructionContext.CLEAR_DENIED,
+            64);
+        assertFalse(stamped, "CLEAR_DENIED must not report stamped=true");
+        assertTrue(solids.isEmpty(), "CLEAR_DENIED must not place pavement into uncleared ground");
     }
 
     @Test

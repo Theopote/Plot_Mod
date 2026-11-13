@@ -4,8 +4,12 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -21,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -410,10 +415,13 @@ public final class JunctionConstructionContext {
             rules.put(column, new ColumnRule(
                 role, designY, roofY, surfaceY, maxClear, destructive));
 
-            diagnostics.add(String.format(
-                "col=(%d,%d) role=%s elev=%s designY=%d roofY=%d surfaceY=%d clearCap=%s source=context",
-                column.worldX(), column.worldZ(), role, elevRole, designY, roofY, surfaceY,
-                maxClear == null ? "daylight" : String.valueOf(maxClear)));
+            // 仅 fine 诊断：避免大型路网预览为每列构造长字符串。
+            if (LOG.isLoggable(Level.FINE) && diagnostics.size() < 64) {
+                diagnostics.add(String.format(
+                    "col=(%d,%d) role=%s elev=%s designY=%d roofY=%d surfaceY=%d clearCap=%s source=context",
+                    column.worldX(), column.worldZ(), role, elevRole, designY, roofY, surfaceY,
+                    maxClear == null ? "daylight" : String.valueOf(maxClear)));
+            }
         }
 
         if (protectedColumns.isEmpty() && hasApproaches) {
@@ -483,12 +491,17 @@ public final class JunctionConstructionContext {
         }
     }
 
+    /**
+     * 节点邻域内是否有隧道族施工。
+     * 优先 {@link TunnelJunctionConnectivityPass#tunnelAtNode}；几何段过粗时再按施工类型数组
+     * 从节点端向外扫有限站距窗口（禁止「整条边任意处有隧道」）。
+     */
     private static boolean hasNearNodeTunnelEvidence(
             RoadNetwork network,
             RoadNode node,
             Map<String, RoadGenerationResult> edgeResults,
             RoadSystemConfig config) {
-        if (edgeResults == null || edgeResults.isEmpty()) {
+        if (network == null || node == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return false;
         }
         for (String edgeId : node.getConnectedEdgeIds()) {
@@ -497,12 +510,58 @@ public final class JunctionConstructionContext {
             if (edge == null || result == null) {
                 continue;
             }
-            if (TunnelJunctionSeedResolver.edgeHasTunnelFamilyConstruction(result)) {
-                ResolvedTunnelStyle style = com.plot.plugin.road.tunnel.TunnelStyle.resolve(
-                    com.plot.plugin.road.model.RoadModelUtils.resolveRoad(network, edge), config);
-                if (style != null) {
-                    return true;
-                }
+            ResolvedTunnelStyle style = com.plot.plugin.road.tunnel.TunnelStyle.resolve(
+                com.plot.plugin.road.model.RoadModelUtils.resolveRoad(network, edge), config);
+            if (style == null) {
+                continue;
+            }
+            List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(
+                network, edge, config.getPathSampleDistance());
+            if (centerline.size() < 2) {
+                continue;
+            }
+            List<PathSegment> segments = TunnelJunctionSeedResolver.segmentsFromNode(
+                centerline, edge, node.getId());
+            if (!segments.isEmpty()
+                    && TunnelJunctionConnectivityPass.tunnelAtNode(
+                        network, node, edge, result, config, centerline, segments, 1.0)) {
+                return true;
+            }
+            if (hasTunnelFamilyWithinEntryTypeWindow(edge, node.getId(), result, config, node)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 几何中心线段少、施工类型数组更密时（洞口短 ROAD→TUNNEL），按节点端类型索引扫窗口。
+     */
+    static boolean hasTunnelFamilyWithinEntryTypeWindow(
+            RoadEdge edge,
+            String nodeId,
+            RoadGenerationResult result,
+            RoadSystemConfig config,
+            RoadNode node) {
+        if (edge == null || nodeId == null || result == null || result.constructionTypes == null
+                || result.constructionTypes.isEmpty() || config == null) {
+            return false;
+        }
+        int size = result.constructionTypes.size();
+        boolean fromStart = nodeId.equals(edge.getStartNodeId());
+        double sample = Math.max(1.0, config.getPathSampleDistance());
+        double plaza = node != null
+            ? Math.max(1.0, node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS))
+            : RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
+        double window = Math.max(plaza, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
+        int maxSteps = Math.min(size, Math.max(2, (int) Math.ceil(window / sample) + 1));
+        for (int step = 0; step < maxSteps; step++) {
+            int typeIndex = fromStart ? step : (size - 1 - step);
+            com.plot.plugin.road.RoadConstructionType type =
+                com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier.constructionTypeAt(
+                    result.constructionTypes, typeIndex);
+            if (type != null && type.isTunnelFamily()) {
+                return true;
             }
         }
         return false;
@@ -604,16 +663,21 @@ public final class JunctionConstructionContext {
             return false;
         }
         for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
-            if (approach == null || approach.edge() == null) {
+            if (approach == null || approach.edge() == null || approach.nodeId() == null) {
                 continue;
             }
             RoadGenerationResult result = edgeResults.get(approach.edge().getId());
             if (result == null || result.constructionTypes == null || result.constructionTypes.isEmpty()) {
                 continue;
             }
+            // 与 tunnelAtNode 一致：节点为边终点时取施工类型数组末端，避免绘制方向翻转误判。
+            boolean fromStart = approach.nodeId().equals(approach.edge().getStartNodeId());
+            int typeIndex = fromStart
+                ? 0
+                : Math.max(0, result.constructionTypes.size() - 1);
             com.plot.plugin.road.RoadConstructionType type =
                 com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier.constructionTypeAt(
-                    result.constructionTypes, 0);
+                    result.constructionTypes, typeIndex);
             if (type != null && type.isTunnelFamily()) {
                 return true;
             }

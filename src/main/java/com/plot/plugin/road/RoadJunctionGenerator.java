@@ -1147,7 +1147,7 @@ public class RoadJunctionGenerator {
     /**
      * 优先读 {@link JunctionConstructionContext}；无 context 规则时回退旧逐列启发式（测试兼容）。
      */
-    static Integer resolveColumnClearCap(
+    public static Integer resolveColumnClearCap(
             JunctionConstructionContext context,
             TerrainSampler terrain,
             Vec2d planPoint,
@@ -1167,17 +1167,10 @@ public class RoadJunctionGenerator {
                 if (!rule.destructiveClearAllowed()) {
                     return JunctionConstructionContext.CLEAR_DENIED;
                 }
-                Integer cap = rule.maxAuthorizedClearY();
-                // 真隧道进口广场：OPEN/null 邻接列仍强制洞顶 cap，堵住零星穿孔。
-                // 开敞 stub（远处才有隧道）保持 null 露天。
-                if (cap == null && context.tunnelEntryPlaza()) {
-                    return enclosedTunnelColumnClearCap(
-                        terrain, planPoint, column, loftSurfaceY,
-                        tunnelClearHeight != null ? tunnelClearHeight : context.tunnelClearHeight(),
-                        flatTunnelCavityCap, elevatedClearCap,
-                        liningThickness, tunnelThreshold);
-                }
-                return cap;
+                // 已有明确 ColumnRule：严格遵循角色权限。
+                // OPEN/null 必须露天；不得因同路口存在隧道进口而全局覆盖。
+                // 零星穿孔由 build() 内 dilateProtectedClearCaps / PORTAL 邻接保护处理。
+                return rule.maxAuthorizedClearY();
             }
             if (context.failClosed() && context.undergroundJunction()) {
                 return JunctionConstructionContext.CLEAR_DENIED;
