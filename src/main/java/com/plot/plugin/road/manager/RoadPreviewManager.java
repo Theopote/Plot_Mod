@@ -1048,6 +1048,15 @@ public final class RoadPreviewManager {
                 lastNetworkGenerationResult.totalEdgeCount(),
                 lastNetworkGenerationResult.getFailedEdgeIds().size(),
                 lastNetworkGenerationResult.getSkippedJunctionIds().size()));
+            List<String> details = lastNetworkGenerationResult.partialFailureDetails();
+            if (!details.isEmpty()) {
+                LOGGER.warn("路网预览部分失败明细: {}", String.join(" | ", details));
+                String first = details.getFirst();
+                if (first.length() > 160) {
+                    first = first.substring(0, 157) + "...";
+                }
+                message.append(" — ").append(first);
+            }
             severity = RoadStatus.Severity.WARNING;
         }
         if (lastGenerationResult != null && lastGenerationResult.droppedSolidCount > 0) {

@@ -458,7 +458,7 @@
   "plugin.road.validation.reconcile_intersections": "Reconcile Intersections",
   "plugin.road.reconcile_intersections_success": "Intersection topology reconciled",
   "plugin.road.build_blocked_validation": "Resolve blocking validation issues before building",
-  "plugin.road.build_blocked_partial_generation": "Preview has roads that failed to generate. Fix issues and recalculate preview before building.",
+  "plugin.road.build_blocked_partial_generation": "Preview is incomplete (failed edges / skipped junctions / crossing materialization or profile continuity). Check details, fix, then recalculate.",
   "plugin.road.build_blocked_stale_preview": "Preview is out of date — recalculate preview before building",
   "plugin.road.build_blocked_pending_edit": "A network edit is still pending (for example dragging uniform elevation) — finish it before building",
   "plugin.road.preview_blocked_pending_edit": "A network edit is still pending — finish the current edit before calculating preview",

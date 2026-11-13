@@ -43,5 +43,7 @@ class NetworkGenerationIntegrityResultTest {
         assertTrue(result.hasPartialFailure());
         assertTrue(result.getMissingJunctionValidationIds().contains("n1"));
         assertTrue(result.getErrors().getFirst().contains("n1"));
+        assertTrue(result.partialFailureDetails().stream()
+            .anyMatch(detail -> detail.contains("missingJunctionValidation")));
     }
 }

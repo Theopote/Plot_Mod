@@ -458,7 +458,7 @@
   "plugin.road.validation.reconcile_intersections": "对齐交叉口拓扑",
   "plugin.road.reconcile_intersections_success": "交叉口拓扑已对齐",
   "plugin.road.build_blocked_validation": "请先解决阻断性工程检查项后再落地",
-  "plugin.road.build_blocked_partial_generation": "预览存在未生成道路，需修复后重新计算预览才能建造。",
+  "plugin.road.build_blocked_partial_generation": "预览生成不完整（边失败 / 路口跳过 / 交叉口物化或纵断连续性），请查看明细并修复后重新计算。",
   "plugin.road.build_blocked_stale_preview": "预览已过期，请先重新计算预览后再建造",
   "plugin.road.build_blocked_pending_edit": "路网编辑尚未提交（例如正在拖动统一标高），请完成后再建造",
   "plugin.road.preview_blocked_pending_edit": "路网编辑尚未提交，请完成当前编辑后再计算预览",

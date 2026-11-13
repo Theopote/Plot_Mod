@@ -200,6 +200,13 @@ public final class RoadGeneratePanel {
             && networkGenerationResult.hasPartialFailure();
         if (partialFailure) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+            for (String detail : networkGenerationResult.partialFailureDetails()) {
+                if (detail == null || detail.isBlank()) {
+                    continue;
+                }
+                String line = detail.length() > 180 ? detail.substring(0, 177) + "..." : detail;
+                RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, line);
+            }
         } else if (!hasPlacements) {
             ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
         }

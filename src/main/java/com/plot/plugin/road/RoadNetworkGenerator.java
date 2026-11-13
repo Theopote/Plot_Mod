@@ -217,6 +217,42 @@ public class RoadNetworkGenerator {
                     AdjacentJunctionProfileContinuity.Violation::blocking);
         }
 
+        /**
+         * 供状态栏 / 建造面板展示的具体失败分类（避免一律显示「未生成道路」）。
+         */
+        public List<String> partialFailureDetails() {
+            List<String> details = new ArrayList<>();
+            if (!failedEdgeIds.isEmpty()) {
+                details.add("failedEdges=" + failedEdgeIds.size() + " " + failedEdgeIds);
+            }
+            if (!skippedEdgeIds.isEmpty()) {
+                details.add("skippedEdges=" + skippedEdgeIds.size() + " " + skippedEdgeIds);
+            }
+            if (!skippedJunctionIds.isEmpty()) {
+                details.add("skippedJunctions=" + skippedJunctionIds.size() + " " + skippedJunctionIds);
+            }
+            if (!crossingMaterializationFailures.isEmpty()) {
+                details.add("crossingMaterializationFailures=" + crossingMaterializationFailures.size());
+                for (CrossingMaterializationFailure failure : crossingMaterializationFailures) {
+                    details.add("  crossing " + failure.crossingId() + ": " + failure.detail());
+                }
+            }
+            if (!missingJunctionValidationIds.isEmpty()) {
+                details.add("missingJunctionValidation=" + missingJunctionValidationIds);
+            }
+            for (AdjacentJunctionProfileContinuity.Violation violation : adjacentJunctionProfileViolations) {
+                if (violation.blocking()) {
+                    details.add(violation.detail());
+                }
+            }
+            for (String error : errors) {
+                if (error != null && !error.isBlank() && details.stream().noneMatch(error::equals)) {
+                    details.add(error);
+                }
+            }
+            return List.copyOf(details);
+        }
+
         public boolean isEmpty() {
             return edgeResults.isEmpty() && junctionResults.isEmpty();
         }
@@ -434,7 +470,9 @@ public class RoadNetworkGenerator {
                         session.terrain(),
                         nodeElevations,
                         networkResult.getEdgeResults());
-                if (!junctionBlocks.isEmpty()) {
+                // 立交下层可能故意不铺广场（仅清障）；只要已写出校验清单就视为已生成，
+                // 避免空 solids 被记成 skippedJunction → 误报「未生成道路」。
+                if (!junctionBlocks.isEmpty() || hasJunctionGenerationManifest(junctionBlocks)) {
                     networkResult.junctionResults.put(node.getId(), junctionBlocks);
                 } else {
                     networkResult.recordSkippedJunction(
@@ -562,6 +600,14 @@ public class RoadNetworkGenerator {
             }
         }
         return true;
+    }
+
+    static boolean hasJunctionGenerationManifest(RoadJunctionGenerator.JunctionBlocks blocks) {
+        if (blocks == null || blocks.validationManifest() == null) {
+            return false;
+        }
+        String nodeId = blocks.validationManifest().nodeId();
+        return nodeId != null && !nodeId.isBlank();
     }
 
     public PreviewResult generatePreview(RoadNetwork network, World world) {
