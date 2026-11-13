@@ -154,7 +154,9 @@ public final class TunnelJunctionShellPass {
             if (geometry == null || !geometry.hasFillPolygon()) {
                 continue;
             }
-            JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, coordinateTransformer);
+            RoadJunctionGenerator.JunctionBlocks authoredJunction = junctions.get(node.getId());
+            JunctionWorldFootprint footprint = resolveShellFootprint(
+                authoredJunction, geometry, coordinateTransformer);
             if (footprint.isEmpty()) {
                 continue;
             }
@@ -189,12 +191,16 @@ public final class TunnelJunctionShellPass {
             RoadTerrainClearanceUtils.BlockColumnResolver columns =
                 columnResolver(coordinateTransformer);
             var centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
-            JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
-                geometry.fillets(), edgeResults, connected, network, columns, junctionY);
-            // 优先复用路口铺装阶段已确定的权威高程场；否则现场构建同一套 build()，
-            // 禁止再跑 stabilizeShellRoadY 改写路面基准（顶衬只跟随该场）。
+            // 优先复用路口铺装阶段已确定的权威高程场；有权威场时跳过 fillet loft 重建。
             JunctionElevationField elevationField = resolveShellElevationField(
-                junctions.get(node.getId()), footprint, filletLoft, columns, junctionY);
+                authoredJunction,
+                footprint,
+                geometry,
+                edgeResults,
+                connected,
+                network,
+                columns,
+                junctionY);
             ToIntFunction<ColumnKey> roadYAt = elevationField::surfaceY;
 
             // 候选洞腔列：铺装责任区 + 侧向净距；不再用 clearance 外扩格做开挖底盘。
@@ -218,7 +224,10 @@ public final class TunnelJunctionShellPass {
             // 同层：进口隧道洞腔 ∪ 圆角封闭列 → 最终洞腔；墙只出在并集外缘，避免连接处残留分隔柱。
             // 进口 open-volume 扫掠到的封闭列一律并入（不要求最近中心线为隧道族），
             // 避免圆角更靠近开敞进口时漏保护而被广场露天挖穿。
-            List<Vec2d> polygon = resolveJunctionPolygon(network, node, config, scale);
+            // 复用上方已算好的 geometry，避免 resolveJunctionPolygon 再跑一遍几何。
+            List<Vec2d> polygon = geometry.fillPolygon().size() >= 3
+                ? geometry.fillPolygon()
+                : geometry.sharpPolygon();
             Set<ColumnKey> approachCavityColumns = cavityColumnsFromOpenVolume(
                 TunnelJunctionSeedResolver.collectOpenVolume(
                     approaches,
@@ -362,18 +371,6 @@ public final class TunnelJunctionShellPass {
             network,
             config,
             scale);
-    }
-
-    public static List<Vec2d> resolveJunctionPolygon(
-            RoadNetwork network,
-            RoadNode node,
-            RoadSystemConfig config,
-            double canvasScale) {
-        JunctionGeometryResult geometry = resolveJunctionGeometry(network, node, config, canvasScale);
-        if (geometry.fillPolygon().size() >= 3) {
-            return geometry.fillPolygon();
-        }
-        return geometry.sharpPolygon();
     }
 
     /**
@@ -522,6 +519,19 @@ public final class TunnelJunctionShellPass {
         return expanded;
     }
 
+    static JunctionWorldFootprint resolveShellFootprint(
+            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionGeometryResult geometry,
+            ICoordinateService coordinateTransformer) {
+        if (junctionBlocks != null && junctionBlocks.constructionContext() != null) {
+            JunctionWorldFootprint authored = junctionBlocks.constructionContext().footprint();
+            if (authored != null && !authored.isEmpty()) {
+                return authored;
+            }
+        }
+        return JunctionWorldFootprint.from(geometry, coordinateTransformer);
+    }
+
     static JunctionElevationField resolveShellElevationField(
             RoadJunctionGenerator.JunctionBlocks junctionBlocks,
             JunctionWorldFootprint footprint,
@@ -536,6 +546,36 @@ public final class TunnelJunctionShellPass {
                 return authored;
             }
         }
+        return JunctionElevationField.build(footprint, filletLoft, columns, junctionY);
+    }
+
+    /**
+     * 有权威高程场时直接复用，避免壳层再构建 fillet loft；否则现场 build。
+     */
+    static JunctionElevationField resolveShellElevationField(
+            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionWorldFootprint footprint,
+            JunctionGeometryResult geometry,
+            Map<String, RoadGenerationResult> edgeResults,
+            List<RoadEdge> connected,
+            RoadNetwork network,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns,
+            int junctionY) {
+        if (junctionBlocks != null) {
+            JunctionElevationField authored = junctionBlocks.elevationField();
+            if (authored != null
+                    && authored.targetYByColumn() != null
+                    && !authored.targetYByColumn().isEmpty()) {
+                return authored;
+            }
+        }
+        JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
+            geometry != null ? geometry.fillets() : List.of(),
+            edgeResults,
+            connected,
+            network,
+            columns,
+            junctionY);
         return JunctionElevationField.build(footprint, filletLoft, columns, junctionY);
     }
 

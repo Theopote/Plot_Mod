@@ -186,6 +186,28 @@ public final class RoadPreviewManager {
         LOGGER.debug("已强制失效走廊地形预取（用户重算）");
     }
 
+    /**
+     * 全量预览是否需要冲刷走廊预取：缓存未就绪，或已有地表探针且指纹已变。
+     * 首次尚无指纹但缓存已就绪时信任预取（避免预取刚完成又被冲掉）。
+     */
+    private boolean shouldForceTerrainResampleForPreview(RoadNetwork network, World world) {
+        if (network == null || world == null || networkGenerator == null) {
+            return true;
+        }
+        if (!RoadCorridorTerrainPrefetch.isCacheReady(
+                network, world, networkGenerator.getConfig(), networkGenerator.coordinateTransformer())) {
+            return true;
+        }
+        long surface = worldSurfaceFingerprint(network);
+        if (surface == 0L) {
+            return true;
+        }
+        if (lastWorldTerrainSampleFingerprint == 0L) {
+            return false;
+        }
+        return surface != lastWorldTerrainSampleFingerprint;
+    }
+
     private void invalidateManualProfilesIfTerrainChanged(RoadNetwork network) {
         if (network == null || networkGenerator == null) {
             return;
@@ -694,8 +716,21 @@ public final class RoadPreviewManager {
             return false;
         }
 
-        // 计算/重新计算预览：强制重采样世界地形，避免中段改地仍用旧预取。
-        forceWorldTerrainResample();
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null || networkGenerator == null) {
+            LOGGER.warn("世界或生成器未就绪");
+            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return false;
+        }
+
+        // 预取已就绪且走廊地表指纹未变时复用缓存，避免「预取刚完成又被强制冲刷」导致边生成冷采样卡顿。
+        // 中段改地仍依赖 notifyWorldTerrainChanged / 地表探针；无法确认时继续强制重采样。
+        if (shouldForceTerrainResampleForPreview(network, world)) {
+            forceWorldTerrainResample();
+        } else {
+            syncWorldTerrainPrefetchEpoch(network);
+            LOGGER.debug("走廊地形预取仍有效，跳过强制重采样");
+        }
         invalidateManualProfilesIfTerrainChanged(network);
 
         RoadElevationBounds elevationBounds = validationElevationBounds();
@@ -704,13 +739,6 @@ public final class RoadPreviewManager {
         if (preflight.blocksBuild()) {
             invalidatePreview();
             status.error(PlotI18n.tr("plugin.road.preview_blocked_validation"));
-            return false;
-        }
-
-        World world = RoadNetworkGenerator.getClientWorld();
-        if (world == null || networkGenerator == null) {
-            LOGGER.warn("世界或生成器未就绪");
-            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return false;
         }
 

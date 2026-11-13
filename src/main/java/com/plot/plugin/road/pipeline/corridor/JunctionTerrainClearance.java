@@ -10,6 +10,7 @@ import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,25 +41,49 @@ public final class JunctionTerrainClearance {
      * Air placements are ignored.
      */
     public static Map<ColumnKey, Integer> leftoverTopByColumn(Map<String, RoadGenerationResult> edgeResults) {
+        return leftoverTopByColumn(edgeResults, null);
+    }
+
+    /**
+     * @param edgeIds 非空时只扫描这些边（路口仅需相连进口），避免大型路网按全网放置记录扫一遍。
+     */
+    public static Map<ColumnKey, Integer> leftoverTopByColumn(
+            Map<String, RoadGenerationResult> edgeResults,
+            Collection<String> edgeIds) {
         Map<ColumnKey, Integer> tops = new HashMap<>();
-        if (edgeResults == null) {
+        if (edgeResults == null || edgeResults.isEmpty()) {
             return tops;
         }
-        for (RoadGenerationResult result : edgeResults.values()) {
-            if (result == null || result.placementRecords == null) {
+        if (edgeIds == null) {
+            for (RoadGenerationResult result : edgeResults.values()) {
+                accumulateLeftoverTops(tops, result);
+            }
+            return tops;
+        }
+        for (String edgeId : edgeIds) {
+            if (edgeId == null) {
                 continue;
             }
-            for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
-                BlockPos pos = entry.getKey();
-                BlockRecord record = entry.getValue();
-                if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
-                    continue;
-                }
-                ColumnKey key = new ColumnKey(pos.getX(), pos.getZ());
-                tops.merge(key, pos.getY(), Math::max);
-            }
+            accumulateLeftoverTops(tops, edgeResults.get(edgeId));
         }
         return tops;
+    }
+
+    private static void accumulateLeftoverTops(
+            Map<ColumnKey, Integer> tops,
+            RoadGenerationResult result) {
+        if (result == null || result.placementRecords == null) {
+            return;
+        }
+        for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockRecord record = entry.getValue();
+            if (pos == null || record == null || "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            ColumnKey key = new ColumnKey(pos.getX(), pos.getZ());
+            tops.merge(key, pos.getY(), Math::max);
+        }
     }
 
     public static void clearOverheadInPolygon(

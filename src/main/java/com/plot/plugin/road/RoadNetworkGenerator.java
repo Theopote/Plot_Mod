@@ -874,7 +874,8 @@ public class RoadNetworkGenerator {
             roadGenerator.projectionHandler()::getBlockIdAt,
             session.networkResult().junctionReports,
             session.terrain(),
-            onlyNodeIds);
+            onlyNodeIds,
+            session.networkResult().getJunctionResults());
     }
 
     /**

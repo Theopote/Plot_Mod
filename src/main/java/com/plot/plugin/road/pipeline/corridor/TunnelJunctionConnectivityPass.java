@@ -8,6 +8,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
@@ -123,6 +124,7 @@ public final class TunnelJunctionConnectivityPass {
             previousBlockResolver,
             reportSink,
             terrain,
+            null,
             null);
     }
 
@@ -140,10 +142,42 @@ public final class TunnelJunctionConnectivityPass {
             Map<String, JunctionConstructionReport> reportSink,
             TerrainSampler terrain,
             Set<String> onlyNodeIds) {
+        apply(
+            network,
+            edgeResults,
+            nodeElevations,
+            config,
+            coordinateTransformer,
+            unitsPerBlockEstimator,
+            previousBlockResolver,
+            reportSink,
+            terrain,
+            onlyNodeIds,
+            null);
+    }
+
+    /**
+     * @param onlyNodeIds 非空时只处理这些路口（分帧预览用）；null 表示全网。
+     * @param junctionResults 已生成的路口结果；非空时优先复用足迹与权威高程场，避免连通阶段重建。
+     */
+    public static void apply(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
+            PreviousBlockResolver previousBlockResolver,
+            Map<String, JunctionConstructionReport> reportSink,
+            TerrainSampler terrain,
+            Set<String> onlyNodeIds,
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
         Map<String, Integer> elevations = nodeElevations != null ? nodeElevations : Map.of();
+        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions =
+            junctionResults != null ? junctionResults : Map.of();
         for (RoadNode node : network.getNodes().values()) {
             if (!qualifiesForConnectivity(node)) {
                 continue;
@@ -169,8 +203,10 @@ public final class TunnelJunctionConnectivityPass {
                     canvasScale = Math.max(canvasScale, approach.unitsPerBlock());
                 }
             }
-            List<Vec2d> polygon = TunnelJunctionShellPass.resolveJunctionPolygon(
+            // 几何只算一次：多边形从同一结果派生，避免 resolveJunctionPolygon 再跑一遍。
+            JunctionGeometryResult geometry = TunnelJunctionShellPass.resolveJunctionGeometry(
                 network, node, config, canvasScale);
+            List<Vec2d> polygon = polygonFromGeometry(geometry);
             if (polygon.size() < 3) {
                 mergeTunnelReport(reportSink, node.getId(), 0, 0, false, 0);
                 continue;
@@ -182,21 +218,21 @@ public final class TunnelJunctionConnectivityPass {
             int disconnectedComponents = 0;
 
             Integer clearHeight = TunnelJunctionSeedResolver.resolveTunnelClearHeight(approaches);
-            JunctionGeometryResult geometry = TunnelJunctionShellPass.resolveJunctionGeometry(
-                network, node, config, canvasScale);
+            RoadJunctionGenerator.JunctionBlocks authored = junctions.get(node.getId());
             List<RoadEdge> connected = connectedEdges(network, node);
             int junctionY = elevations.getOrDefault(node.getId(), approaches.getFirst().roadY());
-            JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, coordinateTransformer);
+            JunctionWorldFootprint footprint = resolveConnectivityFootprint(
+                authored, geometry, coordinateTransformer);
             RoadTerrainClearanceUtils.BlockColumnResolver columns = columnResolver(coordinateTransformer);
-            JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
-                geometry.fillets(),
+            JunctionElevationField elevationField = resolveConnectivityElevationField(
+                authored,
+                footprint,
+                geometry,
                 edgeResults,
                 connected,
                 network,
                 columns,
                 junctionY);
-            JunctionElevationField elevationField = JunctionElevationField.build(
-                footprint, filletLoft, columns, junctionY);
             ToIntFunction<Vec2d> roadYAt = elevationField::surfaceY;
             int resolvedClear = clearHeight != null ? Math.max(1, clearHeight) : 0;
 
@@ -237,13 +273,6 @@ public final class TunnelJunctionConnectivityPass {
                 connectivityApplied,
                 disconnectedComponents);
         }
-    }
-
-    static Set<BlockPos> retainBelowNaturalSurface(
-            Set<BlockPos> volume,
-            TerrainSampler terrain,
-            ICoordinateService coordinateTransformer) {
-        return retainBelowDesignEnvelope(volume, terrain, coordinateTransformer, null, 0);
     }
 
     /**
@@ -307,6 +336,59 @@ public final class TunnelJunctionConnectivityPass {
             }
         }
         return connected;
+    }
+
+    static List<Vec2d> polygonFromGeometry(JunctionGeometryResult geometry) {
+        if (geometry == null) {
+            return List.of();
+        }
+        if (geometry.fillPolygon().size() >= 3) {
+            return geometry.fillPolygon();
+        }
+        return geometry.sharpPolygon();
+    }
+
+    static JunctionWorldFootprint resolveConnectivityFootprint(
+            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionGeometryResult geometry,
+            ICoordinateService coordinateTransformer) {
+        if (junctionBlocks != null && junctionBlocks.constructionContext() != null) {
+            JunctionWorldFootprint authored = junctionBlocks.constructionContext().footprint();
+            if (authored != null && !authored.isEmpty()) {
+                return authored;
+            }
+        }
+        return JunctionWorldFootprint.from(geometry, coordinateTransformer);
+    }
+
+    /**
+     * 优先复用路口生成阶段权威高程场；缺失时才重建 fillet loft + elevation field。
+     */
+    static JunctionElevationField resolveConnectivityElevationField(
+            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionWorldFootprint footprint,
+            JunctionGeometryResult geometry,
+            Map<String, RoadGenerationResult> edgeResults,
+            List<RoadEdge> connected,
+            RoadNetwork network,
+            RoadTerrainClearanceUtils.BlockColumnResolver columns,
+            int junctionY) {
+        if (junctionBlocks != null) {
+            JunctionElevationField authored = junctionBlocks.elevationField();
+            if (authored != null
+                    && authored.targetYByColumn() != null
+                    && !authored.targetYByColumn().isEmpty()) {
+                return authored;
+            }
+        }
+        JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
+            geometry != null ? geometry.fillets() : List.of(),
+            edgeResults,
+            connected,
+            network,
+            columns,
+            junctionY);
+        return JunctionElevationField.build(footprint, filletLoft, columns, junctionY);
     }
 
     private static RoadTerrainClearanceUtils.BlockColumnResolver columnResolver(
@@ -622,7 +704,10 @@ public final class TunnelJunctionConnectivityPass {
                 && result.expectedTunnelLining.contains(pos)) {
             return false;
         }
-        RoadSolidLayer layer = result.placementLayers.get(pos);
+        RoadSolidLayer layer = null;
+        if (result != null) {
+            layer = result.placementLayers.get(pos);
+        }
         if (layer == RoadSolidLayer.ROAD
                 || layer == RoadSolidLayer.BRIDGE
                 || layer == RoadSolidLayer.MARKING

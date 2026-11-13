@@ -809,7 +809,15 @@ public class RoadJunctionGenerator {
             : null;
         // 广场铺装/清障/边坡均读 JunctionConstructionContext 逐列权限；
         // 禁止再合成路口级 maxClearY 套到开敞边坡上；漏检时 fail-closed。
-        Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
+        // 只扫本路口相连边，避免大型路网每个路口都扫一遍全网 placements。
+        List<String> connectedEdgeIds = new ArrayList<>(edges.size());
+        for (RoadEdge edge : edges) {
+            if (edge != null && edge.getId() != null) {
+                connectedEdgeIds.add(edge.getId());
+            }
+        }
+        Map<ColumnKey, Integer> leftoverTops =
+            JunctionTerrainClearance.leftoverTopByColumn(safeEdgeResults, connectedEdgeIds);
         Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
             fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
