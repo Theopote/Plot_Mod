@@ -117,32 +117,51 @@ class RoadCrossSectionPreviewRendererTest {
     }
 
     @Test
-    void batterFaceY_cutRisesOutward_fillDropsOutward() {
+    void batterRiseCells_areWholeBlocksOnly() {
+        assertEquals(1, RoadCrossSectionPreviewRenderer.batterRiseCells(1f, 0, 3, true));
+        assertEquals(2, RoadCrossSectionPreviewRenderer.batterRiseCells(1f, 1, 3, true));
+        assertEquals(3, RoadCrossSectionPreviewRenderer.batterRiseCells(1f, 2, 3, true));
+        assertEquals(0, RoadCrossSectionPreviewRenderer.batterRiseCells(1f, 0, 3, false));
+        assertEquals(1, RoadCrossSectionPreviewRenderer.batterRiseCells(1f, 1, 3, false));
+        assertEquals(2, RoadCrossSectionPreviewRenderer.batterRiseCells(1.5f, 3, 3, false));
+    }
+
+    @Test
+    void batterFaceY_staysOnCellGrid() {
         float roadSurface = 40f;
         float cell = 4f;
-        float ratio = 1f;
+        float ratio = 1.5f;
         float cutTop = roadSurface - 3 * cell;
         float fillGround = roadSurface + 3 * cell;
 
-        float cutNear = RoadCrossSectionPreviewRenderer.batterFaceY(
-            roadSurface, cutTop, ratio, 0, cell, true);
-        float cutNext = RoadCrossSectionPreviewRenderer.batterFaceY(
-            roadSurface, cutTop, ratio, 1, cell, true);
-        float cutFar = RoadCrossSectionPreviewRenderer.batterFaceY(
-            roadSurface, cutTop, ratio, 2, cell, true);
-        // 第 0 列已升高 1 格：底边贴路面、无空隙。
-        assertEquals(roadSurface - cell, cutNear, 0.001f);
-        assertTrue(cutNext < cutNear, "cut face must rise farther from road");
-        assertTrue(cutFar <= cutNext, "cut face keeps rising or clamps at top");
-        assertEquals(cutTop, cutFar, 0.001f);
+        for (int i = 0; i < 4; i++) {
+            float cutFace = RoadCrossSectionPreviewRenderer.batterFaceY(
+                roadSurface, cutTop, ratio, i, cell, true);
+            float fillFace = RoadCrossSectionPreviewRenderer.batterFaceY(
+                roadSurface, fillGround, ratio, i, cell, false);
+            assertEquals(0f, Math.IEEEremainder(cutFace - roadSurface, cell), 1e-4,
+                "cut face must sit on whole-cell grid at column " + i);
+            assertEquals(0f, Math.IEEEremainder(fillFace - roadSurface, cell), 1e-4,
+                "fill face must sit on whole-cell grid at column " + i);
+        }
+        assertTrue(
+            RoadCrossSectionPreviewRenderer.batterFaceY(roadSurface, cutTop, ratio, 2, cell, true)
+                < RoadCrossSectionPreviewRenderer.batterFaceY(roadSurface, cutTop, ratio, 0, cell, true),
+            "cut must rise farther from road");
+    }
 
-        float fillNear = RoadCrossSectionPreviewRenderer.batterFaceY(
-            roadSurface, fillGround, ratio, 0, cell, false);
-        float fillFar = RoadCrossSectionPreviewRenderer.batterFaceY(
-            roadSurface, fillGround, ratio, 3, cell, false);
-        assertEquals(roadSurface, fillNear, 0.001f);
-        assertTrue(fillFar > fillNear, "fill face must drop on screen (larger Y) farther from road");
-        assertEquals(fillGround, fillFar, 0.001f);
+    @Test
+    void cutTopY_isWholeCellsAboveRoadSurface() {
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
+            RoadStyleCatalog.mountain());
+        var geometry = RoadCrossSectionPreviewRenderer.previewGeometryForTests(
+            layout, PRESET_CARD_WIDTH, PRESET_CARD_HEIGHT, PRESET_OPTIONS);
+        assertNotNull(geometry);
+        float cell = geometry.scale();
+        float delta = geometry.deckY() - geometry.cutTopY();
+        assertTrue(delta > 0f, "cut top must be above road surface");
+        assertEquals(0f, Math.IEEEremainder(delta, cell), 1e-4,
+            "cut headroom must be an integer number of cells");
     }
 
     @Test

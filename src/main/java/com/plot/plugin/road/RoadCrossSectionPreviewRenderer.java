@@ -45,7 +45,7 @@ public final class RoadCrossSectionPreviewRenderer {
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
 
         CrossSectionLayout layout = CrossSectionLayout.fromConfig(config);
-        drawCrossSection(drawList, layout, x0, y0, width, PREVIEW_HEIGHT);
+        drawCrossSection(drawList, layout, x0, y0, width);
 
         ImGui.dummy(width, PREVIEW_HEIGHT);
     }
@@ -91,9 +91,8 @@ public final class RoadCrossSectionPreviewRenderer {
             CrossSectionLayout layout,
             float x0,
             float y0,
-            float width,
-            float height) {
-        drawCrossSection(drawList, layout, x0, y0, width, height, MiniRenderOptions.standard());
+            float width) {
+        drawCrossSection(drawList, layout, x0, y0, width, RoadCrossSectionPreviewRenderer.PREVIEW_HEIGHT, MiniRenderOptions.standard());
     }
 
     private static void drawCrossSection(
@@ -263,16 +262,16 @@ public final class RoadCrossSectionPreviewRenderer {
             float availableWidth = Math.max(1f, width - padding * 2f);
             float scale = Math.min(availableWidth / (totalBlocks + fillRun + cutRun),
                 Math.max(1f, height - padding * 2f) / 7f);
-            float fillVert = 3 * scale;
-            // 有挖方时为上方台阶预留空间，避免 cutTop 画出卡片。
-            float cutHeadroom = cutRun > 0 ? (options.compactSlopes ? 1.2f * scale : 3f * scale) : 0f;
+            // 填/挖竖直示意高度必须是整格，避免坡面落在半格上。
+            int fillRiseCells = 3;
+            int cutRiseCells = cutRun > 0 ? (options.compactSlopes ? 2 : 3) : 0;
+            float fillVert = fillRiseCells * scale;
+            float cutHeadroom = cutRiseCells * scale;
             float deckY = y0 + padding + scale + cutHeadroom;
             float deckH = 2 * scale;
             float deckBottom = deckY + deckH;
             float groundY = deckBottom + fillVert;
-            float cutTopY = cutRun > 0
-                ? Math.max(y0 + 1f, deckY - cutHeadroom)
-                : deckY;
+            float cutTopY = cutRun > 0 ? deckY - cutHeadroom : deckY;
             float leftBatterPx = fillRun * scale;
             float rightBatterPx = cutRun * scale;
             float visualWidth = totalBlocks * scale + leftBatterPx + rightBatterPx;
@@ -356,30 +355,6 @@ public final class RoadCrossSectionPreviewRenderer {
         }
     }
 
-    private static float compactBatterRun(float run, MiniRenderOptions options, float height) {
-        if (run <= 0f) {
-            return 0f;
-        }
-        if (!options.compactSlopes) {
-            return run;
-        }
-        return Math.clamp(height * 0.2f, 6f, run);
-    }
-
-    private static float resolveCutTopY(
-            float deckY,
-            float deckH,
-            float deckBottom,
-            float fillVertDrop,
-            float y0,
-            MiniRenderOptions options) {
-        if (options.compactSlopes) {
-            float rise = Math.min(deckH * 0.35f, fillVertDrop * 0.4f);
-            return Math.max(y0 + 1f, deckY - rise);
-        }
-        return deckY - Math.max(10f, fillVertDrop * 0.5f);
-    }
-
     private static void drawRoadMarkings(
             ImDrawList drawList,
             CrossSectionLayout layout,
@@ -419,7 +394,7 @@ public final class RoadCrossSectionPreviewRenderer {
         }
         float w = blocks * scale;
         float split = topY + (bottomY - topY) * 0.5f;
-        int count = Math.min(512, Math.max(1, (int) Math.ceil(blocks)));
+        int count = Math.clamp((int) Math.ceil(blocks), 1, 512);
         for (int i = 0; i < count; i++) {
             float left = x + i * scale;
             float right = Math.min(x + w, left + scale);
@@ -448,52 +423,69 @@ public final class RoadCrossSectionPreviewRenderer {
             int color,
             float blockSize,
             boolean drawLabel) {
-        if (Math.abs(horizontalRun) < 1f || slopeRatio <= 0f) {
-            return;
-        }
-        float verticalDrop = Math.abs(groundY - attachY);
-        if (verticalDrop < 1f) {
-            return;
-        }
-        float endX = edgeX + horizontalRun;
         float cell = blockSize;
-        int columns = Math.min(128, Math.max(1, (int) Math.ceil(Math.abs(horizontalRun) / cell)));
-        float step = horizontalRun / columns;
-        // ImGui Y 向下：groundY > attachY 为填方（往下），groundY < attachY 为挖方（往上）。
+        if (cell <= 1e-6f || slopeRatio <= 0f || Math.abs(horizontalRun) < cell * 0.5f) {
+            return;
+        }
+        // 严格整格网格：列宽=cell，升高为整数格，禁止半格错位。
+        int columns = Math.clamp(Math.round(Math.abs(horizontalRun) / cell), 1, 128);
+        int maxRiseCells = Math.max(1, Math.round(Math.abs(groundY - attachY) / cell));
+        float dirX = Math.signum(horizontalRun);
         boolean cutSlope = groundY < attachY;
         for (int i = 0; i < columns; i++) {
-            float a = edgeX + step * i;
-            float b = a + step;
-            float face = batterFaceY(attachY, groundY, slopeRatio, i, cell, cutSlope);
-            float minY;
-            float maxY;
-            if (cutSlope) {
-                // 挖方：贴路面顶起坡，从坡面画到路面，第 0 列即有一块（无空隙）。
-                minY = face;
-                maxY = attachY;
-            } else {
-                // 填方：从坡面往下填到地面，越向外越低。
-                minY = Math.min(face, groundY);
-                maxY = Math.max(face, groundY);
-            }
-            if (maxY - minY < 1f) {
+            int riseCells = batterRiseCells(slopeRatio, i, maxRiseCells, cutSlope);
+            if (riseCells <= 0 && cutSlope) {
                 continue;
             }
-            for (float y = minY; y < maxY; y += cell) {
-                drawVoxelFace(drawList, Math.min(a, b), y, Math.max(a, b), Math.min(maxY, y + cell), color);
+            float x0 = edgeX + dirX * i * cell;
+            float x1 = x0 + dirX * cell;
+            float left = Math.min(x0, x1);
+            float right = Math.max(x0, x1);
+            if (cutSlope) {
+                // 挖方：底边贴路面顶，向上堆 riseCells 整格（与填方贴路底向下对称）。
+                for (int r = 0; r < riseCells; r++) {
+                    float y1 = attachY - r * cell;
+                    float y0 = y1 - cell;
+                    drawVoxelFace(drawList, left, y0, right, y1, color);
+                }
+            } else {
+                // 填方：坡面在 attachY 以下 riseCells 处，再填到地面（整格）。
+                int fillCells = Math.max(0, maxRiseCells - riseCells);
+                for (int r = 0; r < fillCells; r++) {
+                    float y0 = attachY + (riseCells + r) * cell;
+                    float y1 = y0 + cell;
+                    drawVoxelFace(drawList, left, y0, right, y1, color);
+                }
             }
         }
 
         if (drawLabel) {
             String label = SlopeFormatUtils.formatRatio(slopeRatio);
+            float endX = edgeX + dirX * columns * cell;
             float labelX = horizontalRun < 0f ? endX + 2f : edgeX + 2f;
             drawList.addText(labelX, attachY + 2f, COLOR_LABEL, label);
         }
     }
 
     /**
-     * 第 {@code columnIndex} 列坡面顶/底边的屏幕 Y。
-     * 填方随列外移下降；挖方随列外移上升，且第 0 列至少升高 1 格以免留空。
+     * 第 {@code columnIndex} 列相对贴边高程的整格升高/下降数。
+     * 填方 i=0 为 0（贴路底外侧整列填实）；挖方 i=0 为 1（贴路面顶外侧升高一格）。
+     */
+    static int batterRiseCells(float slopeRatio, int columnIndex, int maxRiseCells, boolean cutSlope) {
+        if (slopeRatio <= 0f || columnIndex < 0 || maxRiseCells <= 0) {
+            return 0;
+        }
+        int rise;
+        if (cutSlope) {
+            rise = Math.max(1, Math.round((columnIndex + 1) / slopeRatio));
+        } else {
+            rise = Math.round(columnIndex / slopeRatio);
+        }
+        return Math.min(maxRiseCells, rise);
+    }
+
+    /**
+     * 第 {@code columnIndex} 列坡面顶/底边的屏幕 Y（整格）。
      */
     static float batterFaceY(
             float attachY,
@@ -502,25 +494,16 @@ public final class RoadCrossSectionPreviewRenderer {
             int columnIndex,
             float cell,
             boolean cutSlope) {
-        if (slopeRatio <= 0f || cell <= 0f || columnIndex < 0) {
+        if (cell <= 0f) {
             return attachY;
         }
+        int maxRise = Math.max(1, Math.round(Math.abs(targetY - attachY) / cell));
+        int rise = batterRiseCells(slopeRatio, columnIndex, maxRise, cutSlope);
         float direction = Math.signum(targetY - attachY);
         if (direction == 0f) {
             return attachY;
         }
-        float riseBlocks;
-        if (cutSlope) {
-            // i=0 → 1 格，贴路边且底边与路面平齐；再向外递增。
-            riseBlocks = Math.min(3, Math.max(1, Math.round((columnIndex + 1) / slopeRatio)));
-        } else {
-            riseBlocks = Math.min(3, Math.round(columnIndex / slopeRatio));
-        }
-        float face = attachY + direction * riseBlocks * cell;
-        if (direction < 0f) {
-            return Math.max(face, targetY);
-        }
-        return Math.min(face, targetY);
+        return attachY + direction * rise * cell;
     }
 
     public static final class MiniRenderOptions {
