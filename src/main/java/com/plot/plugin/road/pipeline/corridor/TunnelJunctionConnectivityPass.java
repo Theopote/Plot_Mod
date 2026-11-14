@@ -616,6 +616,13 @@ public final class TunnelJunctionConnectivityPass {
         if (tunnelAtNode(network, node, edge, result, config, centerline, approachSegments, unitsPerBlock)) {
             return true;
         }
+        // The index-window fallback is only meaningful for denser type samples.
+        // With one type per geometric segment, tunnelAtNode already evaluated the
+        // actual distance; scanning extra indices mistakes a remote tunnel for an entry.
+        if (result == null || centerline == null
+                || result.constructionTypes.size() <= Math.max(0, centerline.size() - 1)) {
+            return false;
+        }
         return JunctionConstructionContext.hasTunnelFamilyWithinEntryTypeWindow(
             edge, node != null ? node.getId() : null, result, config, node);
     }
