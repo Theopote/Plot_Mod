@@ -505,7 +505,9 @@ public final class JunctionConstructionContext {
         Map<ColumnKey, Boolean> tunnelFamilyMemo = new HashMap<>();
 
         // 共享洞腔：进口 open-volume 扫掠到的封闭列一律保护（不要求最近中心线为隧道族）。
-        // 圆角铺装/接缝始终保护；清障外缘仅在真隧道进口广场保护。
+        // 圆角/接缝仅在该列本身属隧道族或落入进口洞腔时保护——开敞 stub 街角必须露天
+        // （见 TunnelJunctionFilletClearanceGuardTest.openRoadStubAtJunctionDaylightsFillet）。
+        // 清障外缘仍可在隧道进口广场经 isFilletProtectionZone 纳入，但须叠加 tunnelFamily/cavity。
         for (ColumnKey column : candidates) {
             if (column == null) {
                 continue;
@@ -537,7 +539,10 @@ public final class JunctionConstructionContext {
             ColumnRole role;
             Integer maxClear;
             boolean destructive;
-            boolean spatialProtect = inApproachCavity || tunnelFamily || filletZone;
+            // 禁止仅凭 filletZone 保护：短 ROAD stub 后接 TUNNEL 时 tunnelEntryPlaza 仍为 true，
+            // 但路口近端施工为 ROAD，圆角必须与道路一样露天清到地表。
+            boolean spatialProtect = inApproachCavity || tunnelFamily
+                || (filletZone && enclosed);
             if (enclosed && spatialProtect) {
                 role = ColumnRole.ENCLOSED_TUNNEL;
                 maxClear = roofY;
@@ -785,9 +790,9 @@ public final class JunctionConstructionContext {
     }
 
     /**
-     * 圆角保护带：圆角铺装与接缝始终纳入。
-     * 清障楔形 / 邻接外缘仅在「进口首段为隧道族」的地下广场纳入——
-     * 否则开敞 stub 街角无法露天清到地表。
+     * 圆角保护候选：圆角铺装/接缝标为候选；清障楔形与邻接外缘仅在隧道进口广场纳入。
+     * 真正是否封顶由调用方结合 {@code tunnelFamily}/{@code enclosed}/{@code inApproachCavity}
+     * 决定——开敞 stub 上的街角不得仅凭本方法露天封死。
      */
     static boolean isFilletProtectionZone(
             JunctionWorldFootprint.ElevationRole elevRole,

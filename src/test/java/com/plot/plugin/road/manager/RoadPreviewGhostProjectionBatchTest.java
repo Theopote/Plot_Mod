@@ -58,9 +58,14 @@ class RoadPreviewGhostProjectionBatchTest {
         assertEquals(total, previewManager.ghostProjectionTotal());
         assertEquals(0, previewManager.ghostProjectionProcessed());
 
+        // 首帧只清旧 ghost，避免与大批量上传叠在同一帧。
+        assertTrue(previewManager.tickGhostProjection());
+        assertEquals(0, ghosts.addedCount);
+        assertEquals(1, ghosts.clearCount);
+        assertEquals(0, previewManager.ghostProjectionProcessed());
+
         assertTrue(previewManager.tickGhostProjection());
         assertEquals(RoadPreviewManager.GHOST_BLOCKS_PER_TICK, ghosts.addedCount);
-        assertEquals(1, ghosts.clearCount);
         assertEquals(RoadPreviewManager.GHOST_BLOCKS_PER_TICK, previewManager.ghostProjectionProcessed());
 
         assertFalse(previewManager.tickGhostProjection());

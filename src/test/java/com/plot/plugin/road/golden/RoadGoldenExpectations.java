@@ -19,17 +19,17 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R02 = new RoadGoldenMetrics(
         215, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 0, List.of());
 
-    // T 字：切点归属 + 接缝补列后，走廊/路口表面再分配（表面略减、junction/placement 略增）。
+    // T 字：连续圆角平滑 + 开敞 stub 街角露天后，表面/路口固体下调。
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        351, 0, 0, 36, 0, 0, 97, 0, 0, 316, 0, 0, List.of());
+        339, 0, 0, 36, 0, 0, 72, 0, 0, 305, 0, 0, List.of());
 
-    // 十字：同上；接缝补列增加路口固体，走廊表面计数相应下调。
+    // 十字：同上。
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        473, 0, 0, 60, 0, 0, 147, 0, 0, 413, 0, 0, List.of());
+        459, 0, 0, 60, 0, 0, 109, 0, 0, 399, 0, 0, List.of());
 
-    // 五岔：gore/接缝加密后路口固体与表面同步上升；placement ±5 见 RoadGoldenTolerance。
+    // 五岔：同上；placement ±5 见 RoadGoldenTolerance。
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        637, 0, 0, 63, 0, 0, 219, 0, 0, 509, 0, 0, List.of());
+        597, 0, 0, 63, 0, 0, 179, 0, 0, 492, 0, 0, List.of());
 
     // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
@@ -49,9 +49,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
         217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
 
-    // 立交：浅覆土路口与走廊统一洞腔 cap 后，隧道路口固体不再被露天切坡掏掉。
+    // 立交：保留隧道顶衬砌/承重层后，下层净空不再把洞顶当可挖土体灌空气。
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        420, 0, 0, 0, 252, 185, 185, 0, 0, 785, 1, 0, List.of());
+        420, 0, 0, 0, 252, 0, 0, 0, 0, 717, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());
