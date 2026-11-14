@@ -117,7 +117,7 @@ public final class JunctionWorldFootprint {
     /**
      * 在清障责任内补真正的接缝缺列（写入 {@code seamTransition}，保持 corridorTrim≡pave）：
      * <ul>
-     *   <li>邻接圆角补铺/既有接缝列 → 走廊↔圆角单列缝</li>
+     *   <li>两侧铺装夹住且邻接圆角补铺/既有接缝列 → 走廊↔圆角单列缝</li>
      *   <li>或四邻域已有 ≥3 个铺装列 → 被围住的栅格空洞</li>
      * </ul>
      * 仅邻接核区的进口臂列不会被吞入路口材质。
@@ -156,7 +156,11 @@ public final class JunctionWorldFootprint {
                     touchesFilletOrSeam = true;
                 }
             }
-            if ((paveNeighbors >= 1 && touchesFilletOrSeam) || paveNeighbors >= 3) {
+            boolean bracketed = (pave.contains(new ColumnKey(candidate.worldX() - 1, candidate.worldZ()))
+                    && pave.contains(new ColumnKey(candidate.worldX() + 1, candidate.worldZ())))
+                || (pave.contains(new ColumnKey(candidate.worldX(), candidate.worldZ() - 1))
+                    && pave.contains(new ColumnKey(candidate.worldX(), candidate.worldZ() + 1)));
+            if ((bracketed && touchesFilletOrSeam) || paveNeighbors >= 3) {
                 extras.add(candidate);
             }
         }

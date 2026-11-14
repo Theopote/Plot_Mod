@@ -187,18 +187,6 @@ public final class RoadConstructionClassifier {
             localDaylight);
     }
 
-    /** @deprecated Prefer {@link #rebuildAfterWaterStrategy}; kept for binary/test callers. */
-    @Deprecated
-    static ConstructionDetection finalizeDetection(
-            List<RoadConstructionType> resolvedTypes,
-            List<Double> segmentDistances,
-            List<SegmentHeightInfo> heightInfos,
-            CanvasBlockPosResolver canvasToBlockPos,
-            TerrainSampler terrain) {
-        return rebuildAfterWaterStrategy(
-            resolvedTypes, segmentDistances, heightInfos, 1.0, java.util.Set.of());
-    }
-
     private static void collectStructureSegments(
             List<RoadConstructionType> resolvedTypes,
             List<SegmentHeightInfo> heightInfos,

@@ -30,12 +30,6 @@ public class RoadNetworkHistory {
         return delegate.hasStagedPush();
     }
 
-    /** @deprecated 使用 {@link #stagePush} + {@link #commitStagedPush} */
-    @Deprecated
-    public void push(RoadNetwork current) {
-        delegate.push(current);
-    }
-
     public RoadNetwork undo(RoadNetwork current) {
         return delegate.undo(current);
     }

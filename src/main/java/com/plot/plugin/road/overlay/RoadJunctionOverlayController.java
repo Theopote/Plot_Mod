@@ -194,16 +194,4 @@ public final class RoadJunctionOverlayController {
         }
         return closest;
     }
-
-    /** @deprecated 使用 {@link #hitTest(List, double, double, double)} */
-    @Deprecated
-    public static String hitTestNodeId(
-            List<RoadJunctionOverlayEntry> entries,
-            double worldX,
-            double worldY,
-            double worldRadius) {
-        IntersectionHit hit = hitTest(entries, worldX, worldY, worldRadius);
-        return hit != null && hit.source() == IntersectionOverlaySource.LEGACY_NODE
-            ? hit.id() : null;
-    }
 }

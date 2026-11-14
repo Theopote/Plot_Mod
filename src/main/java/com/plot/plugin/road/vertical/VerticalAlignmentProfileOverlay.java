@@ -1,10 +1,8 @@
 package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VerticalAlignmentProfileSupport;
-import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
@@ -22,26 +20,6 @@ public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double
     public VerticalAlignmentProfileOverlay(List<Double> stations, List<Double> elevations) {
         this.stations = List.copyOf(stations);
         this.elevations = List.copyOf(elevations);
-    }
-
-    /**
-     * @deprecated 使用 {@link #stations()}；旧 edge-local 距离。
-     */
-    @Deprecated
-    public List<Double> distances() {
-        return stations;
-    }
-
-    /**
-     * @deprecated 使用 {@link #elevations()}。
-     */
-    @Deprecated
-    public List<Integer> heights() {
-        List<Integer> legacy = new ArrayList<>(elevations.size());
-        for (double elevation : elevations) {
-            legacy.add((int) Math.round(elevation));
-        }
-        return legacy;
     }
 
     public boolean isEmpty() {
@@ -103,52 +81,6 @@ public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double
         return Optional.of(new VerticalAlignmentProfileOverlay(sampleStations, sampleElevations));
     }
 
-    /**
-     * @deprecated 纵断面编辑器已升级为道路级。
-     */
-    @Deprecated
-    public static Optional<VerticalAlignmentProfileOverlay> forEdge(RoadNetwork network, RoadEdge edge) {
-        if (network == null || edge == null) {
-            return Optional.empty();
-        }
-        String roadId = edge.getRoadId();
-        if (roadId == null) {
-            return Optional.empty();
-        }
-        Road road = network.getRoad(roadId);
-        if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
-            return Optional.empty();
-        }
-        double maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : 8.0;
-        RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolveSynced(
-                network, road, maxGrade);
-        if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
-            return Optional.empty();
-        }
-        return RoadStationing.orientedSegment(network, road, edge.getId()).flatMap(oriented -> {
-            double segmentStart = oriented.startStation();
-            double edgeLength = oriented.length();
-            double spacing = Math.max(MIN_SAMPLE_SPACING, edgeLength / 40.0);
-            List<Double> localDistances = new ArrayList<>();
-            List<Double> localElevations = new ArrayList<>();
-            double segmentEnd = oriented.endStation();
-            for (VerticalAlignmentGeometry.ProfileSample sample : VerticalAlignmentGeometry.sample(alignment, spacing)) {
-                if (sample.station() < segmentStart - 1e-6 || sample.station() > segmentEnd + 1e-6) {
-                    continue;
-                }
-                double chainLocal = sample.station() - segmentStart;
-                localDistances.add(oriented.geometryLocalFromChainLocal(chainLocal));
-                localElevations.add(sample.elevation());
-            }
-            appendEndpointIfMissingEdge(oriented, localDistances, localElevations, 0.0, alignment);
-            appendEndpointIfMissingEdge(oriented, localDistances, localElevations, edgeLength, alignment);
-            if (localDistances.size() < 2) {
-                return Optional.empty();
-            }
-            return Optional.of(new VerticalAlignmentProfileOverlay(localDistances, localElevations));
-        });
-    }
-
     private static void appendEndpointIfMissing(
             List<Double> stations,
             List<Double> elevations,
@@ -162,23 +94,6 @@ public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double
         stations.add(station);
         elevations.add(height);
         sortByStation(stations, elevations);
-    }
-
-    private static void appendEndpointIfMissingEdge(
-            OrientedRoadSegment oriented,
-            List<Double> distances,
-            List<Double> elevations,
-            double geometryLocalDistance,
-            RoadVerticalAlignment alignment) {
-        if (distances.stream().anyMatch(distance -> Math.abs(distance - geometryLocalDistance) < 1e-6)) {
-            return;
-        }
-        double chainage = oriented.roadStationAtGeometryLocal(geometryLocalDistance);
-        double height = VerticalAlignmentGeometry.elevationAt(alignment, chainage)
-                .orElse(elevations.isEmpty() ? 64.0 : elevations.getLast());
-        distances.add(geometryLocalDistance);
-        elevations.add(height);
-        sortByStation(distances, elevations);
     }
 
     private static void sortByStation(List<Double> stations, List<Double> elevations) {

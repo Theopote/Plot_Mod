@@ -278,38 +278,6 @@ public final class ProfileChartLegend {
         }
     }
 
-    /** @deprecated 请用 {@link #renderCompact} 的 intersections 参数，保证图例单行。 */
-    @Deprecated
-    public static void renderIntersectionLegend(List<RoadProfileIntersection> intersections) {
-        if (intersections == null || intersections.isEmpty()) {
-            return;
-        }
-        boolean hasGradeSeparated = intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated);
-        boolean hasAtGrade = intersections.stream().anyMatch(i -> !i.gradeSeparated());
-        if (!hasGradeSeparated && !hasAtGrade) {
-            return;
-        }
-        boolean first = true;
-        if (hasGradeSeparated) {
-            ImGui.textColored(
-                COLOR_INTERSECTION_CURRENT,
-                "\u25CE " + PlotI18n.tr("plugin.road.profile_intersection_marker_current"));
-            first = false;
-            ImGui.sameLine();
-            ImGui.textColored(
-                COLOR_INTERSECTION_OTHER,
-                "\u25C7 " + PlotI18n.tr("plugin.road.profile_intersection_marker_grade"));
-        }
-        if (hasAtGrade) {
-            if (!first) {
-                ImGui.sameLine();
-            }
-            ImGui.textColored(
-                COLOR_INTERSECTION_AT_GRADE,
-                "\u25CF " + PlotI18n.tr("plugin.road.profile_intersection_marker"));
-        }
-    }
-
     private static String buildProfileLabel(boolean buildPreviewStale) {
         return buildPreviewStale
             ? PlotI18n.tr("plugin.road.profile_last_preview_stale")

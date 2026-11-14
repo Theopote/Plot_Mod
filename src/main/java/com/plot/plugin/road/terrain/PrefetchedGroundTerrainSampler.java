@@ -59,18 +59,6 @@ public final class PrefetchedGroundTerrainSampler implements TerrainSampler {
         return Math.max(0, knownColumns.size() - groundByColumn.size());
     }
 
-    /** @deprecated 使用 {@link #emptyGroundCount()} */
-    @Deprecated
-    public int emptyColumnCount() {
-        return emptyGroundCount();
-    }
-
-    /** @deprecated 使用 {@link #cachedGroundCount()} */
-    @Deprecated
-    public int cachedColumnCount() {
-        return cachedGroundCount();
-    }
-
     @Override
     public int worldBottomY() {
         return fallback.worldBottomY();

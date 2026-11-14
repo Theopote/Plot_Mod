@@ -119,6 +119,18 @@ public final class JunctionCrossSectionFill {
             String fillMaterialId,
             Integer maxClearY,
             int surfaceY) {
+        return fillCell(solids, cellPoint, junctionY, nodeId, edges, network, config, materials,
+            columnResolver, unitsPerBlock, terrain, tunnelThreshold, bridgeThreshold, fillMaterialId,
+            maxClearY, surfaceY, RoadJunctionCenterlineResolver.forNetwork(network));
+    }
+
+    /** Reuse a generation-local centerline resolver across every plaza voxel. */
+    public static boolean fillCell(
+            RoadSolidModel solids, Vec2d cellPoint, int junctionY, String nodeId,
+            List<RoadEdge> edges, RoadNetwork network, RoadSystemConfig config, MaterialResolver materials,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver, double unitsPerBlock,
+            TerrainSampler terrain, int tunnelThreshold, int bridgeThreshold, String fillMaterialId,
+            Integer maxClearY, int surfaceY, Function<RoadEdge, List<Vec2d>> centerlineResolver) {
         if (solids == null || cellPoint == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null) {
             return false;
@@ -129,7 +141,6 @@ public final class JunctionCrossSectionFill {
         }
         int stampY = surfaceY;
 
-        Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         EdgeProjection projection = nearestEdgeProjection(cellPoint, nodeId, edges, centerlineResolver);
         RoadEdge widestEdge = selectWidestEdge(edges, network, config, nodeId);
         ResolvedCrossSection widestSection = widestEdge != null
@@ -180,11 +191,18 @@ public final class JunctionCrossSectionFill {
             RoadNetwork network,
             RoadSystemConfig config,
             double unitsPerBlock) {
+        return resolveSurfaceLayer(cellPoint, nodeId, edges, network, config, unitsPerBlock,
+            RoadJunctionCenterlineResolver.forNetwork(network));
+    }
+
+    public static RoadSolidLayer resolveSurfaceLayer(
+            Vec2d cellPoint, String nodeId, List<RoadEdge> edges, RoadNetwork network,
+            RoadSystemConfig config, double unitsPerBlock,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
         if (cellPoint == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null) {
             return RoadSolidLayer.ROAD;
         }
-        Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         EdgeProjection projection = nearestEdgeProjection(cellPoint, nodeId, edges, centerlineResolver);
         if (projection == null) {
             return RoadSolidLayer.ROAD;

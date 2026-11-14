@@ -77,7 +77,7 @@ public final class JunctionFilletElevationLoft {
         Vec2d junctionPlan = inferJunctionPlan(edges, network);
         double pinMinDist = resolveApproachPinMinDist(edges, network);
         Map<String, Map<ColumnKey, Integer>> roadYByEdge = indexRoadSurfaceYByEdge(edgeResults);
-        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.cachedForGeneration(network);
         // 同列多进口：按最近中心线归属（与横断面材质归属一致），禁止盲目 Math::min。
         Map<ColumnKey, Integer> mergedRoadY = mergeApproachRoadY(roadYByEdge, edges, centerlines, columns);
         List<ApproachElevationConstraint> approachConstraints = buildApproachConstraints(
@@ -1004,7 +1004,9 @@ public final class JunctionFilletElevationLoft {
             } else if (u >= 0.85) {
                 blended = yb;
             } else {
-                blended = VoxelElevationDiscretizer.linearElevationAtRatio(ya, yb, u);
+                double transition = (u - 0.15) / 0.70;
+                transition = transition * transition * (3.0 - 2.0 * transition);
+                blended = VoxelElevationDiscretizer.linearElevationAtRatio(ya, yb, transition);
             }
             // 硬夹在两路缘之间，避免角向离散把补铺抬出坡道包络。
             int lo = Math.min(ya, yb);

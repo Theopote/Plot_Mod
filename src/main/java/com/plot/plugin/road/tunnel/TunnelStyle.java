@@ -431,10 +431,4 @@ public final class TunnelStyle {
         style.accentSpacing = resolved.accentSpacing();
         return style;
     }
-
-    /** @deprecated use {@link #resolve(Road, RoadSystemConfig)} */
-    @Deprecated
-    public static TunnelStyle effective(Road road, RoadSystemConfig config) {
-        return fromResolved(resolve(road, config));
-    }
 }

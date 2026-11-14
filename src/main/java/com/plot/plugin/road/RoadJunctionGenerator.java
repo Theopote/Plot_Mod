@@ -818,7 +818,7 @@ public class RoadJunctionGenerator {
         }
         Map<ColumnKey, Integer> leftoverTops =
             JunctionTerrainClearance.leftoverTopByColumn(safeEdgeResults, connectedEdgeIds);
-        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.forNetwork(network);
+        Function<RoadEdge, List<Vec2d>> centerlines = RoadJunctionCenterlineResolver.cachedForGeneration(network);
         JunctionFilletElevationLoft filletLoft = JunctionFilletElevationLoft.build(
             fillets, safeEdgeResults, edges, network, columnResolver, junctionY);
         JunctionElevationField elevationField = JunctionElevationField.build(
@@ -887,11 +887,11 @@ public class RoadJunctionGenerator {
                     bridgeThreshold,
                     fillMaterialId,
                     columnMaxClearY,
-                    surfaceY);
+                    surfaceY, centerlines);
                 if (stamped) {
                     surfaceMask.markStamped(columnKey);
                     RoadSolidLayer surfaceLayer = JunctionCrossSectionFill.resolveSurfaceLayer(
-                        point, node.getId(), edges, network, generator.getConfig(), unitsPerBlock);
+                        point, node.getId(), edges, network, generator.getConfig(), unitsPerBlock, centerlines);
                     BlockPos surfacePos = JunctionCrossSectionFill.surfaceBlockPos(point, surfaceY, materials);
                     surfaceExpectations.add(new JunctionSurfaceExpectation(surfacePos, surfaceLayer));
                 } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
@@ -1197,6 +1197,9 @@ public class RoadJunctionGenerator {
                     flatTunnelCavityCap, elevatedClearCap,
                     liningThickness, tunnelThreshold);
             }
+            // The shared context has classified this junction as open. Do not
+            // reinterpret deep natural ground as a tunnel in the legacy fallback.
+            return elevatedClearCap;
         }
         return resolvePlazaColumnClearCap(
             terrain, planPoint, column, loftSurfaceY,

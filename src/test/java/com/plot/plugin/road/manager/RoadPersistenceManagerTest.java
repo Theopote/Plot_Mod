@@ -33,7 +33,8 @@ class RoadPersistenceManagerTest {
         assertTrue(manager.saveNetworkFile(file, network));
 
         RoadNetworkHistory history = new RoadNetworkHistory();
-        history.push(network);
+        history.stagePush(network);
+        history.commitStagedPush();
         RoadNetwork loaded = manager.loadNetworkFile(file, history, () -> {});
 
         assertNotNull(loaded);

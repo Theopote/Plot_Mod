@@ -278,21 +278,6 @@ public final class RoadUiContext {
         return presetLibraryOpen;
     }
 
-    /** @deprecated 使用 {@link #presetLibraryOpen()} */
-    @Deprecated
-    public boolean presetLibraryExpanded() {
-        return presetLibraryOpen();
-    }
-
-    public void setPresetLibraryExpanded(boolean expanded) {
-        if (expanded) {
-            openPresetLibrary(presetLibraryTarget, presetLibrarySelectionKey,
-                presetLibraryRoadId, presetLibraryRoadIds, presetLibraryOnChanged);
-        } else {
-            closePresetLibrary();
-        }
-    }
-
     public void openPresetLibrary(
             PresetLibraryTarget target,
             String selectionKey,
@@ -643,12 +628,6 @@ public final class RoadUiContext {
         if (tab != null) {
             activeTab = tab;
         }
-    }
-
-    /** @deprecated 使用 {@link #clearPendingNavigation()}；保留别名以免旧调用方编译失败。 */
-    @Deprecated
-    public void clearPendingTab() {
-        clearPendingNavigation();
     }
 
     /** 拒绝或消费完成后清除完整导航请求（含目标对象/编辑器意图）。 */

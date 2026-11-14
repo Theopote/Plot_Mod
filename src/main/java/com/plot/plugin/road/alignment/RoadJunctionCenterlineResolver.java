@@ -19,6 +19,13 @@ public final class RoadJunctionCenterlineResolver {
         return edge -> RoadPlanGeometry.resolveEdgeCenterline(network, edge);
     }
 
+    /** Generation-local resolver. Discard after the current immutable calculation step. */
+    public static Function<RoadEdge, List<Vec2d>> cachedForGeneration(RoadNetwork network) {
+        var cache = new java.util.IdentityHashMap<RoadEdge, List<Vec2d>>();
+        return edge -> cache.computeIfAbsent(edge,
+            key -> RoadPlanGeometry.resolveEdgeCenterline(network, key));
+    }
+
     public static Function<RoadEdge, List<Vec2d>> forNetwork(RoadNetwork network, double sampleSpacingMeters) {
         return edge -> RoadPlanGeometry.resolveEdgeCenterline(network, edge, sampleSpacingMeters);
     }

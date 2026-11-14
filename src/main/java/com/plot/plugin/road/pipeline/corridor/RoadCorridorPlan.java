@@ -103,12 +103,6 @@ public final class RoadCorridorPlan {
         return localDaylightMarkingActive;
     }
 
-    /** @deprecated 使用 {@link #setRoadbedWaterMarkingActive(boolean)} */
-    @Deprecated
-    void setWaterEmbankmentMarkingActive(boolean active) {
-        setRoadbedWaterMarkingActive(active);
-    }
-
     public List<PortalBackfillSite> portalBackfillSites() {
         return List.copyOf(portalBackfillSites);
     }
@@ -300,20 +294,6 @@ public final class RoadCorridorPlan {
 
     public boolean allowsSlopeWaterFill(ColumnKey key) {
         return waterPermission(key).allowSlopeFill();
-    }
-
-    /** @deprecated 仅兼容旧测试；等价于边坡或路基任一授权。 */
-    @Deprecated
-    void markAllowWaterEmbankment(ColumnKey key) {
-        markAllowSlopeWaterFill(key);
-        markAllowRoadbedWaterFill(key);
-    }
-
-    /** @deprecated 使用 {@link #allowsSlopeWaterFill(ColumnKey)} / {@link #allowsRoadbedWaterFill(ColumnKey)} */
-    @Deprecated
-    public boolean allowsWaterEmbankment(ColumnKey key) {
-        WaterConstructionPermission permission = waterPermission(key);
-        return permission.allowRoadbedFill() || permission.allowSlopeFill();
     }
 
     public int slopeBatterWidthCapCount() {

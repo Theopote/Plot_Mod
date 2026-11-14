@@ -343,21 +343,6 @@ public final class JunctionTerrainClearance {
             || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
     }
 
-    /** @deprecated 使用 {@link #clearFloatingAndDecorationsAbove} */
-    @Deprecated
-    static void clearDecorationsAbove(
-            RoadSolidModel solids,
-            Vec2d planPoint,
-            TerrainSampler terrain,
-            int worldX,
-            int worldZ,
-            int cellY,
-            int solidTopY,
-            int decoCeil) {
-        clearFloatingAndDecorationsAbove(
-            solids, planPoint, terrain, worldX, worldZ, cellY, solidTopY, decoCeil, false);
-    }
-
     private static void writeClearanceAir(RoadSolidModel solids, Vec2d planPoint, int y) {
         solids.add(
             planPoint,

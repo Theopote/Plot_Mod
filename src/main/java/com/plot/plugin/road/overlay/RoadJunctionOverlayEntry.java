@@ -32,16 +32,4 @@ public record RoadJunctionOverlayEntry(
             boolean selected) {
         this(source, sourceId, position, kind, selected, List.of(), List.of());
     }
-
-    /** @deprecated 预览已改为 {@link #filletArcs()}；保留空列表以兼容旧调用。 */
-    @Deprecated
-    public List<Vec2d> filletOutline() {
-        return List.of();
-    }
-
-    /** @deprecated 使用 {@link #sourceId()} */
-    @Deprecated
-    public String nodeId() {
-        return sourceId;
-    }
 }

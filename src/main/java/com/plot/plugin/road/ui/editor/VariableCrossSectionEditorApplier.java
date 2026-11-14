@@ -138,14 +138,4 @@ public final class VariableCrossSectionEditorApplier {
         }
         return new BatchApplyReport(applied, skipped, dropped, clamped);
     }
-
-    /** @deprecated 请显式传入 {@link BatchStationMappingMode} */
-    @Deprecated
-    public static void applyToLive(
-            RoadNetwork live,
-            RoadNetwork workingNetwork,
-            String sourceRoadId,
-            Set<String> targetRoadIds) {
-        applyToLive(live, workingNetwork, sourceRoadId, targetRoadIds, BatchStationMappingMode.PROPORTIONAL);
-    }
 }

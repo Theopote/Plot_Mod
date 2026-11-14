@@ -123,15 +123,6 @@ public final class RoadGenerationSettingsPanel {
         }
     }
 
-    /** @deprecated 使用 {@link #renderVerticalDesign}；保留别名以免旧调用方编译失败。 */
-    @Deprecated
-    public static void renderPrimary(
-            RoadUiContext ctx,
-            RoadPathVerticalPropertyPanel pathPropertyPanel,
-            Runnable openProfileEditorForSelectedRoad) {
-        renderVerticalDesign(ctx, pathPropertyPanel, openProfileEditorForSelectedRoad);
-    }
-
     private static void renderUniformFlatModeControls(RoadUiContext ctx, RoadNetwork network) {
         boolean wasUniformFlat = NetworkElevationAuthority.isUniformFlat(network);
         ImBoolean enabled = new ImBoolean(wasUniformFlat);

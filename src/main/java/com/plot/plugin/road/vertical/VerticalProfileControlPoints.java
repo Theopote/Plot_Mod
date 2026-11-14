@@ -1,17 +1,14 @@
 package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
-import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /** Projects road-level PVIs into a selected edge's unfolded longitudinal profile. */
 public final class VerticalProfileControlPoints {
@@ -117,48 +114,6 @@ public final class VerticalProfileControlPoints {
             return ProfilePointRole.USER_LOCKED;
         }
         return ProfilePointRole.INTERIOR_PVI;
-    }
-
-    /** @deprecated 纵断面编辑器已升级为道路级；保留供过渡与单测。 */
-    @Deprecated
-    public static List<ControlPoint> forEdge(RoadNetwork network, Road road, RoadEdge edge) {
-        if (network == null || road == null || edge == null) {
-            return List.of();
-        }
-        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            return List.of();
-        }
-        if (road.getVerticalAlignment() == null) {
-            return List.of();
-        }
-        Optional<OrientedRoadSegment> oriented = RoadStationing.orientedSegment(network, road, edge.getId());
-        if (oriented.isEmpty()) {
-            return List.of();
-        }
-        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
-        List<ControlPoint> result = new ArrayList<>();
-        for (int i = 0; i < pvis.size(); i++) {
-            PointOfVerticalIntersection pvi = pvis.get(i);
-            var local = oriented.get().geometryLocalAtRoadStation(pvi.getStation());
-            if (local.isEmpty()) {
-                continue;
-            }
-            Double left = i > 0
-                ? VerticalAlignmentGeometry.tangentGradePercent(pvis.get(i - 1), pvi)
-                : null;
-            Double right = i + 1 < pvis.size()
-                ? VerticalAlignmentGeometry.tangentGradePercent(pvi, pvis.get(i + 1))
-                : null;
-            boolean endpoint = i == 0 || i == pvis.size() - 1;
-            boolean sharedJunction = VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
-                network, road, pvi.getStation());
-            result.add(new ControlPoint(
-                i, pvi.getStation(), local.getAsDouble(), pvi.getElevation(), left, right,
-                endpoint,
-                sharedJunction,
-                elevationEditable(road, pvi, sharedJunction, i, pvis.size())));
-        }
-        return List.copyOf(result);
     }
 
     /** Returns a copy with one PVI elevation changed, preserving station and curve length. */

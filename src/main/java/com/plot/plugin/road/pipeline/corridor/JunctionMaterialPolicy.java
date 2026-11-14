@@ -85,15 +85,6 @@ public final class JunctionMaterialPolicy {
             .orElse(null);
     }
 
-    /** @deprecated 使用 {@link #selectMaterialOwner(List, RoadNetwork, RoadSystemConfig)} */
-    @Deprecated
-    public static RoadEdge selectWidestEdge(
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config) {
-        return selectMaterialOwner(edges, network, config);
-    }
-
     /**
      * 参与平交/下层路口材质竞选的边：排除立交上层。
      */

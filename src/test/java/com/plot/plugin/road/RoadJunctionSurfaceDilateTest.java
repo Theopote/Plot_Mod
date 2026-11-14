@@ -25,6 +25,7 @@ class RoadJunctionSurfaceDilateTest {
         Set<ColumnKey> pave = new LinkedHashSet<>();
         pave.addAll(roadCore);
         pave.addAll(fillets);
+        pave.add(new ColumnKey(10, 8)); // far side of the actual single-column seam
         Set<ColumnKey> clearance = new LinkedHashSet<>(pave);
         clearance.add(new ColumnKey(2, 0)); // 窄进口外侧，仅与 core 相邻
         clearance.add(new ColumnKey(9, 8)); // 圆角旁缺口

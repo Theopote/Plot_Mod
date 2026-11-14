@@ -101,26 +101,6 @@ public final class TunnelCrossSectionPreviewRenderer {
         return toggled;
     }
 
-    /** @deprecated use {@link #renderLivePreview(TunnelStyle, boolean, int, boolean)} */
-    @Deprecated
-    public static void renderLivePreview(
-            TunnelShape shape,
-            int clearHeight,
-            int sideClearance,
-            int liningThickness,
-            TunnelLightingMode lightingMode,
-            boolean accentRings,
-            int roadEnvelopeWidth) {
-        TunnelStyle style = new TunnelStyle();
-        style.setShape(shape);
-        style.setClearHeight(clearHeight);
-        style.setSideClearance(sideClearance);
-        style.setLiningThickness(liningThickness);
-        style.setLightingMode(lightingMode);
-        style.setAccentRings(accentRings);
-        renderLivePreview(style, accentRings, roadEnvelopeWidth, false);
-    }
-
     /**
      * Shape preset cards wrapped to the available content width.
      * Returns true when selection changes.
@@ -276,30 +256,6 @@ public final class TunnelCrossSectionPreviewRenderer {
             originX, originY, block, model.minLateral(), model.displayMaxY(), cols, rows);
     }
 
-    /** Legacy signature used by deprecated drawCrossSection. */
-    static void drawLiveCrossSection(
-            ImDrawList drawList,
-            float x0,
-            float y0,
-            float x1,
-            float y1,
-            TunnelShape shape,
-            int clearHeight,
-            int sideClearance,
-            int liningThickness,
-            TunnelLightingMode lightingMode,
-            boolean accentRings,
-            int roadEnvelopeWidth) {
-        TunnelStyle style = new TunnelStyle();
-        style.setShape(shape);
-        style.setClearHeight(clearHeight);
-        style.setSideClearance(sideClearance);
-        style.setLiningThickness(liningThickness);
-        style.setLightingMode(lightingMode);
-        style.setAccentRings(accentRings);
-        drawLiveCrossSection(drawList, x0, y0, x1, y1, style, roadEnvelopeWidth);
-    }
-
     public static CellHit hitTestCell(PreviewGridLayout layout, float mouseX, float mouseY) {
         if (layout == null || layout.block() <= 0f) {
             return null;
@@ -363,29 +319,6 @@ public final class TunnelCrossSectionPreviewRenderer {
             float by = originY + row * block;
             int color = colorFor(cell.kind());
             drawList.addRectFilled(bx, by, bx + block, by + block, color, 0f);
-        }
-    }
-
-    /** @deprecated retained for tests that build masks directly; prefer {@link TunnelSectionDisplayModel}. */
-    @Deprecated
-    static void drawCrossSection(
-            ImDrawList drawList,
-            float x0,
-            float y0,
-            float x1,
-            float y1,
-            TunnelShape shape,
-            int clearHeight,
-            int sideClearance,
-            int liningThickness,
-            boolean showMountain) {
-        if (showMountain) {
-            drawLiveCrossSection(
-                drawList, x0, y0, x1, y1, shape, clearHeight, sideClearance, liningThickness,
-                TunnelLightingMode.NONE, false, PREVIEW_ENVELOPE_WIDTH);
-        } else {
-            drawPresetCrossSection(
-                drawList, x0, y0, x1, y1, shape, clearHeight, sideClearance, liningThickness);
         }
     }
 

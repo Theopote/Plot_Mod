@@ -139,12 +139,6 @@ public final class RoadStyleCatalog {
         return style;
     }
 
-    /** @deprecated 兼容旧 preset id；请用 {@link #residential()} 或 {@code findById(..., "city_secondary")} */
-    @Deprecated
-    public static RoadStyle citySecondary() {
-        return citySecondaryAlias();
-    }
-
     /** 旧 preset id {@code city_secondary} → 现住宅街道内容，保留原 id。 */
     private static RoadStyle citySecondaryAlias() {
         RoadStyle style = residential();

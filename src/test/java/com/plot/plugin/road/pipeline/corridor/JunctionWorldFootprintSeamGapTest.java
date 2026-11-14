@@ -32,6 +32,8 @@ class JunctionWorldFootprintSeamGapTest {
         Set<ColumnKey> pave = new LinkedHashSet<>();
         pave.addAll(roadCore);
         pave.addAll(filletAdditions);
+        pave.add(new ColumnKey(7, 5));
+        pave.add(new ColumnKey(5, 7));
 
         Set<ColumnKey> clearance = new LinkedHashSet<>(pave);
         // 进口臂外侧一格（若从 core 膨胀会被误吞）
@@ -39,6 +41,7 @@ class JunctionWorldFootprintSeamGapTest {
         // 圆角旁真正缺列
         clearance.add(new ColumnKey(6, 5));
         clearance.add(new ColumnKey(5, 6));
+        clearance.add(new ColumnKey(4, 5)); // only touches one fillet voxel: exterior, not a gap
 
         Map<ColumnKey, Vec2d> planPoints = new LinkedHashMap<>();
         for (ColumnKey key : clearance) {
@@ -54,6 +57,7 @@ class JunctionWorldFootprintSeamGapTest {
             "must not steal approach-arm column adjacent only to roadCore");
         assertTrue(pave.contains(new ColumnKey(6, 5)));
         assertTrue(pave.containsAll(roadCore), "core columns unchanged");
+        assertFalse(pave.contains(new ColumnKey(4, 5)), "must not dilate exterior fillet boundary");
 
         // 被三面铺装围住的空洞即使不碰 fillet 种子也要补
         pave.add(new ColumnKey(-1, 1));
