@@ -146,6 +146,12 @@ public final class RoadSurfacePlacementPass {
             var pos = new BlockPos(worldX, y, worldZ);
             var record = result.placementRecords.get(pos);
             var layer = result.placementLayers.get(pos);
+            // A solid tunnel lining ends the lower cavity. Never excavate its roof
+            // or the mountain between that roof and an unrelated upper pavement.
+            if (layer == RoadSolidLayer.TUNNEL && record != null
+                    && !"minecraft:air".equals(record.newBlockId)) {
+                break;
+            }
             // 只保留上层结构性 BRIDGE 底板；泥土 SUBGRADE 不算承重层。
             if (elevatedPavementY != null
                     && y >= elevatedPavementY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH
@@ -188,6 +194,10 @@ public final class RoadSurfacePlacementPass {
      * </ul>
      */
     static void sealElevatedDeckSupport(RoadGenerationResult result, int worldX, int elevatedPavementY, int worldZ) {
+        RoadSolidLayer pavementLayer = result.placementLayers.get(new BlockPos(worldX, elevatedPavementY, worldZ));
+        if (pavementLayer != RoadSolidLayer.ROAD && pavementLayer != RoadSolidLayer.MARKING) {
+            return;
+        }
         int supportY = elevatedPavementY - JunctionTerrainClearance.ELEVATED_DECK_SUPPORT_DEPTH;
         BlockPos support = new BlockPos(worldX, supportY, worldZ);
         var record = result.placementRecords.get(support);

@@ -409,7 +409,7 @@ public final class JunctionConstructionContext {
         Map<ColumnKey, ColumnRule> rules = new LinkedHashMap<>();
         Set<ColumnKey> protectedColumns = new LinkedHashSet<>();
 
-        if (gradeSeparated) {
+        if (gradeSeparated && !hasApproaches) {
             for (ColumnKey column : safeFootprint.paveColumns()) {
                 int designY = field.surfaceY(column);
                 int surfaceY = sampleSurface(terrain, safeFootprint, column, coordinateTransformer);

@@ -14,6 +14,33 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoadSurfacePlacementPassTest {
     @Test
+    void stackedRoadCleanupPreservesTunnelRoofAndMountainAboveIt() {
+        var result = new RoadGenerationResult(0);
+        for (int y : new int[]{64, 80}) {
+            result.recordPlacementByLayerPriority(new BlockPos(0, y, 0), "minecraft:air", "minecraft:white_concrete",
+                RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        }
+        var roof = new BlockPos(0, 70, 0);
+        var mountain = roof.up();
+        result.recordPlacementByLayerPriority(roof, "minecraft:stone", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        result.recordPlacementByLayerPriority(mountain, "minecraft:stone", "minecraft:stone",
+            RoadSolidLayer.SUBGRADE, RoadSolidMaterialPriority.DEFAULT);
+        RoadSurfacePlacementPass.clearIntrudingFill(result);
+        assertEquals("minecraft:stone_bricks", result.placementRecords.get(roof).newBlockId);
+        assertEquals("minecraft:stone", result.placementRecords.get(mountain).newBlockId);
+    }
+
+    @Test
+    void raisedUpperShoulderDoesNotInventAnExtraDeckSupport() {
+        var result = new RoadGenerationResult(0);
+        var shoulder = new BlockPos(0, 80, 0);
+        result.recordPlacementByLayerPriority(shoulder, "minecraft:air", "minecraft:stone",
+            RoadSolidLayer.SHOULDER, RoadSolidMaterialPriority.DEFAULT);
+        RoadSurfacePlacementPass.sealElevatedDeckSupport(result, 0, 80, 0);
+        assertNull(result.placementRecords.get(shoulder.down()));
+    }
+    @Test
     void raisedCurbIsNotAnOverpassAndMustNotReplacePavementBelow() {
         var result = new RoadGenerationResult(0);
         var road = new BlockPos(0, 64, 0);
