@@ -56,16 +56,6 @@ public final class RoadJunctionOverlayController {
         if (network == null || builder == null) {
             return List.of();
         }
-        List<Vec2d> sharpOutline = List.of();
-        List<List<Vec2d>> filletArcs = List.of();
-        if (showFilletPreview && config != null) {
-            JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
-                network, config, selectedNodeId, selectedCrossingId, coordinates);
-            if (geometry.hasFillPolygon() || !geometry.fillets().isEmpty()) {
-                sharpOutline = geometry.sharpPolygon();
-                filletArcs = JunctionFilletArcSampler.sampleArcs(geometry);
-            }
-        }
 
         List<RoadJunctionOverlayEntry> entries = new ArrayList<>();
         Set<String> coveredPositions = new HashSet<>();
@@ -75,14 +65,16 @@ public final class RoadJunctionOverlayController {
                 continue;
             }
             boolean selected = crossing.id().equals(selectedCrossingId);
+            FilletPreviewGeometry preview = resolveFilletPreview(
+                network, config, coordinates, showFilletPreview, null, crossing);
             entries.add(new RoadJunctionOverlayEntry(
                 IntersectionOverlaySource.CROSSING,
                 crossing.id(),
                 crossing.position(),
                 resolveCrossingKind(crossing, selected),
                 selected,
-                selected ? sharpOutline : List.of(),
-                selected ? filletArcs : List.of()));
+                preview.sharpOutline(),
+                preview.filletArcs()));
             coveredPositions.add(positionKey(crossing.position()));
         }
 
@@ -113,16 +105,52 @@ public final class RoadJunctionOverlayController {
             }
             boolean selected = node.getId().equals(selectedNodeId)
                 && (selectedCrossingId == null || selectedCrossingId.isBlank());
+            FilletPreviewGeometry preview = resolveFilletPreview(
+                network, config, coordinates, showFilletPreview, node, null);
             entries.add(new RoadJunctionOverlayEntry(
                 IntersectionOverlaySource.LEGACY_NODE,
                 node.getId(),
                 node.getPosition(),
                 resolveLegacyKind(node, network, builder, selected),
                 selected,
-                selected ? sharpOutline : List.of(),
-                selected ? filletArcs : List.of()));
+                preview.sharpOutline(),
+                preview.filletArcs()));
         }
         return entries;
+    }
+
+    private record FilletPreviewGeometry(List<Vec2d> sharpOutline, List<List<Vec2d>> filletArcs) {
+        static final FilletPreviewGeometry EMPTY = new FilletPreviewGeometry(List.of(), List.of());
+    }
+
+    /**
+     * 勾选「显示画布圆角预览线」时为每个平交交叉点生成预览几何，不依赖当前选中。
+     */
+    private static FilletPreviewGeometry resolveFilletPreview(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            boolean showFilletPreview,
+            RoadNode node,
+            RoadCrossing crossing) {
+        if (!showFilletPreview || config == null) {
+            return FilletPreviewGeometry.EMPTY;
+        }
+        if (crossing != null && crossing.type() == CrossingType.GRADE_SEPARATED) {
+            return FilletPreviewGeometry.EMPTY;
+        }
+        if (node != null && node.isGradeSeparated()) {
+            return FilletPreviewGeometry.EMPTY;
+        }
+        String nodeId = node != null ? node.getId() : null;
+        String crossingId = crossing != null ? crossing.id() : null;
+        JunctionGeometryResult geometry = JunctionPreviewGeometry.resolve(
+            network, config, nodeId, crossingId, coordinates);
+        if (geometry.fillets().isEmpty()) {
+            return FilletPreviewGeometry.EMPTY;
+        }
+        // 画布只预览圆弧；锐角参考多边形不再下发，避免淡色折线干扰。
+        return new FilletPreviewGeometry(List.of(), JunctionFilletArcSampler.sampleArcs(geometry));
     }
 
     private static RoadJunctionOverlayKind resolveStackKind(RoadStackCrossing stack, boolean selected) {

@@ -73,13 +73,9 @@ public final class RoadIntersectionDetailPanel {
             return;
         }
         if (layout != RoadGradeSeparationControls.Layout.INLINE) {
-            ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
             ImGui.textColored(
                 PluginUiColors.ACCENT_BLUE,
                 formatCrossingTitle(network, crossing));
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.path.crossing_registry_hint"));
         }
 
         gradeSeparationControls.renderCrossing(
@@ -101,15 +97,11 @@ public final class RoadIntersectionDetailPanel {
             return;
         }
         if (layout != RoadGradeSeparationControls.Layout.INLINE) {
-            ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
             ImGui.textColored(
                 PluginUiColors.ACCENT_BLUE,
                 PlotI18n.tr(
                     "plugin.road.path.stack_crossing_title",
                     formatRoadLabel(network, stack.roadId())));
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.path.stack_crossing_hint"));
         }
 
         gradeSeparationControls.renderStackCrossing(
@@ -133,11 +125,7 @@ public final class RoadIntersectionDetailPanel {
         RoadNetworkBuilder.JunctionType type =
             ctx.networkManager().getNetworkBuilder().classify(node);
         if (layout != RoadGradeSeparationControls.Layout.INLINE) {
-            ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
             ImGui.textColored(PluginUiColors.ACCENT_BLUE, formatJunctionTitle(network, node, type));
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.junction_topology_type", RoadNetworkManager.junctionTypeLabel(type)));
         }
 
         if (RoadGraphQueries.isSimpleCrossing(node, network)) {

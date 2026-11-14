@@ -15,6 +15,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SlopeBandRasterizerTest {
+    @Test
+    void unequalRaysCoverTheirFullEndpointWedge() {
+        var a = new SlopeBandRasterizer.ShoulderRay(
+            new SlopeRayId(1, SlopeRayId.ShoulderSide.RIGHT), new Vec2d(0, 0), new Vec2d(0, -1),
+            new int[]{64, 65, 66}, false, "minecraft:stone", 1f,
+            SlopeConstructionOutcome.COMPLETE, false, false, 1);
+        var b = new SlopeBandRasterizer.ShoulderRay(
+            new SlopeRayId(2, SlopeRayId.ShoulderSide.RIGHT), new Vec2d(4, 0), new Vec2d(0, -1),
+            new int[]{64, 65, 66, 67, 68, 69, 70}, false, "minecraft:stone", 1f,
+            SlopeConstructionOutcome.COMPLETE, false, false, 1);
+        var samples = SlopeBandRasterizer.fillBetweenRays(a, b, new FlatTerrainSampler(72),
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()));
+        assertTrue(samples.stream().anyMatch(s -> s.planPoint().x >= 2 && s.planPoint().x <= 3
+            && s.planPoint().y <= -4), "unequal ray endpoint wedge must be covered");
+        assertTrue(samples.stream().allMatch(s -> s.planPoint().y >= -6));
+    }
 
     @Test
     void fillBetweenRaysCoversChordBetweenDivergingShoulders() {

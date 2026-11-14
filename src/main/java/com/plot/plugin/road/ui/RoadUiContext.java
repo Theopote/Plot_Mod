@@ -538,14 +538,12 @@ public final class RoadUiContext {
         return true;
     }
 
-    /** 画布需要叠加绘制：主道路叠加层开启，或圆角预览开启且选中了路口。 */
+    /** 画布需要叠加绘制：主道路叠加层开启，或圆角预览线开启（不要求当前选中交叉点）。 */
     public boolean shouldRenderCanvasOverlay() {
         if (isRoadOverlayVisible()) {
             return true;
         }
-        return isJunctionFilletPreviewVisible()
-            && RoadIntersectionPropertySupport.hasIntersectionSelection(networkManager)
-            && !RoadIntersectionPropertySupport.isGradeSeparatedSelection(networkManager);
+        return isJunctionFilletPreviewVisible();
     }
 
     /** 道路横断面等会改变 overlay 几何的编辑：推入撤销并标记当帧前景补绘。 */

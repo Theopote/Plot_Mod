@@ -26,6 +26,9 @@ import java.util.List;
  * 平交圆角直接读写 {@link RoadCrossing}；标线/广场仍需要真实节点。
  */
 public final class RoadJunctionPanel {
+    /** 路缘石圆角半径快捷预设（米），与 {@link RoadNode#MAX_CORNER_RADIUS} 对齐。 */
+    private static final float[] FILLET_RADIUS_PRESETS = {3.0f, 6.0f, 9.0f, 12.0f};
+
     private final RoadUiContext ctx;
 
     public RoadJunctionPanel(RoadUiContext ctx) {
@@ -69,17 +72,12 @@ public final class RoadJunctionPanel {
             PlotI18n.tr(gradeSeparated
                 ? "plugin.road.crossing_type_grade_separated"
                 : "plugin.road.crossing_type_at_grade"),
-            pos.x, pos.y, 2));
+            RoadUiFormat.format(pos.x),
+            RoadUiFormat.format(pos.y),
+            2));
 
         if (!gradeSeparated) {
-            if (!compact) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
-            }
             renderFilletControls(compact);
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
-            manager.clearCanvasSelection();
         }
     }
 
@@ -93,13 +91,12 @@ public final class RoadJunctionPanel {
             : RoadNetworkManager.junctionTypeLabel(
                 ctx.networkManager().getNetworkBuilder().classify(node));
         ImGui.text(PlotI18n.tr("plugin.road.junction_selected",
-            typeLabel, pos.x, pos.y, node.getDegree()));
+            typeLabel,
+            RoadUiFormat.format(pos.x),
+            RoadUiFormat.format(pos.y),
+            node.getDegree()));
 
         if (!gradeSeparated) {
-            if (!compact) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
-            }
             renderFilletControls(compact);
         }
 
@@ -153,10 +150,6 @@ public final class RoadJunctionPanel {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_fit_plaza"));
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
-            ctx.networkManager().clearNodeSelection();
         }
 
         ImGui.spacing();
@@ -240,31 +233,21 @@ public final class RoadJunctionPanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
-        EffectiveRadiusDisplay effective = resolveDisplayedEffectiveRadii(manager, config);
-        if (filletsEnabled.get() && cornerRadius[0] > 1e-3 && effective.max() <= 1e-6) {
-            ImGui.textDisabled(PlotI18n.tr("plugin.road.junction_corner_radius_unavailable"));
-        } else if (effective.max() > effective.min() + 1e-3) {
-            ImGui.textDisabled(PlotI18n.tr(
-                "plugin.road.junction_corner_radius_effective_range",
-                RoadUiFormat.format(effective.min()),
-                RoadUiFormat.format(effective.max())));
-        } else {
-            ImGui.textDisabled(PlotI18n.tr(
-                "plugin.road.junction_corner_radius_effective",
-                RoadUiFormat.format(effective.min())));
-        }
-        if (!compact) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.junction_fillet_auto_clamp"));
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_radius"))) {
-            manager.pushHistory();
-            RoadIntersectionPropertySupport.applyCornerRadius(manager, null);
-            ctx.requestJunctionFilletPreviewRefresh();
-            if (ctx.previewManager() != null) {
-                ctx.previewManager().invalidatePreview();
+        for (int i = 0; i < FILLET_RADIUS_PRESETS.length; i++) {
+            if (i > 0) {
+                ImGui.sameLine();
+            }
+            float preset = FILLET_RADIUS_PRESETS[i];
+            String label = PlotI18n.tr(
+                "plugin.road.junction_corner_radius_preset",
+                Math.round(preset)) + "##fillet_radius_preset_" + i;
+            if (ImGui.button(label)) {
+                manager.pushHistory();
+                RoadIntersectionPropertySupport.applyCornerRadius(manager, (double) preset);
+                ctx.requestJunctionFilletPreviewRefresh();
+                if (ctx.previewManager() != null) {
+                    ctx.previewManager().invalidatePreview();
+                }
             }
         }
         ImGui.endDisabled();
@@ -275,40 +258,6 @@ public final class RoadJunctionPanel {
         if (ImGui.isItemEdited()) {
             ctx.requestJunctionFilletPreviewRefresh();
         }
-    }
-
-    private EffectiveRadiusDisplay resolveDisplayedEffectiveRadii(
-            RoadNetworkManager manager,
-            RoadSystemConfig config) {
-        if (RoadIntersectionPropertySupport.isGradeSeparatedSelection(manager)) {
-            return new EffectiveRadiusDisplay(0.0, 0.0);
-        }
-        var geometry = com.plot.plugin.road.JunctionPreviewGeometry.resolve(
-            manager.getNetwork(),
-            config,
-            manager.getSelectedNodeId(),
-            manager.getSelectedCrossingId());
-        double min = Double.POSITIVE_INFINITY;
-        double max = 0.0;
-        for (var fillet : geometry.fillets()) {
-            if (fillet == null || fillet.radius() <= 1e-9) {
-                continue;
-            }
-            min = Math.min(min, fillet.radius());
-            max = Math.max(max, fillet.radius());
-        }
-        if (Double.isFinite(min) && max > 1e-6) {
-            return new EffectiveRadiusDisplay(min, max);
-        }
-        if (geometry.effectiveCornerRadius() > 1e-6) {
-            double value = geometry.effectiveCornerRadius();
-            return new EffectiveRadiusDisplay(value, value);
-        }
-        // 无有效圆弧时显示 0，不回退到请求值（避免 R=12 全部失败仍显示 12）
-        return new EffectiveRadiusDisplay(0.0, 0.0);
-    }
-
-    private record EffectiveRadiusDisplay(double min, double max) {
     }
 
     private static boolean hasRailwayApproach(

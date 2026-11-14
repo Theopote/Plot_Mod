@@ -361,7 +361,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (crossing == null && selectedNode != null && selectedNode.getCornerRadius() != null) {
             cornerKey = String.valueOf(selectedNode.getCornerRadius());
         }
-        return ctx.networkManager().getSelectedNodeId() + "|"
+        // 含路网 revision：未选中时勾选预览仍覆盖全部平交，半径变更须触发重建。
+        return ctx.networkManager().getNetworkRevision() + "|"
+            + ctx.networkManager().getSelectedNodeId() + "|"
             + ctx.networkManager().getSelectedCrossingId() + "|"
             + ctx.isJunctionFilletPreviewVisible() + "|"
             + cornerKey;

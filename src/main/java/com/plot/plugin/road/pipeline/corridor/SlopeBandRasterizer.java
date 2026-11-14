@@ -119,7 +119,7 @@ public final class SlopeBandRasterizer {
                 || a.outwardNormal() == null || b.outwardNormal() == null) {
             return samples;
         }
-        int sharedMax = Math.min(a.maxOffset(), b.maxOffset());
+        int sharedMax = Math.max(a.maxOffset(), b.maxOffset());
         // 绝对上限；实际跑距已由各射线采样时的配置 maxHorizontalRun 收窄。
         sharedMax = Math.min(sharedMax, RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS);
         if (sharedMax < 1) {
@@ -134,13 +134,16 @@ public final class SlopeBandRasterizer {
         long bandSeed = mixRayIds(a.rayId(), b.rayId());
         int stampIndex = 0;
         for (int offset = 1; offset <= sharedMax; offset++) {
-            Integer heightA = a.heightAt(offset);
-            Integer heightB = b.heightAt(offset);
+            double ratio = (double) offset / sharedMax;
+            double offsetA = ratio * a.maxOffset();
+            double offsetB = ratio * b.maxOffset();
+            Integer heightA = interpolatedHeight(a, offsetA);
+            Integer heightB = interpolatedHeight(b, offsetB);
             if (heightA == null || heightB == null) {
                 continue;
             }
-            Vec2d pointA = a.outerEdge().add(normalA.multiply(offset * scaleA));
-            Vec2d pointB = b.outerEdge().add(normalB.multiply(offset * scaleB));
+            Vec2d pointA = a.outerEdge().add(normalA.multiply(offsetA * scaleA));
+            Vec2d pointB = b.outerEdge().add(normalB.multiply(offsetB * scaleB));
             List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(pointA, pointB);
             int last = span.size() - 1;
             for (int i = 0; i < span.size(); i++) {
@@ -183,6 +186,14 @@ public final class SlopeBandRasterizer {
             }
         }
         return samples;
+    }
+
+    private static Integer interpolatedHeight(ShoulderRay ray, double offset) {
+        int lower = (int) Math.floor(offset);
+        int upper = Math.min(ray.maxOffset(), lower + 1);
+        Integer a = ray.heightAt(lower);
+        Integer b = ray.heightAt(upper);
+        return a == null || b == null ? null : (int) Math.round(a + (b - a) * (offset - lower));
     }
 
     private static long mixRayIds(SlopeRayId a, SlopeRayId b) {

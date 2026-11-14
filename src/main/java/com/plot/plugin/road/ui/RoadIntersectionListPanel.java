@@ -40,7 +40,6 @@ public final class RoadIntersectionListPanel {
 
         String selectedCrossingId = ctx.networkManager().getSelectedCrossingId();
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.path.intersection_list_hint"));
 
         crossings.sort(Comparator.comparing(c -> c.roadAId() + c.roadBId()));
         for (RoadCrossing crossing : crossings) {

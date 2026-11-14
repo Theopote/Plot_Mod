@@ -12,8 +12,10 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadJunctionOverlayControllerTest {
 
@@ -64,6 +66,36 @@ class RoadJunctionOverlayControllerTest {
         assertEquals(1, entries.size());
         assertEquals(IntersectionOverlaySource.CROSSING, entries.getFirst().source());
         assertNotNull(entries.getFirst().position());
+    }
+
+    @Test
+    void filletPreviewArcsAppearWithoutSelectionWhenEnabled() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        RoadSystemConfig config = new RoadSystemConfig("fillet-preview-unselected");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setDefaultCornerRadius(6.0f);
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        List<RoadJunctionOverlayEntry> hidden = RoadJunctionOverlayController.snapshot(
+            network, builder, config, null, "", null, false);
+        assertTrue(hidden.stream().allMatch(e -> e.filletArcs().isEmpty()),
+            "preview off → no fillet arcs");
+
+        List<RoadJunctionOverlayEntry> shown = RoadJunctionOverlayController.snapshot(
+            network, builder, config, null, "", null, true);
+        assertFalse(shown.isEmpty());
+        assertTrue(shown.stream().noneMatch(RoadJunctionOverlayEntry::selected),
+            "no crossing selected");
+        assertTrue(shown.stream().anyMatch(e -> !e.filletArcs().isEmpty()),
+            "preview on → fillet arcs without selection");
     }
 
     @Test

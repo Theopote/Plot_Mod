@@ -10,7 +10,6 @@ import java.util.List;
 public final class RoadJunctionOverlayRenderer {
     private static final float MARKER_RADIUS = 6f;
     private static final int COLOR_FILLET_BORDER = 0xFF48C9A0;
-    private static final int COLOR_SHARP_REF = 0x5548C9A0;
 
     private RoadJunctionOverlayRenderer() {
     }
@@ -31,7 +30,8 @@ public final class RoadJunctionOverlayRenderer {
             ImDrawList drawList,
             CanvasCamera camera,
             RoadJunctionOverlayEntry entry) {
-        if (entry.selected()) {
+        // 圆角预览只画路缘圆弧；不画锐角参考多边形（淡色折线会显得杂乱）。
+        if (!entry.filletArcs().isEmpty()) {
             renderFilletPreview(drawList, camera, entry);
         }
         Vec2d screen = camera.worldToScreen(entry.position());
@@ -57,20 +57,6 @@ public final class RoadJunctionOverlayRenderer {
             ImDrawList drawList,
             CanvasCamera camera,
             RoadJunctionOverlayEntry entry) {
-        List<Vec2d> sharp = entry.sharpOutline();
-        if (sharp != null && sharp.size() >= 2) {
-            for (int i = 0; i < sharp.size(); i++) {
-                Vec2d a = sharp.get(i);
-                Vec2d b = sharp.get((i + 1) % sharp.size());
-                Vec2d sa = camera.worldToScreen(a);
-                Vec2d sb = camera.worldToScreen(b);
-                drawList.addLine(
-                    (float) sa.x, (float) sa.y,
-                    (float) sb.x, (float) sb.y,
-                    COLOR_SHARP_REF, 1.0f);
-            }
-        }
-        // 只描街角路缘圆弧，不闭合绕交叉点的整圈铺装环
         for (List<Vec2d> arc : entry.filletArcs()) {
             if (arc == null || arc.size() < 2) {
                 continue;
