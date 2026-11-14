@@ -141,9 +141,6 @@ public final class RoadGeneratePanel {
             RoadIntersectionInventory.count(network),
             RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
                 network, ctx.host().coordinates()))));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.build.network_scope_hint"));
     }
 
     private void renderPreviewActions(
