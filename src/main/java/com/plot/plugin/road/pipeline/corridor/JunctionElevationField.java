@@ -141,11 +141,7 @@ public final class JunctionElevationField {
                 break;
             }
         }
-        for (int pass = 0; pass < 8; pass++) {
-            if (relaxFilletTowardNeighbors(targets, filletOnly) == 0) {
-                break;
-            }
-        }
+        relaxContinuousFillet(targets, filletOnly);
         for (int pass = 0; pass < 6; pass++) {
             if (flattenFilletCheckerboard(targets, filletOnly) == 0) {
                 break;
@@ -649,6 +645,36 @@ public final class JunctionElevationField {
      * 圆角列向四邻均值收半步：消除 |ΔY|≤1 棋盘起伏，保留缓坡趋势。
      * @return 本轮修正列数
      */
+    static void relaxContinuousFillet(Map<ColumnKey, Integer> targets, Set<ColumnKey> soft) {
+        Map<ColumnKey, Double> values = new LinkedHashMap<>();
+        targets.forEach((key, y) -> values.put(key, y.doubleValue()));
+        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (int pass = 0; pass < 96; pass++) {
+            Map<ColumnKey, Double> next = new LinkedHashMap<>();
+            double delta = 0;
+            for (ColumnKey key : soft) {
+                Double old = values.get(key);
+                if (old == null) continue;
+                double sum = 0;
+                int count = 0;
+                for (int[] dir : dirs) {
+                    Double value = values.get(new ColumnKey(key.worldX() + dir[0], key.worldZ() + dir[1]));
+                    if (value != null) { sum += value; count++; }
+                }
+                if (count == 0) continue;
+                double value = (old + sum / count) * 0.5;
+                next.put(key, value);
+                delta = Math.max(delta, Math.abs(value - old));
+            }
+            values.putAll(next);
+            if (delta < 0.001) break;
+        }
+        for (ColumnKey key : soft) {
+            Double value = values.get(key);
+            if (value != null) targets.put(key, (int) Math.round(value));
+        }
+    }
+
     static int relaxFilletTowardNeighbors(
             Map<ColumnKey, Integer> targets, Set<ColumnKey> filletColumns) {
         if (targets == null || targets.isEmpty() || filletColumns == null || filletColumns.isEmpty()) {
