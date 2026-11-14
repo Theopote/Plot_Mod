@@ -3,8 +3,6 @@ package com.plot.ui.tools.impl.modify;
 import com.plot.api.snap.ISnapManager;
 import com.plot.api.state.IAppState;
 import com.plot.core.graphics.DrawContext;
-import com.plot.core.state.AppState;
-import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 
 import com.plot.ui.component.Icons;
@@ -14,7 +12,6 @@ import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.plot.ui.tools.impl.modify.strategy.RotateWithSelectionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.plot.utils.PlotI18n;
 
 import java.util.List;
 import com.plot.core.model.Shape;
