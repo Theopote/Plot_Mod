@@ -95,9 +95,12 @@ public final class JunctionWorldFootprint {
         pave.addAll(filletAdditions);
         pave.addAll(seamTransition);
 
-        List<Vec2d> clearancePoly = geometry.fillPolygon().size() >= 3
-            ? geometry.fillPolygon()
-            : geometry.sharpPolygon();
+        List<Vec2d> clearancePoly = null;
+        if (geometry.fillPolygon() != null) {
+            clearancePoly = geometry.fillPolygon().size() >= 3
+                ? geometry.fillPolygon()
+                : geometry.sharpPolygon();
+        }
         addPolygonColumns(clearancePoly, transformer, planPoints, clearance);
         clearance.addAll(pave);
         // 清障比铺装外扩 2 格：圆角外缘与走廊让出带常有 1 格漏清；隧道列仍受洞顶 cap，不会因此打穿覆土。

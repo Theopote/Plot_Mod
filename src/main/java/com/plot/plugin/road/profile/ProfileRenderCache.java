@@ -14,11 +14,6 @@ public record ProfileRenderCache(
         double staticMaxRaw,
         List<RoadProfileIntersection> intersections) {
 
-    /** 兼容旧字段名。 */
-    public RoadProfilePlotRange plotRange() {
-        return staticPlotRange();
-    }
-
     RoadProfileChartRenderer.ElevationBounds staticRawBounds() {
         return new RoadProfileChartRenderer.ElevationBounds(staticMinRaw, staticMaxRaw);
     }

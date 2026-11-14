@@ -700,7 +700,7 @@ public final class JunctionConstructionContext {
             ? Math.max(1.0, node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS))
             : RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
         double window = Math.max(plaza, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
-        int maxSteps = Math.min(size, Math.max(2, (int) Math.ceil(window / sample) + 1));
+        int maxSteps = Math.clamp((int) Math.ceil(window / sample) + 1, 2, size);
         for (int step = 0; step < maxSteps; step++) {
             int typeIndex = fromStart ? step : (size - 1 - step);
             com.plot.plugin.road.RoadConstructionType type =

@@ -1258,9 +1258,6 @@ final class VerticalProfileEditor {
         boolean showBuildProfileLine = ProfileChartRenderMode.EDITOR.showBuildProfileLine();
         List<ProfileControlPoint> points =
             VerticalProfileControlPoints.forAlignment(displayNetwork, displayRoad, effectiveAlignment);
-        List<VerticalProfileControlPoints.ControlPoint> legacyPoints = points.stream()
-            .map(VerticalProfileControlPoints::toLegacyControlPoint)
-            .toList();
         float maxGrade = road.getMaxSlope() != null
             ? road.getMaxSlope()
             : ctx.networkManager().getConfig().getMaxSlope();
@@ -1363,7 +1360,7 @@ final class VerticalProfileEditor {
         } else {
             if (interaction.selectedPviIndex() >= 0
                     && interaction.selectedPviIndex() != editorState.selectedProfilePvi) {
-                legacyPoints.stream()
+                points.stream()
                     .filter(point -> point.pviIndex() == interaction.selectedPviIndex())
                     .findFirst()
                     .ifPresent(point -> adaptiveProfileControls.onPviSelected(editorState, point));
@@ -1535,7 +1532,7 @@ final class VerticalProfileEditor {
                 config,
                 profileEditSession,
                 windowSession,
-                legacyPoints,
+                points,
                 maxGrade,
                 editorState,
                 this::recordUndoPointBeforeEdit,

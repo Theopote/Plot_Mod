@@ -525,7 +525,7 @@ class TunnelStructureGeneratorTest {
         int roadY = 64;
         int envelopeWidth = 3;
         int halfCavityWidth = (envelopeWidth + style.sideClearance() * 2) / 2;
-        int ceilingY = TunnelProfile.ceilingY(
+        int ceilingY = TunnelProfile.innerCeilingY(
             style.shape(), 0, halfCavityWidth, roadY, style.clearHeight());
 
         TerrainSampler mountain = columnTerrain(100, 80, 100);

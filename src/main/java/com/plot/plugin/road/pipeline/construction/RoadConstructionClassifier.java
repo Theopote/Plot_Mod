@@ -487,7 +487,7 @@ public final class RoadConstructionClassifier {
     }
 
     private static int interpolateTargetY(SegmentHeightInfo info, double t) {
-        double clamped = Math.max(0.0, Math.min(1.0, t));
+        double clamped = Math.clamp(t, 0.0, 1.0);
         return (int) Math.round(info.targetStart + (info.targetEnd - info.targetStart) * clamped);
     }
 

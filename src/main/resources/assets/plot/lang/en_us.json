@@ -577,8 +577,6 @@
   "plugin.road.fix_road.issue.vertical_profile_mismatch.detail": "Profile start/end stations disagree with road length. Auto-fix remaps to the current length.",
   "plugin.road.fix_road.issue.steep_grade": "Grade too steep",
   "plugin.road.fix_road.issue.steep_grade.detail": "Sampled grade exceeds the road max slope. Auto-fix tries to smooth the profile.",
-  "plugin.road.fix_road.issue.centerline_self_intersection": "Plan self-intersection (ignored)",
-  "plugin.road.fix_road.issue.centerline_self_intersection.detail": "Plan self-crossings are valid (interchange / mountain / loop junction) and handled as same-road crossings — not a diagnostic issue.",
   "plugin.road.fix_road.issue.centerline_self_overlap": "Centerline collinear backtrack",
   "plugin.road.fix_road.issue.centerline_self_overlap.detail": "The same corridor is reverse-traversed (collinear overlap), which breaks stationing. Near-parallel hairpins do not trigger this.",
   "plugin.road.fix_road.issue.centerline_non_linear": "Road is not a simple chain",

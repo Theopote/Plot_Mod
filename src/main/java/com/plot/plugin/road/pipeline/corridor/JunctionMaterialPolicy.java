@@ -24,14 +24,6 @@ public final class JunctionMaterialPolicy {
     private JunctionMaterialPolicy() {
     }
 
-    /** 路口车行道材质所有权比较用的宽度（格）；无节点时回退 Edge 起点断面。 */
-    public static int carriagewayWidthScore(
-            RoadNetwork network,
-            RoadEdge edge,
-            RoadSystemConfig config) {
-        return carriagewayWidthScore(network, edge, config, null);
-    }
-
     /**
      * 路口车行道宽度分：优先交叉点节点桩号处的有效车行道宽，避免变宽道路用错 Edge 起点断面。
      */
@@ -58,14 +50,6 @@ public final class JunctionMaterialPolicy {
             RoadNetwork network,
             RoadSystemConfig config) {
         return selectMaterialOwner(edges, network, config, null, edge -> true);
-    }
-
-    public static RoadEdge selectMaterialOwner(
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            Predicate<RoadEdge> eligible) {
-        return selectMaterialOwner(edges, network, config, null, eligible);
     }
 
     public static RoadEdge selectMaterialOwner(

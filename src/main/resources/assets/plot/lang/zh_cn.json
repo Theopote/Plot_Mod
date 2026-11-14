@@ -577,8 +577,6 @@
   "plugin.road.fix_road.issue.vertical_profile_mismatch.detail": "纵断面起终点桩号与道路总长不一致。自动修复会按当前路长重映射。",
   "plugin.road.fix_road.issue.steep_grade": "纵坡过陡",
   "plugin.road.fix_road.issue.steep_grade.detail": "采样纵坡超出道路最大坡度。自动修复会尝试平缓纵断面。",
-  "plugin.road.fix_road.issue.centerline_self_intersection": "中心线平面自交（已忽略）",
-  "plugin.road.fix_road.issue.centerline_self_intersection.detail": "平面自交属于合法设计（立交/盘山/环路汇合），由同路交叉口处理，不再作为诊断问题。",
   "plugin.road.fix_road.issue.centerline_self_overlap": "中心线共线折返重叠",
   "plugin.road.fix_road.issue.centerline_self_overlap.detail": "同一走廊被折返重复走过（共线重叠），会破坏桩号语义。近距平行的回头弯不会触发此项。",
   "plugin.road.fix_road.issue.centerline_non_linear": "道路不是简单链式路径",

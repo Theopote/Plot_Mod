@@ -8,7 +8,6 @@ import com.plot.plugin.road.FilletArcSweep;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
-import com.plot.plugin.road.RoadRoadbedGradingUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
@@ -179,20 +178,6 @@ public final class JunctionCrossSectionFill {
             solids, cellPoint, stampY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
             maxClearY);
         return true;
-    }
-
-    /**
-     * Resolves the surface layer that {@link #fillCell} would stamp at this plan cell.
-     */
-    public static RoadSolidLayer resolveSurfaceLayer(
-            Vec2d cellPoint,
-            String nodeId,
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            double unitsPerBlock) {
-        return resolveSurfaceLayer(cellPoint, nodeId, edges, network, config, unitsPerBlock,
-            RoadJunctionCenterlineResolver.forNetwork(network));
     }
 
     public static RoadSolidLayer resolveSurfaceLayer(
@@ -482,16 +467,6 @@ public final class JunctionCrossSectionFill {
         return mode != TunnelColumnConstruction.Mode.ENCLOSED;
     }
 
-    /** 兼容旧测试：无隧道上下文时开敞路堑允许；有隧道上下文时按中点 Mode。 */
-    static boolean filletCornerAllowsOpenBatter(
-            JunctionGeometryResult.FilletCorner fillet,
-            int junctionY,
-            TerrainSampler terrain,
-            int tunnelThreshold,
-            double scale) {
-        return filletCornerAllowsOpenBatter(fillet, junctionY, terrain, tunnelThreshold, scale, false);
-    }
-
     static boolean filletCornerAllowsOpenBatter(
             JunctionGeometryResult.FilletCorner fillet,
             int junctionY,
@@ -650,6 +625,7 @@ public final class JunctionCrossSectionFill {
             slopeRatio,
             outcome,
             allowWaterEmbankment,
+            false,
             scale);
         return new ShoulderBatterBuild(samples, ray);
     }
@@ -817,13 +793,6 @@ public final class JunctionCrossSectionFill {
             return;
         }
         solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
-    }
-
-    static RoadEdge selectWidestEdge(
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config) {
-        return selectWidestEdge(edges, network, config, null);
     }
 
     static RoadEdge selectWidestEdge(

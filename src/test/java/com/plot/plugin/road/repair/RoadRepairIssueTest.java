@@ -8,8 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadRepairIssueTest {
 
     @Test
-    void centerlineSelfGeometryRequiresManualFix() {
-        assertFalse(RoadRepairIssue.CENTERLINE_SELF_INTERSECTION.isAutoFixable());
+    void centerlineSelfOverlapRequiresManualFix() {
         assertFalse(RoadRepairIssue.CENTERLINE_SELF_OVERLAP.isAutoFixable());
     }
 

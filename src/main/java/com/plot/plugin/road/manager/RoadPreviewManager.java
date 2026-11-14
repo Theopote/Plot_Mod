@@ -219,11 +219,6 @@ public final class RoadPreviewManager {
         }
     }
 
-    /** 兼容旧调用：几何 + 走廊地表合成指纹。 */
-    private long terrainFingerprint(RoadNetwork network) {
-        return combinedTerrainFingerprint(network);
-    }
-
     private long combinedTerrainFingerprint(RoadNetwork network) {
         long geometry = RoadWorldTerrainProbe.geometryFingerprint(network);
         long surface = worldSurfaceFingerprint(network);
@@ -945,7 +940,7 @@ public final class RoadPreviewManager {
         previewNetwork = network;
         applyProfileSamplingState(previewResult);
         lastNetworkGenerationResult = previewResult.networkResult();
-        lastPreviewTerrainFingerprint = terrainFingerprint(network);
+        lastPreviewTerrainFingerprint = combinedTerrainFingerprint(network);
         previewWorldKey = currentWorldKey();
         bumpTerrainRevision();
 

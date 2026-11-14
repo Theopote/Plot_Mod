@@ -284,11 +284,11 @@ class JunctionFilletBatterContinuityTest {
         SlopeBandRasterizer.ShoulderRay rayA = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(1, SlopeRayId.ShoulderSide.LEFT),
             a, outA, heights, true, "minecraft:dirt", 1.5f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         SlopeBandRasterizer.ShoulderRay rayB = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(2, SlopeRayId.ShoulderSide.LEFT),
             b, outB, heights, true, "minecraft:dirt", 1.5f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         assertTrue(SlopeBandRasterizer.canConnectBand(rayA, rayB));
 
         TerrainSampler dry = new TerrainSampler() {

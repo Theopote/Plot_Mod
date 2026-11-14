@@ -35,22 +35,6 @@ public final class SlopeBandRasterizer {
             scale = scale > 1e-9 ? scale : 1.0;
         }
 
-        /** Compatibility: rays without local-daylight flag. */
-        public ShoulderRay(
-                SlopeRayId rayId,
-                Vec2d outerEdge,
-                Vec2d outwardNormal,
-                int[] heightByOffset,
-                boolean fill,
-                String materialId,
-                float slopeRatio,
-                SlopeConstructionOutcome outcome,
-                boolean allowWaterEmbankment,
-                double scale) {
-            this(rayId, outerEdge, outwardNormal, heightByOffset, fill, materialId, slopeRatio,
-                outcome, allowWaterEmbankment, false, scale);
-        }
-
         public int maxOffset() {
             return Math.max(0, heightByOffset.length - 1);
         }

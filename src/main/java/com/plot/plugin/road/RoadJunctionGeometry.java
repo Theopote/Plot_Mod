@@ -318,16 +318,6 @@ public final class RoadJunctionGeometry {
         return bestId;
     }
 
-    /** 路口处半宽：优先节点桩号上的变宽断面（方块半宽 × canvasUnitsPerBlock）。 */
-    public static double halfWidthAtJunction(
-            RoadNetwork network,
-            RoadSystemConfig config,
-            RoadEdge edge,
-            String nodeId,
-            ToDoubleFunction<RoadEdge> fallback) {
-        return halfWidthAtJunction(network, config, edge, nodeId, fallback, 1.0);
-    }
-
     public static double halfWidthAtJunction(
             RoadNetwork network,
             RoadSystemConfig config,

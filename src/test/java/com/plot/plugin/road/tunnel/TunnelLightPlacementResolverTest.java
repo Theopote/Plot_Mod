@@ -19,8 +19,8 @@ class TunnelLightPlacementResolverTest {
     @ParameterizedTest
     @EnumSource(TunnelShape.class)
     void noneModeReturnsEmpty(TunnelShape shape) {
-        List<TunnelLightPlacementResolver.LightPosition> lights = TunnelLightPlacementResolver.resolve(
-            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, TunnelLightingMode.NONE);
+        List<TunnelLightPlacementResolver.LightPosition> lights = resolve(
+            shape, TunnelLightingMode.NONE);
         assertTrue(lights.isEmpty(), shape.name());
     }
 
@@ -29,8 +29,8 @@ class TunnelLightPlacementResolverTest {
     void wallBandsProduceSymmetricWallLightsInAir(TunnelShape shape) {
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
-        List<TunnelLightPlacementResolver.LightPosition> lights = TunnelLightPlacementResolver.resolve(
-            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, TunnelLightingMode.WALL_BANDS);
+        List<TunnelLightPlacementResolver.LightPosition> lights = resolve(
+            shape, TunnelLightingMode.WALL_BANDS);
         long walls = lights.stream()
             .filter(l -> l.type() == TunnelLightPlacementResolver.LightType.WALL)
             .count();
@@ -51,8 +51,8 @@ class TunnelLightPlacementResolverTest {
     void ceilingBandPlacesCenterCeilingWhenAir(TunnelShape shape) {
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, false);
-        List<TunnelLightPlacementResolver.LightPosition> lights = TunnelLightPlacementResolver.resolve(
-            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, TunnelLightingMode.CEILING_BAND);
+        List<TunnelLightPlacementResolver.LightPosition> lights = resolve(
+            shape, TunnelLightingMode.CEILING_BAND);
         assertTrue(lights.stream().noneMatch(l -> l.type() == TunnelLightPlacementResolver.LightType.WALL));
         for (var light : lights) {
             assertEquals(TunnelLightPlacementResolver.LightType.CEILING, light.type());
@@ -64,12 +64,20 @@ class TunnelLightPlacementResolverTest {
     @ParameterizedTest
     @EnumSource(TunnelShape.class)
     void wallAndCeilingCombinesBoth(TunnelShape shape) {
-        List<TunnelLightPlacementResolver.LightPosition> lights = TunnelLightPlacementResolver.resolve(
-            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, TunnelLightingMode.WALL_AND_CEILING);
-        List<TunnelLightPlacementResolver.LightPosition> walls = TunnelLightPlacementResolver.resolve(
-            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, TunnelLightingMode.WALL_BANDS);
-        List<TunnelLightPlacementResolver.LightPosition> ceiling = TunnelLightPlacementResolver.resolve(
-            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, TunnelLightingMode.CEILING_BAND);
+        List<TunnelLightPlacementResolver.LightPosition> lights = resolve(
+            shape, TunnelLightingMode.WALL_AND_CEILING);
+        List<TunnelLightPlacementResolver.LightPosition> walls = resolve(
+            shape, TunnelLightingMode.WALL_BANDS);
+        List<TunnelLightPlacementResolver.LightPosition> ceiling = resolve(
+            shape, TunnelLightingMode.CEILING_BAND);
         assertEquals(walls.size() + ceiling.size(), lights.size(), shape.name());
+    }
+
+    private static List<TunnelLightPlacementResolver.LightPosition> resolve(
+            TunnelShape shape,
+            TunnelLightingMode mode) {
+        return TunnelLightPlacementResolver.resolve(
+            shape, ENVELOPE, SIDE, CLEAR, LINING, ROAD_Y, mode,
+            TunnelLightMount.PROTRUDING, null);
     }
 }

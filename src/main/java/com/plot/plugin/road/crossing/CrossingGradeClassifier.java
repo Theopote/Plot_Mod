@@ -12,8 +12,6 @@ import java.util.OptionalDouble;
  * 两路在交点处高差达到净空才标立交；没有纵断面或高差不足时保持平交。
  */
 public final class CrossingGradeClassifier {
-    /** 兼容旧调用；立交判定实际使用下穿道路隧道净高。 */
-    public static final double DEFAULT_CLEARANCE = 5.0;
     private static final double EPSILON = 1e-9;
 
     private CrossingGradeClassifier() {

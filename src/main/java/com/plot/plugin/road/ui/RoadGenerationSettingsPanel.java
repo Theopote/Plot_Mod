@@ -200,8 +200,4 @@ public final class RoadGenerationSettingsPanel {
         }
     }
 
-    private static void markChanged(RoadUiContext ctx) {
-        ctx.networkManager().getConfig().markCustom();
-        ctx.onGenerationConfigChanged();
-    }
 }

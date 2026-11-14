@@ -14,17 +14,6 @@ import java.util.List;
 public final class VerticalProfileControlPoints {
     private static final double EPSILON = VerticalProfileConstants.STATION_EPSILON;
 
-    public record ControlPoint(
-            int pviIndex,
-            double roadStation,
-            double localDistance,
-            double elevation,
-            Double leftGradePercent,
-            Double rightGradePercent,
-            boolean endpoint,
-            boolean sharedJunction,
-            boolean elevationEditable) { }
-
     private VerticalProfileControlPoints() { }
 
     /** 道路级纵断面：全部 PVI，X 为 canonical road station。 */
@@ -235,18 +224,6 @@ public final class VerticalProfileControlPoints {
      * 可改高程：普通端点与中间变坡点可以；平交共享桩号与 JUNCTION_FIXED 走交叉标记。
      * 端点桩号仍由 {@link #move} 锁住。
      */
-    public static boolean isEditablePvi(RoadNetwork network, Road road, ControlPoint point) {
-        if (network == null || road == null || point == null) {
-            return false;
-        }
-        if (road.getVerticalAlignment() == null
-                || point.pviIndex() < 0
-                || point.pviIndex() >= road.getVerticalAlignment().pviCount()) {
-            return false;
-        }
-        return point.elevationEditable();
-    }
-
     public static boolean isEditablePvi(RoadNetwork network, Road road, ProfileControlPoint point) {
         if (network == null || road == null || point == null) {
             return false;
@@ -283,38 +260,8 @@ public final class VerticalProfileControlPoints {
             && constraint != VerticalControlPointConstraint.ENDPOINT_FIXED;
     }
 
-    public static boolean canAutoSmooth(RoadNetwork network, Road road, ControlPoint point) {
-        return point != null && isCurveEditable(road, road != null ? road.getVerticalAlignment() : null, point.pviIndex());
-    }
-
     public static boolean canAutoSmooth(RoadNetwork network, Road road, ProfileControlPoint point) {
         return point != null && isCurveEditable(road, road != null ? road.getVerticalAlignment() : null, point.pviIndex());
-    }
-
-    public static boolean exceedsGradeLimit(ControlPoint point, double maxGradePercent) {
-        if (point == null || maxGradePercent <= EPSILON) {
-            return false;
-        }
-        return point.leftGradePercent() != null
-                && Math.abs(point.leftGradePercent()) > maxGradePercent + EPSILON
-            || point.rightGradePercent() != null
-                && Math.abs(point.rightGradePercent()) > maxGradePercent + EPSILON;
-    }
-
-    public static ControlPoint toLegacyControlPoint(ProfileControlPoint point) {
-        if (point == null) {
-            return null;
-        }
-        return new ControlPoint(
-            point.pviIndex(),
-            point.roadStation(),
-            point.roadStation(),
-            point.elevation(),
-            point.leftGradePercent(),
-            point.rightGradePercent(),
-            point.endpoint(),
-            point.sharedJunction(),
-            point.elevationEditable());
     }
 
     public static boolean exceedsGradeLimit(ProfileControlPoint point, double maxGradePercent) {

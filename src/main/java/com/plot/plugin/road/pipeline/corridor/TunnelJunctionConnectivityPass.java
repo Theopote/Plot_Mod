@@ -24,13 +24,7 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.tunnel.TunnelColumnConstruction;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.ToIntFunction;
 
@@ -778,13 +772,16 @@ public final class TunnelJunctionConnectivityPass {
                 || layer == RoadSolidLayer.GUARDRAIL) {
             return false;
         }
-        Integer priority = result.placementMaterialPriorities.get(pos);
+        Integer priority = null;
+        if (result != null) {
+            priority = result.placementMaterialPriorities.get(pos);
+        }
         if (priority != null && priority >= RoadSolidMaterialPriority.DECORATIVE) {
             return false;
         }
         if (layer == RoadSolidLayer.TUNNEL) {
             return true;
         }
-        return result.tunnelBlocks.contains(pos);
+        return Objects.requireNonNull(result).tunnelBlocks.contains(pos);
     }
 }

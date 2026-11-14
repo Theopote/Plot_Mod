@@ -33,6 +33,7 @@ class SlopeBandRasterizerTest {
             1.0f,
             SlopeConstructionOutcome.COMPLETE,
             false,
+            false,
             1.0);
         var b = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(2L, SlopeRayId.ShoulderSide.RIGHT),
@@ -43,6 +44,7 @@ class SlopeBandRasterizerTest {
             "minecraft:stone",
             1.0f,
             SlopeConstructionOutcome.COMPLETE,
+            false,
             false,
             1.0);
 
@@ -87,15 +89,15 @@ class SlopeBandRasterizerTest {
         var authorizedFill = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(1L, SlopeRayId.ShoulderSide.LEFT),
             new Vec2d(0, 0), new Vec2d(1, 0), heights, true, "dirt", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, true, 1.0);
+            SlopeConstructionOutcome.COMPLETE, true, false, 1.0);
         var unauthorizedFill = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(2L, SlopeRayId.ShoulderSide.LEFT),
             new Vec2d(2, 0), new Vec2d(1, 0), heights, true, "dirt", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         var cut = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(3L, SlopeRayId.ShoulderSide.LEFT),
             new Vec2d(4, 0), new Vec2d(1, 0), heights, false, "stone", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
 
         assertTrue(SlopeBandRasterizer.canConnectBand(authorizedFill, authorizedFill));
         assertFalse(SlopeBandRasterizer.canConnectBand(authorizedFill, unauthorizedFill),
@@ -113,11 +115,11 @@ class SlopeBandRasterizerTest {
         var fill = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(1L, SlopeRayId.ShoulderSide.LEFT),
             new Vec2d(0, 0), new Vec2d(1, 0), heights, true, "dirt", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         var cut = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(2L, SlopeRayId.ShoulderSide.LEFT),
             new Vec2d(0, 0), new Vec2d(0, 1), heights, false, "stone", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         assertTrue(SlopeBandRasterizer.fillBetweenRays(
             fill, cut, new FlatTerrainSampler(60),
             CorridorTestFixtures.planHost(new RoadSystemConfig("test"))).isEmpty());
@@ -132,11 +134,11 @@ class SlopeBandRasterizerTest {
         var a = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(10L, SlopeRayId.ShoulderSide.RIGHT),
             new Vec2d(40, 0), new Vec2d(0, -1), heights, false, "stone", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         var b = new SlopeBandRasterizer.ShoulderRay(
             new SlopeRayId(11L, SlopeRayId.ShoulderSide.RIGHT),
             new Vec2d(40, 0), new Vec2d(1, 0), heights, false, "stone", 1.0f,
-            SlopeConstructionOutcome.COMPLETE, false, 1.0);
+            SlopeConstructionOutcome.COMPLETE, false, false, 1.0);
         List<SlopeProfileSample> samples = SlopeBandRasterizer.fillBetweenRays(
             a, b, new FlatTerrainSampler(72),
             CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()));

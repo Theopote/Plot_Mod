@@ -107,16 +107,6 @@ public final class TunnelProfile {
         return y >= floor && y <= ceiling;
     }
 
-    /** Alias for {@link #innerCeilingY}; kept for existing lighting call sites. */
-    public static int ceilingY(
-            TunnelShape shape,
-            int distFromCenter,
-            int halfCavityWidth,
-            int roadY,
-            int clearHeight) {
-        return innerCeilingY(shape, distFromCenter, halfCavityWidth, roadY, clearHeight);
-    }
-
     public static int innerCeilingY(
             TunnelShape shape,
             int distFromCenter,

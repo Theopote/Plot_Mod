@@ -12,20 +12,7 @@ public final class FilletArcSweep {
     private FilletArcSweep() {
     }
 
-    /**
-     * 从 start 扫到 end 的短弧扫掠角，范围 (-π, π]。
-     * {@code radius}/{@code preferToward} 保留仅为调用方兼容，一律忽略（路缘圆角禁长弧）。
-     */
-    public static double resolve(
-            Vec2d arcCenter,
-            Vec2d start,
-            Vec2d end,
-            double radius,
-            Vec2d preferToward) {
-        return resolveShort(arcCenter, start, end);
-    }
-
-    /** 切点间短弧扫掠；|结果| ≤ π。 */
+    /** 切点间短弧扫掠；|结果| ≤ π，范围 (-π, π]。 */
     public static double resolveShort(Vec2d arcCenter, Vec2d start, Vec2d end) {
         if (arcCenter == null || start == null || end == null) {
             return 0.0;

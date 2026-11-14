@@ -1622,19 +1622,11 @@ public final class JunctionRegionBuilder {
     private static List<Vec2d> filletAddition(Vec2d sharpCorner, CornerFillet fillet, int segments) {
         List<Vec2d> poly = new ArrayList<>();
         poly.add(sharpCorner);
-        appendArc(poly, fillet, segments, sharpCorner);
+        appendArc(poly, fillet, segments);
         return dedupe(poly);
     }
 
     private static void appendArc(List<Vec2d> out, CornerFillet fillet, int segments) {
-        appendArc(out, fillet, segments, null);
-    }
-
-    private static void appendArc(
-            List<Vec2d> out,
-            CornerFillet fillet,
-            int segments,
-            Vec2d preferTowardCorner) {
         FilletArcSweep.ListSamples samples = FilletArcSweep.sample(
             fillet.center(),
             fillet.tangentStart(),

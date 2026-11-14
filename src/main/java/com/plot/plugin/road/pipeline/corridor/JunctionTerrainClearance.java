@@ -246,26 +246,6 @@ public final class JunctionTerrainClearance {
         punchColumn(solids, planPoint, cellY, topY);
     }
 
-    /**
-     * 实心清障顶以上：摘除可清装饰，以及下方已悬空的残留实心（边坡掏空后挂住的土块/短树干）。
-     * 自下而上清，使上层失去支撑后连锁清理。
-     * <p>
-     * 隧道洞顶上下文（{@code protectNaturalOverburden=true}）：非装饰实心不得仅凭
-     * 「下方是空气 / 下方刚被清除」连锁删除——天然洞穴、岩石悬挑与覆土不能当成工程残留。
-     */
-    static void clearFloatingAndDecorationsAbove(
-            RoadSolidModel solids,
-            Vec2d planPoint,
-            TerrainSampler terrain,
-            int worldX,
-            int worldZ,
-            int cellY,
-            int solidTopY,
-            int decoCeil) {
-        clearFloatingAndDecorationsAbove(
-            solids, planPoint, terrain, worldX, worldZ, cellY, solidTopY, decoCeil, false);
-    }
-
     static void clearFloatingAndDecorationsAbove(
             RoadSolidModel solids,
             Vec2d planPoint,

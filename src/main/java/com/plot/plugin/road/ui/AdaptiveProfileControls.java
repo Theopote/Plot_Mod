@@ -3,11 +3,11 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalProfileAutoFixer;
@@ -32,38 +32,7 @@ final class AdaptiveProfileControls {
             RoadSystemConfig config,
             ProfileEditSession session,
             ProfileEditorWindowSession windowSession,
-            List<VerticalProfileControlPoints.ControlPoint> points,
-            float maxGrade,
-            ProfileEditorState state,
-            Runnable recordUndoPointBeforeEdit,
-            Runnable propagateJunctionGrades,
-            Runnable onWorkingProfileChanged,
-            Runnable deleteSelectedPvi) {
-        render(
-            ctx,
-            network,
-            road,
-            config,
-            session,
-            windowSession,
-            points,
-            maxGrade,
-            state,
-            recordUndoPointBeforeEdit,
-            propagateJunctionGrades,
-            onWorkingProfileChanged,
-            deleteSelectedPvi,
-            null);
-    }
-
-    void render(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config,
-            ProfileEditSession session,
-            ProfileEditorWindowSession windowSession,
-            List<VerticalProfileControlPoints.ControlPoint> points,
+            List<ProfileControlPoint> points,
             float maxGrade,
             ProfileEditorState state,
             Runnable recordUndoPointBeforeEdit,
@@ -89,7 +58,7 @@ final class AdaptiveProfileControls {
                 && ImGui.collapsingHeader(
                     PlotI18n.tr("plugin.road.profile_control_points_collapsed", points.size())
                         + "##profile_control_points_advanced")) {
-            for (VerticalProfileControlPoints.ControlPoint point : points) {
+            for (ProfileControlPoint point : points) {
                 renderControlPointSelectable(point, maxGrade, state, onPviPicked);
             }
         }
@@ -98,7 +67,7 @@ final class AdaptiveProfileControls {
             // 未选中时由编辑器隐藏本面板，不占图表下方空间。
             return;
         }
-        VerticalProfileControlPoints.ControlPoint selectedPoint = points.stream()
+        ProfileControlPoint selectedPoint = points.stream()
             .filter(point -> point.pviIndex() == state.selectedProfilePvi)
             .findFirst()
             .orElse(null);
@@ -192,12 +161,12 @@ final class AdaptiveProfileControls {
         }
     }
 
-    void onPviSelected(ProfileEditorState state, VerticalProfileControlPoints.ControlPoint point) {
+    void onPviSelected(ProfileEditorState state, ProfileControlPoint point) {
         state.selectedProfileElevation[0] = (float) point.elevation();
     }
 
     private static void renderControlPointSelectable(
-            VerticalProfileControlPoints.ControlPoint point,
+            ProfileControlPoint point,
             float maxGrade,
             ProfileEditorState state,
             Runnable onPviPicked) {
@@ -209,7 +178,7 @@ final class AdaptiveProfileControls {
         String label = PlotI18n.tr(
             "plugin.road.vertical_alignment_control_point",
             point.pviIndex() + 1,
-            point.localDistance(),
+            point.roadStation(),
             point.elevation(),
             grades);
         if (invalid) {
@@ -229,12 +198,12 @@ final class AdaptiveProfileControls {
     }
 
     private static void renderSelectedPointDetail(
-            VerticalProfileControlPoints.ControlPoint point,
+            ProfileControlPoint point,
             float maxGrade) {
         ImGui.text(PlotI18n.tr(
             "plugin.road.vertical_alignment_control_point",
             point.pviIndex() + 1,
-            point.localDistance(),
+            point.roadStation(),
             point.elevation(),
             formatControlPointGrades(point)));
         if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade)) {
@@ -244,7 +213,7 @@ final class AdaptiveProfileControls {
         }
     }
 
-    private static String formatControlPointGrades(VerticalProfileControlPoints.ControlPoint point) {
+    private static String formatControlPointGrades(ProfileControlPoint point) {
         String left = point.leftGradePercent() != null
             ? String.format("%.1f%%", point.leftGradePercent()) : "—";
         String right = point.rightGradePercent() != null

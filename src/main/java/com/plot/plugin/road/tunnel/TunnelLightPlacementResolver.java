@@ -38,27 +38,6 @@ public final class TunnelLightPlacementResolver {
     private TunnelLightPlacementResolver() {
     }
 
-    /** Mode-default protruding lights (legacy signature). */
-    public static List<LightPosition> resolve(
-            TunnelShape shape,
-            int roadEnvelopeWidth,
-            int sideClearance,
-            int clearHeight,
-            int liningThickness,
-            int roadY,
-            TunnelLightingMode mode) {
-        return resolveDetailed(
-            shape,
-            roadEnvelopeWidth,
-            sideClearance,
-            clearHeight,
-            liningThickness,
-            roadY,
-            mode,
-            TunnelLightMount.PROTRUDING,
-            null).lights();
-    }
-
     public static List<LightPosition> resolve(
             TunnelShape shape,
             int roadEnvelopeWidth,

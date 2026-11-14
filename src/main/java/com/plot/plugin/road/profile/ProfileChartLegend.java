@@ -20,15 +20,6 @@ public final class ProfileChartLegend {
     private ProfileChartLegend() {
     }
 
-    /** 紧凑卡片单行图例：Overview 为地形+建造，Editor 为地形+设计（体素预览后可选建造）。 */
-    public static void renderCompact(
-            ProfileChartRenderMode chartMode,
-            RoadVerticalMode verticalMode,
-            boolean flatMode,
-            boolean buildPreviewStale) {
-        renderCompact(chartMode, verticalMode, flatMode, buildPreviewStale, null);
-    }
-
     public static void renderCompact(
             ProfileChartRenderMode chartMode,
             RoadVerticalMode verticalMode,

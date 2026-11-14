@@ -27,11 +27,6 @@ public final class VoxelProfilePreviewSlot {
         return lastGoodResult;
     }
 
-    /** Alias for {@link #lastGoodResult()}. */
-    public VoxelProfileCompileResult result() {
-        return lastGoodResult;
-    }
-
     public String failureReason() {
         return failureReason;
     }
