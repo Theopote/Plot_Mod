@@ -3,10 +3,13 @@ package com.plot.plugin.road.manager;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
+import com.plot.core.model.Project;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -21,6 +24,22 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadPersistenceManagerTest {
+
+    private Project previousProject;
+
+    @BeforeEach
+    void clearCurrentProject() {
+        ApplicationContext app = ApplicationContext.getInstance();
+        previousProject = app.getCurrentProject();
+        // loadForCurrentProject() follows AppState's current project when set; clear so
+        // this suite always exercises the default.json path regardless of prior tests.
+        app.setCurrentProject(null);
+    }
+
+    @AfterEach
+    void restoreCurrentProject() {
+        ApplicationContext.getInstance().setCurrentProject(previousProject);
+    }
 
     @Test
     void loadFailureBindsTargetAndClearsLiveNetwork(@TempDir Path dir) {
@@ -37,8 +56,10 @@ class RoadPersistenceManagerTest {
         }
         AtomicReference<RoadNetwork> loaded = new AtomicReference<>();
         manager.loadForCurrentProject(loaded::set, () -> {});
-        assertNotNull(loaded.get());
-        assertTrue(loaded.get().getEdges().size() > 0);
+        assertNotNull(loaded.get(), "default.json must load when no current project is bound");
+        assertTrue(
+            loaded.get().getEdges().size() > 0,
+            "default.json seed must have edges; got " + loaded.get().getEdges().size());
 
         AtomicReference<RoadNetwork> afterFail = new AtomicReference<>();
         manager.onProjectLoaded(
