@@ -559,6 +559,51 @@ class TunnelJunctionConnectivityPassTest {
             "shallow-cover columns must not keep unauthorized underground cavity air");
     }
 
+    @Test
+    void assembleOpenVolumeFromCachedSampledAirMatchesCollectOpenVolume() {
+        RoadNetwork network = tunnelTJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        Map<String, Integer> elevations = Map.of(junction.getId(), 64);
+        RoadSystemConfig config = new RoadSystemConfig("tunnel-open-volume-cache");
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            BlockPos lining = new BlockPos(0, 66, 0);
+            result.recordPlacementOverride(lining, "minecraft:stone", "minecraft:stone_bricks");
+            result.placementLayers.put(lining, RoadSolidLayer.TUNNEL);
+            result.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.STRUCTURAL);
+            edgeResults.put(edge.getId(), result);
+        }
+        List<TunnelJunctionSeedResolver.TunnelApproach> approaches =
+            TunnelJunctionSeedResolver.collectTunnelApproaches(
+                network, junction, edgeResults, elevations, config, (path, segments) -> 1.0);
+        assertTrue(approaches.size() >= 2, "precondition: multi-approach tunnel junction");
+        List<Vec2d> polygon = TunnelJunctionConnectivityPass.polygonFromGeometry(
+            TunnelJunctionShellPass.resolveJunctionGeometry(network, junction, config, 1.0));
+        assertTrue(polygon.size() >= 3);
+
+        Set<BlockPos> full = TunnelJunctionSeedResolver.collectOpenVolume(
+            approaches, polygon, edgeResults.values(), IdentityCoordinateService.INSTANCE, plan -> 64);
+        Map<String, Set<BlockPos>> byEdge = TunnelJunctionSeedResolver.collectSampledApproachAirByEdge(
+            approaches, polygon, edgeResults.values(), IdentityCoordinateService.INSTANCE, plan -> 64);
+        assertFalse(byEdge.isEmpty(), "sampled air must be cached per approach edge");
+        Set<BlockPos> sampled = new java.util.HashSet<>();
+        for (Set<BlockPos> air : byEdge.values()) {
+            sampled.addAll(air);
+        }
+        Set<BlockPos> assembled = TunnelJunctionSeedResolver.assembleOpenVolumeFromSampledAir(
+            sampled, approaches, polygon, edgeResults.values(), IdentityCoordinateService.INSTANCE);
+        assertEquals(full, assembled, "cached sampled-air + lining refresh must match collectOpenVolume");
+
+        Set<BlockPos> viaContext = TunnelJunctionConnectivityPass.resolveConnectivityOpenVolume(
+            null, approaches, polygon, edgeResults.values(), IdentityCoordinateService.INSTANCE, plan -> 64);
+        assertEquals(full, viaContext, "null context falls back to collectOpenVolume");
+    }
+
     private static void applyTunnelStyle(Road road) {
         TunnelStyle style = new TunnelStyle();
         style.setShape(TunnelShape.RECTANGULAR);

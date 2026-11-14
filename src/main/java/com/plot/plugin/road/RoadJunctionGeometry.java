@@ -144,9 +144,12 @@ public final class RoadJunctionGeometry {
         double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
         double effectivePlaza = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
+        // 同一循环同时产出 approach / band，避免跳过条件不同导致按索引错位。
         List<JunctionCurbFilletBuilder.Approach> approaches = new ArrayList<>();
         List<List<Vec2d>> approachBands = new ArrayList<>();
         double maxHalf = 0.0;
+        List<RoadEdge> bandEdges = new ArrayList<>();
+        List<Double> bandHalfWidths = new ArrayList<>();
         for (RoadEdge edge : edges) {
             if (edge == null) {
                 continue;
@@ -163,39 +166,41 @@ public final class RoadJunctionGeometry {
             }
             maxHalf = Math.max(maxHalf, halfWidth);
             approaches.add(new JunctionCurbFilletBuilder.Approach(direction, halfWidth, edge.getId()));
+            bandEdges.add(edge);
+            bandHalfWidths.add(halfWidth);
         }
         // 真实中心线局部条带（弯曲/变宽进口）；直线恒宽时退化为矩形 stub。
         // 臂长由广场半径驱动，避免 maxHalf*3 下限把 plazaRadius 拉平。
         double bandLength = Math.max(effectivePlaza, maxHalf + 1.0);
         double back = maxHalf + 1.0;
-        for (RoadEdge edge : edges) {
-            if (edge == null) {
-                continue;
-            }
-            double halfWidth = halfWidthAtJunction(
-                network, config, edge, nodeId, halfWidthResolver, scale);
-            if (halfWidth <= 1e-9) {
-                continue;
-            }
+        for (int i = 0; i < bandEdges.size(); i++) {
+            RoadEdge edge = bandEdges.get(i);
+            double halfWidth = bandHalfWidths.get(i);
             List<Vec2d> outward = extractApproachCenterline(
                 centerlineResolver.apply(edge), edge, nodeId, bandLength);
             if (outward.size() < 2) {
+                // 与 approaches 对齐：条带失败时塞空列表，禁止后续 get(i) 错配到邻臂。
+                approachBands.add(List.of());
                 continue;
             }
             List<Vec2d> fromCenter = new ArrayList<>(outward.size());
             fromCenter.add(center);
-            for (int i = 1; i < outward.size(); i++) {
-                fromCenter.add(outward.get(i));
+            for (int j = 1; j < outward.size(); j++) {
+                fromCenter.add(outward.get(j));
             }
             DoubleUnaryOperator widthAlong = halfWidthAlongApproach(
                 network, config, edge, nodeId, halfWidth, scale);
             List<Vec2d> band = JunctionPavementBand.buildStubPolygon(fromCenter, widthAlong, back);
-            if (band.size() >= 3) {
-                approachBands.add(band);
-            }
+            approachBands.add(band.size() >= 3 ? band : List.of());
         }
         JunctionRegionGeometry region = JunctionRegionGeometry.empty();
-        if (approachBands.size() >= 3 && approaches.size() >= 3) {
+        int validBands = 0;
+        for (List<Vec2d> band : approachBands) {
+            if (band != null && band.size() >= 3) {
+                validBands++;
+            }
+        }
+        if (validBands >= 3 && approaches.size() >= 3) {
             region = JunctionRegionBuilder.buildFromApproachBands(
                 center, approaches, approachBands, cornerRadius, effectivePlaza);
         }
@@ -210,7 +215,12 @@ public final class RoadJunctionGeometry {
         if (!isAtGradePlazaCandidate(approaches)) {
             return JunctionGeometryResult.empty();
         }
-        return JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius);
+        // 旧算法可能写入错误 owner；强制按切点重绑，避免 loft 采错剖面。
+        return bindFilletOwnersFromApproaches(
+            JunctionCurbFilletBuilder.build(center, approaches, effectivePlaza, cornerRadius),
+            approaches,
+            center,
+            true);
     }
 
     /**
@@ -221,25 +231,38 @@ public final class RoadJunctionGeometry {
             JunctionGeometryResult geometry,
             List<JunctionCurbFilletBuilder.Approach> approaches,
             Vec2d junctionCenter) {
+        return bindFilletOwnersFromApproaches(geometry, approaches, junctionCenter, false);
+    }
+
+    /**
+     * @param forceRebind true 时即使已有 owner 也按切点重算（旧算法纠错）。
+     */
+    static JunctionGeometryResult bindFilletOwnersFromApproaches(
+            JunctionGeometryResult geometry,
+            List<JunctionCurbFilletBuilder.Approach> approaches,
+            Vec2d junctionCenter,
+            boolean forceRebind) {
         if (geometry == null || geometry.fillets().isEmpty() || approaches == null || approaches.isEmpty()) {
             return geometry != null ? geometry : JunctionGeometryResult.empty();
         }
-        boolean anyMissing = false;
-        for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
-            if (fillet != null && !fillet.hasOwners()) {
-                anyMissing = true;
-                break;
+        if (!forceRebind) {
+            boolean anyMissing = false;
+            for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
+                if (fillet != null && !fillet.hasOwners()) {
+                    anyMissing = true;
+                    break;
+                }
             }
-        }
-        if (!anyMissing) {
-            return geometry;
+            if (!anyMissing) {
+                return geometry;
+            }
         }
         List<JunctionGeometryResult.FilletCorner> rebound = new ArrayList<>(geometry.fillets().size());
         for (JunctionGeometryResult.FilletCorner fillet : geometry.fillets()) {
             if (fillet == null) {
                 continue;
             }
-            if (fillet.hasOwners()) {
+            if (!forceRebind && fillet.hasOwners()) {
                 rebound.add(fillet);
                 continue;
             }

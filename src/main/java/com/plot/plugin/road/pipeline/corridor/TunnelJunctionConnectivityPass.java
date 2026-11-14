@@ -26,6 +26,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -236,11 +237,15 @@ public final class TunnelJunctionConnectivityPass {
             ToIntFunction<Vec2d> roadYAt = elevationField::surfaceY;
             int resolvedClear = clearHeight != null ? Math.max(1, clearHeight) : 0;
 
+            JunctionConstructionContext authoredContext =
+                authored != null ? authored.constructionContext() : null;
             for (List<TunnelJunctionSeedResolver.TunnelApproach> layerApproaches
                     : groupApproachesBySpatialBand(approaches)) {
                 Collection<RoadGenerationResult> approachResults =
                     approachEdgeResults(layerApproaches, edgeResults);
-                Set<BlockPos> openVolume = TunnelJunctionSeedResolver.collectOpenVolume(
+                // 优先复用路口生成时缓存的采样空气，仅刷新壳层后的阻挡衬砌。
+                Set<BlockPos> openVolume = resolveConnectivityOpenVolume(
+                    authoredContext,
                     layerApproaches,
                     polygon,
                     approachResults,
@@ -291,16 +296,22 @@ public final class TunnelJunctionConnectivityPass {
             return volume;
         }
         Set<BlockPos> kept = new LinkedHashSet<>();
+        // 同列大量体素共享地表采样；按 ColumnKey 缓存避免重复 sampleSurfaceY。
+        Map<ColumnKey, Integer> surfaceYByColumn = new HashMap<>();
+        Map<ColumnKey, Boolean> closedCavityByColumn = new HashMap<>();
         for (BlockPos pos : volume) {
             if (pos == null) {
                 continue;
             }
             Vec2d plan = TunnelJunctionSeedResolver.planPointForBlock(pos, coordinateTransformer);
+            ColumnKey column = new ColumnKey(pos.getX(), pos.getZ());
             if (terrain != null) {
                 if (!terrain.isChunkLoaded(plan) && !terrain.isChunkLoaded(pos.getX(), pos.getZ())) {
                     continue;
                 }
-                if (pos.getY() >= terrain.sampleSurfaceY(plan)) {
+                int surfaceY = surfaceYByColumn.computeIfAbsent(column, key ->
+                    terrain.sampleSurfaceY(plan != null ? plan : new Vec2d(key.worldX() + 0.5, key.worldZ() + 0.5)));
+                if (pos.getY() >= surfaceY) {
                     continue;
                 }
             }
@@ -313,15 +324,64 @@ public final class TunnelJunctionConnectivityPass {
                 }
                 // 浅覆土／洞口过渡列禁止连通清障掏出未授权地下洞腔（与走廊 Mode 一致）。
                 int designedRoofTopY = cavityTop;
-                if (terrain != null
-                        && !TunnelColumnConstruction.allowsClosedCavity(
-                            terrain, plan, designedRoofTopY)) {
-                    continue;
+                if (terrain != null) {
+                    boolean allowsClosed = closedCavityByColumn.computeIfAbsent(column, key ->
+                        TunnelColumnConstruction.allowsClosedCavity(terrain, plan, designedRoofTopY));
+                    if (!allowsClosed) {
+                        continue;
+                    }
                 }
             }
             kept.add(pos);
         }
         return kept;
+    }
+
+    /**
+     * 有按边采样空气缓存时：拼合本空间带进口 → 按当前多边形裁剪 → 刷新衬砌。
+     * 缓存缺失则回退全量 {@link TunnelJunctionSeedResolver#collectOpenVolume}。
+     */
+    static Set<BlockPos> resolveConnectivityOpenVolume(
+            JunctionConstructionContext authoredContext,
+            List<TunnelJunctionSeedResolver.TunnelApproach> layerApproaches,
+            List<Vec2d> polygon,
+            Collection<RoadGenerationResult> approachResults,
+            ICoordinateService coordinateTransformer,
+            ToIntFunction<Vec2d> roadYAt) {
+        Set<BlockPos> cachedSampled = sampledAirFromContext(authoredContext, layerApproaches);
+        if (cachedSampled != null) {
+            return TunnelJunctionSeedResolver.assembleOpenVolumeFromSampledAir(
+                cachedSampled,
+                layerApproaches,
+                polygon,
+                approachResults,
+                coordinateTransformer);
+        }
+        return TunnelJunctionSeedResolver.collectOpenVolume(
+            layerApproaches,
+            polygon,
+            approachResults,
+            coordinateTransformer,
+            roadYAt);
+    }
+
+    static Set<BlockPos> sampledAirFromContext(
+            JunctionConstructionContext authoredContext,
+            List<TunnelJunctionSeedResolver.TunnelApproach> layerApproaches) {
+        if (authoredContext == null || !authoredContext.hasSampledApproachAirCache()) {
+            return null;
+        }
+        if (layerApproaches == null || layerApproaches.isEmpty()) {
+            return null;
+        }
+        List<String> edgeIds = new ArrayList<>(layerApproaches.size());
+        for (TunnelJunctionSeedResolver.TunnelApproach approach : layerApproaches) {
+            if (approach == null || approach.edge() == null || approach.edge().getId() == null) {
+                return null;
+            }
+            edgeIds.add(approach.edge().getId());
+        }
+        return authoredContext.sampledApproachAirForEdges(edgeIds);
     }
 
     private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {

@@ -448,6 +448,38 @@ class JunctionRegionBuilderTest {
             1e-4);
     }
 
+    @Test
+    void expandUnionWithStreetArcsFollowsRingOrientation() {
+        Vec2d junction = new Vec2d(0, 0);
+        JunctionRegionGeometry geo = JunctionRegionBuilder.build(
+            junction,
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(1, 0), 3.0),
+            new JunctionRegionBuilder.StraightRoad(new Vec2d(0, 1), 3.0),
+            4.0);
+        assertTrue(geo.hasPavement());
+        List<Vec2d> fill = geo.toJunctionGeometryResult().fillPolygon();
+        assertTrue(fill.size() >= 8, "filleted fill should sample arcs");
+        assertTrue(RoadJunctionGeometry.isSimplePolygon(fill),
+            "fillPolygon must stay simple after weaving street arcs");
+        // 街角外侧口袋应被圆角铺装覆盖（若弧回折会漏盖）
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(3.5, 3.5), fill),
+            "NE street-corner pocket must be paved by curb fillet");
+    }
+
+    @Test
+    void mildUnequalOppositeHalfWidthsStillBuildRegion() {
+        // 半宽差 0.5（相对均值约 15%）应仍走区域算法，不再因 1e-3 硬阈值退回旧路径。
+        List<JunctionCurbFilletBuilder.Approach> approaches = List.of(
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, 1), 2.5),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(-1, 0), 3.0),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, -1), 2.5));
+        JunctionRegionGeometry geo =
+            JunctionRegionBuilder.buildFromApproaches(new Vec2d(0, 0), approaches, 3.0);
+        assertTrue(geo.hasPavement(), "mild unequal opposite half-widths must keep region builder");
+        assertTrue(geo.overlapRegion().size() >= 3);
+    }
+
     private static double maxPairDistance(List<Vec2d> points) {
         double max = 0.0;
         for (int i = 0; i < points.size(); i++) {

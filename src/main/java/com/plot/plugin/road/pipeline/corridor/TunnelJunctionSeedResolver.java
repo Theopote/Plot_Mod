@@ -26,6 +26,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -370,16 +371,106 @@ public final class TunnelJunctionSeedResolver {
             Collection<RoadGenerationResult> edgeResults,
             ICoordinateService coordinateTransformer,
             java.util.function.ToIntFunction<Vec2d> roadYAt) {
+        return assembleOpenVolumeFromSampledAir(
+            collectSampledApproachAirVolume(
+                approaches, polygon, edgeResults, coordinateTransformer, roadYAt),
+            approaches,
+            polygon,
+            edgeResults,
+            coordinateTransformer);
+    }
+
+    /**
+     * 仅扫掠进口断面空气体素（不含衬砌）。结果可按边缓存，连通阶段再刷新衬砌。
+     */
+    public static Set<BlockPos> collectSampledApproachAirVolume(
+            List<TunnelApproach> approaches,
+            List<Vec2d> polygon,
+            Collection<RoadGenerationResult> edgeResults,
+            ICoordinateService coordinateTransformer,
+            java.util.function.ToIntFunction<Vec2d> roadYAt) {
         Set<BlockPos> sampledAir = new HashSet<>();
+        if (approaches == null || approaches.isEmpty()) {
+            return sampledAir;
+        }
         for (TunnelApproach approach : approaches) {
+            if (approach == null) {
+                continue;
+            }
             sampledAir.addAll(collectSampledApproachAir(
                 approach, polygon, coordinateTransformer, edgeResults, roadYAt));
         }
-        Set<BlockPos> dilatedAir = dilateBlockPositions(sampledAir);
-        Set<BlockPos> openVolume = new HashSet<>(sampledAir);
+        return sampledAir;
+    }
+
+    /**
+     * 按进口边分别扫掠空气体素，供路口上下文缓存；连通可按空间带子集拼合。
+     *
+     * @return edgeId → 该进口采样空气（不可变集合）
+     */
+    public static Map<String, Set<BlockPos>> collectSampledApproachAirByEdge(
+            List<TunnelApproach> approaches,
+            List<Vec2d> polygon,
+            Collection<RoadGenerationResult> edgeResults,
+            ICoordinateService coordinateTransformer,
+            java.util.function.ToIntFunction<Vec2d> roadYAt) {
+        Map<String, Set<BlockPos>> byEdge = new LinkedHashMap<>();
+        if (approaches == null || approaches.isEmpty()) {
+            return byEdge;
+        }
+        for (TunnelApproach approach : approaches) {
+            if (approach == null || approach.edge() == null || approach.edge().getId() == null) {
+                continue;
+            }
+            Set<BlockPos> air = collectSampledApproachAir(
+                approach, polygon, coordinateTransformer, edgeResults, roadYAt);
+            byEdge.put(approach.edge().getId(), Set.copyOf(air));
+        }
+        return byEdge;
+    }
+
+    /**
+     * 在已缓存的采样空气上刷新阻挡衬砌（壳层写入后必须重扫 placements）。
+     * {@code polygon} 用于衬砌过滤；若缓存来自更大多边形，会先按本多边形裁剪采样体素。
+     */
+    public static Set<BlockPos> assembleOpenVolumeFromSampledAir(
+            Set<BlockPos> sampledAir,
+            List<TunnelApproach> approaches,
+            List<Vec2d> polygon,
+            Collection<RoadGenerationResult> edgeResults,
+            ICoordinateService coordinateTransformer) {
+        Set<BlockPos> air = filterSampledAirByPolygon(sampledAir, polygon, coordinateTransformer);
+        if (air.isEmpty()) {
+            return air;
+        }
+        Set<BlockPos> dilatedAir = dilateBlockPositions(air);
+        Set<BlockPos> openVolume = new HashSet<>(air);
         openVolume.addAll(collectBlockingLining(
             approaches, polygon, edgeResults, dilatedAir, coordinateTransformer));
         return openVolume;
+    }
+
+    static Set<BlockPos> filterSampledAirByPolygon(
+            Set<BlockPos> sampledAir,
+            List<Vec2d> polygon,
+            ICoordinateService coordinateTransformer) {
+        if (sampledAir == null || sampledAir.isEmpty()) {
+            return Set.of();
+        }
+        if (polygon == null || polygon.size() < 3) {
+            return new HashSet<>(sampledAir);
+        }
+        Set<BlockPos> kept = new HashSet<>();
+        for (BlockPos pos : sampledAir) {
+            if (pos == null) {
+                continue;
+            }
+            Vec2d plan = blockToPlan(pos, coordinateTransformer);
+            if (RoadGeometryUtils.pointInPolygon(plan, polygon)) {
+                kept.add(pos);
+            }
+        }
+        return kept;
     }
 
     public static List<BlockPos> collectApproachEntrySeeds(

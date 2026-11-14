@@ -15,15 +15,9 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import net.minecraft.util.math.BlockPos;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,6 +59,17 @@ public final class JunctionConstructionContext {
     private final Integer tunnelClearHeight;
     private final Integer elevatedClearCap;
     private final List<String> diagnostics;
+    /** 进口 open-volume 投影列；供壳层复用，避免再跑 collectOpenVolume。 */
+    private final Set<ColumnKey> approachCavityColumns;
+    /** 候选列中 columnHasEnclosedCover==true；≠ {@link #protectedCavityColumns}。 */
+    private final Set<ColumnKey> enclosedColumns;
+    /** 候选列中最近中心线为隧道族；供壳层 finalCavity 判定。 */
+    private final Set<ColumnKey> tunnelFamilyColumns;
+    /**
+     * 进口扫掠空气体素（不含衬砌），按边 ID 索引。
+     * 连通阶段可按空间带子集拼合后再 {@code assembleOpenVolumeFromSampledAir} 刷新衬砌。
+     */
+    private final Map<String, Set<BlockPos>> sampledApproachAirByEdgeId;
 
     private JunctionConstructionContext(
             String nodeId,
@@ -79,6 +84,42 @@ public final class JunctionConstructionContext {
             Integer tunnelClearHeight,
             Integer elevatedClearCap,
             List<String> diagnostics) {
+        this(
+            nodeId,
+            footprint,
+            elevationField,
+            rulesByColumn,
+            protectedCavityColumns,
+            undergroundJunction,
+            tunnelEntryPlaza,
+            failClosed,
+            failClosedReason,
+            tunnelClearHeight,
+            elevatedClearCap,
+            diagnostics,
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            Map.of());
+    }
+
+    private JunctionConstructionContext(
+            String nodeId,
+            JunctionWorldFootprint footprint,
+            JunctionElevationField elevationField,
+            Map<ColumnKey, ColumnRule> rulesByColumn,
+            Set<ColumnKey> protectedCavityColumns,
+            boolean undergroundJunction,
+            boolean tunnelEntryPlaza,
+            boolean failClosed,
+            String failClosedReason,
+            Integer tunnelClearHeight,
+            Integer elevatedClearCap,
+            List<String> diagnostics,
+            Set<ColumnKey> approachCavityColumns,
+            Set<ColumnKey> enclosedColumns,
+            Set<ColumnKey> tunnelFamilyColumns,
+            Map<String, Set<BlockPos>> sampledApproachAirByEdgeId) {
         this.nodeId = nodeId != null ? nodeId : "";
         this.footprint = footprint != null ? footprint : JunctionWorldFootprint.empty();
         this.elevationField = elevationField != null
@@ -93,6 +134,29 @@ public final class JunctionConstructionContext {
         this.tunnelClearHeight = tunnelClearHeight;
         this.elevatedClearCap = elevatedClearCap;
         this.diagnostics = List.copyOf(diagnostics);
+        this.approachCavityColumns = Collections.unmodifiableSet(
+            new LinkedHashSet<>(approachCavityColumns != null ? approachCavityColumns : Set.of()));
+        this.enclosedColumns = Collections.unmodifiableSet(
+            new LinkedHashSet<>(enclosedColumns != null ? enclosedColumns : Set.of()));
+        this.tunnelFamilyColumns = Collections.unmodifiableSet(
+            new LinkedHashSet<>(tunnelFamilyColumns != null ? tunnelFamilyColumns : Set.of()));
+        this.sampledApproachAirByEdgeId = copySampledAirByEdge(sampledApproachAirByEdgeId);
+    }
+
+    private static Map<String, Set<BlockPos>> copySampledAirByEdge(
+            Map<String, Set<BlockPos>> sampledApproachAirByEdgeId) {
+        if (sampledApproachAirByEdgeId == null || sampledApproachAirByEdgeId.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Set<BlockPos>> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, Set<BlockPos>> entry : sampledApproachAirByEdgeId.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            Set<BlockPos> voxels = entry.getValue();
+            copy.put(entry.getKey(), voxels != null ? Set.copyOf(voxels) : Set.of());
+        }
+        return Collections.unmodifiableMap(copy);
     }
 
     public static JunctionConstructionContext openOnly(
@@ -146,6 +210,68 @@ public final class JunctionConstructionContext {
 
     public Set<ColumnKey> protectedCavityColumns() {
         return protectedCavityColumns;
+    }
+
+    /**
+     * 进口 open-volume 投影到世界列；空表示未缓存（开敞/立交）或洞腔为空。
+     * 壳层可据此跳过 {@code collectOpenVolume}。
+     */
+    public Set<ColumnKey> approachCavityColumns() {
+        return approachCavityColumns;
+    }
+
+    /**
+     * 候选列中覆土封闭的列。与 {@link #protectedCavityColumns()} 不同：不含仅圆角保护的浅覆列。
+     */
+    public Set<ColumnKey> enclosedColumns() {
+        return enclosedColumns;
+    }
+
+    /** 候选列中最近中心线属隧道族的列。 */
+    public Set<ColumnKey> tunnelFamilyColumns() {
+        return tunnelFamilyColumns;
+    }
+
+    /**
+     * 进口扫掠空气（不含衬砌），按边 ID。连通阶段按空间带拼合后刷新衬砌。
+     */
+    public Map<String, Set<BlockPos>> sampledApproachAirByEdgeId() {
+        return sampledApproachAirByEdgeId;
+    }
+
+    /**
+     * 是否有可供壳层复用的洞腔中间结果（进口扫掠 / 封闭列 / 隧道族列至少其一非空）。
+     */
+    public boolean hasShellCavityCache() {
+        return !approachCavityColumns.isEmpty()
+            || !enclosedColumns.isEmpty()
+            || !tunnelFamilyColumns.isEmpty();
+    }
+
+    /** 是否缓存了至少一条进口的采样空气，可供连通跳过扫掠。 */
+    public boolean hasSampledApproachAirCache() {
+        return !sampledApproachAirByEdgeId.isEmpty();
+    }
+
+    /**
+     * 拼合指定进口边的缓存采样空气；任一边缺失则返回 null（调用方应回退全量扫掠）。
+     */
+    public Set<BlockPos> sampledApproachAirForEdges(Collection<String> edgeIds) {
+        if (edgeIds == null || edgeIds.isEmpty() || sampledApproachAirByEdgeId.isEmpty()) {
+            return null;
+        }
+        Set<BlockPos> union = new HashSet<>();
+        for (String edgeId : edgeIds) {
+            if (edgeId == null) {
+                return null;
+            }
+            Set<BlockPos> air = sampledApproachAirByEdgeId.get(edgeId);
+            if (air == null) {
+                return null;
+            }
+            union.addAll(air);
+        }
+        return union;
     }
 
     public List<String> diagnostics() {
@@ -351,20 +477,31 @@ public final class JunctionConstructionContext {
         List<Vec2d> polygon = junctionPolygon != null && junctionPolygon.size() >= 3
             ? junctionPolygon
             : polygonFromFootprint(safeFootprint);
+        java.util.function.ToIntFunction<Vec2d> roadYAt = plan -> {
+            ColumnKey key = new ColumnKey(columns.worldX(plan), columns.worldZ(plan));
+            return field.surfaceY(key);
+        };
+        // 采样空气与衬砌拆分：空气按边缓存供连通复用；壳层 2D 洞腔仍用完整 open-volume。
+        Map<String, Set<BlockPos>> sampledAirByEdge =
+            TunnelJunctionSeedResolver.collectSampledApproachAirByEdge(
+                approaches, polygon, carriers, coordinateTransformer, roadYAt);
+        Set<BlockPos> sampledAir = new HashSet<>();
+        for (Set<BlockPos> air : sampledAirByEdge.values()) {
+            if (air != null) {
+                sampledAir.addAll(air);
+            }
+        }
         Set<ColumnKey> approachCavity = TunnelJunctionShellPass.cavityColumnsFromOpenVolume(
-            TunnelJunctionSeedResolver.collectOpenVolume(
-                approaches,
-                polygon,
-                carriers,
-                coordinateTransformer,
-                plan -> {
-                    ColumnKey key = new ColumnKey(columns.worldX(plan), columns.worldZ(plan));
-                    return field.surfaceY(key);
-                }));
+            TunnelJunctionSeedResolver.assembleOpenVolumeFromSampledAir(
+                sampledAir, approaches, polygon, carriers, coordinateTransformer));
         Set<ColumnKey> filletColumns = safeFootprint.filletAdditions();
         // 进口首段即为隧道族：真地下广场。开敞 stub（首段 ROAD、远端才隧道）为 false，
         // 允许清障外缘露天，避免「远处有洞」毒化开敞街角。
         boolean tunnelEntryPlaza = approachesHaveTunnelFamilyAtEntry(approaches, edgeResults);
+
+        Set<ColumnKey> enclosedColumns = new LinkedHashSet<>();
+        Set<ColumnKey> tunnelFamilyColumns = new LinkedHashSet<>();
+        Map<ColumnKey, Boolean> tunnelFamilyMemo = new HashMap<>();
 
         // 共享洞腔：进口 open-volume 扫掠到的封闭列一律保护（不要求最近中心线为隧道族）。
         // 圆角铺装/接缝始终保护；清障外缘仅在真隧道进口广场保护。
@@ -377,14 +514,21 @@ public final class JunctionConstructionContext {
             int surfaceY = sampleSurface(terrain, plan, column);
             boolean enclosed = TunnelJunctionShellPass.columnHasEnclosedCover(
                 terrain, plan, column, designY, resolvedClear, lining, tunnelThreshold);
+            if (enclosed) {
+                enclosedColumns.add(column);
+            }
             boolean inApproachCavity = approachCavity.contains(column);
-            boolean tunnelFamily = TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
-                plan, connected, edgeResults != null ? edgeResults : Map.of(), centerlines);
+            boolean tunnelFamily = tunnelFamilyMemo.computeIfAbsent(column, key ->
+                TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                    plan, connected, edgeResults != null ? edgeResults : Map.of(), centerlines));
+            if (tunnelFamily) {
+                tunnelFamilyColumns.add(column);
+            }
             JunctionWorldFootprint.ElevationRole elevRole = safeFootprint.elevationRole(column);
             boolean filletZone = isFilletProtectionZone(
                 elevRole, column, filletColumns, tunnelEntryPlaza);
 
-            Integer roofY = designY + resolvedClear;
+            int roofY = designY + resolvedClear;
             if (flatTunnelCavityCap != null) {
                 roofY = Math.min(roofY, flatTunnelCavityCap);
             }
@@ -440,7 +584,9 @@ public final class JunctionConstructionContext {
         return new JunctionConstructionContext(
             nodeId, safeFootprint, field, rules, protectedColumns,
             undergroundFinal, tunnelEntryPlaza, failClosed, failReason,
-            resolvedClear, elevatedClearCap, diagnostics);
+            resolvedClear, elevatedClearCap, diagnostics,
+            approachCavity, enclosedColumns, tunnelFamilyColumns,
+            sampledAirByEdge);
     }
 
     /**
@@ -554,7 +700,7 @@ public final class JunctionConstructionContext {
             ? Math.max(1.0, node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS))
             : RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
         double window = Math.max(plaza, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
-        int maxSteps = Math.min(size, Math.max(2, (int) Math.ceil(window / sample) + 1));
+        int maxSteps = Math.clamp((int) Math.ceil(window / sample) + 1, 2, size);
         for (int step = 0; step < maxSteps; step++) {
             int typeIndex = fromStart ? step : (size - 1 - step);
             com.plot.plugin.road.RoadConstructionType type =
@@ -611,10 +757,7 @@ public final class JunctionConstructionContext {
         if (terrain == null) {
             return 0;
         }
-        if (plan != null) {
-            return terrain.sampleSurfaceY(plan);
-        }
-        return terrain.sampleSurfaceY(new Vec2d(column.worldX() + 0.5, column.worldZ() + 0.5));
+        return terrain.sampleSurfaceY(Objects.requireNonNullElseGet(plan, () -> new Vec2d(column.worldX() + 0.5, column.worldZ() + 0.5)));
     }
 
     private static Vec2d planPoint(

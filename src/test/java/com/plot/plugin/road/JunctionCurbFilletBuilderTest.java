@@ -54,4 +54,40 @@ class JunctionCurbFilletBuilderTest {
         assertEquals(2.0, corner.x, 1e-6, "north road east curb at x=halfNorth");
         assertEquals(5.0, corner.y, 1e-6, "east road north curb at y=halfEast");
     }
+
+    @Test
+    void twoArmBuildRejected() {
+        JunctionGeometryResult result = JunctionCurbFilletBuilder.build(
+            new Vec2d(0, 0),
+            List.of(
+                new JunctionCurbFilletBuilder.Approach(new Vec2d(1, 0), 3.0, "E"),
+                new JunctionCurbFilletBuilder.Approach(new Vec2d(0, 1), 3.0, "N")),
+            6.0,
+            4.0);
+        assertFalse(result.hasFillPolygon(), "2-arm must not invent convex outer fillets");
+        assertTrue(result.fillets().isEmpty());
+    }
+
+    @Test
+    void filletOwnersMatchTangentSides() {
+        Vec2d center = new Vec2d(0, 0);
+        List<JunctionCurbFilletBuilder.Approach> approaches = List.of(
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(1, 0), 3.0, "E"),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, 1), 3.0, "N"),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(-1, 0), 3.0, "W"),
+            new JunctionCurbFilletBuilder.Approach(new Vec2d(0, -1), 3.0, "S"));
+        JunctionGeometryResult result = JunctionCurbFilletBuilder.build(center, approaches, 6.0, 4.0);
+        assertTrue(result.fillets().size() >= 4);
+        for (JunctionGeometryResult.FilletCorner fillet : result.fillets()) {
+            assertTrue(fillet.hasOwners(), "owners required");
+            String start = RoadJunctionGeometry.resolveCurbOwnerEdgeId(
+                fillet.tangentStart(), approaches, center);
+            String end = RoadJunctionGeometry.resolveCurbOwnerEdgeId(
+                fillet.tangentEnd(), approaches, center);
+            assertEquals(start, fillet.ownerStartEdgeId(),
+                "ownerStart must match tangentStart curb side");
+            assertEquals(end, fillet.ownerEndEdgeId(),
+                "ownerEnd must match tangentEnd curb side");
+        }
+    }
 }

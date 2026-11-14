@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 直线道路平交路口区域几何：重叠核区 + 铺装并集 + 凹角路缘圆角。
@@ -76,9 +78,6 @@ public final class JunctionRegionBuilder {
         double pavementExtent = Double.isFinite(extent) && extent > 0
             ? Math.max(fromOverlap, extent)
             : fromOverlap;
-        double computeExtent = Math.max(
-            pavementExtent,
-            pavementExtent + Math.max(0.0, requested) + 1.0);
 
         List<Vec2d> stripA = buildStripRectangle(center, roadA, pavementExtent);
         List<Vec2d> stripB = buildStripRectangle(center, roadB, pavementExtent);
@@ -342,9 +341,6 @@ public final class JunctionRegionBuilder {
         double pavementExtent = Double.isFinite(extent) && extent > 0
             ? Math.max(fromOverlap, extent)
             : fromOverlap;
-        double computeExtent = Math.max(
-            pavementExtent,
-            pavementExtent + Math.max(0.0, requested) + 1.0);
         double backIntoThrough = through.halfWidth() / absSin;
 
         List<Vec2d> throughStrip = buildStripRectangle(center, through, pavementExtent);
@@ -592,10 +588,15 @@ public final class JunctionRegionBuilder {
         if (a.outward().dot(b.outward()) > -0.85) {
             return null;
         }
-        if (Math.abs(a.halfWidth() - b.halfWidth()) > 1e-3) {
+        // 允许轻度不等宽（变宽/渠化进口）；过大则交由条带算法处理。
+        double meanHalf = 0.5 * (a.halfWidth() + b.halfWidth());
+        if (meanHalf <= 1e-9) {
             return null;
         }
-        return new StraightRoad(a.outward(), 0.5 * (a.halfWidth() + b.halfWidth()));
+        if (Math.abs(a.halfWidth() - b.halfWidth()) > Math.max(1.0, 0.35 * meanHalf)) {
+            return null;
+        }
+        return new StraightRoad(a.outward(), meanHalf);
     }
 
     private record FilletPass(
@@ -679,21 +680,20 @@ public final class JunctionRegionBuilder {
             // 仅当种子相对指定外侧路缘明显内偏（变宽）或外偏（收窄）时精修
             if (cornerBands != null && seedNeedsOuterCurbSnap(seed, cornerBands)) {
                 snapped = snapFilletOntoOuterCurbs(center, seed, cornerBands);
-                if (snapped != null) {
-                    Vec2d bandSharp = outerCurbIntersection(cornerBands, overlapSharp);
-                    if (bandSharp != null) {
-                        sharp = bandSharp;
-                    }
-                }
             }
             double moveTol = Math.max(1.0, 0.2 * seed.radius());
             boolean moved = snapped != null && filletTangentsMoved(seed, snapped, moveTol);
+            // moved==false 时不得采纳 bandSharp：旧弧与新锐角会脱节。
             CornerFillet use = moved ? snapped : seedAsFillet(seed);
             if (use == null) {
                 continue;
             }
             if (moved) {
                 anySnap = true;
+                Vec2d bandSharp = outerCurbIntersection(cornerBands, overlapSharp);
+                if (bandSharp != null) {
+                    sharp = bandSharp;
+                }
             }
             if (sharp == null) {
                 sharp = seed.sharpCorner() != null ? seed.sharpCorner() : reconstructSharpFromFillet(use);
@@ -922,7 +922,7 @@ public final class JunctionRegionBuilder {
 
     /**
      * 种子切点是否已落在该街角两条指定外侧路缘上；任一偏离超过半宽比例容差则需精修。
-     * 只量到外侧路缘的距离，避免邻臂条带重叠造成的内外误判。
+     * 按切点各自对应路缘（direct / swap 较优配对）分别判断，避免贴错邻缘却被判“已对齐”。
      */
     private static boolean seedNeedsOuterCurbSnap(
             JunctionRegionGeometry.CurbArc seed,
@@ -934,35 +934,26 @@ public final class JunctionRegionBuilder {
         double tol = Math.max(
             1.0,
             0.25 * Math.max(bands.approachA().halfWidth(), bands.approachB().halfWidth()));
-        return tangentOffDesignatedOuterCurb(seed.tangentStart(), bands, tol)
-            || tangentOffDesignatedOuterCurb(seed.tangentEnd(), bands, tol);
-    }
-
-    private static boolean tangentOffDesignatedOuterCurb(
-            Vec2d tangent,
-            StreetCornerBands bands,
-            double tol) {
-        if (tangent == null) {
-            return false;
+        BoundaryHit directA = closestHitOnPolyline(seed.tangentStart(), bands.outerCurbA(), 0);
+        BoundaryHit directB = closestHitOnPolyline(seed.tangentEnd(), bands.outerCurbB(), 1);
+        BoundaryHit swapA = closestHitOnPolyline(seed.tangentStart(), bands.outerCurbB(), 1);
+        BoundaryHit swapB = closestHitOnPolyline(seed.tangentEnd(), bands.outerCurbA(), 0);
+        double directCost = hitPairCost(seed.tangentStart(), seed.tangentEnd(), directA, directB);
+        double swapCost = hitPairCost(seed.tangentStart(), seed.tangentEnd(), swapA, swapB);
+        boolean useDirect = directCost <= swapCost;
+        BoundaryHit hitStart = useDirect ? directA : swapA;
+        BoundaryHit hitEnd = useDirect ? directB : swapB;
+        if (hitStart == null || hitEnd == null) {
+            return true;
         }
-        double toOuter = distanceToNearestOuterCurb(tangent, bands);
-        if (toOuter <= tol) {
-            return false;
-        }
-        // 提取外侧路缘失败/不全时，种子仍可能贴在完整条带边界上——此时不精修
-        double toBand = Math.min(
-            distanceToPolygonBoundary(tangent, bands.bandA()),
-            distanceToPolygonBoundary(tangent, bands.bandB()));
-        return toBand > tol;
-    }
-
-    private static double distanceToNearestOuterCurb(Vec2d point, StreetCornerBands bands) {
-        if (point == null || bands == null) {
-            return Double.POSITIVE_INFINITY;
-        }
-        return Math.min(
-            distanceToPolyline(point, bands.outerCurbA()),
-            distanceToPolyline(point, bands.outerCurbB()));
+        // 用配对后的指定外侧路缘分别判定，勿对两条路缘取 min。
+        double toStart = useDirect
+            ? distanceToPolyline(seed.tangentStart(), bands.outerCurbA())
+            : distanceToPolyline(seed.tangentStart(), bands.outerCurbB());
+        double toEnd = useDirect
+            ? distanceToPolyline(seed.tangentEnd(), bands.outerCurbB())
+            : distanceToPolyline(seed.tangentEnd(), bands.outerCurbA());
+        return toStart > tol || toEnd > tol;
     }
 
     /**
@@ -998,7 +989,29 @@ public final class JunctionRegionBuilder {
         if (outA == null || outB == null) {
             return null;
         }
+        // 按新切点几何夹紧半径：R ≤ setback·tan(φ/2)，避免变宽进口超出后退预算。
+        double normalCos = Math.clamp(outA.dot(outB), -1.0, 1.0);
+        double grassAngle = Math.PI - Math.acos(normalCos);
+        if (grassAngle < MIN_CORNER_ANGLE || grassAngle > MAX_CORNER_ANGLE) {
+            grassAngle = seed.cornerAngle() > 0.0 ? seed.cornerAngle() : Math.PI * 0.5;
+        }
+        double halfPhi = 0.5 * grassAngle;
+        double tanHalf = Math.tan(halfPhi);
+        Vec2d curbSharp = outerCurbIntersection(bands, seed.center());
+        double setbackA = curbSharp != null
+            ? hitA.point().distance(curbSharp)
+            : hitA.point().distance(center);
+        double setbackB = curbSharp != null
+            ? hitB.point().distance(curbSharp)
+            : hitB.point().distance(center);
+        double setbackBudget = Math.max(1e-6, Math.min(setbackA, setbackB));
         double radius = seed.radius();
+        if (tanHalf > 1e-6) {
+            radius = Math.min(radius, setbackBudget * tanHalf);
+        }
+        if (radius < MIN_RADIUS) {
+            return null;
+        }
         Vec2d offsetA = hitA.point().add(outA.multiply(radius));
         Vec2d offsetB = hitB.point().add(outB.multiply(radius));
         Vec2d filletCenter = lineIntersection(offsetA, hitA.tangent(), offsetB, hitB.tangent());
@@ -1029,11 +1042,6 @@ public final class JunctionRegionBuilder {
         if (distanceToPolyline(tangentB, bands.outerCurbA()) > 0.85
                 && distanceToPolyline(tangentB, bands.outerCurbB()) > 0.85) {
             return null;
-        }
-        double normalCos = Math.clamp(outA.dot(outB), -1.0, 1.0);
-        double grassAngle = Math.PI - Math.acos(normalCos);
-        if (grassAngle < MIN_CORNER_ANGLE || grassAngle > MAX_CORNER_ANGLE) {
-            grassAngle = seed.cornerAngle() > 0.0 ? seed.cornerAngle() : Math.PI * 0.5;
         }
         double sweep = FilletArcSweep.resolveShort(filletCenter, tangentA, tangentB);
         return new CornerFillet(
@@ -1253,6 +1261,7 @@ public final class JunctionRegionBuilder {
             }
         }
         List<Vec2d> out = new ArrayList<>();
+        Set<JunctionRegionGeometry.CurbArc> usedArcs = new HashSet<>();
         for (int i = 0; i < n; i++) {
             Vec2d curr = union.get(i);
             if (!isNearAny(curr, overlapCorners, matchTol)) {
@@ -1262,7 +1271,8 @@ public final class JunctionRegionBuilder {
             JunctionRegionGeometry.CurbArc best = null;
             double bestDist = Double.POSITIVE_INFINITY;
             for (JunctionRegionGeometry.CurbArc arc : arcs) {
-                if (arc == null || arc.radius() < MIN_RADIUS || arc.center() == null) {
+                if (arc == null || arc.radius() < MIN_RADIUS || arc.center() == null
+                        || usedArcs.contains(arc)) {
                     continue;
                 }
                 double d = curr.distance(arc.center());
@@ -1275,15 +1285,59 @@ public final class JunctionRegionBuilder {
                 out.add(curr);
                 continue;
             }
+            usedArcs.add(best);
+            // 环走向：上一顶点更接近哪个切点，决定弧采样方向，避免 CCW 环上半数角回折。
+            Vec2d prev = out.isEmpty() ? union.get((i - 1 + n) % n) : out.getLast();
+            boolean reverse = shouldReverseArcForRing(prev, best);
+            Vec2d arcStart = reverse ? best.tangentEnd() : best.tangentStart();
+            Vec2d arcEnd = reverse ? best.tangentStart() : best.tangentEnd();
+            double sweep = FilletArcSweep.resolveShort(best.center(), arcStart, arcEnd);
             CornerFillet fillet = new CornerFillet(
-                best.center(), best.tangentStart(), best.tangentEnd(),
+                best.center(), arcStart, arcEnd,
                 best.radius(), best.cornerAngle(),
                 best.shrinkReason() != null ? best.shrinkReason() : "",
-                best.sweepRadians());
-            appendArc(out, fillet, Math.max(3, arcSegments));
+                sweep);
+            appendArcFollowingRing(out, prev, fillet, Math.max(3, arcSegments));
         }
         List<Vec2d> ring = dedupe(out);
         return ring.size() >= 3 ? ring : union;
+    }
+
+    /** 上一顶点更靠近 tangentEnd 时，应按 End→Start 插入弧以跟随环走向。 */
+    private static boolean shouldReverseArcForRing(Vec2d prev, JunctionRegionGeometry.CurbArc arc) {
+        if (prev == null || arc == null
+                || arc.tangentStart() == null || arc.tangentEnd() == null) {
+            return false;
+        }
+        return prev.distance(arc.tangentEnd()) + 1e-9 < prev.distance(arc.tangentStart());
+    }
+
+    /**
+     * 沿环追加弧：若上一顶点已是弧起点则跳过首点；否则整段写入，避免漏掉入口切点。
+     */
+    private static void appendArcFollowingRing(
+            List<Vec2d> out,
+            Vec2d prev,
+            CornerFillet fillet,
+            int segments) {
+        FilletArcSweep.ListSamples samples = FilletArcSweep.sample(
+            fillet.center(),
+            fillet.tangentStart(),
+            fillet.tangentEnd(),
+            fillet.radius(),
+            fillet.sweepRadians(),
+            segments);
+        List<Vec2d> points = samples.points();
+        if (points.isEmpty()) {
+            return;
+        }
+        int start = 0;
+        if (prev != null && prev.distance(points.getFirst()) <= 1e-6) {
+            start = 1;
+        }
+        for (int i = start; i < points.size(); i++) {
+            out.add(points.get(i));
+        }
     }
 
     private static boolean isNearAny(Vec2d point, List<Vec2d> candidates, double tol) {

@@ -205,54 +205,69 @@ public final class TunnelJunctionShellPass {
 
             // 候选洞腔列：铺装责任区 + 侧向净距；不再用 clearance 外扩格做开挖底盘。
             Set<ColumnKey> candidateColumns = expandPaveBySideClearance(footprint.paveColumns(), sideClearance);
-            Set<ColumnKey> enclosedColumns = new LinkedHashSet<>();
             Map<ColumnKey, Integer> roadYByColumn = new HashMap<>();
             for (ColumnKey column : candidateColumns) {
-                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                int roadY = roadYAt.applyAsInt(column);
-                roadYByColumn.put(column, roadY);
-                // 开敞进口列与道路一致：不封顶。隧道进口列才按覆土封闭。
-                if (!TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
-                        plan, connected, edgeResults, centerlines)) {
-                    continue;
-                }
-                if (columnHasEnclosedCover(
-                        terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
-                    enclosedColumns.add(column);
-                }
+                roadYByColumn.put(column, roadYAt.applyAsInt(column));
             }
-            // 同层：进口隧道洞腔 ∪ 圆角封闭列 → 最终洞腔；墙只出在并集外缘，避免连接处残留分隔柱。
-            // 进口 open-volume 扫掠到的封闭列一律并入（不要求最近中心线为隧道族），
-            // 避免圆角更靠近开敞进口时漏保护而被广场露天挖穿。
-            // 复用上方已算好的 geometry，避免 resolveJunctionPolygon 再跑一遍几何。
-            List<Vec2d> polygon = geometry.fillPolygon().size() >= 3
-                ? geometry.fillPolygon()
-                : geometry.sharpPolygon();
-            Set<ColumnKey> approachCavityColumns = cavityColumnsFromOpenVolume(
-                TunnelJunctionSeedResolver.collectOpenVolume(
-                    approaches,
-                    polygon,
-                    carriers,
-                    coordinateTransformer,
-                    plan -> {
-                        ColumnKey key = new ColumnKey(
-                            columns.worldX(plan), columns.worldZ(plan));
-                        return roadYAt.applyAsInt(key);
-                    }));
-            Set<ColumnKey> finalCavityColumns = new LinkedHashSet<>(enclosedColumns);
-            for (ColumnKey column : approachCavityColumns) {
-                if (column == null || !candidateColumns.contains(column)) {
-                    continue;
+
+            Set<ColumnKey> finalCavityColumns;
+            JunctionConstructionContext authoredContext =
+                authoredJunction != null ? authoredJunction.constructionContext() : null;
+            if (authoredContext != null && authoredContext.hasShellCavityCache()) {
+                // 复用路口生成阶段已算好的 enclosed / approachCavity / tunnelFamily，
+                // 跳过壳层再跑一遍 collectOpenVolume + 逐列封闭判定。
+                finalCavityColumns = resolveFinalCavityFromCache(
+                    candidateColumns,
+                    authoredContext.enclosedColumns(),
+                    authoredContext.approachCavityColumns(),
+                    authoredContext.tunnelFamilyColumns());
+            } else {
+                Set<ColumnKey> enclosedColumns = new LinkedHashSet<>();
+                for (ColumnKey column : candidateColumns) {
+                    Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                    int roadY = roadYByColumn.getOrDefault(column, roadYAt.applyAsInt(column));
+                    // 开敞进口列与道路一致：不封顶。隧道进口列才按覆土封闭。
+                    if (!TunnelJunctionSeedResolver.isTunnelFamilyAtPlan(
+                            plan, connected, edgeResults, centerlines)) {
+                        continue;
+                    }
+                    if (columnHasEnclosedCover(
+                            terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
+                        enclosedColumns.add(column);
+                    }
                 }
-                // 进口洞腔扫掠可能覆盖浅覆土/洞口列；只有仍封闭覆土的列才并入最终洞腔，
-                // 避免浅覆广场被走廊 open-volume 误开挖或封顶。
-                int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
-                Vec2d plan = planPoint(footprint, column, coordinateTransformer);
-                if (!columnHasEnclosedCover(
-                        terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
-                    continue;
+                // 同层：进口隧道洞腔 ∪ 圆角封闭列 → 最终洞腔；墙只出在并集外缘，避免连接处残留分隔柱。
+                // 进口 open-volume 扫掠到的封闭列一律并入（不要求最近中心线为隧道族），
+                // 避免圆角更靠近开敞进口时漏保护而被广场露天挖穿。
+                List<Vec2d> polygon = geometry.fillPolygon().size() >= 3
+                    ? geometry.fillPolygon()
+                    : geometry.sharpPolygon();
+                Set<ColumnKey> approachCavityColumns = cavityColumnsFromOpenVolume(
+                    TunnelJunctionSeedResolver.collectOpenVolume(
+                        approaches,
+                        polygon,
+                        carriers,
+                        coordinateTransformer,
+                        plan -> {
+                            ColumnKey key = new ColumnKey(
+                                columns.worldX(plan), columns.worldZ(plan));
+                            return roadYAt.applyAsInt(key);
+                        }));
+                finalCavityColumns = new LinkedHashSet<>(enclosedColumns);
+                for (ColumnKey column : approachCavityColumns) {
+                    if (column == null || !candidateColumns.contains(column)) {
+                        continue;
+                    }
+                    // 进口洞腔扫掠可能覆盖浅覆土/洞口列；只有仍封闭覆土的列才并入最终洞腔，
+                    // 避免浅覆广场被走廊 open-volume 误开挖或封顶。
+                    int roadY = roadYByColumn.computeIfAbsent(column, roadYAt::applyAsInt);
+                    Vec2d plan = planPoint(footprint, column, coordinateTransformer);
+                    if (!columnHasEnclosedCover(
+                            terrain, plan, column, roadY, clearHeight, liningThickness, tunnelThreshold)) {
+                        continue;
+                    }
+                    finalCavityColumns.add(column);
                 }
-                finalCavityColumns.add(column);
             }
             if (finalCavityColumns.isEmpty()) {
                 continue;
@@ -517,6 +532,34 @@ public final class TunnelJunctionShellPass {
             }
         }
         return expanded;
+    }
+
+    /**
+     * 由路口生成缓存拼壳层最终洞腔：
+     * {@code expand(pave)×enclosed×(tunnelFamily∨approachCavity)}。
+     * 不得直接用 {@link JunctionConstructionContext#protectedCavityColumns()}。
+     */
+    static Set<ColumnKey> resolveFinalCavityFromCache(
+            Set<ColumnKey> candidateColumns,
+            Set<ColumnKey> enclosedColumns,
+            Set<ColumnKey> approachCavityColumns,
+            Set<ColumnKey> tunnelFamilyColumns) {
+        Set<ColumnKey> finalCavity = new LinkedHashSet<>();
+        if (candidateColumns == null || candidateColumns.isEmpty()) {
+            return finalCavity;
+        }
+        Set<ColumnKey> enclosed = enclosedColumns != null ? enclosedColumns : Set.of();
+        Set<ColumnKey> approach = approachCavityColumns != null ? approachCavityColumns : Set.of();
+        Set<ColumnKey> family = tunnelFamilyColumns != null ? tunnelFamilyColumns : Set.of();
+        for (ColumnKey column : candidateColumns) {
+            if (column == null || !enclosed.contains(column)) {
+                continue;
+            }
+            if (family.contains(column) || approach.contains(column)) {
+                finalCavity.add(column);
+            }
+        }
+        return finalCavity;
     }
 
     static JunctionWorldFootprint resolveShellFootprint(

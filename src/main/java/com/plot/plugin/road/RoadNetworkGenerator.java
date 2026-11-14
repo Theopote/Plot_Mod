@@ -936,27 +936,6 @@ public class RoadNetworkGenerator {
         return true;
     }
 
-    private void applyPostMergeJunctionValidation(
-            RoadNetwork profileNetwork,
-            NetworkGenerationResult networkResult,
-            RoadGenerationResult aggregate,
-            TerrainSampler terrain) {
-        if (profileNetwork == null || networkResult == null || aggregate == null) {
-            return;
-        }
-        PlacementRecordColumnIndex index = PlacementRecordColumnIndex.build(aggregate);
-        Set<String> skipped = networkResult.getSkippedJunctionIds();
-        for (RoadNode node : profileNetwork.getNodes().values()) {
-            if (node.getDegree() < 3) {
-                continue;
-            }
-            if (skipped.contains(node.getId())) {
-                continue;
-            }
-            validateOneJunctionPostMerge(node, networkResult, aggregate, index, terrain);
-        }
-    }
-
     private void validateOneJunctionPostMerge(
             RoadNode node,
             NetworkGenerationResult networkResult,

@@ -37,14 +37,6 @@ public final class JunctionTerrainClearance {
     }
 
     /**
-     * Highest solid leftover Y in each world column from already-built edge results.
-     * Air placements are ignored.
-     */
-    public static Map<ColumnKey, Integer> leftoverTopByColumn(Map<String, RoadGenerationResult> edgeResults) {
-        return leftoverTopByColumn(edgeResults, null);
-    }
-
-    /**
      * @param edgeIds 非空时只扫描这些边（路口仅需相连进口），避免大型路网按全网放置记录扫一遍。
      */
     public static Map<ColumnKey, Integer> leftoverTopByColumn(

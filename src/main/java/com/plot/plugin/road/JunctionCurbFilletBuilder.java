@@ -57,11 +57,12 @@ public final class JunctionCurbFilletBuilder {
             double junctionRadius,
             double cornerRadius,
             int arcSegments) {
-        if (center == null || approaches == null || approaches.size() < 2) {
+        // ≥3 臂：2 臂会在背向外侧生成凸角圆角并漏掉真实凹口。
+        if (center == null || approaches == null || approaches.size() < 3) {
             return JunctionGeometryResult.empty();
         }
         List<Approach> sorted = sortApproaches(approaches);
-        if (sorted.size() < 2) {
+        if (sorted.size() < 3) {
             return JunctionGeometryResult.empty();
         }
         double plaza = Math.max(junctionRadius, maxHalfWidth(sorted) + 1.0);
@@ -95,8 +96,9 @@ public final class JunctionCurbFilletBuilder {
             if (fillet == null) {
                 continue;
             }
-            Approach start = sorted.get(i);
-            Approach end = sorted.get((i + 1) % count);
+            // computeFillet(a,b) 产出 tangentStart∈b、tangentEnd∈a；owner 必须与切点同侧。
+            Approach approachA = sorted.get(i);
+            Approach approachB = sorted.get((i + 1) % count);
             meta.add(new JunctionGeometryResult.FilletCorner(
                 fillet.center(),
                 fillet.tangentStart(),
@@ -105,8 +107,8 @@ public final class JunctionCurbFilletBuilder {
                 fillet.cornerAngle(),
                 fillet.sweepRadians(),
                 null,
-                start.edgeId(),
-                end.edgeId()));
+                approachB.edgeId(),
+                approachA.edgeId()));
         }
         double effective = meta.isEmpty() ? 0.0 : minEffective;
         return new JunctionGeometryResult(fill, sharp, boundaries, requested, effective, meta);
