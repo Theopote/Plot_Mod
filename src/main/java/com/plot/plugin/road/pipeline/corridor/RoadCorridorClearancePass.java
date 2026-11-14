@@ -365,8 +365,10 @@ public final class RoadCorridorClearancePass {
         if (columnMode != TunnelColumnConstruction.Mode.ENCLOSED) {
             // 浅覆土隧道：禁止改露天清到地表（路口壳仍期望保留覆土）。
             // 仅摘装饰；实体开挖交给洞口 PORTAL 分支或明确露天路堑。
+            int belowSurface = terrain.sampleSurfaceY(cell.planPoint()) - 1;
+            int decorationCap = deckCap != null ? Math.min(deckCap, belowSurface) : belowSurface;
             return clearDecorationsAbove(
-                solids, cell, key, terrain, designY, designY, deckCap, gradeSeparation);
+                solids, cell, key, terrain, designY, designY, decorationCap, gradeSeparation);
         }
         // 先写衬砌壳：沙子/沙砾衬砌格若只掏洞腔不换衬，下方变空气后会整柱塌到路面。
         // 走廊栅格比中心线断面更密，这里补壳才能避免「一段有衬砌、一段裸岩/落沙」。
