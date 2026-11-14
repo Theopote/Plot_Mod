@@ -369,12 +369,6 @@ public final class PowerLineStyleCardRenderer {
         ImGui.dummy(panelW, LARGE_PREVIEW_PANEL_HEIGHT);
     }
 
-    /** @deprecated 使用 {@link #renderLargeSelectedPreview(PowerLineFootprint, PowerLineStylePreset, PoleDesignResolver)} */
-    @Deprecated
-    public static void renderLargeSelectedPreview(PowerLineStylePreset preset) {
-        renderLargeSelectedPreview(null, preset, null);
-    }
-
     private static void drawPackPreview(
             ImDrawList drawList,
             PowerLineStylePreset pack,

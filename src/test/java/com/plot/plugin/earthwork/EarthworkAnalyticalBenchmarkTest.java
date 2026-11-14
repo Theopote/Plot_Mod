@@ -174,7 +174,7 @@ class EarthworkAnalyticalBenchmarkTest {
   void overlappingZonesResolveByPriority() {
     EarthworkSite site = new EarthworkSite();
     site.setSiteBoundary(rectangleOutline(0, 9, 0, 9));
-    site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+    site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
 
     GradingZone low = new GradingZone("low", rectangleOutline(0, 9, 0, 9));
     low.setPriority(50);

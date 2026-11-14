@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class MaterialConversionModelTest {
 
     @Test
-    void legacyFillFactorMigrationPreservesEffectiveRatio() {
-        MaterialConversionModel migrated = MaterialConversionModel.fromLegacyFillFactor(1.1f);
+    void fillFactorConversionPreservesEffectiveRatio() {
+        MaterialConversionModel migrated = MaterialConversionModel.fromFillFactor(1.1f);
         assertEquals(1.0f, migrated.reusableRatio(), 1e-6f);
         assertEquals(1.0f / 1.1f, migrated.cutToCompactedFillRatio(), 1e-4f);
     }

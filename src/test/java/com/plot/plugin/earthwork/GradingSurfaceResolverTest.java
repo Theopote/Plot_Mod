@@ -153,7 +153,7 @@ class GradingSurfaceResolverTest {
             new GradingSurfaceResolver.HeightSample(0, 5, 65),
             new GradingSurfaceResolver.HeightSample(5, 5, 65));
         GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(
-            base, samples, MaterialConversionModel.fromLegacyFillFactor(1.1f));
+            base, samples, MaterialConversionModel.fromFillFactor(1.1f));
         assertEquals(65, balanced.evaluateAt(0, 0));
     }
 

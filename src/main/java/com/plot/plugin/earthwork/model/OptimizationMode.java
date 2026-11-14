@@ -20,10 +20,8 @@ public enum OptimizationMode {
         }
         return switch (id.trim().toUpperCase()) {
             case "NONE" -> NONE;
-            case "UNIFORM_VERTICAL_SHIFT", "UNIFORM_OFFSET" -> UNIFORM_VERTICAL_SHIFT;
-            case "CONSTRAINED_ZONE_OPTIMIZATION",
-                 "EARTHWORK_OPTIMIZATION",
-                 "ZONE_ALLOCATION" -> CONSTRAINED_ZONE_OPTIMIZATION;
+            case "UNIFORM_VERTICAL_SHIFT" -> UNIFORM_VERTICAL_SHIFT;
+            case "CONSTRAINED_ZONE_OPTIMIZATION" -> CONSTRAINED_ZONE_OPTIMIZATION;
             default -> NONE;
         };
     }

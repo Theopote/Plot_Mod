@@ -50,7 +50,7 @@ public final class EarthworkVolumeCalculator {
                 continue;
             }
             int designTarget = plane.evaluateAt(column.worldX(), column.worldZ());
-            int targetElevation = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+            int targetElevation = ZoneBoundarySlopeApplicator.resolveTargetY(
                 column.center(),
                 column.groundY(),
                 designTarget,

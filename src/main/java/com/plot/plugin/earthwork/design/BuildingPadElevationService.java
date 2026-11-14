@@ -35,63 +35,6 @@ public final class BuildingPadElevationService {
     public record PadMatch(EarthworkSite site, GradingZone zone) {
     }
 
-    /** @deprecated use {@link BuildingPadElevationMode} */
-    @Deprecated
-    public enum PadElevationMode {
-        NONE,
-        BUILDING_LINKED,
-        EARTHWORK_OWNED;
-
-        BuildingPadElevationMode toApi() {
-            return switch (this) {
-                case NONE -> BuildingPadElevationMode.NONE;
-                case BUILDING_LINKED -> BuildingPadElevationMode.BUILDING_LINKED;
-                case EARTHWORK_OWNED -> BuildingPadElevationMode.EARTHWORK_OWNED;
-            };
-        }
-
-        static PadElevationMode fromApi(BuildingPadElevationMode mode) {
-            return switch (mode) {
-                case NONE -> NONE;
-                case BUILDING_LINKED -> BUILDING_LINKED;
-                case EARTHWORK_OWNED -> EARTHWORK_OWNED;
-            };
-        }
-    }
-
-    /** @deprecated use {@link BuildingPadElevationStatus} */
-    @Deprecated
-    public record PadElevationStatus(
-            PadElevationMode mode,
-            String zoneName,
-            String siteName,
-            Integer resolvedElevation) {
-
-        public static PadElevationStatus none() {
-            return fromApi(BuildingPadElevationStatus.none());
-        }
-
-        public static PadElevationStatus fromApi(BuildingPadElevationStatus status) {
-            return new PadElevationStatus(
-                PadElevationMode.fromApi(status.mode()),
-                status.zoneName(),
-                status.siteName(),
-                status.resolvedElevation());
-        }
-
-        public BuildingPadElevationStatus toApi() {
-            return new BuildingPadElevationStatus(
-                mode.toApi(),
-                zoneName,
-                siteName,
-                resolvedElevation);
-        }
-
-        public boolean isLinked() {
-            return mode != PadElevationMode.NONE;
-        }
-    }
-
     public static BuildingPadElevationStatus describePadLink(
             EarthworkProject project,
             String buildingId,

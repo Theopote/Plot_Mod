@@ -19,9 +19,9 @@ public enum BalanceScope {
             return SITE;
         }
         return switch (id.trim().toUpperCase()) {
-            case "ZONE", "PER_ZONE" -> ZONE;
+            case "ZONE" -> ZONE;
             case "PROJECT" -> PROJECT;
-            case "SITE", "SITE_WIDE" -> SITE;
+            case "SITE" -> SITE;
             default -> SITE;
         };
     }

@@ -137,14 +137,6 @@ public class BuildingProject {
         }
     }
 
-    static class DoorData {
-        int wallSegmentIndex;
-        double positionRatio;
-        int floor;
-        int width;
-        int height;
-    }
-
     static class FloorPlateData {
         int floorStart;
         int floorEnd;
@@ -197,7 +189,6 @@ public class BuildingProject {
         int windowSillHeight;
         Integer windowBalconyDepth;
         String balconySlabMaterial;
-        List<DoorData> doors = new ArrayList<>();
         List<FloorPlateData> floorPlates = new ArrayList<>();
         List<WallFacadeData> wallFacades = new ArrayList<>();
         List<OpeningData> openings = new ArrayList<>();
@@ -295,15 +286,6 @@ public class BuildingProject {
                     openingData.height = opening.height();
                     openingData.bottomOffset = opening.bottomOffset();
                     buildingData.openings.add(openingData);
-                    if (opening.kind() == OpeningKind.DOOR) {
-                        DoorData doorData = new DoorData();
-                        doorData.wallSegmentIndex = opening.wallSegmentIndex();
-                        doorData.positionRatio = opening.positionRatio();
-                        doorData.floor = opening.floor();
-                        doorData.width = opening.width();
-                        doorData.height = opening.height();
-                        buildingData.doors.add(doorData);
-                    }
                 }
                 buildingData.parapetEnabled = building.isParapetEnabled();
                 if (building.isParapetEnabled()) {
@@ -428,19 +410,6 @@ public class BuildingProject {
                             openingData.width,
                             openingData.height,
                             openingData.bottomOffset
-                        ));
-                    }
-                    footprint.setOpenings(openings);
-                } else if (buildingData.doors != null && !buildingData.doors.isEmpty()) {
-                    // legacy JSON: doors[] → OpeningSpec.DOOR
-                    List<OpeningSpec> openings = new ArrayList<>();
-                    for (DoorData doorData : buildingData.doors) {
-                        openings.add(OpeningSpec.door(
-                            doorData.wallSegmentIndex,
-                            doorData.positionRatio,
-                            doorData.floor,
-                            doorData.width,
-                            doorData.height
                         ));
                     }
                     footprint.setOpenings(openings);

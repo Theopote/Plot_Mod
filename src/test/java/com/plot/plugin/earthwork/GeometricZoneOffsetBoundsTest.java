@@ -63,9 +63,9 @@ class GeometricZoneOffsetBoundsTest {
     void siteOptimizationProducesNonEmptyDirectionalZoneOffsets() {
         EarthworkSite site = adjacentCutFill(50, 80);
         enableFlexible(site, VerticalAdjustmentPolicy.UNBOUNDED_RANGE);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(
-            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(
+            CompositionPolicy.OPTIMIZATION_MODE_CONSTRAINED_ZONE);
 
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
             site, cutFillTerrain(), com.plot.test.world.IdentityCoordinateService.INSTANCE);
@@ -111,9 +111,9 @@ class GeometricZoneOffsetBoundsTest {
 
         site.addZone(pad);
         site.addZone(flexible);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(
-            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(
+            CompositionPolicy.OPTIMIZATION_MODE_CONSTRAINED_ZONE);
 
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
             site, cutFillTerrain(), com.plot.test.world.IdentityCoordinateService.INSTANCE);
@@ -129,9 +129,9 @@ class GeometricZoneOffsetBoundsTest {
     void userPlusMinusThreeCapClampsFinalZoneOffsets() {
         EarthworkSite site = adjacentCutFill(50, 80);
         enableFlexible(site, 3);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(
-            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(
+            CompositionPolicy.OPTIMIZATION_MODE_CONSTRAINED_ZONE);
 
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
             site, cutFillTerrain(), com.plot.test.world.IdentityCoordinateService.INSTANCE);

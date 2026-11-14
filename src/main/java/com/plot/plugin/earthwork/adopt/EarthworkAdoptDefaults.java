@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 将 {@link EarthworkConfig} 中的<strong>认领默认值</strong>应用到新建 {@link GradingRegion}。
  * <p>
- * 手动目标标高从现状地形采样，不使用 config 中遗留的 {@code targetElevation}（避免默认 Y=0）。
+ * 手动目标标高从现状地形采样（避免默认 Y=0）。
  */
 public final class EarthworkAdoptDefaults {
 
@@ -39,16 +39,6 @@ public final class EarthworkAdoptDefaults {
             region.setManualTargetElevation(
                 resolveInitialManualElevation(region.getOuterPoints(), world, transformer));
         }
-    }
-
-    /** @deprecated 请传入 {@link EarthworkSite}，以便首块认领时初始化场地材料模型。 */
-    @Deprecated
-    public static void applyToNewRegion(
-            GradingRegion region,
-            EarthworkConfig config,
-            World world,
-            ICoordinateService transformer) {
-        applyToNewRegion(region, config, null, world, transformer);
     }
 
     /**

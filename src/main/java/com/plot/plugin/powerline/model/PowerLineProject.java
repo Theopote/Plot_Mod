@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.annotations.SerializedName;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
@@ -223,11 +222,6 @@ public class PowerLineProject {
         String name;
         List<Vec2dData> pathPoints = new ArrayList<>();
         String roadId;
-        /** 旧版 JSON 字段，读取后丢弃（不再写入新存档）。 */
-        @SerializedName("minPoleSpacing")
-        Double legacyMinPoleSpacing;
-        @SerializedName("closeSpacingWarningThreshold")
-        Double legacyCloseSpacingWarningThreshold;
         double maxPoleSpacing = 30.0;
         double cornerAngleThreshold = 5.0;
         double poleHeight = 10.0;
@@ -245,9 +239,6 @@ public class PowerLineProject {
         MaterialMix topWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
-        /** 旧档 JSON 字段 {@code spacingCustomized}，读取后映射为 styleOverrides.preferredSpacing。 */
-        @SerializedName("spacingCustomized")
-        Boolean legacySpacingCustomized;
         String poleSpacingMode;
         int targetTowerCount = 2;
         StyleOverridesData styleOverrides;
@@ -422,10 +413,6 @@ public class PowerLineProject {
                     ? lineData.styleOverrides
                     : new StyleOverridesData();
                 overridesData.applyTo(footprint.getStyleOverrides());
-                if (Boolean.TRUE.equals(lineData.legacySpacingCustomized)
-                        && footprint.getStyleOverrides().getPreferredSpacing() == null) {
-                    footprint.getStyleOverrides().setPreferredSpacing(lineData.maxPoleSpacing);
-                }
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(footprint);
                 if (lineData.poleSpacingMode != null && !lineData.poleSpacingMode.isBlank()) {
                     try {

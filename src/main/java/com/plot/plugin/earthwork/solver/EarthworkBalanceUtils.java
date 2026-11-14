@@ -110,13 +110,6 @@ public final class EarthworkBalanceUtils {
         return findBalancedElevationWeighted(samples, fixedBalanceDiff, materials);
     }
 
-    /**
-     * 道路纵断面等模块沿用的旧参数入口；{@code fillFactor} 为历史松散系数，内部转换为材料属性。
-     */
-    public static int findBalancedElevation(List<Integer> groundHeightSamples, float fillFactor) {
-        return findBalancedElevation(groundHeightSamples, MaterialConversionModel.fromLegacyFillFactor(fillFactor));
-    }
-
     public static long computeCutVolume(List<Integer> groundHeightSamples, int targetElevation) {
         if (groundHeightSamples == null || groundHeightSamples.isEmpty()) {
             return 0L;

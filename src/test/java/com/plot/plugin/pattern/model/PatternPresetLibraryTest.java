@@ -60,26 +60,6 @@ class PatternPresetLibraryTest {
     }
 
     @Test
-    void migratesLegacyMixedPresetFile() throws IOException {
-        PatternPreset legacyUser = new PatternPreset("Legacy", new ProceduralPatternConfig());
-        PatternPreset legacyBuiltin = new PatternPreset("Old builtin", new ProceduralPatternConfig());
-        legacyBuiltin.setBuiltIn(true);
-        legacyBuiltin.setId("old-builtin-id");
-
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        Files.createDirectories(tempDir.resolve("presets"));
-        Files.writeString(
-            tempDir.resolve("presets/pattern_presets.json"),
-            gson.toJson(List.of(legacyUser, legacyBuiltin)));
-
-        PatternPresetLibrary library = new PatternPresetLibrary(tempDir);
-        assertEquals(1, library.getUserPresets().size());
-        assertEquals("Legacy", library.getUserPresets().getFirst().getName());
-        assertEquals(16, library.getBuiltInPresets().size());
-        assertTrue(Files.exists(tempDir.resolve("presets/user_presets.json")));
-    }
-
-    @Test
     void migratesLegacyFootprintImagePathsOnLoad() throws IOException {
         Path source = tempDir.resolve("source.png");
         Files.write(source, new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47});

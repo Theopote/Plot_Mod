@@ -2,8 +2,6 @@ package com.plot.plugin.earthwork.model;
 
 /**
  * 土方插件工作模式：快速平整（任务导向）与建造（完整功能）。
- * <p>
- * 旧配置中的 {@code LEARN} 读入时映射为 {@link #BUILDER}，避免丢失高级设置入口。
  */
 public enum EarthworkWorkMode {
     QUICK,
@@ -13,13 +11,8 @@ public enum EarthworkWorkMode {
         if (id == null || id.isBlank()) {
             return QUICK;
         }
-        String normalized = id.trim().toUpperCase();
-        // 已取消独立学习模式：旧 LEARN 配置并入建造
-        if ("LEARN".equals(normalized)) {
-            return BUILDER;
-        }
         try {
-            return valueOf(normalized);
+            return valueOf(id.trim().toUpperCase());
         } catch (IllegalArgumentException ignored) {
             return QUICK;
         }

@@ -64,7 +64,7 @@ class DesignTerrainComposerTest {
 
         site.addZone(yard);
         site.addZone(pad);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65),
@@ -157,7 +157,7 @@ class DesignTerrainComposerTest {
 
         site.addZone(large);
         site.addZone(small);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65)
@@ -172,8 +172,8 @@ class DesignTerrainComposerTest {
     void siteWideZoneAllocationAdjustsTargetsPerZoneEndToEnd() {
         EarthworkSite site = adjacentCutFillZones(60, 72);
         enableFlexibleBalance(site);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_CONSTRAINED_ZONE);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(true);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -206,8 +206,8 @@ class DesignTerrainComposerTest {
     void reportOnlyBalanceDoesNotMoveDesignElevations() {
         EarthworkSite site = adjacentCutFillZones(60, 72);
         enableFlexibleBalance(site);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_NONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_NONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 70),
@@ -236,8 +236,8 @@ class DesignTerrainComposerTest {
     void siteWideUniformOffsetBalancesFieldEndToEnd() {
         EarthworkSite site = adjacentCutFillZones(60, 68);
         enableFlexibleBalance(site);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 70),
@@ -267,7 +267,7 @@ class DesignTerrainComposerTest {
     @Test
     void perZoneScopePreservesDesignSurfaceWithoutSiteBalance() {
         EarthworkSite site = adjacentCutFillZones(60, 72);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 70),
@@ -324,8 +324,8 @@ class DesignTerrainComposerTest {
 
         site.addZone(corridor);
         site.addZone(landscape);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -363,8 +363,8 @@ class DesignTerrainComposerTest {
 
         site.addZone(cut);
         site.addZone(fill);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
 
         Vec2d exteriorCenter = new Vec2d(-2.5, 5.5);
@@ -403,14 +403,14 @@ class DesignTerrainComposerTest {
         ));
 
         EarthworkSite perZone = slopedFillSite();
-        perZone.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        perZone.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
         DesignTerrainGrid perZoneGrid = DesignTerrainComposer.compose(perZone, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         SiteEarthworkReport perZoneVolumes = EarthworkOptimizationSolver.collectZoneVolumes(perZoneGrid, perZone);
 
         EarthworkSite siteWide = slopedFillSite();
         enableFlexibleBalance(siteWide);
-        siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        siteWide.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
         DesignTerrainGrid siteWideGrid = DesignTerrainComposer.compose(siteWide, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         SiteEarthworkReport siteWideVolumes = EarthworkOptimizationSolver.collectZoneVolumes(siteWideGrid, siteWide);
 
@@ -444,8 +444,8 @@ class DesignTerrainComposerTest {
         site.addZone(building);
         site.addZone(pit);
         site.addZone(landscape);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -468,8 +468,8 @@ class DesignTerrainComposerTest {
     void siteWideBalanceDoesNotMoveManualFixedPad() {
         EarthworkSite site = adjacentCutFillZones(60, 80);
         site.getZone("zone-fill").getRegion().setAutoBalance(true);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -503,8 +503,8 @@ class DesignTerrainComposerTest {
 
         site.addZone(corridor);
         site.addZone(landscape);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        site.getCompositionPolicy().setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -547,7 +547,7 @@ class DesignTerrainComposerTest {
         zone.getRegion().setAutoBalance(false);
         zone.getRegion().setManualTargetElevation(55);
         site.addZone(zone);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(1, 1), 1, 1, 65),

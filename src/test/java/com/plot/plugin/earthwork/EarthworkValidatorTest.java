@@ -227,8 +227,8 @@ class EarthworkValidatorTest {
         EarthworkProject project = new EarthworkProject();
         EarthworkSite site = project.getActiveSite();
         CompositionPolicy policy = site.getCompositionPolicy();
-        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        policy.setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT);
 
         GradingZone pad = new GradingZone("pad", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
         pad.setType(GradingZoneType.BUILDING_PAD);
@@ -250,8 +250,8 @@ class EarthworkValidatorTest {
         EarthworkProject project = new EarthworkProject();
         EarthworkSite site = project.getActiveSite();
         CompositionPolicy policy = site.getCompositionPolicy();
-        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE);
+        policy.setOptimizationMode(CompositionPolicy.OPTIMIZATION_MODE_CONSTRAINED_ZONE);
 
         GradingZone pad = new GradingZone("pad", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
         pad.setType(GradingZoneType.BUILDING_PAD);

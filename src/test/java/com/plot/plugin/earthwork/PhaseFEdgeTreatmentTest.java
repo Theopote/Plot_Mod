@@ -75,7 +75,7 @@ class PhaseFEdgeTreatmentTest {
 
         List<Vec2d> outline = List.of(
             new Vec2d(4, 4), new Vec2d(8, 4), new Vec2d(8, 8), new Vec2d(4, 8));
-        int target = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+        int target = ZoneBoundarySlopeApplicator.resolveTargetY(
             new Vec2d(3.5, 5),
             70,
             64,

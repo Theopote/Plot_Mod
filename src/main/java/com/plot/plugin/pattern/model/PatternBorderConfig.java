@@ -1,6 +1,5 @@
 package com.plot.plugin.pattern.model;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -23,14 +22,6 @@ public class PatternBorderConfig {
         this.borderMaterial = borderMaterial != null && !borderMaterial.isBlank()
             ? borderMaterial.trim()
             : "minecraft:stone_bricks";
-    }
-
-    /** 仅用于旧版 JSON 迁移，取列表首项 */
-    @Deprecated
-    public void setBorderMaterials(List<String> borderMaterials) {
-        if (borderMaterials != null && !borderMaterials.isEmpty()) {
-            setBorderMaterial(borderMaterials.getFirst());
-        }
     }
 
     public String getPrimaryBorderMaterial() {

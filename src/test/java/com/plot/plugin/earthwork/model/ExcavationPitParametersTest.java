@@ -41,8 +41,8 @@ class ExcavationPitParametersTest {
     }
 
     @Test
-    void legacyBasementDepthMapsToFloorOnly() {
-        ExcavationPitParameters pit = ExcavationPitParameters.fromLegacyBasementDepth(5);
+    void floorOnlyConstructorLeavesStructuralAllowanceZero() {
+        ExcavationPitParameters pit = new ExcavationPitParameters(5, 0, 0);
         assertEquals(5, pit.getBasementFloorDepth());
         assertEquals(0, pit.getFoundationDepth());
         assertEquals(0, pit.getWorkingAllowance());

@@ -159,22 +159,6 @@ public final class PowerLineStyleDefinition {
         return conductorArrangement;
     }
 
-    /** @deprecated use {@link #getConductorArrangement()} */
-    @Deprecated
-    public PowerLineStylePreset.ConductorLayout getConductorLayout() {
-        String catalogId = conductorArrangement.getCatalogId();
-        if (ConductorArrangement.CATALOG_THREE_VERTICAL.equals(catalogId)) {
-            return PowerLineStylePreset.ConductorLayout.THREE_PHASE_VERTICAL;
-        }
-        if (ConductorArrangement.CATALOG_THREE_HORIZONTAL.equals(catalogId)
-                || ConductorArrangement.CATALOG_MEGA_INDUSTRIAL.equals(catalogId)
-                || ConductorArrangement.CATALOG_DOUBLE_CIRCUIT.equals(catalogId)
-                || ConductorArrangement.CATALOG_MONSTER_QUAD.equals(catalogId)) {
-            return PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL;
-        }
-        return PowerLineStylePreset.ConductorLayout.SINGLE;
-    }
-
     public PoleSpacingProfile getSpacingProfile() {
         return spacingProfile;
     }

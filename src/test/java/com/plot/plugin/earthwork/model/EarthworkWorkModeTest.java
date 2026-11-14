@@ -9,12 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EarthworkWorkModeTest {
 
     @Test
-    void fromIdDefaultsToQuickAndMigratesLearnToBuilder() {
+    void fromIdDefaultsToQuickForUnknownValues() {
         assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId(null));
         assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId(""));
         assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId("unknown"));
-        assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("learn"));
-        assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("LEARN"));
+        assertEquals(EarthworkWorkMode.QUICK, EarthworkWorkMode.fromId("LEARN"));
         assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("BUILDER"));
         assertEquals(2, EarthworkWorkMode.values().length);
     }

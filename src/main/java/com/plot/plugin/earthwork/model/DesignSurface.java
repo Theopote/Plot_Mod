@@ -215,22 +215,6 @@ public class DesignSurface {
         return getExcavationPit().getDigDownBlocks();
     }
 
-    /**
-     * @deprecated 使用 {@link #getBasementFloorDepth()}；旧字段把地下室深度与结构厚度混在一起。
-     */
-    @Deprecated
-    public int getBasementDepthBlocks() {
-        return getBasementFloorDepth();
-    }
-
-    /**
-     * @deprecated 使用 {@link #setBasementFloorDepth(int)}
-     */
-    @Deprecated
-    public void setBasementDepthBlocks(int basementDepthBlocks) {
-        setBasementFloorDepth(basementDepthBlocks);
-    }
-
     public int getWorkingMarginBlocks() {
         return workingMarginBlocks;
     }

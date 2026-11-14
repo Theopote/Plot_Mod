@@ -172,9 +172,9 @@ class CrossPluginScaleInvarianceTest {
             EarthworkCanvasScale nearScale = EarthworkCanvasScale.capture(NEAR, EARTHWORK_PAD);
             EarthworkCanvasScale farScale = EarthworkCanvasScale.capture(FAR, EARTHWORK_PAD);
 
-            int nearTarget = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+            int nearTarget = ZoneBoundarySlopeApplicator.resolveTargetY(
                 canvasEastOf(new Vec2d(4, 5), -0.5, NEAR), 70, 64, EARTHWORK_PAD, settings, nearScale);
-            int farTarget = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+            int farTarget = ZoneBoundarySlopeApplicator.resolveTargetY(
                 canvasEastOf(new Vec2d(4, 5), -0.5, FAR), 70, 64, EARTHWORK_PAD, settings, farScale);
 
             assertEquals(nearTarget, farTarget);

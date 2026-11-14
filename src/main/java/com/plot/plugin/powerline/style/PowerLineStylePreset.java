@@ -120,12 +120,6 @@ public final class PowerLineStylePreset {
         return definition.getConductorArrangement();
     }
 
-    /** @deprecated use {@link #getConductorArrangement()} */
-    @Deprecated
-    public ConductorLayout getConductorLayout() {
-        return definition.getConductorLayout();
-    }
-
     public int conductorCount() {
         return getConductorArrangement().phaseConductorCount();
     }

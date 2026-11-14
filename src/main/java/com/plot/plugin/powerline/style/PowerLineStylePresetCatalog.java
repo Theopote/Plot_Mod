@@ -93,21 +93,6 @@ public final class PowerLineStylePresetCatalog {
         };
     }
 
-    /** @deprecated use {@link #utilityPresets()} etc. */
-    @Deprecated
-    public static List<PowerLineStylePreset> decorativePresets() {
-        List<PowerLineStylePreset> presets = new ArrayList<>(utilityPresets());
-        presets.addAll(transmissionPresets());
-        presets.addAll(fantasyPresets());
-        return presets;
-    }
-
-    /** @deprecated use {@link #industrialPresets()} */
-    @Deprecated
-    public static List<PowerLineStylePreset> industrialMegaPresets() {
-        return industrialPresets();
-    }
-
     public static List<PowerLineStylePreset> defaultPresets() {
         List<PowerLineStylePreset> presets = new ArrayList<>();
         for (StyleCategory category : galleryCategories()) {
@@ -648,7 +633,7 @@ public final class PowerLineStylePresetCatalog {
             poleMaterial,
             topWireMaterial,
             sagPreset,
-            ConductorArrangement.fromLegacyLayout(conductorLayout),
+            ConductorArrangement.fromLayout(conductorLayout),
             spacingProfile);
     }
 

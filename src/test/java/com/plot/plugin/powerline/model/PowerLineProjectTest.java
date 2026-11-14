@@ -80,25 +80,6 @@ class PowerLineProjectTest {
     }
 
     @Test
-    void legacySpacingCustomizedJsonLoadsPreferredSpacingFromMaxPoleSpacing() {
-        String json = """
-            {
-              "lines": [{
-                "id": "legacy-spacing",
-                "pathPoints": [{"x": 0.0, "y": 0.0}, {"x": 40.0, "y": 0.0}],
-                "spacingCustomized": true,
-                "maxPoleSpacing": 22.0
-              }]
-            }
-            """;
-
-        PowerLineProject restored = PowerLineProject.fromJson(json);
-        PowerLineFootprint restoredLine = restored.getLine("legacy-spacing");
-        assertNotNull(restoredLine);
-        assertEquals(22.0, restoredLine.getStyleOverrides().getPreferredSpacing(), 1e-6);
-    }
-
-    @Test
     void saveToIsAtomicAndRoundTrips(@TempDir Path dir) throws IOException {
         PowerLineProject project = new PowerLineProject();
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));

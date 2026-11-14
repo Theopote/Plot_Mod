@@ -26,10 +26,6 @@ public class ExcavationPitParameters {
         setWorkingAllowance(workingAllowance);
     }
 
-    public static ExcavationPitParameters fromLegacyBasementDepth(int basementDepthBlocks) {
-        return new ExcavationPitParameters(Math.max(0, basementDepthBlocks), 0, 0);
-    }
-
     public ExcavationPitParameters copy() {
         return new ExcavationPitParameters(basementFloorDepth, foundationDepth, workingAllowance);
     }

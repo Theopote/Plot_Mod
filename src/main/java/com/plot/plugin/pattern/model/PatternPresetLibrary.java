@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 public class PatternPresetLibrary {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/PatternPresetLibrary");
     private static final String USER_PRESETS_FILE = "presets/user_presets.json";
-    private static final String LEGACY_PRESETS_FILE = "presets/pattern_presets.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private final Path pluginDataDir;
@@ -176,10 +175,6 @@ public class PatternPresetLibrary {
         presets.removeIf(preset -> !preset.isBuiltIn());
         Path userFile = pluginDataDir.resolve(USER_PRESETS_FILE);
         if (!Files.exists(userFile)) {
-            migrateLegacyPresetsIfNeeded();
-            userFile = pluginDataDir.resolve(USER_PRESETS_FILE);
-        }
-        if (!Files.exists(userFile)) {
             return;
         }
         try {
@@ -231,31 +226,6 @@ public class PatternPresetLibrary {
         }
         if (changed) {
             saveUserPresets();
-        }
-    }
-
-    private void migrateLegacyPresetsIfNeeded() {
-        Path legacyFile = pluginDataDir.resolve(LEGACY_PRESETS_FILE);
-        if (!Files.exists(legacyFile)) {
-            return;
-        }
-        try {
-            String json = Files.readString(legacyFile);
-            List<PatternPreset> loaded = GSON.fromJson(json, new TypeToken<List<PatternPreset>>() {}.getType());
-            if (loaded == null || loaded.isEmpty()) {
-                return;
-            }
-            List<PatternPreset> userOnly = loaded.stream()
-                .filter(preset -> preset != null && !preset.isBuiltIn())
-                .map(PatternPreset::copy)
-                .collect(Collectors.toList());
-            if (!userOnly.isEmpty()) {
-                Files.createDirectories(pluginDataDir.resolve("presets"));
-                Files.writeString(pluginDataDir.resolve(USER_PRESETS_FILE), GSON.toJson(userOnly));
-                LOGGER.info("已从旧版 pattern_presets.json 迁移 {} 个用户预设", userOnly.size());
-            }
-        } catch (IOException e) {
-            LOGGER.warn("迁移旧版图案预设失败: {}", e.getMessage());
         }
     }
 

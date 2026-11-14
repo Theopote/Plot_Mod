@@ -104,7 +104,7 @@ public final class EarthworkTestFixtures {
     public static EarthworkSite twoZoneSiteForCompose() {
         EarthworkSite site = new EarthworkSite();
         site.setSiteBoundary(rectangleOutline(0, 9, 0, 9));
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
         return site;
     }
 

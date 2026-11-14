@@ -312,9 +312,9 @@ public final class ZoneBoundarySlopeApplicator {
   }
 
   /**
-   * 单分区 legacy 生成路径：在平面设计高程上应用边界策略。
+   * 单分区生成路径：在平面设计高程上应用边界策略。
    */
-  public static int resolveLegacyTargetY(
+  public static int resolveTargetY(
       Vec2d canvasCenter,
       int existingGroundY,
       int designTargetY,

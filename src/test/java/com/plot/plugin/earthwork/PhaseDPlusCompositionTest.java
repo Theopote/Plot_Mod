@@ -118,7 +118,7 @@ class PhaseDPlusCompositionTest {
         site.addZone(yard);
         site.addZone(pad);
         site.getCompositionPolicy().setBlendWidthBlocks(3);
-        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_ZONE);
 
         RetainingEdge retainingEdge = new RetainingEdge("ret-1");
         retainingEdge.setPolyline(List.of(new Vec2d(2, 2), new Vec2d(2, 8)));

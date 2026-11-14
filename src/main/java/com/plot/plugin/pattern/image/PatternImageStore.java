@@ -72,18 +72,6 @@ public final class PatternImageStore {
         }
     }
 
-    /**
-     * @deprecated 旧资产不再删除；请使用 {@link #importImage(Path, String, Path)}。
-     */
-    @Deprecated
-    public static ImportedImage importReplacing(
-            Path pluginDataDir,
-            String footprintId,
-            Path sourceFile,
-            String previousRelativePath) throws IOException {
-        return importImage(pluginDataDir, footprintId, sourceFile);
-    }
-
     public static Optional<ImagePatternRaster> loadRaster(Path pluginDataDir, ImagePatternConfig config) {
         if (config == null || !config.hasImage()) {
             return Optional.empty();

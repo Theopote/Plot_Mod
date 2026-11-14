@@ -74,9 +74,9 @@ class EarthworkWorldScaleTest {
         EarthworkCanvasScale identity = EarthworkCanvasScale.capture(IdentityCoordinateService.INSTANCE, PAD);
         EarthworkCanvasScale scaled = EarthworkCanvasScale.capture(FOUR_BLOCKS_PER_CANVAS_UNIT, PAD);
 
-        int identityTarget = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+        int identityTarget = ZoneBoundarySlopeApplicator.resolveTargetY(
             new Vec2d(3.5, 5), 70, 64, PAD, settings, identity);
-        int scaledTarget = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+        int scaledTarget = ZoneBoundarySlopeApplicator.resolveTargetY(
             new Vec2d(3.875, 5), 70, 64, PAD, settings, scaled);
 
         assertEquals(identityTarget, scaledTarget);

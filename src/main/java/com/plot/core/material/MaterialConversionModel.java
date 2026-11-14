@@ -70,10 +70,10 @@ public final class MaterialConversionModel {
     }
 
     /**
-     * 由旧版 {@code fillFactor}（填方松散系数）迁移。
-     * 旧平衡式 {@code cut = fill × fillFactor} 等价于 {@code reusableRatio=1, cutToCompactedFillRatio=1/fillFactor}。
+     * 由填方松散系数构造：{@code cut = fill × fillFactor}
+     * 等价于 {@code reusableRatio=1, cutToCompactedFillRatio=1/fillFactor}。
      */
-    public static MaterialConversionModel fromLegacyFillFactor(float fillFactor) {
+    public static MaterialConversionModel fromFillFactor(float fillFactor) {
         float safeFillFactor = Math.max(1.0f, Math.min(2.0f, fillFactor));
         return new MaterialConversionModel(1.0f, 1.0f / safeFillFactor);
     }

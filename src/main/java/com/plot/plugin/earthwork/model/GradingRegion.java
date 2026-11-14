@@ -16,9 +16,6 @@ import java.util.UUID;
 public class GradingRegion {
     public static final String DEFAULT_FILL_MATERIAL = "minecraft:dirt";
     public static final int DEFAULT_PREVIEW_GRID_SIZE = 5;
-    /** @deprecated 请改用 {@link #DEFAULT_PREVIEW_GRID_SIZE} */
-    @Deprecated
-    public static final int DEFAULT_GRID_SIZE = DEFAULT_PREVIEW_GRID_SIZE;
     public static final int DEFAULT_SLOPE_PITCH_RATIO = 4;
     private static final int CONTROL_POINT_COUNT = 3;
 
@@ -181,18 +178,6 @@ public class GradingRegion {
 
     public void setPreviewGridSize(int previewGridSize) {
         this.previewGridSize = Math.max(1, Math.min(20, previewGridSize));
-    }
-
-    /** @deprecated 请改用 {@link #getPreviewGridSize()} */
-    @Deprecated
-    public int getGridSize() {
-        return getPreviewGridSize();
-    }
-
-    /** @deprecated 请改用 {@link #setPreviewGridSize(int)} */
-    @Deprecated
-    public void setGridSize(int gridSize) {
-        setPreviewGridSize(gridSize);
     }
 
     public double getSlopeDirectionDegrees() {

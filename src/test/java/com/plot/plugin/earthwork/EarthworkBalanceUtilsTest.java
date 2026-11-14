@@ -47,12 +47,13 @@ class EarthworkBalanceUtilsTest {
     }
 
     @Test
-    void legacyFillFactorWrapperMatchesMaterialConversion() {
+    void fillFactorConversionFeedsBalancedElevation() {
         List<Integer> samples = List.of(60, 62, 64, 66, 68, 70, 72, 74);
-        int fromLegacy = EarthworkBalanceUtils.findBalancedElevation(samples, 1.25f);
+        int fromFillFactor = EarthworkBalanceUtils.findBalancedElevation(
+            samples, MaterialConversionModel.fromFillFactor(1.25f));
         int fromMaterials = EarthworkBalanceUtils.findBalancedElevation(
-            samples, MaterialConversionModel.fromLegacyFillFactor(1.25f));
-        assertTrue(fromLegacy == fromMaterials);
+            samples, new MaterialConversionModel(1.0f, 1.0f / 1.25f));
+        assertEquals(fromFillFactor, fromMaterials);
     }
 
     @Test

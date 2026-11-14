@@ -31,23 +31,16 @@ class CompositionPolicyBalanceSemanticsTest {
     }
 
     @Test
-    void legacySiteWideAndUniformOffsetMapToNewNames() {
+    void canonicalNamesRoundTripThroughStringSetters() {
         CompositionPolicy policy = new CompositionPolicy();
-        policy.setBalanceScope("SITE_WIDE");
-        policy.setBalanceMethod("UNIFORM_OFFSET");
+        policy.setBalanceScope("SITE");
+        policy.setOptimizationMode("UNIFORM_VERTICAL_SHIFT");
 
         assertEquals(BalanceScope.SITE, policy.getBalanceScopeEnum());
         assertEquals(OptimizationMode.UNIFORM_VERTICAL_SHIFT, policy.getOptimizationModeEnum());
         assertEquals("SITE", policy.getBalanceScope());
         assertEquals("UNIFORM_VERTICAL_SHIFT", policy.getOptimizationMode());
         assertTrue(policy.isVerticalOptimizationEnabled());
-    }
-
-    @Test
-    void legacyZoneAllocationMapsToConstrainedOptimization() {
-        CompositionPolicy policy = new CompositionPolicy();
-        policy.setBalanceMethod("ZONE_ALLOCATION");
-        assertEquals(OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION, policy.getOptimizationModeEnum());
     }
 
     @Test

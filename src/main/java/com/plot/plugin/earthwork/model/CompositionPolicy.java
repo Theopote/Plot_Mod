@@ -19,33 +19,12 @@ public class CompositionPolicy {
     public static final String BALANCE_SCOPE_ZONE = BalanceScope.ZONE.name();
     public static final String BALANCE_SCOPE_SITE = BalanceScope.SITE.name();
     public static final String BALANCE_SCOPE_PROJECT = BalanceScope.PROJECT.name();
-    /** @deprecated 使用 {@link #BALANCE_SCOPE_ZONE} / {@link BalanceScope#ZONE} */
-    @Deprecated
-    public static final String BALANCE_SCOPE_PER_ZONE = BALANCE_SCOPE_ZONE;
-    /** @deprecated 使用 {@link #BALANCE_SCOPE_SITE} / {@link BalanceScope#SITE}；旧名易被误解为「全场平移」。 */
-    @Deprecated
-    public static final String BALANCE_SCOPE_SITE_WIDE = BALANCE_SCOPE_SITE;
 
     public static final String OPTIMIZATION_MODE_NONE = OptimizationMode.NONE.name();
     public static final String OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT =
         OptimizationMode.UNIFORM_VERTICAL_SHIFT.name();
     public static final String OPTIMIZATION_MODE_CONSTRAINED_ZONE =
         OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION.name();
-
-    /** @deprecated 使用 {@link #OPTIMIZATION_MODE_NONE} */
-    @Deprecated
-    public static final String BALANCE_METHOD_NONE = OPTIMIZATION_MODE_NONE;
-    /** @deprecated 使用 {@link #OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT} */
-    @Deprecated
-    public static final String BALANCE_METHOD_UNIFORM = OPTIMIZATION_MODE_UNIFORM_VERTICAL_SHIFT;
-    /** @deprecated 使用 {@link #OPTIMIZATION_MODE_CONSTRAINED_ZONE} */
-    @Deprecated
-    public static final String BALANCE_METHOD_EARTHWORK_OPTIMIZATION = OPTIMIZATION_MODE_CONSTRAINED_ZONE;
-    /**
-     * @deprecated 旧名；语义等同 {@link #OPTIMIZATION_MODE_CONSTRAINED_ZONE}。
-     */
-    @Deprecated
-    public static final String BALANCE_METHOD_ZONE_ALLOCATION = OPTIMIZATION_MODE_CONSTRAINED_ZONE;
 
     public static final String OUTSIDE_IGNORE = "IGNORE";
     public static final String PRECEDENCE_ABSOLUTE = "ABSOLUTE";
@@ -86,18 +65,9 @@ public class CompositionPolicy {
         this.balanceScope = balanceScope != null ? balanceScope : BalanceScope.SITE;
     }
 
-    /** 统计范围是否为场地级（含旧 {@code SITE_WIDE} 语义）。 */
+    /** 统计范围是否为场地级。 */
     public boolean isSiteBalanceScope() {
         return getBalanceScopeEnum() == BalanceScope.SITE;
-    }
-
-    /**
-     * @deprecated 名称易误解为「全场平移」；使用 {@link #isSiteBalanceScope()} 或
-     * {@link #getBalanceScopeEnum()}{@code .defersPerZoneBalance()}。
-     */
-    @Deprecated
-    public boolean isSiteWideBalance() {
-        return getBalanceScopeEnum().defersPerZoneBalance();
     }
 
     public boolean isZoneBalanceScope() {
@@ -125,64 +95,16 @@ public class CompositionPolicy {
         this.optimizationMode = optimizationMode != null ? optimizationMode : OptimizationMode.NONE;
     }
 
-    /**
-     * @deprecated 使用 {@link #getOptimizationMode()}；保留以兼容旧 JSON / API。
-     */
-    @Deprecated
-    public String getBalanceMethod() {
-        return getOptimizationMode();
-    }
-
-    /**
-     * @deprecated 使用 {@link #setOptimizationMode(String)}
-     */
-    @Deprecated
-    public void setBalanceMethod(String balanceMethod) {
-        setOptimizationMode(balanceMethod);
-    }
-
     public boolean isNoneOptimization() {
         return getOptimizationModeEnum() == OptimizationMode.NONE;
-    }
-
-    /**
-     * @deprecated 使用 {@link #isNoneOptimization()}
-     */
-    @Deprecated
-    public boolean isNoneBalance() {
-        return isNoneOptimization();
     }
 
     public boolean isUniformVerticalShift() {
         return getOptimizationModeEnum().isUniformVerticalShift();
     }
 
-    /**
-     * @deprecated 使用 {@link #isUniformVerticalShift()}
-     */
-    @Deprecated
-    public boolean isUniformOffsetBalance() {
-        return isUniformVerticalShift();
-    }
-
     public boolean isConstrainedZoneOptimization() {
         return getOptimizationModeEnum().isConstrainedZoneOptimization();
-    }
-
-    /**
-     * @deprecated 使用 {@link #isConstrainedZoneOptimization()}
-     */
-    @Deprecated
-    public boolean isEarthworkOptimization() {
-        return isConstrainedZoneOptimization();
-    }
-
-    /**
-     * @deprecated 使用 {@link #isConstrainedZoneOptimization()}
-     */
-    @Deprecated
-    public boolean isZoneAllocationBalance() {
-        return isConstrainedZoneOptimization();
     }
 
     /**
@@ -191,14 +113,6 @@ public class CompositionPolicy {
     public boolean isVerticalOptimizationEnabled() {
         return getBalanceScopeEnum().allowsSiteVerticalOptimization()
             && getOptimizationModeEnum().modifiesDesign();
-    }
-
-    /**
-     * @deprecated 使用 {@link #isVerticalOptimizationEnabled()}
-     */
-    @Deprecated
-    public boolean isSiteBalanceOptimizationEnabled() {
-        return isVerticalOptimizationEnabled();
     }
 
     public boolean isBalanceResidualUniformPolish() {

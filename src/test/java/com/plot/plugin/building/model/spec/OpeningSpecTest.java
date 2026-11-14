@@ -85,40 +85,6 @@ class OpeningSpecTest {
         assertEquals(1, restored.doorOpenings().size());
     }
 
-    @Test
-    void legacyDoorsJsonStillLoadsAsDoorOpenings() {
-        String json = """
-            {
-              "buildings": [{
-                "id": "b1",
-                "name": "Legacy",
-                "outerPoints": [
-                  {"x": 0, "y": 0}, {"x": 8, "y": 0},
-                  {"x": 8, "y": 8}, {"x": 0, "y": 8}
-                ],
-                "isRectangular": true,
-                "floors": 1,
-                "floorHeight": 3,
-                "wallThickness": 1,
-                "doors": [{
-                  "wallSegmentIndex": 1,
-                  "positionRatio": 0.5,
-                  "floor": 0,
-                  "width": 2,
-                  "height": 3
-                }]
-              }]
-            }
-            """;
-
-        BuildingFootprint footprint = BuildingProject.fromJson(json).getBuilding("b1");
-        assertNotNull(footprint);
-        assertEquals(1, footprint.getOpenings().size());
-        assertEquals(OpeningKind.DOOR, footprint.getOpenings().getFirst().kind());
-        assertEquals(1, footprint.doorOpenings().getFirst().wallSegmentIndex());
-        assertEquals(0.5, footprint.doorOpenings().getFirst().positionRatio(), 1e-6);
-    }
-
     private static BuildingDefinition definitionWithOpenings(List<OpeningSpec> openings) {
         FootprintSpec footprint = new FootprintSpec("test", "Test", BASE, true);
         MassingSpec massing = MassingSpec.create(1, 3, BASE, List.of());

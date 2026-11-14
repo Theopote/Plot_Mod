@@ -32,12 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EarthworkDualModeRegressionTest {
 
     @Test
-    void learnConfigMapsToBuilder() {
-        assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("LEARN"));
-        assertEquals(EarthworkWorkMode.BUILDER, EarthworkWorkMode.fromId("learn"));
-    }
-
-    @Test
     void builderQuickBuilderPreservesProjectPolicyAndBuilderDesign() {
         EarthworkSite site = advancedSite();
         CompositionPolicy saved = snapshotPolicy(site.getCompositionPolicy());

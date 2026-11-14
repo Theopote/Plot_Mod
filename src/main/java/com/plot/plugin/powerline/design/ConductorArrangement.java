@@ -170,13 +170,7 @@ public final class ConductorArrangement {
         return new ConductorArrangement(CATALOG_UHV_THREE_DECK, channels);
     }
 
-    /** @deprecated 使用 {@link #uhvThreeDeck()} */
-    @Deprecated
-    public static ConductorArrangement monsterQuadCircuit() {
-        return uhvThreeDeck();
-    }
-
-    public static ConductorArrangement fromLegacyLayout(
+    public static ConductorArrangement fromLayout(
             com.plot.plugin.powerline.style.PowerLineStylePreset.ConductorLayout layout) {
         if (layout == null) {
             return single();
