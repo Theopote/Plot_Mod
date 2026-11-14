@@ -781,6 +781,13 @@ public class RoadJunctionGenerator {
                 public int worldZ(Vec2d planPoint) {
                     return generator.toBlockPos(planPoint, 0).getZ();
                 }
+
+                @Override
+                public Vec2d planPoint(int worldX, int worldZ) {
+                    return TunnelJunctionSeedResolver.planPointForBlock(
+                        new BlockPos(worldX, 0, worldZ),
+                        generator.coordinateTransformer());
+                }
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
         Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, network, generator.getConfig());

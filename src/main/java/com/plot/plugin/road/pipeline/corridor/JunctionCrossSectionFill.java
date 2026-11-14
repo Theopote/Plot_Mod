@@ -707,6 +707,10 @@ public final class JunctionCrossSectionFill {
                 }
             }
             if (slope.hasCut() && groundY > slope.cutSurfaceY()) {
+                // fail-closed：禁止破坏性清障的列不得开敞挖方（与 fillCell/gradeColumn 一致）。
+                if (maxClearY != null && maxClearY == JunctionConstructionContext.CLEAR_DENIED) {
+                    continue;
+                }
                 // 隧道净空上限下禁止开敞切坡挖穿地表；浅覆土直接跳过挖方。
                 if (maxClearY != null && groundY <= maxClearY) {
                     continue;

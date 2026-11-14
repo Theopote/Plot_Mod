@@ -285,6 +285,11 @@ public final class FlatProfileCompiler {
         for (int i = 0; i < pvis.size(); i++) {
             PointOfVerticalIntersection existing = pvis.get(i);
             if (Math.abs(existing.getStation() - station) <= EPSILON) {
+                // 平坦铺段不得覆盖交叉口锁定标高。
+                if (!junctionFixed
+                        && existing.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+                    return;
+                }
                 pvis.set(i, junctionFixed
                     ? new PointOfVerticalIntersection(
                         station, elevation, null, VerticalControlPointConstraint.JUNCTION_FIXED)

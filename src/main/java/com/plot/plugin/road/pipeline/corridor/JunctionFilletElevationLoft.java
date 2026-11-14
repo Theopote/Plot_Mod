@@ -774,7 +774,7 @@ public final class JunctionFilletElevationLoft {
         if (lenSq < EPSILON) {
             return true;
         }
-        Vec2d p = new Vec2d(worldX + 0.5, worldZ + 0.5);
+        Vec2d p = columns.planPoint(worldX, worldZ);
         double t = Math.clamp(p.subtract(a).dot(ab) / lenSq, 0.0, 1.0);
         double lateral = p.distance(a.add(ab.multiply(t)));
         return lateral <= 1.25;
@@ -805,7 +805,10 @@ public final class JunctionFilletElevationLoft {
         if (filletGore == null || filletGore.size() < 3) {
             return false;
         }
-        return RoadGeometryUtils.pointInPolygon(new Vec2d(worldX + 0.5, worldZ + 0.5), filletGore);
+        Vec2d plan = columns != null
+            ? columns.planPoint(worldX, worldZ)
+            : new Vec2d(worldX + 0.5, worldZ + 0.5);
+        return RoadGeometryUtils.pointInPolygon(plan, filletGore);
     }
 
     private static Integer elevationFromOwnedProfile(

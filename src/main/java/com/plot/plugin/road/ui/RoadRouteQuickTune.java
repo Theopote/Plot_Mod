@@ -60,15 +60,17 @@ final class RoadRouteQuickTune {
             WidthLaneConsumer onChange,
             Runnable onHistory) {
         int[] widthArr = {width};
-        if (ImGui.sliderInt(
+        boolean widthChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##route_width",
             widthArr,
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
             RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
-            "%d")) {
-            if (ImGui.isItemActivated() && onHistory != null) {
-                onHistory.run();
-            }
+            "%d");
+        // 激活帧与首变值帧可能不同：历史须在控件之后、值变化分支之外判定。
+        if (ImGui.isItemActivated() && onHistory != null) {
+            onHistory.run();
+        }
+        if (widthChanged) {
             onChange.accept(widthArr[0], laneCount);
         }
         if (ImGui.isItemHovered()) {
@@ -76,15 +78,16 @@ final class RoadRouteQuickTune {
         }
 
         int[] laneArr = {laneCount};
-        if (ImGui.sliderInt(
+        boolean laneChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.lane_count", laneArr[0]) + "##route_lanes",
             laneArr,
             RoadParameterLimits.MIN_LANE_COUNT,
             RoadParameterLimits.MAX_LANE_COUNT,
-            "%d")) {
-            if (ImGui.isItemActivated() && onHistory != null) {
-                onHistory.run();
-            }
+            "%d");
+        if (ImGui.isItemActivated() && onHistory != null) {
+            onHistory.run();
+        }
+        if (laneChanged) {
             onChange.accept(widthArr[0], laneArr[0]);
         }
     }

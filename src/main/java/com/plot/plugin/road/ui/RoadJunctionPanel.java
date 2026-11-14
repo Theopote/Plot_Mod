@@ -115,21 +115,25 @@ public final class RoadJunctionPanel {
         float[] plazaRadius = {(float) (node.getPlazaRadius() != null
             ? node.getPlazaRadius()
             : basePlaza)};
+        // 固定 ##id：标签可含动态数值，否则 ImGui 每帧换控件 ID，拖动会中断。
         boolean plazaChanged = ImGui.sliderFloat(
             PlotI18n.tr(
                 "plugin.road.junction_plaza_radius",
                 RoadUiFormat.format(plazaBase),
-                RoadUiFormat.format(resolvedPlaza)),
+                RoadUiFormat.format(resolvedPlaza)) + "##junction_plaza_radius",
             plazaRadius,
             (float) RoadNode.MIN_PLAZA_RADIUS,
             (float) RoadNode.MAX_PLAZA_RADIUS,
             RoadUiFormat.SLIDER_METERS
         );
         if (ImGui.isItemActivated()) {
-            ctx.networkManager().pushHistory();
+            ctx.networkManager().pushUndoSnapshot();
         }
         if (plazaChanged) {
             node.setPlazaRadius((double) plazaRadius[0]);
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            ctx.networkManager().commitNetworkChange();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_plaza_radius"));

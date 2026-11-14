@@ -103,6 +103,30 @@ class JsonSnapshotHistoryTest {
     }
 
     @Test
+    void undoDiscardsStagedPushWithoutPoppingCommittedFrame() {
+        JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
+            RoadNetwork::toJson,
+            RoadNetwork::parseSnapshot
+        );
+
+        RoadNetwork committed = new RoadNetwork();
+        committed.createNode(new Vec2d(1, 1));
+        history.push(committed);
+
+        RoadNetwork beforeMutation = new RoadNetwork();
+        beforeMutation.createNode(new Vec2d(2, 2));
+        history.stagePush(beforeMutation);
+
+        RoadNetwork midEdit = new RoadNetwork();
+        midEdit.createNode(new Vec2d(9, 9));
+        RoadNetwork restored = history.undo(midEdit);
+
+        assertEquals(2, restored.getNodes().values().iterator().next().getPosition().x, 1e-6);
+        assertTrue(history.canUndo(), "committed undo frame must remain");
+        assertFalse(history.hasStagedPush());
+    }
+
+    @Test
     void discardLatestUndoSnapshotRestoresPushedStateAndRemovesUndoFrame() {
         JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
             RoadNetwork::toJson,

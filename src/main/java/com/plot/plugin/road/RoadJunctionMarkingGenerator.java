@@ -50,15 +50,16 @@ public final class RoadJunctionMarkingGenerator {
 
         int junctionDegree = edges.size();
         Vec2d center = node.getPosition();
+        double scale = canvasUnitsPerBlock(network, edges);
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
-            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0 * scale,
+            node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale
         );
         // 圆角路缘内缩：斑马线/停车线轨道半径随有效圆角回缩，避免落到弯缘上。
         double markingOrbit = markingOrbitRadius(
             junctionRadius,
-            node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()));
+            node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()) * scale);
 
         boolean anySidewalk = edges.stream().anyMatch(edge ->
             RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig()).includeSidewalk);
@@ -94,7 +95,7 @@ public final class RoadJunctionMarkingGenerator {
             boolean wantCrosswalk = node.getCrosswalks().resolve(
                 crossSection.includeSidewalk || (junctionDegree >= 3 && anySidewalk));
             if (wantCrosswalk && (crossSection.includeSidewalk || anySidewalk)) {
-                generateCrosswalk(blocks, center, direction, markingOrbit, junctionY, crossSection);
+                generateCrosswalk(blocks, center, direction, markingOrbit, junctionY, crossSection, scale);
             }
 
             // 转向箭头：三岔及以上路口按出口拓扑自动生成，不依赖用户开标线
@@ -482,16 +483,18 @@ public final class RoadJunctionMarkingGenerator {
             Vec2d direction,
             double junctionRadius,
             int junctionY,
-            ResolvedCrossSection crossSection) {
+            ResolvedCrossSection crossSection,
+            double unitsPerBlock) {
         Vec2d unit = direction.normalize();
         Vec2d perpendicular = unit.perpendicular();
-        double halfWidth = crossSection.carriagewayWidth / 2.0;
-        double sidewalkBand = crossSection.includeSidewalk ? crossSection.sidewalkWidth : 0;
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double halfWidth = crossSection.carriagewayWidth / 2.0 * scale;
+        double sidewalkBand = (crossSection.includeSidewalk ? crossSection.sidewalkWidth : 0) * scale;
         double totalHalf = halfWidth + sidewalkBand;
 
         Vec2d crosswalkCenter = center.add(unit.multiply(junctionRadius * CROSSWALK_INSET_RATIO));
         for (int stripe = 0; stripe < CROSSWALK_STRIPE_COUNT; stripe++) {
-            double along = (stripe - (CROSSWALK_STRIPE_COUNT - 1) / 2.0) * 0.85;
+            double along = (stripe - (CROSSWALK_STRIPE_COUNT - 1) / 2.0) * 0.85 * scale;
             Vec2d stripeOrigin = crosswalkCenter.add(unit.multiply(along));
             for (int lateral = (int) Math.floor(-totalHalf); lateral <= (int) Math.ceil(totalHalf); lateral++) {
                 addMarking(blocks, stripeOrigin.add(perpendicular.multiply(lateral)), junctionY);
@@ -595,17 +598,18 @@ public final class RoadJunctionMarkingGenerator {
             return;
         }
         Vec2d center = node.getPosition();
+        double scale = canvasUnitsPerBlock(network, edges);
         double junctionRadius = 0;
         if (edges != null) {
             junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
                 edges,
-                edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
-                node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS)
+                edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0 * scale,
+                node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale
             );
         }
         double markingOrbit = markingOrbitRadius(
             junctionRadius,
-            node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()));
+            node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius()) * scale);
 
         var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         if (edges != null) {
@@ -624,7 +628,7 @@ public final class RoadJunctionMarkingGenerator {
 
                 Vec2d unit = direction.normalize();
                 Vec2d perpendicular = unit.perpendicular();
-                double halfWidth = Math.max(1.0, crossSection.carriagewayWidth / 2.0);
+                double halfWidth = Math.max(1.0 * scale, crossSection.carriagewayWidth / 2.0 * scale);
                 Vec2d stopCenter = center.add(unit.multiply(markingOrbit * STOP_LINE_INSET_RATIO));
 
                 for (int offset = -(int) Math.ceil(halfWidth); offset <= (int) Math.ceil(halfWidth); offset++) {
@@ -632,6 +636,23 @@ public final class RoadJunctionMarkingGenerator {
                 }
             }
         }
+    }
+
+    private double canvasUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {
+        if (generator == null || edges == null || edges.isEmpty()) {
+            return 1.0;
+        }
+        var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
+        for (RoadEdge edge : edges) {
+            List<Vec2d> centerline = centerlineResolver.apply(edge);
+            if (centerline != null && centerline.size() >= 2) {
+                double units = generator.estimateCanvasUnitsPerBlock(centerline, List.of());
+                if (Double.isFinite(units) && units > 1e-9) {
+                    return units;
+                }
+            }
+        }
+        return 1.0;
     }
 
     /**

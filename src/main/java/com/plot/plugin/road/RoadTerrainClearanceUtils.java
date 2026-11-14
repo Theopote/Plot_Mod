@@ -148,5 +148,13 @@ public final class RoadTerrainClearanceUtils {
         int worldX(Vec2d planPoint);
 
         int worldZ(Vec2d planPoint);
+
+        /**
+         * 世界方块列中心 → 画布平面点。
+         * 默认恒等（无投影 / unitsPerBlock=1）；有投影时应覆盖。
+         */
+        default Vec2d planPoint(int worldX, int worldZ) {
+            return new Vec2d(worldX + 0.5, worldZ + 0.5);
+        }
     }
 }

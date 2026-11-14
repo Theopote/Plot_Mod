@@ -94,6 +94,24 @@ class FlatProfileCompilerTest {
     }
 
     @Test
+    void startJunctionOverrideKeepsJunctionFixedAtStationZero() {
+        RoadNetwork network = roadWithJunction(100.0, 0.0);
+        Road road = network.getRoad("main");
+        RoadNode startJunction = network.getNodes().values().stream()
+            .filter(node -> Math.abs(node.getPosition().x) < 1e-6 && node.isJunction())
+            .findFirst()
+            .orElseThrow();
+        FlatVerticalIntent intent = new FlatVerticalIntent(70.0);
+        intent.setIntersectionOverride(startJunction.getId(), 76.0);
+
+        RoadVerticalAlignment alignment = FlatProfileCompiler.compile(network, road, intent, 8.0);
+        PointOfVerticalIntersection first = alignment.getPvis().getFirst();
+        assertEquals(0.0, first.getStation(), 1e-6);
+        assertEquals(76.0, first.getElevation(), 1e-3);
+        assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED, first.getConstraint());
+    }
+
+    @Test
     void changingBaseRecompilesWithoutLegacyPviResidue() {
         RoadNetwork network = straightRoad(80.0);
         Road road = network.getRoads().values().iterator().next();

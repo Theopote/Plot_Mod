@@ -79,6 +79,7 @@ public final class RoadStackCrossingReconciler {
 
     private static RoadStackCrossing mergeWithExisting(RoadStackCrossing detected, RoadStackCrossing existing) {
         if (existing != null) {
+            // type/clearance/lower/upper 为设计态；detector 不携带立交权威，仅刷新几何。
             RoadStackCrossing refreshed = existing.withRefreshedGeometry(
                 detected.stationA(), detected.stationB(), detected.position());
             if (geometryChanged(existing, refreshed) && refreshed.sharedElevation() != null) {

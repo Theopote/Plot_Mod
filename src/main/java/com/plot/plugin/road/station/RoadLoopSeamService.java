@@ -144,6 +144,22 @@ public final class RoadLoopSeamService {
             }
         } else {
             double tailLength = seamSegment.length() - seamChainLocal;
+            // forward：seam→链尾对应几何 [seam, end]；反向边几何随 chainLocal 递减，区间对调。
+            double postSeamGeomStart;
+            double postSeamGeomEnd;
+            double preSeamGeomStart;
+            double preSeamGeomEnd;
+            if (seamSegment.forward()) {
+                postSeamGeomStart = geometryLocalAtSeam;
+                postSeamGeomEnd = fullEdgeLength;
+                preSeamGeomStart = 0.0;
+                preSeamGeomEnd = geometryLocalAtSeam;
+            } else {
+                postSeamGeomStart = 0.0;
+                postSeamGeomEnd = geometryLocalAtSeam;
+                preSeamGeomStart = geometryLocalAtSeam;
+                preSeamGeomEnd = fullEdgeLength;
+            }
             rotated.add(new OrientedRoadSegment(
                 seamSegment.edgeId(),
                 seamSegment.forward(),
@@ -151,8 +167,8 @@ public final class RoadLoopSeamService {
                 seamSegment.exitNodeId(),
                 station,
                 tailLength,
-                geometryLocalAtSeam,
-                fullEdgeLength));
+                postSeamGeomStart,
+                postSeamGeomEnd));
             station += tailLength;
 
             for (int k = 1; k < base.size(); k++) {
@@ -167,9 +183,9 @@ public final class RoadLoopSeamService {
                 seamSegment.entryNodeId(),
                 seamSegment.exitNodeId(),
                 station,
-                    seamChainLocal,
-                0.0,
-                geometryLocalAtSeam));
+                seamChainLocal,
+                preSeamGeomStart,
+                preSeamGeomEnd));
         }
         return List.copyOf(rotated);
     }

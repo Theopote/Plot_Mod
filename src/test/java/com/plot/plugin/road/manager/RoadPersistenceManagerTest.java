@@ -14,11 +14,43 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadPersistenceManagerTest {
+
+    @Test
+    void loadFailureBindsTargetAndClearsLiveNetwork(@TempDir Path dir) {
+        RoadPersistenceManager manager = new RoadPersistenceManager(
+            dir.toFile(),
+            new RoadProjectStatus(),
+            PluginContext.from(ApplicationContext.getInstance()));
+        Path networks = dir.resolve("networks");
+        try {
+            Files.createDirectories(networks);
+            Files.writeString(networks.resolve("default.json"), sampleNetwork().toJson());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        AtomicReference<RoadNetwork> loaded = new AtomicReference<>();
+        manager.loadForCurrentProject(loaded::set, () -> {});
+        assertNotNull(loaded.get());
+        assertTrue(loaded.get().getEdges().size() > 0);
+
+        AtomicReference<RoadNetwork> afterFail = new AtomicReference<>();
+        manager.onProjectLoaded(
+            "D:/projects/broken.plot",
+            afterFail::set,
+            () -> {});
+        assertNotNull(afterFail.get());
+        assertEquals(0, afterFail.get().getEdges().size(), "load failure must clear live network");
+        assertEquals(
+            com.plot.core.persistence.ProjectPathResolver.sidecarFileName("D:/projects/broken.plot"),
+            manager.getCurrentNetworkFile());
+    }
 
     @Test
     void saveAndLoadNetworkFileRoundTrip(@TempDir Path dir) throws Exception {

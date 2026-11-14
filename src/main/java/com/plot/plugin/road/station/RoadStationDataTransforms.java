@@ -86,17 +86,19 @@ public final class RoadStationDataTransforms {
             () -> road.setHorizontalAlignment(null));
     }
 
-    public static void applyRoadSplit(RoadNetwork network, Road head, Road tail, double splitStation) {
+    /**
+     * 拆分 VA/VCS/设施与 flat intent；若需重拟合 HA 返回 true。
+     * <p>调用方须先完成本方法，再迁移分段与 reorder，最后再
+     * {@link #refitHorizontalAlignmentFromCenterline}——拟合依赖当时的 segment 链。
+     */
+    public static boolean applyRoadSplit(RoadNetwork network, Road head, Road tail, double splitStation) {
         if (network == null || head == null || tail == null) {
-            return;
+            return false;
         }
         double totalLength = RoadStationing.canonicalLength(network, head);
         boolean refit = applyRoadSplit(head, tail, splitStation, totalLength);
         RoadVerticalIntentTransforms.partitionFlatIntentOnRoadSplit(network, head, tail, splitStation);
-        if (refit) {
-            refitHorizontalAlignmentFromCenterline(network, head);
-            refitHorizontalAlignmentFromCenterline(network, tail);
-        }
+        return refit;
     }
 
     /**
@@ -139,6 +141,10 @@ public final class RoadStationDataTransforms {
             tail.getStationFacilities(),
             headLength,
             tailLength));
+        // 默认横断取拼接后链头（形参 head）；原 target 默认若不同，已由 VCS 在 headLength 处落点保留。
+        if (headDefault != null) {
+            target.setCrossSection(headDefault.copy());
+        }
 
         if (refitHorizontalAlignment) {
             target.setHorizontalAlignment(null);

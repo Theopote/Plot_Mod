@@ -868,33 +868,41 @@ public final class JunctionConstructionContext {
 
     /**
      * 足迹列外包矩形作为 open-volume 裁剪多边形兜底（优先使用调用方传入的 fillPolygon）。
+     * 使用画布 planPoint，避免把世界列坐标当画布多边形。
      */
     private static List<Vec2d> polygonFromFootprint(JunctionWorldFootprint footprint) {
         if (footprint == null || footprint.paveColumns().isEmpty()) {
             return List.of();
         }
-        int minX = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxZ = Integer.MIN_VALUE;
+        double minX = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double minZ = Double.POSITIVE_INFINITY;
+        double maxZ = Double.NEGATIVE_INFINITY;
+        boolean any = false;
         for (ColumnKey key : footprint.paveColumns()) {
             if (key == null) {
                 continue;
             }
-            minX = Math.min(minX, key.worldX());
-            maxX = Math.max(maxX, key.worldX());
-            minZ = Math.min(minZ, key.worldZ());
-            maxZ = Math.max(maxZ, key.worldZ());
+            Vec2d plan = footprint.planPoint(key);
+            if (plan == null) {
+                continue;
+            }
+            any = true;
+            minX = Math.min(minX, plan.x);
+            maxX = Math.max(maxX, plan.x);
+            minZ = Math.min(minZ, plan.y);
+            maxZ = Math.max(maxZ, plan.y);
         }
-        if (minX == Integer.MAX_VALUE) {
+        if (!any) {
+            // 无画布点则 fail-closed，勿用世界坐标冒充画布多边形。
             return List.of();
         }
-        // 外扩 1 格，避免边界采样被 pointInPolygon 立刻截断。
+        // 外扩约 1.5 画布单位，避免边界采样被 pointInPolygon 立刻截断。
         return List.of(
             new Vec2d(minX - 1.5, minZ - 1.5),
-            new Vec2d(maxX + 2.5, minZ - 1.5),
-            new Vec2d(maxX + 2.5, maxZ + 2.5),
-            new Vec2d(minX - 1.5, maxZ + 2.5));
+            new Vec2d(maxX + 1.5, minZ - 1.5),
+            new Vec2d(maxX + 1.5, maxZ + 1.5),
+            new Vec2d(minX - 1.5, maxZ + 1.5));
     }
 
     private static Collection<RoadGenerationResult> approachCarriers(
@@ -941,6 +949,13 @@ public final class JunctionConstructionContext {
                         planPoint, transformer).getZ();
                 }
                 return (int) Math.floor(planPoint.y);
+            }
+
+            @Override
+            public Vec2d planPoint(int worldX, int worldZ) {
+                return TunnelJunctionSeedResolver.planPointForBlock(
+                    new BlockPos(worldX, 0, worldZ),
+                    transformer);
             }
         };
     }

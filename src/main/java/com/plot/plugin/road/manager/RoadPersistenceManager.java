@@ -59,6 +59,9 @@ public final class RoadPersistenceManager {
         Path file = getNetworksDir().resolve(DEFAULT_NETWORK_FILE);
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
             currentNetworkFile = DEFAULT_NETWORK_FILE;
+        } else {
+            // 加载失败：清空 live 网并绑定目标文件，避免随后保存把旧工程路网写入此 sidecar。
+            bindEmptyNetworkOnLoadFailure(DEFAULT_NETWORK_FILE, onLoaded, onSelectionReset);
         }
     }
 
@@ -71,9 +74,24 @@ public final class RoadPersistenceManager {
         }
         String targetFile = ProjectPathResolver.sidecarFileName(filePath);
         Path file = getNetworksDir().resolve(targetFile);
-        // 仅在加载成功后才绑定 currentNetworkFile，避免失败时把旧路网写进新工程文件
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
             currentNetworkFile = targetFile;
+        } else {
+            // 加载失败仍绑定新工程 sidecar，并用空网替换 live，阻断跨工程污染。
+            bindEmptyNetworkOnLoadFailure(targetFile, onLoaded, onSelectionReset);
+        }
+    }
+
+    private void bindEmptyNetworkOnLoadFailure(
+            String targetFile,
+            Consumer<RoadNetwork> onLoaded,
+            Runnable onSelectionReset) {
+        currentNetworkFile = targetFile;
+        if (onLoaded != null) {
+            onLoaded.accept(new RoadNetwork());
+        }
+        if (onSelectionReset != null) {
+            onSelectionReset.run();
         }
     }
 

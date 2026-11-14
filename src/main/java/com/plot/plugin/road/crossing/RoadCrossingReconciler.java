@@ -106,6 +106,7 @@ public final class RoadCrossingReconciler {
 
     private static RoadCrossing mergeWithExisting(RoadCrossing detected, RoadCrossing existing) {
         if (existing != null) {
+            // type/elevatedRoadId/clearance 是用户设计态；detector 恒为 AT_GRADE，不得覆盖。
             RoadCrossing refreshed = existing.withRefreshedGeometry(
                 detected.stationA(),
                 detected.stationB(),

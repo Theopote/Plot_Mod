@@ -65,6 +65,10 @@ public final class JsonSnapshotHistory<T> {
     }
 
     public T undo(T current) {
+        // 未提交编辑优先回滚 staged，避免弹出上一帧已提交撤销并留下过期快照。
+        if (stagedUndoSnapshot != null) {
+            return discardStagedPush(current);
+        }
         if (undoStack.isEmpty()) {
             return current;
         }
@@ -75,6 +79,9 @@ public final class JsonSnapshotHistory<T> {
     }
 
     public T redo(T current) {
+        if (stagedUndoSnapshot != null) {
+            current = discardStagedPush(current);
+        }
         if (redoStack.isEmpty()) {
             return current;
         }
@@ -85,7 +92,7 @@ public final class JsonSnapshotHistory<T> {
     }
 
     public boolean canUndo() {
-        return !undoStack.isEmpty();
+        return stagedUndoSnapshot != null || !undoStack.isEmpty();
     }
 
     public boolean canRedo() {

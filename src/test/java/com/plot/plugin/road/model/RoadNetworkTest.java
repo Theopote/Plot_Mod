@@ -887,7 +887,14 @@ class RoadNetworkTest {
                 }
               ],
               "roads": [
-                {"id": "road-1", "name": "R1", "segmentIds": ["e1"]}
+                {
+                  "id": "road-1",
+                  "name": "R1",
+                  "segmentIds": ["e1"],
+                  "crossSection": {
+                    "carriageway": {"width": 7, "laneCount": 2}
+                  }
+                }
               ]
             }
             """;
@@ -896,6 +903,31 @@ class RoadNetworkTest {
         assertEquals(1, network.getNode("n2").getDegree());
         assertTrue(network.getNode("n1").getConnectedEdgeIds().contains("e1"));
         assertTrue(network.getNode("n2").getConnectedEdgeIds().contains("e1"));
+    }
+
+    @Test
+    void fromJsonRejectsRoadMissingCrossSection() {
+        String json = """
+            {
+              "nodes": [
+                {"id": "n1", "position": {"x": 0, "y": 0}},
+                {"id": "n2", "position": {"x": 10, "y": 0}}
+              ],
+              "edges": [
+                {
+                  "id": "e1",
+                  "startNodeId": "n1",
+                  "endNodeId": "n2",
+                  "centerlinePoints": [{"x": 0, "y": 0}, {"x": 10, "y": 0}],
+                  "roadId": "road-1"
+                }
+              ],
+              "roads": [
+                {"id": "road-1", "name": "R1", "segmentIds": ["e1"]}
+              ]
+            }
+            """;
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson(json));
     }
 
     @Test

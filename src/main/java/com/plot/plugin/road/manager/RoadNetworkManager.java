@@ -393,13 +393,18 @@ public final class RoadNetworkManager {
         Objects.requireNonNull(mutation, "mutation");
         Objects.requireNonNull(commitWhen, "commitWhen");
         pushUndoSnapshot();
-        T result = mutation.get();
-        if (commitWhen.test(result)) {
-            commitNetworkChange();
-        } else {
+        try {
+            T result = mutation.get();
+            if (commitWhen.test(result)) {
+                commitNetworkChange();
+            } else {
+                abortPendingNetworkEdit();
+            }
+            return result;
+        } catch (RuntimeException ex) {
             abortPendingNetworkEdit();
+            throw ex;
         }
-        return result;
     }
 
     /** 丢弃未提交的撤销帧，并将 live 网络恢复为 mutation 前快照。 */
@@ -1084,13 +1089,18 @@ public final class RoadNetworkManager {
         Objects.requireNonNull(commitWhen, "commitWhen");
         pushUndoSnapshot();
         pendingChangeKind = kind != null ? kind : RoadChangeKind.GENERAL;
-        T result = mutation.get();
-        if (commitWhen.test(result)) {
-            commitNetworkChange(kind);
-        } else {
-            cancelPendingNetworkEdit();
+        try {
+            T result = mutation.get();
+            if (commitWhen.test(result)) {
+                commitNetworkChange(kind);
+            } else {
+                cancelPendingNetworkEdit();
+            }
+            return result;
+        } catch (RuntimeException ex) {
+            abortPendingNetworkEdit();
+            throw ex;
         }
-        return result;
     }
 
     public CenterlineEditResult materializeHorizontalAlignment(Road road) {
@@ -1277,7 +1287,8 @@ public final class RoadNetworkManager {
 
         if (adoptedCount == 0) {
             if (historyPushed) {
-                undo();
+                // 认领未改成功：丢弃 staged，勿 undo() 误撤上一次已提交编辑。
+                abortPendingNetworkEdit();
             }
             status.error(PlotI18n.tr("plugin.road.adopt_failed"));
             return;

@@ -477,8 +477,10 @@ public class RoadNetwork {
         double splitStation = RoadStationing.segmentStartStation(this, road, segmentEdgeId);
         Road newRoad = createRoad();
         newRoad.copyEngineeringFrom(road);
+        // 先切桩号工程数据，再迁分段，最后统一重拟合 HA（拟合依赖 segment 链）。
+        boolean refitHa = false;
         if (splitStation >= 0.0) {
-            CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy()
+            refitHa = CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy()
                 .applyRoadSplit(this, road, newRoad, splitStation);
         }
         for (String segmentId : tailIds) {
@@ -486,6 +488,10 @@ public class RoadNetwork {
         }
         road.reorderSegments(headIds);
         newRoad.reorderSegments(tailIds);
+        if (refitHa) {
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
+        }
         return newRoad.getId();
     }
 
@@ -909,6 +915,13 @@ public class RoadNetwork {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.VALIDATION_FAILED,
                 PlotI18n.error("error.plot.road.network.invalid_json"));
+        }
+        for (RoadData roadData : data.roads) {
+            if (roadData != null && roadData.crossSection == null) {
+                throw new RoadNetworkFormatException(
+                    RoadNetworkFormatException.Reason.VALIDATION_FAILED,
+                    "Road missing crossSection: " + roadData.id);
+            }
         }
     }
 
@@ -1479,6 +1492,7 @@ public class RoadNetwork {
             boolean hasRoadData = roads != null && !roads.isEmpty();
             if (hasRoadData) {
                 for (RoadData roadData : roads) {
+                    // crossSection 缺失已在 validateNetworkData 拒绝；此处防御。
                     if (roadData.crossSection == null) {
                         continue;
                     }

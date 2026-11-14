@@ -91,11 +91,14 @@ public enum CenterlineEditStationPolicy {
         RoadStationDataTransforms.applyRoadSplit(head, tail, splitStation, totalLength);
     }
 
-    public void applyRoadSplit(RoadNetwork network, Road head, Road tail, double splitStation) {
+    /**
+     * @return 是否应在分段迁移完成后重拟合平面线形
+     */
+    public boolean applyRoadSplit(RoadNetwork network, Road head, Road tail, double splitStation) {
         if (this != PARTITION_AND_RESET_TAIL) {
             throw new IllegalStateException("Expected PARTITION_AND_RESET_TAIL, got " + this);
         }
-        RoadStationDataTransforms.applyRoadSplit(network, head, tail, splitStation);
+        return RoadStationDataTransforms.applyRoadSplit(network, head, tail, splitStation);
     }
 
     public boolean applyRoadMerge(
