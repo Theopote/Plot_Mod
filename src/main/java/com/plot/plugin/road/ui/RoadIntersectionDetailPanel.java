@@ -85,10 +85,6 @@ public final class RoadIntersectionDetailPanel {
             layout);
     }
 
-    public void renderStackCrossing(RoadNetwork network, RoadStackCrossing stack) {
-        renderStackCrossing(network, stack, RoadGradeSeparationControls.Layout.BLOCK);
-    }
-
     public void renderStackCrossing(
             RoadNetwork network,
             RoadStackCrossing stack,
@@ -109,10 +105,6 @@ public final class RoadIntersectionDetailPanel {
             network,
             ctx.networkManager().getConfig(),
             layout);
-    }
-
-    public void renderLegacyJunction(RoadNetwork network, RoadNode node) {
-        renderLegacyJunction(network, node, RoadGradeSeparationControls.Layout.BLOCK);
     }
 
     public void renderLegacyJunction(

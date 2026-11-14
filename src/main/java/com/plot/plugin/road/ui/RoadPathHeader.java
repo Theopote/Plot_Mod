@@ -99,6 +99,7 @@ public final class RoadPathHeader {
             ImGui.sameLine(0f, spacing);
         }
         ImGui.setNextItemWidth(sliderWidth);
+        // 拖动时只写入配置；松手后再 invalidate 预览/叠加层，避免每帧全量重算导致卡顿。
         if (ImGui.sliderInt(
                 distanceLabel + "##path_slope_batter_run",
                 runBlocks,
@@ -107,6 +108,8 @@ public final class RoadPathHeader {
                 "%d")) {
             config.setSlopeBatterMaxRunBlocks(runBlocks[0]);
             config.markCustom();
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             ctx.onGenerationConfigChanged();
         }
         if (ImGui.isItemHovered()) {

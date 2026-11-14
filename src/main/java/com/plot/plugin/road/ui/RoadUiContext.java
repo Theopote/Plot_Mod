@@ -238,10 +238,6 @@ public final class RoadUiContext {
         return edgeSortMode;
     }
 
-    public void setEdgeSortMode(RoadEdgeListHelper.SortMode edgeSortMode) {
-        this.edgeSortMode = edgeSortMode;
-    }
-
     public boolean coordFilterEnabled() {
         return coordFilterEnabled;
     }
