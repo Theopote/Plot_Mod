@@ -110,16 +110,16 @@ class NetworkElevationAuthorityTest {
     }
 
     @Test
-    void legacySchemaDefaultsToPerRoad() throws Exception {
-        String legacy = """
+    void currentSchemaDefaultsElevationModeWhenOmitted() throws Exception {
+        String json = """
             {
-              "schemaVersion": 3,
+              "schemaVersion": 4,
               "nodes": [],
               "edges": [],
               "roads": []
             }
             """;
-        RoadNetwork loaded = RoadNetwork.fromJson(legacy);
+        RoadNetwork loaded = RoadNetwork.fromJson(json);
         assertEquals(NetworkElevationMode.PER_ROAD, loaded.getElevationMode());
         assertEquals(64, loaded.getUniformElevationY());
     }

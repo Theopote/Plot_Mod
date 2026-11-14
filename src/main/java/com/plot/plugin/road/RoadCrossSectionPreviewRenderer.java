@@ -704,7 +704,7 @@ public final class RoadCrossSectionPreviewRenderer {
 
     /**
      * 预览色：先匹配黑/灰/白/青等具体混凝土，再回退到泛化材质族。
-     * 同时扫原始材质 key 与解析后的 block id，避免 {@code material.plot.grass_block} 这类别名落到石头色。
+     * 同时扫原始材质 key 与解析后的 block id，避免别名落到石头色。
      */
     static int colorForMaterial(String material, int fallback) {
         if (material == null || material.isBlank()) {

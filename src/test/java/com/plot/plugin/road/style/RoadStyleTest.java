@@ -93,13 +93,6 @@ class RoadStyleTest {
     }
 
     @Test
-    void citySecondaryAliasStillResolvable() {
-        RoadStyle style = RoadStyleCatalog.findById(null, "city_secondary");
-        assertNotNull(style);
-        assertEquals("city_secondary", style.id);
-    }
-
-    @Test
     void configDefaultStylesIncludeNewEntries() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         assertTrue(config.getStyles().stream().anyMatch(s -> "mountain".equals(s.id)));

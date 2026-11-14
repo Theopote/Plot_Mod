@@ -49,10 +49,6 @@ public class RoadSystemConfig {
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
     private TunnelStyle tunnelStyle = new TunnelStyle();
-    /** Legacy JSON fields; migrated into {@link #tunnelStyle} on load. */
-    private String tunnelLiningMaterial;
-    private String tunnelAccentMaterial;
-    private int tunnelAccentSpacing;
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
     private int laneCount = 1;
@@ -63,7 +59,7 @@ public class RoadSystemConfig {
     private int medianWidth = 1;
     private boolean laneDividers = false;
     private String centerLineStyle = CenterLineStyle.NONE.name();
-    private String markingMaterial = "material.plot.white_concrete";
+    private String markingMaterial = "minecraft:white_concrete";
     private int streetlightSpacing = 0;
     private boolean includeSlopeBatter = true;
     /** 边坡水平最大跑距（格）：范围外不开挖/填坡。 */
@@ -143,27 +139,10 @@ public class RoadSystemConfig {
         if (config.roadThemeId == null || config.roadThemeId.isBlank()) {
             config.roadThemeId = RoadThemeCatalog.MODERN_ID;
         }
-        config.migrateLegacyTunnelFields();
-    }
-
-    private void migrateLegacyTunnelFields() {
-        if (tunnelStyle == null) {
-            tunnelStyle = new TunnelStyle();
+        if (config.tunnelStyle == null) {
+            config.tunnelStyle = new TunnelStyle();
         }
-        if (tunnelLiningMaterial != null && !tunnelLiningMaterial.isBlank()) {
-            tunnelStyle.setLiningMaterial(tunnelLiningMaterial);
-        }
-        if (tunnelAccentMaterial != null && !tunnelAccentMaterial.isBlank()) {
-            tunnelStyle.setAccentMaterial(tunnelAccentMaterial);
-        }
-        if (tunnelAccentSpacing > 0) {
-            tunnelStyle.setAccentSpacing(tunnelAccentSpacing);
-            tunnelStyle.setAccentRings(true);
-        }
-        tunnelStyle.ensureConfigDefaults();
-        tunnelLiningMaterial = null;
-        tunnelAccentMaterial = null;
-        tunnelAccentSpacing = 0;
+        config.tunnelStyle.ensureConfigDefaults();
     }
 
     private static void mergeMissingBuiltinStyles(RoadSystemConfig config) {
@@ -459,7 +438,7 @@ public class RoadSystemConfig {
     public String getMarkingMaterial() {
         return markingMaterial != null && !markingMaterial.isBlank()
             ? markingMaterial
-            : "material.plot.white_concrete";
+            : "minecraft:white_concrete";
     }
 
     public void setMarkingMaterial(String markingMaterial) {

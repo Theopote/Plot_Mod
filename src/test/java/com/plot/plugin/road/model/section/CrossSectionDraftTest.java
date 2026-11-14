@@ -22,7 +22,7 @@ class CrossSectionDraftTest {
         config.setMedianWidth(2);
         config.setLaneDividers(true);
         config.setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
-        config.setMarkingMaterial("material.plot.white_concrete");
+        config.setMarkingMaterial("minecraft:white_concrete");
         config.setStreetlightSpacing(12);
         config.setIncludeSlopeBatter(true);
         config.setFillSlopeRatio(1.5f);
@@ -39,7 +39,7 @@ class CrossSectionDraftTest {
         assertEquals(2, copy.getBikeLaneWidth());
         assertTrue(copy.isIncludeMedian());
         assertEquals(CenterLineStyle.SINGLE_DASHED, copy.getCenterLineStyle());
-        assertEquals("material.plot.white_concrete", copy.getMarkingMaterial());
+        assertEquals("minecraft:white_concrete", copy.getMarkingMaterial());
         assertEquals(12, copy.getStreetlightSpacing());
         assertTrue(copy.isIncludeSlopeBatter());
     }
@@ -49,12 +49,12 @@ class CrossSectionDraftTest {
         RoadNetworkManager.BatchEditDefaults defaults = new RoadNetworkManager.BatchEditDefaults(
             7,
             2,
-            MaterialMix.single("material.plot.asphalt"),
+            MaterialMix.single("minecraft:black_concrete"),
             true,
             1,
             false,
             2,
-            "material.plot.stone",
+            "minecraft:stone",
             true,
             1,
             false,
@@ -62,12 +62,12 @@ class CrossSectionDraftTest {
             0,
             true,
             CenterLineStyle.DOUBLE_SOLID,
-            "material.plot.white_concrete",
+            "minecraft:white_concrete",
             true,
             2f,
             1f,
-            "material.plot.dirt",
-            "material.plot.stone",
+            "minecraft:dirt",
+            "minecraft:stone",
             8f
         );
 

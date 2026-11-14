@@ -70,7 +70,8 @@ public class RoadCrossSection {
         return style.toCrossSection();
     }
 
-    public static RoadCrossSection fromLegacy(
+    /** 由扁平道路参数构造横断面（单车道起步）。 */
+    public static RoadCrossSection fromSimple(
             Integer width,
             String material,
             Boolean includeSidewalk,
@@ -209,46 +210,4 @@ public class RoadCrossSection {
         return copy;
     }
 
-    public static void mergeLegacyFlatFields(
-            RoadCrossSection section,
-            Integer width,
-            String material,
-            Boolean includeSidewalk,
-            Integer sidewalkWidth,
-            String sidewalkMaterial,
-            Boolean includeShoulder,
-            Integer shoulderWidth,
-            String shoulderMaterial,
-            Integer streetlightSpacing) {
-        if (section == null) {
-            return;
-        }
-        if (width != null) {
-            section.carriageway.setWidth(width);
-        }
-        if (material != null) {
-            section.carriageway.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(material));
-        }
-        if (includeSidewalk != null) {
-            section.sidewalk.setEnabled(includeSidewalk);
-        }
-        if (sidewalkWidth != null) {
-            section.sidewalk.setWidth(sidewalkWidth);
-        }
-        if (sidewalkMaterial != null) {
-            section.sidewalk.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(sidewalkMaterial));
-        }
-        if (includeShoulder != null) {
-            section.shoulder.setEnabled(includeShoulder);
-        }
-        if (shoulderWidth != null) {
-            section.shoulder.setWidth(shoulderWidth);
-        }
-        if (shoulderMaterial != null) {
-            section.shoulder.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(shoulderMaterial));
-        }
-        if (streetlightSpacing != null) {
-            section.streetFurniture.setStreetlightSpacing(streetlightSpacing);
-        }
-    }
 }

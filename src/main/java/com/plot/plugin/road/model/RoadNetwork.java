@@ -847,9 +847,8 @@ public class RoadNetwork {
     private static NetworkData migrateNetworkData(NetworkData data) throws RoadNetworkFormatException {
         int version = data.schemaVersion;
         if (version <= 0) {
-            version = 0;
-        }
-        if (version > CURRENT_SCHEMA_VERSION) {
+            data.schemaVersion = CURRENT_SCHEMA_VERSION;
+        } else if (version != CURRENT_SCHEMA_VERSION) {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
                 PlotI18n.error(
@@ -857,28 +856,12 @@ public class RoadNetwork {
                     version,
                     CURRENT_SCHEMA_VERSION));
         }
-        while (version < CURRENT_SCHEMA_VERSION) {
-            data = switch (version) {
-                case 0 -> migrateV0ToV1(data);
-                case 1 -> RoadNetworkVerticalModeMigration.migrateV1ToV2(data);
-                case 2 -> RoadNetworkProfileSourceMigration.migrateV2ToV3(data);
-                case 3 -> migrateV3ToV4(data);
-                default -> throw new RoadNetworkFormatException(
-                    RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
-                    PlotI18n.error(
-                        "error.plot.road.network.unsupported_format_version",
-                        version,
-                        CURRENT_SCHEMA_VERSION));
-            };
-            version = data.schemaVersion;
-        }
-        RoadNetworkVerticalModeMigration.normalizeLoadedVerticalModes(data);
-        RoadNetworkProfileSourceMigration.normalizeLoadedProfileSources(data);
+        applyCurrentSchemaDefaults(data);
         return data;
     }
 
-    private static NetworkData migrateV3ToV4(NetworkData data) {
-        data.schemaVersion = 4;
+    /** 填充当前 schema 下可省略字段的默认值（非旧版迁移）。 */
+    private static void applyCurrentSchemaDefaults(NetworkData data) {
         if (data.elevationMode == null || data.elevationMode.isBlank()) {
             data.elevationMode = NetworkElevationMode.PER_ROAD.name();
         }
@@ -886,12 +869,39 @@ public class RoadNetwork {
             data.uniformElevationY =
                 com.plot.plugin.road.vertical.NetworkElevationAuthority.DEFAULT_UNIFORM_ELEVATION_Y;
         }
-        return data;
+        if (data.roads == null) {
+            return;
+        }
+        for (RoadData road : data.roads) {
+            applyRoadLoadDefaults(road);
+        }
     }
 
-    private static NetworkData migrateV0ToV1(NetworkData data) {
-        data.schemaVersion = 1;
-        return data;
+    private static void applyRoadLoadDefaults(RoadData road) {
+        if (road == null) {
+            return;
+        }
+        boolean hasFlatIntent = road.flatVerticalIntent != null
+            && Double.isFinite(road.flatVerticalIntent.baseElevation);
+        boolean hasAlignment = road.verticalAlignment != null
+            && road.verticalAlignment.pvis != null
+            && !road.verticalAlignment.pvis.isEmpty();
+        boolean modeOmitted = road.verticalMode == null || road.verticalMode.isBlank();
+        if (modeOmitted) {
+            if (hasFlatIntent) {
+                road.verticalMode = RoadVerticalMode.FLAT.name();
+            } else {
+                road.verticalMode = RoadVerticalMode.FIT_TERRAIN.name();
+                if (hasAlignment && (road.profileSource == null || road.profileSource.isBlank())) {
+                    road.profileSource = com.plot.plugin.road.vertical.ProfileSource.EDITED.name();
+                }
+            }
+        }
+        if (road.profileSource == null || road.profileSource.isBlank()) {
+            road.profileSource = RoadVerticalMode.MANUAL_PROFILE.name().equalsIgnoreCase(road.verticalMode)
+                ? com.plot.plugin.road.vertical.ProfileSource.EDITED.name()
+                : com.plot.plugin.road.vertical.ProfileSource.AUTO.name();
+        }
     }
 
     private static void validateNetworkData(NetworkData data) throws RoadNetworkFormatException {

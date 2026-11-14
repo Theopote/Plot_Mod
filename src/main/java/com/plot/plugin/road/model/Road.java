@@ -89,7 +89,7 @@ public class Road {
             Integer streetlightSpacing,
             Float maxSlope,
             Set<String> segmentIds) {
-        this(id, name, RoadCrossSection.fromLegacy(
+        this(id, name, RoadCrossSection.fromSimple(
             width, material, includeSidewalk, sidewalkWidth, sidewalkMaterial, streetlightSpacing
         ), maxSlope, segmentIds);
     }
@@ -480,7 +480,7 @@ public class Road {
         return RoadVerticalMode.FIT_TERRAIN;
     }
 
-    /** 持久化字段；{@code null} 表示未显式设置（加载时由迁移逻辑决议）。 */
+    /** 持久化字段；{@code null} 表示未显式设置（加载时填默认）。 */
     public RoadVerticalMode getStoredVerticalMode() {
         return verticalMode;
     }
@@ -489,7 +489,7 @@ public class Road {
         this.verticalMode = verticalMode;
     }
 
-    /** 持久化字段；{@code null} 表示未显式设置（加载时由迁移逻辑决议）。 */
+    /** 持久化字段；{@code null} 表示未显式设置（加载时填默认）。 */
     public ProfileSource getStoredProfileSource() {
         return profileSource;
     }

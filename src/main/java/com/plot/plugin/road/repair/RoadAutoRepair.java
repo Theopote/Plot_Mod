@@ -179,9 +179,6 @@ public final class RoadAutoRepair {
             switch (violation.kind()) {
                 case SELF_OVERLAP -> issues.add(RoadRepairIssue.CENTERLINE_SELF_OVERLAP);
                 case NON_LINEAR_ROAD_TOPOLOGY -> issues.add(RoadRepairIssue.CENTERLINE_NON_LINEAR);
-                // SELF_INTERSECTION 已弃用：平面自交由 StackCrossing 处理，不进自动修复列表。
-                default -> {
-                }
             }
         }
     }

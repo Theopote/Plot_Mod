@@ -597,6 +597,29 @@ public final class TunnelJunctionConnectivityPass {
         return false;
     }
 
+    /**
+     * 路口进口是否应按隧道处理：几何段窗口 {@link #tunnelAtNode}，或施工类型数组从节点端
+     * 向外的有限站距窗口（几何段过粗时 ROAD→TUNNEL 短 stub 仍能识别）。
+     * <p>
+     * {@link TunnelJunctionSeedResolver#collectTunnelApproaches} 与 fail-closed 证据判定必须共用此口径，
+     * 否则会出现「有近节点隧道证据但 approach 为空」误拦建造。
+     */
+    static boolean hasTunnelApproachEvidenceAtNode(
+            RoadNetwork network,
+            RoadNode node,
+            RoadEdge edge,
+            RoadGenerationResult result,
+            RoadSystemConfig config,
+            List<Vec2d> centerline,
+            List<PathSegment> approachSegments,
+            double unitsPerBlock) {
+        if (tunnelAtNode(network, node, edge, result, config, centerline, approachSegments, unitsPerBlock)) {
+            return true;
+        }
+        return JunctionConstructionContext.hasTunnelFamilyWithinEntryTypeWindow(
+            edge, node != null ? node.getId() : null, result, config, node);
+    }
+
     private record OpenVolumeStats(int blockedByProtection, int protectedConflicts) {
     }
 

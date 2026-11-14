@@ -38,8 +38,8 @@ public final class BridgeStructureGenerator {
     private static final int ABUTMENT_THICKNESS_BLOCKS = 2;
     /** Narrow roads get a single pier column; wider roads get edge + center columns. */
     private static final int SINGLE_COLUMN_CARRIAGEWAY_WIDTH = 3;
-    static final String PIER_MATERIAL = "material.plot.stone_bricks";
-    static final String DECK_SLAB_MATERIAL = "material.plot.stone";
+    static final String PIER_MATERIAL = "minecraft:stone_bricks";
+    static final String DECK_SLAB_MATERIAL = "minecraft:stone";
 
     private BridgeStructureGenerator() {
     }

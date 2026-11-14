@@ -497,7 +497,8 @@ public final class JunctionConstructionContext {
         Set<ColumnKey> filletColumns = safeFootprint.filletAdditions();
         // 进口首段即为隧道族：真地下广场。开敞 stub（首段 ROAD、远端才隧道）为 false，
         // 允许清障外缘露天，避免「远处有洞」毒化开敞街角。
-        boolean tunnelEntryPlaza = approachesHaveTunnelFamilyAtEntry(approaches, edgeResults);
+        boolean tunnelEntryPlaza = approachesHaveTunnelFamilyAtEntry(
+            approaches, edgeResults, config, node);
 
         Set<ColumnKey> enclosedColumns = new LinkedHashSet<>();
         Set<ColumnKey> tunnelFamilyColumns = new LinkedHashSet<>();
@@ -639,8 +640,8 @@ public final class JunctionConstructionContext {
 
     /**
      * 节点邻域内是否有隧道族施工。
-     * 优先 {@link TunnelJunctionConnectivityPass#tunnelAtNode}；几何段过粗时再按施工类型数组
-     * 从节点端向外扫有限站距窗口（禁止「整条边任意处有隧道」）。
+     * 与 {@link TunnelJunctionSeedResolver#collectTunnelApproaches} 共用
+     * {@link TunnelJunctionConnectivityPass#hasTunnelApproachEvidenceAtNode}，避免证据/收集口径分裂。
      */
     private static boolean hasNearNodeTunnelEvidence(
             RoadNetwork network,
@@ -668,12 +669,11 @@ public final class JunctionConstructionContext {
             }
             List<PathSegment> segments = TunnelJunctionSeedResolver.segmentsFromNode(
                 centerline, edge, node.getId());
-            if (!segments.isEmpty()
-                    && TunnelJunctionConnectivityPass.tunnelAtNode(
-                        network, node, edge, result, config, centerline, segments, 1.0)) {
-                return true;
+            if (segments.isEmpty()) {
+                continue;
             }
-            if (hasTunnelFamilyWithinEntryTypeWindow(edge, node.getId(), result, config, node)) {
+            if (TunnelJunctionConnectivityPass.hasTunnelApproachEvidenceAtNode(
+                    network, node, edge, result, config, centerline, segments, 1.0)) {
                 return true;
             }
         }
@@ -694,13 +694,21 @@ public final class JunctionConstructionContext {
             return false;
         }
         int size = result.constructionTypes.size();
+        if (size <= 0) {
+            return false;
+        }
         boolean fromStart = nodeId.equals(edge.getStartNodeId());
-        double sample = Math.max(1.0, config.getPathSampleDistance());
         double plaza = node != null
             ? Math.max(1.0, node.getEffectivePlazaRadius(RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS))
             : RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS;
         double window = Math.max(plaza, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
-        int maxSteps = Math.clamp((int) Math.ceil(window / sample) + 1, 2, size);
+        // 按「类型格 ≈ 边长/类型数」换算站距，禁止把 pathSampleDistance 直接当地类型步长
+        // （稀疏类型数组时会把远处洞身扫进进口窗口）。
+        double edgeLen = result.pathLength > 1e-6
+            ? result.pathLength
+            : Math.max(1.0, config.getPathSampleDistance()) * size;
+        double metersPerType = Math.max(1e-6, edgeLen / size);
+        int maxSteps = Math.max(1, Math.min(size, (int) Math.ceil(window / metersPerType) + 1));
         for (int step = 0; step < maxSteps; step++) {
             int typeIndex = fromStart ? step : (size - 1 - step);
             com.plot.plugin.road.RoadConstructionType type =
@@ -802,6 +810,18 @@ public final class JunctionConstructionContext {
     static boolean approachesHaveTunnelFamilyAtEntry(
             List<TunnelJunctionSeedResolver.TunnelApproach> approaches,
             Map<String, RoadGenerationResult> edgeResults) {
+        return approachesHaveTunnelFamilyAtEntry(approaches, edgeResults, null, null);
+    }
+
+    /**
+     * 进口首段或节点端有限窗口内是否为隧道族。短 ROAD stub 后接 TUNNEL 仍视为隧道进口广场，
+     * 与 {@link #hasTunnelFamilyWithinEntryTypeWindow} 对齐，避免露天打穿深覆土。
+     */
+    static boolean approachesHaveTunnelFamilyAtEntry(
+            List<TunnelJunctionSeedResolver.TunnelApproach> approaches,
+            Map<String, RoadGenerationResult> edgeResults,
+            RoadSystemConfig config,
+            RoadNode node) {
         if (approaches == null || approaches.isEmpty() || edgeResults == null) {
             return false;
         }
@@ -822,6 +842,10 @@ public final class JunctionConstructionContext {
                 com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier.constructionTypeAt(
                     result.constructionTypes, typeIndex);
             if (type != null && type.isTunnelFamily()) {
+                return true;
+            }
+            if (config != null && hasTunnelFamilyWithinEntryTypeWindow(
+                    approach.edge(), approach.nodeId(), result, config, node)) {
                 return true;
             }
         }

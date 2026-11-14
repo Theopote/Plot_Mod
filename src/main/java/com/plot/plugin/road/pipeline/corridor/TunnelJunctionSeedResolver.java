@@ -73,10 +73,12 @@ public final class TunnelJunctionSeedResolver {
         if (network == null || node == null || edgeResults == null || config == null) {
             return approaches;
         }
-        Integer junctionY = nodeElevations != null ? nodeElevations.get(node.getId()) : null;
-        if (junctionY == null || node.getPosition() == null) {
+        if (node.getPosition() == null) {
             return approaches;
         }
+        Integer junctionY = nodeElevations != null ? nodeElevations.get(node.getId()) : null;
+        // 缺标高时仍收集进口（与 fail-closed 证据对齐）；roadY 回退 0，后续路口生成会再决议。
+        int resolvedJunctionY = junctionY != null ? junctionY : 0;
         String elevatedRoadId = node.isGradeSeparated() ? node.getElevatedRoadId() : null;
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
@@ -96,7 +98,8 @@ public final class TunnelJunctionSeedResolver {
             if (!Double.isFinite(unitsPerBlock) || unitsPerBlock <= EPSILON) {
                 unitsPerBlock = 1.0;
             }
-            if (!TunnelJunctionConnectivityPass.tunnelAtNode(
+            // 与 fail-closed 证据同一口径：几何段窗口 + 施工类型入口窗口。
+            if (!TunnelJunctionConnectivityPass.hasTunnelApproachEvidenceAtNode(
                     network, node, edge, result, config, centerline, segments, unitsPerBlock)) {
                 continue;
             }
@@ -114,7 +117,7 @@ public final class TunnelJunctionSeedResolver {
             ResolvedTunnelStyle tunnelStyle = TunnelStyle.resolve(road, config);
             approaches.add(new TunnelApproach(
                 edge, node.getId(), centerline, crossSections, unitsPerBlock,
-                crossSection, tunnelStyle, junctionY));
+                crossSection, tunnelStyle, resolvedJunctionY));
         }
         return approaches;
     }

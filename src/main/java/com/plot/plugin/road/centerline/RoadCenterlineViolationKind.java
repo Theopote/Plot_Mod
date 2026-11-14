@@ -10,12 +10,6 @@ package com.plot.plugin.road.centerline;
  * @see RoadCenterlineShapeValidator
  */
 public enum RoadCenterlineViolationKind {
-    /**
-     * @deprecated 平面自交是合法设计（立交/盘山/环路汇合），由 StackCrossing 承接；
-     *             校验器不再产出此类型，保留枚举仅兼容旧数据/文案。
-     */
-    @Deprecated
-    SELF_INTERSECTION,
     /** 中心线折线存在共线重叠（同一走廊折返重复走，非近距平行回头弯）。 */
     SELF_OVERLAP,
     /** 道路子图非 open chain（内部分叉或隐式闭环）。 */

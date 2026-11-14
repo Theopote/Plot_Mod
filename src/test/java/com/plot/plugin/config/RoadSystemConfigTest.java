@@ -31,10 +31,10 @@ class RoadSystemConfigTest {
     @Test
     void cutSlopeMaterialFallsBackToFillWhenBlank() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        config.setFillSlopeMaterial("material.plot.gravel");
+        config.setFillSlopeMaterial("minecraft:coarse_dirt");
         config.setCutSlopeMaterial("");
 
-        assertEquals("material.plot.gravel", config.getCutSlopeMaterial());
+        assertEquals("minecraft:coarse_dirt", config.getCutSlopeMaterial());
     }
 
     @Test
@@ -68,9 +68,18 @@ class RoadSystemConfigTest {
     }
 
     @Test
-    void tunnelAccentSettingsClampAndNullMaterialsRemainSafe(@TempDir Path dir) throws IOException {
+    void tunnelStyleAccentSettingsClampAndDefaultsRemainSafe(@TempDir Path dir) throws IOException {
         Path file = dir.resolve("road_system.json");
-        Files.writeString(file, "{\"tunnelLiningMaterial\":null,\"tunnelAccentMaterial\":null,\"tunnelAccentSpacing\":99}");
+        Files.writeString(file, """
+            {
+              "tunnelStyle": {
+                "liningMaterial": null,
+                "accentMaterial": null,
+                "accentSpacing": 99,
+                "accentRings": true
+              }
+            }
+            """);
         RoadSystemConfig config = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
 
         assertEquals("minecraft:stone_bricks", config.getTunnelLiningMaterial());
@@ -79,13 +88,16 @@ class RoadSystemConfigTest {
     }
 
     @Test
-    void legacyTunnelFieldsMigrateIntoTunnelStyle(@TempDir Path dir) throws IOException {
+    void tunnelStyleNestedFieldsRoundTrip(@TempDir Path dir) throws IOException {
         Path file = dir.resolve("road_system.json");
         Files.writeString(file, """
             {
-              "tunnelLiningMaterial": "minecraft:deepslate_bricks",
-              "tunnelAccentMaterial": "minecraft:polished_andesite",
-              "tunnelAccentSpacing": 6
+              "tunnelStyle": {
+                "liningMaterial": "minecraft:deepslate_bricks",
+                "accentMaterial": "minecraft:polished_andesite",
+                "accentSpacing": 6,
+                "accentRings": true
+              }
             }
             """);
         RoadSystemConfig config = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
@@ -98,15 +110,15 @@ class RoadSystemConfigTest {
     }
 
     @Test
-    void legacyMinimalPresetJsonDeserializesAsRoadStyle() {
+    void minimalPresetJsonDeserializesAsRoadStyle() {
         RoadSystemConfig config = new Gson().fromJson(
             """
             {
-              "selectedPreset": "legacy_custom",
+              "selectedPreset": "custom_street",
               "presets": [
                 {
-                  "id": "legacy_custom",
-                  "name": "Legacy Custom",
+                  "id": "custom_street",
+                  "name": "Custom Street",
                   "width": 9,
                   "hasSidewalk": true,
                   "sidewalkWidth": 2
@@ -116,23 +128,23 @@ class RoadSystemConfigTest {
             """,
             RoadSystemConfig.class);
 
-        assertEquals("legacy_custom", config.getSelectedPreset());
+        assertEquals("custom_street", config.getSelectedPreset());
         assertEquals(1, config.getStyles().size());
-        assertEquals("legacy_custom", config.getStyles().getFirst().id);
-        assertEquals("Legacy Custom", config.getStyles().getFirst().name);
+        assertEquals("custom_street", config.getStyles().getFirst().id);
+        assertEquals("Custom Street", config.getStyles().getFirst().name);
         assertEquals(9, config.getStyles().getFirst().width);
         assertEquals(2, config.getStyles().getFirst().sidewalkWidth);
     }
 
     @Test
-    void loadFromMergesMissingBuiltinStylesForLegacyPresetList(@TempDir Path dir) throws IOException {
+    void loadFromMergesMissingBuiltinStyles(@TempDir Path dir) throws IOException {
         Path file = dir.resolve("road_system.json");
         Files.writeString(file, """
             {
               "presets": [
                 {
-                  "id": "legacy_custom",
-                  "name": "Legacy Custom",
+                  "id": "custom_street",
+                  "name": "Custom Street",
                   "width": 9,
                   "hasSidewalk": false,
                   "sidewalkWidth": 0
@@ -143,7 +155,7 @@ class RoadSystemConfigTest {
 
         RoadSystemConfig loaded = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
         assertNotNull(loaded);
-        assertTrue(loaded.getStyles().stream().anyMatch(style -> "legacy_custom".equals(style.id)));
+        assertTrue(loaded.getStyles().stream().anyMatch(style -> "custom_street".equals(style.id)));
         assertTrue(loaded.getStyles().stream().anyMatch(style -> "mountain".equals(style.id)));
     }
 }

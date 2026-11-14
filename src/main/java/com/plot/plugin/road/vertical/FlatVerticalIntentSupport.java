@@ -35,9 +35,9 @@ public final class FlatVerticalIntentSupport {
         if (road.getVerticalMode() != RoadVerticalMode.FLAT) {
             return null;
         }
-        FlatVerticalIntent migrated = migrateLegacyFlat(network, road);
-        road.setFlatVerticalIntent(migrated);
-        return migrated;
+        FlatVerticalIntent synthesized = synthesizeFlatIntent(network, road);
+        road.setFlatVerticalIntent(synthesized);
+        return synthesized;
     }
 
     public static void syncCompiledAlignment(RoadNetwork network, Road road, double maxGradePercent) {
@@ -434,7 +434,7 @@ public final class FlatVerticalIntentSupport {
             || road.getVerticalMode() == RoadVerticalMode.FLAT;
     }
 
-    private static FlatVerticalIntent migrateLegacyFlat(RoadNetwork network, Road road) {
+    private static FlatVerticalIntent synthesizeFlatIntent(RoadNetwork network, Road road) {
         double base = recommendBaseElevation(network, road);
         Map<String, Double> overrides = new LinkedHashMap<>();
         if (network != null) {

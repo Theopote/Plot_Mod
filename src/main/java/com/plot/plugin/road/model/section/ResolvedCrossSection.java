@@ -18,7 +18,7 @@ import java.util.Optional;
  * 横断面解析结果：道路级覆盖与全局默认合并后的有效值，供生成器与预览使用。
  */
 public final class ResolvedCrossSection {
-    public static final String DEFAULT_MARKING_MATERIAL = "material.plot.white_concrete";
+    public static final String DEFAULT_MARKING_MATERIAL = "minecraft:white_concrete";
     public static final String DEFAULT_BIKE_LANE_MATERIAL = "minecraft:light_blue_concrete";
     public static final String DEFAULT_STREETLIGHT_BLOCK = "minecraft:lantern";
 
@@ -166,7 +166,7 @@ public final class ResolvedCrossSection {
             config.getSelectedMaterial());
         String medianMaterial = median.getMaterial() != null
             ? median.getMaterial()
-            : "material.plot.grass_block";
+            : "minecraft:grass_block";
 
         boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount);
         CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config);

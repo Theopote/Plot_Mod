@@ -247,7 +247,7 @@ public final class JunctionCrossSectionFill {
      * （中心+半宽会侵入邻路/圆角补铺）。{@code pavedColumns} 内世界列禁止写入边坡。
      * <p>
      * 整路口 {@code maxClearY} 仅作兼容；混合隧道路口请改用
-     * {@link #stampApproachSlopeBatters(..., ColumnClearCapResolver, ...)} 逐列决策。
+     *  逐列决策。
      */
     public static void stampApproachSlopeBatters(
             RoadSolidModel solids,

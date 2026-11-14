@@ -35,7 +35,7 @@ public class RoadStyle {
     public String bikeLaneMaterial;
     public String fillSlopeMaterial;
     public String cutSlopeMaterial;
-    public String markingMaterial = "material.plot.white_concrete";
+    public String markingMaterial = "minecraft:white_concrete";
     public String streetlightBlock;
     public String centerLineStyle;
     public Boolean laneDividers;
@@ -167,7 +167,7 @@ public class RoadStyle {
         section.getMarkings().setMaterial(
             style.markingMaterial != null && !style.markingMaterial.isBlank()
                 ? style.markingMaterial
-                : "material.plot.white_concrete"
+                : "minecraft:white_concrete"
         );
 
         // Urban presets leave includeSlopeBatter null with zero ratios ("silent"):

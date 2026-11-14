@@ -335,6 +335,8 @@ class JunctionProtectedOverburdenHardTest {
         int surfaceY = 90;
         RoadJunctionGenerator.JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
+        assertFalse(blocks.constructionContext().failClosed(),
+            "short ROAD→TUNNEL stub must collect approaches, not fail-closed");
         assertTrue(blocks.constructionContext().undergroundJunction()
                 || !blocks.constructionContext().protectedCavityColumns().isEmpty()
                 || blocks.constructionContext().tunnelClearHeight() != null
@@ -348,6 +350,43 @@ class JunctionProtectedOverburdenHardTest {
             assertTrue(p.elevation() < surfaceY,
                 "short ROAD stub must not daylight mountain; airY=" + p.elevation());
         }
+    }
+
+    @Test
+    void denseTypeWindowTunnelIsCollectedNotFailClosed() {
+        // 施工类型数组密、几何段粗：仅类型窗口能看见近节点 TUNNEL 时，必须仍能 collect，禁止 fail-closed。
+        RoadSystemConfig config = new RoadSystemConfig("dense-type-window");
+        config.setDefaultCornerRadius(6.0f);
+        config.setPathSampleDistance(8.0f);
+        config.setSelectedMaterial("minecraft:stone");
+
+        RoadNetwork network = crossNetwork(true);
+        RoadNode junction = hub(network);
+        Map<String, Integer> elevations = new LinkedHashMap<>();
+        elevations.put(junction.getId(), 64);
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            elevations.put(edge.getStartNodeId(), 64);
+            elevations.put(edge.getEndNodeId(), 64);
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            // 节点端 1 格 ROAD stub，随后 TUNNEL（类型窗口能命中；几何段可能漏检）
+            result.constructionTypes.add(RoadConstructionType.ROAD);
+            for (int i = 0; i < 12; i++) {
+                result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            }
+            edgeResults.put(edge.getId(), result);
+        }
+
+        List<TunnelJunctionSeedResolver.TunnelApproach> approaches =
+            TunnelJunctionSeedResolver.collectTunnelApproaches(
+                network, junction, edgeResults, elevations, config, (path, segs) -> 1.0);
+        assertFalse(approaches.isEmpty(),
+            "type-window tunnel evidence must be collected as approaches");
+
+        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+            config, network, junction, surfaceAt(90), 64, edgeResults);
+        assertFalse(blocks.constructionContext().failClosed(),
+            "must not fail-closed when approaches can be collected via type window");
     }
 
     @Test

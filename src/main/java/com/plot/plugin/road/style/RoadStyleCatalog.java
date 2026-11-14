@@ -139,14 +139,6 @@ public final class RoadStyleCatalog {
         return style;
     }
 
-    /** 旧 preset id {@code city_secondary} → 现住宅街道内容，保留原 id。 */
-    private static RoadStyle citySecondaryAlias() {
-        RoadStyle style = residential();
-        style.id = "city_secondary";
-        style.name = "city_secondary";
-        return style;
-    }
-
     public static RoadStyle countryRoad() {
         RoadStyle style = base("country_road");
         style.width = 5;
@@ -326,9 +318,6 @@ public final class RoadStyleCatalog {
             if (styleId.equals(style.id)) {
                 return style;
             }
-        }
-        if ("city_secondary".equals(styleId)) {
-            return citySecondaryAlias();
         }
         return null;
     }

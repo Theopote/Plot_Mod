@@ -839,16 +839,17 @@ class RoadNetworkTest {
     }
 
     @Test
-    void legacyStringCarriagewayMaterialLoadsAsMaterialMix() {
+    void stringCarriagewayMaterialLoadsAsMaterialMix() {
         String json = """
             {
+              "schemaVersion": 4,
               "roads": [{
                 "id": "road-1",
                 "name": "Road 1",
                 "crossSection": {
                   "carriageway": {
                     "width": 5,
-                    "material": "material.plot.gravel"
+                    "material": "minecraft:coarse_dirt"
                   }
                 },
                 "segmentIds": []
@@ -863,8 +864,7 @@ class RoadNetworkTest {
         MaterialMix material = road.getMaterial();
 
         assertNotNull(material);
-        // 旧 abstract key 在加载时规范为 block id
-        assertEquals(RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK, material.getPrimaryMaterial());
+        assertEquals("minecraft:coarse_dirt", material.getPrimaryMaterial());
         assertFalse(material.hasAccent());
     }
 

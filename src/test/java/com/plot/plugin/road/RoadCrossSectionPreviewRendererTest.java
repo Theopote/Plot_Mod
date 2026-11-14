@@ -178,13 +178,10 @@ class RoadCrossSectionPreviewRendererTest {
     }
 
     @Test
-    void grassAliasKeepsGreenPreviewColor() {
-        int grass = RoadCrossSectionPreviewRenderer.colorForMaterial("material.plot.grass_block", 0);
+    void grassBlockKeepsGreenPreviewColor() {
+        int grass = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:grass_block", 0);
         int stone = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:stone", 0);
         assertNotEquals(stone, grass);
-        assertEquals(
-            RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:grass_block", 0),
-            grass);
     }
 
     private static void assertPresetFitsCard(

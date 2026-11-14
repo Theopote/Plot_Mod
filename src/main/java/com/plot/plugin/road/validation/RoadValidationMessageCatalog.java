@@ -85,8 +85,6 @@ public final class RoadValidationMessageCatalog {
                 RoadNetworkValidationReport.Level.WARNING,
                 "centerline_non_linear_single",
                 RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
-            // SELF_INTERSECTION 已弃用：平面自交合法，不展示为校验问题
-            default -> null;
         };
     }
 
@@ -139,8 +137,6 @@ public final class RoadValidationMessageCatalog {
         map.put("plugin.road.validation.road_order_mismatch",
             IssueTemplate.warning("road_order_mismatch", RoadValidationAction.SYNC_SEGMENT_ORDER));
         map.put("plugin.road.validation.centerline_shape_ok", IssueTemplate.ok("centerline_shape_ok"));
-        map.put("plugin.road.validation.centerline_self_intersection",
-            IssueTemplate.warning("centerline_self_intersection", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.centerline_self_overlap",
             IssueTemplate.warning("centerline_self_overlap", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.centerline_non_linear",

@@ -15,10 +15,10 @@ class MaterialMixJsonTest {
         .create();
 
     @Test
-    void readsLegacyStringAsSingleMaterial() {
-        MaterialMix mix = gson.fromJson("\"material.plot.gravel\"", MaterialMix.class);
+    void readsPlainStringAsSingleMaterial() {
+        MaterialMix mix = gson.fromJson("\"minecraft:gravel\"", MaterialMix.class);
 
-        assertEquals("material.plot.gravel", mix.getPrimaryMaterial());
+        assertEquals("minecraft:gravel", mix.getPrimaryMaterial());
         assertNull(mix.getAccentMaterial());
         assertFalse(mix.hasAccent());
     }

@@ -565,7 +565,6 @@ class RoadNetworkEngineeringValidatorTest {
         RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
             network, Map.of(), new RoadSystemConfig("test"));
 
-        assertFalse(hasWarning(report, "plugin.road.validation.centerline_self_intersection"));
         assertFalse(report.blocksBuild());
     }
 

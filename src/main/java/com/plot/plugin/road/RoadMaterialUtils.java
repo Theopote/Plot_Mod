@@ -6,7 +6,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
 /**
- * 道路材质与方块 ID 的互转与兼容（含旧版 material.plot.* 抽象 key）。
+ * 道路材质与方块 ID 的互转。
  */
 public final class RoadMaterialUtils {
     public static final String DEFAULT_ROAD_BLOCK = "minecraft:white_concrete";
@@ -23,10 +23,6 @@ public final class RoadMaterialUtils {
     public static String normalizeStoredMaterial(String material) {
         if (material == null || material.isBlank()) {
             return null;
-        }
-        String legacy = resolveLegacyMaterial(material);
-        if (legacy != null) {
-            return legacy;
         }
         if (looksLikeBlockId(material)) {
             return material;
@@ -79,17 +75,6 @@ public final class RoadMaterialUtils {
             // fall through
         }
         return Blocks.STONE;
-    }
-
-    private static String resolveLegacyMaterial(String material) {
-        return switch (material) {
-            case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
-            case "material.plot.gravel" -> DEFAULT_SLOPE_FILL_BLOCK;
-            case "砂砾" -> DEFAULT_SLOPE_FILL_BLOCK;
-            case "material.plot.planks", "木板" -> "minecraft:oak_planks";
-            case "material.plot.stone", "石头" -> "minecraft:stone";
-            default -> null;
-        };
     }
 
     private static boolean looksLikeBlockId(String blockId) {
