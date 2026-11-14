@@ -109,6 +109,10 @@ public final class ProfileChartLegend {
         appendIntersectionLegendInline(intersections);
         appendJunctionFixedAnchorLegend();
         appendWaterSurfaceLegend(showWaterSurface);
+        ImGui.sameLine();
+        ImGui.textColored(
+            0xFF88C8FF,
+            "\u25B6 " + PlotI18n.tr("plugin.road.profile_direction_legend"));
     }
 
     private static void renderFlatCompactLegend(

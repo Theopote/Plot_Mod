@@ -24,9 +24,7 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
-        boolean generateTab = ctx.activeTab() == RoadUiTab.BUILD;
-        renderNetworkUndoRedo(generateTab);
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
+        renderNetworkUndoRedo();
 
         if (canUndoWorldPlacement()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_world_section"));
@@ -62,14 +60,10 @@ public final class RoadToolbarPanel {
         }
     }
 
-    private void renderNetworkUndoRedo(boolean generateTab) {
+    private void renderNetworkUndoRedo() {
         float avail = ImGui.getContentRegionAvailX();
         float spacing = ImGui.getStyle().getItemSpacingX();
         float buttonWidth = Math.clamp((avail - spacing) / 2.0f, 96f, 168f);
-        if (generateTab) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_network_section"));
-        }
 
         boolean undoDisabled = !ctx.networkManager().canUndo();
         if (undoDisabled) {

@@ -10,6 +10,7 @@ import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -647,6 +648,8 @@ public final class RoadProfileChartRenderer {
 
     private static final float AXIS_LABEL_PAD = 6f;
     private static final float AXIS_LABEL_LINE_OFFSET = 6f;
+    private static final int COLOR_DIRECTION = 0xFF88C8FF;
+    private static final float DIRECTION_ARROW_SIZE = 7f;
 
     private static void drawAxesAndGrid(
             ImDrawList drawList,
@@ -694,6 +697,56 @@ public final class RoadProfileChartRenderer {
                 drawList.addText(x, stationLabelY, COLOR_LABEL, label);
             }
         }
+        drawTravelDirectionCue(drawList, layout, mode);
+    }
+
+    /**
+     * 桩号轴从左（起点）到右（终点）增大；用起终点文案 + 右指箭头标明设计前进方向。
+     */
+    private static void drawTravelDirectionCue(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            ProfileChartRenderMode mode) {
+        if (mode == ProfileChartRenderMode.EDITOR) {
+            String start = PlotI18n.tr("plugin.road.profile_direction_start");
+            String end = PlotI18n.tr("plugin.road.profile_direction_end");
+            // 起终点标在绘图区底边内侧；右端箭头表示桩号增大 / 设计前进方向。
+            float cueY = layout.plotBottom() - 14f;
+            drawList.addText(layout.plotLeft() + 2f, cueY, COLOR_DIRECTION, start);
+            float endWidth = ImGui.calcTextSize(end).x;
+            float endX = layout.plotRight() - endWidth - DIRECTION_ARROW_SIZE - 6f;
+            drawList.addText(endX, cueY, COLOR_DIRECTION, end);
+            drawRightArrow(
+                drawList,
+                layout.plotRight() - 4f,
+                cueY + ImGui.getTextLineHeight() * 0.5f,
+                DIRECTION_ARROW_SIZE,
+                COLOR_DIRECTION);
+            return;
+        }
+        // 缩略图：仅在右下角放一个小箭头。
+        drawRightArrow(
+            drawList,
+            layout.plotRight() - 3f,
+            layout.plotBottom() - 4f,
+            5f,
+            COLOR_DIRECTION);
+    }
+
+    private static void drawRightArrow(
+            ImDrawList drawList,
+            float tipX,
+            float tipY,
+            float size,
+            int color) {
+        drawList.addTriangleFilled(
+            tipX,
+            tipY,
+            tipX - size,
+            tipY - size * 0.55f,
+            tipX - size,
+            tipY + size * 0.55f,
+            color);
     }
 
     private static List<Double> subsampleTicks(List<Double> ticks, int maxCount) {

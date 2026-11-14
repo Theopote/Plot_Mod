@@ -48,11 +48,10 @@ public final class RoadOverlayRenderer {
             renderCenterline(drawList, camera, entry.centerlinePoints(), style.outlineColor());
             renderSpiralHighlights(drawList, camera, entry.spiralHighlightSegments());
         }
-        if (entry.state() == RoadOverlayState.PRIMARY) {
-            renderDirectionArrow(drawList, camera, entry.centerlinePoints());
-            if (entry.profileSeamPosition() != null) {
-                renderProfileSeamMarker(drawList, camera, entry.profileSeamPosition());
-            }
+        // 每条路径在设计链终点画方向箭头，便于识别桩号/左右侧前进方向。
+        renderDirectionArrow(drawList, camera, entry.centerlinePoints(), entry.state());
+        if (entry.state() == RoadOverlayState.PRIMARY && entry.profileSeamPosition() != null) {
+            renderProfileSeamMarker(drawList, camera, entry.profileSeamPosition());
         }
     }
 
@@ -203,15 +202,23 @@ public final class RoadOverlayRenderer {
     private static void renderDirectionArrow(
             ImDrawList drawList,
             CanvasCamera camera,
-            List<Vec2d> centerline) {
+            List<Vec2d> centerline,
+            RoadOverlayState state) {
         if (centerline == null || centerline.size() < 2) {
             return;
         }
-        Vec2d from = centerline.get(centerline.size() / 2 - 1);
-        Vec2d to = centerline.get(centerline.size() / 2);
-        if (from.distance(to) < 1e-6) {
-            from = centerline.getFirst();
-            to = centerline.get(1);
+        // 取设计链末端一段方向：箭头落在终点附近，指向前进方向。
+        Vec2d to = centerline.getLast();
+        Vec2d from = null;
+        for (int i = centerline.size() - 2; i >= 0; i--) {
+            Vec2d candidate = centerline.get(i);
+            if (candidate.distance(to) > 1e-4) {
+                from = candidate;
+                break;
+            }
+        }
+        if (from == null) {
+            return;
         }
         Vec2d dir = to.subtract(from);
         double length = dir.length();
@@ -219,12 +226,16 @@ public final class RoadOverlayRenderer {
             return;
         }
         Vec2d unit = dir.multiply(1.0 / length);
-        Vec2d mid = from.add(to).multiply(0.5);
-        Vec2d tip = mid.add(unit.multiply(DIRECTION_ARROW_SIZE * 0.6));
-        Vec2d left = tip.subtract(unit.multiply(DIRECTION_ARROW_SIZE * 0.5))
-            .add(new Vec2d(-unit.y, unit.x).multiply(DIRECTION_ARROW_SIZE * 0.35));
-        Vec2d right = tip.subtract(unit.multiply(DIRECTION_ARROW_SIZE * 0.5))
-            .add(new Vec2d(unit.y, -unit.x).multiply(DIRECTION_ARROW_SIZE * 0.35));
+        float sizePx = state == RoadOverlayState.PRIMARY
+            ? DIRECTION_ARROW_SIZE * 1.35f
+            : DIRECTION_ARROW_SIZE;
+        double shaft = camera.screenToWorldDistance(sizePx);
+        double halfWidth = camera.screenToWorldDistance(sizePx * 0.45);
+        Vec2d tip = to.add(unit.multiply(shaft * 0.2));
+        Vec2d base = tip.subtract(unit.multiply(shaft));
+        Vec2d ortho = new Vec2d(-unit.y, unit.x).multiply(halfWidth);
+        Vec2d left = base.add(ortho);
+        Vec2d right = base.subtract(ortho);
 
         Vec2d screenTip = camera.worldToScreen(tip);
         Vec2d screenLeft = camera.worldToScreen(left);
@@ -236,7 +247,16 @@ public final class RoadOverlayRenderer {
             (float) screenLeft.y,
             (float) screenRight.x,
             (float) screenRight.y,
-            PluginUiColors.ACCENT_BLUE);
+            directionArrowColor(state));
+    }
+
+    private static int directionArrowColor(RoadOverlayState state) {
+        return switch (state) {
+            case PRIMARY -> PluginUiColors.ACCENT_BLUE;
+            case SELECTED, PICK_ACTIVE -> ImColor.rgba(96, 180, 255, 230);
+            case WARNING -> PluginUiColors.WARNING;
+            default -> ImColor.rgba(180, 200, 220, 200);
+        };
     }
 
     private static void drawSolidSegment(
