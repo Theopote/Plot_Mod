@@ -66,16 +66,6 @@ public class ExtendTool extends ModifyTool {
         LOGGER.debug("ExtendTool 已创建（依赖注入模式）");
     }
     
-    /**
-     * 兼容性构造函数（已弃用）
-     * 
-     * @deprecated 请使用依赖注入构造函数 {@link #ExtendTool(AppState, ISnapManager)}
-     */
-    @Deprecated
-    public ExtendTool() {
-        super("extend", Icons.EXTEND_IDENTIFIER);
-        LOGGER.debug("ExtendTool 已创建（兼容性模式）");
-    }
     
     @Override
     protected IModifyStrategy createStrategy() {
@@ -268,17 +258,6 @@ public class ExtendTool extends ModifyTool {
         return ExtendToolState.EMPTY;
     }
 
-    /**
-     * 获取当前延伸模式（已弃用，现在使用自动模式）
-     * 
-     * @return 当前延伸模式
-     */
-    @Deprecated
-    public ExtendWithSelectionStrategy.ExtendMode getCurrentExtendMode() {
-        // 现在使用自动模式，返回默认值以保持兼容性
-        LOGGER.debug("延伸工具现在使用自动模式，返回默认模式");
-        return ExtendWithSelectionStrategy.ExtendMode.STANDARD;
-    }
     
     /**
      * 获取边界缓存状态信息
@@ -296,106 +275,15 @@ public class ExtendTool extends ModifyTool {
         return PlotI18n.status("status.plot.extend.no_boundary_cache");
     }
 
-    // ====== 兼容性方法 - 委托给getToolState() ======
     
-    /**
-     * 获取高亮的图形
-     * 
-     * @return 当前高亮的图形，如果没有则返回null
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public Shape getHighlightedShape() {
-        return getToolState().highlightedShape();
-    }
     
-    /**
-     * 获取预览图形列表
-     * 
-     * @return 预览图形列表，如果没有则返回null
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public List<Shape> getPreviewShapes() {
-        return getToolState().previewShapes();
-    }
     
-    /**
-     * 获取已选择的边界图形列表
-     * 
-     * @return 已选择的边界图形列表，如果没有则返回空列表
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public List<Shape> getSelectedBoundaries() {
-        return getToolState().selectedBoundaries();
-    }
     
-    /**
-     * 获取预览的延伸目标
-     * 
-     * @return 预览的延伸目标，如果没有则返回null
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public Shape getPreviewTarget() {
-        return getToolState().previewTarget();
-    }
     
-    /**
-     * 获取预览的延伸点
-     * 
-     * @return 预览的延伸点，如果没有则返回null
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public com.plot.api.geometry.Vec2d getPreviewExtendPoint() {
-        return getToolState().previewExtendPoint();
-    }
     
-    /**
-     * 获取预览的目标点
-     * 
-     * @return 预览的目标点，如果没有则返回null
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public com.plot.api.geometry.Vec2d getPreviewTargetPoint() {
-        return getToolState().previewTargetPoint();
-    }
     
-    /**
-     * 预览是否为投影模式
-     * 
-     * @return true如果是投影模式，false否则
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public boolean isPreviewProjectMode() {
-        return getToolState().previewIsProjectMode();
-    }
     
-    /**
-     * 获取延伸容差
-     * 
-     * @return 延伸容差
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public double getExtendTolerance() {
-        return getToolState().extendTolerance();
-    }
     
-    /**
-     * 获取端点容差
-     * 
-     * @return 端点容差
-     * @deprecated 请使用 {@link #getToolState()} 获取完整状态信息
-     */
-    @Deprecated
-    public double getEndpointTolerance() {
-        return getToolState().endpointTolerance();
-    }
     
     @Override
     protected String getInitialStatusMessage() {

@@ -69,13 +69,6 @@ public class BlockProjectionHandler implements IBlockProjectionService {
     }
 
     /**
-     * @deprecated 使用 {@link PlacementReadiness}（api.world）。
-     */
-    @Deprecated
-    public record LegacyPlacementReadiness(boolean ready, String message) {
-    }
-
-    /**
      * 检查当前客户端是否具备通过 /setblock 修改世界的前置条件
      */
     @Override

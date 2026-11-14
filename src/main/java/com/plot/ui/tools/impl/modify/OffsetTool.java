@@ -45,15 +45,6 @@ public class OffsetTool extends ModifyTool {
         LOGGER.info("OffsetTool 已创建");
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public OffsetTool() {
-        super("offset", Icons.OFFSET_IDENTIFIER);
-        LOGGER.info("OffsetTool 已创建（兼容模式）");
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

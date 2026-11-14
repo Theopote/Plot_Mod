@@ -65,15 +65,6 @@ public class AlignTool extends ModifyTool {
         }
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数，将在下一版本移除
-     */
-    @Deprecated
-    public AlignTool() {
-        super("align", Icons.ALIGN_IDENTIFIER);
-        LOGGER.warn("AlignTool 使用已弃用的无参构造函数，请使用依赖注入构造函数");
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

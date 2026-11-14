@@ -39,15 +39,6 @@ public class MoveTool extends ModifyTool {
         LOGGER.info("MoveTool 已创建");
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public MoveTool() {
-        super("move", Icons.MOVE_IDENTIFIER);
-        LOGGER.info("MoveTool 已创建（兼容模式）");
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

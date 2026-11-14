@@ -42,18 +42,6 @@ public final class CommandService {
     }
 
     /**
-     * @deprecated 使用 {@link com.plot.core.context.ApplicationContext#getCommandService()}。
-     * 组合根构造期间仍可调用本方法。
-     */
-    @Deprecated
-    public static synchronized CommandService getInstance() {
-        if (instance == null) {
-            instance = new CommandService(EventBus.getInstance());
-        }
-        return instance;
-    }
-
-    /**
      * 执行命令并在成功后写入历史。
      */
     public boolean execute(Command command) {

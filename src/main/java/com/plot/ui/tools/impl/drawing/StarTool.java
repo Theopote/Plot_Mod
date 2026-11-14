@@ -102,11 +102,6 @@ public class StarTool extends DrawingTool {
         init(); // 调用初始化方法
     }
 
-    @Deprecated
-    public StarTool() {
-        super("star", Icons.STAR_IDENTIFIER);
-        init(); // 调用初始化方法
-    }
 
     /**
      * 封装通用的初始化逻辑，如事件订阅

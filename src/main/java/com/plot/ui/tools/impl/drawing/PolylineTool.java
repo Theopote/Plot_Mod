@@ -132,11 +132,6 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         LOGGER.debug("PolylineTool 初始化完成，当前模式: {}", drawMode);
     }
 
-    @Deprecated
-    public PolylineTool() {
-        this(com.plot.core.context.ApplicationContext.getInstance().getAppState(), 
-             com.plot.core.context.ApplicationContext.getInstance().getSnapManager());
-    }
 
     @Override
     public void setCamera(CanvasCamera camera) {

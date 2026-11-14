@@ -161,41 +161,6 @@ public class AffineTransform {
         invalidateCache();
     }
     
-    // ===== 兼容性方法 =====
-    // 保留原有的set方法名，但标记为废弃，引导用户使用新的命名
-    
-    /**
-     * @deprecated 使用 setToTranslation(double, double) 替代
-     */
-    @Deprecated
-    public void setTranslation(double tx, double ty) {
-        setToTranslation(tx, ty);
-    }
-    
-    /**
-     * @deprecated 使用 setToRotation(double) 替代
-     */
-    @Deprecated
-    public void setRotation(double angle) {
-        setToRotation(angle);
-    }
-    
-    /**
-     * @deprecated 使用 setToScale(double, double) 替代
-     */
-    @Deprecated
-    public void setScale(double sx, double sy) {
-        setToScale(sx, sy);
-    }
-    
-    /**
-     * @deprecated 使用 setToShear(double, double) 替代
-     */
-    @Deprecated
-    public void setShear(double shx, double shy) {
-        setToShear(shx, shy);
-    }
-    
     // ===== 链式调用的叠加方法 =====
     
     /**

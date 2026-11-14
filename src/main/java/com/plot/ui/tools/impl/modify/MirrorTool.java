@@ -58,16 +58,6 @@ public class MirrorTool extends ModifyTool {
         }
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public MirrorTool() {
-        super("mirror", Icons.MIRROR_IDENTIFIER);
-        LOGGER.warn("MirrorTool 使用兼容构造函数，建议使用依赖注入构造函数");
-        // 不抛出异常，保持向后兼容性，但记录警告
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

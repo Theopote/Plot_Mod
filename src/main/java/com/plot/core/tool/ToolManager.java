@@ -62,15 +62,6 @@ public class ToolManager implements IToolManager {
         return INSTANCE;
     }
 
-    /**
-     * @deprecated 优先经 {@link ApplicationContext#getToolManager()}；
-     * 兼容旧调用：回退到组合根上的 EventBus。
-     */
-    @Deprecated
-    public static synchronized ToolManager initialize(AppState appState) {
-        return initialize(appState, ApplicationContext.getInstance().getEventBus());
-    }
-
     public static ToolManager getInstance() {
         if (INSTANCE == null) {
             throw new IllegalStateException(PlotI18n.error("error.plot.validation.tool_manager_not_initialized"));

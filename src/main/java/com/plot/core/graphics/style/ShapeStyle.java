@@ -96,22 +96,6 @@ public class ShapeStyle implements IShapeStyle, Cloneable {
         }
     }
     
-    /**
-     * @deprecated Use {@link #setLineStyle(ILineStyle)} instead
-     */
-    @Deprecated
-    public void setLineStyle(LineStyle lineStyle) {
-        this.lineStyle = lineStyle;
-    }
-    
-    /**
-     * @deprecated Use {@link #setFillStyle(IFillStyle)} instead
-     */
-    @Deprecated
-    public void setFillStyle(FillStyle fillStyle) {
-        this.fillStyle = fillStyle;
-    }
-    
     public Color getColor() {
         return lineStyle != null ? lineStyle.getColor() : color;
     }

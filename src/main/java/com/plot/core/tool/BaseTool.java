@@ -75,15 +75,6 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         shortcutManager.addListener(this);
     }
 
-    /**
-     * @deprecated 推荐使用带依赖参数的构造函数
-     */
-    @Deprecated
-    protected BaseTool(String id, String description, Identifier icon, String name) {
-        this(id, description, icon, name,
-                ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getEventBus(), ShortcutManager.getInstance());
-    }
-
     // ITool 实现
     @Override
     public String getId() {
@@ -433,27 +424,6 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         }
     }
     
-    /**
-     * 向后兼容的commit方法
-     * @param layer 目标图层（此参数现在被忽略，始终使用活动图层）
-     * @deprecated 推荐使用无参数的 {@link #commit()} 方法，
-     *             该方法使用AppState管理的活动图层，确保API设计一致性
-     */
-    @Deprecated
-    public void commit(ILayer layer) {
-        if (layer != null) {
-            ILayer activeLayer = appState.getActiveLayer();
-            if (!layer.equals(activeLayer)) {
-                LOGGER.warn("传入的目标图层 '{}' 与活动图层 '{}' 不一致，使用活动图层", 
-                           layer.getName(), 
-                           activeLayer != null ? activeLayer.getName() : "null");
-            }
-        }
-        
-        // 委托给新的无参数方法
-        commit();
-    }
-
     /**
      * 清除预览状态
      */

@@ -114,19 +114,6 @@ public class RectangleTool extends DrawingTool {
         LOGGER.debug("矩形工具已初始化，当前模式: {}", currentMode.getDisplayName());
     }
 
-    /**
-     * 兼容构造函数
-     */
-    @Deprecated
-    public RectangleTool() {
-        super("rectangle", Icons.RECTANGLE_IDENTIFIER);
-
-        // 监听配置事件
-        eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);
-
-        initializeRectangleTool();
-        LOGGER.debug("矩形工具已初始化（兼容模式），当前模式: {}", currentMode.getDisplayName());
-    }
 
     /**
      * 通用初始化逻辑

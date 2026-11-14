@@ -136,14 +136,6 @@ public class SplineTool extends DrawingTool {
         LOGGER.debug("SplineTool 初始化完成。配置: {}", config);
     }
 
-    /**
-     * 默认构造函数（兼容性）
-     * @deprecated 使用依赖注入构造函数
-     */
-    @Deprecated
-    public SplineTool() {
-        this(null, null);
-    }
     
     // ====== 状态管理方法 ======
     

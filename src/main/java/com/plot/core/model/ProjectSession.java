@@ -81,22 +81,4 @@ public final class ProjectSession {
         }
     }
 
-    /**
-     * @deprecated 使用 {@link #loadOrInitialize(ApplicationContext)}
-     */
-    @Deprecated
-    public static void loadOrInitialize(com.plot.core.state.AppState appState) {
-        if (appState == null) {
-            return;
-        }
-        ApplicationContext.getInstance().getProjectSession().loadOrInitialize(ApplicationContext.getInstance());
-    }
-
-    /**
-     * @deprecated 使用 {@link #save(ApplicationContext)}
-     */
-    @Deprecated
-    public static void save(com.plot.core.state.AppState appState) {
-        ApplicationContext.getInstance().getProjectSession().save(ApplicationContext.getInstance());
-    }
 }

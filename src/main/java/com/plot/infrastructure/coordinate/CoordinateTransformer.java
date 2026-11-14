@@ -530,20 +530,6 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
     }
 
     /**
-     * @deprecated 使用 {@link com.plot.api.world.WorldViewBounds}。
-     */
-    @Deprecated
-    public record WorldViewBounds(double minX, double maxX, double minZ, double maxZ) {
-        public boolean containsBox(int boxMinX, int boxMaxX, int boxMinZ, int boxMaxZ) {
-            return boxMinX >= minX && boxMaxX <= maxX && boxMinZ >= minZ && boxMaxZ <= maxZ;
-        }
-
-        public boolean intersectsBox(int boxMinX, int boxMaxX, int boxMinZ, int boxMaxZ) {
-            return !(boxMaxX < minX || boxMinX > maxX || boxMaxZ < minZ || boxMinZ > maxZ);
-        }
-    }
-
-    /**
      * 画布区域信息类
      */
     private static class CanvasRegion {

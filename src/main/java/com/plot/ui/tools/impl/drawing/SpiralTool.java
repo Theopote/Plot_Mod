@@ -117,21 +117,6 @@ public class SpiralTool extends DrawingTool {
         initializeSpiralTool();
     }
     
-    /**
-     * 兼容性构造函数
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public SpiralTool() {
-        super("spiral", Icons.SPIRAL_IDENTIFIER);
-        
-        // 初始化组件
-        this.configManager = new SpiralConfigManager();
-        this.previewRenderer = new SpiralPreviewRenderer(this, configManager);
-        this.shapeFactory = new SpiralShapeFactory(configManager);
-        
-        initializeSpiralTool();
-    }
     
     // ====== 初始化方法 ======
     

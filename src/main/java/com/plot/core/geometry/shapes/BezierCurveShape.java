@@ -514,12 +514,13 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         needsRecalculation = true;
     }
     
-    // 兼容旧API
+    
+    
     /**
-     * @deprecated 此方法已废弃，请使用 {@link #getAnchorPoints()}} 代替
-     * @return 所有点的列表（锚点+控制点）
+     * Shape 契约：返回扁平化的锚点与控制点序列（锚点1, c1, c2, 锚点2, …）。
+     * 仅需锚点时请使用 {@link #getAnchorPoints()}。
      */
-    @Deprecated(since = "2.0", forRemoval = true)
+    @Override
     public List<Vec2d> getPoints() {
         List<Vec2d> pts = new ArrayList<>();
         for (BezierSegment seg : segments) {
@@ -527,35 +528,12 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             pts.add(seg.control1);
             pts.add(seg.control2);
         }
-        if (!segments.isEmpty()) pts.add(segments.getLast().anchor2);
+        if (!segments.isEmpty()) {
+            pts.add(segments.getLast().anchor2);
+        }
         return pts;
     }
-    
-    /**
-     * @deprecated 此方法已废弃，请使用 {@link #BezierCurveShape(List, List, boolean)} 构造函数代替
-     * 该方法仅用于兼容旧代码。
-     * 修复：完成重建segments的逻辑
-     */
-    @Deprecated(since = "2.0", forRemoval = true)
-    public void setPoints(List<Vec2d> points) {
-        segments.clear();
-        if (points != null && points.size() >= 4 && (points.size() - 1) % 3 == 0) {
-            int segCount = (points.size() - 1) / 3;
-            List<Vec2d> anchors = new ArrayList<>();
-            List<Vec2d[]> controls = new ArrayList<>();
-            for (int i = 0; i < segCount; i++) {
-                int idx = i * 3;
-                anchors.add(points.get(idx));
-                controls.add(new Vec2d[]{points.get(idx + 1), points.get(idx + 2)});
-            }
-            // 修复：重建segments
-            for (int i = 0; i < anchors.size() - 1; i++) {
-                segments.add(new BezierSegment(anchors.get(i), controls.get(i)[0], controls.get(i)[1], anchors.get(i + 1)));
-            }
-        }
-        needsRecalculation = true;
-    }
-    
+
     // 实现缺失的Shape接口方法
     @Override
     public List<Vec2d> getIntersectionPoints(Shape other) {
@@ -1669,7 +1647,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     }
 
     /**
-     * 获取采样后的曲线点列表（只读，避免外部调用已弃用的getPoints）
+     * 获取采样后的曲线点列表（只读）
      */
     public List<Vec2d> getCurvePoints() {
         if (needsRecalculation) {

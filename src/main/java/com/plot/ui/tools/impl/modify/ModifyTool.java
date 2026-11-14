@@ -153,14 +153,6 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         this(id, icon, appState, snapManager, sharedEventBus, sharedShortcutManager);
     }
 
-    /**
-     * @deprecated 推荐使用 {@link #ModifyTool(String, Identifier, IAppState, ISnapManager)}
-     */
-    @Deprecated
-    protected ModifyTool(String id, Identifier icon) {
-        this(id, icon, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager());
-    }
-
     protected ModifyTool(String id, String name, Identifier icon, String description,
                         IAppState appState, ISnapManager snapManager) {
         this(id, name, icon, description, appState, snapManager,
@@ -188,15 +180,6 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         LOGGER.debug("ModifyTool [{}] 初始化完成", id);
     }
     
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    protected ModifyTool(String id, String name, Identifier icon, String description) {
-        this(id, name, icon, description, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager());
-    }
-
     // ====== 鼠标事件处理（完全委托给策略） ======
 
     @Override

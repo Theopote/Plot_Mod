@@ -43,15 +43,6 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         LOGGER.debug("变换工具选项渲染器已初始化");
     }
     
-    /**
-     * 构造函数（兼容旧版本，保留以支持向后兼容）
-     * @deprecated 现在使用无参构造函数，工具从AppState获取
-     */
-    @Deprecated
-    public TransformToolOptionRenderer(TransformTool transformTool) {
-        super("transform");
-        LOGGER.debug("变换工具选项渲染器已初始化（兼容模式）");
-    }
     
     @Override
     public float render() {

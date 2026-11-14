@@ -125,16 +125,6 @@ public class SemicircleTool extends DrawingTool {
         initializeSemicircleTool();
     }
 
-    /**
-     * 兼容性构造函数
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public SemicircleTool() {
-        super("semicircle", Icons.SEMICIRCLE_IDENTIFIER);
-
-        initializeSemicircleTool();
-    }
 
     // ====== 初始化方法 ======
 

@@ -46,15 +46,6 @@ public class ScaleTool extends ModifyTool {
         LOGGER.info("ScaleTool 已创建");
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public ScaleTool() {
-        super("scale", Icons.SCALE_IDENTIFIER);
-        LOGGER.info("ScaleTool 已创建（兼容模式）");
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

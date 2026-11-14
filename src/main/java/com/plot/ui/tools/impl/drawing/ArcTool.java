@@ -105,15 +105,6 @@ public class ArcTool extends DrawingTool {
         initializeArcTool();
     }
 
-    /**
-     * 默认构造函数（兼容性）
-     * @deprecated 使用依赖注入构造函数
-     */
-    @Deprecated
-    public ArcTool() {
-        super("arc", Icons.ARC_IDENTIFIER);
-        initializeArcTool();
-    }
     
     /**
      * 通用初始化逻辑

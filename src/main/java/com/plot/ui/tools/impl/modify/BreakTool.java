@@ -47,16 +47,6 @@ public class BreakTool extends ModifyTool {
         this.breakStrategy = new BreakStrategy();
     }
     
-    /**
-     * 兼容性构造函数（已弃用）
-     * 
-     * @deprecated 请使用依赖注入构造函数
-     */
-    @Deprecated
-    public BreakTool() {
-        super("break", Icons.BREAK_IDENTIFIER);
-        this.breakStrategy = new BreakStrategy();
-    }
     
     @Override
     protected IModifyStrategy createStrategy() {

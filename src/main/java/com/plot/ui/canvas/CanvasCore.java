@@ -142,44 +142,6 @@ public class CanvasCore implements ICanvas {
     }
 
     /**
-     * 构造函数 (兼容性保留)
-     * @param layerManager 图层管理器
-     * @throws IllegalArgumentException 如果传入的layerManager为null
-     * @deprecated 建议使用 CanvasCore(AppState) 构造函数
-     */
-    @Deprecated
-    public CanvasCore(LayerManager layerManager) {
-        if (layerManager == null) {
-            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.layer_manager_null"));
-        }
-        
-        this.eventBus = ApplicationContext.getInstance().getEventBus();
-        this.camera = new CanvasCamera();
-        this.coordinateTransform = new CoordinateTransform(camera);
-        this.opacity = UITheme.Canvas.DEFAULT_OPACITY;
-        
-        // 简单引用传入的图层管理器，不进行重新创建
-        this.layerManager = layerManager;
-        
-        // 继承已存在的活动图层
-        this.currentLayer = layerManager.getActiveLayer();
-        if (this.currentLayer == null) {
-            LOGGER.debug("CanvasCore: 图层管理器没有活动图层，使用第一个可用图层");
-            List<ILayer> layers = layerManager.getLayers();
-            if (!layers.isEmpty()) {
-                this.currentLayer = layers.getFirst();
-                layerManager.setActiveLayer(this.currentLayer);
-            }
-        }
-        
-        // 初始化默认样式
-        initializeDefaultStyles();
-        
-        // 初始时全部标记为脏
-        markAllDirty();
-    }
-
-    /**
      * 无参构造函数，优先使用AppState中的组件
      */
     public CanvasCore() {
@@ -726,36 +688,5 @@ public class CanvasCore implements ICanvas {
      */
     public ILayer getActiveLayer() {
         return layerManager != null ? layerManager.getActiveLayer() : null;
-    }
-
-    // 向后兼容的方法
-    @Deprecated
-    public void markLayoutDirty() {
-        markDirty(DirtyType.LAYOUT);
-    }
-
-    @Deprecated
-    public void markToolPreviewDirty() {
-        markDirty(DirtyType.TOOL_PREVIEW);
-    }
-
-    @Deprecated
-    public boolean isLayoutDirty() {
-        return isDirty(DirtyType.LAYOUT);
-    }
-
-    @Deprecated
-    public boolean isContentDirty() {
-        return isDirty(DirtyType.CONTENT);
-    }
-
-    @Deprecated
-    public boolean isToolPreviewDirty() {
-        return isDirty(DirtyType.TOOL_PREVIEW);
-    }
-
-    @Deprecated
-    public void clearDirtyFlags() {
-        clearAllDirtyFlags();
     }
 } 

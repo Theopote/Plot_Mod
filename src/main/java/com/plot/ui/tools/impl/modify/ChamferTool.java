@@ -70,20 +70,6 @@ public class ChamferTool extends ModifyTool implements EventListener {
         subscribeToEvents();
     }
     
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * 
-     * @deprecated 此构造函数将在下一版本移除，请使用依赖注入构造函数
-     * @throws UnsupportedOperationException 如果尝试使用此构造函数
-     */
-    @Deprecated
-    public ChamferTool() {
-        super("chamfer", Icons.CHAMFER_IDENTIFIER);
-        
-        LOGGER.warn("ChamferTool 使用已弃用的无参构造函数，将在下一版本移除");
-        throw new UnsupportedOperationException(
-            "此构造函数已弃用，请使用 ChamferTool(AppState, ISnapManager) 构造函数");
-    }
     
     @Override
     protected IModifyStrategy createStrategy() {

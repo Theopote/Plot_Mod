@@ -1320,16 +1320,6 @@ public class LineToBlockHandler {
     }
 
     /**
-     * @deprecated 预览已改为按列 {@link #resolveGhostPreviewY}，保留供旧测试参考。
-     */
-    @Deprecated
-    static double resolvePreviewElevation(double footLevel, double cameraY) {
-        double alignedFoot = Math.floor(footLevel);
-        double maxPreviewY = Math.floor(cameraY) - 2.0;
-        return Math.min(alignedFoot, maxPreviewY);
-    }
-
-    /**
      * 【新增】从UI获取用户指定的标高
      * @return 用户指定的标高，如果未设置返回Double.MIN_VALUE
      */

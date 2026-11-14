@@ -141,11 +141,6 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         LOGGER.debug("EllipseTool 初始化完成，当前模式: {}", currentMode.getDisplayName());
     }
 
-    @Deprecated
-    public EllipseTool() {
-        this(com.plot.core.context.ApplicationContext.getInstance().getAppState(), 
-             com.plot.core.context.ApplicationContext.getInstance().getSnapManager());
-    }
     
     // ====== 策略模式集成 ======
     

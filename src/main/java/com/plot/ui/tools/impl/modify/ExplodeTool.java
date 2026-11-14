@@ -19,10 +19,6 @@ public class ExplodeTool extends ModifyTool {
         super("explode", Icons.EXPLODE_IDENTIFIER, appState, snapManager);
     }
 
-    @Deprecated
-    public ExplodeTool() {
-        super("explode", Icons.EXPLODE_IDENTIFIER);
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

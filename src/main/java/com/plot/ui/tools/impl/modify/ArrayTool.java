@@ -50,18 +50,6 @@ public class ArrayTool extends ModifyTool {
         eventBus.subscribe(this, ToolConfigEvent.class, this::handleToolConfigEvent);
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public ArrayTool() {
-        super("array", Icons.ARRAY_IDENTIFIER);
-        LOGGER.info("ArrayTool 已创建（兼容模式）");
-        
-        // 订阅ToolConfigEvent
-        eventBus.subscribe(this, ToolConfigEvent.class, this::handleToolConfigEvent);
-    }
     
     /**
      * 处理工具配置事件
@@ -186,15 +174,6 @@ public class ArrayTool extends ModifyTool {
         }
     }
 
-    /**
-     * 获取阵列策略
-     * @return 阵列策略实例
-     * @deprecated 此方法将在未来版本中移除，请使用公共API方法
-     */
-    @Deprecated
-    public ArrayStrategy getArrayStrategy() {
-        return getArrayStrategyInternal();
-    }
 
     // ========== 公共API方法 - 彻底封装策略 ==========
 

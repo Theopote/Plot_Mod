@@ -9,13 +9,6 @@ import org.slf4j.LoggerFactory;
 public class OrthographicCamera {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/OrthographicCamera");
 
-    /** @deprecated 使用 {@link ViewRangeSettings#DEFAULT_MIN} / {@link ViewRangeSettings#getSliderMin()} */
-    @Deprecated
-    public static final float VIEW_DISTANCE_MIN = ViewRangeSettings.DEFAULT_MIN;
-    /** @deprecated 使用 {@link ViewRangeSettings#DEFAULT_MAX} / {@link ViewRangeSettings#getSliderMax()} */
-    @Deprecated
-    public static final float VIEW_DISTANCE_MAX = ViewRangeSettings.DEFAULT_MAX;
-    
     private final Matrix4f projectionMatrix;
     private final Vector3f position;  // 使用 final，通过方法修改内部值
     private float scale = 1.0f;

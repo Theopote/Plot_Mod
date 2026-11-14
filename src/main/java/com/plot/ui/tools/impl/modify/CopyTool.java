@@ -25,10 +25,6 @@ public class CopyTool extends ModifyTool {
         super("copy", Icons.COPY_IDENTIFIER, appState, snapManager);
     }
 
-    @Deprecated
-    public CopyTool() {
-        super("copy", Icons.COPY_IDENTIFIER);
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

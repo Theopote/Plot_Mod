@@ -19,10 +19,6 @@ public class JoinTool extends ModifyTool {
         super("join", Icons.JOIN_IDENTIFIER, appState, snapManager);
     }
 
-    @Deprecated
-    public JoinTool() {
-        super("join", Icons.JOIN_IDENTIFIER);
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

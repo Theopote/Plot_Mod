@@ -191,11 +191,6 @@ public class PolygonTool extends DrawingTool {
         LOGGER.debug("PolygonTool 初始化完成，当前模式: {}，边数: {}", currentMode.getDisplayName(), sides);
     }
 
-    @Deprecated
-    public PolygonTool() {
-        this(com.plot.core.context.ApplicationContext.getInstance().getAppState(), 
-             com.plot.core.context.ApplicationContext.getInstance().getSnapManager());
-    }
     
     // ====== 策略模式集成 ======
     

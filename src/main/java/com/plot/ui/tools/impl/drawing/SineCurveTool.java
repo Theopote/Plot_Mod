@@ -102,16 +102,6 @@ public class SineCurveTool extends DrawingTool {
         initializeSineCurveTool();
     }
     
-    /**
-     * 兼容性构造函数
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public SineCurveTool(AppState appState) {
-        super("sine", Icons.SINE_IDENTIFIER);
-        
-        initializeSineCurveTool();
-    }
     
     // ====== 初始化方法 ======
     

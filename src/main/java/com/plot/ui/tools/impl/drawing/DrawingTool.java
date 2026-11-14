@@ -173,14 +173,6 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         this(id, icon, appState, snapManager, InteractionType.DRAG_AND_DROP);
     }
 
-    /**
-     * @deprecated 推荐使用 {@link #DrawingTool(String, Identifier, IAppState, ISnapManager, InteractionType)}
-     */
-    @Deprecated
-    protected DrawingTool(String id, Identifier icon) {
-        this(id, icon, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager());
-    }
-
     protected DrawingTool(String id, String name, Identifier icon, String description,
                          IAppState appState, ISnapManager snapManager, InteractionType interactionType) {
         this(id, name, icon, description, appState, snapManager,
@@ -223,15 +215,6 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         this(id, name, icon, description, appState, snapManager, InteractionType.DRAG_AND_DROP);
     }
     
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    protected DrawingTool(String id, String name, Identifier icon, String description) {
-        this(id, name, icon, description, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager(), InteractionType.DRAG_AND_DROP);
-    }
-
     /**
      * 允许子类安全设置自定义交互策略，替代反射
      */

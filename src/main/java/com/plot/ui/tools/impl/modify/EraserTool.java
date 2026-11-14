@@ -40,15 +40,6 @@ public class EraserTool extends ModifyTool {
         LOGGER.info("EraserTool 已创建");
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public EraserTool() {
-        super("eraser", Icons.ERASER_IDENTIFIER);
-        LOGGER.info("EraserTool 已创建（兼容模式）");
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {

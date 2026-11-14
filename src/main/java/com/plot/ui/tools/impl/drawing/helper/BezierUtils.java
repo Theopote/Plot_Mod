@@ -217,30 +217,6 @@ public class BezierUtils {
         return new Vec2d(x, y);
     }
     
-    /**
-     * 将控制点列表转换为Vec2d[]数组格式
-     * @deprecated 不再需要此方法，BezierData现在直接提供List<Vec2d[]>格式
-     * 保留此方法仅为向后兼容，建议使用convertPointsToCurveData()
-     * 
-     * @param controls 控制点列表
-     * @return Vec2d[]数组列表
-     */
-    @Deprecated
-    public static List<Vec2d[]> convertControlsToArrays(List<Vec2d> controls) {
-        List<Vec2d[]> controlArrays = new ArrayList<>();
-        
-        // 每两个控制点组成一个Vec2d[]
-        for (int i = 0; i < controls.size(); i += 2) {
-            if (i + 1 < controls.size()) {
-                Vec2d[] controlPair = new Vec2d[2];
-                controlPair[0] = controls.get(i);
-                controlPair[1] = controls.get(i + 1);
-                controlArrays.add(controlPair);
-            }
-        }
-        
-        return controlArrays;
-    }
     
     /**
      * 计算绘制贝塞尔曲线所需的步数

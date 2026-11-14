@@ -40,23 +40,6 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
 
 
-    // 延伸模式枚举（已弃用，保留以兼容性）
-    @Deprecated
-    public enum ExtendMode {
-        STANDARD("mode.plot.extend.mode.standard", "mode.plot.extend.mode.standard.desc"),
-        PROJECT("mode.plot.extend.mode.project", "mode.plot.extend.mode.project.desc");
-
-        private final String nameKey;
-        private final String descKey;
-
-        ExtendMode(String nameKey, String descKey) {
-            this.nameKey = nameKey;
-            this.descKey = descKey;
-        }
-
-        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
-        public String getDescription() { return PlotI18n.modeLabel(descKey); }
-    }
 
     // 延伸状态枚举 - 简化状态机
     public enum ExtendState {
@@ -1642,22 +1625,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
 
 
-    /**
-     * 获取延伸模式（已弃用，现在使用自动模式）
-     */
-    @Deprecated
-    public ExtendMode getExtendMode() {
-        return ExtendMode.STANDARD; // 返回默认值以保持兼容性
-    }
 
-    /**
-     * 设置延伸模式（已弃用，现在使用自动模式）
-     */
-    @Deprecated
-    public void setExtendMode(ExtendMode extendMode) {
-        // 忽略设置，现在使用自动模式
-        LOGGER.debug("延伸工具现在使用自动模式，忽略模式设置: {}", extendMode);
-    }
 
     /**
      * 获取延伸状态

@@ -38,13 +38,6 @@ public class TrimTool extends ModifyTool {
         eventBus.subscribe(this, ToolConfigEvent.class, this::handleToolConfigEvent);
     }
 
-    @Deprecated
-    public TrimTool() {
-        super("trim", Icons.TRIM_IDENTIFIER);
-        LOGGER.info("TrimTool 已创建（兼容模式）");
-        // 订阅ToolConfigEvent
-        eventBus.subscribe(this, ToolConfigEvent.class, this::handleToolConfigEvent);
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {
@@ -230,17 +223,6 @@ public class TrimTool extends ModifyTool {
         return modifyStrategy;
     }
 
-    /**
-     * 获取修剪策略（已废弃，使用getModifyStrategy代替）
-     * @deprecated 使用 getModifyStrategy() 代替
-     */
-    @Deprecated
-    public TrimWithSelectionStrategy getTrimStrategy() {
-        if (modifyStrategy instanceof TrimWithSelectionStrategy) {
-            return (TrimWithSelectionStrategy) modifyStrategy;
-        }
-        return null;
-    }
 
     /**
      * 获取当前修剪模式

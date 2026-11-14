@@ -63,15 +63,6 @@ public class RotateTool extends ModifyTool {
         }
     }
 
-    /**
-     * 构造函数（兼容方式 - 单例获取）
-     * @deprecated 推荐使用依赖注入构造函数
-     */
-    @Deprecated
-    public RotateTool() {
-        super("rotate", Icons.ROTATE_IDENTIFIER);
-        LOGGER.info("RotateTool 已创建（兼容模式）");
-    }
 
     @Override
     protected IModifyStrategy createStrategy() {
