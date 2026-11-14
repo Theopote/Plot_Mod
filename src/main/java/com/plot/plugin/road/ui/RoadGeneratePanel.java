@@ -86,6 +86,20 @@ public final class RoadGeneratePanel {
             ImGui.textColored(
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.preview_status_computing"));
+            var job = preview.previewJob();
+            if (job != null && job.totalWorkUnits() > 0) {
+                ImGui.sameLine();
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.road.preview_progress_detail",
+                        job.processedWorkUnits(),
+                        job.totalWorkUnits()));
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.cancel_preview") + "##cancel_preview_inline")) {
+                ctx.cancelPreviewJob();
+            }
             return;
         }
         if (preview.isBuildPreviewCurrent()) {

@@ -421,7 +421,8 @@ public final class RoadPreviewManager {
         TerrainProfileKey key = RoadTerrainProfileSampler.buildKey(
             currentWorldKey(), network, road, host.coordinates(), config);
         if (!force && terrainProfileCache.isFresh(key)) {
-            status.success(PlotI18n.tr("plugin.road.terrain_profile.ready"));
+            // 成功态由纵断面面板自身状态行展示，避免顶部再刷一条重复提示。
+            status.clear();
             return true;
         }
         cancelTerrainProfileJobSilently();
@@ -501,7 +502,8 @@ public final class RoadPreviewManager {
         } else if (!data.fullyLoaded()) {
             status.warning(PlotI18n.tr("plugin.road.terrain_profile.partial"));
         } else {
-            status.success(PlotI18n.tr("plugin.road.terrain_profile.ready"));
+            // 完整成功不写顶部状态栏；纵断面面板已有「地形已读取」。
+            status.clear();
         }
     }
 
@@ -768,22 +770,7 @@ public final class RoadPreviewManager {
     }
 
     void updatePreviewJobProgress(RoadNetworkPreviewJob job) {
-        if (job == null) {
-            return;
-        }
-        String message = PlotI18n.tr(job.phaseTranslationKey());
-        if (job.phase() == RoadNetworkPreviewJob.Phase.PROJECTING && pendingGhostUploadTotal > 0) {
-            message += " — " + PlotI18n.tr(
-                "plugin.road.preview_ghost_uploading",
-                pendingGhostUploadIndex,
-                pendingGhostUploadTotal);
-        } else if (job.totalWorkUnits() > 0) {
-            message += " — " + PlotI18n.tr(
-                "plugin.road.preview_progress_detail",
-                job.processedWorkUnits(),
-                job.totalWorkUnits());
-        }
-        status.progress(message);
+        // 预览进度由建造 Tab「预览：计算中…」展示，不再刷顶部状态栏以免重复。
     }
 
     void completePreviewJob(
