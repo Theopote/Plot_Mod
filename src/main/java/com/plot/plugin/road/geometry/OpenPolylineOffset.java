@@ -79,7 +79,12 @@ final class OpenPolylineOffset {
             Vec2d offset = PolygonUtils.leftNormal(unit).multiply(sanitizedDistances.get(i));
             output.add(sanitizedPoints.get(i).add(offset));
         }
-        return new OffsetResult(PolygonNormalizer.removeDuplicateVertices(output), List.copyOf(warnings));
+        List<Vec2d> cleaned = PolygonNormalizer.removeDuplicateVertices(output);
+        if (PolygonValidator.hasOpenPolylineSelfIntersection(cleaned)) {
+            warnings.add("inner_self_intersection");
+            cleaned = removeOpenPolylineLoops(cleaned, warnings);
+        }
+        return new OffsetResult(cleaned, List.copyOf(warnings));
     }
 
     private static Vec2d tangentAt(List<Vec2d> points, int index) {
@@ -154,11 +159,23 @@ final class OpenPolylineOffset {
         output.add(offsetEdges.getLast().end());
 
         List<Vec2d> cleaned = PolygonNormalizer.removeDuplicateVertices(output);
-        if (PolygonValidator.hasOpenPolylineSelfIntersection(cleaned)) {
-            warnings.add("inner_self_intersection");
-            return offsetWithForcedBevel(sanitized, distance, miterLimit);
+        if (!PolygonValidator.hasOpenPolylineSelfIntersection(cleaned)) {
+            return new OffsetResult(cleaned, List.copyOf(warnings));
         }
-        return new OffsetResult(cleaned, List.copyOf(warnings));
+        // 内弯半宽大于局部曲率半径时，斜接结果会打结；先切环，再必要时 bevel。
+        warnings.add("inner_self_intersection");
+        List<Vec2d> delooped = removeOpenPolylineLoops(cleaned, warnings);
+        if (delooped.size() >= 2
+                && !PolygonValidator.hasOpenPolylineSelfIntersection(delooped)) {
+            return new OffsetResult(delooped, List.copyOf(warnings));
+        }
+        OffsetResult bevel = offsetWithForcedBevel(sanitized, distance, miterLimit);
+        warnings.addAll(bevel.warnings());
+        List<Vec2d> bevelClean = removeOpenPolylineLoops(bevel.points(), warnings);
+        if (bevelClean.size() < 2) {
+            bevelClean = bevel.points();
+        }
+        return new OffsetResult(bevelClean, List.copyOf(warnings));
     }
 
     private static List<OffsetEdge> buildOffsetEdges(List<Vec2d> sanitized, double distance) {
@@ -304,7 +321,85 @@ final class OpenPolylineOffset {
             appendBevelCorner(output, current.end(), nextEdge.start(), warnings);
         }
         output.add(offsetEdges.getLast().end());
-        return new OffsetResult(PolygonNormalizer.removeDuplicateVertices(output), List.copyOf(warnings));
+        List<Vec2d> cleaned = PolygonNormalizer.removeDuplicateVertices(output);
+        if (PolygonValidator.hasOpenPolylineSelfIntersection(cleaned)) {
+            cleaned = removeOpenPolylineLoops(cleaned, warnings);
+        }
+        return new OffsetResult(cleaned, List.copyOf(warnings));
+    }
+
+    /**
+     * 切除开放折线自交环（内弯大偏移打结时的星形/领结），保留沿起点走向的外轮廓。
+     */
+    static List<Vec2d> removeOpenPolylineLoops(List<Vec2d> points, List<String> warnings) {
+        if (points == null || points.size() < 4) {
+            return points == null ? List.of() : List.copyOf(points);
+        }
+        List<Vec2d> current = new ArrayList<>(points);
+        int maxPasses = Math.max(4, current.size());
+        boolean removedAny = false;
+        for (int pass = 0; pass < maxPasses; pass++) {
+            LoopCut cut = findFirstOpenLoopCut(current);
+            if (cut == null) {
+                break;
+            }
+            List<Vec2d> next = new ArrayList<>(cut.segmentIndex() + 2 + (current.size() - cut.laterSegmentIndex() - 1));
+            for (int i = 0; i <= cut.segmentIndex(); i++) {
+                next.add(current.get(i));
+            }
+            next.add(cut.intersection());
+            for (int i = cut.laterSegmentIndex() + 1; i < current.size(); i++) {
+                next.add(current.get(i));
+            }
+            List<Vec2d> cleaned = PolygonNormalizer.removeDuplicateVertices(next);
+            if (cleaned.size() < 2 || cleaned.size() >= current.size()) {
+                break;
+            }
+            current = cleaned;
+            removedAny = true;
+        }
+        if (removedAny) {
+            warnings.add("loops_removed");
+        }
+        return current;
+    }
+
+    private static LoopCut findFirstOpenLoopCut(List<Vec2d> points) {
+        int segmentCount = points.size() - 1;
+        for (int i = 0; i < segmentCount; i++) {
+            Vec2d a1 = points.get(i);
+            Vec2d a2 = points.get(i + 1);
+            for (int j = i + 2; j < segmentCount; j++) {
+                Vec2d b1 = points.get(j);
+                Vec2d b2 = points.get(j + 1);
+                Vec2d hit = properSegmentIntersection(a1, a2, b1, b2);
+                if (hit != null) {
+                    return new LoopCut(i, j, hit);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** 真交点（不含端点相接），用于切环。 */
+    private static Vec2d properSegmentIntersection(Vec2d a1, Vec2d a2, Vec2d b1, Vec2d b2) {
+        Vec2d v1 = a2.subtract(a1);
+        Vec2d v2 = b2.subtract(b1);
+        double cross = v1.cross(v2);
+        if (Math.abs(cross) <= PolygonUtils.DEFAULT_EPSILON) {
+            return null;
+        }
+        Vec2d w = b1.subtract(a1);
+        double t1 = w.cross(v2) / cross;
+        double t2 = w.cross(v1) / cross;
+        double eps = 1e-9;
+        if (t1 <= eps || t1 >= 1.0 - eps || t2 <= eps || t2 >= 1.0 - eps) {
+            return null;
+        }
+        return a1.add(v1.multiply(t1));
+    }
+
+    private record LoopCut(int segmentIndex, int laterSegmentIndex, Vec2d intersection) {
     }
 
     private static void appendBevelCorner(

@@ -214,6 +214,29 @@ class RoadCorridorGeometryBuilderTest {
     }
 
     @Test
+    void overlayLargeHalfWidth_tightUCurve_innerBoundaryDoesNotKnot() {
+        // 边坡距离很大时，密采样内弯偏移会自交打结；切环后左右边界应保持简单折线。
+        List<Vec2d> centerline = sampleUCurve(12.0, 36);
+        double halfWidth = 18.0;
+        RoadCorridorGeometry overlay = RoadCorridorGeometryBuilder.buildForOverlay(
+            centerline, halfWidth, false);
+
+        assertTrue(overlay.leftBoundary().size() >= 2);
+        assertTrue(overlay.rightBoundary().size() >= 2);
+        assertFalse(
+            PolygonValidator.hasOpenPolylineSelfIntersection(overlay.leftBoundary()),
+            "left/inner offset must not form a self-crossing knot");
+        assertFalse(
+            PolygonValidator.hasOpenPolylineSelfIntersection(overlay.rightBoundary()),
+            "right/outer offset must not self-intersect");
+        assertTrue(
+            overlay.warnings().contains("loops_removed")
+                || overlay.warnings().contains("inner_self_intersection")
+                || !PolygonValidator.hasSelfIntersection(overlay.fillContours().getFirst()),
+            "large inward offset should either deloop or keep a simple fill");
+    }
+
+    @Test
     void overlayMiter_acuteTurnKeepsHalfWidthWithoutBowtie() {
         // 截图式锐折：折线尖角斜接，两侧半宽且无领结
         List<Vec2d> centerline = List.of(
@@ -335,6 +358,19 @@ class RoadCorridorGeometryBuilderTest {
             double angle = (Math.PI * 2.0 * i) / segments;
             points.add(new Vec2d(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius));
         }
+        return points;
+    }
+
+    /** 开口朝下的 U 形弧：从左竖边经顶弧到右竖边，模拟截图中的急内弯。 */
+    private static List<Vec2d> sampleUCurve(double radius, int arcSegments) {
+        List<Vec2d> points = new ArrayList<>();
+        points.add(new Vec2d(-radius, -radius * 1.5));
+        points.add(new Vec2d(-radius, 0.0));
+        for (int i = 0; i <= arcSegments; i++) {
+            double angle = Math.PI + (Math.PI * i) / arcSegments;
+            points.add(new Vec2d(Math.cos(angle) * radius, Math.sin(angle) * radius));
+        }
+        points.add(new Vec2d(radius, -radius * 1.5));
         return points;
     }
 
