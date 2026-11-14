@@ -307,6 +307,69 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
+    void tunnelModeWritesContinuousLiningShellSoSandCannotFallIntoCavity() {
+        // 走廊栅格列：衬砌格若仍是沙子，洞腔变空气后会塌到路面；必须先换成承重壳。
+        var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64, 5);
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        // lateral=0 中心柱：顶衬在 roofTop；侧墙列另测
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                point, 64, roofTop, RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL, 0, 5));
+        plan.putClearance(
+            new ColumnKey(0, 3),
+            new ClearanceCell(
+                new Vec2d(0, 3), 64, roofTop, RoadCorridorConstructionMode.TUNNEL,
+                RoadConstructionType.TUNNEL, 3, 5));
+
+        TerrainSampler sandMountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 90;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 90;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 90;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int worldX, int y, int worldZ) {
+                return y <= 90;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(solids, plan, sandMountain, host);
+
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == roofTop
+                && !"minecraft:air".equals(p.materialId())
+                && Math.abs(p.planPoint().y) < 0.1),
+            "center roof lining cell must be structural, not left as sand");
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> !"minecraft:air".equals(p.materialId())
+                && Math.abs(p.planPoint().y - 3.0) < 0.1
+                && p.elevation() > 64
+                && p.elevation() <= roofTop),
+            "wall column must receive continuous lining shell");
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 65 && "minecraft:air".equals(p.materialId())),
+            "cavity air still required under the shell");
+        assertTrue(solids.primitives().stream()
+            .noneMatch(p -> "minecraft:air".equals(p.materialId()) && p.elevation() == roofTop),
+            "roof lining elevation must not be excavated to air");
+    }
+
+    @Test
     void tunnelModeWithoutLateralDoesNotClear() {
         var host = CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig());
         int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(host, 64, 5);

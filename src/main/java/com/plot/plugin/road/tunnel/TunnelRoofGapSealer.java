@@ -25,10 +25,10 @@ import java.util.Set;
 public final class TunnelRoofGapSealer {
     private static final String DEFAULT_TERRAIN_RESTORE = "minecraft:stone";
     /**
-     * Cap on gravity-block replacements per column (thick portal gravel stacks).
-     * Does not rewrite ordinary solid terrain.
+     * 单柱重力覆土改写上限。沙丘可远厚于旧值 8；封顶须接到非重力承重或自然地表，
+     * 否则洞顶只稳一小段，上方沙子仍会在壳缝处塌入洞腔。
      */
-    private static final int STABILIZE_GRAVITY_LAYERS = 8;
+    private static final int STABILIZE_GRAVITY_LAYERS = 64;
     /** Match lining/cavity insets so diagonal world columns are not missed. */
     private static final double[] CELL_INSETS = {0.0, -0.25, 0.25};
 

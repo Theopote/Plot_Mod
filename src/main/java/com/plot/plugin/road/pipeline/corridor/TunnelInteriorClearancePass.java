@@ -201,7 +201,40 @@ public final class TunnelInteriorClearancePass {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
-        // Stabilize gravel/sand above the roof before cavity air removes support.
+        String liningMaterialId = tunnelStyle.liningMaterial();
+        if (liningMaterialId == null || liningMaterialId.isBlank()) {
+            liningMaterialId = "minecraft:stone_bricks";
+        }
+        // Phase A — 连续衬砌壳（含沙子壳格）。只掏 AIR 会让沙衬悬空塌到路面。
+        final String shellId = liningMaterialId;
+        int[] cleared = {0};
+        mask.forEach((lateral, y, kind) -> {
+            if (kind != TunnelCrossSectionMask.CellKind.LINING) {
+                return;
+            }
+            Vec2d point = center.add(normal.multiply(lateral * scale));
+            int worldX = columnResolver.worldX(point);
+            int worldZ = columnResolver.worldZ(point);
+            if (!terrain.isChunkLoaded(worldX, worldZ)) {
+                return;
+            }
+            boolean gravityShell = terrain.isGravityAffectedBlock(worldX, y, worldZ);
+            if (!TunnelStructureGenerator.shouldPlaceLining(terrain, worldX, y, worldZ, point)
+                    && !gravityShell) {
+                return;
+            }
+            if (y >= terrain.sampleSurfaceY(point) && !gravityShell) {
+                return;
+            }
+            solids.add(
+                point,
+                y,
+                RoadSolidLayer.TUNNEL,
+                shellId,
+                RoadSolidMaterialPriority.STRUCTURAL);
+            cleared[0]++;
+        });
+        // Phase B — stabilize gravel/sand above the roof before cavity air removes support.
         TunnelRoofGapSealer.sealAboveRoofShell(
             solids,
             mask,
@@ -216,9 +249,9 @@ public final class TunnelInteriorClearancePass {
             scale,
             columnResolver,
             terrain,
-            tunnelStyle.liningMaterial(),
+            liningMaterialId,
             "minecraft:stone");
-        int[] cleared = {0};
+        // Phase C — excavate cavity only.
         mask.forEach((lateral, y, kind) -> {
             if (kind != TunnelCrossSectionMask.CellKind.AIR) {
                 return;

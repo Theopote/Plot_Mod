@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
+import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -367,6 +368,35 @@ public final class RoadCorridorClearancePass {
             return clearDecorationsAbove(
                 solids, cell, key, terrain, designY, designY, deckCap, gradeSeparation);
         }
+        // 先写衬砌壳：沙子/沙砾衬砌格若只掏洞腔不换衬，下方变空气后会整柱塌到路面。
+        // 走廊栅格比中心线断面更密，这里补壳才能避免「一段有衬砌、一段裸岩/落沙」。
+        String liningId = host.resolveBlockId(tunnelStyle.liningMaterial());
+        if (liningId == null || liningId.isBlank()) {
+            liningId = "minecraft:stone_bricks";
+        }
+        int shellPlaced = 0;
+        int surfaceY = terrain.sampleSurfaceY(cell.planPoint());
+        for (int y = designY; y <= columnRoof; y++) {
+            if (mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.LINING) {
+                continue;
+            }
+            if (y >= surfaceY) {
+                continue;
+            }
+            boolean gravityShell = terrain.isGravityAffectedBlock(key.worldX(), y, key.worldZ());
+            if (!TunnelStructureGenerator.shouldPlaceLining(
+                    terrain, key.worldX(), y, key.worldZ(), cell.planPoint())
+                    && !gravityShell) {
+                continue;
+            }
+            solids.add(
+                cell.planPoint(),
+                y,
+                RoadSolidLayer.TUNNEL,
+                liningId,
+                RoadSolidMaterialPriority.STRUCTURAL);
+            shellPlaced++;
+        }
         TunnelRoofGapSealer.stabilizeGravityColumn(
             solids,
             cell.planPoint(),
@@ -383,7 +413,7 @@ public final class RoadCorridorClearancePass {
             cleared += clearObstruction(
                 solids, cell, key, terrain, y, gradeSeparation, purpose);
         }
-        return cleared;
+        return cleared + shellPlaced;
     }
 
     /**
