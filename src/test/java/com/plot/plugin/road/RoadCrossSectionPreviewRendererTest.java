@@ -117,6 +117,35 @@ class RoadCrossSectionPreviewRendererTest {
     }
 
     @Test
+    void batterFaceY_cutRisesOutward_fillDropsOutward() {
+        float roadSurface = 40f;
+        float cell = 4f;
+        float ratio = 1f;
+        float cutTop = roadSurface - 3 * cell;
+        float fillGround = roadSurface + 3 * cell;
+
+        float cutNear = RoadCrossSectionPreviewRenderer.batterFaceY(
+            roadSurface, cutTop, ratio, 0, cell, true);
+        float cutNext = RoadCrossSectionPreviewRenderer.batterFaceY(
+            roadSurface, cutTop, ratio, 1, cell, true);
+        float cutFar = RoadCrossSectionPreviewRenderer.batterFaceY(
+            roadSurface, cutTop, ratio, 2, cell, true);
+        // 第 0 列已升高 1 格：底边贴路面、无空隙。
+        assertEquals(roadSurface - cell, cutNear, 0.001f);
+        assertTrue(cutNext < cutNear, "cut face must rise farther from road");
+        assertTrue(cutFar <= cutNext, "cut face keeps rising or clamps at top");
+        assertEquals(cutTop, cutFar, 0.001f);
+
+        float fillNear = RoadCrossSectionPreviewRenderer.batterFaceY(
+            roadSurface, fillGround, ratio, 0, cell, false);
+        float fillFar = RoadCrossSectionPreviewRenderer.batterFaceY(
+            roadSurface, fillGround, ratio, 3, cell, false);
+        assertEquals(roadSurface, fillNear, 0.001f);
+        assertTrue(fillFar > fillNear, "fill face must drop on screen (larger Y) farther from road");
+        assertEquals(fillGround, fillFar, 0.001f);
+    }
+
+    @Test
     void concreteVariantsResolveToDistinctPreviewColors() {
         int black = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:black_concrete", 0);
         int gray = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:gray_concrete", 0);

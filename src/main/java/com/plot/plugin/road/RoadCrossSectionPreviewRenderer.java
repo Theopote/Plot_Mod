@@ -153,10 +153,11 @@ public final class RoadCrossSectionPreviewRenderer {
                 renderOptions.drawSlopeLabels
             );
             if (renderOptions.drawCutSlope) {
+                // 挖方贴路面顶（deckY）起坡，避免从路底起算造成悬空与空隙。
                 drawBatterSlope(
                     drawList,
                     rightEdgeX,
-                    deckBottom,
+                    deckY,
                     geometry.cutTopY(),
                     geometry.rightBatterPx(),
                     layout.cutSlopeRatio,
@@ -262,11 +263,16 @@ public final class RoadCrossSectionPreviewRenderer {
             float availableWidth = Math.max(1f, width - padding * 2f);
             float scale = Math.min(availableWidth / (totalBlocks + fillRun + cutRun),
                 Math.max(1f, height - padding * 2f) / 7f);
-            float deckY = y0 + padding + scale;
+            float fillVert = 3 * scale;
+            // 有挖方时为上方台阶预留空间，避免 cutTop 画出卡片。
+            float cutHeadroom = cutRun > 0 ? (options.compactSlopes ? 1.2f * scale : 3f * scale) : 0f;
+            float deckY = y0 + padding + scale + cutHeadroom;
             float deckH = 2 * scale;
             float deckBottom = deckY + deckH;
-            float groundY = deckBottom + 3 * scale;
-            float cutTopY = cutRun > 0 ? deckBottom - 3 * scale : deckY;
+            float groundY = deckBottom + fillVert;
+            float cutTopY = cutRun > 0
+                ? Math.max(y0 + 1f, deckY - cutHeadroom)
+                : deckY;
             float leftBatterPx = fillRun * scale;
             float rightBatterPx = cutRun * scale;
             float visualWidth = totalBlocks * scale + leftBatterPx + rightBatterPx;
@@ -435,7 +441,7 @@ public final class RoadCrossSectionPreviewRenderer {
     private static void drawBatterSlope(
             ImDrawList drawList,
             float edgeX,
-            float deckBottom,
+            float attachY,
             float groundY,
             float horizontalRun,
             float slopeRatio,
@@ -445,7 +451,7 @@ public final class RoadCrossSectionPreviewRenderer {
         if (Math.abs(horizontalRun) < 1f || slopeRatio <= 0f) {
             return;
         }
-        float verticalDrop = Math.abs(groundY - deckBottom);
+        float verticalDrop = Math.abs(groundY - attachY);
         if (verticalDrop < 1f) {
             return;
         }
@@ -453,12 +459,26 @@ public final class RoadCrossSectionPreviewRenderer {
         float cell = blockSize;
         int columns = Math.min(128, Math.max(1, (int) Math.ceil(Math.abs(horizontalRun) / cell)));
         float step = horizontalRun / columns;
+        // ImGui Y 向下：groundY > attachY 为填方（往下），groundY < attachY 为挖方（往上）。
+        boolean cutSlope = groundY < attachY;
         for (int i = 0; i < columns; i++) {
             float a = edgeX + step * i;
             float b = a + step;
-            float face = deckBottom + Math.signum(groundY - deckBottom) * Math.min(3, Math.round(i / slopeRatio)) * cell;
-            float minY = Math.min(face, groundY);
-            float maxY = Math.max(face, groundY);
+            float face = batterFaceY(attachY, groundY, slopeRatio, i, cell, cutSlope);
+            float minY;
+            float maxY;
+            if (cutSlope) {
+                // 挖方：贴路面顶起坡，从坡面画到路面，第 0 列即有一块（无空隙）。
+                minY = face;
+                maxY = attachY;
+            } else {
+                // 填方：从坡面往下填到地面，越向外越低。
+                minY = Math.min(face, groundY);
+                maxY = Math.max(face, groundY);
+            }
+            if (maxY - minY < 1f) {
+                continue;
+            }
             for (float y = minY; y < maxY; y += cell) {
                 drawVoxelFace(drawList, Math.min(a, b), y, Math.max(a, b), Math.min(maxY, y + cell), color);
             }
@@ -467,8 +487,40 @@ public final class RoadCrossSectionPreviewRenderer {
         if (drawLabel) {
             String label = SlopeFormatUtils.formatRatio(slopeRatio);
             float labelX = horizontalRun < 0f ? endX + 2f : edgeX + 2f;
-            drawList.addText(labelX, deckBottom + 2f, COLOR_LABEL, label);
+            drawList.addText(labelX, attachY + 2f, COLOR_LABEL, label);
         }
+    }
+
+    /**
+     * 第 {@code columnIndex} 列坡面顶/底边的屏幕 Y。
+     * 填方随列外移下降；挖方随列外移上升，且第 0 列至少升高 1 格以免留空。
+     */
+    static float batterFaceY(
+            float attachY,
+            float targetY,
+            float slopeRatio,
+            int columnIndex,
+            float cell,
+            boolean cutSlope) {
+        if (slopeRatio <= 0f || cell <= 0f || columnIndex < 0) {
+            return attachY;
+        }
+        float direction = Math.signum(targetY - attachY);
+        if (direction == 0f) {
+            return attachY;
+        }
+        float riseBlocks;
+        if (cutSlope) {
+            // i=0 → 1 格，贴路边且底边与路面平齐；再向外递增。
+            riseBlocks = Math.min(3, Math.max(1, Math.round((columnIndex + 1) / slopeRatio)));
+        } else {
+            riseBlocks = Math.min(3, Math.round(columnIndex / slopeRatio));
+        }
+        float face = attachY + direction * riseBlocks * cell;
+        if (direction < 0f) {
+            return Math.max(face, targetY);
+        }
+        return Math.min(face, targetY);
     }
 
     public static final class MiniRenderOptions {
