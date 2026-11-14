@@ -542,7 +542,8 @@ public final class JunctionConstructionContext {
             // 禁止仅凭 filletZone 保护：短 ROAD stub 后接 TUNNEL 时 tunnelEntryPlaza 仍为 true，
             // 但路口近端施工为 ROAD，圆角必须与道路一样露天清到地表。
             boolean spatialProtect = inApproachCavity || tunnelFamily
-                || (filletZone && enclosed);
+                || (filletZone && enclosed)
+                || (tunnelEntryPlaza && enclosed);
             if (enclosed && spatialProtect) {
                 role = ColumnRole.ENCLOSED_TUNNEL;
                 maxClear = roofY;
