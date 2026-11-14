@@ -110,11 +110,10 @@ class RoadCrossSectionPreviewRendererTest {
         assertTrue(geometry.cutTopY() >= 1f, "cut slope should not extend above preview");
         assertTrue(geometry.topY() >= 1f, "preview top should stay inside card");
         assertTrue(geometry.rightBatterPx() > 0f, "mountain card should show a cut triangle");
-        float compactCap = Math.max(6f, PRESET_CARD_HEIGHT * 0.2f);
-        assertTrue(geometry.rightBatterPx() <= compactCap + 0.01f,
-            "compact cut batter should stay short: " + geometry.rightBatterPx());
-        assertTrue(geometry.leftBatterPx() <= compactCap + 0.01f,
-            "compact fill batter should stay short: " + geometry.leftBatterPx());
+        assertEquals(2 * geometry.scale(), geometry.deckH(), 0.001f,
+            "two pavement layers must each be one square block high");
+        assertEquals(Math.ceil(3 * layout.cutSlopeRatio) * geometry.scale(),
+            geometry.rightBatterPx(), 0.001f);
     }
 
     @Test

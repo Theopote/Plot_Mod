@@ -16,7 +16,7 @@ import java.util.List;
  * 道路横断面示意预览（ImGui 绘制，不依赖 World）。
  */
 public final class RoadCrossSectionPreviewRenderer {
-    private static final float PREVIEW_HEIGHT = 72f;
+    private static final float PREVIEW_HEIGHT = 160f;
     private static final int COLOR_GROUND = 0xFF5C8A48;
     private static final int COLOR_GROUND_LINE = 0xFF3D5C32;
     private static final int COLOR_LABEL = 0xFFAAAAAA;
@@ -149,6 +149,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 -geometry.leftBatterPx(),
                 layout.fillSlopeRatio,
                 layout.fillSlopeColor,
+                scale,
                 renderOptions.drawSlopeLabels
             );
             if (renderOptions.drawCutSlope) {
@@ -160,6 +161,7 @@ public final class RoadCrossSectionPreviewRenderer {
                     geometry.rightBatterPx(),
                     layout.cutSlopeRatio,
                     layout.cutSlopeColor,
+                    scale,
                     renderOptions.drawSlopeLabels
                 );
             }
@@ -254,26 +256,19 @@ public final class RoadCrossSectionPreviewRenderer {
             }
 
             float padding = options.padding;
-            float deckY = y0 + height * options.deckYRatio;
-            float deckH = height * options.deckHRatio;
-            float deckBottom = deckY + deckH;
-            float groundY = y0 + height * options.groundYRatio;
-            float fillVertDrop = Math.max(0f, groundY - deckBottom);
-            float cutTopY = resolveCutTopY(deckY, deckH, deckBottom, fillVertDrop, y0, options);
-            float cutVertDrop = Math.max(0f, deckBottom - cutTopY);
-
-            float leftBatterPx = layout.includeSlopeBatter && layout.fillSlopeRatio > 0f
-                ? compactBatterRun(fillVertDrop * layout.fillSlopeRatio, options, height)
-                : 0f;
-            float rightBatterPx = layout.includeSlopeBatter && options.drawCutSlope && layout.cutSlopeRatio > 0f
-                ? compactBatterRun(cutVertDrop * layout.cutSlopeRatio, options, height)
-                : 0f;
+            float fillRun = layout.includeSlopeBatter ? (float) Math.ceil(3 * Math.max(0, layout.fillSlopeRatio)) : 0;
+            float cutRun = layout.includeSlopeBatter && options.drawCutSlope
+                ? (float) Math.ceil(3 * Math.max(0, layout.cutSlopeRatio)) : 0;
             float availableWidth = Math.max(1f, width - padding * 2f);
-            float scale = (availableWidth - leftBatterPx - rightBatterPx) / totalBlocks;
-            if (scale <= 0f) {
-                scale = availableWidth / totalBlocks;
-            }
-
+            float scale = Math.min(availableWidth / (totalBlocks + fillRun + cutRun),
+                Math.max(1f, height - padding * 2f) / 7f);
+            float deckY = y0 + padding + scale;
+            float deckH = 2 * scale;
+            float deckBottom = deckY + deckH;
+            float groundY = deckBottom + 3 * scale;
+            float cutTopY = cutRun > 0 ? deckBottom - 3 * scale : deckY;
+            float leftBatterPx = fillRun * scale;
+            float rightBatterPx = cutRun * scale;
             float visualWidth = totalBlocks * scale + leftBatterPx + rightBatterPx;
             float visualLeft = x0 + (width - visualWidth) * 0.5f;
             float visualRight = visualLeft + visualWidth;
@@ -417,9 +412,24 @@ public final class RoadCrossSectionPreviewRenderer {
             return x;
         }
         float w = blocks * scale;
-        drawList.addRectFilled(x, topY, x + w, bottomY, color);
-        drawList.addRect(x, topY, x + w, bottomY, COLOR_BORDER);
+        float split = topY + (bottomY - topY) * 0.5f;
+        int count = Math.min(512, Math.max(1, (int) Math.ceil(blocks)));
+        for (int i = 0; i < count; i++) {
+            float left = x + i * scale;
+            float right = Math.min(x + w, left + scale);
+            drawVoxelFace(drawList, left, split, right, bottomY, 0xFF73777A);
+            drawVoxelFace(drawList, left, topY, right, split, color);
+        }
         return x + w;
+    }
+
+    private static void drawVoxelFace(ImDrawList draw, float x0, float y0, float x1, float y1, int color) {
+        draw.addRectFilled(x0, y0, x1, y1, color);
+        if (x1 - x0 >= 3f && y1 - y0 >= 3f) {
+            draw.addLine(x0 + 1, y0 + 1, x1 - 1, y0 + 1, 0x45FFFFFF, 1f);
+            draw.addLine(x1 - 1, y0 + 1, x1 - 1, y1 - 1, 0x50000000, 1f);
+        }
+        draw.addRect(x0, y0, x1, y1, 0x85000000);
     }
 
     private static void drawBatterSlope(
@@ -430,6 +440,7 @@ public final class RoadCrossSectionPreviewRenderer {
             float horizontalRun,
             float slopeRatio,
             int color,
+            float blockSize,
             boolean drawLabel) {
         if (Math.abs(horizontalRun) < 1f || slopeRatio <= 0f) {
             return;
@@ -439,8 +450,19 @@ public final class RoadCrossSectionPreviewRenderer {
             return;
         }
         float endX = edgeX + horizontalRun;
-        drawList.addTriangleFilled(edgeX, deckBottom, endX, groundY, edgeX, groundY, color);
-        drawList.addLine(edgeX, deckBottom, endX, groundY, COLOR_BORDER, 1.2f);
+        float cell = blockSize;
+        int columns = Math.min(128, Math.max(1, (int) Math.ceil(Math.abs(horizontalRun) / cell)));
+        float step = horizontalRun / columns;
+        for (int i = 0; i < columns; i++) {
+            float a = edgeX + step * i;
+            float b = a + step;
+            float face = deckBottom + Math.signum(groundY - deckBottom) * Math.min(3, Math.round(i / slopeRatio)) * cell;
+            float minY = Math.min(face, groundY);
+            float maxY = Math.max(face, groundY);
+            for (float y = minY; y < maxY; y += cell) {
+                drawVoxelFace(drawList, Math.min(a, b), y, Math.max(a, b), Math.min(maxY, y + cell), color);
+            }
+        }
 
         if (drawLabel) {
             String label = SlopeFormatUtils.formatRatio(slopeRatio);

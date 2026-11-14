@@ -29,7 +29,7 @@ public final class RoadPresetCards {
     private static final float CARD_PADDING_TOP = 8f;
     private static final float CARD_PADDING_BOTTOM = 2f;
     private static final float PREVIEW_GAP = 1f;
-    private static final float PREVIEW_HEIGHT = 48f;
+    private static final float PREVIEW_HEIGHT = 140f;
     /** 预设库浮动窗：与专业设计器 {@link com.plot.plugin.road.ui.editor.RoadFloatingEditorShell} 同尺寸。 */
     private static final float FLOATING_WIDTH_OF_SCREEN =
         com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.FIXED_WIDTH_OF_SCREEN;
