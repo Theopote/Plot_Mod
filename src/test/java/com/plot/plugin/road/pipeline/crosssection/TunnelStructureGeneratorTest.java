@@ -619,6 +619,87 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
+    void sandOverburdenStillGetsLiningLightingAndAccentRing() {
+        // 沙丘覆土：重力块稳定化之后仍须写入衬砌与灯具，不能只掏空。
+        RoadSolidModel solids = new RoadSolidModel();
+        TunnelStyle raw = new TunnelStyle();
+        raw.setShape(TunnelShape.RECTANGULAR);
+        raw.setClearHeight(5);
+        raw.setSideClearance(1);
+        raw.setLiningThickness(1);
+        raw.setLightingMode(TunnelLightingMode.CEILING_BAND);
+        raw.setLightMaterial("minecraft:sea_lantern");
+        raw.setLightSpacing(6);
+        raw.setAccentRings(true);
+        raw.setAccentMaterial("minecraft:chiseled_stone_bricks");
+        raw.setAccentSpacing(4);
+        raw.ensureConfigDefaults();
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.from(raw);
+        TerrainSampler sandDune = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 90;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return 90;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 90;
+            }
+
+            @Override
+            public boolean isGravityAffectedBlock(int x, int y, int z) {
+                return y > 70 && y <= 90;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            5,
+            64,
+            style.accentMaterial(),
+            com.plot.plugin.road.solid.RoadSolidMaterialPriority.ACCENT_RING,
+            sandDune,
+            columnResolver(),
+            1.0,
+            false,
+            null,
+            null,
+            null,
+            2.5,
+            List.of());
+        TunnelStructureGenerator.placeLighting(
+            testHost(),
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            5,
+            64,
+            0.0,
+            sandDune,
+            columnResolver(),
+            1.0);
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                "minecraft:chiseled_stone_bricks".equals(p.materialId()) && p.elevation() > 64),
+            "accent/lining shell must be written into sand overburden");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                "minecraft:air".equals(p.materialId()) && p.elevation() == 66),
+            "cavity must still be excavated");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                "minecraft:sea_lantern".equals(p.materialId())),
+            "tunnel lights require lining mounts in sand tunnels");
+    }
+
+    @Test
     void wallBandLightingSkipsOffSpacingStructureStation() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_BANDS);

@@ -411,6 +411,9 @@ public final class EngineeringTerrainService {
             || state.isIn(BlockTags.DIAMOND_ORES)
             || state.isIn(BlockTags.EMERALD_ORES)
             || state.isOf(Blocks.ANCIENT_DEBRIS)
+            // 砂岩不在 SAND / BASE_STONE 标签里。若排除，沙漠/恶地砂岩山会被
+            // isSolidBlock=false → 隧道覆土判定失败 → 只按露天切方掏洞，没有衬砌/灯/装饰环。
+            || isSandstoneFamily(state)
             || state.isOf(Blocks.GRAVEL)
             || state.isOf(Blocks.CLAY)
             || state.isOf(Blocks.MUD)
@@ -436,6 +439,21 @@ public final class EngineeringTerrainService {
             || state.isOf(Blocks.MOSS_BLOCK)
             || state.isOf(Blocks.ROOTED_DIRT)
             || state.isOf(Blocks.MUDDY_MANGROVE_ROOTS);
+    }
+
+    /** 原版砂岩族（含红砂岩与切制/錾制/平滑变种）；均非 {@link BlockTags#SAND}。 */
+    public static boolean isSandstoneFamily(BlockState state) {
+        if (state == null || state.isAir()) {
+            return false;
+        }
+        return state.isOf(Blocks.SANDSTONE)
+            || state.isOf(Blocks.RED_SANDSTONE)
+            || state.isOf(Blocks.SMOOTH_SANDSTONE)
+            || state.isOf(Blocks.SMOOTH_RED_SANDSTONE)
+            || state.isOf(Blocks.CUT_SANDSTONE)
+            || state.isOf(Blocks.CUT_RED_SANDSTONE)
+            || state.isOf(Blocks.CHISELED_SANDSTONE)
+            || state.isOf(Blocks.CHISELED_RED_SANDSTONE);
     }
 
     static boolean isNaturalDecorationTraits(

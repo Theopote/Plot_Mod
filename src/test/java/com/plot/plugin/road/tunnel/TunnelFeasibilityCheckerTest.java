@@ -79,6 +79,47 @@ class TunnelFeasibilityCheckerTest {
     }
 
     @Test
+    void sandstoneCountedAsSolidKeepsTunnelValid() {
+        // 砂岩山：修复前 isSolidBlock=false（OTHER_SOLID）→ 覆土=0 → 不判隧道；
+        // 计入工程实心后应与土石山一样通过可行性。
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int roofY = 64 + style.roofTopOffset();
+        TerrainSampler sandstoneAsOtherSolid = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 80;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return false; // 修复前：砂岩不算工程实心
+            }
+
+            @Override
+            public boolean isConstructionVolumeObstruction(int x, int y, int z) {
+                return y <= 80; // 仍会被露天切方掏掉
+            }
+        };
+        assertFalse(TunnelFeasibilityChecker.check(
+                sandstoneAsOtherSolid, new Vec2d(0, 0), new Vec2d(0, 1), 64, 5, style,
+                columnResolver(), 1.0).valid(),
+            "sandstone excluded from isSolidBlock must fail tunnel cover");
+
+        TerrainSampler sandstoneAsEngineering = solidUpTo(80);
+        assertTrue(TunnelFeasibilityChecker.check(
+                sandstoneAsEngineering, new Vec2d(0, 0), new Vec2d(0, 1), 64, 5, style,
+                columnResolver(), 1.0).valid(),
+            "sandstone counted as engineering solid must validate tunnel");
+        assertTrue(TunnelFeasibilityChecker.measureContinuousCoverAbove(
+                sandstoneAsEngineering, 0, 0, roofY) >= TunnelFeasibility.MINIMUM_COVER_BLOCKS);
+    }
+
+    @Test
     void cavityAtRoadLevelWithIntactRoofCoverRemainsValid() {
         // 模拟沙砾塌落后路面格变空，但洞顶山体覆土仍在
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
