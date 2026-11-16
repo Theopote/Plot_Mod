@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -11,7 +12,6 @@ import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.editor.CrossSectionDesignerPanel;
 import com.plot.plugin.ui.PluginUiColors;
@@ -41,8 +41,15 @@ public final class VariableCrossSectionEditor {
     private double validationLength = Double.POSITIVE_INFINITY;
     private final List<StationDraft> drafts = new ArrayList<>();
     private int selectedIndex = -1;
-    /** 沿路浏览位置：拖滑条默认 scrub，显示该处生效 W/L；按住 Shift 时移动选中桩号。 */
+    /** 沿路浏览位置（画布/canonical 域）；拖滑条默认 scrub，Shift 时移动选中桩号。 */
     private float playheadStation;
+
+    /** 本帧长度展示上下文：内部桩号为画布域，滑条/文案为世界投影（与路径面板一致，1m=1格）。 */
+    private RoadNetwork lengthNetwork;
+    private Road lengthRoad;
+    private ICoordinateService lengthCoordinates;
+    private float canvasLength;
+    private float worldLength;
 
     private final CrossSectionDesignerPanel detailPanel = new CrossSectionDesignerPanel();
     private CrossSectionDraftMutator cachedMutator;
@@ -78,8 +85,13 @@ public final class VariableCrossSectionEditor {
         }
 
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        double roadLength = RoadStationing.canonicalLength(network, road);
-        validationLength = roadLength;
+        lengthNetwork = network;
+        lengthRoad = road;
+        lengthCoordinates = ctx.host() != null ? ctx.host().coordinates() : null;
+        canvasLength = (float) RoadStationing.canonicalLength(network, road);
+        worldLength = (float) RoadLengthDisplay.canvasToBlocks(
+            canvasLength, network, road, lengthCoordinates);
+        validationLength = canvasLength;
         syncDrafts(road, config);
         clampSelection();
 
@@ -102,7 +114,7 @@ public final class VariableCrossSectionEditor {
         ImGui.setCursorPos(startX, startY);
         ImGui.beginChild("##vcs_station_rail", railWidth, bodyHeight, true, ImGuiWindowFlags.None);
         try {
-            renderStationRail(road, (float) roadLength, chainageDisplay, onHistory, config);
+            renderStationRail(road, canvasLength, chainageDisplay, onHistory, config);
         } finally {
             ImGui.endChild();
         }
@@ -110,7 +122,7 @@ public final class VariableCrossSectionEditor {
         ImGui.setCursorPos(startX + railWidth + spacing, startY);
         ImGui.beginChild("##vcs_detail", detailWidth, bodyHeight, true, ImGuiWindowFlags.None);
         try {
-            renderDetailPane(ctx, road, (float) roadLength, chainageDisplay, onHistory, config);
+            renderDetailPane(ctx, road, canvasLength, chainageDisplay, onHistory, config);
         } finally {
             ImGui.endChild();
         }
@@ -157,7 +169,7 @@ public final class VariableCrossSectionEditor {
                 StationDraft draft = drafts.get(i);
                 ImGui.pushID(i);
                 String validation = validateDraft(draft, drafts, i, roadLength);
-                String label = formatRailLabel(draft, chainageDisplay);
+                String label = formatRailLabel(draft, chainageDisplay, lengthNetwork, lengthRoad, lengthCoordinates);
                 if (validation != null) {
                     ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.INVALID);
                 }
@@ -231,14 +243,21 @@ public final class VariableCrossSectionEditor {
             Runnable onHistory,
             RoadSystemConfig config) {
         ImGui.text(PlotI18n.tr("plugin.road.variable_cross_section_station"));
-        float maxLen = Math.max(0.001f, roadLength);
-        playheadStation = Math.clamp(playheadStation, 0f, maxLen);
-        float[] station = {playheadStation};
+        // 滑条用世界投影长度（与路径面板一致）；内部 playhead/draft.station 仍为画布域。
+        float canvasMax = Math.max(0.001f, roadLength);
+        playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        float worldMax = Math.max(0.001f, worldLength > 0f ? worldLength : canvasMax);
+        float worldPlayhead = (float) RoadLengthDisplay.canvasToBlocks(
+            playheadStation, lengthNetwork, lengthRoad, lengthCoordinates);
+        worldPlayhead = Math.clamp(worldPlayhead, 0f, worldMax);
+        float[] station = {worldPlayhead};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat("##vcs_station_slider", station, 0, maxLen, RoadUiFormat.SLIDER_METERS);
+        ImGui.sliderFloat("##vcs_station_slider", station, 0, worldMax, RoadUiFormat.SLIDER_METERS);
         boolean sliderActive = ImGui.isItemActive();
         boolean sliderActivated = ImGui.isItemActivated();
-        playheadStation = station[0];
+        playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
+            station[0], lengthNetwork, lengthRoad, lengthCoordinates);
+        playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
 
         boolean moveSelected = ImGui.getIO().getKeyShift();
         if (sliderActivated && moveSelected && onHistory != null) {
@@ -261,12 +280,14 @@ public final class VariableCrossSectionEditor {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_playhead_hint"));
         }
 
-        // 摘要按播放头解析生效断面（W/L 随区间变）。
+        // 摘要按播放头解析生效断面（W/L 随区间变）；桩号文案用世界投影。
         ResolvedCrossSection atPlayhead = resolveAtPlayhead(road, config, playheadStation);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            VariableCrossSectionResolver.describeResolved(
-                playheadStation, atPlayhead, chainageDisplay));
+        String stationText = RoadLengthDisplay.formatChainage(
+            chainageDisplay, playheadStation, lengthNetwork, lengthRoad, lengthCoordinates);
+        String summary = atPlayhead == null
+            ? stationText
+            : stationText + " W=" + atPlayhead.carriagewayWidth + " L=" + atPlayhead.laneCount;
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, summary);
 
         if (index >= 0 && index < drafts.size()) {
             String validation = validateDraft(drafts.get(index), drafts, index, roadLength);
@@ -326,9 +347,12 @@ public final class VariableCrossSectionEditor {
         boolean click = ImGui.isMouseClicked(ImGuiMouseButton.Left);
         int hoveredIndex = -1;
 
+        float worldMax = Math.max(0.001f, worldLength > 0f ? worldLength : roadLength);
         for (int i = 0; i < drafts.size(); i++) {
             StationDraft entry = drafts.get(i);
-            float t = Math.clamp(entry.station / roadLength, 0f, 1f);
+            float worldStation = (float) RoadLengthDisplay.canvasToBlocks(
+                entry.station, lengthNetwork, lengthRoad, lengthCoordinates);
+            float t = Math.clamp(worldStation / worldMax, 0f, 1f);
             float mx = usable0 + usableW * t;
             String validation = validateDraft(entry, drafts, i, roadLength);
             boolean selected = i == selectedIndex;
@@ -356,7 +380,8 @@ public final class VariableCrossSectionEditor {
 
         if (hoveredIndex >= 0) {
             StationDraft hovered = drafts.get(hoveredIndex);
-            String tip = formatRailLabel(hovered, chainageDisplay);
+            String tip = formatRailLabel(
+                hovered, chainageDisplay, lengthNetwork, lengthRoad, lengthCoordinates);
             String validation = validateDraft(hovered, drafts, hoveredIndex, roadLength);
             if (validation != null) {
                 tip = tip + "\n" + validation;
@@ -441,10 +466,14 @@ public final class VariableCrossSectionEditor {
             config);
     }
 
-    private static String formatRailLabel(StationDraft draft, ChainageDisplayContext chainageDisplay) {
-        String stationText = chainageDisplay != null
-            ? chainageDisplay.format(draft.station)
-            : RoadStationing.format(draft.station, RoadStationFormat.DISTANCE_METERS);
+    private static String formatRailLabel(
+            StationDraft draft,
+            ChainageDisplayContext chainageDisplay,
+            RoadNetwork network,
+            Road road,
+            ICoordinateService coordinates) {
+        String stationText = RoadLengthDisplay.formatChainage(
+            chainageDisplay, draft.station, network, road, coordinates);
         return stationText
             + "  W="
             + draft.crossSectionDraft.width()
