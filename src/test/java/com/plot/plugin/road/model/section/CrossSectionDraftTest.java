@@ -32,7 +32,8 @@ class CrossSectionDraftTest {
         RoadSystemConfig copy = new RoadSystemConfig("road_system_copy");
         draft.applyToConfig(copy);
 
-        assertEquals(9, copy.getRoadWidth());
+        // 3×3 + 同向缝1 + 中央虚线1 + 分隔带2 = 13（分隔占格语义）
+        assertEquals(13, copy.getRoadWidth());
         assertEquals(3, copy.getLaneCount());
         assertEquals(3, copy.getLaneWidths().size());
         assertTrue(copy.isIncludeBikeLane());
@@ -76,7 +77,8 @@ class CrossSectionDraftTest {
         CrossSectionDraft draft = CrossSectionDraft.fromBatchDefaults(defaults);
         RoadNetworkManager.BatchEditDefaults roundTrip = draft.toBatchDefaults();
 
-        assertEquals(defaults.width(), roundTrip.width());
+        // 旧宽 7 + 双黄占 2 → 反推 laneWidth=3，派生 W=8
+        assertEquals(8, roundTrip.width());
         assertEquals(defaults.laneCount(), roundTrip.laneCount());
         assertEquals(defaults.includeBikeLane(), roundTrip.includeBikeLane());
         assertEquals(defaults.centerLineStyle(), roundTrip.centerLineStyle());

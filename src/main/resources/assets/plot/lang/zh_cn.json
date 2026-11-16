@@ -2372,7 +2372,7 @@
   "hint.plot.road.junction_corner_radius": "一键统筹四角（及所有外凸角）转弯半径；后台自动完成边线修剪与路口布尔拼合。",
   "hint.plot.road.junction_plaza_radius": "基准半径可手调；有效半径取基准与进口半宽+1 的较大值。一键拟合按最宽进口写入基准。",
   "hint.plot.road.junction_fit_plaza": "按当前相连道路最宽进口半宽 + 1 写入广场基准半径。",
-  "hint.plot.road.road_width": "仅指铺装行车道宽度（方块），不含路肩、人行道、自行车道与中央分隔带。",
+  "hint.plot.road.road_width": "由车道宽 + 标线占格 + 中央分隔带推导的行车道总宽（只读）。",
   "hint.plot.road.streetlight_spacing": "沿路路灯间距（方块）。0 表示关闭；启用时间距限制在 8～50。",
   "hint.plot.road.node_elevation": "节点手动标高，使用 Minecraft 世界 Y 坐标（-64～319）。保持自动则跟随地形采样。",
   "hint.plot.road.overview_view_profile": "跳转到生成 Tab 并聚焦该分段的纵断面工作区。",
@@ -5105,5 +5105,15 @@
   "hint.plot.road.bridge_pier_offset": "两柱之间的空隙格数（须与行车道宽同奇偶）。当前空隙 %s 格。",
   "plugin.road.bridge_pier_diameter_locked": "当前行车道宽 %2$s 格时，同奇偶约束下直径只能是 %1$s 格。",
   "plugin.road.bridge_pier_diameter_locked_double": "路宽 %2$s、柱间空隙 %3$s 时，双柱直径只能是 %1$s 格。",
-  "plugin.road.bridge_pier_offset_locked": "当前行车道宽下，同奇偶约束后双柱偏移（柱间空隙）只能是 %1$s 格。"
+  "plugin.road.bridge_pier_offset_locked": "当前行车道宽下，同奇偶约束后双柱偏移（柱间空隙）只能是 %1$s 格。",
+  "plugin.road.lane_travel_width": "单车道宽度",
+  "plugin.road.carriageway_width_readonly": "行车道宽度：%d 格",
+  "plugin.road.custom_lane_widths": "自定义各车道宽度",
+  "plugin.road.center_line.single_yellow": "单黄线（占 1 格）",
+  "plugin.road.center_line.double_yellow": "双黄线（占 2 格）",
+  "hint.plot.road.lane_travel_width": "每条车道的行驶宽度（方块），不含标线占格。",
+  "hint.plot.road.center_line_blocks": "中央标线占用行车道横向格数：单黄 1 格，双黄 2 格。",
+  "plugin.road.edit.batch_lane_width_mixed_hint": "混合值｜设置统一单车道宽",
+  "plugin.road.edit.batch_lane_width_set_unified": "设置统一单车道宽",
+  "plugin.road.edit.batch_lane_width_target": "统一单车道宽: %d"
 }

@@ -13,12 +13,14 @@ class RoadCrossSectionTest {
     @Test
     void applyDefaultsCopiesAllCrossSectionComponents() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        config.setRoadWidth(7);
+        config.setLaneCount(2);
+        config.setDefaultLaneWidth(3);
+        config.setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        config.setLaneDividers(true);
         config.setIncludeShoulder(false);
         config.setFillSlopeRatio(2.5f);
         config.setCutSlopeRatio(1.2f);
         config.setIncludeSidewalk(true);
-        config.setLaneDividers(true);
 
         RoadCrossSection section = new RoadCrossSection();
         section.getMedian().setEnabled(true);
@@ -32,6 +34,7 @@ class RoadCrossSectionTest {
         section.applyDefaults(config);
 
         assertEquals(7, section.getCarriageway().getWidth());
+        assertEquals(3, section.getCarriageway().getEffectiveDefaultLaneWidth());
         assertFalse(section.getShoulder().getEnabled());
         assertTrue(section.getSidewalk().getEnabled());
         assertFalse(section.getMedian().getEnabled());
@@ -40,16 +43,18 @@ class RoadCrossSectionTest {
         assertEquals(2.5f, section.getSlopeBatter().getFillRatio());
         assertTrue(section.getSlopeBatter().getEnabled());
         assertTrue(section.getMarkings().getLaneDividers());
-        assertFalse(section.getMarkings().getCenterLine());
+        assertEquals(CenterLineStyle.SINGLE_DASHED, section.getMarkings().getCenterLineStyle());
+        assertTrue(section.getMarkings().getCenterLine());
     }
 
     @Test
     void fieldResolutionTracksExplicitOverride() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        config.setRoadWidth(5);
+        config.setDefaultLaneWidth(3);
 
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(9);
+        section.getCarriageway().setDefaultLaneWidth(6);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, false, 0);
 
         CrossSectionFieldResolution<Integer> width = CrossSectionFieldResolution.of(
             section.getCarriageway().getWidth(),
@@ -57,14 +62,14 @@ class RoadCrossSectionTest {
             section.resolve(config).carriagewayWidth);
 
         assertFalse(width.inherited());
-        assertEquals(9, width.explicitOverride());
-        assertEquals(9, width.resolved());
+        assertEquals(6, width.explicitOverride());
+        assertEquals(6, width.resolved());
     }
 
     @Test
     void fieldResolutionTracksInheritedDefault() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        config.setRoadWidth(5);
+        config.setDefaultLaneWidth(5);
 
         RoadCrossSection section = new RoadCrossSection();
 

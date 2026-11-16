@@ -524,7 +524,7 @@
   "hint.plot.road.reverse_road_direction": "Reverse segment order and mirror all station-based data (PVI, sections, facilities).",
   "hint.plot.road.road_name": "Custom name for this logical road. Shown in lists and overview instead of the auto-generated label.",
   "hint.plot.road.road_name_clear": "Remove the custom name and revert to the auto-generated label.",
-  "hint.plot.road.road_width": "Width of the paved carriageway only (blocks). Shoulders, sidewalks, bike lanes, and medians are configured separately.",
+  "hint.plot.road.road_width": "Derived carriageway width from lane widths + marking columns + median (read-only).",
   "hint.plot.road.split_road": "Split the logical road before this segment into two roads without deleting geometry.",
   "hint.plot.road.split_road_first_segment": "Cannot split before the first segment. Select a later segment to start a new road group.",
   "hint.plot.road.streetlight_spacing": "Spacing between streetlights along the road (blocks). 0 disables lights; enabled spacing is clamped to 8–50.",
@@ -5105,5 +5105,15 @@
   "hint.plot.road.bridge_pier_offset": "Clear gap between the two columns in blocks (same parity as carriageway). Current gap: %s.",
   "plugin.road.bridge_pier_diameter_locked": "With carriageway width %2$s, parity rules allow only diameter %1$s.",
   "plugin.road.bridge_pier_diameter_locked_double": "With width %2$s and gap %3$s, double-pier diameter can only be %1$s.",
-  "plugin.road.bridge_pier_offset_locked": "With the current carriageway width, parity rules allow only double-pier offset (gap) %1$s."
+  "plugin.road.bridge_pier_offset_locked": "With the current carriageway width, parity rules allow only double-pier offset (gap) %1$s.",
+  "plugin.road.lane_travel_width": "Lane width",
+  "plugin.road.carriageway_width_readonly": "Carriageway width: %d blocks",
+  "plugin.road.custom_lane_widths": "Custom per-lane widths",
+  "plugin.road.center_line.single_yellow": "Single yellow (1 block)",
+  "plugin.road.center_line.double_yellow": "Double yellow (2 blocks)",
+  "hint.plot.road.lane_travel_width": "Travel width of each lane in blocks, excluding marking columns.",
+  "hint.plot.road.center_line_blocks": "Center markings occupy carriageway columns: single yellow 1, double yellow 2.",
+  "plugin.road.edit.batch_lane_width_mixed_hint": "Mixed | set unified lane width",
+  "plugin.road.edit.batch_lane_width_set_unified": "Set unified lane width",
+  "plugin.road.edit.batch_lane_width_target": "Unified lane width: %d"
 }

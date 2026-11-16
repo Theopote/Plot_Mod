@@ -178,10 +178,18 @@ class VariableCrossSectionResolverTest {
     void lerpContinuousTakesDiscreteFieldsFromNearerSide() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadCrossSection narrow = sectionWithWidth(6);
-        narrow.getCarriageway().setLaneCount(2);
+        narrow.getCarriageway().syncLaneCount(2);
+        narrow.getCarriageway().setLaneWidthAt(0, 3);
+        narrow.getCarriageway().setLaneWidthAt(1, 3);
+        narrow.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, false, 0);
         narrow.getCarriageway().setMaterial("minecraft:stone");
         RoadCrossSection wide = sectionWithWidth(14);
-        wide.getCarriageway().setLaneCount(4);
+        wide.getCarriageway().syncLaneCount(4);
+        wide.getCarriageway().setLaneWidthAt(0, 4);
+        wide.getCarriageway().setLaneWidthAt(1, 4);
+        wide.getCarriageway().setLaneWidthAt(2, 3);
+        wide.getCarriageway().setLaneWidthAt(3, 3);
+        wide.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, false, 0);
         wide.getCarriageway().setMaterial("minecraft:deepslate");
 
         ResolvedCrossSection mid = ResolvedCrossSection.lerpContinuous(
@@ -201,9 +209,26 @@ class VariableCrossSectionResolverTest {
         assertEquals("minecraft:deepslate", pastHalf.carriagewayMaterial.getPrimaryMaterial());
     }
 
+    /** 无分隔占格下把总宽拆成 1–4 条行驶车道，使派生 W 等于目标宽。 */
     private static RoadCrossSection sectionWithWidth(int width) {
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(width);
+        section.getMarkings().setLaneDividers(false);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
+        int w = Math.max(1, width);
+        int lanes = Math.min(4, Math.max(1, (w + 5) / 6));
+        int base = w / lanes;
+        int rem = w % lanes;
+        while (base > 6 && lanes < 4) {
+            lanes++;
+            base = w / lanes;
+            rem = w % lanes;
+        }
+        section.getCarriageway().syncLaneCount(lanes);
+        for (int i = 0; i < lanes; i++) {
+            int lw = Math.min(6, Math.max(1, base + (i < rem ? 1 : 0)));
+            section.getCarriageway().setLaneWidthAt(i, lw);
+        }
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, false, 0);
         return section;
     }
 

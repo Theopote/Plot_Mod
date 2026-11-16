@@ -8,6 +8,8 @@ import java.util.List;
 
 /**
  * 从横断面解析车道/中央标线偏移（边与路口共用）。
+ * 优先使用 {@link ResolvedCrossSection#laneDividerOffsets}（已含分隔占格中心），
+ * 不再因 {@code |offset|≈0} 跳过中央标线。
  */
 public final class RoadMarkingPasses {
     public record Pass(double offset, boolean solid) {
@@ -21,33 +23,62 @@ public final class RoadMarkingPasses {
         if (crossSection == null) {
             return passes;
         }
+
+        CenterLineStyle style = crossSection.centerLineStyle != null
+            ? crossSection.centerLineStyle
+            : CenterLineStyle.NONE;
+
         if (crossSection.includeMedian && crossSection.medianWidth > 0) {
-            // Place just outside the median band so markings do not overwrite median columns.
-            double edge = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) + 0.5;
-            if (crossSection.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
+            // 分隔带两侧：双黄贴在绿化带外缘；同向白线仍用解析偏移。
+            if (style == CenterLineStyle.DOUBLE_SOLID) {
+                double edge = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) + 0.5;
                 passes.add(new Pass(-edge, true));
                 passes.add(new Pass(edge, true));
             }
-        } else {
-            switch (crossSection.centerLineStyle) {
-                case SINGLE_DASHED -> passes.add(new Pass(0.0, false));
-                case DOUBLE_SOLID -> {
-                    passes.add(new Pass(-0.3, true));
-                    passes.add(new Pass(0.3, true));
-                }
-                case RAIL -> passes.add(new Pass(0.0, true));
-                default -> {
-                }
-            }
+            appendDividerOffsets(passes, crossSection.laneDividerOffsets, style, false);
+            return passes;
         }
-        if (crossSection.laneDividers) {
-            for (Double offset : crossSection.laneDividerOffsets) {
-                if (offset != null && Math.abs(offset) > 1e-6) {
-                    passes.add(new Pass(offset, false));
-                }
+
+        List<Double> offsets = crossSection.laneDividerOffsets;
+        if (offsets != null && !offsets.isEmpty()) {
+            appendDividerOffsets(passes, offsets, style, true);
+            return passes;
+        }
+
+        // 无解析偏移时的样式回退（单车道中央标线等）。
+        switch (style) {
+            case SINGLE_DASHED -> passes.add(new Pass(0.0, false));
+            case DOUBLE_SOLID -> {
+                passes.add(new Pass(-0.5, true));
+                passes.add(new Pass(0.5, true));
+            }
+            case RAIL -> passes.add(new Pass(0.0, true));
+            default -> {
             }
         }
         return passes;
+    }
+
+    private static void appendDividerOffsets(
+            List<Pass> passes,
+            List<Double> offsets,
+            CenterLineStyle style,
+            boolean includeCenterColumns) {
+        if (offsets == null) {
+            return;
+        }
+        for (Double offset : offsets) {
+            if (offset == null) {
+                continue;
+            }
+            boolean centerColumn = Math.abs(offset) <= 1.0 + 1e-6;
+            if (centerColumn && !includeCenterColumns) {
+                continue;
+            }
+            boolean solid = centerColumn
+                && (style == CenterLineStyle.DOUBLE_SOLID || style == CenterLineStyle.RAIL);
+            passes.add(new Pass(offset, solid));
+        }
     }
 
     public static boolean hasAnyMarkings(ResolvedCrossSection crossSection) {

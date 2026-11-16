@@ -6,6 +6,8 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,8 +20,8 @@ class RoadMarkingPassesTest {
         RoadCrossSection section = new RoadCrossSection();
         section.getMarkings().setCenterLineStyle(CenterLineStyle.DOUBLE_SOLID);
         section.getMarkings().setLaneDividers(true);
-        section.getCarriageway().setLaneCount(3);
-        section.getCarriageway().setWidth(9);
+        section.getCarriageway().setLaneCount(4);
+        section.getCarriageway().setDefaultLaneWidth(3);
 
         ResolvedCrossSection resolved = section.resolve(config);
         var passes = RoadMarkingPasses.fromCrossSection(resolved);
@@ -28,6 +30,21 @@ class RoadMarkingPassesTest {
         assertTrue(passes.stream().anyMatch(pass -> pass.solid() && pass.offset() < 0));
         assertTrue(passes.stream().anyMatch(pass -> pass.solid() && pass.offset() > 0));
         assertTrue(passes.stream().anyMatch(pass -> !pass.solid()));
+    }
+
+    @Test
+    void twoLaneCenterLineAtZeroIsNotSkipped() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        assertEquals(List.of(0.0), resolved.laneDividerOffsets);
+        var passes = RoadMarkingPasses.fromCrossSection(resolved);
+        assertTrue(passes.stream().anyMatch(pass -> Math.abs(pass.offset()) < 1e-6));
     }
 
     @Test

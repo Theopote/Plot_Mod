@@ -108,20 +108,23 @@ public final class CrossSectionDraftEditor {
             laneCount = draft.laneCount();
             mutator.afterLaneCountField();
 
-            int width = draft.width();
-            int[] widthArr = {width};
+            int[] laneWidthArr = {draft.defaultLaneWidth()};
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.road_width") + "##" + id + "_width",
-                widthArr,
-                RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
-                RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
+                PlotI18n.tr("plugin.road.lane_travel_width") + "##" + id + "_lane_w",
+                laneWidthArr,
+                RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+                RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
                 "%d")) {
                 if (ImGui.isItemActivated()) {
                     hooks.onItemActivated();
                 }
-                mutator.setWidth(widthArr[0]);
+                mutator.setDefaultLaneWidth(laneWidthArr[0]);
             }
-            width = draft.width();
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
+            }
+
+            ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
             }
@@ -129,28 +132,29 @@ public final class CrossSectionDraftEditor {
         } else {
             laneCount = draft.laneCount();
         }
-        int width = draft.width();
 
         if (editor.options.showLaneWidths() && laneCount > 1) {
-            var resolved = draft.resolveLaneWidths();
-            for (int i = 0; i < laneCount; i++) {
-                int current = i < draft.laneWidths().size() && draft.laneWidths().get(i) > 0
-                    ? draft.laneWidths().get(i)
-                    : resolved.get(i);
-                int[] laneWidthArr = {current};
-                int perLaneMax = RoadParameterLimits.maxPerLaneWidth(width, laneCount);
-                if (ImGui.sliderInt(
-                    PlotI18n.tr("plugin.road.lane_width_label", i + 1)
-                        + "##" + id + "_lane_" + i,
-                    laneWidthArr,
-                    RoadParameterLimits.MIN_STRIP_WIDTH,
-                    perLaneMax,
-                    "%d")) {
-                    if (ImGui.isItemActivated()) {
-                        hooks.onItemActivated();
+            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.custom_lane_widths") + "##" + id + "_lanes_adv")) {
+                var resolved = draft.resolveLaneWidths();
+                for (int i = 0; i < laneCount; i++) {
+                    int current = i < draft.laneWidths().size() && draft.laneWidths().get(i) > 0
+                        ? draft.laneWidths().get(i)
+                        : resolved.get(i);
+                    int[] perLaneArr = {current};
+                    if (ImGui.sliderInt(
+                        PlotI18n.tr("plugin.road.lane_width_label", i + 1)
+                            + "##" + id + "_lane_" + i,
+                        perLaneArr,
+                        RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+                        RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
+                        "%d")) {
+                        if (ImGui.isItemActivated()) {
+                            hooks.onItemActivated();
+                        }
+                        mutator.setLaneWidthAt(i, perLaneArr[0]);
                     }
-                    mutator.setLaneWidthAt(i, laneWidthArr[0]);
                 }
+                ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
             }
         }
 
@@ -524,8 +528,8 @@ public final class CrossSectionDraftEditor {
         CenterLineStyle centerLineStyle = draft.centerLineStyle();
         String[] centerLineLabels = {
             PlotI18n.tr("plugin.road.center_line.none"),
-            PlotI18n.tr("plugin.road.center_line.single_dashed"),
-            PlotI18n.tr("plugin.road.center_line.double_solid"),
+            PlotI18n.tr("plugin.road.center_line.single_yellow"),
+            PlotI18n.tr("plugin.road.center_line.double_yellow"),
             PlotI18n.tr("plugin.road.center_line.rail")
         };
         ImInt centerLineIndex = new ImInt(switch (centerLineStyle) {
@@ -541,12 +545,21 @@ public final class CrossSectionDraftEditor {
             if (roadEdit) {
                 hooks.onItemActivated();
             }
-            mutator.setCenterLineStyle(switch (centerLineIndex.get()) {
+            CenterLineStyle selected = switch (centerLineIndex.get()) {
                 case 1 -> CenterLineStyle.SINGLE_DASHED;
                 case 2 -> CenterLineStyle.DOUBLE_SOLID;
                 case 3 -> CenterLineStyle.RAIL;
                 default -> CenterLineStyle.NONE;
-            });
+            };
+            mutator.setCenterLineStyle(selected);
+            if (selected == CenterLineStyle.SINGLE_DASHED || selected == CenterLineStyle.DOUBLE_SOLID) {
+                mutator.setMarkingMaterial("minecraft:yellow_concrete");
+            } else if (selected != CenterLineStyle.NONE) {
+                mutator.setMarkingMaterial(ResolvedCrossSection.DEFAULT_MARKING_MATERIAL);
+            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
         }
         mutator.afterCenterLineField();
 

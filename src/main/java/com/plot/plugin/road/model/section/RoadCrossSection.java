@@ -29,17 +29,29 @@ public class RoadCrossSection {
         }
         RoadCrossSection section = new RoadCrossSection();
         section.carriageway.setLaneCount(defaults.getLaneCount());
-        section.carriageway.setWidth(defaults.getRoadWidth());
+        section.carriageway.setDefaultLaneWidth(defaults.getDefaultLaneWidth());
         section.carriageway.setMaterial(defaults.getSelectedMaterial());
         section.carriageway.syncLaneCount(defaults.getLaneCount());
-        List<Integer> resolved = section.carriageway.resolveLaneWidths(defaults.getRoadWidth());
         List<Integer> configuredWidths = defaults.getLaneWidths();
+        boolean anyConfigured = false;
         for (int i = 0; i < defaults.getLaneCount(); i++) {
-            int laneWidth = i < configuredWidths.size() && configuredWidths.get(i) > 0
-                ? configuredWidths.get(i)
-                : resolved.get(i);
-            section.carriageway.setLaneWidthAt(i, laneWidth);
+            if (i < configuredWidths.size() && configuredWidths.get(i) != null && configuredWidths.get(i) > 0) {
+                section.carriageway.setLaneWidthAt(i, configuredWidths.get(i));
+                anyConfigured = true;
+            }
         }
+        if (!anyConfigured) {
+            // 兼容仅写了 roadWidth 的旧配置：反推均匀单车道宽。
+            section.carriageway.migrateUniformLaneWidthFromStored(
+                defaults.getRoadWidth(),
+                defaults.getCenterLineStyle(),
+                defaults.isLaneDividers(),
+                defaults.isIncludeMedian() ? defaults.getMedianWidth() : 0);
+        }
+        section.carriageway.syncDerivedWidth(
+            defaults.getCenterLineStyle(),
+            defaults.isLaneDividers(),
+            defaults.isIncludeMedian() ? defaults.getMedianWidth() : 0);
         section.shoulder.setEnabled(defaults.isIncludeShoulder());
         section.shoulder.setWidth(defaults.getShoulderWidth());
         section.shoulder.setMaterial(defaults.getFillSlopeMaterial());
@@ -80,7 +92,11 @@ public class RoadCrossSection {
             Integer streetlightSpacing) {
         RoadCrossSection section = new RoadCrossSection();
         section.carriageway.setLaneCount(1);
-        section.carriageway.setWidth(width);
+        if (width != null) {
+            section.carriageway.migrateUniformLaneWidthFromStored(
+                width, CenterLineStyle.NONE, false, 0);
+            section.carriageway.syncDerivedWidth(CenterLineStyle.NONE, false, 0);
+        }
         if (material != null) {
             section.carriageway.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(material));
         }

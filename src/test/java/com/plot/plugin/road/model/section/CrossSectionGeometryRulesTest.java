@@ -25,14 +25,15 @@ class CrossSectionGeometryRulesTest {
     }
 
     @Test
-    void resolveClampsExtremeMedianAndReportsNote() {
+    void resolveKeepsMedianAdditiveAndGrowsCarriageway() {
         RoadSystemConfig defaults = new RoadSystemConfig("geom-test");
         defaults.setIncludeShoulder(false);
         defaults.setIncludeSidewalk(false);
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(5);
         section.getCarriageway().setLaneCount(2);
-        section.getCarriageway().syncLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(2);
+        section.getMarkings().setLaneDividers(false);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(4);
         section.getShoulder().setEnabled(false);
@@ -42,10 +43,13 @@ class CrossSectionGeometryRulesTest {
         CrossSectionResolveReport.ResolveResult result =
             ResolvedCrossSection.resolveWithReport(section, defaults);
 
-        assertEquals(3, result.section().medianWidth);
-        assertEquals(2, result.section().laneOnlyWidth);
-        assertTrue(result.section().medianWidth + result.section().laneOnlyWidth <= 5);
-        assertFalse(result.report().geometryNotes().isEmpty());
+        // 分隔带改为加在总宽上：2+2+4=8，不再把 median 压进固定 W
+        assertEquals(4, result.section().medianWidth);
+        assertEquals(8, result.section().carriagewayWidth);
+        assertEquals(4, result.section().laneOnlyWidth);
+        assertEquals(
+            result.section().medianWidth + result.section().laneOnlyWidth,
+            result.section().carriagewayWidth);
     }
 
     @Test

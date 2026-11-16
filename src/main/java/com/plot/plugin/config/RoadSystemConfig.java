@@ -13,6 +13,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.BridgePierStyle;
+import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.style.RoadStyle;
@@ -36,7 +37,8 @@ public class RoadSystemConfig {
     private static final String DEFAULT_RETAINING_WALL_MATERIAL = "minecraft:stone_bricks";
     private String pluginId;
 
-    private int roadWidth = 5;
+    /** 派生写入以保持序列化兼容；权威输入为车道数 / 单车道宽 / 标线。 */
+    private int roadWidth = RoadParameterLimits.DEFAULT_LANE_WIDTH_BLOCKS;
     private boolean includeSidewalk = true;
     private int sidewalkWidth = 1;
     private MaterialMix selectedMaterial = MaterialMix.single(RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
@@ -67,6 +69,7 @@ public class RoadSystemConfig {
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
     private int laneCount = 1;
+    private int defaultLaneWidth = RoadParameterLimits.DEFAULT_LANE_WIDTH_BLOCKS;
     private List<Integer> laneWidths = new ArrayList<>();
     private boolean includeBikeLane = false;
     private int bikeLaneWidth = 1;
@@ -211,6 +214,52 @@ public class RoadSystemConfig {
 
     public void setRoadWidth(int roadWidth) {
         this.roadWidth = RoadParameterLimits.clampCarriagewayWidth(roadWidth);
+        // 旧调用方仍按总宽写入：反推均匀单车道宽以保持派生一致。
+        this.defaultLaneWidth = CarriagewayWidthRules.inferUniformLaneWidth(
+            this.roadWidth,
+            getLaneCount(),
+            getCenterLineStyle(),
+            laneDividers,
+            includeMedian ? medianWidth : 0);
+    }
+
+    public int getDefaultLaneWidth() {
+        return RoadParameterLimits.clampLaneTravelWidth(
+            defaultLaneWidth > 0 ? defaultLaneWidth : RoadParameterLimits.DEFAULT_LANE_WIDTH_BLOCKS);
+    }
+
+    public void setDefaultLaneWidth(int defaultLaneWidth) {
+        this.defaultLaneWidth = RoadParameterLimits.clampLaneTravelWidth(defaultLaneWidth);
+        recomputeDerivedRoadWidth();
+    }
+
+    /** 按当前车道/标线/分隔带重写 {@link #roadWidth}（序列化兼容）。 */
+    public void recomputeDerivedRoadWidth() {
+        List<Integer> widths = effectiveLaneTravelWidths();
+        this.roadWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
+            widths,
+            getCenterLineStyle(),
+            laneDividers,
+            includeMedian ? medianWidth : 0);
+    }
+
+    private List<Integer> effectiveLaneTravelWidths() {
+        int lanes = getLaneCount();
+        List<Integer> configured = getLaneWidths();
+        boolean anyExplicit = false;
+        List<Integer> widths = new ArrayList<>(lanes);
+        for (int i = 0; i < lanes; i++) {
+            if (i < configured.size() && configured.get(i) != null && configured.get(i) > 0) {
+                widths.add(RoadParameterLimits.clampLaneTravelWidth(configured.get(i)));
+                anyExplicit = true;
+            } else {
+                widths.add(getDefaultLaneWidth());
+            }
+        }
+        if (!anyExplicit) {
+            return CarriagewayWidthRules.uniformLaneWidths(lanes, getDefaultLaneWidth());
+        }
+        return widths;
     }
 
     public boolean isIncludeSidewalk() {
@@ -464,6 +513,7 @@ public class RoadSystemConfig {
 
     public void setLaneCount(int laneCount) {
         this.laneCount = RoadParameterLimits.clampLaneCount(laneCount);
+        recomputeDerivedRoadWidth();
     }
 
     public List<Integer> getLaneWidths() {
@@ -472,6 +522,7 @@ public class RoadSystemConfig {
 
     public void setLaneWidths(List<Integer> laneWidths) {
         this.laneWidths = laneWidths != null ? new ArrayList<>(laneWidths) : new ArrayList<>();
+        recomputeDerivedRoadWidth();
     }
 
     public boolean isIncludeBikeLane() {
@@ -496,6 +547,7 @@ public class RoadSystemConfig {
 
     public void setIncludeMedian(boolean includeMedian) {
         this.includeMedian = includeMedian;
+        recomputeDerivedRoadWidth();
     }
 
     public int getMedianWidth() {
@@ -504,6 +556,7 @@ public class RoadSystemConfig {
 
     public void setMedianWidth(int medianWidth) {
         this.medianWidth = RoadParameterLimits.clampStripWidth(medianWidth);
+        recomputeDerivedRoadWidth();
     }
 
     public boolean isLaneDividers() {
@@ -512,6 +565,7 @@ public class RoadSystemConfig {
 
     public void setLaneDividers(boolean laneDividers) {
         this.laneDividers = laneDividers;
+        recomputeDerivedRoadWidth();
     }
 
     public CenterLineStyle getCenterLineStyle() {
@@ -527,6 +581,7 @@ public class RoadSystemConfig {
 
     public void setCenterLineStyle(CenterLineStyle style) {
         this.centerLineStyle = style != null ? style.name() : CenterLineStyle.NONE.name();
+        recomputeDerivedRoadWidth();
     }
 
     public String getMarkingMaterial() {

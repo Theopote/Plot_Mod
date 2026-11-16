@@ -66,7 +66,25 @@ class VariableCrossSectionEditorTest {
 
   private static RoadCrossSection sectionWithWidth(int width) {
     RoadCrossSection section = new RoadCrossSection();
-    section.getCarriageway().setWidth(width);
+    section.getMarkings().setLaneDividers(false);
+    section.getMarkings().setCenterLineStyle(
+        com.plot.plugin.road.model.section.CenterLineStyle.NONE);
+    int w = Math.max(1, width);
+    int lanes = Math.min(4, Math.max(1, (w + 5) / 6));
+    int base = w / lanes;
+    int rem = w % lanes;
+    while (base > 6 && lanes < 4) {
+      lanes++;
+      base = w / lanes;
+      rem = w % lanes;
+    }
+    section.getCarriageway().syncLaneCount(lanes);
+    for (int i = 0; i < lanes; i++) {
+      int lw = Math.min(6, Math.max(1, base + (i < rem ? 1 : 0)));
+      section.getCarriageway().setLaneWidthAt(i, lw);
+    }
+    section.getCarriageway().syncDerivedWidth(
+        com.plot.plugin.road.model.section.CenterLineStyle.NONE, false, 0);
     return section;
   }
 

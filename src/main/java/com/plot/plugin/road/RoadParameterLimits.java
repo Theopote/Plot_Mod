@@ -13,6 +13,10 @@ public final class RoadParameterLimits {
     public static final int MAX_CARRIAGEWAY_WIDTH = 24;
     public static final int MIN_LANE_COUNT = 1;
     public static final int MAX_LANE_COUNT = 4;
+    /** 单车道行驶宽度（格）；总宽由车道×宽 + 分隔占格推导。 */
+    public static final int MIN_LANE_WIDTH_BLOCKS = 1;
+    public static final int MAX_LANE_WIDTH_BLOCKS = 6;
+    public static final int DEFAULT_LANE_WIDTH_BLOCKS = 3;
     public static final int MIN_STRIP_WIDTH = 1;
     public static final int MAX_STRIP_WIDTH = 3;
     /** Inclusive minimum placeable block Y for default overworld fallback. */
@@ -63,13 +67,18 @@ public final class RoadParameterLimits {
         return Math.clamp(laneCount, MIN_LANE_COUNT, MAX_LANE_COUNT);
     }
 
+    /** 单车道行驶宽度上限（与总宽解耦）。 */
     public static int maxPerLaneWidth(int carriagewayWidth, int laneCount) {
-        int lanes = Math.max(MIN_LANE_COUNT, clampLaneCount(laneCount));
-        return Math.max(MIN_STRIP_WIDTH, clampCarriagewayWidth(carriagewayWidth) / lanes);
+        return MAX_LANE_WIDTH_BLOCKS;
     }
 
+    public static int clampLaneTravelWidth(int laneWidth) {
+        return Math.clamp(laneWidth, MIN_LANE_WIDTH_BLOCKS, MAX_LANE_WIDTH_BLOCKS);
+    }
+
+    /** @deprecated 使用 {@link #clampLaneTravelWidth(int)}；保留重载以免旧调用断裂。 */
     public static int clampLaneWidth(int laneWidth, int carriagewayWidth, int laneCount) {
-        return Math.max(MIN_STRIP_WIDTH, Math.min(maxPerLaneWidth(carriagewayWidth, laneCount), laneWidth));
+        return clampLaneTravelWidth(laneWidth);
     }
 
     public static int clampStripWidth(int width) {

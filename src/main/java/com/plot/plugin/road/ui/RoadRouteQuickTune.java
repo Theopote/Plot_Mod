@@ -3,11 +3,12 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 /**
- * 路线 Tab 主界面：宽度与车道数快速调节（默认参数或当前选中道路）。
+ * 路线 Tab 主界面：单车道宽与车道数快速调节（默认参数或当前选中道路）。
  */
 final class RoadRouteQuickTune {
     private RoadRouteQuickTune() {
@@ -18,11 +19,12 @@ final class RoadRouteQuickTune {
         if (config == null) {
             return;
         }
-        renderWidthLaneSliders(
-            config.getRoadWidth(),
+        renderLaneWidthLaneSliders(
+            config.getDefaultLaneWidth(),
             config.getLaneCount(),
-            (width, lanes) -> {
-                config.setRoadWidth(width);
+            config.getRoadWidth(),
+            (laneWidth, lanes) -> {
+                config.setDefaultLaneWidth(laneWidth);
                 config.setLaneCount(lanes);
                 config.markCustom();
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
@@ -36,45 +38,58 @@ final class RoadRouteQuickTune {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         var resolved = road.getCrossSection().resolve(config);
-        renderWidthLaneSliders(
-            resolved.carriagewayWidth,
+        int laneWidth = road.getCrossSection().getCarriageway().getEffectiveDefaultLaneWidth();
+        renderLaneWidthLaneSliders(
+            laneWidth,
             resolved.laneCount,
-            (width, lanes) -> {
-                road.setWidth(width);
+            resolved.carriagewayWidth,
+            (perLane, lanes) -> {
+                road.getCrossSection().getCarriageway().setDefaultLaneWidth(perLane);
                 road.setLaneCount(lanes);
+                CenterLineStyle style = road.getCenterLineStyle() != null
+                    ? road.getCenterLineStyle()
+                    : CenterLineStyle.NONE;
+                boolean dividers = road.getLaneDividers() != null
+                    ? road.getLaneDividers()
+                    : lanes > 1;
+                int median = Boolean.TRUE.equals(road.getIncludeMedian())
+                    ? Math.max(0, road.getMedianWidth() != null ? road.getMedianWidth() : 0)
+                    : 0;
+                road.getCrossSection().getCarriageway().syncDerivedWidth(style, dividers, median);
                 ctx.onGenerationConfigChanged();
             },
             onHistory);
     }
 
-    private static void renderWidthLaneSliders(
-            int width,
+    private static void renderLaneWidthLaneSliders(
+            int laneWidth,
             int laneCount,
-            WidthLaneConsumer onChange) {
-        renderWidthLaneSliders(width, laneCount, onChange, null);
+            int derivedCarriagewayWidth,
+            LaneWidthLaneConsumer onChange) {
+        renderLaneWidthLaneSliders(laneWidth, laneCount, derivedCarriagewayWidth, onChange, null);
     }
 
-    private static void renderWidthLaneSliders(
-            int width,
+    private static void renderLaneWidthLaneSliders(
+            int laneWidth,
             int laneCount,
-            WidthLaneConsumer onChange,
+            int derivedCarriagewayWidth,
+            LaneWidthLaneConsumer onChange,
             Runnable onHistory) {
-        int[] widthArr = {width};
-        boolean widthChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.road_width") + "##route_width",
-            widthArr,
-            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
-            RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
+        int[] laneWidthArr = {laneWidth};
+        boolean laneWidthChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.lane_travel_width") + "##route_lane_w",
+            laneWidthArr,
+            RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+            RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
             "%d");
-        // 激活帧与首变值帧可能不同：历史须在控件之后、值变化分支之外判定。
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
-        if (widthChanged) {
-            onChange.accept(widthArr[0], laneCount);
+        if (laneWidthChanged) {
+            onChange.accept(laneWidthArr[0], laneCount);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
         }
 
         int[] laneArr = {laneCount};
@@ -88,12 +103,14 @@ final class RoadRouteQuickTune {
             onHistory.run();
         }
         if (laneChanged) {
-            onChange.accept(widthArr[0], laneArr[0]);
+            onChange.accept(laneWidthArr[0], laneArr[0]);
         }
+
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", derivedCarriagewayWidth));
     }
 
     @FunctionalInterface
-    private interface WidthLaneConsumer {
-        void accept(int width, int laneCount);
+    private interface LaneWidthLaneConsumer {
+        void accept(int laneWidth, int laneCount);
     }
 }

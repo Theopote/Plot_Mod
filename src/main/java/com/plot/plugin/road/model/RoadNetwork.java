@@ -1041,6 +1041,7 @@ public class RoadNetwork {
     static class LaneGroupData {
         Integer laneCount;
         Integer width;
+        Integer defaultLaneWidth;
         MaterialMix material;
         List<LaneData> lanes = new ArrayList<>();
     }
@@ -1111,6 +1112,7 @@ public class RoadNetwork {
                 data.carriageway = new LaneGroupData();
                 data.carriageway.laneCount = carriageway.getLaneCount();
                 data.carriageway.width = carriageway.getWidth();
+                data.carriageway.defaultLaneWidth = carriageway.getDefaultLaneWidth();
                 data.carriageway.material = carriageway.getMaterial();
                 for (Lane lane : carriageway.getLanes()) {
                     LaneData laneData = new LaneData();
@@ -1184,6 +1186,9 @@ public class RoadNetwork {
                 LaneGroup laneGroup = new LaneGroup();
                 laneGroup.setLaneCount(carriageway.laneCount);
                 laneGroup.setWidth(carriageway.width);
+                if (carriageway.defaultLaneWidth != null) {
+                    laneGroup.setDefaultLaneWidth(carriageway.defaultLaneWidth);
+                }
                 laneGroup.setMaterial(carriageway.material != null
                     ? RoadMaterialMixUtils.normalizeStored(carriageway.material)
                     : null);

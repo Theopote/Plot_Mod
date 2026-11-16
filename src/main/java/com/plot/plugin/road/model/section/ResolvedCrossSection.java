@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -155,31 +156,58 @@ public final class ResolvedCrossSection {
         SlopeBatter slopeBatter = source.getSlopeBatter();
         StreetFurniture furniture = source.getStreetFurniture();
 
-        int width = carriageway.getWidth() != null ? carriageway.getWidth() : config.getRoadWidth();
-        int safeWidth = Math.max(1, width);
         int laneCount = carriageway.getEffectiveLaneCount();
+        boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount);
+        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config);
+        String markingMaterial = markings.getMaterial() != null
+            ? markings.getMaterial()
+            : DEFAULT_MARKING_MATERIAL;
 
         boolean includeMedian = median.getEnabled() != null && median.getEnabled();
         int requestedMedian = includeMedian
             ? Math.max(1, median.getWidth() != null ? median.getWidth() : 1)
             : 0;
-        int medianWidth = requestedMedian;
-        if (includeMedian && requestedMedian > 0) {
-            medianWidth = CrossSectionGeometryRules.clampMedianWidth(safeWidth, laneCount, requestedMedian);
-            if (medianWidth < requestedMedian) {
-                report.noteGeometry(
-                    "median_clamped:" + requestedMedian + "->" + medianWidth
-                        + " width=" + safeWidth + " lanes=" + laneCount);
+        int medianWidth = includeMedian ? Math.max(0, requestedMedian) : 0;
+
+        int storedWidth = carriageway.getWidth() != null ? carriageway.getWidth() : config.getRoadWidth();
+        if (!carriageway.hasExplicitLaneWidths() && !carriageway.hasConfiguredDefaultLaneWidth()) {
+            // 继承配置的均匀车道宽；若仅有旧总宽则反推。
+            carriageway.setDefaultLaneWidth(config.getDefaultLaneWidth());
+            if (carriageway.getWidth() != null) {
+                int derivedFromConfigDefault = CarriagewayWidthRules.derivedCarriagewayWidth(
+                    carriageway.resolveLaneWidths(), centerLineStyle, laneDividers, medianWidth);
+                if (derivedFromConfigDefault != storedWidth) {
+                    carriageway.setDefaultLaneWidth(null);
+                    carriageway.migrateUniformLaneWidthFromStored(
+                        storedWidth, centerLineStyle, laneDividers, medianWidth);
+                }
             }
+        } else {
+            carriageway.migrateUniformLaneWidthFromStored(
+                storedWidth, centerLineStyle, laneDividers, medianWidth);
+        }
+
+        List<Integer> laneWidths = carriageway.resolveLaneWidths();
+        int travelAndDividers = CarriagewayWidthRules.sumLaneWidths(laneWidths)
+            + CarriagewayWidthRules.dividerBlocks(laneCount, centerLineStyle, laneDividers);
+        int maxMedian = Math.max(0, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH - Math.max(laneCount, travelAndDividers));
+        if (includeMedian && medianWidth > maxMedian) {
+            report.noteGeometry(
+                "median_clamped:" + medianWidth + "->" + maxMedian
+                    + " travel+div=" + travelAndDividers + " lanes=" + laneCount);
+            medianWidth = maxMedian;
             if (medianWidth <= 0) {
                 includeMedian = false;
                 medianWidth = 0;
             }
         }
+
+        int safeWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
+            laneWidths, centerLineStyle, laneDividers, medianWidth);
+        // 不回写 carriageway.width：解析结果只存在于 ResolvedCrossSection，避免污染 null 继承。
         int laneOnlyWidth = CrossSectionGeometryRules.laneOnlyWidth(safeWidth, laneCount, medianWidth);
-        List<Integer> laneWidths = carriageway.resolveLaneWidths(laneOnlyWidth);
         List<Double> laneDividerOffsets = filterLaneDividerOffsets(
-            carriageway.resolveLaneDividerOffsets(laneOnlyWidth),
+            carriageway.resolveLaneDividerOffsets(centerLineStyle, laneDividers),
             medianWidth);
         MaterialMix roadMaterial = MaterialMix.orDefault(
             carriageway.getMaterial(),
@@ -187,12 +215,6 @@ public final class ResolvedCrossSection {
         String medianMaterial = median.getMaterial() != null
             ? median.getMaterial()
             : "minecraft:grass_block";
-
-        boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount);
-        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config);
-        String markingMaterial = markings.getMaterial() != null
-            ? markings.getMaterial()
-            : DEFAULT_MARKING_MATERIAL;
 
         boolean includeShoulder = shoulder.getEnabled() != null
             ? shoulder.getEnabled()

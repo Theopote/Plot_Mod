@@ -67,14 +67,20 @@ class RoadCrossSectionPreviewSectionTest {
     @Test
     void shareCheckTreatsInheritedAndExplicitSameResolvedWidthAsEqual() {
         RoadSystemConfig config = manager.getConfig();
-        config.setRoadWidth(9);
+        config.setLaneCount(2);
+        config.setDefaultLaneWidth(4);
+        config.setLaneDividers(true);
+        config.setCenterLineStyle(com.plot.plugin.road.model.section.CenterLineStyle.NONE);
+        // 派生 W = 4+4+1 = 9
         RoadNetwork network = manager.getNetwork();
         Road inherits = network.createRoad("inherits");
         Road explicit = network.createRoad("explicit");
         inherits.setWidth(null);
         inherits.setLaneCount(2);
-        explicit.setWidth(9);
         explicit.setLaneCount(2);
+        explicit.getCrossSection().getCarriageway().setDefaultLaneWidth(4);
+        explicit.getCrossSection().getCarriageway().syncDerivedWidth(
+            com.plot.plugin.road.model.section.CenterLineStyle.NONE, true, 0);
 
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(10, 0));

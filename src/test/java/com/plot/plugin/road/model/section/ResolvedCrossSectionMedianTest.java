@@ -26,9 +26,10 @@ class ResolvedCrossSectionMedianTest {
 
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
 
+        // 双黄占 2 + 分隔带 1：行驶宽之和 8，laneOnly=10，总宽 11
         assertEquals(11, resolved.carriagewayWidth);
         assertEquals(10, resolved.laneOnlyWidth);
-        assertEquals(10, resolved.laneWidths.stream().mapToInt(Integer::intValue).sum());
+        assertEquals(8, resolved.laneWidths.stream().mapToInt(Integer::intValue).sum());
         assertEquals(2, resolved.laneWidths.size());
         for (Double offset : resolved.laneDividerOffsets) {
             assertFalse(Math.abs(offset) < 0.5, "divider must not sit at median center, offset=" + offset);
@@ -41,11 +42,13 @@ class ResolvedCrossSectionMedianTest {
     void avenueWithSidewalkReportsTotalHardWidth() {
         RoadSystemConfig defaults = bareDefaults();
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(11);
         section.getCarriageway().setLaneCount(2);
-        section.getCarriageway().syncLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(4);
+        section.getMarkings().setLaneDividers(true);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(1);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, true, 1);
         section.getShoulder().setEnabled(false);
         section.getBikeLane().setEnabled(false);
         section.getSidewalk().setEnabled(true);
@@ -53,8 +56,10 @@ class ResolvedCrossSectionMedianTest {
 
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
 
+        // W=4+4+1缝+1分隔带=10；两侧人行道 2+2 → 总硬宽 14
+        assertEquals(10, resolved.carriagewayWidth);
         assertEquals(2, resolved.outerBandBlockCount());
-        assertEquals(15, resolved.totalHardSurfaceWidthBlocks());
+        assertEquals(14, resolved.totalHardSurfaceWidthBlocks());
     }
 
     private static RoadSystemConfig bareDefaults() {

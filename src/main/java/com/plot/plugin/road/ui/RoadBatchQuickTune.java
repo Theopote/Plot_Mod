@@ -13,7 +13,7 @@ import imgui.ImGui;
 import java.util.Collection;
 import java.util.Set;
 
-/** 多选 Edit：宽度与车道数快速批量调节。 */
+/** 多选 Edit：单车道宽与车道数快速批量调节。 */
 final class RoadBatchQuickTune {
     private RoadBatchQuickTune() {
     }
@@ -29,8 +29,9 @@ final class RoadBatchQuickTune {
         Set<RoadBatchEditField> dirty = ctx.networkManager().batchEditDirtyFields();
 
         RoadUiSections.section("plugin.road.edit.quick_tune");
-        renderWidthField(ctx, draft, state, dirty, onHistory);
+        renderLaneWidthField(ctx, draft, state, dirty, onHistory);
         renderLaneField(ctx, draft, state, dirty, onHistory);
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
 
         RoadBatchCrossSectionEditor.renderApplyButton(
             ctx,
@@ -38,37 +39,44 @@ final class RoadBatchQuickTune {
         ImGui.spacing();
     }
 
-    private static void renderWidthField(
+    private static void renderLaneWidthField(
             RoadUiContext ctx,
             RoadNetworkManager.BatchEditDefaults draft,
             WidthLaneState state,
             Set<RoadBatchEditField> dirty,
             Runnable onHistory) {
-        boolean mixedUnset = state.mixedWidth && !dirty.contains(RoadBatchEditField.WIDTH);
-        if (state.mixedWidth) {
+        boolean mixedUnset = state.mixedLaneWidth && !dirty.contains(RoadBatchEditField.WIDTH);
+        if (state.mixedLaneWidth) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.edit.batch_width_mixed_hint"));
+                PlotI18n.tr("plugin.road.edit.batch_lane_width_mixed_hint"));
         }
-        int[] widthArr = {draft.width()};
+        // Batch defaults still store derived carriageway width; map slider to inferred uniform lane width.
+        int uniform = Math.max(
+            RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+            Math.min(
+                RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
+                draft.width() / Math.max(1, draft.laneCount())));
+        int[] laneWidthArr = {uniform};
         String label = mixedUnset
-            ? PlotI18n.tr("plugin.road.edit.batch_width_set_unified")
-            : state.mixedWidth
-                ? PlotI18n.tr("plugin.road.edit.batch_width_target", widthArr[0])
-                : PlotI18n.tr("plugin.road.road_width");
+            ? PlotI18n.tr("plugin.road.edit.batch_lane_width_set_unified")
+            : state.mixedLaneWidth
+                ? PlotI18n.tr("plugin.road.edit.batch_lane_width_target", laneWidthArr[0])
+                : PlotI18n.tr("plugin.road.lane_travel_width");
         String format = mixedUnset
             ? PlotI18n.tr("plugin.road.edit.batch_target_unset")
             : "%d";
         if (ImGui.sliderInt(
-            label + "##batch_quick_width",
-            widthArr,
-            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
-            RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
+            label + "##batch_quick_lane_w",
+            laneWidthArr,
+            RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+            RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
             format)) {
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }
-            ctx.networkManager().updateBatchEditDraft(draft.withWidth(widthArr[0]));
+            int derived = laneWidthArr[0] * Math.max(1, draft.laneCount());
+            ctx.networkManager().updateBatchEditDraft(draft.withWidth(derived));
         }
     }
 
@@ -110,21 +118,21 @@ final class RoadBatchQuickTune {
             RoadNetwork network,
             Collection<String> roadIds,
             RoadSystemConfig config) {
-        Integer sharedWidth = null;
+        Integer sharedLaneWidth = null;
         Integer sharedLanes = null;
-        boolean mixedWidth = false;
+        boolean mixedLaneWidth = false;
         boolean mixedLaneCount = false;
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);
             if (road == null) {
                 continue;
             }
-            int width = road.getWidth() != null ? road.getWidth() : config.getRoadWidth();
+            int laneWidth = road.getCrossSection().getCarriageway().getEffectiveDefaultLaneWidth();
             int lanes = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
-            if (sharedWidth == null) {
-                sharedWidth = width;
-            } else if (sharedWidth != width) {
-                mixedWidth = true;
+            if (sharedLaneWidth == null) {
+                sharedLaneWidth = laneWidth;
+            } else if (sharedLaneWidth != laneWidth) {
+                mixedLaneWidth = true;
             }
             if (sharedLanes == null) {
                 sharedLanes = lanes;
@@ -132,9 +140,9 @@ final class RoadBatchQuickTune {
                 mixedLaneCount = true;
             }
         }
-        return new WidthLaneState(mixedWidth, mixedLaneCount);
+        return new WidthLaneState(mixedLaneWidth, mixedLaneCount);
     }
 
-    private record WidthLaneState(boolean mixedWidth, boolean mixedLaneCount) {
+    private record WidthLaneState(boolean mixedLaneWidth, boolean mixedLaneCount) {
     }
 }

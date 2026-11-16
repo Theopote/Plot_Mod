@@ -50,8 +50,8 @@ class CrossSectionEditorApplierTest {
     void applyToLiveCopiesCrossSectionFields() {
         RoadNetwork openSnapshot = live.snapshot();
         RoadNetwork working = openSnapshot.snapshot();
-        working.getRoad(roadId).setWidth(16);
         working.getRoad(roadId).setLaneCount(3);
+        working.getRoad(roadId).setWidth(16);
 
         CrossSectionEditorApplier.applyToLive(live, working, roadId, config);
 

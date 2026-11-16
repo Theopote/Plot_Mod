@@ -909,25 +909,13 @@ public final class RoadCrossSectionPreviewRenderer {
 
         private static List<Float> buildMarkingRatios(ResolvedCrossSection section, float roadWidth) {
             List<Float> ratios = new ArrayList<>();
-            double half = roadWidth / 2.0;
-            if (section.laneDividers) {
-                for (Double offset : section.laneDividerOffsets) {
-                    if (offset != null) {
-                        ratios.add((float) ((offset + half) / roadWidth));
-                    }
-                }
+            if (section == null || roadWidth <= 0f) {
+                return ratios;
             }
-            if (section.includeMedian && section.medianWidth > 0) {
-                if (section.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
-                    double edge = RoadDimensionUtils.halfExtentFromCenter(section.medianWidth) + 0.5;
-                    ratios.add((float) ((half - edge) / roadWidth));
-                    ratios.add((float) ((half + edge) / roadWidth));
-                }
-            } else if (section.centerLineStyle == CenterLineStyle.SINGLE_DASHED) {
-                ratios.add(0.5f);
-            } else if (section.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
-                ratios.add(0.45f);
-                ratios.add(0.55f);
+            double half = roadWidth / 2.0;
+            // 与世界生成共用 RoadMarkingPasses，保证占格网格一致。
+            for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(section)) {
+                ratios.add((float) ((pass.offset() + half) / roadWidth));
             }
             return ratios;
         }

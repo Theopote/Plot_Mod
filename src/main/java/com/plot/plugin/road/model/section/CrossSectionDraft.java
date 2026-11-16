@@ -4,6 +4,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.RoadParameterLimits;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.List;
 public final class CrossSectionDraft {
     private int width;
     private int laneCount;
+    private int defaultLaneWidth = RoadParameterLimits.DEFAULT_LANE_WIDTH_BLOCKS;
     private final List<Integer> laneWidths = new ArrayList<>();
     private MaterialMix material;
     private boolean includeShoulder;
@@ -44,6 +46,7 @@ public final class CrossSectionDraft {
         }
         draft.width = config.getRoadWidth();
         draft.laneCount = config.getLaneCount();
+        draft.defaultLaneWidth = config.getDefaultLaneWidth();
         draft.laneWidths.clear();
         draft.laneWidths.addAll(config.getLaneWidths());
         draft.material = config.getSelectedMaterial();
@@ -68,6 +71,7 @@ public final class CrossSectionDraft {
         draft.retainingWallMaterial = config.getRetainingWallMaterial();
         draft.maxSlope = config.getMaxSlope();
         draft.syncLaneWidthList();
+        draft.recomputeDerivedWidth();
         return draft;
     }
 
@@ -75,9 +79,11 @@ public final class CrossSectionDraft {
         if (config == null) {
             return;
         }
-        config.setRoadWidth(width);
+        recomputeDerivedWidth();
+        config.setDefaultLaneWidth(defaultLaneWidth);
         config.setLaneCount(laneCount);
         config.setLaneWidths(new ArrayList<>(laneWidths));
+        config.setRoadWidth(width);
         config.setSelectedMaterial(material);
         config.setIncludeShoulder(includeShoulder);
         config.setShoulderWidth(shoulderWidth);
@@ -108,6 +114,7 @@ public final class CrossSectionDraft {
         }
         draft.width = defaults.width();
         draft.laneCount = defaults.laneCount();
+        draft.defaultLaneWidth = RoadParameterLimits.DEFAULT_LANE_WIDTH_BLOCKS;
         draft.material = defaults.material();
         draft.includeShoulder = defaults.includeShoulder();
         draft.shoulderWidth = defaults.shoulderWidth();
@@ -132,6 +139,8 @@ public final class CrossSectionDraft {
         draft.retainingWallMaterial = defaults.retainingWallMaterial();
         draft.maxSlope = defaults.maxSlope();
         draft.syncLaneWidthList();
+        draft.migrateFromStoredWidthIfNeeded();
+        draft.recomputeDerivedWidth();
         return draft;
     }
 
@@ -190,17 +199,23 @@ public final class CrossSectionDraft {
         if (section == null) {
             return;
         }
-        section.getCarriageway().setWidth(width);
         section.getCarriageway().setLaneCount(laneCount);
+        section.getCarriageway().setDefaultLaneWidth(defaultLaneWidth);
         section.getCarriageway().setMaterial(material);
         section.getCarriageway().syncLaneCount(laneCount);
-        List<Integer> resolved = section.getCarriageway().resolveLaneWidths(width);
+        boolean anyExplicit = false;
         for (int i = 0; i < laneCount; i++) {
-            int laneWidth = i < laneWidths.size() && laneWidths.get(i) > 0
-                ? laneWidths.get(i)
-                : resolved.get(i);
-            section.getCarriageway().setLaneWidthAt(i, laneWidth);
+            if (i < laneWidths.size() && laneWidths.get(i) != null && laneWidths.get(i) > 0) {
+                section.getCarriageway().setLaneWidthAt(i, laneWidths.get(i));
+                anyExplicit = true;
+            }
         }
+        if (!anyExplicit) {
+            section.getCarriageway().setDefaultLaneWidth(defaultLaneWidth);
+        }
+        int medianBlocks = includeMedian ? Math.max(0, medianWidth) : 0;
+        section.getCarriageway().syncDerivedWidth(centerLineStyle, laneDividers, medianBlocks);
+        width = section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width;
         section.getShoulder().setEnabled(includeShoulder);
         section.getShoulder().setWidth(shoulderWidth);
         section.getSidewalk().setEnabled(includeSidewalk);
@@ -236,21 +251,30 @@ public final class CrossSectionDraft {
             return;
         }
         boolean lanesChanged = laneCount != baseline.laneCount
-            || !laneWidths.equals(baseline.laneWidths);
-        if (width != baseline.width) {
-            section.getCarriageway().setWidth(width);
-        }
+            || !laneWidths.equals(baseline.laneWidths)
+            || defaultLaneWidth != baseline.defaultLaneWidth;
+        boolean markingsChanged = laneDividers != baseline.laneDividers
+            || centerLineStyle != baseline.centerLineStyle
+            || includeMedian != baseline.includeMedian
+            || medianWidth != baseline.medianWidth;
         if (lanesChanged) {
             section.getCarriageway().setLaneCount(laneCount);
+            section.getCarriageway().setDefaultLaneWidth(defaultLaneWidth);
             section.getCarriageway().syncLaneCount(laneCount);
-            List<Integer> resolved = section.getCarriageway().resolveLaneWidths(
-                section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width);
             for (int i = 0; i < laneCount; i++) {
-                int laneWidth = i < laneWidths.size() && laneWidths.get(i) > 0
-                    ? laneWidths.get(i)
-                    : (i < resolved.size() ? resolved.get(i) : 1);
-                section.getCarriageway().setLaneWidthAt(i, laneWidth);
+                if (i < laneWidths.size() && laneWidths.get(i) != null && laneWidths.get(i) > 0) {
+                    section.getCarriageway().setLaneWidthAt(i, laneWidths.get(i));
+                }
             }
+        }
+        // 仅在车道/标线/分隔带实际改动时写回派生总宽；避免单字段编辑把 null 继承物化为显式 width。
+        if (lanesChanged || markingsChanged) {
+            CenterLineStyle style = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
+            int medianBlocks = includeMedian ? Math.max(0, medianWidth) : 0;
+            section.getCarriageway().syncDerivedWidth(style, laneDividers, medianBlocks);
+            width = section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width;
+        } else if (width != baseline.width && baseline.width > 0) {
+            section.getCarriageway().setWidth(width);
         }
         if (!materialsEqual(material, baseline.material)) {
             section.getCarriageway().setMaterial(material);
@@ -319,16 +343,21 @@ public final class CrossSectionDraft {
         if (road == null) {
             return draft;
         }
-        if (road.getWidth() != null) {
-            draft.width = road.getWidth();
-        }
         draft.laneCount = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
+        draft.defaultLaneWidth = road.getCrossSection().getCarriageway().getEffectiveDefaultLaneWidth();
         draft.laneWidths.clear();
-        List<Integer> resolved = road.getCrossSection().getCarriageway().resolveLaneWidths(draft.width);
+        List<Integer> resolved = road.getCrossSection().getCarriageway().resolveLaneWidths();
         for (int i = 0; i < draft.laneCount; i++) {
             List<Lane> lanes = road.getCrossSection().getCarriageway().getLanes();
             Lane lane = i < lanes.size() ? lanes.get(i) : null;
-            draft.laneWidths.add(lane != null && lane.getWidth() != null ? lane.getWidth() : resolved.get(i));
+            if (lane != null && lane.getWidth() != null && lane.getWidth() > 0) {
+                draft.laneWidths.add(lane.getWidth());
+            } else {
+                draft.laneWidths.add(0);
+            }
+        }
+        if (road.getWidth() != null) {
+            draft.width = road.getWidth();
         }
         if (road.getMaterial() != null) {
             draft.material = road.getMaterial();
@@ -417,6 +446,9 @@ public final class CrossSectionDraft {
         } else {
             draft.maxSlope = defaults.getMaxSlope();
         }
+        draft.syncLaneWidthList();
+        draft.migrateFromStoredWidthIfNeeded();
+        draft.recomputeDerivedWidth();
         return draft;
     }
 
@@ -428,8 +460,15 @@ public final class CrossSectionDraft {
         ResolvedCrossSection resolved = section.resolve(defaults);
         draft.width = resolved.carriagewayWidth;
         draft.laneCount = resolved.laneCount;
+        draft.defaultLaneWidth = section.getCarriageway().getEffectiveDefaultLaneWidth();
         draft.laneWidths.clear();
-        draft.laneWidths.addAll(section.getCarriageway().resolveLaneWidths(draft.width));
+        List<Lane> lanes = section.getCarriageway().getLanes();
+        for (int i = 0; i < draft.laneCount; i++) {
+            Lane lane = i < lanes.size() ? lanes.get(i) : null;
+            draft.laneWidths.add(lane != null && lane.getWidth() != null && lane.getWidth() > 0
+                ? lane.getWidth()
+                : 0);
+        }
         draft.material = section.getCarriageway().getMaterial() != null
             ? section.getCarriageway().getMaterial()
             : resolved.carriagewayMaterial;
@@ -455,6 +494,7 @@ public final class CrossSectionDraft {
         draft.cutSlopeMaterial = resolved.cutSlopeMaterial;
         draft.retainingWallMaterial = resolved.retainingWallMaterial;
         draft.syncLaneWidthList();
+        draft.recomputeDerivedWidth();
         return draft;
     }
 
@@ -463,7 +503,10 @@ public final class CrossSectionDraft {
     }
 
     public void setWidth(int width) {
+        // 兼容旧入口：把总宽反推为均匀单车道宽。
         this.width = width;
+        migrateFromStoredWidthIfNeeded();
+        recomputeDerivedWidth();
     }
 
     public int laneCount() {
@@ -473,6 +516,20 @@ public final class CrossSectionDraft {
     public void setLaneCount(int laneCount) {
         this.laneCount = Math.max(1, laneCount);
         syncLaneWidthList();
+        recomputeDerivedWidth();
+    }
+
+    public int defaultLaneWidth() {
+        return defaultLaneWidth;
+    }
+
+    public void setDefaultLaneWidth(int defaultLaneWidth) {
+        this.defaultLaneWidth = RoadParameterLimits.clampLaneTravelWidth(defaultLaneWidth);
+        // 均匀模式：清空显式分车道覆盖
+        for (int i = 0; i < laneWidths.size(); i++) {
+            laneWidths.set(i, 0);
+        }
+        recomputeDerivedWidth();
     }
 
     public List<Integer> laneWidths() {
@@ -482,7 +539,8 @@ public final class CrossSectionDraft {
     public void setLaneWidthAt(int index, int laneWidth) {
         syncLaneWidthList();
         if (index >= 0 && index < laneWidths.size()) {
-            laneWidths.set(index, laneWidth);
+            laneWidths.set(index, RoadParameterLimits.clampLaneTravelWidth(laneWidth));
+            recomputeDerivedWidth();
         }
     }
 
@@ -556,6 +614,7 @@ public final class CrossSectionDraft {
 
     public void setIncludeMedian(boolean includeMedian) {
         this.includeMedian = includeMedian;
+        recomputeDerivedWidth();
     }
 
     public int medianWidth() {
@@ -564,6 +623,7 @@ public final class CrossSectionDraft {
 
     public void setMedianWidth(int medianWidth) {
         this.medianWidth = medianWidth;
+        recomputeDerivedWidth();
     }
 
     public int streetlightSpacing() {
@@ -580,6 +640,7 @@ public final class CrossSectionDraft {
 
     public void setLaneDividers(boolean laneDividers) {
         this.laneDividers = laneDividers;
+        recomputeDerivedWidth();
     }
 
     public CenterLineStyle centerLineStyle() {
@@ -588,6 +649,7 @@ public final class CrossSectionDraft {
 
     public void setCenterLineStyle(CenterLineStyle centerLineStyle) {
         this.centerLineStyle = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
+        recomputeDerivedWidth();
     }
 
     public String markingMaterial() {
@@ -691,8 +753,44 @@ public final class CrossSectionDraft {
         }
     }
 
+    private boolean hasExplicitLaneWidths() {
+        for (Integer w : laneWidths) {
+            if (w != null && w > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void migrateFromStoredWidthIfNeeded() {
+        if (hasExplicitLaneWidths()) {
+            return;
+        }
+        defaultLaneWidth = CarriagewayWidthRules.inferUniformLaneWidth(
+            width,
+            Math.max(1, laneCount),
+            centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE,
+            laneDividers,
+            includeMedian ? Math.max(0, medianWidth) : 0);
+    }
+
+    public void recomputeDerivedWidth() {
+        List<Integer> resolved = resolveLaneWidths();
+        width = CarriagewayWidthRules.derivedCarriagewayWidth(
+            resolved,
+            centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE,
+            laneDividers,
+            includeMedian ? Math.max(0, medianWidth) : 0);
+    }
+
     public List<Integer> resolveLaneWidths() {
-        RoadCrossSection section = toCrossSection();
-        return section.getCarriageway().resolveLaneWidths(width);
+        syncLaneWidthList();
+        List<Integer> resolved = new ArrayList<>(laneCount);
+        int uniform = RoadParameterLimits.clampLaneTravelWidth(defaultLaneWidth);
+        for (int i = 0; i < laneCount; i++) {
+            int w = i < laneWidths.size() && laneWidths.get(i) != null ? laneWidths.get(i) : 0;
+            resolved.add(w > 0 ? RoadParameterLimits.clampLaneTravelWidth(w) : uniform);
+        }
+        return resolved;
     }
 }

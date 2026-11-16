@@ -3,6 +3,8 @@ package com.plot.plugin.road.model.section;
 import com.plot.plugin.config.RoadSystemConfig;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,17 +20,35 @@ class ResolvedCrossSectionTest {
         config.setSidewalkWidth(1);
 
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(9);
+        section.getCarriageway().setLaneCount(1);
+        section.getCarriageway().setDefaultLaneWidth(6);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, false, 0);
         section.getShoulder().setEnabled(true);
         section.getShoulder().setWidth(2);
         section.getSidewalk().setEnabled(false);
 
         ResolvedCrossSection resolved = section.resolve(config);
 
-        assertEquals(9, resolved.carriagewayWidth);
+        assertEquals(6, resolved.carriagewayWidth);
         assertTrue(resolved.includeShoulder);
         assertEquals(2, resolved.shoulderWidth);
         assertFalse(resolved.includeSidewalk);
+    }
+
+    @Test
+    void migratesOldSevenWideTwoLaneToLaneWidthThree() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setWidth(7);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+
+        assertEquals(List.of(3, 3), resolved.laneWidths);
+        assertEquals(7, resolved.carriagewayWidth);
+        assertEquals(List.of(0.0), resolved.laneDividerOffsets);
     }
 
     @Test
@@ -79,7 +99,11 @@ class ResolvedCrossSectionTest {
     void slopeAnchorUsesOutermostHardBand() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(7);
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.SINGLE_DASHED, true, 0);
         section.getShoulder().setEnabled(true);
         section.getShoulder().setWidth(2);
         section.getBikeLane().setEnabled(true);
@@ -91,6 +115,7 @@ class ResolvedCrossSectionTest {
 
         ResolvedCrossSection resolved = section.resolve(config);
 
+        assertEquals(7, resolved.carriagewayWidth);
         assertEquals(resolved.sidewalkCenterOffset(), resolved.slopeAnchorCenterOffset(), 1e-6);
         assertEquals(3, resolved.slopeAnchorBandWidth());
     }
@@ -100,7 +125,11 @@ class ResolvedCrossSectionTest {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setIncludeSidewalk(false);
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(7);
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.SINGLE_DASHED, true, 0);
         section.getShoulder().setEnabled(false);
         section.getBikeLane().setEnabled(false);
         section.getSidewalk().setEnabled(false);
@@ -116,7 +145,7 @@ class ResolvedCrossSectionTest {
     @Test
     void nullRoadFieldsFallBackToConfig() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        config.setRoadWidth(6);
+        config.setDefaultLaneWidth(6);
 
         ResolvedCrossSection resolved = RoadCrossSection.fromConfig(config).resolve(config);
 

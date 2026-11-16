@@ -15,6 +15,7 @@ import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.BridgePierStyle;
+import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
@@ -266,8 +267,29 @@ public class Road {
             return;
         }
         int clamped = RoadParameterLimits.clampCarriagewayWidth(width);
-        crossSection.getCarriageway().setWidth(clamped);
-        crossSection.getCarriageway().reclampLaneWidths(clamped);
+        CenterLineStyle style = getCenterLineStyle() != null ? getCenterLineStyle() : CenterLineStyle.NONE;
+        boolean dividers = getLaneDividers() != null
+            ? getLaneDividers()
+            : false;
+        int medianBlocks = Boolean.TRUE.equals(getIncludeMedian())
+            ? Math.max(0, getMedianWidth() != null ? getMedianWidth() : 0)
+            : 0;
+        List<Integer> packed = CarriagewayWidthRules.packTravelWidthsForTarget(
+            clamped,
+            crossSection.getCarriageway().getEffectiveLaneCount(),
+            style,
+            dividers,
+            medianBlocks);
+        crossSection.getCarriageway().syncLaneCount(packed.size());
+        for (int i = 0; i < packed.size(); i++) {
+            crossSection.getCarriageway().setLaneWidthAt(i, packed.get(i));
+        }
+        // 显式分车道宽已写入；均匀默认与派生总宽跟齐。
+        crossSection.getCarriageway().setDefaultLaneWidth(packed.getFirst());
+        boolean effectiveDividers = getLaneDividers() != null
+            ? getLaneDividers()
+            : false;
+        crossSection.getCarriageway().syncDerivedWidth(style, effectiveDividers, medianBlocks);
     }
 
     public MaterialMix getMaterial() {
@@ -292,12 +314,18 @@ public class Road {
         }
         int clamped = RoadParameterLimits.clampLaneCount(laneCount);
         crossSection.getCarriageway().syncLaneCount(clamped);
-        Integer width = crossSection.getCarriageway().getWidth();
-        if (width != null) {
-            crossSection.getCarriageway().reclampLaneWidths(width);
-        }
+        crossSection.getCarriageway().reclampLaneWidths(0);
         if (crossSection.getMarkings().getLaneDividers() == null) {
             crossSection.getMarkings().setLaneDividers(clamped > 1);
+        }
+        // 仅在已有显式总宽时重算；width==null 表示继承全局，避免物化。
+        if (crossSection.getCarriageway().getWidth() != null) {
+            CenterLineStyle style = getCenterLineStyle() != null ? getCenterLineStyle() : CenterLineStyle.NONE;
+            boolean dividers = getLaneDividers() != null ? getLaneDividers() : clamped > 1;
+            int medianBlocks = Boolean.TRUE.equals(getIncludeMedian())
+                ? Math.max(0, getMedianWidth() != null ? getMedianWidth() : 0)
+                : 0;
+            crossSection.getCarriageway().syncDerivedWidth(style, dividers, medianBlocks);
         }
     }
 
