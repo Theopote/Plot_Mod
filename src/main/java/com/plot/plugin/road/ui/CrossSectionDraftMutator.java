@@ -81,8 +81,16 @@ public final class CrossSectionDraftMutator {
         draft.setLaneCount(laneCount);
         // 清分车道覆盖，与均匀单车道宽滑条语义一致。
         draft.setDefaultLaneWidth(draft.defaultLaneWidth());
+        if (laneCount <= 1) {
+            draft.setLaneDividers(false);
+            draft.setCenterLineStyle(CenterLineStyle.NONE);
+        }
         if (road != null) {
             road.setLaneCount(laneCount);
+            if (laneCount <= 1) {
+                road.setLaneDividers(false);
+                road.setCenterLineStyle(CenterLineStyle.NONE);
+            }
             road.getCrossSection().getCarriageway().applyUniformDefaultLaneWidth(draft.defaultLaneWidth());
             syncRoadCarriagewayWidth();
         }

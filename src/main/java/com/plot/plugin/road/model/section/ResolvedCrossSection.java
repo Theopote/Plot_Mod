@@ -162,7 +162,7 @@ public final class ResolvedCrossSection {
 
         int laneCount = carriageway.getEffectiveLaneCount();
         boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount);
-        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config);
+        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config, laneCount);
         String markingMaterial = markings.getMaterial() != null
             ? markings.getMaterial()
             : DEFAULT_MARKING_MATERIAL;
@@ -213,9 +213,9 @@ public final class ResolvedCrossSection {
         }
         // 不回写 carriageway.width：解析结果只存在于 ResolvedCrossSection，避免污染 null 继承。
         int laneOnlyWidth = safeWidth;
-        List<Double> laneDividerOffsets = filterLaneDividerOffsets(
-            carriageway.resolveLaneDividerOffsets(centerLineStyle, laneDividers),
-            medianWidth);
+        // 隔离带在路表之上，不剔除中央标线偏移。
+        List<Double> laneDividerOffsets =
+            List.copyOf(carriageway.resolveLaneDividerOffsets(centerLineStyle, laneDividers));
         MaterialMix roadMaterial = MaterialMix.orDefault(
             carriageway.getMaterial(),
             config.getSelectedMaterial());
@@ -331,24 +331,6 @@ public final class ResolvedCrossSection {
             material,
             role,
             (requested, resolved) -> report.noteMaterialReplacement(requested, resolved, role.name()));
-    }
-
-    private static List<Double> filterLaneDividerOffsets(List<Double> offsets, int medianWidth) {
-        if (offsets == null || offsets.isEmpty() || medianWidth <= 0) {
-            return offsets != null ? List.copyOf(offsets) : List.of();
-        }
-        double halfMedian = medianWidth / 2.0;
-        List<Double> filtered = new ArrayList<>(offsets.size());
-        for (Double offset : offsets) {
-            if (offset == null) {
-                continue;
-            }
-            if (Math.abs(offset) < halfMedian - 1e-6) {
-                continue;
-            }
-            filtered.add(offset);
-        }
-        return List.copyOf(filtered);
     }
 
     public int totalHardSurfaceWidthBlocks() {

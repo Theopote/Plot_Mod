@@ -11,7 +11,7 @@ class RoadParameterLimitsTest {
 
     @Test
     void clampCarriagewayWidth() {
-        assertEquals(3, RoadParameterLimits.clampCarriagewayWidth(1));
+        assertEquals(1, RoadParameterLimits.clampCarriagewayWidth(1));
         assertEquals(24, RoadParameterLimits.clampCarriagewayWidth(99));
         assertEquals(9, RoadParameterLimits.clampCarriagewayWidth(9));
     }

@@ -5,7 +5,6 @@ import com.plot.plugin.road.RoadParameterLimits;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResolvedCrossSectionMedianTest {
@@ -36,9 +35,8 @@ class ResolvedCrossSectionMedianTest {
         assertEquals(2, resolved.laneWidths.size());
         assertEquals(2, resolved.medianWidth);
         assertEquals(2, resolved.medianHeight);
-        for (Double offset : resolved.laneDividerOffsets) {
-            assertFalse(Math.abs(offset) < 0.5, "divider must not sit at median center, offset=" + offset);
-        }
+        // 隔离带叠在路表上：中央标线偏移仍保留，供路面标线绘制。
+        assertTrue(resolved.laneDividerOffsets.stream().anyMatch(o -> Math.abs(o) < 1.0));
         assertTrue(resolved.occupiesMedianColumn(0));
         assertEquals(10, resolved.totalHardSurfaceWidthBlocks());
     }

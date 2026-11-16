@@ -10,6 +10,19 @@ public final class MarkingRules {
     }
 
     public static CenterLineStyle resolveCenterLineStyle(Markings markings, RoadSystemConfig defaults) {
+        return resolveCenterLineStyle(markings, defaults, Integer.MAX_VALUE);
+    }
+
+    /**
+     * @param laneCount 单车道时强制无中央标线（无可分隔对象）。
+     */
+    public static CenterLineStyle resolveCenterLineStyle(
+            Markings markings,
+            RoadSystemConfig defaults,
+            int laneCount) {
+        if (laneCount <= 1) {
+            return CenterLineStyle.NONE;
+        }
         if (markings == null) {
             return CenterLineStyle.NONE;
         }

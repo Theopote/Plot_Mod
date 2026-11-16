@@ -9,7 +9,8 @@ import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
  * 道路插件参数合法范围与 clamp 工具（UI 与模型共用）。
  */
 public final class RoadParameterLimits {
-    public static final int MIN_CARRIAGEWAY_WIDTH = 3;
+    /** 单车道最小可行驶宽为 1；总宽由车道推导，允许窄到 1。 */
+    public static final int MIN_CARRIAGEWAY_WIDTH = 1;
     public static final int MAX_CARRIAGEWAY_WIDTH = 24;
     public static final int MIN_LANE_COUNT = 1;
     public static final int MAX_LANE_COUNT = 4;

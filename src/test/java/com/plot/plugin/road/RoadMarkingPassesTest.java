@@ -48,15 +48,56 @@ class RoadMarkingPassesTest {
     }
 
     @Test
+    void medianKeepsCenterMarkingPasses() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+        section.getMedian().setEnabled(true);
+        section.getMedian().setWidth(1);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.SINGLE_DASHED, true, 0);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        assertTrue(resolved.includeMedian);
+        var passes = RoadMarkingPasses.fromCrossSection(resolved);
+        assertTrue(
+            passes.stream().anyMatch(pass -> Math.abs(pass.offset()) < 1e-6),
+            "median must not suppress center pavement marking");
+    }
+
+    @Test
+    void singleLaneHasNoMarkingPasses() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(1);
+        section.getCarriageway().setDefaultLaneWidth(2);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.SINGLE_DASHED, true, 0);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        assertEquals(2, resolved.carriagewayWidth);
+        assertEquals(CenterLineStyle.NONE, resolved.centerLineStyle);
+        assertTrue(RoadMarkingPasses.fromCrossSection(resolved).isEmpty());
+        assertFalse(RoadMarkingPasses.hasAnyMarkings(resolved));
+    }
+
+    @Test
     void hasAnyMarkingsDetectsCenterLineAndLaneDividers() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
 
         RoadCrossSection none = new RoadCrossSection();
+        none.getCarriageway().setLaneCount(2);
         none.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
         none.getMarkings().setLaneDividers(false);
         assertFalse(RoadMarkingPasses.hasAnyMarkings(none.resolve(config)));
 
         RoadCrossSection dashed = new RoadCrossSection();
+        dashed.getCarriageway().setLaneCount(2);
         dashed.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
         assertTrue(RoadMarkingPasses.hasAnyMarkings(dashed.resolve(config)));
 
@@ -70,6 +111,8 @@ class RoadMarkingPassesTest {
     void singleDashedProducesOneDashedPass() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
         section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
 
         var passes = RoadMarkingPasses.fromCrossSection(section.resolve(config));
@@ -82,6 +125,8 @@ class RoadMarkingPassesTest {
     void railProducesSolidCenterPass() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
         section.getMarkings().setCenterLineStyle(CenterLineStyle.RAIL);
         section.getMarkings().setLaneDividers(false);
 

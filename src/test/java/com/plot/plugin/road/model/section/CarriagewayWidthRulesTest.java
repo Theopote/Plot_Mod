@@ -56,6 +56,14 @@ class CarriagewayWidthRulesTest {
         assertEquals(0, CarriagewayWidthRules.dividerBlocks(1, CenterLineStyle.SINGLE_DASHED, true));
         assertEquals(0, CarriagewayWidthRules.dividerBlocks(1, CenterLineStyle.DOUBLE_SOLID, false));
         assertEquals(
+            1,
+            CarriagewayWidthRules.derivedCarriagewayWidth(
+                1, 1, CenterLineStyle.SINGLE_DASHED, true, 0));
+        assertEquals(
+            2,
+            CarriagewayWidthRules.derivedCarriagewayWidth(
+                1, 2, CenterLineStyle.DOUBLE_SOLID, true, 0));
+        assertEquals(
             3,
             CarriagewayWidthRules.derivedCarriagewayWidth(
                 1, 3, CenterLineStyle.SINGLE_DASHED, true, 0));

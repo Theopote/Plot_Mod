@@ -543,52 +543,61 @@ public final class CrossSectionDraftEditor {
         boolean roadEdit = editor.roadEdit;
         String id = editor.id;
 
-        ImBoolean laneDividersRef = new ImBoolean(draft.laneDividers());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.lane_dividers") + "##" + id + "_dividers", laneDividersRef)) {
-            if (roadEdit) {
-                hooks.onItemActivated();
+        boolean multiLane = draft.laneCount() > 1;
+        if (multiLane) {
+            ImBoolean laneDividersRef = new ImBoolean(draft.laneDividers());
+            if (ImGui.checkbox(PlotI18n.tr("plugin.road.lane_dividers") + "##" + id + "_dividers", laneDividersRef)) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setLaneDividers(laneDividersRef.get());
             }
-            mutator.setLaneDividers(laneDividersRef.get());
-        }
-        mutator.afterLaneDividersField();
+            mutator.afterLaneDividersField();
 
-        CenterLineStyle centerLineStyle = draft.centerLineStyle();
-        String[] centerLineLabels = {
-            PlotI18n.tr("plugin.road.center_line.none"),
-            PlotI18n.tr("plugin.road.center_line.single_yellow"),
-            PlotI18n.tr("plugin.road.center_line.double_yellow"),
-            PlotI18n.tr("plugin.road.center_line.rail")
-        };
-        ImInt centerLineIndex = new ImInt(switch (centerLineStyle) {
-            case SINGLE_DASHED -> 1;
-            case DOUBLE_SOLID -> 2;
-            case RAIL -> 3;
-            default -> 0;
-        });
-        if (ImGui.combo(
-            PlotI18n.tr("plugin.road.center_line_style") + "##" + id + "_center",
-            centerLineIndex,
-            centerLineLabels)) {
-            if (roadEdit) {
-                hooks.onItemActivated();
-            }
-            CenterLineStyle selected = switch (centerLineIndex.get()) {
-                case 1 -> CenterLineStyle.SINGLE_DASHED;
-                case 2 -> CenterLineStyle.DOUBLE_SOLID;
-                case 3 -> CenterLineStyle.RAIL;
-                default -> CenterLineStyle.NONE;
+            CenterLineStyle centerLineStyle = draft.centerLineStyle();
+            String[] centerLineLabels = {
+                PlotI18n.tr("plugin.road.center_line.none"),
+                PlotI18n.tr("plugin.road.center_line.single_yellow"),
+                PlotI18n.tr("plugin.road.center_line.double_yellow"),
+                PlotI18n.tr("plugin.road.center_line.rail")
             };
-            mutator.setCenterLineStyle(selected);
-            if (selected == CenterLineStyle.SINGLE_DASHED || selected == CenterLineStyle.DOUBLE_SOLID) {
-                mutator.setMarkingMaterial("minecraft:yellow_concrete");
-            } else if (selected != CenterLineStyle.NONE) {
-                mutator.setMarkingMaterial(ResolvedCrossSection.DEFAULT_MARKING_MATERIAL);
+            ImInt centerLineIndex = new ImInt(switch (centerLineStyle) {
+                case SINGLE_DASHED -> 1;
+                case DOUBLE_SOLID -> 2;
+                case RAIL -> 3;
+                default -> 0;
+            });
+            if (ImGui.combo(
+                PlotI18n.tr("plugin.road.center_line_style") + "##" + id + "_center",
+                centerLineIndex,
+                centerLineLabels)) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                CenterLineStyle selected = switch (centerLineIndex.get()) {
+                    case 1 -> CenterLineStyle.SINGLE_DASHED;
+                    case 2 -> CenterLineStyle.DOUBLE_SOLID;
+                    case 3 -> CenterLineStyle.RAIL;
+                    default -> CenterLineStyle.NONE;
+                };
+                mutator.setCenterLineStyle(selected);
+                if (selected == CenterLineStyle.SINGLE_DASHED || selected == CenterLineStyle.DOUBLE_SOLID) {
+                    mutator.setMarkingMaterial("minecraft:yellow_concrete");
+                } else if (selected != CenterLineStyle.NONE) {
+                    mutator.setMarkingMaterial(ResolvedCrossSection.DEFAULT_MARKING_MATERIAL);
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
+            }
+            mutator.afterCenterLineField();
+        } else {
+            // 单车道无可分隔对象：强制关闭标线，避免预览残留中央色块。
+            if (draft.laneDividers() || draft.centerLineStyle() != CenterLineStyle.NONE) {
+                mutator.setLaneDividers(false);
+                mutator.setCenterLineStyle(CenterLineStyle.NONE);
             }
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
-        }
-        mutator.afterCenterLineField();
 
         int[] lightSpacing = {draft.streetlightSpacing()};
         if (ImGui.sliderInt(
