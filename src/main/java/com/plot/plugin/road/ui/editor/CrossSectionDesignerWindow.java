@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.ui.BridgeStructureControls;
@@ -19,6 +20,14 @@ import imgui.flag.ImGuiWindowFlags;
 
 /** 横断面 / 材质设计器浮动窗口。 */
 public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor {
+
+    /** 跨帧复用，避免拖滑条时每帧 fromRoad 分配与重解析。 */
+    private CrossSectionDraftMutator cachedMutator;
+    private String cachedMutatorRoadId = "";
+    private RoadNetworkEditorSession cachedMutatorSession;
+
+    private RoadCrossSectionPreviewRenderer.CrossSectionLayout cachedPreviewLayout;
+    private long cachedPreviewFingerprint = Long.MIN_VALUE;
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -47,6 +56,7 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
 
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
+        invalidateUiCaches();
         var live = ctx.networkManager().getNetwork();
         var config = ctx.networkManager().getConfig();
         var openSnapshot = live.snapshot();
@@ -55,6 +65,18 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             ctx.networkManager().getNetworkRevision(),
             working -> CrossSectionEditorApplier.hasChanges(
                 openSnapshot, working, roadId, config));
+    }
+
+    @Override
+    protected void restoreSession() {
+        invalidateUiCaches();
+        super.restoreSession();
+    }
+
+    @Override
+    public void discard(RoadUiContext ctx) {
+        invalidateUiCaches();
+        super.discard(ctx);
     }
 
     @Override
@@ -85,10 +107,7 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             columnHeight,
             true,
             ImGuiWindowFlags.NoScrollbar);
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(
-            road,
-            config,
-            () -> { /* dirty tracked by session */ });
+        CrossSectionDraftMutator mutator = mutatorFor(road, config);
 
         if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyResizeDown)) {
             if (ImGui.beginTabItem(
@@ -165,8 +184,8 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             columnHeight,
             true,
             ImGuiWindowFlags.NoScrollbar);
-        // 吃满左栏剩余高度，深色底放大断面；不再单独显示「预览」标题。
-        RoadCrossSectionEditor.renderPreview(session.workingNetwork(), road, config, -1f);
+        // 滑条拖动时仍实时刷新；靠 mutator/布局/材质色缓存降低每帧成本。
+        renderLivePreview(session.workingNetwork(), road, config);
         ImGui.endChild();
         ImGui.popStyleColor();
     }
@@ -178,6 +197,43 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             session.workingNetwork(),
             roadId,
             ctx.networkManager().getConfig());
+    }
+
+    private CrossSectionDraftMutator mutatorFor(Road road, RoadSystemConfig config) {
+        if (cachedMutator == null
+                || cachedMutatorSession != session
+                || !roadId.equals(cachedMutatorRoadId)) {
+            cachedMutator = CrossSectionDraftMutator.forRoad(
+                road,
+                config,
+                () -> { /* dirty tracked by session */ });
+            cachedMutatorSession = session;
+            cachedMutatorRoadId = roadId;
+        }
+        return cachedMutator;
+    }
+
+    private void renderLivePreview(
+            com.plot.plugin.road.model.RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        long fingerprint = RoadCrossSectionEditor.previewFingerprint(road, config);
+        if (cachedPreviewLayout == null || cachedPreviewFingerprint != fingerprint) {
+            // 设计器预览不扫全网分段纵坡 override，拖参时更轻。
+            cachedPreviewLayout = RoadCrossSectionEditor.previewLayoutForRoad(
+                network, road, config, false);
+            cachedPreviewFingerprint = fingerprint;
+        }
+        RoadCrossSectionEditor.renderPreviewWithLayout(
+            road, config, cachedPreviewLayout, -1f);
+    }
+
+    private void invalidateUiCaches() {
+        cachedMutator = null;
+        cachedMutatorRoadId = "";
+        cachedMutatorSession = null;
+        cachedPreviewLayout = null;
+        cachedPreviewFingerprint = Long.MIN_VALUE;
     }
 
     /** 页签内容独立滚动区：高度 0 表示吃满标签栏下方剩余空间。 */

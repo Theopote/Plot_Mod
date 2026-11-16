@@ -13,7 +13,9 @@ import imgui.ImGui;
 import imgui.ImVec2;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 道路横断面示意预览（ImGui 绘制，不依赖 World）。
@@ -27,6 +29,8 @@ public final class RoadCrossSectionPreviewRenderer {
     /** 与 {@code PluginUiColors.PANEL_BG_DARK} 对齐的深色预览底。 */
     private static final int COLOR_BG = 0xFF141414;
     private static final int COLOR_MARKING = 0xFFE8E8E8;
+    /** 预览材质色缓存，避免拖滑条时反复 resolveBlockId。 */
+    private static final Map<String, Integer> MATERIAL_COLOR_CACHE = new HashMap<>();
 
     private RoadCrossSectionPreviewRenderer() {
     }
@@ -984,6 +988,18 @@ public final class RoadCrossSectionPreviewRenderer {
         if (material == null || material.isBlank()) {
             return fallback;
         }
+        Integer cached = MATERIAL_COLOR_CACHE.get(material);
+        if (cached != null) {
+            return cached;
+        }
+        int color = resolveMaterialColor(material, fallback);
+        if (MATERIAL_COLOR_CACHE.size() < 256) {
+            MATERIAL_COLOR_CACHE.put(material, color);
+        }
+        return color;
+    }
+
+    private static int resolveMaterialColor(String material, int fallback) {
         String blockId = RoadMaterialUtils.resolveBlockId(material);
         String id = ((blockId != null ? blockId : "") + " " + material).toLowerCase();
         if (id.contains("blackstone") || id.contains("asphalt")

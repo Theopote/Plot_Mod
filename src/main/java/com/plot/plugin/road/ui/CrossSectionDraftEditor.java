@@ -100,7 +100,7 @@ public final class CrossSectionDraftEditor {
                 RoadParameterLimits.MIN_LANE_COUNT,
                 RoadParameterLimits.MAX_LANE_COUNT,
                 "%d")) {
-                if (roadEdit) {
+                if (ImGui.isItemActivated()) {
                     hooks.onItemActivated();
                 }
                 mutator.setLaneCount(laneCountArr[0]);

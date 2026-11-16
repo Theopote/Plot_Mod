@@ -20,6 +20,8 @@ public final class RoadNetworkEditorSession {
     private final long openRevision;
     private RoadNetwork workingNetwork;
     private final Predicate<RoadNetwork> dirtyPredicate;
+    /** 一旦变脏即闩住，避免拖滑条时每帧深比较横断面。 */
+    private boolean dirtyLatched;
 
     private RoadNetworkEditorSession(
             RoadNetwork openSnapshot,
@@ -52,11 +54,16 @@ public final class RoadNetworkEditorSession {
     }
 
     public boolean isDirty() {
-        return dirtyPredicate.test(workingNetwork);
+        if (dirtyLatched) {
+            return true;
+        }
+        dirtyLatched = dirtyPredicate.test(workingNetwork);
+        return dirtyLatched;
     }
 
     public void restore() {
         workingNetwork = openSnapshot.snapshot();
+        dirtyLatched = false;
     }
 
     public void cancel() {
