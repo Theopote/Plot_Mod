@@ -22,7 +22,8 @@ public final class RoadCrossSectionPreviewRenderer {
     private static final int COLOR_GROUND_LINE = 0xFF3D5C32;
     private static final int COLOR_LABEL = 0xFFAAAAAA;
     private static final int COLOR_BORDER = 0xFF606060;
-    private static final int COLOR_BG = 0xFF2A2A2A;
+    /** 与 {@code PluginUiColors.PANEL_BG_DARK} 对齐的深色预览底。 */
+    private static final int COLOR_BG = 0xFF141414;
     private static final int COLOR_MARKING = 0xFFE8E8E8;
 
     private RoadCrossSectionPreviewRenderer() {

@@ -60,6 +60,19 @@ public final class RoadCrossSectionPreviewSection {
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
+        // 与上方道路概览条同色深底，让断面图落在明确的深色预览井里。
+        drawList.addRectFilled(
+            origin.x,
+            origin.y,
+            origin.x + width,
+            origin.y + PREVIEW_HEIGHT,
+            PluginUiColors.PANEL_BG_DARK);
+        drawList.addRect(
+            origin.x,
+            origin.y,
+            origin.x + width,
+            origin.y + PREVIEW_HEIGHT,
+            PluginUiColors.PANEL_BORDER);
         // 标题栏已有总宽/纵坡；图内只保留坡比标注，并拉高预览区放大断面。
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,

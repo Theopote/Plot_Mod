@@ -8,8 +8,10 @@ import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
 import com.plot.plugin.road.ui.CrossSectionDraftMutator;
 import com.plot.plugin.road.ui.RoadCrossSectionEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
@@ -132,15 +134,17 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         ImGui.endChild();
 
         ImGui.setCursorPos(startX, startY);
+        ImGui.pushStyleColor(ImGuiCol.ChildBg, PluginUiColors.PANEL_BG_DARK);
         ImGui.beginChild(
             "##xs_preview",
             columnWidth,
             columnHeight,
             true,
             ImGuiWindowFlags.NoScrollbar);
-        ImGui.text(PlotI18n.tr("plugin.road.floating_editor.cross_section.preview"));
-        RoadCrossSectionEditor.renderPreview(session.workingNetwork(), road, config);
+        // 吃满左栏剩余高度，深色底放大断面；不再单独显示「预览」标题。
+        RoadCrossSectionEditor.renderPreview(session.workingNetwork(), road, config, -1f);
         ImGui.endChild();
+        ImGui.popStyleColor();
     }
 
     @Override

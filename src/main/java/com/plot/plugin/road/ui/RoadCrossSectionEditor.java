@@ -28,7 +28,22 @@ public final class RoadCrossSectionEditor {
         renderPreview(null, road, config);
     }
 
+    /** 设计器左栏等大预览默认高度下限。 */
+    private static final float DESIGNER_PREVIEW_MIN_HEIGHT = 168f;
+
     public static void renderPreview(RoadNetwork network, Road road, RoadSystemConfig config) {
+        // 折叠面板内用固定高度，避免吃光下方控件空间。
+        renderPreview(network, road, config, DESIGNER_PREVIEW_MIN_HEIGHT);
+    }
+
+    /**
+     * @param previewHeight 预览图高度；{@code <= 0} 时吃满当前可用高度（设计器左栏）。
+     */
+    public static void renderPreview(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            float previewHeight) {
         if (road == null) {
             return;
         }
@@ -37,15 +52,26 @@ public final class RoadCrossSectionEditor {
             ? PlotI18n.tr("preset.road." + styleId)
             : PlotI18n.tr("plugin.road.preset_custom");
         ResolvedCrossSection resolved = resolvePreviewCrossSection(network, road, config);
-        ImGui.text(PlotI18n.tr(
-            "plugin.road.edit.style_summary",
-            presetName,
-            resolved.carriagewayWidth,
-            resolved.laneCount));
-        renderPreviewBody(network, road, config);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.road.edit.style_summary",
+                presetName,
+                resolved.carriagewayWidth,
+                resolved.laneCount));
+        ImGui.spacing();
+        renderPreviewBody(network, road, config, previewHeight);
     }
 
     public static void renderPreviewBody(RoadNetwork network, Road road, RoadSystemConfig config) {
+        renderPreviewBody(network, road, config, DESIGNER_PREVIEW_MIN_HEIGHT);
+    }
+
+    public static void renderPreviewBody(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            float previewHeight) {
         if (road == null) {
             return;
         }
@@ -53,16 +79,33 @@ public final class RoadCrossSectionEditor {
         if (width < 40f) {
             return;
         }
+        float availY = ImGui.getContentRegionAvail().y;
+        float height = previewHeight > 0f
+            ? previewHeight
+            : Math.max(DESIGNER_PREVIEW_MIN_HEIGHT, availY > 40f ? availY - 4f : DESIGNER_PREVIEW_MIN_HEIGHT);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float height = 64f;
+        drawList.addRectFilled(
+            origin.x,
+            origin.y,
+            origin.x + width,
+            origin.y + height,
+            PluginUiColors.PANEL_BG_DARK);
+        drawList.addRect(
+            origin.x,
+            origin.y,
+            origin.x + width,
+            origin.y + height,
+            PluginUiColors.PANEL_BORDER);
+        // 摘要已在上方；图内只保留坡比，尽量放大断面。
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
             previewLayoutForRoad(network, road, config),
             origin.x,
             origin.y,
             width,
-            height);
+            height,
+            RoadCrossSectionPreviewRenderer.MiniRenderOptions.quickDesign());
         ImGui.dummy(width, height);
     }
 
