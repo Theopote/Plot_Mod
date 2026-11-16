@@ -38,8 +38,8 @@ public final class RoadParameterLimits {
     public static final int MAX_SLOPE_BATTER_RUN_BLOCKS = 50;
     public static final int DEFAULT_SLOPE_BATTER_RUN_BLOCKS = 32;
     /** 桥墩间距（世界格）。 */
-    public static final double MIN_BRIDGE_PIER_SPACING_BLOCKS = 3.0;
-    public static final double MAX_BRIDGE_PIER_SPACING_BLOCKS = 24.0;
+    public static final double MIN_BRIDGE_PIER_SPACING_BLOCKS = 6.0;
+    public static final double MAX_BRIDGE_PIER_SPACING_BLOCKS = 40.0;
     public static final double DEFAULT_BRIDGE_PIER_SPACING_BLOCKS = 6.0;
     /** 桥墩柱截面横向直径（格）；与行车道宽同奇偶，绝对范围 [1, 4]。 */
     public static final int MIN_BRIDGE_PIER_DIAMETER_BLOCKS = 1;
