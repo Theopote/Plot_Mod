@@ -117,7 +117,9 @@ public final class RoadNetworkManager {
     private boolean batchGenerateBridgePillars = true;
     private double batchBridgePierSpacingBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
     private String batchBridgePierMaterial = ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL;
-    private BridgePierStyle batchBridgePierStyle = BridgePierStyle.AUTO;
+    private BridgePierStyle batchBridgePierStyle = BridgePierStyle.SINGLE;
+    private int batchBridgePierDiameterBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_DIAMETER_BLOCKS;
+    private int batchBridgePierOffsetBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_OFFSET_BLOCKS;
     private boolean batchIncludeBridgeGuardrail = false;
     private String batchBridgeGuardrailMaterial = ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL;
     private int batchBridgeGuardrailHeightBlocks =
@@ -1592,6 +1594,8 @@ public final class RoadNetworkManager {
         batchBridgePierSpacingBlocks = road.getEffectiveBridgePierSpacingBlocks(config);
         batchBridgePierMaterial = road.getEffectiveBridgePierMaterial(config);
         batchBridgePierStyle = road.getEffectiveBridgePierStyle(config);
+        batchBridgePierDiameterBlocks = road.getEffectiveBridgePierDiameterBlocks(config);
+        batchBridgePierOffsetBlocks = road.getEffectiveBridgePierOffsetBlocks(config);
         batchIncludeBridgeGuardrail = road.getEffectiveIncludeBridgeGuardrail(config);
         batchBridgeGuardrailMaterial = road.getEffectiveBridgeGuardrailMaterial(config);
         batchBridgeGuardrailHeightBlocks = road.getEffectiveBridgeGuardrailHeightBlocks(config);
@@ -1632,6 +1636,8 @@ public final class RoadNetworkManager {
             batchBridgePierSpacingBlocks,
             batchBridgePierMaterial,
             batchBridgePierStyle,
+            batchBridgePierDiameterBlocks,
+            batchBridgePierOffsetBlocks,
             batchIncludeBridgeGuardrail,
             batchBridgeGuardrailMaterial,
             batchBridgeGuardrailHeightBlocks
@@ -1669,6 +1675,8 @@ public final class RoadNetworkManager {
         batchBridgePierSpacingBlocks = draft.bridgePierSpacingBlocks();
         batchBridgePierMaterial = draft.bridgePierMaterial();
         batchBridgePierStyle = draft.bridgePierStyle();
+        batchBridgePierDiameterBlocks = draft.bridgePierDiameterBlocks();
+        batchBridgePierOffsetBlocks = draft.bridgePierOffsetBlocks();
         batchIncludeBridgeGuardrail = draft.includeBridgeGuardrail();
         batchBridgeGuardrailMaterial = draft.bridgeGuardrailMaterial();
         batchBridgeGuardrailHeightBlocks = draft.bridgeGuardrailHeightBlocks();
@@ -1823,6 +1831,12 @@ public final class RoadNetworkManager {
         if (before.bridgePierStyle() != after.bridgePierStyle()) {
             fields.add(RoadBatchEditField.BRIDGE_PIER_STYLE);
         }
+        if (before.bridgePierDiameterBlocks() != after.bridgePierDiameterBlocks()) {
+            fields.add(RoadBatchEditField.BRIDGE_PIER_DIAMETER);
+        }
+        if (before.bridgePierOffsetBlocks() != after.bridgePierOffsetBlocks()) {
+            fields.add(RoadBatchEditField.BRIDGE_PIER_OFFSET);
+        }
         if (before.includeBridgeGuardrail() != after.includeBridgeGuardrail()) {
             fields.add(RoadBatchEditField.INCLUDE_BRIDGE_GUARDRAIL);
         }
@@ -1930,6 +1944,12 @@ public final class RoadNetworkManager {
         }
         if (fields.contains(RoadBatchEditField.BRIDGE_PIER_STYLE)) {
             road.setBridgePierStyle(draft.bridgePierStyle());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_PIER_DIAMETER)) {
+            road.setBridgePierDiameterBlocks(draft.bridgePierDiameterBlocks());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_PIER_OFFSET)) {
+            road.setBridgePierOffsetBlocks(draft.bridgePierOffsetBlocks());
         }
         if (fields.contains(RoadBatchEditField.INCLUDE_BRIDGE_GUARDRAIL)) {
             road.setIncludeBridgeGuardrail(draft.includeBridgeGuardrail());
@@ -2161,6 +2181,8 @@ public final class RoadNetworkManager {
             double bridgePierSpacingBlocks,
             String bridgePierMaterial,
             BridgePierStyle bridgePierStyle,
+            int bridgePierDiameterBlocks,
+            int bridgePierOffsetBlocks,
             boolean includeBridgeGuardrail,
             String bridgeGuardrailMaterial,
             int bridgeGuardrailHeightBlocks) {
@@ -2219,7 +2241,9 @@ public final class RoadNetworkManager {
                 true,
                 RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS,
                 ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL,
-                BridgePierStyle.AUTO,
+                BridgePierStyle.SINGLE,
+                RoadParameterLimits.DEFAULT_BRIDGE_PIER_DIAMETER_BLOCKS,
+                RoadParameterLimits.DEFAULT_BRIDGE_PIER_OFFSET_BLOCKS,
                 false,
                 ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL,
                 RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS);
@@ -2231,7 +2255,9 @@ public final class RoadNetworkManager {
             bridgePierMaterial = bridgePierMaterial == null || bridgePierMaterial.isBlank()
                 ? ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL
                 : bridgePierMaterial;
-            bridgePierStyle = bridgePierStyle != null ? bridgePierStyle : BridgePierStyle.AUTO;
+            bridgePierStyle = bridgePierStyle != null ? bridgePierStyle : BridgePierStyle.SINGLE;
+            bridgePierDiameterBlocks = RoadParameterLimits.clampBridgePierDiameterStored(bridgePierDiameterBlocks);
+            bridgePierOffsetBlocks = RoadParameterLimits.clampBridgePierOffsetStored(bridgePierOffsetBlocks);
             bridgeGuardrailMaterial = bridgeGuardrailMaterial == null || bridgeGuardrailMaterial.isBlank()
                 ? ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL
                 : bridgeGuardrailMaterial;
@@ -2273,6 +2299,8 @@ public final class RoadNetworkManager {
                 bridgePierSpacingBlocks,
                 bridgePierMaterial,
                 bridgePierStyle,
+                bridgePierDiameterBlocks,
+                bridgePierOffsetBlocks,
                 includeBridgeGuardrail,
                 bridgeGuardrailMaterial,
                 bridgeGuardrailHeightBlocks);
@@ -2308,6 +2336,8 @@ public final class RoadNetworkManager {
                 bridgePierSpacingBlocks,
                 bridgePierMaterial,
                 bridgePierStyle,
+                bridgePierDiameterBlocks,
+                bridgePierOffsetBlocks,
                 includeBridgeGuardrail,
                 bridgeGuardrailMaterial,
                 bridgeGuardrailHeightBlocks);
@@ -2343,6 +2373,8 @@ public final class RoadNetworkManager {
                 bridgePierSpacingBlocks,
                 bridgePierMaterial,
                 bridgePierStyle,
+                bridgePierDiameterBlocks,
+                bridgePierOffsetBlocks,
                 includeBridgeGuardrail,
                 bridgeGuardrailMaterial,
                 bridgeGuardrailHeightBlocks);
@@ -2353,6 +2385,8 @@ public final class RoadNetworkManager {
                 double newBridgePierSpacingBlocks,
                 String newBridgePierMaterial,
                 BridgePierStyle newBridgePierStyle,
+                int newBridgePierDiameterBlocks,
+                int newBridgePierOffsetBlocks,
                 boolean newIncludeBridgeGuardrail,
                 String newBridgeGuardrailMaterial,
                 int newBridgeGuardrailHeightBlocks) {
@@ -2385,6 +2419,8 @@ public final class RoadNetworkManager {
                 newBridgePierSpacingBlocks,
                 newBridgePierMaterial,
                 newBridgePierStyle,
+                newBridgePierDiameterBlocks,
+                newBridgePierOffsetBlocks,
                 newIncludeBridgeGuardrail,
                 newBridgeGuardrailMaterial,
                 newBridgeGuardrailHeightBlocks);

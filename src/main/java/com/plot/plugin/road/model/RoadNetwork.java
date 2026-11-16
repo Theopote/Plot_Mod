@@ -1293,6 +1293,8 @@ public class RoadNetwork {
         Double bridgePierSpacingBlocks;
         String bridgePierMaterial;
         String bridgePierStyle;
+        Integer bridgePierDiameterBlocks;
+        Integer bridgePierOffsetBlocks;
         Boolean includeBridgeGuardrail;
         String bridgeGuardrailMaterial;
         Integer bridgeGuardrailHeightBlocks;
@@ -1419,6 +1421,8 @@ public class RoadNetwork {
                 if (road.getBridgePierStyle() != null) {
                     roadData.bridgePierStyle = road.getBridgePierStyle().name();
                 }
+                roadData.bridgePierDiameterBlocks = road.getBridgePierDiameterBlocks();
+                roadData.bridgePierOffsetBlocks = road.getBridgePierOffsetBlocks();
                 roadData.includeBridgeGuardrail = road.getIncludeBridgeGuardrail();
                 roadData.bridgeGuardrailMaterial = road.getBridgeGuardrailMaterial();
                 roadData.bridgeGuardrailHeightBlocks = road.getBridgeGuardrailHeightBlocks();
@@ -1563,6 +1567,8 @@ public class RoadNetwork {
                     road.setBridgePierMaterial(roadData.bridgePierMaterial);
                     road.setBridgePierStyle(
                         com.plot.plugin.road.model.section.BridgePierStyle.fromId(roadData.bridgePierStyle));
+                    road.setBridgePierDiameterBlocks(roadData.bridgePierDiameterBlocks);
+                    road.setBridgePierOffsetBlocks(roadData.bridgePierOffsetBlocks);
                     road.setIncludeBridgeGuardrail(roadData.includeBridgeGuardrail);
                     road.setBridgeGuardrailMaterial(roadData.bridgeGuardrailMaterial);
                     road.setBridgeGuardrailHeightBlocks(roadData.bridgeGuardrailHeightBlocks);

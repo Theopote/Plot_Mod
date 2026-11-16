@@ -80,6 +80,10 @@ public class Road {
     private String bridgePierMaterial;
     /** {@code null} 表示继承全局默认。 */
     private BridgePierStyle bridgePierStyle;
+    /** {@code null} 表示继承全局默认；柱截面横向直径（格）。 */
+    private Integer bridgePierDiameterBlocks;
+    /** {@code null} 表示继承全局默认；双柱中心线到柱心偏移（格）。 */
+    private Integer bridgePierOffsetBlocks;
     /** {@code null} 表示继承全局默认。 */
     private Boolean includeBridgeGuardrail;
     /** {@code null} 表示继承全局默认。 */
@@ -150,6 +154,8 @@ public class Road {
         bridgePierSpacingBlocks = defaults.getBridgePierSpacingBlocks();
         bridgePierMaterial = defaults.getBridgePierMaterial();
         bridgePierStyle = defaults.getBridgePierStyle();
+        bridgePierDiameterBlocks = defaults.getBridgePierDiameterBlocks();
+        bridgePierOffsetBlocks = defaults.getBridgePierOffsetBlocks();
         includeBridgeGuardrail = defaults.isIncludeBridgeGuardrail();
         bridgeGuardrailMaterial = defaults.getBridgeGuardrailMaterial();
         bridgeGuardrailHeightBlocks = defaults.getBridgeGuardrailHeightBlocks();
@@ -168,6 +174,8 @@ public class Road {
         bridgePierSpacingBlocks = null;
         bridgePierMaterial = null;
         bridgePierStyle = null;
+        bridgePierDiameterBlocks = null;
+        bridgePierOffsetBlocks = null;
         includeBridgeGuardrail = null;
         bridgeGuardrailMaterial = null;
         bridgeGuardrailHeightBlocks = null;
@@ -684,7 +692,45 @@ public class Road {
         if (bridgePierStyle != null) {
             return bridgePierStyle;
         }
-        return defaults != null ? defaults.getBridgePierStyle() : BridgePierStyle.AUTO;
+        return defaults != null ? defaults.getBridgePierStyle() : BridgePierStyle.SINGLE;
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局桥墩直径。 */
+    public Integer getBridgePierDiameterBlocks() {
+        return bridgePierDiameterBlocks;
+    }
+
+    public void setBridgePierDiameterBlocks(Integer bridgePierDiameterBlocks) {
+        this.bridgePierDiameterBlocks =
+            RoadParameterLimits.clampBridgePierDiameterStoredNullable(bridgePierDiameterBlocks);
+    }
+
+    public int getEffectiveBridgePierDiameterBlocks(RoadSystemConfig defaults) {
+        if (bridgePierDiameterBlocks != null) {
+            return bridgePierDiameterBlocks;
+        }
+        return defaults != null
+            ? defaults.getBridgePierDiameterBlocks()
+            : RoadParameterLimits.DEFAULT_BRIDGE_PIER_DIAMETER_BLOCKS;
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局双柱偏移。 */
+    public Integer getBridgePierOffsetBlocks() {
+        return bridgePierOffsetBlocks;
+    }
+
+    public void setBridgePierOffsetBlocks(Integer bridgePierOffsetBlocks) {
+        this.bridgePierOffsetBlocks =
+            RoadParameterLimits.clampBridgePierOffsetStoredNullable(bridgePierOffsetBlocks);
+    }
+
+    public int getEffectiveBridgePierOffsetBlocks(RoadSystemConfig defaults) {
+        if (bridgePierOffsetBlocks != null) {
+            return bridgePierOffsetBlocks;
+        }
+        return defaults != null
+            ? defaults.getBridgePierOffsetBlocks()
+            : RoadParameterLimits.DEFAULT_BRIDGE_PIER_OFFSET_BLOCKS;
     }
 
     /** 持久化字段；{@code null} 表示继承全局是否生成桥梁护栏。 */
@@ -926,6 +972,8 @@ public class Road {
         copy.bridgePierSpacingBlocks = bridgePierSpacingBlocks;
         copy.bridgePierMaterial = bridgePierMaterial;
         copy.bridgePierStyle = bridgePierStyle;
+        copy.bridgePierDiameterBlocks = bridgePierDiameterBlocks;
+        copy.bridgePierOffsetBlocks = bridgePierOffsetBlocks;
         copy.includeBridgeGuardrail = includeBridgeGuardrail;
         copy.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
         copy.bridgeGuardrailHeightBlocks = bridgeGuardrailHeightBlocks;
@@ -951,6 +999,8 @@ public class Road {
         bridgePierSpacingBlocks = source.bridgePierSpacingBlocks;
         bridgePierMaterial = source.bridgePierMaterial;
         bridgePierStyle = source.bridgePierStyle;
+        bridgePierDiameterBlocks = source.bridgePierDiameterBlocks;
+        bridgePierOffsetBlocks = source.bridgePierOffsetBlocks;
         includeBridgeGuardrail = source.includeBridgeGuardrail;
         bridgeGuardrailMaterial = source.bridgeGuardrailMaterial;
         bridgeGuardrailHeightBlocks = source.bridgeGuardrailHeightBlocks;

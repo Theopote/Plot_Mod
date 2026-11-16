@@ -35,4 +35,22 @@ public final class RoadDimensionUtils {
         }
         return maxLateralOffset(blockWidth) + 0.5;
     }
+
+    /**
+     * 桥墩足迹的绝对横向偏移（相对道路中心线整数格），与路面条带同一套 min/max 语义，
+     * 保证预览与世界生成不会出现半格错位。
+     */
+    public static int[] pierFootprintLaterals(int centerLateralOffset, int diameterBlocks) {
+        int diameter = Math.max(1, diameterBlocks);
+        int min = minLateralOffset(diameter);
+        int max = maxLateralOffset(diameter);
+        if (max < min) {
+            return new int[0];
+        }
+        int[] laterals = new int[max - min + 1];
+        for (int i = 0; i < laterals.length; i++) {
+            laterals[i] = centerLateralOffset + min + i;
+        }
+        return laterals;
+    }
 }

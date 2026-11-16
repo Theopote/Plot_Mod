@@ -34,7 +34,11 @@ public final class RoadCrossSectionPreviewSection {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ResolvedCrossSection resolved = ResolvedCrossSection.fromConfig(config);
         var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-            resolved, config.getMaxSlope());
+            resolved,
+            config.getMaxSlope(),
+            -1f,
+            com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.fromConfig(
+                config, resolved.carriagewayWidth));
         renderHeader(resolved, layout.gradeOverlayLabel());
         renderPreviewBody(layout);
     }

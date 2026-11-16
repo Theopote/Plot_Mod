@@ -32,6 +32,7 @@ public final class BridgeStructureControls {
             PlotI18n.tr("plugin.road.bridge_structure_defaults_hint"));
         ImGui.spacing();
 
+        int carriagewayWidth = config.getRoadWidth();
         ImBoolean pillars = new ImBoolean(config.isGenerateBridgePillars());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.generate_bridge_pillars") + "##cfg_bridge_pillars", pillars)) {
             config.setGenerateBridgePillars(pillars.get());
@@ -55,6 +56,26 @@ public final class BridgeStructureControls {
                     config.setBridgePierStyle(style);
                     markCustom(ctx, config);
                 });
+            renderDiameterSlider(
+                "##cfg_pier_diameter",
+                carriagewayWidth,
+                config.getBridgePierStyle(),
+                config.getBridgePierDiameterBlocks(),
+                value -> {
+                    config.setBridgePierDiameterBlocks(value);
+                    markCustom(ctx, config);
+                });
+            if (config.getBridgePierStyle() == BridgePierStyle.DOUBLE) {
+                renderOffsetSlider(
+                    "##cfg_pier_offset",
+                    carriagewayWidth,
+                    config.getBridgePierDiameterBlocks(),
+                    config.getBridgePierOffsetBlocks(),
+                    value -> {
+                        config.setBridgePierOffsetBlocks(value);
+                        markCustom(ctx, config);
+                    });
+            }
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
                 "##cfg_pier_material",
@@ -122,120 +143,98 @@ public final class BridgeStructureControls {
             PlotI18n.tr("plugin.road.bridge_structure_batch_hint"));
         ImGui.spacing();
 
-        RoadNetworkManager.BatchEditDefaults current = draft;
-        ImBoolean pillars = new ImBoolean(current.generateBridgePillars());
+        int carriagewayWidth = draft.width();
+        final RoadNetworkManager.BatchEditDefaults[] current = {draft};
+        ImBoolean pillars = new ImBoolean(current[0].generateBridgePillars());
         if (ImGui.checkbox(
             PlotI18n.tr("plugin.road.generate_bridge_pillars") + "##batch_bridge_pillars",
             pillars)) {
-            current = current.withBridgeStructure(
-                pillars.get(),
-                current.bridgePierSpacingBlocks(),
-                current.bridgePierMaterial(),
-                current.bridgePierStyle(),
-                current.includeBridgeGuardrail(),
-                current.bridgeGuardrailMaterial(),
-                current.bridgeGuardrailHeightBlocks());
-            onChanged.accept(current);
+            current[0] = withBridge(current[0], b -> b.generate = pillars.get());
+            onChanged.accept(current[0]);
         }
-        if (current.generateBridgePillars()) {
-            float[] spacing = {(float) current.bridgePierSpacingBlocks()};
+        if (current[0].generateBridgePillars()) {
+            float[] spacing = {(float) current[0].bridgePierSpacingBlocks()};
             if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.bridge_pier_spacing_label") + "##batch_pier_spacing",
                 spacing,
                 (float) RoadParameterLimits.MIN_BRIDGE_PIER_SPACING_BLOCKS,
                 (float) RoadParameterLimits.MAX_BRIDGE_PIER_SPACING_BLOCKS,
                 "%.1f")) {
-                current = current.withBridgeStructure(
-                    current.generateBridgePillars(),
-                    spacing[0],
-                    current.bridgePierMaterial(),
-                    current.bridgePierStyle(),
-                    current.includeBridgeGuardrail(),
-                    current.bridgeGuardrailMaterial(),
-                    current.bridgeGuardrailHeightBlocks());
-                onChanged.accept(current);
+                current[0] = withBridge(current[0], b -> b.spacing = spacing[0]);
+                onChanged.accept(current[0]);
             }
-            RoadNetworkManager.BatchEditDefaults styleBase = current;
             renderPierStyleCombo(
                 "##batch_pier_style",
-                current.bridgePierStyle(),
-                style -> onChanged.accept(styleBase.withBridgeStructure(
-                    styleBase.generateBridgePillars(),
-                    styleBase.bridgePierSpacingBlocks(),
-                    styleBase.bridgePierMaterial(),
-                    style,
-                    styleBase.includeBridgeGuardrail(),
-                    styleBase.bridgeGuardrailMaterial(),
-                    styleBase.bridgeGuardrailHeightBlocks())));
+                current[0].bridgePierStyle(),
+                style -> {
+                    current[0] = withBridge(current[0], b -> b.style = style);
+                    onChanged.accept(current[0]);
+                });
+            renderDiameterSlider(
+                "##batch_pier_diameter",
+                carriagewayWidth,
+                current[0].bridgePierStyle(),
+                current[0].bridgePierDiameterBlocks(),
+                value -> {
+                    current[0] = withBridge(current[0], b -> b.diameter = value);
+                    onChanged.accept(current[0]);
+                });
+            if (current[0].bridgePierStyle() == BridgePierStyle.DOUBLE) {
+                renderOffsetSlider(
+                    "##batch_pier_offset",
+                    carriagewayWidth,
+                    current[0].bridgePierDiameterBlocks(),
+                    current[0].bridgePierOffsetBlocks(),
+                    value -> {
+                        current[0] = withBridge(current[0], b -> b.offset = value);
+                        onChanged.accept(current[0]);
+                    });
+            }
             if (ctx != null) {
-                RoadNetworkManager.BatchEditDefaults materialBase = current;
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
                     "##batch_pier_material",
                     PlotI18n.tr("plugin.road.bridge_pier_material"),
-                    current.bridgePierMaterial(),
-                    material -> onChanged.accept(materialBase.withBridgeStructure(
-                        materialBase.generateBridgePillars(),
-                        materialBase.bridgePierSpacingBlocks(),
-                        material,
-                        materialBase.bridgePierStyle(),
-                        materialBase.includeBridgeGuardrail(),
-                        materialBase.bridgeGuardrailMaterial(),
-                        materialBase.bridgeGuardrailHeightBlocks())),
+                    current[0].bridgePierMaterial(),
+                    material -> {
+                        current[0] = withBridge(current[0], b -> b.pierMaterial = material);
+                        onChanged.accept(current[0]);
+                    },
                     false);
             }
         }
 
-        ImBoolean guardrail = new ImBoolean(current.includeBridgeGuardrail());
+        ImBoolean guardrail = new ImBoolean(current[0].includeBridgeGuardrail());
         if (ImGui.checkbox(
             PlotI18n.tr("plugin.road.include_bridge_guardrail") + "##batch_bridge_guardrail",
             guardrail)) {
-            current = current.withBridgeStructure(
-                current.generateBridgePillars(),
-                current.bridgePierSpacingBlocks(),
-                current.bridgePierMaterial(),
-                current.bridgePierStyle(),
-                guardrail.get(),
-                current.bridgeGuardrailMaterial(),
-                current.bridgeGuardrailHeightBlocks());
-            onChanged.accept(current);
+            current[0] = withBridge(current[0], b -> b.includeGuardrail = guardrail.get());
+            onChanged.accept(current[0]);
         }
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
-        if (current.includeBridgeGuardrail()) {
-            int[] height = {current.bridgeGuardrailHeightBlocks()};
+        if (current[0].includeBridgeGuardrail()) {
+            int[] height = {current[0].bridgeGuardrailHeightBlocks()};
             if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.bridge_guardrail_height_label") + "##batch_guardrail_height",
                 height,
                 RoadParameterLimits.MIN_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS,
                 RoadParameterLimits.MAX_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS,
                 "%d")) {
-                current = current.withBridgeStructure(
-                    current.generateBridgePillars(),
-                    current.bridgePierSpacingBlocks(),
-                    current.bridgePierMaterial(),
-                    current.bridgePierStyle(),
-                    current.includeBridgeGuardrail(),
-                    current.bridgeGuardrailMaterial(),
-                    height[0]);
-                onChanged.accept(current);
+                current[0] = withBridge(current[0], b -> b.guardrailHeight = height[0]);
+                onChanged.accept(current[0]);
             }
             if (ctx != null) {
-                RoadNetworkManager.BatchEditDefaults materialBase = current;
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
                     "##batch_guardrail_material",
                     PlotI18n.tr("plugin.road.bridge_guardrail_material"),
-                    current.bridgeGuardrailMaterial(),
-                    material -> onChanged.accept(materialBase.withBridgeStructure(
-                        materialBase.generateBridgePillars(),
-                        materialBase.bridgePierSpacingBlocks(),
-                        materialBase.bridgePierMaterial(),
-                        materialBase.bridgePierStyle(),
-                        materialBase.includeBridgeGuardrail(),
-                        material,
-                        materialBase.bridgeGuardrailHeightBlocks())),
+                    current[0].bridgeGuardrailMaterial(),
+                    material -> {
+                        current[0] = withBridge(current[0], b -> b.guardrailMaterial = material);
+                        onChanged.accept(current[0]);
+                    },
                     false);
             }
         }
@@ -247,6 +246,7 @@ public final class BridgeStructureControls {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ResolvedBridgeStructure resolved = ResolvedBridgeStructure.resolve(road, config);
+        int carriagewayWidth = road.getEffectiveWidth(config);
 
         renderBooleanOverride(
             ctx,
@@ -261,6 +261,10 @@ public final class BridgeStructureControls {
         if (resolved.generatePillars()) {
             renderSpacingOverride(ctx, road, onHistory, config, resolved);
             renderPierStyleOverride(ctx, road, onHistory, config, resolved);
+            renderDiameterOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
+            if (resolved.pierStyle() == BridgePierStyle.DOUBLE) {
+                renderOffsetOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
+            }
             renderMaterialOverride(
                 ctx,
                 road,
@@ -343,7 +347,7 @@ public final class BridgeStructureControls {
                 road.setBridgePierStyle(style);
                 ctx.onGenerationConfigChanged();
             });
-        BridgePierStyle inheritedValue = config != null ? config.getBridgePierStyle() : BridgePierStyle.AUTO;
+        BridgePierStyle inheritedValue = config != null ? config.getBridgePierStyle() : BridgePierStyle.SINGLE;
         RoadUiWidgets.renderOverrideFooter(
             inherited,
             PlotI18n.tr("plugin.road.inherit_default_material", pierStyleLabel(inheritedValue)),
@@ -351,6 +355,70 @@ public final class BridgeStructureControls {
             () -> {
                 pushHistory(onHistory);
                 road.setBridgePierStyle(null);
+                ctx.onGenerationConfigChanged();
+            });
+    }
+
+    private static void renderDiameterOverride(
+            RoadUiContext ctx,
+            Road road,
+            Runnable onHistory,
+            RoadSystemConfig config,
+            ResolvedBridgeStructure resolved,
+            int carriagewayWidth) {
+        boolean inherited = road.getBridgePierDiameterBlocks() == null;
+        renderDiameterSlider(
+            "##road_pier_diameter_" + road.getId(),
+            carriagewayWidth,
+            resolved.pierStyle(),
+            resolved.pierDiameterBlocks(),
+            value -> {
+                pushHistory(onHistory);
+                road.setBridgePierDiameterBlocks(value);
+                ctx.onGenerationConfigChanged();
+            });
+        int inheritedValue = config != null
+            ? config.getBridgePierDiameterBlocks()
+            : RoadParameterLimits.DEFAULT_BRIDGE_PIER_DIAMETER_BLOCKS;
+        RoadUiWidgets.renderOverrideFooter(
+            inherited,
+            PlotI18n.tr("plugin.road.inherit_default_int", inheritedValue),
+            "reset_pier_diameter_" + road.getId(),
+            () -> {
+                pushHistory(onHistory);
+                road.setBridgePierDiameterBlocks(null);
+                ctx.onGenerationConfigChanged();
+            });
+    }
+
+    private static void renderOffsetOverride(
+            RoadUiContext ctx,
+            Road road,
+            Runnable onHistory,
+            RoadSystemConfig config,
+            ResolvedBridgeStructure resolved,
+            int carriagewayWidth) {
+        boolean inherited = road.getBridgePierOffsetBlocks() == null;
+        renderOffsetSlider(
+            "##road_pier_offset_" + road.getId(),
+            carriagewayWidth,
+            resolved.pierDiameterBlocks(),
+            resolved.pierOffsetBlocks(),
+            value -> {
+                pushHistory(onHistory);
+                road.setBridgePierOffsetBlocks(value);
+                ctx.onGenerationConfigChanged();
+            });
+        int inheritedValue = config != null
+            ? config.getBridgePierOffsetBlocks()
+            : RoadParameterLimits.DEFAULT_BRIDGE_PIER_OFFSET_BLOCKS;
+        RoadUiWidgets.renderOverrideFooter(
+            inherited,
+            PlotI18n.tr("plugin.road.inherit_default_int", inheritedValue),
+            "reset_pier_offset_" + road.getId(),
+            () -> {
+                pushHistory(onHistory);
+                road.setBridgePierOffsetBlocks(null);
                 ctx.onGenerationConfigChanged();
             });
     }
@@ -377,8 +445,91 @@ public final class BridgeStructureControls {
         }
     }
 
+    private static void renderDiameterSlider(
+            String idSuffix,
+            int carriagewayWidth,
+            BridgePierStyle style,
+            int current,
+            java.util.function.Consumer<Integer> onChanged) {
+        BridgePierStyle pierStyle = style != null ? style : BridgePierStyle.SINGLE;
+        int[] options = RoadParameterLimits.validBridgePierDiameters(carriagewayWidth, pierStyle);
+        int clamped = RoadParameterLimits.clampBridgePierDiameterBlocks(
+            carriagewayWidth, current, pierStyle);
+        renderDiscreteIntChoices(
+            PlotI18n.tr("plugin.road.bridge_pier_diameter_label") + idSuffix,
+            options,
+            clamped,
+            onChanged,
+            PlotI18n.tr("hint.plot.road.bridge_pier_diameter"),
+            PlotI18n.tr("plugin.road.bridge_pier_diameter_locked", clamped, carriagewayWidth));
+    }
+
+    private static void renderOffsetSlider(
+            String idSuffix,
+            int carriagewayWidth,
+            int diameter,
+            int current,
+            java.util.function.Consumer<Integer> onChanged) {
+        int clampedDiameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+            carriagewayWidth, diameter, BridgePierStyle.DOUBLE);
+        int[] options = RoadParameterLimits.validBridgePierOffsets(carriagewayWidth, clampedDiameter);
+        int clamped = RoadParameterLimits.clampBridgePierOffsetBlocks(
+            carriagewayWidth, clampedDiameter, current);
+        int gap = RoadParameterLimits.doublePierGapBlocks(clamped, clampedDiameter);
+        renderDiscreteIntChoices(
+            PlotI18n.tr("plugin.road.bridge_pier_offset_label") + idSuffix,
+            options,
+            clamped,
+            onChanged,
+            PlotI18n.tr("hint.plot.road.bridge_pier_offset", gap),
+            PlotI18n.tr("plugin.road.bridge_pier_offset_locked", clamped, gap));
+    }
+
+    /**
+     * 直径/偏移合法值常为稀疏序列：用下拉选择；仅一个合法值时禁用下拉并提示约束原因，
+     * 避免滑条 min==max 时看起来像坏了。
+     */
+    private static void renderDiscreteIntChoices(
+            String label,
+            int[] options,
+            int current,
+            java.util.function.Consumer<Integer> onChanged,
+            String multiHint,
+            String lockedHint) {
+        if (options == null || options.length == 0) {
+            return;
+        }
+        String[] labels = new String[options.length];
+        int selected = 0;
+        for (int i = 0; i < options.length; i++) {
+            labels[i] = Integer.toString(options[i]);
+            if (options[i] == current) {
+                selected = i;
+            }
+        }
+        boolean locked = options.length == 1;
+        if (locked && current != options[0]) {
+            onChanged.accept(options[0]);
+            selected = 0;
+        }
+        ImInt index = new ImInt(selected);
+        if (locked) {
+            ImGui.beginDisabled();
+        }
+        boolean changed = ImGui.combo(label, index, labels);
+        if (locked) {
+            ImGui.endDisabled();
+        }
+        if (changed && !locked) {
+            onChanged.accept(options[index.get()]);
+        }
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(locked ? lockedHint : multiHint);
+        }
+    }
+
     private static String pierStyleLabel(BridgePierStyle style) {
-        BridgePierStyle value = style != null ? style : BridgePierStyle.AUTO;
+        BridgePierStyle value = style != null ? style : BridgePierStyle.SINGLE;
         return PlotI18n.tr("plugin.road.bridge_pier_style." + value.name().toLowerCase());
     }
 
@@ -489,5 +640,43 @@ public final class BridgeStructureControls {
     private static void markCustom(RoadUiContext ctx, RoadSystemConfig config) {
         config.markCustom();
         ctx.onGenerationConfigChanged();
+    }
+
+    private static final class BridgeMut {
+        boolean generate;
+        double spacing;
+        String pierMaterial;
+        BridgePierStyle style;
+        int diameter;
+        int offset;
+        boolean includeGuardrail;
+        String guardrailMaterial;
+        int guardrailHeight;
+    }
+
+    private static RoadNetworkManager.BatchEditDefaults withBridge(
+            RoadNetworkManager.BatchEditDefaults base,
+            Consumer<BridgeMut> mutator) {
+        BridgeMut mut = new BridgeMut();
+        mut.generate = base.generateBridgePillars();
+        mut.spacing = base.bridgePierSpacingBlocks();
+        mut.pierMaterial = base.bridgePierMaterial();
+        mut.style = base.bridgePierStyle();
+        mut.diameter = base.bridgePierDiameterBlocks();
+        mut.offset = base.bridgePierOffsetBlocks();
+        mut.includeGuardrail = base.includeBridgeGuardrail();
+        mut.guardrailMaterial = base.bridgeGuardrailMaterial();
+        mut.guardrailHeight = base.bridgeGuardrailHeightBlocks();
+        mutator.accept(mut);
+        return base.withBridgeStructure(
+            mut.generate,
+            mut.spacing,
+            mut.pierMaterial,
+            mut.style,
+            mut.diameter,
+            mut.offset,
+            mut.includeGuardrail,
+            mut.guardrailMaterial,
+            mut.guardrailHeight);
     }
 }

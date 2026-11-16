@@ -1,9 +1,11 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
+import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -187,6 +189,9 @@ public final class RoadCrossSectionPreviewRenderer {
             }
         }
 
+        drawBridgeFurniture(
+            drawList, layout, roadStartX, leftEdgeX, rightEdgeX, deckY, deckBottom, groundY, scale);
+
         if (renderOptions.drawOverlayLabels) {
             String gradeLabel = layout.gradeOverlayLabel();
             if (gradeLabel != null && !gradeLabel.isBlank()) {
@@ -291,6 +296,13 @@ public final class RoadCrossSectionPreviewRenderer {
             }
             // 填/挖竖直示意高度必须是整格，避免坡面落在半格上。
             int fillRiseCells = fillRun > 0 ? 3 : 0;
+            // 勾选桥墩但无填方时，仍预留净空格子以便画出墩柱。
+            if (fillRiseCells == 0
+                    && layout.bridgeFurniture != null
+                    && layout.bridgeFurniture.showPillars()) {
+                fillRiseCells = 3;
+                fillRun = Math.max(fillRun, 1f);
+            }
             int cutRiseCells = cutRun > 0 ? (options.compactSlopes ? 2 : 3) : 0;
             // 顶留白 1 格 + 挖方 + 路面 2 格 + 填方，按此分配竖直缩放，避免裁切。
             int verticalCells = 1 + cutRiseCells + 2 + fillRiseCells;
@@ -445,6 +457,70 @@ public final class RoadCrossSectionPreviewRenderer {
             draw.addLine(x1 - 1, y0 + 1, x1 - 1, y1 - 1, 0x50000000, 1f);
         }
         draw.addRect(x0, y0, x1, y1, 0x85000000);
+    }
+
+    private static void drawBridgeFurniture(
+            ImDrawList drawList,
+            CrossSectionLayout layout,
+            float roadStartX,
+            float leftEdgeX,
+            float rightEdgeX,
+            float deckY,
+            float deckBottom,
+            float groundY,
+            float scale) {
+        CrossSectionLayout.BridgeFurniturePreview furniture = layout.bridgeFurniture;
+        if (furniture == null || scale <= 1e-6f) {
+            return;
+        }
+        if (furniture.showPillars()) {
+            int roadWidth = Math.max(1, Math.round(layout.roadBlocks));
+            int diameter = Math.max(1, furniture.pierDiameterBlocks());
+            int roadMin = RoadDimensionUtils.minLateralOffset(roadWidth);
+            if (furniture.pierStyle() == BridgePierStyle.DOUBLE) {
+                int offset = Math.max(1, furniture.pierOffsetBlocks());
+                drawPierFootprint(
+                    drawList, roadStartX, roadMin, offset, diameter, deckBottom, groundY, scale,
+                    furniture.pierColor());
+                drawPierFootprint(
+                    drawList, roadStartX, roadMin, -offset, diameter, deckBottom, groundY, scale,
+                    furniture.pierColor());
+            } else {
+                drawPierFootprint(
+                    drawList, roadStartX, roadMin, 0, diameter, deckBottom, groundY, scale,
+                    furniture.pierColor());
+            }
+        }
+        if (furniture.showGuardrail()) {
+            int height = Math.max(1, furniture.guardrailHeightBlocks());
+            for (int i = 0; i < height; i++) {
+                float y1 = deckY - i * scale;
+                float y0 = y1 - scale;
+                drawVoxelFace(drawList, leftEdgeX - scale, y0, leftEdgeX, y1, furniture.guardrailColor());
+                drawVoxelFace(drawList, rightEdgeX, y0, rightEdgeX + scale, y1, furniture.guardrailColor());
+            }
+        }
+    }
+
+    /**
+     * 与世界生成相同的横向偏移语义：{@code centerLateralOffset + [min..max](diameter)}，
+     * 再映射到行车道左缘网格，避免相对几何中心的半格错位。
+     */
+    private static void drawPierFootprint(
+            ImDrawList drawList,
+            float roadStartX,
+            int roadMinLateral,
+            int centerLateralOffset,
+            int diameterBlocks,
+            float deckBottom,
+            float groundY,
+            float scale,
+            int color) {
+        for (int absolute : RoadDimensionUtils.pierFootprintLaterals(centerLateralOffset, diameterBlocks)) {
+            // 相对行车道左缘的整数格索引，与 drawBand 路面格子一一对齐。
+            float x0 = roadStartX + (absolute - roadMinLateral) * scale;
+            drawRetainingWallColumn(drawList, x0, deckBottom, groundY, color, scale, false);
+        }
     }
 
     private static void drawRetainingWallColumn(
@@ -663,6 +739,8 @@ public final class RoadCrossSectionPreviewRenderer {
         public final int medianColor;
         public final List<Float> markingLineRatios;
         public final int markingColor;
+        /** 桥梁结构示意；{@code null} 表示不画桥墩/护栏。 */
+        public final BridgeFurniturePreview bridgeFurniture;
 
         private CrossSectionLayout(
                 float roadBlocks,
@@ -690,7 +768,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 float medianBlocks,
                 int medianColor,
                 List<Float> markingLineRatios,
-                int markingColor) {
+                int markingColor,
+                BridgeFurniturePreview bridgeFurniture) {
             this.roadBlocks = roadBlocks;
             this.leftShoulderBlocks = leftShoulderBlocks;
             this.rightShoulderBlocks = rightShoulderBlocks;
@@ -717,21 +796,32 @@ public final class RoadCrossSectionPreviewRenderer {
             this.medianColor = medianColor;
             this.markingLineRatios = markingLineRatios != null ? List.copyOf(markingLineRatios) : List.of();
             this.markingColor = markingColor;
+            this.bridgeFurniture = bridgeFurniture;
         }
 
         public static CrossSectionLayout fromResolved(ResolvedCrossSection section, float maxSlopePercent) {
-            return fromResolved(section, maxSlopePercent, -1f);
+            return fromResolved(section, maxSlopePercent, -1f, null);
         }
 
         public static CrossSectionLayout fromResolved(
                 ResolvedCrossSection section,
                 float maxSlopePercent,
                 float minSlopePercent) {
+            return fromResolved(section, maxSlopePercent, minSlopePercent, null);
+        }
+
+        public static CrossSectionLayout fromResolved(
+                ResolvedCrossSection section,
+                float maxSlopePercent,
+                float minSlopePercent,
+                ResolvedBridgeStructure bridgeStructure) {
             float road = Math.max(1, section.carriagewayWidth);
             float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
             float bike = section.includeBikeLane ? Math.max(0, section.bikeLaneWidth) : 0f;
             float sidewalk = section.includeSidewalk ? Math.max(0, section.sidewalkWidth) : 0f;
             List<Float> markingRatios = buildMarkingRatios(section, road);
+            BridgeFurniturePreview furniture = BridgeFurniturePreview.from(
+                bridgeStructure, Math.round(road));
             return new CrossSectionLayout(
                 road,
                 shoulder, shoulder,
@@ -755,8 +845,40 @@ public final class RoadCrossSectionPreviewRenderer {
                 section.includeMedian ? section.medianWidth : 0f,
                 colorForMaterial(section.medianMaterial, 0xFF6FA856),
                 markingRatios,
-                colorForMaterial(section.markingMaterial, COLOR_MARKING)
+                colorForMaterial(section.markingMaterial, COLOR_MARKING),
+                furniture
             );
+        }
+
+        /** 横断面桥梁结构示意（桥墩柱列 / 护栏）。 */
+        public record BridgeFurniturePreview(
+                boolean showPillars,
+                boolean showGuardrail,
+                BridgePierStyle pierStyle,
+                int pierDiameterBlocks,
+                int pierOffsetBlocks,
+                int guardrailHeightBlocks,
+                int pierColor,
+                int guardrailColor) {
+
+            static BridgeFurniturePreview from(ResolvedBridgeStructure bridge, int carriagewayWidth) {
+                if (bridge == null) {
+                    return null;
+                }
+                if (!bridge.generatePillars() && !bridge.includeGuardrail()) {
+                    return null;
+                }
+                ResolvedBridgeStructure clamped = bridge.withCarriagewayWidth(carriagewayWidth);
+                return new BridgeFurniturePreview(
+                    clamped.generatePillars(),
+                    clamped.includeGuardrail(),
+                    clamped.pierStyle(),
+                    clamped.pierDiameterBlocks(),
+                    clamped.pierOffsetBlocks(),
+                    clamped.guardrailHeightBlocks(),
+                    colorForMaterial(clamped.pierMaterial(), 0xFF8A8A82),
+                    colorForMaterial(clamped.guardrailMaterial(), 0xFFC4A574));
+            }
         }
 
         /** 横断面图右上角纵坡文案；纵坡沿路常有变化，有区间时显示上下限。 */

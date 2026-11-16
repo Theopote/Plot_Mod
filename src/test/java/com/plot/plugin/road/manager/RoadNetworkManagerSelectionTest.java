@@ -204,7 +204,9 @@ class RoadNetworkManagerSelectionTest {
             false,
             10.0,
             "minecraft:deepslate_bricks",
-            com.plot.plugin.road.model.section.BridgePierStyle.SINGLE,
+            com.plot.plugin.road.model.section.BridgePierStyle.DOUBLE,
+            3,
+            3,
             true,
             "minecraft:iron_bars",
             2);
@@ -214,7 +216,9 @@ class RoadNetworkManagerSelectionTest {
         assertEquals(10.0, roadA.getBridgePierSpacingBlocks(), 1e-6);
         assertEquals("minecraft:deepslate_bricks", roadA.getBridgePierMaterial());
         assertEquals(
-            com.plot.plugin.road.model.section.BridgePierStyle.SINGLE, roadA.getBridgePierStyle());
+            com.plot.plugin.road.model.section.BridgePierStyle.DOUBLE, roadA.getBridgePierStyle());
+        assertEquals(3, roadA.getBridgePierDiameterBlocks());
+        assertEquals(3, roadA.getBridgePierOffsetBlocks());
         assertTrue(roadA.getIncludeBridgeGuardrail());
         assertEquals("minecraft:iron_bars", roadA.getBridgeGuardrailMaterial());
         assertEquals(2, roadA.getBridgeGuardrailHeightBlocks());
@@ -222,6 +226,8 @@ class RoadNetworkManagerSelectionTest {
         assertFalse(roadB.getGenerateBridgePillars());
         assertTrue(roadB.getIncludeBridgeGuardrail());
         assertEquals(2, roadB.getBridgeGuardrailHeightBlocks());
+        assertEquals(
+            com.plot.plugin.road.model.section.BridgePierStyle.DOUBLE, roadB.getBridgePierStyle());
     }
 
     @Test

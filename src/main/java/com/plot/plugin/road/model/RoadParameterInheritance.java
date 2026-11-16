@@ -127,6 +127,8 @@ public final class RoadParameterInheritance {
             || road.getBridgePierSpacingBlocks() == null
             || road.getBridgePierMaterial() == null
             || road.getBridgePierStyle() == null
+            || road.getBridgePierDiameterBlocks() == null
+            || road.getBridgePierOffsetBlocks() == null
             || road.getIncludeBridgeGuardrail() == null
             || road.getBridgeGuardrailMaterial() == null
             || road.getBridgeGuardrailHeightBlocks() == null) {

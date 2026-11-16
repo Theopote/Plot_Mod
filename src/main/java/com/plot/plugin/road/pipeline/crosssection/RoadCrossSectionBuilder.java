@@ -112,6 +112,10 @@ public final class RoadCrossSectionBuilder {
 
         com.plot.plugin.road.model.section.BridgePierStyle bridgePierStyle();
 
+        int bridgePierDiameterBlocks();
+
+        int bridgePierOffsetBlocks();
+
         boolean includeBridgeGuardrail();
 
         String bridgeGuardrailMaterial();
@@ -168,6 +172,16 @@ public final class RoadCrossSectionBuilder {
                 @Override
                 public com.plot.plugin.road.model.section.BridgePierStyle bridgePierStyle() {
                     return resolved.pierStyle();
+                }
+
+                @Override
+                public int bridgePierDiameterBlocks() {
+                    return resolved.pierDiameterBlocks();
+                }
+
+                @Override
+                public int bridgePierOffsetBlocks() {
+                    return resolved.pierOffsetBlocks();
                 }
 
                 @Override
@@ -334,7 +348,9 @@ public final class RoadCrossSectionBuilder {
             gradeSeparation,
             host.bridgePierSpacingBlocks(),
             host.bridgePierMaterial(),
-            host.bridgePierStyle());
+            host.bridgePierStyle(),
+            host.bridgePierDiameterBlocks(),
+            host.bridgePierOffsetBlocks());
     }
 
     private static void generateBridgeGuardrails(

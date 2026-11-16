@@ -56,8 +56,10 @@ public class RoadSystemConfig {
     private boolean generateBridgePillars = true;
     private double bridgePierSpacingBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
     private String bridgePierMaterial = "minecraft:stone_bricks";
-    /** {@link BridgePierStyle} name; blank → AUTO. */
-    private String bridgePierStyle = BridgePierStyle.AUTO.name();
+    /** {@link BridgePierStyle} name; blank → SINGLE. */
+    private String bridgePierStyle = BridgePierStyle.SINGLE.name();
+    private int bridgePierDiameterBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_DIAMETER_BLOCKS;
+    private int bridgePierOffsetBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_OFFSET_BLOCKS;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
     private int bridgeGuardrailHeightBlocks = RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS;
@@ -344,7 +346,25 @@ public class RoadSystemConfig {
     public void setBridgePierStyle(BridgePierStyle bridgePierStyle) {
         this.bridgePierStyle = bridgePierStyle != null
             ? bridgePierStyle.name()
-            : BridgePierStyle.AUTO.name();
+            : BridgePierStyle.SINGLE.name();
+    }
+
+    public int getBridgePierDiameterBlocks() {
+        return RoadParameterLimits.clampBridgePierDiameterStored(bridgePierDiameterBlocks);
+    }
+
+    public void setBridgePierDiameterBlocks(int bridgePierDiameterBlocks) {
+        this.bridgePierDiameterBlocks =
+            RoadParameterLimits.clampBridgePierDiameterStored(bridgePierDiameterBlocks);
+    }
+
+    public int getBridgePierOffsetBlocks() {
+        return RoadParameterLimits.clampBridgePierOffsetStored(bridgePierOffsetBlocks);
+    }
+
+    public void setBridgePierOffsetBlocks(int bridgePierOffsetBlocks) {
+        this.bridgePierOffsetBlocks =
+            RoadParameterLimits.clampBridgePierOffsetStored(bridgePierOffsetBlocks);
     }
 
     public boolean isIncludeBridgeGuardrail() {

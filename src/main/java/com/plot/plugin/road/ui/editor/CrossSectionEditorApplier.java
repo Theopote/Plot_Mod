@@ -50,6 +50,8 @@ public final class CrossSectionEditorApplier {
             && Objects.equals(a.getBridgePierSpacingBlocks(), b.getBridgePierSpacingBlocks())
             && Objects.equals(a.getBridgePierMaterial(), b.getBridgePierMaterial())
             && Objects.equals(a.getBridgePierStyle(), b.getBridgePierStyle())
+            && Objects.equals(a.getBridgePierDiameterBlocks(), b.getBridgePierDiameterBlocks())
+            && Objects.equals(a.getBridgePierOffsetBlocks(), b.getBridgePierOffsetBlocks())
             && Objects.equals(a.getIncludeBridgeGuardrail(), b.getIncludeBridgeGuardrail())
             && Objects.equals(a.getBridgeGuardrailMaterial(), b.getBridgeGuardrailMaterial())
             && Objects.equals(a.getBridgeGuardrailHeightBlocks(), b.getBridgeGuardrailHeightBlocks());
@@ -60,6 +62,8 @@ public final class CrossSectionEditorApplier {
         target.setBridgePierSpacingBlocks(source.getBridgePierSpacingBlocks());
         target.setBridgePierMaterial(source.getBridgePierMaterial());
         target.setBridgePierStyle(source.getBridgePierStyle());
+        target.setBridgePierDiameterBlocks(source.getBridgePierDiameterBlocks());
+        target.setBridgePierOffsetBlocks(source.getBridgePierOffsetBlocks());
         target.setIncludeBridgeGuardrail(source.getIncludeBridgeGuardrail());
         target.setBridgeGuardrailMaterial(source.getBridgeGuardrailMaterial());
         target.setBridgeGuardrailHeightBlocks(source.getBridgeGuardrailHeightBlocks());

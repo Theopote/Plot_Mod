@@ -144,7 +144,8 @@ public final class RoadCrossSectionEditor {
         return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
             previewSection,
             max,
-            hasOverrideBand ? min : -1f);
+            hasOverrideBand ? min : -1f,
+            com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.resolve(road, config));
     }
 
     /** 迷你预览：有可变断面时用道路中点桩号的解析结果，否则道路默认断面。 */

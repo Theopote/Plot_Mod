@@ -1935,9 +1935,9 @@
   "plugin.road.bridge_structure_batch_hint": "修改过的桥梁字段会作为显式值应用到所有选中道路。",
   "plugin.road.bridge_pier_spacing_label": "桥墩间距（格）",
   "plugin.road.bridge_pier_style_label": "桥墩柱列",
-  "plugin.road.bridge_pier_style.auto": "自动（按路面宽）",
+  "plugin.road.bridge_pier_style.auto": "单柱",
   "plugin.road.bridge_pier_style.single": "单柱",
-  "plugin.road.bridge_pier_style.multi": "多柱（中心+两侧）",
+  "plugin.road.bridge_pier_style.multi": "双柱",
   "plugin.road.bridge_pier_material": "桥墩材质",
   "plugin.road.bridge_guardrail_height_label": "护栏高度（格）",
   "plugin.road.bridge_guardrail_material": "桥梁护栏材质",
@@ -5096,5 +5096,12 @@
   "plugin.road.bridge_threshold_reset_style": "恢复风格默认",
   "plugin.road.bridge_threshold_reset_style.hint": "清除自定义，改用当前地形风格默认（%s 格）",
   "plugin.road.bridge_threshold_reset_inherit": "恢复继承",
-  "plugin.road.bridge_threshold_reset_inherit.hint": "清除本路覆盖，继承全局（当前 %s 格；风格表 %s 格）"
+  "plugin.road.bridge_threshold_reset_inherit.hint": "清除本路覆盖，继承全局（当前 %s 格；风格表 %s 格）",
+  "plugin.road.bridge_pier_style.double": "双柱",
+  "plugin.road.bridge_pier_diameter_label": "柱子直径 (格)",
+  "plugin.road.bridge_pier_offset_label": "双柱偏移 (格)",
+  "hint.plot.road.bridge_pier_diameter": "柱截面横向总宽度（1–4 格）；须与行车道宽同奇偶，且不超过行车道宽的一半。",
+  "hint.plot.road.bridge_pier_offset": "中心线到每根柱心的距离；当前柱间空隙 %s 格（与路宽同奇偶，且 ≥ 1）。",
+  "plugin.road.bridge_pier_diameter_locked": "当前行车道宽 %2$s 格时，同奇偶约束下直径只能是 %1$s 格。",
+  "plugin.road.bridge_pier_offset_locked": "当前直径下偏移只能是 %1$s 格（空隙 %2$s 格）。"
 }

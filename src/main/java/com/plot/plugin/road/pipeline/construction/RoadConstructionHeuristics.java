@@ -102,23 +102,9 @@ public final class RoadConstructionHeuristics {
     }
 
     public static RoadConstructionEvaluator.RoadConstructionScoreConfig constructionConfig(
-            RoadTerrainStyle style) {
-        RoadTerrainStyle effective = style != null ? style : RoadTerrainStyle.BALANCED;
-        return scoreConfig(bridgeThreshold(effective), tunnelThreshold(effective));
-    }
-
-    public static RoadConstructionEvaluator.RoadConstructionScoreConfig constructionConfig(
             RoadSystemConfig config) {
         RoadTerrainStyle style = config != null ? config.getTerrainStyle() : null;
         return scoreConfig(bridgeThreshold(config), tunnelThreshold(style));
-    }
-
-    public static RoadConstructionEvaluator.RoadConstructionScoreConfig constructionConfig(
-            Road road,
-            RoadSystemConfig config) {
-        return scoreConfig(
-            bridgeThreshold(road, config),
-            tunnelThreshold(road, config));
     }
 
     /**

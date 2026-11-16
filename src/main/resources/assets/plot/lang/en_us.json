@@ -2794,9 +2794,9 @@
   "plugin.road.bridge_structure_batch_hint": "Changed bridge fields are applied as explicit values to every selected road.",
   "plugin.road.bridge_pier_spacing_label": "Pier spacing (blocks)",
   "plugin.road.bridge_pier_style_label": "Pier layout",
-  "plugin.road.bridge_pier_style.auto": "Auto (by width)",
+  "plugin.road.bridge_pier_style.auto": "Single column",
   "plugin.road.bridge_pier_style.single": "Single column",
-  "plugin.road.bridge_pier_style.multi": "Multi column",
+  "plugin.road.bridge_pier_style.multi": "Double column",
   "plugin.road.bridge_pier_material": "Pier material",
   "plugin.road.bridge_guardrail_height_label": "Guardrail height (blocks)",
   "plugin.road.bridge_guardrail_material": "Bridge guardrail material",
@@ -5096,5 +5096,12 @@
   "plugin.road.bridge_threshold_reset_style": "Reset to style default",
   "plugin.road.bridge_threshold_reset_style.hint": "Clear the custom value and use the current terrain-style default (%s blocks)",
   "plugin.road.bridge_threshold_reset_inherit": "Reset to inherit",
-  "plugin.road.bridge_threshold_reset_inherit.hint": "Clear this road override and inherit the network default (now %s blocks; style table %s blocks)"
+  "plugin.road.bridge_threshold_reset_inherit.hint": "Clear this road override and inherit the network default (now %s blocks; style table %s blocks)",
+  "plugin.road.bridge_pier_style.double": "Double column",
+  "plugin.road.bridge_pier_diameter_label": "Pier diameter (blocks)",
+  "plugin.road.bridge_pier_offset_label": "Double-pier offset (blocks)",
+  "hint.plot.road.bridge_pier_diameter": "Lateral pier width (1–4 blocks); must match carriageway parity and stay within half the carriageway width.",
+  "hint.plot.road.bridge_pier_offset": "Distance from centerline to each pier center; current gap is %s blocks (same parity as carriageway, >= 1).",
+  "plugin.road.bridge_pier_diameter_locked": "With carriageway width %2$s, parity rules allow only diameter %1$s.",
+  "plugin.road.bridge_pier_offset_locked": "With the current diameter, offset can only be %1$s (gap %2$s)."
 }
