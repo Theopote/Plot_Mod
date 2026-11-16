@@ -6,6 +6,7 @@ import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -26,7 +27,9 @@ public final class BridgeStructureControls {
         if (config == null) {
             return;
         }
-        ImGui.textWrapped(PlotI18n.tr("plugin.road.bridge_structure_defaults_hint"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.bridge_structure_defaults_hint"));
         ImGui.spacing();
 
         ImBoolean pillars = new ImBoolean(config.isGenerateBridgePillars());
@@ -71,7 +74,9 @@ public final class BridgeStructureControls {
             config.setIncludeBridgeGuardrail(guardrail.get());
             markCustom(ctx, config);
         }
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
         if (guardrail.get()) {
             int[] height = {config.getBridgeGuardrailHeightBlocks()};
             if (ImGui.sliderInt(
@@ -112,7 +117,9 @@ public final class BridgeStructureControls {
         if (draft == null || onChanged == null) {
             return;
         }
-        ImGui.textWrapped(PlotI18n.tr("plugin.road.bridge_structure_batch_hint"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.bridge_structure_batch_hint"));
         ImGui.spacing();
 
         RoadNetworkManager.BatchEditDefaults current = draft;
@@ -193,7 +200,9 @@ public final class BridgeStructureControls {
                 current.bridgeGuardrailHeightBlocks());
             onChanged.accept(current);
         }
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
         if (current.includeBridgeGuardrail()) {
             int[] height = {current.bridgeGuardrailHeightBlocks()};
             if (ImGui.sliderInt(
@@ -239,9 +248,6 @@ public final class BridgeStructureControls {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ResolvedBridgeStructure resolved = ResolvedBridgeStructure.resolve(road, config);
 
-        ImGui.textWrapped(PlotI18n.tr("plugin.road.bridge_structure_road_hint"));
-        ImGui.spacing();
-
         renderBooleanOverride(
             ctx,
             road,
@@ -275,7 +281,9 @@ public final class BridgeStructureControls {
             road.getIncludeBridgeGuardrail(),
             resolved.includeGuardrail(),
             road::setIncludeBridgeGuardrail);
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
 
         if (resolved.includeGuardrail()) {
             renderHeightOverride(ctx, road, onHistory, config, resolved);

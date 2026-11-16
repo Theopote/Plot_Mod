@@ -25,7 +25,12 @@ public final class RoadUiWidgets {
 
     /** 当前内容区右边界，供 {@link ImGui#pushTextWrapPos(float)} 使用。 */
     public static float wrapPos() {
-        return ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
+        float avail = ImGui.getContentRegionAvailX();
+        // 页签/子窗口首帧 avail 常接近 0；中文会逐字折行并撑出假纵向滚动条。
+        // 预留滚动条宽度，避免「出现滚动条 → 更窄 → 更多折行」正反馈。
+        float usable = avail - ImGui.getStyle().getScrollbarSize();
+        float minWidth = ImGui.getFontSize() * 12f;
+        return ImGui.getCursorPosX() + Math.max(minWidth, usable);
     }
 
     public static void textWrapped(String text) {

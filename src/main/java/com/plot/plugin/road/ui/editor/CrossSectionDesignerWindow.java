@@ -77,63 +77,80 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         float startY = ImGui.getCursorPosY();
 
         // 先渲染右侧参数（写回 working road），再画左侧预览，保证同帧看到改参效果。
-        // 列高吃满内容区，只在右侧栏内滚动，避免外层再出一条滚动条。
+        // 外层固定标签栏；仅页签内容区滚动，避免滚动把标签一起带走。
         ImGui.setCursorPos(startX + columnWidth + spacing, startY);
-        ImGui.beginChild("##xs_params", columnWidth, columnHeight, true, 0);
+        ImGui.beginChild(
+            "##xs_params",
+            columnWidth,
+            columnHeight,
+            true,
+            ImGuiWindowFlags.NoScrollbar);
         CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(
             road,
             config,
             () -> { /* dirty tracked by session */ });
 
-        if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.None)) {
+        if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyResizeDown)) {
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.structure"),
                 ImGuiTabItemFlags.None)) {
+                beginParamsTabBody();
                 CrossSectionDraftEditor.renderCrossSection(
                     ctx,
                     mutator,
                     CrossSectionDraftEditorOptions.styleFloatingStructure());
+                endParamsTabBody();
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.sidewalks"),
                 ImGuiTabItemFlags.None)) {
+                beginParamsTabBody();
                 CrossSectionDraftEditor.renderCrossSection(
                     ctx,
                     mutator,
                     CrossSectionDraftEditorOptions.styleFloatingStrips());
+                endParamsTabBody();
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.slope"),
                 ImGuiTabItemFlags.None)) {
+                beginParamsTabBody();
                 CrossSectionDraftEditorOptions slopeOpts = new CrossSectionDraftEditorOptions(
                     "xs_slope", false, null, false, false, true, false, false);
                 CrossSectionDraftEditor.renderCrossSection(ctx, mutator, slopeOpts);
+                endParamsTabBody();
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.materials"),
                 ImGuiTabItemFlags.None)) {
+                beginParamsTabBody();
                 CrossSectionDraftEditor.renderMaterials(
                     ctx,
                     mutator,
                     CrossSectionDraftEditorOptions.styleBatch());
+                endParamsTabBody();
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.furniture"),
                 ImGuiTabItemFlags.None)) {
+                beginParamsTabBody();
                 CrossSectionDraftEditor.renderFurniture(
                     ctx,
                     mutator,
                     CrossSectionDraftEditorOptions.styleBatch());
+                endParamsTabBody();
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem(
                 PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.bridge"),
                 ImGuiTabItemFlags.None)) {
+                beginParamsTabBody();
                 BridgeStructureControls.renderRoadOverride(ctx, road, null);
+                endParamsTabBody();
                 ImGui.endTabItem();
             }
             ImGui.endTabBar();
@@ -161,6 +178,15 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             session.workingNetwork(),
             roadId,
             ctx.networkManager().getConfig());
+    }
+
+    /** 页签内容独立滚动区：高度 0 表示吃满标签栏下方剩余空间。 */
+    private static void beginParamsTabBody() {
+        ImGui.beginChild("##xs_tab_body", 0f, 0f, false);
+    }
+
+    private static void endParamsTabBody() {
+        ImGui.endChild();
     }
 
 }
