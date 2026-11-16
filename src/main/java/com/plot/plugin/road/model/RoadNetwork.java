@@ -1287,6 +1287,7 @@ public class RoadNetwork {
         String profileSource;
         Integer editedGeometrySignature;
         String terrainStyle;
+        Integer bridgeThreshold;
         TunnelStylePersistence tunnelStyle;
         Boolean generateBridgePillars;
         Double bridgePierSpacingBlocks;
@@ -1410,6 +1411,7 @@ public class RoadNetwork {
                 if (road.getStoredTerrainStyle() != null) {
                     roadData.terrainStyle = road.getStoredTerrainStyle().name();
                 }
+                roadData.bridgeThreshold = road.getBridgeThreshold();
                 roadData.tunnelStyle = TunnelStylePersistence.from(road.getStoredTunnelStyle());
                 roadData.generateBridgePillars = road.getGenerateBridgePillars();
                 roadData.bridgePierSpacingBlocks = road.getBridgePierSpacingBlocks();
@@ -1554,6 +1556,7 @@ public class RoadNetwork {
                         road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
                             .fromStored(roadData.terrainStyle));
                     }
+                    road.setBridgeThreshold(roadData.bridgeThreshold);
                     road.setTunnelStyle(TunnelStylePersistence.fromData(roadData.tunnelStyle));
                     road.setGenerateBridgePillars(roadData.generateBridgePillars);
                     road.setBridgePierSpacingBlocks(roadData.bridgePierSpacingBlocks);

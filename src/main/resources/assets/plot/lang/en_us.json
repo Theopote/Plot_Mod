@@ -498,7 +498,7 @@
   "hint.plot.powerline.undo_project": "Undo line and tower design edits\nDoes not undo placed blocks",
   "hint.plot.powerline.undo_world": "Undo the most recent power line build in the world (restores modified blocks).",
   "hint.plot.road.batch_station_mapping": "Proportional scales by valid source/target lengths; either side at length 0 skips that target. Absolute keeps values and drops/clamps past the end. Overlapping stations are dropped, never silently nudged.",
-  "hint.plot.road.bridge_threshold": "When the road surface is higher than the ground by more than this many blocks, a bridge is generated instead of filling terrain.",
+  "hint.plot.road.bridge_threshold": "When the road surface is higher than the ground by more than this many blocks, prefer a bridge instead of open fill. Reset to follow the terrain-style default.",
   "hint.plot.road.chainage_display_mode": "Show distance from the road end instead of the start. Does not reverse design direction.",
   "hint.plot.road.cut_slope_ratio": "Horizontal run per 1 block of vertical rise when cutting a slope beside the shoulder. Accepts percent or 1:n ratio input.",
   "hint.plot.road.default_corner_radius": "Default curb corner radius for junctions without a per-node override.",
@@ -2583,7 +2583,7 @@
   "plugin.road.batch_slope_preview_summary": "Batter: fill 1:%s · cut 1:%s",
   "plugin.road.bike_lane_width": "Bike lane width %d",
   "plugin.road.bridge_count_result": "Bridge segments: %d, pillars: %d",
-  "plugin.road.bridge_threshold": "Bridge Threshold: %s blocks",
+  "plugin.road.bridge_threshold": "Bridge threshold: %s blocks",
   "plugin.road.build": "Build",
   "plugin.road.build.advanced_generation": "Advanced generation settings",
   "plugin.road.build.compact_summary": "%d blocks · %d bridges · %d tunnels · %d streetlights",
@@ -5091,5 +5091,10 @@
   "trim.plot.state.selecting_targets": "Selecting targets",
   "trim.plot.state.selecting_targets.desc": "Left-click shapes to trim; right-click to finish selection",
   "trim.plot.state.waiting_trim": "Waiting to trim",
-  "trim.plot.state.waiting_trim.desc": "Left-click the side of the shape to trim"
+  "trim.plot.state.waiting_trim.desc": "Left-click the side of the shape to trim",
+  "plugin.road.bridge_threshold_label": "Bridge threshold",
+  "plugin.road.bridge_threshold_reset_style": "Reset to style default",
+  "plugin.road.bridge_threshold_reset_style.hint": "Clear the custom value and use the current terrain-style default (%s blocks)",
+  "plugin.road.bridge_threshold_reset_inherit": "Reset to inherit",
+  "plugin.road.bridge_threshold_reset_inherit.hint": "Clear this road override and inherit the network default (now %s blocks; style table %s blocks)"
 }

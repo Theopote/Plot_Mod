@@ -134,7 +134,9 @@ public final class RoadGenerationPipeline {
                 public int worldZ(com.plot.api.geometry.Vec2d planPoint) {
                     return host.canvasToBlockPos(planPoint).getZ();
                 }
-            }, ctx.unitsPerBlock());
+            },
+            ctx.unitsPerBlock(),
+            request.bridgeThreshold());
         detection = WaterCrossingConstructionResolver.apply(
             detection,
             request.profileWaterCrossings(),
@@ -156,7 +158,10 @@ public final class RoadGenerationPipeline {
                 model.clear();
             });
             var planHost = RoadCorridorPlanBuilder.PlanHost.from(
-                host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
+                host,
+                ctx.request().terrainStyle(),
+                ctx.request().tunnelStyle(),
+                ctx.request().bridgeThreshold());
             long stageStarted = System.nanoTime();
             var plan = RoadCorridorPlanBuilder.build(ctx, host);
             ctx.setCorridorPlan(plan);

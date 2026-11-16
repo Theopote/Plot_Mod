@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
@@ -65,6 +66,10 @@ public class Road {
     private ProfileSource profileSource;
     private int editedGeometrySignature;
     private RoadTerrainStyle terrainStyle;
+    /**
+     * 架桥净高阈值（格）；{@code null} 表示继承全局配置（再无则用地形风格表）。
+     */
+    private Integer bridgeThreshold;
     /** {@code null} 表示继承全局 {@link com.plot.plugin.config.RoadSystemConfig}。 */
     private TunnelStyle tunnelStyle;
     /** {@code null} 表示继承全局默认。 */
@@ -140,6 +145,7 @@ public class Road {
         }
         crossSection.applyDefaults(defaults);
         maxSlope = defaults.getMaxSlope();
+        bridgeThreshold = defaults.getBridgeThreshold();
         generateBridgePillars = defaults.isGenerateBridgePillars();
         bridgePierSpacingBlocks = defaults.getBridgePierSpacingBlocks();
         bridgePierMaterial = defaults.getBridgePierMaterial();
@@ -156,6 +162,7 @@ public class Road {
         styleId = null;
         themeId = null;
         terrainStyle = null;
+        bridgeThreshold = null;
         tunnelStyle = null;
         generateBridgePillars = null;
         bridgePierSpacingBlocks = null;
@@ -584,6 +591,19 @@ public class Road {
         this.terrainStyle = terrainStyle;
     }
 
+    /** 持久化字段；{@code null} 表示继承全局架桥净高阈值 / 地形风格表。 */
+    public Integer getBridgeThreshold() {
+        return bridgeThreshold;
+    }
+
+    public void setBridgeThreshold(Integer bridgeThreshold) {
+        this.bridgeThreshold = RoadParameterLimits.clampBridgeThresholdNullable(bridgeThreshold);
+    }
+
+    public int getEffectiveBridgeThreshold(RoadSystemConfig defaults) {
+        return RoadConstructionHeuristics.bridgeThreshold(this, defaults);
+    }
+
     public ResolvedTunnelStyle getResolvedTunnelStyle(RoadSystemConfig config) {
         return TunnelStyle.resolve(this, config);
     }
@@ -900,6 +920,7 @@ public class Road {
         copy.profileSource = profileSource;
         copy.editedGeometrySignature = editedGeometrySignature;
         copy.terrainStyle = terrainStyle;
+        copy.bridgeThreshold = bridgeThreshold;
         copy.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
         copy.generateBridgePillars = generateBridgePillars;
         copy.bridgePierSpacingBlocks = bridgePierSpacingBlocks;
@@ -924,6 +945,7 @@ public class Road {
         styleId = source.styleId;
         themeId = source.themeId;
         terrainStyle = source.terrainStyle;
+        bridgeThreshold = source.bridgeThreshold;
         tunnelStyle = source.tunnelStyle != null ? source.tunnelStyle.copy() : null;
         generateBridgePillars = source.generateBridgePillars;
         bridgePierSpacingBlocks = source.bridgePierSpacingBlocks;

@@ -1,7 +1,9 @@
 package com.plot.plugin.road.pipeline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
@@ -35,6 +37,7 @@ public record RoadGenerationBuildRequest(
         RoadTerrainStyle terrainStyle,
         ResolvedTunnelStyle tunnelStyle,
         ResolvedBridgeStructure bridgeStructure,
+        int bridgeThreshold,
         JunctionCorridorBuildContext junctionCorridor,
         GradeSeparationBuildContext gradeSeparation) {
 
@@ -66,38 +69,11 @@ public record RoadGenerationBuildRequest(
         if (bridgeStructure == null) {
             bridgeStructure = ResolvedBridgeStructure.defaults();
         }
-    }
-
-    public RoadGenerationBuildRequest(
-            List<Vec2d> pathPoints,
-            TerrainSampler terrain,
-            ResolvedCrossSection crossSection,
-            CrossSectionBuildContext crossSections,
-            List<SegmentHeightInfo> heightInfos,
-            double pathLength,
-            EndpointElevationSnaps endpointSnaps,
-            String carriagewaySeedKey,
-            StationFacilityBuildContext stationFacilities,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        this(
-            pathPoints,
-            terrain,
-            crossSection,
-            crossSections,
-            heightInfos,
-            pathLength,
-            endpointSnaps,
-            carriagewaySeedKey,
-            stationFacilities,
-            designElevation,
-            buildProfile,
-            List.of(),
-            null,
-            null,
-            null,
-            null,
-            null);
+        if (bridgeThreshold < RoadParameterLimits.MIN_BRIDGE_THRESHOLD) {
+            bridgeThreshold = RoadConstructionHeuristics.bridgeThreshold(terrainStyle);
+        } else {
+            bridgeThreshold = RoadParameterLimits.clampBridgeThreshold(bridgeThreshold);
+        }
     }
 
     public RoadGenerationBuildRequest(
@@ -126,6 +102,7 @@ public record RoadGenerationBuildRequest(
             null,
             null,
             null,
+            0,
             null,
             null);
     }

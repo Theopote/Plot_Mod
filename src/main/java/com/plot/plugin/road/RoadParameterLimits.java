@@ -26,6 +26,8 @@ public final class RoadParameterLimits {
     public static final int MAX_STREETLIGHT_SPACING = 50;
     public static final int MIN_BRIDGE_THRESHOLD = 1;
     public static final int MAX_BRIDGE_THRESHOLD = 20;
+    /** 与 {@link com.plot.plugin.road.terrain.RoadTerrainStyle#BALANCED} 风格表一致。 */
+    public static final int DEFAULT_BRIDGE_THRESHOLD = 3;
     public static final int MIN_TUNNEL_THRESHOLD = 1;
     public static final int MAX_TUNNEL_THRESHOLD = 30;
     public static final double MIN_PATH_SAMPLE_DISTANCE = 0.5;
@@ -132,6 +134,17 @@ public final class RoadParameterLimits {
             return null;
         }
         return clampBridgeGuardrailHeightBlocks(blocks);
+    }
+
+    public static int clampBridgeThreshold(int blocks) {
+        return Math.clamp(blocks, MIN_BRIDGE_THRESHOLD, MAX_BRIDGE_THRESHOLD);
+    }
+
+    public static Integer clampBridgeThresholdNullable(Integer blocks) {
+        if (blocks == null) {
+            return null;
+        }
+        return clampBridgeThreshold(blocks);
     }
 
 }

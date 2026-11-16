@@ -120,6 +120,8 @@ public final class RoadEdgeBuildOrchestrator {
             com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure bridgeStructure =
                 com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.resolve(
                     road, host.config());
+            int bridgeThreshold = com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics
+                .bridgeThreshold(road, host.config());
             double unitsPerBlock = host.estimateCanvasUnitsPerBlock(pathPoints, segments);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
@@ -146,6 +148,7 @@ public final class RoadEdgeBuildOrchestrator {
                 terrainStyle,
                 tunnelStyle,
                 bridgeStructure,
+                bridgeThreshold,
                 JunctionCorridorTrim.forEdge(
                     network, edge, crossSection, host.config(), unitsPerBlock, host.coordinateTransformer()),
                 GradeSeparationBuildContextFactory.forEdge(
@@ -188,6 +191,7 @@ public final class RoadEdgeBuildOrchestrator {
             null,
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
             com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.fromConfig(host.config()),
+            com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.bridgeThreshold(host.config()),
             com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext.NONE,
             GradeSeparationBuildContext.NONE,
             host);
@@ -211,6 +215,7 @@ public final class RoadEdgeBuildOrchestrator {
             RoadTerrainStyle terrainStyle,
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle,
             com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure bridgeStructure,
+            int bridgeThreshold,
             com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext junctionCorridor,
             GradeSeparationBuildContext gradeSeparation,
             RoadGenerationPipelineHost host) {
@@ -231,6 +236,7 @@ public final class RoadEdgeBuildOrchestrator {
                 terrainStyle,
                 tunnelStyle,
                 bridgeStructure,
+                bridgeThreshold,
                 junctionCorridor,
                 gradeSeparation),
             host);

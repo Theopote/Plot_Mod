@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import org.junit.jupiter.api.Test;
@@ -146,6 +147,32 @@ class RoadInheritanceTest {
         road.inheritAllDefaults();
         assertNull(road.getStoredTunnelStyle());
         assertEquals(TunnelShape.RECTANGULAR, road.getResolvedTunnelStyle(config).shape());
+    }
+
+    @Test
+    void bridgeThresholdOverrideInheritAndSerialize() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setTerrainStyle(RoadTerrainStyle.BALANCED);
+        config.setBridgeThreshold(5);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("bridge-threshold-road");
+        assertNull(road.getBridgeThreshold());
+        assertEquals(5, road.getEffectiveBridgeThreshold(config));
+
+        road.setBridgeThreshold(11);
+        assertEquals(11, road.getEffectiveBridgeThreshold(config));
+
+        Road loaded = RoadNetwork.parseSnapshot(network.toJson()).getRoad("bridge-threshold-road");
+        assertEquals(11, loaded.getBridgeThreshold());
+        assertEquals(11, loaded.getEffectiveBridgeThreshold(config));
+
+        loaded.inheritAllDefaults();
+        assertNull(loaded.getBridgeThreshold());
+        assertEquals(5, loaded.getEffectiveBridgeThreshold(config));
+
+        config.setBridgeThreshold(null);
+        assertEquals(3, loaded.getEffectiveBridgeThreshold(config));
     }
 
     @Test

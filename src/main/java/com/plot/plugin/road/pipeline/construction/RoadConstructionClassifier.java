@@ -65,6 +65,32 @@ public final class RoadConstructionClassifier {
             RoadTerrainStyle terrainStyle, CanvasBlockPosResolver canvasToBlockPos,
             int gradingEnvelopeWidth, ResolvedTunnelStyle tunnelStyle,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver, double unitsPerBlock) {
+        return classify(
+            segments,
+            heightInfos,
+            terrain,
+            config,
+            terrainStyle,
+            canvasToBlockPos,
+            gradingEnvelopeWidth,
+            tunnelStyle,
+            columnResolver,
+            unitsPerBlock,
+            RoadConstructionHeuristics.bridgeThreshold(terrainStyle, config, null));
+    }
+
+    public static ConstructionDetection classify(
+            List<com.plot.plugin.road.pipeline.geometry.PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            TerrainSampler terrain,
+            RoadSystemConfig config,
+            RoadTerrainStyle terrainStyle,
+            CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth,
+            ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            int bridgeThreshold) {
         List<Double> segmentDistances = new ArrayList<>();
         List<Integer> groundHeights = new ArrayList<>();
         List<Integer> targetHeights = new ArrayList<>();
@@ -76,9 +102,8 @@ public final class RoadConstructionClassifier {
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
         }
 
-        RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig = terrainStyle != null
-            ? RoadConstructionHeuristics.constructionConfig(terrainStyle)
-            : RoadConstructionEvaluator.RoadConstructionScoreConfig.from(config);
+        RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig =
+            RoadConstructionHeuristics.constructionConfig(terrainStyle, config, bridgeThreshold);
         List<RoadConstructionType> constructionTypes = RoadConstructionEvaluator.evaluatePath(
             segmentDistances,
             groundHeights,

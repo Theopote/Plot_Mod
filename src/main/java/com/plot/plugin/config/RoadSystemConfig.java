@@ -48,6 +48,11 @@ public class RoadSystemConfig {
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private RoadTerrainStyle terrainStyle = RoadTerrainStyle.BALANCED;
+    /**
+     * 架桥净高阈值（格）；{@code null} 表示跟随当前地形风格表。
+     * 路面相对地面高差超过该值时，施工分类更倾向桥梁而非开敞填方。
+     */
+    private Integer bridgeThreshold;
     private boolean generateBridgePillars = true;
     private double bridgePierSpacingBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
     private String bridgePierMaterial = "minecraft:stone_bricks";
@@ -292,6 +297,17 @@ public class RoadSystemConfig {
 
     public void setTerrainStyle(RoadTerrainStyle terrainStyle) {
         this.terrainStyle = terrainStyle != null ? terrainStyle : RoadTerrainStyle.BALANCED;
+    }
+
+    /**
+     * 持久化字段；{@code null} 表示使用地形风格默认架桥净高阈值。
+     */
+    public Integer getBridgeThreshold() {
+        return RoadParameterLimits.clampBridgeThresholdNullable(bridgeThreshold);
+    }
+
+    public void setBridgeThreshold(Integer bridgeThreshold) {
+        this.bridgeThreshold = RoadParameterLimits.clampBridgeThresholdNullable(bridgeThreshold);
     }
 
     public boolean isGenerateBridgePillars() {
@@ -620,6 +636,7 @@ public class RoadSystemConfig {
         return java.util.Objects.hash(
             maxSlope,
             terrainStyle,
+            bridgeThreshold,
             pathSampleDistance,
             getTunnelStyle());
     }

@@ -458,53 +458,6 @@ public final class CrossSectionDraft {
         return draft;
     }
 
-    public void applyToRoad(Road road) {
-        if (road == null) {
-            return;
-        }
-        road.setWidth(width);
-        road.setLaneCount(laneCount);
-        road.getCrossSection().getCarriageway().syncLaneCount(laneCount);
-        for (int i = 0; i < laneCount; i++) {
-            if (i < laneWidths.size() && laneWidths.get(i) > 0) {
-                road.getCrossSection().getCarriageway().setLaneWidthAt(i, laneWidths.get(i));
-            }
-        }
-        road.setMaterial(material);
-        road.setIncludeShoulder(includeShoulder);
-        if (includeShoulder) {
-            road.setShoulderWidth(shoulderWidth);
-        }
-        road.setIncludeSidewalk(includeSidewalk);
-        if (includeSidewalk) {
-            road.setSidewalkWidth(sidewalkWidth);
-            road.setSidewalkMaterial(sidewalkMaterial);
-        }
-        road.setIncludeBikeLane(includeBikeLane);
-        if (includeBikeLane) {
-            road.setBikeLaneWidth(bikeLaneWidth);
-        }
-        road.setIncludeMedian(includeMedian);
-        if (includeMedian) {
-            road.setMedianWidth(medianWidth);
-        }
-        road.setStreetlightSpacing(streetlightSpacing);
-        road.setLaneDividers(laneDividers);
-        road.setCenterLineStyle(centerLineStyle);
-        road.setMarkingMaterial(markingMaterial);
-        road.setRoadsideEdgeMode(roadsideEdgeMode);
-        if (includeSlopeBatter()) {
-            road.setFillSlopeRatio(fillSlopeRatio);
-            road.setCutSlopeRatio(cutSlopeRatio);
-            road.setFillSlopeMaterial(fillSlopeMaterial);
-            road.setCutSlopeMaterial(cutSlopeMaterial);
-        }
-        if (includeRetainingWall()) {
-            road.setRetainingWallMaterial(retainingWallMaterial);
-        }
-        road.setMaxSlope(maxSlope);
-    }
-
     public int width() {
         return width;
     }

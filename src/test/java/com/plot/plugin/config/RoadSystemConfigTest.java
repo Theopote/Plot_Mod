@@ -48,6 +48,7 @@ class RoadSystemConfigTest {
         config.setIncludeBridgeGuardrail(true);
         config.setBridgeGuardrailMaterial("minecraft:dark_oak_fence");
         config.setBridgeGuardrailHeightBlocks(3);
+        config.setBridgeThreshold(7);
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setTunnelLiningMaterial("minecraft:deepslate_bricks");
         config.setTunnelAccentMaterial("minecraft:polished_andesite");
@@ -69,6 +70,7 @@ class RoadSystemConfigTest {
         assertTrue(loaded.isIncludeBridgeGuardrail());
         assertEquals("minecraft:dark_oak_fence", loaded.getBridgeGuardrailMaterial());
         assertEquals(3, loaded.getBridgeGuardrailHeightBlocks());
+        assertEquals(7, loaded.getBridgeThreshold());
         assertEquals(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW, loaded.getTerrainStyle());
         assertEquals("minecraft:deepslate_bricks", loaded.getTunnelLiningMaterial());
         assertEquals("minecraft:polished_andesite", loaded.getTunnelAccentMaterial());

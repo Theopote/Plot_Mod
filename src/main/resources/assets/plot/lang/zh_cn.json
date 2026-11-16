@@ -4819,7 +4819,7 @@
   "status.plot.building.pick_footprint_right_click_multi": "已选多个轮廓，右键确认",
   "status.plot.building.pick_footprint_no_valid": "当前选择不是有效建筑轮廓",
   "plugin.road.cross_section_grade_range": "纵坡 %s–%s",
-  "hint.plot.road.bridge_threshold": "When the road surface is higher than the ground by more than this many blocks, a bridge is generated instead of filling terrain.",
+  "hint.plot.road.bridge_threshold": "路面高于地面超过该格数时，优先判为桥梁而非开敞填方。留空/恢复后跟随地形风格默认。",
   "hint.plot.road.chainage_display_mode": "Show distance from the road end instead of the start. Does not reverse design direction.",
   "hint.plot.road.cut_slope_ratio": "Horizontal run per 1 block of vertical rise when cutting a slope beside the shoulder. Accepts percent or 1:n ratio input.",
   "hint.plot.road.fill_factor": "Profile guide-line balance factor (not the earthwork fill factor). Values above 1.0 bias toward lower target grades to limit excess fill.",
@@ -4878,7 +4878,7 @@
   "plugin.road.batch_edit": "Batch Edit",
   "plugin.road.batch_edit_hint": "Apply these cross-section values to %d selected road(s)",
   "plugin.road.bridge_count_result": "Bridge segments: %d, pillars: %d",
-  "plugin.road.bridge_threshold": "Bridge Threshold: %s blocks",
+  "plugin.road.bridge_threshold": "架桥净高阈值：%s 格",
   "plugin.road.build.advanced_generation": "Advanced generation settings",
   "plugin.road.build.terrain_adaptation": "Terrain adaptation",
   "plugin.road.build.terrain_adaptation_hint": "Controls profile and bridge/tunnel aggressiveness. Recalculate preview after changes.",
@@ -5091,5 +5091,10 @@
   "plugin.road.vertical_mode_manual_profile_generate_hint": "Manual profile is active. Use Edit Profile to adjust PVIs; terrain style and slope presets apply on recalculate.",
   "plugin.road.vertical_path_manual_profile_hint": "Manual profile PVIs are edited in the profile editor (Generate tab → Edit Profile).",
   "plugin.road.vertical_strategy_flat_generate_hint": "Flat roads only allow junction elevation edits; drag intersection markers in the profile chart below.",
-  "preset.road.city_secondary": "Urban Secondary Road"
+  "preset.road.city_secondary": "Urban Secondary Road",
+  "plugin.road.bridge_threshold_label": "架桥净高阈值",
+  "plugin.road.bridge_threshold_reset_style": "恢复风格默认",
+  "plugin.road.bridge_threshold_reset_style.hint": "清除自定义，改用当前地形风格默认（%s 格）",
+  "plugin.road.bridge_threshold_reset_inherit": "恢复继承",
+  "plugin.road.bridge_threshold_reset_inherit.hint": "清除本路覆盖，继承全局（当前 %s 格；风格表 %s 格）"
 }

@@ -6,6 +6,7 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
@@ -55,7 +56,10 @@ public final class RoadCorridorPlanBuilder {
 
     public static RoadCorridorPlan build(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
         PlanHost planHost = PlanHost.from(
-            host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
+            host,
+            ctx.request().terrainStyle(),
+            ctx.request().tunnelStyle(),
+            ctx.request().bridgeThreshold());
         RoadCorridorPlan plan = build(
             ctx.segments(),
             ctx.heightInfos(),
@@ -1571,6 +1575,14 @@ public final class RoadCorridorPlanBuilder {
                 RoadGenerationPipelineContext.Host host,
                 RoadTerrainStyle terrainStyle,
                 ResolvedTunnelStyle tunnelStyle) {
+            return from(host, terrainStyle, tunnelStyle, 0);
+        }
+
+        static PlanHost from(
+                RoadGenerationPipelineContext.Host host,
+                RoadTerrainStyle terrainStyle,
+                ResolvedTunnelStyle tunnelStyle,
+                int bridgeThreshold) {
             RoadTerrainClearanceUtils.BlockColumnResolver resolver =
                 new RoadTerrainClearanceUtils.BlockColumnResolver() {
                     @Override
@@ -1586,6 +1598,9 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold = terrainStyle != null
                 ? RoadConstructionHeuristics.tunnelThreshold(terrainStyle)
                 : RoadConstructionHeuristics.tunnelThreshold(host.config());
+            int resolvedBridgeThreshold = bridgeThreshold >= RoadParameterLimits.MIN_BRIDGE_THRESHOLD
+                ? RoadParameterLimits.clampBridgeThreshold(bridgeThreshold)
+                : RoadConstructionHeuristics.bridgeThreshold(terrainStyle, host.config(), null);
             var coordinates = host.coordinateTransformer();
             var projection = coordinates != null ? coordinates.captureProjection() : null;
             return new PlanHost() {
@@ -1641,7 +1656,7 @@ public final class RoadCorridorPlanBuilder {
 
                 @Override
                 public int bridgeThreshold() {
-                    return host.bridgeThreshold();
+                    return resolvedBridgeThreshold;
                 }
 
                 @Override

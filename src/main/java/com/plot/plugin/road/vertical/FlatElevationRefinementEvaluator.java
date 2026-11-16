@@ -140,7 +140,12 @@ final class FlatElevationRefinementEvaluator {
             terrain,
             config,
             road.getEffectiveTerrainStyle(config),
-            CANVAS_RESOLVER);
+            CANVAS_RESOLVER,
+            0,
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
+            null,
+            1.0,
+            road.getEffectiveBridgeThreshold(config));
         return FlatElevationConstructionMetrics.aggregate(detection, solved.heightInfos());
     }
 }
