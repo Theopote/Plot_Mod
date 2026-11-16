@@ -259,12 +259,16 @@ public final class RoadCrossSectionPreviewRenderer {
             float fillRun = layout.includeSlopeBatter ? (float) Math.ceil(3 * Math.max(0, layout.fillSlopeRatio)) : 0;
             float cutRun = layout.includeSlopeBatter && options.drawCutSlope
                 ? (float) Math.ceil(3 * Math.max(0, layout.cutSlopeRatio)) : 0;
-            float availableWidth = Math.max(1f, width - padding * 2f);
-            float scale = Math.min(availableWidth / (totalBlocks + fillRun + cutRun),
-                Math.max(1f, height - padding * 2f) / 7f);
             // 填/挖竖直示意高度必须是整格，避免坡面落在半格上。
             int fillRiseCells = 3;
             int cutRiseCells = cutRun > 0 ? (options.compactSlopes ? 2 : 3) : 0;
+            // 顶留白 1 格 + 挖方 + 路面 2 格 + 填方，按此分配竖直缩放，避免裁切。
+            int verticalCells = 1 + cutRiseCells + 2 + fillRiseCells;
+            float availableWidth = Math.max(1f, width - padding * 2f);
+            float availableHeight = Math.max(1f, height - padding * 2f);
+            float scale = Math.min(
+                availableWidth / (totalBlocks + fillRun + cutRun),
+                availableHeight / Math.max(1, verticalCells));
             float fillVert = fillRiseCells * scale;
             float cutHeadroom = cutRiseCells * scale;
             float deckY = y0 + padding + scale + cutHeadroom;
@@ -460,10 +464,21 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         if (drawLabel) {
-            String label = SlopeFormatUtils.formatRatio(slopeRatio);
+            String label = cutSlope
+                ? PlotI18n.tr("plugin.road.preview.cut_batter", SlopeFormatUtils.formatRatio(slopeRatio))
+                : PlotI18n.tr("plugin.road.preview.fill_batter", SlopeFormatUtils.formatRatio(slopeRatio));
             float endX = edgeX + dirX * columns * cell;
-            float labelX = horizontalRun < 0f ? endX + 2f : edgeX + 2f;
-            drawList.addText(labelX, attachY + 2f, COLOR_LABEL, label);
+            float spanLeft = Math.min(edgeX, endX);
+            float spanRight = Math.max(edgeX, endX);
+            float labelWidth = ImGui.calcTextSize(label).x;
+            float labelX = spanLeft + 2f;
+            if (labelX + labelWidth > spanRight) {
+                labelX = Math.max(spanLeft, spanRight - labelWidth);
+            }
+            float labelY = cutSlope
+                ? (attachY + groundY) * 0.5f - ImGui.getTextLineHeight() * 0.5f
+                : attachY + Math.max(2f, cell * 0.2f);
+            drawList.addText(labelX, labelY, COLOR_LABEL, label);
         }
     }
 
@@ -539,9 +554,9 @@ public final class RoadCrossSectionPreviewRenderer {
             return new MiniRenderOptions(8f, true, true, false, true, 0.28f, 0.22f, 0.72f);
         }
 
-        /** 预设卡片：短挖方三角，边坡外扩压到卡片内。 */
+        /** 预设卡片：挖/填均为三层整格，标注坡比；外扩压到卡片内。 */
         public static MiniRenderOptions presetCard() {
-            return new MiniRenderOptions(2f, false, false, true, true, 0.06f, 0.42f, 0.72f);
+            return new MiniRenderOptions(4f, false, true, false, true, 0.06f, 0.42f, 0.72f);
         }
     }
 
@@ -760,7 +775,7 @@ public final class RoadCrossSectionPreviewRenderer {
     }
 
     /**
-     * 预览色：先匹配黑/灰/白/青等具体混凝土，再回退到泛化材质族。
+     * 预览色：先匹配具体方块/染色混凝土，再回退到材质族，保证不同材质在卡片上可辨。
      * 同时扫原始材质 key 与解析后的 block id，避免别名落到石头色。
      */
     static int colorForMaterial(String material, int fallback) {
@@ -769,11 +784,15 @@ public final class RoadCrossSectionPreviewRenderer {
         }
         String blockId = RoadMaterialUtils.resolveBlockId(material);
         String id = ((blockId != null ? blockId : "") + " " + material).toLowerCase();
-        if (id.contains("blackstone") || id.contains("black_") || id.contains("asphalt")) {
+        if (id.contains("blackstone") || id.contains("asphalt")
+            || id.contains("black_concrete") || id.contains("black_wool")) {
             return 0xFF3A3A3A;
         }
         if (id.contains("gray_concrete") || id.contains("grey_concrete")) {
             return 0xFF6E6E6E;
+        }
+        if (id.contains("light_gray_concrete") || id.contains("light_grey_concrete")) {
+            return 0xFFA8A8A8;
         }
         if (id.contains("white_") || id.contains("quartz")) {
             return 0xFFD8D8D8;
@@ -787,30 +806,95 @@ public final class RoadCrossSectionPreviewRenderer {
         if (id.contains("yellow_") || id.contains("glowstone") || id.contains("gold")) {
             return 0xFFE0C040;
         }
+        if (id.contains("orange_")) {
+            return 0xFFD07830;
+        }
+        if (id.contains("red_sandstone") || id.contains("red_sand")) {
+            return 0xFFC07040;
+        }
+        if (id.contains("red_") || id.contains("netherrack") || id.contains("magma")) {
+            return 0xFFA04038;
+        }
         if (id.contains("blue_")) {
             return 0xFF3A6EC8;
+        }
+        if (id.contains("purple_") || id.contains("magenta_")) {
+            return 0xFF8A4CB8;
+        }
+        if (id.contains("pink_")) {
+            return 0xFFE090B0;
+        }
+        if (id.contains("brown_")) {
+            return 0xFF8A6040;
+        }
+        if (id.contains("lime_") || id.contains("green_concrete") || id.contains("green_wool")) {
+            return 0xFF5AA848;
         }
         if (id.contains("concrete")) {
             return 0xFFB0B0B0;
         }
-        if (id.contains("grass") || id.contains("moss") || id.contains("green")) {
+        if (id.contains("grass") || id.contains("moss")) {
             return 0xFF6FA856;
         }
-        if (id.contains("dirt_path") || id.contains("gravel") || id.contains("sand")
-            || id.contains("dirt") || id.contains("mud")) {
+        if (id.contains("dirt_path")) {
+            return 0xFFC4A46A;
+        }
+        if (id.contains("coarse_dirt") || id.contains("rooted_dirt")) {
+            return 0xFF8B6A45;
+        }
+        if (id.contains("podzol") || id.contains("mud")) {
+            return 0xFF6B4E32;
+        }
+        if (id.contains("gravel")) {
+            return 0xFF9A9A90;
+        }
+        if (id.contains("smooth_sandstone") || id.contains("sandstone") || id.contains("sand")) {
+            return 0xFFD8C078;
+        }
+        if (id.contains("dirt")) {
             return 0xFFB8A070;
         }
-        if (id.contains("snow") || id.contains("ice")) {
-            return 0xFFD0E8F0;
+        if (id.contains("snow")) {
+            return 0xFFE8F0F4;
         }
-        if (id.contains("brick") || id.contains("terracotta") || id.contains("plank")) {
+        if (id.contains("packed_ice") || id.contains("blue_ice")) {
+            return 0xFF78B8E0;
+        }
+        if (id.contains("ice")) {
+            return 0xFFB0D8E8;
+        }
+        if (id.contains("brick") || id.contains("terracotta") || id.contains("plank")
+            || id.contains("oak") || id.contains("spruce") || id.contains("birch")) {
             return 0xFF9A5A40;
         }
-        if (id.contains("stone") || id.contains("cobble") || id.contains("andesite")
-            || id.contains("deepslate") || id.contains("basalt")) {
-            return 0xFF808080;
+        if (id.contains("cobbled_deepslate") || id.contains("polished_deepslate")) {
+            return 0xFF4A4A52;
         }
-        if (id.contains("iron")) {
+        if (id.contains("deepslate")) {
+            return 0xFF3A3A42;
+        }
+        if (id.contains("polished_andesite") || id.contains("andesite")) {
+            return 0xFF8A8A82;
+        }
+        if (id.contains("diorite")) {
+            return 0xFFC8C8C0;
+        }
+        if (id.contains("granite")) {
+            return 0xFFA07058;
+        }
+        if (id.contains("basalt")) {
+            return 0xFF4A4A4E;
+        }
+        if (id.contains("cobble")) {
+            return 0xFF7A7A72;
+        }
+        if (id.contains("stone_bricks") || id.contains("stone_brick")) {
+            return 0xFF75756E;
+        }
+        if (id.contains("stone")) {
+            return 0xFF909088;
+        }
+        if (id.contains("iron") || id.contains("rail")) {
             return 0xFFC0C0C0;
         }
         return fallback;

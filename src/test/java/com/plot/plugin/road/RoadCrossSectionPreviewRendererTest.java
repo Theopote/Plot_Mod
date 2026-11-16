@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadCrossSectionPreviewRendererTest {
 
-    private static final float PRESET_CARD_WIDTH = 120f;
-    private static final float PRESET_CARD_HEIGHT = 48f;
+    private static final float PRESET_CARD_WIDTH = 160f;
+    private static final float PRESET_CARD_HEIGHT = 176f;
     private static final RoadCrossSectionPreviewRenderer.MiniRenderOptions PRESET_OPTIONS =
         RoadCrossSectionPreviewRenderer.MiniRenderOptions.presetCard();
 
@@ -112,8 +112,25 @@ class RoadCrossSectionPreviewRendererTest {
         assertTrue(geometry.rightBatterPx() > 0f, "mountain card should show a cut triangle");
         assertEquals(2 * geometry.scale(), geometry.deckH(), 0.001f,
             "two pavement layers must each be one square block high");
+        assertEquals(3 * geometry.scale(), geometry.deckY() - geometry.cutTopY(), 0.001f,
+            "cut slope should use three whole-block layers like fill");
+        assertEquals(3 * geometry.scale(), geometry.groundY() - geometry.deckBottom(), 0.001f,
+            "fill slope should use three whole-block layers");
         assertEquals(Math.ceil(3 * layout.cutSlopeRatio) * geometry.scale(),
             geometry.rightBatterPx(), 0.001f);
+    }
+
+    @Test
+    void stoneAndCobbleHaveDistinctPreviewColors() {
+        int stone = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:stone", 0);
+        int cobble = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:cobblestone", 0);
+        int deepslate = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:cobbled_deepslate", 0);
+        int dirt = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:dirt", 0);
+        int coarse = RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:coarse_dirt", 0);
+        assertNotEquals(stone, cobble);
+        assertNotEquals(stone, deepslate);
+        assertNotEquals(cobble, deepslate);
+        assertNotEquals(dirt, coarse);
     }
 
     @Test

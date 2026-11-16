@@ -90,8 +90,9 @@ public final class RoadPathHeader {
             return;
         }
         int[] runBlocks = {config.getSlopeBatterMaxRunBlocks()};
-        String distanceLabel = PlotI18n.tr(
-            "plugin.road.overlay.slope_batter_distance", runBlocks[0]);
+        // 标签不得含变化数值：ImGui 用整段 label 算 ID，数字一变控件 ID 就变，
+        // 拖动会被每格打断并误触发 isItemDeactivatedAfterEdit → 全量刷新卡顿。
+        String distanceLabel = PlotI18n.tr("plugin.road.overlay.slope_batter_distance");
         float sliderWidth = Math.min(220f, Math.max(120f, avail * 0.35f));
         float labelWidth = ImGui.calcTextSize(distanceLabel).x;
         float totalWidth = labelWidth + ImGui.getStyle().getItemInnerSpacingX() + sliderWidth;
@@ -99,7 +100,6 @@ public final class RoadPathHeader {
             ImGui.sameLine(0f, spacing);
         }
         ImGui.setNextItemWidth(sliderWidth);
-        // 拖动时只写入配置；松手后再 invalidate 预览/叠加层，避免每帧全量重算导致卡顿。
         if (ImGui.sliderInt(
                 distanceLabel + "##path_slope_batter_run",
                 runBlocks,
@@ -107,9 +107,9 @@ public final class RoadPathHeader {
                 RoadParameterLimits.MAX_SLOPE_BATTER_RUN_BLOCKS,
                 "%d")) {
             config.setSlopeBatterMaxRunBlocks(runBlocks[0]);
-            config.markCustom();
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
+            config.markCustom();
             ctx.onGenerationConfigChanged();
         }
         if (ImGui.isItemHovered()) {

@@ -24,12 +24,13 @@ import java.util.List;
 /** 道路类型预设卡片（配置默认 / 单条道路 / 批量道路共用）。 */
 public final class RoadPresetCards {
 
-    private static final float CARD_MIN_WIDTH = 96f;
+    private static final float CARD_MIN_WIDTH = 108f;
     private static final float CARD_PADDING_X = 4f;
     private static final float CARD_PADDING_TOP = 8f;
-    private static final float CARD_PADDING_BOTTOM = 2f;
-    private static final float PREVIEW_GAP = 1f;
-    private static final float PREVIEW_HEIGHT = 140f;
+    private static final float CARD_PADDING_BOTTOM = 4f;
+    private static final float PREVIEW_GAP = 2f;
+    /** 挖/填各三层整格 + 坡比标注，需足够高度避免预览被裁切。 */
+    private static final float PREVIEW_HEIGHT = 176f;
     /** 预设库浮动窗：与专业设计器 {@link com.plot.plugin.road.ui.editor.RoadFloatingEditorShell} 同尺寸。 */
     private static final float FLOATING_WIDTH_OF_SCREEN =
         com.plot.plugin.road.ui.editor.RoadFloatingEditorShell.FIXED_WIDTH_OF_SCREEN;
