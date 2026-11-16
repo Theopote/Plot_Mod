@@ -66,7 +66,7 @@ public final class CrossSectionDraftEditor {
         }
     }
 
-    /** 排水、标线、路灯等附属设施。 */
+    /** 中央隔离带、路灯等附属设施。 */
     public static void renderFurniture(
             RoadUiContext ctx,
             CrossSectionDraftMutator mutator,
@@ -158,6 +158,11 @@ public final class CrossSectionDraftEditor {
             }
         }
 
+        // 结构：车道分割线 / 中央标线（与行车道几何一起编辑）。
+        if (editor.options.showMarkings()) {
+            renderMarkingFields(editor);
+        }
+
         if (!editor.options.showAppearanceStrips()) {
             if (editor.options.showSlopeBatter()) {
                 renderSlopeBatterFields(editor);
@@ -246,59 +251,6 @@ public final class CrossSectionDraftEditor {
                 mutator.setSidewalkWidth(sidewalkWidthArr[0]);
             }
             mutator.afterSidewalkWidthField();
-        }
-
-        ImBoolean medianRef = new ImBoolean(draft.includeMedian());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_median") + "##" + id + "_median", medianRef)) {
-            if (roadEdit) {
-                hooks.onItemActivated();
-            }
-            mutator.setIncludeMedian(medianRef.get());
-        }
-        mutator.afterMedianIncludeField();
-        if (draft.includeMedian()) {
-            int[] medianOptions = RoadParameterLimits.validMedianWidths(draft.width());
-            int clampedMedian = RoadParameterLimits.clampMedianWidthBlocks(
-                draft.width(), Math.max(1, draft.medianWidth()));
-            if (clampedMedian != draft.medianWidth()) {
-                mutator.setMedianWidth(clampedMedian);
-            }
-            int[] medianWidthArr = {clampedMedian};
-            int minMedian = medianOptions.length > 0 ? medianOptions[0] : 1;
-            int maxMedian = medianOptions.length > 0
-                ? medianOptions[medianOptions.length - 1]
-                : RoadParameterLimits.MAX_BRIDGE_PIER_DIAMETER_BLOCKS;
-            if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.median_width") + "##" + id + "_median_w",
-                medianWidthArr,
-                minMedian,
-                maxMedian,
-                "%d")) {
-                if (ImGui.isItemActivated()) {
-                    hooks.onItemActivated();
-                }
-                mutator.setMedianWidth(medianWidthArr[0]);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_width_parity"));
-            }
-            mutator.afterMedianWidthField();
-
-            int[] medianHeightArr = {draft.medianHeight()};
-            if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.median_height") + "##" + id + "_median_h",
-                medianHeightArr,
-                RoadParameterLimits.MIN_MEDIAN_HEIGHT_BLOCKS,
-                RoadParameterLimits.MAX_MEDIAN_HEIGHT_BLOCKS,
-                "%d")) {
-                if (ImGui.isItemActivated()) {
-                    hooks.onItemActivated();
-                }
-                mutator.setMedianHeight(medianHeightArr[0]);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_height"));
-            }
         }
 
         if (editor.options.showMaxSlope()) {
@@ -536,7 +488,8 @@ public final class CrossSectionDraftEditor {
         }
     }
 
-    private static void renderFurniture(EditorContext editor) {
+    /** 结构：车道分割线与中央标线。 */
+    private static void renderMarkingFields(EditorContext editor) {
         CrossSectionDraft draft = editor.draft;
         CrossSectionDraftMutator mutator = editor.mutator;
         CrossSectionDraftFieldHooks hooks = editor.hooks;
@@ -591,13 +544,84 @@ public final class CrossSectionDraftEditor {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
             }
             mutator.afterCenterLineField();
-        } else {
+        } else if (draft.laneDividers() || draft.centerLineStyle() != CenterLineStyle.NONE) {
             // 单车道无可分隔对象：强制关闭标线，避免预览残留中央色块。
-            if (draft.laneDividers() || draft.centerLineStyle() != CenterLineStyle.NONE) {
-                mutator.setLaneDividers(false);
-                mutator.setCenterLineStyle(CenterLineStyle.NONE);
-            }
+            mutator.setLaneDividers(false);
+            mutator.setCenterLineStyle(CenterLineStyle.NONE);
         }
+    }
+
+    /** 附属设施：路表中央隔离带。 */
+    private static void renderMedianFields(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
+
+        ImBoolean medianRef = new ImBoolean(draft.includeMedian());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_median") + "##" + id + "_median", medianRef)) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeMedian(medianRef.get());
+        }
+        mutator.afterMedianIncludeField();
+        if (!draft.includeMedian()) {
+            return;
+        }
+        int[] medianOptions = RoadParameterLimits.validMedianWidths(draft.width());
+        int clampedMedian = RoadParameterLimits.clampMedianWidthBlocks(
+            draft.width(), Math.max(1, draft.medianWidth()));
+        if (clampedMedian != draft.medianWidth()) {
+            mutator.setMedianWidth(clampedMedian);
+        }
+        int[] medianWidthArr = {clampedMedian};
+        int minMedian = medianOptions.length > 0 ? medianOptions[0] : 1;
+        int maxMedian = medianOptions.length > 0
+            ? medianOptions[medianOptions.length - 1]
+            : RoadParameterLimits.MAX_BRIDGE_PIER_DIAMETER_BLOCKS;
+        if (ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.median_width") + "##" + id + "_median_w",
+            medianWidthArr,
+            minMedian,
+            maxMedian,
+            "%d")) {
+            if (ImGui.isItemActivated()) {
+                hooks.onItemActivated();
+            }
+            mutator.setMedianWidth(medianWidthArr[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_width_parity"));
+        }
+        mutator.afterMedianWidthField();
+
+        int[] medianHeightArr = {draft.medianHeight()};
+        if (ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.median_height") + "##" + id + "_median_h",
+            medianHeightArr,
+            RoadParameterLimits.MIN_MEDIAN_HEIGHT_BLOCKS,
+            RoadParameterLimits.MAX_MEDIAN_HEIGHT_BLOCKS,
+            "%d")) {
+            if (ImGui.isItemActivated()) {
+                hooks.onItemActivated();
+            }
+            mutator.setMedianHeight(medianHeightArr[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_height"));
+        }
+    }
+
+    private static void renderFurniture(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
+
+        renderMedianFields(editor);
+        ImGui.spacing();
 
         int[] lightSpacing = {draft.streetlightSpacing()};
         if (ImGui.sliderInt(

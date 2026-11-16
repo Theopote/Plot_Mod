@@ -11,7 +11,8 @@ import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 public final class RoadParameterLimits {
     /** 单车道最小可行驶宽为 1；总宽由车道推导，允许窄到 1。 */
     public static final int MIN_CARRIAGEWAY_WIDTH = 1;
-    public static final int MAX_CARRIAGEWAY_WIDTH = 24;
+    /** 上限覆盖 4 车道×6 行驶宽 + 3 格分隔占格 = 27。 */
+    public static final int MAX_CARRIAGEWAY_WIDTH = 27;
     public static final int MIN_LANE_COUNT = 1;
     public static final int MAX_LANE_COUNT = 4;
     /** 单车道行驶宽度（格）；总宽由车道×宽 + 分隔占格推导。 */

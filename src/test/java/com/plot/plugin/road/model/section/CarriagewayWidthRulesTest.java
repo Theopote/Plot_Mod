@@ -38,6 +38,17 @@ class CarriagewayWidthRulesTest {
     }
 
     @Test
+    void fourLanesMaxTravelWidthFitsWithinCarriagewayCap() {
+        // 4×6 + 同向缝 3（无中央标线）= 27，正好顶满上限
+        assertEquals(3, CarriagewayWidthRules.dividerBlocks(4, CenterLineStyle.NONE, true));
+        assertEquals(
+            27,
+            CarriagewayWidthRules.derivedCarriagewayWidth(
+                4, 6, CenterLineStyle.NONE, true, 0));
+        assertEquals(27, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH);
+    }
+
+    @Test
     void laneDividersWithoutCenterCountAllSeams() {
         assertEquals(3, CarriagewayWidthRules.dividerBlocks(4, CenterLineStyle.NONE, true));
         assertEquals(0, CarriagewayWidthRules.dividerBlocks(4, CenterLineStyle.NONE, false));

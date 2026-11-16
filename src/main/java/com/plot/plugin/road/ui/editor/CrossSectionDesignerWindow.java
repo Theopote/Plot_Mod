@@ -137,7 +137,7 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
                 ImGuiTabItemFlags.None)) {
                 beginParamsTabBody();
                 CrossSectionDraftEditorOptions slopeOpts = new CrossSectionDraftEditorOptions(
-                    "xs_slope", false, null, false, false, true, false, false);
+                    "xs_slope", false, null, false, false, true, false, false, false);
                 CrossSectionDraftEditor.renderCrossSection(ctx, mutator, slopeOpts);
                 endParamsTabBody();
                 ImGui.endTabItem();
