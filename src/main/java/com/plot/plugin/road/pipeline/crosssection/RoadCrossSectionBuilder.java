@@ -40,7 +40,7 @@ public final class RoadCrossSectionBuilder {
         RoadSolidModel solids = ctx.solids();
         RoadEdgeBuildMetrics metrics = ctx.metrics();
         double unitsPerBlock = ctx.unitsPerBlock();
-        CrossSectionHost crossSectionHost = CrossSectionHost.from(host);
+        CrossSectionHost crossSectionHost = CrossSectionHost.from(host, ctx.request().bridgeStructure());
         DesignElevationSource designElevation = ctx.request().designElevation();
         BuildHeightProfile buildProfile = ctx.buildProfile();
         metrics.bridgeCount = detection.runs().isEmpty()
@@ -106,11 +106,22 @@ public final class RoadCrossSectionBuilder {
 
         boolean generateBridgePillars();
 
+        double bridgePierSpacingBlocks();
+
+        String bridgePierMaterial();
+
         boolean includeBridgeGuardrail();
 
         String bridgeGuardrailMaterial();
 
-        static CrossSectionHost from(RoadGenerationPipelineContext.Host host) {
+        int bridgeGuardrailHeightBlocks();
+
+        static CrossSectionHost from(
+                RoadGenerationPipelineContext.Host host,
+                ResolvedBridgeStructure bridgeStructure) {
+            ResolvedBridgeStructure resolved = bridgeStructure != null
+                ? bridgeStructure
+                : ResolvedBridgeStructure.fromConfig(host.config());
             return new CrossSectionHost() {
                 @Override
                 public BlockPos canvasToBlockPos(Vec2d canvasPos) {
@@ -139,17 +150,32 @@ public final class RoadCrossSectionBuilder {
 
                 @Override
                 public boolean generateBridgePillars() {
-                    return host.config().isGenerateBridgePillars();
+                    return resolved.generatePillars();
+                }
+
+                @Override
+                public double bridgePierSpacingBlocks() {
+                    return resolved.pierSpacingBlocks();
+                }
+
+                @Override
+                public String bridgePierMaterial() {
+                    return resolved.pierMaterial();
                 }
 
                 @Override
                 public boolean includeBridgeGuardrail() {
-                    return host.config().isIncludeBridgeGuardrail();
+                    return resolved.includeGuardrail();
                 }
 
                 @Override
                 public String bridgeGuardrailMaterial() {
-                    return host.config().getBridgeGuardrailMaterial();
+                    return resolved.guardrailMaterial();
+                }
+
+                @Override
+                public int bridgeGuardrailHeightBlocks() {
+                    return resolved.guardrailHeightBlocks();
                 }
             };
         }
@@ -298,7 +324,9 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             profileWaterCrossings,
-            gradeSeparation);
+            gradeSeparation,
+            host.bridgePierSpacingBlocks(),
+            host.bridgePierMaterial());
     }
 
     private static void generateBridgeGuardrails(
@@ -336,7 +364,8 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             profileWaterCrossings,
-            host.bridgeGuardrailMaterial());
+            host.bridgeGuardrailMaterial(),
+            host.bridgeGuardrailHeightBlocks());
     }
 
 }

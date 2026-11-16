@@ -48,8 +48,11 @@ public class RoadSystemConfig {
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private RoadTerrainStyle terrainStyle = RoadTerrainStyle.BALANCED;
     private boolean generateBridgePillars = true;
+    private double bridgePierSpacingBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
+    private String bridgePierMaterial = "minecraft:stone_bricks";
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
+    private int bridgeGuardrailHeightBlocks = RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS;
     private TunnelStyle tunnelStyle = new TunnelStyle();
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
@@ -296,6 +299,25 @@ public class RoadSystemConfig {
         this.generateBridgePillars = generateBridgePillars;
     }
 
+    public double getBridgePierSpacingBlocks() {
+        return RoadParameterLimits.clampBridgePierSpacingBlocks(bridgePierSpacingBlocks);
+    }
+
+    public void setBridgePierSpacingBlocks(double bridgePierSpacingBlocks) {
+        this.bridgePierSpacingBlocks =
+            RoadParameterLimits.clampBridgePierSpacingBlocks(bridgePierSpacingBlocks);
+    }
+
+    public String getBridgePierMaterial() {
+        return bridgePierMaterial == null || bridgePierMaterial.isBlank()
+            ? "minecraft:stone_bricks"
+            : bridgePierMaterial;
+    }
+
+    public void setBridgePierMaterial(String bridgePierMaterial) {
+        this.bridgePierMaterial = bridgePierMaterial;
+    }
+
     public boolean isIncludeBridgeGuardrail() {
         return includeBridgeGuardrail;
     }
@@ -312,6 +334,15 @@ public class RoadSystemConfig {
 
     public void setBridgeGuardrailMaterial(String bridgeGuardrailMaterial) {
         this.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
+    }
+
+    public int getBridgeGuardrailHeightBlocks() {
+        return RoadParameterLimits.clampBridgeGuardrailHeightBlocks(bridgeGuardrailHeightBlocks);
+    }
+
+    public void setBridgeGuardrailHeightBlocks(int bridgeGuardrailHeightBlocks) {
+        this.bridgeGuardrailHeightBlocks =
+            RoadParameterLimits.clampBridgeGuardrailHeightBlocks(bridgeGuardrailHeightBlocks);
     }
 
     public TunnelStyle getTunnelStyle() {

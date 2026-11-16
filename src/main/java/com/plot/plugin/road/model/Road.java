@@ -66,6 +66,18 @@ public class Road {
     private RoadTerrainStyle terrainStyle;
     /** {@code null} 表示继承全局 {@link com.plot.plugin.config.RoadSystemConfig}。 */
     private TunnelStyle tunnelStyle;
+    /** {@code null} 表示继承全局默认。 */
+    private Boolean generateBridgePillars;
+    /** {@code null} 表示继承全局默认。 */
+    private Double bridgePierSpacingBlocks;
+    /** {@code null} 表示继承全局默认。 */
+    private String bridgePierMaterial;
+    /** {@code null} 表示继承全局默认。 */
+    private Boolean includeBridgeGuardrail;
+    /** {@code null} 表示继承全局默认。 */
+    private String bridgeGuardrailMaterial;
+    /** {@code null} 表示继承全局默认。 */
+    private Integer bridgeGuardrailHeightBlocks;
     private FlatVerticalIntent flatVerticalIntent;
     private RoadVariableCrossSections variableCrossSections;
     private RoadStationFacilities stationFacilities;
@@ -125,6 +137,12 @@ public class Road {
         }
         crossSection.applyDefaults(defaults);
         maxSlope = defaults.getMaxSlope();
+        generateBridgePillars = defaults.isGenerateBridgePillars();
+        bridgePierSpacingBlocks = defaults.getBridgePierSpacingBlocks();
+        bridgePierMaterial = defaults.getBridgePierMaterial();
+        includeBridgeGuardrail = defaults.isIncludeBridgeGuardrail();
+        bridgeGuardrailMaterial = defaults.getBridgeGuardrailMaterial();
+        bridgeGuardrailHeightBlocks = defaults.getBridgeGuardrailHeightBlocks();
     }
 
     /** 清空道路级与横断面的全部显式覆盖，恢复继承全局配置。 */
@@ -135,6 +153,12 @@ public class Road {
         themeId = null;
         terrainStyle = null;
         tunnelStyle = null;
+        generateBridgePillars = null;
+        bridgePierSpacingBlocks = null;
+        bridgePierMaterial = null;
+        includeBridgeGuardrail = null;
+        bridgeGuardrailMaterial = null;
+        bridgeGuardrailHeightBlocks = null;
     }
 
     public void applyStyle(RoadStyle style) {
@@ -568,6 +592,114 @@ public class Road {
         this.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
     }
 
+    /** 持久化字段；{@code null} 表示继承全局是否生成桥墩。 */
+    public Boolean getGenerateBridgePillars() {
+        return generateBridgePillars;
+    }
+
+    public void setGenerateBridgePillars(Boolean generateBridgePillars) {
+        this.generateBridgePillars = generateBridgePillars;
+    }
+
+    public boolean getEffectiveGenerateBridgePillars(RoadSystemConfig defaults) {
+        return generateBridgePillars != null
+            ? generateBridgePillars
+            : defaults != null && defaults.isGenerateBridgePillars();
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局桥墩间距。 */
+    public Double getBridgePierSpacingBlocks() {
+        return bridgePierSpacingBlocks;
+    }
+
+    public void setBridgePierSpacingBlocks(Double bridgePierSpacingBlocks) {
+        this.bridgePierSpacingBlocks =
+            RoadParameterLimits.clampBridgePierSpacingBlocksNullable(bridgePierSpacingBlocks);
+    }
+
+    public double getEffectiveBridgePierSpacingBlocks(RoadSystemConfig defaults) {
+        if (bridgePierSpacingBlocks != null) {
+            return bridgePierSpacingBlocks;
+        }
+        return defaults != null
+            ? defaults.getBridgePierSpacingBlocks()
+            : RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局桥墩材质。 */
+    public String getBridgePierMaterial() {
+        return bridgePierMaterial;
+    }
+
+    public void setBridgePierMaterial(String bridgePierMaterial) {
+        this.bridgePierMaterial = bridgePierMaterial != null && !bridgePierMaterial.isBlank()
+            ? bridgePierMaterial
+            : null;
+    }
+
+    public String getEffectiveBridgePierMaterial(RoadSystemConfig defaults) {
+        if (bridgePierMaterial != null && !bridgePierMaterial.isBlank()) {
+            return bridgePierMaterial;
+        }
+        return defaults != null
+            ? defaults.getBridgePierMaterial()
+            : "minecraft:stone_bricks";
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局是否生成桥梁护栏。 */
+    public Boolean getIncludeBridgeGuardrail() {
+        return includeBridgeGuardrail;
+    }
+
+    public void setIncludeBridgeGuardrail(Boolean includeBridgeGuardrail) {
+        this.includeBridgeGuardrail = includeBridgeGuardrail;
+    }
+
+    public boolean getEffectiveIncludeBridgeGuardrail(RoadSystemConfig defaults) {
+        return includeBridgeGuardrail != null
+            ? includeBridgeGuardrail
+            : defaults != null && defaults.isIncludeBridgeGuardrail();
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局桥梁护栏材质。 */
+    public String getBridgeGuardrailMaterial() {
+        return bridgeGuardrailMaterial;
+    }
+
+    public void setBridgeGuardrailMaterial(String bridgeGuardrailMaterial) {
+        this.bridgeGuardrailMaterial = bridgeGuardrailMaterial != null && !bridgeGuardrailMaterial.isBlank()
+            ? bridgeGuardrailMaterial
+            : null;
+    }
+
+    public String getEffectiveBridgeGuardrailMaterial(RoadSystemConfig defaults) {
+        if (bridgeGuardrailMaterial != null && !bridgeGuardrailMaterial.isBlank()) {
+            return bridgeGuardrailMaterial;
+        }
+        return defaults != null
+            ? defaults.getBridgeGuardrailMaterial()
+            : "minecraft:oak_fence";
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局桥梁护栏高度。 */
+    public Integer getBridgeGuardrailHeightBlocks() {
+        return bridgeGuardrailHeightBlocks;
+    }
+
+    public void setBridgeGuardrailHeightBlocks(Integer bridgeGuardrailHeightBlocks) {
+        this.bridgeGuardrailHeightBlocks =
+            RoadParameterLimits.clampBridgeGuardrailHeightBlocksNullable(bridgeGuardrailHeightBlocks);
+    }
+
+    public int getEffectiveBridgeGuardrailHeightBlocks(RoadSystemConfig defaults) {
+        if (bridgeGuardrailHeightBlocks != null) {
+            return bridgeGuardrailHeightBlocks;
+        }
+        return defaults != null
+            ? defaults.getBridgeGuardrailHeightBlocks()
+            : RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS;
+    }
+
     public FlatVerticalIntent getFlatVerticalIntent() {
         return flatVerticalIntent;
     }
@@ -748,6 +880,12 @@ public class Road {
         copy.editedGeometrySignature = editedGeometrySignature;
         copy.terrainStyle = terrainStyle;
         copy.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
+        copy.generateBridgePillars = generateBridgePillars;
+        copy.bridgePierSpacingBlocks = bridgePierSpacingBlocks;
+        copy.bridgePierMaterial = bridgePierMaterial;
+        copy.includeBridgeGuardrail = includeBridgeGuardrail;
+        copy.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
+        copy.bridgeGuardrailHeightBlocks = bridgeGuardrailHeightBlocks;
         copy.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;
         copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
         copy.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
@@ -765,6 +903,12 @@ public class Road {
         themeId = source.themeId;
         terrainStyle = source.terrainStyle;
         tunnelStyle = source.tunnelStyle != null ? source.tunnelStyle.copy() : null;
+        generateBridgePillars = source.generateBridgePillars;
+        bridgePierSpacingBlocks = source.bridgePierSpacingBlocks;
+        bridgePierMaterial = source.bridgePierMaterial;
+        includeBridgeGuardrail = source.includeBridgeGuardrail;
+        bridgeGuardrailMaterial = source.bridgeGuardrailMaterial;
+        bridgeGuardrailHeightBlocks = source.bridgeGuardrailHeightBlocks;
         RoadVerticalIntentTransforms.copyIntentFrom(this, source);
     }
 }

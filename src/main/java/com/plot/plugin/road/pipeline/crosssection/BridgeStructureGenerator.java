@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.crosssection;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
@@ -33,12 +34,13 @@ public final class BridgeStructureGenerator {
 
     private static final double EPSILON = 1e-6;
     /** Interior pier spacing in world/block stations (not canvas geometry units). */
-    private static final double DEFAULT_PIER_SPACING_BLOCKS = 6.0;
+    static final double DEFAULT_PIER_SPACING_BLOCKS =
+        RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
     /** Abutment wall depth along the road axis, in world blocks. */
     private static final int ABUTMENT_THICKNESS_BLOCKS = 2;
     /** Narrow roads get a single pier column; wider roads get edge + center columns. */
     private static final int SINGLE_COLUMN_CARRIAGEWAY_WIDTH = 3;
-    static final String PIER_MATERIAL = "minecraft:stone_bricks";
+    static final String PIER_MATERIAL = ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL;
     static final String DECK_SLAB_MATERIAL = "minecraft:stone";
 
     private BridgeStructureGenerator() {
@@ -94,7 +96,9 @@ public final class BridgeStructureGenerator {
             designElevation,
             buildProfile,
             profileWaterCrossings,
-            GradeSeparationBuildContext.NONE);
+            GradeSeparationBuildContext.NONE,
+            DEFAULT_PIER_SPACING_BLOCKS,
+            PIER_MATERIAL);
     }
 
     static void generate(
@@ -110,13 +114,48 @@ public final class BridgeStructureGenerator {
             BuildHeightProfile buildProfile,
             List<WaterCrossing> profileWaterCrossings,
             GradeSeparationBuildContext gradeSeparation) {
+        generate(
+            host,
+            solids,
+            constructionTypes,
+            segments,
+            heightInfos,
+            crossSections,
+            terrain,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            profileWaterCrossings,
+            gradeSeparation,
+            DEFAULT_PIER_SPACING_BLOCKS,
+            PIER_MATERIAL);
+    }
+
+    static void generate(
+            Host host,
+            RoadSolidModel solids,
+            List<RoadConstructionType> constructionTypes,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            TerrainSampler terrain,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            List<WaterCrossing> profileWaterCrossings,
+            GradeSeparationBuildContext gradeSeparation,
+            double pierSpacingBlocks,
+            String pierMaterial) {
         if (constructionTypes.stream().noneMatch(RoadConstructionType::isBridgeFamily)) {
             return;
         }
         if (gradeSeparation == null) {
             gradeSeparation = GradeSeparationBuildContext.NONE;
         }
-        String pierBlockId = host.resolveBlockId(PIER_MATERIAL);
+        double spacing = RoadParameterLimits.clampBridgePierSpacingBlocks(
+            pierSpacingBlocks > EPSILON ? pierSpacingBlocks : DEFAULT_PIER_SPACING_BLOCKS);
+        String pierMaterialId = pierMaterial == null || pierMaterial.isBlank() ? PIER_MATERIAL : pierMaterial;
+        String pierBlockId = host.resolveBlockId(pierMaterialId);
         String deckSlabBlockId = host.resolveBlockId(DECK_SLAB_MATERIAL);
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         List<StructureStation> planned = planStructureStations(
@@ -125,7 +164,8 @@ public final class BridgeStructureGenerator {
             heightInfos,
             crossSections,
             unitsPerBlock,
-            profileWaterCrossings);
+            profileWaterCrossings,
+            spacing);
         for (StructureStation station : planned) {
             StationLocation location = locateStationOnPath(segments, scale, station.geometryDistance());
             if (location == null) {
@@ -158,7 +198,27 @@ public final class BridgeStructureGenerator {
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
             List<WaterCrossing> profileWaterCrossings) {
+        return planStructureStations(
+            constructionTypes,
+            segments,
+            heightInfos,
+            crossSections,
+            unitsPerBlock,
+            profileWaterCrossings,
+            DEFAULT_PIER_SPACING_BLOCKS);
+    }
+
+    static List<StructureStation> planStructureStations(
+            List<RoadConstructionType> constructionTypes,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            double unitsPerBlock,
+            List<WaterCrossing> profileWaterCrossings,
+            double pierSpacingBlocks) {
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
+        double spacing = RoadParameterLimits.clampBridgePierSpacingBlocks(
+            pierSpacingBlocks > EPSILON ? pierSpacingBlocks : DEFAULT_PIER_SPACING_BLOCKS);
         Set<String> dedupe = new LinkedHashSet<>();
         List<StructureStation> stations = new ArrayList<>();
         appendAbutmentStations(stations, dedupe, profileWaterCrossings, crossSections, scale);
@@ -169,7 +229,8 @@ public final class BridgeStructureGenerator {
             segments,
             crossSections,
             unitsPerBlock,
-            profileWaterCrossings);
+            profileWaterCrossings,
+            spacing);
         stations.sort(Comparator.comparingDouble(StructureStation::worldStation));
         return List.copyOf(stations);
     }
@@ -217,7 +278,8 @@ public final class BridgeStructureGenerator {
             List<PathSegment> segments,
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
-            List<WaterCrossing> profileWaterCrossings) {
+            List<WaterCrossing> profileWaterCrossings,
+            double pierSpacingBlocks) {
         if (profileWaterCrossings != null && !profileWaterCrossings.isEmpty()) {
             for (WaterCrossing crossing : profileWaterCrossings) {
                 if (crossing.strategy() == WaterCrossingStrategy.BRIDGE
@@ -227,7 +289,8 @@ public final class BridgeStructureGenerator {
                         dedupe,
                         crossing,
                         crossSections,
-                        unitsPerBlock);
+                        unitsPerBlock,
+                        pierSpacingBlocks);
                 }
             }
             return;
@@ -239,7 +302,8 @@ public final class BridgeStructureGenerator {
             segments,
             crossSections,
             unitsPerBlock,
-            profileWaterCrossings);
+            profileWaterCrossings,
+            pierSpacingBlocks);
     }
 
     private static void appendPiersForCrossingSpan(
@@ -247,12 +311,13 @@ public final class BridgeStructureGenerator {
             Set<String> dedupe,
             WaterCrossing crossing,
             CrossSectionBuildContext crossSections,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            double pierSpacingBlocks) {
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         double desiredSpacingBlocks = WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
             List.of(crossing),
             crossing.crossingStartStation() + 1.0,
-            DEFAULT_PIER_SPACING_BLOCKS);
+            pierSpacingBlocks);
         double spanBlocks = crossing.crossingEndStation() - crossing.crossingStartStation();
         if (spanBlocks <= desiredSpacingBlocks + EPSILON) {
             return;
@@ -276,9 +341,10 @@ public final class BridgeStructureGenerator {
             List<PathSegment> segments,
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
-            List<WaterCrossing> profileWaterCrossings) {
+            List<WaterCrossing> profileWaterCrossings,
+            double pierSpacingBlocks) {
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
-        double defaultSpacingGeometry = DEFAULT_PIER_SPACING_BLOCKS * scale;
+        double defaultSpacingGeometry = pierSpacingBlocks * scale;
         double accumulated = 0.0;
         double pillarSpacing = defaultSpacingGeometry;
         double pillarChainage = 0.0;
@@ -321,7 +387,7 @@ public final class BridgeStructureGenerator {
                 double desiredSpacingBlocks = WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
                     profileWaterCrossings,
                     worldStation,
-                    DEFAULT_PIER_SPACING_BLOCKS);
+                    pierSpacingBlocks);
                 pillarSpacing = Math.max(scale, desiredSpacingBlocks * scale);
                 addPierStation(stations, dedupe, worldStation, crossSections, scale, false);
                 pillarChainage += pillarSpacing;

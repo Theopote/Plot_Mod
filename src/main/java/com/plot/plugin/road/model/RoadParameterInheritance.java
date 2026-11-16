@@ -123,6 +123,14 @@ public final class RoadParameterInheritance {
             || road.getMarkingMaterial() == null) {
             return true;
         }
+        if (road.getGenerateBridgePillars() == null
+            || road.getBridgePierSpacingBlocks() == null
+            || road.getBridgePierMaterial() == null
+            || road.getIncludeBridgeGuardrail() == null
+            || road.getBridgeGuardrailMaterial() == null
+            || road.getBridgeGuardrailHeightBlocks() == null) {
+            return true;
+        }
         return false;
     }
 

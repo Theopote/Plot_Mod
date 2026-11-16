@@ -1288,6 +1288,12 @@ public class RoadNetwork {
         Integer editedGeometrySignature;
         String terrainStyle;
         TunnelStylePersistence tunnelStyle;
+        Boolean generateBridgePillars;
+        Double bridgePierSpacingBlocks;
+        String bridgePierMaterial;
+        Boolean includeBridgeGuardrail;
+        String bridgeGuardrailMaterial;
+        Integer bridgeGuardrailHeightBlocks;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
         StationFacilitiesData stationFacilities;
@@ -1404,6 +1410,12 @@ public class RoadNetwork {
                     roadData.terrainStyle = road.getStoredTerrainStyle().name();
                 }
                 roadData.tunnelStyle = TunnelStylePersistence.from(road.getStoredTunnelStyle());
+                roadData.generateBridgePillars = road.getGenerateBridgePillars();
+                roadData.bridgePierSpacingBlocks = road.getBridgePierSpacingBlocks();
+                roadData.bridgePierMaterial = road.getBridgePierMaterial();
+                roadData.includeBridgeGuardrail = road.getIncludeBridgeGuardrail();
+                roadData.bridgeGuardrailMaterial = road.getBridgeGuardrailMaterial();
+                roadData.bridgeGuardrailHeightBlocks = road.getBridgeGuardrailHeightBlocks();
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
                 roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
                 roadData.stationFacilities = StationFacilityPersistence.toData(road.getStationFacilities());
@@ -1539,6 +1551,12 @@ public class RoadNetwork {
                             .fromStored(roadData.terrainStyle));
                     }
                     road.setTunnelStyle(TunnelStylePersistence.fromData(roadData.tunnelStyle));
+                    road.setGenerateBridgePillars(roadData.generateBridgePillars);
+                    road.setBridgePierSpacingBlocks(roadData.bridgePierSpacingBlocks);
+                    road.setBridgePierMaterial(roadData.bridgePierMaterial);
+                    road.setIncludeBridgeGuardrail(roadData.includeBridgeGuardrail);
+                    road.setBridgeGuardrailMaterial(roadData.bridgeGuardrailMaterial);
+                    road.setBridgeGuardrailHeightBlocks(roadData.bridgeGuardrailHeightBlocks);
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
                     road.setStationFacilities(StationFacilityPersistence.fromData(roadData.stationFacilities));

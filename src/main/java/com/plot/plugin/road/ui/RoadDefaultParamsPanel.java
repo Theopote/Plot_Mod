@@ -100,6 +100,12 @@ public final class RoadDefaultParamsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
 
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+        RoadUiSections.section("plugin.road.section.bridge_structure_defaults");
+        BridgeStructureControls.renderNetworkDefaults(ctx);
+
         renderDefaultJunctionSettings();
     }
 

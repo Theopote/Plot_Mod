@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
@@ -33,6 +34,7 @@ public record RoadGenerationBuildRequest(
         List<WaterCrossing> profileWaterCrossings,
         RoadTerrainStyle terrainStyle,
         ResolvedTunnelStyle tunnelStyle,
+        ResolvedBridgeStructure bridgeStructure,
         JunctionCorridorBuildContext junctionCorridor,
         GradeSeparationBuildContext gradeSeparation) {
 
@@ -60,6 +62,9 @@ public record RoadGenerationBuildRequest(
         }
         if (tunnelStyle == null) {
             tunnelStyle = ResolvedTunnelStyle.defaults();
+        }
+        if (bridgeStructure == null) {
+            bridgeStructure = ResolvedBridgeStructure.defaults();
         }
     }
 
@@ -91,6 +96,7 @@ public record RoadGenerationBuildRequest(
             null,
             null,
             null,
+            null,
             null);
     }
 
@@ -117,6 +123,7 @@ public record RoadGenerationBuildRequest(
             DesignElevationSource.inactive(),
             BuildHeightProfile.inactive(),
             List.of(),
+            null,
             null,
             null,
             null,

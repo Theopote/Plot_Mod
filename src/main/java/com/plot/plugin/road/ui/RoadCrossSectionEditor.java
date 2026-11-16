@@ -222,5 +222,8 @@ public final class RoadCrossSectionEditor {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit_furniture"))) {
             CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
         }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit_bridge_structure"))) {
+            BridgeStructureControls.renderRoadOverride(ctx, road, onHistory);
+        }
     }
 }

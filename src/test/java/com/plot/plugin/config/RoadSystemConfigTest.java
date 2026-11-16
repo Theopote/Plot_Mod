@@ -42,8 +42,11 @@ class RoadSystemConfigTest {
         RoadSystemConfig config = new RoadSystemConfig("workflow_test");
         config.setLaneCount(4);
         config.setGenerateBridgePillars(false);
+        config.setBridgePierSpacingBlocks(8.5);
+        config.setBridgePierMaterial("minecraft:polished_andesite");
         config.setIncludeBridgeGuardrail(true);
         config.setBridgeGuardrailMaterial("minecraft:dark_oak_fence");
+        config.setBridgeGuardrailHeightBlocks(3);
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setTunnelLiningMaterial("minecraft:deepslate_bricks");
         config.setTunnelAccentMaterial("minecraft:polished_andesite");
@@ -59,8 +62,11 @@ class RoadSystemConfigTest {
         assertNotNull(loaded);
         assertEquals(4, loaded.getLaneCount());
         assertFalse(loaded.isGenerateBridgePillars());
+        assertEquals(8.5, loaded.getBridgePierSpacingBlocks(), 1e-6);
+        assertEquals("minecraft:polished_andesite", loaded.getBridgePierMaterial());
         assertTrue(loaded.isIncludeBridgeGuardrail());
         assertEquals("minecraft:dark_oak_fence", loaded.getBridgeGuardrailMaterial());
+        assertEquals(3, loaded.getBridgeGuardrailHeightBlocks());
         assertEquals(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW, loaded.getTerrainStyle());
         assertEquals("minecraft:deepslate_bricks", loaded.getTunnelLiningMaterial());
         assertEquals("minecraft:polished_andesite", loaded.getTunnelAccentMaterial());

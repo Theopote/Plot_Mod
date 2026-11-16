@@ -5,6 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import org.junit.jupiter.api.Test;
@@ -144,6 +145,57 @@ class RoadInheritanceTest {
         road.inheritAllDefaults();
         assertNull(road.getStoredTunnelStyle());
         assertEquals(TunnelShape.RECTANGULAR, road.getResolvedTunnelStyle(config).shape());
+    }
+
+    @Test
+    void bridgeStructureOverrideInheritAndSerialize() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setGenerateBridgePillars(true);
+        config.setBridgePierSpacingBlocks(6.0);
+        config.setBridgePierMaterial("minecraft:stone_bricks");
+        config.setIncludeBridgeGuardrail(false);
+        config.setBridgeGuardrailMaterial("minecraft:oak_fence");
+        config.setBridgeGuardrailHeightBlocks(1);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("bridge-structure-road");
+        ResolvedBridgeStructure inherited = ResolvedBridgeStructure.resolve(road, config);
+        assertTrue(inherited.generatePillars());
+        assertEquals(6.0, inherited.pierSpacingBlocks(), 1e-6);
+        assertFalse(inherited.includeGuardrail());
+        assertEquals(1, inherited.guardrailHeightBlocks());
+
+        road.setGenerateBridgePillars(false);
+        road.setBridgePierSpacingBlocks(10.0);
+        road.setBridgePierMaterial("minecraft:deepslate_bricks");
+        road.setIncludeBridgeGuardrail(true);
+        road.setBridgeGuardrailMaterial("minecraft:iron_bars");
+        road.setBridgeGuardrailHeightBlocks(3);
+
+        ResolvedBridgeStructure overridden = ResolvedBridgeStructure.resolve(road, config);
+        assertFalse(overridden.generatePillars());
+        assertEquals(10.0, overridden.pierSpacingBlocks(), 1e-6);
+        assertEquals("minecraft:deepslate_bricks", overridden.pierMaterial());
+        assertTrue(overridden.includeGuardrail());
+        assertEquals("minecraft:iron_bars", overridden.guardrailMaterial());
+        assertEquals(3, overridden.guardrailHeightBlocks());
+
+        Road loaded = RoadNetwork.parseSnapshot(network.toJson()).getRoad("bridge-structure-road");
+        assertFalse(loaded.getGenerateBridgePillars());
+        assertEquals(10.0, loaded.getBridgePierSpacingBlocks(), 1e-6);
+        assertEquals("minecraft:deepslate_bricks", loaded.getBridgePierMaterial());
+        assertTrue(loaded.getIncludeBridgeGuardrail());
+        assertEquals("minecraft:iron_bars", loaded.getBridgeGuardrailMaterial());
+        assertEquals(3, loaded.getBridgeGuardrailHeightBlocks());
+
+        loaded.inheritAllDefaults();
+        assertNull(loaded.getGenerateBridgePillars());
+        assertNull(loaded.getBridgePierSpacingBlocks());
+        assertNull(loaded.getBridgePierMaterial());
+        assertNull(loaded.getIncludeBridgeGuardrail());
+        assertNull(loaded.getBridgeGuardrailMaterial());
+        assertNull(loaded.getBridgeGuardrailHeightBlocks());
+        assertEquals(6.0, loaded.getEffectiveBridgePierSpacingBlocks(config), 1e-6);
     }
 
     @Test

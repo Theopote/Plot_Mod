@@ -34,6 +34,14 @@ public final class RoadParameterLimits {
     public static final int MIN_SLOPE_BATTER_RUN_BLOCKS = 5;
     public static final int MAX_SLOPE_BATTER_RUN_BLOCKS = 50;
     public static final int DEFAULT_SLOPE_BATTER_RUN_BLOCKS = 32;
+    /** 桥墩间距（世界格）。 */
+    public static final double MIN_BRIDGE_PIER_SPACING_BLOCKS = 3.0;
+    public static final double MAX_BRIDGE_PIER_SPACING_BLOCKS = 24.0;
+    public static final double DEFAULT_BRIDGE_PIER_SPACING_BLOCKS = 6.0;
+    /** 桥梁护栏高度（桥面以上格数）。 */
+    public static final int MIN_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS = 1;
+    public static final int MAX_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS = 4;
+    public static final int DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS = 1;
 
     private RoadParameterLimits() {
     }
@@ -102,6 +110,28 @@ public final class RoadParameterLimits {
 
     public static int clampSlopeBatterRunBlocks(int blocks) {
         return Math.clamp(blocks, MIN_SLOPE_BATTER_RUN_BLOCKS, MAX_SLOPE_BATTER_RUN_BLOCKS);
+    }
+
+    public static double clampBridgePierSpacingBlocks(double blocks) {
+        return Math.clamp(blocks, MIN_BRIDGE_PIER_SPACING_BLOCKS, MAX_BRIDGE_PIER_SPACING_BLOCKS);
+    }
+
+    public static Double clampBridgePierSpacingBlocksNullable(Double blocks) {
+        if (blocks == null) {
+            return null;
+        }
+        return clampBridgePierSpacingBlocks(blocks);
+    }
+
+    public static int clampBridgeGuardrailHeightBlocks(int blocks) {
+        return Math.clamp(blocks, MIN_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS, MAX_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS);
+    }
+
+    public static Integer clampBridgeGuardrailHeightBlocksNullable(Integer blocks) {
+        if (blocks == null) {
+            return null;
+        }
+        return clampBridgeGuardrailHeightBlocks(blocks);
     }
 
 }

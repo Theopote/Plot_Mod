@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
+import com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
@@ -484,6 +485,74 @@ class BridgeStructureGeneratorTest {
                 return y <= bedY;
             }
         };
+    }
+
+    @Test
+    void customPierSpacingChangesInteriorStations() {
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 0.0, 36.0, 40.0,
+            0.0, 36.0, 36.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(
+                segments.getFirst(), 50, 50, 69, 69, 64, 64, 64, 64, 40.0));
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-structure"));
+        List<RoadConstructionType> types = List.of(RoadConstructionType.BRIDGE);
+
+        List<Double> defaultPiers = BridgeStructureGenerator.planStructureStations(
+                types, segments, heightInfos, CrossSectionBuildContext.fixed(section), 1.0, List.of(bridge))
+            .stream()
+            .filter(station -> station.kind() == BridgeStructureGenerator.StructureKind.INTERIOR_PIER)
+            .map(BridgeStructureGenerator.StructureStation::worldStation)
+            .sorted()
+            .collect(Collectors.toList());
+        List<Double> densePiers = BridgeStructureGenerator.planStructureStations(
+                types, segments, heightInfos, CrossSectionBuildContext.fixed(section), 1.0, List.of(bridge), 4.0)
+            .stream()
+            .filter(station -> station.kind() == BridgeStructureGenerator.StructureKind.INTERIOR_PIER)
+            .map(BridgeStructureGenerator.StructureStation::worldStation)
+            .sorted()
+            .collect(Collectors.toList());
+
+        assertTrue(densePiers.size() > defaultPiers.size(),
+            "tighter spacing should place more interior piers");
+        assertEquals(5, defaultPiers.size());
+        assertEquals(8, densePiers.size());
+    }
+
+    @Test
+    void customPierMaterialIsResolved() {
+        RoadSolidModel solids = new RoadSolidModel();
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(24, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(
+                segments.getFirst(), 50, 50, 69, 69, 64, 64, 64, 64, 24.0));
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 2.0, 20.0, 24.0,
+            4.0, 18.0, 14.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-structure"));
+
+        BridgeStructureGenerator.generate(
+            TEST_HOST,
+            solids,
+            List.of(RoadConstructionType.BRIDGE),
+            segments,
+            heightInfos,
+            CrossSectionBuildContext.fixed(section),
+            flatBed(50),
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            List.of(bridge),
+            GradeSeparationBuildContext.NONE,
+            6.0,
+            "minecraft:polished_deepslate");
+
+        assertTrue(solids.primitives().stream().anyMatch(primitive ->
+            primitive.layer() == RoadSolidLayer.BRIDGE
+                && "minecraft:polished_deepslate".equals(primitive.materialId())));
     }
 
     private static boolean hasSupportColumn(RoadSolidModel solids, int x, int minY) {

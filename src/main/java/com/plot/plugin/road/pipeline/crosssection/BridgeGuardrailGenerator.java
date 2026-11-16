@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.crosssection;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
@@ -23,7 +24,7 @@ import java.util.List;
  */
 public final class BridgeGuardrailGenerator {
 
-    static final String DEFAULT_MATERIAL = "minecraft:oak_fence";
+    static final String DEFAULT_MATERIAL = ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL;
 
     private BridgeGuardrailGenerator() {
     }
@@ -46,6 +47,34 @@ public final class BridgeGuardrailGenerator {
             BuildHeightProfile buildProfile,
             List<WaterCrossing> profileWaterCrossings,
             String guardrailMaterial) {
+        generate(
+            host,
+            solids,
+            constructionTypes,
+            segments,
+            heightInfos,
+            crossSections,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            profileWaterCrossings,
+            guardrailMaterial,
+            RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS);
+    }
+
+    static void generate(
+            Host host,
+            RoadSolidModel solids,
+            List<RoadConstructionType> constructionTypes,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            List<WaterCrossing> profileWaterCrossings,
+            String guardrailMaterial,
+            int guardrailHeightBlocks) {
         if (constructionTypes.stream().noneMatch(RoadConstructionType::isBridgeFamily)) {
             return;
         }
@@ -53,6 +82,7 @@ public final class BridgeGuardrailGenerator {
             guardrailMaterial == null || guardrailMaterial.isBlank()
                 ? DEFAULT_MATERIAL
                 : guardrailMaterial);
+        int height = RoadParameterLimits.clampBridgeGuardrailHeightBlocks(guardrailHeightBlocks);
         boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
@@ -91,7 +121,8 @@ public final class BridgeGuardrailGenerator {
                     deckY,
                     crossSection,
                     blockId,
-                    scale);
+                    scale,
+                    height);
             }
             geometryLocalBase += segment.distance;
         }
@@ -104,13 +135,18 @@ public final class BridgeGuardrailGenerator {
             int deckY,
             ResolvedCrossSection crossSection,
             String blockId,
-            double scale) {
+            double scale,
+            int heightBlocks) {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
         double edgeOffset = RoadCorridorWidth.bridgeDeckHalfWidthBlocks(crossSection) * scale;
-        int elevation = deckY + 1;
-        solids.add(center.add(normal.multiply(edgeOffset)), elevation, RoadSolidLayer.GUARDRAIL, blockId);
-        solids.add(center.subtract(normal.multiply(edgeOffset)), elevation, RoadSolidLayer.GUARDRAIL, blockId);
+        Vec2d left = center.add(normal.multiply(edgeOffset));
+        Vec2d right = center.subtract(normal.multiply(edgeOffset));
+        for (int level = 1; level <= heightBlocks; level++) {
+            int elevation = deckY + level;
+            solids.add(left, elevation, RoadSolidLayer.GUARDRAIL, blockId);
+            solids.add(right, elevation, RoadSolidLayer.GUARDRAIL, blockId);
+        }
     }
 }

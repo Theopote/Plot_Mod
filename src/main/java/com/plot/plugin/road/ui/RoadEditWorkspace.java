@@ -90,6 +90,9 @@ final class RoadEditWorkspace {
             ImGui.spacing();
             RoadUiSections.group("plugin.road.section.structure");
             TunnelStyleControls.renderGlobal(ctx);
+            ImGui.spacing();
+            RoadUiSections.section("plugin.road.section.bridge_structure_defaults");
+            BridgeStructureControls.renderNetworkDefaults(ctx);
         }
     }
 }

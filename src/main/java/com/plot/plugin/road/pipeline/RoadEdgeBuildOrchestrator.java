@@ -117,6 +117,9 @@ public final class RoadEdgeBuildOrchestrator {
             RoadTerrainStyle terrainStyle = RoadTerrainStyle.effective(road, host.config());
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle =
                 com.plot.plugin.road.tunnel.TunnelStyle.resolve(road, host.config());
+            com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure bridgeStructure =
+                com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.resolve(
+                    road, host.config());
             double unitsPerBlock = host.estimateCanvasUnitsPerBlock(pathPoints, segments);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
@@ -142,6 +145,7 @@ public final class RoadEdgeBuildOrchestrator {
                 heightCalculation.profileWaterCrossings(),
                 terrainStyle,
                 tunnelStyle,
+                bridgeStructure,
                 JunctionCorridorTrim.forEdge(
                     network, edge, crossSection, host.config(), unitsPerBlock, host.coordinateTransformer()),
                 GradeSeparationBuildContextFactory.forEdge(
@@ -183,6 +187,7 @@ public final class RoadEdgeBuildOrchestrator {
             heightCalculation.profileWaterCrossings(),
             null,
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
+            com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.fromConfig(host.config()),
             com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext.NONE,
             GradeSeparationBuildContext.NONE,
             host);
@@ -205,6 +210,7 @@ public final class RoadEdgeBuildOrchestrator {
             List<com.plot.plugin.road.pipeline.profile.environment.WaterCrossing> profileWaterCrossings,
             RoadTerrainStyle terrainStyle,
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle,
+            com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure bridgeStructure,
             com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext junctionCorridor,
             GradeSeparationBuildContext gradeSeparation,
             RoadGenerationPipelineHost host) {
@@ -224,6 +230,7 @@ public final class RoadEdgeBuildOrchestrator {
                 profileWaterCrossings,
                 terrainStyle,
                 tunnelStyle,
+                bridgeStructure,
                 junctionCorridor,
                 gradeSeparation),
             host);

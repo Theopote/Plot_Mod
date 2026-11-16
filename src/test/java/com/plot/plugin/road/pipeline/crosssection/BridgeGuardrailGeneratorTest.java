@@ -196,6 +196,38 @@ class BridgeGuardrailGeneratorTest {
                 || "minecraft:dark_oak_fence".equals(primitive.materialId())));
     }
 
+    @Test
+    void stacksGuardrailByHeightBlocks() {
+        RoadSolidModel solids = new RoadSolidModel();
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(4, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(
+                segments.getFirst(), 50, 50, 64, 64, 64, 64, 64, 64, 4.0));
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-guardrail"));
+
+        BridgeGuardrailGenerator.generate(
+            TEST_HOST,
+            solids,
+            List.of(RoadConstructionType.BRIDGE),
+            segments,
+            heightInfos,
+            CrossSectionBuildContext.fixed(section),
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            List.of(),
+            BridgeGuardrailGenerator.DEFAULT_MATERIAL,
+            2);
+
+        assertTrue(solids.primitives().stream().anyMatch(primitive ->
+            primitive.layer() == RoadSolidLayer.GUARDRAIL && primitive.elevation() == 65));
+        assertTrue(solids.primitives().stream().anyMatch(primitive ->
+            primitive.layer() == RoadSolidLayer.GUARDRAIL && primitive.elevation() == 66));
+        assertTrue(solids.primitives().stream()
+            .filter(primitive -> primitive.layer() == RoadSolidLayer.GUARDRAIL)
+            .noneMatch(primitive -> primitive.elevation() == 67));
+    }
+
     private static void assertGuardrailUsesBridgeDeckEdge(java.util.function.Consumer<RoadSystemConfig> configure) {
         RoadSystemConfig config = new RoadSystemConfig("bridge-guardrail");
         config.setRoadWidth(5);
