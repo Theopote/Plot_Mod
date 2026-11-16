@@ -2948,6 +2948,7 @@
   "plugin.road.inherit_default_enabled": "Inherited default: on",
   "plugin.road.inherit_default_int": "Inherited default: %d",
   "plugin.road.inherit_default_material": "Inherited default: %s",
+  "plugin.road.material_gravity_unsafe_replaced": "Material \"%s\" is gravity-affected and was replaced with \"%s\"",
   "plugin.road.inherit_default_percent": "Inherited default: %s",
   "plugin.road.inheritance_mode_active": "Some fields inherit network defaults (changing adopt defaults affects resolved values)",
   "plugin.road.issue.action.allow_flat_roads_to_slope": "Allow Local Transition",

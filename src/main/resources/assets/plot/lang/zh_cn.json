@@ -1509,6 +1509,7 @@
   "plugin.road.inherit_default_disabled": "继承默认：关闭",
   "plugin.road.inherit_default_batter": "继承默认：%s",
   "plugin.road.inherit_default_material": "继承默认：%s",
+  "plugin.road.material_gravity_unsafe_replaced": "材质「%s」会受重力掉落，已替换为「%s」",
   "plugin.road.inherit_default_center_line": "继承默认：%s",
   "plugin.road.inheritance_mode_active": "部分参数继承路网默认（修改认领默认会影响有效值）",
   "plugin.road.explicit_params_mode": "参数已固定（认领或编辑时写入，不随认领默认变化）",
