@@ -74,14 +74,41 @@ public final class VariableCrossSectionResolver {
         if (variable == null || variable.isEmpty()) {
             return base.resolve(defaults);
         }
-        List<StationCrossSection> sorted = variable.sortedStations();
-        if (sorted.isEmpty()) {
+        return resolve(
+            base,
+            variable.sortedStations(),
+            variable.getTransitionMode(),
+            chainage,
+            defaults);
+    }
+
+    /**
+     * 用显式桩号列表解析（设计器草稿预览，不必先写回 {@link Road}）。
+     */
+    public static ResolvedCrossSection resolve(
+            RoadCrossSection baseSection,
+            List<StationCrossSection> stations,
+            VariableCrossSectionTransitionMode mode,
+            double chainage,
+            RoadSystemConfig defaults) {
+        RoadCrossSection base = baseSection != null ? baseSection : new RoadCrossSection();
+        if (stations == null || stations.isEmpty()) {
             return base.resolve(defaults);
         }
+        List<StationCrossSection> sorted = stations.stream()
+            .sorted((a, b) -> Double.compare(a.getStation(), b.getStation()))
+            .toList();
 
-        if (variable.getTransitionMode() != VariableCrossSectionTransitionMode.SMOOTH
-                || sorted.size() == 1) {
-            return resolveTemplate(road, chainage).resolve(defaults);
+        if (mode != VariableCrossSectionTransitionMode.SMOOTH || sorted.size() == 1) {
+            StationCrossSection active = null;
+            for (StationCrossSection entry : sorted) {
+                if (entry.getStation() <= chainage + EPSILON) {
+                    active = entry;
+                } else {
+                    break;
+                }
+            }
+            return (active != null ? active.getCrossSection() : base).resolve(defaults);
         }
 
         StationCrossSection prev = null;
@@ -156,5 +183,19 @@ public final class VariableCrossSectionResolver {
         int lanes = section.getCarriageway().getEffectiveLaneCount();
         return display.format(entry.getStation())
             + " W=" + width + " L=" + lanes;
+    }
+
+    /** 沿路查询点摘要：桩号 + 该处生效的 W/L（阶梯或平滑插值后）。 */
+    public static String describeResolved(
+            double chainage,
+            ResolvedCrossSection resolved,
+            ChainageDisplayContext display) {
+        String stationText = display != null
+            ? display.format(chainage)
+            : RoadStationing.format(chainage, RoadStationFormat.DISTANCE_METERS);
+        if (resolved == null) {
+            return stationText;
+        }
+        return stationText + " W=" + resolved.carriagewayWidth + " L=" + resolved.laneCount;
     }
 }

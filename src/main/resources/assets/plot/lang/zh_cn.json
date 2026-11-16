@@ -2072,6 +2072,7 @@
   "plugin.road.variable_cross_section_none": "未定义桩号横断面（使用道路默认横断面）",
   "plugin.road.variable_cross_section_hint": "在桩号处定义横断面模板；自该桩号起生效，直至下一桩号（阶梯）。",
   "plugin.road.variable_cross_section_hint_smooth": "在桩号处定义横断面模板；相邻桩号间宽度等连续量平滑过渡，车道数/材质取较近侧。",
+  "plugin.road.variable_cross_section_playhead_hint": "拖动滑条移动播放头：下方 W/L 与右侧预览/参数随区间切换（等同选中左侧对应桩号），轨道标记不动。按住 Shift 拖动才会移动当前选中桩号。",
   "plugin.road.variable_cross_section_transition": "过渡方式",
   "plugin.road.variable_cross_section_transition.step": "阶梯",
   "plugin.road.variable_cross_section_transition.smooth": "平滑",

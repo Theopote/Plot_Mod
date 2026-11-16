@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
@@ -40,6 +41,8 @@ public final class VariableCrossSectionEditor {
     private double validationLength = Double.POSITIVE_INFINITY;
     private final List<StationDraft> drafts = new ArrayList<>();
     private int selectedIndex = -1;
+    /** 沿路浏览位置：拖滑条默认 scrub，显示该处生效 W/L；按住 Shift 时移动选中桩号。 */
+    private float playheadStation;
 
     private final CrossSectionDesignerPanel detailPanel = new CrossSectionDesignerPanel();
     private CrossSectionDraftMutator cachedMutator;
@@ -51,6 +54,7 @@ public final class VariableCrossSectionEditor {
         draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
         drafts.clear();
         selectedIndex = -1;
+        playheadStation = 0f;
         cachedMutator = null;
         cachedMutatorDraft = null;
         detailPanel.invalidate();
@@ -159,7 +163,7 @@ public final class VariableCrossSectionEditor {
                 }
                 boolean selected = i == selectedIndex;
                 if (ImGui.selectable(label + "##rail", selected, ImGuiSelectableFlags.AllowDoubleClick)) {
-                    selectIndex(i);
+                    selectIndex(i, true);
                 }
                 if (validation != null) {
                     ImGui.popStyleColor();
@@ -178,7 +182,7 @@ public final class VariableCrossSectionEditor {
                 onHistory.run();
             }
             drafts.add(StationDraft.defaultEntry(road, config, roadLength));
-            selectIndex(drafts.size() - 1);
+            selectIndex(drafts.size() - 1, true);
             applyDraftsIfChanged(road, config);
         }
     }
@@ -198,9 +202,10 @@ public final class VariableCrossSectionEditor {
         }
 
         StationDraft draft = drafts.get(selectedIndex);
-        ImGui.pushID("vcs_detail_" + selectedIndex);
+        // 固定 ID：scrub 时不因选中项变化打断滑条拖动。
+        ImGui.pushID("vcs_detail");
         try {
-            renderSelectedHeader(road, draft, selectedIndex, roadLength, chainageDisplay, onHistory, config);
+            renderSelectedHeader(road, selectedIndex, roadLength, chainageDisplay, onHistory, config);
             if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
                 return;
             }
@@ -220,36 +225,54 @@ public final class VariableCrossSectionEditor {
 
     private void renderSelectedHeader(
             Road road,
-            StationDraft draft,
             int index,
             float roadLength,
             ChainageDisplayContext chainageDisplay,
             Runnable onHistory,
             RoadSystemConfig config) {
         ImGui.text(PlotI18n.tr("plugin.road.variable_cross_section_station"));
-        float[] station = {draft.station};
+        float maxLen = Math.max(0.001f, roadLength);
+        playheadStation = Math.clamp(playheadStation, 0f, maxLen);
+        float[] station = {playheadStation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat("##vcs_station_slider", station, 0, Math.max(0.001f, roadLength), RoadUiFormat.SLIDER_METERS);
-        if (ImGui.isItemActivated() && onHistory != null) {
+        ImGui.sliderFloat("##vcs_station_slider", station, 0, maxLen, RoadUiFormat.SLIDER_METERS);
+        boolean sliderActive = ImGui.isItemActive();
+        boolean sliderActivated = ImGui.isItemActivated();
+        playheadStation = station[0];
+
+        boolean moveSelected = ImGui.getIO().getKeyShift();
+        if (sliderActivated && moveSelected && onHistory != null) {
             onHistory.run();
         }
-        draft.station = station[0];
-        // 在轨道上标出全部桩号位置；点标记可切换选中。
+        if (sliderActive && moveSelected && index >= 0 && index < drafts.size()) {
+            // Shift+拖：移动选中桩号标记。
+            drafts.get(index).station = playheadStation;
+        } else if (sliderActive && !moveSelected) {
+            // 普通拖：播放头 scrub；选中控制该区间的桩号，右侧预览/参数跟着变（标记位置不变）。
+            int owner = controllingDraftIndex(playheadStation);
+            if (owner >= 0 && owner != selectedIndex) {
+                selectIndex(owner, false);
+            }
+        }
+        index = selectedIndex;
+        // 桩号标记固定在各 draft.station；播放头由滑块抓手表示。
         drawStationMarkersOnSlider(roadLength, chainageDisplay);
+        if (ImGui.isItemHovered() && !sliderActive) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_playhead_hint"));
+        }
 
-        String validation = validateDraft(draft, drafts, index, roadLength);
-        if (validation != null) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, validation);
-        } else {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                chainageDisplay != null
-                    ? VariableCrossSectionResolver.describe(
-                        new StationCrossSection(draft.station, draft.crossSectionDraft.toCrossSection()),
-                        chainageDisplay)
-                    : VariableCrossSectionResolver.describe(
-                        new StationCrossSection(draft.station, draft.crossSectionDraft.toCrossSection()),
-                        RoadStationFormat.DISTANCE_METERS));
+        // 摘要按播放头解析生效断面（W/L 随区间变）。
+        ResolvedCrossSection atPlayhead = resolveAtPlayhead(road, config, playheadStation);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            VariableCrossSectionResolver.describeResolved(
+                playheadStation, atPlayhead, chainageDisplay));
+
+        if (index >= 0 && index < drafts.size()) {
+            String validation = validateDraft(drafts.get(index), drafts, index, roadLength);
+            if (validation != null) {
+                RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, validation);
+            }
         }
 
         ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
@@ -268,7 +291,7 @@ public final class VariableCrossSectionEditor {
             if (drafts.isEmpty()) {
                 selectedIndex = -1;
             } else {
-                selectIndex(Math.min(index, drafts.size() - 1));
+                selectIndex(Math.min(index, drafts.size() - 1), true);
             }
             applyDraftsIfChanged(road, config);
         }
@@ -341,7 +364,7 @@ public final class VariableCrossSectionEditor {
             ImGui.setTooltip(tip);
             if (click && hoveredIndex != selectedIndex && !ImGui.isItemActive()) {
                 // 避免与正在拖动的滑块抢交互。
-                selectIndex(hoveredIndex);
+                selectIndex(hoveredIndex, true);
             }
         }
     }
@@ -357,13 +380,16 @@ public final class VariableCrossSectionEditor {
         return cachedMutator;
     }
 
-    private void selectIndex(int index) {
+    private void selectIndex(int index, boolean syncPlayhead) {
         if (selectedIndex != index) {
             detailPanel.invalidate();
             cachedMutator = null;
             cachedMutatorDraft = null;
         }
         selectedIndex = index;
+        if (syncPlayhead && index >= 0 && index < drafts.size()) {
+            playheadStation = drafts.get(index).station;
+        }
     }
 
     private void clampSelection() {
@@ -373,7 +399,46 @@ public final class VariableCrossSectionEditor {
         }
         if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
             selectedIndex = 0;
+            playheadStation = drafts.get(0).station;
         }
+    }
+
+    /** 阶梯语义：不大于 chainage 的最近草稿下标；之前无桩号则 -1。 */
+    private int controllingDraftIndex(float chainage) {
+        int best = -1;
+        float bestStation = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < drafts.size(); i++) {
+            float s = drafts.get(i).station;
+            if (s <= chainage + 1e-4f && s >= bestStation) {
+                bestStation = s;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    private ResolvedCrossSection resolveAtPlayhead(
+            Road road,
+            RoadSystemConfig config,
+            float chainage) {
+        List<StationCrossSection> stations = new ArrayList<>();
+        for (StationDraft entry : drafts) {
+            if (!Float.isFinite(entry.station) || entry.station < 0f) {
+                continue;
+            }
+            stations.add(new StationCrossSection(
+                entry.station,
+                rebuildStationCrossSection(entry)));
+        }
+        RoadCrossSection base = road.getCrossSection() != null
+            ? road.getCrossSection()
+            : new RoadCrossSection();
+        return VariableCrossSectionResolver.resolve(
+            base,
+            stations,
+            draftTransitionMode,
+            chainage,
+            config);
     }
 
     private static String formatRailLabel(StationDraft draft, ChainageDisplayContext chainageDisplay) {
@@ -410,7 +475,13 @@ public final class VariableCrossSectionEditor {
         for (StationCrossSection entry : stations) {
             drafts.add(StationDraft.from(entry, config));
         }
-        selectedIndex = drafts.isEmpty() ? -1 : 0;
+        if (drafts.isEmpty()) {
+            selectedIndex = -1;
+            playheadStation = 0f;
+        } else {
+            selectedIndex = 0;
+            playheadStation = drafts.get(0).station;
+        }
     }
 
     private void applyDraftsIfChanged(Road road, RoadSystemConfig config) {
