@@ -15,8 +15,10 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.editor.CrossSectionDesignerPanel;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
@@ -224,18 +226,16 @@ public final class VariableCrossSectionEditor {
             ChainageDisplayContext chainageDisplay,
             Runnable onHistory,
             RoadSystemConfig config) {
+        ImGui.text(PlotI18n.tr("plugin.road.variable_cross_section_station"));
         float[] station = {draft.station};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.variable_cross_section_station") + "##station",
-            station,
-            0,
-            roadLength,
-            RoadUiFormat.SLIDER_METERS);
+        ImGui.sliderFloat("##vcs_station_slider", station, 0, Math.max(0.001f, roadLength), RoadUiFormat.SLIDER_METERS);
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
         draft.station = station[0];
+        // 在轨道上标出全部桩号位置；点标记可切换选中。
+        drawStationMarkersOnSlider(roadLength, chainageDisplay);
 
         String validation = validateDraft(draft, drafts, index, roadLength);
         if (validation != null) {
@@ -271,6 +271,78 @@ public final class VariableCrossSectionEditor {
                 selectIndex(Math.min(index, drafts.size() - 1));
             }
             applyDraftsIfChanged(road, config);
+        }
+    }
+
+    /**
+     * 在刚渲染的桩号滑条轨道上绘制各桩号标记。
+     * 选中：强调色三角；其它：灰色竖线；无效：警告色。点击标记切换选中。
+     */
+    private void drawStationMarkersOnSlider(float roadLength, ChainageDisplayContext chainageDisplay) {
+        if (drafts.isEmpty() || roadLength <= 1e-6f) {
+            return;
+        }
+        float x0 = ImGui.getItemRectMinX();
+        float y0 = ImGui.getItemRectMinY();
+        float x1 = ImGui.getItemRectMaxX();
+        float y1 = ImGui.getItemRectMaxY();
+        float trackW = x1 - x0;
+        float trackH = y1 - y0;
+        if (trackW < 8f || trackH < 4f) {
+            return;
+        }
+        // 滑块抓手有内边距，标记按可用行程近似映射。
+        float pad = Math.min(6f, trackW * 0.02f);
+        float usable0 = x0 + pad;
+        float usable1 = x1 - pad;
+        float usableW = Math.max(1f, usable1 - usable0);
+
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        boolean click = ImGui.isMouseClicked(ImGuiMouseButton.Left);
+        int hoveredIndex = -1;
+
+        for (int i = 0; i < drafts.size(); i++) {
+            StationDraft entry = drafts.get(i);
+            float t = Math.clamp(entry.station / roadLength, 0f, 1f);
+            float mx = usable0 + usableW * t;
+            String validation = validateDraft(entry, drafts, i, roadLength);
+            boolean selected = i == selectedIndex;
+            int color = validation != null
+                ? PluginUiColors.WARNING
+                : (selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.HINT_GRAY);
+
+            if (selected) {
+                // 向下小三角，标明当前编辑桩号。
+                float tipY = y1 + 1f;
+                float baseY = tipY + 6f;
+                drawList.addTriangleFilled(mx, tipY, mx - 4.5f, baseY, mx + 4.5f, baseY, color);
+            } else {
+                float markTop = y0 + 2f;
+                float markBot = y1 - 2f;
+                drawList.addLine(mx, markTop, mx, markBot, color, 2f);
+                drawList.addCircleFilled(mx, (markTop + markBot) * 0.5f, 2.5f, color);
+            }
+
+            float hitPad = 6f;
+            if (mouseX >= mx - hitPad && mouseX <= mx + hitPad && mouseY >= y0 - 2f && mouseY <= y1 + 8f) {
+                hoveredIndex = i;
+            }
+        }
+
+        if (hoveredIndex >= 0) {
+            StationDraft hovered = drafts.get(hoveredIndex);
+            String tip = formatRailLabel(hovered, chainageDisplay);
+            String validation = validateDraft(hovered, drafts, hoveredIndex, roadLength);
+            if (validation != null) {
+                tip = tip + "\n" + validation;
+            }
+            ImGui.setTooltip(tip);
+            if (click && hoveredIndex != selectedIndex && !ImGui.isItemActive()) {
+                // 避免与正在拖动的滑块抢交互。
+                selectIndex(hoveredIndex);
+            }
         }
     }
 
