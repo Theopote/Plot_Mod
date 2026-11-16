@@ -162,7 +162,9 @@ public final class VariableCrossSectionEditor {
                 PlotI18n.tr("plugin.road.variable_cross_section_none"));
         }
 
-        float listHeight = Math.max(40f, ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing() - 4f);
+        // 底栏：添加 + 删除同一行，成对管理列表。
+        float footerH = ImGui.getFrameHeightWithSpacing() + 4f;
+        float listHeight = Math.max(40f, ImGui.getContentRegionAvailY() - footerH);
         ImGui.beginChild("##vcs_station_list", 0f, listHeight, false);
         try {
             for (int i = 0; i < drafts.size(); i++) {
@@ -170,18 +172,27 @@ public final class VariableCrossSectionEditor {
                 ImGui.pushID(i);
                 String validation = validateDraft(draft, drafts, i, roadLength);
                 String label = formatRailLabel(draft, chainageDisplay, lengthNetwork, lengthRoad, lengthCoordinates);
+                boolean selected = i == selectedIndex;
+                int stylePushes = 0;
+                if (selected) {
+                    // Selectable 选中态用 Header 色；蓝色高亮与滑条选中三角一致。
+                    ImGui.pushStyleColor(ImGuiCol.Header, PluginUiColors.ACCENT_BLUE);
+                    ImGui.pushStyleColor(ImGuiCol.HeaderHovered, PluginUiColors.ACCENT_BLUE);
+                    ImGui.pushStyleColor(ImGuiCol.HeaderActive, PluginUiColors.ACCENT_BLUE);
+                    stylePushes += 3;
+                }
                 if (validation != null) {
                     ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.INVALID);
+                    stylePushes++;
                 }
-                boolean selected = i == selectedIndex;
                 if (ImGui.selectable(label + "##rail", selected, ImGuiSelectableFlags.AllowDoubleClick)) {
                     selectIndex(i, true);
                 }
-                if (validation != null) {
-                    ImGui.popStyleColor();
-                    if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip(validation);
-                    }
+                if (stylePushes > 0) {
+                    ImGui.popStyleColor(stylePushes);
+                }
+                if (validation != null && ImGui.isItemHovered()) {
+                    ImGui.setTooltip(validation);
                 }
                 ImGui.popID();
             }
@@ -189,13 +200,44 @@ public final class VariableCrossSectionEditor {
             ImGui.endChild();
         }
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.variable_cross_section_add") + "##vcs_add", -1, 0)) {
+        renderStationRailFooter(road, roadLength, onHistory, config);
+    }
+
+    /** 左轨底栏：添加与删除并排，窄栏时删除仍可读。 */
+    private void renderStationRailFooter(
+            Road road,
+            float roadLength,
+            Runnable onHistory,
+            RoadSystemConfig config) {
+        float avail = ImGui.getContentRegionAvailX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float deleteW = Math.clamp(avail * 0.34f, 56f, 88f);
+        float addW = Math.max(72f, avail - spacing - deleteW);
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.variable_cross_section_add") + "##vcs_add", addW, 0)) {
             if (onHistory != null) {
                 onHistory.run();
             }
             drafts.add(StationDraft.defaultEntry(road, config, roadLength, drafts, playheadStation));
             selectIndex(drafts.size() - 1, true);
             applyDraftsIfChanged(road, config);
+        }
+        ImGui.sameLine(0f, spacing);
+
+        boolean canDelete = selectedIndex >= 0 && selectedIndex < drafts.size();
+        if (!canDelete) {
+            ImGui.beginDisabled();
+        }
+        ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
+        boolean deleted = ImGui.button(PlotI18n.tr("plugin.road.delete") + "##var_xs_delete", deleteW, 0);
+        ImGui.popStyleColor(3);
+        if (!canDelete) {
+            ImGui.endDisabled();
+        }
+        if (deleted && canDelete) {
+            deleteSelectedStation(road, onHistory, config);
         }
     }
 
@@ -295,27 +337,26 @@ public final class VariableCrossSectionEditor {
                 RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, validation);
             }
         }
+    }
 
-        ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
-        boolean deleted = ImGui.button(PlotI18n.tr("plugin.road.delete") + "##var_xs_delete");
-        ImGui.popStyleColor(3);
-        if (deleted) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
-            drafts.remove(index);
-            cachedMutator = null;
-            cachedMutatorDraft = null;
-            detailPanel.invalidate();
-            if (drafts.isEmpty()) {
-                selectedIndex = -1;
-            } else {
-                selectIndex(Math.min(index, drafts.size() - 1), true);
-            }
-            applyDraftsIfChanged(road, config);
+    private void deleteSelectedStation(Road road, Runnable onHistory, RoadSystemConfig config) {
+        int index = selectedIndex;
+        if (index < 0 || index >= drafts.size()) {
+            return;
         }
+        if (onHistory != null) {
+            onHistory.run();
+        }
+        drafts.remove(index);
+        cachedMutator = null;
+        cachedMutatorDraft = null;
+        detailPanel.invalidate();
+        if (drafts.isEmpty()) {
+            selectedIndex = -1;
+        } else {
+            selectIndex(Math.min(index, drafts.size() - 1), true);
+        }
+        applyDraftsIfChanged(road, config);
     }
 
     /**
