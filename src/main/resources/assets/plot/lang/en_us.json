@@ -2791,6 +2791,7 @@
   "plugin.road.edit_materials": "Materials",
   "plugin.road.bridge_structure_defaults_hint": "Network defaults for new roads and inherited bridge settings.",
   "plugin.road.bridge_structure_road_hint": "Overrides apply to this road only. Leave fields inherited to follow network defaults.",
+  "plugin.road.bridge_structure_batch_hint": "Changed bridge fields are applied as explicit values to every selected road.",
   "plugin.road.bridge_pier_spacing_label": "Pier spacing (blocks)",
   "plugin.road.bridge_pier_style_label": "Pier layout",
   "plugin.road.bridge_pier_style.auto": "Auto (by width)",

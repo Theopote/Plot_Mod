@@ -32,10 +32,12 @@ import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
+import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
@@ -112,6 +114,14 @@ public final class RoadNetworkManager {
     private String batchFillSlopeMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String batchCutSlopeMaterial = "";
     private String batchRetainingWallMaterial = "minecraft:stone_bricks";
+    private boolean batchGenerateBridgePillars = true;
+    private double batchBridgePierSpacingBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
+    private String batchBridgePierMaterial = ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL;
+    private BridgePierStyle batchBridgePierStyle = BridgePierStyle.AUTO;
+    private boolean batchIncludeBridgeGuardrail = false;
+    private String batchBridgeGuardrailMaterial = ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL;
+    private int batchBridgeGuardrailHeightBlocks =
+        RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS;
     private boolean adoptIntersectionRepairPending = false;
     private final RoadLoopSeamPickSession loopSeamPickSession = new RoadLoopSeamPickSession();
     private boolean loopSeamRemapConfirmPending = false;
@@ -1578,6 +1588,13 @@ public final class RoadNetworkManager {
         batchRetainingWallMaterial = road.getRetainingWallMaterial() != null
             ? road.getRetainingWallMaterial()
             : road.getEffectiveRetainingWallMaterial(config);
+        batchGenerateBridgePillars = road.getEffectiveGenerateBridgePillars(config);
+        batchBridgePierSpacingBlocks = road.getEffectiveBridgePierSpacingBlocks(config);
+        batchBridgePierMaterial = road.getEffectiveBridgePierMaterial(config);
+        batchBridgePierStyle = road.getEffectiveBridgePierStyle(config);
+        batchIncludeBridgeGuardrail = road.getEffectiveIncludeBridgeGuardrail(config);
+        batchBridgeGuardrailMaterial = road.getEffectiveBridgeGuardrailMaterial(config);
+        batchBridgeGuardrailHeightBlocks = road.getEffectiveBridgeGuardrailHeightBlocks(config);
         return currentBatchEditDefaults();
     }
 
@@ -1610,7 +1627,14 @@ public final class RoadNetworkManager {
             batchFillSlopeMaterial,
             batchCutSlopeMaterial,
             batchRetainingWallMaterial,
-            batchEditMaxSlope
+            batchEditMaxSlope,
+            batchGenerateBridgePillars,
+            batchBridgePierSpacingBlocks,
+            batchBridgePierMaterial,
+            batchBridgePierStyle,
+            batchIncludeBridgeGuardrail,
+            batchBridgeGuardrailMaterial,
+            batchBridgeGuardrailHeightBlocks
         );
     }
 
@@ -1641,6 +1665,13 @@ public final class RoadNetworkManager {
         batchCutSlopeMaterial = draft.cutSlopeMaterial();
         batchRetainingWallMaterial = draft.retainingWallMaterial();
         batchEditMaxSlope = draft.maxSlope();
+        batchGenerateBridgePillars = draft.generateBridgePillars();
+        batchBridgePierSpacingBlocks = draft.bridgePierSpacingBlocks();
+        batchBridgePierMaterial = draft.bridgePierMaterial();
+        batchBridgePierStyle = draft.bridgePierStyle();
+        batchIncludeBridgeGuardrail = draft.includeBridgeGuardrail();
+        batchBridgeGuardrailMaterial = draft.bridgeGuardrailMaterial();
+        batchBridgeGuardrailHeightBlocks = draft.bridgeGuardrailHeightBlocks();
     }
 
     public int batchEditPendingFieldCount() {
@@ -1780,6 +1811,27 @@ public final class RoadNetworkManager {
         if (before.maxSlope() != after.maxSlope()) {
             fields.add(RoadBatchEditField.MAX_SLOPE);
         }
+        if (before.generateBridgePillars() != after.generateBridgePillars()) {
+            fields.add(RoadBatchEditField.GENERATE_BRIDGE_PILLARS);
+        }
+        if (before.bridgePierSpacingBlocks() != after.bridgePierSpacingBlocks()) {
+            fields.add(RoadBatchEditField.BRIDGE_PIER_SPACING);
+        }
+        if (!Objects.equals(before.bridgePierMaterial(), after.bridgePierMaterial())) {
+            fields.add(RoadBatchEditField.BRIDGE_PIER_MATERIAL);
+        }
+        if (before.bridgePierStyle() != after.bridgePierStyle()) {
+            fields.add(RoadBatchEditField.BRIDGE_PIER_STYLE);
+        }
+        if (before.includeBridgeGuardrail() != after.includeBridgeGuardrail()) {
+            fields.add(RoadBatchEditField.INCLUDE_BRIDGE_GUARDRAIL);
+        }
+        if (!Objects.equals(before.bridgeGuardrailMaterial(), after.bridgeGuardrailMaterial())) {
+            fields.add(RoadBatchEditField.BRIDGE_GUARDRAIL_MATERIAL);
+        }
+        if (before.bridgeGuardrailHeightBlocks() != after.bridgeGuardrailHeightBlocks()) {
+            fields.add(RoadBatchEditField.BRIDGE_GUARDRAIL_HEIGHT);
+        }
         return fields;
     }
 
@@ -1866,6 +1918,27 @@ public final class RoadNetworkManager {
         if (draft.includeRetainingWall()
                 && fields.contains(RoadBatchEditField.RETAINING_WALL_MATERIAL)) {
             road.setRetainingWallMaterial(draft.retainingWallMaterial());
+        }
+        if (fields.contains(RoadBatchEditField.GENERATE_BRIDGE_PILLARS)) {
+            road.setGenerateBridgePillars(draft.generateBridgePillars());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_PIER_SPACING)) {
+            road.setBridgePierSpacingBlocks(draft.bridgePierSpacingBlocks());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_PIER_MATERIAL)) {
+            road.setBridgePierMaterial(draft.bridgePierMaterial());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_PIER_STYLE)) {
+            road.setBridgePierStyle(draft.bridgePierStyle());
+        }
+        if (fields.contains(RoadBatchEditField.INCLUDE_BRIDGE_GUARDRAIL)) {
+            road.setIncludeBridgeGuardrail(draft.includeBridgeGuardrail());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_GUARDRAIL_MATERIAL)) {
+            road.setBridgeGuardrailMaterial(draft.bridgeGuardrailMaterial());
+        }
+        if (fields.contains(RoadBatchEditField.BRIDGE_GUARDRAIL_HEIGHT)) {
+            road.setBridgeGuardrailHeightBlocks(draft.bridgeGuardrailHeightBlocks());
         }
         // 批量面板只编辑横断面和附属设施。纵坡属于路线设计，不能因为用户只想改宽度
         // 就把第一条道路的坡度覆盖到所有选中道路。
@@ -2083,7 +2156,127 @@ public final class RoadNetworkManager {
             String fillSlopeMaterial,
             String cutSlopeMaterial,
             String retainingWallMaterial,
-            float maxSlope) {
+            float maxSlope,
+            boolean generateBridgePillars,
+            double bridgePierSpacingBlocks,
+            String bridgePierMaterial,
+            BridgePierStyle bridgePierStyle,
+            boolean includeBridgeGuardrail,
+            String bridgeGuardrailMaterial,
+            int bridgeGuardrailHeightBlocks) {
+
+        /** 兼容旧调用：桥梁字段取默认值。 */
+        public BatchEditDefaults(
+                int width,
+                int laneCount,
+                MaterialMix material,
+                boolean includeShoulder,
+                int shoulderWidth,
+                boolean includeSidewalk,
+                int sidewalkWidth,
+                String sidewalkMaterial,
+                boolean includeBikeLane,
+                int bikeLaneWidth,
+                boolean includeMedian,
+                int medianWidth,
+                int streetlightSpacing,
+                boolean laneDividers,
+                CenterLineStyle centerLineStyle,
+                String markingMaterial,
+                boolean includeSlopeBatter,
+                boolean includeRetainingWall,
+                float fillSlopeRatio,
+                float cutSlopeRatio,
+                String fillSlopeMaterial,
+                String cutSlopeMaterial,
+                String retainingWallMaterial,
+                float maxSlope) {
+            this(
+                width,
+                laneCount,
+                material,
+                includeShoulder,
+                shoulderWidth,
+                includeSidewalk,
+                sidewalkWidth,
+                sidewalkMaterial,
+                includeBikeLane,
+                bikeLaneWidth,
+                includeMedian,
+                medianWidth,
+                streetlightSpacing,
+                laneDividers,
+                centerLineStyle,
+                markingMaterial,
+                includeSlopeBatter,
+                includeRetainingWall,
+                fillSlopeRatio,
+                cutSlopeRatio,
+                fillSlopeMaterial,
+                cutSlopeMaterial,
+                retainingWallMaterial,
+                maxSlope,
+                true,
+                RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS,
+                ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL,
+                BridgePierStyle.AUTO,
+                false,
+                ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL,
+                RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS);
+        }
+
+        public BatchEditDefaults {
+            bridgePierSpacingBlocks =
+                RoadParameterLimits.clampBridgePierSpacingBlocks(bridgePierSpacingBlocks);
+            bridgePierMaterial = bridgePierMaterial == null || bridgePierMaterial.isBlank()
+                ? ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL
+                : bridgePierMaterial;
+            bridgePierStyle = bridgePierStyle != null ? bridgePierStyle : BridgePierStyle.AUTO;
+            bridgeGuardrailMaterial = bridgeGuardrailMaterial == null || bridgeGuardrailMaterial.isBlank()
+                ? ResolvedBridgeStructure.DEFAULT_GUARDRAIL_MATERIAL
+                : bridgeGuardrailMaterial;
+            bridgeGuardrailHeightBlocks =
+                RoadParameterLimits.clampBridgeGuardrailHeightBlocks(bridgeGuardrailHeightBlocks);
+        }
+
+        /** 用横断面草稿字段替换，保留本对象的桥梁字段。 */
+        public BatchEditDefaults mergeCrossSectionFrom(BatchEditDefaults crossSection) {
+            if (crossSection == null) {
+                return this;
+            }
+            return new BatchEditDefaults(
+                crossSection.width(),
+                crossSection.laneCount(),
+                crossSection.material(),
+                crossSection.includeShoulder(),
+                crossSection.shoulderWidth(),
+                crossSection.includeSidewalk(),
+                crossSection.sidewalkWidth(),
+                crossSection.sidewalkMaterial(),
+                crossSection.includeBikeLane(),
+                crossSection.bikeLaneWidth(),
+                crossSection.includeMedian(),
+                crossSection.medianWidth(),
+                crossSection.streetlightSpacing(),
+                crossSection.laneDividers(),
+                crossSection.centerLineStyle(),
+                crossSection.markingMaterial(),
+                crossSection.includeSlopeBatter(),
+                crossSection.includeRetainingWall(),
+                crossSection.fillSlopeRatio(),
+                crossSection.cutSlopeRatio(),
+                crossSection.fillSlopeMaterial(),
+                crossSection.cutSlopeMaterial(),
+                crossSection.retainingWallMaterial(),
+                crossSection.maxSlope(),
+                generateBridgePillars,
+                bridgePierSpacingBlocks,
+                bridgePierMaterial,
+                bridgePierStyle,
+                includeBridgeGuardrail,
+                bridgeGuardrailMaterial,
+                bridgeGuardrailHeightBlocks);
+        }
 
         public BatchEditDefaults withWidth(int newWidth) {
             return new BatchEditDefaults(
@@ -2110,7 +2303,14 @@ public final class RoadNetworkManager {
                 fillSlopeMaterial,
                 cutSlopeMaterial,
                 retainingWallMaterial,
-                maxSlope);
+                maxSlope,
+                generateBridgePillars,
+                bridgePierSpacingBlocks,
+                bridgePierMaterial,
+                bridgePierStyle,
+                includeBridgeGuardrail,
+                bridgeGuardrailMaterial,
+                bridgeGuardrailHeightBlocks);
         }
 
         public BatchEditDefaults withLaneCount(int newLaneCount) {
@@ -2138,7 +2338,56 @@ public final class RoadNetworkManager {
                 fillSlopeMaterial,
                 cutSlopeMaterial,
                 retainingWallMaterial,
-                maxSlope);
+                maxSlope,
+                generateBridgePillars,
+                bridgePierSpacingBlocks,
+                bridgePierMaterial,
+                bridgePierStyle,
+                includeBridgeGuardrail,
+                bridgeGuardrailMaterial,
+                bridgeGuardrailHeightBlocks);
+        }
+
+        public BatchEditDefaults withBridgeStructure(
+                boolean newGenerateBridgePillars,
+                double newBridgePierSpacingBlocks,
+                String newBridgePierMaterial,
+                BridgePierStyle newBridgePierStyle,
+                boolean newIncludeBridgeGuardrail,
+                String newBridgeGuardrailMaterial,
+                int newBridgeGuardrailHeightBlocks) {
+            return new BatchEditDefaults(
+                width,
+                laneCount,
+                material,
+                includeShoulder,
+                shoulderWidth,
+                includeSidewalk,
+                sidewalkWidth,
+                sidewalkMaterial,
+                includeBikeLane,
+                bikeLaneWidth,
+                includeMedian,
+                medianWidth,
+                streetlightSpacing,
+                laneDividers,
+                centerLineStyle,
+                markingMaterial,
+                includeSlopeBatter,
+                includeRetainingWall,
+                fillSlopeRatio,
+                cutSlopeRatio,
+                fillSlopeMaterial,
+                cutSlopeMaterial,
+                retainingWallMaterial,
+                maxSlope,
+                newGenerateBridgePillars,
+                newBridgePierSpacingBlocks,
+                newBridgePierMaterial,
+                newBridgePierStyle,
+                newIncludeBridgeGuardrail,
+                newBridgeGuardrailMaterial,
+                newBridgeGuardrailHeightBlocks);
         }
 
         /** 将批量草稿转为临时横断面，供预览与解析使用。 */

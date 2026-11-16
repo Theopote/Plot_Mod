@@ -1931,6 +1931,7 @@
   "plugin.road.edit_bridge_structure": "桥梁结构",
   "plugin.road.bridge_structure_defaults_hint": "作为新路与继承态道路的桥梁结构默认值。",
   "plugin.road.bridge_structure_road_hint": "以下覆盖仅作用于本路；保持继承则跟随路网默认。",
+  "plugin.road.bridge_structure_batch_hint": "修改过的桥梁字段会作为显式值应用到所有选中道路。",
   "plugin.road.bridge_pier_spacing_label": "桥墩间距（格）",
   "plugin.road.bridge_pier_style_label": "桥墩柱列",
   "plugin.road.bridge_pier_style.auto": "自动（按路面宽）",

@@ -3,10 +3,12 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.ui.BridgeStructureControls;
 import com.plot.plugin.road.ui.CrossSectionDraftEditor;
 import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
 import com.plot.plugin.road.ui.RoadBatchCrossSectionEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.RoadUiSections;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -71,7 +73,13 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
             ctx,
             sectionDraft,
             options,
-            () -> workingBatchDefaults = sectionDraft.toBatchDefaults());
+            () -> workingBatchDefaults = sectionDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults));
+        ImGui.spacing();
+        RoadUiSections.section("plugin.road.edit_bridge_structure");
+        BridgeStructureControls.renderBatchWorking(
+            ctx,
+            workingBatchDefaults,
+            updated -> workingBatchDefaults = updated);
         ImGui.spacing();
         RoadBatchCrossSectionEditor.renderDraftPreview(ctx, workingBatchDefaults);
     }

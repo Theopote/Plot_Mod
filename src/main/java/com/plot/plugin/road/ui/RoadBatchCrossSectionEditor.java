@@ -31,9 +31,17 @@ public final class RoadBatchCrossSectionEditor {
             ctx,
             sectionDraft,
             CrossSectionDraftEditorOptions.batch(),
-            () -> ctx.networkManager().updateBatchEditDraft(sectionDraft.toBatchDefaults()));
+            () -> ctx.networkManager().updateBatchEditDraft(
+                sectionDraft.toBatchDefaultsPreservingBridge(
+                    ctx.networkManager().currentBatchEditDefaults())));
 
-        renderApplyButton(ctx, sectionDraft.toBatchDefaults());
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+        RoadUiSections.section("plugin.road.edit_bridge_structure");
+        BridgeStructureControls.renderBatch(ctx, ctx.networkManager().currentBatchEditDefaults());
+
+        renderApplyButton(ctx, ctx.networkManager().currentBatchEditDefaults());
     }
 
     static void renderApplyButton(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {

@@ -136,7 +136,15 @@ public final class CrossSectionDraft {
     }
 
     public RoadNetworkManager.BatchEditDefaults toBatchDefaults() {
-        return new RoadNetworkManager.BatchEditDefaults(
+        return toBatchDefaultsPreservingBridge(null);
+    }
+
+    /**
+     * 横断面字段来自本草稿；桥梁结构字段从 {@code bridgeSource} 保留（缺省用记录默认值）。
+     */
+    public RoadNetworkManager.BatchEditDefaults toBatchDefaultsPreservingBridge(
+            RoadNetworkManager.BatchEditDefaults bridgeSource) {
+        RoadNetworkManager.BatchEditDefaults crossSection = new RoadNetworkManager.BatchEditDefaults(
             width,
             laneCount,
             material,
@@ -162,6 +170,10 @@ public final class CrossSectionDraft {
             retainingWallMaterial,
             maxSlope
         );
+        if (bridgeSource == null) {
+            return crossSection;
+        }
+        return bridgeSource.mergeCrossSectionFrom(crossSection);
     }
 
     public RoadCrossSection toCrossSection() {

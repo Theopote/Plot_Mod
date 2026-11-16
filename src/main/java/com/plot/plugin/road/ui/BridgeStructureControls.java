@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
@@ -9,6 +10,8 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+
+import java.util.function.Consumer;
 
 /**
  * 桥梁结构（桥墩 / 桥面护栏）网络默认与单路覆盖控件。
@@ -90,6 +93,142 @@ public final class BridgeStructureControls {
                     markCustom(ctx, config);
                 },
                 false);
+        }
+    }
+
+    /** 批量草稿：写入 {@link RoadNetworkManager#updateBatchEditDraft}。 */
+    public static void renderBatch(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
+        if (draft == null) {
+            return;
+        }
+        renderBatchWorking(ctx, draft, updated -> ctx.networkManager().updateBatchEditDraft(updated));
+    }
+
+    /** 浮动批量窗：直接改写工作副本。 */
+    public static void renderBatchWorking(
+            RoadUiContext ctx,
+            RoadNetworkManager.BatchEditDefaults draft,
+            Consumer<RoadNetworkManager.BatchEditDefaults> onChanged) {
+        if (draft == null || onChanged == null) {
+            return;
+        }
+        ImGui.textWrapped(PlotI18n.tr("plugin.road.bridge_structure_batch_hint"));
+        ImGui.spacing();
+
+        RoadNetworkManager.BatchEditDefaults current = draft;
+        ImBoolean pillars = new ImBoolean(current.generateBridgePillars());
+        if (ImGui.checkbox(
+            PlotI18n.tr("plugin.road.generate_bridge_pillars") + "##batch_bridge_pillars",
+            pillars)) {
+            current = current.withBridgeStructure(
+                pillars.get(),
+                current.bridgePierSpacingBlocks(),
+                current.bridgePierMaterial(),
+                current.bridgePierStyle(),
+                current.includeBridgeGuardrail(),
+                current.bridgeGuardrailMaterial(),
+                current.bridgeGuardrailHeightBlocks());
+            onChanged.accept(current);
+        }
+        if (current.generateBridgePillars()) {
+            float[] spacing = {(float) current.bridgePierSpacingBlocks()};
+            if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.road.bridge_pier_spacing_label") + "##batch_pier_spacing",
+                spacing,
+                (float) RoadParameterLimits.MIN_BRIDGE_PIER_SPACING_BLOCKS,
+                (float) RoadParameterLimits.MAX_BRIDGE_PIER_SPACING_BLOCKS,
+                "%.1f")) {
+                current = current.withBridgeStructure(
+                    current.generateBridgePillars(),
+                    spacing[0],
+                    current.bridgePierMaterial(),
+                    current.bridgePierStyle(),
+                    current.includeBridgeGuardrail(),
+                    current.bridgeGuardrailMaterial(),
+                    current.bridgeGuardrailHeightBlocks());
+                onChanged.accept(current);
+            }
+            RoadNetworkManager.BatchEditDefaults styleBase = current;
+            renderPierStyleCombo(
+                "##batch_pier_style",
+                current.bridgePierStyle(),
+                style -> onChanged.accept(styleBase.withBridgeStructure(
+                    styleBase.generateBridgePillars(),
+                    styleBase.bridgePierSpacingBlocks(),
+                    styleBase.bridgePierMaterial(),
+                    style,
+                    styleBase.includeBridgeGuardrail(),
+                    styleBase.bridgeGuardrailMaterial(),
+                    styleBase.bridgeGuardrailHeightBlocks())));
+            if (ctx != null) {
+                RoadNetworkManager.BatchEditDefaults materialBase = current;
+                RoadUiWidgets.renderBlockMaterialPicker(
+                    ctx,
+                    "##batch_pier_material",
+                    PlotI18n.tr("plugin.road.bridge_pier_material"),
+                    current.bridgePierMaterial(),
+                    material -> onChanged.accept(materialBase.withBridgeStructure(
+                        materialBase.generateBridgePillars(),
+                        materialBase.bridgePierSpacingBlocks(),
+                        material,
+                        materialBase.bridgePierStyle(),
+                        materialBase.includeBridgeGuardrail(),
+                        materialBase.bridgeGuardrailMaterial(),
+                        materialBase.bridgeGuardrailHeightBlocks())),
+                    false);
+            }
+        }
+
+        ImBoolean guardrail = new ImBoolean(current.includeBridgeGuardrail());
+        if (ImGui.checkbox(
+            PlotI18n.tr("plugin.road.include_bridge_guardrail") + "##batch_bridge_guardrail",
+            guardrail)) {
+            current = current.withBridgeStructure(
+                current.generateBridgePillars(),
+                current.bridgePierSpacingBlocks(),
+                current.bridgePierMaterial(),
+                current.bridgePierStyle(),
+                guardrail.get(),
+                current.bridgeGuardrailMaterial(),
+                current.bridgeGuardrailHeightBlocks());
+            onChanged.accept(current);
+        }
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
+        if (current.includeBridgeGuardrail()) {
+            int[] height = {current.bridgeGuardrailHeightBlocks()};
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.bridge_guardrail_height_label") + "##batch_guardrail_height",
+                height,
+                RoadParameterLimits.MIN_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS,
+                RoadParameterLimits.MAX_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS,
+                "%d")) {
+                current = current.withBridgeStructure(
+                    current.generateBridgePillars(),
+                    current.bridgePierSpacingBlocks(),
+                    current.bridgePierMaterial(),
+                    current.bridgePierStyle(),
+                    current.includeBridgeGuardrail(),
+                    current.bridgeGuardrailMaterial(),
+                    height[0]);
+                onChanged.accept(current);
+            }
+            if (ctx != null) {
+                RoadNetworkManager.BatchEditDefaults materialBase = current;
+                RoadUiWidgets.renderBlockMaterialPicker(
+                    ctx,
+                    "##batch_guardrail_material",
+                    PlotI18n.tr("plugin.road.bridge_guardrail_material"),
+                    current.bridgeGuardrailMaterial(),
+                    material -> onChanged.accept(materialBase.withBridgeStructure(
+                        materialBase.generateBridgePillars(),
+                        materialBase.bridgePierSpacingBlocks(),
+                        materialBase.bridgePierMaterial(),
+                        materialBase.bridgePierStyle(),
+                        materialBase.includeBridgeGuardrail(),
+                        material,
+                        materialBase.bridgeGuardrailHeightBlocks())),
+                    false);
+            }
         }
     }
 

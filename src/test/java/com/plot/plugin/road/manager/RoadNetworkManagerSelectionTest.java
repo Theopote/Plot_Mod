@@ -186,6 +186,45 @@ class RoadNetworkManagerSelectionTest {
     }
 
     @Test
+    void batchApplyUpdatesBridgeStructureOnSelectedRoads() {
+        var roadA = manager.getNetwork().createRoad(manager.getConfig());
+        roadA.setGenerateBridgePillars(true);
+        roadA.setIncludeBridgeGuardrail(false);
+        manager.getNetwork().assignEdgeToRoad(edgeA, roadA.getId());
+        var roadB = manager.getNetwork().createRoad(manager.getConfig());
+        roadB.setGenerateBridgePillars(true);
+        roadB.setIncludeBridgeGuardrail(false);
+        manager.getNetwork().assignEdgeToRoad(edgeB, roadB.getId());
+
+        manager.handleEdgeSelect(edgeA, false);
+        manager.handleEdgeSelect(edgeB, true);
+
+        RoadNetworkManager.BatchEditDefaults base = manager.loadBatchEditDefaults();
+        RoadNetworkManager.BatchEditDefaults draft = base.withBridgeStructure(
+            false,
+            10.0,
+            "minecraft:deepslate_bricks",
+            com.plot.plugin.road.model.section.BridgePierStyle.SINGLE,
+            true,
+            "minecraft:iron_bars",
+            2);
+        manager.applyBatchEdit(draft);
+
+        assertFalse(roadA.getGenerateBridgePillars());
+        assertEquals(10.0, roadA.getBridgePierSpacingBlocks(), 1e-6);
+        assertEquals("minecraft:deepslate_bricks", roadA.getBridgePierMaterial());
+        assertEquals(
+            com.plot.plugin.road.model.section.BridgePierStyle.SINGLE, roadA.getBridgePierStyle());
+        assertTrue(roadA.getIncludeBridgeGuardrail());
+        assertEquals("minecraft:iron_bars", roadA.getBridgeGuardrailMaterial());
+        assertEquals(2, roadA.getBridgeGuardrailHeightBlocks());
+
+        assertFalse(roadB.getGenerateBridgePillars());
+        assertTrue(roadB.getIncludeBridgeGuardrail());
+        assertEquals(2, roadB.getBridgeGuardrailHeightBlocks());
+    }
+
+    @Test
     void batchDraftReloadsWhenSwitchingToDifferentSelectionOfSameSize() {
         var flatRoad = manager.getNetwork().createRoad(manager.getConfig());
         flatRoad.setMaxSlope(0f);
