@@ -47,7 +47,8 @@ class BridgePierFootprintTest {
 
     @Test
     void doublePierIsSymmetricAboutCenterline() {
-        Set<Long> laterals = generateInteriorLaterals(BridgePierStyle.DOUBLE, 1, 2, 7);
+        // 偏移=柱间空隙 3、直径 1 → 柱心在 ±2（中间空隙恰 3 格）
+        Set<Long> laterals = generateInteriorLaterals(BridgePierStyle.DOUBLE, 1, 3, 7);
         assertEquals(Set.of(-20L, 20L), laterals);
     }
 

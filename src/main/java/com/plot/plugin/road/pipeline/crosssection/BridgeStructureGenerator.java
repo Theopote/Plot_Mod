@@ -619,22 +619,34 @@ public final class BridgeStructureGenerator {
             int pierDiameterBlocks,
             int pierOffsetBlocks) {
         int carriagewayWidth = Math.max(1, crossSection.carriagewayWidth);
-        int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
-            carriagewayWidth, pierDiameterBlocks, pierStyle);
+        BridgePierStyle style = pierStyle != null ? pierStyle : BridgePierStyle.SINGLE;
+        int diameter;
+        int offset = 0;
+        if (style == BridgePierStyle.DOUBLE) {
+            // pierOffsetBlocks = 柱间空隙格数（UI「双柱偏移」）
+            offset = RoadParameterLimits.clampBridgePierOffsetBlocks(carriagewayWidth, pierOffsetBlocks);
+            diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, pierDiameterBlocks, BridgePierStyle.DOUBLE, offset);
+            offset = RoadParameterLimits.clampBridgePierOffsetBlocks(
+                carriagewayWidth, diameter, offset);
+            diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, diameter, BridgePierStyle.DOUBLE, offset);
+        } else {
+            diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, pierDiameterBlocks, BridgePierStyle.SINGLE);
+        }
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > EPSILON
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
         Vec2d forward = segmentForward(segment);
-        BridgePierStyle style = pierStyle != null ? pierStyle : BridgePierStyle.SINGLE;
         if (style == BridgePierStyle.DOUBLE) {
-            int offset = RoadParameterLimits.clampBridgePierOffsetBlocks(
-                carriagewayWidth, diameter, pierOffsetBlocks);
+            int[] centers = RoadDimensionUtils.doublePierCenters(offset, diameter);
             placePierFootprint(
-                solids, center, normal, offset, diameter, deckY, terrain, pierBlockId, heavyPier,
+                solids, center, normal, centers[0], diameter, deckY, terrain, pierBlockId, heavyPier,
                 forward, scale, gradeSeparation);
             placePierFootprint(
-                solids, center, normal, -offset, diameter, deckY, terrain, pierBlockId, heavyPier,
+                solids, center, normal, centers[1], diameter, deckY, terrain, pierBlockId, heavyPier,
                 forward, scale, gradeSeparation);
         } else {
             placePierFootprint(

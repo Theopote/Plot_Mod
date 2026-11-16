@@ -160,11 +160,10 @@ public final class RoadParameterLimits {
         return Math.clamp(width / 2, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
     }
 
-    /** 与行车道同奇偶的最小直径；极窄偶数路宽无解时退回 1。 */
+    /** 与行车道同奇偶的最小单柱直径；极窄偶数路宽无解时退回 1。 */
     public static int minBridgePierDiameterBlocks(int carriagewayWidth) {
         int width = Math.max(1, carriagewayWidth);
-        int wantOdd = width & 1;
-        if (wantOdd == 1) {
+        if ((width & 1) == 1) {
             return 1;
         }
         int max = parityAlignedMaxDiameter(width, maxSinglePierDiameterBlocks(width));
@@ -181,68 +180,103 @@ public final class RoadParameterLimits {
         return max;
     }
 
+    /** 将整数收束到与 {@code paritySource} 同奇偶，落在 [min, max] 内。 */
+    private static int snapToParity(int value, int paritySource, int min, int max) {
+        int want = paritySource & 1;
+        int v = Math.clamp(value, min, max);
+        if ((v & 1) == want) {
+            return v;
+        }
+        if (v - 1 >= min && ((v - 1) & 1) == want) {
+            return v - 1;
+        }
+        if (v + 1 <= max && ((v + 1) & 1) == want) {
+            return v + 1;
+        }
+        return (min & 1) == want ? min : Math.min(max, min + 1);
+    }
+
     /**
-     * 钳制柱直径：落在 [1, min(4, ⌊W/2⌋)]，并与行车道宽同奇偶（按单柱上限）。
+     * 钳制柱直径：单柱落在 [1, min(4, ⌊W/2⌋)] 且与路宽同奇偶。
      */
     public static int clampBridgePierDiameterBlocks(int carriagewayWidth, int diameter) {
         return clampBridgePierDiameterBlocks(carriagewayWidth, diameter, BridgePierStyle.SINGLE);
     }
 
     /**
-     * 钳制柱直径。双柱时额外保证「最小空隙偏移 ≤ 外缘不越界的最大偏移」，
-     * 避免直径过大导致双柱足迹半格错位或越出行车道。
+     * 钳制柱直径。双柱不跟路宽奇偶同步，需配合
+     * {@link #clampBridgePierDiameterBlocks(int, int, BridgePierStyle, int)} 传入偏移。
      */
     public static int clampBridgePierDiameterBlocks(
             int carriagewayWidth,
             int diameter,
             BridgePierStyle style) {
+        if (style == BridgePierStyle.DOUBLE) {
+            int offset = minDoublePierOffsetBlocks(carriagewayWidth);
+            return clampBridgePierDiameterBlocks(carriagewayWidth, diameter, style, offset);
+        }
         int width = Math.max(1, carriagewayWidth);
         int min = minBridgePierDiameterBlocks(width);
         int max = parityAlignedMaxDiameter(width, maxSinglePierDiameterBlocks(width));
-        if (style == BridgePierStyle.DOUBLE) {
-            max = maxDoublePierDiameterBlocks(width);
-        }
         if (max < min) {
             return min;
         }
-        int d = Math.clamp(diameter, min, max);
-        int wantOdd = width & 1;
-        if ((d & 1) == wantOdd) {
-            return d;
-        }
-        if (d - 1 >= min && ((d - 1) & 1) == wantOdd) {
-            return d - 1;
-        }
-        if (d + 1 <= max && ((d + 1) & 1) == wantOdd) {
-            return d + 1;
-        }
-        return min;
+        return snapToParity(diameter, width, min, max);
     }
 
     /**
-     * 双柱可用的最大直径：在同奇偶与半宽上限内，取仍能放下「两柱 + 最小空隙」的最大值。
+     * 双柱直径：范围 {@code 1..min(4, ⌊(W − 柱间空隙) / 2⌋)}，不与路宽奇偶同步。
+     * {@code offsetBlocks} 语义为两柱之间的空隙格数（UI「双柱偏移」）。
      */
-    public static int maxDoublePierDiameterBlocks(int carriagewayWidth) {
-        int width = Math.max(1, carriagewayWidth);
-        int min = minBridgePierDiameterBlocks(width);
-        int max = parityAlignedMaxDiameter(width, maxSinglePierDiameterBlocks(width));
-        for (int d = max; d >= min; d -= 2) {
-            if (rawMaxDoublePierOffsetBlocks(width, d) >= minDoublePierOffsetForDiameter(width, d)) {
-                return d;
-            }
+    public static int clampBridgePierDiameterBlocks(
+            int carriagewayWidth,
+            int diameter,
+            BridgePierStyle style,
+            int offsetBlocks) {
+        if (style != BridgePierStyle.DOUBLE) {
+            return clampBridgePierDiameterBlocks(carriagewayWidth, diameter, BridgePierStyle.SINGLE);
         }
-        return min;
+        int width = Math.max(1, carriagewayWidth);
+        int gap = clampBridgePierOffsetBlocks(width, offsetBlocks);
+        int max = maxDoublePierDiameterBlocks(width, gap);
+        return Math.clamp(diameter, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, max);
     }
 
-    /** 合法直径序列（同奇偶，步长 2），供 UI 下拉/步进。 */
+    /**
+     * 双柱最大直径：{@code ⌊(行车道宽 − 柱间空隙) / 2⌋}，再夹到绝对上限 4，
+     * 并保证左右柱足迹不越出行车道。
+     */
+    public static int maxDoublePierDiameterBlocks(int carriagewayWidth, int gapBlocks) {
+        int width = Math.max(1, carriagewayWidth);
+        int gap = clampBridgePierOffsetBlocks(width, gapBlocks);
+        int byFormula = Math.max(1, (width - gap) / 2);
+        int max = Math.min(MAX_BRIDGE_PIER_DIAMETER_BLOCKS, byFormula);
+        while (max > MIN_BRIDGE_PIER_DIAMETER_BLOCKS
+                && !RoadDimensionUtils.doublePierFitsCarriageway(width, gap, max)) {
+            max--;
+        }
+        return Math.max(MIN_BRIDGE_PIER_DIAMETER_BLOCKS, max);
+    }
+
+    /** 双柱直径依赖柱间空隙；未指定时按最小合法空隙估算上限。 */
+    public static int maxDoublePierDiameterBlocks(int carriagewayWidth) {
+        return maxDoublePierDiameterBlocks(
+            carriagewayWidth, minDoublePierOffsetBlocks(carriagewayWidth));
+    }
+
+    /** 合法单柱直径序列（同奇偶，步长 2）。 */
     public static int[] validBridgePierDiameters(int carriagewayWidth) {
         return validBridgePierDiameters(carriagewayWidth, BridgePierStyle.SINGLE);
     }
 
     public static int[] validBridgePierDiameters(int carriagewayWidth, BridgePierStyle style) {
+        if (style == BridgePierStyle.DOUBLE) {
+            return validBridgePierDiameters(
+                carriagewayWidth, style, minDoublePierOffsetBlocks(carriagewayWidth));
+        }
         int min = minBridgePierDiameterBlocks(carriagewayWidth);
         int max = clampBridgePierDiameterBlocks(
-            carriagewayWidth, maxSinglePierDiameterBlocks(carriagewayWidth), style);
+            carriagewayWidth, maxSinglePierDiameterBlocks(carriagewayWidth), BridgePierStyle.SINGLE);
         if (max < min) {
             return new int[] {min};
         }
@@ -254,6 +288,22 @@ public final class RoadParameterLimits {
         return values;
     }
 
+    /** 合法双柱直径序列：1..max，连续整数。 */
+    public static int[] validBridgePierDiameters(
+            int carriagewayWidth,
+            BridgePierStyle style,
+            int offsetBlocks) {
+        if (style != BridgePierStyle.DOUBLE) {
+            return validBridgePierDiameters(carriagewayWidth, BridgePierStyle.SINGLE);
+        }
+        int max = maxDoublePierDiameterBlocks(carriagewayWidth, offsetBlocks);
+        int[] values = new int[max];
+        for (int i = 0; i < max; i++) {
+            values[i] = i + 1;
+        }
+        return values;
+    }
+
     public static Integer clampBridgePierDiameterBlocksNullable(int carriagewayWidth, Integer diameter) {
         if (diameter == null) {
             return null;
@@ -261,81 +311,107 @@ public final class RoadParameterLimits {
         return clampBridgePierDiameterBlocks(carriagewayWidth, diameter);
     }
 
-    /** 双柱空隙 = 2×偏移 − 直径。 */
+    /**
+     * 「双柱偏移」即柱间空隙格数；保留此方法供旧提示文案兼容，返回空隙本身。
+     */
     public static int doublePierGapBlocks(int offsetBlocks, int diameterBlocks) {
-        return 2 * offsetBlocks - diameterBlocks;
-    }
-
-    /** 给定已对齐直径时，满足最小空隙的最小偏移（不回夹直径，避免递归）。 */
-    private static int minDoublePierOffsetForDiameter(int width, int diameter) {
-        int minGap = (width & 1) == 1 ? 1 : 2;
-        return (diameter + minGap + 1) / 2;
-    }
-
-    /** 柱外缘不越界的最大偏移（不回夹直径）。 */
-    private static int rawMaxDoublePierOffsetBlocks(int width, int diameter) {
-        int roadMax = RoadDimensionUtils.maxLateralOffset(width);
-        int pierMax = RoadDimensionUtils.maxLateralOffset(diameter);
-        int roadMin = RoadDimensionUtils.minLateralOffset(width);
-        int pierMin = RoadDimensionUtils.minLateralOffset(diameter);
-        int byRight = roadMax - pierMax;
-        int byLeft = pierMin - roadMin;
-        return Math.min(byRight, byLeft);
+        return Math.max(0, offsetBlocks);
     }
 
     /**
-     * 满足空隙 ≥ 1、且空隙与路宽同奇偶的最小偏移。
-     * 因空隙 = 2×偏移 − 直径，直径已与路宽同奇偶时，最小空隙为 1（奇数路宽）或 2（偶数路宽）。
+     * 双柱最小柱间空隙：与行车道宽同奇偶（奇数路宽→1，偶数→2），保证至少一格可见空隙。
      */
-    public static int minDoublePierOffsetBlocks(int carriagewayWidth, int diameterBlocks) {
+    public static int minDoublePierOffsetBlocks(int carriagewayWidth) {
         int width = Math.max(1, carriagewayWidth);
-        int diameter = clampBridgePierDiameterBlocks(width, diameterBlocks, BridgePierStyle.DOUBLE);
-        return minDoublePierOffsetForDiameter(width, diameter);
+        return (width & 1) == 1 ? 1 : 2;
+    }
+
+    /** 兼容旧调用：空隙主约束与直径解耦，忽略 diameterBlocks。 */
+    public static int minDoublePierOffsetBlocks(int carriagewayWidth, int diameterBlocks) {
+        return minDoublePierOffsetBlocks(carriagewayWidth);
     }
 
     /**
-     * 双柱最大偏移：柱外缘不超出行车道。
-     * {@code offset + maxLateralOffset(diameter) ≤ maxLateralOffset(width)}，
-     * 且左侧对称约束一并计入。
+     * 双柱最大柱间空隙：与路宽同奇偶；至少两侧各留 1 格柱径（{@code 2×1 + 空隙 ≤ W}）。
      */
+    public static int maxDoublePierOffsetBlocks(int carriagewayWidth) {
+        return maxDoublePierOffsetBlocks(carriagewayWidth, MIN_BRIDGE_PIER_DIAMETER_BLOCKS);
+    }
+
+    /** 在路宽奇偶约束上，再按给定直径收紧最大空隙。 */
     public static int maxDoublePierOffsetBlocks(int carriagewayWidth, int diameterBlocks) {
         int width = Math.max(1, carriagewayWidth);
-        int diameter = clampBridgePierDiameterBlocks(width, diameterBlocks, BridgePierStyle.DOUBLE);
-        int min = minDoublePierOffsetForDiameter(width, diameter);
-        int max = rawMaxDoublePierOffsetBlocks(width, diameter);
+        int min = minDoublePierOffsetBlocks(width);
+        int diameter = Math.clamp(
+            diameterBlocks, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
+        int max = width - 2 * diameter;
+        max = snapToParity(max, width, min, Math.max(min, max));
+        while (max > min && !RoadDimensionUtils.doublePierFitsCarriageway(width, max, diameter)) {
+            max -= 2;
+        }
+        if (!RoadDimensionUtils.doublePierFitsCarriageway(width, max, diameter) && max >= min) {
+            // 回退到能放下的最大同奇偶空隙
+            for (int g = max; g >= min; g -= 2) {
+                if (RoadDimensionUtils.doublePierFitsCarriageway(width, g, diameter)) {
+                    return g;
+                }
+            }
+            return min;
+        }
         return Math.max(min, max);
     }
 
     /**
-     * 钳制双柱偏移：空隙与路宽同奇偶且 ≥ 最小空隙，柱足迹落在行车道内。
-     * 若直径过大导致区间为空，回退到不越界的最大偏移（缩小空隙），避免半格/越界。
+     * 钳制双柱空隙（UI「双柱偏移」）：与行车道宽同奇偶。
+     */
+    public static int clampBridgePierOffsetBlocks(int carriagewayWidth, int offsetBlocks) {
+        int width = Math.max(1, carriagewayWidth);
+        int min = minDoublePierOffsetBlocks(width);
+        int max = maxDoublePierOffsetBlocks(width);
+        return snapToParity(offsetBlocks, width, min, max);
+    }
+
+    /**
+     * 钳制双柱空隙；若给出直径，额外保证该直径足迹不越界。
      */
     public static int clampBridgePierOffsetBlocks(
             int carriagewayWidth,
             int diameterBlocks,
             int offsetBlocks) {
         int width = Math.max(1, carriagewayWidth);
-        int diameter = clampBridgePierDiameterBlocks(width, diameterBlocks, BridgePierStyle.DOUBLE);
-        int min = minDoublePierOffsetForDiameter(width, diameter);
-        int rawMax = rawMaxDoublePierOffsetBlocks(width, diameter);
-        if (rawMax < min) {
-            return Math.max(1, rawMax);
-        }
-        return Math.clamp(offsetBlocks, min, rawMax);
+        int min = minDoublePierOffsetBlocks(width);
+        int diameter = Math.clamp(
+            diameterBlocks, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
+        int max = maxDoublePierOffsetBlocks(width, diameter);
+        return snapToParity(offsetBlocks, width, min, max);
     }
 
-    /** 合法双柱偏移序列，供 UI 下拉/步进。 */
-    public static int[] validBridgePierOffsets(int carriagewayWidth, int diameterBlocks) {
-        int width = Math.max(1, carriagewayWidth);
-        int diameter = clampBridgePierDiameterBlocks(width, diameterBlocks, BridgePierStyle.DOUBLE);
-        int min = minDoublePierOffsetForDiameter(width, diameter);
-        int rawMax = rawMaxDoublePierOffsetBlocks(width, diameter);
-        if (rawMax < min) {
-            return new int[] {Math.max(1, rawMax)};
+    /** 合法双柱空隙序列（与路宽同奇偶，步长 2）。 */
+    public static int[] validBridgePierOffsets(int carriagewayWidth) {
+        int min = minDoublePierOffsetBlocks(carriagewayWidth);
+        int max = maxDoublePierOffsetBlocks(carriagewayWidth);
+        if (max < min) {
+            return new int[] {min};
         }
-        int[] values = new int[rawMax - min + 1];
-        for (int i = 0; i < values.length; i++) {
-            values[i] = min + i;
+        int count = ((max - min) / 2) + 1;
+        int[] values = new int[count];
+        for (int i = 0; i < count; i++) {
+            values[i] = min + i * 2;
+        }
+        return values;
+    }
+
+    /** 合法双柱空隙；若给出直径则按足迹再收紧上限。 */
+    public static int[] validBridgePierOffsets(int carriagewayWidth, int diameterBlocks) {
+        int min = minDoublePierOffsetBlocks(carriagewayWidth);
+        int max = maxDoublePierOffsetBlocks(carriagewayWidth, diameterBlocks);
+        if (max < min) {
+            return new int[] {min};
+        }
+        int count = ((max - min) / 2) + 1;
+        int[] values = new int[count];
+        for (int i = 0; i < count; i++) {
+            values[i] = min + i * 2;
         }
         return values;
     }

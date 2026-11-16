@@ -56,15 +56,6 @@ public final class BridgeStructureControls {
                     config.setBridgePierStyle(style);
                     markCustom(ctx, config);
                 });
-            renderDiameterSlider(
-                "##cfg_pier_diameter",
-                carriagewayWidth,
-                config.getBridgePierStyle(),
-                config.getBridgePierDiameterBlocks(),
-                value -> {
-                    config.setBridgePierDiameterBlocks(value);
-                    markCustom(ctx, config);
-                });
             if (config.getBridgePierStyle() == BridgePierStyle.DOUBLE) {
                 renderOffsetSlider(
                     "##cfg_pier_offset",
@@ -76,6 +67,16 @@ public final class BridgeStructureControls {
                         markCustom(ctx, config);
                     });
             }
+            renderDiameterSlider(
+                "##cfg_pier_diameter",
+                carriagewayWidth,
+                config.getBridgePierStyle(),
+                config.getBridgePierOffsetBlocks(),
+                config.getBridgePierDiameterBlocks(),
+                value -> {
+                    config.setBridgePierDiameterBlocks(value);
+                    markCustom(ctx, config);
+                });
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
                 "##cfg_pier_material",
@@ -170,15 +171,6 @@ public final class BridgeStructureControls {
                     current[0] = withBridge(current[0], b -> b.style = style);
                     onChanged.accept(current[0]);
                 });
-            renderDiameterSlider(
-                "##batch_pier_diameter",
-                carriagewayWidth,
-                current[0].bridgePierStyle(),
-                current[0].bridgePierDiameterBlocks(),
-                value -> {
-                    current[0] = withBridge(current[0], b -> b.diameter = value);
-                    onChanged.accept(current[0]);
-                });
             if (current[0].bridgePierStyle() == BridgePierStyle.DOUBLE) {
                 renderOffsetSlider(
                     "##batch_pier_offset",
@@ -190,6 +182,16 @@ public final class BridgeStructureControls {
                         onChanged.accept(current[0]);
                     });
             }
+            renderDiameterSlider(
+                "##batch_pier_diameter",
+                carriagewayWidth,
+                current[0].bridgePierStyle(),
+                current[0].bridgePierOffsetBlocks(),
+                current[0].bridgePierDiameterBlocks(),
+                value -> {
+                    current[0] = withBridge(current[0], b -> b.diameter = value);
+                    onChanged.accept(current[0]);
+                });
             if (ctx != null) {
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
@@ -261,10 +263,10 @@ public final class BridgeStructureControls {
         if (resolved.generatePillars()) {
             renderSpacingOverride(ctx, road, onHistory, config, resolved);
             renderPierStyleOverride(ctx, road, onHistory, config, resolved);
-            renderDiameterOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
             if (resolved.pierStyle() == BridgePierStyle.DOUBLE) {
                 renderOffsetOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
             }
+            renderDiameterOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
             renderMaterialOverride(
                 ctx,
                 road,
@@ -371,6 +373,7 @@ public final class BridgeStructureControls {
             "##road_pier_diameter_" + road.getId(),
             carriagewayWidth,
             resolved.pierStyle(),
+            resolved.pierOffsetBlocks(),
             resolved.pierDiameterBlocks(),
             value -> {
                 pushHistory(onHistory);
@@ -449,19 +452,40 @@ public final class BridgeStructureControls {
             String idSuffix,
             int carriagewayWidth,
             BridgePierStyle style,
+            int offsetBlocks,
             int current,
             java.util.function.Consumer<Integer> onChanged) {
         BridgePierStyle pierStyle = style != null ? style : BridgePierStyle.SINGLE;
-        int[] options = RoadParameterLimits.validBridgePierDiameters(carriagewayWidth, pierStyle);
-        int clamped = RoadParameterLimits.clampBridgePierDiameterBlocks(
-            carriagewayWidth, current, pierStyle);
+        int[] options;
+        int clamped;
+        String hint;
+        String locked;
+        if (pierStyle == BridgePierStyle.DOUBLE) {
+            int offset = RoadParameterLimits.clampBridgePierOffsetBlocks(carriagewayWidth, offsetBlocks);
+            options = RoadParameterLimits.validBridgePierDiameters(
+                carriagewayWidth, BridgePierStyle.DOUBLE, offset);
+            clamped = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, current, BridgePierStyle.DOUBLE, offset);
+            int max = RoadParameterLimits.maxDoublePierDiameterBlocks(carriagewayWidth, offset);
+            hint = PlotI18n.tr("hint.plot.road.bridge_pier_diameter_double", offset, max);
+            locked = PlotI18n.tr(
+                "plugin.road.bridge_pier_diameter_locked_double", clamped, carriagewayWidth, offset);
+        } else {
+            options = RoadParameterLimits.validBridgePierDiameters(
+                carriagewayWidth, BridgePierStyle.SINGLE);
+            clamped = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, current, BridgePierStyle.SINGLE);
+            hint = PlotI18n.tr("hint.plot.road.bridge_pier_diameter");
+            locked = PlotI18n.tr(
+                "plugin.road.bridge_pier_diameter_locked", clamped, carriagewayWidth);
+        }
         renderDiscreteIntChoices(
             PlotI18n.tr("plugin.road.bridge_pier_diameter_label") + idSuffix,
             options,
             clamped,
             onChanged,
-            PlotI18n.tr("hint.plot.road.bridge_pier_diameter"),
-            PlotI18n.tr("plugin.road.bridge_pier_diameter_locked", clamped, carriagewayWidth));
+            hint,
+            locked);
     }
 
     private static void renderOffsetSlider(
@@ -470,19 +494,15 @@ public final class BridgeStructureControls {
             int diameter,
             int current,
             java.util.function.Consumer<Integer> onChanged) {
-        int clampedDiameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
-            carriagewayWidth, diameter, BridgePierStyle.DOUBLE);
-        int[] options = RoadParameterLimits.validBridgePierOffsets(carriagewayWidth, clampedDiameter);
-        int clamped = RoadParameterLimits.clampBridgePierOffsetBlocks(
-            carriagewayWidth, clampedDiameter, current);
-        int gap = RoadParameterLimits.doublePierGapBlocks(clamped, clampedDiameter);
+        int[] options = RoadParameterLimits.validBridgePierOffsets(carriagewayWidth);
+        int clamped = RoadParameterLimits.clampBridgePierOffsetBlocks(carriagewayWidth, current);
         renderDiscreteIntChoices(
             PlotI18n.tr("plugin.road.bridge_pier_offset_label") + idSuffix,
             options,
             clamped,
             onChanged,
-            PlotI18n.tr("hint.plot.road.bridge_pier_offset", gap),
-            PlotI18n.tr("plugin.road.bridge_pier_offset_locked", clamped, gap));
+            PlotI18n.tr("hint.plot.road.bridge_pier_offset", clamped),
+            PlotI18n.tr("plugin.road.bridge_pier_offset_locked", clamped));
     }
 
     /**

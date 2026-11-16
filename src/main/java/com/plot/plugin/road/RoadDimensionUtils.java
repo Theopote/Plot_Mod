@@ -53,4 +53,46 @@ public final class RoadDimensionUtils {
         }
         return laterals;
     }
+
+    /**
+     * 双柱：{@code gapBlocks} 为两柱之间的空隙格数（与参数「双柱偏移」同义），
+     * 空隙条带按 {@link #minLateralOffset}/{@link #maxLateralOffset} 居中，
+     * 左右柱紧贴空隙外侧各占 {@code diameterBlocks} 格。
+     *
+     * @return {@code [leftCenter, rightCenter]}，可交给 {@link #pierFootprintLaterals}
+     */
+    public static int[] doublePierCenters(int gapBlocks, int diameterBlocks) {
+        int gap = Math.max(1, gapBlocks);
+        int diameter = Math.max(1, diameterBlocks);
+        int gapMin = minLateralOffset(gap);
+        int gapMax = maxLateralOffset(gap);
+        int leftMax = gapMin - 1;
+        int leftMin = leftMax - diameter + 1;
+        int rightMin = gapMax + 1;
+        int pierMin = minLateralOffset(diameter);
+        return new int[] {leftMin - pierMin, rightMin - pierMin};
+    }
+
+    /** 双柱全部绝对横向格（左柱 + 右柱）。 */
+    public static int[] doublePierFootprintLaterals(int gapBlocks, int diameterBlocks) {
+        int[] centers = doublePierCenters(gapBlocks, diameterBlocks);
+        int[] left = pierFootprintLaterals(centers[0], diameterBlocks);
+        int[] right = pierFootprintLaterals(centers[1], diameterBlocks);
+        int[] all = new int[left.length + right.length];
+        System.arraycopy(left, 0, all, 0, left.length);
+        System.arraycopy(right, 0, all, left.length, right.length);
+        return all;
+    }
+
+    /** 双柱足迹是否完全落在行车道横向范围内。 */
+    public static boolean doublePierFitsCarriageway(int carriagewayWidth, int gapBlocks, int diameterBlocks) {
+        int roadMin = minLateralOffset(carriagewayWidth);
+        int roadMax = maxLateralOffset(carriagewayWidth);
+        for (int lateral : doublePierFootprintLaterals(gapBlocks, diameterBlocks)) {
+            if (lateral < roadMin || lateral > roadMax) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

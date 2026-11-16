@@ -114,12 +114,23 @@ public record ResolvedBridgeStructure(
     private static ResolvedBridgeStructure clampToCarriageway(
             ResolvedBridgeStructure raw,
             int carriagewayWidth) {
-        int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
-            carriagewayWidth, raw.pierDiameterBlocks(), raw.pierStyle());
-        int offset = raw.pierStyle() == BridgePierStyle.DOUBLE
-            ? RoadParameterLimits.clampBridgePierOffsetBlocks(
-                carriagewayWidth, diameter, raw.pierOffsetBlocks())
-            : RoadParameterLimits.minDoublePierOffsetBlocks(carriagewayWidth, diameter);
+        int offset;
+        int diameter;
+        if (raw.pierStyle() == BridgePierStyle.DOUBLE) {
+            // 双柱：先钳偏移（与路宽同奇偶），再按 (W−偏移)/2 钳直径。
+            offset = RoadParameterLimits.clampBridgePierOffsetBlocks(
+                carriagewayWidth, raw.pierOffsetBlocks());
+            diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, raw.pierDiameterBlocks(), BridgePierStyle.DOUBLE, offset);
+            offset = RoadParameterLimits.clampBridgePierOffsetBlocks(
+                carriagewayWidth, diameter, offset);
+            diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, diameter, BridgePierStyle.DOUBLE, offset);
+        } else {
+            diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                carriagewayWidth, raw.pierDiameterBlocks(), BridgePierStyle.SINGLE);
+            offset = RoadParameterLimits.minDoublePierOffsetBlocks(carriagewayWidth);
+        }
         return new ResolvedBridgeStructure(
             raw.generatePillars(),
             raw.pierSpacingBlocks(),

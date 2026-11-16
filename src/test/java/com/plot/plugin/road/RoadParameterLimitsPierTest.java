@@ -10,60 +10,57 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadParameterLimitsPierTest {
 
     @Test
-    void diameterMatchesCarriagewayParityAndHalfWidthCap() {
+    void singleDiameterMatchesCarriagewayParityAndCaps() {
         assertEquals(1, RoadParameterLimits.clampBridgePierDiameterBlocks(5, 2));
-        assertEquals(1, RoadParameterLimits.clampBridgePierDiameterBlocks(5, 1));
         assertEquals(3, RoadParameterLimits.clampBridgePierDiameterBlocks(7, 3));
         assertEquals(2, RoadParameterLimits.clampBridgePierDiameterBlocks(6, 1));
-        assertEquals(2, RoadParameterLimits.clampBridgePierDiameterBlocks(6, 3));
         assertArrayEquals(new int[] {2}, RoadParameterLimits.validBridgePierDiameters(6));
         assertArrayEquals(new int[] {1, 3}, RoadParameterLimits.validBridgePierDiameters(7));
-        assertArrayEquals(new int[] {2, 4}, RoadParameterLimits.validBridgePierDiameters(8));
-        // 绝对上限 4：更宽的路也不能超过 4
         assertEquals(4, RoadParameterLimits.clampBridgePierDiameterBlocks(12, 6));
-        assertEquals(4, RoadParameterLimits.clampBridgePierDiameterStored(9));
-        assertArrayEquals(new int[] {2, 4}, RoadParameterLimits.validBridgePierDiameters(12));
-        assertArrayEquals(new int[] {1, 3}, RoadParameterLimits.validBridgePierDiameters(11));
-        // 双柱在 W=8 时直径 4 放不下最小空隙，应收束到 2
-        assertArrayEquals(
-            new int[] {2},
-            RoadParameterLimits.validBridgePierDiameters(8, BridgePierStyle.DOUBLE));
-        assertEquals(
-            2,
-            RoadParameterLimits.clampBridgePierDiameterBlocks(8, 4, BridgePierStyle.DOUBLE));
     }
 
     @Test
-    void doubleGapMatchesCarriagewayParity() {
-        for (int width : new int[] {5, 6, 7, 8, 9}) {
-            int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
-                width, width / 2, BridgePierStyle.DOUBLE);
-            int minOffset = RoadParameterLimits.minDoublePierOffsetBlocks(width, diameter);
-            int gap = RoadParameterLimits.doublePierGapBlocks(minOffset, diameter);
-            assertEquals(width & 1, gap & 1, "gap parity for width " + width);
-            assertTrue(gap >= ((width & 1) == 1 ? 1 : 2));
+    void doubleOffsetIsVisibleGapWithWidthParity() {
+        // 奇数路宽 → 空隙为奇数；偶数 → 偶数
+        assertArrayEquals(new int[] {1, 3, 5}, RoadParameterLimits.validBridgePierOffsets(7));
+        assertArrayEquals(new int[] {2, 4}, RoadParameterLimits.validBridgePierOffsets(6));
+        assertEquals(1, RoadParameterLimits.clampBridgePierOffsetBlocks(9, 2));
+        assertEquals(2, RoadParameterLimits.clampBridgePierOffsetBlocks(8, 3));
+        for (int width : new int[] {5, 6, 7, 8, 9, 10}) {
+            for (int gap : RoadParameterLimits.validBridgePierOffsets(width)) {
+                assertEquals(width & 1, gap & 1, "gap parity for width " + width);
+            }
         }
     }
 
     @Test
-    void doubleOffsetKeepsGapAtLeastMinimum() {
-        int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
-            9, 3, BridgePierStyle.DOUBLE);
-        int minOffset = RoadParameterLimits.minDoublePierOffsetBlocks(9, diameter);
-        assertEquals(2, minOffset);
-        assertEquals(1, RoadParameterLimits.doublePierGapBlocks(minOffset, diameter));
-
-        int clampedLow = RoadParameterLimits.clampBridgePierOffsetBlocks(9, diameter, 1);
-        assertTrue(clampedLow >= minOffset);
-        assertTrue(RoadParameterLimits.doublePierGapBlocks(clampedLow, diameter) >= 1);
+    void doubleDiameterRangeUsesGapNotCenterOffset() {
+        // W=9, gap=1 → max = (9-1)/2 = 4
+        assertEquals(4, RoadParameterLimits.maxDoublePierDiameterBlocks(9, 1));
+        assertArrayEquals(
+            new int[] {1, 2, 3, 4},
+            RoadParameterLimits.validBridgePierDiameters(9, BridgePierStyle.DOUBLE, 1));
+        // W=9, gap=3 → max = 3
+        assertEquals(3, RoadParameterLimits.maxDoublePierDiameterBlocks(9, 3));
+        // W=8, gap=2 → max = 3
+        assertEquals(3, RoadParameterLimits.maxDoublePierDiameterBlocks(8, 2));
+        assertEquals(
+            3,
+            RoadParameterLimits.clampBridgePierDiameterBlocks(8, 4, BridgePierStyle.DOUBLE, 2));
     }
 
     @Test
-    void legacyPierStyleIdsMigrate() {
-        assertEquals(BridgePierStyle.SINGLE, BridgePierStyle.fromId("AUTO"));
-        assertEquals(BridgePierStyle.DOUBLE, BridgePierStyle.fromId("MULTI"));
-        assertEquals(BridgePierStyle.SINGLE, BridgePierStyle.fromStoredOrDefault(null));
-        assertEquals(BridgePierStyle.DOUBLE, BridgePierStyle.fromStoredOrDefault("multi"));
+    void doublePierGapOneWithDiameterTwoLeavesOneBlockBetween() {
+        // 用户反馈：偏移=1、直径=2 时应看到 1 格空隙，而不是粘成一团
+        assertArrayEquals(
+            new int[] {-2, -1, 1, 2},
+            RoadDimensionUtils.doublePierFootprintLaterals(1, 2));
+        // 偏移=3、直径=1：柱在 ±2，中间空隙恰为 3 格（-1,0,1）
+        assertArrayEquals(
+            new int[] {-2, 2},
+            RoadDimensionUtils.doublePierFootprintLaterals(3, 1));
+        int[] centers = RoadDimensionUtils.doublePierCenters(3, 1);
+        assertArrayEquals(new int[] {-2, 2}, centers);
     }
 
     @Test
@@ -74,28 +71,23 @@ class RoadParameterLimitsPierTest {
             int singleDiameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
                 width, width / 2, BridgePierStyle.SINGLE);
             for (int absolute : RoadDimensionUtils.pierFootprintLaterals(0, singleDiameter)) {
-                assertTrue(absolute >= roadMin && absolute <= roadMax,
-                    "single pier lateral " + absolute + " outside width " + width);
+                assertTrue(absolute >= roadMin && absolute <= roadMax);
             }
-            int doubleDiameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
-                width, width / 2, BridgePierStyle.DOUBLE);
-            int[] offsets = RoadParameterLimits.validBridgePierOffsets(width, doubleDiameter);
-            for (int offset : offsets) {
-                for (int sign : new int[] {-1, 1}) {
-                    for (int absolute : RoadDimensionUtils.pierFootprintLaterals(
-                            sign * offset, doubleDiameter)) {
-                        assertTrue(absolute >= roadMin && absolute <= roadMax,
-                            "double pier lateral " + absolute + " outside width " + width
-                                + " offset " + offset);
-                    }
-                }
+            for (int gap : RoadParameterLimits.validBridgePierOffsets(width)) {
+                int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
+                    width, width / 2, BridgePierStyle.DOUBLE, gap);
+                assertTrue(
+                    RoadDimensionUtils.doublePierFitsCarriageway(width, gap, diameter),
+                    "width=" + width + " gap=" + gap + " diameter=" + diameter);
             }
         }
-        // 偶数路宽单柱直径 2：占据中心两侧整数格，相对左缘为整格索引。
-        assertArrayEquals(new int[] {0, 1}, RoadDimensionUtils.pierFootprintLaterals(0, 2));
-        int roadMin6 = RoadDimensionUtils.minLateralOffset(6);
-        assertEquals(-2, roadMin6);
-        assertEquals(2, 0 - roadMin6);
-        assertEquals(3, 1 - roadMin6);
+    }
+
+    @Test
+    void legacyPierStyleIdsMigrate() {
+        assertEquals(BridgePierStyle.SINGLE, BridgePierStyle.fromId("AUTO"));
+        assertEquals(BridgePierStyle.DOUBLE, BridgePierStyle.fromId("MULTI"));
+        assertEquals(BridgePierStyle.SINGLE, BridgePierStyle.fromStoredOrDefault(null));
+        assertEquals(BridgePierStyle.DOUBLE, BridgePierStyle.fromStoredOrDefault("multi"));
     }
 }

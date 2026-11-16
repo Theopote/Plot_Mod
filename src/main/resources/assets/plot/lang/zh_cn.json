@@ -5100,8 +5100,10 @@
   "plugin.road.bridge_pier_style.double": "双柱",
   "plugin.road.bridge_pier_diameter_label": "柱子直径 (格)",
   "plugin.road.bridge_pier_offset_label": "双柱偏移 (格)",
-  "hint.plot.road.bridge_pier_diameter": "柱截面横向总宽度（1–4 格）；须与行车道宽同奇偶，且不超过行车道宽的一半。",
-  "hint.plot.road.bridge_pier_offset": "中心线到每根柱心的距离；当前柱间空隙 %s 格（与路宽同奇偶，且 ≥ 1）。",
+  "hint.plot.road.bridge_pier_diameter": "单柱截面横向宽度（1–4 格）；须与行车道宽同奇偶，且不超过行车道宽的一半。",
+  "hint.plot.road.bridge_pier_diameter_double": "双柱直径范围 1–%2$s 格（上限 = (路宽 − 柱间空隙 %1$s) / 2，且不超过 4）。",
+  "hint.plot.road.bridge_pier_offset": "两柱之间的空隙格数（须与行车道宽同奇偶）。当前空隙 %s 格。",
   "plugin.road.bridge_pier_diameter_locked": "当前行车道宽 %2$s 格时，同奇偶约束下直径只能是 %1$s 格。",
-  "plugin.road.bridge_pier_offset_locked": "当前直径下偏移只能是 %1$s 格（空隙 %2$s 格）。"
+  "plugin.road.bridge_pier_diameter_locked_double": "路宽 %2$s、柱间空隙 %3$s 时，双柱直径只能是 %1$s 格。",
+  "plugin.road.bridge_pier_offset_locked": "当前行车道宽下，同奇偶约束后双柱偏移（柱间空隙）只能是 %1$s 格。"
 }

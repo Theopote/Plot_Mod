@@ -478,12 +478,14 @@ public final class RoadCrossSectionPreviewRenderer {
             int diameter = Math.max(1, furniture.pierDiameterBlocks());
             int roadMin = RoadDimensionUtils.minLateralOffset(roadWidth);
             if (furniture.pierStyle() == BridgePierStyle.DOUBLE) {
-                int offset = Math.max(1, furniture.pierOffsetBlocks());
+                // pierOffsetBlocks = 柱间空隙；换算为左右柱心后再画，保证预览与参数一致。
+                int gap = Math.max(1, furniture.pierOffsetBlocks());
+                int[] centers = RoadDimensionUtils.doublePierCenters(gap, diameter);
                 drawPierFootprint(
-                    drawList, roadStartX, roadMin, offset, diameter, deckBottom, groundY, scale,
+                    drawList, roadStartX, roadMin, centers[0], diameter, deckBottom, groundY, scale,
                     furniture.pierColor());
                 drawPierFootprint(
-                    drawList, roadStartX, roadMin, -offset, diameter, deckBottom, groundY, scale,
+                    drawList, roadStartX, roadMin, centers[1], diameter, deckBottom, groundY, scale,
                     furniture.pierColor());
             } else {
                 drawPierFootprint(

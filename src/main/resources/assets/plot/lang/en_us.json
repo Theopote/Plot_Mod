@@ -5100,8 +5100,10 @@
   "plugin.road.bridge_pier_style.double": "Double column",
   "plugin.road.bridge_pier_diameter_label": "Pier diameter (blocks)",
   "plugin.road.bridge_pier_offset_label": "Double-pier offset (blocks)",
-  "hint.plot.road.bridge_pier_diameter": "Lateral pier width (1–4 blocks); must match carriageway parity and stay within half the carriageway width.",
-  "hint.plot.road.bridge_pier_offset": "Distance from centerline to each pier center; current gap is %s blocks (same parity as carriageway, >= 1).",
+  "hint.plot.road.bridge_pier_diameter": "Single-pier lateral width (1–4 blocks); must match carriageway parity and stay within half the carriageway width.",
+  "hint.plot.road.bridge_pier_diameter_double": "Double-pier diameter range 1–%2$s blocks (max = (width − gap %1$s) / 2, capped at 4).",
+  "hint.plot.road.bridge_pier_offset": "Clear gap between the two columns in blocks (same parity as carriageway). Current gap: %s.",
   "plugin.road.bridge_pier_diameter_locked": "With carriageway width %2$s, parity rules allow only diameter %1$s.",
-  "plugin.road.bridge_pier_offset_locked": "With the current diameter, offset can only be %1$s (gap %2$s)."
+  "plugin.road.bridge_pier_diameter_locked_double": "With width %2$s and gap %3$s, double-pier diameter can only be %1$s.",
+  "plugin.road.bridge_pier_offset_locked": "With the current carriageway width, parity rules allow only double-pier offset (gap) %1$s."
 }
