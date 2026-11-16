@@ -25,7 +25,8 @@ public final class CrossSectionEditorApplier {
             return false;
         }
         return !RoadCrossSectionEngineeringEquality.equals(original.getCrossSection(), working.getCrossSection())
-            || !Objects.equals(original.getMaxSlope(), working.getMaxSlope());
+            || !Objects.equals(original.getMaxSlope(), working.getMaxSlope())
+            || !bridgeStructureEquals(original, working);
     }
 
     public static void applyToLive(
@@ -41,5 +42,26 @@ public final class CrossSectionEditorApplier {
         // Copy explicit overrides, including null inheritance, rather than freezing resolved defaults.
         liveRoad.setCrossSection(workingRoad.getCrossSection().copy());
         liveRoad.setMaxSlope(workingRoad.getMaxSlope());
+        copyBridgeStructure(liveRoad, workingRoad);
+    }
+
+    private static boolean bridgeStructureEquals(Road a, Road b) {
+        return Objects.equals(a.getGenerateBridgePillars(), b.getGenerateBridgePillars())
+            && Objects.equals(a.getBridgePierSpacingBlocks(), b.getBridgePierSpacingBlocks())
+            && Objects.equals(a.getBridgePierMaterial(), b.getBridgePierMaterial())
+            && Objects.equals(a.getBridgePierStyle(), b.getBridgePierStyle())
+            && Objects.equals(a.getIncludeBridgeGuardrail(), b.getIncludeBridgeGuardrail())
+            && Objects.equals(a.getBridgeGuardrailMaterial(), b.getBridgeGuardrailMaterial())
+            && Objects.equals(a.getBridgeGuardrailHeightBlocks(), b.getBridgeGuardrailHeightBlocks());
+    }
+
+    private static void copyBridgeStructure(Road target, Road source) {
+        target.setGenerateBridgePillars(source.getGenerateBridgePillars());
+        target.setBridgePierSpacingBlocks(source.getBridgePierSpacingBlocks());
+        target.setBridgePierMaterial(source.getBridgePierMaterial());
+        target.setBridgePierStyle(source.getBridgePierStyle());
+        target.setIncludeBridgeGuardrail(source.getIncludeBridgeGuardrail());
+        target.setBridgeGuardrailMaterial(source.getBridgeGuardrailMaterial());
+        target.setBridgeGuardrailHeightBlocks(source.getBridgeGuardrailHeightBlocks());
     }
 }

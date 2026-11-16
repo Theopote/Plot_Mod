@@ -2890,6 +2890,7 @@
   "plugin.road.floating_editor.continue_edit": "Keep editing",
   "plugin.road.floating_editor.cross_section.preview": "Preview",
   "plugin.road.floating_editor.cross_section.tab.furniture": "Furniture",
+  "plugin.road.floating_editor.cross_section.tab.bridge": "Bridge",
   "plugin.road.floating_editor.cross_section.tab.materials": "Materials",
   "plugin.road.floating_editor.cross_section.tab.sidewalks": "Sidewalks",
   "plugin.road.floating_editor.cross_section.tab.slope": "Slope batter",

@@ -1706,6 +1706,7 @@
   "plugin.road.floating_editor.cross_section.tab.slope": "边坡放坡",
   "plugin.road.floating_editor.cross_section.tab.materials": "材质",
   "plugin.road.floating_editor.cross_section.tab.furniture": "附属设施",
+  "plugin.road.floating_editor.cross_section.tab.bridge": "桥梁结构",
   "plugin.road.floating_editor.variable_cross_section.title": "变截面设计器",
   "plugin.road.floating_editor.variable_cross_section.batch_scope": "确认后将可变断面写入选中的 %d 条道路。",
   "plugin.road.floating_editor.station_facilities.batch_scope": "确认后将桩号设施写入选中的 %d 条道路。",

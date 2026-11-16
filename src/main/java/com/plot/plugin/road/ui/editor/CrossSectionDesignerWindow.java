@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.ui.BridgeStructureControls;
 import com.plot.plugin.road.ui.CrossSectionDraftEditor;
 import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
 import com.plot.plugin.road.ui.CrossSectionDraftMutator;
@@ -127,6 +128,12 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
                     ctx,
                     mutator,
                     CrossSectionDraftEditorOptions.styleBatch());
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem(
+                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.bridge"),
+                ImGuiTabItemFlags.None)) {
+                BridgeStructureControls.renderRoadOverride(ctx, road, null);
                 ImGui.endTabItem();
             }
             ImGui.endTabBar();
