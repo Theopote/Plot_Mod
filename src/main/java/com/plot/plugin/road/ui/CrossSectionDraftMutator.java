@@ -79,8 +79,12 @@ public final class CrossSectionDraftMutator {
 
     public void setLaneCount(int laneCount) {
         draft.setLaneCount(laneCount);
+        // 清分车道覆盖，与均匀单车道宽滑条语义一致。
+        draft.setDefaultLaneWidth(draft.defaultLaneWidth());
         if (road != null) {
             road.setLaneCount(laneCount);
+            road.getCrossSection().getCarriageway().applyUniformDefaultLaneWidth(draft.defaultLaneWidth());
+            syncRoadCarriagewayWidth();
         }
         enforceMedianFit();
         notifyChanged();
@@ -98,7 +102,8 @@ public final class CrossSectionDraftMutator {
     public void setDefaultLaneWidth(int laneWidth) {
         draft.setDefaultLaneWidth(laneWidth);
         if (road != null) {
-            road.getCrossSection().getCarriageway().setDefaultLaneWidth(laneWidth);
+            // 必须清掉道路上残留的显式分车道宽，否则 resolve 仍用旧值，预览总宽不跟着变。
+            road.getCrossSection().getCarriageway().applyUniformDefaultLaneWidth(laneWidth);
             syncRoadCarriagewayWidth();
         }
         notifyChanged();

@@ -2,7 +2,6 @@ package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.BridgePierStyle;
-import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
@@ -415,19 +414,31 @@ public final class RoadCrossSectionPreviewRenderer {
         if (roadWidthPx <= 0f) {
             return;
         }
+        float scale = roadWidthPx / Math.max(1f, layout.roadBlocks);
         if (layout.medianBlocks > 0f) {
-            float medianPx = layout.medianBlocks * (roadWidthPx / Math.max(1f, layout.roadBlocks));
+            float medianPx = layout.medianBlocks * scale;
             float medianX = roadStartX + roadWidthPx * 0.5f - medianPx * 0.5f;
             drawList.addRectFilled(medianX, deckY, medianX + medianPx, deckY + deckH, layout.medianColor);
             drawList.addRect(medianX, deckY, medianX + medianPx, deckY + deckH, COLOR_BORDER);
         }
+        // 分隔占格：按偏移落到整列，画满一格（与人行道条带同为方块示意，而非细线）。
         int markingColor = layout.markingColor != 0 ? layout.markingColor : COLOR_MARKING;
+        int roadBlocks = Math.max(1, Math.round(layout.roadBlocks));
+        float half = layout.roadBlocks / 2f;
         for (Float ratio : layout.markingLineRatios) {
             if (ratio == null) {
                 continue;
             }
-            float x = roadStartX + roadWidthPx * Math.clamp(ratio, 0f, 1f);
-            drawList.addLine(x, deckY + 1f, x, deckY + deckH - 1f, markingColor, 1.8f);
+            double offset = ratio * layout.roadBlocks - half;
+            int column = (int) Math.floor(offset + half);
+            if (column < 0 || column >= roadBlocks) {
+                continue;
+            }
+            float left = roadStartX + column * scale;
+            float right = left + scale;
+            float split = deckY + deckH * 0.5f;
+            drawVoxelFace(drawList, left, split, right, deckY + deckH, 0xFF73777A);
+            drawVoxelFace(drawList, left, deckY, right, split, markingColor);
         }
     }
 

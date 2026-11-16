@@ -210,10 +210,13 @@ public final class RoadCrossSectionEditor {
         if (road == null) {
             return 0L;
         }
+        var carriageway = road.getCrossSection().getCarriageway();
         int width = road.getEffectiveWidth(config);
-        int laneCount = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
+        int laneCount = carriageway.getEffectiveLaneCount();
         long h = width;
         h = 31 * h + laneCount;
+        h = 31 * h + carriageway.getEffectiveDefaultLaneWidth();
+        h = 31 * h + Objects.hashCode(carriageway.getDefaultLaneWidth());
         h = 31 * h + road.getEffectiveShoulderWidth(config);
         h = 31 * h + (road.getEffectiveIncludeShoulder(config) ? 1 : 0);
         h = 31 * h + road.getEffectiveBikeLaneWidth(config);
@@ -222,6 +225,8 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + (road.getEffectiveIncludeSidewalk(config) ? 1 : 0);
         h = 31 * h + (road.getIncludeMedian() != null && road.getIncludeMedian() ? 1 : 0);
         h = 31 * h + (road.getMedianWidth() != null ? road.getMedianWidth() : 0);
+        h = 31 * h + (road.getLaneDividers() != null && road.getLaneDividers() ? 1 : 0);
+        h = 31 * h + Objects.hashCode(road.getCenterLineStyle());
         h = 31 * h + (road.getEffectiveIncludeSlopeBatter(config) ? 1 : 0);
         h = 31 * h + road.getEffectiveRoadsideEdgeMode(config).ordinal();
         h = 31 * h + Float.floatToIntBits(road.getEffectiveFillSlopeRatio(config));
@@ -235,7 +240,7 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Objects.hashCode(road.getMaterial());
         h = 31 * h + Objects.hashCode(road.getSidewalkMaterial());
         h = 31 * h + Objects.hashCode(road.getMarkingMaterial());
-        for (int w : road.getCrossSection().getCarriageway().resolveLaneWidths(width)) {
+        for (int w : carriageway.resolveLaneWidths()) {
             h = 31 * h + w;
         }
         return h;

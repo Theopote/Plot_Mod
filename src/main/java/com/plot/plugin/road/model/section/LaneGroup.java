@@ -103,6 +103,24 @@ public class LaneGroup {
         lanes.get(index).setWidth(RoadParameterLimits.clampLaneTravelWidth(width));
     }
 
+    /** 清除各车道显式宽，回到均匀 {@link #defaultLaneWidth}。 */
+    public void clearExplicitLaneWidths() {
+        if (lanes == null) {
+            return;
+        }
+        for (Lane lane : lanes) {
+            if (lane != null) {
+                lane.setWidth(null);
+            }
+        }
+    }
+
+    /** 设置均匀单车道宽并清除分车道覆盖（结构页主滑条）。 */
+    public void applyUniformDefaultLaneWidth(int width) {
+        setDefaultLaneWidth(width);
+        clearExplicitLaneWidths();
+    }
+
     /** 钳制各车道显式宽度与默认宽到 1–6。 */
     public void reclampLaneWidths(int ignoredCarriagewayWidth) {
         if (lanes != null) {
@@ -255,13 +273,6 @@ public class LaneGroup {
             cursor += seamBlocks;
         }
         return offsets;
-    }
-
-    /**
-     * 兼容旧签名：按开启同向分隔、无中央标线计算。
-     */
-    public List<Double> resolveLaneDividerOffsets(int ignoredTotalWidth) {
-        return resolveLaneDividerOffsets(CenterLineStyle.NONE, true);
     }
 
     LaneGroup copy() {

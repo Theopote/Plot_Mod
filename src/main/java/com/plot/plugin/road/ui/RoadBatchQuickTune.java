@@ -52,11 +52,10 @@ final class RoadBatchQuickTune {
                 PlotI18n.tr("plugin.road.edit.batch_lane_width_mixed_hint"));
         }
         // Batch defaults still store derived carriageway width; map slider to inferred uniform lane width.
-        int uniform = Math.max(
-            RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
-            Math.min(
-                RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
-                draft.width() / Math.max(1, draft.laneCount())));
+        int uniform = Math.clamp(
+                draft.width() / Math.max(1, draft.laneCount()),
+                RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+                RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS);
         int[] laneWidthArr = {uniform};
         String label = mixedUnset
             ? PlotI18n.tr("plugin.road.edit.batch_lane_width_set_unified")

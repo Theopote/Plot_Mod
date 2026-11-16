@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.RoadParameterLimits;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -526,9 +527,7 @@ public final class CrossSectionDraft {
     public void setDefaultLaneWidth(int defaultLaneWidth) {
         this.defaultLaneWidth = RoadParameterLimits.clampLaneTravelWidth(defaultLaneWidth);
         // 均匀模式：清空显式分车道覆盖
-        for (int i = 0; i < laneWidths.size(); i++) {
-            laneWidths.set(i, 0);
-        }
+        Collections.fill(laneWidths, 0);
         recomputeDerivedWidth();
     }
 
