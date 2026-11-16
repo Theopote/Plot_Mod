@@ -51,7 +51,7 @@ public class RoadCrossSection {
         section.carriageway.syncDerivedWidth(
             defaults.getCenterLineStyle(),
             defaults.isLaneDividers(),
-            defaults.isIncludeMedian() ? defaults.getMedianWidth() : 0);
+            0);
         section.shoulder.setEnabled(defaults.isIncludeShoulder());
         section.shoulder.setWidth(defaults.getShoulderWidth());
         section.shoulder.setMaterial(defaults.getFillSlopeMaterial());
@@ -67,6 +67,10 @@ public class RoadCrossSection {
         section.bikeLane.setWidth(defaults.getBikeLaneWidth());
         section.median.setEnabled(defaults.isIncludeMedian());
         section.median.setWidth(defaults.getMedianWidth());
+        section.median.setHeight(defaults.getMedianHeight());
+        if (section.median.getMaterial() == null) {
+            section.median.setMaterial(com.plot.plugin.road.RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL);
+        }
         section.streetFurniture.setStreetlightSpacing(
             defaults.getStreetlightSpacing() > 0 ? defaults.getStreetlightSpacing() : null);
         section.markings.setLaneDividers(defaults.isLaneDividers());

@@ -3,7 +3,9 @@ package com.plot.plugin.road;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadParameterLimitsTest {
 
@@ -17,8 +19,21 @@ class RoadParameterLimitsTest {
     @Test
     void maxPerLaneWidth() {
         assertEquals(6, RoadParameterLimits.maxPerLaneWidth(24, 4));
-        assertEquals(8, RoadParameterLimits.maxPerLaneWidth(8, 1));
-        assertEquals(1, RoadParameterLimits.maxPerLaneWidth(3, 4));
+        assertEquals(6, RoadParameterLimits.maxPerLaneWidth(8, 1));
+        assertEquals(6, RoadParameterLimits.maxPerLaneWidth(3, 4));
+    }
+
+    @Test
+    void allowsDoublePierOnlyWhenWiderThanTwo() {
+        assertFalse(RoadParameterLimits.allowsDoublePier(2));
+        assertTrue(RoadParameterLimits.allowsDoublePier(3));
+    }
+
+    @Test
+    void clampMedianHeight() {
+        assertEquals(1, RoadParameterLimits.clampMedianHeightBlocks(0));
+        assertEquals(3, RoadParameterLimits.clampMedianHeightBlocks(9));
+        assertEquals(2, RoadParameterLimits.clampMedianHeightBlocks(2));
     }
 
     @Test

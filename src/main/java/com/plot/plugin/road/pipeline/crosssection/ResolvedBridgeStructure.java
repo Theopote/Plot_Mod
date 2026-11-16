@@ -116,7 +116,11 @@ public record ResolvedBridgeStructure(
             int carriagewayWidth) {
         int offset;
         int diameter;
-        if (raw.pierStyle() == BridgePierStyle.DOUBLE) {
+        BridgePierStyle style = raw.pierStyle() != null ? raw.pierStyle() : BridgePierStyle.SINGLE;
+        if (!RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
+            style = BridgePierStyle.SINGLE;
+        }
+        if (style == BridgePierStyle.DOUBLE) {
             // 双柱：先钳偏移（与路宽同奇偶），再按 (W−偏移)/2 钳直径。
             offset = RoadParameterLimits.clampBridgePierOffsetBlocks(
                 carriagewayWidth, raw.pierOffsetBlocks());
@@ -135,7 +139,7 @@ public record ResolvedBridgeStructure(
             raw.generatePillars(),
             raw.pierSpacingBlocks(),
             raw.pierMaterial(),
-            raw.pierStyle(),
+            style,
             diameter,
             offset,
             raw.includeGuardrail(),

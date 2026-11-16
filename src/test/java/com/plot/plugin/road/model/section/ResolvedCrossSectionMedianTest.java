@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model.section;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadParameterLimits;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ResolvedCrossSectionMedianTest {
 
     @Test
-    void highwayLikeWidthSplitsMedianOutOfLaneWidths() {
+    void highwayLikeWidthKeepsMedianOutOfLaneWidths() {
         RoadSystemConfig defaults = bareDefaults();
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setWidth(11);
@@ -18,6 +19,7 @@ class ResolvedCrossSectionMedianTest {
         section.getCarriageway().syncLaneCount(2);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(1);
+        section.getMedian().setHeight(2);
         section.getShoulder().setEnabled(false);
         section.getSidewalk().setEnabled(false);
         section.getBikeLane().setEnabled(false);
@@ -26,16 +28,19 @@ class ResolvedCrossSectionMedianTest {
 
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
 
-        // 双黄占 2 + 分隔带 1：行驶宽之和 8，laneOnly=10，总宽 11
-        assertEquals(11, resolved.carriagewayWidth);
+        // 旧档 11 含分隔带 1：反推行驶宽 4+4，派生 W=双黄2+行驶8=10；隔离带叠在路表
+        // 偶数 W 上宽度 1 按单柱奇偶钳到 2
+        assertEquals(10, resolved.carriagewayWidth);
         assertEquals(10, resolved.laneOnlyWidth);
         assertEquals(8, resolved.laneWidths.stream().mapToInt(Integer::intValue).sum());
         assertEquals(2, resolved.laneWidths.size());
+        assertEquals(2, resolved.medianWidth);
+        assertEquals(2, resolved.medianHeight);
         for (Double offset : resolved.laneDividerOffsets) {
             assertFalse(Math.abs(offset) < 0.5, "divider must not sit at median center, offset=" + offset);
         }
         assertTrue(resolved.occupiesMedianColumn(0));
-        assertEquals(11, resolved.totalHardSurfaceWidthBlocks());
+        assertEquals(10, resolved.totalHardSurfaceWidthBlocks());
     }
 
     @Test
@@ -48,7 +53,7 @@ class ResolvedCrossSectionMedianTest {
         section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(1);
-        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, true, 1);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, true, 0);
         section.getShoulder().setEnabled(false);
         section.getBikeLane().setEnabled(false);
         section.getSidewalk().setEnabled(true);
@@ -56,10 +61,30 @@ class ResolvedCrossSectionMedianTest {
 
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
 
-        // W=4+4+1缝+1分隔带=10；两侧人行道 2+2 → 总硬宽 14
-        assertEquals(10, resolved.carriagewayWidth);
+        // W=4+4+1缝=9；两侧人行道 2+2 → 总硬宽 13
+        assertEquals(9, resolved.carriagewayWidth);
         assertEquals(2, resolved.outerBandBlockCount());
-        assertEquals(14, resolved.totalHardSurfaceWidthBlocks());
+        assertEquals(13, resolved.totalHardSurfaceWidthBlocks());
+        assertEquals(1, resolved.medianWidth);
+        assertEquals(RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS, resolved.medianHeight);
+    }
+
+    @Test
+    void medianHeightClampsToOneThroughThree() {
+        RoadSystemConfig defaults = bareDefaults();
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, false, 0);
+        section.getMedian().setEnabled(true);
+        section.getMedian().setWidth(1);
+        section.getMedian().setHeight(9);
+        section.getShoulder().setEnabled(false);
+        section.getSidewalk().setEnabled(false);
+        section.getBikeLane().setEnabled(false);
+
+        ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
+        assertEquals(RoadParameterLimits.MAX_MEDIAN_HEIGHT_BLOCKS, resolved.medianHeight);
     }
 
     private static RoadSystemConfig bareDefaults() {

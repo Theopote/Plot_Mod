@@ -232,16 +232,11 @@ public class LaneGroup {
             boolean laneDividers) {
         List<Integer> laneWidths = resolveLaneWidths();
         int lanes = laneWidths.size();
-        int centerBlocks = CarriagewayWidthRules.centerLineBlocks(centerStyle);
+        // 单车道无分隔占格 / 中央标线列。
         if (lanes <= 1) {
-            if (centerBlocks <= 0) {
-                return List.of();
-            }
-            if (centerBlocks == 2) {
-                return List.of(-0.5, 0.5);
-            }
-            return List.of(0.0);
+            return List.of();
         }
+        int centerBlocks = CarriagewayWidthRules.centerLineBlocks(centerStyle);
 
         int total = CarriagewayWidthRules.derivedCarriagewayWidth(
             laneWidths, centerStyle, laneDividers, 0);

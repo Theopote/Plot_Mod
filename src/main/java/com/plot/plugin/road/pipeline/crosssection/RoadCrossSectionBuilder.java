@@ -303,7 +303,11 @@ public final class RoadCrossSectionBuilder {
                 Vec2d left = center.add(leftNormal.multiply(-halfMedian));
                 Vec2d right = center.add(leftNormal.multiply(halfMedian));
                 String blockId = host.resolveBlockId(crossSection.medianMaterial);
-                solids.addSpan(left, right, targetY, RoadSolidLayer.MEDIAN, blockId);
+                // 隔离带在路表之上：从路面上一格起堆叠高度。
+                int height = Math.max(1, crossSection.medianHeight);
+                for (int dy = 1; dy <= height; dy++) {
+                    solids.addSpan(left, right, targetY + dy, RoadSolidLayer.MEDIAN, blockId);
+                }
             });
     }
 

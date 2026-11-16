@@ -19,6 +19,13 @@ public final class RoadParameterLimits {
     public static final int DEFAULT_LANE_WIDTH_BLOCKS = 3;
     public static final int MIN_STRIP_WIDTH = 1;
     public static final int MAX_STRIP_WIDTH = 3;
+    /** 路表中央隔离带高度（路面以上格数）。 */
+    public static final int MIN_MEDIAN_HEIGHT_BLOCKS = 1;
+    public static final int MAX_MEDIAN_HEIGHT_BLOCKS = 3;
+    public static final int DEFAULT_MEDIAN_HEIGHT_BLOCKS = 1;
+    public static final String DEFAULT_MEDIAN_MATERIAL = "minecraft:oak_leaves";
+    /** 行车道宽 ≤ 此值时桥墩仅允许单柱。 */
+    public static final int MAX_CARRIAGEWAY_WIDTH_FOR_DOUBLE_PIER = 2;
     /** Inclusive minimum placeable block Y for default overworld fallback. */
     public static final int ELEVATION_MIN = TerrainSampler.DEFAULT_WORLD_BOTTOM_Y;
     /** Inclusive maximum placeable block Y for default overworld fallback. */
@@ -77,6 +84,7 @@ public final class RoadParameterLimits {
     }
 
     /** @deprecated 使用 {@link #clampLaneTravelWidth(int)}；保留重载以免旧调用断裂。 */
+    @Deprecated
     public static int clampLaneWidth(int laneWidth, int carriagewayWidth, int laneCount) {
         return clampLaneTravelWidth(laneWidth);
     }
@@ -163,10 +171,30 @@ public final class RoadParameterLimits {
         return clampBridgeThreshold(blocks);
     }
 
+    /** 行车道过窄时双柱无法布置。 */
+    public static boolean allowsDoublePier(int carriagewayWidth) {
+        return Math.max(1, carriagewayWidth) > MAX_CARRIAGEWAY_WIDTH_FOR_DOUBLE_PIER;
+    }
+
     /** 单柱最大直径：min(⌊行车道宽 / 2⌋, {@link #MAX_BRIDGE_PIER_DIAMETER_BLOCKS})，至少 1。 */
     public static int maxSinglePierDiameterBlocks(int carriagewayWidth) {
         int width = Math.max(1, carriagewayWidth);
         return Math.clamp(width / 2, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
+    }
+
+    /**
+     * 中央隔离带宽度：与单柱直径同一套奇偶/上限（落在路表中心，不占行车道宽）。
+     */
+    public static int clampMedianWidthBlocks(int carriagewayWidth, int medianWidth) {
+        return clampBridgePierDiameterBlocks(carriagewayWidth, medianWidth, BridgePierStyle.SINGLE);
+    }
+
+    public static int[] validMedianWidths(int carriagewayWidth) {
+        return validBridgePierDiameters(carriagewayWidth, BridgePierStyle.SINGLE);
+    }
+
+    public static int clampMedianHeightBlocks(int height) {
+        return Math.clamp(height, MIN_MEDIAN_HEIGHT_BLOCKS, MAX_MEDIAN_HEIGHT_BLOCKS);
     }
 
     /** 与行车道同奇偶的最小单柱直径；极窄偶数路宽无解时退回 1。 */

@@ -32,6 +32,8 @@ public final class ResolvedCrossSection {
     public final MaterialMix carriagewayMaterial;
     public final boolean includeMedian;
     public final int medianWidth;
+    /** 路表以上隔离带高度（格）。 */
+    public final int medianHeight;
     public final String medianMaterial;
     public final boolean laneDividers;
     public final CenterLineStyle centerLineStyle;
@@ -78,6 +80,7 @@ public final class ResolvedCrossSection {
             MaterialMix carriagewayMaterial,
             boolean includeMedian,
             int medianWidth,
+            int medianHeight,
             String medianMaterial,
             boolean laneDividers,
             CenterLineStyle centerLineStyle,
@@ -108,6 +111,7 @@ public final class ResolvedCrossSection {
         this.carriagewayMaterial = carriagewayMaterial;
         this.includeMedian = includeMedian;
         this.medianWidth = medianWidth;
+        this.medianHeight = Math.max(0, medianHeight);
         this.medianMaterial = medianMaterial;
         this.laneDividers = laneDividers;
         this.centerLineStyle = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
@@ -167,7 +171,6 @@ public final class ResolvedCrossSection {
         int requestedMedian = includeMedian
             ? Math.max(1, median.getWidth() != null ? median.getWidth() : 1)
             : 0;
-        int medianWidth = includeMedian ? Math.max(0, requestedMedian) : 0;
 
         int storedWidth = carriageway.getWidth() != null ? carriageway.getWidth() : config.getRoadWidth();
         if (!carriageway.hasExplicitLaneWidths() && !carriageway.hasConfiguredDefaultLaneWidth()) {
@@ -175,37 +178,41 @@ public final class ResolvedCrossSection {
             carriageway.setDefaultLaneWidth(config.getDefaultLaneWidth());
             if (carriageway.getWidth() != null) {
                 int derivedFromConfigDefault = CarriagewayWidthRules.derivedCarriagewayWidth(
-                    carriageway.resolveLaneWidths(), centerLineStyle, laneDividers, medianWidth);
+                    carriageway.resolveLaneWidths(), centerLineStyle, laneDividers);
                 if (derivedFromConfigDefault != storedWidth) {
                     carriageway.setDefaultLaneWidth(null);
+                    // 旧档可能把隔离带算进总宽：反推时传入 requestedMedian 以提高还原度。
                     carriageway.migrateUniformLaneWidthFromStored(
-                        storedWidth, centerLineStyle, laneDividers, medianWidth);
+                        storedWidth, centerLineStyle, laneDividers, requestedMedian);
                 }
             }
         } else {
             carriageway.migrateUniformLaneWidthFromStored(
-                storedWidth, centerLineStyle, laneDividers, medianWidth);
+                storedWidth, centerLineStyle, laneDividers, requestedMedian);
         }
 
         List<Integer> laneWidths = carriageway.resolveLaneWidths();
-        int travelAndDividers = CarriagewayWidthRules.sumLaneWidths(laneWidths)
-            + CarriagewayWidthRules.dividerBlocks(laneCount, centerLineStyle, laneDividers);
-        int maxMedian = Math.max(0, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH - Math.max(laneCount, travelAndDividers));
-        if (includeMedian && medianWidth > maxMedian) {
-            report.noteGeometry(
-                "median_clamped:" + medianWidth + "->" + maxMedian
-                    + " travel+div=" + travelAndDividers + " lanes=" + laneCount);
-            medianWidth = maxMedian;
-            if (medianWidth <= 0) {
+        int safeWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
+            laneWidths, centerLineStyle, laneDividers);
+        // 隔离带在路表之上：宽度按单柱直径奇偶逻辑钳制，不挤占行车道宽。
+        int medianWidth = 0;
+        int medianHeight = 0;
+        if (includeMedian) {
+            int clampedMedian = RoadParameterLimits.clampMedianWidthBlocks(safeWidth, requestedMedian);
+            if (clampedMedian != requestedMedian) {
+                report.noteGeometry(
+                    "median_clamped:" + requestedMedian + "->" + clampedMedian
+                        + " carriageway=" + safeWidth);
+            }
+            if (clampedMedian <= 0) {
                 includeMedian = false;
-                medianWidth = 0;
+            } else {
+                medianWidth = clampedMedian;
+                medianHeight = median.getEffectiveHeight();
             }
         }
-
-        int safeWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
-            laneWidths, centerLineStyle, laneDividers, medianWidth);
         // 不回写 carriageway.width：解析结果只存在于 ResolvedCrossSection，避免污染 null 继承。
-        int laneOnlyWidth = CrossSectionGeometryRules.laneOnlyWidth(safeWidth, laneCount, medianWidth);
+        int laneOnlyWidth = safeWidth;
         List<Double> laneDividerOffsets = filterLaneDividerOffsets(
             carriageway.resolveLaneDividerOffsets(centerLineStyle, laneDividers),
             medianWidth);
@@ -214,7 +221,7 @@ public final class ResolvedCrossSection {
             config.getSelectedMaterial());
         String medianMaterial = median.getMaterial() != null
             ? median.getMaterial()
-            : "minecraft:grass_block";
+            : RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL;
 
         boolean includeShoulder = shoulder.getEnabled() != null
             ? shoulder.getEnabled()
@@ -277,6 +284,7 @@ public final class ResolvedCrossSection {
             resolveMix(roadMaterial, MaterialRole.CARRIAGEWAY, report),
             includeMedian,
             medianWidth,
+            medianHeight,
             resolveMaterial(medianMaterial, MaterialRole.MEDIAN, report),
             laneDividers,
             centerLineStyle,
@@ -518,6 +526,7 @@ public final class ResolvedCrossSection {
             && materialMixEquals(carriagewayMaterial, other.carriagewayMaterial)
             && includeMedian == other.includeMedian
             && medianWidth == other.medianWidth
+            && medianHeight == other.medianHeight
             && Objects.equals(medianMaterial, other.medianMaterial)
             && laneDividers == other.laneDividers
             && centerLineStyle == other.centerLineStyle
@@ -579,16 +588,21 @@ public final class ResolvedCrossSection {
             effectiveWidth(to.includeMedian, to.medianWidth),
             t);
         boolean includeMedian = medianWidth > 0;
+        int medianHeight = 0;
         if (includeMedian) {
-            medianWidth = CrossSectionGeometryRules.clampMedianWidth(
-                carriagewayWidth, discrete.laneCount, Math.max(1, medianWidth));
+            medianWidth = RoadParameterLimits.clampMedianWidthBlocks(carriagewayWidth, Math.max(1, medianWidth));
             if (medianWidth <= 0) {
                 includeMedian = false;
                 medianWidth = 0;
+            } else {
+                medianHeight = lerpRound(
+                    Math.max(1, from.medianHeight),
+                    Math.max(1, to.medianHeight),
+                    t);
+                medianHeight = RoadParameterLimits.clampMedianHeightBlocks(medianHeight);
             }
         }
-        int laneOnlyWidth = CrossSectionGeometryRules.laneOnlyWidth(
-            carriagewayWidth, discrete.laneCount, medianWidth);
+        int laneOnlyWidth = carriagewayWidth;
         List<Integer> laneWidths = scaleLaneWidths(discrete.laneWidths, laneOnlyWidth);
         List<Double> laneDividerOffsets = scaleOffsets(
             discrete.laneDividerOffsets, discrete.laneOnlyWidth, laneOnlyWidth);
@@ -633,6 +647,7 @@ public final class ResolvedCrossSection {
             discrete.carriagewayMaterial,
             includeMedian,
             medianWidth,
+            medianHeight,
             discrete.medianMaterial,
             discrete.laneDividers,
             discrete.centerLineStyle,

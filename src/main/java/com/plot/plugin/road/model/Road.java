@@ -271,15 +271,13 @@ public class Road {
         boolean dividers = getLaneDividers() != null
             ? getLaneDividers()
             : false;
-        int medianBlocks = Boolean.TRUE.equals(getIncludeMedian())
-            ? Math.max(0, getMedianWidth() != null ? getMedianWidth() : 0)
-            : 0;
+        // 隔离带在路表之上，不参与总宽打包。
         List<Integer> packed = CarriagewayWidthRules.packTravelWidthsForTarget(
             clamped,
             crossSection.getCarriageway().getEffectiveLaneCount(),
             style,
             dividers,
-            medianBlocks);
+            0);
         crossSection.getCarriageway().syncLaneCount(packed.size());
         for (int i = 0; i < packed.size(); i++) {
             crossSection.getCarriageway().setLaneWidthAt(i, packed.get(i));
@@ -289,7 +287,7 @@ public class Road {
         boolean effectiveDividers = getLaneDividers() != null
             ? getLaneDividers()
             : false;
-        crossSection.getCarriageway().syncDerivedWidth(style, effectiveDividers, medianBlocks);
+        crossSection.getCarriageway().syncDerivedWidth(style, effectiveDividers, 0);
     }
 
     public MaterialMix getMaterial() {
@@ -322,10 +320,7 @@ public class Road {
         if (crossSection.getCarriageway().getWidth() != null) {
             CenterLineStyle style = getCenterLineStyle() != null ? getCenterLineStyle() : CenterLineStyle.NONE;
             boolean dividers = getLaneDividers() != null ? getLaneDividers() : clamped > 1;
-            int medianBlocks = Boolean.TRUE.equals(getIncludeMedian())
-                ? Math.max(0, getMedianWidth() != null ? getMedianWidth() : 0)
-                : 0;
-            crossSection.getCarriageway().syncDerivedWidth(style, dividers, medianBlocks);
+            crossSection.getCarriageway().syncDerivedWidth(style, dividers, 0);
         }
     }
 
@@ -346,7 +341,19 @@ public class Road {
             crossSection.getMedian().setWidth(null);
             return;
         }
-        crossSection.getMedian().setWidth(RoadParameterLimits.clampStripWidth(medianWidth));
+        int carriageway = getWidth() != null
+            ? getWidth()
+            : Math.max(1, crossSection.getCarriageway().getEffectiveDefaultLaneWidth());
+        crossSection.getMedian().setWidth(
+            RoadParameterLimits.clampMedianWidthBlocks(carriageway, medianWidth));
+    }
+
+    public Integer getMedianHeight() {
+        return crossSection.getMedian().getHeight();
+    }
+
+    public void setMedianHeight(Integer medianHeight) {
+        crossSection.getMedian().setHeight(medianHeight);
     }
 
     public Boolean getLaneDividers() {

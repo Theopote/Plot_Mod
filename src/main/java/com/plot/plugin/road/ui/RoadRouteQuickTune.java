@@ -52,10 +52,7 @@ final class RoadRouteQuickTune {
                 boolean dividers = road.getLaneDividers() != null
                     ? road.getLaneDividers()
                     : lanes > 1;
-                int median = Boolean.TRUE.equals(road.getIncludeMedian())
-                    ? Math.max(0, road.getMedianWidth() != null ? road.getMedianWidth() : 0)
-                    : 0;
-                road.getCrossSection().getCarriageway().syncDerivedWidth(style, dividers, median);
+                road.getCrossSection().getCarriageway().syncDerivedWidth(style, dividers, 0);
                 ctx.onGenerationConfigChanged();
             },
             onHistory);

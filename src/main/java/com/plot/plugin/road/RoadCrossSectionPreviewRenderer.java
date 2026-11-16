@@ -307,8 +307,11 @@ public final class RoadCrossSectionPreviewRenderer {
                 fillRun = Math.max(fillRun, 1f);
             }
             int cutRiseCells = cutRun > 0 ? (options.compactSlopes ? 2 : 3) : 0;
-            // 顶留白 1 格 + 挖方 + 路面 2 格 + 填方，按此分配竖直缩放，避免裁切。
-            int verticalCells = 1 + cutRiseCells + 2 + fillRiseCells;
+            int medianRiseCells = layout.medianBlocks > 0f
+                ? Math.max(1, Math.round(layout.medianHeightBlocks))
+                : 0;
+            // 顶留白 1 格 + 隔离带 + 挖方 + 路面 2 格 + 填方，按此分配竖直缩放，避免裁切。
+            int verticalCells = 1 + medianRiseCells + cutRiseCells + 2 + fillRiseCells;
             float availableWidth = Math.max(1f, width - padding * 2f);
             float availableHeight = Math.max(1f, height - padding * 2f);
             float scale = Math.min(
@@ -316,7 +319,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 availableHeight / Math.max(1, verticalCells));
             float fillVert = fillRiseCells * scale;
             float cutHeadroom = cutRiseCells * scale;
-            float deckY = y0 + padding + scale + cutHeadroom;
+            float medianHeadroom = medianRiseCells * scale;
+            float deckY = y0 + padding + scale + cutHeadroom + medianHeadroom;
             float deckH = 2 * scale;
             float deckBottom = deckY + deckH;
             float groundY = deckBottom + fillVert;
@@ -415,16 +419,10 @@ public final class RoadCrossSectionPreviewRenderer {
             return;
         }
         float scale = roadWidthPx / Math.max(1f, layout.roadBlocks);
-        if (layout.medianBlocks > 0f) {
-            float medianPx = layout.medianBlocks * scale;
-            float medianX = roadStartX + roadWidthPx * 0.5f - medianPx * 0.5f;
-            drawList.addRectFilled(medianX, deckY, medianX + medianPx, deckY + deckH, layout.medianColor);
-            drawList.addRect(medianX, deckY, medianX + medianPx, deckY + deckH, COLOR_BORDER);
-        }
-        // 分隔占格：按偏移落到整列，画满一格（与人行道条带同为方块示意，而非细线）。
-        int markingColor = layout.markingColor != 0 ? layout.markingColor : COLOR_MARKING;
         int roadBlocks = Math.max(1, Math.round(layout.roadBlocks));
         float half = layout.roadBlocks / 2f;
+        // 分隔占格：按偏移落到整列，画满一格（与人行道条带同为方块示意，而非细线）。
+        int markingColor = layout.markingColor != 0 ? layout.markingColor : COLOR_MARKING;
         for (Float ratio : layout.markingLineRatios) {
             if (ratio == null) {
                 continue;
@@ -439,6 +437,22 @@ public final class RoadCrossSectionPreviewRenderer {
             float split = deckY + deckH * 0.5f;
             drawVoxelFace(drawList, left, split, right, deckY + deckH, 0xFF73777A);
             drawVoxelFace(drawList, left, deckY, right, split, markingColor);
+        }
+        // 路表中央隔离带：居中叠在路面顶上，宽度按奇偶对齐后的格数，高度 1–3。
+        if (layout.medianBlocks > 0f && layout.medianHeightBlocks > 0f) {
+            int medianCols = Math.max(1, Math.round(layout.medianBlocks));
+            int heightCols = Math.max(1, Math.round(layout.medianHeightBlocks));
+            float medianPx = medianCols * scale;
+            float medianX = roadStartX + (roadWidthPx - medianPx) * 0.5f;
+            for (int row = 0; row < heightCols; row++) {
+                float top = deckY - (row + 1) * scale;
+                float bottom = deckY - row * scale;
+                for (int col = 0; col < medianCols; col++) {
+                    float left = medianX + col * scale;
+                    float right = left + scale;
+                    drawVoxelFace(drawList, left, top, right, bottom, layout.medianColor);
+                }
+            }
         }
     }
 
@@ -753,6 +767,8 @@ public final class RoadCrossSectionPreviewRenderer {
         public final int cutSlopeColor;
         public final int retainingWallColor;
         public final float medianBlocks;
+        /** 路表以上隔离带高度（格）。 */
+        public final float medianHeightBlocks;
         public final int medianColor;
         public final List<Float> markingLineRatios;
         public final int markingColor;
@@ -783,6 +799,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 int cutSlopeColor,
                 int retainingWallColor,
                 float medianBlocks,
+                float medianHeightBlocks,
                 int medianColor,
                 List<Float> markingLineRatios,
                 int markingColor,
@@ -810,6 +827,7 @@ public final class RoadCrossSectionPreviewRenderer {
             this.cutSlopeColor = cutSlopeColor;
             this.retainingWallColor = retainingWallColor;
             this.medianBlocks = medianBlocks;
+            this.medianHeightBlocks = Math.max(0f, medianHeightBlocks);
             this.medianColor = medianColor;
             this.markingLineRatios = markingLineRatios != null ? List.copyOf(markingLineRatios) : List.of();
             this.markingColor = markingColor;
@@ -860,7 +878,12 @@ public final class RoadCrossSectionPreviewRenderer {
                 colorForMaterial(section.cutSlopeMaterial, 0xFF808080),
                 colorForMaterial(section.retainingWallMaterial, 0xFF8A8A82),
                 section.includeMedian ? section.medianWidth : 0f,
-                colorForMaterial(section.medianMaterial, 0xFF6FA856),
+                section.includeMedian ? Math.max(1, section.medianHeight) : 0f,
+                colorForMaterial(
+                    section.medianMaterial != null
+                        ? section.medianMaterial
+                        : RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL,
+                    0xFF4FA84F),
                 markingRatios,
                 colorForMaterial(section.markingMaterial, COLOR_MARKING),
                 furniture

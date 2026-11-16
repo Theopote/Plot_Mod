@@ -5115,5 +5115,9 @@
   "hint.plot.road.center_line_blocks": "Center markings occupy carriageway columns: single yellow 1, double yellow 2.",
   "plugin.road.edit.batch_lane_width_mixed_hint": "Mixed | set unified lane width",
   "plugin.road.edit.batch_lane_width_set_unified": "Set unified lane width",
-  "plugin.road.edit.batch_lane_width_target": "Unified lane width: %d"
+  "plugin.road.edit.batch_lane_width_target": "Unified lane width: %d",
+  "plugin.road.median_height": "Median height",
+  "hint.plot.road.median_width_parity": "Surface median width matches carriageway parity (same rules as single-pier diameter).",
+  "hint.plot.road.median_height": "Blocks above the pavement (1–3).",
+  "hint.plot.road.bridge_pier_single_only_narrow": "Carriageway width 2 or less allows single pier only."
 }

@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model.section;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadParameterLimits;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,22 +11,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CrossSectionGeometryRulesTest {
 
     @Test
-    void extremeMedianDoesNotFitFiveWideTwoLaneCarriageway() {
-        assertFalse(CrossSectionGeometryRules.isMedianFit(5, 2, 4));
-        assertEquals(3, CrossSectionGeometryRules.clampMedianWidth(5, 2, 4));
-        assertEquals(2, CrossSectionGeometryRules.laneOnlyWidth(5, 2, 3));
-        assertTrue(3 + 2 <= 5);
+    void medianWidthFollowsSinglePierParity() {
+        // 奇数路宽：合法直径为奇数
+        assertEquals(1, CrossSectionGeometryRules.clampMedianWidth(5, 2, 1));
+        assertEquals(1, CrossSectionGeometryRules.clampMedianWidth(5, 2, 2));
+        assertTrue(CrossSectionGeometryRules.isMedianFit(5, 2, 1));
+        assertFalse(CrossSectionGeometryRules.isMedianFit(5, 2, 2));
+        assertEquals(5, CrossSectionGeometryRules.laneOnlyWidth(5, 2, 4));
     }
 
     @Test
-    void highwayMedianUnchanged() {
+    void highwayMedianUnchangedWhenParityMatches() {
         assertTrue(CrossSectionGeometryRules.isMedianFit(11, 2, 1));
         assertEquals(1, CrossSectionGeometryRules.clampMedianWidth(11, 2, 1));
-        assertEquals(10, CrossSectionGeometryRules.laneOnlyWidth(11, 2, 1));
+        assertEquals(11, CrossSectionGeometryRules.laneOnlyWidth(11, 2, 1));
     }
 
     @Test
-    void resolveKeepsMedianAdditiveAndGrowsCarriageway() {
+    void resolveKeepsMedianOutOfCarriagewayWidth() {
         RoadSystemConfig defaults = new RoadSystemConfig("geom-test");
         defaults.setIncludeShoulder(false);
         defaults.setIncludeSidewalk(false);
@@ -36,6 +39,7 @@ class CrossSectionGeometryRulesTest {
         section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(4);
+        section.getMedian().setHeight(3);
         section.getShoulder().setEnabled(false);
         section.getSidewalk().setEnabled(false);
         section.getBikeLane().setEnabled(false);
@@ -43,12 +47,13 @@ class CrossSectionGeometryRulesTest {
         CrossSectionResolveReport.ResolveResult result =
             ResolvedCrossSection.resolveWithReport(section, defaults);
 
-        // 分隔带改为加在总宽上：2+2+4=8，不再把 median 压进固定 W
-        assertEquals(4, result.section().medianWidth);
-        assertEquals(8, result.section().carriagewayWidth);
+        // 行驶宽 2+2=4；隔离带按单柱奇偶钳到 2，不加入 W
+        assertEquals(2, result.section().medianWidth);
+        assertEquals(4, result.section().carriagewayWidth);
         assertEquals(4, result.section().laneOnlyWidth);
+        assertEquals(3, result.section().medianHeight);
         assertEquals(
-            result.section().medianWidth + result.section().laneOnlyWidth,
+            result.section().laneOnlyWidth,
             result.section().carriagewayWidth);
     }
 
@@ -74,5 +79,12 @@ class CrossSectionGeometryRulesTest {
         assertEquals(
             "minecraft:coarse_dirt",
             result.section().shoulderMaterial);
+    }
+
+    @Test
+    void narrowCarriagewayDisallowsDoublePier() {
+        assertFalse(RoadParameterLimits.allowsDoublePier(1));
+        assertFalse(RoadParameterLimits.allowsDoublePier(2));
+        assertTrue(RoadParameterLimits.allowsDoublePier(3));
     }
 }

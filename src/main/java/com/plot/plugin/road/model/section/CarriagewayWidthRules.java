@@ -6,9 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 车道驱动行车道宽度：总宽由各车道行驶宽 + 分隔占格 + 中央分隔带推导。
+ * 车道驱动行车道宽度：总宽由各车道行驶宽 + 分隔占格推导。
+ * 中央隔离带在路表之上，不计入行车道宽。
  * <pre>
- * W = sum(laneWidths) + dividerBlocks + medianWidth
+ * W = sum(laneWidths) + dividerBlocks
  * </pre>
  */
 public final class CarriagewayWidthRules {
@@ -17,8 +18,9 @@ public final class CarriagewayWidthRules {
     }
 
     /**
-     * 中央标线 / 同向分隔线占用的横向格数（不含中央绿化带）。
+     * 中央标线 / 同向分隔线占用的横向格数（不含路表中央隔离带）。
      * <ul>
+     *   <li>单车道：无分隔占格（含中央标线）</li>
      *   <li>中央单线（虚线/铁轨）：中心 1 格</li>
      *   <li>中央双实线：中心 2 格</li>
      *   <li>同向车道分隔：每条相邻缝 1 格；若已有中央标线，中心缝不再重复计</li>
@@ -26,15 +28,15 @@ public final class CarriagewayWidthRules {
      */
     public static int dividerBlocks(int laneCount, CenterLineStyle centerStyle, boolean laneDividers) {
         int lanes = Math.max(1, laneCount);
+        if (lanes <= 1) {
+            return 0;
+        }
         CenterLineStyle style = centerStyle != null ? centerStyle : CenterLineStyle.NONE;
         int centerBlocks = switch (style) {
             case SINGLE_DASHED, RAIL -> 1;
             case DOUBLE_SOLID -> 2;
             case NONE -> 0;
         };
-        if (lanes <= 1) {
-            return centerBlocks;
-        }
         int seams = lanes - 1;
         if (!laneDividers) {
             return centerBlocks;
@@ -80,13 +82,22 @@ public final class CarriagewayWidthRules {
     public static int derivedCarriagewayWidth(
             List<Integer> laneWidths,
             CenterLineStyle centerStyle,
-            boolean laneDividers,
-            int medianWidth) {
+            boolean laneDividers) {
         int lanes = laneWidths != null && !laneWidths.isEmpty() ? laneWidths.size() : 1;
         int travel = Math.max(lanes, sumLaneWidths(laneWidths));
         int dividers = dividerBlocks(lanes, centerStyle, laneDividers);
-        int median = Math.max(0, medianWidth);
-        return RoadParameterLimits.clampCarriagewayWidth(travel + dividers + median);
+        return RoadParameterLimits.clampCarriagewayWidth(travel + dividers);
+    }
+
+    /**
+     * @param ignoredMedianWidth 中央隔离带不占行车道宽，保留参数以免旧调用断裂
+     */
+    public static int derivedCarriagewayWidth(
+            List<Integer> laneWidths,
+            CenterLineStyle centerStyle,
+            boolean laneDividers,
+            int ignoredMedianWidth) {
+        return derivedCarriagewayWidth(laneWidths, centerStyle, laneDividers);
     }
 
     public static int derivedCarriagewayWidth(
@@ -94,12 +105,11 @@ public final class CarriagewayWidthRules {
             int uniformLaneWidth,
             CenterLineStyle centerStyle,
             boolean laneDividers,
-            int medianWidth) {
+            int ignoredMedianWidth) {
         return derivedCarriagewayWidth(
             uniformLaneWidths(laneCount, uniformLaneWidth),
             centerStyle,
-            laneDividers,
-            medianWidth);
+            laneDividers);
     }
 
     /**
@@ -114,6 +124,7 @@ public final class CarriagewayWidthRules {
             int medianWidth) {
         int lanes = Math.max(1, laneCount);
         int dividers = dividerBlocks(lanes, centerStyle, laneDividers);
+        // 旧档若把隔离带算进总宽，反推时仍减去以便尽量还原行驶宽；新语义隔离带不再写入 W。
         int median = Math.max(0, medianWidth);
         int travelBudget = Math.max(lanes, storedCarriagewayWidth - dividers - median);
         int preferred = RoadParameterLimits.DEFAULT_LANE_WIDTH_BLOCKS;
@@ -139,16 +150,15 @@ public final class CarriagewayWidthRules {
             int preferredLaneCount,
             CenterLineStyle centerStyle,
             boolean laneDividers,
-            int medianWidth) {
+            int ignoredMedianWidth) {
         int target = RoadParameterLimits.clampCarriagewayWidth(targetCarriagewayWidth);
-        int median = Math.max(0, medianWidth);
         int startLanes = Math.max(1, preferredLaneCount);
 
         for (int useDividers = 1; useDividers >= 0; useDividers--) {
             boolean dividers = useDividers == 1 && laneDividers;
             for (int lanes = startLanes; lanes <= RoadParameterLimits.MAX_LANE_COUNT; lanes++) {
                 int div = dividerBlocks(lanes, centerStyle, dividers && lanes > 1);
-                int travel = target - div - median;
+                int travel = target - div;
                 if (travel < lanes * RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS
                         || travel > lanes * RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS) {
                     continue;
@@ -159,7 +169,7 @@ public final class CarriagewayWidthRules {
                 for (int i = 0; i < lanes; i++) {
                     widths.add(base + (i < rem ? 1 : 0));
                 }
-                if (derivedCarriagewayWidth(widths, centerStyle, dividers && lanes > 1, median) == target) {
+                if (derivedCarriagewayWidth(widths, centerStyle, dividers && lanes > 1) == target) {
                     return widths;
                 }
             }
@@ -169,6 +179,6 @@ public final class CarriagewayWidthRules {
             }
         }
         return uniformLaneWidths(startLanes, inferUniformLaneWidth(
-            target, startLanes, centerStyle, false, median));
+            target, startLanes, centerStyle, false, 0));
     }
 }

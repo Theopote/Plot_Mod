@@ -75,6 +75,7 @@ public class RoadSystemConfig {
     private int bikeLaneWidth = 1;
     private boolean includeMedian = false;
     private int medianWidth = 1;
+    private int medianHeight = RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
     private boolean laneDividers = false;
     private String centerLineStyle = CenterLineStyle.NONE.name();
     private String markingMaterial = "minecraft:white_concrete";
@@ -220,7 +221,7 @@ public class RoadSystemConfig {
             getLaneCount(),
             getCenterLineStyle(),
             laneDividers,
-            includeMedian ? medianWidth : 0);
+            0);
     }
 
     public int getDefaultLaneWidth() {
@@ -239,8 +240,10 @@ public class RoadSystemConfig {
         this.roadWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
             widths,
             getCenterLineStyle(),
-            laneDividers,
-            includeMedian ? medianWidth : 0);
+            laneDividers);
+        if (includeMedian) {
+            this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(this.roadWidth, medianWidth);
+        }
     }
 
     private List<Integer> effectiveLaneTravelWidths() {
@@ -547,7 +550,9 @@ public class RoadSystemConfig {
 
     public void setIncludeMedian(boolean includeMedian) {
         this.includeMedian = includeMedian;
-        recomputeDerivedRoadWidth();
+        if (includeMedian) {
+            this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(getRoadWidth(), medianWidth);
+        }
     }
 
     public int getMedianWidth() {
@@ -555,8 +560,16 @@ public class RoadSystemConfig {
     }
 
     public void setMedianWidth(int medianWidth) {
-        this.medianWidth = RoadParameterLimits.clampStripWidth(medianWidth);
-        recomputeDerivedRoadWidth();
+        this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(getRoadWidth(), medianWidth);
+    }
+
+    public int getMedianHeight() {
+        return RoadParameterLimits.clampMedianHeightBlocks(
+            medianHeight > 0 ? medianHeight : RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS);
+    }
+
+    public void setMedianHeight(int medianHeight) {
+        this.medianHeight = RoadParameterLimits.clampMedianHeightBlocks(medianHeight);
     }
 
     public boolean isLaneDividers() {

@@ -28,6 +28,7 @@ public final class CrossSectionDraft {
     private int bikeLaneWidth;
     private boolean includeMedian;
     private int medianWidth;
+    private int medianHeight = RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
     private int streetlightSpacing;
     private boolean laneDividers;
     private CenterLineStyle centerLineStyle;
@@ -60,6 +61,7 @@ public final class CrossSectionDraft {
         draft.bikeLaneWidth = config.getBikeLaneWidth();
         draft.includeMedian = config.isIncludeMedian();
         draft.medianWidth = config.getMedianWidth();
+        draft.medianHeight = config.getMedianHeight();
         draft.streetlightSpacing = config.getStreetlightSpacing();
         draft.laneDividers = config.isLaneDividers();
         draft.centerLineStyle = config.getCenterLineStyle();
@@ -95,6 +97,7 @@ public final class CrossSectionDraft {
         config.setBikeLaneWidth(bikeLaneWidth);
         config.setIncludeMedian(includeMedian);
         config.setMedianWidth(medianWidth);
+        config.setMedianHeight(medianHeight);
         config.setStreetlightSpacing(streetlightSpacing);
         config.setLaneDividers(laneDividers);
         config.setCenterLineStyle(centerLineStyle);
@@ -126,6 +129,7 @@ public final class CrossSectionDraft {
         draft.bikeLaneWidth = defaults.bikeLaneWidth();
         draft.includeMedian = defaults.includeMedian();
         draft.medianWidth = defaults.medianWidth();
+        draft.medianHeight = RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
         draft.streetlightSpacing = defaults.streetlightSpacing();
         draft.laneDividers = defaults.laneDividers();
         draft.centerLineStyle = defaults.centerLineStyle();
@@ -214,8 +218,7 @@ public final class CrossSectionDraft {
         if (!anyExplicit) {
             section.getCarriageway().setDefaultLaneWidth(defaultLaneWidth);
         }
-        int medianBlocks = includeMedian ? Math.max(0, medianWidth) : 0;
-        section.getCarriageway().syncDerivedWidth(centerLineStyle, laneDividers, medianBlocks);
+        section.getCarriageway().syncDerivedWidth(centerLineStyle, laneDividers, 0);
         width = section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width;
         section.getShoulder().setEnabled(includeShoulder);
         section.getShoulder().setWidth(shoulderWidth);
@@ -225,7 +228,9 @@ public final class CrossSectionDraft {
         section.getBikeLane().setEnabled(includeBikeLane);
         section.getBikeLane().setWidth(bikeLaneWidth);
         section.getMedian().setEnabled(includeMedian);
-        section.getMedian().setWidth(medianWidth);
+        section.getMedian().setWidth(
+            includeMedian ? RoadParameterLimits.clampMedianWidthBlocks(width, medianWidth) : medianWidth);
+        section.getMedian().setHeight(medianHeight);
         section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
         section.getMarkings().setLaneDividers(laneDividers);
         section.getMarkings().setCenterLineStyle(centerLineStyle);
@@ -255,9 +260,10 @@ public final class CrossSectionDraft {
             || !laneWidths.equals(baseline.laneWidths)
             || defaultLaneWidth != baseline.defaultLaneWidth;
         boolean markingsChanged = laneDividers != baseline.laneDividers
-            || centerLineStyle != baseline.centerLineStyle
-            || includeMedian != baseline.includeMedian
-            || medianWidth != baseline.medianWidth;
+            || centerLineStyle != baseline.centerLineStyle;
+        boolean medianChanged = includeMedian != baseline.includeMedian
+            || medianWidth != baseline.medianWidth
+            || medianHeight != baseline.medianHeight;
         if (lanesChanged) {
             section.getCarriageway().setLaneCount(laneCount);
             section.getCarriageway().setDefaultLaneWidth(defaultLaneWidth);
@@ -268,14 +274,19 @@ public final class CrossSectionDraft {
                 }
             }
         }
-        // 仅在车道/标线/分隔带实际改动时写回派生总宽；避免单字段编辑把 null 继承物化为显式 width。
+        // 仅在车道/标线实际改动时写回派生总宽；隔离带不占行车道宽。
         if (lanesChanged || markingsChanged) {
             CenterLineStyle style = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
-            int medianBlocks = includeMedian ? Math.max(0, medianWidth) : 0;
-            section.getCarriageway().syncDerivedWidth(style, laneDividers, medianBlocks);
+            section.getCarriageway().syncDerivedWidth(style, laneDividers, 0);
             width = section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width;
         } else if (width != baseline.width && baseline.width > 0) {
             section.getCarriageway().setWidth(width);
+        }
+        if (medianChanged) {
+            section.getMedian().setEnabled(includeMedian);
+            section.getMedian().setWidth(
+                includeMedian ? RoadParameterLimits.clampMedianWidthBlocks(width, medianWidth) : medianWidth);
+            section.getMedian().setHeight(medianHeight);
         }
         if (!materialsEqual(material, baseline.material)) {
             section.getCarriageway().setMaterial(material);
@@ -300,12 +311,6 @@ public final class CrossSectionDraft {
         }
         if (bikeLaneWidth != baseline.bikeLaneWidth) {
             section.getBikeLane().setWidth(bikeLaneWidth);
-        }
-        if (includeMedian != baseline.includeMedian) {
-            section.getMedian().setEnabled(includeMedian);
-        }
-        if (medianWidth != baseline.medianWidth) {
-            section.getMedian().setWidth(medianWidth);
         }
         if (streetlightSpacing != baseline.streetlightSpacing) {
             section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
@@ -398,6 +403,11 @@ public final class CrossSectionDraft {
         if (road.getMedianWidth() != null) {
             draft.medianWidth = road.getMedianWidth();
         }
+        if (road.getMedianHeight() != null) {
+            draft.medianHeight = road.getMedianHeight();
+        } else {
+            draft.medianHeight = road.getCrossSection().getMedian().getEffectiveHeight();
+        }
         draft.streetlightSpacing = road.getStreetlightSpacing() != null
             ? road.getStreetlightSpacing()
             : 0;
@@ -482,6 +492,9 @@ public final class CrossSectionDraft {
         draft.bikeLaneWidth = resolved.bikeLaneWidth;
         draft.includeMedian = resolved.includeMedian;
         draft.medianWidth = resolved.medianWidth;
+        draft.medianHeight = resolved.medianHeight > 0
+            ? resolved.medianHeight
+            : RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
         draft.streetlightSpacing = resolved.streetlightSpacing != null ? resolved.streetlightSpacing : 0;
         draft.laneDividers = resolved.laneDividers;
         draft.centerLineStyle = resolved.centerLineStyle != null
@@ -613,7 +626,6 @@ public final class CrossSectionDraft {
 
     public void setIncludeMedian(boolean includeMedian) {
         this.includeMedian = includeMedian;
-        recomputeDerivedWidth();
     }
 
     public int medianWidth() {
@@ -621,8 +633,15 @@ public final class CrossSectionDraft {
     }
 
     public void setMedianWidth(int medianWidth) {
-        this.medianWidth = medianWidth;
-        recomputeDerivedWidth();
+        this.medianWidth = Math.max(0, medianWidth);
+    }
+
+    public int medianHeight() {
+        return medianHeight;
+    }
+
+    public void setMedianHeight(int medianHeight) {
+        this.medianHeight = RoadParameterLimits.clampMedianHeightBlocks(medianHeight);
     }
 
     public int streetlightSpacing() {
@@ -770,7 +789,7 @@ public final class CrossSectionDraft {
             Math.max(1, laneCount),
             centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE,
             laneDividers,
-            includeMedian ? Math.max(0, medianWidth) : 0);
+            0);
     }
 
     public void recomputeDerivedWidth() {
@@ -778,8 +797,10 @@ public final class CrossSectionDraft {
         width = CarriagewayWidthRules.derivedCarriagewayWidth(
             resolved,
             centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE,
-            laneDividers,
-            includeMedian ? Math.max(0, medianWidth) : 0);
+            laneDividers);
+        if (includeMedian) {
+            medianWidth = RoadParameterLimits.clampMedianWidthBlocks(width, Math.max(1, medianWidth));
+        }
     }
 
     public List<Integer> resolveLaneWidths() {

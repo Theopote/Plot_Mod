@@ -32,8 +32,8 @@ class CrossSectionDraftTest {
         RoadSystemConfig copy = new RoadSystemConfig("road_system_copy");
         draft.applyToConfig(copy);
 
-        // 3×3 + 同向缝1 + 中央虚线1 + 分隔带2 = 13（分隔占格语义）
-        assertEquals(13, copy.getRoadWidth());
+        // 3×3 + 同向缝1 + 中央虚线1 = 11（隔离带不计入行车道宽）
+        assertEquals(11, copy.getRoadWidth());
         assertEquals(3, copy.getLaneCount());
         assertEquals(3, copy.getLaneWidths().size());
         assertTrue(copy.isIncludeBikeLane());

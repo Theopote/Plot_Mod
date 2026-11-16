@@ -2175,8 +2175,8 @@
   "plugin.road.sort.road_group": "按道路分组",
   "plugin.road.lane_count": "车道数",
   "plugin.road.lane_count_summary": "%d 车道 · 总宽 %d 格",
-  "plugin.road.include_median": "中央分隔带",
-  "plugin.road.median_width": "分隔带宽度",
+  "plugin.road.include_median": "中央隔离带",
+  "plugin.road.median_width": "隔离带宽度",
   "plugin.road.lane_dividers": "车道分隔线",
   "plugin.road.road_label": "道路 %s · %d车道/%d格 · %d段",
   "plugin.road.unassigned_road": "未分配道路",
@@ -5115,5 +5115,9 @@
   "hint.plot.road.center_line_blocks": "中央标线占用行车道横向格数：单黄 1 格，双黄 2 格。",
   "plugin.road.edit.batch_lane_width_mixed_hint": "混合值｜设置统一单车道宽",
   "plugin.road.edit.batch_lane_width_set_unified": "设置统一单车道宽",
-  "plugin.road.edit.batch_lane_width_target": "统一单车道宽: %d"
+  "plugin.road.edit.batch_lane_width_target": "统一单车道宽: %d",
+  "plugin.road.median_height": "隔离带高度",
+  "hint.plot.road.median_width_parity": "路表中央隔离带宽度与行车道同奇偶，上限参考单柱直径。",
+  "hint.plot.road.median_height": "隔离带高出路面的格数（1–3）。",
+  "hint.plot.road.bridge_pier_single_only_narrow": "行车道宽度不超过 2 格时仅可使用单柱。"
 }

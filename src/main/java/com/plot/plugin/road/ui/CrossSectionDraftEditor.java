@@ -257,21 +257,48 @@ public final class CrossSectionDraftEditor {
         }
         mutator.afterMedianIncludeField();
         if (draft.includeMedian()) {
-            int[] medianWidthArr = {
-                Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.medianWidth())
-            };
+            int[] medianOptions = RoadParameterLimits.validMedianWidths(draft.width());
+            int clampedMedian = RoadParameterLimits.clampMedianWidthBlocks(
+                draft.width(), Math.max(1, draft.medianWidth()));
+            if (clampedMedian != draft.medianWidth()) {
+                mutator.setMedianWidth(clampedMedian);
+            }
+            int[] medianWidthArr = {clampedMedian};
+            int minMedian = medianOptions.length > 0 ? medianOptions[0] : 1;
+            int maxMedian = medianOptions.length > 0
+                ? medianOptions[medianOptions.length - 1]
+                : RoadParameterLimits.MAX_BRIDGE_PIER_DIAMETER_BLOCKS;
             if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.median_width") + "##" + id + "_median_w",
                 medianWidthArr,
-                RoadParameterLimits.MIN_STRIP_WIDTH,
-                RoadParameterLimits.MAX_STRIP_WIDTH,
+                minMedian,
+                maxMedian,
                 "%d")) {
                 if (ImGui.isItemActivated()) {
                     hooks.onItemActivated();
                 }
                 mutator.setMedianWidth(medianWidthArr[0]);
             }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_width_parity"));
+            }
             mutator.afterMedianWidthField();
+
+            int[] medianHeightArr = {draft.medianHeight()};
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.median_height") + "##" + id + "_median_h",
+                medianHeightArr,
+                RoadParameterLimits.MIN_MEDIAN_HEIGHT_BLOCKS,
+                RoadParameterLimits.MAX_MEDIAN_HEIGHT_BLOCKS,
+                "%d")) {
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setMedianHeight(medianHeightArr[0]);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_height"));
+            }
         }
 
         if (editor.options.showMaxSlope()) {

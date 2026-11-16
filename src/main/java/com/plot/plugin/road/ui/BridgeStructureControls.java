@@ -52,11 +52,13 @@ public final class BridgeStructureControls {
             renderPierStyleCombo(
                 "##cfg_pier_style",
                 config.getBridgePierStyle(),
+                carriagewayWidth,
                 style -> {
                     config.setBridgePierStyle(style);
                     markCustom(ctx, config);
                 });
-            if (config.getBridgePierStyle() == BridgePierStyle.DOUBLE) {
+            if (config.getBridgePierStyle() == BridgePierStyle.DOUBLE
+                    && RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
                 renderOffsetSlider(
                     "##cfg_pier_offset",
                     carriagewayWidth,
@@ -167,11 +169,13 @@ public final class BridgeStructureControls {
             renderPierStyleCombo(
                 "##batch_pier_style",
                 current[0].bridgePierStyle(),
+                carriagewayWidth,
                 style -> {
                     current[0] = withBridge(current[0], b -> b.style = style);
                     onChanged.accept(current[0]);
                 });
-            if (current[0].bridgePierStyle() == BridgePierStyle.DOUBLE) {
+            if (current[0].bridgePierStyle() == BridgePierStyle.DOUBLE
+                    && RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
                 renderOffsetSlider(
                     "##batch_pier_offset",
                     carriagewayWidth,
@@ -262,8 +266,9 @@ public final class BridgeStructureControls {
 
         if (resolved.generatePillars()) {
             renderSpacingOverride(ctx, road, onHistory, config, resolved);
-            renderPierStyleOverride(ctx, road, onHistory, config, resolved);
-            if (resolved.pierStyle() == BridgePierStyle.DOUBLE) {
+            renderPierStyleOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
+            if (resolved.pierStyle() == BridgePierStyle.DOUBLE
+                    && RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
                 renderOffsetOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
             }
             renderDiameterOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
@@ -339,11 +344,13 @@ public final class BridgeStructureControls {
             Road road,
             Runnable onHistory,
             RoadSystemConfig config,
-            ResolvedBridgeStructure resolved) {
+            ResolvedBridgeStructure resolved,
+            int carriagewayWidth) {
         boolean inherited = road.getBridgePierStyle() == null;
         renderPierStyleCombo(
             "##road_pier_style_" + road.getId(),
             resolved.pierStyle(),
+            carriagewayWidth,
             style -> {
                 pushHistory(onHistory);
                 road.setBridgePierStyle(style);
@@ -430,12 +437,27 @@ public final class BridgeStructureControls {
             String idSuffix,
             BridgePierStyle current,
             java.util.function.Consumer<BridgePierStyle> onChanged) {
-        BridgePierStyle[] styles = BridgePierStyle.values();
+        renderPierStyleCombo(idSuffix, current, Integer.MAX_VALUE, onChanged);
+    }
+
+    private static void renderPierStyleCombo(
+            String idSuffix,
+            BridgePierStyle current,
+            int carriagewayWidth,
+            java.util.function.Consumer<BridgePierStyle> onChanged) {
+        boolean allowDouble = RoadParameterLimits.allowsDoublePier(carriagewayWidth);
+        BridgePierStyle[] styles = allowDouble
+            ? BridgePierStyle.values()
+            : new BridgePierStyle[] {BridgePierStyle.SINGLE};
+        BridgePierStyle effective = !allowDouble ? BridgePierStyle.SINGLE : current;
+        if (!allowDouble && current == BridgePierStyle.DOUBLE) {
+            onChanged.accept(BridgePierStyle.SINGLE);
+        }
         String[] labels = new String[styles.length];
         int selected = 0;
         for (int i = 0; i < styles.length; i++) {
             labels[i] = pierStyleLabel(styles[i]);
-            if (styles[i] == current) {
+            if (styles[i] == effective) {
                 selected = i;
             }
         }
@@ -445,6 +467,9 @@ public final class BridgeStructureControls {
             index,
             labels)) {
             onChanged.accept(styles[index.get()]);
+        }
+        if (!allowDouble && ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_pier_single_only_narrow"));
         }
     }
 

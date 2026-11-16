@@ -1049,6 +1049,7 @@ public class RoadNetwork {
     static class MedianData {
         Boolean enabled;
         Integer width;
+        Integer height;
         String material;
     }
 
@@ -1126,6 +1127,7 @@ public class RoadNetwork {
                 data.median = new MedianData();
                 data.median.enabled = median.getEnabled();
                 data.median.width = median.getWidth();
+                data.median.height = median.getHeight();
                 data.median.material = median.getMaterial();
             }
             Markings markings = section.getMarkings();
@@ -1208,6 +1210,9 @@ public class RoadNetwork {
                 Median medianComponent = new Median();
                 medianComponent.setEnabled(median.enabled);
                 medianComponent.setWidth(median.width);
+                if (median.height != null) {
+                    medianComponent.setHeight(median.height);
+                }
                 medianComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(median.material));
                 section.setMedian(medianComponent);
             }

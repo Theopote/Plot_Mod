@@ -248,19 +248,34 @@ public final class CrossSectionDraftMutator {
 
     public void setIncludeMedian(boolean includeMedian) {
         draft.setIncludeMedian(includeMedian);
+        if (includeMedian) {
+            draft.setMedianWidth(RoadParameterLimits.clampMedianWidthBlocks(
+                draft.width(), Math.max(1, draft.medianWidth())));
+        }
         if (road != null) {
             road.setIncludeMedian(includeMedian);
+            if (includeMedian) {
+                road.setMedianWidth(draft.medianWidth());
+                road.setMedianHeight(draft.medianHeight());
+            }
         }
-        enforceMedianFit();
         notifyChanged();
     }
 
     public void setMedianWidth(int medianWidth) {
-        draft.setMedianWidth(medianWidth);
+        int clamped = RoadParameterLimits.clampMedianWidthBlocks(draft.width(), medianWidth);
+        draft.setMedianWidth(clamped);
         if (road != null) {
-            road.setMedianWidth(medianWidth);
+            road.setMedianWidth(clamped);
         }
-        enforceMedianFit();
+        notifyChanged();
+    }
+
+    public void setMedianHeight(int medianHeight) {
+        draft.setMedianHeight(medianHeight);
+        if (road != null) {
+            road.setMedianHeight(draft.medianHeight());
+        }
         notifyChanged();
     }
 
@@ -593,21 +608,23 @@ public final class CrossSectionDraftMutator {
     }
 
     private void enforceMedianFit() {
-        // 分隔带改为加性：只在总宽触顶时提示，不再把 median 压进固定行车道宽。
         lastGeometryWarning = null;
         if (!draft.includeMedian()) {
             return;
         }
-        if (draft.width() >= RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH) {
+        int requested = Math.max(1, draft.medianWidth());
+        int clamped = RoadParameterLimits.clampMedianWidthBlocks(draft.width(), requested);
+        if (clamped != requested) {
+            draft.setMedianWidth(clamped);
+            if (road != null) {
+                road.setMedianWidth(clamped);
+            }
             lastGeometryWarning = PlotI18n.tr(
                 "plugin.road.median_width_clamped",
-                draft.medianWidth(),
+                requested,
                 draft.laneCount(),
                 draft.width(),
-                draft.medianWidth());
-        }
-        if (road != null) {
-            syncRoadCarriagewayWidth();
+                clamped);
         }
     }
 
@@ -618,9 +635,13 @@ public final class CrossSectionDraftMutator {
         CenterLineStyle style = draft.centerLineStyle() != null
             ? draft.centerLineStyle()
             : CenterLineStyle.NONE;
-        int medianBlocks = draft.includeMedian() ? Math.max(0, draft.medianWidth()) : 0;
-        road.getCrossSection().getCarriageway().syncDerivedWidth(
-            style, draft.laneDividers(), medianBlocks);
+        road.getCrossSection().getCarriageway().syncDerivedWidth(style, draft.laneDividers(), 0);
+        if (draft.includeMedian()) {
+            int clamped = RoadParameterLimits.clampMedianWidthBlocks(
+                draft.width(), Math.max(1, draft.medianWidth()));
+            draft.setMedianWidth(clamped);
+            road.setMedianWidth(clamped);
+        }
     }
 
     private void notifyChanged() {

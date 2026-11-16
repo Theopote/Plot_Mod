@@ -225,6 +225,9 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + (road.getEffectiveIncludeSidewalk(config) ? 1 : 0);
         h = 31 * h + (road.getIncludeMedian() != null && road.getIncludeMedian() ? 1 : 0);
         h = 31 * h + (road.getMedianWidth() != null ? road.getMedianWidth() : 0);
+        h = 31 * h + (road.getMedianHeight() != null
+            ? road.getMedianHeight()
+            : road.getCrossSection().getMedian().getEffectiveHeight());
         h = 31 * h + (road.getLaneDividers() != null && road.getLaneDividers() ? 1 : 0);
         h = 31 * h + Objects.hashCode(road.getCenterLineStyle());
         h = 31 * h + (road.getEffectiveIncludeSlopeBatter(config) ? 1 : 0);

@@ -23,12 +23,15 @@ public final class MarkingRules {
     }
 
     public static boolean resolveLaneDividers(Markings markings, int laneCount) {
+        if (laneCount <= 1) {
+            return false;
+        }
         if (markings == null) {
-            return laneCount > 1;
+            return true;
         }
         if (markings.getLaneDividers() != null) {
             return markings.getLaneDividers();
         }
-        return laneCount > 1;
+        return true;
     }
 }

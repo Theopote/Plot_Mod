@@ -44,11 +44,21 @@ class CarriagewayWidthRulesTest {
     }
 
     @Test
-    void medianAddsToDerivedWidth() {
+    void medianDoesNotAddToDerivedWidth() {
         assertEquals(
-            9,
+            7,
             CarriagewayWidthRules.derivedCarriagewayWidth(
                 2, 3, CenterLineStyle.SINGLE_DASHED, true, 2));
+    }
+
+    @Test
+    void singleLaneHasNoDividerBlocks() {
+        assertEquals(0, CarriagewayWidthRules.dividerBlocks(1, CenterLineStyle.SINGLE_DASHED, true));
+        assertEquals(0, CarriagewayWidthRules.dividerBlocks(1, CenterLineStyle.DOUBLE_SOLID, false));
+        assertEquals(
+            3,
+            CarriagewayWidthRules.derivedCarriagewayWidth(
+                1, 3, CenterLineStyle.SINGLE_DASHED, true, 0));
     }
 
     @Test
