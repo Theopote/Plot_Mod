@@ -55,7 +55,7 @@ final class RoadBatchQuickTune {
             ? PlotI18n.tr("plugin.road.edit.batch_width_set_unified")
             : state.mixedWidth
                 ? PlotI18n.tr("plugin.road.edit.batch_width_target", widthArr[0])
-                : PlotI18n.tr("plugin.road.road_width", widthArr[0]);
+                : PlotI18n.tr("plugin.road.road_width");
         String format = mixedUnset
             ? PlotI18n.tr("plugin.road.edit.batch_target_unset")
             : "%d";
@@ -89,7 +89,7 @@ final class RoadBatchQuickTune {
             ? PlotI18n.tr("plugin.road.edit.batch_lane_count_set_unified")
             : state.mixedLaneCount
                 ? PlotI18n.tr("plugin.road.edit.batch_lane_count_target", laneArr[0])
-                : PlotI18n.tr("plugin.road.lane_count", laneArr[0]);
+                : PlotI18n.tr("plugin.road.lane_count");
         String format = mixedUnset
             ? PlotI18n.tr("plugin.road.edit.batch_target_unset")
             : "%d";

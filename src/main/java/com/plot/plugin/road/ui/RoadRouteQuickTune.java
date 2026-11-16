@@ -61,7 +61,7 @@ final class RoadRouteQuickTune {
             Runnable onHistory) {
         int[] widthArr = {width};
         boolean widthChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##route_width",
+            PlotI18n.tr("plugin.road.road_width") + "##route_width",
             widthArr,
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
             RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
@@ -79,7 +79,7 @@ final class RoadRouteQuickTune {
 
         int[] laneArr = {laneCount};
         boolean laneChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.lane_count", laneArr[0]) + "##route_lanes",
+            PlotI18n.tr("plugin.road.lane_count") + "##route_lanes",
             laneArr,
             RoadParameterLimits.MIN_LANE_COUNT,
             RoadParameterLimits.MAX_LANE_COUNT,

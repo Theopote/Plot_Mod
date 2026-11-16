@@ -95,7 +95,7 @@ public final class CrossSectionDraftEditor {
         int[] laneCountArr = {laneCount};
         if (editor.options.showCarriagewayCore()) {
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##" + id + "_lanes",
+                PlotI18n.tr("plugin.road.lane_count") + "##" + id + "_lanes",
                 laneCountArr,
                 RoadParameterLimits.MIN_LANE_COUNT,
                 RoadParameterLimits.MAX_LANE_COUNT,
@@ -111,7 +111,7 @@ public final class CrossSectionDraftEditor {
             int width = draft.width();
             int[] widthArr = {width};
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##" + id + "_width",
+                PlotI18n.tr("plugin.road.road_width") + "##" + id + "_width",
                 widthArr,
                 RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
                 RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
@@ -140,7 +140,7 @@ public final class CrossSectionDraftEditor {
                 int[] laneWidthArr = {current};
                 int perLaneMax = RoadParameterLimits.maxPerLaneWidth(width, laneCount);
                 if (ImGui.sliderInt(
-                    PlotI18n.tr("plugin.road.lane_width_label", i + 1, laneWidthArr[0])
+                    PlotI18n.tr("plugin.road.lane_width_label", i + 1)
                         + "##" + id + "_lane_" + i,
                     laneWidthArr,
                     RoadParameterLimits.MIN_STRIP_WIDTH,
@@ -177,7 +177,7 @@ public final class CrossSectionDraftEditor {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.shoulderWidth())
             };
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.shoulder_width", shoulderWidthArr[0]) + "##" + id + "_shoulder_w",
+                PlotI18n.tr("plugin.road.shoulder_width") + "##" + id + "_shoulder_w",
                 shoulderWidthArr,
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
@@ -207,7 +207,7 @@ public final class CrossSectionDraftEditor {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.bikeLaneWidth())
             };
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.bike_lane_width", bikeWidthArr[0]) + "##" + id + "_bike_w",
+                PlotI18n.tr("plugin.road.bike_lane_width") + "##" + id + "_bike_w",
                 bikeWidthArr,
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
@@ -231,7 +231,7 @@ public final class CrossSectionDraftEditor {
         if (draft.includeSidewalk()) {
             int[] sidewalkWidthArr = {draft.sidewalkWidth()};
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidthArr[0]) + "##" + id + "_sw_w",
+                PlotI18n.tr("plugin.road.sidewalk_width") + "##" + id + "_sw_w",
                 sidewalkWidthArr,
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
@@ -257,7 +257,7 @@ public final class CrossSectionDraftEditor {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.medianWidth())
             };
             if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.median_width", medianWidthArr[0]) + "##" + id + "_median_w",
+                PlotI18n.tr("plugin.road.median_width") + "##" + id + "_median_w",
                 medianWidthArr,
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
