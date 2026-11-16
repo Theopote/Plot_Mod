@@ -148,17 +148,15 @@ public record ResolvedBridgeStructure(
     }
 
     private static int resolveCarriagewayWidth(Road road, RoadSystemConfig config) {
-        if (road != null) {
-            Integer width = road.getWidth();
-            if (width != null) {
-                return RoadParameterLimits.clampCarriagewayWidth(width);
-            }
-            if (config != null) {
-                return road.getEffectiveWidth(config);
-            }
+        // 必须用派生行车道宽，避免过期存储总宽导致奇偶/单双柱钳制错误。
+        if (road != null && config != null) {
+            return road.getEffectiveWidth(config);
+        }
+        if (road != null && road.getWidth() != null) {
+            return RoadParameterLimits.clampCarriagewayWidth(road.getWidth());
         }
         if (config != null) {
-            return config.getRoadWidth();
+            return RoadParameterLimits.clampCarriagewayWidth(config.getRoadWidth());
         }
         return RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH;
     }

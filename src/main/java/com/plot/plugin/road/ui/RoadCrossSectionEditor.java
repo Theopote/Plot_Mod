@@ -195,11 +195,14 @@ public final class RoadCrossSectionEditor {
             }
         }
         ResolvedCrossSection previewSection = resolvePreviewCrossSection(network, road, config);
+        var bridge = com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure
+            .resolve(road, config)
+            .withCarriagewayWidth(previewSection.carriagewayWidth);
         return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
             previewSection,
             max,
             hasOverrideBand ? min : -1f,
-            com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.resolve(road, config));
+            bridge);
     }
 
     /**

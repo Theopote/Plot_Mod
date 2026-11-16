@@ -620,6 +620,9 @@ public final class BridgeStructureGenerator {
             int pierOffsetBlocks) {
         int carriagewayWidth = Math.max(1, crossSection.carriagewayWidth);
         BridgePierStyle style = pierStyle != null ? pierStyle : BridgePierStyle.SINGLE;
+        if (!RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
+            style = BridgePierStyle.SINGLE;
+        }
         int diameter;
         int offset = 0;
         if (style == BridgePierStyle.DOUBLE) {

@@ -177,10 +177,17 @@ public final class RoadParameterLimits {
         return Math.max(1, carriagewayWidth) > MAX_CARRIAGEWAY_WIDTH_FOR_DOUBLE_PIER;
     }
 
-    /** 单柱最大直径：min(⌊行车道宽 / 2⌋, {@link #MAX_BRIDGE_PIER_DIAMETER_BLOCKS})，至少 1。 */
+    /**
+     * 单柱最大直径：默认 ≤⌊W/2⌋，且不超过路宽与绝对上限。
+     * 偶数路宽必须能取到偶数直径才能居中；W=2 时 ⌊W/2⌋=1 会破坏奇偶，抬到 2。
+     */
     public static int maxSinglePierDiameterBlocks(int carriagewayWidth) {
         int width = Math.max(1, carriagewayWidth);
-        return Math.clamp(width / 2, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
+        int byHalf = Math.clamp(width / 2, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
+        if ((width & 1) == 0) {
+            byHalf = Math.max(byHalf, Math.min(2, width));
+        }
+        return Math.min(byHalf, Math.min(width, MAX_BRIDGE_PIER_DIAMETER_BLOCKS));
     }
 
     /**
@@ -198,19 +205,15 @@ public final class RoadParameterLimits {
         return Math.clamp(height, MIN_MEDIAN_HEIGHT_BLOCKS, MAX_MEDIAN_HEIGHT_BLOCKS);
     }
 
-    /** 与行车道同奇偶的最小单柱直径；极窄偶数路宽无解时退回 1。 */
+    /** 与行车道同奇偶的最小单柱直径（奇数路宽→1，偶数路宽→2）。 */
     public static int minBridgePierDiameterBlocks(int carriagewayWidth) {
         int width = Math.max(1, carriagewayWidth);
-        if ((width & 1) == 1) {
-            return 1;
-        }
-        int max = parityAlignedMaxDiameter(width, maxSinglePierDiameterBlocks(width));
-        return max >= 2 ? 2 : 1;
+        return (width & 1) == 1 ? 1 : Math.min(2, width);
     }
 
     /** 将上限收束到与路宽同奇偶（不小于最小直径时）。 */
     private static int parityAlignedMaxDiameter(int width, int rawMax) {
-        int min = (width & 1) == 1 ? 1 : (rawMax >= 2 ? 2 : 1);
+        int min = minBridgePierDiameterBlocks(width);
         int max = Math.max(min, rawMax);
         if ((max & 1) != (width & 1) && max > min) {
             max--;
@@ -235,7 +238,8 @@ public final class RoadParameterLimits {
     }
 
     /**
-     * 钳制柱直径：单柱落在 [1, min(4, ⌊W/2⌋)] 且与路宽同奇偶。
+     * 钳制柱直径：单柱与路宽同奇偶，落在
+     * [{@link #minBridgePierDiameterBlocks}, {@link #maxSinglePierDiameterBlocks}]。
      */
     public static int clampBridgePierDiameterBlocks(int carriagewayWidth, int diameter) {
         return clampBridgePierDiameterBlocks(carriagewayWidth, diameter, BridgePierStyle.SINGLE);

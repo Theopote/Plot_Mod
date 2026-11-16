@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadParameterLimitsPierTest {
@@ -17,6 +18,12 @@ class RoadParameterLimitsPierTest {
         assertArrayEquals(new int[] {2}, RoadParameterLimits.validBridgePierDiameters(6));
         assertArrayEquals(new int[] {1, 3}, RoadParameterLimits.validBridgePierDiameters(7));
         assertEquals(4, RoadParameterLimits.clampBridgePierDiameterBlocks(12, 6));
+        // 偶数窄路：直径必须偶数才能居中；W=2 → 直径 2（铺满两格）
+        assertEquals(2, RoadParameterLimits.maxSinglePierDiameterBlocks(2));
+        assertEquals(2, RoadParameterLimits.minBridgePierDiameterBlocks(2));
+        assertEquals(2, RoadParameterLimits.clampBridgePierDiameterBlocks(2, 1));
+        assertArrayEquals(new int[] {2}, RoadParameterLimits.validBridgePierDiameters(2));
+        assertFalse(RoadParameterLimits.allowsDoublePier(2));
     }
 
     @Test
@@ -64,14 +71,31 @@ class RoadParameterLimitsPierTest {
     }
 
     @Test
+    void evenNarrowRoadSinglePierFootprintFillsBothColumns() {
+        int width = 2;
+        int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(width, 1);
+        assertEquals(2, diameter);
+        int roadMin = RoadDimensionUtils.minLateralOffset(width);
+        int roadMax = RoadDimensionUtils.maxLateralOffset(width);
+        int[] laterals = RoadDimensionUtils.pierFootprintLaterals(0, diameter);
+        assertEquals(2, laterals.length);
+        assertEquals(roadMin, laterals[0]);
+        assertEquals(roadMax, laterals[1]);
+    }
+
+    @Test
     void pierFootprintSnapsToCarriagewayGrid() {
-        for (int width : new int[] {5, 6, 7, 8, 9, 10}) {
+        for (int width : new int[] {2, 3, 4, 5, 6, 7, 8, 9, 10}) {
             int roadMin = RoadDimensionUtils.minLateralOffset(width);
             int roadMax = RoadDimensionUtils.maxLateralOffset(width);
             int singleDiameter = RoadParameterLimits.clampBridgePierDiameterBlocks(
                 width, width / 2, BridgePierStyle.SINGLE);
+            assertEquals(width & 1, singleDiameter & 1, "single diameter parity for width " + width);
             for (int absolute : RoadDimensionUtils.pierFootprintLaterals(0, singleDiameter)) {
                 assertTrue(absolute >= roadMin && absolute <= roadMax);
+            }
+            if (!RoadParameterLimits.allowsDoublePier(width)) {
+                continue;
             }
             for (int gap : RoadParameterLimits.validBridgePierOffsets(width)) {
                 int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(

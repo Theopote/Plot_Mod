@@ -436,16 +436,10 @@ public final class BridgeStructureControls {
     private static void renderPierStyleCombo(
             String idSuffix,
             BridgePierStyle current,
-            java.util.function.Consumer<BridgePierStyle> onChanged) {
-        renderPierStyleCombo(idSuffix, current, Integer.MAX_VALUE, onChanged);
-    }
-
-    private static void renderPierStyleCombo(
-            String idSuffix,
-            BridgePierStyle current,
             int carriagewayWidth,
             java.util.function.Consumer<BridgePierStyle> onChanged) {
         boolean allowDouble = RoadParameterLimits.allowsDoublePier(carriagewayWidth);
+        // 行车道宽 ≤2：下拉仅保留单柱，并把已选双柱回写为单柱。
         BridgePierStyle[] styles = allowDouble
             ? BridgePierStyle.values()
             : new BridgePierStyle[] {BridgePierStyle.SINGLE};
@@ -466,10 +460,14 @@ public final class BridgeStructureControls {
             PlotI18n.tr("plugin.road.bridge_pier_style_label") + idSuffix,
             index,
             labels)) {
-            onChanged.accept(styles[index.get()]);
+            BridgePierStyle chosen = styles[index.get()];
+            if (!allowDouble) {
+                chosen = BridgePierStyle.SINGLE;
+            }
+            onChanged.accept(chosen);
         }
-        if (!allowDouble && ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_pier_single_only_narrow"));
+        if (!allowDouble) {
+            ImGui.textDisabled(PlotI18n.tr("hint.plot.road.bridge_pier_single_only_narrow"));
         }
     }
 
