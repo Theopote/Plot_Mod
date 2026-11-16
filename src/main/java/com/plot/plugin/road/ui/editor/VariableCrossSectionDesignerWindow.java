@@ -29,6 +29,16 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
     }
 
     @Override
+    protected float fixedWidthOfScreen() {
+        return RoadFloatingEditorShell.VARIABLE_XS_WIDTH_OF_SCREEN;
+    }
+
+    @Override
+    protected float fixedHeightOfScreen() {
+        return RoadFloatingEditorShell.VARIABLE_XS_HEIGHT_OF_SCREEN;
+    }
+
+    @Override
     protected String windowTitleKey() {
         return "plugin.road.floating_editor.variable_cross_section.title";
     }
@@ -151,5 +161,11 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
         super.restoreSession();
         editor.reset();
         lossyBatchAcknowledged = false;
+    }
+
+    @Override
+    public void discard(RoadUiContext ctx) {
+        editor.reset();
+        super.discard(ctx);
     }
 }

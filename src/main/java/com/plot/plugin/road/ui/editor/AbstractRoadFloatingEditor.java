@@ -71,6 +71,16 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         return false;
     }
 
+    /** 固定窗相对屏宽；子类可加大（如变截面主从布局）。 */
+    protected float fixedWidthOfScreen() {
+        return RoadFloatingEditorShell.FIXED_WIDTH_OF_SCREEN;
+    }
+
+    /** 固定窗相对屏高。 */
+    protected float fixedHeightOfScreen() {
+        return RoadFloatingEditorShell.FIXED_HEIGHT_OF_SCREEN;
+    }
+
     @Override
     public void open(RoadUiContext ctx, String roadId) {
         if (roadId == null || roadId.isBlank()) {
@@ -105,7 +115,12 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         }
         refreshCleanSession(ctx);
         RoadFloatingEditorShell.prepareWindow(
-            windowImGuiId(), windowOpen, focusOnOpen, editorKind().ordinal());
+            windowImGuiId(),
+            windowOpen,
+            focusOnOpen,
+            editorKind().ordinal(),
+            fixedWidthOfScreen(),
+            fixedHeightOfScreen());
         focusOnOpen = false;
 
         boolean visible = ImGui.begin(

@@ -81,16 +81,39 @@ public final class RoadFloatingEditorShell {
             ImBoolean open,
             boolean focusOnOpen,
             int cascadeIndex) {
+        prepareWindow(
+            imguiId,
+            open,
+            focusOnOpen,
+            cascadeIndex,
+            FIXED_WIDTH_OF_SCREEN,
+            FIXED_HEIGHT_OF_SCREEN);
+    }
+
+    /**
+     * 固定尺寸浮动窗；宽高比例由调用方指定（变截面等需要更宽主从布局）。
+     */
+    public static void prepareWindow(
+            String imguiId,
+            ImBoolean open,
+            boolean focusOnOpen,
+            int cascadeIndex,
+            float widthOfScreen,
+            float heightOfScreen) {
         float sw = ImGui.getIO().getDisplaySizeX();
         float sh = ImGui.getIO().getDisplaySizeY();
-        float w = sw * FIXED_WIDTH_OF_SCREEN;
-        float h = sh * FIXED_HEIGHT_OF_SCREEN;
+        float w = sw * Math.clamp(widthOfScreen, 0.20f, 0.95f);
+        float h = sh * Math.clamp(heightOfScreen, 0.20f, 0.95f);
         if (focusOnOpen) {
             placeAppearingWindow(sw, sh, w, h, cascadeIndex);
         }
         // 上下限相同 + NoResize：每帧锁死尺寸，避免旧会话残留可缩放窗口。
         ImGui.setNextWindowSizeConstraints(w, h, w, h);
     }
+
+    /** 变截面：左轨 + 右详情双栏，略宽于横断面设计器。 */
+    public static final float VARIABLE_XS_WIDTH_OF_SCREEN = 0.52f;
+    public static final float VARIABLE_XS_HEIGHT_OF_SCREEN = 0.58f;
 
     /**
      * 可缩放浮动窗（纵断面）：默认较大，保留 min/max，打开时与专业窗同一套 cascade 错开。

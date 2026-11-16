@@ -66,9 +66,4 @@ public record CrossSectionDraftEditorOptions(
         return new CrossSectionDraftEditorOptions(
             "style_batch", false, null, false, false, false, false, false, false);
     }
-
-    public static CrossSectionDraftEditorOptions stationVariable(int index) {
-        return new CrossSectionDraftEditorOptions(
-            "var_xs_" + index, false, null, true, false, true, true, true, true);
-    }
 }

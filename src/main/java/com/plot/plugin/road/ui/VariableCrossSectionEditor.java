@@ -12,11 +12,13 @@ import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.ui.editor.CrossSectionDesignerPanel;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiSelectableFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 
 import java.util.ArrayList;
@@ -24,21 +26,32 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 沿桩号可变横断面 CRUD：桩号 + {@link CrossSectionDraft} 模板。
+ * 沿桩号可变横断面：左轨桩号列表 + 右详情（横断面设计器同构面板）。
  */
 public final class VariableCrossSectionEditor {
+
+    private static final float STATION_RAIL_WIDTH_FRACTION = 0.28f;
 
     private Road syncedRoad;
     private RoadVariableCrossSections syncedSections;
     private VariableCrossSectionTransitionMode draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
     private double validationLength = Double.POSITIVE_INFINITY;
     private final List<StationDraft> drafts = new ArrayList<>();
+    private int selectedIndex = -1;
+
+    private final CrossSectionDesignerPanel detailPanel = new CrossSectionDesignerPanel();
+    private CrossSectionDraftMutator cachedMutator;
+    private CrossSectionDraft cachedMutatorDraft;
 
     public void reset() {
         syncedRoad = null;
         syncedSections = null;
         draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
         drafts.clear();
+        selectedIndex = -1;
+        cachedMutator = null;
+        cachedMutatorDraft = null;
+        detailPanel.invalidate();
     }
 
     public void render(
@@ -62,36 +75,41 @@ public final class VariableCrossSectionEditor {
         double roadLength = RoadStationing.canonicalLength(network, road);
         validationLength = roadLength;
         syncDrafts(road, config);
+        clampSelection();
 
         renderTransitionMode(onHistory);
-
-        if (drafts.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.variable_cross_section_none"));
-        }
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             draftTransitionMode == VariableCrossSectionTransitionMode.SMOOTH
                 ? PlotI18n.tr("plugin.road.variable_cross_section_hint_smooth")
                 : PlotI18n.tr("plugin.road.variable_cross_section_hint"));
+        ImGui.spacing();
 
-        for (int i = 0; i < drafts.size(); i++) {
-            renderDraftRow(ctx, road, drafts.get(i), i, (float) roadLength, chainageDisplay, onHistory);
-            if (i < drafts.size() - 1) {
-                ImGui.separator();
-            }
+        float totalWidth = ImGui.getContentRegionAvailX();
+        float bodyHeight = ImGui.getContentRegionAvailY();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float railWidth = Math.max(120f, (totalWidth - spacing) * STATION_RAIL_WIDTH_FRACTION);
+        float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
+        float startX = ImGui.getCursorPosX();
+        float startY = ImGui.getCursorPosY();
+
+        ImGui.setCursorPos(startX, startY);
+        ImGui.beginChild("##vcs_station_rail", railWidth, bodyHeight, true, ImGuiWindowFlags.None);
+        try {
+            renderStationRail(road, (float) roadLength, chainageDisplay, onHistory, config);
+        } finally {
+            ImGui.endChild();
+        }
+
+        ImGui.setCursorPos(startX + railWidth + spacing, startY);
+        ImGui.beginChild("##vcs_detail", detailWidth, bodyHeight, true, ImGuiWindowFlags.None);
+        try {
+            renderDetailPane(ctx, road, (float) roadLength, chainageDisplay, onHistory, config);
+        } finally {
+            ImGui.endChild();
         }
 
         applyDraftsIfChanged(road, config);
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.variable_cross_section_add"))) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
-            drafts.add(StationDraft.defaultEntry(road, config, roadLength));
-            applyDraftsIfChanged(road, config);
-        }
     }
 
     private void renderTransitionMode(Runnable onHistory) {
@@ -114,16 +132,98 @@ public final class VariableCrossSectionEditor {
         }
     }
 
-    private void renderDraftRow(
+    private void renderStationRail(
+            Road road,
+            float roadLength,
+            ChainageDisplayContext chainageDisplay,
+            Runnable onHistory,
+            RoadSystemConfig config) {
+        if (drafts.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.variable_cross_section_none"));
+        }
+
+        float listHeight = Math.max(40f, ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing() - 4f);
+        ImGui.beginChild("##vcs_station_list", 0f, listHeight, false);
+        try {
+            for (int i = 0; i < drafts.size(); i++) {
+                StationDraft draft = drafts.get(i);
+                ImGui.pushID(i);
+                String validation = validateDraft(draft, drafts, i, roadLength);
+                String label = formatRailLabel(draft, chainageDisplay);
+                if (validation != null) {
+                    ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.INVALID);
+                }
+                boolean selected = i == selectedIndex;
+                if (ImGui.selectable(label + "##rail", selected, ImGuiSelectableFlags.AllowDoubleClick)) {
+                    selectIndex(i);
+                }
+                if (validation != null) {
+                    ImGui.popStyleColor();
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip(validation);
+                    }
+                }
+                ImGui.popID();
+            }
+        } finally {
+            ImGui.endChild();
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.variable_cross_section_add") + "##vcs_add", -1, 0)) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            drafts.add(StationDraft.defaultEntry(road, config, roadLength));
+            selectIndex(drafts.size() - 1);
+            applyDraftsIfChanged(road, config);
+        }
+    }
+
+    private void renderDetailPane(
             RoadUiContext ctx,
+            Road road,
+            float roadLength,
+            ChainageDisplayContext chainageDisplay,
+            Runnable onHistory,
+            RoadSystemConfig config) {
+        if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.variable_cross_section_none"));
+            return;
+        }
+
+        StationDraft draft = drafts.get(selectedIndex);
+        ImGui.pushID("vcs_detail_" + selectedIndex);
+        try {
+            renderSelectedHeader(road, draft, selectedIndex, roadLength, chainageDisplay, onHistory, config);
+            if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
+                return;
+            }
+            draft = drafts.get(selectedIndex);
+            ImGui.separator();
+            ImGui.spacing();
+
+            CrossSectionDraftMutator mutator = mutatorFor(draft, onHistory);
+            String presetName = road.getStyleId() != null && !road.getStyleId().isBlank()
+                ? PlotI18n.tr("preset.road." + road.getStyleId())
+                : PlotI18n.tr("plugin.road.preset_custom");
+            detailPanel.renderForDraft(ctx, mutator, draft.crossSectionDraft, config, presetName);
+        } finally {
+            ImGui.popID();
+        }
+    }
+
+    private void renderSelectedHeader(
             Road road,
             StationDraft draft,
             int index,
             float roadLength,
             ChainageDisplayContext chainageDisplay,
-            Runnable onHistory) {
-        ImGui.pushID(index);
-
+            Runnable onHistory,
+            RoadSystemConfig config) {
         float[] station = {draft.station};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         ImGui.sliderFloat(
@@ -152,33 +252,67 @@ public final class VariableCrossSectionEditor {
                         RoadStationFormat.DISTANCE_METERS));
         }
 
-        int treeFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.FramePadding;
-        if (ImGui.treeNodeEx(PlotI18n.tr("plugin.road.variable_cross_section_details"), treeFlags)) {
-            CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraftWithHistory(
-                draft.crossSectionDraft,
-                onHistory);
-            CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.stationVariable(index);
-            CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
-            CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
-            ImGui.treePop();
-        }
-
         ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
-        if (ImGui.button(PlotI18n.tr("plugin.road.delete") + "##var_xs_delete")) {
+        boolean deleted = ImGui.button(PlotI18n.tr("plugin.road.delete") + "##var_xs_delete");
+        ImGui.popStyleColor(3);
+        if (deleted) {
             if (onHistory != null) {
                 onHistory.run();
             }
             drafts.remove(index);
-            applyDraftsIfChanged(road, ctx.networkManager().getConfig());
-            ImGui.popStyleColor(3);
-            ImGui.popID();
+            cachedMutator = null;
+            cachedMutatorDraft = null;
+            detailPanel.invalidate();
+            if (drafts.isEmpty()) {
+                selectedIndex = -1;
+            } else {
+                selectIndex(Math.min(index, drafts.size() - 1));
+            }
+            applyDraftsIfChanged(road, config);
+        }
+    }
+
+    private CrossSectionDraftMutator mutatorFor(StationDraft draft, Runnable onHistory) {
+        if (cachedMutator == null || cachedMutatorDraft != draft.crossSectionDraft) {
+            cachedMutator = CrossSectionDraftMutator.forDraftWithHistory(
+                draft.crossSectionDraft,
+                onHistory);
+            cachedMutatorDraft = draft.crossSectionDraft;
+            detailPanel.invalidate();
+        }
+        return cachedMutator;
+    }
+
+    private void selectIndex(int index) {
+        if (selectedIndex != index) {
+            detailPanel.invalidate();
+            cachedMutator = null;
+            cachedMutatorDraft = null;
+        }
+        selectedIndex = index;
+    }
+
+    private void clampSelection() {
+        if (drafts.isEmpty()) {
+            selectedIndex = -1;
             return;
         }
-        ImGui.popStyleColor(3);
+        if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
+            selectedIndex = 0;
+        }
+    }
 
-        ImGui.popID();
+    private static String formatRailLabel(StationDraft draft, ChainageDisplayContext chainageDisplay) {
+        String stationText = chainageDisplay != null
+            ? chainageDisplay.format(draft.station)
+            : RoadStationing.format(draft.station, RoadStationFormat.DISTANCE_METERS);
+        return stationText
+            + "  W="
+            + draft.crossSectionDraft.width()
+            + " L="
+            + draft.crossSectionDraft.laneCount();
     }
 
     private void syncDrafts(Road road, RoadSystemConfig config) {
@@ -188,8 +322,12 @@ public final class VariableCrossSectionEditor {
         syncedRoad = road;
         syncedSections = road.getVariableCrossSections();
         drafts.clear();
+        cachedMutator = null;
+        cachedMutatorDraft = null;
+        detailPanel.invalidate();
         if (road.getVariableCrossSections() == null) {
             draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
+            selectedIndex = -1;
             return;
         }
         draftTransitionMode = road.getVariableCrossSections().getTransitionMode();
@@ -200,6 +338,7 @@ public final class VariableCrossSectionEditor {
         for (StationCrossSection entry : stations) {
             drafts.add(StationDraft.from(entry, config));
         }
+        selectedIndex = drafts.isEmpty() ? -1 : 0;
     }
 
     private void applyDraftsIfChanged(Road road, RoadSystemConfig config) {

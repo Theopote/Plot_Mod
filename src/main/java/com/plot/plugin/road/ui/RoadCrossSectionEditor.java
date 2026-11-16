@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadParameterInheritance;
+import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.utils.PlotI18n;
@@ -68,13 +69,34 @@ public final class RoadCrossSectionEditor {
         String presetName = styleId != null && !styleId.isBlank()
             ? PlotI18n.tr("preset.road." + styleId)
             : PlotI18n.tr("plugin.road.preset_custom");
+        renderPreviewWithLayout(
+            presetName,
+            Math.round(layout.roadBlocks),
+            Math.max(1, road.getCrossSection().getCarriageway().getEffectiveLaneCount()),
+            layout,
+            previewHeight);
+    }
+
+    /** 桩号断面等：无 Road 对象时的预览摘要 + 迷你图。 */
+    public static void renderPreviewWithLayout(
+            String presetName,
+            int carriagewayWidth,
+            int laneCount,
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout layout,
+            float previewHeight) {
+        if (layout == null) {
+            return;
+        }
+        String name = presetName != null && !presetName.isBlank()
+            ? presetName
+            : PlotI18n.tr("plugin.road.preset_custom");
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.road.edit.style_summary",
-                presetName,
-                Math.round(layout.roadBlocks),
-                Math.max(1, road.getCrossSection().getCarriageway().getEffectiveLaneCount())));
+                name,
+                carriagewayWidth > 0 ? carriagewayWidth : Math.round(layout.roadBlocks),
+                Math.max(1, laneCount)));
         ImGui.spacing();
         renderPreviewBodyWithLayout(layout, previewHeight);
     }
@@ -247,6 +269,56 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Objects.hashCode(road.getSidewalkMaterial());
         h = 31 * h + Objects.hashCode(road.getMarkingMaterial());
         for (int w : carriageway.resolveLaneWidths()) {
+            h = 31 * h + w;
+        }
+        return h;
+    }
+
+    /** 桩号断面草稿预览布局（不含桥梁家具）。 */
+    public static RoadCrossSectionPreviewRenderer.CrossSectionLayout previewLayoutForDraft(
+            CrossSectionDraft draft,
+            RoadSystemConfig config) {
+        if (draft == null) {
+            return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+                ResolvedCrossSection.fromConfig(config), 10f, -1f, null);
+        }
+        ResolvedCrossSection resolved = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
+        float maxSlope = draft.maxSlope() > 0f ? draft.maxSlope() : config.getMaxSlope();
+        return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+            resolved, maxSlope, -1f, null);
+    }
+
+    /** 桩号断面草稿预览指纹。 */
+    public static long previewFingerprint(CrossSectionDraft draft) {
+        if (draft == null) {
+            return 0L;
+        }
+        long h = draft.width();
+        h = 31 * h + draft.laneCount();
+        h = 31 * h + draft.defaultLaneWidth();
+        h = 31 * h + draft.shoulderWidth();
+        h = 31 * h + (draft.includeShoulder() ? 1 : 0);
+        h = 31 * h + draft.bikeLaneWidth();
+        h = 31 * h + (draft.includeBikeLane() ? 1 : 0);
+        h = 31 * h + draft.sidewalkWidth();
+        h = 31 * h + (draft.includeSidewalk() ? 1 : 0);
+        h = 31 * h + (draft.includeMedian() ? 1 : 0);
+        h = 31 * h + draft.medianWidth();
+        h = 31 * h + draft.medianHeight();
+        h = 31 * h + draft.streetlightSpacing();
+        h = 31 * h + (draft.laneDividers() ? 1 : 0);
+        h = 31 * h + Objects.hashCode(draft.centerLineStyle());
+        h = 31 * h + Objects.hashCode(draft.roadsideEdgeMode());
+        h = 31 * h + Float.floatToIntBits(draft.fillSlopeRatio());
+        h = 31 * h + Float.floatToIntBits(draft.cutSlopeRatio());
+        h = 31 * h + Float.floatToIntBits(draft.maxSlope());
+        h = 31 * h + Objects.hashCode(draft.material());
+        h = 31 * h + Objects.hashCode(draft.sidewalkMaterial());
+        h = 31 * h + Objects.hashCode(draft.markingMaterial());
+        h = 31 * h + Objects.hashCode(draft.fillSlopeMaterial());
+        h = 31 * h + Objects.hashCode(draft.cutSlopeMaterial());
+        h = 31 * h + Objects.hashCode(draft.retainingWallMaterial());
+        for (int w : draft.resolveLaneWidths()) {
             h = 31 * h + w;
         }
         return h;
