@@ -612,6 +612,7 @@ public final class CrossSectionDraftEditor {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_height"));
         }
+        mutator.afterMedianHeightField();
     }
 
     private static void renderFurniture(EditorContext editor) {

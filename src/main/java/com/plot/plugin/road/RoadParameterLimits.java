@@ -186,7 +186,7 @@ public final class RoadParameterLimits {
         int width = Math.max(1, carriagewayWidth);
         int byHalf = Math.clamp(width / 2, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
         if ((width & 1) == 0) {
-            byHalf = Math.max(byHalf, Math.min(2, width));
+            byHalf = Math.clamp(width, 2, byHalf);
         }
         return Math.min(byHalf, Math.min(width, MAX_BRIDGE_PIER_DIAMETER_BLOCKS));
     }
@@ -301,12 +301,6 @@ public final class RoadParameterLimits {
         return Math.max(MIN_BRIDGE_PIER_DIAMETER_BLOCKS, max);
     }
 
-    /** 双柱直径依赖柱间空隙；未指定时按最小合法空隙估算上限。 */
-    public static int maxDoublePierDiameterBlocks(int carriagewayWidth) {
-        return maxDoublePierDiameterBlocks(
-            carriagewayWidth, minDoublePierOffsetBlocks(carriagewayWidth));
-    }
-
     /** 合法单柱直径序列（同奇偶，步长 2）。 */
     public static int[] validBridgePierDiameters(int carriagewayWidth) {
         return validBridgePierDiameters(carriagewayWidth, BridgePierStyle.SINGLE);
@@ -347,31 +341,12 @@ public final class RoadParameterLimits {
         return values;
     }
 
-    public static Integer clampBridgePierDiameterBlocksNullable(int carriagewayWidth, Integer diameter) {
-        if (diameter == null) {
-            return null;
-        }
-        return clampBridgePierDiameterBlocks(carriagewayWidth, diameter);
-    }
-
-    /**
-     * 「双柱偏移」即柱间空隙格数；保留此方法供旧提示文案兼容，返回空隙本身。
-     */
-    public static int doublePierGapBlocks(int offsetBlocks, int diameterBlocks) {
-        return Math.max(0, offsetBlocks);
-    }
-
     /**
      * 双柱最小柱间空隙：与行车道宽同奇偶（奇数路宽→1，偶数→2），保证至少一格可见空隙。
      */
     public static int minDoublePierOffsetBlocks(int carriagewayWidth) {
         int width = Math.max(1, carriagewayWidth);
         return (width & 1) == 1 ? 1 : 2;
-    }
-
-    /** 兼容旧调用：空隙主约束与直径解耦，忽略 diameterBlocks。 */
-    public static int minDoublePierOffsetBlocks(int carriagewayWidth, int diameterBlocks) {
-        return minDoublePierOffsetBlocks(carriagewayWidth);
     }
 
     /**
@@ -442,31 +417,6 @@ public final class RoadParameterLimits {
             values[i] = min + i * 2;
         }
         return values;
-    }
-
-    /** 合法双柱空隙；若给出直径则按足迹再收紧上限。 */
-    public static int[] validBridgePierOffsets(int carriagewayWidth, int diameterBlocks) {
-        int min = minDoublePierOffsetBlocks(carriagewayWidth);
-        int max = maxDoublePierOffsetBlocks(carriagewayWidth, diameterBlocks);
-        if (max < min) {
-            return new int[] {min};
-        }
-        int count = ((max - min) / 2) + 1;
-        int[] values = new int[count];
-        for (int i = 0; i < count; i++) {
-            values[i] = min + i * 2;
-        }
-        return values;
-    }
-
-    public static Integer clampBridgePierOffsetBlocksNullable(
-            int carriagewayWidth,
-            int diameterBlocks,
-            Integer offsetBlocks) {
-        if (offsetBlocks == null) {
-            return null;
-        }
-        return clampBridgePierOffsetBlocks(carriagewayWidth, diameterBlocks, offsetBlocks);
     }
 
     /** 存储态直径粗钳制（尚不知路宽时）；最终以行车道宽再钳。 */

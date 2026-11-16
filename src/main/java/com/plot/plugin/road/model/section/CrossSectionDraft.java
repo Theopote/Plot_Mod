@@ -344,23 +344,69 @@ public final class CrossSectionDraft {
         }
     }
 
+    /** 用另一份草稿覆盖本对象全部字段（用于「恢复继承」后刷新 UI）。 */
+    public void replaceFrom(CrossSectionDraft other) {
+        if (other == null) {
+            return;
+        }
+        width = other.width;
+        laneCount = other.laneCount;
+        defaultLaneWidth = other.defaultLaneWidth;
+        laneWidths.clear();
+        laneWidths.addAll(other.laneWidths);
+        material = other.material;
+        includeShoulder = other.includeShoulder;
+        shoulderWidth = other.shoulderWidth;
+        includeSidewalk = other.includeSidewalk;
+        sidewalkWidth = other.sidewalkWidth;
+        sidewalkMaterial = other.sidewalkMaterial;
+        includeBikeLane = other.includeBikeLane;
+        bikeLaneWidth = other.bikeLaneWidth;
+        includeMedian = other.includeMedian;
+        medianWidth = other.medianWidth;
+        medianHeight = other.medianHeight;
+        streetlightSpacing = other.streetlightSpacing;
+        laneDividers = other.laneDividers;
+        centerLineStyle = other.centerLineStyle;
+        markingMaterial = other.markingMaterial;
+        roadsideEdgeMode = other.roadsideEdgeMode;
+        fillSlopeRatio = other.fillSlopeRatio;
+        cutSlopeRatio = other.cutSlopeRatio;
+        fillSlopeMaterial = other.fillSlopeMaterial;
+        cutSlopeMaterial = other.cutSlopeMaterial;
+        retainingWallMaterial = other.retainingWallMaterial;
+        maxSlope = other.maxSlope;
+    }
+
     public static CrossSectionDraft fromRoad(Road road, RoadSystemConfig defaults) {
         CrossSectionDraft draft = fromConfig(defaults);
         if (road == null) {
             return draft;
         }
-        draft.laneCount = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
-        draft.defaultLaneWidth = road.getCrossSection().getCarriageway().getEffectiveDefaultLaneWidth();
+        // 显式覆盖才写入；null 保持 fromConfig 的继承默认，避免「恢复继承」后 UI 仍显示旧覆盖值。
+        if (road.getLaneCount() != null) {
+            draft.laneCount = road.getLaneCount();
+        }
+        if (road.getCrossSection().getCarriageway().hasConfiguredDefaultLaneWidth()) {
+            draft.defaultLaneWidth = road.getCrossSection().getCarriageway().getDefaultLaneWidth();
+        }
         draft.laneWidths.clear();
-        List<Integer> resolved = road.getCrossSection().getCarriageway().resolveLaneWidths();
+        List<Lane> lanes = road.getCrossSection().getCarriageway().getLanes();
+        boolean anyExplicitLane = false;
         for (int i = 0; i < draft.laneCount; i++) {
-            List<Lane> lanes = road.getCrossSection().getCarriageway().getLanes();
             Lane lane = i < lanes.size() ? lanes.get(i) : null;
             if (lane != null && lane.getWidth() != null && lane.getWidth() > 0) {
                 draft.laneWidths.add(lane.getWidth());
+                anyExplicitLane = true;
             } else {
                 draft.laneWidths.add(0);
             }
+        }
+        if (!anyExplicitLane && road.getLaneCount() == null
+                && !road.getCrossSection().getCarriageway().hasConfiguredDefaultLaneWidth()) {
+            // 车道相关全部继承：用配置的 laneWidths
+            draft.laneWidths.clear();
+            draft.laneWidths.addAll(defaults.getLaneWidths());
         }
         if (road.getWidth() != null) {
             draft.width = road.getWidth();
@@ -398,7 +444,7 @@ public final class CrossSectionDraft {
         if (road.getIncludeMedian() != null) {
             draft.includeMedian = road.getIncludeMedian();
         } else {
-            draft.includeMedian = false;
+            draft.includeMedian = defaults.isIncludeMedian();
         }
         if (road.getMedianWidth() != null) {
             draft.medianWidth = road.getMedianWidth();
@@ -406,22 +452,22 @@ public final class CrossSectionDraft {
         if (road.getMedianHeight() != null) {
             draft.medianHeight = road.getMedianHeight();
         } else {
-            draft.medianHeight = road.getCrossSection().getMedian().getEffectiveHeight();
+            draft.medianHeight = defaults.getMedianHeight();
         }
         draft.streetlightSpacing = road.getStreetlightSpacing() != null
             ? road.getStreetlightSpacing()
-            : 0;
+            : defaults.getStreetlightSpacing();
         if (road.getLaneDividers() != null) {
             draft.laneDividers = road.getLaneDividers();
         } else {
-            draft.laneDividers = draft.laneCount > 1;
+            draft.laneDividers = defaults.isLaneDividers();
         }
         draft.centerLineStyle = road.getCenterLineStyle() != null
             ? road.getCenterLineStyle()
-            : CenterLineStyle.NONE;
+            : defaults.getCenterLineStyle();
         draft.markingMaterial = road.getMarkingMaterial() != null
             ? road.getMarkingMaterial()
-            : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+            : defaults.getMarkingMaterial();
         if (road.getRoadsideEdgeMode() != null) {
             draft.roadsideEdgeMode = road.getRoadsideEdgeMode();
         } else {

@@ -336,9 +336,15 @@ public final class CrossSectionDraftMutator {
         }
         hooks.afterField(
             "road_width",
-            road.getWidth() == null,
+            road.getWidth() == null
+                && !road.getCrossSection().getCarriageway().hasConfiguredDefaultLaneWidth()
+                && !road.getCrossSection().getCarriageway().hasExplicitLaneWidths(),
             PlotI18n.tr("plugin.road.inherit_default_int", config.getRoadWidth()),
-            () -> road.setWidth(null));
+            () -> resetToInherit(() -> {
+                road.setWidth(null);
+                road.getCrossSection().getCarriageway().setDefaultLaneWidth(null);
+                road.getCrossSection().getCarriageway().clearExplicitLaneWidths();
+            }));
     }
 
     public void afterLaneCountField() {
@@ -349,7 +355,10 @@ public final class CrossSectionDraftMutator {
             "road_lane_count",
             road.getLaneCount() == null,
             PlotI18n.tr("plugin.road.inherit_default_int", config.getLaneCount()),
-            () -> road.getCrossSection().getCarriageway().setLaneCount(null));
+            () -> resetToInherit(() -> {
+                road.getCrossSection().getCarriageway().setLaneCount(null);
+                road.getCrossSection().getCarriageway().setLanes(java.util.List.of());
+            }));
     }
 
     public void afterMaterialField() {
@@ -363,7 +372,8 @@ public final class CrossSectionDraftMutator {
             "road_material",
             road.getMaterial() == null,
             PlotI18n.tr("plugin.road.inherit_default_material", inheritedMaterial),
-            () -> road.getCrossSection().getCarriageway().setMaterial((MaterialMix) null));
+            () -> resetToInherit(
+                () -> road.getCrossSection().getCarriageway().setMaterial((MaterialMix) null)));
     }
 
     public void afterSidewalkMaterialField() {
@@ -374,7 +384,7 @@ public final class CrossSectionDraftMutator {
             "road_sidewalk_material",
             road.getSidewalkMaterial() == null,
             PlotI18n.tr("plugin.road.inherit_default_material", config.getSelectedSidewalkMaterial()),
-            () -> road.setSidewalkMaterial(null));
+            () -> resetToInherit(() -> road.setSidewalkMaterial(null)));
     }
 
     public void afterFillSlopeMaterialField() {
@@ -385,7 +395,7 @@ public final class CrossSectionDraftMutator {
             "road_fill_slope_material",
             road.getFillSlopeMaterial() == null,
             PlotI18n.tr("plugin.road.inherit_default_material", config.getFillSlopeMaterial()),
-            () -> road.setFillSlopeMaterial(null));
+            () -> resetToInherit(() -> road.setFillSlopeMaterial(null)));
     }
 
     public void afterCutSlopeMaterialField() {
@@ -396,7 +406,7 @@ public final class CrossSectionDraftMutator {
             "road_cut_slope_material",
             road.getCutSlopeMaterial() == null,
             PlotI18n.tr("plugin.road.inherit_default_material", config.getCutSlopeMaterial()),
-            () -> road.setCutSlopeMaterial(null));
+            () -> resetToInherit(() -> road.setCutSlopeMaterial(null)));
     }
 
     public void afterMarkingMaterialField() {
@@ -407,7 +417,7 @@ public final class CrossSectionDraftMutator {
             "road_marking_material",
             road.getMarkingMaterial() == null,
             PlotI18n.tr("plugin.road.inherit_default_material", config.getMarkingMaterial()),
-            () -> road.setMarkingMaterial(null));
+            () -> resetToInherit(() -> road.setMarkingMaterial(null)));
     }
 
     public void afterLaneDividersField() {
@@ -420,7 +430,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(config.isLaneDividers()
                 ? "plugin.road.inherit_default_enabled"
                 : "plugin.road.inherit_default_disabled"),
-            () -> road.setLaneDividers(null));
+            () -> resetToInherit(() -> road.setLaneDividers(null)));
     }
 
     public void afterCenterLineField() {
@@ -437,7 +447,7 @@ public final class CrossSectionDraftMutator {
             "road_center_line",
             road.getCenterLineStyle() == null,
             PlotI18n.tr("plugin.road.inherit_default_center_line", inheritedLabel),
-            () -> road.setCenterLineStyle(null));
+            () -> resetToInherit(() -> road.setCenterLineStyle(null)));
     }
 
     public void afterBikeLaneWidthField() {
@@ -448,7 +458,7 @@ public final class CrossSectionDraftMutator {
             "road_bike_lane_width",
             road.getBikeLaneWidth() == null,
             PlotI18n.tr("plugin.road.inherit_default_int", config.getBikeLaneWidth()),
-            () -> road.setBikeLaneWidth(null));
+            () -> resetToInherit(() -> road.setBikeLaneWidth(null)));
     }
 
     public void afterShoulderIncludeField() {
@@ -461,7 +471,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(config.isIncludeShoulder()
                 ? "plugin.road.inherit_default_enabled"
                 : "plugin.road.inherit_default_disabled"),
-            () -> road.setIncludeShoulder(null));
+            () -> resetToInherit(() -> road.setIncludeShoulder(null)));
     }
 
     public void afterShoulderWidthField() {
@@ -472,7 +482,7 @@ public final class CrossSectionDraftMutator {
             "road_shoulder_width",
             road.getShoulderWidth() == null,
             PlotI18n.tr("plugin.road.inherit_default_int", config.getShoulderWidth()),
-            () -> road.setShoulderWidth(null));
+            () -> resetToInherit(() -> road.setShoulderWidth(null)));
     }
 
     public void afterSlopeEnabledField() {
@@ -488,7 +498,7 @@ public final class CrossSectionDraftMutator {
             "road_slope_enabled",
             road.getRoadsideEdgeMode() == null,
             PlotI18n.tr("plugin.road.inherit_default_batter", inheritLabel),
-            () -> road.setRoadsideEdgeMode(null));
+            () -> resetToInherit(() -> road.setRoadsideEdgeMode(null)));
     }
 
     public void afterFillSlopeField() {
@@ -501,7 +511,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(
                 "plugin.road.inherit_default_batter",
                 SlopeFormatUtils.formatRatio(config.getFillSlopeRatio())),
-            () -> road.setFillSlopeRatio(null));
+            () -> resetToInherit(() -> road.setFillSlopeRatio(null)));
     }
 
     public void afterCutSlopeField() {
@@ -514,7 +524,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(
                 "plugin.road.inherit_default_batter",
                 SlopeFormatUtils.formatRatio(config.getCutSlopeRatio())),
-            () -> road.setCutSlopeRatio(null));
+            () -> resetToInherit(() -> road.setCutSlopeRatio(null)));
     }
 
     public void afterBikeLaneIncludeField() {
@@ -527,7 +537,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(config.isIncludeBikeLane()
                 ? "plugin.road.inherit_default_enabled"
                 : "plugin.road.inherit_default_disabled"),
-            () -> road.setIncludeBikeLane(null));
+            () -> resetToInherit(() -> road.setIncludeBikeLane(null)));
     }
 
     public void afterSidewalkIncludeField() {
@@ -540,7 +550,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(config.isIncludeSidewalk()
                 ? "plugin.road.inherit_default_enabled"
                 : "plugin.road.inherit_default_disabled"),
-            () -> road.setIncludeSidewalk(null));
+            () -> resetToInherit(() -> road.setIncludeSidewalk(null)));
     }
 
     public void afterSidewalkWidthField() {
@@ -551,7 +561,7 @@ public final class CrossSectionDraftMutator {
             "road_sidewalk_width",
             road.getSidewalkWidth() == null,
             PlotI18n.tr("plugin.road.inherit_default_int", config.getSidewalkWidth()),
-            () -> road.setSidewalkWidth(null));
+            () -> resetToInherit(() -> road.setSidewalkWidth(null)));
     }
 
     public void afterMedianIncludeField() {
@@ -561,21 +571,39 @@ public final class CrossSectionDraftMutator {
         hooks.afterField(
             "road_median",
             road.getIncludeMedian() == null,
-            PlotI18n.tr("plugin.road.inherit_default_disabled"),
-            () -> road.setIncludeMedian(null));
+            PlotI18n.tr(config.isIncludeMedian()
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"),
+            () -> resetToInherit(() -> road.setIncludeMedian(null)));
     }
 
     public void afterMedianWidthField() {
-        if (road == null || config == null
-            || road.getIncludeMedian() == null
-            || !road.getIncludeMedian()) {
+        if (road == null || config == null || !isMedianEffectivelyEnabled()) {
             return;
         }
         hooks.afterField(
             "road_median_width",
             road.getMedianWidth() == null,
             PlotI18n.tr("plugin.road.inherit_default_int", config.getMedianWidth()),
-            () -> road.setMedianWidth(null));
+            () -> resetToInherit(() -> road.setMedianWidth(null)));
+    }
+
+    public void afterMedianHeightField() {
+        if (road == null || config == null || !isMedianEffectivelyEnabled()) {
+            return;
+        }
+        hooks.afterField(
+            "road_median_height",
+            road.getMedianHeight() == null,
+            PlotI18n.tr("plugin.road.inherit_default_int", config.getMedianHeight()),
+            () -> resetToInherit(() -> road.setMedianHeight(null)));
+    }
+
+    private boolean isMedianEffectivelyEnabled() {
+        if (Boolean.TRUE.equals(road.getIncludeMedian())) {
+            return true;
+        }
+        return road.getIncludeMedian() == null && config.isIncludeMedian();
     }
 
     public void afterMaxSlopeField() {
@@ -588,7 +616,7 @@ public final class CrossSectionDraftMutator {
             PlotI18n.tr(
                 "plugin.road.inherit_default_percent",
                 SlopeFormatUtils.formatPercent(config.getMaxSlope())),
-            () -> road.setMaxSlope(null));
+            () -> resetToInherit(() -> road.setMaxSlope(null)));
     }
 
     public void afterStreetlightField() {
@@ -598,8 +626,21 @@ public final class CrossSectionDraftMutator {
         hooks.afterField(
             "road_streetlight",
             road.getStreetlightSpacing() == null,
-            PlotI18n.tr("plugin.road.inherit_default_disabled"),
-            () -> road.setStreetlightSpacing(null));
+            config.getStreetlightSpacing() > 0
+                ? PlotI18n.tr("plugin.road.inherit_default_int", config.getStreetlightSpacing())
+                : PlotI18n.tr("plugin.road.inherit_default_disabled"),
+            () -> resetToInherit(() -> road.setStreetlightSpacing(null)));
+    }
+
+    /** 清除道路覆盖后，把 draft 重新灌成继承后的有效值，保证同帧 UI/预览立刻变化。 */
+    private void resetToInherit(Runnable clearRoadOverride) {
+        if (clearRoadOverride != null) {
+            clearRoadOverride.run();
+        }
+        if (road != null && config != null) {
+            draft.replaceFrom(CrossSectionDraft.fromRoad(road, config));
+        }
+        notifyChanged();
     }
 
     private String sanitizeStoredMaterial(String material, MaterialRole role) {
