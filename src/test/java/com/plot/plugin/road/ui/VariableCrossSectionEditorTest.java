@@ -56,6 +56,23 @@ class VariableCrossSectionEditorTest {
     assertTrue(VariableCrossSectionEditor.stationsEqual(List.of(left), List.of(right), config));
   }
 
+  @Test
+  void defaultEntryAvoidsOccupiedStations() {
+    RoadSystemConfig config = new RoadSystemConfig("road_system");
+    var road = new com.plot.plugin.road.model.Road("r");
+    VariableCrossSectionEditor.StationDraft first =
+        VariableCrossSectionEditor.StationDraft.defaultEntry(road, config, 100.0);
+    VariableCrossSectionEditor.StationDraft second =
+        VariableCrossSectionEditor.StationDraft.defaultEntry(
+            road, config, 100.0, List.of(first), first.station);
+    assertTrue(Math.abs(second.station - first.station) > 1e-4f);
+    VariableCrossSectionEditor.StationDraft third =
+        VariableCrossSectionEditor.StationDraft.defaultEntry(
+            road, config, 100.0, List.of(first, second), first.station);
+    assertTrue(Math.abs(third.station - first.station) > 1e-4f);
+    assertTrue(Math.abs(third.station - second.station) > 1e-4f);
+  }
+
   private static VariableCrossSectionEditor.StationDraft draftAt(
       float station, int width, RoadSystemConfig config) {
     VariableCrossSectionEditor.StationDraft draft = new VariableCrossSectionEditor.StationDraft();

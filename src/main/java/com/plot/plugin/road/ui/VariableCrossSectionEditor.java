@@ -181,7 +181,7 @@ public final class VariableCrossSectionEditor {
             if (onHistory != null) {
                 onHistory.run();
             }
-            drafts.add(StationDraft.defaultEntry(road, config, roadLength));
+            drafts.add(StationDraft.defaultEntry(road, config, roadLength, drafts, playheadStation));
             selectIndex(drafts.size() - 1, true);
             applyDraftsIfChanged(road, config);
         }
@@ -626,11 +626,87 @@ public final class VariableCrossSectionEditor {
         }
 
         static StationDraft defaultEntry(Road road, RoadSystemConfig config, double roadLength) {
+            return defaultEntry(road, config, roadLength, List.of(), Float.NaN);
+        }
+
+        /**
+         * 新建桩号：优先播放头，否则落在现有最大桩号之后，并避开已占用位置。
+         */
+        static StationDraft defaultEntry(
+                Road road,
+                RoadSystemConfig config,
+                double roadLength,
+                List<StationDraft> existing,
+                float preferredStation) {
             StationDraft draft = new StationDraft();
-            // Prefer ~25% / at least 10, but never exceed road length (short roads cannot use min=10).
-            draft.station = (float) Math.min(roadLength, Math.max(10.0, roadLength * 0.25));
+            draft.station = nextFreeStation(roadLength, existing, preferredStation);
             draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(road.getCrossSection(), config);
             return draft;
+        }
+
+        static float nextFreeStation(
+                double roadLength,
+                List<StationDraft> existing,
+                float preferredStation) {
+            float len = (float) Math.max(0.0, roadLength);
+            if (len <= 1e-6f) {
+                return 0f;
+            }
+            float gap = Math.max(1f, Math.min(10f, len * 0.05f));
+            List<StationDraft> occupied = existing != null ? existing : List.of();
+
+            if (Float.isFinite(preferredStation)) {
+                float preferred = Math.clamp(preferredStation, 0f, len);
+                if (!isStationOccupied(occupied, preferred)) {
+                    return preferred;
+                }
+            }
+
+            float maxExisting = Float.NEGATIVE_INFINITY;
+            for (StationDraft d : occupied) {
+                if (Float.isFinite(d.station)) {
+                    maxExisting = Math.max(maxExisting, d.station);
+                }
+            }
+            if (maxExisting > Float.NEGATIVE_INFINITY) {
+                float afterLast = Math.min(len, maxExisting + gap);
+                if (!isStationOccupied(occupied, afterLast)) {
+                    return afterLast;
+                }
+            } else {
+                // 首个桩号：~25% / 至少 10，短路不超过路长。
+                float seed = (float) Math.min(len, Math.max(10.0, len * 0.25));
+                if (!isStationOccupied(occupied, seed)) {
+                    return seed;
+                }
+            }
+
+            for (float s = 0f; s <= len + 1e-3f; s += gap) {
+                float candidate = Math.min(len, s);
+                if (!isStationOccupied(occupied, candidate)) {
+                    return candidate;
+                }
+            }
+            // 极密时微调，尽量找到空隙。
+            float base = Float.isFinite(preferredStation)
+                ? Math.clamp(preferredStation, 0f, len)
+                : 0f;
+            for (int i = 1; i <= 10000; i++) {
+                float candidate = Math.min(len, base + i * 0.01f);
+                if (!isStationOccupied(occupied, candidate)) {
+                    return candidate;
+                }
+            }
+            return len;
+        }
+
+        private static boolean isStationOccupied(List<StationDraft> existing, float station) {
+            for (StationDraft draft : existing) {
+                if (Math.abs(draft.station - station) < 1e-6f) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
