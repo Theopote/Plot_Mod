@@ -33,7 +33,6 @@ final class RoadEditWorkspace {
             () -> floatingEditorHost.openOrFocus(ctx, RoadFloatingEditorKind.DIAGNOSTICS, road.getId()),
             issueCount);
 
-        RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
         ImGui.spacing();
         RoadPresetCards.renderForRoadCompact(ctx, road, ctx::pushRoadEditHistory);
@@ -50,7 +49,6 @@ final class RoadEditWorkspace {
         var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
         RoadBatchEditBanner.render(selectedRoadIds.size());
 
-        RoadUiSections.domain("plugin.road.edit.quick_design");
         RoadCrossSectionPreviewSection.render(ctx);
         ImGui.spacing();
         RoadPresetCards.renderForRoadsCompact(ctx, selectedRoadIds, ctx::pushRoadEditHistory);

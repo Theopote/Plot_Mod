@@ -15,6 +15,9 @@ import java.util.LinkedHashSet;
 
 /** 按选择状态渲染完整横断面预览（标题栏 + 关键指标 + 主视图）。 */
 public final class RoadCrossSectionPreviewSection {
+    /** 快速设计预览高度：需容纳挖/填三层整格，并保证方块可读。 */
+    private static final float PREVIEW_HEIGHT = 168f;
+
     private RoadCrossSectionPreviewSection() {
     }
 
@@ -33,7 +36,7 @@ public final class RoadCrossSectionPreviewSection {
         var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
             resolved, config.getMaxSlope());
         renderHeader(resolved, layout.gradeOverlayLabel());
-        RoadCrossSectionPreviewRenderer.render(config);
+        renderPreviewBody(layout);
     }
 
     private static void renderSingle(RoadUiContext ctx) {
@@ -57,15 +60,20 @@ public final class RoadCrossSectionPreviewSection {
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float height = 64f;
+        // 标题栏已有总宽/纵坡；图内只保留坡比标注，并拉高预览区放大断面。
         RoadCrossSectionPreviewRenderer.renderMini(
-            drawList, layout, origin.x, origin.y, width, height);
-        ImGui.dummy(width, height);
+            drawList,
+            layout,
+            origin.x,
+            origin.y,
+            width,
+            PREVIEW_HEIGHT,
+            RoadCrossSectionPreviewRenderer.MiniRenderOptions.quickDesign());
+        ImGui.dummy(width, PREVIEW_HEIGHT);
     }
 
     private static void renderMulti(RoadUiContext ctx) {
         if (!selectedRoadsShareCrossSection(ctx)) {
-            ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.road.cross_section_preview_mixed"));
@@ -85,8 +93,6 @@ public final class RoadCrossSectionPreviewSection {
     }
 
     private static void renderHeader(ResolvedCrossSection resolved, String gradeLabel) {
-        ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
-        float avail = ImGui.getContentRegionAvail().x;
         float totalWidth = RoadCrossSectionPreviewRenderer.CrossSectionLayout
             .fromResolved(resolved, 0f)
             .totalWidthBlocks();
@@ -100,8 +106,7 @@ public final class RoadCrossSectionPreviewSection {
         if (gradeLabel != null && !gradeLabel.isBlank()) {
             metrics = metrics + " · " + gradeLabel;
         }
-        ImGui.sameLine(Math.max(ImGui.getCursorPosX(), avail - ImGui.calcTextSize(metrics).x));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, metrics);
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, metrics);
         ImGui.spacing();
     }
 

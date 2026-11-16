@@ -617,6 +617,13 @@ public final class RoadCrossSectionPreviewRenderer {
             return new MiniRenderOptions(8f, true, true, false, true, 0.28f, 0.22f, 0.72f);
         }
 
+        /**
+         * 快速设计大预览：总宽/纵坡已在标题栏，图内不重复；保留坡比标注，尽量放大断面。
+         */
+        public static MiniRenderOptions quickDesign() {
+            return new MiniRenderOptions(6f, false, true, false, true, 0.28f, 0.22f, 0.72f);
+        }
+
         /** 预设卡片：挖/填均为三层整格，标注坡比；外扩压到卡片内。 */
         public static MiniRenderOptions presetCard() {
             return new MiniRenderOptions(4f, false, true, false, true, 0.06f, 0.42f, 0.72f);
