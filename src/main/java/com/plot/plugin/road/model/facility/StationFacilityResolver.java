@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -143,21 +144,59 @@ public final class StationFacilityResolver {
     }
 
     private static String describeRun(StationFacilityRun run, String start, String end) {
+        return describeLabels(
+            start,
+            end,
+            run.getKind(),
+            run.getSide(),
+            run.getHeight(),
+            run.getMaterial());
+    }
+
+    /** 本地化 kind/side 的区间摘要（供 UI 与 {@link #describe} 共用）。 */
+    public static String describeLabels(
+            String start,
+            String end,
+            RoadFacilityKind kind,
+            RoadFacilitySide side,
+            Double height,
+            String material) {
         StringBuilder line = new StringBuilder()
             .append(start)
             .append('-')
             .append(end)
             .append(' ')
-            .append(run.getKind().name())
+            .append(kindLabel(kind))
             .append(' ')
-            .append(run.getSide().name());
-        if (run.getHeight() != null) {
-            line.append(" H=").append(formatHeight(run.getHeight()));
+            .append(sideLabel(side));
+        if (height != null) {
+            line.append(" H=").append(formatHeight(height));
         }
-        if (run.getMaterial() != null && !run.getMaterial().isBlank()) {
-            line.append(" M=").append(run.getMaterial());
+        if (material != null && !material.isBlank()) {
+            line.append(" M=").append(material);
         }
         return line.toString();
+    }
+
+    private static String kindLabel(RoadFacilityKind kind) {
+        if (kind == RoadFacilityKind.RETAINING_WALL) {
+            return PlotI18n.tr("plugin.road.station_facility_kind.retaining_wall");
+        }
+        if (kind == RoadFacilityKind.GUARDRAIL) {
+            return PlotI18n.tr("plugin.road.station_facility_kind.guardrail");
+        }
+        return kind != null ? kind.name() : "";
+    }
+
+    private static String sideLabel(RoadFacilitySide side) {
+        if (side == null) {
+            return "";
+        }
+        return switch (side) {
+            case LEFT -> PlotI18n.tr("plugin.road.station_facility_side.left");
+            case RIGHT -> PlotI18n.tr("plugin.road.station_facility_side.right");
+            case BOTH -> PlotI18n.tr("plugin.road.station_facility_side.both");
+        };
     }
 
     private static String formatHeight(double height) {

@@ -5,7 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 道路沿桩号附属设施列表（挡土墙、护栏、排水等区间布置）。
+ * 道路沿桩号附属设施列表（挡土墙、护栏等区间布置）。
  * <p>
  * 空列表表示未定义桩号设施。
  */
