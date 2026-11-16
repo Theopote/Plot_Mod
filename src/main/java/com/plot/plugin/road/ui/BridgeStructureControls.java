@@ -3,10 +3,12 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
+import imgui.type.ImInt;
 
 /**
  * 桥梁结构（桥墩 / 桥面护栏）网络默认与单路覆盖控件。
@@ -40,6 +42,13 @@ public final class BridgeStructureControls {
                 config.setBridgePierSpacingBlocks(spacing[0]);
                 markCustom(ctx, config);
             }
+            renderPierStyleCombo(
+                "##cfg_pier_style",
+                config.getBridgePierStyle(),
+                style -> {
+                    config.setBridgePierStyle(style);
+                    markCustom(ctx, config);
+                });
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
                 "##cfg_pier_material",
@@ -106,6 +115,7 @@ public final class BridgeStructureControls {
 
         if (resolved.generatePillars()) {
             renderSpacingOverride(ctx, road, onHistory, config, resolved);
+            renderPierStyleOverride(ctx, road, onHistory, config, resolved);
             renderMaterialOverride(
                 ctx,
                 road,
@@ -169,6 +179,60 @@ public final class BridgeStructureControls {
                 setter.accept(null);
                 ctx.onGenerationConfigChanged();
             });
+    }
+
+    private static void renderPierStyleOverride(
+            RoadUiContext ctx,
+            Road road,
+            Runnable onHistory,
+            RoadSystemConfig config,
+            ResolvedBridgeStructure resolved) {
+        boolean inherited = road.getBridgePierStyle() == null;
+        renderPierStyleCombo(
+            "##road_pier_style_" + road.getId(),
+            resolved.pierStyle(),
+            style -> {
+                pushHistory(onHistory);
+                road.setBridgePierStyle(style);
+                ctx.onGenerationConfigChanged();
+            });
+        BridgePierStyle inheritedValue = config != null ? config.getBridgePierStyle() : BridgePierStyle.AUTO;
+        RoadUiWidgets.renderOverrideFooter(
+            inherited,
+            PlotI18n.tr("plugin.road.inherit_default_material", pierStyleLabel(inheritedValue)),
+            "reset_pier_style_" + road.getId(),
+            () -> {
+                pushHistory(onHistory);
+                road.setBridgePierStyle(null);
+                ctx.onGenerationConfigChanged();
+            });
+    }
+
+    private static void renderPierStyleCombo(
+            String idSuffix,
+            BridgePierStyle current,
+            java.util.function.Consumer<BridgePierStyle> onChanged) {
+        BridgePierStyle[] styles = BridgePierStyle.values();
+        String[] labels = new String[styles.length];
+        int selected = 0;
+        for (int i = 0; i < styles.length; i++) {
+            labels[i] = pierStyleLabel(styles[i]);
+            if (styles[i] == current) {
+                selected = i;
+            }
+        }
+        ImInt index = new ImInt(selected);
+        if (ImGui.combo(
+            PlotI18n.tr("plugin.road.bridge_pier_style_label") + idSuffix,
+            index,
+            labels)) {
+            onChanged.accept(styles[index.get()]);
+        }
+    }
+
+    private static String pierStyleLabel(BridgePierStyle style) {
+        BridgePierStyle value = style != null ? style : BridgePierStyle.AUTO;
+        return PlotI18n.tr("plugin.road.bridge_pier_style." + value.name().toLowerCase());
     }
 
     private static void renderSpacingOverride(

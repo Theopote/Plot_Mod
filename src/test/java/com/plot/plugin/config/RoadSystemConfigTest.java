@@ -44,6 +44,7 @@ class RoadSystemConfigTest {
         config.setGenerateBridgePillars(false);
         config.setBridgePierSpacingBlocks(8.5);
         config.setBridgePierMaterial("minecraft:polished_andesite");
+        config.setBridgePierStyle(com.plot.plugin.road.model.section.BridgePierStyle.SINGLE);
         config.setIncludeBridgeGuardrail(true);
         config.setBridgeGuardrailMaterial("minecraft:dark_oak_fence");
         config.setBridgeGuardrailHeightBlocks(3);
@@ -64,6 +65,7 @@ class RoadSystemConfigTest {
         assertFalse(loaded.isGenerateBridgePillars());
         assertEquals(8.5, loaded.getBridgePierSpacingBlocks(), 1e-6);
         assertEquals("minecraft:polished_andesite", loaded.getBridgePierMaterial());
+        assertEquals(com.plot.plugin.road.model.section.BridgePierStyle.SINGLE, loaded.getBridgePierStyle());
         assertTrue(loaded.isIncludeBridgeGuardrail());
         assertEquals("minecraft:dark_oak_fence", loaded.getBridgeGuardrailMaterial());
         assertEquals(3, loaded.getBridgeGuardrailHeightBlocks());

@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.crosssection;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 
 /**
  * Immutable effective bridge pier/guardrail settings used during generation.
@@ -11,6 +12,7 @@ public record ResolvedBridgeStructure(
         boolean generatePillars,
         double pierSpacingBlocks,
         String pierMaterial,
+        BridgePierStyle pierStyle,
         boolean includeGuardrail,
         String guardrailMaterial,
         int guardrailHeightBlocks) {
@@ -21,6 +23,7 @@ public record ResolvedBridgeStructure(
     public ResolvedBridgeStructure {
         pierSpacingBlocks = RoadParameterLimits.clampBridgePierSpacingBlocks(pierSpacingBlocks);
         pierMaterial = normalizeMaterial(pierMaterial, DEFAULT_PIER_MATERIAL);
+        pierStyle = pierStyle != null ? pierStyle : BridgePierStyle.AUTO;
         guardrailMaterial = normalizeMaterial(guardrailMaterial, DEFAULT_GUARDRAIL_MATERIAL);
         guardrailHeightBlocks = RoadParameterLimits.clampBridgeGuardrailHeightBlocks(guardrailHeightBlocks);
     }
@@ -35,6 +38,7 @@ public record ResolvedBridgeStructure(
                 true,
                 RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS,
                 DEFAULT_PIER_MATERIAL,
+                BridgePierStyle.AUTO,
                 false,
                 DEFAULT_GUARDRAIL_MATERIAL,
                 RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS);
@@ -43,6 +47,7 @@ public record ResolvedBridgeStructure(
             config.isGenerateBridgePillars(),
             config.getBridgePierSpacingBlocks(),
             config.getBridgePierMaterial(),
+            config.getBridgePierStyle(),
             config.isIncludeBridgeGuardrail(),
             config.getBridgeGuardrailMaterial(),
             config.getBridgeGuardrailHeightBlocks());
@@ -63,6 +68,9 @@ public record ResolvedBridgeStructure(
             road.getBridgePierMaterial() != null && !road.getBridgePierMaterial().isBlank()
                 ? road.getBridgePierMaterial()
                 : inherited.pierMaterial(),
+            road.getBridgePierStyle() != null
+                ? road.getBridgePierStyle()
+                : inherited.pierStyle(),
             road.getIncludeBridgeGuardrail() != null
                 ? road.getIncludeBridgeGuardrail()
                 : inherited.includeGuardrail(),

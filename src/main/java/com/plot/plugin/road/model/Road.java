@@ -13,6 +13,7 @@ import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
@@ -72,6 +73,8 @@ public class Road {
     private Double bridgePierSpacingBlocks;
     /** {@code null} 表示继承全局默认。 */
     private String bridgePierMaterial;
+    /** {@code null} 表示继承全局默认。 */
+    private BridgePierStyle bridgePierStyle;
     /** {@code null} 表示继承全局默认。 */
     private Boolean includeBridgeGuardrail;
     /** {@code null} 表示继承全局默认。 */
@@ -140,6 +143,7 @@ public class Road {
         generateBridgePillars = defaults.isGenerateBridgePillars();
         bridgePierSpacingBlocks = defaults.getBridgePierSpacingBlocks();
         bridgePierMaterial = defaults.getBridgePierMaterial();
+        bridgePierStyle = defaults.getBridgePierStyle();
         includeBridgeGuardrail = defaults.isIncludeBridgeGuardrail();
         bridgeGuardrailMaterial = defaults.getBridgeGuardrailMaterial();
         bridgeGuardrailHeightBlocks = defaults.getBridgeGuardrailHeightBlocks();
@@ -156,6 +160,7 @@ public class Road {
         generateBridgePillars = null;
         bridgePierSpacingBlocks = null;
         bridgePierMaterial = null;
+        bridgePierStyle = null;
         includeBridgeGuardrail = null;
         bridgeGuardrailMaterial = null;
         bridgeGuardrailHeightBlocks = null;
@@ -646,6 +651,22 @@ public class Road {
             : "minecraft:stone_bricks";
     }
 
+    /** 持久化字段；{@code null} 表示继承全局桥墩样式。 */
+    public BridgePierStyle getBridgePierStyle() {
+        return bridgePierStyle;
+    }
+
+    public void setBridgePierStyle(BridgePierStyle bridgePierStyle) {
+        this.bridgePierStyle = bridgePierStyle;
+    }
+
+    public BridgePierStyle getEffectiveBridgePierStyle(RoadSystemConfig defaults) {
+        if (bridgePierStyle != null) {
+            return bridgePierStyle;
+        }
+        return defaults != null ? defaults.getBridgePierStyle() : BridgePierStyle.AUTO;
+    }
+
     /** 持久化字段；{@code null} 表示继承全局是否生成桥梁护栏。 */
     public Boolean getIncludeBridgeGuardrail() {
         return includeBridgeGuardrail;
@@ -883,6 +904,7 @@ public class Road {
         copy.generateBridgePillars = generateBridgePillars;
         copy.bridgePierSpacingBlocks = bridgePierSpacingBlocks;
         copy.bridgePierMaterial = bridgePierMaterial;
+        copy.bridgePierStyle = bridgePierStyle;
         copy.includeBridgeGuardrail = includeBridgeGuardrail;
         copy.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
         copy.bridgeGuardrailHeightBlocks = bridgeGuardrailHeightBlocks;
@@ -906,6 +928,7 @@ public class Road {
         generateBridgePillars = source.generateBridgePillars;
         bridgePierSpacingBlocks = source.bridgePierSpacingBlocks;
         bridgePierMaterial = source.bridgePierMaterial;
+        bridgePierStyle = source.bridgePierStyle;
         includeBridgeGuardrail = source.includeBridgeGuardrail;
         bridgeGuardrailMaterial = source.bridgeGuardrailMaterial;
         bridgeGuardrailHeightBlocks = source.bridgeGuardrailHeightBlocks;

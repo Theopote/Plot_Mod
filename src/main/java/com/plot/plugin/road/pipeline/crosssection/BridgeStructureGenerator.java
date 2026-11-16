@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
@@ -98,7 +99,8 @@ public final class BridgeStructureGenerator {
             profileWaterCrossings,
             GradeSeparationBuildContext.NONE,
             DEFAULT_PIER_SPACING_BLOCKS,
-            PIER_MATERIAL);
+            PIER_MATERIAL,
+            BridgePierStyle.AUTO);
     }
 
     static void generate(
@@ -128,7 +130,8 @@ public final class BridgeStructureGenerator {
             profileWaterCrossings,
             gradeSeparation,
             DEFAULT_PIER_SPACING_BLOCKS,
-            PIER_MATERIAL);
+            PIER_MATERIAL,
+            BridgePierStyle.AUTO);
     }
 
     static void generate(
@@ -146,12 +149,47 @@ public final class BridgeStructureGenerator {
             GradeSeparationBuildContext gradeSeparation,
             double pierSpacingBlocks,
             String pierMaterial) {
+        generate(
+            host,
+            solids,
+            constructionTypes,
+            segments,
+            heightInfos,
+            crossSections,
+            terrain,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            profileWaterCrossings,
+            gradeSeparation,
+            pierSpacingBlocks,
+            pierMaterial,
+            BridgePierStyle.AUTO);
+    }
+
+    static void generate(
+            Host host,
+            RoadSolidModel solids,
+            List<RoadConstructionType> constructionTypes,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            TerrainSampler terrain,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            List<WaterCrossing> profileWaterCrossings,
+            GradeSeparationBuildContext gradeSeparation,
+            double pierSpacingBlocks,
+            String pierMaterial,
+            BridgePierStyle pierStyle) {
         if (constructionTypes.stream().noneMatch(RoadConstructionType::isBridgeFamily)) {
             return;
         }
         if (gradeSeparation == null) {
             gradeSeparation = GradeSeparationBuildContext.NONE;
         }
+        BridgePierStyle style = pierStyle != null ? pierStyle : BridgePierStyle.AUTO;
         double spacing = RoadParameterLimits.clampBridgePierSpacingBlocks(
             pierSpacingBlocks > EPSILON ? pierSpacingBlocks : DEFAULT_PIER_SPACING_BLOCKS);
         String pierMaterialId = pierMaterial == null || pierMaterial.isBlank() ? PIER_MATERIAL : pierMaterial;
@@ -187,7 +225,8 @@ public final class BridgeStructureGenerator {
                 station.kind(),
                 station.landwardSign(),
                 station.heavyPier(),
-                gradeSeparation);
+                gradeSeparation,
+                style);
         }
     }
 
@@ -438,7 +477,8 @@ public final class BridgeStructureGenerator {
             StructureKind kind,
             int landwardSign,
             boolean heavyPier,
-            GradeSeparationBuildContext gradeSeparation) {
+            GradeSeparationBuildContext gradeSeparation,
+            BridgePierStyle pierStyle) {
         PathSegment segment = segments.get(location.segmentIndex());
         SegmentHeightInfo info = heightInfos.get(location.segmentIndex());
         int deckY = DesignElevationSource.resolveTargetElevation(
@@ -482,7 +522,8 @@ public final class BridgeStructureGenerator {
                 crossSection,
                 unitsPerBlock,
                 heavyPier,
-                gradeSeparation);
+                gradeSeparation,
+                pierStyle);
         }
     }
 
@@ -525,14 +566,20 @@ public final class BridgeStructureGenerator {
             ResolvedCrossSection crossSection,
             double unitsPerBlock,
             boolean heavyPier,
-            GradeSeparationBuildContext gradeSeparation) {
+            GradeSeparationBuildContext gradeSeparation,
+            BridgePierStyle pierStyle) {
         int carriagewayWidth = Math.max(1, crossSection.carriagewayWidth);
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > EPSILON
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
         Vec2d forward = segmentForward(segment);
-        if (carriagewayWidth <= SINGLE_COLUMN_CARRIAGEWAY_WIDTH) {
+        boolean singleColumn = switch (pierStyle != null ? pierStyle : BridgePierStyle.AUTO) {
+            case SINGLE -> true;
+            case MULTI -> false;
+            case AUTO -> carriagewayWidth <= SINGLE_COLUMN_CARRIAGEWAY_WIDTH;
+        };
+        if (singleColumn) {
             placePierColumn(
                 solids, center, deckY, terrain, pierBlockId, heavyPier, forward, scale, gradeSeparation);
         } else {

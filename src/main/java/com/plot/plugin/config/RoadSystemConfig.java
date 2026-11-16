@@ -12,6 +12,7 @@ import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.style.RoadStyle;
@@ -50,6 +51,8 @@ public class RoadSystemConfig {
     private boolean generateBridgePillars = true;
     private double bridgePierSpacingBlocks = RoadParameterLimits.DEFAULT_BRIDGE_PIER_SPACING_BLOCKS;
     private String bridgePierMaterial = "minecraft:stone_bricks";
+    /** {@link BridgePierStyle} name; blank → AUTO. */
+    private String bridgePierStyle = BridgePierStyle.AUTO.name();
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
     private int bridgeGuardrailHeightBlocks = RoadParameterLimits.DEFAULT_BRIDGE_GUARDRAIL_HEIGHT_BLOCKS;
@@ -316,6 +319,16 @@ public class RoadSystemConfig {
 
     public void setBridgePierMaterial(String bridgePierMaterial) {
         this.bridgePierMaterial = bridgePierMaterial;
+    }
+
+    public BridgePierStyle getBridgePierStyle() {
+        return BridgePierStyle.fromStoredOrDefault(bridgePierStyle);
+    }
+
+    public void setBridgePierStyle(BridgePierStyle bridgePierStyle) {
+        this.bridgePierStyle = bridgePierStyle != null
+            ? bridgePierStyle.name()
+            : BridgePierStyle.AUTO.name();
     }
 
     public boolean isIncludeBridgeGuardrail() {
