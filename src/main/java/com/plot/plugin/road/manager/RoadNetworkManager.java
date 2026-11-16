@@ -35,6 +35,7 @@ import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
@@ -105,10 +106,12 @@ public final class RoadNetworkManager {
     private String batchMarkingMaterial = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     private float batchEditMaxSlope = 10f;
     private boolean batchIncludeSlopeBatter = false;
+    private boolean batchIncludeRetainingWall = false;
     private float batchFillSlopeRatio = 0f;
     private float batchCutSlopeRatio = 0f;
     private String batchFillSlopeMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String batchCutSlopeMaterial = "";
+    private String batchRetainingWallMaterial = "minecraft:stone_bricks";
     private boolean adoptIntersectionRepairPending = false;
     private final RoadLoopSeamPickSession loopSeamPickSession = new RoadLoopSeamPickSession();
     private boolean loopSeamRemapConfirmPending = false;
@@ -1559,6 +1562,7 @@ public final class RoadNetworkManager {
             : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         batchEditMaxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         batchIncludeSlopeBatter = road.getEffectiveIncludeSlopeBatter(config);
+        batchIncludeRetainingWall = road.getEffectiveIncludeRetainingWall(config);
         batchFillSlopeRatio = road.getFillSlopeRatio() != null
             ? road.getFillSlopeRatio()
             : road.getEffectiveFillSlopeRatio(config);
@@ -1571,6 +1575,9 @@ public final class RoadNetworkManager {
         batchCutSlopeMaterial = road.getCutSlopeMaterial() != null
             ? road.getCutSlopeMaterial()
             : road.getEffectiveCutSlopeMaterial(config);
+        batchRetainingWallMaterial = road.getRetainingWallMaterial() != null
+            ? road.getRetainingWallMaterial()
+            : road.getEffectiveRetainingWallMaterial(config);
         return currentBatchEditDefaults();
     }
 
@@ -1597,10 +1604,12 @@ public final class RoadNetworkManager {
             batchCenterLineStyle,
             batchMarkingMaterial,
             batchIncludeSlopeBatter,
+            batchIncludeRetainingWall,
             batchFillSlopeRatio,
             batchCutSlopeRatio,
             batchFillSlopeMaterial,
             batchCutSlopeMaterial,
+            batchRetainingWallMaterial,
             batchEditMaxSlope
         );
     }
@@ -1625,10 +1634,12 @@ public final class RoadNetworkManager {
         batchCenterLineStyle = draft.centerLineStyle();
         batchMarkingMaterial = draft.markingMaterial();
         batchIncludeSlopeBatter = draft.includeSlopeBatter();
+        batchIncludeRetainingWall = draft.includeRetainingWall();
         batchFillSlopeRatio = draft.fillSlopeRatio();
         batchCutSlopeRatio = draft.cutSlopeRatio();
         batchFillSlopeMaterial = draft.fillSlopeMaterial();
         batchCutSlopeMaterial = draft.cutSlopeMaterial();
+        batchRetainingWallMaterial = draft.retainingWallMaterial();
         batchEditMaxSlope = draft.maxSlope();
     }
 
@@ -1748,6 +1759,9 @@ public final class RoadNetworkManager {
         if (before.includeSlopeBatter() != after.includeSlopeBatter()) {
             fields.add(RoadBatchEditField.INCLUDE_SLOPE_BATTER);
         }
+        if (before.includeRetainingWall() != after.includeRetainingWall()) {
+            fields.add(RoadBatchEditField.INCLUDE_RETAINING_WALL);
+        }
         if (before.fillSlopeRatio() != after.fillSlopeRatio()) {
             fields.add(RoadBatchEditField.FILL_SLOPE_RATIO);
         }
@@ -1759,6 +1773,9 @@ public final class RoadNetworkManager {
         }
         if (!Objects.equals(before.cutSlopeMaterial(), after.cutSlopeMaterial())) {
             fields.add(RoadBatchEditField.CUT_SLOPE_MATERIAL);
+        }
+        if (!Objects.equals(before.retainingWallMaterial(), after.retainingWallMaterial())) {
+            fields.add(RoadBatchEditField.RETAINING_WALL_MATERIAL);
         }
         if (before.maxSlope() != after.maxSlope()) {
             fields.add(RoadBatchEditField.MAX_SLOPE);
@@ -1822,8 +1839,15 @@ public final class RoadNetworkManager {
         if (fields.contains(RoadBatchEditField.MARKING_MATERIAL)) {
             road.setMarkingMaterial(draft.markingMaterial());
         }
-        if (fields.contains(RoadBatchEditField.INCLUDE_SLOPE_BATTER)) {
-            road.setIncludeSlopeBatter(draft.includeSlopeBatter());
+        if (fields.contains(RoadBatchEditField.INCLUDE_SLOPE_BATTER)
+                || fields.contains(RoadBatchEditField.INCLUDE_RETAINING_WALL)) {
+            if (draft.includeRetainingWall()) {
+                road.setRoadsideEdgeMode(RoadsideEdgeMode.RETAINING_WALL);
+            } else if (draft.includeSlopeBatter()) {
+                road.setRoadsideEdgeMode(RoadsideEdgeMode.SLOPE_BATTER);
+            } else {
+                road.setRoadsideEdgeMode(RoadsideEdgeMode.NONE);
+            }
         }
         if (draft.includeSlopeBatter()) {
             if (fields.contains(RoadBatchEditField.FILL_SLOPE_RATIO)) {
@@ -1838,6 +1862,10 @@ public final class RoadNetworkManager {
             if (fields.contains(RoadBatchEditField.CUT_SLOPE_MATERIAL)) {
                 road.setCutSlopeMaterial(draft.cutSlopeMaterial());
             }
+        }
+        if (draft.includeRetainingWall()
+                && fields.contains(RoadBatchEditField.RETAINING_WALL_MATERIAL)) {
+            road.setRetainingWallMaterial(draft.retainingWallMaterial());
         }
         // 批量面板只编辑横断面和附属设施。纵坡属于路线设计，不能因为用户只想改宽度
         // 就把第一条道路的坡度覆盖到所有选中道路。
@@ -2049,10 +2077,12 @@ public final class RoadNetworkManager {
             CenterLineStyle centerLineStyle,
             String markingMaterial,
             boolean includeSlopeBatter,
+            boolean includeRetainingWall,
             float fillSlopeRatio,
             float cutSlopeRatio,
             String fillSlopeMaterial,
             String cutSlopeMaterial,
+            String retainingWallMaterial,
             float maxSlope) {
 
         public BatchEditDefaults withWidth(int newWidth) {
@@ -2074,10 +2104,12 @@ public final class RoadNetworkManager {
                 centerLineStyle,
                 markingMaterial,
                 includeSlopeBatter,
+                includeRetainingWall,
                 fillSlopeRatio,
                 cutSlopeRatio,
                 fillSlopeMaterial,
                 cutSlopeMaterial,
+                retainingWallMaterial,
                 maxSlope);
         }
 
@@ -2100,10 +2132,12 @@ public final class RoadNetworkManager {
                 centerLineStyle,
                 markingMaterial,
                 includeSlopeBatter,
+                includeRetainingWall,
                 fillSlopeRatio,
                 cutSlopeRatio,
                 fillSlopeMaterial,
                 cutSlopeMaterial,
+                retainingWallMaterial,
                 maxSlope);
         }
 
@@ -2126,11 +2160,16 @@ public final class RoadNetworkManager {
             section.getMarkings().setLaneDividers(laneDividers);
             section.getMarkings().setCenterLineStyle(centerLineStyle);
             section.getMarkings().setMaterial(markingMaterial);
-            section.getSlopeBatter().setEnabled(includeSlopeBatter);
+            if (includeRetainingWall) {
+                section.getSlopeBatter().setMode(RoadsideEdgeMode.RETAINING_WALL);
+            } else {
+                section.getSlopeBatter().setEnabled(includeSlopeBatter);
+            }
             section.getSlopeBatter().setFillRatio(fillSlopeRatio);
             section.getSlopeBatter().setCutRatio(cutSlopeRatio);
             section.getSlopeBatter().setFillMaterial(fillSlopeMaterial);
             section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+            section.getSlopeBatter().setWallMaterial(retainingWallMaterial);
             return section;
         }
     }

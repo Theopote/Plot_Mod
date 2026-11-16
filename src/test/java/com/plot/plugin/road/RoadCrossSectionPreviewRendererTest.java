@@ -38,14 +38,28 @@ class RoadCrossSectionPreviewRendererTest {
     }
 
     @Test
-    void urbanPresetsDoNotShowSpuriousSlopeBatter() {
+    void urbanPresetsShowRetainingWallInsteadOfSlopeBatter() {
         for (RoadStyle style : new RoadStyle[] {
             RoadStyleCatalog.cityMain(),
             RoadStyleCatalog.residential(),
-            RoadStyleCatalog.park()
+            RoadStyleCatalog.cityStreet()
         }) {
             var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style);
             assertFalse(layout.includeSlopeBatter, style.id);
+            assertTrue(layout.includeRetainingWall, style.id);
+        }
+    }
+
+    @Test
+    void softPresetsHaveNeitherSlopeNorWall() {
+        for (RoadStyle style : new RoadStyle[] {
+            RoadStyleCatalog.path(),
+            RoadStyleCatalog.park(),
+            RoadStyleCatalog.villageRoad()
+        }) {
+            var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style);
+            assertFalse(layout.includeSlopeBatter, style.id);
+            assertFalse(layout.includeRetainingWall, style.id);
         }
     }
 

@@ -2,6 +2,7 @@ package com.plot.plugin.road.style;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,7 +41,7 @@ public final class RoadStyleCatalog {
 
     /** 3 格步道：最窄人行通道。 */
     public static RoadStyle path() {
-        RoadStyle style = base("path");
+        RoadStyle style = softNone("path");
         style.width = 3;
         style.laneCount = 1;
         style.hasSidewalk = false;
@@ -52,7 +53,7 @@ public final class RoadStyleCatalog {
 
     /** 5 格村道：无标线。 */
     public static RoadStyle villageRoad() {
-        RoadStyle style = base("village_road");
+        RoadStyle style = softNone("village_road");
         style.width = 5;
         style.laneCount = 1;
         style.hasSidewalk = false;
@@ -63,7 +64,7 @@ public final class RoadStyleCatalog {
     }
 
     public static RoadStyle residential() {
-        RoadStyle style = base("residential");
+        RoadStyle style = urbanWall("residential");
         style.width = 6;
         style.laneCount = 2;
         style.hasSidewalk = true;
@@ -79,7 +80,7 @@ public final class RoadStyleCatalog {
 
     /** 9 格城市街道：人行道 + 路灯。 */
     public static RoadStyle cityStreet() {
-        RoadStyle style = base("city_street");
+        RoadStyle style = urbanWall("city_street");
         style.width = 7;
         style.laneCount = 2;
         style.hasSidewalk = true;
@@ -94,7 +95,7 @@ public final class RoadStyleCatalog {
 
     /** 13 格林荫大道：中央分隔 + 宽人行道。 */
     public static RoadStyle avenue() {
-        RoadStyle style = base("avenue");
+        RoadStyle style = urbanWall("avenue");
         style.width = 11;
         style.laneCount = 2;
         style.hasSidewalk = true;
@@ -107,12 +108,13 @@ public final class RoadStyleCatalog {
         style.centerLineStyle = CenterLineStyle.DOUBLE_SOLID.name();
         style.laneDividers = true;
         style.streetlightSpacing = 14;
+        style.wallMaterial = "minecraft:stone_bricks";
         return style;
     }
 
     /** 宽人行道 + 路灯，适合城市景观主轴。 */
     public static RoadStyle boulevard() {
-        RoadStyle style = base("boulevard");
+        RoadStyle style = urbanWall("boulevard");
         style.width = 8;
         style.laneCount = 2;
         style.hasSidewalk = true;
@@ -126,7 +128,7 @@ public final class RoadStyleCatalog {
     }
 
     public static RoadStyle cityMain() {
-        RoadStyle style = base("city_main");
+        RoadStyle style = urbanWall("city_main");
         style.width = 10;
         style.laneCount = 2;
         style.hasSidewalk = true;
@@ -146,7 +148,9 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = false;
         style.includeShoulder = true;
         style.shoulderWidth = 1;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.includeSlopeBatter = true;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.fillSlopeRatio = 1.5f;
         style.cutSlopeRatio = 1.0f;
         style.roadMaterial = "minecraft:dirt";
@@ -164,7 +168,9 @@ public final class RoadStyleCatalog {
         style.shoulderWidth = 2;
         style.includeMedian = true;
         style.medianWidth = 1;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.includeSlopeBatter = true;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.fillSlopeRatio = 2.0f;
         style.cutSlopeRatio = 1.5f;
         style.roadMaterial = "minecraft:black_concrete";
@@ -188,7 +194,9 @@ public final class RoadStyleCatalog {
         style.shoulderWidth = 1;
         style.includeMedian = false;
         style.includeBikeLane = false;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.includeSlopeBatter = true;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.fillSlopeRatio = 1.5f;
         style.cutSlopeRatio = 1.0f;
         style.roadMaterial = "minecraft:polished_andesite";
@@ -209,7 +217,9 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = false;
         style.includeShoulder = true;
         style.shoulderWidth = 2;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.includeSlopeBatter = true;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.fillSlopeRatio = 1.2f;
         style.cutSlopeRatio = 0.8f;
         style.roadMaterial = "minecraft:gray_concrete";
@@ -219,7 +229,7 @@ public final class RoadStyleCatalog {
     }
 
     public static RoadStyle park() {
-        RoadStyle style = base("park");
+        RoadStyle style = softNone("park");
         style.width = 4;
         style.laneCount = 1;
         style.hasSidewalk = true;
@@ -240,7 +250,9 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = false;
         style.includeShoulder = true;
         style.shoulderWidth = 1;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.includeSlopeBatter = true;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.fillSlopeRatio = 2.5f;
         style.cutSlopeRatio = 2.0f;
         style.roadMaterial = "minecraft:coarse_dirt";
@@ -258,7 +270,9 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = false;
         style.includeShoulder = true;
         style.shoulderWidth = 1;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.includeSlopeBatter = true;
+        style.roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
         style.fillSlopeRatio = 1.5f;
         style.cutSlopeRatio = 1.0f;
         style.roadMaterial = "minecraft:dirt";
@@ -271,7 +285,7 @@ public final class RoadStyleCatalog {
 
     /** 石材中世纪街道。 */
     public static RoadStyle medievalRoad() {
-        RoadStyle style = base("medieval_road");
+        RoadStyle style = urbanWall("medieval_road");
         style.width = 5;
         style.laneCount = 1;
         style.hasSidewalk = true;
@@ -281,12 +295,13 @@ public final class RoadStyleCatalog {
         style.laneDividers = false;
         style.centerLineStyle = CenterLineStyle.NONE.name();
         style.themeId = "medieval";
+        style.wallMaterial = "minecraft:cobblestone";
         return style;
     }
 
     /** 深色路面 + 霓虹标线 + 密集路灯。 */
     public static RoadStyle cyberpunkStreet() {
-        RoadStyle style = base("cyberpunk_street");
+        RoadStyle style = urbanWall("cyberpunk_street");
         style.width = 8;
         style.laneCount = 2;
         style.hasSidewalk = true;
@@ -300,6 +315,7 @@ public final class RoadStyleCatalog {
         style.streetlightSpacing = 8;
         style.centerLineStyle = CenterLineStyle.SINGLE_DASHED.name();
         style.themeId = "cyberpunk";
+        style.wallMaterial = "minecraft:cyan_concrete";
         return style;
     }
 
@@ -345,8 +361,26 @@ public final class RoadStyleCatalog {
         style.includeBikeLane = false;
         style.includeMedian = false;
         style.includeSlopeBatter = null;
+        style.roadsideEdgeMode = null;
         style.fillSlopeRatio = 0f;
         style.cutSlopeRatio = 0f;
+        return style;
+    }
+
+    /** 城市硬质路：默认挡土墙收边。 */
+    private static RoadStyle urbanWall(String id) {
+        RoadStyle style = base(id);
+        style.roadsideEdgeMode = RoadsideEdgeMode.RETAINING_WALL.name();
+        style.includeSlopeBatter = false;
+        style.wallMaterial = "minecraft:stone_bricks";
+        return style;
+    }
+
+    /** 软质步道：无边坡、无挡土墙。 */
+    private static RoadStyle softNone(String id) {
+        RoadStyle style = base(id);
+        style.roadsideEdgeMode = RoadsideEdgeMode.NONE.name();
+        style.includeSlopeBatter = false;
         return style;
     }
 }

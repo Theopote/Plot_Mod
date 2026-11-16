@@ -64,10 +64,12 @@ class CrossSectionDraftTest {
             CenterLineStyle.DOUBLE_SOLID,
             "minecraft:white_concrete",
             true,
+            false,
             2f,
             1f,
             "minecraft:dirt",
             "minecraft:stone",
+            "minecraft:stone_bricks",
             8f
         );
 

@@ -40,11 +40,16 @@ public final class RoadCorridorWidth {
         return Math.max(0.5, section.carriagewayHalfWidth() + section.outerBandWidth());
     }
 
-    /** 画布叠加层半宽：硬质路面 + 可选边坡施工上限（与路径面板滑动条一致）。 */
+    /** 画布叠加层半宽：硬质路面 + 可选边坡施工上限，或挡土墙外缘 1 格。 */
     public static double overlayHalfWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
         double halfWidth = pavementHalfWidthBlocks(section);
-        if (section != null && section.includeSlopeBatter) {
+        if (section == null) {
+            return halfWidth;
+        }
+        if (section.includeSlopeBatter) {
             halfWidth += slopeBatterMaxRunBlocks(config);
+        } else if (section.includeRetainingWall) {
+            halfWidth += 1.0;
         }
         return halfWidth;
     }
@@ -85,8 +90,8 @@ public final class RoadCorridorWidth {
     }
 
     /**
-     * 挖填包络总宽：硬质路面 + 启用边坡时的外缘裕量。
-     * 城市预设 {@code includeSlopeBatter == false} 时与路面包络相同。
+     * 挖填包络总宽：硬质路面 + 边坡外缘裕量，或挡土墙各侧 1 格。
+     * {@link ResolvedCrossSection#roadsideEdgeMode()} 为 {@code NONE} 时与路面包络相同。
      */
     public static int earthworkEnvelopeWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
         int width = pavementEnvelopeWidthBlocks(section);
@@ -95,6 +100,8 @@ public final class RoadCorridorWidth {
         }
         if (section.includeSlopeBatter) {
             width += slopeBatterMarginBlocks(section, config) * 2;
+        } else if (section.includeRetainingWall) {
+            width += 2;
         }
         return width;
     }

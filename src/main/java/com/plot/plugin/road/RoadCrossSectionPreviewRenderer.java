@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -136,10 +137,9 @@ public final class RoadCrossSectionPreviewRenderer {
         cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
         drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
 
+        float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
+        float rightEdgeX = roadCenterX + layout.rightOuterHardEdgeFromCenterBlocks() * scale;
         if (layout.includeSlopeBatter) {
-            float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
-            float rightEdgeX = roadCenterX + layout.rightOuterHardEdgeFromCenterBlocks() * scale;
-
             drawBatterSlope(
                 drawList,
                 leftEdgeX,
@@ -164,6 +164,25 @@ public final class RoadCrossSectionPreviewRenderer {
                     scale,
                     renderOptions.drawSlopeLabels
                 );
+            }
+        } else if (layout.includeRetainingWall) {
+            drawRetainingWallColumn(
+                drawList,
+                leftEdgeX - scale,
+                deckBottom,
+                groundY,
+                layout.retainingWallColor,
+                scale,
+                renderOptions.drawSlopeLabels);
+            if (renderOptions.drawCutSlope) {
+                drawRetainingWallColumn(
+                    drawList,
+                    rightEdgeX,
+                    deckY,
+                    geometry.cutTopY(),
+                    layout.retainingWallColor,
+                    scale,
+                    renderOptions.drawSlopeLabels);
             }
         }
 
@@ -256,11 +275,21 @@ public final class RoadCrossSectionPreviewRenderer {
             }
 
             float padding = options.padding;
-            float fillRun = layout.includeSlopeBatter ? (float) Math.ceil(3 * Math.max(0, layout.fillSlopeRatio)) : 0;
-            float cutRun = layout.includeSlopeBatter && options.drawCutSlope
-                ? (float) Math.ceil(3 * Math.max(0, layout.cutSlopeRatio)) : 0;
+            float fillRun;
+            float cutRun;
+            if (layout.includeSlopeBatter) {
+                fillRun = (float) Math.ceil(3 * Math.max(0, layout.fillSlopeRatio));
+                cutRun = options.drawCutSlope
+                    ? (float) Math.ceil(3 * Math.max(0, layout.cutSlopeRatio)) : 0;
+            } else if (layout.includeRetainingWall) {
+                fillRun = 1f;
+                cutRun = options.drawCutSlope ? 1f : 0f;
+            } else {
+                fillRun = 0f;
+                cutRun = 0f;
+            }
             // 填/挖竖直示意高度必须是整格，避免坡面落在半格上。
-            int fillRiseCells = 3;
+            int fillRiseCells = fillRun > 0 ? 3 : 0;
             int cutRiseCells = cutRun > 0 ? (options.compactSlopes ? 2 : 3) : 0;
             // 顶留白 1 格 + 挖方 + 路面 2 格 + 填方，按此分配竖直缩放，避免裁切。
             int verticalCells = 1 + cutRiseCells + 2 + fillRiseCells;
@@ -415,6 +444,40 @@ public final class RoadCrossSectionPreviewRenderer {
             draw.addLine(x1 - 1, y0 + 1, x1 - 1, y1 - 1, 0x50000000, 1f);
         }
         draw.addRect(x0, y0, x1, y1, 0x85000000);
+    }
+
+    private static void drawRetainingWallColumn(
+            ImDrawList drawList,
+            float x0,
+            float attachY,
+            float endY,
+            int color,
+            float cell,
+            boolean drawLabel) {
+        if (cell <= 1e-6f || Math.abs(endY - attachY) < cell * 0.5f) {
+            return;
+        }
+        int cells = Math.max(1, Math.round(Math.abs(endY - attachY) / cell));
+        boolean upward = endY < attachY;
+        for (int r = 0; r < cells; r++) {
+            float y1;
+            float y0;
+            if (upward) {
+                y1 = attachY - r * cell;
+                y0 = y1 - cell;
+            } else {
+                y0 = attachY + r * cell;
+                y1 = y0 + cell;
+            }
+            drawVoxelFace(drawList, x0, y0, x0 + cell, y1, color);
+        }
+        if (drawLabel) {
+            String label = PlotI18n.tr("plugin.road.preview.retaining_wall");
+            float labelY = upward
+                ? (attachY + endY) * 0.5f - ImGui.getTextLineHeight() * 0.5f
+                : attachY + Math.max(2f, cell * 0.2f);
+            drawList.addText(x0 + 2f, labelY, COLOR_LABEL, label);
+        }
     }
 
     private static void drawBatterSlope(
@@ -573,6 +636,7 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float fillSlopeRatio;
         public final float cutSlopeRatio;
         public final boolean includeSlopeBatter;
+        public final boolean includeRetainingWall;
         /** 设计/局部纵坡上限（%）；与 {@link #minSlopePercent} 组成展示区间。 */
         public final float maxSlopePercent;
         /**
@@ -586,6 +650,7 @@ public final class RoadCrossSectionPreviewRenderer {
         public final int shoulderColor;
         public final int fillSlopeColor;
         public final int cutSlopeColor;
+        public final int retainingWallColor;
         public final float medianBlocks;
         public final int medianColor;
         public final List<Float> markingLineRatios;
@@ -604,6 +669,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 float fillSlopeRatio,
                 float cutSlopeRatio,
                 boolean includeSlopeBatter,
+                boolean includeRetainingWall,
                 float maxSlopePercent,
                 float minSlopePercent,
                 int roadColor,
@@ -612,6 +678,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 int shoulderColor,
                 int fillSlopeColor,
                 int cutSlopeColor,
+                int retainingWallColor,
                 float medianBlocks,
                 int medianColor,
                 List<Float> markingLineRatios,
@@ -628,6 +695,7 @@ public final class RoadCrossSectionPreviewRenderer {
             this.fillSlopeRatio = fillSlopeRatio;
             this.cutSlopeRatio = cutSlopeRatio;
             this.includeSlopeBatter = includeSlopeBatter;
+            this.includeRetainingWall = includeRetainingWall;
             this.maxSlopePercent = maxSlopePercent;
             this.minSlopePercent = minSlopePercent;
             this.roadColor = roadColor;
@@ -636,6 +704,7 @@ public final class RoadCrossSectionPreviewRenderer {
             this.shoulderColor = shoulderColor;
             this.fillSlopeColor = fillSlopeColor;
             this.cutSlopeColor = cutSlopeColor;
+            this.retainingWallColor = retainingWallColor;
             this.medianBlocks = medianBlocks;
             this.medianColor = medianColor;
             this.markingLineRatios = markingLineRatios != null ? List.copyOf(markingLineRatios) : List.of();
@@ -665,6 +734,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 section.includeSlopeBatter ? section.fillSlopeRatio : 0f,
                 section.includeSlopeBatter ? section.cutSlopeRatio : 0f,
                 section.includeSlopeBatter,
+                section.includeRetainingWall,
                 maxSlopePercent,
                 minSlopePercent,
                 colorForMaterial(section.carriagewayMaterial.getPrimaryMaterial(), 0xFF707070),
@@ -673,6 +743,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 colorForMaterial(section.shoulderMaterial, 0xFFB8A070),
                 colorForMaterial(section.fillSlopeMaterial, 0xFFB8A070),
                 colorForMaterial(section.cutSlopeMaterial, 0xFF808080),
+                colorForMaterial(section.retainingWallMaterial, 0xFF8A8A82),
                 section.includeMedian ? section.medianWidth : 0f,
                 colorForMaterial(section.medianMaterial, 0xFF6FA856),
                 markingRatios,
@@ -741,10 +812,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 return fromResolved(ResolvedCrossSection.fromConfig(new RoadSystemConfig("preview")), 10.0f);
             }
             RoadSystemConfig defaults = new RoadSystemConfig("preview");
+            // 预览全局默认关掉路边处理，避免风格未声明时继承出边坡。
+            defaults.setRoadsideEdgeMode(RoadsideEdgeMode.NONE);
             var section = style.toCrossSection(themeId);
-            // Show the style's own slope setting, including silent urban presets,
-            // without changing their inheritance behavior during generation.
-            section.getSlopeBatter().setEnabled(style.resolveIncludeSlopeBatter());
             return fromResolved(
                 ResolvedCrossSection.resolve(section, defaults),
                 0f

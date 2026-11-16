@@ -356,7 +356,7 @@ public final class RoadCorridorPlanBuilder {
                 sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
                 seedKey, host, sample.constructionType(), config, tunnelThreshold, polylineSegments);
             if (!suppressBatter
-                    && crossSection.includeSlopeBatter
+                    && crossSection.engagesRoadsideEarthwork()
                     && RoadEarthworkPolicy.allowsCorridorBatter(sample.constructionType())) {
                 slopeSamples.addAll(mergeSlopeWedge(
                     plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq,
@@ -437,7 +437,7 @@ public final class RoadCorridorPlanBuilder {
         // 两端都允许且不贴隧道/深覆土才放坡：避免洞口路基 span 把边坡伸进山体。
         // 边坡水域授权随 SlopeProfileSample 传递，在 consolidator 胜出列后落盘。
         if (!suppressSpanBatter
-                && toSection.includeSlopeBatter
+                && toSection.engagesRoadsideEarthwork()
                 && RoadEarthworkPolicy.allowsCorridorBatter(fromType)
                 && RoadEarthworkPolicy.allowsCorridorBatter(toType)) {
             slopeSamples.addAll(mergeSlopeSpan(
@@ -1056,15 +1056,19 @@ public final class RoadCorridorPlanBuilder {
         String cutBlockId = crossSection.cutSlopeMaterial == null || crossSection.cutSlopeMaterial.isBlank()
             ? null
             : host.resolveBlockId(crossSection.cutSlopeMaterial);
+        String wallBlockId = crossSection.retainingWallMaterial == null || crossSection.retainingWallMaterial.isBlank()
+            ? (cutBlockId != null ? cutBlockId : fillBlockId)
+            : host.resolveBlockId(crossSection.retainingWallMaterial);
         float fillRatio = crossSection.fillSlopeRatio;
         float cutRatio = crossSection.cutSlopeRatio;
+        boolean retainingWall = crossSection.includeRetainingWall;
 
         ShoulderSlopeBuild left = mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
-            fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
+            fillRatio, cutRatio, fillBlockId, cutBlockId, wallBlockId, maxHorizontalRun, retainingWall,
             normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT),
             tunnelThreshold, constructionType, allowWaterEmbankment, localDaylightAuthorized);
         ShoulderSlopeBuild right = mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
-            fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
+            fillRatio, cutRatio, fillBlockId, cutBlockId, wallBlockId, maxHorizontalRun, retainingWall,
             normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT),
             tunnelThreshold, constructionType, allowWaterEmbankment, localDaylightAuthorized);
         List<SlopeProfileSample> samples = new ArrayList<>(left.samples().size() + right.samples().size());
@@ -1083,7 +1087,9 @@ public final class RoadCorridorPlanBuilder {
             float cutRatio,
             String fillBlockId,
             String cutBlockId,
+            String wallBlockId,
             int maxHorizontalRun,
+            boolean retainingWall,
             Vec2d corridorLeftNormal,
             Vec2d outwardNormal,
             double unitsPerBlock,
@@ -1122,6 +1128,23 @@ public final class RoadCorridorPlanBuilder {
         if (RoadEarthworkPolicy.suppressFillOverWater(
                 isFill, allowWaterEmbankment, terrain.findExposedWaterSurface(outerEdge))) {
             return ShoulderSlopeBuild.empty();
+        }
+        if (retainingWall) {
+            return mergeRetainingWallAtShoulder(
+                plan,
+                outerEdge,
+                targetY,
+                isFill,
+                wallBlockId,
+                fillBlockId,
+                cutBlockId,
+                normal,
+                scale,
+                host,
+                rayId,
+                allowWaterEmbankment,
+                localDaylightAuthorized,
+                terrain);
         }
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
@@ -1197,6 +1220,68 @@ public final class RoadCorridorPlanBuilder {
             materialId,
             slopeRatio,
             outcome,
+            allowWaterEmbankment,
+            localDaylightAuthorized,
+            scale);
+        return new ShoulderSlopeBuild(samples, bandRay);
+    }
+
+    /**
+     * 挡土墙：硬质外缘单列竖直收边，立即标记 {@link SlopeConstructionOutcome#NEEDS_RETAINING_WALL}。
+     */
+    private static ShoulderSlopeBuild mergeRetainingWallAtShoulder(
+            RoadCorridorPlan plan,
+            Vec2d outerEdge,
+            int targetY,
+            boolean isFill,
+            String wallBlockId,
+            String fillBlockId,
+            String cutBlockId,
+            Vec2d outwardNormal,
+            double scale,
+            PlanHost host,
+            SlopeRayId rayId,
+            boolean allowWaterEmbankment,
+            boolean localDaylightAuthorized,
+            TerrainSampler terrain) {
+        String materialId = wallBlockId != null && !wallBlockId.isBlank()
+            ? wallBlockId
+            : (isFill
+                ? fillBlockId
+                : (cutBlockId != null && !cutBlockId.isBlank() ? cutBlockId : fillBlockId));
+        if (materialId == null || materialId.isBlank()) {
+            plan.noteUnresolvedSlopeConstruction();
+            return ShoulderSlopeBuild.empty();
+        }
+        plan.noteNeedsRetainingWall();
+        List<SlopeProfileSample> samples = new ArrayList<>(1);
+        addSlopeSample(
+            samples,
+            outerEdge,
+            targetY,
+            isFill,
+            materialId,
+            rayId,
+            0,
+            0f,
+            SlopeConstructionOutcome.NEEDS_RETAINING_WALL,
+            terrain,
+            host,
+            allowWaterEmbankment,
+            localDaylightAuthorized);
+        if (samples.isEmpty()) {
+            return ShoulderSlopeBuild.empty();
+        }
+        int[] heights = new int[] {targetY};
+        SlopeBandRasterizer.ShoulderRay bandRay = new SlopeBandRasterizer.ShoulderRay(
+            rayId,
+            outerEdge,
+            normalize(outwardNormal),
+            heights,
+            isFill,
+            materialId,
+            0f,
+            SlopeConstructionOutcome.NEEDS_RETAINING_WALL,
             allowWaterEmbankment,
             localDaylightAuthorized,
             scale);

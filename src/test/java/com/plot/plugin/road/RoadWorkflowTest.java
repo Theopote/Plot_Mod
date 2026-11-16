@@ -245,10 +245,12 @@ class RoadWorkflowTest {
             CenterLineStyle.DOUBLE_SOLID,
             ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
             baseline.includeSlopeBatter(),
+            baseline.includeRetainingWall(),
             baseline.fillSlopeRatio(),
             baseline.cutSlopeRatio(),
             baseline.fillSlopeMaterial(),
             baseline.cutSlopeMaterial(),
+            baseline.retainingWallMaterial(),
             baseline.maxSlope());
     }
 

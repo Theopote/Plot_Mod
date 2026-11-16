@@ -29,11 +29,12 @@ public final class CrossSectionDraft {
     private boolean laneDividers;
     private CenterLineStyle centerLineStyle;
     private String markingMaterial;
-    private boolean includeSlopeBatter;
+    private RoadsideEdgeMode roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER;
     private float fillSlopeRatio;
     private float cutSlopeRatio;
     private String fillSlopeMaterial;
     private String cutSlopeMaterial;
+    private String retainingWallMaterial = "minecraft:stone_bricks";
     private float maxSlope;
 
     public static CrossSectionDraft fromConfig(RoadSystemConfig config) {
@@ -59,11 +60,12 @@ public final class CrossSectionDraft {
         draft.laneDividers = config.isLaneDividers();
         draft.centerLineStyle = config.getCenterLineStyle();
         draft.markingMaterial = config.getMarkingMaterial();
-        draft.includeSlopeBatter = config.isIncludeSlopeBatter();
+        draft.roadsideEdgeMode = config.getRoadsideEdgeMode();
         draft.fillSlopeRatio = config.getFillSlopeRatio();
         draft.cutSlopeRatio = config.getCutSlopeRatio();
         draft.fillSlopeMaterial = config.getFillSlopeMaterial();
         draft.cutSlopeMaterial = config.getCutSlopeMaterial();
+        draft.retainingWallMaterial = config.getRetainingWallMaterial();
         draft.maxSlope = config.getMaxSlope();
         draft.syncLaneWidthList();
         return draft;
@@ -90,11 +92,12 @@ public final class CrossSectionDraft {
         config.setLaneDividers(laneDividers);
         config.setCenterLineStyle(centerLineStyle);
         config.setMarkingMaterial(markingMaterial);
-        config.setIncludeSlopeBatter(includeSlopeBatter);
+        config.setRoadsideEdgeMode(roadsideEdgeMode);
         config.setFillSlopeRatio(fillSlopeRatio);
         config.setCutSlopeRatio(cutSlopeRatio);
         config.setFillSlopeMaterial(fillSlopeMaterial);
         config.setCutSlopeMaterial(cutSlopeMaterial);
+        config.setRetainingWallMaterial(retainingWallMaterial);
         config.setMaxSlope(maxSlope);
     }
 
@@ -119,11 +122,14 @@ public final class CrossSectionDraft {
         draft.laneDividers = defaults.laneDividers();
         draft.centerLineStyle = defaults.centerLineStyle();
         draft.markingMaterial = defaults.markingMaterial();
-        draft.includeSlopeBatter = defaults.includeSlopeBatter();
+        draft.roadsideEdgeMode = defaults.includeRetainingWall()
+            ? RoadsideEdgeMode.RETAINING_WALL
+            : (defaults.includeSlopeBatter() ? RoadsideEdgeMode.SLOPE_BATTER : RoadsideEdgeMode.NONE);
         draft.fillSlopeRatio = defaults.fillSlopeRatio();
         draft.cutSlopeRatio = defaults.cutSlopeRatio();
         draft.fillSlopeMaterial = defaults.fillSlopeMaterial();
         draft.cutSlopeMaterial = defaults.cutSlopeMaterial();
+        draft.retainingWallMaterial = defaults.retainingWallMaterial();
         draft.maxSlope = defaults.maxSlope();
         draft.syncLaneWidthList();
         return draft;
@@ -147,11 +153,13 @@ public final class CrossSectionDraft {
             laneDividers,
             centerLineStyle,
             markingMaterial,
-            includeSlopeBatter,
+            includeSlopeBatter(),
+            includeRetainingWall(),
             fillSlopeRatio,
             cutSlopeRatio,
             fillSlopeMaterial,
             cutSlopeMaterial,
+            retainingWallMaterial,
             maxSlope
         );
     }
@@ -194,11 +202,12 @@ public final class CrossSectionDraft {
         section.getMarkings().setLaneDividers(laneDividers);
         section.getMarkings().setCenterLineStyle(centerLineStyle);
         section.getMarkings().setMaterial(markingMaterial);
-        section.getSlopeBatter().setEnabled(includeSlopeBatter);
+        section.getSlopeBatter().setMode(roadsideEdgeMode);
         section.getSlopeBatter().setFillRatio(fillSlopeRatio);
         section.getSlopeBatter().setCutRatio(cutSlopeRatio);
         section.getSlopeBatter().setFillMaterial(fillSlopeMaterial);
         section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+        section.getSlopeBatter().setWallMaterial(retainingWallMaterial);
     }
 
     /**
@@ -273,8 +282,8 @@ public final class CrossSectionDraft {
         if (!java.util.Objects.equals(markingMaterial, baseline.markingMaterial)) {
             section.getMarkings().setMaterial(markingMaterial);
         }
-        if (includeSlopeBatter != baseline.includeSlopeBatter) {
-            section.getSlopeBatter().setEnabled(includeSlopeBatter);
+        if (roadsideEdgeMode != baseline.roadsideEdgeMode) {
+            section.getSlopeBatter().setMode(roadsideEdgeMode);
         }
         if (Float.compare(fillSlopeRatio, baseline.fillSlopeRatio) != 0) {
             section.getSlopeBatter().setFillRatio(fillSlopeRatio);
@@ -287,6 +296,9 @@ public final class CrossSectionDraft {
         }
         if (!java.util.Objects.equals(cutSlopeMaterial, baseline.cutSlopeMaterial)) {
             section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+        }
+        if (!java.util.Objects.equals(retainingWallMaterial, baseline.retainingWallMaterial)) {
+            section.getSlopeBatter().setWallMaterial(retainingWallMaterial);
         }
     }
 
@@ -358,10 +370,10 @@ public final class CrossSectionDraft {
         draft.markingMaterial = road.getMarkingMaterial() != null
             ? road.getMarkingMaterial()
             : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
-        if (road.getIncludeSlopeBatter() != null) {
-            draft.includeSlopeBatter = road.getIncludeSlopeBatter();
+        if (road.getRoadsideEdgeMode() != null) {
+            draft.roadsideEdgeMode = road.getRoadsideEdgeMode();
         } else {
-            draft.includeSlopeBatter = road.getEffectiveIncludeSlopeBatter(defaults);
+            draft.roadsideEdgeMode = road.getEffectiveRoadsideEdgeMode(defaults);
         }
         if (road.getFillSlopeRatio() != null) {
             draft.fillSlopeRatio = road.getFillSlopeRatio();
@@ -382,6 +394,11 @@ public final class CrossSectionDraft {
             draft.cutSlopeMaterial = road.getCutSlopeMaterial();
         } else {
             draft.cutSlopeMaterial = road.getEffectiveCutSlopeMaterial(defaults);
+        }
+        if (road.getRetainingWallMaterial() != null && !road.getRetainingWallMaterial().isBlank()) {
+            draft.retainingWallMaterial = road.getRetainingWallMaterial();
+        } else {
+            draft.retainingWallMaterial = road.getEffectiveRetainingWallMaterial(defaults);
         }
         if (road.getMaxSlope() != null) {
             draft.maxSlope = road.getMaxSlope();
@@ -419,11 +436,12 @@ public final class CrossSectionDraft {
             ? resolved.centerLineStyle
             : CenterLineStyle.NONE;
         draft.markingMaterial = resolved.markingMaterial;
-        draft.includeSlopeBatter = resolved.includeSlopeBatter;
+        draft.roadsideEdgeMode = resolved.roadsideEdgeMode();
         draft.fillSlopeRatio = resolved.fillSlopeRatio;
         draft.cutSlopeRatio = resolved.cutSlopeRatio;
         draft.fillSlopeMaterial = resolved.fillSlopeMaterial;
         draft.cutSlopeMaterial = resolved.cutSlopeMaterial;
+        draft.retainingWallMaterial = resolved.retainingWallMaterial;
         draft.syncLaneWidthList();
         return draft;
     }
@@ -462,12 +480,15 @@ public final class CrossSectionDraft {
         road.setLaneDividers(laneDividers);
         road.setCenterLineStyle(centerLineStyle);
         road.setMarkingMaterial(markingMaterial);
-        road.setIncludeSlopeBatter(includeSlopeBatter);
-        if (includeSlopeBatter) {
+        road.setRoadsideEdgeMode(roadsideEdgeMode);
+        if (includeSlopeBatter()) {
             road.setFillSlopeRatio(fillSlopeRatio);
             road.setCutSlopeRatio(cutSlopeRatio);
             road.setFillSlopeMaterial(fillSlopeMaterial);
             road.setCutSlopeMaterial(cutSlopeMaterial);
+        }
+        if (includeRetainingWall()) {
+            road.setRetainingWallMaterial(retainingWallMaterial);
         }
         road.setMaxSlope(maxSlope);
     }
@@ -612,12 +633,26 @@ public final class CrossSectionDraft {
         this.markingMaterial = markingMaterial;
     }
 
+    public RoadsideEdgeMode roadsideEdgeMode() {
+        return roadsideEdgeMode != null ? roadsideEdgeMode : RoadsideEdgeMode.NONE;
+    }
+
+    public void setRoadsideEdgeMode(RoadsideEdgeMode roadsideEdgeMode) {
+        this.roadsideEdgeMode = roadsideEdgeMode != null ? roadsideEdgeMode : RoadsideEdgeMode.NONE;
+    }
+
     public boolean includeSlopeBatter() {
-        return includeSlopeBatter;
+        return roadsideEdgeMode().isSlopeBatter();
     }
 
     public void setIncludeSlopeBatter(boolean includeSlopeBatter) {
-        this.includeSlopeBatter = includeSlopeBatter;
+        this.roadsideEdgeMode = includeSlopeBatter
+            ? RoadsideEdgeMode.SLOPE_BATTER
+            : RoadsideEdgeMode.NONE;
+    }
+
+    public boolean includeRetainingWall() {
+        return roadsideEdgeMode().isRetainingWall();
     }
 
     public float fillSlopeRatio() {
@@ -650,6 +685,16 @@ public final class CrossSectionDraft {
 
     public void setCutSlopeMaterial(String cutSlopeMaterial) {
         this.cutSlopeMaterial = cutSlopeMaterial;
+    }
+
+    public String retainingWallMaterial() {
+        return retainingWallMaterial;
+    }
+
+    public void setRetainingWallMaterial(String retainingWallMaterial) {
+        this.retainingWallMaterial = retainingWallMaterial != null && !retainingWallMaterial.isBlank()
+            ? retainingWallMaterial
+            : "minecraft:stone_bricks";
     }
 
     public float maxSlope() {

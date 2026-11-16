@@ -103,6 +103,10 @@ public final class RoadBatchCrossSectionEditor {
                     "plugin.road.batch_slope_preview_summary",
                     RoadUiFormat.format(resolved.fillSlopeRatio),
                     RoadUiFormat.format(resolved.cutSlopeRatio)));
+        } else if (resolved.includeRetainingWall) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.roadside_edge.retaining_wall"));
         }
     }
 }

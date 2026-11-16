@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.model.section.CrossSectionResolveReport;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
@@ -284,13 +285,31 @@ public final class CrossSectionDraftEditor {
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
-        ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.roadside_edge_hint"));
+        String[] edgeLabels = {
+            PlotI18n.tr("plugin.road.roadside_edge.none"),
+            PlotI18n.tr("plugin.road.roadside_edge.slope_batter"),
+            PlotI18n.tr("plugin.road.roadside_edge.retaining_wall")
+        };
+        int edgeIndex = switch (draft.roadsideEdgeMode()) {
+            case SLOPE_BATTER -> 1;
+            case RETAINING_WALL -> 2;
+            default -> 0;
+        };
+        imgui.type.ImInt edgeRef = new imgui.type.ImInt(edgeIndex);
+        if (ImGui.combo(
+                PlotI18n.tr("plugin.road.roadside_edge_mode") + "##" + id + "_edge_mode",
+                edgeRef,
+                edgeLabels)) {
             if (roadEdit) {
                 hooks.onItemActivated();
             }
-            mutator.setIncludeSlopeBatter(slopeRef.get());
+            RoadsideEdgeMode mode = switch (edgeRef.get()) {
+                case 1 -> RoadsideEdgeMode.SLOPE_BATTER;
+                case 2 -> RoadsideEdgeMode.RETAINING_WALL;
+                default -> RoadsideEdgeMode.NONE;
+            };
+            mutator.setRoadsideEdgeMode(mode);
         }
         mutator.afterSlopeEnabledField();
         if (draft.includeSlopeBatter()) {
@@ -416,6 +435,17 @@ public final class CrossSectionDraftEditor {
                 hooks.pushHistoryOnPicker()
             );
             mutator.afterCutSlopeMaterialField();
+        }
+        if (draft.includeRetainingWall()) {
+            final String[] wallMaterial = {draft.retainingWallMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_retaining_wall_material",
+                PlotI18n.tr("plugin.road.retaining_wall_material"),
+                wallMaterial[0],
+                    mutator::setRetainingWallMaterial,
+                hooks.pushHistoryOnPicker()
+            );
         }
 
         final String[] markingMaterial = {draft.markingMaterial()};

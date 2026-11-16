@@ -33,6 +33,7 @@ import com.plot.plugin.road.model.section.Median;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.Shoulder;
 import com.plot.plugin.road.model.section.Sidewalk;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
 import com.plot.plugin.road.tunnel.TunnelStylePersistence;
@@ -1077,10 +1078,12 @@ public class RoadNetwork {
 
     static class SlopeBatterData {
         Boolean enabled;
+        String mode;
         Float fillRatio;
         Float cutRatio;
         String fillMaterial;
         String cutMaterial;
+        String wallMaterial;
     }
 
     static class StreetFurnitureData {
@@ -1157,11 +1160,14 @@ public class RoadNetwork {
             SlopeBatter slopeBatter = section.getSlopeBatter();
             if (slopeBatter != null) {
                 data.slopeBatter = new SlopeBatterData();
+                RoadsideEdgeMode edgeMode = slopeBatter.getMode();
+                data.slopeBatter.mode = edgeMode != null ? edgeMode.name() : null;
                 data.slopeBatter.enabled = slopeBatter.getEnabled();
                 data.slopeBatter.fillRatio = slopeBatter.getFillRatio();
                 data.slopeBatter.cutRatio = slopeBatter.getCutRatio();
                 data.slopeBatter.fillMaterial = slopeBatter.getFillMaterial();
                 data.slopeBatter.cutMaterial = slopeBatter.getCutMaterial();
+                data.slopeBatter.wallMaterial = slopeBatter.getWallMaterial();
             }
             StreetFurniture furniture = section.getStreetFurniture();
             if (furniture != null) {
@@ -1237,11 +1243,17 @@ public class RoadNetwork {
             }
             if (slopeBatter != null) {
                 SlopeBatter slopeComponent = new SlopeBatter();
-                slopeComponent.setEnabled(slopeBatter.enabled);
+                RoadsideEdgeMode edgeMode = RoadsideEdgeMode.fromId(slopeBatter.mode);
+                if (edgeMode != null) {
+                    slopeComponent.setMode(edgeMode);
+                } else {
+                    slopeComponent.setEnabled(slopeBatter.enabled);
+                }
                 slopeComponent.setFillRatio(slopeBatter.fillRatio);
                 slopeComponent.setCutRatio(slopeBatter.cutRatio);
                 slopeComponent.setFillMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.fillMaterial));
                 slopeComponent.setCutMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.cutMaterial));
+                slopeComponent.setWallMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.wallMaterial));
                 section.setSlopeBatter(slopeComponent);
             }
             if (streetFurniture != null) {

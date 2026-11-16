@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 
 /**
  * 道路风格模板：定义横断面、材质与附属设施。
@@ -27,6 +28,8 @@ public class RoadStyle {
     public boolean includeMedian;
     public int medianWidth;
     public Boolean includeSlopeBatter;
+    /** 显式边缘模式；优先于 {@link #includeSlopeBatter}。null 表示由旧字段推断。 */
+    public String roadsideEdgeMode;
     public float fillSlopeRatio = 1.0f;
     public float cutSlopeRatio = 1.0f;
     public String roadMaterial;
@@ -35,6 +38,7 @@ public class RoadStyle {
     public String bikeLaneMaterial;
     public String fillSlopeMaterial;
     public String cutSlopeMaterial;
+    public String wallMaterial;
     public String markingMaterial = "minecraft:white_concrete";
     public String streetlightBlock;
     public String centerLineStyle;
@@ -77,10 +81,26 @@ public class RoadStyle {
     }
 
     public boolean resolveIncludeSlopeBatter() {
-        if (includeSlopeBatter != null) {
-            return includeSlopeBatter;
+        RoadsideEdgeMode mode = resolveRoadsideEdgeMode();
+        return mode != null && mode.isSlopeBatter();
+    }
+
+    /**
+     * 解析风格声明的路边模式；{@code null} 表示不覆盖全局（旧「静默城市」语义已废弃，
+     * 新预设应显式写 {@link RoadsideEdgeMode}）。
+     */
+    public RoadsideEdgeMode resolveRoadsideEdgeMode() {
+        RoadsideEdgeMode explicit = RoadsideEdgeMode.fromId(roadsideEdgeMode);
+        if (explicit != null) {
+            return explicit;
         }
-        return fillSlopeRatio > 0f || cutSlopeRatio > 0f;
+        if (includeSlopeBatter != null) {
+            return includeSlopeBatter ? RoadsideEdgeMode.SLOPE_BATTER : RoadsideEdgeMode.NONE;
+        }
+        if (fillSlopeRatio > 0f || cutSlopeRatio > 0f) {
+            return RoadsideEdgeMode.SLOPE_BATTER;
+        }
+        return null;
     }
 
     public RoadCrossSection toCrossSection() {
@@ -109,6 +129,7 @@ public class RoadStyle {
         copy.includeMedian = includeMedian;
         copy.medianWidth = medianWidth;
         copy.includeSlopeBatter = includeSlopeBatter;
+        copy.roadsideEdgeMode = roadsideEdgeMode;
         copy.fillSlopeRatio = fillSlopeRatio;
         copy.cutSlopeRatio = cutSlopeRatio;
         copy.roadMaterial = roadMaterial;
@@ -117,6 +138,7 @@ public class RoadStyle {
         copy.bikeLaneMaterial = bikeLaneMaterial;
         copy.fillSlopeMaterial = fillSlopeMaterial;
         copy.cutSlopeMaterial = cutSlopeMaterial;
+        copy.wallMaterial = wallMaterial;
         copy.markingMaterial = markingMaterial;
         copy.streetlightBlock = streetlightBlock;
         copy.centerLineStyle = centerLineStyle;
@@ -170,14 +192,10 @@ public class RoadStyle {
                 : "minecraft:white_concrete"
         );
 
-        // Urban presets leave includeSlopeBatter null with zero ratios ("silent"):
-        // do not write enabled=false — inherit global slope defaults on resolve.
-        if (style.includeSlopeBatter != null
-                || style.fillSlopeRatio > 0f
-                || style.cutSlopeRatio > 0f) {
-            boolean slopeBatter = style.resolveIncludeSlopeBatter();
-            section.getSlopeBatter().setEnabled(slopeBatter);
-            if (slopeBatter) {
+        RoadsideEdgeMode edgeMode = style.resolveRoadsideEdgeMode();
+        if (edgeMode != null) {
+            section.getSlopeBatter().setMode(edgeMode);
+            if (edgeMode.isSlopeBatter()) {
                 section.getSlopeBatter().setFillRatio(style.fillSlopeRatio);
                 section.getSlopeBatter().setCutRatio(style.cutSlopeRatio);
                 section.getSlopeBatter().setFillMaterial(
@@ -188,6 +206,12 @@ public class RoadStyle {
                 if (style.cutSlopeMaterial != null && !style.cutSlopeMaterial.isBlank()) {
                     section.getSlopeBatter().setCutMaterial(style.cutSlopeMaterial);
                 }
+            }
+            if (edgeMode.isRetainingWall()) {
+                section.getSlopeBatter().setWallMaterial(
+                    style.wallMaterial != null && !style.wallMaterial.isBlank()
+                        ? style.wallMaterial
+                        : "minecraft:stone_bricks");
             }
         }
 

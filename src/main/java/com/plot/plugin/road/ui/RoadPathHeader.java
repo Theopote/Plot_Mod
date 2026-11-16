@@ -93,7 +93,7 @@ public final class RoadPathHeader {
         // 标签不得含变化数值：ImGui 用整段 label 算 ID，数字一变控件 ID 就变，
         // 拖动会被每格打断并误触发 isItemDeactivatedAfterEdit → 全量刷新卡顿。
         String distanceLabel = PlotI18n.tr("plugin.road.overlay.slope_batter_distance");
-        float sliderWidth = Math.min(220f, Math.max(120f, avail * 0.35f));
+        float sliderWidth = Math.clamp(avail * 0.35f, 120f, 220f);
         float labelWidth = ImGui.calcTextSize(distanceLabel).x;
         float totalWidth = labelWidth + ImGui.getStyle().getItemInnerSpacingX() + sliderWidth;
         if (used + spacing + totalWidth <= avail) {

@@ -363,7 +363,7 @@ public final class JunctionCrossSectionFill {
             }
             ResolvedCrossSection crossSection = resolveFilletBatterCrossSection(
                 fillet, edges, network, config, centerlines);
-            if (crossSection == null || !crossSection.includeSlopeBatter) {
+            if (crossSection == null || !crossSection.engagesRoadsideEarthwork()) {
                 continue;
             }
             String fillBlockId = materials.resolve(crossSection.fillSlopeMaterial);
@@ -511,8 +511,8 @@ public final class JunctionCrossSectionFill {
             ? RoadModelUtils.resolveCrossSection(network, startOwner, config) : null;
         ResolvedCrossSection endCs = endOwner != null
             ? RoadModelUtils.resolveCrossSection(network, endOwner, config) : null;
-        boolean startOn = startCs != null && startCs.includeSlopeBatter;
-        boolean endOn = endCs != null && endCs.includeSlopeBatter;
+        boolean startOn = startCs != null && startCs.engagesRoadsideEarthwork();
+        boolean endOn = endCs != null && endCs.engagesRoadsideEarthwork();
         if (!startOn && !endOn) {
             return startCs != null ? startCs : endCs;
         }

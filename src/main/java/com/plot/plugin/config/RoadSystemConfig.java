@@ -13,6 +13,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 import com.plot.plugin.road.style.RoadThemeCatalog;
@@ -31,6 +32,7 @@ public class RoadSystemConfig {
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
         .create();
     private static final String DEFAULT_FILL_SLOPE_MATERIAL = RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK;
+    private static final String DEFAULT_RETAINING_WALL_MATERIAL = "minecraft:stone_bricks";
     private String pluginId;
 
     private int roadWidth = 5;
@@ -62,6 +64,8 @@ public class RoadSystemConfig {
     private String markingMaterial = "minecraft:white_concrete";
     private int streetlightSpacing = 0;
     private boolean includeSlopeBatter = true;
+    /** 全局路边边缘模式；缺省时由 {@link #includeSlopeBatter} 迁移为边坡/无。 */
+    private String roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER.name();
     /** 边坡水平最大跑距（格）：范围外不开挖/填坡。 */
     private int slopeBatterMaxRunBlocks = RoadParameterLimits.DEFAULT_SLOPE_BATTER_RUN_BLOCKS;
     private double pathSampleDistance = 1.0; // 路径采样密度（米/点），用于控制路径细分精度
@@ -70,6 +74,7 @@ public class RoadSystemConfig {
     private float cutSlopeRatio = 1.0f;
     private String fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
     private String cutSlopeMaterial = "";
+    private String retainingWallMaterial = DEFAULT_RETAINING_WALL_MATERIAL;
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
     private double defaultCrossingClearance = 3.0;
 
@@ -133,8 +138,17 @@ public class RoadSystemConfig {
             : config.selectedMaterial.getPrimaryMaterial();
         config.setFillSlopeMaterial(config.fillSlopeMaterial);
         config.setCutSlopeMaterial(config.cutSlopeMaterial);
+        config.setRetainingWallMaterial(config.retainingWallMaterial);
         if (config.fillSlopeMaterial.isBlank()) {
             config.fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
+        }
+        if (config.retainingWallMaterial == null || config.retainingWallMaterial.isBlank()) {
+            config.retainingWallMaterial = DEFAULT_RETAINING_WALL_MATERIAL;
+        }
+        if (RoadsideEdgeMode.fromId(config.roadsideEdgeMode) == null) {
+            config.roadsideEdgeMode = config.includeSlopeBatter
+                ? RoadsideEdgeMode.SLOPE_BATTER.name()
+                : RoadsideEdgeMode.NONE.name();
         }
         if (config.roadThemeId == null || config.roadThemeId.isBlank()) {
             config.roadThemeId = RoadThemeCatalog.MODERN_ID;
@@ -455,11 +469,30 @@ public class RoadSystemConfig {
     }
 
     public boolean isIncludeSlopeBatter() {
-        return includeSlopeBatter;
+        return getRoadsideEdgeMode().isSlopeBatter();
     }
 
     public void setIncludeSlopeBatter(boolean includeSlopeBatter) {
         this.includeSlopeBatter = includeSlopeBatter;
+        setRoadsideEdgeMode(includeSlopeBatter ? RoadsideEdgeMode.SLOPE_BATTER : RoadsideEdgeMode.NONE);
+    }
+
+    public RoadsideEdgeMode getRoadsideEdgeMode() {
+        RoadsideEdgeMode mode = RoadsideEdgeMode.fromId(roadsideEdgeMode);
+        if (mode != null) {
+            return mode;
+        }
+        return includeSlopeBatter ? RoadsideEdgeMode.SLOPE_BATTER : RoadsideEdgeMode.NONE;
+    }
+
+    public void setRoadsideEdgeMode(RoadsideEdgeMode mode) {
+        RoadsideEdgeMode resolved = mode != null ? mode : RoadsideEdgeMode.NONE;
+        this.roadsideEdgeMode = resolved.name();
+        this.includeSlopeBatter = resolved.isSlopeBatter();
+    }
+
+    public boolean isIncludeRetainingWall() {
+        return getRoadsideEdgeMode().isRetainingWall();
     }
 
     public int getSlopeBatterMaxRunBlocks() {
@@ -505,6 +538,18 @@ public class RoadSystemConfig {
 
     public void setCutSlopeMaterial(String cutSlopeMaterial) {
         this.cutSlopeMaterial = cutSlopeMaterial != null ? cutSlopeMaterial : "";
+    }
+
+    public String getRetainingWallMaterial() {
+        return retainingWallMaterial != null && !retainingWallMaterial.isBlank()
+            ? retainingWallMaterial
+            : DEFAULT_RETAINING_WALL_MATERIAL;
+    }
+
+    public void setRetainingWallMaterial(String retainingWallMaterial) {
+        this.retainingWallMaterial = retainingWallMaterial != null && !retainingWallMaterial.isBlank()
+            ? retainingWallMaterial
+            : DEFAULT_RETAINING_WALL_MATERIAL;
     }
 
     public float getDefaultCornerRadius() {
@@ -573,12 +618,9 @@ public class RoadSystemConfig {
         if (effective.streetlightSpacing != null) {
             setStreetlightSpacing(effective.streetlightSpacing);
         }
-        // Silent presets (includeSlopeBatter == null and ratios 0) must not turn off
-        // global slope batter — city styles inherit the user's slope defaults.
-        if (effective.includeSlopeBatter != null) {
-            this.includeSlopeBatter = effective.includeSlopeBatter;
-        } else if (effective.fillSlopeRatio > 0f || effective.cutSlopeRatio > 0f) {
-            this.includeSlopeBatter = true;
+        RoadsideEdgeMode edgeMode = effective.resolveRoadsideEdgeMode();
+        if (edgeMode != null) {
+            setRoadsideEdgeMode(edgeMode);
         }
         if (effective.fillSlopeRatio > 0f) {
             this.fillSlopeRatio = effective.fillSlopeRatio;
@@ -591,6 +633,9 @@ public class RoadSystemConfig {
         }
         if (effective.cutSlopeMaterial != null && !effective.cutSlopeMaterial.isBlank()) {
             this.cutSlopeMaterial = effective.cutSlopeMaterial;
+        }
+        if (effective.wallMaterial != null && !effective.wallMaterial.isBlank()) {
+            this.retainingWallMaterial = effective.wallMaterial;
         }
         this.selectedMaterial = MaterialMix.single(resolvedRoadMaterial);
         this.selectedSidewalkMaterial = resolvedSidewalkMaterial;

@@ -53,8 +53,10 @@ class RoadGoldenWorkflowAcceptanceTest {
             draft.includeBikeLane(), draft.bikeLaneWidth(),
             draft.includeMedian(), draft.medianWidth(), draft.streetlightSpacing(),
             true, draft.centerLineStyle(), draft.markingMaterial(),
-            draft.includeSlopeBatter(), draft.fillSlopeRatio(), draft.cutSlopeRatio(),
-            draft.fillSlopeMaterial(), draft.cutSlopeMaterial(), draft.maxSlope());
+            draft.includeSlopeBatter(), draft.includeRetainingWall(),
+            draft.fillSlopeRatio(), draft.cutSlopeRatio(),
+            draft.fillSlopeMaterial(), draft.cutSlopeMaterial(),
+            draft.retainingWallMaterial(), draft.maxSlope());
         manager.applyBatchEdit(draft);
         assertEquals(4, network.getRoad(roadId).getCrossSection().getCarriageway().getEffectiveLaneCount());
 

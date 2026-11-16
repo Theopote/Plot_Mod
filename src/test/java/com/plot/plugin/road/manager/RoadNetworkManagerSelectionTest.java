@@ -130,10 +130,12 @@ class RoadNetworkManagerSelectionTest {
             base.centerLineStyle(),
             base.markingMaterial(),
             true,
+            false,
             2.0f,
             1.5f,
             "minecraft:gravel",
             "minecraft:dirt",
+            base.retainingWallMaterial(),
             base.maxSlope());
         manager.applyBatchEdit(draft);
 
@@ -164,10 +166,12 @@ class RoadNetworkManagerSelectionTest {
             com.plot.plugin.road.model.section.CenterLineStyle.SINGLE_DASHED,
             "minecraft:white_concrete",
             true,
+            false,
             2.0f,
             1.5f,
             "minecraft:gravel",
             "minecraft:dirt",
+            "minecraft:stone_bricks",
             8f);
 
         var section = draft.toCrossSection();

@@ -15,6 +15,7 @@ import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.station.RoadDesignDirection;
@@ -357,11 +358,31 @@ public class Road {
     }
 
     public Boolean getIncludeSlopeBatter() {
-        return crossSection.getSlopeBatter().getEnabled();
+        RoadsideEdgeMode mode = crossSection.getSlopeBatter().getMode();
+        if (mode == null) {
+            return null;
+        }
+        return mode.isSlopeBatter();
     }
 
     public void setIncludeSlopeBatter(Boolean includeSlopeBatter) {
         crossSection.getSlopeBatter().setEnabled(includeSlopeBatter);
+    }
+
+    public RoadsideEdgeMode getRoadsideEdgeMode() {
+        return crossSection.getSlopeBatter().getMode();
+    }
+
+    public void setRoadsideEdgeMode(RoadsideEdgeMode mode) {
+        crossSection.getSlopeBatter().setMode(mode);
+    }
+
+    public String getRetainingWallMaterial() {
+        return crossSection.getSlopeBatter().getWallMaterial();
+    }
+
+    public void setRetainingWallMaterial(String wallMaterial) {
+        crossSection.getSlopeBatter().setWallMaterial(wallMaterial);
     }
 
     public Float getFillSlopeRatio() {
@@ -664,6 +685,18 @@ public class Road {
 
     public boolean getEffectiveIncludeSlopeBatter(RoadSystemConfig defaults) {
         return crossSection.resolve(defaults).includeSlopeBatter;
+    }
+
+    public boolean getEffectiveIncludeRetainingWall(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).includeRetainingWall;
+    }
+
+    public RoadsideEdgeMode getEffectiveRoadsideEdgeMode(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).roadsideEdgeMode();
+    }
+
+    public String getEffectiveRetainingWallMaterial(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).retainingWallMaterial;
     }
 
     public float getEffectiveFillSlopeRatio(RoadSystemConfig defaults) {

@@ -47,10 +47,26 @@ public final class ResolvedCrossSection {
     public final Integer streetlightSpacing;
     public final String streetlightBlock;
     public final boolean includeSlopeBatter;
+    public final boolean includeRetainingWall;
     public final float fillSlopeRatio;
     public final float cutSlopeRatio;
     public final String fillSlopeMaterial;
     public final String cutSlopeMaterial;
+    public final String retainingWallMaterial;
+
+    public RoadsideEdgeMode roadsideEdgeMode() {
+        if (includeSlopeBatter) {
+            return RoadsideEdgeMode.SLOPE_BATTER;
+        }
+        if (includeRetainingWall) {
+            return RoadsideEdgeMode.RETAINING_WALL;
+        }
+        return RoadsideEdgeMode.NONE;
+    }
+
+    public boolean engagesRoadsideEarthwork() {
+        return includeSlopeBatter || includeRetainingWall;
+    }
 
     private ResolvedCrossSection(
             int laneCount,
@@ -77,10 +93,12 @@ public final class ResolvedCrossSection {
             Integer streetlightSpacing,
             String streetlightBlock,
             boolean includeSlopeBatter,
+            boolean includeRetainingWall,
             float fillSlopeRatio,
             float cutSlopeRatio,
             String fillSlopeMaterial,
-            String cutSlopeMaterial) {
+            String cutSlopeMaterial,
+            String retainingWallMaterial) {
         this.laneCount = laneCount;
         this.laneWidths = List.copyOf(laneWidths);
         this.laneDividerOffsets = List.copyOf(laneDividerOffsets);
@@ -105,10 +123,12 @@ public final class ResolvedCrossSection {
         this.streetlightSpacing = streetlightSpacing;
         this.streetlightBlock = streetlightBlock;
         this.includeSlopeBatter = includeSlopeBatter;
+        this.includeRetainingWall = includeRetainingWall;
         this.fillSlopeRatio = fillSlopeRatio;
         this.cutSlopeRatio = cutSlopeRatio;
         this.fillSlopeMaterial = fillSlopeMaterial;
         this.cutSlopeMaterial = cutSlopeMaterial;
+        this.retainingWallMaterial = retainingWallMaterial;
     }
 
     public static ResolvedCrossSection fromConfig(RoadSystemConfig defaults) {
@@ -211,16 +231,20 @@ public final class ResolvedCrossSection {
             ? slopeBatter.getCutRatio()
             : config.getCutSlopeRatio();
         // 道路未显式覆盖时继承全局配置；不得仅因默认坡比>0就强行开启边坡。
-        boolean slopeEnabled = slopeBatter.getEnabled() != null
-            ? slopeBatter.getEnabled()
-            : config.isIncludeSlopeBatter();
+        RoadsideEdgeMode edgeMode = slopeBatter.getMode() != null
+            ? slopeBatter.getMode()
+            : config.getRoadsideEdgeMode();
         String fillSlopeMaterial = slopeBatter.getFillMaterial() != null && !slopeBatter.getFillMaterial().isBlank()
             ? slopeBatter.getFillMaterial()
             : config.getFillSlopeMaterial();
         String cutSlopeMaterial = slopeBatter.getCutMaterial() != null
             ? slopeBatter.getCutMaterial()
             : config.getCutSlopeMaterial();
-        boolean includeSlopeBatter = slopeEnabled && (fillRatio > 0f || cutRatio > 0f);
+        String wallMaterial = slopeBatter.getWallMaterial() != null && !slopeBatter.getWallMaterial().isBlank()
+            ? slopeBatter.getWallMaterial()
+            : config.getRetainingWallMaterial();
+        boolean includeSlopeBatter = edgeMode.isSlopeBatter() && (fillRatio > 0f || cutRatio > 0f);
+        boolean includeRetainingWall = edgeMode.isRetainingWall();
 
         ResolvedCrossSection resolved = new ResolvedCrossSection(
             laneCount,
@@ -247,12 +271,14 @@ public final class ResolvedCrossSection {
             furniture.getStreetlightSpacing(),
             RoadMaterialUtils.normalizeStoredMaterial(streetlightBlock),
             includeSlopeBatter,
+            includeRetainingWall,
             includeSlopeBatter ? fillRatio : 0f,
             includeSlopeBatter ? cutRatio : 0f,
             resolveMaterial(fillSlopeMaterial, MaterialRole.FILL_SLOPE, report),
             cutSlopeMaterial != null && !cutSlopeMaterial.isBlank()
                 ? resolveMaterial(cutSlopeMaterial, MaterialRole.CUT_SLOPE, report)
-                : null
+                : null,
+            resolveMaterial(wallMaterial, MaterialRole.CUT_SLOPE, report)
         );
         return new CrossSectionResolveReport.ResolveResult(resolved, report);
     }
@@ -486,10 +512,12 @@ public final class ResolvedCrossSection {
             && Objects.equals(streetlightSpacing, other.streetlightSpacing)
             && Objects.equals(streetlightBlock, other.streetlightBlock)
             && includeSlopeBatter == other.includeSlopeBatter
+            && includeRetainingWall == other.includeRetainingWall
             && Float.compare(fillSlopeRatio, other.fillSlopeRatio) == 0
             && Float.compare(cutSlopeRatio, other.cutSlopeRatio) == 0
             && Objects.equals(fillSlopeMaterial, other.fillSlopeMaterial)
-            && Objects.equals(cutSlopeMaterial, other.cutSlopeMaterial);
+            && Objects.equals(cutSlopeMaterial, other.cutSlopeMaterial)
+            && Objects.equals(retainingWallMaterial, other.retainingWallMaterial);
     }
 
     private static boolean materialMixEquals(MaterialMix left, MaterialMix right) {
@@ -569,7 +597,8 @@ public final class ResolvedCrossSection {
             from.includeSlopeBatter ? from.cutSlopeRatio : 0f,
             to.includeSlopeBatter ? to.cutSlopeRatio : 0f,
             t);
-        boolean includeSlopeBatter = fillRatio > 0f || cutRatio > 0f;
+        boolean includeSlopeBatter = discrete.includeSlopeBatter && (fillRatio > 0f || cutRatio > 0f);
+        boolean includeRetainingWall = discrete.includeRetainingWall && !includeSlopeBatter;
 
         Integer streetlightSpacing = lerpNullableInt(from.streetlightSpacing, to.streetlightSpacing, t);
 
@@ -598,10 +627,12 @@ public final class ResolvedCrossSection {
             streetlightSpacing,
             discrete.streetlightBlock,
             includeSlopeBatter,
+            includeRetainingWall,
             includeSlopeBatter ? fillRatio : 0f,
             includeSlopeBatter ? cutRatio : 0f,
             discrete.fillSlopeMaterial,
-            discrete.cutSlopeMaterial
+            discrete.cutSlopeMaterial,
+            discrete.retainingWallMaterial
         );
     }
 

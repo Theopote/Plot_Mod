@@ -59,10 +59,11 @@ public final class RoadParameterInheritance {
             RoadSystemConfig defaults,
             String styleId) {
         RoadStyle style = RoadStyleCatalog.findById(defaults, styleId);
-        if (style == null || style.includeSlopeBatter != null) {
+        // 预设已显式声明边缘模式（含挡土墙/无）时不再回填全局边坡。
+        if (style == null || style.resolveRoadsideEdgeMode() != null) {
             return;
         }
-        road.setIncludeSlopeBatter(defaults.isIncludeSlopeBatter());
+        road.setRoadsideEdgeMode(defaults.getRoadsideEdgeMode());
         if (!defaults.isIncludeSlopeBatter()) {
             return;
         }

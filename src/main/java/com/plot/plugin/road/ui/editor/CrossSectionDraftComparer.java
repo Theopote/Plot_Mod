@@ -34,11 +34,12 @@ public final class CrossSectionDraftComparer {
             && left.laneDividers() == right.laneDividers()
             && left.centerLineStyle() == right.centerLineStyle()
             && Objects.equals(left.markingMaterial(), right.markingMaterial())
-            && left.includeSlopeBatter() == right.includeSlopeBatter()
+            && left.roadsideEdgeMode() == right.roadsideEdgeMode()
             && left.fillSlopeRatio() == right.fillSlopeRatio()
             && left.cutSlopeRatio() == right.cutSlopeRatio()
             && Objects.equals(left.fillSlopeMaterial(), right.fillSlopeMaterial())
             && Objects.equals(left.cutSlopeMaterial(), right.cutSlopeMaterial())
+            && Objects.equals(left.retainingWallMaterial(), right.retainingWallMaterial())
             && left.maxSlope() == right.maxSlope();
     }
 

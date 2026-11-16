@@ -9,6 +9,7 @@ import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -134,6 +135,23 @@ public final class CrossSectionDraftMutator {
         draft.setIncludeSlopeBatter(includeSlopeBatter);
         if (road != null) {
             road.setIncludeSlopeBatter(includeSlopeBatter);
+        }
+        notifyChanged();
+    }
+
+    public void setRoadsideEdgeMode(RoadsideEdgeMode mode) {
+        draft.setRoadsideEdgeMode(mode);
+        if (road != null) {
+            road.setRoadsideEdgeMode(mode);
+        }
+        notifyChanged();
+    }
+
+    public void setRetainingWallMaterial(String wallMaterial) {
+        String safe = sanitizeStoredMaterial(wallMaterial, MaterialRole.CUT_SLOPE);
+        draft.setRetainingWallMaterial(safe);
+        if (road != null) {
+            road.setRetainingWallMaterial(safe);
         }
         notifyChanged();
     }
@@ -421,13 +439,16 @@ public final class CrossSectionDraftMutator {
         if (road == null || config == null) {
             return;
         }
+        String inheritLabel = switch (config.getRoadsideEdgeMode()) {
+            case SLOPE_BATTER -> PlotI18n.tr("plugin.road.roadside_edge.slope_batter");
+            case RETAINING_WALL -> PlotI18n.tr("plugin.road.roadside_edge.retaining_wall");
+            case NONE -> PlotI18n.tr("plugin.road.roadside_edge.none");
+        };
         hooks.afterField(
             "road_slope_enabled",
-            road.getIncludeSlopeBatter() == null,
-            PlotI18n.tr(config.isIncludeSlopeBatter()
-                ? "plugin.road.inherit_default_enabled"
-                : "plugin.road.inherit_default_disabled"),
-            () -> road.setIncludeSlopeBatter(null));
+            road.getRoadsideEdgeMode() == null,
+            PlotI18n.tr("plugin.road.inherit_default_batter", inheritLabel),
+            () -> road.setRoadsideEdgeMode(null));
     }
 
     public void afterFillSlopeField() {
