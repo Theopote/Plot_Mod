@@ -107,87 +107,138 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             columnHeight,
             true,
             ImGuiWindowFlags.NoScrollbar);
-        CrossSectionDraftMutator mutator = mutatorFor(road, config);
-
-        if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyResizeDown)) {
-            if (ImGui.beginTabItem(
-                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.structure"),
-                ImGuiTabItemFlags.None)) {
-                beginParamsTabBody();
-                CrossSectionDraftEditor.renderCrossSection(
-                    ctx,
-                    mutator,
-                    CrossSectionDraftEditorOptions.styleFloatingStructure());
-                endParamsTabBody();
-                ImGui.endTabItem();
+        try {
+            CrossSectionDraftMutator mutator = mutatorFor(road, config);
+            if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyResizeDown)) {
+                try {
+                    renderParamsTabs(ctx, mutator, road);
+                } finally {
+                    ImGui.endTabBar();
+                }
             }
-            if (ImGui.beginTabItem(
-                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.sidewalks"),
-                ImGuiTabItemFlags.None)) {
-                beginParamsTabBody();
-                CrossSectionDraftEditor.renderCrossSection(
-                    ctx,
-                    mutator,
-                    CrossSectionDraftEditorOptions.styleFloatingStrips());
-                endParamsTabBody();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(
-                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.slope"),
-                ImGuiTabItemFlags.None)) {
-                beginParamsTabBody();
-                CrossSectionDraftEditorOptions slopeOpts = new CrossSectionDraftEditorOptions(
-                    "xs_slope", false, null, false, false, true, false, false, false);
-                CrossSectionDraftEditor.renderCrossSection(ctx, mutator, slopeOpts);
-                endParamsTabBody();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(
-                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.materials"),
-                ImGuiTabItemFlags.None)) {
-                beginParamsTabBody();
-                CrossSectionDraftEditor.renderMaterials(
-                    ctx,
-                    mutator,
-                    CrossSectionDraftEditorOptions.styleBatch());
-                endParamsTabBody();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(
-                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.furniture"),
-                ImGuiTabItemFlags.None)) {
-                beginParamsTabBody();
-                CrossSectionDraftEditor.renderFurniture(
-                    ctx,
-                    mutator,
-                    CrossSectionDraftEditorOptions.styleBatch());
-                endParamsTabBody();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(
-                PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.bridge"),
-                ImGuiTabItemFlags.None)) {
-                beginParamsTabBody();
-                BridgeStructureControls.renderRoadOverride(ctx, road, null);
-                endParamsTabBody();
-                ImGui.endTabItem();
-            }
-            ImGui.endTabBar();
+        } finally {
+            ImGui.endChild();
         }
-        ImGui.endChild();
 
         ImGui.setCursorPos(startX, startY);
         ImGui.pushStyleColor(ImGuiCol.ChildBg, PluginUiColors.PANEL_BG_DARK);
-        ImGui.beginChild(
-            "##xs_preview",
-            columnWidth,
-            columnHeight,
-            true,
-            ImGuiWindowFlags.NoScrollbar);
-        // 滑条拖动时仍实时刷新；靠 mutator/布局/材质色缓存降低每帧成本。
-        renderLivePreview(session.workingNetwork(), road, config);
-        ImGui.endChild();
-        ImGui.popStyleColor();
+        try {
+            ImGui.beginChild(
+                "##xs_preview",
+                columnWidth,
+                columnHeight,
+                true,
+                ImGuiWindowFlags.NoScrollbar);
+            try {
+                // 滑条拖动时仍实时刷新；靠 mutator/布局/材质色缓存降低每帧成本。
+                renderLivePreview(session.workingNetwork(), road, config);
+            } finally {
+                ImGui.endChild();
+            }
+        } finally {
+            ImGui.popStyleColor();
+        }
+    }
+
+    private void renderParamsTabs(RoadUiContext ctx, CrossSectionDraftMutator mutator, Road road) {
+        if (ImGui.beginTabItem(
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.structure"),
+            ImGuiTabItemFlags.None)) {
+            try {
+                beginParamsTabBody("structure");
+                try {
+                    CrossSectionDraftEditor.renderCrossSection(
+                        ctx,
+                        mutator,
+                        CrossSectionDraftEditorOptions.styleFloatingStructure());
+                } finally {
+                    endParamsTabBody();
+                }
+            } finally {
+                ImGui.endTabItem();
+            }
+        }
+        if (ImGui.beginTabItem(
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.sidewalks"),
+            ImGuiTabItemFlags.None)) {
+            try {
+                beginParamsTabBody("sidewalks");
+                try {
+                    CrossSectionDraftEditor.renderCrossSection(
+                        ctx,
+                        mutator,
+                        CrossSectionDraftEditorOptions.styleFloatingStrips());
+                } finally {
+                    endParamsTabBody();
+                }
+            } finally {
+                ImGui.endTabItem();
+            }
+        }
+        if (ImGui.beginTabItem(
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.slope"),
+            ImGuiTabItemFlags.None)) {
+            try {
+                beginParamsTabBody("slope");
+                try {
+                    CrossSectionDraftEditorOptions slopeOpts = new CrossSectionDraftEditorOptions(
+                        "xs_slope", false, null, false, false, true, false, false, false);
+                    CrossSectionDraftEditor.renderCrossSection(ctx, mutator, slopeOpts);
+                } finally {
+                    endParamsTabBody();
+                }
+            } finally {
+                ImGui.endTabItem();
+            }
+        }
+        if (ImGui.beginTabItem(
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.materials"),
+            ImGuiTabItemFlags.None)) {
+            try {
+                beginParamsTabBody("materials");
+                try {
+                    CrossSectionDraftEditor.renderMaterials(
+                        ctx,
+                        mutator,
+                        CrossSectionDraftEditorOptions.styleBatch());
+                } finally {
+                    endParamsTabBody();
+                }
+            } finally {
+                ImGui.endTabItem();
+            }
+        }
+        if (ImGui.beginTabItem(
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.furniture"),
+            ImGuiTabItemFlags.None)) {
+            try {
+                beginParamsTabBody("furniture");
+                try {
+                    CrossSectionDraftEditor.renderFurniture(
+                        ctx,
+                        mutator,
+                        CrossSectionDraftEditorOptions.styleBatch());
+                } finally {
+                    endParamsTabBody();
+                }
+            } finally {
+                ImGui.endTabItem();
+            }
+        }
+        if (ImGui.beginTabItem(
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.bridge"),
+            ImGuiTabItemFlags.None)) {
+            try {
+                beginParamsTabBody("bridge");
+                try {
+                    BridgeStructureControls.renderRoadOverride(ctx, road, null);
+                } finally {
+                    endParamsTabBody();
+                }
+            } finally {
+                ImGui.endTabItem();
+            }
+        }
     }
 
     @Override
@@ -237,8 +288,8 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
     }
 
     /** 页签内容独立滚动区：高度 0 表示吃满标签栏下方剩余空间。 */
-    private static void beginParamsTabBody() {
-        ImGui.beginChild("##xs_tab_body", 0f, 0f, false);
+    private static void beginParamsTabBody(String tabKey) {
+        ImGui.beginChild("##xs_tab_body_" + tabKey, 0f, 0f, false);
     }
 
     private static void endParamsTabBody() {

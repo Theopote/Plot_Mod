@@ -119,11 +119,14 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                     : RoadFloatingEditorShell.footerReserveHeight(revisionConflictPending);
                 // 负高度：把底部精确留给页脚，避免固定窗高时确认键下方再空一截。
                 ImGui.beginChild("##floating_editor_body", 0f, -footerReserve, false, 0);
-                if (!isReadOnlyShell()) {
-                    renderRevisionConflictBanner(ctx);
+                try {
+                    if (!isReadOnlyShell()) {
+                        renderRevisionConflictBanner(ctx);
+                    }
+                    renderWindowBody(ctx);
+                } finally {
+                    ImGui.endChild();
                 }
-                renderWindowBody(ctx);
-                ImGui.endChild();
                 if (isReadOnlyShell()) {
                     RoadFloatingEditorShell.renderReadOnlyCloseFooter(() -> discard(ctx));
                 } else {

@@ -37,9 +37,9 @@ class RoadParameterLimitsTest {
     }
 
     @Test
-    void clampLaneWidth() {
-        assertEquals(6, RoadParameterLimits.clampLaneWidth(20, 24, 4));
-        assertEquals(1, RoadParameterLimits.clampLaneWidth(0, 8, 4));
+    void clampLaneTravelWidth() {
+        assertEquals(6, RoadParameterLimits.clampLaneTravelWidth(20));
+        assertEquals(1, RoadParameterLimits.clampLaneTravelWidth(0));
     }
 
     @Test

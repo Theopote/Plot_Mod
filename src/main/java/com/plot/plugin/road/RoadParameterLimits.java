@@ -85,12 +85,6 @@ public final class RoadParameterLimits {
         return Math.clamp(laneWidth, MIN_LANE_WIDTH_BLOCKS, MAX_LANE_WIDTH_BLOCKS);
     }
 
-    /** @deprecated 使用 {@link #clampLaneTravelWidth(int)}；保留重载以免旧调用断裂。 */
-    @Deprecated
-    public static int clampLaneWidth(int laneWidth, int carriagewayWidth, int laneCount) {
-        return clampLaneTravelWidth(laneWidth);
-    }
-
     public static int clampStripWidth(int width) {
         return Math.clamp(width, MIN_STRIP_WIDTH, MAX_STRIP_WIDTH);
     }
@@ -186,7 +180,8 @@ public final class RoadParameterLimits {
         int width = Math.max(1, carriagewayWidth);
         int byHalf = Math.clamp(width / 2, MIN_BRIDGE_PIER_DIAMETER_BLOCKS, MAX_BRIDGE_PIER_DIAMETER_BLOCKS);
         if ((width & 1) == 0) {
-            byHalf = Math.clamp(width, 2, byHalf);
+            // 偶数路宽至少要能取到直径 2（W=2 → d=2）；勿用 clamp(width,2,byHalf)，byHalf=1 时 min>max 会抛异常。
+            byHalf = Math.max(byHalf, Math.min(2, width));
         }
         return Math.min(byHalf, Math.min(width, MAX_BRIDGE_PIER_DIAMETER_BLOCKS));
     }
