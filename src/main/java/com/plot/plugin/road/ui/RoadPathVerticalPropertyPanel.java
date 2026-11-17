@@ -5,7 +5,6 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import net.minecraft.world.World;
 
@@ -28,12 +27,15 @@ final class RoadPathVerticalPropertyPanel {
         }
         ctx.networkManager().ensureSelectionValid();
 
-        RoadUiSections.group("plugin.road.path.road_property");
-
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         switch (mode) {
-            case NONE -> renderNoSelection(network);
-            case SINGLE -> renderSingle(ctx, network);
+            case NONE -> {
+                // 空选提示已由 TargetBar 展示，避免与「未选择道路」重复。
+            }
+            case SINGLE -> {
+                RoadUiSections.group("plugin.road.path.road_property");
+                renderSingle(ctx, network);
+            }
             case MULTI -> verticalBatchEditor.render(
                 ctx, ctx.networkManager().getSelectedRoadIds(), strategySwitchDialog);
         }
@@ -41,15 +43,6 @@ final class RoadPathVerticalPropertyPanel {
 
     void renderDeferredModals(RoadUiContext ctx) {
         strategySwitchDialog.renderPopup(ctx);
-    }
-
-    private void renderNoSelection(RoadNetwork network) {
-        if (network.getEdges().isEmpty()) {
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.path.no_road_selected_hint"));
     }
 
     private void renderSingle(RoadUiContext ctx, RoadNetwork network) {

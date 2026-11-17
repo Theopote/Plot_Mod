@@ -35,7 +35,7 @@ public final class RoadProfileOverviewSection {
             RoadNetwork network,
             VerticalProfileEditor profileEditor,
             Function<Road, FlatElevationProfileOverlay> flatOverlayForRoad) {
-        List<Road> roads = RoadProfileRoadList.listStationableRoads(network);
+        List<Road> roads = RoadProfileRoadList.listOverviewRoads(network, ctx);
         if (roads.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -50,16 +50,17 @@ public final class RoadProfileOverviewSection {
                 PlotI18n.tr("plugin.road.terrain_profile.uniform_flat_overview_hint"));
         }
 
+        // 仅真实选中才标「当前」/挂地形工具条；空选浏览全列表但不假装活跃。
         Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
         if (activeRoad != null) {
             ctx.previewManager().maybeAutoRefreshTerrainProfile(network, activeRoad);
+            renderActiveTerrainToolbar(ctx, network, activeRoad);
         }
-        renderActiveTerrainToolbar(ctx, network, activeRoad);
 
         String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
         for (int index = 0; index < roads.size(); index++) {
             Road road = roads.get(index);
-            boolean active = road.getId().equals(activeRoadId);
+            boolean active = !activeRoadId.isEmpty() && road.getId().equals(activeRoadId);
             renderRoadCard(
                 ctx,
                 network,

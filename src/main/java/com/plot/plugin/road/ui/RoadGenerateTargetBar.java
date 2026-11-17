@@ -11,9 +11,7 @@ import imgui.ImGui;
 import java.util.List;
 
 /**
- * 纵断面工作区：当前查看道路切换（下拉 + 上一/下一）。
- * <p>
- * 无有效选择时仅展示列表首条只读概览，不在渲染中改写全局道路选择。
+ * 纵断面工作区道路选择条：与横断面一致，允许空选（占位下拉），不在无选择时假装已选首条。
  */
 final class RoadGenerateTargetBar {
     private RoadGenerateTargetBar() {
@@ -28,35 +26,41 @@ final class RoadGenerateTargetBar {
             return;
         }
 
+        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        if (mode == RoadSelectionHeader.Mode.MULTI) {
+            // 多选由批量 banner + 批量纵向控件承接，此处不渲染假单路目标。
+            return;
+        }
+        if (mode == RoadSelectionHeader.Mode.NONE) {
+            renderNoSelection(ctx, network, roads);
+            return;
+        }
+        renderSingleSelection(ctx, network, roads);
+    }
+
+    private static void renderNoSelection(RoadUiContext ctx, RoadNetwork network, List<Road> roads) {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.edit.no_selection_hint"));
+        ImGui.spacing();
+        renderRoadCombo(ctx, network, roads, null);
+    }
+
+    private static void renderSingleSelection(
+            RoadUiContext ctx, RoadNetwork network, List<Road> roads) {
         Road primary = ctx.networkManager().getPrimarySelectedRoad();
         boolean selectionIsStationable = primary != null
             && RoadProfileRoadNavigator.indexOf(roads, primary.getId()) >= 0;
-        // 无选择 / 选择不可桩号：展示首条概览，但不自动 selectRoad。
-        String viewingRoadId = selectionIsStationable
-            ? primary.getId()
-            : roads.getFirst().getId();
-        int currentIndex = Math.max(0, RoadProfileRoadNavigator.indexOf(roads, viewingRoadId));
-        Road currentRoad = roads.get(currentIndex);
-        var coordinates = ctx.host().coordinates();
-        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad, coordinates);
-
-        // 第一行：道路下拉占满可用宽度，避免窄面板与 prev/next/序号挤在一行溢出。
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo("##generate_target_road_combo", preview)) {
-            for (Road candidate : roads) {
-                String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate, coordinates);
-                boolean selected = selectionIsStationable && candidate.getId().equals(viewingRoadId);
-                if (ImGui.selectable(label, selected)) {
-                    selectRoad(ctx, candidate.getId());
-                }
-                if (selected) {
-                    ImGui.setItemDefaultFocus();
-                }
-            }
-            ImGui.endCombo();
+        if (!selectionIsStationable) {
+            // 选中了不可桩号道路：与空选同态，避免回退显示首条。
+            renderNoSelection(ctx, network, roads);
+            return;
         }
 
-        // 第二行：上一 / 下一 + 道路序号。
+        String viewingRoadId = primary.getId();
+        int currentIndex = Math.max(0, RoadProfileRoadNavigator.indexOf(roads, viewingRoadId));
+        renderRoadCombo(ctx, network, roads, primary);
+
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##generate_target_prev")) {
             selectRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, viewingRoadId));
         }
@@ -71,6 +75,34 @@ final class RoadGenerateTargetBar {
                 "plugin.road.profile_overview_road_index",
                 currentIndex + 1,
                 roads.size()));
+    }
+
+    private static void renderRoadCombo(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            List<Road> roads,
+            Road current) {
+        var coordinates = ctx.host().coordinates();
+        String preview = current != null
+            ? RoadProfileRoadList.formatProfileRoadSummary(network, current, coordinates)
+            : PlotI18n.tr("plugin.road.edit.select_road_placeholder");
+        String currentId = current != null ? current.getId() : "";
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo("##generate_target_road_combo", preview)) {
+            for (Road candidate : roads) {
+                String label = RoadProfileRoadList.formatProfileRoadSummary(
+                    network, candidate, coordinates);
+                boolean selected = candidate.getId().equals(currentId);
+                if (ImGui.selectable(label, selected)) {
+                    selectRoad(ctx, candidate.getId());
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
     }
 
     private static void selectRoad(RoadUiContext ctx, String roadId) {

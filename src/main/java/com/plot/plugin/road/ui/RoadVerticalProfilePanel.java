@@ -3,7 +3,6 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
@@ -49,7 +48,7 @@ public final class RoadVerticalProfilePanel {
                 if (rejectProfileEditorIfUniformFlat()) {
                     return;
                 }
-                Road road = RoadProfileRoadList.resolveActiveRoad(network, ctx);
+                Road road = ctx.networkManager().getPrimarySelectedRoad();
                 if (road != null) {
                     profileEditor.openEditorForRoad(ctx, road.getId());
                 }

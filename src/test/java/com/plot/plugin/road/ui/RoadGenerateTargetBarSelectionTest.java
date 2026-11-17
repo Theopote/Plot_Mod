@@ -18,26 +18,30 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 纵断面目标栏：无选择时可用列表首条做概览，但 resolveActiveRoad 不得在 render 路径外被误用成自动选中。
- * 本测试锁定「未选择时 selectedRoadIds 保持为空」。
+ * 纵断面目标栏 / 活跃道路：空选不得回退假装选中首条。
  */
 class RoadGenerateTargetBarSelectionTest {
 
     private RoadNetworkManager manager;
     private RoadUiContext ctx;
+    private String roadA;
+    private String roadB;
 
     @BeforeEach
     void setUp() {
         manager = new RoadNetworkManager(new RoadSystemConfig("target-bar"), new RoadProjectStatus());
         RoadNetwork network = manager.getNetwork();
         Road a = network.createRoad("a");
+        roadA = a.getId();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(30, 0));
         network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(30, 0)), a.getId());
         Road b = network.createRoad("b");
+        roadB = b.getId();
         RoadNode n3 = network.createNode(new Vec2d(60, 0));
         network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(30, 0), new Vec2d(60, 0)), b.getId());
 
@@ -56,11 +60,29 @@ class RoadGenerateTargetBarSelectionTest {
     }
 
     @Test
-    void resolveActiveRoadFallsBackWithoutMutatingSelection() {
+    void resolveActiveRoadReturnsNullWithoutSelection() {
         assertTrue(manager.getSelectedRoadIds().isEmpty());
-        Road overview = RoadProfileRoadList.resolveActiveRoad(manager.getNetwork(), ctx);
-        assertEquals(RoadProfileRoadList.listStationableRoads(manager.getNetwork()).getFirst().getId(),
-            overview.getId());
+        assertNull(RoadProfileRoadList.resolveActiveRoad(manager.getNetwork(), ctx));
         assertEquals(Set.of(), manager.getSelectedRoadIds());
+    }
+
+    @Test
+    void overviewListsAllRoadsWhenNoneSelected() {
+        List<Road> overview = RoadProfileRoadList.listOverviewRoads(manager.getNetwork(), ctx);
+        assertEquals(2, overview.size());
+    }
+
+    @Test
+    void overviewListsOnlySelectedRoadsWhenMultiSelected() {
+        manager.selectRoad(roadA, false);
+        manager.selectRoad(roadB, true);
+        List<Road> overview = RoadProfileRoadList.listOverviewRoads(manager.getNetwork(), ctx);
+        assertEquals(2, overview.size());
+
+        // 单选：概览仍列全部，便于浏览切换
+        manager.selectRoad(roadA, false);
+        overview = RoadProfileRoadList.listOverviewRoads(manager.getNetwork(), ctx);
+        assertEquals(2, overview.size());
+        assertEquals(roadA, RoadProfileRoadList.resolveActiveRoad(manager.getNetwork(), ctx).getId());
     }
 }

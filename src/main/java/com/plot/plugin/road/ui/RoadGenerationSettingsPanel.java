@@ -73,14 +73,20 @@ public final class RoadGenerationSettingsPanel {
         }
 
         RoadNetwork network = ctx.networkManager().getNetwork();
+        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         if (!network.getEdges().isEmpty()) {
-            RoadGenerateTargetBar.render(ctx, network);
-            ImGui.spacing();
+            if (mode == RoadSelectionHeader.Mode.MULTI) {
+                RoadBatchEditBanner.render(ctx.networkManager().getSelectedRoadIds().size());
+            } else {
+                RoadGenerateTargetBar.render(ctx, network);
+                ImGui.spacing();
+            }
         }
 
         renderUniformFlatModeControls(ctx, network);
         // 复选框可能刚改写了 mode：同帧重读，避免仍渲染上一模式控件。
         boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
+        mode = RoadSelectionHeader.resolveMode(ctx);
         ImGui.spacing();
 
         if (!uniformFlat && !network.getEdges().isEmpty() && pathPropertyPanel != null) {
@@ -92,7 +98,6 @@ public final class RoadGenerationSettingsPanel {
             return;
         }
 
-        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         Road activeRoad = mode == RoadSelectionHeader.Mode.SINGLE
             ? ctx.networkManager().getPrimarySelectedRoad()
             : null;
@@ -117,11 +122,11 @@ public final class RoadGenerationSettingsPanel {
                 // 水平道路：坡度/地形/来源不适用；基准 Y 已在路径属性中。
             }
             case NONE -> {
+                // 空选：默认设计参数折叠（新路默认），不假装编辑某一条路。
                 if (showsTerrainAdaptiveControls(ctx)
                         && ImGui.collapsingHeader(
                             PlotI18n.tr("plugin.road.vertical_design_params")
-                                + "##vertical_design_params_defaults",
-                            ImGuiTreeNodeFlags.DefaultOpen)) {
+                                + "##vertical_design_params_defaults")) {
                     RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
                     RoadStyleProductControls.renderTerrainStylePresets(ctx);
                 }

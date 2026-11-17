@@ -58,6 +58,10 @@ public final class RoadProfileRoadList {
             RoadVerticalStrategy.fromRoad(road).label());
     }
 
+    /**
+     * 当前选中的可桩号道路；无选择或多选时返回 primary（若可桩号），绝不回退到列表首条。
+     * 空选返回 {@code null}，避免侧栏假装已选中。
+     */
     public static Road resolveActiveRoad(RoadNetwork network, RoadUiContext ctx) {
         if (network == null || ctx == null) {
             return null;
@@ -66,7 +70,25 @@ public final class RoadProfileRoadList {
         if (primary != null && RoadStationing.isStationable(network, primary)) {
             return primary;
         }
-        List<Road> roads = listStationableRoads(network);
-        return roads.isEmpty() ? null : roads.getFirst();
+        return null;
+    }
+
+    /** 概览列表：多选时仅选中道路；否则全部可桩号道路（空选时只读浏览）。 */
+    public static List<Road> listOverviewRoads(RoadNetwork network, RoadUiContext ctx) {
+        List<Road> all = listStationableRoads(network);
+        if (ctx == null || network == null) {
+            return all;
+        }
+        var selectedIds = ctx.networkManager().getSelectedRoadIds();
+        if (selectedIds == null || selectedIds.size() <= 1) {
+            return all;
+        }
+        List<Road> filtered = new ArrayList<>();
+        for (Road road : all) {
+            if (road != null && selectedIds.contains(road.getId())) {
+                filtered.add(road);
+            }
+        }
+        return filtered;
     }
 }
