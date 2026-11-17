@@ -55,6 +55,18 @@ public final class RoadStationPlanSchematicRenderer {
             float canvasLength,
             List<StationMarker> markers,
             List<StationInterval> intervals) {
+        return render(
+            network, road, playheadCanvas, canvasLength, markers, intervals, PREVIEW_HEIGHT);
+    }
+
+    public static Float render(
+            RoadNetwork network,
+            Road road,
+            float playheadCanvas,
+            float canvasLength,
+            List<StationMarker> markers,
+            List<StationInterval> intervals,
+            float previewHeight) {
         if (network == null || road == null || canvasLength <= 1e-6f) {
             return null;
         }
@@ -68,7 +80,7 @@ public final class RoadStationPlanSchematicRenderer {
 
         ImGui.text(PlotI18n.tr("plugin.road.plan_schematic_title"));
         float width = Math.max(120f, ImGui.getContentRegionAvailX());
-        float height = PREVIEW_HEIGHT;
+        float height = Math.max(72f, previewHeight);
         ImVec2 origin = ImGui.getCursorScreenPos();
         float x0 = origin.x;
         float y0 = origin.y;

@@ -40,6 +40,7 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_USER_LOCKED = 0xFF7EB6FF;
     private static final int COLOR_CURVE_HANDLE = 0xFF88DDFF;
     private static final int COLOR_CURVE_HANDLE_SELECTED = 0xFFFFFFFF;
+    private static final int COLOR_PLAYHEAD = PluginUiColors.STATUS_INFO;
     private static final float DRAG_THRESHOLD_PX = 5f;
     private static final float DASH_LENGTH = 6f;
     private static final float DASH_GAP = 4f;
@@ -106,6 +107,43 @@ public final class RoadProfileChartRenderer {
             RoadVerticalAlignment insertAlignment,
             boolean buildProfileStale,
             boolean showBuildProfileLine) {
+        return renderInteractive(
+            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
+            intersections, selectedIntersectionIndex, chartHeight,
+            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
+            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
+            activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
+            elevationBounds, insertAlignment, buildProfileStale, showBuildProfileLine,
+            null);
+    }
+
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            List<ProfileControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            FlatElevationProfileOverlay flatOverlay,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartRenderMode mode,
+            ProfileRenderCache renderCache,
+            RoadVerticalMode verticalMode,
+            RoadElevationBounds elevationBounds,
+            RoadVerticalAlignment insertAlignment,
+            boolean buildProfileStale,
+            boolean showBuildProfileLine,
+            Double playheadStation) {
         if (chart == null || !chart.canRenderChart()) {
             return new ProfileChartInteraction.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
@@ -131,6 +169,7 @@ public final class RoadProfileChartRenderer {
         if (mode == ProfileChartRenderMode.EDITOR) {
             drawWorldElevationBounds(drawList, layout, range, elevationBounds);
         }
+        drawPlayhead(drawList, layout, range, playheadStation);
         drawRoadControlPoints(drawList, controls, selectedPviIndex, maxGradePercent, layout, range);
         drawRoadCurveHandles(
             drawList, controls, curveHandles,
@@ -644,6 +683,20 @@ public final class RoadProfileChartRenderer {
         drawList.addRect(
             layout.outerLeft(), layout.outerTop(),
             layout.outerRight(), layout.outerBottom(), COLOR_BORDER);
+    }
+
+    private static void drawPlayhead(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            Double playheadStation) {
+        if (playheadStation == null || !Double.isFinite(playheadStation) || range.totalStation() <= 1e-9) {
+            return;
+        }
+        double clamped = Math.max(0.0, Math.min(range.totalStation(), playheadStation));
+        float x = layout.plotX(clamped, range.totalStation());
+        drawList.addLine(x, layout.plotTop(), x, layout.plotBottom(), COLOR_PLAYHEAD, 1.6f);
+        drawList.addCircleFilled(x, layout.plotTop() + 4f, 3.5f, COLOR_PLAYHEAD);
     }
 
     private static final float AXIS_LABEL_PAD = 6f;

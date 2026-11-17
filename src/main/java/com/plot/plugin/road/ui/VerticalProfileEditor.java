@@ -40,6 +40,7 @@ import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.world.World;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
@@ -59,10 +60,14 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,13 +75,16 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * 生成 Tab 纵断面：内联只读概览 + 独立编辑器窗口（放大交互）。
+ * 纵断面浮动编辑器：钉顶剖面图 + 左轨控制点/交点 + 可滚详情。
  */
 final class VerticalProfileEditor {
 
-    /** 图表占滚动内容区可用高度的固定比例。 */
-    private static final float EDITOR_CHART_OF_CONTENT = 0.72f;
-    private static final float MIN_EDITOR_CHART_HEIGHT = 240f;
+    /** 钉顶剖面图占「示意/scrub 之下」剩余高度的比例。 */
+    private static final float EDITOR_CHART_OF_REMAINING = 0.55f;
+    private static final float MIN_EDITOR_CHART_HEIGHT = 200f;
+    private static final float MIN_DETAIL_BODY_HEIGHT = 140f;
+    private static final float PLAN_SCHEMATIC_HEIGHT = 96f;
+    private static final float CONTROL_RAIL_WIDTH_FRACTION = 0.28f;
     private static final float MIN_ROAD_COMBO_WIDTH = 48f;
 
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
@@ -123,6 +131,8 @@ final class VerticalProfileEditor {
     private World voxelCompileWorld;
     private static final long VOXEL_COMPILE_TICK_BUDGET_NANOS = 8_000_000L;
     private boolean profileDesignSyncedNotice;
+    /** 沿路浏览位置（canonical / 画布域）；与平面示意、剖面竖线同步。 */
+    private float playheadStation;
 
     void clearCache() {
         clearChartFallbackCache();
@@ -139,6 +149,7 @@ final class VerticalProfileEditor {
         externalTopologyConflict = false;
         cancelVoxelCompile();
         profileDesignSyncedNotice = false;
+        playheadStation = 0f;
         invalidateIntersectionCache();
     }
 
@@ -247,7 +258,13 @@ final class VerticalProfileEditor {
                 renderExternalTopologyConflictBanner(ctx, liveNetwork);
             }
             float footerReserve = resolveFooterReserve();
-            ImGui.beginChild("##profile_editor_scroll", 0f, -footerReserve, false);
+            // 外层不滚动：平面示意 / scrub / 剖面图钉在上方，详情在下半区滚动。
+            ImGui.beginChild(
+                "##profile_editor_body",
+                0f,
+                -footerReserve,
+                false,
+                ImGuiWindowFlags.NoScrollbar);
             try {
                 if (externalTopologyConflict) {
                     RoadUiWidgets.textWrappedColored(
@@ -265,9 +282,8 @@ final class VerticalProfileEditor {
                         FlatElevationProfileOverlay flatOverlay = resolveFlatOverlay(road);
                         VerticalAlignmentProfileOverlay design =
                             profileEditSession.effectiveDesignOverlay(network, road).orElse(null);
-                        float chartHeight = resolveEditorChartHeight();
                         renderInteractiveEditor(
-                            ctx, liveNetwork, network, road, chartData, design, chartHeight, flatOverlay);
+                            ctx, liveNetwork, network, road, chartData, design, flatOverlay);
                     }
                 }
             } finally {
@@ -804,10 +820,11 @@ final class VerticalProfileEditor {
         }
     }
 
-    /** 图表高度：内容区可用高度的固定比例，并设下限避免过扁。 */
-    private static float resolveEditorChartHeight() {
-        float available = ImGui.getContentRegionAvail().y;
-        return Math.max(MIN_EDITOR_CHART_HEIGHT, available * EDITOR_CHART_OF_CONTENT);
+    /** 钉顶剖面高度：留给下半 master-detail 足够空间。 */
+    private static float resolvePinnedChartHeight() {
+        float remaining = ImGui.getContentRegionAvailY();
+        float usable = Math.max(0f, remaining - MIN_DETAIL_BODY_HEIGHT - ImGui.getStyle().getItemSpacingY());
+        return Math.max(MIN_EDITOR_CHART_HEIGHT, usable * EDITOR_CHART_OF_REMAINING);
     }
 
     /**
@@ -1067,6 +1084,7 @@ final class VerticalProfileEditor {
         activeIntersectionDragIndex = -1;
         activeIntersectionDragTarget =
             ProfileChartInteraction.IntersectionDragTarget.NONE;
+        playheadStation = 0f;
     }
 
     private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
@@ -1240,7 +1258,6 @@ final class VerticalProfileEditor {
             Road road,
             RoadProfileChartData chartData,
             VerticalAlignmentProfileOverlay design,
-            float chartHeight,
             FlatElevationProfileOverlay flatOverlay) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
@@ -1252,8 +1269,6 @@ final class VerticalProfileEditor {
         design = profileEditSession.effectiveDesignOverlay(displayNetwork, displayRoad).orElse(null);
         RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
         boolean buildProfileStale = isChartDerivedDataStale(road);
-        VoxelProfilePreviewSlot voxelSlot =
-            windowSession != null ? windowSession.voxelPreview(road.getId()) : null;
         // 与生成页缩略图一致：始终可显示预览拟合建造线；有体素结果时用台阶采样覆盖。
         boolean showBuildProfileLine = ProfileChartRenderMode.EDITOR.showBuildProfileLine();
         List<ProfileControlPoint> points =
@@ -1269,6 +1284,12 @@ final class VerticalProfileEditor {
         ProfileRenderCache renderCache = resolveRenderCache(
             ctx, liveNetwork, road, effectiveChart, flatOverlay, intersections,
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
+        float canvasLength = (float) Math.max(
+            0.001,
+            RoadStationing.canonicalLength(editingNetwork, road));
+        playheadStation = Math.clamp(playheadStation, 0f, canvasLength);
+        renderPlanContext(ctx, editingNetwork, road, points, intersections, canvasLength, flatMode);
+        float chartHeight = resolvePinnedChartHeight();
         int chartSelectedPvi = flatMode
             ? clampFlatEndpointPvi(editorState.selectedProfilePvi)
             : editorState.selectedProfilePvi;
@@ -1308,7 +1329,8 @@ final class VerticalProfileEditor {
                 elevationBounds,
                 effectiveAlignment,
                 buildProfileStale,
-                showBuildProfileLine);
+                showBuildProfileLine,
+                (double) playheadStation);
         if (interaction.intersectionDragStarted()) {
             cancelVoxelCompile();
             recordUndoPointBeforeEdit();
@@ -1486,6 +1508,8 @@ final class VerticalProfileEditor {
                 ProfileChartInteraction.IntersectionDragTarget.NONE;
         }
         // 图表命中已互斥；此处再收敛一次，避免定位下拉与图表状态短暂并存。
+        int previousPvi = editorState.selectedProfilePvi;
+        int previousIntersection = selectedIntersectionIndex;
         int chartIntersection = interaction.selectedIntersectionIndex();
         int chartPvi = flatMode
             ? clampFlatEndpointPvi(interaction.selectedPviIndex())
@@ -1504,49 +1528,338 @@ final class VerticalProfileEditor {
                 editorState.activeProfilePvi = -1;
             }
         }
-        renderEditorLegend(
-            ctx, road, intersections, flatMode, showBuildProfileLine, effectiveChart);
-        renderCompactIntersectionLocator(intersections);
-        renderQualityWarningsOnly(
-            effectiveChart,
-            road,
-            config,
-            isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc());
-        renderAlignmentViolations(editingNetwork, road, flatMode);
-        renderFlatRoadConstraintWarnings(editingNetwork, road, intersections, flatMode);
-        if (profileEditSession.isActive() && !profileEditSession.constraintResult().unresolvedConstraints().isEmpty()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.road.vertical_alignment_network_unresolved",
-                profileEditSession.constraintResult().unresolvedConstraints().size()));
+        // 仅在图表改选 / 拖桩号时同步播放头，避免与 scrub 互相抢位置。
+        if (selectedIntersectionIndex >= 0
+                && selectedIntersectionIndex != previousIntersection
+                && selectedIntersectionIndex < intersections.size()) {
+            playheadStation = Math.clamp(
+                (float) intersections.get(selectedIntersectionIndex).roadStation(),
+                0f,
+                canvasLength);
+        } else if (editorState.selectedProfilePvi >= 0
+                && editorState.selectedProfilePvi != previousPvi) {
+            for (ProfileControlPoint point : points) {
+                if (point.pviIndex() == editorState.selectedProfilePvi) {
+                    playheadStation = Math.clamp((float) point.roadStation(), 0f, canvasLength);
+                    break;
+                }
+            }
+        } else if (interaction.draggedLocalDistance() != null) {
+            playheadStation = Math.clamp(
+                interaction.draggedLocalDistance().floatValue(), 0f, canvasLength);
         }
-        if (selectedIntersectionIndex >= 0) {
-            renderIntersectionDetail(
-                ctx, editingNetwork, road, intersections, config, flatMode);
-        } else if (flatMode) {
-            renderFlatModeGenerationSettingsHint(editingNetwork, road);
-        } else if (editorState.selectedProfilePvi >= 0) {
-            adaptiveProfileControls.render(
-                ctx,
-                editingNetwork,
+        renderControlMasterDetail(
+            ctx,
+            editingNetwork,
+            road,
+            points,
+            intersections,
+            effectiveChart,
+            config,
+            flatMode,
+            showBuildProfileLine,
+            maxGrade,
+            canvasLength);
+    }
+
+    private void renderPlanContext(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            List<ProfileControlPoint> points,
+            List<RoadProfileIntersection> intersections,
+            float canvasLength,
+            boolean flatMode) {
+        List<RoadStationPlanSchematicRenderer.StationMarker> markers = new ArrayList<>();
+        for (ProfileControlPoint point : points) {
+            markers.add(new RoadStationPlanSchematicRenderer.StationMarker(
+                (float) point.roadStation(),
+                point.pviIndex() == editorState.selectedProfilePvi));
+        }
+        for (int i = 0; i < intersections.size(); i++) {
+            markers.add(new RoadStationPlanSchematicRenderer.StationMarker(
+                (float) intersections.get(i).roadStation(),
+                i == selectedIntersectionIndex));
+        }
+        Float clicked = RoadStationPlanSchematicRenderer.render(
+            network,
+            road,
+            playheadStation,
+            canvasLength,
+            markers,
+            List.of(),
+            PLAN_SCHEMATIC_HEIGHT);
+        if (clicked != null) {
+            playheadStation = Math.clamp(clicked, 0f, canvasLength);
+            selectAtPlayhead(points, intersections, flatMode);
+        }
+        renderPlayheadScrub(ctx, network, road, canvasLength, points, intersections, flatMode);
+    }
+
+    private void renderPlayheadScrub(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            float canvasLength,
+            List<ProfileControlPoint> points,
+            List<RoadProfileIntersection> intersections,
+            boolean flatMode) {
+        var coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
+        float worldMax = (float) Math.max(
+            0.001,
+            RoadLengthDisplay.canvasToBlocks(canvasLength, network, road, coordinates));
+        float worldPlayhead = (float) RoadLengthDisplay.canvasToBlocks(
+            playheadStation, network, road, coordinates);
+        worldPlayhead = Math.clamp(worldPlayhead, 0f, worldMax);
+        float[] station = {worldPlayhead};
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        ImGui.sliderFloat("##profile_playhead", station, 0f, worldMax, RoadUiFormat.SLIDER_METERS);
+        boolean sliderActive = ImGui.isItemActive();
+        playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
+            station[0], network, road, coordinates);
+        playheadStation = Math.clamp(playheadStation, 0f, canvasLength);
+        if (sliderActive) {
+            selectAtPlayhead(points, intersections, flatMode);
+        }
+        ChainageDisplayContext chainage = ChainageDisplayContext.fromStart(canvasLength);
+        String stationText = RoadLengthDisplay.formatChainage(
+            chainage, playheadStation, network, road, coordinates);
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, stationText);
+        ImGui.spacing();
+    }
+
+    private void renderControlMasterDetail(
+            RoadUiContext ctx,
+            RoadNetwork editingNetwork,
+            Road road,
+            List<ProfileControlPoint> points,
+            List<RoadProfileIntersection> intersections,
+            RoadProfileChartData effectiveChart,
+            RoadSystemConfig config,
+            boolean flatMode,
+            boolean showBuildProfileLine,
+            float maxGrade,
+            float canvasLength) {
+        float totalWidth = ImGui.getContentRegionAvailX();
+        float bodyHeight = Math.max(MIN_DETAIL_BODY_HEIGHT, ImGui.getContentRegionAvailY());
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float railWidth = Math.max(120f, (totalWidth - spacing) * CONTROL_RAIL_WIDTH_FRACTION);
+        float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
+        float startX = ImGui.getCursorPosX();
+        float startY = ImGui.getCursorPosY();
+
+        ImGui.setCursorPos(startX, startY);
+        ImGui.beginChild("##profile_control_rail", railWidth, bodyHeight, true, ImGuiWindowFlags.None);
+        try {
+            renderControlPointRail(ctx, editingNetwork, road, points, intersections, canvasLength, flatMode);
+        } finally {
+            ImGui.endChild();
+        }
+
+        ImGui.setCursorPos(startX + railWidth + spacing, startY);
+        ImGui.beginChild(
+            "##profile_detail_scroll",
+            detailWidth,
+            bodyHeight,
+            true,
+            ImGuiWindowFlags.AlwaysVerticalScrollbar);
+        try {
+            renderEditorLegend(
+                ctx, road, intersections, flatMode, showBuildProfileLine, effectiveChart);
+            renderQualityWarningsOnly(
+                effectiveChart,
                 road,
                 config,
-                profileEditSession,
-                windowSession,
-                points,
-                maxGrade,
-                editorState,
-                this::recordUndoPointBeforeEdit,
-                () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                this::notifyWorkingProfileChanged,
-                () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi),
-                () -> selectedIntersectionIndex = -1);
+                isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc());
+            renderAlignmentViolations(editingNetwork, road, flatMode);
+            renderFlatRoadConstraintWarnings(editingNetwork, road, intersections, flatMode);
+            if (profileEditSession.isActive()
+                    && !profileEditSession.constraintResult().unresolvedConstraints().isEmpty()) {
+                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.road.vertical_alignment_network_unresolved",
+                    profileEditSession.constraintResult().unresolvedConstraints().size()));
+            }
+            if (selectedIntersectionIndex >= 0) {
+                renderIntersectionDetail(
+                    ctx, editingNetwork, road, intersections, config, flatMode);
+            } else if (flatMode) {
+                renderFlatModeGenerationSettingsHint(editingNetwork, road);
+            } else if (editorState.selectedProfilePvi >= 0) {
+                adaptiveProfileControls.render(
+                    ctx,
+                    editingNetwork,
+                    road,
+                    config,
+                    profileEditSession,
+                    windowSession,
+                    points,
+                    maxGrade,
+                    editorState,
+                    this::recordUndoPointBeforeEdit,
+                    () -> propagateJunctionGrades(ctx, editingNetwork, road),
+                    this::notifyWorkingProfileChanged,
+                    () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi),
+                    () -> selectedIntersectionIndex = -1);
+            } else {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.profile_editor_detail_empty"));
+            }
+        } finally {
+            ImGui.endChild();
+        }
+    }
+
+    private void renderControlPointRail(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            List<ProfileControlPoint> points,
+            List<RoadProfileIntersection> intersections,
+            float canvasLength,
+            boolean flatMode) {
+        var coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
+        ChainageDisplayContext chainage = ChainageDisplayContext.fromStart(canvasLength);
+
+        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_rail_pvi"));
+        if (points.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_editor_rail_pvi_empty"));
+        } else {
+            for (ProfileControlPoint point : points) {
+                int pvi = point.pviIndex();
+                if (flatMode && pvi > 1) {
+                    continue;
+                }
+                ImGui.pushID("pvi_" + pvi);
+                boolean selected = selectedIntersectionIndex < 0 && editorState.selectedProfilePvi == pvi;
+                String label = formatPviRailLabel(point, chainage, network, road, coordinates);
+                int stylePushes = 0;
+                if (selected) {
+                    ImGui.pushStyleColor(ImGuiCol.Header, PluginUiColors.ACCENT_BLUE);
+                    ImGui.pushStyleColor(ImGuiCol.HeaderHovered, PluginUiColors.ACCENT_BLUE);
+                    ImGui.pushStyleColor(ImGuiCol.HeaderActive, PluginUiColors.ACCENT_BLUE);
+                    stylePushes = 3;
+                }
+                if (ImGui.selectable(label, selected, ImGuiSelectableFlags.None)) {
+                    selectedIntersectionIndex = -1;
+                    editorState.selectedProfilePvi = pvi;
+                    playheadStation = Math.clamp((float) point.roadStation(), 0f, canvasLength);
+                    adaptiveProfileControls.onPviSelected(editorState, point);
+                }
+                if (stylePushes > 0) {
+                    ImGui.popStyleColor(stylePushes);
+                }
+                ImGui.popID();
+            }
+        }
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_rail_intersection"));
+        if (intersections.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_editor_rail_intersection_empty"));
+            return;
+        }
+        for (int i = 0; i < intersections.size(); i++) {
+            RoadProfileIntersection intersection = intersections.get(i);
+            ImGui.pushID("xing_" + i);
+            boolean selected = i == selectedIntersectionIndex;
+            String label = formatIntersectionRailLabel(
+                intersection, chainage, network, road, coordinates);
+            int stylePushes = 0;
+            if (selected) {
+                ImGui.pushStyleColor(ImGuiCol.Header, PluginUiColors.ACCENT_BLUE);
+                ImGui.pushStyleColor(ImGuiCol.HeaderHovered, PluginUiColors.ACCENT_BLUE);
+                ImGui.pushStyleColor(ImGuiCol.HeaderActive, PluginUiColors.ACCENT_BLUE);
+                stylePushes = 3;
+            }
+            if (ImGui.selectable(label, selected, ImGuiSelectableFlags.None)) {
+                selectedIntersectionIndex = i;
+                editorState.selectedProfilePvi = -1;
+                editorState.activeProfilePvi = -1;
+                playheadStation = Math.clamp((float) intersection.roadStation(), 0f, canvasLength);
+                intersectionInputKey = "";
+            }
+            if (stylePushes > 0) {
+                ImGui.popStyleColor(stylePushes);
+            }
+            ImGui.popID();
+        }
+    }
+
+    private static String formatPviRailLabel(
+            ProfileControlPoint point,
+            ChainageDisplayContext chainage,
+            RoadNetwork network,
+            Road road,
+            com.plot.api.world.ICoordinateService coordinates) {
+        String station = RoadLengthDisplay.formatChainage(
+            chainage, point.roadStation(), network, road, coordinates);
+        return station + "  Y=" + String.format("%.1f", point.elevation());
+    }
+
+    private static String formatIntersectionRailLabel(
+            RoadProfileIntersection intersection,
+            ChainageDisplayContext chainage,
+            RoadNetwork network,
+            Road road,
+            com.plot.api.world.ICoordinateService coordinates) {
+        String station = RoadLengthDisplay.formatChainage(
+            chainage, intersection.roadStation(), network, road, coordinates);
+        return intersection.otherRoadLabel() + " @ " + station;
+    }
+
+    private void selectAtPlayhead(
+            List<ProfileControlPoint> points,
+            List<RoadProfileIntersection> intersections,
+            boolean flatMode) {
+        int bestIntersection = -1;
+        double bestIntersectionDist = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < intersections.size(); i++) {
+            double d = Math.abs(intersections.get(i).roadStation() - playheadStation);
+            if (d < bestIntersectionDist) {
+                bestIntersectionDist = d;
+                bestIntersection = i;
+            }
+        }
+        int bestPvi = -1;
+        double bestPviDist = Double.POSITIVE_INFINITY;
+        ProfileControlPoint bestPoint = null;
+        for (ProfileControlPoint point : points) {
+            if (flatMode && point.pviIndex() > 1) {
+                continue;
+            }
+            double d = Math.abs(point.roadStation() - playheadStation);
+            if (d < bestPviDist) {
+                bestPviDist = d;
+                bestPvi = point.pviIndex();
+                bestPoint = point;
+            }
+        }
+        // 优先贴交点；否则选最近 PVI（阈值约 2 格内更像“命中”）。
+        if (bestIntersection >= 0 && bestIntersectionDist <= Math.max(2.0, bestPviDist)) {
+            selectedIntersectionIndex = bestIntersection;
+            editorState.selectedProfilePvi = -1;
+            editorState.activeProfilePvi = -1;
+            return;
+        }
+        if (bestPvi >= 0) {
+            selectedIntersectionIndex = -1;
+            editorState.selectedProfilePvi = bestPvi;
+            if (bestPoint != null) {
+                adaptiveProfileControls.onPviSelected(editorState, bestPoint);
+            }
         }
     }
 
     private void renderFlatModeGenerationSettingsHint(RoadNetwork network, Road road) {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_flat_edit_in_generation_settings"));
+            PlotI18n.tr("plugin.road.profile_flat_edit_in_vertical_workspace"));
         FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
         if (intent != null) {
             ImGui.text(String.format(
