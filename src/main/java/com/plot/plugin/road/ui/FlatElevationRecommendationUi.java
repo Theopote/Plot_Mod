@@ -91,7 +91,7 @@ final class FlatElevationRecommendationSession {
 }
 
 /** Path / Generate controls for flat elevation optimization (v1.1). */
-final class FlatElevationRecommendationUi {
+public final class FlatElevationRecommendationUi {
     private final FlatElevationRecommendationSession session = new FlatElevationRecommendationSession();
 
     void renderPathControls(
@@ -251,7 +251,7 @@ final class FlatElevationRecommendationUi {
         ctx.requestOverlayRefresh();
     }
 
-    static Supplier<TerrainSampler> terrainSupplier(RoadUiContext ctx) {
+    public static Supplier<TerrainSampler> terrainSupplier(RoadUiContext ctx) {
         return () -> {
             World world = RoadNetworkGenerator.getClientWorld();
             if (world == null) {

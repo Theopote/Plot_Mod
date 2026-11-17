@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /** 水平道路纵断面编辑器：Base Y、推荐 Y 与交叉约束，不暴露 PVI 编辑。 */
-final class FlatProfileControls {
+public final class FlatProfileControls {
     private final FlatElevationRecommendationUi recommendationUi = new FlatElevationRecommendationUi();
     private float flatElevation = 64f;
     private long syncedFlatIntentKey = Long.MIN_VALUE;
@@ -40,7 +40,7 @@ final class FlatProfileControls {
             ctx, network, road, hooks, terrainSupplier);
     }
 
-    void render(
+    public void render(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
@@ -49,7 +49,7 @@ final class FlatProfileControls {
         render(ctx, network, road, null, hooks, terrainSupplier);
     }
 
-    void render(
+    public void render(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,

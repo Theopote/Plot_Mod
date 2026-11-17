@@ -19,6 +19,7 @@ import com.plot.plugin.road.profile.edit.VoxelProfilePreviewKey;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewSlot;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewState;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
+import com.plot.plugin.road.ui.profile.VerticalProfileVoxelPreview;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.test.world.IdentityCoordinateService;
@@ -38,8 +39,8 @@ class VerticalProfileCompileCancellationTest {
         fixture.editor.clearCache();
         assertEquals(RoadVoxelProfileCompileJob.Phase.CANCELLED, fixture.job.phase());
         assertEquals(VoxelProfilePreviewState.STALE, fixture.slot.state());
-        assertNull(field(fixture.editor, "activeVoxelCompile"));
-        assertNull(field(fixture.editor, "pendingVoxelCompile"));
+        assertNull(field(fixture.preview, "activeVoxelCompile"));
+        assertNull(field(fixture.preview, "pendingVoxelCompile"));
         fixture.editor.clearCache();
     }
 
@@ -68,23 +69,26 @@ class VerticalProfileCompileCancellationTest {
         var slot = session.voxelPreview("road");
         slot.markComputing(fixture.slot.key());
         field(fixture.editor, "windowSession", session);
-        field(fixture.editor, "voxelCompileOwner", session);
-        field(fixture.editor, "voxelCompileSlot", slot);
-        field(fixture.editor, "voxelCompileNetworkRevision", manager.getNetworkRevision());
+        field(fixture.preview, "voxelCompileOwner", session);
+        field(fixture.preview, "voxelCompileSlot", slot);
+        field(fixture.preview, "voxelCompileNetworkRevision", manager.getNetworkRevision());
         if (terrainChange) preview.invalidatePreview();
         else manager.setNetwork(fixture.network.snapshot());
 
-        var tick = VerticalProfileEditor.class.getDeclaredMethod("tickPendingVoxelCompile", RoadUiContext.class);
-        tick.setAccessible(true);
-        tick.invoke(fixture.editor, ctx);
+        fixture.preview.tick(ctx);
         assertEquals(RoadVoxelProfileCompileJob.Phase.CANCELLED, fixture.job.phase());
         assertEquals(0, fixture.job.completedEdges());
         assertEquals(VoxelProfilePreviewState.STALE, slot.state());
-        assertNull(field(fixture.editor, "pendingVoxelCompile"));
+        assertNull(field(fixture.preview, "pendingVoxelCompile"));
     }
 
-    private record Fixture(VerticalProfileEditor editor, RoadVoxelProfileCompileJob job,
-                           VoxelProfilePreviewSlot slot, VoxelProfilePreviewKey nextKey, RoadNetwork network) { }
+    private record Fixture(
+            VerticalProfileEditor editor,
+            VerticalProfileVoxelPreview preview,
+            RoadVoxelProfileCompileJob job,
+            VoxelProfilePreviewSlot slot,
+            VoxelProfilePreviewKey nextKey,
+            RoadNetwork network) { }
 
     private Fixture fixture() throws Exception {
         var network = new RoadNetwork();
@@ -108,21 +112,22 @@ class VerticalProfileCompileCancellationTest {
         var slot = new VoxelProfilePreviewSlot();
         slot.markComputing(key);
         var editor = new VerticalProfileEditor();
-        field(editor, "pendingVoxelCompile", request);
-        field(editor, "activeVoxelCompile", job);
-        field(editor, "voxelCompileSlot", slot);
-        return new Fixture(editor, job, slot, next, network);
+        var preview = editor.voxelPreview;
+        field(preview, "pendingVoxelCompile", request);
+        field(preview, "activeVoxelCompile", job);
+        field(preview, "voxelCompileSlot", slot);
+        return new Fixture(editor, preview, job, slot, next, network);
     }
 
-    private static Object field(VerticalProfileEditor editor, String name) throws Exception {
-        var field = VerticalProfileEditor.class.getDeclaredField(name);
+    private static Object field(Object target, String name) throws Exception {
+        var field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
-        return field.get(editor);
+        return field.get(target);
     }
 
-    private static void field(VerticalProfileEditor editor, String name, Object value) throws Exception {
-        var field = VerticalProfileEditor.class.getDeclaredField(name);
+    private static void field(Object target, String name, Object value) throws Exception {
+        var field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
-        field.set(editor, value);
+        field.set(target, value);
     }
 }

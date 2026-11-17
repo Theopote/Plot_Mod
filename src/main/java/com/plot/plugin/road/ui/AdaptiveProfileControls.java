@@ -21,9 +21,9 @@ import imgui.ImGui;
 import java.util.List;
 
 /** 地形适应道路纵断面编辑器：选中 PVI 属性面板。 */
-final class AdaptiveProfileControls {
+public final class AdaptiveProfileControls {
 
-    void render(
+    public void render(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
@@ -152,7 +152,7 @@ final class AdaptiveProfileControls {
         }
     }
 
-    void onPviSelected(ProfileEditorState state, ProfileControlPoint point) {
+    public void onPviSelected(ProfileEditorState state, ProfileControlPoint point) {
         state.selectedProfileElevation[0] = (float) point.elevation();
     }
 

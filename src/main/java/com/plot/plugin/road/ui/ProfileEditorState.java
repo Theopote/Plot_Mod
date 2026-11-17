@@ -3,22 +3,22 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.profile.ProfileChartInteraction;
 
 /** 纵断面编辑器窗口内的可变 UI 状态。 */
-final class ProfileEditorState {
-    int selectedProfilePvi = -1;
-    int activeProfilePvi = -1;
-    final float[] selectedProfileElevation = {64f};
-    String profileAutoFixMessage = "";
-    boolean controlPointsExpanded = false;
-    boolean elevationEditPending = false;
-    int pendingProfilePvi = -1;
-    float pendingClickX;
-    float pendingClickY;
-    int activeCurveHandlePvi = -1;
-    ProfileChartInteraction.CurveHandleSide activeCurveHandle =
+public final class ProfileEditorState {
+    public int selectedProfilePvi = -1;
+    public int activeProfilePvi = -1;
+    public final float[] selectedProfileElevation = {64f};
+    public String profileAutoFixMessage = "";
+    public boolean controlPointsExpanded = false;
+    public boolean elevationEditPending = false;
+    public int pendingProfilePvi = -1;
+    public float pendingClickX;
+    public float pendingClickY;
+    public int activeCurveHandlePvi = -1;
+    public ProfileChartInteraction.CurveHandleSide activeCurveHandle =
         ProfileChartInteraction.CurveHandleSide.NONE;
-    int contextMenuPvi = -1;
+    public int contextMenuPvi = -1;
 
-    void reset() {
+    public void reset() {
         selectedProfilePvi = -1;
         activeProfilePvi = -1;
         profileAutoFixMessage = "";

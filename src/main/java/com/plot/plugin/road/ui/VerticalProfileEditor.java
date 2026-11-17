@@ -1,8 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
-import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.profile.ProfileChartInteraction;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -11,38 +9,26 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadNetworkGenerator;
-import com.plot.plugin.road.profile.ProfileChartRenderMode;
-import com.plot.plugin.road.profile.ProfileControlPoint;
-import com.plot.plugin.road.profile.ProfilePointRole;
-import com.plot.plugin.road.profile.ProfileChartLegend;
-import com.plot.plugin.road.profile.ProfileQualityStatus;
-import com.plot.plugin.road.profile.ProfileQualitySummary;
 import com.plot.plugin.road.profile.ProfileRenderCache;
 import com.plot.plugin.road.profile.RoadProfileChartData;
-import com.plot.plugin.road.profile.RoadProfileChartRenderer;
-import com.plot.plugin.road.profile.ProfileAlignmentViolationFormatter;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.profile.RoadProfileRoadNavigator;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
-import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.profile.RoadProfileIntersectionWarningResolver;
-import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
-import com.plot.plugin.road.pipeline.profile.RoadVoxelProfileCompileJob;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
-import com.plot.plugin.road.profile.edit.VoxelProfilePreviewCompileRequest;
-import com.plot.plugin.road.profile.edit.VoxelProfilePreviewKey;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewSlot;
-import com.plot.plugin.road.profile.edit.VoxelProfilePreviewState;
-import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
-import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
+import com.plot.plugin.road.ui.profile.VerticalProfileChartCache;
+import com.plot.plugin.road.ui.profile.VerticalProfileChartController;
+import com.plot.plugin.road.ui.profile.VerticalProfileEditorBody;
+import com.plot.plugin.road.ui.profile.VerticalProfileEditorChrome;
+import com.plot.plugin.road.ui.profile.VerticalProfileIntersectionPanel;
+import com.plot.plugin.road.ui.profile.VerticalProfileVoxelPreview;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.world.World;
-import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
@@ -53,21 +39,14 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignmentResolver;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
-import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
-import imgui.ImColor;
-import imgui.ImDrawList;
 import imgui.ImGui;
-import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,45 +58,423 @@ import java.util.function.Function;
  */
 final class VerticalProfileEditor {
 
-    private static final float MIN_EDITOR_CHART_HEIGHT = 200f;
-    /** 下半主从区高度：够列表+详情，多余高度优先给剖面图。 */
-    private static final float MIN_DETAIL_BODY_HEIGHT = 160f;
-    private static final float MAX_DETAIL_BODY_HEIGHT = 220f;
-    private static final float PLAN_SCHEMATIC_HEIGHT = 96f;
-    private static final float CONTROL_RAIL_WIDTH_FRACTION = 0.28f;
-    private static final float MIN_ROAD_COMBO_WIDTH = 48f;
-    /** 页脚状态芯片底色（ABGR）。 */
-    private static final int CHIP_BG_OK = ImColor.rgba(28, 56, 36, 220);
-    private static final int CHIP_BG_WARN = ImColor.rgba(64, 44, 20, 220);
-    private static final int CHIP_BG_MUTED = ImColor.rgba(40, 40, 44, 220);
-    private static final int CHIP_BORDER = ImColor.rgba(72, 72, 72, 180);
-
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
     private String editorRoadId = "";
     private boolean focusEditorOnOpen = false;
     /** 上一帧实测底部高度；首帧用 estimateMinFooterHeight()。 */
     private float lastFooterHeight;
 
-    private RoadProfileChartData cachedChartData;
-    private String cachedChartRoadId = "";
-    private long cachedChartNetworkRevision = Long.MIN_VALUE;
-    private long cachedChartTerrainRevision = Long.MIN_VALUE;
-    private double cachedChartTotalStation = Double.NaN;
     private boolean externalTopologyConflict;
     private final ProfileEditorState editorState = new ProfileEditorState();
     private final ProfileEditSession profileEditSession = new ProfileEditSession();
     private final AdaptiveProfileControls adaptiveProfileControls = new AdaptiveProfileControls();
     private final FlatProfileControls flatProfileControls = new FlatProfileControls();
+    private final VerticalProfileChartCache chartCache = new VerticalProfileChartCache();
+    /** Package-visible for compile-cancellation tests. */
+    final VerticalProfileVoxelPreview voxelPreview = new VerticalProfileVoxelPreview(
+        new VerticalProfileVoxelPreview.Host() {
+            @Override
+            public ProfileEditorWindowSession windowSession() {
+                return windowSession;
+            }
+
+            @Override
+            public ProfileEditSession editSession() {
+                return profileEditSession;
+            }
+
+            @Override
+            public RoadProfileChartData resolveChartData(
+                    RoadUiContext ctx, RoadNetwork network, Road road) {
+                return VerticalProfileEditor.this.resolveChartData(ctx, network, road);
+            }
+
+            @Override
+            public List<RoadProfileIntersection> resolveIntersections(
+                    RoadUiContext ctx,
+                    RoadNetwork network,
+                    Road road,
+                    RoadSystemConfig config,
+                    RoadProfileChartData chart,
+                    boolean allowCache) {
+                return VerticalProfileEditor.this.resolveIntersections(
+                    ctx, network, road, config, chart, allowCache);
+            }
+
+            @Override
+            public RoadGenerator gradeSeparationGenerator(
+                    RoadUiContext ctx, RoadSystemConfig config, long cacheKey) {
+                return VerticalProfileEditor.this.gradeSeparationGenerator(ctx, config, cacheKey);
+            }
+
+            @Override
+            public RoadElevationBounds resolveElevationBounds(RoadUiContext ctx) {
+                return VerticalProfileEditor.this.resolveElevationBounds(ctx);
+            }
+
+            @Override
+            public void onVoxelPreviewReady() {
+                chartCache.invalidateRenderCache();
+            }
+        });
+    private final VerticalProfileEditorChrome chrome = new VerticalProfileEditorChrome(
+        new VerticalProfileEditorChrome.Host() {
+            @Override
+            public ProfileEditorWindowSession windowSession() {
+                return windowSession;
+            }
+
+            @Override
+            public String editorRoadId() {
+                return editorRoadId;
+            }
+
+            @Override
+            public ProfileEditorState editorState() {
+                return editorState;
+            }
+
+            @Override
+            public ProfileEditSession profileEditSession() {
+                return profileEditSession;
+            }
+
+            @Override
+            public VerticalProfileVoxelPreview voxelPreview() {
+                return voxelPreview;
+            }
+
+            @Override
+            public int selectedIntersectionIndex() {
+                return selectedIntersectionIndex;
+            }
+
+            @Override
+            public List<RoadProfileIntersection> cachedIntersections() {
+                return cachedIntersections;
+            }
+
+            @Override
+            public boolean closeConfirmPending() {
+                return closeConfirmPending;
+            }
+
+            @Override
+            public void setCloseConfirmPending(boolean pending) {
+                closeConfirmPending = pending;
+            }
+
+            @Override
+            public ImBoolean editorWindowOpen() {
+                return editorWindowOpen;
+            }
+
+            @Override
+            public boolean externalTopologyConflict() {
+                return externalTopologyConflict;
+            }
+
+            @Override
+            public float lastFooterHeight() {
+                return lastFooterHeight;
+            }
+
+            @Override
+            public void setLastFooterHeight(float height) {
+                lastFooterHeight = height;
+            }
+
+            @Override
+            public void selectEditorRoad(RoadUiContext ctx, String roadId, boolean sync) {
+                VerticalProfileEditor.this.selectEditorRoad(ctx, roadId, sync);
+            }
+
+            @Override
+            public void undoEditorSession(RoadUiContext ctx) {
+                VerticalProfileEditor.this.undoEditorSession(ctx);
+            }
+
+            @Override
+            public void redoEditorSession(RoadUiContext ctx) {
+                VerticalProfileEditor.this.redoEditorSession(ctx);
+            }
+
+            @Override
+            public void requestVoxelPreview(RoadUiContext ctx, Road road) {
+                voxelPreview.request(ctx, road);
+            }
+
+            @Override
+            public void runConfirmAndBuildPreview(RoadUiContext ctx, RoadNetwork liveNetwork) {
+                VerticalProfileEditor.this.runConfirmAndBuildPreview(ctx, liveNetwork);
+            }
+
+            @Override
+            public void restoreWindowSession() {
+                VerticalProfileEditor.this.restoreWindowSession();
+            }
+
+            @Override
+            public void requestEditorClose(
+                    RoadUiContext ctx, RoadNetwork liveNetwork, boolean forceIfClean) {
+                VerticalProfileEditor.this.requestEditorClose(ctx, liveNetwork, forceIfClean);
+            }
+
+            @Override
+            public void applyWindowSessionConfirm(RoadUiContext ctx, RoadNetwork liveNetwork) {
+                VerticalProfileEditor.this.applyWindowSessionConfirm(ctx, liveNetwork);
+            }
+
+            @Override
+            public void discardWindowSession() {
+                VerticalProfileEditor.this.discardWindowSession();
+            }
+
+            @Override
+            public void discardAndReloadWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork) {
+                VerticalProfileEditor.this.discardAndReloadWindowSession(ctx, liveNetwork);
+            }
+        });
+    private final VerticalProfileIntersectionPanel intersectionPanel =
+        new VerticalProfileIntersectionPanel(new VerticalProfileIntersectionPanel.Host() {
+            @Override
+            public ProfileEditorWindowSession windowSession() {
+                return windowSession;
+            }
+
+            @Override
+            public ProfileEditSession profileEditSession() {
+                return profileEditSession;
+            }
+
+            @Override
+            public ProfileEditorState editorState() {
+                return editorState;
+            }
+
+            @Override
+            public int selectedIntersectionIndex() {
+                return selectedIntersectionIndex;
+            }
+
+            @Override
+            public int activeIntersectionDragIndex() {
+                return activeIntersectionDragIndex;
+            }
+
+            @Override
+            public ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget() {
+                return activeIntersectionDragTarget;
+            }
+
+            @Override
+            public void recordUndoPointBeforeEdit() {
+                VerticalProfileEditor.this.recordUndoPointBeforeEdit();
+            }
+
+            @Override
+            public void notifyWorkingProfileChanged() {
+                VerticalProfileEditor.this.notifyWorkingProfileChanged();
+            }
+
+            @Override
+            public void setProfileAutoFixMessage(String message) {
+                editorState.profileAutoFixMessage = message != null ? message : "";
+            }
+
+            @Override
+            public RoadElevationBounds resolveElevationBounds(RoadUiContext ctx) {
+                return VerticalProfileEditor.resolveElevationBounds(ctx);
+            }
+
+            @Override
+            public int findPviIndexAtStation(RoadVerticalAlignment alignment, double station) {
+                return VerticalProfileChartController.findPviIndexAtStation(alignment, station);
+            }
+
+            @Override
+            public void selectEditorRoad(RoadUiContext ctx, String roadId, boolean sync) {
+                VerticalProfileEditor.this.selectEditorRoad(ctx, roadId, sync);
+            }
+        });
+    private final VerticalProfileEditorBody body = new VerticalProfileEditorBody(
+        new VerticalProfileEditorBody.Host() {
+            @Override
+            public ProfileEditorWindowSession windowSession() {
+                return windowSession;
+            }
+
+            @Override
+            public ProfileEditSession profileEditSession() {
+                return profileEditSession;
+            }
+
+            @Override
+            public ProfileEditorState editorState() {
+                return editorState;
+            }
+
+            @Override
+            public AdaptiveProfileControls adaptiveProfileControls() {
+                return adaptiveProfileControls;
+            }
+
+            @Override
+            public FlatProfileControls flatProfileControls() {
+                return flatProfileControls;
+            }
+
+            @Override
+            public VerticalProfileChartCache chartCache() {
+                return chartCache;
+            }
+
+            @Override
+            public VerticalProfileVoxelPreview voxelPreview() {
+                return voxelPreview;
+            }
+
+            @Override
+            public VerticalProfileIntersectionPanel intersectionPanel() {
+                return intersectionPanel;
+            }
+
+            @Override
+            public float playheadStation() {
+                return playheadStation;
+            }
+
+            @Override
+            public void setPlayheadStation(float station) {
+                playheadStation = station;
+            }
+
+            @Override
+            public int selectedIntersectionIndex() {
+                return selectedIntersectionIndex;
+            }
+
+            @Override
+            public void setSelectedIntersectionIndex(int index) {
+                selectedIntersectionIndex = index;
+            }
+
+            @Override
+            public int activeIntersectionDragIndex() {
+                return activeIntersectionDragIndex;
+            }
+
+            @Override
+            public void setActiveIntersectionDragIndex(int index) {
+                activeIntersectionDragIndex = index;
+            }
+
+            @Override
+            public ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget() {
+                return activeIntersectionDragTarget;
+            }
+
+            @Override
+            public void setActiveIntersectionDragTarget(
+                    ProfileChartInteraction.IntersectionDragTarget target) {
+                activeIntersectionDragTarget = target;
+            }
+
+            @Override
+            public void recordUndoPointBeforeEdit() {
+                VerticalProfileEditor.this.recordUndoPointBeforeEdit();
+            }
+
+            @Override
+            public void notifyWorkingProfileChanged() {
+                VerticalProfileEditor.this.notifyWorkingProfileChanged();
+            }
+
+            @Override
+            public void propagateJunctionGrades(RoadUiContext ctx, RoadNetwork network, Road road) {
+                VerticalProfileEditor.this.propagateJunctionGrades(ctx, network, road);
+            }
+
+            @Override
+            public void ensureEditorRoadAlignment(
+                    RoadUiContext ctx,
+                    RoadNetwork network,
+                    Road road,
+                    RoadProfileChartData chartData) {
+                VerticalProfileEditor.this.ensureEditorRoadAlignment(ctx, network, road, chartData);
+            }
+
+            @Override
+            public FlatElevationProfileOverlay resolveFlatOverlay(Road road) {
+                return VerticalProfileEditor.this.resolveFlatOverlay(road);
+            }
+
+            @Override
+            public ProfileRenderCache resolveRenderCache(
+                    RoadUiContext ctx,
+                    RoadNetwork network,
+                    Road road,
+                    RoadProfileChartData chartData,
+                    FlatElevationProfileOverlay flatOverlay,
+                    List<RoadProfileIntersection> intersections,
+                    VoxelProfilePreviewSlot voxelSlot) {
+                return VerticalProfileEditor.this.resolveRenderCache(
+                    ctx, network, road, chartData, flatOverlay, intersections, voxelSlot);
+            }
+
+            @Override
+            public RoadProfileChartData resolveChartData(
+                    RoadUiContext ctx, RoadNetwork network, Road road) {
+                return VerticalProfileEditor.this.resolveChartData(ctx, network, road);
+            }
+
+            @Override
+            public List<RoadProfileIntersection> resolveIntersections(
+                    RoadUiContext ctx,
+                    RoadNetwork network,
+                    Road road,
+                    RoadSystemConfig config,
+                    RoadProfileChartData chart,
+                    boolean allowCache) {
+                return VerticalProfileEditor.this.resolveIntersections(
+                    ctx, network, road, config, chart, allowCache);
+            }
+
+            @Override
+            public RoadElevationBounds resolveElevationBounds(RoadUiContext ctx) {
+                return VerticalProfileEditor.resolveElevationBounds(ctx);
+            }
+
+            @Override
+            public RoadProfileChartData resolveEffectiveChartData(
+                    Road road, RoadProfileChartData base) {
+                return VerticalProfileEditor.this.resolveEffectiveChartData(road, base);
+            }
+
+            @Override
+            public boolean isVoxelBuildProfileStale(Road road) {
+                return VerticalProfileEditor.this.isVoxelBuildProfileStale(road);
+            }
+
+            @Override
+            public boolean isChartDerivedDataStale(Road road) {
+                return VerticalProfileEditor.this.isChartDerivedDataStale(road);
+            }
+
+            @Override
+            public double resolveBootstrapEndpointElevation(
+                    RoadNetwork network,
+                    Road road,
+                    RoadProfileChartData chartData,
+                    double station) {
+                return VerticalProfileEditor.this.resolveBootstrapEndpointElevation(
+                    network, road, chartData, station);
+            }
+        });
     private ProfileEditorWindowSession windowSession;
     private boolean closeConfirmPending;
     private Runnable onProfileConfirmed;
     private int selectedIntersectionIndex = -1;
-    private String intersectionInputKey = "";
-    private final imgui.type.ImFloat intersectionHeightInput = new imgui.type.ImFloat();
-    private final imgui.type.ImFloat pviHeightInput = new imgui.type.ImFloat();
-    private boolean intersectionInputDirty;
-    private int intersectionInputTarget;
-    private RoadGradeSeparationControls gradeSeparationControls;
     private int activeIntersectionDragIndex = -1;
     private ProfileChartInteraction.IntersectionDragTarget
         activeIntersectionDragTarget =
@@ -127,44 +484,25 @@ final class VerticalProfileEditor {
     private List<RoadProfileIntersection> cachedIntersections = List.of();
     private RoadGenerator cachedGradeSeparationGenerator;
     private long cachedGradeSeparationGeneratorKey = Long.MIN_VALUE;
-    private ProfileRenderCache profileRenderCache;
     private Function<Road, FlatElevationProfileOverlay> flatOverlayResolver = road -> null;
-    private VoxelProfilePreviewCompileRequest pendingVoxelCompile;
-    private RoadVoxelProfileCompileJob activeVoxelCompile;
-    private ProfileEditorWindowSession voxelCompileOwner;
-    private VoxelProfilePreviewSlot voxelCompileSlot;
-    private long voxelCompileNetworkRevision;
-    private World voxelCompileWorld;
-    private static final long VOXEL_COMPILE_TICK_BUDGET_NANOS = 8_000_000L;
-    private boolean profileDesignSyncedNotice;
     /** 沿路浏览位置（canonical / 画布域）；与平面示意、剖面竖线同步。 */
     private float playheadStation;
 
     void clearCache() {
-        clearChartFallbackCache();
+        chartCache.clear();
         editorState.reset();
         profileEditSession.cancelEdit();
-        profileRenderCache = null;
         selectedIntersectionIndex = -1;
-        intersectionInputKey = "";
         activeIntersectionDragIndex = -1;
         activeIntersectionDragTarget =
             ProfileChartInteraction.IntersectionDragTarget.NONE;
         windowSession = null;
         closeConfirmPending = false;
         externalTopologyConflict = false;
-        cancelVoxelCompile();
-        profileDesignSyncedNotice = false;
+        voxelPreview.clear();
+        intersectionPanel.clear();
         playheadStation = 0f;
         invalidateIntersectionCache();
-    }
-
-    private void clearChartFallbackCache() {
-        cachedChartData = null;
-        cachedChartRoadId = "";
-        cachedChartNetworkRevision = Long.MIN_VALUE;
-        cachedChartTerrainRevision = Long.MIN_VALUE;
-        cachedChartTotalStation = Double.NaN;
     }
 
     boolean hasUnconfirmedEditsForRoad(String roadId) {
@@ -222,7 +560,7 @@ final class VerticalProfileEditor {
             editorWindowOpen.set(false);
             return;
         }
-        tickPendingVoxelCompile(ctx);
+        voxelPreview.tick(ctx);
         RoadNetwork network = windowSession.editingNetwork();
         ensureEditorRoadSelection(ctx, network);
 
@@ -253,17 +591,17 @@ final class VerticalProfileEditor {
             if (road == null) {
                 if (windowSession != null && windowSession.isDirty()) {
                     externalTopologyConflict = true;
-                    renderExternalTopologyConflictBanner(ctx, liveNetwork);
+                    chrome.renderExternalTopologyConflictBanner(ctx, liveNetwork);
                 } else {
                     requestEditorClose(ctx, liveNetwork, true);
                 }
                 return;
             }
-            renderEditorHeader(ctx, network, road);
+            chrome.renderEditorHeader(ctx, network, road);
             if (externalTopologyConflict) {
-                renderExternalTopologyConflictBanner(ctx, liveNetwork);
+                chrome.renderExternalTopologyConflictBanner(ctx, liveNetwork);
             }
-            float footerReserve = resolveFooterReserve();
+            float footerReserve = chrome.resolveFooterReserve();
             // 外层不滚动：平面示意 / scrub / 剖面图钉在上方，详情在下半区滚动。
             ImGui.beginChild(
                 "##profile_editor_body",
@@ -283,12 +621,12 @@ final class VerticalProfileEditor {
                 } else {
                     RoadProfileChartData chartData = resolveChartData(ctx, liveNetwork, road);
                     if (chartData == null || !chartData.canRenderChart()) {
-                        renderMissingProfileActions(ctx, liveNetwork, road);
+                        body.renderMissingProfileActions(ctx, liveNetwork, road);
                     } else {
                         FlatElevationProfileOverlay flatOverlay = resolveFlatOverlay(road);
                         VerticalAlignmentProfileOverlay design =
                             profileEditSession.effectiveDesignOverlay(network, road).orElse(null);
-                        renderInteractiveEditor(
+                        body.renderInteractiveEditor(
                             ctx, liveNetwork, network, road, chartData, design, flatOverlay);
                     }
                 }
@@ -297,12 +635,12 @@ final class VerticalProfileEditor {
             }
             handleEditorKeyboardShortcuts(ctx);
             float footerTop = ImGui.getCursorPosY();
-            renderEditorFooter(ctx, liveNetwork, road);
+            chrome.renderEditorFooter(ctx, liveNetwork, road);
             // 按实测高度预留，仅加一行间距，避免内容区与按钮之间出现大块空白。
             lastFooterHeight = Math.max(
-                estimateMinFooterHeight(),
+                VerticalProfileEditorChrome.estimateMinFooterHeight(),
                 ImGui.getCursorPosY() - footerTop + ImGui.getStyle().getItemSpacingY());
-            renderEditorDialogs(ctx, liveNetwork);
+            chrome.renderEditorDialogs(ctx, liveNetwork);
         } finally {
             if (!editorWindowOpen.get()) {
                 handleEditorCloseRequest(ctx, liveNetwork);
@@ -354,7 +692,7 @@ final class VerticalProfileEditor {
         profileEditSession.cancelEdit();
         closeConfirmPending = false;
         externalTopologyConflict = false;
-        cancelVoxelCompile();
+        voxelPreview.cancel();
     }
 
     private void discardAndReloadWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -369,16 +707,6 @@ final class VerticalProfileEditor {
                 return;
             }
             selectEditorRoad(ctx, roads.getFirst().getId(), false);
-        }
-    }
-
-    private void renderExternalTopologyConflictBanner(RoadUiContext ctx, RoadNetwork liveNetwork) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.WARNING_LIGHT,
-            PlotI18n.tr("plugin.road.profile_editor_topology_conflict"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_discard_reload")
-                + "##profile_topology_reload")) {
-            discardAndReloadWindowSession(ctx, liveNetwork);
         }
     }
 
@@ -438,15 +766,15 @@ final class VerticalProfileEditor {
     }
 
     private void reopenWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork) {
-        cancelVoxelCompile();
+        voxelPreview.cancel();
         windowSession = ProfileEditorWindowSession.open(
             liveNetwork, ctx.networkManager().getNetworkRevision());
         windowSession.seedSampledProfiles(ctx.networkManager().getConfig(),
             ctx.previewManager().getLastEdgeResults());
         profileEditSession.cancelEdit();
-        profileRenderCache = null;
+        chartCache.invalidateRenderCache();
         invalidateIntersectionCache();
-        clearChartFallbackCache();
+        chartCache.clear();
         externalTopologyConflict = false;
     }
 
@@ -454,13 +782,13 @@ final class VerticalProfileEditor {
         if (windowSession == null) {
             return;
         }
-        cancelVoxelCompile();
+        voxelPreview.cancel();
         windowSession.restore();
         profileEditSession.cancelEdit();
-        profileRenderCache = null;
+        chartCache.invalidateRenderCache();
         resetEditorLocalState();
         invalidateIntersectionCache();
-        clearChartFallbackCache();
+        chartCache.clear();
     }
 
     private void selectEditorRoad(RoadUiContext ctx, String roadId, boolean syncSelection) {
@@ -482,11 +810,11 @@ final class VerticalProfileEditor {
 
     private void applyEditorRoadSwitch(RoadUiContext ctx, String roadId, boolean syncSelection) {
         profileEditSession.cancelEdit();
-        profileRenderCache = null;
+        chartCache.invalidateRenderCache();
         editorRoadId = roadId;
         resetEditorLocalState();
         invalidateIntersectionCache();
-        clearChartFallbackCache();
+        chartCache.clear();
         if (windowSession != null) {
             Road road = windowSession.editingNetwork().getRoad(roadId);
             if (road != null
@@ -526,282 +854,6 @@ final class VerticalProfileEditor {
             chartData);
     }
 
-    private float resolveFooterReserve() {
-        // 已有实测高度时直接用，避免首帧偏大的估算一直撑出空隙。
-        if (lastFooterHeight > 1f) {
-            return lastFooterHeight;
-        }
-        return estimateMinFooterHeight();
-    }
-
-    /** 首帧最小预留：separator + 工具行 + 状态行 + 提交行 + 正常间距。 */
-    private static float estimateMinFooterHeight() {
-        float row = ImGui.getFrameHeightWithSpacing();
-        return row * 3.2f + ImGui.getStyle().getItemSpacingY();
-    }
-
-    /**
-     * 底部操作（防裁剪）：
-     * 1) 工具按钮按宽度自动 4 列或 2×2
-     * 2) 状态单独一行
-     * 3) 恢复 / 取消 / 保存单独一行，不再与状态挤在同一行
-     */
-    private void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
-        ImGui.separator();
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float rowWidth = Math.max(1f, ImGui.getContentRegionAvailX());
-
-        boolean canUndo = windowSession != null && windowSession.canUndo();
-        boolean canRedo = windowSession != null && windowSession.canRedo();
-        boolean computing = windowSession != null
-            && road != null
-            && windowSession.voxelPreview(road.getId()).state() == VoxelProfilePreviewState.COMPUTING;
-        boolean previewStale = (windowSession != null && windowSession.isDirty())
-            || profileEditSession.isDirty()
-            || ctx.previewManager().needsPreviewRecalc();
-
-        String undoLabel = PlotI18n.tr("plugin.road.profile_editor_undo");
-        String redoLabel = PlotI18n.tr("plugin.road.profile_editor_redo");
-        String voxelLabel = PlotI18n.tr("plugin.road.update_voxel_profile");
-        String previewLabel = PlotI18n.tr("plugin.road.update_road_preview");
-        float pad = ImGui.getStyle().getFramePaddingX() * 2f;
-        float minFourWide = Math.max(
-            ImGui.calcTextSize(previewLabel).x,
-            Math.max(ImGui.calcTextSize(voxelLabel).x, 64f)) + pad;
-        boolean twoColumns = (rowWidth - spacing * 3f) / 4f < minFourWide;
-        float toolWidth = twoColumns
-            ? (rowWidth - spacing) / 2f
-            : (rowWidth - spacing * 3f) / 4f;
-
-        if (!canUndo) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(undoLabel + "##profile_undo", toolWidth, 0)) {
-            undoEditorSession(ctx);
-        }
-        if (!canUndo) {
-            ImGui.endDisabled();
-        }
-        ImGui.sameLine();
-        if (!canRedo) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(redoLabel + "##profile_redo", toolWidth, 0)) {
-            redoEditorSession(ctx);
-        }
-        if (!canRedo) {
-            ImGui.endDisabled();
-        }
-        if (!twoColumns) {
-            ImGui.sameLine();
-        }
-        if (computing || road == null || windowSession == null) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(voxelLabel + "##update_voxel_profile", toolWidth, 0) && road != null) {
-            requestVoxelProfilePreview(ctx, road);
-        }
-        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.update_voxel_profile_hint"));
-        }
-        if (computing || road == null || windowSession == null) {
-            ImGui.endDisabled();
-        }
-        ImGui.sameLine();
-        if (!previewStale) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(previewLabel + "##profile_editor_update_preview", toolWidth, 0)) {
-            runConfirmAndBuildPreview(ctx, liveNetwork);
-        }
-        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.update_road_preview_hint"));
-        }
-        if (!previewStale) {
-            ImGui.endDisabled();
-        }
-
-        boolean dirty = windowSession != null && windowSession.isDirty();
-        renderProfilePipelineChips(ctx, road, dirty);
-
-        float commitWidth = (rowWidth - spacing * 2f) / 3f;
-        if (!dirty) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.profile_editor_restore") + "##profile_restore",
-                commitWidth,
-                0)) {
-            restoreWindowSession();
-        }
-        if (!dirty) {
-            ImGui.endDisabled();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.profile_editor_cancel") + "##profile_cancel",
-                commitWidth,
-                0)) {
-            requestEditorClose(ctx, liveNetwork, true);
-        }
-        ImGui.sameLine();
-        if (dirty) {
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, PluginUiColors.INFO_BLUE);
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, PluginUiColors.STATUS_INFO);
-        }
-        boolean confirmDisabled = externalTopologyConflict;
-        if (confirmDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.profile_editor_confirm") + "##profile_confirm",
-                commitWidth,
-                0)) {
-            applyWindowSessionConfirm(ctx, liveNetwork);
-        }
-        if (confirmDisabled && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_editor_topology_conflict"));
-        }
-        if (confirmDisabled) {
-            ImGui.endDisabled();
-        }
-        if (dirty) {
-            ImGui.popStyleColor(3);
-        }
-    }
-
-    /**
-     * 页脚管道状态：紧凑芯片代替长串「已保存 · 设计线 · …」文案。
-     * 设计 / 方块线 / 建造 三态一目了然。
-     */
-    private void renderProfilePipelineChips(RoadUiContext ctx, Road road, boolean dirty) {
-        statusChipSeq = 0;
-        if (dirty) {
-            String unsaved = PlotI18n.tr("plugin.road.profile_editor_unsaved_status");
-            int affectCount = windowSession != null
-                ? windowSession.estimateConfirmAffectRoadCount() : 0;
-            if (affectCount > 0) {
-                unsaved = unsaved + " (" + affectCount + ")";
-            }
-            renderStatusChip(
-                unsaved,
-                PluginUiColors.WARNING_LIGHT,
-                CHIP_BG_WARN,
-                affectCount > 0
-                    ? PlotI18n.tr("plugin.road.profile_editor_confirm_affect_summary", affectCount)
-                    : null);
-            ImGui.sameLine(0f, 6f);
-        } else {
-            renderStatusChip(
-                PlotI18n.tr("plugin.road.profile_editor_clean_status"),
-                PluginUiColors.STATUS_OK,
-                CHIP_BG_OK,
-                null);
-            ImGui.sameLine(0f, 6f);
-        }
-
-        if (windowSession == null || road == null) {
-            return;
-        }
-
-        boolean designDirty = dirty || profileEditSession.isDirty();
-        renderStatusChip(
-            PlotI18n.tr(designDirty
-                ? "plugin.road.profile_pipeline_chip_design_dirty"
-                : "plugin.road.profile_pipeline_chip_design_ok"),
-            designDirty ? PluginUiColors.WARNING_LIGHT : PluginUiColors.STATUS_OK,
-            designDirty ? CHIP_BG_WARN : CHIP_BG_OK,
-            PlotI18n.tr(designDirty
-                ? "plugin.road.profile_pipeline_design_dirty_hint"
-                : "plugin.road.profile_pipeline_design_ok"));
-        ImGui.sameLine(0f, 6f);
-
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
-        int voxelColor;
-        int voxelBg;
-        String voxelLabel;
-        String voxelTip;
-        switch (slot.state()) {
-            case READY -> {
-                voxelColor = PluginUiColors.STATUS_OK;
-                voxelBg = CHIP_BG_OK;
-                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_ok");
-                voxelTip = PlotI18n.tr("plugin.road.profile_pipeline_voxel_ok");
-            }
-            case COMPUTING -> {
-                voxelColor = PluginUiColors.HINT_GRAY;
-                voxelBg = CHIP_BG_MUTED;
-                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_computing");
-                voxelTip = PlotI18n.tr("plugin.road.voxel_profile_computing");
-                if (activeVoxelCompile != null
-                        && activeVoxelCompile.totalEdges() > 0
-                        && pendingVoxelCompile != null
-                        && road.getId().equals(pendingVoxelCompile.roadId())) {
-                    voxelTip = PlotI18n.tr(
-                        "plugin.road.voxel_profile_progress",
-                        activeVoxelCompile.completedEdges(),
-                        activeVoxelCompile.totalEdges());
-                }
-            }
-            case FAILED -> {
-                voxelColor = PluginUiColors.WARNING;
-                voxelBg = CHIP_BG_WARN;
-                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_failed");
-                voxelTip = PlotI18n.tr("plugin.road.voxel_profile_failed");
-            }
-            default -> {
-                voxelColor = PluginUiColors.WARNING_LIGHT;
-                voxelBg = CHIP_BG_WARN;
-                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_stale");
-                voxelTip = PlotI18n.tr("plugin.road.profile_pipeline_voxel_stale");
-            }
-        }
-        renderStatusChip(voxelLabel, voxelColor, voxelBg, voxelTip);
-        ImGui.sameLine(0f, 6f);
-
-        boolean buildStale = ctx.previewManager().needsPreviewRecalc()
-            || windowSession.isDirty()
-            || profileEditSession.isDirty();
-        renderStatusChip(
-            PlotI18n.tr(buildStale
-                ? "plugin.road.profile_pipeline_chip_build_stale"
-                : "plugin.road.profile_pipeline_chip_build_ok"),
-            buildStale ? PluginUiColors.WARNING_LIGHT : PluginUiColors.STATUS_OK,
-            buildStale ? CHIP_BG_WARN : CHIP_BG_OK,
-            PlotI18n.tr(buildStale
-                ? "plugin.road.profile_pipeline_build_stale"
-                : "plugin.road.profile_pipeline_build_ok"));
-    }
-
-    private static int statusChipSeq;
-
-    private static void renderStatusChip(
-            String label,
-            int textColor,
-            int backgroundColor,
-            String tooltip) {
-        if (label == null || label.isBlank()) {
-            return;
-        }
-        ImVec2 textSize = ImGui.calcTextSize(label);
-        float padX = 7f;
-        float padY = 3f;
-        float width = textSize.x + padX * 2f;
-        float height = textSize.y + padY * 2f;
-        ImVec2 origin = ImGui.getCursorScreenPos();
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        drawList.addRectFilled(
-            origin.x, origin.y, origin.x + width, origin.y + height, backgroundColor, 4f);
-        drawList.addRect(
-            origin.x, origin.y, origin.x + width, origin.y + height, CHIP_BORDER, 4f, 0, 1f);
-        drawList.addText(origin.x + padX, origin.y + padY, textColor, label);
-        ImGui.invisibleButton("##profile_status_chip_" + (statusChipSeq++), width, height);
-        if (tooltip != null && !tooltip.isBlank() && ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
-        }
-    }
-
     private void runConfirmAndBuildPreview(RoadUiContext ctx, RoadNetwork liveNetwork) {
         boolean dirty = windowSession != null && windowSession.isDirty() || profileEditSession.isDirty();
         if (dirty && windowSession != null) {
@@ -825,46 +877,6 @@ final class VerticalProfileEditor {
         ctx.previewManager().startNetworkPreview(liveNetwork);
     }
 
-    private void renderEditorDialogs(RoadUiContext ctx, RoadNetwork liveNetwork) {
-        renderCloseConfirmDialog(ctx, liveNetwork);
-    }
-
-    private void renderCloseConfirmDialog(RoadUiContext ctx, RoadNetwork liveNetwork) {
-        if (!RoadUiWidgets.beginDeferredPopupModal(
-                "##profile_editor_close_confirm",
-                closeConfirmPending,
-                () -> closeConfirmPending = false)) {
-            return;
-        }
-        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_close_confirm_message"));
-        if (windowSession != null && windowSession.isDirty()) {
-            int affectCount = windowSession.estimateConfirmAffectRoadCount();
-            if (affectCount > 0) {
-                ImGui.textColored(
-                    PluginUiColors.WARNING_LIGHT,
-                    PlotI18n.tr("plugin.road.profile_editor_confirm_affect_summary", affectCount));
-            }
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_confirm") + "##close_apply")) {
-            applyWindowSessionConfirm(ctx, liveNetwork);
-            closeConfirmPending = false;
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_cancel") + "##close_discard")) {
-            closeConfirmPending = false;
-            editorWindowOpen.set(false);
-            discardWindowSession();
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_continue_edit") + "##close_continue")) {
-            closeConfirmPending = false;
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.endPopup();
-    }
-
     private void ensureEditorRoadSelection(RoadUiContext ctx, RoadNetwork network) {
         List<Road> roads = RoadProfileRoadList.listStationableRoads(network);
         if (roads.isEmpty()) {
@@ -886,175 +898,6 @@ final class VerticalProfileEditor {
         }
     }
 
-    /**
-     * 钉顶剖面高度：窗口变高时优先拉高图表；下半主从区限制在
-     * {@link #MIN_DETAIL_BODY_HEIGHT}–{@link #MAX_DETAIL_BODY_HEIGHT}，避免按钮上方大块空白。
-     */
-    private static float resolvePinnedChartHeight() {
-        float remaining = ImGui.getContentRegionAvailY();
-        float spacing = ImGui.getStyle().getItemSpacingY();
-        float detail = resolveDetailBodyHeight(remaining);
-        float chart = remaining - detail - spacing;
-        return Math.max(MIN_EDITOR_CHART_HEIGHT, chart);
-    }
-
-    private static float resolveDetailBodyHeight(float remainingAfterChartAnchor) {
-        float spacing = ImGui.getStyle().getItemSpacingY();
-        float maxForChart = Math.max(0f, remainingAfterChartAnchor - MIN_EDITOR_CHART_HEIGHT - spacing);
-        float desired = Math.clamp(
-            remainingAfterChartAnchor * 0.32f,
-            MIN_DETAIL_BODY_HEIGHT,
-            MAX_DETAIL_BODY_HEIGHT);
-        return Math.min(desired, Math.max(MIN_DETAIL_BODY_HEIGHT, maxForChart));
-    }
-
-    /**
-     * 紧凑顶部：道路选择一行 +（有选中时）动态上下文一行。
-     * 标题栏已含「纵断面编辑器」，此处不再重复道路名称卡片。
-     */
-    private void renderEditorHeader(RoadUiContext ctx, RoadNetwork network, Road road) {
-        List<Road> roads = RoadProfileRoadList.listStationableRoads(network);
-        if (roads.isEmpty()) {
-            return;
-        }
-        int currentIndex = RoadProfileRoadNavigator.indexOf(roads, editorRoadId);
-        if (currentIndex < 0) {
-            currentIndex = 0;
-        }
-        Road currentRoad = roads.get(currentIndex);
-
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float rowWidth = Math.max(1f, ImGui.getContentRegionAvailX());
-        float navWidth = ImGui.getFrameHeight();
-        float prevNextWidth = navWidth * 2f + spacing;
-        String indexText = PlotI18n.tr(
-            "plugin.road.profile_overview_road_index",
-            currentIndex + 1,
-            roads.size());
-        float indexWidth = ImGui.calcTextSize(indexText).x;
-        boolean dirty = windowSession != null && windowSession.isDirty();
-        String dirtyText = PlotI18n.tr("plugin.road.profile_editor_unsaved_badge");
-        float dirtyWidth = dirty ? ImGui.calcTextSize(dirtyText).x + spacing : 0f;
-        float metaWidth = indexWidth + dirtyWidth + spacing;
-        float comboMaxSingleRow = rowWidth - prevNextWidth - metaWidth - spacing * 2f;
-        boolean wrapMeta = comboMaxSingleRow < MIN_ROAD_COMBO_WIDTH;
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##profile_prev")) {
-            selectEditorRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, editorRoadId), true);
-        }
-        ImGui.sameLine();
-        float comboWidth = wrapMeta
-            ? Math.max(MIN_ROAD_COMBO_WIDTH, rowWidth - prevNextWidth - spacing * 2f)
-            : Math.max(MIN_ROAD_COMBO_WIDTH, comboMaxSingleRow);
-        var coordinates = ctx.host().coordinates();
-        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad, coordinates);
-        float labelPad = ImGui.getStyle().getFramePaddingX() * 2f;
-        String comboPreview = RoadUiWidgets.truncateToWidth(preview, Math.max(1f, comboWidth - labelPad));
-        ImGui.setNextItemWidth(comboWidth);
-        if (ImGui.beginCombo("##profile_editor_road_combo", comboPreview)) {
-            for (Road candidate : roads) {
-                String label = RoadProfileRoadList.formatProfileRoadSummary(network, candidate, coordinates);
-                boolean selected = candidate.getId().equals(editorRoadId);
-                if (ImGui.selectable(label, selected)) {
-                    selectEditorRoad(ctx, candidate.getId(), true);
-                }
-                if (selected) {
-                    ImGui.setItemDefaultFocus();
-                }
-            }
-            ImGui.endCombo();
-        }
-        if (ImGui.isItemHovered()) {
-            if (!comboPreview.equals(preview)) {
-                ImGui.setTooltip(preview);
-            }
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_next") + "##profile_next")) {
-            selectEditorRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, editorRoadId), true);
-        }
-        if (!wrapMeta) {
-            ImGui.sameLine();
-        }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, indexText);
-        if (dirty) {
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.WARNING, dirtyText);
-        }
-
-        boolean hasSelection =
-            selectedIntersectionIndex >= 0 || editorState.selectedProfilePvi >= 0;
-        boolean affectsOthers = affectingAffectsOthers(network, road);
-        if (hasSelection || affectsOthers) {
-            String selection = resolveSelectionSummary(ctx, network, road);
-            String affecting = resolveAffectingSummary(network, road);
-            ImGui.textColored(
-                affectsOthers ? PluginUiColors.WARNING_LIGHT : PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_editor_context_compact", selection, affecting));
-        }
-    }
-
-    private String resolveSelectionSummary(RoadUiContext ctx, RoadNetwork network, Road road) {
-        if (selectedIntersectionIndex >= 0) {
-            return PlotI18n.tr(
-                "plugin.road.profile_editor_selection_intersection",
-                selectedIntersectionIndex + 1);
-        }
-        if (editorState.selectedProfilePvi >= 0) {
-            RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
-            if (alignment != null
-                    && editorState.selectedProfilePvi < alignment.pviCount()) {
-                double station = alignment.getPvis().get(editorState.selectedProfilePvi).getStation();
-                return PlotI18n.tr(
-                    "plugin.road.profile_editor_selection_pvi",
-                    editorState.selectedProfilePvi + 1,
-                    RoadLengthDisplay.formatCanvasDistance(
-                        station, network, road, ctx.host().coordinates()));
-            }
-            return PlotI18n.tr(
-                "plugin.road.profile_editor_selection_pvi_index",
-                editorState.selectedProfilePvi + 1);
-        }
-        return PlotI18n.tr("plugin.road.profile_editor_selection_none");
-    }
-
-    private boolean affectingAffectsOthers(RoadNetwork network, Road road) {
-        if (selectedIntersectionIndex >= 0) {
-            return true;
-        }
-        if (editorState.selectedProfilePvi < 0 || network == null || road == null) {
-            return false;
-        }
-        RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
-        if (alignment == null || editorState.selectedProfilePvi >= alignment.pviCount()) {
-            return false;
-        }
-        List<ProfileControlPoint> points = VerticalProfileControlPoints.forAlignment(
-            network, road, alignment);
-        return points.stream()
-            .anyMatch(point -> point.pviIndex() == editorState.selectedProfilePvi && point.sharedJunction());
-    }
-
-    private String resolveAffectingSummary(RoadNetwork network, Road road) {
-        if (selectedIntersectionIndex >= 0) {
-            List<RoadProfileIntersection> intersections = cachedIntersections;
-            if (selectedIntersectionIndex < intersections.size()) {
-                RoadProfileIntersection intersection = intersections.get(selectedIntersectionIndex);
-                if (intersection.gradeSeparated()) {
-                    return PlotI18n.tr("plugin.road.profile_editor_affect_current_only");
-                }
-                return PlotI18n.tr(
-                    "plugin.road.profile_editor_affect_intersection",
-                    intersection.otherRoadLabel());
-            }
-            return PlotI18n.tr("plugin.road.profile_editor_affect_connected");
-        }
-        if (affectingAffectsOthers(network, road)) {
-            return PlotI18n.tr("plugin.road.profile_editor_affect_junction_pvi");
-        }
-        return PlotI18n.tr("plugin.road.profile_editor_affect_current_only");
-    }
-
     private FlatElevationProfileOverlay resolveFlatOverlay(Road road) {
         return flatOverlayResolver.apply(road);
     }
@@ -1067,55 +910,12 @@ final class VerticalProfileEditor {
             FlatElevationProfileOverlay flatOverlay,
             List<RoadProfileIntersection> intersections,
             VoxelProfilePreviewSlot voxelSlot) {
-        long cacheKey = ProfileRenderCache.computeKey(
-            road.getId(),
-            ctx.networkManager().getNetworkRevision(),
-            ctx.previewManager().getTerrainRevision(),
-            chartData,
-            voxelSlot != null ? voxelSlot.state().ordinal() : -1,
-            voxelSlot != null && voxelSlot.key() != null ? voxelSlot.key().hashCode() : 0);
-        if (profileRenderCache != null
-                && profileRenderCache.cacheKey() == cacheKey
-                && road.getId().equals(editorRoadId)) {
-            return profileRenderCache;
-        }
-        profileRenderCache = ProfileRenderCache.build(
-            cacheKey, chartData, intersections, flatOverlay);
-        return profileRenderCache;
+        return chartCache.resolveRenderCache(
+            ctx, road, editorRoadId, chartData, flatOverlay, intersections, voxelSlot);
     }
 
     private RoadProfileChartData resolveChartData(RoadUiContext ctx, RoadNetwork network, Road road) {
-        if (road == null) {
-            return null;
-        }
-        long networkRevision = windowSession != null
-            ? windowSession.openRevision()
-            : ctx.networkManager().getNetworkRevision();
-        long terrainRevision = ctx.previewManager().getTerrainRevision();
-        double roadLength = network != null
-            ? RoadStationing.canonicalLength(network, road)
-            : Double.NaN;
-        RoadProfileChartData chart = ctx.previewManager().getOverviewChart(network, road.getId());
-        if (chart != null && chart.canRenderChart()) {
-            rememberChartFallback(chart, road.getId(), networkRevision, terrainRevision);
-            return chart;
-        }
-        if (isChartFallbackValid(road.getId(), networkRevision, terrainRevision, roadLength)) {
-            return cachedChartData;
-        }
-        return null;
-    }
-
-    private void rememberChartFallback(
-            RoadProfileChartData chart,
-            String roadId,
-            long networkRevision,
-            long terrainRevision) {
-        cachedChartData = chart;
-        cachedChartRoadId = roadId != null ? roadId : "";
-        cachedChartNetworkRevision = networkRevision;
-        cachedChartTerrainRevision = terrainRevision;
-        cachedChartTotalStation = chart != null ? chart.totalStation() : Double.NaN;
+        return chartCache.resolveChartData(ctx, network, road, windowSession);
     }
 
     /** Package-visible for unit tests: chart fallback must match road + revisions + length. */
@@ -1128,1291 +928,33 @@ final class VerticalProfileEditor {
             long cachedTerrainRevision,
             double roadLength,
             double cachedTotalStation) {
-        if (roadId == null || !roadId.equals(cachedRoadId)) {
-            return false;
-        }
-        if (networkRevision != cachedNetworkRevision || terrainRevision != cachedTerrainRevision) {
-            return false;
-        }
-        if (!Double.isFinite(roadLength) || !Double.isFinite(cachedTotalStation)) {
-            return false;
-        }
-        return Math.abs(roadLength - cachedTotalStation) <= 1e-3;
-    }
-
-    private boolean isChartFallbackValid(
-            String roadId,
-            long networkRevision,
-            long terrainRevision,
-            double roadLength) {
-        return cachedChartData != null
-            && cachedChartData.hasProfileData()
-            && matchesChartFallbackIdentity(
-                roadId,
-                cachedChartRoadId,
-                networkRevision,
-                cachedChartNetworkRevision,
-                terrainRevision,
-                cachedChartTerrainRevision,
-                roadLength,
-                cachedChartTotalStation);
+        return VerticalProfileChartCache.matchesChartFallbackIdentity(
+            roadId,
+            cachedRoadId,
+            networkRevision,
+            cachedNetworkRevision,
+            terrainRevision,
+            cachedTerrainRevision,
+            roadLength,
+            cachedTotalStation);
     }
 
     private void resetEditorLocalState() {
         editorState.reset();
         selectedIntersectionIndex = -1;
-        intersectionInputKey = "";
+        intersectionPanel.resetHeightInputState();
         activeIntersectionDragIndex = -1;
         activeIntersectionDragTarget =
             ProfileChartInteraction.IntersectionDragTarget.NONE;
         playheadStation = 0f;
     }
 
-    private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
-        if (road != null
-                && ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update") + "##editor_missing_terrain")) {
-            ctx.previewManager().refreshTerrainProfile(network, road.getId(), true);
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
-            ctx.previewManager().calculateProfileSamplingOnly(network);
-        }
-    }
-
-    private void renderEditorLegend(
-            RoadUiContext ctx,
-            Road road,
-            List<RoadProfileIntersection> intersections,
-            boolean flatMode,
-            boolean showBuildProfileLine,
-            RoadProfileChartData chart) {
-        ProfileChartLegend.renderCompact(
-            ProfileChartRenderMode.EDITOR,
-            road != null ? road.getVerticalMode() : null,
-            flatMode,
-            isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc(),
-            showBuildProfileLine,
-            chart,
-            intersections);
-    }
-
-    private void requestVoxelProfilePreview(RoadUiContext ctx, Road road) {
-        if (windowSession == null || road == null) {
-            return;
-        }
-        RoadNetwork editingNetwork = windowSession.editingNetwork();
-        Road editingRoad = editingNetwork.getRoad(road.getId());
-        if (editingRoad == null) {
-            return;
-        }
-        // Compile against a disposable snapshot so an active Draft is never written into the
-        // window working copy by the preview button itself.
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        RoadNetwork compileNetwork = profileEditSession.previewNetwork(editingNetwork, editingRoad, config).snapshot();
-        Road compileRoad = compileNetwork.getRoad(road.getId());
-        if (compileRoad == null) {
-            return;
-        }
-        RoadVerticalAlignment effective = compileRoad.getVerticalAlignment();
-        if (effective != null) {
-            compileRoad.setVerticalAlignment(effective);
-        }
-        ProfileCompileOptions options = ProfileCompileOptions.defaults();
-        RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
-        RoadProfileChartData baseChart = resolveChartData(ctx, editingNetwork, editingRoad);
-        List<RoadProfileIntersection> intersections = resolveIntersections(
-            ctx, compileNetwork, compileRoad, config, baseChart, true);
-        VoxelProfilePreviewKey key = VoxelProfilePreviewKey.of(
-            compileNetwork,
-            compileRoad,
-            effective,
-            intersections,
-            com.plot.plugin.road.pipeline.profile.VoxelProfileConstraints.empty(),
-            elevationBounds,
-            ctx.previewManager().getTerrainRevision(),
-            config,
-            options);
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(editingRoad.getId());
-        cancelVoxelCompile();
-        slot.markComputing(key);
-        long generatorCacheKey = System.identityHashCode(config) ^ editingRoad.getId().hashCode();
-        pendingVoxelCompile = new VoxelProfilePreviewCompileRequest(
-            editingRoad.getId(),
-            compileNetwork,
-            effective,
-            key,
-            options,
-            elevationBounds,
-            generatorCacheKey);
-        voxelCompileOwner = windowSession;
-        voxelCompileSlot = slot;
-        voxelCompileNetworkRevision = ctx.networkManager().getNetworkRevision();
-        voxelCompileWorld = RoadNetworkGenerator.getClientWorld();
-    }
-
-    private void cancelVoxelCompile() {
-        if (activeVoxelCompile != null) activeVoxelCompile.cancel();
-        if (voxelCompileSlot != null && pendingVoxelCompile != null
-                && Objects.equals(voxelCompileSlot.key(), pendingVoxelCompile.key())
-                && voxelCompileSlot.state() == VoxelProfilePreviewState.COMPUTING) {
-            voxelCompileSlot.markStale();
-        }
-        activeVoxelCompile = null;
-        pendingVoxelCompile = null;
-        voxelCompileOwner = null;
-        voxelCompileSlot = null;
-        voxelCompileWorld = null;
-    }
-
-    private void tickPendingVoxelCompile(RoadUiContext ctx) {
-        if (pendingVoxelCompile == null || windowSession == null || ctx == null) {
-            return;
-        }
-        VoxelProfilePreviewCompileRequest request = pendingVoxelCompile;
-        Road compileRoad = request.compileNetwork().getRoad(request.roadId());
-        if (compileRoad == null) {
-            cancelVoxelCompile();
-            return;
-        }
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(request.roadId());
-        if (voxelCompileOwner != windowSession || slot != voxelCompileSlot
-                || slot.state() != VoxelProfilePreviewState.COMPUTING
-                || !Objects.equals(slot.key(), request.key())
-                || ctx.networkManager().getNetworkRevision() != voxelCompileNetworkRevision
-                || ctx.previewManager().getTerrainRevision() != request.key().fingerprint().terrainRevision()
-                || voxelCompileWorld != RoadNetworkGenerator.getClientWorld()
-                || !Objects.equals(request.elevationBounds(), resolveElevationBounds(ctx))) {
-            cancelVoxelCompile();
-            return;
-        }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        try {
-            if (activeVoxelCompile == null) {
-                RoadGenerator generator = gradeSeparationGenerator(ctx, config, request.generatorCacheKey());
-                activeVoxelCompile = new RoadVoxelProfileCompileJob(
-                    request.compileNetwork(), compileRoad, config, generator, resolveTerrainSampler(generator),
-                    ctx.previewManager().getLastNodeElevations(), request.options(),
-                    request.elevationBounds(), request.alignmentOverride());
-            }
-            activeVoxelCompile.advance(VOXEL_COMPILE_TICK_BUDGET_NANOS);
-            if (activeVoxelCompile.isDone()) {
-                windowSession.storeVoxelPreview(request.roadId(), request.key(), activeVoxelCompile.result());
-                profileRenderCache = null;
-                cancelVoxelCompile();
-            }
-        } catch (RuntimeException ex) {
-            slot.markFailed(request.key(), ex.getMessage() != null ? ex.getMessage() : "compile error");
-            cancelVoxelCompile();
-        }
-    }
-
     private RoadProfileChartData resolveEffectiveChartData(Road road, RoadProfileChartData base) {
-        if (base == null || road == null || windowSession == null) {
-            return base;
-        }
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
-        RoadProfileChartData overlay = slot.displayOverlay();
-        if (overlay != null && overlay.hasBuildSamples()) {
-            return overlay;
-        }
-        return base;
+        return voxelPreview.resolveEffectiveChartData(road, base);
     }
 
     private boolean isVoxelBuildProfileStale(Road road) {
-        if (windowSession == null || road == null) {
-            return false;
-        }
-        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
-        return slot.state() == VoxelProfilePreviewState.STALE
-            || slot.state() == VoxelProfilePreviewState.NOT_COMPUTED
-            || slot.state() == VoxelProfilePreviewState.FAILED
-            || slot.state() == VoxelProfilePreviewState.COMPUTING;
-    }
-
-    private void renderInteractiveEditor(
-            RoadUiContext ctx,
-            RoadNetwork liveNetwork,
-            RoadNetwork editingNetwork,
-            Road road,
-            RoadProfileChartData chartData,
-            VerticalAlignmentProfileOverlay design,
-            FlatElevationProfileOverlay flatOverlay) {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
-        ensureEditorRoadAlignment(ctx, editingNetwork, road, chartData);
-        RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
-        Road displayRoad = displayNetwork.getRoad(road.getId());
-        RoadVerticalAlignment effectiveAlignment =
-            profileEditSession.effectiveAlignment(displayNetwork, displayRoad);
-        design = profileEditSession.effectiveDesignOverlay(displayNetwork, displayRoad).orElse(null);
-        RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
-        boolean buildProfileStale = isChartDerivedDataStale(road);
-        // 与生成页缩略图一致：始终可显示预览拟合建造线；有体素结果时用台阶采样覆盖。
-        boolean showBuildProfileLine = ProfileChartRenderMode.EDITOR.showBuildProfileLine();
-        List<ProfileControlPoint> points =
-            VerticalProfileControlPoints.forAlignment(displayNetwork, displayRoad, effectiveAlignment);
-        float maxGrade = road.getMaxSlope() != null
-            ? road.getMaxSlope()
-            : ctx.networkManager().getConfig().getMaxSlope();
-        List<RoadProfileIntersection> baseIntersections = resolveIntersections(
-            ctx, displayNetwork, displayRoad, config, effectiveChart,
-            !profileEditSession.isActive() && activeIntersectionDragIndex < 0);
-        List<RoadProfileIntersection> intersections =
-            profileEditSession.effectiveIntersections(displayNetwork, displayRoad, baseIntersections);
-        ProfileRenderCache renderCache = resolveRenderCache(
-            ctx, liveNetwork, road, effectiveChart, flatOverlay, intersections,
-            windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
-        float canvasLength = (float) Math.max(
-            0.001,
-            RoadStationing.canonicalLength(editingNetwork, road));
-        playheadStation = Math.clamp(playheadStation, 0f, canvasLength);
-        renderPlanContext(ctx, editingNetwork, road, points, intersections, canvasLength, flatMode);
-        int chartSelectedPvi = flatMode
-            ? clampFlatEndpointPvi(editorState.selectedProfilePvi)
-            : editorState.selectedProfilePvi;
-        int chartActivePvi = flatMode
-            ? clampFlatEndpointPvi(editorState.activeProfilePvi)
-            : editorState.activeProfilePvi;
-        int curveHandlePvi = flatMode
-            ? -1
-            : resolveCurveHandlePviIndex(
-                road, effectiveAlignment, chartSelectedPvi, selectedIntersectionIndex, intersections);
-        List<ProfileChartInteraction.CurveHandle> curveHandles = flatMode
-            ? List.of()
-            : buildRoadCurveHandles(editingNetwork, road, effectiveAlignment, points, curveHandlePvi);
-        boolean hasSelection =
-            selectedIntersectionIndex >= 0 || (!flatMode && editorState.selectedProfilePvi >= 0);
-        if (!flatMode && !hasSelection) {
-            renderProfileInteractionHint();
-        }
-        renderManualEndpointConstraintWarning(effectiveChart);
-        renderWaterConstraintWarning(effectiveChart);
-        RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
-        profileEditSession.setElevationBounds(elevationBounds);
-        // 提示文案之后再算高度，保证图表 + 详情贴满到页脚。
-        float chartHeight = resolvePinnedChartHeight();
-        var coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
-        double stationDisplayScale = RoadLengthDisplay.canvasToWorldScale(
-            editingNetwork, road, coordinates);
-        ProfileChartInteraction.ControlInteraction interaction =
-            RoadProfileChartRenderer.renderInteractive(
-                effectiveChart, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
-                intersections, selectedIntersectionIndex, chartHeight,
-                activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
-                curveHandles,
-                editorState.pendingProfilePvi,
-                editorState.pendingClickX,
-                editorState.pendingClickY,
-                editorState.activeCurveHandlePvi,
-                editorState.activeCurveHandle,
-                ProfileChartRenderMode.EDITOR,
-                renderCache,
-                road.getVerticalMode(),
-                elevationBounds,
-                effectiveAlignment,
-                buildProfileStale,
-                showBuildProfileLine,
-                (double) playheadStation,
-                stationDisplayScale);
-        if (interaction.intersectionDragStarted()) {
-            cancelVoxelCompile();
-            recordUndoPointBeforeEdit();
-            if (flatMode) {
-                profileEditSession.beginFlatWholeLineEdit(
-                    editingNetwork, road, baseIntersections);
-            } else {
-                profileEditSession.beginIntersectionEdit(baseIntersections);
-            }
-        }
-        if (interaction.curveHandleDragStarted()) {
-            cancelVoxelCompile();
-            recordUndoPointBeforeEdit();
-            profileEditSession.beginCurveEdit(road, interaction.activeCurveHandlePvi());
-        }
-        if (interaction.dragStarted()) {
-            cancelVoxelCompile();
-            recordUndoPointBeforeEdit();
-            if (flatMode) {
-                profileEditSession.beginFlatWholeLineEdit(
-                    editingNetwork, road, baseIntersections);
-            } else {
-                profileEditSession.beginPviEdit(road);
-            }
-        }
-        if (flatMode) {
-            if (interaction.selectedPviIndex() >= 0 && interaction.selectedPviIndex() <= 1) {
-                editorState.selectedProfilePvi = interaction.selectedPviIndex();
-                selectedIntersectionIndex = -1;
-            }
-            if (interaction.activePviIndex() >= 0 && interaction.activePviIndex() <= 1) {
-                editorState.activeProfilePvi = interaction.activePviIndex();
-            }
-            editorState.pendingProfilePvi = interaction.pendingPviIndex();
-            editorState.pendingClickX = interaction.pendingClickX();
-            editorState.pendingClickY = interaction.pendingClickY();
-            if (interaction.draggedElevation() != null
-                    && interaction.activePviIndex() >= 0
-                    && interaction.activePviIndex() <= 1) {
-                profileEditSession.updateFlatRoadWholeLineDrag(
-                    editingNetwork,
-                    road,
-                    config,
-                    0,
-                    RoadProfileIntersectionDragEditor.DragTarget.CURRENT,
-                    interaction.draggedElevation(),
-                    baseIntersections);
-            }
-        } else {
-            if (interaction.selectedPviIndex() >= 0
-                    && interaction.selectedPviIndex() != editorState.selectedProfilePvi) {
-                points.stream()
-                    .filter(point -> point.pviIndex() == interaction.selectedPviIndex())
-                    .findFirst()
-                    .ifPresent(point -> adaptiveProfileControls.onPviSelected(editorState, point));
-            }
-            editorState.selectedProfilePvi = interaction.selectedPviIndex();
-            editorState.activeProfilePvi = interaction.activePviIndex();
-            editorState.pendingProfilePvi = interaction.pendingPviIndex();
-            editorState.pendingClickX = interaction.pendingClickX();
-            editorState.pendingClickY = interaction.pendingClickY();
-            if (interaction.contextMenuPviIndex() >= 0) {
-                editorState.contextMenuPvi = interaction.contextMenuPviIndex();
-            }
-            applyProfilePointInsert(ctx, editingNetwork, road, chartData, interaction);
-            updateProfileCurveHandleDraft(interaction);
-            renderProfilePviContextMenu(ctx, editingNetwork, road);
-        }
-        if (interaction.activeIntersectionDragIndex() >= 0) {
-            activeIntersectionDragIndex = interaction.activeIntersectionDragIndex();
-            activeIntersectionDragTarget = interaction.activeIntersectionDragTarget();
-        } else if (!ImGui.isMouseDown(0)) {
-            activeIntersectionDragIndex = -1;
-            activeIntersectionDragTarget =
-                ProfileChartInteraction.IntersectionDragTarget.NONE;
-        }
-        if (interaction.intersectionDragFinished() || interaction.dragFinished()) {
-            editorState.activeProfilePvi = -1;
-            editorState.pendingProfilePvi = -1;
-        }
-        applyIntersectionDrag(ctx, editingNetwork, road, config, flatMode, baseIntersections, interaction);
-        intersections = profileEditSession.effectiveIntersections(editingNetwork, road, baseIntersections);
-        if (flatMode && profileEditSession.isActive()) {
-            effectiveAlignment = profileEditSession.effectiveAlignment(editingNetwork, road);
-            design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(design);
-        }
-        if (!flatMode
-                && interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
-                && editorState.selectedProfilePvi >= 0
-                && effectiveAlignment != null
-                && editorState.selectedProfilePvi < effectiveAlignment.pviCount()) {
-            editorState.selectedProfileElevation[0] = interaction.draggedElevation().floatValue();
-            double currentStation = effectiveAlignment.getPvis()
-                .get(editorState.selectedProfilePvi).getStation();
-            double requestedStation = interaction.draggedLocalDistance();
-            ProfileControlPoint draggedPoint = points.stream()
-                .filter(point -> point.pviIndex() == editorState.selectedProfilePvi)
-                .findFirst()
-                .orElse(null);
-            if (draggedPoint != null && draggedPoint.sharedJunction()) {
-                requestedStation = currentStation;
-            }
-            if (draggedPoint != null && (draggedPoint.role() == ProfilePointRole.START_ENDPOINT
-                    || draggedPoint.role() == ProfilePointRole.LOOP_SEAM_START)) {
-                requestedStation = 0.0;
-            } else if (draggedPoint != null && (draggedPoint.role() == ProfilePointRole.END_ENDPOINT
-                    || draggedPoint.role() == ProfilePointRole.LOOP_SEAM_END)) {
-                requestedStation = RoadStationing.canonicalLength(editingNetwork, road);
-            }
-            if (draggedPoint != null
-                    && VerticalProfileControlPoints.isEditablePvi(editingNetwork, road, draggedPoint)) {
-                profileEditSession.updatePviDrag(
-                    editingNetwork,
-                    road,
-                    draggedPoint,
-                    editorState.selectedProfilePvi,
-                    requestedStation,
-                    interaction.draggedElevation());
-            }
-        }
-        if (interaction.dragFinished()) {
-            profileEditSession.commitEdit(
-                editingNetwork, road, config, windowSession,
-                () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                this::notifyWorkingProfileChanged);
-            editorState.activeCurveHandlePvi = -1;
-            editorState.activeCurveHandle =
-                ProfileChartInteraction.CurveHandleSide.NONE;
-        }
-        if (interaction.curveHandleDragFinished()) {
-            profileEditSession.commitEdit(
-                editingNetwork, road, config, windowSession,
-                () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                this::notifyWorkingProfileChanged);
-            editorState.activeCurveHandlePvi = -1;
-            editorState.activeCurveHandle =
-                ProfileChartInteraction.CurveHandleSide.NONE;
-        }
-        if (interaction.activeCurveHandlePvi() >= 0) {
-            editorState.activeCurveHandlePvi = interaction.activeCurveHandlePvi();
-            editorState.activeCurveHandle = interaction.activeCurveHandle();
-        }
-        if (interaction.intersectionDragFinished()) {
-            List<RoadProfileIntersection> committedIntersections = List.copyOf(intersections);
-            int finishedIntersectionDragIndex = activeIntersectionDragIndex;
-            profileEditSession.commitEdit(
-                editingNetwork,
-                road,
-                config,
-                windowSession,
-                flatMode ? () -> propagateJunctionGrades(ctx, editingNetwork, road) : null,
-                () -> {
-                    if (flatMode) {
-                        for (RoadProfileIntersection intersection : committedIntersections) {
-                            Road linked = editingNetwork.getRoad(intersection.otherRoadId());
-                            if (linked != null) {
-                                propagateJunctionGrades(ctx, editingNetwork, linked);
-                            }
-                        }
-                    } else {
-                        Road otherRoad = finishedIntersectionDragIndex >= 0
-                                && finishedIntersectionDragIndex < committedIntersections.size()
-                            ? editingNetwork.getRoad(
-                                committedIntersections.get(finishedIntersectionDragIndex).otherRoadId())
-                            : null;
-                        if (otherRoad != null) {
-                            propagateJunctionGrades(ctx, editingNetwork, otherRoad);
-                        }
-                    }
-                    notifyWorkingProfileChanged();
-                    ctx.requestOverlayRefresh();
-                });
-            activeIntersectionDragIndex = -1;
-            activeIntersectionDragTarget =
-                ProfileChartInteraction.IntersectionDragTarget.NONE;
-        }
-        // 图表命中已互斥；此处再收敛一次，避免定位下拉与图表状态短暂并存。
-        int previousPvi = editorState.selectedProfilePvi;
-        int previousIntersection = selectedIntersectionIndex;
-        int chartIntersection = interaction.selectedIntersectionIndex();
-        int chartPvi = flatMode
-            ? clampFlatEndpointPvi(interaction.selectedPviIndex())
-            : interaction.selectedPviIndex();
-        if (chartIntersection >= 0) {
-            selectedIntersectionIndex = chartIntersection;
-            editorState.selectedProfilePvi = -1;
-            editorState.activeProfilePvi = -1;
-        } else if (chartPvi >= 0) {
-            selectedIntersectionIndex = -1;
-            editorState.selectedProfilePvi = chartPvi;
-        } else {
-            selectedIntersectionIndex = -1;
-            if (!flatMode) {
-                editorState.selectedProfilePvi = -1;
-                editorState.activeProfilePvi = -1;
-            }
-        }
-        // 仅在图表改选 / 拖桩号时同步播放头，避免与 scrub 互相抢位置。
-        if (selectedIntersectionIndex >= 0
-                && selectedIntersectionIndex != previousIntersection
-                && selectedIntersectionIndex < intersections.size()) {
-            playheadStation = Math.clamp(
-                (float) intersections.get(selectedIntersectionIndex).roadStation(),
-                0f,
-                canvasLength);
-        } else if (editorState.selectedProfilePvi >= 0
-                && editorState.selectedProfilePvi != previousPvi) {
-            for (ProfileControlPoint point : points) {
-                if (point.pviIndex() == editorState.selectedProfilePvi) {
-                    playheadStation = Math.clamp((float) point.roadStation(), 0f, canvasLength);
-                    break;
-                }
-            }
-        } else if (interaction.draggedLocalDistance() != null) {
-            playheadStation = Math.clamp(
-                interaction.draggedLocalDistance().floatValue(), 0f, canvasLength);
-        }
-        renderControlMasterDetail(
-            ctx,
-            editingNetwork,
-            road,
-            points,
-            intersections,
-            effectiveChart,
-            config,
-            flatMode,
-            showBuildProfileLine,
-            maxGrade,
-            canvasLength);
-    }
-
-    private void renderPlanContext(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            List<ProfileControlPoint> points,
-            List<RoadProfileIntersection> intersections,
-            float canvasLength,
-            boolean flatMode) {
-        List<RoadStationPlanSchematicRenderer.StationMarker> markers = new ArrayList<>();
-        for (ProfileControlPoint point : points) {
-            markers.add(new RoadStationPlanSchematicRenderer.StationMarker(
-                (float) point.roadStation(),
-                point.pviIndex() == editorState.selectedProfilePvi));
-        }
-        for (int i = 0; i < intersections.size(); i++) {
-            markers.add(new RoadStationPlanSchematicRenderer.StationMarker(
-                (float) intersections.get(i).roadStation(),
-                i == selectedIntersectionIndex));
-        }
-        Float clicked = RoadStationPlanSchematicRenderer.render(
-            network,
-            road,
-            playheadStation,
-            canvasLength,
-            markers,
-            List.of(),
-            PLAN_SCHEMATIC_HEIGHT);
-        if (clicked != null) {
-            playheadStation = Math.clamp(clicked, 0f, canvasLength);
-            selectAtPlayhead(points, intersections, flatMode);
-        }
-        renderPlayheadScrub(ctx, network, road, canvasLength, points, intersections, flatMode);
-    }
-
-    private void renderPlayheadScrub(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            float canvasLength,
-            List<ProfileControlPoint> points,
-            List<RoadProfileIntersection> intersections,
-            boolean flatMode) {
-        var coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
-        float worldMax = (float) Math.max(
-            0.001,
-            RoadLengthDisplay.canvasToBlocks(canvasLength, network, road, coordinates));
-        float worldPlayhead = (float) RoadLengthDisplay.canvasToBlocks(
-            playheadStation, network, road, coordinates);
-        worldPlayhead = Math.clamp(worldPlayhead, 0f, worldMax);
-        float[] station = {worldPlayhead};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat("##profile_playhead", station, 0f, worldMax, RoadUiFormat.SLIDER_METERS);
-        boolean sliderActive = ImGui.isItemActive();
-        playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
-            station[0], network, road, coordinates);
-        playheadStation = Math.clamp(playheadStation, 0f, canvasLength);
-        if (sliderActive) {
-            selectAtPlayhead(points, intersections, flatMode);
-        }
-        ChainageDisplayContext chainage = ChainageDisplayContext.fromStart(canvasLength);
-        String stationText = RoadLengthDisplay.formatChainage(
-            chainage, playheadStation, network, road, coordinates);
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, stationText);
-        ImGui.spacing();
-    }
-
-    private void renderControlMasterDetail(
-            RoadUiContext ctx,
-            RoadNetwork editingNetwork,
-            Road road,
-            List<ProfileControlPoint> points,
-            List<RoadProfileIntersection> intersections,
-            RoadProfileChartData effectiveChart,
-            RoadSystemConfig config,
-            boolean flatMode,
-            boolean showBuildProfileLine,
-            float maxGrade,
-            float canvasLength) {
-        float totalWidth = ImGui.getContentRegionAvailX();
-        // 剖面图已按「剩余 − 详情高度」计算，这里吃掉全部剩余，贴住页脚。
-        float bodyHeight = Math.max(MIN_DETAIL_BODY_HEIGHT, ImGui.getContentRegionAvailY());
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float railWidth = Math.max(120f, (totalWidth - spacing) * CONTROL_RAIL_WIDTH_FRACTION);
-        float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
-        float startX = ImGui.getCursorPosX();
-        float startY = ImGui.getCursorPosY();
-
-        ImGui.setCursorPos(startX, startY);
-        ImGui.beginChild("##profile_control_rail", railWidth, bodyHeight, true, ImGuiWindowFlags.None);
-        try {
-            renderControlPointRail(ctx, editingNetwork, road, points, intersections, canvasLength, flatMode);
-        } finally {
-            ImGui.endChild();
-        }
-
-        ImGui.setCursorPos(startX + railWidth + spacing, startY);
-        ImGui.beginChild(
-            "##profile_detail_scroll",
-            detailWidth,
-            bodyHeight,
-            true,
-            ImGuiWindowFlags.AlwaysVerticalScrollbar);
-        try {
-            renderEditorLegend(
-                ctx, road, intersections, flatMode, showBuildProfileLine, effectiveChart);
-            renderQualityWarningsOnly(
-                effectiveChart,
-                road,
-                config,
-                isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc());
-            renderAlignmentViolations(editingNetwork, road, flatMode);
-            renderFlatRoadConstraintWarnings(editingNetwork, road, intersections, flatMode);
-            if (profileEditSession.isActive()
-                    && !profileEditSession.constraintResult().unresolvedConstraints().isEmpty()) {
-                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.road.vertical_alignment_network_unresolved",
-                    profileEditSession.constraintResult().unresolvedConstraints().size()));
-            }
-            if (flatMode) {
-                // 水平路：内嵌 Base Y / 推荐 Y，无需退回工作区顶部。
-                renderFlatModeEditorDetail(ctx, editingNetwork, road);
-            }
-            if (selectedIntersectionIndex >= 0) {
-                renderIntersectionDetail(
-                    ctx, editingNetwork, road, intersections, config, flatMode);
-            } else if (!flatMode && editorState.selectedProfilePvi >= 0) {
-                adaptiveProfileControls.render(
-                    ctx,
-                    editingNetwork,
-                    road,
-                    config,
-                    profileEditSession,
-                    windowSession,
-                    points,
-                    maxGrade,
-                    editorState,
-                    this::recordUndoPointBeforeEdit,
-                    () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                    this::notifyWorkingProfileChanged,
-                    () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi),
-                    () -> selectedIntersectionIndex = -1);
-            } else if (!flatMode) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.road.profile_editor_detail_empty"));
-            }
-        } finally {
-            ImGui.endChild();
-        }
-    }
-
-    private void renderControlPointRail(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            List<ProfileControlPoint> points,
-            List<RoadProfileIntersection> intersections,
-            float canvasLength,
-            boolean flatMode) {
-        var coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
-        ChainageDisplayContext chainage = ChainageDisplayContext.fromStart(canvasLength);
-
-        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_rail_pvi"));
-        if (points.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_editor_rail_pvi_empty"));
-        } else {
-            for (ProfileControlPoint point : points) {
-                int pvi = point.pviIndex();
-                if (flatMode && pvi > 1) {
-                    continue;
-                }
-                ImGui.pushID("pvi_" + pvi);
-                boolean selected = selectedIntersectionIndex < 0 && editorState.selectedProfilePvi == pvi;
-                String label = formatPviRailLabel(point, chainage, network, road, coordinates);
-                int stylePushes = 0;
-                if (selected) {
-                    ImGui.pushStyleColor(ImGuiCol.Header, PluginUiColors.ACCENT_BLUE);
-                    ImGui.pushStyleColor(ImGuiCol.HeaderHovered, PluginUiColors.ACCENT_BLUE);
-                    ImGui.pushStyleColor(ImGuiCol.HeaderActive, PluginUiColors.ACCENT_BLUE);
-                    stylePushes = 3;
-                }
-                if (ImGui.selectable(label, selected, ImGuiSelectableFlags.None)) {
-                    selectedIntersectionIndex = -1;
-                    editorState.selectedProfilePvi = pvi;
-                    playheadStation = Math.clamp((float) point.roadStation(), 0f, canvasLength);
-                    adaptiveProfileControls.onPviSelected(editorState, point);
-                }
-                if (stylePushes > 0) {
-                    ImGui.popStyleColor(stylePushes);
-                }
-                ImGui.popID();
-            }
-        }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_rail_intersection"));
-        if (intersections.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_editor_rail_intersection_empty"));
-            return;
-        }
-        for (int i = 0; i < intersections.size(); i++) {
-            RoadProfileIntersection intersection = intersections.get(i);
-            ImGui.pushID("xing_" + i);
-            boolean selected = i == selectedIntersectionIndex;
-            String label = formatIntersectionRailLabel(
-                intersection, chainage, network, road, coordinates);
-            int stylePushes = 0;
-            if (selected) {
-                ImGui.pushStyleColor(ImGuiCol.Header, PluginUiColors.ACCENT_BLUE);
-                ImGui.pushStyleColor(ImGuiCol.HeaderHovered, PluginUiColors.ACCENT_BLUE);
-                ImGui.pushStyleColor(ImGuiCol.HeaderActive, PluginUiColors.ACCENT_BLUE);
-                stylePushes = 3;
-            }
-            if (ImGui.selectable(label, selected, ImGuiSelectableFlags.None)) {
-                selectedIntersectionIndex = i;
-                editorState.selectedProfilePvi = -1;
-                editorState.activeProfilePvi = -1;
-                playheadStation = Math.clamp((float) intersection.roadStation(), 0f, canvasLength);
-                intersectionInputKey = "";
-            }
-            if (stylePushes > 0) {
-                ImGui.popStyleColor(stylePushes);
-            }
-            ImGui.popID();
-        }
-    }
-
-    private static String formatPviRailLabel(
-            ProfileControlPoint point,
-            ChainageDisplayContext chainage,
-            RoadNetwork network,
-            Road road,
-            com.plot.api.world.ICoordinateService coordinates) {
-        String station = RoadLengthDisplay.formatChainage(
-            chainage, point.roadStation(), network, road, coordinates);
-        return station + "  Y=" + String.format("%.1f", point.elevation());
-    }
-
-    private static String formatIntersectionRailLabel(
-            RoadProfileIntersection intersection,
-            ChainageDisplayContext chainage,
-            RoadNetwork network,
-            Road road,
-            com.plot.api.world.ICoordinateService coordinates) {
-        String station = RoadLengthDisplay.formatChainage(
-            chainage, intersection.roadStation(), network, road, coordinates);
-        return intersection.otherRoadLabel() + " @ " + station;
-    }
-
-    private void selectAtPlayhead(
-            List<ProfileControlPoint> points,
-            List<RoadProfileIntersection> intersections,
-            boolean flatMode) {
-        int bestIntersection = -1;
-        double bestIntersectionDist = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < intersections.size(); i++) {
-            double d = Math.abs(intersections.get(i).roadStation() - playheadStation);
-            if (d < bestIntersectionDist) {
-                bestIntersectionDist = d;
-                bestIntersection = i;
-            }
-        }
-        int bestPvi = -1;
-        double bestPviDist = Double.POSITIVE_INFINITY;
-        ProfileControlPoint bestPoint = null;
-        for (ProfileControlPoint point : points) {
-            if (flatMode && point.pviIndex() > 1) {
-                continue;
-            }
-            double d = Math.abs(point.roadStation() - playheadStation);
-            if (d < bestPviDist) {
-                bestPviDist = d;
-                bestPvi = point.pviIndex();
-                bestPoint = point;
-            }
-        }
-        // 优先贴交点；否则选最近 PVI（阈值约 2 格内更像“命中”）。
-        if (bestIntersection >= 0 && bestIntersectionDist <= Math.max(2.0, bestPviDist)) {
-            selectedIntersectionIndex = bestIntersection;
-            editorState.selectedProfilePvi = -1;
-            editorState.activeProfilePvi = -1;
-            return;
-        }
-        if (bestPvi >= 0) {
-            selectedIntersectionIndex = -1;
-            editorState.selectedProfilePvi = bestPvi;
-            if (bestPoint != null) {
-                adaptiveProfileControls.onPviSelected(editorState, bestPoint);
-            }
-        }
-    }
-
-    private void renderFlatModeEditorDetail(RoadUiContext ctx, RoadNetwork network, Road road) {
-        flatProfileControls.render(
-            ctx,
-            network,
-            road,
-            windowSession,
-            FlatElevationEditHooks.forProfileEditor(
-                this::recordUndoPointBeforeEdit,
-                this::notifyWorkingProfileChanged),
-            FlatElevationRecommendationUi.terrainSupplier(ctx));
-    }
-
-    private void renderQualityWarningsOnly(
-            RoadProfileChartData chart,
-            Road road,
-            RoadSystemConfig config,
-            boolean previewStale) {
-        ProfileQualityStatus.Summary summary = ProfileQualityStatus.evaluate(chart, road, config);
-        if (summary.dimensions().isEmpty() || !summary.hasWarnings()) {
-            return;
-        }
-        // 默认折叠，有告警时标题带数量，避免详情区被状态行占满。
-        String title = PlotI18n.tr(
-            "plugin.road.profile_quality_collapsed",
-            summary.dimensions().stream().filter(d -> d.level() == ProfileQualityStatus.Level.WARNING).count())
-            + "##profile_quality_fold";
-        if (ImGui.collapsingHeader(title)) {
-            ProfileQualitySummary.render(chart, road, config, previewStale);
-        }
-    }
-
-    private void renderFlatRoadConstraintWarnings(
-            RoadNetwork network,
-            Road road,
-            List<RoadProfileIntersection> intersections,
-            boolean flatMode) {
-        if (!flatMode || road == null || network == null) {
-            return;
-        }
-        if (FlatVerticalIntentSupport.hasLocalJunctionBends(road)) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.profile_flat_local_bend_warning"));
-        }
-        if (intersections == null || intersections.size() < 2) {
-            return;
-        }
-        double reference = intersections.getFirst().currentRoadElevation();
-        for (RoadProfileIntersection intersection : intersections) {
-            if (Math.abs(intersection.currentRoadElevation() - reference) > 0.05) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.WARNING,
-                    PlotI18n.tr("plugin.road.profile_flat_multi_junction_conflict"));
-                return;
-            }
-        }
-    }
-
-    private void renderAlignmentViolations(RoadNetwork network, Road road, boolean flatMode) {
-        if (flatMode || road == null || network == null) {
-            return;
-        }
-        RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
-        if (alignment == null || alignment.isEmpty()) {
-            return;
-        }
-        double roadLength = RoadStationing.canonicalLength(network, road);
-        List<VerticalAlignmentViolation> violations =
-            VerticalAlignmentValidator.validate(alignment, roadLength);
-        if (violations.isEmpty()) {
-            return;
-        }
-        ImGui.spacing();
-        // 默认折叠：打开编辑器时优先保证剖面图与选中项参数可见。
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.road.profile_alignment_issues", violations.size())
-                    + "##profile_alignment_issues")) {
-            for (VerticalAlignmentViolation violation : violations) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.WARNING,
-                    ProfileAlignmentViolationFormatter.format(violation));
-            }
-        }
-    }
-
-    private static void renderWaterConstraintWarning(RoadProfileChartData chartData) {
-        if (chartData == null || chartData.waterConstraintFeasible()) {
-            return;
-        }
-        ImGui.spacing();
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr("plugin.road.profile_water_constraint_infeasible"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_water_constraint_infeasible_hint"));
-    }
-
-    private static void renderManualEndpointConstraintWarning(RoadProfileChartData chartData) {
-        if (chartData == null || chartData.manualEndpointConstraintFeasible()) {
-            return;
-        }
-        ImGui.spacing();
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible_hint"));
-    }
-
-    private static int clampFlatEndpointPvi(int pviIndex) {
-        return pviIndex >= 0 && pviIndex <= 1 ? pviIndex : -1;
-    }
-
-    private void applyIntersectionDrag(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config,
-            boolean flatMode,
-            List<RoadProfileIntersection> intersections,
-            ProfileChartInteraction.ControlInteraction interaction) {
-        int dragIndex = interaction.activeIntersectionDragIndex() >= 0
-            ? interaction.activeIntersectionDragIndex()
-            : activeIntersectionDragIndex;
-        ProfileChartInteraction.IntersectionDragTarget dragTargetEnum =
-            interaction.activeIntersectionDragTarget()
-                    != ProfileChartInteraction.IntersectionDragTarget.NONE
-                ? interaction.activeIntersectionDragTarget()
-                : activeIntersectionDragTarget;
-        if (interaction.draggedIntersectionElevation() == null
-                || dragIndex < 0
-                || dragIndex >= intersections.size()) {
-            return;
-        }
-        RoadProfileIntersectionDragEditor.DragTarget dragTarget =
-            mapIntersectionDragTarget(dragTargetEnum);
-        if (dragTarget == null) {
-            return;
-        }
-        if (flatMode
-                && dragTarget != RoadProfileIntersectionDragEditor.DragTarget.OTHER) {
-            profileEditSession.updateFlatRoadWholeLineDrag(
-                network,
-                road,
-                config,
-                dragIndex,
-                dragTarget,
-                interaction.draggedIntersectionElevation(),
-                intersections);
-        } else if (profileEditSession.shouldLinkFlatPartnerDrag(
-                network, road, intersections, dragIndex, dragTarget)) {
-            profileEditSession.updateFlatPartnerIntersectionDrag(
-                network,
-                road,
-                config,
-                dragIndex,
-                dragTarget,
-                interaction.draggedIntersectionElevation(),
-                intersections);
-        } else {
-            profileEditSession.updateIntersectionDrag(
-                dragIndex,
-                dragTarget,
-                interaction.draggedIntersectionElevation());
-        }
-    }
-
-    private void updateProfileCurveHandleDraft(
-            ProfileChartInteraction.ControlInteraction interaction) {
-        if (interaction.draggedCurveLength() == null || interaction.activeCurveHandlePvi() < 0) {
-            return;
-        }
-        profileEditSession.updateCurveLength(interaction.draggedCurveLength());
-    }
-
-    private static RoadProfileIntersectionDragEditor.DragTarget mapIntersectionDragTarget(
-            ProfileChartInteraction.IntersectionDragTarget target) {
-        if (target == null) {
-            return null;
-        }
-        return switch (target) {
-            case CURRENT -> RoadProfileIntersectionDragEditor.DragTarget.CURRENT;
-            case OTHER -> RoadProfileIntersectionDragEditor.DragTarget.OTHER;
-            case SHARED -> RoadProfileIntersectionDragEditor.DragTarget.SHARED;
-            case NONE -> null;
-        };
-    }
-
-    private void renderIntersectionHeightEdit(RoadUiContext ctx, RoadNetwork network, Road road,
-            List<RoadProfileIntersection> intersections, int index, RoadSystemConfig config, boolean flatMode) {
-        var intersection = intersections.get(index);
-        String key = road.getId() + ":" + intersection.nodeId() + ":" + intersection.roadStation();
-        if (!key.equals(intersectionInputKey)) {
-            intersectionInputKey = key;
-            intersectionInputTarget = 0;
-            intersectionInputDirty = false;
-        }
-        if (intersection.gradeSeparated() && ImGui.beginCombo(
-                PlotI18n.tr("plugin.road.profile_intersection_edit_target"),
-                PlotI18n.tr(intersectionInputTarget == 0 ? "plugin.road.profile_intersection_target_current"
-                    : "plugin.road.profile_intersection_target_other"))) {
-            for (int target = 0; target < 2; target++) {
-                if (ImGui.selectable(PlotI18n.tr(target == 0 ? "plugin.road.profile_intersection_target_current"
-                        : "plugin.road.profile_intersection_target_other"), intersectionInputTarget == target)) {
-                    intersectionInputTarget = target;
-                    intersectionInputDirty = false;
-                }
-            }
-            ImGui.endCombo();
-        }
-        if (!intersectionInputDirty) intersectionHeightInput.set((float) (intersectionInputTarget == 1
-            && intersection.gradeSeparated() ? intersection.otherRoadElevation() : intersection.currentRoadElevation()));
-        if (ImGui.inputFloat(PlotI18n.tr("plugin.road.profile_intersection_height_edit"),
-                intersectionHeightInput, 0.1f, 1f, "%.2f")) intersectionInputDirty = true;
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_apply_height"))
-                && Float.isFinite(intersectionHeightInput.get())) {
-            recordUndoPointBeforeEdit();
-            profileEditSession.setElevationBounds(resolveElevationBounds(ctx));
-            profileEditSession.beginIntersectionEdit(intersections);
-            var target = !intersection.gradeSeparated() ? RoadProfileIntersectionDragEditor.DragTarget.SHARED
-                : intersectionInputTarget == 0 ? RoadProfileIntersectionDragEditor.DragTarget.CURRENT
-                : RoadProfileIntersectionDragEditor.DragTarget.OTHER;
-            profileEditSession.updateIntersectionDrag(index, target, intersectionHeightInput.get());
-            profileEditSession.commitEdit(network, road, config, windowSession, null, this::notifyWorkingProfileChanged);
-            intersectionInputDirty = false;
-            ctx.requestOverlayRefresh();
-        }
-        if (!flatMode && VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_smooth"))) {
-                recordUndoPointBeforeEdit();
-                var before = road.getVerticalAlignment();
-                com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.setElevation(
-                    road, intersection.roadStation(), intersection.currentRoadElevation());
-                int pvi = findPviIndexAtStation(road.getVerticalAlignment(), intersection.roadStation());
-                var fitted = com.plot.plugin.road.vertical.VerticalProfileCurveFitter.fitAt(road.getVerticalAlignment(), pvi);
-                editorState.profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
-                    ? "plugin.road.vertical_alignment_auto_smooth_success" : "plugin.road.vertical_alignment_auto_smooth_no_space");
-                road.setVerticalAlignment(fitted.alignment());
-                com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
-                com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
-                    network, road, before, config, resolveElevationBounds(ctx));
-                editorState.selectedProfilePvi = pvi;
-                if (windowSession != null) windowSession.markPropagationAdjustedRoads(network);
-                notifyWorkingProfileChanged();
-                ctx.requestOverlayRefresh();
-            }
-        }
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_intersection_numeric_hint"));
-        if (!Objects.equals(road.getId(), intersection.otherRoadId())
-                && ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_switch_road"))) {
-            selectEditorRoad(ctx, intersection.otherRoadId(), true);
-        }
-    }
-
-    private void renderIntersectionDetail(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            List<RoadProfileIntersection> intersections,
-            RoadSystemConfig config,
-            boolean flatMode) {
-        if (selectedIntersectionIndex < 0 || selectedIntersectionIndex >= intersections.size()) {
-            return;
-        }
-        RoadProfileIntersection intersection = intersections.get(selectedIntersectionIndex);
-        ImGui.spacing();
-        ImGui.separator();
-        renderIntersectionTitleRow(network, road, intersection);
-        boolean crossingChanged = renderProfileGradeSeparationControls(
-            ctx, network, road, intersection, config);
-        renderIntersectionMetricsRow(intersection, network, config);
-        renderIntersectionWarningsOnly(intersection, network, config);
-        if (profileDesignSyncedNotice) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.profile_intersection_grade_sync_status"));
-            profileDesignSyncedNotice = false;
-        } else if (flatMode && !intersection.gradeSeparated()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_flat_intersection_edit_hint"));
-        }
-        if (!flatMode
-                && ImGui.collapsingHeader(
-                    PlotI18n.tr("plugin.road.profile_intersection_height_edit_section")
-                        + "##profile_intersection_height_" + selectedIntersectionIndex)) {
-            renderIntersectionHeightEdit(
-                ctx, network, road, intersections, selectedIntersectionIndex, config, flatMode);
-        }
-        if (crossingChanged) {
-            var result = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
-                network, road, road.getVerticalAlignment(), config, resolveElevationBounds(ctx));
-            if (windowSession != null) {
-                windowSession.markPropagationAdjustedRoads(network);
-            }
-            if (!result.unresolvedConstraints().isEmpty()) {
-                editorState.profileAutoFixMessage = PlotI18n.tr(
-                    "plugin.road.vertical_alignment_network_unresolved", result.unresolvedConstraints().size());
-            }
-            notifyWorkingProfileChanged();
-            profileDesignSyncedNotice = true;
-        }
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.road.profile_intersection_detail")
-                    + "##profile_intersection_detail_" + selectedIntersectionIndex)) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.road.profile_intersection_other_section",
-                intersection.otherCrossSection().laneCount,
-                Math.round(RoadCrossSectionPreviewRenderer.CrossSectionLayout
-                    .fromResolved(intersection.otherCrossSection(), 0f)
-                    .totalWidthBlocks())));
-            float previewWidth = Math.min(ImGui.getContentRegionAvail().x, 280f);
-            float previewHeight = 56f;
-            ImDrawList drawList = ImGui.getWindowDrawList();
-            ImVec2 cursor = ImGui.getCursorScreenPos();
-            RoadCrossSectionPreviewRenderer.renderMini(
-                drawList,
-                RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-                    intersection.otherCrossSection(), 0f),
-                cursor.x,
-                cursor.y,
-                previewWidth,
-                previewHeight);
-            ImGui.dummy(previewWidth, previewHeight);
-        }
-    }
-
-    private static void renderIntersectionTitleRow(
-            RoadNetwork network,
-            Road road,
-            RoadProfileIntersection intersection) {
-        String currentLabel = RoadEdgeListHelper.formatRoadLabel(network, road);
-        ImGui.text(PlotI18n.tr(
-            "plugin.road.profile_intersection_compact_paths",
-            currentLabel,
-            intersection.otherRoadLabel()));
-        ImGui.sameLine();
-        ImGui.textColored(
-            intersection.gradeSeparated() ? PluginUiColors.ACCENT_BLUE : PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(intersection.gradeSeparated()
-                ? "plugin.road.profile_intersection_badge_grade_sep"
-                : "plugin.road.profile_intersection_badge_at_grade"));
-    }
-
-    private static void renderIntersectionMetricsRow(
-            RoadProfileIntersection intersection,
-            RoadNetwork network,
-            RoadSystemConfig config) {
-        float startX = ImGui.getCursorPosX();
-        float colWidth = ImGui.getContentRegionAvailX() / 3f;
-        renderIntersectionMetricColumn(
-            PlotI18n.tr("plugin.road.profile_intersection_stat_current_y"),
-            String.format("%.0f", intersection.currentRoadElevation()));
-        ImGui.sameLine(startX + colWidth);
-        renderIntersectionMetricColumn(
-            PlotI18n.tr("plugin.road.profile_intersection_stat_other_y"),
-            String.format("%.0f", intersection.otherRoadElevation()));
-        ImGui.sameLine(startX + colWidth * 2f);
-        if (intersection.gradeSeparated()) {
-            renderIntersectionMetricColumn(
-                PlotI18n.tr("plugin.road.profile_intersection_stat_clearance"),
-                PlotI18n.tr(
-                    "plugin.road.profile_intersection_stat_clearance_value",
-                    Math.round(intersection.clearanceGap())));
-        } else {
-            renderIntersectionMetricColumn(
-                PlotI18n.tr("plugin.road.profile_intersection_stat_shared_y_label"),
-                String.format("%.0f", intersection.currentRoadElevation()));
-        }
-    }
-
-    private static void renderIntersectionMetricColumn(String label, String value) {
-        ImGui.beginGroup();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
-        ImGui.text(value);
-        ImGui.endGroup();
-    }
-
-    private static void renderIntersectionWarningsOnly(
-            RoadProfileIntersection intersection,
-            RoadNetwork network,
-            RoadSystemConfig config) {
-        if (!intersection.gradeSeparated()) {
-            return;
-        }
-        double requiredClearance = requiredClearanceForIntersection(network, intersection, config);
-        double actualClearance = intersection.clearanceGap();
-        if (actualClearance + 1e-6 < requiredClearance) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.profile_intersection_clearance_insufficient"));
-        }
-        if (intersection.steepGradeWarning()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.crossing_warning_steep"));
-        }
-    }
-
-    private boolean renderProfileGradeSeparationControls(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            RoadProfileIntersection intersection,
-            RoadSystemConfig config) {
-        if (gradeSeparationControls == null) {
-            gradeSeparationControls = new RoadGradeSeparationControls(ctx);
-        }
-        String profileRoadId = road.getId();
-        if (com.plot.plugin.road.crossing.RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
-            com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
-                com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
-            if (crossing != null) {
-                return gradeSeparationControls.renderCrossing(
-                    crossing,
-                    network,
-                    config,
-                    RoadGradeSeparationControls.Layout.PROFILE,
-                    windowSession,
-                    profileRoadId);
-            }
-            return false;
-        }
-        if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
-            com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(
-                com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
-            if (stack != null) {
-                return gradeSeparationControls.renderStackCrossing(
-                    stack, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
-            }
-            return false;
-        }
-        RoadNode node = network.getNode(intersection.nodeId());
-        if (node != null) {
-            return gradeSeparationControls.renderLegacyJunction(
-                node,
-                network,
-                config,
-                RoadGradeSeparationControls.Layout.PROFILE,
-                windowSession,
-                profileRoadId);
-        }
-        return false;
-    }
-
-    private static double requiredClearanceForIntersection(
-            RoadNetwork network,
-            RoadProfileIntersection intersection,
-            RoadSystemConfig config) {
-        if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
-            var stack = network.getStackCrossing(
-                com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
-            return com.plot.plugin.road.crossing.GradeSeparationClearance.resolve(
-                stack != null ? stack.crossingClearance() : null,
-                stack != null ? network.getRoad(stack.roadId()) : null,
-                config);
-        }
-        if (com.plot.plugin.road.crossing.RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
-            com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
-                com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
-            return RoadProfileIntersectionDragEditor.requiredClearance(crossing, network, config);
-        }
-        return RoadProfileIntersectionDragEditor.requiredClearance(
-            network.getNode(intersection.nodeId()), network, config);
+        return voxelPreview.isVoxelBuildProfileStale(road);
     }
 
     private List<RoadProfileIntersection> resolveIntersections(
@@ -2507,246 +1049,6 @@ final class VerticalProfileEditor {
         return new FlatTerrainSampler(TerrainSampler.DEFAULT_SEA_LEVEL);
     }
 
-    private void applyProfilePointInsert(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            RoadProfileChartData chartData,
-            ProfileChartInteraction.ControlInteraction interaction) {
-        if (!interaction.addPointRequested()
-                || interaction.addPointLocalDistance() == null
-                || interaction.addPointElevation() == null) {
-            return;
-        }
-        recordUndoPointBeforeEdit();
-        double roadLength = RoadStationing.canonicalLength(network, road);
-        double insertStation = interaction.addPointLocalDistance();
-        double startElevation = resolveBootstrapEndpointElevation(network, road, chartData, 0.0);
-        double endElevation = resolveBootstrapEndpointElevation(
-            network, road, chartData, roadLength);
-        RoadElevationBounds bounds = resolveElevationBounds(ctx);
-        double insertElevation = bounds.clamp(interaction.addPointElevation());
-        VerticalProfileControlPoints.InsertResult result = VerticalProfileControlPoints.tryBootstrapOrInsert(
-            road.getVerticalAlignment(),
-            roadLength,
-            startElevation,
-            endElevation,
-            insertStation,
-            insertElevation);
-        if (!result.success()) {
-            ctx.status().warning(insertFailureMessage(result.reason()));
-            return;
-        }
-        road.setVerticalAlignment(result.alignment());
-        com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
-        if (windowSession != null) {
-            windowSession.markTouched(road);
-        }
-        editorState.selectedProfilePvi = findNearestPviIndex(result.alignment(), insertStation);
-        propagateJunctionGrades(ctx, network, road);
-        notifyWorkingProfileChanged();
-    }
-
-    private void renderProfileInteractionHint() {
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_editor_interaction_hint_short"));
-        ImGui.sameLine();
-        ImGui.textDisabled("?");
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_editor_interaction_hint"));
-        }
-    }
-
-    static boolean canDeleteProfilePvi(RoadNetwork network, Road road, int pviIndex) {
-        return VerticalProfileControlPoints.canDelete(network, road, pviIndex);
-    }
-
-    private void deleteProfilePvi(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            int pviIndex) {
-        if (!canDeleteProfilePvi(network, road, pviIndex)) {
-            return;
-        }
-        recordUndoPointBeforeEdit();
-        road.setVerticalAlignment(VerticalProfileControlPoints.removeAt(
-            road.getVerticalAlignment(), pviIndex));
-        com.plot.plugin.road.vertical.ProfileSourceEdits.markWorkingCopyEdited(road);
-        if (windowSession != null) {
-            windowSession.markTouched(road);
-        }
-        editorState.selectedProfilePvi = -1;
-        editorState.activeProfilePvi = -1;
-        editorState.contextMenuPvi = -1;
-        propagateJunctionGrades(ctx, network, road);
-        notifyWorkingProfileChanged();
-    }
-
-    private static String insertFailureMessage(
-            VerticalProfileControlPoints.InsertFailureReason reason) {
-        if (reason == null) {
-            return PlotI18n.tr("plugin.road.profile_pvi_insert_failed");
-        }
-        return switch (reason) {
-            case INSUFFICIENT_SPACE -> PlotI18n.tr("plugin.road.profile_pvi_insert_insufficient_space");
-            case DUPLICATE_STATION, TOO_CLOSE_TO_NEIGHBOR ->
-                PlotI18n.tr("plugin.road.profile_pvi_insert_too_close");
-            case INVALID_INPUT -> PlotI18n.tr("plugin.road.profile_pvi_insert_invalid");
-            case ROAD_TOO_SHORT -> PlotI18n.tr("plugin.road.profile_pvi_insert_road_too_short");
-        };
-    }
-
-    private void renderProfilePviContextMenu(RoadUiContext ctx, RoadNetwork network, Road road) {
-        if (editorState.contextMenuPvi < 0) {
-            return;
-        }
-        if (!ImGui.beginPopup("##road_profile_pvi_context")) {
-            return;
-        }
-        int pviIndex = editorState.contextMenuPvi;
-        var alignment = road.getVerticalAlignment();
-        if (alignment == null || pviIndex >= alignment.pviCount()) {
-            ImGui.endPopup();
-            return;
-        }
-        var point = alignment.getPvis().get(pviIndex);
-        var profilePoint = VerticalProfileControlPoints.forRoad(network, road).stream()
-            .filter(control -> control.pviIndex() == pviIndex)
-            .findFirst()
-            .orElse(null);
-        var bounds = resolveElevationBounds(ctx);
-        // This popup edits the drawn PVI (tangent vertex), not a different point on its curve.
-        if (ImGui.isWindowAppearing()) pviHeightInput.set((float) point.getElevation());
-        boolean locked = point.getConstraint() == com.plot.plugin.road.vertical.VerticalControlPointConstraint.USER_LOCKED;
-        boolean elevationEditable = profilePoint != null && profilePoint.elevationEditable();
-        ImGui.beginDisabled(locked || !elevationEditable);
-        ImGui.inputFloat(PlotI18n.tr("plugin.road.profile_pvi_elevation_input"), pviHeightInput, 0.1f, 1f, "%.2f");
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_elevation_range", bounds.minY(), bounds.maxY()));
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_apply_height")) && Float.isFinite(pviHeightInput.get())) {
-            recordUndoPointBeforeEdit();
-            profileEditSession.setElevationBounds(bounds);
-            profileEditSession.beginNumericEdit(road);
-            profileEditSession.updatePviElevation(network, road, pviIndex, bounds.clamp(pviHeightInput.get()));
-            profileEditSession.commitEdit(network, road, ctx.networkManager().getConfig(), windowSession, null,
-                this::notifyWorkingProfileChanged);
-            pviHeightInput.set((float) bounds.clamp(pviHeightInput.get()));
-            ctx.requestOverlayRefresh();
-        }
-        ImGui.endDisabled();
-        if (!elevationEditable && profilePoint != null) {
-            String hintKey = profilePoint.sharedJunction()
-                ? "plugin.road.profile_pvi_shared_junction_hint"
-                : "plugin.road.profile_pvi_junction_fixed_hint";
-            ImGui.textWrapped(PlotI18n.tr(hintKey));
-        }
-        ImGui.separator();
-        boolean canDelete = canDeleteProfilePvi(network, road, pviIndex);
-        if (!canDelete) {
-            ImGui.textWrapped(PlotI18n.tr(
-                VerticalProfileControlPoints.deleteDisabledMessageKey(network, road, pviIndex)));
-        } else if (ImGui.menuItem(PlotI18n.tr("plugin.road.profile_pvi_delete"))) {
-            deleteProfilePvi(ctx, network, road, pviIndex);
-        }
-        ImGui.endPopup();
-    }
-
-    private static int resolveCurveHandlePviIndex(
-            Road road,
-            RoadVerticalAlignment alignment,
-            int selectedPvi,
-            int selectedIntersection,
-            List<RoadProfileIntersection> intersections) {
-        if (road == null || alignment == null) {
-            return -1;
-        }
-        if (selectedPvi > 0 && selectedPvi < alignment.pviCount() - 1
-                && VerticalProfileControlPoints.isCurveEditable(road, alignment, selectedPvi)) {
-            return selectedPvi;
-        }
-        if (selectedIntersection >= 0 && intersections != null
-                && selectedIntersection < intersections.size()) {
-            int atStation = findPviIndexAtStation(
-                alignment, intersections.get(selectedIntersection).roadStation());
-            if (atStation > 0 && atStation < alignment.pviCount() - 1
-                    && VerticalProfileControlPoints.isCurveEditable(road, alignment, atStation)) {
-                return atStation;
-            }
-            double station = intersections.get(selectedIntersection).roadStation();
-            for (int i = 1; i < alignment.pviCount() - 1; i++) {
-                var pvi = alignment.getPvis().get(i);
-                if (pvi.hasCurve() && Math.abs(station - pvi.getStation()) <= pvi.getCurveLength() / 2
-                        && VerticalProfileControlPoints.isCurveEditable(road, alignment, i)) return i;
-            }
-        }
-        return selectedPvi;
-    }
-
-    private static int findPviIndexAtStation(RoadVerticalAlignment alignment, double station) {
-        if (alignment == null) {
-            return -1;
-        }
-        for (int i = 0; i < alignment.pviCount(); i++) {
-            if (Math.abs(alignment.getPvis().get(i).getStation() - station) <= 0.26) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static List<ProfileChartInteraction.CurveHandle> buildRoadCurveHandles(
-            RoadNetwork network,
-            Road road,
-            RoadVerticalAlignment alignment,
-            List<ProfileControlPoint> points,
-            int selectedPvi) {
-        if (road == null || alignment == null || selectedPvi <= 0) {
-            return List.of();
-        }
-        if (selectedPvi >= alignment.pviCount() - 1) {
-            return List.of();
-        }
-        ProfileControlPoint selected = points.stream()
-            .filter(point -> point.pviIndex() == selectedPvi)
-            .findFirst()
-            .orElse(null);
-        if (selected == null || !VerticalProfileControlPoints.isCurveEditable(road, alignment, selectedPvi)) {
-            return List.of();
-        }
-        PointOfVerticalIntersection pvi = alignment.getPvis().get(selectedPvi);
-        double half = pvi.hasCurve() ? pvi.getCurveLength() * 0.5 : 4.0;
-        double bvcStation = pvi.getStation() - half;
-        double evcStation = pvi.getStation() + half;
-        double bvcElevation = VerticalAlignmentGeometry
-            .elevationAt(alignment, bvcStation)
-            .orElse(pvi.getElevation());
-        double evcElevation = VerticalAlignmentGeometry
-            .elevationAt(alignment, evcStation)
-            .orElse(pvi.getElevation());
-        return List.of(
-            new ProfileChartInteraction.CurveHandle(
-                selectedPvi, bvcStation, bvcElevation, true),
-            new ProfileChartInteraction.CurveHandle(
-                selectedPvi, evcStation, evcElevation, false));
-    }
-
-    private static int findNearestPviIndex(RoadVerticalAlignment alignment, double station) {
-        if (alignment == null || alignment.pviCount() == 0) {
-            return -1;
-        }
-        int nearest = 0;
-        double best = Double.MAX_VALUE;
-        for (int i = 0; i < alignment.pviCount(); i++) {
-            double distance = Math.abs(alignment.getPvis().get(i).getStation() - station);
-            if (distance < best) {
-                best = distance;
-                nearest = i;
-            }
-        }
-        return nearest;
-    }
-
     private void recordUndoPointBeforeEdit() {
         if (windowSession != null) {
             windowSession.recordUndoPoint();
@@ -2774,10 +1076,10 @@ final class VerticalProfileEditor {
         }
         windowSession.undo();
         profileEditSession.cancelEdit();
-        profileRenderCache = null;
+        chartCache.invalidateRenderCache();
         resetEditorLocalState();
         invalidateIntersectionCache();
-        clearChartFallbackCache();
+        chartCache.clear();
         notifyWorkingProfileChanged();
         ctx.requestOverlayRefresh();
     }
@@ -2788,17 +1090,17 @@ final class VerticalProfileEditor {
         }
         windowSession.redo();
         profileEditSession.cancelEdit();
-        profileRenderCache = null;
+        chartCache.invalidateRenderCache();
         resetEditorLocalState();
         invalidateIntersectionCache();
-        clearChartFallbackCache();
+        chartCache.clear();
         notifyWorkingProfileChanged();
         ctx.requestOverlayRefresh();
     }
 
     private void notifyWorkingProfileChanged() {
-        cancelVoxelCompile();
-        profileRenderCache = null;
+        voxelPreview.cancel();
+        chartCache.invalidateRenderCache();
         invalidateIntersectionCache();
         if (windowSession != null && editorRoadId != null && !editorRoadId.isBlank()) {
             windowSession.markAllVoxelPreviewsStale();
