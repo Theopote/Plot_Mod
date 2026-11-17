@@ -109,7 +109,7 @@ final class VerticalProfileEditor {
 
             @Override
             public RoadElevationBounds resolveElevationBounds(RoadUiContext ctx) {
-                return VerticalProfileEditor.this.resolveElevationBounds(ctx);
+                return VerticalProfileEditor.resolveElevationBounds(ctx);
             }
 
             @Override
