@@ -103,6 +103,9 @@ public final class VariableCrossSectionEditor {
                 : PlotI18n.tr("plugin.road.variable_cross_section_hint"));
         ImGui.spacing();
 
+        renderPlanSchematic(network, road, canvasLength);
+        ImGui.spacing();
+
         float totalWidth = ImGui.getContentRegionAvailX();
         float bodyHeight = ImGui.getContentRegionAvailY();
         float spacing = ImGui.getStyle().getItemSpacingX();
@@ -147,6 +150,31 @@ public final class VariableCrossSectionEditor {
             draftTransitionMode = index.get() == 1
                 ? VariableCrossSectionTransitionMode.SMOOTH
                 : VariableCrossSectionTransitionMode.STEP;
+        }
+    }
+
+    private void renderPlanSchematic(RoadNetwork network, Road road, float roadLength) {
+        float canvasMax = Math.max(0.001f, roadLength);
+        playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        List<RoadStationPlanSchematicRenderer.StationMarker> markers = new ArrayList<>(drafts.size());
+        for (int i = 0; i < drafts.size(); i++) {
+            markers.add(new RoadStationPlanSchematicRenderer.StationMarker(
+                drafts.get(i).station, i == selectedIndex));
+        }
+        Float clicked = RoadStationPlanSchematicRenderer.render(
+            network,
+            road,
+            playheadStation,
+            canvasMax,
+            markers,
+            List.of());
+        if (clicked == null) {
+            return;
+        }
+        playheadStation = Math.clamp(clicked, 0f, canvasMax);
+        int owner = controllingDraftIndex(playheadStation);
+        if (owner >= 0 && owner != selectedIndex) {
+            selectIndex(owner, false);
         }
     }
 

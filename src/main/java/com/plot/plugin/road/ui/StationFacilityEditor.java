@@ -91,6 +91,8 @@ public final class StationFacilityEditor {
             PlotI18n.tr("plugin.road.station_facility_hint"));
         ImGui.spacing();
 
+        renderPlanSchematic(network, road, canvasLength);
+        ImGui.spacing();
         renderOverviewScrub(canvasLength, chainageDisplay, onHistory);
         ImGui.spacing();
 
@@ -119,6 +121,33 @@ public final class StationFacilityEditor {
         }
 
         applyDraftsIfChanged(road);
+    }
+
+    private void renderPlanSchematic(RoadNetwork network, Road road, float roadLength) {
+        float canvasMax = Math.max(0.001f, roadLength);
+        playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        List<RoadStationPlanSchematicRenderer.StationInterval> intervals = new ArrayList<>(drafts.size());
+        for (int i = 0; i < drafts.size(); i++) {
+            FacilityRunDraft draft = drafts.get(i);
+            float end = draft.openEnded ? canvasMax : draft.endStation;
+            intervals.add(new RoadStationPlanSchematicRenderer.StationInterval(
+                draft.startStation, end, i == selectedIndex));
+        }
+        Float clicked = RoadStationPlanSchematicRenderer.render(
+            network,
+            road,
+            playheadStation,
+            canvasMax,
+            List.of(),
+            intervals);
+        if (clicked == null) {
+            return;
+        }
+        playheadStation = Math.clamp(clicked, 0f, canvasMax);
+        int owner = coveringDraftIndex(playheadStation, canvasMax);
+        if (owner >= 0 && owner != selectedIndex) {
+            selectIndex(owner, false);
+        }
     }
 
     private void renderOverviewScrub(
