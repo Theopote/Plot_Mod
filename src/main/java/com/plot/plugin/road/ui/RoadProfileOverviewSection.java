@@ -54,7 +54,7 @@ public final class RoadProfileOverviewSection {
         if (activeRoad != null) {
             ctx.previewManager().maybeAutoRefreshTerrainProfile(network, activeRoad);
         }
-        renderActiveTerrainToolbar(ctx, network, profileEditor, activeRoad, uniformFlat);
+        renderActiveTerrainToolbar(ctx, network, activeRoad);
 
         String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
         for (int index = 0; index < roads.size(); index++) {
@@ -79,35 +79,21 @@ public final class RoadProfileOverviewSection {
     private static void renderActiveTerrainToolbar(
             RoadUiContext ctx,
             RoadNetwork network,
-            VerticalProfileEditor profileEditor,
-            Road activeRoad,
-            boolean uniformFlat) {
+            Road activeRoad) {
         if (activeRoad == null) {
             return;
         }
         renderTerrainStatus(ctx, network, activeRoad);
         boolean jobForActive = ctx.previewManager().isTerrainProfileJobForRoad(activeRoad.getId());
+        // 编辑入口收敛到设计区主 CTA / 卡片次要按钮，工具条只负责地形读写。
         if (jobForActive) {
-            RoadUiWidgets.flowButtons(
-                new String[] {
-                    PlotI18n.tr("plugin.road.terrain_profile.cancel"),
-                    PlotI18n.tr("plugin.road.profile_overview_edit")
-                },
-                new Runnable[] {
-                    () -> ctx.previewManager().cancelTerrainProfileJob(),
-                    () -> openProfileEditor(ctx, profileEditor, activeRoad, uniformFlat)
-                });
-        } else {
-            RoadUiWidgets.flowButtons(
-                new String[] {
-                    PlotI18n.tr("plugin.road.terrain_profile.read_update"),
-                    PlotI18n.tr("plugin.road.profile_overview_edit")
-                },
-                new Runnable[] {
-                    () -> ctx.previewManager().refreshTerrainProfile(
-                        network, activeRoad.getId(), true),
-                    () -> openProfileEditor(ctx, profileEditor, activeRoad, uniformFlat)
-                });
+            if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.cancel")
+                    + "##profile_terrain_cancel")) {
+                ctx.previewManager().cancelTerrainProfileJob();
+            }
+        } else if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update")
+                + "##profile_terrain_read")) {
+            ctx.previewManager().refreshTerrainProfile(network, activeRoad.getId(), true);
         }
         ImGui.spacing();
         ImGui.separator();
@@ -209,7 +195,7 @@ public final class RoadProfileOverviewSection {
             float chartHeight = active ? ACTIVE_CHART_HEIGHT : MINI_CHART_HEIGHT;
             RoadProfileChartData chartData = ctx.previewManager().getOverviewChart(network, road.getId());
             if (chartData == null || !chartData.canRenderChart()) {
-                renderMissingTerrainActions(ctx, network, profileEditor, road, uniformFlat);
+                renderMissingTerrainActions(ctx, network, road);
             } else {
                 List<RoadProfileIntersection> intersections = chartData.intersections();
                 ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
@@ -258,20 +244,13 @@ public final class RoadProfileOverviewSection {
     private static void renderMissingTerrainActions(
             RoadUiContext ctx,
             RoadNetwork network,
-            VerticalProfileEditor profileEditor,
-            Road road,
-            boolean uniformFlat) {
+            Road road) {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
-        RoadUiWidgets.flowButtons(
-            new String[] {
-                PlotI18n.tr("plugin.road.terrain_profile.read_update"),
-                PlotI18n.tr("plugin.road.profile_overview_edit")
-            },
-            new Runnable[] {
-                () -> ctx.previewManager().refreshTerrainProfile(network, road.getId(), true),
-                () -> openProfileEditor(ctx, profileEditor, road, uniformFlat)
-            });
+        if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update")
+                + "##missing_terrain_read")) {
+            ctx.previewManager().refreshTerrainProfile(network, road.getId(), true);
+        }
     }
 }

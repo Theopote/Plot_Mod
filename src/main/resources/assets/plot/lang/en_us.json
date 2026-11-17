@@ -2953,6 +2953,8 @@
   "plugin.road.generate.intersection_ok": "✓ %d intersections passed checks",
   "plugin.road.generate.no_stationable_roads": "No stationable roads in the network; generation settings cannot be edited.",
   "plugin.road.generate.profile_section": "Longitudinal profile",
+  "plugin.road.generate.profile_overview_section": "Terrain & preview",
+  "plugin.road.vertical_design_params": "Design parameters",
   "plugin.road.generate.slope_overrides": "Slope overrides",
   "plugin.road.generate.workflow_hint": "Workflow: generate plan → adjust profile → check intersections → regenerate → build",
   "plugin.road.generate_bridge_pillars": "Generate bridge pillars",

@@ -87,14 +87,11 @@ public final class VerticalAlignmentEditor {
             }
             ImGui.endCombo();
         }
-        if (current == RoadVerticalStrategy.FLAT) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_strategy_flat_hint"));
-        } else {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_strategy_terrain_adaptive_hint"));
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(
+                current == RoadVerticalStrategy.FLAT
+                    ? "plugin.road.vertical_strategy_flat_hint"
+                    : "plugin.road.vertical_strategy_terrain_adaptive_hint"));
         }
     }
 

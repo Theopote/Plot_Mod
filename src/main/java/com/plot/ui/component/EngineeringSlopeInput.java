@@ -145,29 +145,32 @@ public final class EngineeringSlopeInput {
             ImGui.textDisabled(equivalentLabel);
         }
 
-        ImString buffer = TEXT_BUFFERS.computeIfAbsent(id, key -> new ImString(32));
-        if (!ImGui.isAnyItemActive()) {
-            syncTextBuffer(id, value[0], kind, format);
-        }
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
-        if (ImGui.inputText(
-            "##slope_text",
-            buffer,
-            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll
-        )) {
-            Float parsed = SlopeFormatUtils.parseInput(buffer.get(), format, kind == ValueKind.BATTER);
-            if (parsed != null && Math.abs(parsed - value[0]) > 1e-4f) {
-                value[0] = parsed;
+        // 窄栏已用滑条展示当前值；再铺全宽文本框会重复「27.5%」并挤占纵断面侧栏高度。
+        if (!stackControls) {
+            ImString buffer = TEXT_BUFFERS.computeIfAbsent(id, key -> new ImString(32));
+            if (!ImGui.isAnyItemActive()) {
                 syncTextBuffer(id, value[0], kind, format);
-                changed = true;
             }
-        }
-        if (ImGui.isItemDeactivatedAfterEdit() && !changed) {
-            Float parsed = SlopeFormatUtils.parseInput(buffer.get(), format, kind == ValueKind.BATTER);
-            if (parsed != null && Math.abs(parsed - value[0]) > 1e-4f) {
-                value[0] = parsed;
-                syncTextBuffer(id, value[0], kind, format);
-                changed = true;
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
+            if (ImGui.inputText(
+                "##slope_text",
+                buffer,
+                ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll
+            )) {
+                Float parsed = SlopeFormatUtils.parseInput(buffer.get(), format, kind == ValueKind.BATTER);
+                if (parsed != null && Math.abs(parsed - value[0]) > 1e-4f) {
+                    value[0] = parsed;
+                    syncTextBuffer(id, value[0], kind, format);
+                    changed = true;
+                }
+            }
+            if (ImGui.isItemDeactivatedAfterEdit() && !changed) {
+                Float parsed = SlopeFormatUtils.parseInput(buffer.get(), format, kind == ValueKind.BATTER);
+                if (parsed != null && Math.abs(parsed - value[0]) > 1e-4f) {
+                    value[0] = parsed;
+                    syncTextBuffer(id, value[0], kind, format);
+                    changed = true;
+                }
             }
         }
 

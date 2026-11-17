@@ -14,6 +14,7 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import net.minecraft.world.World;
 
@@ -59,7 +60,7 @@ public final class RoadGenerationSettingsPanel {
     }
 
     /**
-     * 纵断面工作区：统一标高模式、目标道路、路径属性、坡度/地形/纵断面来源。
+     * 纵断面工作区：统一标高模式、目标道路、纵向方式、可折叠设计参数、主编辑入口。
      * 桥梁结构选项已迁至横断面工作区。
      */
     public static void renderVerticalDesign(
@@ -92,35 +93,72 @@ public final class RoadGenerationSettingsPanel {
         }
 
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        Road activeRoad = mode == RoadSelectionHeader.Mode.SINGLE
+            ? ctx.networkManager().getPrimarySelectedRoad()
+            : null;
+        boolean needsEditorReview = ProfileSourceControls.needsEditorReview(network, activeRoad);
         switch (mode) {
             case MULTI -> {
                 // 批量纵向已由 pathPropertyPanel 渲染；禁止再显示主选道路的逐路 ProfileSource。
             }
             case SINGLE -> {
-                Road activeRoad = ctx.networkManager().getPrimarySelectedRoad();
                 if (showsPerRoadTerrainControls(ctx, activeRoad)) {
-                    RoadStyleProductControls.renderRoadMaxSlopePresets(
-                        ctx, activeRoad, ctx.networkManager()::pushHistory);
-                    RoadStyleProductControls.renderRoadTerrainStylePresets(
-                        ctx, activeRoad, ctx.networkManager()::pushHistory);
-                    ProfileSourceControls.render(
-                        ctx,
-                        network,
-                        activeRoad,
-                        openProfileEditorForSelectedRoad);
-                } else {
-                    RoadUiWidgets.textWrappedColored(
-                        PluginUiColors.HINT_GRAY,
-                        PlotI18n.tr("plugin.road.generate.flat_terrain_controls_hidden"));
+                    if (ImGui.collapsingHeader(
+                            PlotI18n.tr("plugin.road.vertical_design_params")
+                                + "##vertical_design_params",
+                            ImGuiTreeNodeFlags.DefaultOpen)) {
+                        RoadStyleProductControls.renderRoadMaxSlopePresets(
+                            ctx, activeRoad, ctx.networkManager()::pushHistory);
+                        RoadStyleProductControls.renderRoadTerrainStylePresets(
+                            ctx, activeRoad, ctx.networkManager()::pushHistory);
+                        ProfileSourceControls.render(ctx, network, activeRoad);
+                    }
                 }
+                // 水平道路：坡度/地形/来源不适用；基准 Y 已在路径属性中。
             }
             case NONE -> {
-                if (showsTerrainAdaptiveControls(ctx)) {
+                if (showsTerrainAdaptiveControls(ctx)
+                        && ImGui.collapsingHeader(
+                            PlotI18n.tr("plugin.road.vertical_design_params")
+                                + "##vertical_design_params_defaults",
+                            ImGuiTreeNodeFlags.DefaultOpen)) {
                     RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
                     RoadStyleProductControls.renderTerrainStylePresets(ctx);
                 }
             }
         }
+
+        if (mode == RoadSelectionHeader.Mode.SINGLE
+                && openProfileEditorForSelectedRoad != null
+                && activeRoad != null) {
+            renderPrimaryEditorCta(openProfileEditorForSelectedRoad, needsEditorReview);
+        }
+    }
+
+    /** 侧栏唯一主编辑入口；过期绑定时用强调色。 */
+    private static void renderPrimaryEditorCta(Runnable openProfileEditor, boolean needsReview) {
+        ImGui.spacing();
+        if (needsReview) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, PluginUiColors.INFO_BLUE);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, PluginUiColors.STATUS_INFO);
+        }
+        if (ImGui.button(
+                PlotI18n.tr("plugin.road.profile_source_open_editor") + "##vertical_primary_editor",
+                ImGui.getContentRegionAvailX(),
+                0f)) {
+            openProfileEditor.run();
+        }
+        if (needsReview) {
+            ImGui.popStyleColor(3);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(
+                needsReview
+                    ? "plugin.road.profile_source_stale_reconfirm"
+                    : "plugin.road.profile_source_edited_hint"));
+        }
+        ImGui.spacing();
     }
 
     private static void renderUniformFlatModeControls(RoadUiContext ctx, RoadNetwork network) {

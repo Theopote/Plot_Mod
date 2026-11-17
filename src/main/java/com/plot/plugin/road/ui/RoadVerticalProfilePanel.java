@@ -56,8 +56,8 @@ public final class RoadVerticalProfilePanel {
             });
 
         ImGui.separator();
-        RoadUiSections.section("plugin.road.generate.profile_section");
-        // 统一标高仍展示地形概览；PVI 编辑入口在卡片内禁用。
+        RoadUiSections.section("plugin.road.generate.profile_overview_section");
+        // 统一标高仍展示地形概览；主编辑入口在设计区，卡片保留次要「编辑」。
         RoadProfileOverviewSection.render(
             ctx,
             network,
