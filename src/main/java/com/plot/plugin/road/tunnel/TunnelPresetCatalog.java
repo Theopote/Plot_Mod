@@ -134,6 +134,19 @@ public final class TunnelPresetCatalog {
         return sameResolved(probe, style);
     }
 
+    /** First catalog preset that fully matches {@code style}, or {@code null}. */
+    public static TunnelPreset findMatching(TunnelStyle style) {
+        if (style == null) {
+            return null;
+        }
+        for (TunnelPreset preset : TunnelPreset.values()) {
+            if (matches(preset, style)) {
+                return preset;
+            }
+        }
+        return null;
+    }
+
     private static boolean sameResolved(TunnelStyle expected, TunnelStyle actual) {
         return expected.getShape() == actual.getShape()
             && expected.getClearHeight() == actual.getClearHeight()

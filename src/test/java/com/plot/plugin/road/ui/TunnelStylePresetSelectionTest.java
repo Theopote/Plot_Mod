@@ -32,4 +32,13 @@ class TunnelStylePresetSelectionTest {
         selection.syncWithStyle(style);
         assertEquals(TunnelPreset.METRO, selection.applied());
     }
+
+    @Test
+    void detectFromStyleFindsMatchingPreset() {
+        TunnelStyleEditor.PresetSelection selection = new TunnelStyleEditor.PresetSelection();
+        TunnelStyle style = new TunnelStyle();
+        TunnelPresetCatalog.apply(TunnelPreset.MODERN_HIGHWAY, style);
+        selection.detectFromStyle(style);
+        assertEquals(TunnelPreset.MODERN_HIGHWAY, selection.applied());
+    }
 }

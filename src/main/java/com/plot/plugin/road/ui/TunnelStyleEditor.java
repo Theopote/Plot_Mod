@@ -54,6 +54,11 @@ public final class TunnelStyleEditor {
                 applied = null;
             }
         }
+
+        /** Detect a matching catalog preset for the current draft (e.g. on open). */
+        public void detectFromStyle(TunnelStyle style) {
+            applied = TunnelPresetCatalog.findMatching(style);
+        }
     }
 
     public static void render(RoadUiContext ctx, TunnelStyle style, Runnable onChanged) {
@@ -160,7 +165,7 @@ public final class TunnelStyleEditor {
             PresetSelection presetSelection,
             int envelopeWidth) {
         if (TunnelCrossSectionPreviewRenderer.renderLivePreview(
-                style, style.hasEffectiveAccentRings(), envelopeWidth, true)) {
+                style, style.isAccentRings(), envelopeWidth, true)) {
             notifyChanged(style, onChanged, presetSelection);
         }
         TunnelLightPlacementResolver.ResolveResult lightResult =
@@ -235,22 +240,22 @@ public final class TunnelStyleEditor {
             style.clearCustomLightLayout();
             notifyChanged(style, onChanged, presetSelection);
         }
-        ImInt mountIndex = new ImInt(style.getLightMount() == TunnelLightMount.EMBEDDED ? 1 : 0);
-        String[] mountLabels = {
-            PlotI18n.tr("plugin.road.tunnel.light_mount.protruding"),
-            PlotI18n.tr("plugin.road.tunnel.light_mount.embedded")
-        };
-        if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.light_mount"), mountIndex, mountLabels)) {
-            style.setLightMount(mountIndex.get() == 1
-                ? TunnelLightMount.EMBEDDED
-                : TunnelLightMount.PROTRUDING);
-            TunnelLightPlacementResolver.syncCustomAnchorsToMount(
-                style, envelopeWidth, TunnelCrossSectionPreviewRenderer.PREVIEW_ROAD_Y);
-            notifyChanged(style, onChanged, presetSelection);
-        }
         boolean lightingActive = style.getLightingMode() != TunnelLightingMode.NONE
             || style.hasCustomLightLayout();
         if (lightingActive) {
+            ImInt mountIndex = new ImInt(style.getLightMount() == TunnelLightMount.EMBEDDED ? 1 : 0);
+            String[] mountLabels = {
+                PlotI18n.tr("plugin.road.tunnel.light_mount.protruding"),
+                PlotI18n.tr("plugin.road.tunnel.light_mount.embedded")
+            };
+            if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.light_mount"), mountIndex, mountLabels)) {
+                style.setLightMount(mountIndex.get() == 1
+                    ? TunnelLightMount.EMBEDDED
+                    : TunnelLightMount.PROTRUDING);
+                TunnelLightPlacementResolver.syncCustomAnchorsToMount(
+                    style, envelopeWidth, TunnelCrossSectionPreviewRenderer.PREVIEW_ROAD_Y);
+                notifyChanged(style, onChanged, presetSelection);
+            }
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
                 "##tunnel_light_material",
@@ -267,12 +272,12 @@ public final class TunnelStyleEditor {
                 style.setLightSpacing(lightSpacing[0]);
                 notifyChanged(style, onChanged, presetSelection);
             }
-        }
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.light_custom_hint"));
-        if (style.hasCustomLightLayout()) {
-            if (ImGui.button(PlotI18n.tr("plugin.road.tunnel.light_reset_defaults"))) {
-                style.clearCustomLightLayout();
-                notifyChanged(style, onChanged, presetSelection);
+            ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.light_custom_hint"));
+            if (style.hasCustomLightLayout()) {
+                if (ImGui.button(PlotI18n.tr("plugin.road.tunnel.light_reset_defaults"))) {
+                    style.clearCustomLightLayout();
+                    notifyChanged(style, onChanged, presetSelection);
+                }
             }
         }
 
@@ -286,6 +291,9 @@ public final class TunnelStyleEditor {
             }
             if (style.isAccentRings()) {
                 ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_accent_schematic"));
+                if (!style.hasEffectiveAccentRings()) {
+                    ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.accent_material_required"));
+                }
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
                     "##tunnel_accent_material",

@@ -194,6 +194,53 @@ class TunnelStyleFloatingEditorTest {
     }
 
     @Test
+    void confirmInheritClearsExistingRoadOverride() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        TunnelStyle explicit = TunnelStyle.fromResolved(
+            TunnelStyle.resolve(road, manager.getConfig()));
+        explicit.setClearHeight(explicit.getClearHeight() + 2);
+        road.setTunnelStyle(explicit);
+        assertNotNull(road.getStoredTunnelStyle());
+
+        AtomicInteger history = new AtomicInteger();
+        editor.openRoad(ctx, road, history::incrementAndGet);
+        editor.setInheritGlobalForTest(true);
+        assertTrue(editor.isDirtyForTest());
+        editor.confirmForTest(ctx);
+
+        assertFalse(editor.isOpen());
+        assertEquals(1, history.get());
+        assertNull(road.getStoredTunnelStyle());
+    }
+
+    @Test
+    void restoreBaselineClearsDirtyEdits() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        editor.openRoad(ctx, road, null);
+        int baselineHeight = TunnelStyle.resolve(road, manager.getConfig()).clearHeight();
+        editor.mutateDraftForTest(d -> d.setClearHeight(baselineHeight + 6));
+        assertTrue(editor.isDirtyForTest());
+
+        editor.restoreBaselineForTest();
+        assertFalse(editor.isDirtyForTest());
+        assertFalse(editor.isInheritGlobalForTest());
+    }
+
+    @Test
+    void openDetectsMatchingStylePreset() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        TunnelStyle explicit = new TunnelStyle();
+        com.plot.plugin.road.tunnel.TunnelPresetCatalog.apply(
+            com.plot.plugin.road.tunnel.TunnelPreset.METRO, explicit);
+        road.setTunnelStyle(explicit);
+
+        editor.openRoad(ctx, road, null);
+        assertEquals(
+            com.plot.plugin.road.tunnel.TunnelPreset.METRO,
+            editor.appliedPresetForTest());
+    }
+
+    @Test
     void batchConfirmWritesAllTargetRoads() {
         RoadNetwork network = manager.getNetwork();
         Road second = network.createRoad("side");

@@ -35,6 +35,8 @@ public final class TunnelStyleFloatingEditor {
     private final LinkedHashSet<String> batchRoadIds = new LinkedHashSet<>();
     /** 打开时道路是否尚无显式覆盖（确认前不写回）。 */
     private boolean roadWasInheriting;
+    /** 道路/批量目标：确认时写回 null 以恢复继承全局。 */
+    private boolean inheritGlobal;
     private TunnelStyle draft;
     private TunnelStyle baseline;
     private final TunnelStyleEditor.PresetSelection presetSelection = new TunnelStyleEditor.PresetSelection();
@@ -99,6 +101,7 @@ public final class TunnelStyleFloatingEditor {
         roadId = "";
         batchRoadIds.clear();
         roadWasInheriting = false;
+        inheritGlobal = false;
     }
 
     public int batchTargetCount() {
@@ -111,6 +114,10 @@ public final class TunnelStyleFloatingEditor {
     }
 
     public boolean isDirty() {
+        // 勾选「使用全局」：仅当道路当前有显式覆盖时算脏（确认后清除覆盖）。
+        if (target == Target.ROAD && inheritGlobal) {
+            return !roadWasInheriting;
+        }
         return draft != null && baseline != null && !draft.equals(baseline);
     }
 
@@ -204,12 +211,19 @@ public final class TunnelStyleFloatingEditor {
                         PlotI18n.tr("plugin.road.tunnel.batch_scope_hint", batchTargetCount()));
                     ImGui.spacing();
                 }
-                TunnelStyleEditor.render(
-                    ctx,
-                    draft,
-                    () -> draft.clamp(),
-                    presetSelection,
-                    target == Target.ROAD ? roadId : null);
+                if (target == Target.ROAD) {
+                    renderInheritToggle();
+                }
+                if (target == Target.ROAD && inheritGlobal) {
+                    renderInheritSummary(ctx);
+                } else {
+                    TunnelStyleEditor.render(
+                        ctx,
+                        draft,
+                        () -> draft.clamp(),
+                        presetSelection,
+                        target == Target.ROAD ? roadId : null);
+                }
             }
             ImGui.endChild();
 
@@ -217,7 +231,7 @@ public final class TunnelStyleFloatingEditor {
             RoadFloatingEditorShell.renderFooter(
                 ctx,
                 dirty,
-                null,
+                this::restoreBaseline,
                 this::requestCancel,
                 () -> confirm(ctx));
         } finally {
@@ -268,6 +282,8 @@ public final class TunnelStyleFloatingEditor {
         this.target = target;
         this.roadId = roadId != null ? roadId : "";
         this.roadWasInheriting = roadWasInheriting;
+        // 打开即为编辑草稿；「使用全局」需用户显式勾选以清除道路覆盖。
+        this.inheritGlobal = false;
         this.onHistory = onHistory;
         this.batchRoadIds.clear();
         if (batchTargets != null) {
@@ -285,9 +301,57 @@ public final class TunnelStyleFloatingEditor {
         this.baseline = seed.copy();
         this.draft = seed.copy();
         this.presetSelection.clear();
+        this.presetSelection.detectFromStyle(this.draft);
         this.focusPending = true;
         this.closeConfirmPending = false;
         this.open.set(true);
+    }
+
+    private void renderInheritToggle() {
+        ImBoolean useGlobal = new ImBoolean(inheritGlobal);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.tunnel.use_global_default"), useGlobal)) {
+            inheritGlobal = useGlobal.get();
+            if (!inheritGlobal && draft != null) {
+                draft.ensureConfigDefaults();
+                presetSelection.detectFromStyle(draft);
+            }
+        }
+        if (batchTargetCount() > 1 && inheritGlobal) {
+            ImGui.textColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.tunnel.batch_inherit_hint", batchTargetCount()));
+        }
+        ImGui.spacing();
+    }
+
+    private void renderInheritSummary(RoadUiContext ctx) {
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.inherits_global"));
+        Road road = ctx != null && ctx.networkManager() != null
+            ? ctx.networkManager().getNetwork().getRoad(roadId)
+            : null;
+        RoadSystemConfig config = ctx != null && ctx.networkManager() != null
+            ? ctx.networkManager().getConfig()
+            : null;
+        if (road == null || config == null) {
+            return;
+        }
+        var resolved = TunnelStyle.resolve(road, config);
+        ImGui.textDisabled(PlotI18n.tr(
+            "plugin.road.tunnel.compact_summary",
+            PlotI18n.tr(shapeTranslationKey(resolved.shape())),
+            resolved.clearHeight(),
+            resolved.lightSpacing()));
+    }
+
+    private void restoreBaseline() {
+        if (baseline == null) {
+            return;
+        }
+        inheritGlobal = false;
+        draft = baseline.copy();
+        draft.ensureConfigDefaults();
+        presetSelection.clear();
+        presetSelection.detectFromStyle(draft);
     }
 
     private void requestCancel() {
@@ -344,6 +408,11 @@ public final class TunnelStyleFloatingEditor {
             if (road == null) {
                 continue;
             }
+            if (inheritGlobal) {
+                road.setTunnelStyle(null);
+                written++;
+                continue;
+            }
             TunnelStyle live = road.getStoredTunnelStyle();
             if (live == null) {
                 road.setTunnelStyle(draft.copy());
@@ -361,5 +430,34 @@ public final class TunnelStyleFloatingEditor {
         ctx.onGenerationConfigChanged();
         ctx.requestOverlayRefresh();
         close();
+    }
+
+    private static String shapeTranslationKey(com.plot.plugin.road.tunnel.TunnelShape shape) {
+        return switch (shape != null ? shape : com.plot.plugin.road.tunnel.TunnelShape.ARCH) {
+            case D_SHAPE -> "plugin.road.tunnel.shape.d_shape";
+            case RECTANGULAR -> "plugin.road.tunnel.shape.rectangular";
+            case HORSESHOE -> "plugin.road.tunnel.shape.horseshoe";
+            case ELLIPTICAL -> "plugin.road.tunnel.shape.elliptical";
+            case CIRCULAR -> "plugin.road.tunnel.shape.circular";
+            case ARCH -> "plugin.road.tunnel.shape.arch";
+            case PENTAGONAL -> "plugin.road.tunnel.shape.pentagonal";
+        };
+    }
+
+    /** 测试用：切换道路级「继承全局」意图。 */
+    void setInheritGlobalForTest(boolean inherit) {
+        this.inheritGlobal = inherit;
+    }
+
+    boolean isInheritGlobalForTest() {
+        return inheritGlobal;
+    }
+
+    void restoreBaselineForTest() {
+        restoreBaseline();
+    }
+
+    com.plot.plugin.road.tunnel.TunnelPreset appliedPresetForTest() {
+        return presetSelection.applied();
     }
 }

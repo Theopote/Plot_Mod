@@ -161,7 +161,8 @@ public final class TunnelSectionDisplayModel {
             style.getLightingMode(),
             style.getLightMount(),
             style.getStoredLightAnchors(),
-            style.hasEffectiveAccentRings(),
+            // UI 示意：勾选装饰环即显示橙色点；生成仍要求材质（hasEffectiveAccentRings）。
+            style.isAccentRings(),
             PreviewSectionKind.NORMAL_SECTION);
     }
 
