@@ -57,13 +57,13 @@ import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import imgui.ImColor;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiSelectableFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
@@ -86,6 +86,11 @@ final class VerticalProfileEditor {
     private static final float PLAN_SCHEMATIC_HEIGHT = 96f;
     private static final float CONTROL_RAIL_WIDTH_FRACTION = 0.28f;
     private static final float MIN_ROAD_COMBO_WIDTH = 48f;
+    /** 页脚状态芯片底色（ABGR）。 */
+    private static final int CHIP_BG_OK = ImColor.rgba(28, 56, 36, 220);
+    private static final int CHIP_BG_WARN = ImColor.rgba(64, 44, 20, 220);
+    private static final int CHIP_BG_MUTED = ImColor.rgba(40, 40, 44, 220);
+    private static final int CHIP_BORDER = ImColor.rgba(72, 72, 72, 180);
 
     private final ImBoolean editorWindowOpen = new ImBoolean(false);
     private String editorRoadId = "";
@@ -666,60 +671,135 @@ final class VerticalProfileEditor {
         }
     }
 
-    private void renderProfilePipelineStatus(RoadUiContext ctx, Road road) {
+    /**
+     * 页脚管道状态：紧凑芯片代替长串「已保存 · 设计线 · …」文案。
+     * 设计 / 方块线 / 建造 三态一目了然。
+     */
+    private void renderProfilePipelineChips(RoadUiContext ctx, Road road, boolean dirty) {
+        statusChipSeq = 0;
+        if (dirty) {
+            String unsaved = PlotI18n.tr("plugin.road.profile_editor_unsaved_status");
+            int affectCount = windowSession != null
+                ? windowSession.estimateConfirmAffectRoadCount() : 0;
+            if (affectCount > 0) {
+                unsaved = unsaved + " (" + affectCount + ")";
+            }
+            renderStatusChip(
+                unsaved,
+                PluginUiColors.WARNING_LIGHT,
+                CHIP_BG_WARN,
+                affectCount > 0
+                    ? PlotI18n.tr("plugin.road.profile_editor_confirm_affect_summary", affectCount)
+                    : null);
+            ImGui.sameLine(0f, 6f);
+        } else {
+            renderStatusChip(
+                PlotI18n.tr("plugin.road.profile_editor_clean_status"),
+                PluginUiColors.STATUS_OK,
+                CHIP_BG_OK,
+                null);
+            ImGui.sameLine(0f, 6f);
+        }
+
         if (windowSession == null || road == null) {
             return;
         }
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, "·");
-        ImGui.sameLine();
-        ImGui.textColored(
-            PluginUiColors.STATUS_OK,
-            PlotI18n.tr("plugin.road.profile_pipeline_design_ok"));
+
+        boolean designDirty = dirty || profileEditSession.isDirty();
+        renderStatusChip(
+            PlotI18n.tr(designDirty
+                ? "plugin.road.profile_pipeline_chip_design_dirty"
+                : "plugin.road.profile_pipeline_chip_design_ok"),
+            designDirty ? PluginUiColors.WARNING_LIGHT : PluginUiColors.STATUS_OK,
+            designDirty ? CHIP_BG_WARN : CHIP_BG_OK,
+            PlotI18n.tr(designDirty
+                ? "plugin.road.profile_pipeline_design_dirty_hint"
+                : "plugin.road.profile_pipeline_design_ok"));
+        ImGui.sameLine(0f, 6f);
 
         VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, "·");
-        ImGui.sameLine();
         int voxelColor;
-        String voxelKey = switch (slot.state()) {
+        int voxelBg;
+        String voxelLabel;
+        String voxelTip;
+        switch (slot.state()) {
             case READY -> {
                 voxelColor = PluginUiColors.STATUS_OK;
-                yield "plugin.road.profile_pipeline_voxel_ok";
+                voxelBg = CHIP_BG_OK;
+                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_ok");
+                voxelTip = PlotI18n.tr("plugin.road.profile_pipeline_voxel_ok");
             }
             case COMPUTING -> {
                 voxelColor = PluginUiColors.HINT_GRAY;
-                yield "plugin.road.voxel_profile_computing";
+                voxelBg = CHIP_BG_MUTED;
+                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_computing");
+                voxelTip = PlotI18n.tr("plugin.road.voxel_profile_computing");
+                if (activeVoxelCompile != null
+                        && activeVoxelCompile.totalEdges() > 0
+                        && pendingVoxelCompile != null
+                        && road.getId().equals(pendingVoxelCompile.roadId())) {
+                    voxelTip = PlotI18n.tr(
+                        "plugin.road.voxel_profile_progress",
+                        activeVoxelCompile.completedEdges(),
+                        activeVoxelCompile.totalEdges());
+                }
             }
             case FAILED -> {
                 voxelColor = PluginUiColors.WARNING;
-                yield "plugin.road.voxel_profile_failed";
+                voxelBg = CHIP_BG_WARN;
+                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_failed");
+                voxelTip = PlotI18n.tr("plugin.road.voxel_profile_failed");
             }
             default -> {
                 voxelColor = PluginUiColors.WARNING_LIGHT;
-                yield "plugin.road.profile_pipeline_voxel_stale";
+                voxelBg = CHIP_BG_WARN;
+                voxelLabel = PlotI18n.tr("plugin.road.profile_pipeline_chip_voxel_stale");
+                voxelTip = PlotI18n.tr("plugin.road.profile_pipeline_voxel_stale");
             }
-        };
-        ImGui.textColored(voxelColor, PlotI18n.tr(voxelKey));
-        if (slot.state() == VoxelProfilePreviewState.COMPUTING && activeVoxelCompile != null
-                && activeVoxelCompile.totalEdges() > 0 && pendingVoxelCompile != null
-                && road.getId().equals(pendingVoxelCompile.roadId())) {
-            ImGui.sameLine();
-            ImGui.textDisabled(PlotI18n.tr("plugin.road.voxel_profile_progress",
-                activeVoxelCompile.completedEdges(), activeVoxelCompile.totalEdges()));
         }
+        renderStatusChip(voxelLabel, voxelColor, voxelBg, voxelTip);
+        ImGui.sameLine(0f, 6f);
 
         boolean buildStale = ctx.previewManager().needsPreviewRecalc()
             || windowSession.isDirty()
             || profileEditSession.isDirty();
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, "·");
-        ImGui.sameLine();
-        ImGui.textColored(
+        renderStatusChip(
+            PlotI18n.tr(buildStale
+                ? "plugin.road.profile_pipeline_chip_build_stale"
+                : "plugin.road.profile_pipeline_chip_build_ok"),
             buildStale ? PluginUiColors.WARNING_LIGHT : PluginUiColors.STATUS_OK,
+            buildStale ? CHIP_BG_WARN : CHIP_BG_OK,
             PlotI18n.tr(buildStale
                 ? "plugin.road.profile_pipeline_build_stale"
                 : "plugin.road.profile_pipeline_build_ok"));
+    }
+
+    private static int statusChipSeq;
+
+    private static void renderStatusChip(
+            String label,
+            int textColor,
+            int backgroundColor,
+            String tooltip) {
+        if (label == null || label.isBlank()) {
+            return;
+        }
+        ImVec2 textSize = ImGui.calcTextSize(label);
+        float padX = 7f;
+        float padY = 3f;
+        float width = textSize.x + padX * 2f;
+        float height = textSize.y + padY * 2f;
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(
+            origin.x, origin.y, origin.x + width, origin.y + height, backgroundColor, 4f);
+        drawList.addRect(
+            origin.x, origin.y, origin.x + width, origin.y + height, CHIP_BORDER, 4f, 0, 1f);
+        drawList.addText(origin.x + padX, origin.y + padY, textColor, label);
+        ImGui.invisibleButton("##profile_status_chip_" + (statusChipSeq++), width, height);
+        if (tooltip != null && !tooltip.isBlank() && ImGui.isItemHovered()) {
+            ImGui.setTooltip(tooltip);
+        }
     }
 
     private void runConfirmAndBuildPreview(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -1886,7 +1966,14 @@ final class VerticalProfileEditor {
         if (summary.dimensions().isEmpty() || !summary.hasWarnings()) {
             return;
         }
-        ProfileQualitySummary.render(chart, road, config, previewStale);
+        // 默认折叠，有告警时标题带数量，避免详情区被状态行占满。
+        String title = PlotI18n.tr(
+            "plugin.road.profile_quality_collapsed",
+            summary.dimensions().stream().filter(d -> d.level() == ProfileQualityStatus.Level.WARNING).count())
+            + "##profile_quality_fold";
+        if (ImGui.collapsingHeader(title)) {
+            ProfileQualitySummary.render(chart, road, config, previewStale);
+        }
     }
 
     private void renderFlatRoadConstraintWarnings(
@@ -1931,10 +2018,10 @@ final class VerticalProfileEditor {
             return;
         }
         ImGui.spacing();
+        // 默认折叠：打开编辑器时优先保证剖面图与选中项参数可见。
         if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.road.profile_alignment_issues", violations.size())
-                    + "##profile_alignment_issues",
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+                    + "##profile_alignment_issues")) {
             for (VerticalAlignmentViolation violation : violations) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.WARNING,
