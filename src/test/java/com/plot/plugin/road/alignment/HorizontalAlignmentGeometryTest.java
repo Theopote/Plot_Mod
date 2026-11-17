@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import org.junit.jupiter.api.Test;
 
@@ -129,5 +130,15 @@ class HorizontalAlignmentGeometryTest {
         String label = HorizontalAlignmentGeometry.describeElement(arc, 100.0, RoadStationFormat.KILOMETER_PLUS);
         assertTrue(label.contains("K0+100"));
         assertTrue(label.contains("R=100"));
+    }
+
+    @Test
+    void describeElementScalesRadiusWithWorldProjection() {
+        HorizontalAlignmentElement arc = HorizontalAlignmentElement.circularArc(50.0, 100.0, TurnDirection.LEFT);
+        ChainageDisplayContext display = ChainageDisplayContext.fromStart(300.0);
+        String label = HorizontalAlignmentGeometry.describeElement(arc, 100.0, display, 2.0);
+        assertTrue(label.contains("R=200"), label);
+        assertTrue(label.contains(display.format(200.0)), label);
+        assertTrue(label.contains(display.format(300.0)), label);
     }
 }

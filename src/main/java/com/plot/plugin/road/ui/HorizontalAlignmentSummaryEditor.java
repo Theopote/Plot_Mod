@@ -20,6 +20,10 @@ public final class HorizontalAlignmentSummaryEditor {
 
     private String lastHorizontalAlignmentMessage = "";
 
+    public void clearMessages() {
+        lastHorizontalAlignmentMessage = "";
+    }
+
     public void render(
             RoadUiContext ctx,
             RoadNetwork network,

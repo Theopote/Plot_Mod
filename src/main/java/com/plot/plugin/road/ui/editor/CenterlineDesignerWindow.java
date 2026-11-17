@@ -14,6 +14,7 @@ import com.plot.plugin.road.ui.RoadCenterlineEditPanel;
 import com.plot.plugin.road.ui.RoadSegmentEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiSections;
+import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -39,6 +40,16 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     @Override
     protected RoadFloatingEditorKind editorKind() {
         return RoadFloatingEditorKind.CENTERLINE;
+    }
+
+    @Override
+    protected float fixedWidthOfScreen() {
+        return RoadFloatingEditorShell.CENTERLINE_WIDTH_OF_SCREEN;
+    }
+
+    @Override
+    protected float fixedHeightOfScreen() {
+        return RoadFloatingEditorShell.CENTERLINE_HEIGHT_OF_SCREEN;
     }
 
     @Override
@@ -71,6 +82,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         var live = ctx.networkManager().getNetwork();
         var openSnapshot = live.snapshot();
         selectedWorkingEdgeId = resolveInitialWorkingEdgeId(ctx, live.getRoad(roadId));
+        horizontalAlignmentEditor.clearMessages();
+        centerlineEditPanel.clearMessages();
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
@@ -81,6 +94,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     public void discard(RoadUiContext ctx) {
         selectedWorkingEdgeId = "";
         siblingRoadIds = java.util.List.of();
+        horizontalAlignmentEditor.clearMessages();
+        centerlineEditPanel.clearMessages();
         super.discard(ctx);
     }
 
@@ -138,7 +153,13 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         ImGui.endChild();
         segmentEditor.renderSegmentSummary(ctx, working, road, primaryEdge, chainageDisplay);
         centerlineEditPanel.renderWorkingNetwork(ctx, working, road, primaryEdge);
-        segmentEditor.renderElevationHint(ctx, primaryEdge);
+        if (isDirty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
+        } else {
+            segmentEditor.renderElevationHint(ctx, primaryEdge);
+        }
     }
 
     @Override

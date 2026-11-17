@@ -103,7 +103,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             overviewPanel,
             intersectionDetailPanel,
             intersectionListPanel,
-            junctionPanel);
+            junctionPanel,
+            floatingEditorHost);
         this.buildPanel = new RoadBuildPanel(generatePanel);
     }
 
@@ -201,8 +202,23 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadNetwork network = ctx.networkManager().getNetwork();
         String roadId = request.roadId();
         boolean roadOk = roadId != null && !roadId.isBlank() && network.getRoad(roadId) != null;
+        RoadFloatingEditorKind kind = request.editorKind();
         if (roadOk) {
-            ctx.networkManager().selectRoad(roadId, false);
+            if (kind == RoadFloatingEditorKind.CENTERLINE) {
+                // 中心线设计器支持多选内切换：保留已有多选，仅确保目标路在选中集并作为主路。
+                LinkedHashSet<String> before = new LinkedHashSet<>(
+                    ctx.networkManager().getSelectedRoadIds());
+                ctx.networkManager().selectRoad(roadId, false);
+                if (before.size() > 1 && before.contains(roadId)) {
+                    for (String id : before) {
+                        if (!id.equals(roadId)) {
+                            ctx.networkManager().selectRoad(id, true);
+                        }
+                    }
+                }
+            } else {
+                ctx.networkManager().selectRoad(roadId, false);
+            }
         }
         if (request.crossingId() != null && !request.crossingId().isBlank()) {
             ctx.networkManager().setSelectedCrossingId(request.crossingId());
@@ -216,7 +232,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
                 ctx.networkManager().setPrimarySelectedEdge(edgeId);
             }
         }
-        RoadFloatingEditorKind kind = request.editorKind();
         if (kind != null && roadOk) {
             floatingEditorHost.openOrFocus(ctx, kind, roadId);
         }

@@ -30,6 +30,10 @@ public final class RoadCenterlineEditPanel {
         lastCenterlineEditMessage = CenterlineEditMessages.format(result);
     }
 
+    public void clearMessages() {
+        lastCenterlineEditMessage = "";
+    }
+
     public void render(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
         renderControls(
             ctx,
@@ -90,6 +94,9 @@ public final class RoadCenterlineEditPanel {
             FilletAction filletVertex,
             EdgeAction reverseEdge,
             NodeAction mergeAtNode) {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.centerline_edit_hint"));
         if (!lastCenterlineEditMessage.isBlank()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastCenterlineEditMessage);
         }

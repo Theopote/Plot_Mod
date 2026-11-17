@@ -133,7 +133,7 @@ public final class HorizontalAlignmentGeometry {
     }
 
     /**
-     * @param canvasToWorldScale 将画布域桩号/线元长换算为展示用方块（1m=1格）的比例
+     * @param canvasToWorldScale 将画布域桩号/半径/A 换算为展示用方块（1m=1格）的比例
      */
     public static String describeElement(
             HorizontalAlignmentElement element,
@@ -145,20 +145,31 @@ public final class HorizontalAlignmentGeometry {
             : 1.0;
         String start = display.format(startChainageCanvas * scale);
         String end = display.format((startChainageCanvas + element.getLength()) * scale);
-        return describeElementRange(element, start, end);
+        return describeElementRange(element, start, end, scale);
     }
 
     private static String describeElementRange(
             HorizontalAlignmentElement element,
             String start,
             String end) {
+        return describeElementRange(element, start, end, 1.0);
+    }
+
+    private static String describeElementRange(
+            HorizontalAlignmentElement element,
+            String start,
+            String end,
+            double canvasToWorldScale) {
+        double scale = Double.isFinite(canvasToWorldScale) && canvasToWorldScale > 0.0
+            ? canvasToWorldScale
+            : 1.0;
         return switch (element.getType()) {
             case TANGENT -> start + "–" + end + " T";
             case CIRCULAR_ARC -> start + "–" + end + " R="
-                + String.format("%.0f", element.getRadius())
+                + String.format("%.0f", element.getRadius() * scale)
                 + (element.getDirection() == TurnDirection.LEFT ? " L" : " R");
             case SPIRAL -> start + "–" + end + " A="
-                + String.format("%.0f", element.getSpiralParameterA());
+                + String.format("%.0f", element.getSpiralParameterA() * scale);
         };
     }
 

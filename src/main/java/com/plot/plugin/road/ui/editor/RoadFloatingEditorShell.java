@@ -115,6 +115,10 @@ public final class RoadFloatingEditorShell {
     public static final float VARIABLE_XS_WIDTH_OF_SCREEN = 0.52f;
     public static final float VARIABLE_XS_HEIGHT_OF_SCREEN = 0.58f;
 
+    /** 中心线：HA + 分段列表 + 工具栈，略高于默认专业窗。 */
+    public static final float CENTERLINE_WIDTH_OF_SCREEN = 0.48f;
+    public static final float CENTERLINE_HEIGHT_OF_SCREEN = 0.56f;
+
     /**
      * 可缩放浮动窗（纵断面）：默认较大，保留 min/max，打开时与专业窗同一套 cascade 错开。
      */

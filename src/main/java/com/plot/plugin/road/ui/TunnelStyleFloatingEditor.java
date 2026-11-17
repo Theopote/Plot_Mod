@@ -86,7 +86,7 @@ public final class TunnelStyleFloatingEditor {
         if (targets.isEmpty()) {
             return;
         }
-        String primaryId = targets.iterator().next();
+        String primaryId = targets.getFirst();
         Road road = ctx.networkManager().getNetwork().getRoad(primaryId);
         RoadSystemConfig config = ctx.networkManager().getConfig();
         boolean inheriting = road.getStoredTunnelStyle() == null;
