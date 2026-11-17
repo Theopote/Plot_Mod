@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.ProfileChartLegend;
 import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.ProfileQualitySummary;
@@ -21,7 +22,7 @@ import imgui.ImGui;
 import java.util.List;
 import java.util.function.Function;
 
-/** 纵断面工作区总览：可桩号道路缩略图 + Level-1 地形读取入口。 */
+/** 纵断面工作区总览：共享地形入口 + 一组图例 + 多路缩略图（仅观察）。 */
 public final class RoadProfileOverviewSection {
 
     public static final float MINI_CHART_HEIGHT = RoadProfileCompactCard.CHART_HEIGHT;
@@ -50,12 +51,15 @@ public final class RoadProfileOverviewSection {
                 PlotI18n.tr("plugin.road.terrain_profile.uniform_flat_overview_hint"));
         }
 
-        // 仅真实选中才标「当前」/挂地形工具条；空选浏览全列表但不假装活跃。
         Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
         if (activeRoad != null) {
             ctx.previewManager().maybeAutoRefreshTerrainProfile(network, activeRoad);
-            renderActiveTerrainToolbar(ctx, network, activeRoad);
         }
+
+        // 整区唯一地形入口：有选中则更新选中路，否则更新首条仍缺/过期的概览路。
+        Road terrainTarget = resolveTerrainToolbarTarget(ctx, network, roads, activeRoad);
+        renderSharedTerrainToolbar(ctx, network, terrainTarget);
+        renderSharedLegend(ctx, network, roads);
 
         String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
         for (int index = 0; index < roads.size(); index++) {
@@ -77,25 +81,80 @@ public final class RoadProfileOverviewSection {
         }
     }
 
-    private static void renderActiveTerrainToolbar(
+    private static Road resolveTerrainToolbarTarget(
             RoadUiContext ctx,
             RoadNetwork network,
+            List<Road> roads,
             Road activeRoad) {
-        if (activeRoad == null) {
+        if (activeRoad != null) {
+            return activeRoad;
+        }
+        for (Road road : roads) {
+            if (road == null) {
+                continue;
+            }
+            RoadProfileChartData chart = ctx.previewManager().getOverviewChart(network, road.getId());
+            if (chart == null || !chart.canRenderChart()
+                    || ctx.previewManager().isTerrainProfileStale(network, road)) {
+                return road;
+            }
+        }
+        return roads.isEmpty() ? null : roads.getFirst();
+    }
+
+    private static void renderSharedTerrainToolbar(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road targetRoad) {
+        if (targetRoad == null) {
             return;
         }
-        renderTerrainStatus(ctx, network, activeRoad);
-        boolean jobForActive = ctx.previewManager().isTerrainProfileJobForRoad(activeRoad.getId());
-        // 编辑入口收敛到设计区主 CTA / 卡片次要按钮，工具条只负责地形读写。
-        if (jobForActive) {
+        renderTerrainStatus(ctx, network, targetRoad);
+        boolean jobForTarget = ctx.previewManager().isTerrainProfileJobForRoad(targetRoad.getId());
+        if (jobForTarget) {
             if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.cancel")
                     + "##profile_terrain_cancel")) {
                 ctx.previewManager().cancelTerrainProfileJob();
             }
         } else if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update")
                 + "##profile_terrain_read")) {
-            ctx.previewManager().refreshTerrainProfile(network, activeRoad.getId(), true);
+            ctx.previewManager().refreshTerrainProfile(network, targetRoad.getId(), true);
         }
+        ImGui.spacing();
+    }
+
+    /** 侧栏共用一组图例；各缩略卡不再重复。 */
+    private static void renderSharedLegend(
+            RoadUiContext ctx, RoadNetwork network, List<Road> roads) {
+        RoadProfileChartData legendChart = null;
+        boolean buildPreviewStale = ctx.previewManager().needsPreviewRecalc();
+        for (Road road : roads) {
+            if (road == null) {
+                continue;
+            }
+            RoadProfileChartData chart = ctx.previewManager().getOverviewChart(network, road.getId());
+            if (chart == null || !chart.canRenderChart()) {
+                continue;
+            }
+            if (legendChart == null) {
+                legendChart = chart;
+            }
+            if (chart.hasWaterElevations()) {
+                legendChart = chart;
+                break;
+            }
+        }
+        if (legendChart == null) {
+            ImGui.separator();
+            ImGui.spacing();
+            return;
+        }
+        ProfileChartLegend.renderCompact(
+            ProfileChartRenderMode.MINI,
+            null,
+            false,
+            buildPreviewStale,
+            legendChart);
         ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();
@@ -196,10 +255,11 @@ public final class RoadProfileOverviewSection {
             float chartHeight = active ? ACTIVE_CHART_HEIGHT : MINI_CHART_HEIGHT;
             RoadProfileChartData chartData = ctx.previewManager().getOverviewChart(network, road.getId());
             if (chartData == null || !chartData.canRenderChart()) {
-                renderMissingTerrainActions(ctx, network, road);
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
             } else {
                 List<RoadProfileIntersection> intersections = chartData.intersections();
-                ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
                 boolean flatMode = uniformFlat
                     || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
                 boolean showDesign = !flatMode
@@ -208,19 +268,14 @@ public final class RoadProfileOverviewSection {
                 VerticalAlignmentProfileOverlay design = showDesign
                     ? VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null)
                     : null;
-                boolean layersStale = chartData.hasStaleDesignReference()
-                    || ctx.previewManager().needsPreviewRecalc();
-                RoadProfileCompactCard.renderOverview(
+                RoadProfileCompactCard.renderOverviewChart(
                     chartData,
                     design,
                     intersections,
                     chartHeight,
                     flatOverlay,
-                    mode,
-                    road.getVerticalMode(),
-                    flatMode,
-                    layersStale,
-                    showDesign && design != null);
+                    ProfileChartRenderMode.MINI,
+                    road.getVerticalMode());
                 if (active && chartData.hasStaleDesignReference()) {
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.WARNING_LIGHT,
@@ -239,19 +294,6 @@ public final class RoadProfileOverviewSection {
             }
         } finally {
             ImGui.popID();
-        }
-    }
-
-    private static void renderMissingTerrainActions(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update")
-                + "##missing_terrain_read")) {
-            ctx.previewManager().refreshTerrainProfile(network, road.getId(), true);
         }
     }
 }
