@@ -93,26 +93,30 @@ public final class RoadSegmentEditor {
             RoadEdge edge,
             ChainageDisplayContext chainageDisplay) {
         var coordinates = ctx.host().coordinates();
+        StringBuilder line = new StringBuilder();
         if (RoadStationing.isStationable(network, road)) {
             double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
             if (segmentStart >= 0.0) {
                 double segmentEnd = segmentStart + edge.getLength();
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr(
-                        "plugin.road.segment_chainage",
-                        RoadLengthDisplay.formatChainage(
-                            chainageDisplay, segmentStart, network, road, coordinates),
-                        RoadLengthDisplay.formatChainage(
-                            chainageDisplay, segmentEnd, network, road, coordinates)));
+                line.append(PlotI18n.tr(
+                    "plugin.road.segment_chainage",
+                    RoadLengthDisplay.formatChainage(
+                        chainageDisplay, segmentStart, network, road, coordinates),
+                    RoadLengthDisplay.formatChainage(
+                        chainageDisplay, segmentEnd, network, road, coordinates)));
             }
         }
-        ImGui.text(PlotI18n.tr(
+        String start = PlotI18n.tr(
             "plugin.road.segment_start",
-            RoadEdgeListHelper.formatNodeLabel(network, edge.getStartNodeId())));
-        ImGui.text(PlotI18n.tr(
+            RoadEdgeListHelper.formatNodeLabel(network, edge.getStartNodeId()));
+        String end = PlotI18n.tr(
             "plugin.road.segment_end",
-            RoadEdgeListHelper.formatNodeLabel(network, edge.getEndNodeId())));
+            RoadEdgeListHelper.formatNodeLabel(network, edge.getEndNodeId()));
+        if (!line.isEmpty()) {
+            line.append(" · ");
+        }
+        line.append(start).append(" · ").append(end);
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, line.toString());
     }
 
     public void renderElevationHint(RoadUiContext ctx, RoadEdge edge) {

@@ -2663,7 +2663,7 @@
   "plugin.road.centerline_tool_fillet_hint": "Pick a vertex number (orange in the preview), set a radius, then apply.",
   "plugin.road.centerline_tool_fillet_none": "No interior vertices to fillet. Insert a vertex first.",
   "plugin.road.centerline_tool_locate": "① Pick a position",
-  "plugin.road.centerline_tool_locate_hint": "Drag the slider or click the preview to place the blue cursor, then insert a vertex or split.",
+  "plugin.road.centerline_tool_locate_hint": "Drag the slider or click the pinned preview above to place the blue cursor, then insert a vertex or split.",
   "plugin.road.centerline_tool_topology": "③ Direction & merge",
   "plugin.road.centerline_tool_topology_hint": "Reverse this segment, or merge with a neighbor when the node allows it.",
   "plugin.road.centerline_vertex": "Vertex to fillet #",

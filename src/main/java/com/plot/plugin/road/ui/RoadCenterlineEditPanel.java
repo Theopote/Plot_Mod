@@ -40,6 +40,7 @@ public final class RoadCenterlineEditPanel {
             network,
             road,
             edge,
+            true,
             (targetNetwork, edgeId, distance) ->
                 ctx.networkManager().insertPiAtLocalDistance(edgeId, distance),
             (targetNetwork, edgeId, distance) ->
@@ -50,13 +51,44 @@ public final class RoadCenterlineEditPanel {
             (targetNetwork, nodeId) -> ctx.networkManager().mergeSegmentsAtNode(nodeId));
     }
 
-    /** 浮动编辑器工作副本：直接写入 {@code network}，确认时再一次性写回 live。 */
+    /**
+     * 钉在详情栏顶部的平面示意（不随下方工具区滚动）。
+     */
+    public void renderPinnedPreview(RoadUiContext ctx, RoadEdge edge) {
+        if (ctx == null || edge == null || ctx.host() == null) {
+            return;
+        }
+        ICoordinateService coordinates = ctx.host().coordinates();
+        float edgeBlocks = (float) RoadLengthDisplay.edgeBlocks(edge, coordinates);
+        float maxDistance = Math.max(edgeBlocks, 0.01f);
+        if (centerlineEditDistanceBlocks > maxDistance) {
+            centerlineEditDistanceBlocks = maxDistance;
+        }
+        List<com.plot.api.geometry.Vec2d> points = edge.getCenterlinePoints();
+        int interiorCount = Math.max(0, points.size() - 2);
+        if (interiorCount > 0) {
+            centerlineVertexIndex = Math.clamp(centerlineVertexIndex, 1, interiorCount);
+        } else {
+            centerlineVertexIndex = 1;
+        }
+        Float clicked = CenterlineSegmentPreviewRenderer.render(
+            edge,
+            centerlineEditDistanceBlocks,
+            edgeBlocks,
+            interiorCount > 0 ? centerlineVertexIndex : 0);
+        if (clicked != null) {
+            centerlineEditDistanceBlocks = Math.clamp(clicked, 0f, maxDistance);
+        }
+    }
+
+    /** 浮动编辑器工作副本：工具区（预览由 {@link #renderPinnedPreview} 单独钉顶）。 */
     public void renderWorkingNetwork(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
         renderControls(
             ctx,
             network,
             road,
             edge,
+            false,
             RoadCenterlineEditor::insertPiAtLocalDistance,
             RoadCenterlineEditor::splitAtLocalDistance,
             RoadCenterlineEditor::filletVertex,
@@ -89,6 +121,7 @@ public final class RoadCenterlineEditPanel {
             RoadNetwork network,
             Road road,
             RoadEdge edge,
+            boolean includePreview,
             PiAction insertPi,
             PiAction splitEdge,
             FilletAction filletVertex,
@@ -114,15 +147,17 @@ public final class RoadCenterlineEditPanel {
             centerlineVertexIndex = 1;
         }
 
-        Float clicked = CenterlineSegmentPreviewRenderer.render(
-            edge,
-            centerlineEditDistanceBlocks,
-            edgeBlocks,
-            interiorCount > 0 ? centerlineVertexIndex : 0);
-        if (clicked != null) {
-            centerlineEditDistanceBlocks = Math.clamp(clicked, 0f, maxDistance);
+        if (includePreview) {
+            Float clicked = CenterlineSegmentPreviewRenderer.render(
+                edge,
+                centerlineEditDistanceBlocks,
+                edgeBlocks,
+                interiorCount > 0 ? centerlineVertexIndex : 0);
+            if (clicked != null) {
+                centerlineEditDistanceBlocks = Math.clamp(clicked, 0f, maxDistance);
+            }
+            ImGui.spacing();
         }
-        ImGui.spacing();
 
         renderLocateSection(network, road, edge, coordinates, maxDistance, insertPi, splitEdge);
         ImGui.spacing();

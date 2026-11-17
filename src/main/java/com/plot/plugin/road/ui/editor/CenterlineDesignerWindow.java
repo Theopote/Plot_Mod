@@ -130,10 +130,12 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                 RoadStationFormat.DISTANCE_METERS);
         }
 
-        // 上路级：平面线形；下主从：左分段轨 + 右工具（不对齐设施 scrub / Add|Delete）。
-        RoadUiSections.section("plugin.road.floating_editor.centerline.tab.alignment");
-        horizontalAlignmentEditor.render(ctx, working, road, chainageDisplay);
-        ImGui.spacing();
+        // 上路级平面线形：仅在已定义 HA 时展示；空状态（折线中心线）对拾取建路是常态，不占版面。
+        if (road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty()) {
+            RoadUiSections.section("plugin.road.floating_editor.centerline.tab.alignment");
+            horizontalAlignmentEditor.render(ctx, working, road, chainageDisplay);
+            ImGui.spacing();
+        }
 
         RoadUiSections.section("plugin.road.floating_editor.centerline.tab.segments");
         RoadUiWidgets.textWrappedColored(
@@ -179,29 +181,42 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         }
 
         ImGui.setCursorPos(startX + railWidth + spacing, startY);
-        // 固定 ID：切换分段时不打断右侧滑条/按钮交互。
+        // 外层不滚动：预览钉顶；下方参数单独滚动，便于对照示意调参。
         ImGui.beginChild(
             "##centerline_segment_detail",
             detailWidth,
             bodyHeight,
             true,
-            ImGuiWindowFlags.None);
+            ImGuiWindowFlags.NoScrollbar);
         try {
             RoadEdge selected = working.getEdge(selectedWorkingEdgeId);
             if (selected == null) {
                 selected = primaryEdge;
             }
-            segmentEditor.renderSegmentSummary(ctx, working, road, selected, chainageDisplay);
-            ImGui.separator();
+            centerlineEditPanel.renderPinnedPreview(ctx, selected);
             ImGui.spacing();
-            centerlineEditPanel.renderWorkingNetwork(ctx, working, road, selected);
-            ImGui.spacing();
-            if (isDirty()) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
-            } else {
-                segmentEditor.renderElevationHint(ctx, selected);
+            float scrollH = Math.max(80f, ImGui.getContentRegionAvailY());
+            ImGui.beginChild(
+                "##centerline_detail_scroll",
+                0f,
+                scrollH,
+                false,
+                ImGuiWindowFlags.AlwaysVerticalScrollbar);
+            try {
+                segmentEditor.renderSegmentSummary(ctx, working, road, selected, chainageDisplay);
+                ImGui.separator();
+                ImGui.spacing();
+                centerlineEditPanel.renderWorkingNetwork(ctx, working, road, selected);
+                ImGui.spacing();
+                if (isDirty()) {
+                    RoadUiWidgets.textWrappedColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
+                } else {
+                    segmentEditor.renderElevationHint(ctx, selected);
+                }
+            } finally {
+                ImGui.endChild();
             }
         } finally {
             ImGui.endChild();

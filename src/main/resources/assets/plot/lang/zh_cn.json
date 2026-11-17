@@ -2075,7 +2075,7 @@
   "plugin.road.centerline_merge_end_tip": "若终点处仅连接两段同路几何，则合并为一段。",
   "plugin.road.centerline_merge_unavailable": "当前起终点不能合并（路口分叉或无相邻段）。",
   "plugin.road.centerline_tool_locate": "① 选位置并编辑",
-  "plugin.road.centerline_tool_locate_hint": "拖滑条或点击上方预览设置蓝色光标，再选「插入折点」或「打断成两段」。",
+  "plugin.road.centerline_tool_locate_hint": "拖滑条或点击顶部固定预览设置蓝色光标，再选「插入折点」或「打断成两段」。",
   "plugin.road.centerline_tool_fillet": "② 折点圆角",
   "plugin.road.centerline_tool_fillet_hint": "先选折点编号（预览橙色），再设半径并应用圆角。",
   "plugin.road.centerline_tool_fillet_none": "本段没有中间折点，无法圆角。可先「插入折点」。",

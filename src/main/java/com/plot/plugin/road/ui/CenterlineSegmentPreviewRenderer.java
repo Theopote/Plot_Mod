@@ -53,9 +53,6 @@ public final class CenterlineSegmentPreviewRenderer {
         }
 
         ImGui.text(PlotI18n.tr("plugin.road.centerline_preview_title"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.centerline_preview_hint"));
 
         float width = Math.max(120f, ImGui.getContentRegionAvailX());
         float height = PREVIEW_HEIGHT;
