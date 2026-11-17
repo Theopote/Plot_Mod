@@ -56,9 +56,8 @@ public final class RoadProfileOverviewSection {
             ctx.previewManager().maybeAutoRefreshTerrainProfile(network, activeRoad);
         }
 
-        // 整区唯一地形入口：有选中则更新选中路，否则更新首条仍缺/过期的概览路。
-        Road terrainTarget = resolveTerrainToolbarTarget(ctx, network, roads, activeRoad);
-        renderSharedTerrainToolbar(ctx, network, terrainTarget);
+        // 整区唯一地形入口：一次排队更新当前概览列表中的全部道路。
+        renderSharedTerrainToolbar(ctx, network, roads, activeRoad);
         renderSharedLegend(ctx, network, roads);
 
         String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
@@ -81,44 +80,30 @@ public final class RoadProfileOverviewSection {
         }
     }
 
-    private static Road resolveTerrainToolbarTarget(
+    private static void renderSharedTerrainToolbar(
             RoadUiContext ctx,
             RoadNetwork network,
             List<Road> roads,
             Road activeRoad) {
-        if (activeRoad != null) {
-            return activeRoad;
-        }
-        for (Road road : roads) {
-            if (road == null) {
-                continue;
-            }
-            RoadProfileChartData chart = ctx.previewManager().getOverviewChart(network, road.getId());
-            if (chart == null || !chart.canRenderChart()
-                    || ctx.previewManager().isTerrainProfileStale(network, road)) {
-                return road;
-            }
-        }
-        return roads.isEmpty() ? null : roads.getFirst();
-    }
-
-    private static void renderSharedTerrainToolbar(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road targetRoad) {
-        if (targetRoad == null) {
+        if (roads == null || roads.isEmpty()) {
             return;
         }
-        renderTerrainStatus(ctx, network, targetRoad);
-        boolean jobForTarget = ctx.previewManager().isTerrainProfileJobForRoad(targetRoad.getId());
-        if (jobForTarget) {
+        renderTerrainStatus(ctx, network, roads, activeRoad);
+        boolean jobRunning = ctx.previewManager().isTerrainProfileJobRunning();
+        if (jobRunning) {
             if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.cancel")
                     + "##profile_terrain_cancel")) {
                 ctx.previewManager().cancelTerrainProfileJob();
             }
         } else if (ImGui.button(PlotI18n.tr("plugin.road.terrain_profile.read_update")
                 + "##profile_terrain_read")) {
-            ctx.previewManager().refreshTerrainProfile(network, targetRoad.getId(), true);
+            List<String> roadIds = new java.util.ArrayList<>(roads.size());
+            for (Road road : roads) {
+                if (road != null) {
+                    roadIds.add(road.getId());
+                }
+            }
+            ctx.previewManager().refreshTerrainProfiles(network, roadIds, true);
         }
         ImGui.spacing();
     }
@@ -160,25 +145,38 @@ public final class RoadProfileOverviewSection {
         ImGui.spacing();
     }
 
-    private static void renderTerrainStatus(RoadUiContext ctx, RoadNetwork network, Road road) {
-        if (ctx.previewManager().isTerrainProfileJobForRoad(road.getId())) {
-            var job = ctx.previewManager().terrainProfileJob();
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.road.terrain_profile.status_sampling",
-                    job != null ? job.processedWorkUnits() : 0,
-                    job != null ? job.totalWorkUnits() : 0));
-            return;
-        }
+    private static void renderTerrainStatus(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            List<Road> roads,
+            Road activeRoad) {
         if (ctx.previewManager().isTerrainProfileJobRunning()) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.terrain_profile.status_sampling_other"));
+            int total = ctx.previewManager().terrainRefreshBatchTotal();
+            int completed = ctx.previewManager().terrainRefreshBatchCompleted();
+            var job = ctx.previewManager().terrainProfileJob();
+            if (total > 1) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.road.terrain_profile.status_sampling_batch",
+                        Math.min(total, completed + 1),
+                        total,
+                        job != null ? job.processedWorkUnits() : 0,
+                        job != null ? job.totalWorkUnits() : 0));
+            } else {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.road.terrain_profile.status_sampling",
+                        job != null ? job.processedWorkUnits() : 0,
+                        job != null ? job.totalWorkUnits() : 0));
+            }
             return;
         }
-        RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, road.getId());
-        if (ctx.previewManager().isTerrainProfileFresh(network, road)) {
+
+        Road statusRoad = activeRoad != null ? activeRoad : roads.getFirst();
+        RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, statusRoad.getId());
+        if (ctx.previewManager().isTerrainProfileFresh(network, statusRoad)) {
             String key = data != null && !data.fullyLoaded()
                 ? "plugin.road.terrain_profile.status_partial"
                 : "plugin.road.terrain_profile.status_ready";
@@ -191,7 +189,7 @@ public final class RoadProfileOverviewSection {
                 PlotI18n.tr("plugin.road.terrain_profile.status_sparse"));
             return;
         }
-        if (ctx.previewManager().isTerrainProfileStale(network, road)) {
+        if (ctx.previewManager().isTerrainProfileStale(network, statusRoad)) {
             ImGui.textColored(
                 PluginUiColors.WARNING_LIGHT,
                 PlotI18n.tr("plugin.road.terrain_profile.status_stale"));

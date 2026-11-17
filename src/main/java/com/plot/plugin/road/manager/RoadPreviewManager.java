@@ -28,10 +28,13 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,6 +67,12 @@ public final class RoadPreviewManager {
     private Map<String, RoadProfileChartData> lastRoadProfiles = Collections.emptyMap();
     private final RoadTerrainProfileCache terrainProfileCache = new RoadTerrainProfileCache();
     private RoadTerrainProfileSamplingJob terrainProfileJob;
+    /** 用户「读取/更新地形」批量队列：当前任务完成后依次启动。 */
+    private final ArrayDeque<String> pendingTerrainRoadIds = new ArrayDeque<>();
+    private RoadNetwork pendingTerrainNetwork;
+    private boolean pendingTerrainForce;
+    private int terrainBatchTotal;
+    private int terrainBatchCompleted;
     /** 概览合成图表缓存：避免每帧 withTerrainGround 重算。 */
     private final Map<String, OverviewChartCacheEntry> overviewChartCache = new LinkedHashMap<>();
     /** 已自动请求过的 TerrainProfileKey 编码；同键不重复自动读，失败也不每帧重试。 */
@@ -407,9 +416,16 @@ public final class RoadPreviewManager {
         if (network == null || roadId == null || roadId.isBlank()) {
             return false;
         }
-        Road road = network.getRoad(roadId);
-        if (road == null || !RoadStationing.isStationable(network, road)) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.unavailable"));
+        return refreshTerrainProfiles(network, List.of(roadId), force);
+    }
+
+    /**
+     * 一次性排队读取多条道路地形（概览「读取/更新地形」）。
+     * 同帧只跑一条采样任务，完成后自动启动下一条。
+     */
+    public boolean refreshTerrainProfiles(
+            RoadNetwork network, Collection<String> roadIds, boolean force) {
+        if (network == null || roadIds == null || roadIds.isEmpty()) {
             return false;
         }
         World world = RoadNetworkGenerator.getClientWorld();
@@ -417,15 +433,75 @@ public final class RoadPreviewManager {
             status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return false;
         }
+        LinkedHashSet<String> ordered = new LinkedHashSet<>();
+        for (String roadId : roadIds) {
+            if (roadId == null || roadId.isBlank()) {
+                continue;
+            }
+            Road road = network.getRoad(roadId);
+            if (road != null && RoadStationing.isStationable(network, road)) {
+                ordered.add(roadId);
+            }
+        }
+        if (ordered.isEmpty()) {
+            status.warning(PlotI18n.tr("plugin.road.terrain_profile.unavailable"));
+            return false;
+        }
+
+        cancelTerrainProfileJobSilently();
+        clearTerrainRefreshQueue();
+        pendingTerrainNetwork = network;
+        pendingTerrainForce = force;
+        pendingTerrainRoadIds.addAll(ordered);
+        terrainBatchTotal = ordered.size();
+        terrainBatchCompleted = 0;
+        return startNextTerrainProfileJob();
+    }
+
+    /** 批量队列剩余道路数（不含当前正在跑的任务）。 */
+    public int pendingTerrainRefreshCount() {
+        return pendingTerrainRoadIds.size();
+    }
+
+    public int terrainRefreshBatchTotal() {
+        return terrainBatchTotal;
+    }
+
+    public int terrainRefreshBatchCompleted() {
+        return terrainBatchCompleted;
+    }
+
+    private boolean startNextTerrainProfileJob() {
+        while (!pendingTerrainRoadIds.isEmpty()) {
+            String roadId = pendingTerrainRoadIds.pollFirst();
+            if (beginTerrainProfileJob(pendingTerrainNetwork, roadId, pendingTerrainForce)) {
+                publishTerrainSamplingStatus();
+                return true;
+            }
+            terrainBatchCompleted++;
+        }
+        clearTerrainRefreshQueue();
+        return false;
+    }
+
+    private boolean beginTerrainProfileJob(RoadNetwork network, String roadId, boolean force) {
+        if (network == null || roadId == null || roadId.isBlank()) {
+            return false;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null || !RoadStationing.isStationable(network, road)) {
+            return false;
+        }
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            return false;
+        }
         var config = networkGenerator != null ? networkGenerator.getConfig() : null;
         TerrainProfileKey key = RoadTerrainProfileSampler.buildKey(
             currentWorldKey(), network, road, host.coordinates(), config);
         if (!force && terrainProfileCache.isFresh(key)) {
-            // 成功态由纵断面面板自身状态行展示，避免顶部再刷一条重复提示。
-            status.clear();
-            return true;
+            return false;
         }
-        cancelTerrainProfileJobSilently();
         if (force) {
             terrainProfileCache.invalidate(roadId);
         }
@@ -433,11 +509,44 @@ public final class RoadPreviewManager {
         var stations = RoadTerrainProfileSampler.buildStations(network, road, spacing);
         var points = RoadTerrainProfileSampler.resolvePoints(network, road, stations);
         double totalStation = RoadStationing.canonicalLength(network, road);
-        // 发布前会用 live 路网重建 key；此处 key 仅标识任务起点身份。
         terrainProfileJob = new RoadTerrainProfileSamplingJob(
             this, key, totalStation, stations, points);
-        status.progress(PlotI18n.tr("plugin.road.terrain_profile.sampling"));
         return true;
+    }
+
+    private void publishTerrainSamplingStatus() {
+        if (terrainBatchTotal > 1) {
+            int current = Math.min(terrainBatchTotal, terrainBatchCompleted + 1);
+            status.progress(PlotI18n.tr(
+                "plugin.road.terrain_profile.sampling_batch",
+                current,
+                terrainBatchTotal));
+        } else {
+            status.progress(PlotI18n.tr("plugin.road.terrain_profile.sampling"));
+        }
+    }
+
+    private void clearTerrainRefreshQueue() {
+        pendingTerrainRoadIds.clear();
+        pendingTerrainNetwork = null;
+        pendingTerrainForce = false;
+        terrainBatchTotal = 0;
+        terrainBatchCompleted = 0;
+    }
+
+    private void advanceTerrainRefreshQueueAfterJob() {
+        terrainBatchCompleted++;
+        if (pendingTerrainRoadIds.isEmpty()) {
+            int total = terrainBatchTotal;
+            clearTerrainRefreshQueue();
+            if (total > 1) {
+                status.clear();
+            }
+            return;
+        }
+        if (!startNextTerrainProfileJob() && terrainBatchTotal > 1) {
+            status.clear();
+        }
     }
 
     public void tickTerrainProfileJob() {
@@ -447,6 +556,7 @@ public final class RoadPreviewManager {
     }
 
     public void cancelTerrainProfileJob() {
+        clearTerrainRefreshQueue();
         if (terrainProfileJob == null) {
             return;
         }
@@ -460,6 +570,7 @@ public final class RoadPreviewManager {
     }
 
     public void cancelTerrainProfileJobSilently() {
+        // 仅取消当前任务；批量 API 会在其后重建队列。勿在此 clearTerrainRefreshQueue。
         if (terrainProfileJob == null) {
             return;
         }
@@ -474,6 +585,16 @@ public final class RoadPreviewManager {
         if (job == null || terrainProfileJob != job) {
             return;
         }
+        if (terrainBatchTotal > 1) {
+            int current = Math.min(terrainBatchTotal, terrainBatchCompleted + 1);
+            status.progress(PlotI18n.tr(
+                "plugin.road.terrain_profile.sampling_batch_progress",
+                current,
+                terrainBatchTotal,
+                job.processedWorkUnits(),
+                job.totalWorkUnits()));
+            return;
+        }
         status.progress(PlotI18n.tr(
             "plugin.road.terrain_profile.sampling_progress",
             job.processedWorkUnits(),
@@ -485,18 +606,40 @@ public final class RoadPreviewManager {
             return;
         }
         terrainProfileJob = null;
+        boolean multiBatch = terrainBatchTotal > 1;
+        boolean moreQueued = !pendingTerrainRoadIds.isEmpty();
         if (data == null || !data.hasAnyValidSample()) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+            if (moreQueued || multiBatch) {
+                advanceTerrainRefreshQueueAfterJob();
+            } else {
+                clearTerrainRefreshQueue();
+                status.warning(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+            }
             return;
         }
         // 必须用当前 live 路网/投影/世界重建 key，禁止复制任务旧几何指纹。
         TerrainProfileKey expected = currentLiveTerrainKey(data.roadId());
         if (expected == null || !data.matches(expected)) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.rejected_stale"));
+            if (moreQueued || multiBatch) {
+                advanceTerrainRefreshQueueAfterJob();
+            } else {
+                clearTerrainRefreshQueue();
+                status.warning(PlotI18n.tr("plugin.road.terrain_profile.rejected_stale"));
+            }
             return;
         }
         terrainProfileCache.put(data);
         bumpOverviewChartCache();
+        if (moreQueued) {
+            advanceTerrainRefreshQueueAfterJob();
+            return;
+        }
+        // 单路或批量最后一条：收尾计数，再按数据质量提示。
+        clearTerrainRefreshQueue();
+        if (multiBatch) {
+            status.clear();
+            return;
+        }
         if (!data.hasDrawableSegment()) {
             status.warning(PlotI18n.tr("plugin.road.terrain_profile.sparse"));
         } else if (!data.fullyLoaded()) {
@@ -508,9 +651,15 @@ public final class RoadPreviewManager {
     }
 
     public void failTerrainProfileJob(RoadTerrainProfileSamplingJob job) {
-        if (terrainProfileJob == job) {
-            terrainProfileJob = null;
+        if (terrainProfileJob != job) {
+            return;
         }
+        terrainProfileJob = null;
+        if (!pendingTerrainRoadIds.isEmpty() || terrainBatchTotal > 1) {
+            advanceTerrainRefreshQueueAfterJob();
+            return;
+        }
+        clearTerrainRefreshQueue();
         status.error(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
     }
 
@@ -1141,6 +1290,7 @@ public final class RoadPreviewManager {
 
     /** 世界切换、插件卸载或路网重载时失效 Level-1 地形缓存。 */
     public void clearTerrainProfileCache() {
+        clearTerrainRefreshQueue();
         cancelTerrainProfileJobSilently();
         terrainProfileCache.clear();
         autoTerrainRequestTokens.clear();

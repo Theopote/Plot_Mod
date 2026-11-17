@@ -929,13 +929,13 @@ final class VerticalProfileEditor {
             double roadLength,
             double cachedTotalStation) {
         return VerticalProfileChartCache.matchesChartFallbackIdentity(
-            roadId,
+                roadId,
             cachedRoadId,
-            networkRevision,
+                networkRevision,
             cachedNetworkRevision,
-            terrainRevision,
+                terrainRevision,
             cachedTerrainRevision,
-            roadLength,
+                roadLength,
             cachedTotalStation);
     }
 
