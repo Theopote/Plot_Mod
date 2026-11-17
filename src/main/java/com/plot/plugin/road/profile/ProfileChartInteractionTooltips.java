@@ -13,12 +13,6 @@ final class ProfileChartInteractionTooltips {
 
     static void renderPviHover(
             ProfileControlPoint point,
-            double maxGradePercent) {
-        renderPviHover(point, maxGradePercent, 1.0);
-    }
-
-    static void renderPviHover(
-            ProfileControlPoint point,
             double maxGradePercent,
             double stationDisplayScale) {
         if (point == null) {

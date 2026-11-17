@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -16,14 +17,11 @@ import com.plot.plugin.road.vertical.VerticalProfileCurveFitter;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 import java.util.List;
 
 /** 地形适应道路纵断面编辑器：选中 PVI 属性面板。 */
 final class AdaptiveProfileControls {
-
-    private static final int ADVANCED_LIST_THRESHOLD = 3;
 
     void render(
             RoadUiContext ctx,
@@ -54,17 +52,9 @@ final class AdaptiveProfileControls {
             bounds = RoadWorldElevationBounds.fallback();
             session.setElevationBounds(bounds);
         }
-        if (points.size() > ADVANCED_LIST_THRESHOLD
-                && ImGui.collapsingHeader(
-                    PlotI18n.tr("plugin.road.profile_control_points_collapsed", points.size())
-                        + "##profile_control_points_advanced")) {
-            for (ProfileControlPoint point : points) {
-                renderControlPointSelectable(point, maxGrade, state, onPviPicked);
-            }
-        }
+        // 变坡点列表已在左轨；此处只渲染选中项详情。
         if (state.selectedProfilePvi < 0 || road.getVerticalAlignment() == null
                 || state.selectedProfilePvi >= road.getVerticalAlignment().pviCount()) {
-            // 未选中时由编辑器隐藏本面板，不占图表下方空间。
             return;
         }
         ProfileControlPoint selectedPoint = points.stream()
@@ -74,7 +64,8 @@ final class AdaptiveProfileControls {
         if (selectedPoint == null) {
             return;
         }
-        renderSelectedPointDetail(selectedPoint, maxGrade);
+        ICoordinateService coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
+        renderSelectedPointDetail(selectedPoint, maxGrade, network, road, coordinates);
         if (VerticalProfileControlPoints.isEditablePvi(network, road, selectedPoint)
                 && VerticalProfileControlPoints.exceedsGradeLimit(selectedPoint, maxGrade)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_fix_grade"))) {
@@ -165,45 +156,18 @@ final class AdaptiveProfileControls {
         state.selectedProfileElevation[0] = (float) point.elevation();
     }
 
-    private static void renderControlPointSelectable(
-            ProfileControlPoint point,
-            float maxGrade,
-            ProfileEditorState state,
-            Runnable onPviPicked) {
-        boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
-        String grades = formatControlPointGrades(point);
-        if (point.sharedJunction()) {
-            grades += " · " + PlotI18n.tr("plugin.road.vertical_alignment_shared_junction");
-        }
-        String label = PlotI18n.tr(
-            "plugin.road.vertical_alignment_control_point",
-            point.pviIndex() + 1,
-            point.roadStation(),
-            point.elevation(),
-            grades);
-        if (invalid) {
-            ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.INVALID);
-        }
-        if (ImGui.selectable(label + "##profile_pvi_" + point.pviIndex(),
-                state.selectedProfilePvi == point.pviIndex())) {
-            state.selectedProfilePvi = point.pviIndex();
-            state.selectedProfileElevation[0] = (float) point.elevation();
-            if (onPviPicked != null) {
-                onPviPicked.run();
-            }
-        }
-        if (invalid) {
-            ImGui.popStyleColor();
-        }
-    }
-
     private static void renderSelectedPointDetail(
             ProfileControlPoint point,
-            float maxGrade) {
+            float maxGrade,
+            RoadNetwork network,
+            Road road,
+            ICoordinateService coordinates) {
+        String station = RoadLengthDisplay.formatCanvasDistance(
+            point.roadStation(), network, road, coordinates);
         ImGui.text(PlotI18n.tr(
             "plugin.road.vertical_alignment_control_point",
             point.pviIndex() + 1,
-            point.roadStation(),
+            station,
             point.elevation(),
             formatControlPointGrades(point)));
         if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade)) {

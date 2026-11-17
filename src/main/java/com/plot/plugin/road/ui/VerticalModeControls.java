@@ -11,7 +11,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import java.util.function.Supplier;
 
-/** 生成 Tab 水平道路基准高程控件。 */
+/** 纵断面工作区：水平道路基准高程控件。 */
 final class VerticalModeControls {
 
     private final FlatProfileControls flatProfileControls = new FlatProfileControls();

@@ -102,6 +102,7 @@ final class VerticalProfileEditor {
     private final ProfileEditorState editorState = new ProfileEditorState();
     private final ProfileEditSession profileEditSession = new ProfileEditSession();
     private final AdaptiveProfileControls adaptiveProfileControls = new AdaptiveProfileControls();
+    private final FlatProfileControls flatProfileControls = new FlatProfileControls();
     private ProfileEditorWindowSession windowSession;
     private boolean closeConfirmPending;
     private Runnable onProfileConfirmed;
@@ -616,25 +617,7 @@ final class VerticalProfileEditor {
         }
 
         boolean dirty = windowSession != null && windowSession.isDirty();
-        if (dirty) {
-            ImGui.textColored(
-                PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr("plugin.road.profile_editor_unsaved_status"));
-            int affectCount = windowSession.estimateConfirmAffectRoadCount();
-            if (affectCount > 0) {
-                ImGui.sameLine();
-                ImGui.textColored(PluginUiColors.HINT_GRAY, "(" + affectCount + ")");
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr(
-                        "plugin.road.profile_editor_confirm_affect_summary", affectCount));
-                }
-            }
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_editor_clean_status"));
-        }
-        renderProfilePipelineStatus(ctx, road);
+        renderProfilePipelineChips(ctx, road, dirty);
 
         float commitWidth = (rowWidth - spacing * 2f) / 3f;
         if (!dirty) {
@@ -1703,12 +1686,14 @@ final class VerticalProfileEditor {
                     "plugin.road.vertical_alignment_network_unresolved",
                     profileEditSession.constraintResult().unresolvedConstraints().size()));
             }
+            if (flatMode) {
+                // 水平路：内嵌 Base Y / 推荐 Y，无需退回工作区顶部。
+                renderFlatModeEditorDetail(ctx, editingNetwork, road);
+            }
             if (selectedIntersectionIndex >= 0) {
                 renderIntersectionDetail(
                     ctx, editingNetwork, road, intersections, config, flatMode);
-            } else if (flatMode) {
-                renderFlatModeGenerationSettingsHint(editingNetwork, road);
-            } else if (editorState.selectedProfilePvi >= 0) {
+            } else if (!flatMode && editorState.selectedProfilePvi >= 0) {
                 adaptiveProfileControls.render(
                     ctx,
                     editingNetwork,
@@ -1724,7 +1709,7 @@ final class VerticalProfileEditor {
                     this::notifyWorkingProfileChanged,
                     () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi),
                     () -> selectedIntersectionIndex = -1);
-            } else {
+            } else if (!flatMode) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr("plugin.road.profile_editor_detail_empty"));
@@ -1880,17 +1865,16 @@ final class VerticalProfileEditor {
         }
     }
 
-    private void renderFlatModeGenerationSettingsHint(RoadNetwork network, Road road) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_flat_edit_in_vertical_workspace"));
-        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
-        if (intent != null) {
-            ImGui.text(String.format(
-                "%s: %.1f",
-                PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
-                intent.getBaseElevation()));
-        }
+    private void renderFlatModeEditorDetail(RoadUiContext ctx, RoadNetwork network, Road road) {
+        flatProfileControls.render(
+            ctx,
+            network,
+            road,
+            windowSession,
+            FlatElevationEditHooks.forProfileEditor(
+                this::recordUndoPointBeforeEdit,
+                this::notifyWorkingProfileChanged),
+            FlatElevationRecommendationUi.terrainSupplier(ctx));
     }
 
     private void renderQualityWarningsOnly(
@@ -2062,38 +2046,6 @@ final class VerticalProfileEditor {
             case SHARED -> RoadProfileIntersectionDragEditor.DragTarget.SHARED;
             case NONE -> null;
         };
-    }
-
-    /** 交点定位辅助：图表点选为主，下拉仅作密集交点时的次要入口。 */
-    private void renderCompactIntersectionLocator(List<RoadProfileIntersection> intersections) {
-        if (intersections == null || intersections.isEmpty()) {
-            return;
-        }
-        float locatorWidth = Math.min(220f, ImGui.getContentRegionAvailX());
-        // 图例同行放得下再 sameLine，否则换行，避免右侧被裁剪。
-        if (locatorWidth >= 120f) {
-            ImGui.sameLine();
-            locatorWidth = Math.min(220f, ImGui.getContentRegionAvailX());
-        }
-        ImGui.setNextItemWidth(Math.max(80f, locatorWidth));
-        String preview = selectedIntersectionIndex >= 0 && selectedIntersectionIndex < intersections.size()
-            ? intersectionLabel(intersections.get(selectedIntersectionIndex))
-            : PlotI18n.tr("plugin.road.profile_editor_intersection_locator");
-        if (ImGui.beginCombo("##profile_intersection_locator", preview)) {
-            for (int i = 0; i < intersections.size(); i++) {
-                if (ImGui.selectable(intersectionLabel(intersections.get(i)) + "##crossing_" + i,
-                        i == selectedIntersectionIndex)) {
-                    selectedIntersectionIndex = i;
-                    editorState.selectedProfilePvi = -1;
-                    intersectionInputKey = "";
-                }
-            }
-            ImGui.endCombo();
-        }
-    }
-
-    private static String intersectionLabel(RoadProfileIntersection intersection) {
-        return intersection.otherRoadLabel() + " @ " + String.format("%.2f", intersection.roadStation());
     }
 
     private void renderIntersectionHeightEdit(RoadUiContext ctx, RoadNetwork network, Road road,

@@ -15,7 +15,7 @@ final class ProfileSourceControls {
     private ProfileSourceControls() {
     }
 
-    /** 生成 Tab：地形适应预设下方的可编辑来源控件。 */
+    /** 纵断面工作区：地形适应道路的纵断面来源控件。 */
     static void render(RoadUiContext ctx, RoadNetwork network, Road road, Runnable openProfileEditor) {
         if (road == null || network == null) {
             return;
