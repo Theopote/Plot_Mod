@@ -14,16 +14,24 @@ final class ProfileChartInteractionTooltips {
     static void renderPviHover(
             ProfileControlPoint point,
             double maxGradePercent) {
+        renderPviHover(point, maxGradePercent, 1.0);
+    }
+
+    static void renderPviHover(
+            ProfileControlPoint point,
+            double maxGradePercent,
+            double stationDisplayScale) {
         if (point == null) {
             return;
         }
+        double scale = RoadProfileChartRenderer.sanitizeStationDisplayScale(stationDisplayScale);
         ImGui.beginTooltip();
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_pvi_hover_title",
             point.pviIndex() + 1));
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_pvi_hover_station",
-            point.roadStation()));
+            point.roadStation() * scale));
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_pvi_hover_elevation",
             point.elevation()));

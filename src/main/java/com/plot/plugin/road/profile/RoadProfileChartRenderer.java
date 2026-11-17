@@ -70,7 +70,7 @@ public final class RoadProfileChartRenderer {
             origin.x, origin.y, width, chartHeight, mode);
         RoadProfilePlotRange range = plotRange(chart, design, List.of(), intersections, flatOverlay);
         drawBackground(drawList, layout);
-        drawAxesAndGrid(drawList, layout, range, mode);
+        drawAxesAndGrid(drawList, layout, range, mode, 1.0);
         drawSeries(
             drawList, layout, range, chart, design, flatOverlay, mode,
             ProfileChartGuideSemantics.fromVerticalMode(verticalMode),
@@ -115,7 +115,7 @@ public final class RoadProfileChartRenderer {
             curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
             activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
             elevationBounds, insertAlignment, buildProfileStale, showBuildProfileLine,
-            null);
+            null, 1.0);
     }
 
     public static ProfileChartInteraction.ControlInteraction renderInteractive(
@@ -145,6 +145,47 @@ public final class RoadProfileChartRenderer {
             boolean buildProfileStale,
             boolean showBuildProfileLine,
             Double playheadStation) {
+        return renderInteractive(
+            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
+            intersections, selectedIntersectionIndex, chartHeight,
+            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
+            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
+            activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
+            elevationBounds, insertAlignment, buildProfileStale, showBuildProfileLine,
+            playheadStation, 1.0);
+    }
+
+    /**
+     * @param stationDisplayScale 画布域桩号 → 世界投影米（blocks）比例；轴标/悬停用，绘图仍用画布域
+     */
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            List<ProfileControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            FlatElevationProfileOverlay flatOverlay,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartRenderMode mode,
+            ProfileRenderCache renderCache,
+            RoadVerticalMode verticalMode,
+            RoadElevationBounds elevationBounds,
+            RoadVerticalAlignment insertAlignment,
+            boolean buildProfileStale,
+            boolean showBuildProfileLine,
+            Double playheadStation,
+            double stationDisplayScale) {
         if (chart == null || !chart.canRenderChart()) {
             return new ProfileChartInteraction.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
@@ -160,8 +201,9 @@ public final class RoadProfileChartRenderer {
             origin.x, origin.y, width, chartHeight, mode);
         RoadProfilePlotRange range = resolvePlotRange(
             renderCache, chart, design, controls, intersections, flatOverlay);
+        double displayScale = sanitizeStationDisplayScale(stationDisplayScale);
         drawBackground(drawList, layout);
-        drawAxesAndGrid(drawList, layout, range, mode);
+        drawAxesAndGrid(drawList, layout, range, mode, displayScale);
         drawSeries(
             drawList, layout, range, chart, design, flatOverlay, mode,
             ProfileChartGuideSemantics.fromVerticalMode(verticalMode),
@@ -185,7 +227,8 @@ public final class RoadProfileChartRenderer {
             maxGradePercent,
             selectedIntersectionIndex, activeIntersectionDragIndex, activeIntersectionDragTarget,
             curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
-            activeCurveHandlePvi, activeCurveHandle, elevationBounds, insertAlignment);
+            activeCurveHandlePvi, activeCurveHandle, elevationBounds, insertAlignment,
+            displayScale);
     }
 
     private static ProfileChartInteraction.ControlInteraction handleInteraction(
@@ -207,7 +250,8 @@ public final class RoadProfileChartRenderer {
             int activeCurveHandlePvi,
             ProfileChartInteraction.CurveHandleSide activeCurveHandle,
             RoadElevationBounds elevationBounds,
-            RoadVerticalAlignment insertAlignment) {
+            RoadVerticalAlignment insertAlignment,
+            double stationDisplayScale) {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
         int selected = selectedPviIndex;
@@ -252,7 +296,8 @@ public final class RoadProfileChartRenderer {
                 controls, layout, range, mouseX, mouseY,
                 ProfileChartHitTester.DEFAULT_PVI_HIT_RADIUS_PX);
             if (hoveredPvi != null && active < 0 && activeCurvePvi < 0 && activeIntersectionDrag < 0) {
-                ProfileChartInteractionTooltips.renderPviHover(hoveredPvi, maxGradePercent);
+                ProfileChartInteractionTooltips.renderPviHover(
+                    hoveredPvi, maxGradePercent, stationDisplayScale);
             }
             updateHoverCursor(
                 controls, curveHandles, layout, range, mouseX, mouseY,
@@ -709,7 +754,8 @@ public final class RoadProfileChartRenderer {
             ImDrawList drawList,
             ProfileChartLayout layout,
             RoadProfilePlotRange range,
-            ProfileChartRenderMode mode) {
+            ProfileChartRenderMode mode,
+            double stationDisplayScale) {
         List<Double> ticks = ProfileElevationTicks.elevationTicks(
             range.minElevation(), range.maxElevation());
         if (mode.maxElevationTicks() < Integer.MAX_VALUE && mode.maxElevationTicks() > 0) {
@@ -735,10 +781,13 @@ public final class RoadProfileChartRenderer {
         List<Double> stationTicks = ProfileElevationTicks.stationTicks(
             range.totalStation(), mode.maxStationTicks());
         if (mode.showStationAxisLabels()) {
+            double scale = sanitizeStationDisplayScale(stationDisplayScale);
             float stationLabelY = layout.plotBottom() + 4f;
             for (int i = 0; i < stationTicks.size(); i++) {
                 double station = stationTicks.get(i);
-                String label = RoadStationing.format(station, RoadStationFormat.DISTANCE_METERS);
+                // 绘图用画布域；轴标换算为世界投影米，与顶栏路长 / scrub 一致。
+                String label = RoadStationing.format(
+                    station * scale, RoadStationFormat.DISTANCE_METERS);
                 float textWidth = ImGui.calcTextSize(label).x;
                 float x;
                 if (i == 0) {
@@ -752,6 +801,13 @@ public final class RoadProfileChartRenderer {
             }
         }
         drawTravelDirectionCue(drawList, layout, mode);
+    }
+
+    static double sanitizeStationDisplayScale(double stationDisplayScale) {
+        if (!Double.isFinite(stationDisplayScale) || stationDisplayScale <= 1e-9) {
+            return 1.0;
+        }
+        return stationDisplayScale;
     }
 
     /**

@@ -1331,6 +1331,9 @@ final class VerticalProfileEditor {
         profileEditSession.setElevationBounds(elevationBounds);
         // 提示文案之后再算高度，保证图表 + 详情贴满到页脚。
         float chartHeight = resolvePinnedChartHeight();
+        var coordinates = ctx.host() != null ? ctx.host().coordinates() : null;
+        double stationDisplayScale = RoadLengthDisplay.canvasToWorldScale(
+            editingNetwork, road, coordinates);
         ProfileChartInteraction.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 effectiveChart, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -1349,7 +1352,8 @@ final class VerticalProfileEditor {
                 effectiveAlignment,
                 buildProfileStale,
                 showBuildProfileLine,
-                (double) playheadStation);
+                (double) playheadStation,
+                stationDisplayScale);
         if (interaction.intersectionDragStarted()) {
             cancelVoxelCompile();
             recordUndoPointBeforeEdit();
