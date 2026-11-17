@@ -79,10 +79,10 @@ import java.util.function.Function;
  */
 final class VerticalProfileEditor {
 
-    /** 钉顶剖面图占「示意/scrub 之下」剩余高度的比例。 */
-    private static final float EDITOR_CHART_OF_REMAINING = 0.55f;
     private static final float MIN_EDITOR_CHART_HEIGHT = 200f;
-    private static final float MIN_DETAIL_BODY_HEIGHT = 140f;
+    /** 下半主从区高度：够列表+详情，多余高度优先给剖面图。 */
+    private static final float MIN_DETAIL_BODY_HEIGHT = 160f;
+    private static final float MAX_DETAIL_BODY_HEIGHT = 220f;
     private static final float PLAN_SCHEMATIC_HEIGHT = 96f;
     private static final float CONTROL_RAIL_WIDTH_FRACTION = 0.28f;
     private static final float MIN_ROAD_COMBO_WIDTH = 48f;
@@ -292,10 +292,10 @@ final class VerticalProfileEditor {
             handleEditorKeyboardShortcuts(ctx);
             float footerTop = ImGui.getCursorPosY();
             renderEditorFooter(ctx, liveNetwork, road);
-            // 多留一行间距，避免下一帧底部按钮贴边或被窗口裁剪。
+            // 按实测高度预留，仅加一行间距，避免内容区与按钮之间出现大块空白。
             lastFooterHeight = Math.max(
                 estimateMinFooterHeight(),
-                ImGui.getCursorPosY() - footerTop + ImGui.getStyle().getItemSpacingY() * 2f);
+                ImGui.getCursorPosY() - footerTop + ImGui.getStyle().getItemSpacingY());
             renderEditorDialogs(ctx, liveNetwork);
         } finally {
             if (!editorWindowOpen.get()) {
@@ -521,14 +521,17 @@ final class VerticalProfileEditor {
     }
 
     private float resolveFooterReserve() {
-        return Math.max(estimateMinFooterHeight(), lastFooterHeight);
+        // 已有实测高度时直接用，避免首帧偏大的估算一直撑出空隙。
+        if (lastFooterHeight > 1f) {
+            return lastFooterHeight;
+        }
+        return estimateMinFooterHeight();
     }
 
-    /** 按实际控件行高估算底部最小预留，避免首帧或窄窗口裁剪按钮。 */
+    /** 首帧最小预留：separator + 工具行 + 状态行 + 提交行 + 正常间距。 */
     private static float estimateMinFooterHeight() {
         float row = ImGui.getFrameHeightWithSpacing();
-        // separator + 工具行(+可能换行) + 状态行 + 提交行 + 余量
-        return row * 4.2f + ImGui.getStyle().getItemSpacingY();
+        return row * 3.2f + ImGui.getStyle().getItemSpacingY();
     }
 
     /**
@@ -820,11 +823,26 @@ final class VerticalProfileEditor {
         }
     }
 
-    /** 钉顶剖面高度：留给下半 master-detail 足够空间。 */
+    /**
+     * 钉顶剖面高度：窗口变高时优先拉高图表；下半主从区限制在
+     * {@link #MIN_DETAIL_BODY_HEIGHT}–{@link #MAX_DETAIL_BODY_HEIGHT}，避免按钮上方大块空白。
+     */
     private static float resolvePinnedChartHeight() {
         float remaining = ImGui.getContentRegionAvailY();
-        float usable = Math.max(0f, remaining - MIN_DETAIL_BODY_HEIGHT - ImGui.getStyle().getItemSpacingY());
-        return Math.max(MIN_EDITOR_CHART_HEIGHT, usable * EDITOR_CHART_OF_REMAINING);
+        float spacing = ImGui.getStyle().getItemSpacingY();
+        float detail = resolveDetailBodyHeight(remaining);
+        float chart = remaining - detail - spacing;
+        return Math.max(MIN_EDITOR_CHART_HEIGHT, chart);
+    }
+
+    private static float resolveDetailBodyHeight(float remainingAfterChartAnchor) {
+        float spacing = ImGui.getStyle().getItemSpacingY();
+        float maxForChart = Math.max(0f, remainingAfterChartAnchor - MIN_EDITOR_CHART_HEIGHT - spacing);
+        float desired = Math.clamp(
+            remainingAfterChartAnchor * 0.32f,
+            MIN_DETAIL_BODY_HEIGHT,
+            MAX_DETAIL_BODY_HEIGHT);
+        return Math.min(desired, Math.max(MIN_DETAIL_BODY_HEIGHT, maxForChart));
     }
 
     /**
@@ -1289,7 +1307,6 @@ final class VerticalProfileEditor {
             RoadStationing.canonicalLength(editingNetwork, road));
         playheadStation = Math.clamp(playheadStation, 0f, canvasLength);
         renderPlanContext(ctx, editingNetwork, road, points, intersections, canvasLength, flatMode);
-        float chartHeight = resolvePinnedChartHeight();
         int chartSelectedPvi = flatMode
             ? clampFlatEndpointPvi(editorState.selectedProfilePvi)
             : editorState.selectedProfilePvi;
@@ -1312,6 +1329,8 @@ final class VerticalProfileEditor {
         renderWaterConstraintWarning(effectiveChart);
         RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
         profileEditSession.setElevationBounds(elevationBounds);
+        // 提示文案之后再算高度，保证图表 + 详情贴满到页脚。
+        float chartHeight = resolvePinnedChartHeight();
         ProfileChartInteraction.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 effectiveChart, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -1641,6 +1660,7 @@ final class VerticalProfileEditor {
             float maxGrade,
             float canvasLength) {
         float totalWidth = ImGui.getContentRegionAvailX();
+        // 剖面图已按「剩余 − 详情高度」计算，这里吃掉全部剩余，贴住页脚。
         float bodyHeight = Math.max(MIN_DETAIL_BODY_HEIGHT, ImGui.getContentRegionAvailY());
         float spacing = ImGui.getStyle().getItemSpacingX();
         float railWidth = Math.max(120f, (totalWidth - spacing) * CONTROL_RAIL_WIDTH_FRACTION);

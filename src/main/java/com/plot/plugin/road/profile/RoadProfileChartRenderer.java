@@ -23,8 +23,9 @@ import java.util.List;
  */
 public final class RoadProfileChartRenderer {
 
-    private static final int COLOR_BG = 0xFF2A2A2A;
-    private static final int COLOR_BORDER = 0xFF606060;
+    /** 与平面示意预览一致的深色底，突出地形/设计线对比。 */
+    private static final int COLOR_BG = PluginUiColors.MAP_BG;
+    private static final int COLOR_BORDER = PluginUiColors.PANEL_BORDER;
     private static final int COLOR_GROUND = ProfileChartSeriesStyle.RAW_TERRAIN;
     private static final int COLOR_DESIGN = ProfileChartSeriesStyle.DESIGN_PROFILE;
     private static final int COLOR_BUILD = ProfileChartSeriesStyle.BUILD_PROFILE;

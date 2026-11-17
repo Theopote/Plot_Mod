@@ -1,5 +1,6 @@
 package com.plot.plugin.road.profile;
 
+import com.plot.plugin.ui.PluginUiColors;
 import imgui.ImDrawList;
 import imgui.ImGui;
 
@@ -13,7 +14,8 @@ public final class ProfileChartIntersectionSupport {
     private static final double HIT_RADIUS_PX = 12.0;
     private static final double HIT_RADIUS_SQ = HIT_RADIUS_PX * HIT_RADIUS_PX;
 
-    private static final int COLOR_BG = 0xFF2A2A2A;
+    /** 与剖面图底色一致，用于交点描边镂空。 */
+    private static final int COLOR_BG = PluginUiColors.MAP_BG;
     private static final int COLOR_INTERSECTION = 0xFF66CCFF;
     private static final int COLOR_INTERSECTION_SELECTED = 0xFFFFFFFF;
     private static final int COLOR_INTERSECTION_GRADE = 0xFFFF9966;
