@@ -88,8 +88,9 @@ class TunnelFilletRoofFollowsPavementTest {
             "roof lining must follow pavement trend (multiple roof Y); got roofYs=" + roofYs
                 + " roadYs=" + roadYs);
 
-        // 逐列：同世界列顶衬相对正下方路面保持 clearHeight（允许衬砌厚度落在 roof..roof+lining-1）
-        Map<Long, Integer> roadYByColumn = new java.util.HashMap<>();
+        // 逐列：同世界列顶衬相对正下方路面保持 clearHeight（允许衬砌厚度落在 roof..roof+lining-1）。
+        // 同列可能有多种路面高（种子进口 + loft），取与 clearHeight 最接近的配对，避免误用远处种子标高。
+        Map<Long, java.util.NavigableSet<Integer>> roadYsByColumn = new java.util.HashMap<>();
         Map<Long, Integer> roofYByColumn = new java.util.HashMap<>();
         for (RoadGenerationResult result : edgeResults.values()) {
             for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
@@ -101,7 +102,7 @@ class TunnelFilletRoofFollowsPavementTest {
                 long key = (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
                 RoadSolidLayer layer = result.placementLayers.get(pos);
                 if (layer == RoadSolidLayer.ROAD) {
-                    roadYByColumn.merge(key, pos.getY(), Math::max);
+                    roadYsByColumn.computeIfAbsent(key, ignored -> new java.util.TreeSet<>()).add(pos.getY());
                 }
                 if (layer == RoadSolidLayer.TUNNEL
                         && pos.getY() >= BASE_ROAD_Y + CLEAR_HEIGHT - 1
@@ -113,16 +114,16 @@ class TunnelFilletRoofFollowsPavementTest {
         int matchedColumns = 0;
         int exactClearHeightColumns = 0;
         for (Map.Entry<Long, Integer> roofEntry : roofYByColumn.entrySet()) {
-            Integer roadY = roadYByColumn.get(roofEntry.getKey());
-            if (roadY == null) {
+            java.util.NavigableSet<Integer> columnRoadYs = roadYsByColumn.get(roofEntry.getKey());
+            if (columnRoadYs == null || columnRoadYs.isEmpty()) {
                 continue;
             }
             int actualRoof = roofEntry.getValue();
-            int offset = actualRoof - roadY;
-            // 侧墙衬砌也会落在 TUNNEL 层；只验收相对路面约 clearHeight 的顶衬带。
-            if (offset < CLEAR_HEIGHT - 1) {
+            Integer roadY = bestRoadYForRoof(columnRoadYs, actualRoof);
+            if (roadY == null) {
                 continue;
             }
+            int offset = actualRoof - roadY;
             assertTrue(offset <= CLEAR_HEIGHT + LINING,
                 "column roof must track pavement clearHeight; roadY=" + roadY
                     + " roofY=" + actualRoof + " offset=" + offset);
@@ -136,6 +137,24 @@ class TunnelFilletRoofFollowsPavementTest {
         assertTrue(exactClearHeightColumns >= 2,
             "at least two columns must sit exactly at roadY+clearHeight, got "
                 + exactClearHeightColumns);
+    }
+
+    /** 在同列多种路面高中，选相对顶衬最接近 clearHeight 的那一档；侧墙/错配列返回 null。 */
+    private static Integer bestRoadYForRoof(java.util.NavigableSet<Integer> roadYs, int roofY) {
+        Integer best = null;
+        int bestDelta = Integer.MAX_VALUE;
+        for (int roadY : roadYs) {
+            int offset = roofY - roadY;
+            if (offset < CLEAR_HEIGHT - 1 || offset > CLEAR_HEIGHT + LINING) {
+                continue;
+            }
+            int delta = Math.abs(offset - CLEAR_HEIGHT);
+            if (delta < bestDelta) {
+                bestDelta = delta;
+                best = roadY;
+            }
+        }
+        return best;
     }
 
     private static void seedGradedApproachPavement(Map<String, RoadGenerationResult> edgeResults) {
