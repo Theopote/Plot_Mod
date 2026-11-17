@@ -27,6 +27,9 @@ import java.util.Set;
 /** 中心线 / 平面线形浮动编辑器（多选时可切换当前编辑道路）。 */
 public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
+    /** 下半区左轨（分段列表）宽度占比，对齐设施/变截面主从。 */
+    private static final float SEGMENT_RAIL_WIDTH_FRACTION = 0.28f;
+
     private final HorizontalAlignmentSummaryEditor horizontalAlignmentEditor =
         new HorizontalAlignmentSummaryEditor();
     private final RoadCenterlineEditPanel centerlineEditPanel = new RoadCenterlineEditPanel();
@@ -118,10 +121,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         renderMultiRoadSwitcher(ctx, working);
         selectedWorkingEdgeId = resolveWorkingEdgeId(working, road, selectedWorkingEdgeId);
         RoadEdge primaryEdge = working.getEdge(selectedWorkingEdgeId);
-        if (primaryEdge == null) {
-            ImGui.text(PlotI18n.tr("plugin.road.floating_editor.edge_missing"));
-            return;
-        }
 
         ChainageDisplayContext chainageDisplay = null;
         if (RoadStationing.isStationable(working, road)) {
@@ -131,34 +130,81 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                 RoadStationFormat.DISTANCE_METERS);
         }
 
+        // 上路级：平面线形；下主从：左分段轨 + 右工具（不对齐设施 scrub / Add|Delete）。
         RoadUiSections.section("plugin.road.floating_editor.centerline.tab.alignment");
         horizontalAlignmentEditor.render(ctx, working, road, chainageDisplay);
         ImGui.spacing();
 
         RoadUiSections.section("plugin.road.floating_editor.centerline.tab.segments");
-        float segmentListHeight = Math.clamp(ImGui.getContentRegionAvailY() * 0.22f, 72f,
-                140f);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.floating_editor.centerline.segments_hint"));
+        if (primaryEdge == null) {
+            ImGui.text(PlotI18n.tr("plugin.road.floating_editor.edge_missing"));
+            return;
+        }
+        renderSegmentMasterDetail(ctx, working, road, primaryEdge, chainageDisplay);
+    }
+
+    private void renderSegmentMasterDetail(
+            RoadUiContext ctx,
+            RoadNetwork working,
+            Road road,
+            RoadEdge primaryEdge,
+            ChainageDisplayContext chainageDisplay) {
+        float totalWidth = ImGui.getContentRegionAvailX();
+        float bodyHeight = Math.max(120f, ImGui.getContentRegionAvailY());
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float railWidth = Math.max(120f, (totalWidth - spacing) * SEGMENT_RAIL_WIDTH_FRACTION);
+        float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
+        float startX = ImGui.getCursorPosX();
+        float startY = ImGui.getCursorPosY();
+
+        ImGui.setCursorPos(startX, startY);
         ImGui.beginChild(
-            "##centerline_segment_list",
-            0f,
-            segmentListHeight,
-            false,
-            ImGuiWindowFlags.AlwaysVerticalScrollbar);
-        segmentEditor.renderWorkingSegmentList(
-            ctx,
-            working,
-            road,
-            selectedWorkingEdgeId,
-            edgeId -> selectedWorkingEdgeId = edgeId);
-        ImGui.endChild();
-        segmentEditor.renderSegmentSummary(ctx, working, road, primaryEdge, chainageDisplay);
-        centerlineEditPanel.renderWorkingNetwork(ctx, working, road, primaryEdge);
-        if (isDirty()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
-        } else {
-            segmentEditor.renderElevationHint(ctx, primaryEdge);
+            "##centerline_segment_rail",
+            railWidth,
+            bodyHeight,
+            true,
+            ImGuiWindowFlags.None);
+        try {
+            segmentEditor.renderWorkingSegmentList(
+                ctx,
+                working,
+                road,
+                selectedWorkingEdgeId,
+                edgeId -> selectedWorkingEdgeId = edgeId);
+        } finally {
+            ImGui.endChild();
+        }
+
+        ImGui.setCursorPos(startX + railWidth + spacing, startY);
+        // 固定 ID：切换分段时不打断右侧滑条/按钮交互。
+        ImGui.beginChild(
+            "##centerline_segment_detail",
+            detailWidth,
+            bodyHeight,
+            true,
+            ImGuiWindowFlags.None);
+        try {
+            RoadEdge selected = working.getEdge(selectedWorkingEdgeId);
+            if (selected == null) {
+                selected = primaryEdge;
+            }
+            segmentEditor.renderSegmentSummary(ctx, working, road, selected, chainageDisplay);
+            ImGui.separator();
+            ImGui.spacing();
+            centerlineEditPanel.renderWorkingNetwork(ctx, working, road, selected);
+            ImGui.spacing();
+            if (isDirty()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
+            } else {
+                segmentEditor.renderElevationHint(ctx, selected);
+            }
+        } finally {
+            ImGui.endChild();
         }
     }
 

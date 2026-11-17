@@ -15,6 +15,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiSelectableFlags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,16 +65,25 @@ public final class RoadSegmentEditor {
                 continue;
             }
             boolean selected = segmentId.equals(primaryId);
-            // 列表只显示序号 + 长度；起终点与桩号留给下方摘要，避免与 formatEdgeLabel 重复。
+            // 列表只显示序号 + 长度；起终点与桩号留给详情摘要，避免与 formatEdgeLabel 重复。
             String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
                 + " · " + RoadLengthDisplay.formatEdgeMeters(edge, coordinates);
-            if (ImGui.selectable(label + "##seg_pick_" + i, selected) && !selected) {
-                if (onSelect != null) {
-                    onSelect.accept(segmentId);
-                }
+            int stylePushes = 0;
+            if (selected) {
+                ImGui.pushStyleColor(ImGuiCol.Header, PluginUiColors.ACCENT_BLUE);
+                ImGui.pushStyleColor(ImGuiCol.HeaderHovered, PluginUiColors.ACCENT_BLUE);
+                ImGui.pushStyleColor(ImGuiCol.HeaderActive, PluginUiColors.ACCENT_BLUE);
+                stylePushes = 3;
+            }
+            if (ImGui.selectable(label + "##seg_pick_" + i, selected, ImGuiSelectableFlags.AllowDoubleClick)
+                    && !selected
+                    && onSelect != null) {
+                onSelect.accept(segmentId);
+            }
+            if (stylePushes > 0) {
+                ImGui.popStyleColor(stylePushes);
             }
         }
-        ImGui.spacing();
     }
 
     public void renderSegmentSummary(
