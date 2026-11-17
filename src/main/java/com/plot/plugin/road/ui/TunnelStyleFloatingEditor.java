@@ -1,10 +1,14 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditor;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -29,6 +33,8 @@ public final class TunnelStyleFloatingEditor {
     private final ImBoolean open = new ImBoolean(false);
     private boolean focusPending;
     private boolean closeConfirmPending;
+    private boolean lossyBatchConfirmPending;
+    private boolean lossyBatchAcknowledged;
     private Target target = Target.GLOBAL;
     private String roadId = "";
     /** 批量写入目标（含主路）；单路时为空或仅含 {@link #roadId}。 */
@@ -94,6 +100,8 @@ public final class TunnelStyleFloatingEditor {
         open.set(false);
         focusPending = false;
         closeConfirmPending = false;
+        lossyBatchConfirmPending = false;
+        lossyBatchAcknowledged = false;
         draft = null;
         baseline = null;
         presetSelection.clear();
@@ -122,7 +130,7 @@ public final class TunnelStyleFloatingEditor {
     }
 
     public boolean isInteractionBlocked() {
-        return closeConfirmPending;
+        return closeConfirmPending || lossyBatchConfirmPending;
     }
 
     public boolean matchesScope(Set<String> selectedRoadIds) {
@@ -196,7 +204,7 @@ public final class TunnelStyleFloatingEditor {
                 RoadFloatingEditorShell.CASCADE_AFTER_HOST_TUNNEL));
 
         boolean visible = ImGui.begin(
-            PlotI18n.tr("plugin.road.tunnel.editor_window") + "##tunnel_style_floating",
+            windowTitle() + "##tunnel_style_floating",
             open,
             WINDOW_FLAGS);
         try {
@@ -206,10 +214,7 @@ public final class TunnelStyleFloatingEditor {
             float footer = RoadFloatingEditorShell.footerReserveHeight(false);
             if (ImGui.beginChild("##tunnel_style_body", 0f, -footer, false, 0)) {
                 if (target == Target.ROAD && batchTargetCount() > 1) {
-                    ImGui.textColored(
-                        com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
-                        PlotI18n.tr("plugin.road.tunnel.batch_scope_hint", batchTargetCount()));
-                    ImGui.spacing();
+                    renderBatchBanner(ctx);
                 }
                 if (target == Target.ROAD) {
                     renderInheritToggle();
@@ -239,7 +244,7 @@ public final class TunnelStyleFloatingEditor {
         }
 
         // 标题栏 ×：有未保存改动时拦截并弹出确认
-        if (!open.get() && !closeConfirmPending) {
+        if (!open.get() && !closeConfirmPending && !lossyBatchConfirmPending) {
             if (isDirty()) {
                 open.set(true);
                 closeConfirmPending = true;
@@ -254,13 +259,132 @@ public final class TunnelStyleFloatingEditor {
             () -> closeConfirmPending = false,
             () -> {
                 confirm(ctx);
-                return true;
+                // 若仍需批量二次确认，仅关掉关闭确认框，留给 lossy 对话框。
+                return !lossyBatchConfirmPending;
             },
             this::discardAndClose,
             () -> {
                 closeConfirmPending = false;
                 open.set(true);
             });
+
+        renderLossyBatchConfirmDialog(ctx);
+    }
+
+    private String windowTitle() {
+        if (target == Target.GLOBAL) {
+            return PlotI18n.tr("plugin.road.tunnel.editor_window_global");
+        }
+        if (batchTargetCount() > 1) {
+            return PlotI18n.tr("plugin.road.tunnel.editor_window_batch");
+        }
+        return PlotI18n.tr("plugin.road.tunnel.editor_window");
+    }
+
+    private void renderBatchBanner(RoadUiContext ctx) {
+        String primaryLabel = primaryRoadLabel(ctx);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.tunnel.batch_scope_hint", primaryLabel, batchTargetCount()));
+        if (isBatchHeterogeneous(ctx)) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.road.tunnel.batch_heterogeneous_hint"));
+        }
+        ImGui.spacing();
+    }
+
+    private String primaryRoadLabel(RoadUiContext ctx) {
+        if (ctx == null || ctx.networkManager() == null || roadId.isBlank()) {
+            return roadId;
+        }
+        Road road = ctx.networkManager().getNetwork().getRoad(roadId);
+        if (road == null) {
+            return roadId;
+        }
+        return RoadEdgeListHelper.formatRoadLabel(ctx.networkManager().getNetwork(), road);
+    }
+
+    /** 批量目标当前解析样式是否彼此不一致。 */
+    boolean isBatchHeterogeneous(RoadUiContext ctx) {
+        if (ctx == null || batchTargetCount() <= 1) {
+            return false;
+        }
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        ResolvedTunnelStyle first = null;
+        for (String id : batchRoadIds) {
+            Road road = network.getRoad(id);
+            if (road == null) {
+                continue;
+            }
+            ResolvedTunnelStyle resolved = TunnelStyle.resolve(road, config);
+            if (first == null) {
+                first = resolved;
+            } else if (!first.equals(resolved)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean anyTargetHasExplicitOverride(RoadUiContext ctx) {
+        if (ctx == null) {
+            return false;
+        }
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        for (String id : batchRoadIds.isEmpty() ? List.of(roadId) : batchRoadIds) {
+            Road road = network.getRoad(id);
+            if (road != null && road.getStoredTunnelStyle() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean needsLossyBatchAck(RoadUiContext ctx) {
+        if (batchTargetCount() <= 1) {
+            return false;
+        }
+        if (inheritGlobal) {
+            return anyTargetHasExplicitOverride(ctx);
+        }
+        return isBatchHeterogeneous(ctx);
+    }
+
+    private void renderLossyBatchConfirmDialog(RoadUiContext ctx) {
+        if (!RoadUiWidgets.beginDeferredPopupModal(
+                "##tunnel_style_lossy_batch_confirm",
+                lossyBatchConfirmPending,
+                () -> lossyBatchConfirmPending = false)) {
+            return;
+        }
+        try {
+            ImGui.text(PlotI18n.tr("plugin.road.tunnel.batch_lossy_confirm_message"));
+            ImGui.separator();
+            float buttonWidth = 140f;
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.road.floating_editor.batch_mapping.lossy_confirm_proceed")
+                        + "##tunnel_lossy_ok",
+                    buttonWidth,
+                    0)) {
+                lossyBatchConfirmPending = false;
+                lossyBatchAcknowledged = true;
+                confirm(ctx);
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##tunnel_lossy_cancel",
+                    buttonWidth,
+                    0)) {
+                lossyBatchConfirmPending = false;
+                lossyBatchAcknowledged = false;
+                ImGui.closeCurrentPopup();
+            }
+        } finally {
+            ImGui.endPopup();
+        }
     }
 
     private void beginSession(
@@ -304,6 +428,8 @@ public final class TunnelStyleFloatingEditor {
         this.presetSelection.detectFromStyle(this.draft);
         this.focusPending = true;
         this.closeConfirmPending = false;
+        this.lossyBatchConfirmPending = false;
+        this.lossyBatchAcknowledged = false;
         this.open.set(true);
     }
 
@@ -398,6 +524,11 @@ public final class TunnelStyleFloatingEditor {
             close();
             return;
         }
+        if (needsLossyBatchAck(ctx) && !lossyBatchAcknowledged) {
+            lossyBatchConfirmPending = true;
+            open.set(true);
+            return;
+        }
         if (onHistory != null) {
             onHistory.run();
         }
@@ -459,5 +590,10 @@ public final class TunnelStyleFloatingEditor {
 
     com.plot.plugin.road.tunnel.TunnelPreset appliedPresetForTest() {
         return presetSelection.applied();
+    }
+
+    void acknowledgeLossyBatchForTest() {
+        lossyBatchAcknowledged = true;
+        lossyBatchConfirmPending = false;
     }
 }

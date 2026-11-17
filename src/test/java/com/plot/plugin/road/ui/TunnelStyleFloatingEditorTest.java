@@ -255,6 +255,7 @@ class TunnelStyleFloatingEditorTest {
 
         editor.openRoads(ctx, List.of(roadId, roadB), null);
         assertEquals(2, editor.batchTargetCount());
+        assertFalse(editor.isBatchHeterogeneous(ctx));
         int height = TunnelStyle.resolve(network.getRoad(roadId), manager.getConfig()).clearHeight() + 5;
         editor.mutateDraftForTest(style -> style.setClearHeight(height));
         editor.confirmForTest(ctx);
@@ -262,6 +263,46 @@ class TunnelStyleFloatingEditorTest {
         assertFalse(editor.isOpen());
         assertEquals(height, network.getRoad(roadId).getStoredTunnelStyle().getClearHeight());
         assertEquals(height, network.getRoad(roadB).getStoredTunnelStyle().getClearHeight());
+    }
+
+    @Test
+    void heterogeneousBatchRequiresAckBeforeWrite() {
+        RoadNetwork network = manager.getNetwork();
+        Road second = network.createRoad("side");
+        String roadB = second.getId();
+        var nodeC = network.createNode(new Vec2d(40, 0));
+        var nodeD = network.createNode(new Vec2d(60, 0));
+        network.createEdge(
+            nodeC.getId(), nodeD.getId(), List.of(new Vec2d(40, 0), new Vec2d(60, 0)), roadB);
+
+        TunnelStyle styleA = TunnelStyle.fromResolved(
+            TunnelStyle.resolve(network.getRoad(roadId), manager.getConfig()));
+        styleA.setClearHeight(styleA.getClearHeight() + 2);
+        network.getRoad(roadId).setTunnelStyle(styleA);
+
+        TunnelStyle styleB = TunnelStyle.fromResolved(
+            TunnelStyle.resolve(network.getRoad(roadB), manager.getConfig()));
+        styleB.setClearHeight(styleB.getClearHeight() + 7);
+        network.getRoad(roadB).setTunnelStyle(styleB);
+
+        editor.openRoads(ctx, List.of(roadId, roadB), null);
+        assertTrue(editor.isBatchHeterogeneous(ctx));
+        editor.mutateDraftForTest(d -> d.setClearHeight(d.getClearHeight() + 1));
+        editor.confirmForTest(ctx);
+
+        assertTrue(editor.isOpen(), "must wait for lossy ack");
+        assertEquals(styleA.getClearHeight(), network.getRoad(roadId).getStoredTunnelStyle().getClearHeight());
+        assertEquals(styleB.getClearHeight(), network.getRoad(roadB).getStoredTunnelStyle().getClearHeight());
+
+        editor.acknowledgeLossyBatchForTest();
+        editor.confirmForTest(ctx);
+        assertFalse(editor.isOpen());
+        assertEquals(
+            styleA.getClearHeight() + 1,
+            network.getRoad(roadId).getStoredTunnelStyle().getClearHeight());
+        assertEquals(
+            styleA.getClearHeight() + 1,
+            network.getRoad(roadB).getStoredTunnelStyle().getClearHeight());
     }
 
     private static PluginContext pluginContext() {

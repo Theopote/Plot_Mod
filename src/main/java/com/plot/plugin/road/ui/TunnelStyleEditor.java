@@ -164,8 +164,7 @@ public final class TunnelStyleEditor {
             Runnable onChanged,
             PresetSelection presetSelection,
             int envelopeWidth) {
-        if (TunnelCrossSectionPreviewRenderer.renderLivePreview(
-                style, style.isAccentRings(), envelopeWidth, true)) {
+        if (TunnelCrossSectionPreviewRenderer.renderLivePreview(style, envelopeWidth, true)) {
             notifyChanged(style, onChanged, presetSelection);
         }
         TunnelLightPlacementResolver.ResolveResult lightResult =

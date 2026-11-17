@@ -63,7 +63,6 @@ public final class TunnelCrossSectionPreviewRenderer {
      */
     public static boolean renderLivePreview(
             TunnelStyle style,
-            boolean accentRings,
             int roadEnvelopeWidth,
             boolean lightsInteractive) {
         float width = Math.max(120f, ImGui.getContentRegionAvailX());
