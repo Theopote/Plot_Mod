@@ -160,40 +160,63 @@ public final class ResolvedCrossSection {
         SlopeBatter slopeBatter = source.getSlopeBatter();
         StreetFurniture furniture = source.getStreetFurniture();
 
-        int laneCount = carriageway.getEffectiveLaneCount();
-        boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount);
-        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config, laneCount);
-        String markingMaterial = markings.getMaterial() != null
-            ? markings.getMaterial()
-            : DEFAULT_MARKING_MATERIAL;
-
         boolean includeMedian = median.getEnabled() != null && median.getEnabled();
         int requestedMedian = includeMedian
             ? Math.max(1, median.getWidth() != null ? median.getWidth() : 1)
             : 0;
 
-        int storedWidth = carriageway.getWidth() != null ? carriageway.getWidth() : config.getRoadWidth();
-        if (!carriageway.hasExplicitLaneWidths() && !carriageway.hasConfiguredDefaultLaneWidth()) {
-            // 继承配置的均匀车道宽；若仅有旧总宽则反推。
-            carriageway.setDefaultLaneWidth(config.getDefaultLaneWidth());
-            if (carriageway.getWidth() != null) {
-                int derivedFromConfigDefault = CarriagewayWidthRules.derivedCarriagewayWidth(
-                    carriageway.resolveLaneWidths(), centerLineStyle, laneDividers);
-                if (derivedFromConfigDefault != storedWidth) {
-                    carriageway.setDefaultLaneWidth(null);
-                    // 旧档可能把隔离带算进总宽：反推时传入 requestedMedian 以提高还原度。
-                    carriageway.migrateUniformLaneWidthFromStored(
-                        storedWidth, centerLineStyle, laneDividers, requestedMedian);
+        // 截面未声明车道拓扑时，先补齐车道数；仅在完全继承（无存储总宽）时复制全局分车道宽。
+        boolean topologyUnset = !carriageway.hasExplicitLaneWidths()
+            && !carriageway.hasConfiguredDefaultLaneWidth()
+            && carriageway.getLaneCount() == null
+            && carriageway.getLanes().isEmpty();
+        if (topologyUnset) {
+            carriageway.setLaneCount(config.getLaneCount());
+            carriageway.syncLaneCount(config.getLaneCount());
+            if (carriageway.getWidth() == null) {
+                List<Integer> configuredWidths = config.getLaneWidths();
+                for (int i = 0; i < config.getLaneCount(); i++) {
+                    if (i < configuredWidths.size()
+                            && configuredWidths.get(i) != null
+                            && configuredWidths.get(i) > 0) {
+                        carriageway.setLaneWidthAt(i, configuredWidths.get(i));
+                    }
                 }
             }
-        } else {
+        }
+
+        int laneCount = carriageway.getEffectiveLaneCount();
+        boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount, config);
+        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config, laneCount);
+        String markingMaterial = markings.getMaterial() != null
+            ? markings.getMaterial()
+            : DEFAULT_MARKING_MATERIAL;
+
+        Integer explicitStoredWidth = carriageway.getWidth();
+        if (!carriageway.hasExplicitLaneWidths() && !carriageway.hasConfiguredDefaultLaneWidth()) {
+            // 继承配置的均匀车道宽；总宽不一致时按 roadWidth / 显式存储总宽打包。
+            carriageway.setDefaultLaneWidth(config.getDefaultLaneWidth());
+            int derivedFromConfigDefault = CarriagewayWidthRules.derivedCarriagewayWidth(
+                carriageway.resolveLaneWidths(), centerLineStyle, laneDividers);
+            int targetWidth = explicitStoredWidth != null ? explicitStoredWidth : config.getRoadWidth();
+            if (derivedFromConfigDefault != targetWidth) {
+                carriageway.setDefaultLaneWidth(null);
+                carriageway.migrateUniformLaneWidthFromStored(
+                    targetWidth,
+                    centerLineStyle,
+                    laneDividers,
+                    explicitStoredWidth != null ? requestedMedian : 0);
+            }
+        } else if (explicitStoredWidth != null) {
+            // 仅当截面显式写了总宽时迁移；已有 defaultLaneWidth/分车道宽且 width=null 时不要用全局 roadWidth 覆盖。
             carriageway.migrateUniformLaneWidthFromStored(
-                storedWidth, centerLineStyle, laneDividers, requestedMedian);
+                explicitStoredWidth, centerLineStyle, laneDividers, requestedMedian);
         }
 
         List<Integer> laneWidths = carriageway.resolveLaneWidths();
         int safeWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
             laneWidths, centerLineStyle, laneDividers);
+        laneCount = laneWidths.size();
         // 隔离带在路表之上：宽度按单柱直径奇偶逻辑钳制，不挤占行车道宽。
         int medianWidth = 0;
         int medianHeight = 0;

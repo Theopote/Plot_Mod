@@ -214,14 +214,33 @@ public class RoadSystemConfig {
     }
 
     public void setRoadWidth(int roadWidth) {
-        this.roadWidth = RoadParameterLimits.clampCarriagewayWidth(roadWidth);
-        // 旧调用方仍按总宽写入：反推均匀单车道宽以保持派生一致。
-        this.defaultLaneWidth = CarriagewayWidthRules.inferUniformLaneWidth(
-            this.roadWidth,
+        int target = RoadParameterLimits.clampCarriagewayWidth(roadWidth);
+        // 旧调用方仍按总宽写入：打包为车道行驶宽，保证派生总宽尽量等于目标。
+        List<Integer> packed = CarriagewayWidthRules.packTravelWidthsForTarget(
+            target,
             getLaneCount(),
             getCenterLineStyle(),
             laneDividers,
             0);
+        this.laneCount = packed.size();
+        int first = packed.getFirst();
+        boolean uniform = true;
+        for (int width : packed) {
+            if (width != first) {
+                uniform = false;
+                break;
+            }
+        }
+        this.defaultLaneWidth = first;
+        if (uniform) {
+            this.laneWidths = new ArrayList<>();
+        } else {
+            this.laneWidths = new ArrayList<>(packed);
+        }
+        this.roadWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
+            effectiveLaneTravelWidths(),
+            getCenterLineStyle(),
+            laneDividers);
     }
 
     public int getDefaultLaneWidth() {
@@ -743,6 +762,10 @@ public class RoadSystemConfig {
         String resolvedSidewalkMaterial = effective.sidewalkMaterial != null && !effective.sidewalkMaterial.isBlank()
             ? effective.sidewalkMaterial
             : resolvedRoadMaterial;
+        // 先写入车道数与标线，再按总宽打包，避免 setRoadWidth 用到过期的车道/分隔上下文。
+        this.laneCount = RoadParameterLimits.clampLaneCount(effective.resolveLaneCount());
+        this.laneDividers = effective.resolveLaneDividers();
+        this.centerLineStyle = effective.resolveCenterLineStyle().name();
         setRoadWidth(effective.width);
         this.includeSidewalk = effective.hasSidewalk;
         if (effective.hasSidewalk) {
@@ -758,9 +781,6 @@ public class RoadSystemConfig {
         if (effective.includeMedian) {
             setMedianWidth(effective.medianWidth);
         }
-        setLaneCount(effective.resolveLaneCount());
-        this.laneDividers = effective.resolveLaneDividers();
-        setCenterLineStyle(effective.resolveCenterLineStyle());
         if (effective.markingMaterial != null && !effective.markingMaterial.isBlank()) {
             setMarkingMaterial(effective.markingMaterial);
         }

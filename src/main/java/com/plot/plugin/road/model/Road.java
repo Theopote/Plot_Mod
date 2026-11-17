@@ -15,7 +15,6 @@ import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.BridgePierStyle;
-import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
@@ -268,26 +267,9 @@ public class Road {
         }
         int clamped = RoadParameterLimits.clampCarriagewayWidth(width);
         CenterLineStyle style = getCenterLineStyle() != null ? getCenterLineStyle() : CenterLineStyle.NONE;
-        boolean dividers = getLaneDividers() != null
-            ? getLaneDividers()
-            : false;
+        boolean dividers = getLaneDividers() != null && getLaneDividers();
         // 隔离带在路表之上，不参与总宽打包。
-        List<Integer> packed = CarriagewayWidthRules.packTravelWidthsForTarget(
-            clamped,
-            crossSection.getCarriageway().getEffectiveLaneCount(),
-            style,
-            dividers,
-            0);
-        crossSection.getCarriageway().syncLaneCount(packed.size());
-        for (int i = 0; i < packed.size(); i++) {
-            crossSection.getCarriageway().setLaneWidthAt(i, packed.get(i));
-        }
-        // 显式分车道宽已写入；均匀默认与派生总宽跟齐。
-        crossSection.getCarriageway().setDefaultLaneWidth(packed.getFirst());
-        boolean effectiveDividers = getLaneDividers() != null
-            ? getLaneDividers()
-            : false;
-        crossSection.getCarriageway().syncDerivedWidth(style, effectiveDividers, 0);
+        crossSection.getCarriageway().applyPackedTravelWidths(clamped, style, dividers);
     }
 
     public MaterialMix getMaterial() {
@@ -914,6 +896,10 @@ public class Road {
     }
 
     public int getEffectiveWidth(RoadSystemConfig defaults) {
+        // 未覆盖总宽时直接跟随全局配置，避免 resolve 写回 defaultLaneWidth 后挡住后续 setRoadWidth。
+        if (getWidth() == null && defaults != null) {
+            return defaults.getRoadWidth();
+        }
         return crossSection.resolve(defaults).carriagewayWidth;
     }
 

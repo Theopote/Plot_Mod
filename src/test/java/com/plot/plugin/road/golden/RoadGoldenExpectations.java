@@ -39,19 +39,19 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
         209, 49, 35, 0, 0, 37, 0, 35, 49, 244, 0, 0, List.of());
 
-    // Bridge/tunnel：砂岩覆土判定与衬砌防塌入后，开挖量与隧道固体上升。
+    // Bridge/tunnel：行车道宽改为车道驱动打包后，桥面/支撑块数随派生半宽收敛。
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
-        217, 0, 7470, 0, 108, 1604, 0, 7470, 0, 1929, 1, 2, List.of());
+        217, 0, 7470, 0, 92, 1604, 0, 7470, 0, 1913, 1, 2, List.of());
 
     public static final RoadGoldenMetrics R09 = new RoadGoldenMetrics(
         406, 0, 4892, 0, 0, 2252, 0, 4892, 0, 2658, 0, 1, List.of());
 
     public static final RoadGoldenMetrics R10 = new RoadGoldenMetrics(
-        217, 0, 0, 0, 380, 0, 0, 0, 0, 597, 1, 0, List.of());
+        217, 0, 0, 0, 248, 0, 0, 0, 0, 465, 1, 0, List.of());
 
     // 立交：保留隧道顶衬砌/承重层后，下层净空不再把洞顶当可挖土体灌空气。
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        420, 0, 0, 0, 252, 0, 0, 0, 0, 717, 1, 0, List.of());
+        420, 0, 0, 0, 234, 0, 0, 0, 0, 699, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

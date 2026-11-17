@@ -115,14 +115,15 @@ class TunnelSectionDisplayModelTest {
     }
 
     @Test
-    void accentSchematicRequiresNonBlankMaterialViaStyle() {
+    void accentSchematicShowsWhenRingsEnabledEvenWithoutMaterial() {
         TunnelStyle ringsWithoutMaterial = new TunnelStyle();
         ringsWithoutMaterial.setShape(TunnelShape.RECTANGULAR);
         ringsWithoutMaterial.setAccentRings(true);
         ringsWithoutMaterial.setAccentMaterial("");
-        TunnelSectionDisplayModel noAccent = TunnelSectionDisplayModel.buildFromStyle(
+        // UI 示意：勾选装饰环即显示橙色点；生成路径仍要求非空材质。
+        TunnelSectionDisplayModel schematic = TunnelSectionDisplayModel.buildFromStyle(
             ringsWithoutMaterial, ENVELOPE, ROAD_Y);
-        assertTrue(noAccent.cells().stream().noneMatch(c ->
+        assertTrue(schematic.cells().stream().anyMatch(c ->
             c.kind() == TunnelSectionDisplayModel.DisplayKind.ACCENT));
 
         TunnelStyle ringsWithMaterial = ringsWithoutMaterial.copy();

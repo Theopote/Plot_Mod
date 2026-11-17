@@ -83,10 +83,12 @@ public final class CrossSectionDraft {
             return;
         }
         recomputeDerivedWidth();
-        config.setDefaultLaneWidth(defaultLaneWidth);
+        // 先写入标线与车道，再派生总宽；避免 setRoadWidth 在错误分隔上下文下重新打包打乱车道宽。
+        config.setLaneDividers(laneDividers);
+        config.setCenterLineStyle(centerLineStyle);
         config.setLaneCount(laneCount);
+        config.setDefaultLaneWidth(defaultLaneWidth);
         config.setLaneWidths(new ArrayList<>(laneWidths));
-        config.setRoadWidth(width);
         config.setSelectedMaterial(material);
         config.setIncludeShoulder(includeShoulder);
         config.setShoulderWidth(shoulderWidth);
@@ -99,8 +101,6 @@ public final class CrossSectionDraft {
         config.setMedianWidth(medianWidth);
         config.setMedianHeight(medianHeight);
         config.setStreetlightSpacing(streetlightSpacing);
-        config.setLaneDividers(laneDividers);
-        config.setCenterLineStyle(centerLineStyle);
         config.setMarkingMaterial(markingMaterial);
         config.setRoadsideEdgeMode(roadsideEdgeMode);
         config.setFillSlopeRatio(fillSlopeRatio);

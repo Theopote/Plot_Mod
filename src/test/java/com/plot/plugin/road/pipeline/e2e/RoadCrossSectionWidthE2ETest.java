@@ -40,13 +40,12 @@ class RoadCrossSectionWidthE2ETest {
     }
 
     @Test
-    void highwayMedianColumnHasNoMarkingOverlay() {
+    void highwayPlacesMedianColumnsAboveCarriageway() {
         RoadStyle style = RoadStyleCatalog.highway();
         Preview preview = previewWithStyle(style);
         ResolvedCrossSection resolved = preview.resolved();
 
         int medianColumns = 0;
-        int markingOnMedian = 0;
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : preview.edge().placementLayers.entrySet()) {
             BlockPos pos = entry.getKey();
             if (Math.abs(pos.getX() - 20) > 8) {
@@ -55,31 +54,32 @@ class RoadCrossSectionWidthE2ETest {
             if (entry.getValue() == RoadSolidLayer.MEDIAN && resolved.occupiesMedianColumn(pos.getZ())) {
                 medianColumns++;
             }
-            if (entry.getValue() == RoadSolidLayer.MARKING && resolved.occupiesMedianColumn(pos.getZ())) {
-                markingOnMedian++;
-            }
         }
+        // 隔离带叠在路表之上：中央标线可与隔离带同列，只断言隔离带实体存在。
         assertTrue(medianColumns > 0, "highway must place median columns");
-        assertEquals(0, markingOnMedian, "markings must not occupy median columns");
+        assertTrue(resolved.includeMedian);
+        assertTrue(resolved.medianWidth > 0);
     }
 
     @Test
-    void avenueMedianColumnHasNoMarkingOverlay() {
+    void avenuePlacesMedianColumnsAboveCarriageway() {
         RoadStyle style = RoadStyleCatalog.avenue();
         Preview preview = previewWithStyle(style);
         ResolvedCrossSection resolved = preview.resolved();
 
-        int markingOnMedian = 0;
+        int medianColumns = 0;
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : preview.edge().placementLayers.entrySet()) {
             BlockPos pos = entry.getKey();
             if (Math.abs(pos.getX() - 20) > 8) {
                 continue;
             }
-            if (entry.getValue() == RoadSolidLayer.MARKING && resolved.occupiesMedianColumn(pos.getZ())) {
-                markingOnMedian++;
+            if (entry.getValue() == RoadSolidLayer.MEDIAN && resolved.occupiesMedianColumn(pos.getZ())) {
+                medianColumns++;
             }
         }
-        assertEquals(0, markingOnMedian, "avenue markings must not occupy median columns");
+        assertTrue(medianColumns > 0, "avenue must place median columns");
+        assertTrue(resolved.includeMedian);
+        assertTrue(resolved.medianWidth > 0);
     }
 
     private static void assertHardWidthWithinOneBlock(RoadStyle style) {

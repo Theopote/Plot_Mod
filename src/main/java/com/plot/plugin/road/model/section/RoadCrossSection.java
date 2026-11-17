@@ -29,7 +29,6 @@ public class RoadCrossSection {
         }
         RoadCrossSection section = new RoadCrossSection();
         section.carriageway.setLaneCount(defaults.getLaneCount());
-        section.carriageway.setDefaultLaneWidth(defaults.getDefaultLaneWidth());
         section.carriageway.setMaterial(defaults.getSelectedMaterial());
         section.carriageway.syncLaneCount(defaults.getLaneCount());
         List<Integer> configuredWidths = defaults.getLaneWidths();
@@ -40,18 +39,25 @@ public class RoadCrossSection {
                 anyConfigured = true;
             }
         }
-        if (!anyConfigured) {
-            // 兼容仅写了 roadWidth 的旧配置：反推均匀单车道宽。
+        if (anyConfigured) {
+            section.carriageway.setDefaultLaneWidth(defaults.getDefaultLaneWidth());
+            section.carriageway.syncDerivedWidth(
+                defaults.getCenterLineStyle(),
+                defaults.isLaneDividers(),
+                0);
+        } else {
+            // 兼容仅写了 roadWidth / defaultLaneWidth 的配置：还原或打包到派生总宽。
+            section.carriageway.setDefaultLaneWidth(defaults.getDefaultLaneWidth());
             section.carriageway.migrateUniformLaneWidthFromStored(
                 defaults.getRoadWidth(),
                 defaults.getCenterLineStyle(),
                 defaults.isLaneDividers(),
                 defaults.isIncludeMedian() ? defaults.getMedianWidth() : 0);
+            section.carriageway.syncDerivedWidth(
+                defaults.getCenterLineStyle(),
+                defaults.isLaneDividers(),
+                0);
         }
-        section.carriageway.syncDerivedWidth(
-            defaults.getCenterLineStyle(),
-            defaults.isLaneDividers(),
-            0);
         section.shoulder.setEnabled(defaults.isIncludeShoulder());
         section.shoulder.setWidth(defaults.getShoulderWidth());
         section.shoulder.setMaterial(defaults.getFillSlopeMaterial());

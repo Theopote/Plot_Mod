@@ -545,6 +545,7 @@ class BridgeStructureGeneratorTest {
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-structure"));
         List<RoadConstructionType> types = List.of(RoadConstructionType.BRIDGE);
 
+        // 最小间距已抬到 6（=默认），不能再用 <6 的“更密”间距；改为默认 vs 更疏。
         List<Double> defaultPiers = BridgeStructureGenerator.planStructureStations(
                 types, segments, heightInfos, CrossSectionBuildContext.fixed(section), 1.0, List.of(bridge))
             .stream()
@@ -552,18 +553,18 @@ class BridgeStructureGeneratorTest {
             .map(BridgeStructureGenerator.StructureStation::worldStation)
             .sorted()
             .collect(Collectors.toList());
-        List<Double> densePiers = BridgeStructureGenerator.planStructureStations(
-                types, segments, heightInfos, CrossSectionBuildContext.fixed(section), 1.0, List.of(bridge), 4.0)
+        List<Double> sparsePiers = BridgeStructureGenerator.planStructureStations(
+                types, segments, heightInfos, CrossSectionBuildContext.fixed(section), 1.0, List.of(bridge), 12.0)
             .stream()
             .filter(station -> station.kind() == BridgeStructureGenerator.StructureKind.INTERIOR_PIER)
             .map(BridgeStructureGenerator.StructureStation::worldStation)
             .sorted()
             .collect(Collectors.toList());
 
-        assertTrue(densePiers.size() > defaultPiers.size(),
-            "tighter spacing should place more interior piers");
+        assertTrue(defaultPiers.size() > sparsePiers.size(),
+            "wider spacing should place fewer interior piers");
         assertEquals(5, defaultPiers.size());
-        assertEquals(8, densePiers.size());
+        assertEquals(2, sparsePiers.size());
     }
 
     @Test

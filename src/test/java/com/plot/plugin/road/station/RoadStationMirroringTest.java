@@ -98,7 +98,9 @@ class RoadStationMirroringTest {
     @Test
     void mirrorRoadStationDataClearsWhenEverythingMapsToDefault() {
         Road road = new Road("r1");
-        road.setWidth(6);
+        // 与 VCS 模板保持同一截面对象语义，避免 setWidth 打包后与裸 width 字段不等价。
+        RoadCrossSection base = sectionWithWidth(6);
+        road.setCrossSection(base.copy());
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
             StationCrossSection.at(0.0, sectionWithWidth(6))
         )));

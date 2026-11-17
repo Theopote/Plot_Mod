@@ -162,9 +162,44 @@ public class LaneGroup {
     }
 
     /**
-     * 旧档迁移：无显式分车道宽、且未配置均匀单车道宽时，由存储总宽反推。
+     * 将目标行车道总宽打包为各车道行驶宽并写回（可增车道、可非均匀）。
+     * 中央隔离带不参与打包。
+     */
+    public void applyPackedTravelWidths(
+            int targetCarriagewayWidth,
+            CenterLineStyle centerStyle,
+            boolean laneDividers) {
+        List<Integer> packed = CarriagewayWidthRules.packTravelWidthsForTarget(
+            targetCarriagewayWidth,
+            getEffectiveLaneCount(),
+            centerStyle,
+            laneDividers,
+            0);
+        clearExplicitLaneWidths();
+        syncLaneCount(packed.size());
+        int first = packed.getFirst();
+        boolean uniform = true;
+        for (int width : packed) {
+            if (width != first) {
+                uniform = false;
+                break;
+            }
+        }
+        setDefaultLaneWidth(first);
+        if (!uniform) {
+            for (int i = 0; i < packed.size(); i++) {
+                setLaneWidthAt(i, packed.get(i));
+            }
+        }
+        syncDerivedWidth(centerStyle, laneDividers, 0);
+    }
+
+    /**
+     * 旧档/风格迁移：由存储总宽反推车道行驶宽。均匀可还原则用均匀宽；
+     * 否则 {@link CarriagewayWidthRules#packTravelWidthsForTarget} 打包以尽量命中总宽。
+     * {@code medianWidth} 仅作旧档兼容提示（隔离带不再计入行车道宽）；无法均匀还原时仍按不含隔离带的目标总宽打包。
      *
-     * @return {@code true} 若执行了反推
+     * @return {@code true} 若改写了车道宽配置
      */
     public boolean migrateUniformLaneWidthFromStored(
             int storedCarriagewayWidth,
@@ -175,15 +210,30 @@ public class LaneGroup {
             reclampLaneWidths(0);
             return false;
         }
-        if (hasConfiguredDefaultLaneWidth()) {
+        int target = RoadParameterLimits.clampCarriagewayWidth(storedCarriagewayWidth);
+        if (!hasConfiguredDefaultLaneWidth()) {
+            // 先试不含隔离带的均匀反推。
+            setDefaultLaneWidth(CarriagewayWidthRules.inferUniformLaneWidth(
+                target, getEffectiveLaneCount(), centerStyle, laneDividers, 0));
+            if (CarriagewayWidthRules.derivedCarriagewayWidth(
+                    resolveLaneWidths(), centerStyle, laneDividers) == target) {
+                return true;
+            }
+            // 旧档总宽可能含隔离带：反推后派生 W == stored - median 则接受，不再强行打包回 stored。
+            if (medianWidth > 0) {
+                setDefaultLaneWidth(CarriagewayWidthRules.inferUniformLaneWidth(
+                    target, getEffectiveLaneCount(), centerStyle, laneDividers, medianWidth));
+                int derived = CarriagewayWidthRules.derivedCarriagewayWidth(
+                    resolveLaneWidths(), centerStyle, laneDividers);
+                if (derived == target || derived == target - Math.max(0, medianWidth)) {
+                    return true;
+                }
+            }
+        } else if (CarriagewayWidthRules.derivedCarriagewayWidth(
+                resolveLaneWidths(), centerStyle, laneDividers) == target) {
             return false;
         }
-        setDefaultLaneWidth(CarriagewayWidthRules.inferUniformLaneWidth(
-            storedCarriagewayWidth,
-            getEffectiveLaneCount(),
-            centerStyle,
-            laneDividers,
-            medianWidth));
+        applyPackedTravelWidths(target, centerStyle, laneDividers);
         return true;
     }
 

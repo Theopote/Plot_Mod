@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadStackCrossingGenerationTest {
 
     @Test
-    void adoptedUrbanPresetInheritsGlobalSlopeSettings() {
+    void adoptedUrbanPresetAppliesRetainingWallEdge() {
         RoadNetwork network = new RoadNetwork();
         RoadSystemConfig config = new RoadSystemConfig("stack-gen");
         config.setSelectedPreset("city_main");
@@ -37,13 +37,13 @@ class RoadStackCrossingGenerationTest {
 
         ResolvedCrossSection resolved = network.getRoads().values().iterator().next()
             .getCrossSection().resolve(config);
-        assertTrue(resolved.includeSlopeBatter);
-        assertEquals(1.5f, resolved.fillSlopeRatio, 1e-3f);
-        assertEquals(1.0f, resolved.cutSlopeRatio, 1e-3f);
+        // 城市硬质预设显式声明挡土墙收边，认领时不再回填全局边坡。
+        assertFalse(resolved.includeSlopeBatter);
+        assertTrue(resolved.includeRetainingWall);
     }
 
     @Test
-    void applyingSilentUrbanPresetKeepsGlobalSlopeBatterEnabled() {
+    void applyingUrbanPresetOverridesGlobalSlopeWithRetainingWall() {
         RoadSystemConfig config = new RoadSystemConfig("urban-slope");
         config.setIncludeSlopeBatter(true);
         config.setFillSlopeRatio(1.5f);
@@ -51,7 +51,9 @@ class RoadStackCrossingGenerationTest {
 
         config.applyStyle(com.plot.plugin.road.style.RoadStyleCatalog.cityMain());
 
-        assertTrue(config.isIncludeSlopeBatter());
+        assertFalse(config.isIncludeSlopeBatter());
+        assertTrue(config.getRoadsideEdgeMode().isRetainingWall());
+        // 坡比材质仍保留，切回边坡模式时可复用。
         assertEquals(1.5f, config.getFillSlopeRatio(), 1e-3f);
         assertEquals(1.0f, config.getCutSlopeRatio(), 1e-3f);
 
@@ -59,8 +61,8 @@ class RoadStackCrossingGenerationTest {
         network.createRoadForAdopt(config);
         ResolvedCrossSection resolved = network.getRoads().values().iterator().next()
             .getCrossSection().resolve(config);
-        assertTrue(resolved.includeSlopeBatter);
-        assertEquals(1.5f, resolved.fillSlopeRatio, 1e-3f);
+        assertFalse(resolved.includeSlopeBatter);
+        assertTrue(resolved.includeRetainingWall);
     }
 
     @Test

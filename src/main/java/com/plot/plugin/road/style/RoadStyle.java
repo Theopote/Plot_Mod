@@ -165,9 +165,13 @@ public class RoadStyle {
         int lanes = style.resolveLaneCount();
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setLaneCount(lanes);
-        section.getCarriageway().setWidth(style.width);
         section.getCarriageway().setMaterial(MaterialMix.single(roadMat));
         section.getCarriageway().syncLaneCount(lanes);
+        // 按风格声明的总宽打包车道行驶宽，避免均匀反推丢格（如双黄线奇数总宽）。
+        section.getCarriageway().applyPackedTravelWidths(
+            style.width,
+            style.resolveCenterLineStyle(),
+            style.resolveLaneDividers());
 
         section.getShoulder().setEnabled(style.includeShoulder);
         section.getShoulder().setWidth(style.shoulderWidth);
