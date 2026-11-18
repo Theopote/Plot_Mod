@@ -15,6 +15,7 @@ import imgui.ImVec2;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /** Edit Tab 单路编辑顶部：道路下拉选择 + 长度/预设/警告摘要（对齐土方「选择分区」）。 */
 final class RoadEditOverviewStrip {
@@ -27,7 +28,7 @@ final class RoadEditOverviewStrip {
         }
         float width = ImGui.getContentRegionAvail().x;
         ImVec2 origin = ImGui.getCursorScreenPos();
-        float height = ImGui.getFrameHeightWithSpacing() * 3.6f;
+        float height = ImGui.getFrameHeightWithSpacing() * 3.0f;
         var drawList = ImGui.getWindowDrawList();
         drawList.addRectFilled(
             origin.x,
@@ -48,25 +49,21 @@ final class RoadEditOverviewStrip {
             renderRoadSelectorCombo(ctx, network, road);
 
             int segmentCount = road.getSegmentIds().size();
+            String verticalMode = RoadVerticalStrategy.fromRoad(road).label();
+            String lengthCompact = String.format(
+                Locale.ROOT,
+                "%.2fm",
+                RoadLengthDisplay.roadBlocks(network, road, ctx.host().coordinates()));
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
-                    "plugin.road.edit.overview_length_segments",
+                    "plugin.road.edit.overview_length_vertical",
                     segmentCount,
-                    RoadLengthDisplay.formatRoadMeters(
-                        network, road, ctx.host().coordinates())));
+                    lengthCompact,
+                    verticalMode));
 
-            String presetName = resolvePresetName(road);
-            String verticalMode = RoadVerticalStrategy.fromRoad(road).label();
             int varSectionCount = variableSectionCount(road);
             int facilityCount = facilityCount(road);
-
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.road.edit.overview_preset_vertical",
-                    presetName,
-                    verticalMode));
             String metrics = PlotI18n.tr(
                 "plugin.road.edit.overview_metrics",
                 varSectionCount,
@@ -77,7 +74,7 @@ final class RoadEditOverviewStrip {
                     PluginUiColors.WARNING,
                     PlotI18n.tr("plugin.road.edit.overview_warnings", issueCount));
                 ImGui.sameLine();
-                ImGui.textColored(PluginUiColors.HINT_GRAY, " · " + metrics);
+                ImGui.textColored(PluginUiColors.HINT_GRAY, "·" + metrics);
             } else {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, metrics);
             }
@@ -163,14 +160,6 @@ final class RoadEditOverviewStrip {
             road -> RoadEdgeListHelper.formatRoadLabel(network, road),
             String.CASE_INSENSITIVE_ORDER));
         return roads;
-    }
-
-    private static String resolvePresetName(Road road) {
-        String styleId = road.getStyleId();
-        if (styleId != null && !styleId.isBlank()) {
-            return PlotI18n.tr("preset.road." + styleId);
-        }
-        return PlotI18n.tr("plugin.road.preset_custom");
     }
 
     private static int variableSectionCount(Road road) {

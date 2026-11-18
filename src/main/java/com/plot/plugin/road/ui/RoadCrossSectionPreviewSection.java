@@ -39,7 +39,7 @@ public final class RoadCrossSectionPreviewSection {
             -1f,
             com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure.fromConfig(
                 config, resolved.carriagewayWidth));
-        renderHeader(resolved, layout.gradeOverlayLabel());
+        renderHeader(resolved);
         renderPreviewBody(layout);
     }
 
@@ -53,7 +53,7 @@ public final class RoadCrossSectionPreviewSection {
         ResolvedCrossSection resolved =
             RoadCrossSectionEditor.resolvePreviewCrossSection(network, road, config);
         var layout = RoadCrossSectionEditor.previewLayoutForRoad(network, road, config);
-        renderHeader(resolved, layout.gradeOverlayLabel());
+        renderHeader(resolved);
         renderPreviewBody(layout);
     }
 
@@ -77,7 +77,7 @@ public final class RoadCrossSectionPreviewSection {
             origin.x + width,
             origin.y + PREVIEW_HEIGHT,
             PluginUiColors.PANEL_BORDER);
-        // 标题栏已有总宽/纵坡；图内只保留坡比标注，并拉高预览区放大断面。
+        // 标题栏只列总宽/边坡；图内保留坡比标注，并拉高预览区放大断面。
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
             layout,
@@ -105,11 +105,11 @@ public final class RoadCrossSectionPreviewSection {
             grade = primary.getEffectiveMaxSlope(config);
         }
         var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, grade);
-        renderHeader(resolved, layout.gradeOverlayLabel());
+        renderHeader(resolved);
         renderBatchPreview(layout);
     }
 
-    private static void renderHeader(ResolvedCrossSection resolved, String gradeLabel) {
+    private static void renderHeader(ResolvedCrossSection resolved) {
         float totalWidth = RoadCrossSectionPreviewRenderer.CrossSectionLayout
             .fromResolved(resolved, 0f)
             .totalWidthBlocks();
@@ -120,9 +120,6 @@ public final class RoadCrossSectionPreviewSection {
             RoadUiFormat.format(resolved.carriagewayWidth),
             RoadUiFormat.format(resolved.fillSlopeRatio),
             RoadUiFormat.format(resolved.cutSlopeRatio));
-        if (gradeLabel != null && !gradeLabel.isBlank()) {
-            metrics = metrics + " · " + gradeLabel;
-        }
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, metrics);
         ImGui.spacing();
     }

@@ -201,6 +201,21 @@ public final class RoadGenerationSettingsPanel {
             return;
         }
 
+        ImGui.sameLine();
+        boolean noEdges = network.getEdges().isEmpty();
+        if (noEdges) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_sample"))) {
+            recommendUniformElevation(ctx, network);
+        }
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_sample_hint"));
+        }
+        if (noEdges) {
+            ImGui.endDisabled();
+        }
+
         int conflicts = NetworkElevationAuthority.countGradeSeparationConflicts(network);
         if (conflicts > 0) {
             RoadUiWidgets.textWrappedColored(
@@ -227,21 +242,6 @@ public final class RoadGenerationSettingsPanel {
             ctx.networkManager().commitUniformElevationYDrag();
         } else if (ImGui.isItemDeactivated() && ctx.networkManager().hasUniformElevationYDrag()) {
             ctx.networkManager().cancelUniformElevationYDrag();
-        }
-
-        ImGui.sameLine();
-        boolean noEdges = network.getEdges().isEmpty();
-        if (noEdges) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_sample"))) {
-            recommendUniformElevation(ctx, network);
-        }
-        if (ImGui.isItemHovered()) {
-            UIUtils.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_sample_hint"));
-        }
-        if (noEdges) {
-            ImGui.endDisabled();
         }
 
         if (ctx.networkManager().hasVerticalUiFeedback()) {
