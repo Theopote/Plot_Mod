@@ -196,6 +196,7 @@ public final class RoadGenerationSettingsPanel {
 
         // 冲突只在勾选区就地提示；顶栏不再重复，并清掉历史残留。
         ctx.networkManager().clearStaleUniformFlatGradeSepWarning();
+        clearToolbarUniformElevationPreview(ctx);
         if (!NetworkElevationAuthority.isUniformFlat(network)) {
             return;
         }
@@ -246,6 +247,22 @@ public final class RoadGenerationSettingsPanel {
         if (noEdges) {
             ImGui.endDisabled();
         }
+
+        RoadUniformElevationUtils.ElevationRecommendation lastPreview =
+            ctx.networkManager().getLastUniformElevationPreview();
+        if (lastPreview != null && lastPreview.sampleCount() > 0) {
+            String strategy = lastPreview.usedMode()
+                ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
+                : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr(
+                    "plugin.road.uniform_elevation_preview",
+                    lastPreview.elevation(),
+                    strategy,
+                    lastPreview.sampleCount(),
+                    String.format("%.1f", lastPreview.average())));
+        }
     }
 
     private static void recommendUniformElevation(RoadUiContext ctx, RoadNetwork network) {
@@ -259,6 +276,19 @@ public final class RoadGenerationSettingsPanel {
             ctx.networkManager().previewUniformElevation(terrain);
         if (recommendation != null) {
             ctx.networkManager().setUniformElevationY(recommendation.elevation());
+        }
+    }
+
+    /** 顶栏不再展示「推荐 Y=…」；进入统一标高区时清掉历史 INFO 残留。 */
+    private static void clearToolbarUniformElevationPreview(RoadUiContext ctx) {
+        var status = ctx.status().getStatus();
+        if (status == null || status.isEmpty()
+                || status.severity() != com.plot.plugin.road.manager.RoadStatus.Severity.INFO) {
+            return;
+        }
+        String message = status.message();
+        if (message != null && (message.contains("推荐 Y=") || message.contains("Suggested Y="))) {
+            ctx.status().clear();
         }
     }
 

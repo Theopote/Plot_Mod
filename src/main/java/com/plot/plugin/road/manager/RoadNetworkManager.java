@@ -131,6 +131,8 @@ public final class RoadNetworkManager {
     private double pendingLoopSeamShift = 0.0;
     /** 统一 Y 滑条是否持有当前 {@link #hasPendingNetworkEdit()} 事务（避免误提交/取消其它编辑）。 */
     private boolean uniformElevationDragActive = false;
+    /** 最近一次「推荐标高」采样结果，供纵断面面板就地展示（不刷顶栏）。 */
+    private RoadUniformElevationUtils.ElevationRecommendation lastUniformElevationPreview;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
         this(config, status, new RoadNetworkBuilder());
@@ -470,33 +472,41 @@ public final class RoadNetworkManager {
 
     /**
      * 仅采样并推荐统一标高，不修改路网。
+     * 成功结果写入 {@link #getLastUniformElevationPreview()}，由纵断面面板就地展示，不刷顶栏。
      */
     public RoadUniformElevationUtils.ElevationRecommendation previewUniformElevation(
             TerrainSampler terrain) {
         if (network.getEdges().isEmpty()) {
+            lastUniformElevationPreview = null;
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return null;
         }
         if (terrain == null) {
+            lastUniformElevationPreview = null;
             status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return null;
         }
         RoadUniformElevationUtils.ElevationRecommendation recommendation =
             RoadUniformElevationUtils.recommendForNetwork(network, terrain, config);
         if (recommendation.sampleCount() <= 0) {
+            lastUniformElevationPreview = null;
             status.warning(PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
             return null;
         }
-        String strategy = recommendation.usedMode()
-            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
-            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
-        status.info(PlotI18n.tr(
-            "plugin.road.uniform_elevation_preview",
-            recommendation.elevation(),
-            strategy,
-            recommendation.sampleCount(),
-            String.format("%.1f", recommendation.average())));
+        lastUniformElevationPreview = recommendation;
+        // 推荐摘要改到纵断面面板；清掉顶栏以免压在标签上方。
+        if (status.getStatus().severity() == RoadStatus.Severity.INFO) {
+            status.clear();
+        }
         return recommendation;
+    }
+
+    public RoadUniformElevationUtils.ElevationRecommendation getLastUniformElevationPreview() {
+        return lastUniformElevationPreview;
+    }
+
+    public void clearLastUniformElevationPreview() {
+        lastUniformElevationPreview = null;
     }
 
     /**
@@ -577,6 +587,9 @@ public final class RoadNetworkManager {
         }
         cancelUniformElevationYDrag();
         mutateNetwork(() -> network.setElevationMode(next));
+        if (next != NetworkElevationMode.UNIFORM_FLAT) {
+            lastUniformElevationPreview = null;
+        }
         // 立交冲突由纵断面勾选区就地提示；顶栏不再重复，并清掉历史残留。
         clearUniformFlatGradeSepWarningIfPresent();
     }
