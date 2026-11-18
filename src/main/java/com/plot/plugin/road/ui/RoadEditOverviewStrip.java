@@ -17,7 +17,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-/** Edit Tab 单路编辑顶部：道路下拉选择 + 长度/预设/警告摘要（对齐土方「选择分区」）。 */
+/** Edit Tab 单路编辑顶部：道路下拉选择 + 长度/纵向方式/设施摘要（对齐土方「选择分区」）。 */
 final class RoadEditOverviewStrip {
     private RoadEditOverviewStrip() {
     }

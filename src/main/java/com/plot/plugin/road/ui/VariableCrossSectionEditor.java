@@ -7,11 +7,9 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
-import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
-import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationing;
@@ -503,30 +501,6 @@ public final class VariableCrossSectionEditor {
             }
         }
         return best;
-    }
-
-    private ResolvedCrossSection resolveAtPlayhead(
-            Road road,
-            RoadSystemConfig config,
-            float chainage) {
-        List<StationCrossSection> stations = new ArrayList<>();
-        for (StationDraft entry : drafts) {
-            if (!Float.isFinite(entry.station) || entry.station < 0f) {
-                continue;
-            }
-            stations.add(new StationCrossSection(
-                entry.station,
-                rebuildStationCrossSection(entry)));
-        }
-        RoadCrossSection base = road.getCrossSection() != null
-            ? road.getCrossSection()
-            : new RoadCrossSection();
-        return VariableCrossSectionResolver.resolve(
-            base,
-            stations,
-            draftTransitionMode,
-            chainage,
-            config);
     }
 
     private static String formatRailLabel(
