@@ -108,6 +108,7 @@ public final class ComplexJunctionFloatingEditor {
             }
             ImGui.endChild();
             RoadFloatingEditorShell.renderReadOnlyCloseFooter(this::close);
+            RoadFloatingEditorShell.applyPendingContentWidthGrow();
         } finally {
             ImGui.end();
         }

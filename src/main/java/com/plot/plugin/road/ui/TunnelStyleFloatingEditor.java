@@ -250,6 +250,7 @@ public final class TunnelStyleFloatingEditor {
                 this::restoreBaseline,
                 this::requestCancel,
                 () -> confirm(ctx));
+            RoadFloatingEditorShell.applyPendingContentWidthGrow();
         } finally {
             ImGui.end();
         }

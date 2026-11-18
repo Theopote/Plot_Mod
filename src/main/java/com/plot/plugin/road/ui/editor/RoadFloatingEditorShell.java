@@ -14,17 +14,19 @@ import java.util.function.BooleanSupplier;
 /**
  * 共享 ImGui 浮动编辑器壳：窗口尺寸、页脚与关闭确认弹窗。
  * <p>
- * 专业设计器统一固定尺寸（与预设库一致），不可拖边框改大小。
- * 宽度按「横断面左右等宽、左栏保持原预览观感」收窄：约屏宽 42%。
+ * 专业设计器默认尺寸不可拖边框改小；打开时以设计宽高为下限，
+ * 正文/页脚文案放不下时按内容抬高宽度（高度保持设计值）。
  */
 public final class RoadFloatingEditorShell {
-    /** 固定窗口相对屏宽（原 55% 可缩放 → 等宽双栏后约 42%）。 */
+    /** 默认窗口相对屏宽（原 55% 可缩放 → 等宽双栏后约 42%）。 */
     public static final float FIXED_WIDTH_OF_SCREEN = 0.42f;
     /**
-     * 固定窗口相对屏高。略低于旧值，避免确认栏下方再留一大块空区；
+     * 默认窗口相对屏高。略低于旧值，避免确认栏下方再留一大块空区；
      * 底边距与左右窗边距同级（靠 WindowPadding，不再额外垫高）。
      */
     public static final float FIXED_HEIGHT_OF_SCREEN = 0.48f;
+    /** 内容驱动加宽时的相对屏宽上限。 */
+    public static final float FIXED_MAX_WIDTH_OF_SCREEN = 0.90f;
     /** 页脚实际占用：分隔线 + 按钮行（勿再加大，否则按钮下会出现空白）。 */
     static final float FOOTER_RESERVE_HEIGHT = 36f;
     /** 版本冲突横幅额外占用（中文标签较长时需两行）。 */
@@ -33,6 +35,9 @@ public final class RoadFloatingEditorShell {
     static final float NARROW_PANEL_WIDTH = 420f;
     /** 页脚操作按钮最小宽度；文案更长时三者一起加宽。 */
     static final float FOOTER_ACTION_BUTTON_MIN_WIDTH = 96f;
+
+    /** 本帧正文申报的最小内容宽（不含窗口 Padding）；{@link #applyPendingContentWidthGrow()} 消费。 */
+    private static float pendingContentMinWidth;
 
     public static final int WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse
@@ -91,7 +96,8 @@ public final class RoadFloatingEditorShell {
     }
 
     /**
-     * 固定尺寸浮动窗；宽高比例由调用方指定（变截面等需要更宽主从布局）。
+     * 专业浮动窗：以设计宽高为下限，高度锁死；宽度可被内容抬高到
+     * {@link #FIXED_MAX_WIDTH_OF_SCREEN}。
      */
     public static void prepareWindow(
             String imguiId,
@@ -102,13 +108,50 @@ public final class RoadFloatingEditorShell {
             float heightOfScreen) {
         float sw = ImGui.getIO().getDisplaySizeX();
         float sh = ImGui.getIO().getDisplaySizeY();
-        float w = sw * Math.clamp(widthOfScreen, 0.20f, 0.95f);
-        float h = sh * Math.clamp(heightOfScreen, 0.20f, 0.95f);
+        float minW = sw * Math.clamp(widthOfScreen, 0.20f, 0.95f);
+        float minH = sh * Math.clamp(heightOfScreen, 0.20f, 0.95f);
+        float maxW = Math.max(minW, sw * FIXED_MAX_WIDTH_OF_SCREEN);
         if (focusOnOpen) {
-            placeAppearingWindow(sw, sh, w, h, cascadeIndex);
+            placeAppearingWindow(sw, sh, minW, minH, cascadeIndex);
         }
-        // 上下限相同 + NoResize：每帧锁死尺寸，避免旧会话残留可缩放窗口。
-        ImGui.setNextWindowSizeConstraints(w, h, w, h);
+        // NoResize：用户不可拖边；高度固定为设计高，宽度允许内容驱动加宽。
+        ImGui.setNextWindowSizeConstraints(minW, minH, maxW, minH);
+        beginContentWidthPass();
+    }
+
+    /** 新开一帧内容宽申报（在 {@link #prepareWindow} 内调用）。 */
+    public static void beginContentWidthPass() {
+        pendingContentMinWidth = 0f;
+    }
+
+    /**
+     * 申报正文所需最小内容宽度（不含 WindowPadding）。
+     * 可多次调用，取最大值；须在浮动窗 begin 之后、{@link #applyPendingContentWidthGrow()} 之前。
+     */
+    public static void noteContentMinWidth(float contentWidth) {
+        if (contentWidth > pendingContentMinWidth) {
+            pendingContentMinWidth = contentWidth;
+        }
+    }
+
+    /**
+     * 按本帧申报与当前窗口宽度，把浮动窗加宽到能放下内容（不超过屏宽上限）。
+     * 在浮动窗仍为 current window 时调用（body/footer 之后、{@code ImGui.end} 之前）。
+     */
+    public static void applyPendingContentWidthGrow() {
+        float needed = pendingContentMinWidth;
+        pendingContentMinWidth = 0f;
+        if (!(needed > 0f)) {
+            return;
+        }
+        float pad = ImGui.getStyle().getWindowPaddingX() * 2f;
+        float target = needed + pad;
+        float current = ImGui.getWindowWidth();
+        if (target <= current + 1f) {
+            return;
+        }
+        float maxW = ImGui.getIO().getDisplaySizeX() * FIXED_MAX_WIDTH_OF_SCREEN;
+        ImGui.setWindowSize(Math.min(target, maxW), ImGui.getWindowHeight());
     }
 
     /** 变截面：左轨 + 右详情双栏，略宽于横断面设计器。 */
@@ -177,11 +220,11 @@ public final class RoadFloatingEditorShell {
     /** 只读窗页脚：仅关闭。 */
     public static void renderReadOnlyCloseFooter(Runnable onClose) {
         ImGui.separator();
+        String closeLabel = PlotI18n.tr("button.plot.close");
+        float buttonWidth = equalFooterActionButtonWidth(closeLabel);
+        noteContentMinWidth(buttonWidth);
         if (onClose != null
-                && ImGui.button(
-                    PlotI18n.tr("button.plot.close") + "##readonly_close",
-                    FOOTER_ACTION_BUTTON_MIN_WIDTH,
-                    0)) {
+                && ImGui.button(closeLabel + "##readonly_close", buttonWidth, 0)) {
             onClose.run();
         }
     }
@@ -193,22 +236,35 @@ public final class RoadFloatingEditorShell {
             Runnable onCancel,
             Runnable onConfirm) {
         ImGui.separator();
-        boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
         boolean showRestore = dirty && onRestore != null;
         String restoreLabel = PlotI18n.tr("plugin.road.floating_editor.restore");
         String cancelLabel = PlotI18n.tr("button.plot.cancel");
         String confirmLabel = PlotI18n.tr("plugin.road.floating_editor.confirm");
+        String unsavedHint = dirty
+            ? PlotI18n.tr("plugin.road.floating_editor.unsaved_hint")
+            : null;
         float buttonWidth = equalFooterActionButtonWidth(
             showRestore ? restoreLabel : null,
             onCancel != null ? cancelLabel : null,
             onConfirm != null ? confirmLabel : null);
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float rowWidth = footerActionRowWidth(
+            buttonWidth,
+            showRestore,
+            onCancel != null,
+            onConfirm != null,
+            unsavedHint,
+            spacing);
+        noteContentMinWidth(rowWidth);
+        boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH
+            || ImGui.getContentRegionAvailX() + 1f < rowWidth;
 
         if (showRestore) {
             if (ImGui.button(restoreLabel + "##restore", buttonWidth, 0)) {
                 onRestore.run();
             }
             if (!narrow) {
-                ImGui.sameLine();
+                ImGui.sameLine(0f, spacing);
             }
         }
         if (onCancel != null) {
@@ -216,7 +272,7 @@ public final class RoadFloatingEditorShell {
                 onCancel.run();
             }
             if (!narrow) {
-                ImGui.sameLine();
+                ImGui.sameLine(0f, spacing);
             }
         }
         if (onConfirm != null) {
@@ -232,12 +288,40 @@ public final class RoadFloatingEditorShell {
         }
         if (dirty) {
             if (!narrow) {
-                ImGui.sameLine();
+                ImGui.sameLine(0f, spacing);
             }
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.floating_editor.unsaved_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, unsavedHint);
         }
+    }
+
+    private static float footerActionRowWidth(
+            float buttonWidth,
+            boolean showRestore,
+            boolean showCancel,
+            boolean showConfirm,
+            String unsavedHint,
+            float spacing) {
+        int count = 0;
+        float width = 0f;
+        if (showRestore) {
+            width += buttonWidth;
+            count++;
+        }
+        if (showCancel) {
+            width += buttonWidth;
+            count++;
+        }
+        if (showConfirm) {
+            width += buttonWidth;
+            count++;
+        }
+        if (count > 1) {
+            width += spacing * (count - 1);
+        }
+        if (unsavedHint != null && !unsavedHint.isBlank()) {
+            width += spacing + ImGui.calcTextSize(unsavedHint).x;
+        }
+        return width;
     }
 
     /**

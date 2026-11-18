@@ -91,6 +91,9 @@ public final class CrossSectionDesignerPanel {
             return;
         }
         float spacing = ImGui.getStyle().getItemSpacingX();
+        // 页签文案完整显示所需右栏宽；左右等宽 → 驱动外壳加宽。
+        float tabsWidth = measureParamsTabsWidth(includeBridge);
+        RoadFloatingEditorShell.noteContentMinWidth(tabsWidth * 2f + spacing);
         float columnWidth = Math.max(80f, (totalWidth - spacing) * 0.5f);
         float startX = ImGui.getCursorPosX();
         float startY = ImGui.getCursorPosY();
@@ -104,7 +107,8 @@ public final class CrossSectionDesignerPanel {
             true,
             ImGuiWindowFlags.NoScrollbar);
         try {
-            if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyResizeDown)) {
+            // 不 ResizeDown 挤压页签；宽度不够时由外壳加宽（触顶后再滚动）。
+            if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyScroll)) {
                 try {
                     renderParamsTabs(ctx, mutator, includeBridge, bridgeRoad);
                 } finally {
@@ -274,5 +278,26 @@ public final class CrossSectionDesignerPanel {
 
     private static void endParamsTabBody() {
         ImGui.endChild();
+    }
+
+    /** 全部页签标签自然宽度之和（含 Tab 内边距估计）。 */
+    private static float measureParamsTabsWidth(boolean includeBridge) {
+        float tabExtra = ImGui.getStyle().getFramePaddingX() * 2f
+            + ImGui.getStyle().getItemInnerSpacingX()
+            + 8f;
+        float width = 0f;
+        width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.structure", tabExtra);
+        width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.sidewalks", tabExtra);
+        width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.slope", tabExtra);
+        width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.materials", tabExtra);
+        width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.furniture", tabExtra);
+        if (includeBridge) {
+            width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.bridge", tabExtra);
+        }
+        return width;
+    }
+
+    private static float tabLabelWidth(String key, float tabExtra) {
+        return ImGui.calcTextSize(PlotI18n.tr(key)).x + tabExtra;
     }
 }

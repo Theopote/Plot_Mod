@@ -71,12 +71,12 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         return false;
     }
 
-    /** 固定窗相对屏宽；子类可加大（如变截面主从布局）。 */
+    /** 默认窗相对屏宽下限；子类可加大（如变截面主从布局）。 */
     protected float fixedWidthOfScreen() {
         return RoadFloatingEditorShell.FIXED_WIDTH_OF_SCREEN;
     }
 
-    /** 固定窗相对屏高。 */
+    /** 默认窗相对屏高（高度锁死为该设计值）。 */
     protected float fixedHeightOfScreen() {
         return RoadFloatingEditorShell.FIXED_HEIGHT_OF_SCREEN;
     }
@@ -152,6 +152,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                         () -> discard(ctx),
                         () -> confirm(ctx));
                 }
+                RoadFloatingEditorShell.applyPendingContentWidthGrow();
             }
         } finally {
             ImGui.end();
