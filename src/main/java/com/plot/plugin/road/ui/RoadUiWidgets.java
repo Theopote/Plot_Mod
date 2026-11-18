@@ -7,6 +7,7 @@ import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiDir;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.function.Consumer;
@@ -21,6 +22,21 @@ public final class RoadUiWidgets {
 
     public static String stableSelectableLabel(String visibleLabel, String idSuffix) {
         return visibleLabel + "##" + idSuffix;
+    }
+
+    /** {@link ImGui#arrowButton} 为正方形，边长等于 FrameHeight。 */
+    public static float roadNavButtonWidth() {
+        return ImGui.getFrameHeight();
+    }
+
+    /** 居中箭头的上一道路按钮。 */
+    public static boolean roadNavPrevButton(String id) {
+        return ImGui.arrowButton(id, ImGuiDir.Left);
+    }
+
+    /** 居中箭头的下一道路按钮。 */
+    public static boolean roadNavNextButton(String id) {
+        return ImGui.arrowButton(id, ImGuiDir.Right);
     }
 
     /** 当前内容区右边界，供 {@link ImGui#pushTextWrapPos(float)} 使用。 */

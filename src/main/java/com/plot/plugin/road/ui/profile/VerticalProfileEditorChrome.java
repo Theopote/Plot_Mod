@@ -448,7 +448,7 @@ public final class VerticalProfileEditorChrome {
 
         float spacing = ImGui.getStyle().getItemSpacingX();
         float rowWidth = Math.max(1f, ImGui.getContentRegionAvailX());
-        float navWidth = ImGui.getFrameHeight();
+        float navWidth = RoadUiWidgets.roadNavButtonWidth();
         float prevNextWidth = navWidth * 2f + spacing;
         String indexText = PlotI18n.tr(
             "plugin.road.profile_overview_road_index",
@@ -462,10 +462,10 @@ public final class VerticalProfileEditorChrome {
         float comboMaxSingleRow = rowWidth - prevNextWidth - metaWidth - spacing * 2f;
         boolean wrapMeta = comboMaxSingleRow < MIN_ROAD_COMBO_WIDTH;
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##profile_prev")) {
+        if (RoadUiWidgets.roadNavPrevButton("##profile_prev")) {
             host.selectEditorRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, editorRoadId), true);
         }
-        ImGui.sameLine();
+        ImGui.sameLine(0f, spacing);
         float comboWidth = wrapMeta
             ? Math.max(MIN_ROAD_COMBO_WIDTH, rowWidth - prevNextWidth - spacing * 2f)
             : Math.max(MIN_ROAD_COMBO_WIDTH, comboMaxSingleRow);
@@ -492,8 +492,8 @@ public final class VerticalProfileEditorChrome {
                 ImGui.setTooltip(preview);
             }
         }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_next") + "##profile_next")) {
+        ImGui.sameLine(0f, spacing);
+        if (RoadUiWidgets.roadNavNextButton("##profile_next")) {
             host.selectEditorRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, editorRoadId), true);
         }
         if (!wrapMeta) {

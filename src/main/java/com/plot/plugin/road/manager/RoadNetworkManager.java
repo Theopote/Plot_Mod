@@ -580,12 +580,8 @@ public final class RoadNetworkManager {
         mutateNetwork(() -> network.setElevationMode(next));
         if (next == NetworkElevationMode.UNIFORM_FLAT) {
             warnIfUniformFlatGradeSeparated();
-            status.info(PlotI18n.tr(
-                "plugin.road.uniform_flat_mode_enabled",
-                network.getUniformElevationY()));
-        } else {
-            status.info(PlotI18n.tr("plugin.road.uniform_flat_mode_disabled"));
         }
+        // 开关状态由勾选框本身表达，不再在标签上方刷一行 info。
     }
 
     public void setUniformElevationY(int elevation) {
@@ -597,7 +593,6 @@ public final class RoadNetworkManager {
         mutateNetwork(() -> network.setUniformElevationY(clamped));
         if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
             warnIfUniformFlatGradeSeparated();
-            status.info(PlotI18n.tr("plugin.road.uniform_flat_y_updated", clamped));
         }
     }
 

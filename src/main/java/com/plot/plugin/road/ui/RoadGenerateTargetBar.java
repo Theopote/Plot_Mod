@@ -43,7 +43,7 @@ final class RoadGenerateTargetBar {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.edit.no_selection_hint"));
         ImGui.spacing();
-        renderRoadCombo(ctx, network, roads, null);
+        renderRoadCombo(ctx, network, roads, null, ImGui.getContentRegionAvailX());
     }
 
     private static void renderSingleSelection(
@@ -58,37 +58,35 @@ final class RoadGenerateTargetBar {
         }
 
         String viewingRoadId = primary.getId();
-        int currentIndex = Math.max(0, RoadProfileRoadNavigator.indexOf(roads, viewingRoadId));
-        renderRoadCombo(ctx, network, roads, primary);
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float navWidth = RoadUiWidgets.roadNavButtonWidth();
+        float rowWidth = Math.max(1f, ImGui.getContentRegionAvailX());
+        float comboWidth = Math.max(48f, rowWidth - navWidth * 2f - spacing * 2f);
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##generate_target_prev")) {
+        if (RoadUiWidgets.roadNavPrevButton("##generate_target_prev")) {
             selectRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, viewingRoadId));
         }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_next") + "##generate_target_next")) {
+        ImGui.sameLine(0f, spacing);
+        renderRoadCombo(ctx, network, roads, primary, comboWidth);
+        ImGui.sameLine(0f, spacing);
+        if (RoadUiWidgets.roadNavNextButton("##generate_target_next")) {
             selectRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, viewingRoadId));
         }
-        ImGui.sameLine();
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.profile_overview_road_index",
-                currentIndex + 1,
-                roads.size()));
     }
 
     private static void renderRoadCombo(
             RoadUiContext ctx,
             RoadNetwork network,
             List<Road> roads,
-            Road current) {
+            Road current,
+            float comboWidth) {
         var coordinates = ctx.host().coordinates();
         String preview = current != null
             ? RoadProfileRoadList.formatProfileRoadSummary(network, current, coordinates)
             : PlotI18n.tr("plugin.road.edit.select_road_placeholder");
         String currentId = current != null ? current.getId() : "";
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        ImGui.setNextItemWidth(Math.max(1f, comboWidth));
         if (ImGui.beginCombo("##generate_target_road_combo", preview)) {
             for (Road candidate : roads) {
                 String label = RoadProfileRoadList.formatProfileRoadSummary(

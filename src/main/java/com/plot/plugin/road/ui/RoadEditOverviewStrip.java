@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.profile.RoadProfileRoadNavigator;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -89,6 +90,7 @@ final class RoadEditOverviewStrip {
 
     /**
      * 道路下拉选择（对齐土方「选择分区」）。{@code current} 可为 null（未选中时显示占位预览）。
+     * 有当前选中时两侧放居中箭头切换按钮。
      */
     static void renderRoadSelectorCombo(RoadUiContext ctx, RoadNetwork network, Road current) {
         List<Road> roads = listEditableRoads(network);
@@ -102,15 +104,29 @@ final class RoadEditOverviewStrip {
             ? RoadEdgeListHelper.formatRoadLabel(network, current)
             : PlotI18n.tr("plugin.road.edit.select_road_placeholder");
         String currentId = current != null ? current.getId() : "";
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.road.edit.select_road"), preview)) {
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        boolean showNav = current != null && roads.size() > 1;
+        float comboWidth = ImGui.getContentRegionAvailX();
+        if (showNav) {
+            float navWidth = RoadUiWidgets.roadNavButtonWidth();
+            comboWidth = Math.max(48f, comboWidth - navWidth * 2f - spacing * 2f);
+            if (RoadUiWidgets.roadNavPrevButton("##edit_road_nav_prev")) {
+                selectRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, currentId));
+            }
+            ImGui.sameLine(0f, spacing);
+        }
+        // 有前后切换时用无标签 combo，避免「选择道路」插在下拉与右箭头之间。
+        String comboLabel = showNav
+            ? "##edit_road_selector_combo"
+            : PlotI18n.tr("plugin.road.edit.select_road");
+        ImGui.setNextItemWidth(Math.max(1f, comboWidth));
+        if (ImGui.beginCombo(comboLabel, preview)) {
             for (Road candidate : roads) {
                 String label = RoadEdgeListHelper.formatRoadLabel(network, candidate);
                 boolean selected = candidate.getId().equals(currentId);
                 if (ImGui.selectable(label + "##edit_road_" + candidate.getId(), selected)) {
                     if (!selected) {
-                        ctx.networkManager().selectRoad(candidate.getId(), false);
-                        ctx.requestOverlayRefresh();
+                        selectRoad(ctx, candidate.getId());
                     }
                 }
                 if (selected) {
@@ -119,6 +135,20 @@ final class RoadEditOverviewStrip {
             }
             ImGui.endCombo();
         }
+        if (showNav) {
+            ImGui.sameLine(0f, spacing);
+            if (RoadUiWidgets.roadNavNextButton("##edit_road_nav_next")) {
+                selectRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, currentId));
+            }
+        }
+    }
+
+    private static void selectRoad(RoadUiContext ctx, String roadId) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        ctx.networkManager().selectRoad(roadId, false);
+        ctx.requestOverlayRefresh();
     }
 
     static List<Road> listEditableRoads(RoadNetwork network) {
