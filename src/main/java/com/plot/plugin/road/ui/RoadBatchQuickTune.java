@@ -31,7 +31,6 @@ final class RoadBatchQuickTune {
         RoadUiSections.section("plugin.road.edit.quick_tune");
         renderLaneWidthField(ctx, draft, state, dirty, onHistory);
         renderLaneField(ctx, draft, state, dirty, onHistory);
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
 
         RoadBatchCrossSectionEditor.renderApplyButton(
             ctx,

@@ -634,20 +634,9 @@ public final class RoadPreviewManager {
             advanceTerrainRefreshQueueAfterJob();
             return;
         }
-        // 单路或批量最后一条：收尾计数，再按数据质量提示。
+        // 单路或批量最后一条：收尾计数。地形质量提示改在纵断面「地形与预览」行展示，不刷顶部栏。
         clearTerrainRefreshQueue();
-        if (multiBatch) {
-            status.clear();
-            return;
-        }
-        if (!data.hasDrawableSegment()) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.sparse"));
-        } else if (!data.fullyLoaded()) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.partial"));
-        } else {
-            // 完整成功不写顶部状态栏；纵断面面板已有「地形已读取」。
-            status.clear();
-        }
+        status.clear();
     }
 
     public void failTerrainProfileJob(RoadTerrainProfileSamplingJob job) {

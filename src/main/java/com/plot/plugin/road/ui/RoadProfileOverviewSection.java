@@ -185,10 +185,17 @@ public final class RoadProfileOverviewSection {
         Road statusRoad = activeRoad != null ? activeRoad : roads.getFirst();
         RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, statusRoad.getId());
         if (ctx.previewManager().isTerrainProfileFresh(network, statusRoad)) {
-            String key = data != null && !data.fullyLoaded()
-                ? "plugin.road.terrain_profile.status_partial"
-                : "plugin.road.terrain_profile.status_ready";
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr(key));
+            if (data != null && !data.fullyLoaded()) {
+                // 部分加载提示只放在本行；若顶部栏仍留有同文案则清掉。
+                clearTopStatusIfMatches(ctx, "plugin.road.terrain_profile.partial");
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.terrain_profile.partial"));
+            } else {
+                ImGui.textColored(
+                    PluginUiColors.STATUS_OK,
+                    PlotI18n.tr("plugin.road.terrain_profile.status_ready"));
+            }
             return;
         }
         if (data != null && data.hasAnyValidSample() && !data.hasDrawableSegment()) {
@@ -317,6 +324,13 @@ public final class RoadProfileOverviewSection {
             }
         } finally {
             ImGui.popID();
+        }
+    }
+
+    private static void clearTopStatusIfMatches(RoadUiContext ctx, String messageKey) {
+        String expected = PlotI18n.tr(messageKey);
+        if (expected != null && expected.equals(ctx.status().get())) {
+            ctx.status().clear();
         }
     }
 }

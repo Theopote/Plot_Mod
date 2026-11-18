@@ -22,7 +22,6 @@ final class RoadRouteQuickTune {
         renderLaneWidthLaneSliders(
             config.getDefaultLaneWidth(),
             config.getLaneCount(),
-            config.getRoadWidth(),
             (laneWidth, lanes) -> {
                 config.setDefaultLaneWidth(laneWidth);
                 config.setLaneCount(lanes);
@@ -42,7 +41,6 @@ final class RoadRouteQuickTune {
         renderLaneWidthLaneSliders(
             laneWidth,
             resolved.laneCount,
-            resolved.carriagewayWidth,
             (perLane, lanes) -> {
                 road.getCrossSection().getCarriageway().setDefaultLaneWidth(perLane);
                 road.setLaneCount(lanes);
@@ -61,15 +59,13 @@ final class RoadRouteQuickTune {
     private static void renderLaneWidthLaneSliders(
             int laneWidth,
             int laneCount,
-            int derivedCarriagewayWidth,
             LaneWidthLaneConsumer onChange) {
-        renderLaneWidthLaneSliders(laneWidth, laneCount, derivedCarriagewayWidth, onChange, null);
+        renderLaneWidthLaneSliders(laneWidth, laneCount, onChange, null);
     }
 
     private static void renderLaneWidthLaneSliders(
             int laneWidth,
             int laneCount,
-            int derivedCarriagewayWidth,
             LaneWidthLaneConsumer onChange,
             Runnable onHistory) {
         int[] laneWidthArr = {laneWidth};
@@ -102,8 +98,6 @@ final class RoadRouteQuickTune {
         if (laneChanged) {
             onChange.accept(laneWidthArr[0], laneArr[0]);
         }
-
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", derivedCarriagewayWidth));
     }
 
     @FunctionalInterface
