@@ -17,7 +17,9 @@ import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import imgui.ImColor;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 
 import java.util.List;
 import java.util.function.Function;
@@ -27,6 +29,12 @@ public final class RoadProfileOverviewSection {
 
     public static final float MINI_CHART_HEIGHT = RoadProfileCompactCard.CHART_HEIGHT;
     public static final float ACTIVE_CHART_HEIGHT = RoadProfileCompactCard.ACTIVE_CHART_HEIGHT;
+    /** 未选中标题行底色（略亮于面板底，保证每条路都有可见底）。 */
+    private static final int OVERVIEW_HEADER_IDLE = ImColor.rgba(48, 48, 52, 220);
+    private static final int OVERVIEW_HEADER_IDLE_HOVER = ImColor.rgba(58, 58, 64, 230);
+    /** 选中标题行：蓝色高亮。 */
+    private static final int OVERVIEW_HEADER_ACTIVE = ImColor.rgba(40, 96, 168, 230);
+    private static final int OVERVIEW_HEADER_ACTIVE_HOVER = ImColor.rgba(56, 120, 196, 240);
 
     private RoadProfileOverviewSection() {
     }
@@ -60,16 +68,17 @@ public final class RoadProfileOverviewSection {
         renderSharedTerrainToolbar(ctx, network, roads, activeRoad);
         renderSharedLegend(ctx, network, roads);
 
-        String activeRoadId = activeRoad != null ? activeRoad.getId() : "";
+        var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
         for (int index = 0; index < roads.size(); index++) {
             Road road = roads.get(index);
-            boolean active = !activeRoadId.isEmpty() && road.getId().equals(activeRoadId);
+            // 多选时所有选中道路标题都高亮，不只 primary。
+            boolean selected = selectedRoadIds != null && selectedRoadIds.contains(road.getId());
             renderRoadCard(
                 ctx,
                 network,
                 profileEditor,
                 road,
-                active,
+                selected,
                 flatOverlayForRoad.apply(road),
                 uniformFlat);
             if (index + 1 < roads.size()) {
@@ -222,23 +231,44 @@ public final class RoadProfileOverviewSection {
         try {
             String header = RoadProfileRoadList.formatProfileRoadSummary(
                 network, road, ctx.host().coordinates());
-            if (active) {
-                header += "  " + PlotI18n.tr("plugin.road.profile_overview_active");
-            }
             if (profileEditor.hasUnconfirmedEditsForRoad(road.getId())) {
                 header += "  " + PlotI18n.tr("plugin.road.profile_overview_editing");
             }
 
-            float editButtonWidth = ImGui.calcTextSize(
-                PlotI18n.tr("plugin.road.profile_overview_edit")).x
+            String editLabel = PlotI18n.tr("plugin.road.profile_overview_edit");
+            float editButtonWidth = ImGui.calcTextSize(editLabel).x
                 + ImGui.getStyle().getFramePaddingX() * 2.0f;
-            float headerWidth = ImGui.getContentRegionAvailX() - editButtonWidth - ImGui.getStyle().getItemSpacingX();
-            if (ImGui.selectable(header + "##profile_overview_header", active, 0, headerWidth, 0)) {
+            float spacing = ImGui.getStyle().getItemSpacingX();
+            float headerWidth = Math.max(1f, ImGui.getContentRegionAvailX() - editButtonWidth - spacing);
+            float rowHeight = ImGui.getFrameHeight();
+            // 只用自绘底色表达选中态；selectable 固定 false，避免 Header 再叠一层更高的蓝块。
+            var origin = ImGui.getCursorScreenPos();
+            ImGui.getWindowDrawList().addRectFilled(
+                origin.x,
+                origin.y,
+                origin.x + headerWidth,
+                origin.y + rowHeight,
+                active ? OVERVIEW_HEADER_ACTIVE : OVERVIEW_HEADER_IDLE,
+                3f);
+            ImGui.pushStyleColor(ImGuiCol.Header, 0);
+            ImGui.pushStyleColor(
+                ImGuiCol.HeaderHovered,
+                active ? OVERVIEW_HEADER_ACTIVE_HOVER : OVERVIEW_HEADER_IDLE_HOVER);
+            ImGui.pushStyleColor(
+                ImGuiCol.HeaderActive,
+                active ? OVERVIEW_HEADER_ACTIVE_HOVER : OVERVIEW_HEADER_IDLE_HOVER);
+            if (ImGui.selectable(
+                    header + "##profile_overview_header",
+                    false,
+                    0,
+                    headerWidth,
+                    rowHeight)) {
                 ctx.networkManager().selectRoad(road.getId(), false);
                 ctx.requestOverlayRefresh();
             }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.profile_overview_edit") + "##overview_edit")) {
+            ImGui.popStyleColor(3);
+            ImGui.sameLine(0f, spacing);
+            if (ImGui.button(editLabel + "##overview_edit", editButtonWidth, rowHeight)) {
                 openProfileEditor(ctx, profileEditor, road, uniformFlat);
             }
 
