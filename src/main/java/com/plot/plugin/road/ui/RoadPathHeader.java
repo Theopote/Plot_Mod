@@ -34,17 +34,15 @@ public final class RoadPathHeader {
     }
 
     /**
-     * 「选择路径 / 显示道路路径 / 显示边坡宽度」按可用宽度自动折行。
-     * 边坡距离已改为逐路参数，放在道路列表下方编辑。
+     * 「选择路径 / 显示道路路径」按可用宽度自动折行。
+     * 「显示边坡宽度」与边坡距离滑条一并放在道路列表下方。
      */
     private static void renderPickAndOverlayControls(RoadUiContext ctx) {
         String pickLabel = PlotI18n.tr("plugin.road.pick_path");
         String pathsLabel = PlotI18n.tr("plugin.road.overlay.show_paths");
-        String slopeLabel = PlotI18n.tr("plugin.road.overlay.show_slope_batter");
 
         float avail = ImGui.getContentRegionAvailX();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float used = 0f;
 
         float pickWidth = ImGui.calcTextSize(pickLabel).x + ImGui.getStyle().getFramePaddingX() * 2f;
         if (ImGui.button(pickLabel, 0, 0)) {
@@ -53,35 +51,16 @@ public final class RoadPathHeader {
         if (ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.pick_path_hint"));
         }
-        used = pickWidth;
 
-        float pathsWidth = checkboxWidth(pathsLabel);
-        if (used + spacing + pathsWidth <= avail) {
+        float pathsWidth = ImGui.getFrameHeight()
+            + ImGui.getStyle().getItemInnerSpacingX()
+            + ImGui.calcTextSize(pathsLabel).x;
+        if (pickWidth + spacing + pathsWidth <= avail) {
             ImGui.sameLine(0f, spacing);
-            used += spacing + pathsWidth;
-        } else {
-            used = pathsWidth;
         }
         if (ImGui.checkbox(pathsLabel, ctx.showRoadOverlay())) {
             ctx.requestOverlayRefresh();
         }
-
-        float slopeWidth = checkboxWidth(slopeLabel);
-        if (used + spacing + slopeWidth <= avail) {
-            ImGui.sameLine(0f, spacing);
-        }
-        if (ImGui.checkbox(slopeLabel, ctx.showSlopeBatterOverlay())) {
-            ctx.requestOverlayRefresh();
-        }
-        if (ImGui.isItemHovered()) {
-            UIUtils.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
-        }
-    }
-
-    private static float checkboxWidth(String label) {
-        return ImGui.getFrameHeight()
-            + ImGui.getStyle().getItemInnerSpacingX()
-            + ImGui.calcTextSize(label).x;
     }
 
     private static void renderPickSessionState(RoadUiContext ctx) {

@@ -59,15 +59,18 @@ final class RoadPathSlopeBatterControls {
 
         ImGui.spacing();
         RoadUiSections.section("plugin.road.overlay.slope_batter_distance");
+        if (ImGui.checkbox(
+                PlotI18n.tr("plugin.road.overlay.show_slope_batter"),
+                ctx.showSlopeBatterOverlay())) {
+            ctx.requestOverlayRefresh();
+        }
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
+        }
         if (mixed && !historyPushed) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.overlay.slope_batter_distance_mixed_hint"));
-        }
-        if (!ctx.showSlopeBatterOverlay().get()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.overlay.slope_batter_distance_preview_hint"));
         }
 
         // 标签不得含变化数值：ImGui 用整段 label 算 ID，数字一变控件 ID 就变。
