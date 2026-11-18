@@ -54,7 +54,7 @@ public final class RoadDefaultParamsPanel {
     /** 单选道路「更多道路设置」折叠区。 */
     public void renderAdvancedDefaultsCollapsible() {
         renderThemeSelector();
-        ImGui.spacing();
+        RoadUiSections.categorySeparator();
         renderAdvancedCrossSectionFields(ctx.networkManager().getConfig());
     }
 
@@ -77,16 +77,14 @@ public final class RoadDefaultParamsPanel {
         CrossSectionDraftEditor.render(
             ctx,
             draft,
-            CrossSectionDraftEditorOptions.adopt(),
+            CrossSectionDraftEditorOptions.adoptAdvanced(),
             () -> {
                 draft.applyToConfig(config);
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
                 markCustom();
             });
 
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
+        RoadUiSections.categorySeparator();
 
         float[] maxSlope = {config.getMaxSlope()};
         if (EngineeringSlopeInput.render(
@@ -100,12 +98,11 @@ public final class RoadDefaultParamsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
 
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
+        RoadUiSections.categorySeparator();
         RoadUiSections.section("plugin.road.section.bridge_structure_defaults");
         BridgeStructureControls.renderNetworkDefaults(ctx);
 
+        RoadUiSections.categorySeparator();
         renderDefaultJunctionSettings();
     }
 
@@ -138,9 +135,10 @@ public final class RoadDefaultParamsPanel {
 
     private void renderDefaultJunctionSettings() {
         RoadSystemConfig config = ctx.networkManager().getConfig();
+        // 标签只保留参数名；数值在滑条上显示。勿把动态数值拼进 label，否则 ImGui ID 每帧变化导致拖动卡顿。
         float[] defaultRadius = {config.getDefaultCornerRadius()};
         if (ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.default_corner_radius", RoadUiFormat.format(defaultRadius[0])),
+            PlotI18n.tr("plugin.road.default_corner_radius") + "##default_corner_radius",
             defaultRadius,
             0.0f,
             (float) RoadNode.MAX_CORNER_RADIUS,
@@ -153,7 +151,7 @@ public final class RoadDefaultParamsPanel {
 
         int[] defaultClearance = {(int) Math.round(config.getDefaultCrossingClearance())};
         if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.default_crossing_clearance", defaultClearance[0]),
+                PlotI18n.tr("plugin.road.default_crossing_clearance") + "##default_crossing_clearance",
                 defaultClearance,
                 RoadParameterLimits.MIN_CROSSING_CLEARANCE,
                 RoadParameterLimits.MAX_CROSSING_CLEARANCE,

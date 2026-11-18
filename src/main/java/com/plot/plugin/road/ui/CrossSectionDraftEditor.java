@@ -42,7 +42,9 @@ public final class CrossSectionDraftEditor {
         }
         renderBanner(editor);
         renderCrossSection(editor);
+        RoadUiSections.categorySeparator();
         renderMaterials(editor);
+        RoadUiSections.categorySeparator();
         renderFurniture(editor);
     }
 

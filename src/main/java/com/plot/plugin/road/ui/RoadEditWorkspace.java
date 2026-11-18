@@ -81,14 +81,13 @@ final class RoadEditWorkspace {
             RoadCrossSectionPreviewSection.render(ctx);
             ImGui.spacing();
             RoadPresetCards.renderConfigCompact(ctx);
-            ImGui.spacing();
             RoadUiSections.section("plugin.road.edit.quick_tune");
             RoadRouteQuickTune.renderConfigDefaults(ctx);
+            RoadUiSections.categorySeparator();
             if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
                 defaultParamsPanel.renderAdvancedDefaultsCollapsible();
             }
-            ImGui.spacing();
-            RoadUiSections.group("plugin.road.section.structure");
+            RoadUiSections.categorySeparator();
             TunnelStyleControls.renderGlobal(ctx);
             // 桥梁结构默认已在「高级默认参数」内渲染，避免重复。
         }

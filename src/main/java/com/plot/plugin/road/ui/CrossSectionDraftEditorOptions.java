@@ -19,6 +19,12 @@ public record CrossSectionDraftEditorOptions(
             "default", false, null, true, false, true, true, true, true);
     }
 
+    /** 高级默认参数：不含车道数/单车道宽（由上方「快速调整」承接）。 */
+    public static CrossSectionDraftEditorOptions adoptAdvanced() {
+        return new CrossSectionDraftEditorOptions(
+            "default_adv", false, null, true, false, true, false, true, true);
+    }
+
     public static CrossSectionDraftEditorOptions batch() {
         return new CrossSectionDraftEditorOptions(
             "batch",

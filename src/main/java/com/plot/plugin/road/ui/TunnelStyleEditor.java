@@ -89,7 +89,6 @@ public final class TunnelStyleEditor {
         int envelopeWidth = resolvePreviewEnvelopeWidth(ctx, roadId);
         renderStylePresetCombo(style, onChanged, presetSelection);
         ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.road.tunnel.cross_section_section"));
         if (TunnelCrossSectionPreviewRenderer.renderShapePresetRow(style.getShape(), shape -> {
             style.setShape(shape);
             notifyChanged(style, onChanged, presetSelection);
@@ -289,10 +288,7 @@ public final class TunnelStyleEditor {
                 notifyChanged(style, onChanged, presetSelection);
             }
             if (style.isAccentRings()) {
-                ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.preview_accent_schematic"));
-                if (!style.hasEffectiveAccentRings()) {
-                    ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.accent_material_required"));
-                }
+                // 横截面预览看不到纵向装饰环，不展示橙色点示意等说明，只保留可编辑控件。
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
                     "##tunnel_accent_material",

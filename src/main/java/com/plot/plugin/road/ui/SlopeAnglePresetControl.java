@@ -58,7 +58,8 @@ public final class SlopeAnglePresetControl {
         }
 
         float[] customAngle = {linked ? fillAngle : fillAngle};
-        ImGui.setNextItemWidth(120f);
+        // 与车道宽/车道数等标准滑条同宽（CalcItemWidth），勿写死窄宽。
+        ImGui.setNextItemWidth(ImGui.calcItemWidth());
         if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.slope_angle_custom") + "##custom",
                 customAngle,
@@ -83,7 +84,7 @@ public final class SlopeAnglePresetControl {
 
         if (!linked) {
             float[] cutCustom = {cutAngle};
-            ImGui.setNextItemWidth(120f);
+            ImGui.setNextItemWidth(ImGui.calcItemWidth());
             if (ImGui.sliderFloat(
                     PlotI18n.tr("plugin.road.cut_slope_ratio_label") + "##cut_angle",
                     cutCustom,

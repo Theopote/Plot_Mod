@@ -35,11 +35,16 @@ public final class RoadUiSections {
         ImGui.spacing();
     }
 
-    /** 一级工作域（快速设计 / 专业工具等）。 */
-    public static void domain(String labelKey) {
+    /** 类别之间的水平分割（无标题）。 */
+    public static void categorySeparator() {
         ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();
+    }
+
+    /** 一级工作域（快速设计 / 专业工具等）。 */
+    public static void domain(String labelKey) {
+        categorySeparator();
         RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr(labelKey));
         ImGui.spacing();
     }
