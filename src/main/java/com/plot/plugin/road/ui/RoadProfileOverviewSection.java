@@ -45,6 +45,7 @@ public final class RoadProfileOverviewSection {
             RoadNetwork network,
             VerticalProfileEditor profileEditor,
             Function<Road, FlatElevationProfileOverlay> flatOverlayForRoad) {
+        RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
         List<Road> roads = RoadProfileRoadList.listOverviewRoads(network, ctx);
         if (roads.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -54,6 +55,12 @@ public final class RoadProfileOverviewSection {
         }
 
         boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
+        if (ctx.networkManager().hasVerticalUiFeedback()) {
+            RoadUiWidgets.textWrappedColored(
+                RoadStatusUi.colorFor(ctx.networkManager().verticalUiSeverity()),
+                ctx.networkManager().verticalUiMessage());
+            ImGui.spacing();
+        }
         if (uniformFlat) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -182,6 +189,12 @@ public final class RoadProfileOverviewSection {
             }
             return;
         }
+        if (ctx.previewManager().hasTerrainUiFeedback()) {
+            RoadUiWidgets.textWrappedColored(
+                RoadStatusUi.colorFor(ctx.previewManager().terrainUiSeverity()),
+                ctx.previewManager().terrainUiMessage());
+            return;
+        }
 
         Road statusRoad = activeRoad != null ? activeRoad : roads.getFirst();
         RoadTerrainProfileData data = ctx.previewManager().getTerrainProfile(network, statusRoad.getId());
@@ -222,7 +235,10 @@ public final class RoadProfileOverviewSection {
             Road road,
             boolean uniformFlat) {
         if (uniformFlat) {
-            ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+            ctx.networkManager().setVerticalUiFeedback(
+                com.plot.plugin.road.manager.RoadStatus.Severity.WARNING,
+                PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
             return;
         }
         profileEditor.openEditorForRoad(ctx, road.getId());
@@ -344,9 +360,6 @@ public final class RoadProfileOverviewSection {
     }
 
     private static void clearTopStatusIfMatches(RoadUiContext ctx, String messageKey) {
-        String expected = PlotI18n.tr(messageKey);
-        if (expected != null && expected.equals(ctx.status().get())) {
-            ctx.status().clear();
-        }
+        RoadPanelScopedStatus.clearIfExactKey(ctx.status(), messageKey);
     }
 }

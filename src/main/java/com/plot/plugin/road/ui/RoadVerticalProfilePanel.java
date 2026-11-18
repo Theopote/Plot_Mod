@@ -104,7 +104,10 @@ public final class RoadVerticalProfilePanel {
         if (!NetworkElevationAuthority.isUniformFlat(ctx.networkManager().getNetwork())) {
             return false;
         }
-        ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+        ctx.networkManager().setVerticalUiFeedback(
+            com.plot.plugin.road.manager.RoadStatus.Severity.WARNING,
+            PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+        RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
         return true;
     }
 

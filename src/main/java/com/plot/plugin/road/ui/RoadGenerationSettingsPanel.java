@@ -196,7 +196,7 @@ public final class RoadGenerationSettingsPanel {
 
         // 冲突只在勾选区就地提示；顶栏不再重复，并清掉历史残留。
         ctx.networkManager().clearStaleUniformFlatGradeSepWarning();
-        clearToolbarUniformElevationPreview(ctx);
+        RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
         if (!NetworkElevationAuthority.isUniformFlat(network)) {
             return;
         }
@@ -248,6 +248,11 @@ public final class RoadGenerationSettingsPanel {
             ImGui.endDisabled();
         }
 
+        if (ctx.networkManager().hasVerticalUiFeedback()) {
+            RoadUiWidgets.textWrappedColored(
+                RoadStatusUi.colorFor(ctx.networkManager().verticalUiSeverity()),
+                ctx.networkManager().verticalUiMessage());
+        }
         RoadUniformElevationUtils.ElevationRecommendation lastPreview =
             ctx.networkManager().getLastUniformElevationPreview();
         if (lastPreview != null && lastPreview.sampleCount() > 0) {
@@ -268,7 +273,10 @@ public final class RoadGenerationSettingsPanel {
     private static void recommendUniformElevation(RoadUiContext ctx, RoadNetwork network) {
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null) {
-            ctx.status().error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            ctx.networkManager().setVerticalUiFeedback(
+                com.plot.plugin.road.manager.RoadStatus.Severity.ERROR,
+                PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
             return;
         }
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, ctx.host().coordinates());
@@ -276,19 +284,6 @@ public final class RoadGenerationSettingsPanel {
             ctx.networkManager().previewUniformElevation(terrain);
         if (recommendation != null) {
             ctx.networkManager().setUniformElevationY(recommendation.elevation());
-        }
-    }
-
-    /** 顶栏不再展示「推荐 Y=…」；进入统一标高区时清掉历史 INFO 残留。 */
-    private static void clearToolbarUniformElevationPreview(RoadUiContext ctx) {
-        var status = ctx.status().getStatus();
-        if (status == null || status.isEmpty()
-                || status.severity() != com.plot.plugin.road.manager.RoadStatus.Severity.INFO) {
-            return;
-        }
-        String message = status.message();
-        if (message != null && (message.contains("推荐 Y=") || message.contains("Suggested Y="))) {
-            ctx.status().clear();
         }
     }
 

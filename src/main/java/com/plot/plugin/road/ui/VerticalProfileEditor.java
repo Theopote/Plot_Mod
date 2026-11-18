@@ -514,7 +514,10 @@ final class VerticalProfileEditor {
         if (ctx != null
                 && com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(
                     ctx.networkManager().getNetwork())) {
-            ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+            ctx.networkManager().setVerticalUiFeedback(
+                com.plot.plugin.road.manager.RoadStatus.Severity.WARNING,
+                PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+            com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
             return;
         }
         selectEditorRoad(ctx, roadId, true);

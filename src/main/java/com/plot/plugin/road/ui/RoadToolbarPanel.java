@@ -39,8 +39,10 @@ public final class RoadToolbarPanel {
         }
 
         // 落地进行中时进度条已有「施工进度」，跳过顶栏重复的放置提示。
+        // 纵断面等面板作用域提示改在对应面板展示，不压在标签上方。
         boolean placementBusy = ctx.host().placement().isBusy();
-        if (!ctx.status().isEmpty() && !placementBusy) {
+        if (!ctx.status().isEmpty() && !placementBusy
+                && !RoadPanelScopedStatus.shouldHideFromToolbar(ctx.status().getStatus())) {
             RoadStatusUi.render(ctx.status().getStatus());
         }
         ImGui.separator();

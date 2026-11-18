@@ -133,6 +133,9 @@ public final class RoadNetworkManager {
     private boolean uniformElevationDragActive = false;
     /** 最近一次「推荐标高」采样结果，供纵断面面板就地展示（不刷顶栏）。 */
     private RoadUniformElevationUtils.ElevationRecommendation lastUniformElevationPreview;
+    /** 统一标高操作就地反馈（启用/更新/阻断等）。 */
+    private String verticalUiMessage = "";
+    private RoadStatus.Severity verticalUiSeverity = RoadStatus.Severity.INFO;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
         this(config, status, new RoadNetworkBuilder());
@@ -366,10 +369,35 @@ public final class RoadNetworkManager {
             }
         }
         if (invalidated > 0) {
-            status.info(com.plot.utils.PlotI18n.tr(
-                "plugin.road.profile_source_invalidated_geometry",
-                invalidated));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.INFO,
+                com.plot.utils.PlotI18n.tr(
+                    "plugin.road.profile_source_invalidated_geometry",
+                    invalidated));
+            com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
         }
+    }
+
+    public String verticalUiMessage() {
+        return verticalUiMessage;
+    }
+
+    public RoadStatus.Severity verticalUiSeverity() {
+        return verticalUiSeverity;
+    }
+
+    public boolean hasVerticalUiFeedback() {
+        return verticalUiMessage != null && !verticalUiMessage.isBlank();
+    }
+
+    public void setVerticalUiFeedback(RoadStatus.Severity severity, String message) {
+        verticalUiSeverity = severity != null ? severity : RoadStatus.Severity.INFO;
+        verticalUiMessage = message != null ? message : "";
+    }
+
+    public void clearVerticalUiFeedback() {
+        verticalUiMessage = "";
+        verticalUiSeverity = RoadStatus.Severity.INFO;
     }
 
     /** {@link #pushUndoSnapshot()} 的语义别名。 */
@@ -478,26 +506,31 @@ public final class RoadNetworkManager {
             TerrainSampler terrain) {
         if (network.getEdges().isEmpty()) {
             lastUniformElevationPreview = null;
-            status.warning(PlotI18n.tr("plugin.road.no_edges"));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.WARNING, PlotI18n.tr("plugin.road.no_edges"));
+            com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
             return null;
         }
         if (terrain == null) {
             lastUniformElevationPreview = null;
-            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.ERROR,
+                PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
             return null;
         }
         RoadUniformElevationUtils.ElevationRecommendation recommendation =
             RoadUniformElevationUtils.recommendForNetwork(network, terrain, config);
         if (recommendation.sampleCount() <= 0) {
             lastUniformElevationPreview = null;
-            status.warning(PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.WARNING,
+                PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
+            com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
             return null;
         }
         lastUniformElevationPreview = recommendation;
-        // 推荐摘要改到纵断面面板；清掉顶栏以免压在标签上方。
-        if (status.getStatus().severity() == RoadStatus.Severity.INFO) {
-            status.clear();
-        }
+        com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
         return recommendation;
     }
 
@@ -561,17 +594,20 @@ public final class RoadNetworkManager {
         });
 
         if (sampleCount > 0) {
-            status.success(PlotI18n.tr(
-                "plugin.road.uniform_elevation_applied",
-                clamped,
-                strategyLabel != null ? strategyLabel : "",
-                sampleCount,
-                String.format("%.1f", average)));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.SUCCESS,
+                PlotI18n.tr(
+                    "plugin.road.uniform_elevation_applied",
+                    clamped,
+                    strategyLabel != null ? strategyLabel : "",
+                    sampleCount,
+                    String.format("%.1f", average)));
         } else {
-            status.success(PlotI18n.tr(
-                "plugin.road.uniform_elevation_applied_custom",
-                clamped));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.SUCCESS,
+                PlotI18n.tr("plugin.road.uniform_elevation_applied_custom", clamped));
         }
+        com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
         LOGGER.info(
             "全网统一标高模式: Y={} ({}), 样本={}, 平均={}",
             clamped,
@@ -589,6 +625,7 @@ public final class RoadNetworkManager {
         mutateNetwork(() -> network.setElevationMode(next));
         if (next != NetworkElevationMode.UNIFORM_FLAT) {
             lastUniformElevationPreview = null;
+            clearVerticalUiFeedback();
         }
         // 立交冲突由纵断面勾选区就地提示；顶栏不再重复，并清掉历史残留。
         clearUniformFlatGradeSepWarningIfPresent();
@@ -636,9 +673,12 @@ public final class RoadNetworkManager {
         }
         finishNetworkEdit();
         if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
-            status.info(PlotI18n.tr(
-                "plugin.road.uniform_flat_y_updated",
-                network.getUniformElevationY()));
+            setVerticalUiFeedback(
+                RoadStatus.Severity.INFO,
+                PlotI18n.tr(
+                    "plugin.road.uniform_flat_y_updated",
+                    network.getUniformElevationY()));
+            com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
         }
     }
 

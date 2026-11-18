@@ -98,6 +98,9 @@ public final class RoadPreviewManager {
     private Supplier<RoadNetwork> liveNetworkLookup = () -> null;
     /** 测试可覆盖世界键；生产默认识别当前客户端世界。 */
     private Supplier<String> worldKeyLookup = RoadPreviewManager::detectCurrentWorldKey;
+    /** 纵断面「地形与预览」就地反馈（取消/失败等），不走顶栏。 */
+    private String terrainUiMessage = "";
+    private RoadStatus.Severity terrainUiSeverity = RoadStatus.Severity.INFO;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -430,9 +433,13 @@ public final class RoadPreviewManager {
         }
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null) {
-            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            setTerrainUiFeedback(
+                RoadStatus.Severity.ERROR,
+                PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            clearToolbarIfPanelScoped();
             return false;
         }
+        clearTerrainUiFeedback();
         LinkedHashSet<String> ordered = new LinkedHashSet<>();
         for (String roadId : roadIds) {
             if (roadId == null || roadId.isBlank()) {
@@ -444,7 +451,10 @@ public final class RoadPreviewManager {
             }
         }
         if (ordered.isEmpty()) {
-            status.warning(PlotI18n.tr("plugin.road.terrain_profile.unavailable"));
+            setTerrainUiFeedback(
+                RoadStatus.Severity.WARNING,
+                PlotI18n.tr("plugin.road.terrain_profile.unavailable"));
+            clearToolbarIfPanelScoped();
             return false;
         }
 
@@ -515,15 +525,8 @@ public final class RoadPreviewManager {
     }
 
     private void publishTerrainSamplingStatus() {
-        if (terrainBatchTotal > 1) {
-            int current = Math.min(terrainBatchTotal, terrainBatchCompleted + 1);
-            status.progress(PlotI18n.tr(
-                "plugin.road.terrain_profile.sampling_batch",
-                current,
-                terrainBatchTotal));
-        } else {
-            status.progress(PlotI18n.tr("plugin.road.terrain_profile.sampling"));
-        }
+        // 采样进度由纵断面「地形与预览」行展示，不刷顶栏。
+        clearToolbarIfPanelScoped();
     }
 
     private void clearTerrainRefreshQueue() {
@@ -566,7 +569,10 @@ public final class RoadPreviewManager {
         } else {
             terrainProfileJob = null;
         }
-        status.info(PlotI18n.tr("plugin.road.terrain_profile.cancelled"));
+        setTerrainUiFeedback(
+            RoadStatus.Severity.INFO,
+            PlotI18n.tr("plugin.road.terrain_profile.cancelled"));
+        clearToolbarIfPanelScoped();
     }
 
     public void cancelTerrainProfileJobSilently() {
@@ -585,20 +591,8 @@ public final class RoadPreviewManager {
         if (job == null || terrainProfileJob != job) {
             return;
         }
-        if (terrainBatchTotal > 1) {
-            int current = Math.min(terrainBatchTotal, terrainBatchCompleted + 1);
-            status.progress(PlotI18n.tr(
-                "plugin.road.terrain_profile.sampling_batch_progress",
-                current,
-                terrainBatchTotal,
-                job.processedWorkUnits(),
-                job.totalWorkUnits()));
-            return;
-        }
-        status.progress(PlotI18n.tr(
-            "plugin.road.terrain_profile.sampling_progress",
-            job.processedWorkUnits(),
-            job.totalWorkUnits()));
+        // 进度文案由纵断面面板 renderTerrainStatus 读取 job 计数，不刷顶栏。
+        clearToolbarIfPanelScoped();
     }
 
     public void completeTerrainProfileJob(RoadTerrainProfileSamplingJob job, RoadTerrainProfileData data) {
@@ -613,7 +607,10 @@ public final class RoadPreviewManager {
                 advanceTerrainRefreshQueueAfterJob();
             } else {
                 clearTerrainRefreshQueue();
-                status.warning(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+                setTerrainUiFeedback(
+                    RoadStatus.Severity.WARNING,
+                    PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+                clearToolbarIfPanelScoped();
             }
             return;
         }
@@ -624,7 +621,10 @@ public final class RoadPreviewManager {
                 advanceTerrainRefreshQueueAfterJob();
             } else {
                 clearTerrainRefreshQueue();
-                status.warning(PlotI18n.tr("plugin.road.terrain_profile.rejected_stale"));
+                setTerrainUiFeedback(
+                    RoadStatus.Severity.WARNING,
+                    PlotI18n.tr("plugin.road.terrain_profile.rejected_stale"));
+                clearToolbarIfPanelScoped();
             }
             return;
         }
@@ -636,7 +636,8 @@ public final class RoadPreviewManager {
         }
         // 单路或批量最后一条：收尾计数。地形质量提示改在纵断面「地形与预览」行展示，不刷顶部栏。
         clearTerrainRefreshQueue();
-        status.clear();
+        clearTerrainUiFeedback();
+        clearToolbarIfPanelScoped();
     }
 
     public void failTerrainProfileJob(RoadTerrainProfileSamplingJob job) {
@@ -649,7 +650,36 @@ public final class RoadPreviewManager {
             return;
         }
         clearTerrainRefreshQueue();
-        status.error(PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+        setTerrainUiFeedback(
+            RoadStatus.Severity.ERROR,
+            PlotI18n.tr("plugin.road.terrain_profile.read_failed"));
+        clearToolbarIfPanelScoped();
+    }
+
+    public String terrainUiMessage() {
+        return terrainUiMessage;
+    }
+
+    public RoadStatus.Severity terrainUiSeverity() {
+        return terrainUiSeverity;
+    }
+
+    public boolean hasTerrainUiFeedback() {
+        return terrainUiMessage != null && !terrainUiMessage.isBlank();
+    }
+
+    private void setTerrainUiFeedback(RoadStatus.Severity severity, String message) {
+        terrainUiSeverity = severity != null ? severity : RoadStatus.Severity.INFO;
+        terrainUiMessage = message != null ? message : "";
+    }
+
+    public void clearTerrainUiFeedback() {
+        terrainUiMessage = "";
+        terrainUiSeverity = RoadStatus.Severity.INFO;
+    }
+
+    private void clearToolbarIfPanelScoped() {
+        com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(status);
     }
 
     public void finishCancelledTerrainProfileJob(RoadTerrainProfileSamplingJob job) {
