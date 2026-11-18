@@ -12,7 +12,6 @@ import java.util.List;
 public final class ProfileChartLegend {
 
     private static final int COLOR_INTERSECTION_AT_GRADE = 0xFF66CCFF;
-    private static final int COLOR_INTERSECTION_CURRENT = 0xFFFF9966;
     private static final int COLOR_INTERSECTION_OTHER = 0xFFCC99FF;
 
     private ProfileChartLegend() {
@@ -98,12 +97,7 @@ public final class ProfileChartLegend {
         ImGui.textColored(
             ProfileChartSeriesStyle.DESIGN_PROFILE,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
-        if (showBuildProfile) {
-            ImGui.sameLine();
-            ImGui.textColored(
-                ProfileChartSeriesStyle.BUILD_PROFILE,
-                "\u25A0 " + buildProfileLabel(buildPreviewStale));
-        }
+        // 建造预览线仍绘制；过期态由页脚芯片说明，图例不再列「上次预览（已过期）」。
         appendIntersectionLegendInline(intersections);
         appendWaterSurfaceLegend(showWaterSurface);
         ImGui.sameLine();
@@ -120,12 +114,7 @@ public final class ProfileChartLegend {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
-        if (showBuildProfile) {
-            ImGui.sameLine();
-            ImGui.textColored(
-                ProfileChartSeriesStyle.BUILD_PROFILE,
-                "\u25A0 " + buildProfileLabel(buildPreviewStale));
-        }
+        // 同上：建造预览线不进紧凑图例，避免与设计线语义打架。
         appendIntersectionLegendInline(intersections);
         appendWaterSurfaceLegend(showWaterSurface);
     }
@@ -142,7 +131,7 @@ public final class ProfileChartLegend {
 
     /**
      * 将路口图示接在当前行末尾（sameLine），避免另起一行。
-     * 立交：当前道路 ○ + 相交道路 ◇；平交：平交交叉 ●。
+     * 立交只标 ◇ 相交道路；平交标 ●。本路立交 ○ 语义易与「整条当前道路」混淆，不进图例。
      */
     private static void appendIntersectionLegendInline(List<RoadProfileIntersection> intersections) {
         if (intersections == null || intersections.isEmpty()) {
@@ -158,10 +147,6 @@ public final class ProfileChartLegend {
             }
         }
         if (hasGradeSeparated) {
-            ImGui.sameLine();
-            ImGui.textColored(
-                COLOR_INTERSECTION_CURRENT,
-                "\u25CE " + PlotI18n.tr("plugin.road.profile_intersection_marker_current"));
             ImGui.sameLine();
             ImGui.textColored(
                 COLOR_INTERSECTION_OTHER,

@@ -88,8 +88,8 @@ public final class RoadStationPlanSchematicRenderer {
         float y1 = y0 + height;
 
         ImDrawList drawList = ImGui.getWindowDrawList();
-        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG, 4f);
-        drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 4f, 0, 1f);
+        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG, 0f);
+        drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 0f, 0, 1f);
 
         Bounds bounds = boundsOf(points);
         float plotW = Math.max(1f, width - PAD * 2f);

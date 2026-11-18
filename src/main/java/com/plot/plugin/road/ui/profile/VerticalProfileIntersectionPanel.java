@@ -148,8 +148,7 @@ public final class VerticalProfileIntersectionPanel {
             return;
         }
         RoadProfileIntersection intersection = intersections.get(selectedIntersectionIndex);
-        ImGui.spacing();
-        ImGui.separator();
+        // 详情区顶部不再画 separator：上方常无内容时会出现一条悬空分割线。
         renderIntersectionTitleRow(network, road, intersection);
         boolean crossingChanged = renderProfileGradeSeparationControls(
             ctx, network, road, intersection, config);

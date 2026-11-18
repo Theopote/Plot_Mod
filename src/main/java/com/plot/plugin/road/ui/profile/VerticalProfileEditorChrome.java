@@ -109,7 +109,7 @@ public final class VerticalProfileEditorChrome {
     /**
      * 底部操作：
      * 1) 状态芯片单独一行
-     * 2) 动作尽量一行：左侧紧凑工具 + 右侧恢复/取消/保存；过窄时工具与提交分两行
+     * 2) 六个按钮等宽均分；够宽一行六个，过窄则两行各三个等宽
      */
     public void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
         ProfileEditorWindowSession windowSession = host.windowSession();
@@ -134,21 +134,23 @@ public final class VerticalProfileEditorChrome {
         String cancelLabel = PlotI18n.tr("plugin.road.profile_editor_cancel");
         String confirmLabel = PlotI18n.tr("plugin.road.profile_editor_confirm");
 
-        float undoW = ImGui.calcTextSize(undoLabel).x + pad;
-        float redoW = ImGui.calcTextSize(redoLabel).x + pad;
-        float voxelW = ImGui.calcTextSize(voxelLabel).x + pad;
-        float restoreMin = ImGui.calcTextSize(restoreLabel).x + pad;
-        float cancelMin = ImGui.calcTextSize(cancelLabel).x + pad;
-        float confirmMin = ImGui.calcTextSize(confirmLabel).x + pad;
-        float toolsWidth = undoW + redoW + voxelW + spacing * 2f;
-        float commitMinTotal = restoreMin + cancelMin + confirmMin + spacing * 2f;
-        // 一行：工具紧凑宽度 + 剩余均分给提交组；过窄则拆两行避免中文标签被挤没。
-        boolean oneRow = rowWidth >= toolsWidth + spacing + commitMinTotal;
+        float minButton = Math.max(
+            ImGui.calcTextSize(undoLabel).x,
+            Math.max(ImGui.calcTextSize(redoLabel).x,
+                Math.max(ImGui.calcTextSize(voxelLabel).x,
+                    Math.max(ImGui.calcTextSize(restoreLabel).x,
+                        Math.max(ImGui.calcTextSize(cancelLabel).x,
+                            ImGui.calcTextSize(confirmLabel).x))))) + pad;
+        // 一行六个等宽；装不下则两行各三等宽，避免中文标签被挤没。
+        boolean oneRow = rowWidth >= minButton * 6f + spacing * 5f;
+        float buttonWidth = oneRow
+            ? (rowWidth - spacing * 5f) / 6f
+            : (rowWidth - spacing * 2f) / 3f;
 
         if (!canUndo) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(undoLabel + "##profile_undo", undoW, 0)) {
+        if (ImGui.button(undoLabel + "##profile_undo", buttonWidth, 0)) {
             host.undoEditorSession(ctx);
         }
         if (!canUndo) {
@@ -158,7 +160,7 @@ public final class VerticalProfileEditorChrome {
         if (!canRedo) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(redoLabel + "##profile_redo", redoW, 0)) {
+        if (ImGui.button(redoLabel + "##profile_redo", buttonWidth, 0)) {
             host.redoEditorSession(ctx);
         }
         if (!canRedo) {
@@ -168,7 +170,7 @@ public final class VerticalProfileEditorChrome {
         if (computing || road == null || windowSession == null) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(voxelLabel + "##update_voxel_profile", voxelW, 0) && road != null) {
+        if (ImGui.button(voxelLabel + "##update_voxel_profile", buttonWidth, 0) && road != null) {
             host.requestVoxelPreview(ctx, road);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
@@ -178,27 +180,21 @@ public final class VerticalProfileEditorChrome {
             ImGui.endDisabled();
         }
 
-        float commitAvail = oneRow
-            ? Math.max(1f, rowWidth - toolsWidth - spacing)
-            : rowWidth;
         if (oneRow) {
             ImGui.sameLine(0f, spacing);
         }
-        float commitWidth = Math.max(
-            Math.max(restoreMin, Math.max(cancelMin, confirmMin)),
-            (commitAvail - spacing * 2f) / 3f);
 
         if (!dirty) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(restoreLabel + "##profile_restore", commitWidth, 0)) {
+        if (ImGui.button(restoreLabel + "##profile_restore", buttonWidth, 0)) {
             host.restoreWindowSession();
         }
         if (!dirty) {
             ImGui.endDisabled();
         }
         ImGui.sameLine(0f, spacing);
-        if (ImGui.button(cancelLabel + "##profile_cancel", commitWidth, 0)) {
+        if (ImGui.button(cancelLabel + "##profile_cancel", buttonWidth, 0)) {
             host.requestEditorClose(ctx, liveNetwork, true);
         }
         ImGui.sameLine(0f, spacing);
@@ -211,7 +207,7 @@ public final class VerticalProfileEditorChrome {
         if (confirmDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(confirmLabel + "##profile_confirm", commitWidth, 0)) {
+        if (ImGui.button(confirmLabel + "##profile_confirm", buttonWidth, 0)) {
             host.applyWindowSessionConfirm(ctx, liveNetwork);
         }
         if (confirmDisabled && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
