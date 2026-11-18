@@ -2,7 +2,6 @@ package com.plot.ui.panel.tool.renderer;
 
 
 import com.plot.ui.component.UIUtils;
-import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.ArrayTool;
 import com.plot.ui.tools.impl.modify.strategy.ArrayWithSelectionStrategy;

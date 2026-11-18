@@ -13,7 +13,6 @@ import com.plot.core.model.Shape;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
-import com.plot.infrastructure.event.view.OpacityChangeEvent;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
@@ -448,34 +447,41 @@ public class CanvasCore implements ICanvas {
     }
 
     /**
-     * 设置透明度（线程安全）
+     * 设置透明度（线程安全）。
+     * <p>以 {@link AppState} 为唯一数据源；不再二次发布 {@link OpacityChangeEvent}，
+     * 避免滑动条已发布事件后再回声一次，也避免渲染依赖“事件必须送达 CanvasEventHandler”。
      * @param opacity 透明度值（0.0-1.0）
      */
     public void setOpacity(float opacity) {
         opacity = Math.max(0.0f, Math.min(1.0f, opacity));
-        
+
+        try {
+            ApplicationContext.getInstance().getAppState().setOpacity(opacity);
+        } catch (Exception e) {
+            LOGGER.warn("同步 AppState 透明度失败，仅更新本地缓存", e);
+        }
+
         synchronized (opacityLock) {
             if (Math.abs(this.opacity - opacity) > 0.001f) {
                 this.opacity = opacity;
                 markDirty(DirtyType.CONTENT);
-                
-                                 // 发布透明度改变事件
-                 try {
-                     eventBus.publish(new OpacityChangeEvent(opacity));
-                 } catch (Exception e) {
-                     LOGGER.error("发布透明度改变事件失败", e);
-                 }
             }
         }
     }
 
     /**
-     * 获取透明度（线程安全）
+     * 获取透明度（线程安全）。
+     * <p>优先读 AppState：控制面板滑动条直接写 AppState，即使 OpacityChangeEvent
+     * 没有监听器，背景透明度仍能立即生效。
      * @return 透明度值
      */
     public float getOpacity() {
-        synchronized (opacityLock) {
-            return opacity;
+        try {
+            return ApplicationContext.getInstance().getAppState().getOpacity();
+        } catch (Exception e) {
+            synchronized (opacityLock) {
+                return opacity;
+            }
         }
     }
 

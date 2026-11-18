@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.ui.PluginUiColors;
@@ -8,6 +9,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -16,6 +18,7 @@ import java.util.List;
  * <p>
  * 单路：详细断面 / 变截面 / 设施 / 诊断 / 隧道（中心线已迁至路线工作区）。
  * 多选：批量横断面 / 隧道 / 变截面 / 设施 / 诊断。
+ * 诊断入口仅在有问题时显示；诊断窗已打开时保留，便于关闭。
  */
 final class RoadEditToolLauncher {
 
@@ -27,7 +30,7 @@ final class RoadEditToolLauncher {
 
     static void renderSingle(RoadUiContext ctx, RoadFloatingEditorHost host, String roadId) {
         RoadUiSections.section("plugin.road.edit.tools.section");
-        renderGrid(ctx, host, roadId, singleTools());
+        renderGrid(ctx, host, roadId, singleTools(ctx, host, roadId));
     }
 
     static void renderMulti(RoadUiContext ctx, RoadFloatingEditorHost host, Collection<String> roadIds) {
@@ -37,7 +40,7 @@ final class RoadEditToolLauncher {
         }
         String primaryRoadId = roadIds.iterator().next();
         if (roadIds.size() == 1) {
-            renderGrid(ctx, host, primaryRoadId, singleTools());
+            renderGrid(ctx, host, primaryRoadId, singleTools(ctx, host, primaryRoadId));
             return;
         }
         float gap = ImGui.getStyle().getItemSpacingX();
@@ -58,10 +61,12 @@ final class RoadEditToolLauncher {
             ctx, host, primaryRoadId, count, half,
             RoadFloatingEditorKind.STATION_FACILITIES,
             "batch_station_facilities");
-        renderBatchHostCard(
-            ctx, host, primaryRoadId, count, half,
-            RoadFloatingEditorKind.DIAGNOSTICS,
-            "batch_diagnostics");
+        if (shouldShowDiagnosticsTool(ctx, host, roadIds)) {
+            renderBatchHostCard(
+                ctx, host, primaryRoadId, count, half,
+                RoadFloatingEditorKind.DIAGNOSTICS,
+                "batch_diagnostics");
+        }
     }
 
     private static void renderBatchHostCard(
@@ -148,14 +153,52 @@ final class RoadEditToolLauncher {
         }
     }
 
-    private static List<ToolSpec> singleTools() {
+    private static List<ToolSpec> singleTools(
+            RoadUiContext ctx,
+            RoadFloatingEditorHost host,
+            String roadId) {
         // 中心线编辑入口已迁至路线工作区。
-        return List.of(
+        List<ToolSpec> tools = new ArrayList<>(List.of(
             ToolSpec.host(RoadFloatingEditorKind.CROSS_SECTION, "cross_section"),
             ToolSpec.host(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
-            ToolSpec.host(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
-            ToolSpec.host(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"),
-            ToolSpec.tunnel());
+            ToolSpec.host(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities")));
+        if (shouldShowDiagnosticsTool(ctx, host, List.of(roadId))) {
+            tools.add(ToolSpec.host(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"));
+        }
+        tools.add(ToolSpec.tunnel());
+        return tools;
+    }
+
+    /** 有问题，或诊断窗已打开（便于关闭）时显示诊断入口。 */
+    private static boolean shouldShowDiagnosticsTool(
+            RoadUiContext ctx,
+            RoadFloatingEditorHost host,
+            Collection<String> roadIds) {
+        if (host != null && host.isOpen(RoadFloatingEditorKind.DIAGNOSTICS)) {
+            return true;
+        }
+        return countIssues(ctx, roadIds) > 0;
+    }
+
+    private static int countIssues(RoadUiContext ctx, Collection<String> roadIds) {
+        if (ctx == null || roadIds == null || roadIds.isEmpty()) {
+            return 0;
+        }
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        if (network == null) {
+            return 0;
+        }
+        int total = 0;
+        for (String id : roadIds) {
+            if (id == null || id.isBlank()) {
+                continue;
+            }
+            Road road = network.getRoad(id);
+            if (road != null) {
+                total += RoadEditDiagnosticsBanner.countIssues(ctx, network, road);
+            }
+        }
+        return total;
     }
 
     private record ToolSpec(

@@ -91,20 +91,10 @@ final class BatchStationMappingUi {
             network, sourceRoad, source, targetRoadIds, mode);
     }
 
+    /** 批量写入结果已在浮动窗预览；不刷主面板顶栏，并清掉可能残留的摘要。 */
     static void reportApplyResult(RoadUiContext ctx, BatchApplyReport report) {
-        if (ctx == null || report == null) {
-            return;
-        }
-        String message = PlotI18n.tr(
-            "plugin.road.floating_editor.batch_mapping.apply_stats",
-            report.appliedTargets(),
-            report.skippedTargets(),
-            report.droppedItems(),
-            report.clampedItems());
-        if (report.hasWarnings()) {
-            ctx.status().warning(message);
-        } else if (report.appliedTargets() > 0) {
-            ctx.status().info(message);
+        if (ctx != null) {
+            ctx.status().clear();
         }
     }
 

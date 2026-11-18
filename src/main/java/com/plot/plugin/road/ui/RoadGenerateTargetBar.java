@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
@@ -80,17 +81,16 @@ final class RoadGenerateTargetBar {
             List<Road> roads,
             Road current,
             float comboWidth) {
-        var coordinates = ctx.host().coordinates();
+        // 仅道路名：长度与纵向方式已在下方「地形与预览」缩略图标题中展示。
         String preview = current != null
-            ? RoadProfileRoadList.formatProfileRoadSummary(network, current, coordinates)
+            ? RoadEdgeListHelper.formatRoadLabel(network, current)
             : PlotI18n.tr("plugin.road.edit.select_road_placeholder");
         String currentId = current != null ? current.getId() : "";
 
         ImGui.setNextItemWidth(Math.max(1f, comboWidth));
         if (ImGui.beginCombo("##generate_target_road_combo", preview)) {
             for (Road candidate : roads) {
-                String label = RoadProfileRoadList.formatProfileRoadSummary(
-                    network, candidate, coordinates);
+                String label = RoadEdgeListHelper.formatRoadLabel(network, candidate);
                 boolean selected = candidate.getId().equals(currentId);
                 if (ImGui.selectable(label, selected)) {
                     selectRoad(ctx, candidate.getId());
