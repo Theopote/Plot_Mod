@@ -126,7 +126,7 @@ public final class VerticalProfileEditorBody {
     private final VerticalProfileDetailPane detailPane;
     private final VerticalProfileChartController chartController;
 
-    /** 页脚图例快照：详情区不再画图例，改由按钮行下方单独一行渲染。 */
+    /** 图例快照：详情区不再画图例，改在编辑区正下方单独一行渲染。 */
     private List<RoadProfileIntersection> footerLegendIntersections = List.of();
     private boolean footerLegendFlatMode;
     private boolean footerLegendShowBuild;
@@ -292,7 +292,7 @@ public final class VerticalProfileEditorBody {
         chartController.renderMissingProfileActions(ctx, network, road);
     }
 
-    /** 页脚图例行：有交互剖面时在编辑按钮下方占一行。 */
+    /** 编辑区下方图例行：有交互剖面时占一行。 */
     public void renderFooterLegend(RoadUiContext ctx, Road road) {
         if (!footerLegendReady || road == null) {
             return;

@@ -86,9 +86,6 @@ public final class VerticalProfileEditorChrome {
         void discardWindowSession();
 
         void discardAndReloadWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork);
-
-        /** 页脚图例行（编辑按钮下方）；无剖面数据时为空操作。 */
-        void renderFooterLegend(RoadUiContext ctx, Road road);
     }
 
     private final Host host;
@@ -105,7 +102,7 @@ public final class VerticalProfileEditorChrome {
         return estimateMinFooterHeight();
     }
 
-    /** 首帧最小预留：separator + 状态行 + 动作行 + 图例行 + 间距。 */
+    /** 首帧最小预留：图例行 + separator + 状态行 + 动作行 + 间距。 */
     public static float estimateMinFooterHeight() {
         float row = ImGui.getFrameHeightWithSpacing();
         return row * 3.4f + ImGui.getStyle().getItemSpacingY();
@@ -125,7 +122,7 @@ public final class VerticalProfileEditorChrome {
      * 底部操作：
      * 1) 状态芯片单独一行
      * 2) 动作尽量一行：左侧紧凑工具 + 右侧恢复/取消/保存；过窄时工具与提交分两行
-     * 3) 剖面图例单独一行（从右侧详情区移出）
+     * 图例在编辑区与本页脚之间由编辑器主体渲染。
      */
     public void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
         ProfileEditorWindowSession windowSession = host.windowSession();
@@ -239,8 +236,6 @@ public final class VerticalProfileEditorChrome {
         if (dirty) {
             ImGui.popStyleColor(3);
         }
-
-        host.renderFooterLegend(ctx, road);
     }
 
     /**

@@ -229,11 +229,6 @@ final class VerticalProfileEditor {
             public void discardAndReloadWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork) {
                 VerticalProfileEditor.this.discardAndReloadWindowSession(ctx, liveNetwork);
             }
-
-            @Override
-            public void renderFooterLegend(RoadUiContext ctx, Road road) {
-                body.renderFooterLegend(ctx, road);
-            }
         });
     private final VerticalProfileIntersectionPanel intersectionPanel =
         new VerticalProfileIntersectionPanel(new VerticalProfileIntersectionPanel.Host() {
@@ -636,7 +631,9 @@ final class VerticalProfileEditor {
                 ImGui.endChild();
             }
             handleEditorKeyboardShortcuts(ctx);
+            // 图例紧贴编辑区下方；页脚芯片/按钮再往下。
             float footerTop = ImGui.getCursorPosY();
+            body.renderFooterLegend(ctx, road);
             chrome.renderEditorFooter(ctx, liveNetwork, road);
             // 按实测高度预留，仅加一行间距，避免内容区与按钮之间出现大块空白。
             lastFooterHeight = Math.max(
