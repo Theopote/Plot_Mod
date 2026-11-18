@@ -147,13 +147,9 @@ public final class RoadStationPlanSchematicRenderer {
 
         ImVec2 cursor = screenPointAtStation(screen, canvasLength, playheadCanvas);
         if (cursor != null) {
+            // 只画当前位置圆点；跟随文字与图例重复，不再绘制。
             drawList.addCircleFilled(cursor.x, cursor.y, 4.5f, COLOR_CURSOR);
             drawList.addCircle(cursor.x, cursor.y, 7f, COLOR_CURSOR, 0, 1.5f);
-            drawList.addText(
-                cursor.x + 8f,
-                cursor.y - 10f,
-                COLOR_CURSOR,
-                PlotI18n.tr("plugin.road.plan_schematic_cursor"));
         }
 
         float legendY = y1 - 16f;

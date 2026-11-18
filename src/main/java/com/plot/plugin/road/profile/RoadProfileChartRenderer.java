@@ -14,6 +14,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseCursor;
 
 import java.util.List;
@@ -25,7 +26,6 @@ public final class RoadProfileChartRenderer {
 
     /** 与平面示意预览一致的深色底，突出地形/设计线对比。 */
     private static final int COLOR_BG = PluginUiColors.MAP_BG;
-    private static final int COLOR_BORDER = PluginUiColors.PANEL_BORDER;
     private static final int COLOR_GROUND = ProfileChartSeriesStyle.RAW_TERRAIN;
     private static final int COLOR_DESIGN = ProfileChartSeriesStyle.DESIGN_PROFILE;
     private static final int COLOR_BUILD = ProfileChartSeriesStyle.BUILD_PROFILE;
@@ -653,9 +653,14 @@ public final class RoadProfileChartRenderer {
         drawList.addRectFilled(
             layout.outerLeft(), layout.outerTop(),
             layout.outerRight(), layout.outerBottom(), COLOR_BG);
+        // 与下方 Child 面板边框同色（主题 Border），避免 PANEL_BORDER 偏淡。
         drawList.addRect(
             layout.outerLeft(), layout.outerTop(),
-            layout.outerRight(), layout.outerBottom(), COLOR_BORDER);
+            layout.outerRight(), layout.outerBottom(),
+            ImGui.getColorU32(ImGuiCol.Border),
+            0f,
+            0,
+            1f);
     }
 
     private static void drawPlayhead(
@@ -1031,8 +1036,6 @@ public final class RoadProfileChartRenderer {
         }
         float pviX = layout.plotX(pvi.roadStation(), range.totalStation());
         float pviY = layout.plotY(pvi.elevation(), range.minElevation(), range.maxElevation());
-        ProfileChartInteraction.CurveHandle leftHandle = null;
-        ProfileChartInteraction.CurveHandle rightHandle = null;
         for (ProfileChartInteraction.CurveHandle handle : handles) {
             float x = layout.plotX(handle.localDistance(), range.totalStation());
             float y = layout.plotY(handle.elevation(), range.minElevation(), range.maxElevation());
@@ -1040,22 +1043,9 @@ public final class RoadProfileChartRenderer {
                 && ((handle.leftSide() && activeSide == ProfileChartInteraction.CurveHandleSide.LEFT)
                     || (!handle.leftSide() && activeSide == ProfileChartInteraction.CurveHandleSide.RIGHT));
             int color = active ? COLOR_CURVE_HANDLE_SELECTED : COLOR_CURVE_HANDLE;
+            // 只画 PVI → 手柄切线；左右手柄之间的水平弦语义弱，不再绘制。
             drawList.addLine(pviX, pviY, x, y, color, 1.2f);
             drawList.addRectFilled(x - 3f, y - 3f, x + 3f, y + 3f, color);
-            if (handle.leftSide()) {
-                leftHandle = handle;
-            } else {
-                rightHandle = handle;
-            }
-        }
-        if (leftHandle != null && rightHandle != null) {
-            float leftX = layout.plotX(leftHandle.localDistance(), range.totalStation());
-            float rightX = layout.plotX(rightHandle.localDistance(), range.totalStation());
-            float midY = layout.plotY(
-                (leftHandle.elevation() + rightHandle.elevation()) * 0.5,
-                range.minElevation(),
-                range.maxElevation());
-            drawList.addLine(leftX, midY, rightX, midY, COLOR_CURVE_HANDLE, 1.0f);
         }
         if (activePvi < 0) {
             drawList.addCircle(pviX, pviY, 7f, COLOR_CURVE_HANDLE, 16, 1.4f);

@@ -63,12 +63,11 @@ public final class ProfileChartLegend {
             List<RoadProfileIntersection> intersections) {
         boolean showWaterSurface = chart != null && chart.hasWaterElevations();
         if (flatMode) {
-            renderFlatCompactLegend(buildPreviewStale, showBuildProfile, showWaterSurface, intersections);
+            renderFlatCompactLegend(showWaterSurface, intersections);
             return;
         }
         if (chartMode == ProfileChartRenderMode.EDITOR) {
-            renderCompactEditorLegend(
-                buildPreviewStale, showBuildProfile, showWaterSurface, intersections);
+            renderCompactEditorLegend(showWaterSurface, intersections);
             return;
         }
         renderCompactOverviewLegend(buildPreviewStale, showWaterSurface);
@@ -86,8 +85,6 @@ public final class ProfileChartLegend {
     }
 
     private static void renderCompactEditorLegend(
-            boolean buildPreviewStale,
-            boolean showBuildProfile,
             boolean showWaterSurface,
             List<RoadProfileIntersection> intersections) {
         ImGui.textColored(
@@ -98,17 +95,12 @@ public final class ProfileChartLegend {
             ProfileChartSeriesStyle.DESIGN_PROFILE,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
         // 建造预览线仍绘制；过期态由页脚芯片说明，图例不再列「上次预览（已过期）」。
+        // 方向说明：剖面图已标「起点/终点」，图例不再重复。
         appendIntersectionLegendInline(intersections);
         appendWaterSurfaceLegend(showWaterSurface);
-        ImGui.sameLine();
-        ImGui.textColored(
-            0xFF88C8FF,
-            "\u25B6 " + PlotI18n.tr("plugin.road.profile_direction_legend"));
     }
 
     private static void renderFlatCompactLegend(
-            boolean buildPreviewStale,
-            boolean showBuildProfile,
             boolean showWaterSurface,
             List<RoadProfileIntersection> intersections) {
         ImGui.textColored(
