@@ -70,35 +70,35 @@ final class RoadVerticalBatchEditor {
             ImGui.endCombo();
         }
 
-        FlatVerticalIntentSupport.BatchElevationSummary summary =
-            FlatVerticalIntentSupport.summarizeFlatBaseElevations(network, stationableRoadIds);
-        String elevationLabel = summary.mixed()
-            ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed")
-            : PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation");
-        if (!elevationDraftDirty && !summary.mixed() && summary.flatRoadCount() > 0) {
-            unifiedElevationDraft = (float) summary.commonElevation();
-        }
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
-        float[] elevation = {unifiedElevationDraft};
-        if (ImGui.dragFloat(
-            elevationLabel,
-            elevation,
-            0.5f,
-            com.plot.plugin.road.RoadParameterLimits.ELEVATION_MIN,
-            com.plot.plugin.road.RoadParameterLimits.ELEVATION_MAX,
-            summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.1f")) {
-            unifiedElevationDraft = elevation[0];
-            elevationDraftDirty = true;
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_batch_apply_uniform_y"))) {
-            switchDialog.requestBatchToFlatUniform(stationableRoadIds, unifiedElevationDraft);
-            elevationDraftDirty = false;
+        // 水平道路标高仅对水平道路有意义；全为适应地形时隐藏（转水平仍可通过纵向方式下拉）。
+        if (state != BatchStrategyState.TERRAIN_ADAPTIVE) {
+            FlatVerticalIntentSupport.BatchElevationSummary summary =
+                FlatVerticalIntentSupport.summarizeFlatBaseElevations(network, stationableRoadIds);
+            String elevationLabel = summary.mixed()
+                ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed")
+                : PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation");
+            if (!elevationDraftDirty && !summary.mixed() && summary.flatRoadCount() > 0) {
+                unifiedElevationDraft = (float) summary.commonElevation();
+            }
+            ImGui.setNextItemWidth(ImGui.calcItemWidth());
+            float[] elevation = {unifiedElevationDraft};
+            if (ImGui.dragFloat(
+                elevationLabel,
+                elevation,
+                0.5f,
+                com.plot.plugin.road.RoadParameterLimits.ELEVATION_MIN,
+                com.plot.plugin.road.RoadParameterLimits.ELEVATION_MAX,
+                summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.1f")) {
+                unifiedElevationDraft = elevation[0];
+                elevationDraftDirty = true;
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.vertical_batch_apply_uniform_y"))) {
+                switchDialog.requestBatchToFlatUniform(stationableRoadIds, unifiedElevationDraft);
+                elevationDraftDirty = false;
+            }
         }
 
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.vertical_batch_hint", stationableRoadIds.size()));
         if (stationableRoadIds.size() < selectedRoadIds.size()) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,

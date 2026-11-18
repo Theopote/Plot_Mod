@@ -26,7 +26,6 @@ public final class EngineeringSlopeInput {
 
     private static final Map<String, DisplayFormat> FORMAT_PREFS = new HashMap<>();
     private static final Map<String, ImString> TEXT_BUFFERS = new HashMap<>();
-    private static final float FORMAT_COMBO_WIDTH = 72f;
     private static final float VALUE_INPUT_WIDTH = 80f;
 
     private EngineeringSlopeInput() {
@@ -148,7 +147,8 @@ public final class EngineeringSlopeInput {
         }
 
         ImGui.sameLine(0f, spacing);
-        ImGui.setNextItemWidth(FORMAT_COMBO_WIDTH);
+        // 占满滑条右侧到内容右缘的剩余宽度，加宽且不越出边界。
+        ImGui.setNextItemWidth(Math.max(1f, ImGui.getContentRegionAvailX()));
         if (ImGui.combo("##format", formatIndex, formatLabels)) {
             DisplayFormat next = formatIndex.get() == 1 ? DisplayFormat.RATIO : DisplayFormat.PERCENT;
             FORMAT_PREFS.put(id, next);
