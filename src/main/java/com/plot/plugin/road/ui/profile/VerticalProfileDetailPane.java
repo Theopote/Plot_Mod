@@ -44,9 +44,9 @@ public final class VerticalProfileDetailPane {
 
     /**
      * 左变坡点轨与右平面示意等宽；中栏详情吃剩余。
-     * 单侧约占可用宽 22%，两侧合计约 44%。
+     * 单侧约占可用宽 26%，两侧合计约 52%。
      */
-    static final float SIDE_PANEL_WIDTH_FRACTION = 0.22f;
+    static final float SIDE_PANEL_WIDTH_FRACTION = 0.26f;
     static final float SIDE_PANEL_MIN_WIDTH = 120f;
     static final float DETAIL_MIN_WIDTH = 160f;
     /** 下半主从区最小高度。 */

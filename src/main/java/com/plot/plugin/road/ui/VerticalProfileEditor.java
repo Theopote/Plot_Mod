@@ -591,12 +591,10 @@ final class VerticalProfileEditor {
                 ImGuiWindowFlags.NoScrollbar);
             try {
                 if (externalTopologyConflict) {
-                    body.clearFooterLegend();
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.WARNING_LIGHT,
                         PlotI18n.tr("plugin.road.profile_editor_topology_conflict_hint"));
                 } else if (!RoadStationing.isStationable(network, road)) {
-                    body.clearFooterLegend();
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.HINT_GRAY,
                         PlotI18n.tr("plugin.road.profile_discontinuous_road_hint"));
@@ -616,9 +614,7 @@ final class VerticalProfileEditor {
                 ImGui.endChild();
             }
             handleEditorKeyboardShortcuts(ctx);
-            // 图例紧贴编辑区下方；页脚芯片/按钮再往下。
             float footerTop = ImGui.getCursorPosY();
-            body.renderFooterLegend(ctx, road);
             chrome.renderEditorFooter(ctx, liveNetwork, road);
             // 按实测高度预留，仅加一行间距，避免内容区与按钮之间出现大块空白。
             lastFooterHeight = Math.max(

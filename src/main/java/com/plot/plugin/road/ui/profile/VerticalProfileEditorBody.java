@@ -126,13 +126,6 @@ public final class VerticalProfileEditorBody {
     private final VerticalProfileDetailPane detailPane;
     private final VerticalProfileChartController chartController;
 
-    /** 图例快照：详情区不再画图例，改在编辑区正下方单独一行渲染。 */
-    private List<RoadProfileIntersection> footerLegendIntersections = List.of();
-    private boolean footerLegendFlatMode;
-    private boolean footerLegendShowBuild;
-    private RoadProfileChartData footerLegendChart;
-    private boolean footerLegendReady;
-
     public VerticalProfileEditorBody(Host host) {
         this.host = Objects.requireNonNull(host, "host");
         this.detailPane = new VerticalProfileDetailPane(new VerticalProfileDetailPane.Host() {
@@ -301,38 +294,26 @@ public final class VerticalProfileEditorBody {
     }
 
     public void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
-        footerLegendReady = false;
         chartController.renderMissingProfileActions(ctx, network, road);
     }
 
-    /** 编辑区下方图例行：有交互剖面时占一行。 */
-    public void renderFooterLegend(RoadUiContext ctx, Road road) {
-        if (!footerLegendReady || road == null) {
-            return;
-        }
-        chartController.renderEditorLegend(
-            ctx,
-            road,
-            footerLegendIntersections,
-            footerLegendFlatMode,
-            footerLegendShowBuild,
-            footerLegendChart);
-    }
-
-    public void clearFooterLegend() {
-        footerLegendReady = false;
+    /** 图例行高度：剖面图与三栏之间。 */
+    static float resolveLegendRowHeight() {
+        return ImGui.getTextLineHeightWithSpacing();
     }
 
     /**
      * 钉顶剖面高度：窗口变高时优先拉高图表；下半主从区限制在
      * {@link VerticalProfileDetailPane#MIN_DETAIL_BODY_HEIGHT}–{@link #MAX_DETAIL_BODY_HEIGHT}，
-     * 避免按钮上方大块空白。
+     * 避免按钮上方大块空白。图例行夹在剖面与三栏之间。
      */
     static float resolvePinnedChartHeight() {
         float remaining = ImGui.getContentRegionAvailY();
         float spacing = ImGui.getStyle().getItemSpacingY();
-        float detail = resolveDetailBodyHeight(remaining);
-        float chart = remaining - detail - spacing;
+        float legend = resolveLegendRowHeight();
+        float detailBudget = Math.max(0f, remaining - legend - spacing);
+        float detail = resolveDetailBodyHeight(detailBudget);
+        float chart = remaining - detail - legend - spacing * 2f;
         return Math.max(MIN_EDITOR_CHART_HEIGHT, chart);
     }
 
@@ -361,7 +342,6 @@ public final class VerticalProfileEditorBody {
         ProfileEditorState editorState = host.editorState();
         ProfileEditorWindowSession windowSession = host.windowSession();
         VerticalProfileVoxelPreview voxelPreview = host.voxelPreview();
-        footerLegendReady = false;
 
         RoadSystemConfig config = ctx.networkManager().getConfig();
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
@@ -667,6 +647,9 @@ public final class VerticalProfileEditorBody {
             host.setPlayheadStation(Math.clamp(
                 interaction.draggedLocalDistance().floatValue(), 0f, canvasLength));
         }
+        // 图例：剖面图下方、三栏（变坡点 / 详情 / 平面示意）上方。
+        chartController.renderEditorLegend(
+            ctx, road, intersections, flatMode, showBuildProfileLine, effectiveChart);
         detailPane.renderControlMasterDetail(
             ctx,
             editingNetwork,
@@ -678,10 +661,5 @@ public final class VerticalProfileEditorBody {
             flatMode,
             maxGrade,
             canvasLength);
-        footerLegendIntersections = intersections != null ? List.copyOf(intersections) : List.of();
-        footerLegendFlatMode = flatMode;
-        footerLegendShowBuild = showBuildProfileLine;
-        footerLegendChart = effectiveChart;
-        footerLegendReady = true;
     }
 }

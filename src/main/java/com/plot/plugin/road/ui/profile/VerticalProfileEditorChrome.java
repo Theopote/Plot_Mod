@@ -90,10 +90,10 @@ public final class VerticalProfileEditorChrome {
         return estimateMinFooterHeight();
     }
 
-    /** 首帧最小预留：图例行 + separator + 状态行 + 动作行 + 间距。 */
+    /** 首帧最小预留：separator + 状态行 + 动作行 + 间距（图例已移入编辑主体）。 */
     public static float estimateMinFooterHeight() {
         float row = ImGui.getFrameHeightWithSpacing();
-        return row * 3.4f + ImGui.getStyle().getItemSpacingY();
+        return row * 2.4f + ImGui.getStyle().getItemSpacingY();
     }
 
     public void renderExternalTopologyConflictBanner(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -110,7 +110,6 @@ public final class VerticalProfileEditorChrome {
      * 底部操作：
      * 1) 状态芯片单独一行
      * 2) 动作尽量一行：左侧紧凑工具 + 右侧恢复/取消/保存；过窄时工具与提交分两行
-     * 图例在编辑区与本页脚之间由编辑器主体渲染。
      */
     public void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
         ProfileEditorWindowSession windowSession = host.windowSession();
