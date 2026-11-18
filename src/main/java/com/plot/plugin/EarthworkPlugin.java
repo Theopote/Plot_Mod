@@ -290,7 +290,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         }
         currentProjectFile = ProjectPathResolver.sidecarFileName(filePath);
         if (saveProjectFile(getProjectsDir().resolve(currentProjectFile))) {
-            uiContext.setProjectStatus(PlotI18n.tr("plugin.earthwork.project.saved", filePath));
+            uiContext.setProjectStatus("");
         }
     }
 

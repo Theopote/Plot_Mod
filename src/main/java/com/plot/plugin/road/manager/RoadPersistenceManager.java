@@ -100,7 +100,7 @@ public final class RoadPersistenceManager {
             return;
         }
         currentNetworkFile = ProjectPathResolver.sidecarFileName(filePath);
-        status.success(PlotI18n.tr("plugin.road.network.saved", filePath));
+        status.clear();
     }
 
     /**

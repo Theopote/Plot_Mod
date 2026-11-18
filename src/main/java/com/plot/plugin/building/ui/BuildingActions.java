@@ -830,7 +830,7 @@ public final class BuildingActions {
         }
         state.setCurrentProjectFile(ProjectPathResolver.sidecarFileName(filePath));
         if (saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()))) {
-            state.setProjectStatus(PlotI18n.tr("plugin.building.project.saved", filePath));
+            state.setProjectStatus("");
         }
     }
 

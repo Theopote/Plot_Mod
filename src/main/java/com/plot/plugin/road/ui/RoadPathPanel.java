@@ -45,7 +45,6 @@ public final class RoadPathPanel {
     public void render() {
         RoadPathHeader.render(ctx, adoptPanel);
 
-        ImGui.separator();
         renderRoadList();
         slopeBatterControls.render(ctx);
         renderCenterlineEntry();

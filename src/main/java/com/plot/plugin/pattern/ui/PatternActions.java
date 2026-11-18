@@ -677,7 +677,7 @@ public final class PatternActions {
         }
         state.setCurrentProjectFile(ProjectPathResolver.sidecarFileName(filePath));
         if (saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()))) {
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.project.saved", filePath));
+            state.setProjectStatus("");
         }
     }
 

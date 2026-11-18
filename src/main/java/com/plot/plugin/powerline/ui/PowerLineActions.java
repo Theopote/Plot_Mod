@@ -714,7 +714,7 @@ public final class PowerLineActions {
         boolean saved = saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
         boolean designsSaved = saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
         if (saved && designsSaved) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.saved", filePath), ProjectStatusSeverity.SUCCESS);
+            state.setProjectStatus("");
         } else if (saved) {
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.project.save_designs_failed", filePath),

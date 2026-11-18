@@ -66,7 +66,6 @@ public class ExtensionPanel implements UIComponent {
         ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 14.0f);
         try {
             // 插件图标列表
-            ImGui.text(PlotI18n.tr("panel.plot.extension_installed"));
             renderPluginIcons(theme);
 
             ImGui.spacing();
