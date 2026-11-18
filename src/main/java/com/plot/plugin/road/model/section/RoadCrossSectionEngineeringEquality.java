@@ -79,10 +79,13 @@ public final class RoadCrossSectionEngineeringEquality {
             return false;
         }
         return Objects.equals(left.getEnabled(), right.getEnabled())
+            && left.getMode() == right.getMode()
             && Objects.equals(left.getFillRatio(), right.getFillRatio())
             && Objects.equals(left.getCutRatio(), right.getCutRatio())
             && Objects.equals(left.getFillMaterial(), right.getFillMaterial())
-            && Objects.equals(left.getCutMaterial(), right.getCutMaterial());
+            && Objects.equals(left.getCutMaterial(), right.getCutMaterial())
+            && Objects.equals(left.getWallMaterial(), right.getWallMaterial())
+            && Objects.equals(left.getMaxRunBlocks(), right.getMaxRunBlocks());
     }
 
     private static boolean equalsStreetFurniture(StreetFurniture left, StreetFurniture right) {

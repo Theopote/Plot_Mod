@@ -1086,6 +1086,7 @@ public class RoadNetwork {
         String fillMaterial;
         String cutMaterial;
         String wallMaterial;
+        Integer maxRunBlocks;
     }
 
     static class StreetFurnitureData {
@@ -1172,6 +1173,7 @@ public class RoadNetwork {
                 data.slopeBatter.fillMaterial = slopeBatter.getFillMaterial();
                 data.slopeBatter.cutMaterial = slopeBatter.getCutMaterial();
                 data.slopeBatter.wallMaterial = slopeBatter.getWallMaterial();
+                data.slopeBatter.maxRunBlocks = slopeBatter.getMaxRunBlocks();
             }
             StreetFurniture furniture = section.getStreetFurniture();
             if (furniture != null) {
@@ -1264,6 +1266,7 @@ public class RoadNetwork {
                 slopeComponent.setFillMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.fillMaterial));
                 slopeComponent.setCutMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.cutMaterial));
                 slopeComponent.setWallMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.wallMaterial));
+                slopeComponent.setMaxRunBlocks(slopeBatter.maxRunBlocks);
                 section.setSlopeBatter(slopeComponent);
             }
             if (streetFurniture != null) {

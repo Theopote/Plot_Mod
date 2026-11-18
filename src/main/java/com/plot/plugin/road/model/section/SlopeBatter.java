@@ -1,5 +1,7 @@
 package com.plot.plugin.road.model.section;
 
+import com.plot.plugin.road.RoadParameterLimits;
+
 /**
  * 填挖方边坡 / 挡土墙（路肩外侧边缘参数）。
  */
@@ -16,6 +18,11 @@ public class SlopeBatter {
     private String fillMaterial;
     private String cutMaterial;
     private String wallMaterial;
+    /**
+     * 边坡最大水平跑距（格）；{@code null} 表示继承路网默认
+     * {@link com.plot.plugin.config.RoadSystemConfig#getSlopeBatterMaxRunBlocks()}。
+     */
+    private Integer maxRunBlocks;
 
     public SlopeBatter() {
     }
@@ -95,6 +102,16 @@ public class SlopeBatter {
         this.wallMaterial = wallMaterial;
     }
 
+    public Integer getMaxRunBlocks() {
+        return maxRunBlocks;
+    }
+
+    public void setMaxRunBlocks(Integer maxRunBlocks) {
+        this.maxRunBlocks = maxRunBlocks == null
+            ? null
+            : RoadParameterLimits.clampSlopeBatterRunBlocks(maxRunBlocks);
+    }
+
     SlopeBatter copy() {
         SlopeBatter copy = new SlopeBatter();
         copy.mode = mode;
@@ -104,6 +121,7 @@ public class SlopeBatter {
         copy.fillMaterial = fillMaterial;
         copy.cutMaterial = cutMaterial;
         copy.wallMaterial = wallMaterial;
+        copy.maxRunBlocks = maxRunBlocks;
         return copy;
     }
 }

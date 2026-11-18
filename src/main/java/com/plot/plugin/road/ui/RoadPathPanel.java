@@ -21,6 +21,7 @@ public final class RoadPathPanel {
     private final RoadIntersectionListPanel intersectionListPanel;
     private final RoadJunctionPanel junctionPanel;
     private final RoadFloatingEditorHost floatingEditorHost;
+    private final RoadPathSlopeBatterControls slopeBatterControls = new RoadPathSlopeBatterControls();
 
     public RoadPathPanel(
             RoadUiContext ctx,
@@ -46,6 +47,7 @@ public final class RoadPathPanel {
 
         ImGui.separator();
         renderRoadList();
+        slopeBatterControls.render(ctx);
         renderCenterlineEntry();
 
         RoadNetwork network = ctx.networkManager().getNetwork();

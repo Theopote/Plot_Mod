@@ -1,10 +1,8 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadAdoptDuplicateDetector;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadEdgeListHelper;
-import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.crossing.RoadIntersectionInventory;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
@@ -34,8 +32,8 @@ public final class RoadPathHeader {
     }
 
     /**
-     * 「选择路径 / 显示道路路径 / 显示边坡宽度 / 边坡距离」按可用宽度自动折行，
-     * 边坡开关与距离滑动条紧跟路径显示开关之后。
+     * 「选择路径 / 显示道路路径 / 显示边坡宽度」按可用宽度自动折行。
+     * 边坡距离已改为逐路参数，放在道路列表下方编辑。
      */
     private static void renderPickAndOverlayControls(RoadUiContext ctx) {
         String pickLabel = PlotI18n.tr("plugin.road.pick_path");
@@ -69,51 +67,12 @@ public final class RoadPathHeader {
         float slopeWidth = checkboxWidth(slopeLabel);
         if (used + spacing + slopeWidth <= avail) {
             ImGui.sameLine(0f, spacing);
-            used += spacing + slopeWidth;
-        } else {
-            used = slopeWidth;
         }
         if (ImGui.checkbox(slopeLabel, ctx.showSlopeBatterOverlay())) {
             ctx.requestOverlayRefresh();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
-        }
-
-        renderSlopeBatterDistanceSlider(ctx, avail, spacing, used);
-    }
-
-    private static void renderSlopeBatterDistanceSlider(
-            RoadUiContext ctx, float avail, float spacing, float used) {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        if (config == null) {
-            return;
-        }
-        int[] runBlocks = {config.getSlopeBatterMaxRunBlocks()};
-        // 标签不得含变化数值：ImGui 用整段 label 算 ID，数字一变控件 ID 就变，
-        // 拖动会被每格打断并误触发 isItemDeactivatedAfterEdit → 全量刷新卡顿。
-        String distanceLabel = PlotI18n.tr("plugin.road.overlay.slope_batter_distance");
-        float sliderWidth = Math.clamp(avail * 0.35f, 120f, 220f);
-        float labelWidth = ImGui.calcTextSize(distanceLabel).x;
-        float totalWidth = labelWidth + ImGui.getStyle().getItemInnerSpacingX() + sliderWidth;
-        if (used + spacing + totalWidth <= avail) {
-            ImGui.sameLine(0f, spacing);
-        }
-        ImGui.setNextItemWidth(sliderWidth);
-        if (ImGui.sliderInt(
-                distanceLabel + "##path_slope_batter_run",
-                runBlocks,
-                RoadParameterLimits.MIN_SLOPE_BATTER_RUN_BLOCKS,
-                RoadParameterLimits.MAX_SLOPE_BATTER_RUN_BLOCKS,
-                "%d")) {
-            config.setSlopeBatterMaxRunBlocks(runBlocks[0]);
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) {
-            config.markCustom();
-            ctx.onGenerationConfigChanged();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.slope_batter_distance_hint"));
         }
     }
 

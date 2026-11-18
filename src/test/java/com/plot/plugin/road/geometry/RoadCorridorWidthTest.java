@@ -95,9 +95,34 @@ class RoadCorridorWidthTest {
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
 
         assertEquals(5, RoadCorridorWidth.slopeBatterMaxRunBlocks(config));
+        assertEquals(5, RoadCorridorWidth.slopeBatterMaxRunBlocks(section, config));
         assertEquals(5, RoadCorridorWidth.slopeBatterMarginBlocks(section, config));
         assertEquals(9 + 5 * 2, RoadCorridorWidth.earthworkEnvelopeWidthBlocks(section, config));
         assertEquals(4.5 + 5, RoadCorridorWidth.overlayHalfWidthBlocks(section, config), 0.01);
+    }
+
+    @Test
+    void perRoadSlopeBatterMaxRunOverridesConfigDefault() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(1);
+        config.setIncludeSlopeBatter(true);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        config.setCutSlopeRatio(1.0f);
+        config.setSlopeBatterMaxRunBlocks(5);
+
+        com.plot.plugin.road.model.section.RoadCrossSection cross =
+            com.plot.plugin.road.model.section.RoadCrossSection.fromConfig(config);
+        cross.getSlopeBatter().setMaxRunBlocks(8);
+        ResolvedCrossSection section = ResolvedCrossSection.resolve(cross, config);
+
+        assertEquals(5, RoadCorridorWidth.slopeBatterMaxRunBlocks(config));
+        assertEquals(8, section.slopeBatterMaxRunBlocks);
+        assertEquals(8, RoadCorridorWidth.slopeBatterMaxRunBlocks(section, config));
+        assertEquals(4.5 + 8, RoadCorridorWidth.overlayHalfWidthBlocks(section, config), 0.01);
     }
 
     @Test

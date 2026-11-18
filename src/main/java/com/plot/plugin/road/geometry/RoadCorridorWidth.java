@@ -24,12 +24,20 @@ public final class RoadCorridorWidth {
     private RoadCorridorWidth() {
     }
 
-    /** 当前配置允许的边坡最大水平跑距（格）；范围外不施工。 */
+    /** 路网默认允许的边坡最大水平跑距（格）；范围外不施工。 */
     public static int slopeBatterMaxRunBlocks(RoadSystemConfig config) {
         if (config == null) {
             return com.plot.plugin.road.RoadParameterLimits.DEFAULT_SLOPE_BATTER_RUN_BLOCKS;
         }
         return config.getSlopeBatterMaxRunBlocks();
+    }
+
+    /** 解析后横断面的边坡最大水平跑距；无断面时回退路网默认。 */
+    public static int slopeBatterMaxRunBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
+        if (section != null) {
+            return section.slopeBatterMaxRunBlocks;
+        }
+        return slopeBatterMaxRunBlocks(config);
     }
 
     /** 硬质路面半宽（行车道 + 外侧条带）。 */
@@ -47,7 +55,7 @@ public final class RoadCorridorWidth {
             return halfWidth;
         }
         if (section.includeSlopeBatter) {
-            halfWidth += slopeBatterMaxRunBlocks(config);
+            halfWidth += slopeBatterMaxRunBlocks(section, config);
         } else if (section.includeRetainingWall) {
             halfWidth += 1.0;
         }
@@ -123,7 +131,7 @@ public final class RoadCorridorWidth {
             ? section.cutSlopeRatio
             : 1.0f;
         ratio = Math.max(0.5f, ratio);
-        int cap = slopeBatterMaxRunBlocks(config);
+        int cap = slopeBatterMaxRunBlocks(section, config);
         return Math.clamp((int) Math.ceil(maxCutHeight * ratio) + 2, 2, cap);
     }
 }

@@ -56,6 +56,8 @@ public final class ResolvedCrossSection {
     public final String fillSlopeMaterial;
     public final String cutSlopeMaterial;
     public final String retainingWallMaterial;
+    /** 边坡最大水平跑距（格，已钳位）；未覆盖时取自路网默认。 */
+    public final int slopeBatterMaxRunBlocks;
 
     public RoadsideEdgeMode roadsideEdgeMode() {
         if (includeSlopeBatter) {
@@ -102,7 +104,8 @@ public final class ResolvedCrossSection {
             float cutSlopeRatio,
             String fillSlopeMaterial,
             String cutSlopeMaterial,
-            String retainingWallMaterial) {
+            String retainingWallMaterial,
+            int slopeBatterMaxRunBlocks) {
         this.laneCount = laneCount;
         this.laneWidths = List.copyOf(laneWidths);
         this.laneDividerOffsets = List.copyOf(laneDividerOffsets);
@@ -134,6 +137,7 @@ public final class ResolvedCrossSection {
         this.fillSlopeMaterial = fillSlopeMaterial;
         this.cutSlopeMaterial = cutSlopeMaterial;
         this.retainingWallMaterial = retainingWallMaterial;
+        this.slopeBatterMaxRunBlocks = RoadParameterLimits.clampSlopeBatterRunBlocks(slopeBatterMaxRunBlocks);
     }
 
     public static ResolvedCrossSection fromConfig(RoadSystemConfig defaults) {
@@ -297,6 +301,9 @@ public final class ResolvedCrossSection {
             : config.getRetainingWallMaterial();
         boolean includeSlopeBatter = edgeMode.isSlopeBatter() && (fillRatio > 0f || cutRatio > 0f);
         boolean includeRetainingWall = edgeMode.isRetainingWall();
+        int slopeBatterMaxRun = slopeBatter.getMaxRunBlocks() != null
+            ? slopeBatter.getMaxRunBlocks()
+            : config.getSlopeBatterMaxRunBlocks();
 
         ResolvedCrossSection resolved = new ResolvedCrossSection(
             laneCount,
@@ -331,7 +338,8 @@ public final class ResolvedCrossSection {
             cutSlopeMaterial != null && !cutSlopeMaterial.isBlank()
                 ? resolveMaterial(cutSlopeMaterial, MaterialRole.CUT_SLOPE, report)
                 : null,
-            resolveMaterial(wallMaterial, MaterialRole.CUT_SLOPE, report)
+            resolveMaterial(wallMaterial, MaterialRole.CUT_SLOPE, report),
+            slopeBatterMaxRun
         );
         return new CrossSectionResolveReport.ResolveResult(resolved, report);
     }
@@ -553,7 +561,8 @@ public final class ResolvedCrossSection {
             && Float.compare(cutSlopeRatio, other.cutSlopeRatio) == 0
             && Objects.equals(fillSlopeMaterial, other.fillSlopeMaterial)
             && Objects.equals(cutSlopeMaterial, other.cutSlopeMaterial)
-            && Objects.equals(retainingWallMaterial, other.retainingWallMaterial);
+            && Objects.equals(retainingWallMaterial, other.retainingWallMaterial)
+            && slopeBatterMaxRunBlocks == other.slopeBatterMaxRunBlocks;
     }
 
     private static boolean materialMixEquals(MaterialMix left, MaterialMix right) {
@@ -642,6 +651,8 @@ public final class ResolvedCrossSection {
         boolean includeRetainingWall = discrete.includeRetainingWall && !includeSlopeBatter;
 
         Integer streetlightSpacing = lerpNullableInt(from.streetlightSpacing, to.streetlightSpacing, t);
+        int slopeBatterMaxRun = lerpRound(
+            from.slopeBatterMaxRunBlocks, to.slopeBatterMaxRunBlocks, t);
 
         return new ResolvedCrossSection(
             discrete.laneCount,
@@ -674,7 +685,8 @@ public final class ResolvedCrossSection {
             includeSlopeBatter ? cutRatio : 0f,
             discrete.fillSlopeMaterial,
             discrete.cutSlopeMaterial,
-            discrete.retainingWallMaterial
+            discrete.retainingWallMaterial,
+            slopeBatterMaxRun
         );
     }
 
