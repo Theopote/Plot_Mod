@@ -70,18 +70,15 @@ public final class ProfileChartLegend {
             renderCompactEditorLegend(showWaterSurface, intersections);
             return;
         }
-        renderCompactOverviewLegend(buildPreviewStale, showWaterSurface);
+        renderCompactOverviewLegend(showWaterSurface);
     }
 
-    private static void renderCompactOverviewLegend(boolean buildPreviewStale, boolean showWaterSurface) {
+    private static void renderCompactOverviewLegend(boolean showWaterSurface) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        // 缩略图常见无可见建造台阶，「方块铺设」图例易空挂，不再列出。
         appendWaterSurfaceLegend(showWaterSurface);
-        ImGui.sameLine();
-        ImGui.textColored(
-            ProfileChartSeriesStyle.BUILD_PROFILE,
-            "\u25A0 " + buildProfileLabel(buildPreviewStale));
     }
 
     private static void renderCompactEditorLegend(

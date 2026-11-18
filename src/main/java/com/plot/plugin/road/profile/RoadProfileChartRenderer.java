@@ -11,6 +11,7 @@ import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import imgui.ImColor;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -41,7 +42,8 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_USER_LOCKED = 0xFF7EB6FF;
     private static final int COLOR_CURVE_HANDLE = 0xFF88DDFF;
     private static final int COLOR_CURVE_HANDLE_SELECTED = 0xFFFFFFFF;
-    private static final int COLOR_PLAYHEAD = PluginUiColors.STATUS_INFO;
+    /** 琥珀黄：与现状地形亮蓝、设计线绿色区分。 */
+    private static final int COLOR_PLAYHEAD = ImColor.rgba(255, 200, 64, 255);
     private static final float DRAG_THRESHOLD_PX = 5f;
     private static final float DASH_LENGTH = 6f;
     private static final float DASH_GAP = 4f;

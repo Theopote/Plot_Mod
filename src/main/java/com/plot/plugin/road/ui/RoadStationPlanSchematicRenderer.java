@@ -26,7 +26,8 @@ public final class RoadStationPlanSchematicRenderer {
     private static final int COLOR_LINE = PluginUiColors.ACCENT_BLUE;
     private static final int COLOR_START = ImColor.rgba(90, 217, 115, 255);
     private static final int COLOR_END = ImColor.rgba(242, 140, 90, 255);
-    private static final int COLOR_CURSOR = PluginUiColors.STATUS_INFO;
+    /** 与纵断面播放头同色：琥珀黄，避免与地形亮蓝混淆。 */
+    private static final int COLOR_CURSOR = ImColor.rgba(255, 200, 64, 255);
     private static final int COLOR_MARKER = ImColor.rgba(230, 230, 242, 255);
     private static final int COLOR_MARKER_SELECTED = PluginUiColors.WARNING;
     private static final int COLOR_INTERVAL = ImColor.rgba(77, 166, 255, 160);
