@@ -244,6 +244,9 @@ public final class RoadProfileConstraintSynchronizer {
                     continue;
                 }
                 var alignment = road.getVerticalAlignment();
+                if (alignment == null) {
+                    continue;
+                }
                 var height = VerticalAlignmentGeometry.elevationAt(alignment, crossing.station);
                 if (height.isEmpty()) continue;
                 var points = new ArrayList<>(alignment.getPvis());
@@ -301,8 +304,12 @@ public final class RoadProfileConstraintSynchronizer {
                     || road.getEffectiveProfileSource() != ProfileSource.EDITED) {
                 continue;
             }
+            var alignment = road.getVerticalAlignment();
+            if (alignment == null) {
+                continue;
+            }
             List<Double> liveStations = liveStationsByRoad.getOrDefault(road.getId(), List.of());
-            var points = new ArrayList<>(road.getVerticalAlignment().getPvis());
+            var points = new ArrayList<>(alignment.getPvis());
             boolean roadChanged = false;
             for (int i = 0; i < points.size(); i++) {
                 var pvi = points.get(i);

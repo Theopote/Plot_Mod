@@ -241,6 +241,15 @@ class RoadProfileConstraintSynchronizerTest {
     }
 
     @Test
+    void releaseStaleCrossingAnchorsSkipsEditedRoadWithoutAlignment() {
+        Road a = road("a", 64);
+        a.setVerticalAlignment(null);
+        assertDoesNotThrow(() -> RoadProfileConstraintSynchronizer.releaseStaleCrossingAnchors(network, config));
+        assertDoesNotThrow(() -> RoadProfileConstraintSynchronizer.seedCrossingAnchors(network, config));
+        assertNull(a.getVerticalAlignment());
+    }
+
+    @Test
     void releaseStaleCrossingAnchorsPreservesUserLockedAndLiveJunctionFixed() {
         Road a = road("a", 64);
         Road b = road("b", 64);
