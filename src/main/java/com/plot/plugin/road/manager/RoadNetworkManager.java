@@ -549,7 +549,6 @@ public final class RoadNetworkManager {
             network.setElevationMode(NetworkElevationMode.UNIFORM_FLAT);
             network.setUniformElevationY(clamped);
         });
-        warnIfUniformFlatGradeSeparated();
 
         if (sampleCount > 0) {
             status.success(PlotI18n.tr(
@@ -578,12 +577,8 @@ public final class RoadNetworkManager {
         }
         cancelUniformElevationYDrag();
         mutateNetwork(() -> network.setElevationMode(next));
-        if (next == NetworkElevationMode.UNIFORM_FLAT) {
-            warnIfUniformFlatGradeSeparated();
-        } else {
-            // 勾选框已表达关闭；清掉开启时刷上的立交冲突警告，避免残留在顶栏。
-            clearUniformFlatGradeSepWarningIfPresent();
-        }
+        // 立交冲突由纵断面勾选区就地提示；顶栏不再重复，并清掉历史残留。
+        clearUniformFlatGradeSepWarningIfPresent();
     }
 
     public void setUniformElevationY(int elevation) {
@@ -593,9 +588,6 @@ public final class RoadNetworkManager {
         }
         cancelUniformElevationYDrag();
         mutateNetwork(() -> network.setUniformElevationY(clamped));
-        if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
-            warnIfUniformFlatGradeSeparated();
-        }
     }
 
     /**
@@ -631,7 +623,6 @@ public final class RoadNetworkManager {
         }
         finishNetworkEdit();
         if (network.getElevationMode() == NetworkElevationMode.UNIFORM_FLAT) {
-            warnIfUniformFlatGradeSeparated();
             status.info(PlotI18n.tr(
                 "plugin.road.uniform_flat_y_updated",
                 network.getUniformElevationY()));
@@ -661,24 +652,10 @@ public final class RoadNetworkManager {
         }
     }
 
-    private void warnIfUniformFlatGradeSeparated() {
-        int conflicts = NetworkElevationAuthority.countGradeSeparationConflicts(network);
-        if (conflicts <= 0) {
-            return;
-        }
-        status.warning(PlotI18n.tr(
-            "plugin.road.uniform_flat_grade_sep_conflict",
-            conflicts));
-    }
-
     /**
-     * 统一标高已关闭时清掉顶栏残留的立交冲突警告（开启时写入；关闭勾选后不应再留）。
-     * 可在 UI 每帧调用以自愈已卡住的旧状态。
+     * 清掉顶栏立交冲突警告（冲突改由勾选区就地提示；可每帧调用以自愈旧残留）。
      */
     public void clearStaleUniformFlatGradeSepWarning() {
-        if (NetworkElevationAuthority.isUniformFlat(network)) {
-            return;
-        }
         clearUniformFlatGradeSepWarningIfPresent();
     }
 

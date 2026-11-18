@@ -192,9 +192,9 @@ public final class RoadGenerationSettingsPanel {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
         }
 
+        // 冲突只在勾选区就地提示；顶栏不再重复，并清掉历史残留。
+        ctx.networkManager().clearStaleUniformFlatGradeSepWarning();
         if (!NetworkElevationAuthority.isUniformFlat(network)) {
-            // 关闭后顶栏可能仍挂着开启时写入的冲突警告，顺手清掉。
-            ctx.networkManager().clearStaleUniformFlatGradeSepWarning();
             return;
         }
 
