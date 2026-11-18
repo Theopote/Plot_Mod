@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.profile.RoadProfileRoadNavigator;
+import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -40,10 +41,13 @@ final class RoadGenerateTargetBar {
     }
 
     private static void renderNoSelection(RoadUiContext ctx, RoadNetwork network, List<Road> roads) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.edit.no_selection_hint"));
-        ImGui.spacing();
+        // 全网统一标高与是否选中某条路无关，不必再提示去选路。
+        if (!NetworkElevationAuthority.isUniformFlat(network)) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.edit.no_selection_hint"));
+            ImGui.spacing();
+        }
         renderRoadCombo(ctx, network, roads, null, ImGui.getContentRegionAvailX());
     }
 

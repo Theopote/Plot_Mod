@@ -28,10 +28,6 @@ public final class RoadVerticalProfilePanel {
         profileEditor.setOnAlignmentCommitted(this::markFormalPreviewStaleAfterProfileConfirm);
     }
 
-    public VerticalProfileEditor profileEditor() {
-        return profileEditor;
-    }
-
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
         if (network.getEdges().isEmpty()) {
@@ -83,10 +79,6 @@ public final class RoadVerticalProfilePanel {
     public void renderProfileEditorWindow(RoadNetwork network) {
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(network, road));
         profileEditor.renderEditorWindow(ctx, network);
-    }
-
-    public void clearProfileCache() {
-        profileEditor.clearCache();
     }
 
     public void renderDeferredModals() {

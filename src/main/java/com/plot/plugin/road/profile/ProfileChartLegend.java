@@ -75,15 +75,6 @@ public final class ProfileChartLegend {
     }
 
     /**
-     * 生成页侧栏共用图例：设计纵断面仅在确有缩略图绿线时列出。
-     */
-    public static void renderCompactOverview(
-            RoadProfileChartData chart,
-            boolean showDesignProfile) {
-        renderCompactOverview(chart, showDesignProfile, null);
-    }
-
-    /**
      * @param flatBaseY 全网统一标高 / 水平基准线时的 Y；非 null 时图例列出青色水平设计线。
      */
     public static void renderCompactOverview(
