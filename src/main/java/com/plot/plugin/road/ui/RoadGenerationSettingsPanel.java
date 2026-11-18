@@ -112,23 +112,38 @@ public final class RoadGenerationSettingsPanel {
                             PlotI18n.tr("plugin.road.vertical_design_params")
                                 + "##vertical_design_params",
                             ImGuiTreeNodeFlags.DefaultOpen)) {
-                        RoadStyleProductControls.renderRoadMaxSlopePresets(
-                            ctx, activeRoad, ctx.networkManager()::pushHistory);
-                        RoadStyleProductControls.renderRoadTerrainStylePresets(
-                            ctx, activeRoad, ctx.networkManager()::pushHistory);
+                        Runnable history = ctx.networkManager()::pushHistory;
+                        RoadStyleProductControls.renderRoadMaxSlopePresets(ctx, activeRoad, history);
+                        ImGui.separator();
+                        ImGui.spacing();
+                        if (RoadStyleProductControls.renderRoadTerrainStylePresets(
+                                ctx, activeRoad, history)) {
+                            ImGui.separator();
+                            ImGui.spacing();
+                        }
+                        RoadStyleProductControls.renderRoadBridgeThresholdPresets(
+                            ctx, activeRoad, history);
+                        ImGui.separator();
+                        ImGui.spacing();
                         ProfileSourceControls.render(ctx, network, activeRoad);
                     }
                 }
                 // 水平道路：坡度/地形/来源不适用；基准 Y 已在路径属性中。
             }
             case NONE -> {
-                // 空选：默认设计参数折叠（新路默认），不假装编辑某一条路。
+                // 空选：全局默认设计参数（含地形适应），默认展开便于发现。
                 if (showsTerrainAdaptiveControls(ctx)
                         && ImGui.collapsingHeader(
                             PlotI18n.tr("plugin.road.vertical_design_params")
-                                + "##vertical_design_params_defaults")) {
+                                + "##vertical_design_params_defaults",
+                            ImGuiTreeNodeFlags.DefaultOpen)) {
                     RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
+                    ImGui.separator();
+                    ImGui.spacing();
                     RoadStyleProductControls.renderTerrainStylePresets(ctx);
+                    ImGui.separator();
+                    ImGui.spacing();
+                    RoadStyleProductControls.renderConfigBridgeThresholdPresets(ctx);
                 }
             }
         }

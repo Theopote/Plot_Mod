@@ -5,7 +5,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -30,9 +29,8 @@ final class ProfileSourceControls {
         }
         ImGui.text(PlotI18n.tr("plugin.road.profile_source_section"));
 
-        boolean hasStoredCurve = ResolvedProfileAuthority.hasStoredEditedCurve(road);
         boolean canActivateEdited = ResolvedProfileAuthority.canActivateEditedProfile(network, road);
-        boolean staleSaved = hasStoredCurve && !canActivateEdited;
+        boolean staleSaved = ResolvedProfileAuthority.hasStoredEditedCurve(road) && !canActivateEdited;
         ProfileSource current = road.getEffectiveProfileSource();
         boolean autoSelected = current == ProfileSource.AUTO;
 
@@ -64,9 +62,6 @@ final class ProfileSourceControls {
             }
         }
         ImGui.endDisabled();
-
-        ImGui.spacing();
-        renderCompactStatus(network, road, hasStoredCurve, canActivateEdited, staleSaved);
     }
 
     private static void applyProfileSource(
@@ -86,46 +81,6 @@ final class ProfileSourceControls {
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
-        }
-    }
-
-    /** 一行状态；细节进 tooltip，过期只保留一条橙字（不再叠灰字+橙字）。 */
-    private static void renderCompactStatus(
-            RoadNetwork network,
-            Road road,
-            boolean hasStoredCurve,
-            boolean canActivateEdited,
-            boolean staleSaved) {
-        ProfileSource current = road.getEffectiveProfileSource();
-        if (current == ProfileSource.EDITED) {
-            if (ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.STATUS_OK,
-                    PlotI18n.tr("plugin.road.profile_source_status_edited"));
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_status_edited_detail"));
-                }
-            } else {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.WARNING,
-                    PlotI18n.tr("plugin.road.profile_source_status_stale"));
-            }
-            return;
-        }
-        if (staleSaved) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.STATUS_OK,
-            PlotI18n.tr("plugin.road.profile_source_status_auto"));
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(
-                hasStoredCurve && canActivateEdited
-                    ? "plugin.road.profile_source_status_auto_with_saved"
-                    : "plugin.road.profile_source_status_auto_detail"));
         }
     }
 }

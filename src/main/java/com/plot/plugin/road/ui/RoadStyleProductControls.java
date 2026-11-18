@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
@@ -89,6 +90,7 @@ public final class RoadStyleProductControls {
         ImGui.spacing();
     }
 
+    /** 全局默认：贴合/平衡/平整（不含架桥阈值）。 */
     public static void renderTerrainStylePresets(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (config == null) {
@@ -100,12 +102,25 @@ public final class RoadStyleProductControls {
                 config.setTerrainStyle(style);
                 markConfigChanged(ctx);
             });
+    }
+
+    /** 全局默认架桥净高阈值。 */
+    public static void renderConfigBridgeThresholdPresets(RoadUiContext ctx) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        if (config == null) {
+            return;
+        }
         renderConfigBridgeThreshold(ctx, config);
     }
 
-    public static void renderRoadTerrainStylePresets(RoadUiContext ctx, Road road, Runnable onHistory) {
-        if (road == null) {
-            return;
+    /**
+     * 逐路贴合/平衡/平整。编辑曲线权威下整组隐藏。
+     *
+     * @return 是否渲染了地形适应组
+     */
+    public static boolean renderRoadTerrainStylePresets(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null || road.getEffectiveProfileSource() == ProfileSource.EDITED) {
+            return false;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         renderTerrainStyleButtons(
@@ -117,38 +132,35 @@ public final class RoadStyleProductControls {
                 road.setTerrainStyle(style);
                 ctx.onGenerationConfigChanged();
             });
-        renderRoadBridgeThreshold(ctx, road, config, onHistory);
+        return true;
+    }
+
+    /** 逐路架桥净高阈值。 */
+    public static void renderRoadBridgeThresholdPresets(
+            RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
+        }
+        renderRoadBridgeThreshold(ctx, road, ctx.networkManager().getConfig(), onHistory);
     }
 
     private static void renderConfigBridgeThreshold(RoadUiContext ctx, RoadSystemConfig config) {
         int styleDefault = RoadConstructionHeuristics.bridgeThreshold(config.getTerrainStyle());
         int effective = RoadConstructionHeuristics.bridgeThreshold(config);
-        ImGui.text(PlotI18n.tr("plugin.road.bridge_threshold_label"));
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
-        }
         int[] value = {effective};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
-        if (ImGui.sliderInt(
-                "##config_bridge_threshold",
-                value,
-                RoadParameterLimits.MIN_BRIDGE_THRESHOLD,
-                RoadParameterLimits.MAX_BRIDGE_THRESHOLD,
-                PlotI18n.tr("plugin.road.bridge_threshold", value[0]))) {
-            config.setBridgeThreshold(value[0]);
-            markConfigChanged(ctx);
-        }
-        if (config.getBridgeThreshold() != null) {
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.bridge_threshold_reset_style")
-                    + "##config_bridge_threshold_reset")) {
+        boolean changed = renderBridgeThresholdSliderRow(
+            "##config_bridge_threshold",
+            value,
+            config.getBridgeThreshold() != null,
+            PlotI18n.tr("plugin.road.bridge_threshold_reset_style") + "##config_bridge_threshold_reset",
+            () -> {
                 config.setBridgeThreshold(null);
                 markConfigChanged(ctx);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr(
-                    "plugin.road.bridge_threshold_reset_style.hint", styleDefault));
-            }
+            },
+            PlotI18n.tr("plugin.road.bridge_threshold_reset_style.hint", styleDefault));
+        if (changed) {
+            config.setBridgeThreshold(value[0]);
+            markConfigChanged(ctx);
         }
         ImGui.spacing();
     }
@@ -162,42 +174,84 @@ public final class RoadStyleProductControls {
             road.getEffectiveTerrainStyle(config));
         int inherited = RoadConstructionHeuristics.bridgeThreshold(config);
         int effective = road.getEffectiveBridgeThreshold(config);
-        ImGui.text(PlotI18n.tr("plugin.road.bridge_threshold_label"));
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
-        }
         int[] value = {effective};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
-        if (ImGui.sliderInt(
-                "##road_bridge_threshold_" + road.getId(),
-                value,
-                RoadParameterLimits.MIN_BRIDGE_THRESHOLD,
-                RoadParameterLimits.MAX_BRIDGE_THRESHOLD,
-                PlotI18n.tr("plugin.road.bridge_threshold", value[0]))) {
+        boolean changed = renderBridgeThresholdSliderRow(
+            "##road_bridge_threshold_" + road.getId(),
+            value,
+            road.getBridgeThreshold() != null,
+            PlotI18n.tr("plugin.road.bridge_threshold_reset_inherit")
+                + "##road_bridge_threshold_reset_" + road.getId(),
+            () -> {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setBridgeThreshold(null);
+                ctx.onGenerationConfigChanged();
+            },
+            PlotI18n.tr(
+                "plugin.road.bridge_threshold_reset_inherit.hint",
+                inherited,
+                styleDefault));
+        if (changed) {
             if (onHistory != null) {
                 onHistory.run();
             }
             road.setBridgeThreshold(value[0]);
             ctx.onGenerationConfigChanged();
         }
-        if (road.getBridgeThreshold() != null) {
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.bridge_threshold_reset_inherit")
-                    + "##road_bridge_threshold_reset_" + road.getId())) {
-                if (onHistory != null) {
-                    onHistory.run();
-                }
-                road.setBridgeThreshold(null);
-                ctx.onGenerationConfigChanged();
+        ImGui.spacing();
+    }
+
+    /**
+     * 布局：滑动条（仅「N格」）| 参数名 | 可选恢复按钮。
+     *
+     * @return 滑条值是否变化
+     */
+    private static boolean renderBridgeThresholdSliderRow(
+            String sliderId,
+            int[] value,
+            boolean showReset,
+            String resetLabel,
+            Runnable onReset,
+            String resetTooltip) {
+        String label = PlotI18n.tr("plugin.road.bridge_threshold_label");
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float labelWidth = ImGui.calcTextSize(label).x;
+        float resetWidth = 0f;
+        if (showReset) {
+            resetWidth = ImGui.calcTextSize(resetLabel.replaceAll("##.*", "")).x
+                + ImGui.getStyle().getFramePaddingX() * 2f;
+        }
+        float avail = Math.max(1f, ImGui.getContentRegionAvailX());
+        float sliderWidth = Math.max(
+            64f,
+            avail - labelWidth - spacing - (showReset ? resetWidth + spacing : 0f));
+        ImGui.setNextItemWidth(sliderWidth);
+        boolean changed = ImGui.sliderInt(
+            sliderId,
+            value,
+            RoadParameterLimits.MIN_BRIDGE_THRESHOLD,
+            RoadParameterLimits.MAX_BRIDGE_THRESHOLD,
+            PlotI18n.tr("plugin.road.bridge_threshold_blocks", value[0]));
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
+        }
+        ImGui.sameLine(0f, spacing);
+        ImGui.alignTextToFramePadding();
+        ImGui.text(label);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
+        }
+        if (showReset) {
+            ImGui.sameLine(0f, spacing);
+            if (ImGui.button(resetLabel)) {
+                onReset.run();
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr(
-                    "plugin.road.bridge_threshold_reset_inherit.hint",
-                    inherited,
-                    styleDefault));
+                ImGui.setTooltip(resetTooltip);
             }
         }
-        ImGui.spacing();
+        return changed;
     }
 
     private static void renderTerrainStyleButtons(

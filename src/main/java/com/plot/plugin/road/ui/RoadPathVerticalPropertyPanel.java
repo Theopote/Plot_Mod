@@ -32,10 +32,7 @@ final class RoadPathVerticalPropertyPanel {
             case NONE -> {
                 // 空选提示已由 TargetBar 展示，避免与「未选择道路」重复。
             }
-            case SINGLE -> {
-                RoadUiSections.group("plugin.road.path.road_property");
-                renderSingle(ctx, network);
-            }
+            case SINGLE -> renderSingle(ctx, network);
             case MULTI -> verticalBatchEditor.render(
                 ctx, ctx.networkManager().getSelectedRoadIds(), strategySwitchDialog);
         }
