@@ -69,8 +69,6 @@ public final class RoadProfileOverviewSection {
                 network,
                 profileEditor,
                 road,
-                index + 1,
-                roads.size(),
                 active,
                 flatOverlayForRoad.apply(road),
                 uniformFlat);
@@ -217,25 +215,19 @@ public final class RoadProfileOverviewSection {
             RoadNetwork network,
             VerticalProfileEditor profileEditor,
             Road road,
-            int roadIndex,
-            int roadCount,
             boolean active,
             FlatElevationProfileOverlay flatOverlay,
             boolean uniformFlat) {
         ImGui.pushID(road.getId());
         try {
-            String header = PlotI18n.tr(
-                "plugin.road.profile_overview_road_index",
-                roadIndex,
-                roadCount);
+            String header = RoadProfileRoadList.formatProfileRoadSummary(
+                network, road, ctx.host().coordinates());
             if (active) {
                 header += "  " + PlotI18n.tr("plugin.road.profile_overview_active");
             }
             if (profileEditor.hasUnconfirmedEditsForRoad(road.getId())) {
                 header += "  " + PlotI18n.tr("plugin.road.profile_overview_editing");
             }
-            header += " · " + RoadProfileRoadList.formatProfileRoadSummary(
-                network, road, ctx.host().coordinates());
 
             float editButtonWidth = ImGui.calcTextSize(
                 PlotI18n.tr("plugin.road.profile_overview_edit")).x
