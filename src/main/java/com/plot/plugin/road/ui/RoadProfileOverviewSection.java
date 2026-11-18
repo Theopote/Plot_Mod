@@ -20,6 +20,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImColor;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 
 import java.util.List;
 import java.util.function.Function;
@@ -241,7 +242,7 @@ public final class RoadProfileOverviewSection {
             float spacing = ImGui.getStyle().getItemSpacingX();
             float headerWidth = Math.max(1f, ImGui.getContentRegionAvailX() - editButtonWidth - spacing);
             float rowHeight = ImGui.getFrameHeight();
-            // 只用自绘底色表达选中态；selectable 固定 false，避免 Header 再叠一层更高的蓝块。
+            // 只用自绘直角底色表达选中态；selectable 固定 false，避免 Header 再叠一层。
             var origin = ImGui.getCursorScreenPos();
             ImGui.getWindowDrawList().addRectFilled(
                 origin.x,
@@ -249,7 +250,8 @@ public final class RoadProfileOverviewSection {
                 origin.x + headerWidth,
                 origin.y + rowHeight,
                 active ? OVERVIEW_HEADER_ACTIVE : OVERVIEW_HEADER_IDLE,
-                3f);
+                0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.SelectableTextAlign, 0f, 0.5f);
             ImGui.pushStyleColor(ImGuiCol.Header, 0);
             ImGui.pushStyleColor(
                 ImGuiCol.HeaderHovered,
@@ -267,6 +269,7 @@ public final class RoadProfileOverviewSection {
                 ctx.requestOverlayRefresh();
             }
             ImGui.popStyleColor(3);
+            ImGui.popStyleVar();
             ImGui.sameLine(0f, spacing);
             if (ImGui.button(editLabel + "##overview_edit", editButtonWidth, rowHeight)) {
                 openProfileEditor(ctx, profileEditor, road, uniformFlat);
