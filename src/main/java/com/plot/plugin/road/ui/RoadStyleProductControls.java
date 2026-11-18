@@ -203,7 +203,7 @@ public final class RoadStyleProductControls {
     }
 
     /**
-     * 布局：滑动条（仅「N格」）| 参数名 | 可选恢复按钮。
+     * 布局：标准宽度滑动条（仅「N格」）| 参数名；恢复按钮单独下一行。
      *
      * @return 滑条值是否变化
      */
@@ -216,17 +216,7 @@ public final class RoadStyleProductControls {
             String resetTooltip) {
         String label = PlotI18n.tr("plugin.road.bridge_threshold_label");
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float labelWidth = ImGui.calcTextSize(label).x;
-        float resetWidth = 0f;
-        if (showReset) {
-            resetWidth = ImGui.calcTextSize(resetLabel.replaceAll("##.*", "")).x
-                + ImGui.getStyle().getFramePaddingX() * 2f;
-        }
-        float avail = Math.max(1f, ImGui.getContentRegionAvailX());
-        float sliderWidth = Math.max(
-            64f,
-            avail - labelWidth - spacing - (showReset ? resetWidth + spacing : 0f));
-        ImGui.setNextItemWidth(sliderWidth);
+        ImGui.setNextItemWidth(ImGui.calcItemWidth());
         boolean changed = ImGui.sliderInt(
             sliderId,
             value,
@@ -243,7 +233,6 @@ public final class RoadStyleProductControls {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
         }
         if (showReset) {
-            ImGui.sameLine(0f, spacing);
             if (ImGui.button(resetLabel)) {
                 onReset.run();
             }

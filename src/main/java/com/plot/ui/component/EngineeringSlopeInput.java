@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 工程坡度参数输入控件：支持建筑行业标准格式（百分比 %、放坡比例 1:n）。
  * <p>
- * 布局：标签 + 输入框 + 右侧换算提示；滑动条 + 右侧计算方式下拉。
+ * 布局：标签 + 输入框 + 右侧换算提示；标准宽度滑动条 + 右侧计算方式下拉。
  */
 public final class EngineeringSlopeInput {
     public enum ValueKind {
@@ -135,9 +135,8 @@ public final class EngineeringSlopeInput {
         ImGui.alignTextToFramePadding();
         ImGui.textDisabled(equivalentLabel);
 
-        float avail = Math.max(1f, ImGui.getContentRegionAvailX());
-        float sliderWidth = Math.max(48f, avail - FORMAT_COMBO_WIDTH - spacing);
-        ImGui.setNextItemWidth(sliderWidth);
+        // 与横断面「车道数 / 单车道宽度」等标准控件同宽（CalcItemWidth），计算方式下拉落在标签区。
+        ImGui.setNextItemWidth(ImGui.calcItemWidth());
         float[] slider = {sliderValue};
         if (ImGui.sliderFloat("##slope_slider", slider, sliderMin, sliderMax, sliderFormat)) {
             float canonical = toCanonical(slider[0], kind, format);

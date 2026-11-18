@@ -60,6 +60,7 @@ public final class VerticalAlignmentEditor {
             RoadVerticalStrategySwitchDialog switchDialog,
             Supplier<TerrainSampler> terrainSupplier) {
         RoadVerticalStrategy current = RoadVerticalStrategy.fromRoad(road);
+        ImGui.setNextItemWidth(ImGui.calcItemWidth());
         if (ImGui.beginCombo(
                 PlotI18n.tr("plugin.road.vertical_strategy"),
                 current.label())) {
