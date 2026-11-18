@@ -88,7 +88,7 @@ final class RoadVerticalBatchEditor {
                 0.5f,
                 com.plot.plugin.road.RoadParameterLimits.ELEVATION_MIN,
                 com.plot.plugin.road.RoadParameterLimits.ELEVATION_MAX,
-                summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.1f")) {
+                summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.2f")) {
                 unifiedElevationDraft = elevation[0];
                 elevationDraftDirty = true;
             }

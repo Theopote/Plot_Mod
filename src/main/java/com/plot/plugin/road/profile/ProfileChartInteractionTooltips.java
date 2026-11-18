@@ -1,5 +1,6 @@
 package com.plot.plugin.road.profile;
 
+import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -24,14 +25,14 @@ final class ProfileChartInteractionTooltips {
         // 翻译串用 %s：先格式化为两位小数，避免 MC 对 %.nf 处理不一致打出全精度。
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_pvi_hover_station",
-            String.format("%.2f", point.roadStation() * scale)));
+            RoadUiFormat.format(point.roadStation() * scale)));
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_pvi_hover_elevation",
-            String.format("%.2f", point.elevation())));
+            RoadUiFormat.format(point.elevation())));
         String left = point.leftGradePercent() != null
-            ? String.format("%.1f%%", point.leftGradePercent()) : "—";
+            ? RoadUiFormat.formatFixed(point.leftGradePercent(), 1) + "%" : "—";
         String right = point.rightGradePercent() != null
-            ? String.format("%.1f%%", point.rightGradePercent()) : "—";
+            ? RoadUiFormat.formatFixed(point.rightGradePercent(), 1) + "%" : "—";
         ImGui.text(PlotI18n.tr("plugin.road.profile_pvi_hover_grades", left, right));
         if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGradePercent)) {
             ImGui.textColored(PluginUiColors.ERROR, PlotI18n.tr("plugin.road.profile_pvi_grade_exceeds_hint"));

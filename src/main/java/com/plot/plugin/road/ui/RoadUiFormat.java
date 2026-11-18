@@ -23,6 +23,12 @@ public final class RoadUiFormat {
         return String.format(Locale.ROOT, SLIDER, value);
     }
 
+    /** 标高/坡度等 UI 数值：最多两位小数。 */
+    public static String formatFixed(double value, int decimals) {
+        int places = Math.max(0, Math.min(2, decimals));
+        return String.format(Locale.ROOT, "%." + places + "f", value);
+    }
+
     /** 始终以米展示，保留两位小数（如 {@code 2101.05 m}）。 */
     public static String formatMeters(double meters) {
         return String.format(Locale.ROOT, "%.2f m", meters);

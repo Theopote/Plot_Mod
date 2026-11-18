@@ -21,6 +21,7 @@ import com.plot.plugin.road.ui.FlatProfileControls;
 import com.plot.plugin.road.ui.ProfileEditorState;
 import com.plot.plugin.road.ui.RoadLengthDisplay;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -299,7 +300,7 @@ public final class VerticalProfileDetailPane {
             ICoordinateService coordinates) {
         String station = RoadLengthDisplay.formatChainage(
             chainage, point.roadStation(), network, road, coordinates);
-        return station + "  Y=" + String.format("%.1f", point.elevation());
+        return station + "  Y=" + RoadUiFormat.format(point.elevation());
     }
 
     static String formatIntersectionRailLabel(

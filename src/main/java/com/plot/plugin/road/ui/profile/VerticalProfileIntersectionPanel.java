@@ -14,6 +14,7 @@ import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.ui.ProfileEditorState;
 import com.plot.plugin.road.ui.RoadGradeSeparationControls;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -348,11 +349,11 @@ public final class VerticalProfileIntersectionPanel {
         float colWidth = ImGui.getContentRegionAvailX() / 3f;
         renderIntersectionMetricColumn(
             PlotI18n.tr("plugin.road.profile_intersection_stat_current_y"),
-            String.format("%.0f", intersection.currentRoadElevation()));
+            RoadUiFormat.format(intersection.currentRoadElevation()));
         ImGui.sameLine(startX + colWidth);
         renderIntersectionMetricColumn(
             PlotI18n.tr("plugin.road.profile_intersection_stat_other_y"),
-            String.format("%.0f", intersection.otherRoadElevation()));
+            RoadUiFormat.format(intersection.otherRoadElevation()));
         ImGui.sameLine(startX + colWidth * 2f);
         if (intersection.gradeSeparated()) {
             renderIntersectionMetricColumn(
@@ -363,7 +364,7 @@ public final class VerticalProfileIntersectionPanel {
         } else {
             renderIntersectionMetricColumn(
                 PlotI18n.tr("plugin.road.profile_intersection_stat_shared_y_label"),
-                String.format("%.0f", intersection.currentRoadElevation()));
+                RoadUiFormat.format(intersection.currentRoadElevation()));
         }
     }
 

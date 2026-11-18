@@ -124,7 +124,7 @@ public final class FlatProfileControls {
                 elevation,
                 bounds,
                 0.5f,
-                "%.1f")) {
+                "%.2f")) {
             flatElevation = elevation[0];
         }
         if (ImGui.isItemActivated()) {

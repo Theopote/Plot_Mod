@@ -170,7 +170,7 @@ public final class AdaptiveProfileControls {
             "plugin.road.vertical_alignment_control_point",
             point.pviIndex() + 1,
             station,
-            point.elevation(),
+            RoadUiFormat.format(point.elevation()),
             formatControlPointGrades(point)));
         if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade)) {
             RoadUiWidgets.textWrappedColored(
@@ -181,9 +181,9 @@ public final class AdaptiveProfileControls {
 
     private static String formatControlPointGrades(ProfileControlPoint point) {
         String left = point.leftGradePercent() != null
-            ? String.format("%.1f%%", point.leftGradePercent()) : "—";
+            ? RoadUiFormat.formatFixed(point.leftGradePercent(), 1) + "%" : "—";
         String right = point.rightGradePercent() != null
-            ? String.format("%.1f%%", point.rightGradePercent()) : "—";
+            ? RoadUiFormat.formatFixed(point.rightGradePercent(), 1) + "%" : "—";
         return left + " / " + right;
     }
 }

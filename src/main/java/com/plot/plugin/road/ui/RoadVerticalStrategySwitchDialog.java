@@ -144,7 +144,7 @@ final class RoadVerticalStrategySwitchDialog {
                     0.5f,
                     RoadParameterLimits.ELEVATION_MIN,
                     RoadParameterLimits.ELEVATION_MAX,
-                    "%.1f");
+                    "%.2f");
                 elevationDraft = elevation[0];
                 if (!Float.isNaN(terrainRecommendedElevation)
                         && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_adopt_recommendation"))) {
@@ -167,7 +167,7 @@ final class RoadVerticalStrategySwitchDialog {
                     0.5f,
                     RoadParameterLimits.ELEVATION_MIN,
                     RoadParameterLimits.ELEVATION_MAX,
-                    "%.1f");
+                    "%.2f");
                 elevationDraft = elevation[0];
             }
             case TO_TERRAIN_ADAPTIVE -> ImGui.textWrapped(roadIds.size() <= 1

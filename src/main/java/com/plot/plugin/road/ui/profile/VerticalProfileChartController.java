@@ -282,7 +282,10 @@ public final class VerticalProfileChartController {
         boolean elevationEditable = profilePoint != null && profilePoint.elevationEditable();
         ImGui.beginDisabled(locked || !elevationEditable);
         ImGui.inputFloat(PlotI18n.tr("plugin.road.profile_pvi_elevation_input"), pviHeightInput, 0.1f, 1f, "%.2f");
-        ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_elevation_range", bounds.minY(), bounds.maxY()));
+        ImGui.textDisabled(PlotI18n.tr(
+            "plugin.road.profile_pvi_elevation_range",
+            RoadUiFormat.format(bounds.minY()),
+            RoadUiFormat.format(bounds.maxY())));
         if (ImGui.button(PlotI18n.tr("plugin.road.profile_intersection_apply_height"))
                 && Float.isFinite(pviHeightInput.get())) {
             host.recordUndoPointBeforeEdit();
