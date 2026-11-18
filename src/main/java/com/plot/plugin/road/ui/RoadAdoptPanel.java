@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -21,7 +23,7 @@ public final class RoadAdoptPanel {
             RoadTopologyWorkflow.reconcileIntersections(ctx, false);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.adopt_intersection_repair_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.adopt_intersection_repair_hint"));
         }
         ImGui.spacing();
     }

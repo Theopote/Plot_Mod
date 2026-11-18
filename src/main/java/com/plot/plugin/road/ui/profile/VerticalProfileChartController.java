@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui.profile;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.ProfileChartInteraction;
@@ -249,7 +251,7 @@ public final class VerticalProfileChartController {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.profile_editor_interaction_hint_short"));
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_editor_interaction_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_editor_interaction_hint"));
         }
     }
 

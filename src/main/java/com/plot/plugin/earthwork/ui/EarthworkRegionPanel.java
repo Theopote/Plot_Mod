@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
@@ -75,7 +77,7 @@ public final class EarthworkRegionPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.earthwork.pick_region"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.earthwork.pick_region"));
         }
         if (!quickMode) {
             ImGui.sameLine();

@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.context.ApplicationContext;
@@ -105,7 +107,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.select.normal"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.select.normal"));
             }
             
             if (isNormalMode) {
@@ -132,7 +134,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.select.lasso"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.select.lasso"));
             }
             
             if (isLassoMode) {

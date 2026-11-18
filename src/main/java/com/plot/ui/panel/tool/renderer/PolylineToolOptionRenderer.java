@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
@@ -104,7 +106,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
                 }
 
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(tooltips[i]);
+                    UIUtils.setTooltip(tooltips[i]);
                 }
 
                 // 恢复选中按钮的样式
@@ -139,7 +141,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
                 updateToolConfig(CONFIG_KEY_CLOSE, String.valueOf(closePath.get()));
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("option.plot.close_path_hint"));
+                UIUtils.setTooltip(PlotI18n.tr("option.plot.close_path_hint"));
             }
 
             ImGui.popStyleVar(2);

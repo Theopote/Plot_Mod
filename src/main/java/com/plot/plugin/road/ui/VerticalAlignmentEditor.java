@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -89,7 +91,7 @@ public final class VerticalAlignmentEditor {
             ImGui.endCombo();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(
+            UIUtils.setTooltip(PlotI18n.tr(
                 current == RoadVerticalStrategy.FLAT
                     ? "plugin.road.vertical_strategy_flat_hint"
                     : "plugin.road.vertical_strategy_terrain_adaptive_hint"));

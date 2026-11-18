@@ -8,6 +8,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.infrastructure.event.command.UndoEvent;
 import com.plot.ui.component.UIComponent;
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
@@ -100,9 +101,7 @@ public class HistoryPanel implements UIComponent {
                     if (ImGui.isItemHovered()) {
                         ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.tooltipBackground);
                         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.tooltipText);
-                        ImGui.beginTooltip();
-                        ImGui.text(PlotI18n.localizeStatus(cmd.getDetailedDescription()));
-                        ImGui.endTooltip();
+                        UIUtils.setTooltip(PlotI18n.localizeStatus(cmd.getDetailedDescription()));
                         ImGui.popStyleColor(2);
                     }
                 }

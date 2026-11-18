@@ -31,6 +31,11 @@ public class UIUtils {
     private static final int BUTTON_HEIGHT = 24;
     private static final int BUTTON_PADDING = 4;
 
+    /**
+     * 悬停提示最大宽度（相对字号）。过长文案在此宽度内自动换行，避免横贯半个视口。
+     */
+    public static final float TOOLTIP_WRAP_WIDTH_EM = 28f;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(UIUtils.class);
     
 
@@ -169,14 +174,9 @@ public class UIUtils {
                 ImGui.popID();
             }
             
-            // 悬停提示：避免 setTooltip 的 printf 路径（名称中含 % 时会破坏 ImGui 状态）
+            // 悬停提示：走统一换行提示，避免 setTooltip 的 printf 路径（名称中含 % 时会破坏 ImGui 状态）
             if (ImGui.isItemHovered() && tooltip != null && !tooltip.isEmpty()) {
-                ImGui.beginTooltip();
-                try {
-                    ImGui.textUnformatted(tooltip);
-                } finally {
-                    ImGui.endTooltip();
-                }
+                setTooltip(tooltip);
             }
             
         } catch (Exception e) {
@@ -260,9 +260,39 @@ public class UIUtils {
         return changed;
     }
 
+    /**
+     * 统一悬停提示：限制最大宽度并自动换行。替代 {@link ImGui#setTooltip(String)}，
+     * 且使用 textUnformatted，避免文案中的 {@code %} 走 printf 破坏 ImGui 状态。
+     */
+    public static void setTooltip(String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        ImGui.beginTooltip();
+        try {
+            pushTooltipTextWrap();
+            try {
+                ImGui.textUnformatted(text);
+            } finally {
+                popTooltipTextWrap();
+            }
+        } finally {
+            ImGui.endTooltip();
+        }
+    }
+
+    /** 自定义 {@link ImGui#beginTooltip()} 内容时推入统一换行宽度；须与 {@link #popTooltipTextWrap()} 成对。 */
+    public static void pushTooltipTextWrap() {
+        ImGui.pushTextWrapPos(ImGui.getFontSize() * TOOLTIP_WRAP_WIDTH_EM);
+    }
+
+    public static void popTooltipTextWrap() {
+        ImGui.popTextWrapPos();
+    }
+
     public static void renderEngineeringTooltip(String i18nKey) {
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(i18nKey));
+            setTooltip(PlotI18n.tr(i18nKey));
         }
     }
 
@@ -372,7 +402,7 @@ public class UIUtils {
             });
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
+            setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
     }
 

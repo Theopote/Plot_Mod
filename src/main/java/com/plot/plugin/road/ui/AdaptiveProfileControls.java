@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
@@ -112,7 +114,7 @@ public final class AdaptiveProfileControls {
         if (!canDelete) {
             ImGui.endDisabled();
             if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-                ImGui.setTooltip(PlotI18n.tr(
+                UIUtils.setTooltip(PlotI18n.tr(
                     VerticalProfileControlPoints.deleteDisabledMessageKey(
                         network, road, state.selectedProfilePvi)));
             }

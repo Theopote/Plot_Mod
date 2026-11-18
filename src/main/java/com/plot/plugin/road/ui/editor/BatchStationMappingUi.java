@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui.editor;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
@@ -33,7 +35,7 @@ final class BatchStationMappingUi {
                 : BatchStationMappingMode.PROPORTIONAL;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.batch_station_mapping"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.batch_station_mapping"));
         }
         return mode;
     }

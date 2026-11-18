@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.manager.RoadNetworkManager;
@@ -567,7 +569,7 @@ public final class BridgeStructureControls {
             onChanged.accept(options[index.get()]);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(locked ? lockedHint : multiHint);
+            UIUtils.setTooltip(locked ? lockedHint : multiHint);
         }
     }
 

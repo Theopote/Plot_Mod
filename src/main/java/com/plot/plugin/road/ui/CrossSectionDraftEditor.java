@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -121,12 +123,12 @@ public final class CrossSectionDraftEditor {
                 mutator.setDefaultLaneWidth(laneWidthArr[0]);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
             }
 
             ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
             }
             mutator.afterWidthField();
         } else {
@@ -541,7 +543,7 @@ public final class CrossSectionDraftEditor {
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
             }
             mutator.afterCenterLineField();
         } else if (draft.laneDividers() || draft.centerLineStyle() != CenterLineStyle.NONE) {
@@ -593,7 +595,7 @@ public final class CrossSectionDraftEditor {
             mutator.setMedianWidth(medianWidthArr[0]);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_width_parity"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.median_width_parity"));
         }
         mutator.afterMedianWidthField();
 
@@ -610,7 +612,7 @@ public final class CrossSectionDraftEditor {
             mutator.setMedianHeight(medianHeightArr[0]);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.median_height"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.median_height"));
         }
         mutator.afterMedianHeightField();
     }
@@ -642,7 +644,7 @@ public final class CrossSectionDraftEditor {
             mutator.setStreetlightSpacing(value);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
         }
         mutator.afterStreetlightField();
     }

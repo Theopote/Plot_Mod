@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui.profile;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
@@ -174,7 +176,7 @@ public final class VerticalProfileEditorChrome {
             host.requestVoxelPreview(ctx, road);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.update_voxel_profile_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.update_voxel_profile_hint"));
         }
         if (computing || road == null || windowSession == null) {
             ImGui.endDisabled();
@@ -211,7 +213,7 @@ public final class VerticalProfileEditorChrome {
             host.applyWindowSessionConfirm(ctx, liveNetwork);
         }
         if (confirmDisabled && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_editor_topology_conflict"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_editor_topology_conflict"));
         }
         if (confirmDisabled) {
             ImGui.endDisabled();
@@ -351,7 +353,7 @@ public final class VerticalProfileEditorChrome {
         drawList.addText(origin.x + padX, origin.y + padY, textColor, label);
         ImGui.invisibleButton("##profile_status_chip_" + (statusChipSeq++), width, height);
         if (tooltip != null && !tooltip.isBlank() && ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
+            UIUtils.setTooltip(tooltip);
         }
     }
 
@@ -453,7 +455,7 @@ public final class VerticalProfileEditorChrome {
         }
         if (ImGui.isItemHovered()) {
             if (!comboPreview.equals(preview)) {
-                ImGui.setTooltip(preview);
+                UIUtils.setTooltip(preview);
             }
         }
         ImGui.sameLine(0f, spacing);

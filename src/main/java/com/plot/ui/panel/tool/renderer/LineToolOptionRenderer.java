@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
@@ -88,7 +90,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.line.single"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.line.single"));
             }
             
             if (isSingleSelected) {
@@ -129,7 +131,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.line.multi"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.line.multi"));
             }
             
             if (isMultiSelected) {

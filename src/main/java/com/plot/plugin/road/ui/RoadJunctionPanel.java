@@ -1,4 +1,6 @@
 package com.plot.plugin.road.ui;
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
@@ -133,7 +135,7 @@ public final class RoadJunctionPanel {
             ctx.networkManager().commitNetworkChange();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_plaza_radius"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.junction_plaza_radius"));
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_plaza"))) {
             ctx.networkManager().pushHistory();
@@ -149,7 +151,7 @@ public final class RoadJunctionPanel {
             node.setPlazaRadius(fitted);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_fit_plaza"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.junction_fit_plaza"));
         }
 
         ImGui.spacing();
@@ -211,7 +213,7 @@ public final class RoadJunctionPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
 
         float draftRadius = filletsOn
@@ -244,7 +246,7 @@ public final class RoadJunctionPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
         for (int i = 0; i < FILLET_RADIUS_PRESETS.length; i++) {
             if (i > 0) {
@@ -305,7 +307,7 @@ public final class RoadJunctionPanel {
                 index.get() == 1 ? RailwayJunctionMode.PASSABLE : RailwayJunctionMode.DECORATIVE);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_railway_mode"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.junction_railway_mode"));
         }
     }
 

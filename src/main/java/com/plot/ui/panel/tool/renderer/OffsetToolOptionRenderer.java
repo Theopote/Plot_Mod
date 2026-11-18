@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -36,7 +38,7 @@ public class OffsetToolOptionRenderer extends AbstractToolOptionRenderer {
                 updateToolConfig("multipleMode", String.valueOf(multipleMode.get()));
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.offset.multiple"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.offset.multiple"));
             }
             height += ImGui.getFrameHeightWithSpacing();
         } finally {

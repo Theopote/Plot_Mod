@@ -1,5 +1,7 @@
 package com.plot.plugin.road.profile;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
@@ -80,7 +82,7 @@ public final class ProfileQualityStatus {
             ImGui.sameLine(0, 0);
             ImGui.textColored(PluginUiColors.HINT_GRAY, "*");
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_quality_preview_stale"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_quality_preview_stale"));
             }
         }
         for (int i = 0; i < summary.dimensions().size(); i++) {

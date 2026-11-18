@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
@@ -47,7 +49,7 @@ public final class RoadIdentityEditor {
             nameBuffer,
             ImGuiInputTextFlags.None);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_name"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.road_name"));
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
             commitName(road, onHistory);
@@ -68,7 +70,7 @@ public final class RoadIdentityEditor {
             ImGui.endDisabled();
         }
         if (ImGui.isItemHovered() && hasCustomName) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_name_clear"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.road_name_clear"));
         }
 
         if (hasCustomName) {
@@ -102,7 +104,7 @@ public final class RoadIdentityEditor {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.topology_mode"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.topology_mode"));
         }
         if (road.getTopologyMode() == RoadTopologyMode.LOOP) {
             RoadUiWidgets.textWrappedColored(

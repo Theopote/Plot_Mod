@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.ImGuiUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -108,7 +110,7 @@ public class CircleToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(CONFIG_KEY_TYPE, mode);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
+            UIUtils.setTooltip(tooltip);
         }
         ImGui.popID();
         

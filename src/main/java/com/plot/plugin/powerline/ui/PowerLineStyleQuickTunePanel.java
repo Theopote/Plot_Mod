@@ -568,7 +568,7 @@ public final class PowerLineStyleQuickTunePanel {
             ImGui.popID();
             popSegmentButtonStyle(active);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(labels[i]);
+                UIUtils.setTooltip(labels[i]);
             }
         }
     }

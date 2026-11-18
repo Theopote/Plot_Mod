@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -97,7 +99,7 @@ public final class EarthworkOverviewRenderer {
 
         ImGui.invisibleButton("##earthwork_preview_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.earthwork.overview_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.earthwork.overview_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onItemClicked != null) {
             ImVec2 mouse = ImGui.getMousePos();
@@ -156,7 +158,7 @@ public final class EarthworkOverviewRenderer {
 
         ImGui.invisibleButton("##earthwork_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.earthwork.overview_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.earthwork.overview_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onRegionSelected != null) {
             ImVec2 mouse = ImGui.getMousePos();
@@ -194,7 +196,7 @@ public final class EarthworkOverviewRenderer {
 
         ImGui.invisibleButton("##earthwork_thumb", THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.earthwork.overview_thumbnail_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.earthwork.overview_thumbnail_hint"));
         }
         return ImGui.isItemClicked(0);
     }

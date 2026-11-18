@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.BreakTool;
@@ -135,7 +137,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         ImGui.popID();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.break.single"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.break.single"));
         }
         if (pushedColorCountSingle > 0) { ImGui.popStyleColor(pushedColorCountSingle); }
 
@@ -160,7 +162,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         ImGui.popID();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.break.two_point"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.break.two_point"));
         }
         if (pushedColorCountTwo > 0) { ImGui.popStyleColor(pushedColorCountTwo); }
 

@@ -7,6 +7,7 @@ import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.tools.impl.drawing.SpiralTool;
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.utils.ImGuiUtils;
@@ -385,7 +386,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
             
             // 添加工具提示
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(types[i].getDisplayName());
+                UIUtils.setTooltip(types[i].getDisplayName());
             }
         }
         

@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.tools.impl.modify.RotateTool;
 import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -83,7 +85,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.openPopup("angle_step_input");
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step"));
             }
             ImGui.popItemWidth();
 
@@ -97,7 +99,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
                 applyAngleStepValue(angleStepInput.get(), "输入框确认");
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step_input"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step_input"));
             }
             ImGui.popItemWidth();
             
@@ -139,7 +141,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popStyleColor(5);
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_snap"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_snap"));
             }
             
             height += ImGui.getFrameHeightWithSpacing();
@@ -284,7 +286,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popStyleColor(4);
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.preset_step", formatAngleStep(presetValue)));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.rotate.preset_step", formatAngleStep(presetValue)));
             }
         }
         

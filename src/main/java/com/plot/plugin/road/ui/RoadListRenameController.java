@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -77,7 +79,7 @@ public final class RoadListRenameController {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.path.rename_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.path.rename_hint"));
             if (ImGui.isMouseDoubleClicked(0)) {
                 beginRename(road);
             }

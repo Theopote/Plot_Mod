@@ -1,5 +1,7 @@
 package com.plot.ui.panel.layer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.model.ILayer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
@@ -286,7 +288,7 @@ public class ToolbarRenderer {
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
-        ImGui.setTooltip(message);
+        UIUtils.setTooltip(message);
         ImGui.popStyleColor(3);
     }
 

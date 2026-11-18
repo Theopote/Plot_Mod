@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.ui.tower.TowerAdvancedParametersPanel;
@@ -340,7 +342,7 @@ public final class PoleDesignerPanel {
         if (saveBlocked) {
             ImGui.endDisabled();
             if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.powerline.design.tower_status_save_blocked_tooltip"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.powerline.design.tower_status_save_blocked_tooltip"));
             }
         }
         ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);

@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -75,7 +77,7 @@ public final class RoadNodeElevationControls {
                 propagateNodeElevation(node, network, config);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
             }
         }
     }

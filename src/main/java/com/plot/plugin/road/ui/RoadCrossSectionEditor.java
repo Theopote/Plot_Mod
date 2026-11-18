@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
@@ -365,19 +367,19 @@ public final class RoadCrossSectionEditor {
             road.inheritAllDefaults();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.inherit_all_defaults"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.inherit_all_defaults"));
         }
         ImGui.spacing();
 
         if (RoadParameterInheritance.inheritsAny(road)) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.inheritance_mode_active"));
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.inheritance_mode_active"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.inheritance_mode_active"));
             }
         } else {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.explicit_params_mode"));
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.explicit_params_mode"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.explicit_params_mode"));
             }
         }
         ImGui.spacing();

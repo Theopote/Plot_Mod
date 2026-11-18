@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
@@ -47,7 +49,7 @@ final class ProfileSourceControls {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_auto_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_source_auto_hint"));
         }
 
         ImGui.beginDisabled(!canActivateEdited);
@@ -61,11 +63,11 @@ final class ProfileSourceControls {
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
             if (canActivateEdited) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_hint"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_hint"));
             } else if (staleGeometry) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
             } else {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_unavailable"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_unavailable"));
             }
         }
         ImGui.endDisabled();

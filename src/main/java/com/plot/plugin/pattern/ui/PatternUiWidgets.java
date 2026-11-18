@@ -338,7 +338,7 @@ public final class PatternUiWidgets {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.source.procedural_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.pattern.source.procedural_hint"));
         }
         ImGui.sameLine();
         if (ImGui.radioButton(
@@ -353,7 +353,7 @@ public final class PatternUiWidgets {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.source.image_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.pattern.source.image_hint"));
         }
 
         if (changed && onChanged != null) {

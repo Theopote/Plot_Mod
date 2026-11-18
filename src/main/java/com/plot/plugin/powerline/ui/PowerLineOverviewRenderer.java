@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -84,7 +86,7 @@ public final class PowerLineOverviewRenderer {
 
         ImGui.invisibleButton("##powerline_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.powerline.overview_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onLineSelected != null) {
             ImVec2 mouse = ImGui.getMousePos();
@@ -121,7 +123,7 @@ public final class PowerLineOverviewRenderer {
 
         ImGui.invisibleButton("##thumb", THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_thumbnail_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.powerline.overview_thumbnail_hint"));
         }
         return ImGui.isItemClicked(0);
     }

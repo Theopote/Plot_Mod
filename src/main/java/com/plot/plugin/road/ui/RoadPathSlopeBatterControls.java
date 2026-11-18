@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.manager.RoadChangeKind;
@@ -99,7 +101,7 @@ final class RoadPathSlopeBatterControls {
             syncDraftFromRoads(liveRoads, config);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.slope_batter_distance_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.overlay.slope_batter_distance_hint"));
         }
     }
 

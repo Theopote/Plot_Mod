@@ -1,4 +1,6 @@
 package com.plot.plugin.road;
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
@@ -103,7 +105,7 @@ public final class RoadNetworkOverviewRenderer {
 
         ImGui.invisibleButton("##road_thumb", THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.path.thumbnail_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.path.thumbnail_hint"));
         }
         return ImGui.isItemClicked(0);
     }
@@ -177,7 +179,7 @@ public final class RoadNetworkOverviewRenderer {
 
         ImGui.invisibleButton("##road_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.network_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.network_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
             ImVec2 mouse = ImGui.getMousePos();

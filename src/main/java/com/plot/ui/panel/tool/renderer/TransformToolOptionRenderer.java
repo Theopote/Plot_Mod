@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.TransformTool;
@@ -113,7 +115,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.transform.rotation_drag"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.transform.rotation_drag"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();

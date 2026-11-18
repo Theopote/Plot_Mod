@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
@@ -93,7 +95,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.mirror.axis"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.mirror.axis"));
             }
             ImGui.popStyleColor(4);
             
@@ -112,7 +114,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.mirror.center"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.mirror.center"));
             }
             ImGui.popStyleColor(4);
             ImGui.popStyleVar();

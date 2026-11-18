@@ -1,5 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.pattern.model.PatternPreset;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -60,9 +62,9 @@ final class PatternPresetCardRenderer {
         if (ImGui.isItemHovered()) {
             String description = preset.getDisplayDescription();
             if (description != null && !description.isBlank()) {
-                ImGui.setTooltip(description);
+                UIUtils.setTooltip(description);
             } else {
-                ImGui.setTooltip(preset.getDisplayName());
+                UIUtils.setTooltip(preset.getDisplayName());
             }
         }
         return ImGui.isItemClicked(0);

@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -116,7 +118,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.chamfer.distance"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.chamfer.distance"));
         }
         
         ImGui.popItemWidth();

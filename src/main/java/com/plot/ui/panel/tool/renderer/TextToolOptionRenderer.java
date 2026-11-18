@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.graphics.style.TextStyle;
@@ -334,7 +336,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(CONFIG_KEY_USE_DIALOG, String.valueOf(tempUseDialog.get()));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.dialog_input"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.text.dialog_input"));
         }
         
         // 恢复样式
@@ -371,7 +373,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(CONFIG_KEY_FONT_SIZE, String.valueOf(TextStyle.DEFAULT_FONT_SIZE));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.reset_font"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.text.reset_font"));
         }
         
         ImGui.sameLine();
@@ -381,7 +383,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig("convertSelected", "true");
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.convert_shape"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.text.convert_shape"));
         }
         
         // 恢复样式
@@ -425,7 +427,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(configKey, String.valueOf(newValue));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.decrease"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.text.decrease"));
         }
         
         ImGui.sameLine();
@@ -434,7 +436,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(configKey, String.valueOf(newValue));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.increase"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.text.increase"));
         }
     }
     

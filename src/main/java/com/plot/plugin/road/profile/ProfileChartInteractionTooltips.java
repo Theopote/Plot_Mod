@@ -3,6 +3,7 @@ package com.plot.plugin.road.profile;
 import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -21,43 +22,48 @@ final class ProfileChartInteractionTooltips {
         }
         double scale = RoadProfileChartRenderer.sanitizeStationDisplayScale(stationDisplayScale);
         ImGui.beginTooltip();
-        ImGui.text(resolveHoverTitle(point));
-        // 翻译串用 %s：先格式化为两位小数，避免 MC 对 %.nf 处理不一致打出全精度。
-        ImGui.text(PlotI18n.tr(
-            "plugin.road.profile_pvi_hover_station",
-            RoadUiFormat.format(point.roadStation() * scale)));
-        ImGui.text(PlotI18n.tr(
-            "plugin.road.profile_pvi_hover_elevation",
-            RoadUiFormat.format(point.elevation())));
-        String left = point.leftGradePercent() != null
-            ? RoadUiFormat.formatFixed(point.leftGradePercent(), 1) + "%" : "—";
-        String right = point.rightGradePercent() != null
-            ? RoadUiFormat.formatFixed(point.rightGradePercent(), 1) + "%" : "—";
-        ImGui.text(PlotI18n.tr("plugin.road.profile_pvi_hover_grades", left, right));
-        if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGradePercent)) {
-            ImGui.textColored(PluginUiColors.ERROR, PlotI18n.tr("plugin.road.profile_pvi_grade_exceeds_hint"));
+        UIUtils.pushTooltipTextWrap();
+        try {
+            ImGui.text(resolveHoverTitle(point));
+            // 翻译串用 %s：先格式化为两位小数，避免 MC 对 %.nf 处理不一致打出全精度。
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.profile_pvi_hover_station",
+                RoadUiFormat.format(point.roadStation() * scale)));
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.profile_pvi_hover_elevation",
+                RoadUiFormat.format(point.elevation())));
+            String left = point.leftGradePercent() != null
+                ? RoadUiFormat.formatFixed(point.leftGradePercent(), 1) + "%" : "—";
+            String right = point.rightGradePercent() != null
+                ? RoadUiFormat.formatFixed(point.rightGradePercent(), 1) + "%" : "—";
+            ImGui.text(PlotI18n.tr("plugin.road.profile_pvi_hover_grades", left, right));
+            if (VerticalProfileControlPoints.exceedsGradeLimit(point, maxGradePercent)) {
+                ImGui.textColored(PluginUiColors.ERROR, PlotI18n.tr("plugin.road.profile_pvi_grade_exceeds_hint"));
+            }
+            ImGui.separator();
+            if (point.endpoint()) {
+                renderEndpointHints(point);
+            } else if (point.role() == ProfilePointRole.JUNCTION_FIXED || point.sharedJunction()) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.profile_pvi_junction_fixed_hint"));
+            } else if (point.role() == ProfilePointRole.USER_LOCKED) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.profile_pvi_user_locked_hint"));
+            } else if (!point.elevationEditable()) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.profile_pvi_not_editable_hint"));
+            } else {
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_y"));
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_shift"));
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_right_click"));
+            }
+        } finally {
+            UIUtils.popTooltipTextWrap();
+            ImGui.endTooltip();
         }
-        ImGui.separator();
-        if (point.endpoint()) {
-            renderEndpointHints(point);
-        } else if (point.role() == ProfilePointRole.JUNCTION_FIXED || point.sharedJunction()) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_pvi_junction_fixed_hint"));
-        } else if (point.role() == ProfilePointRole.USER_LOCKED) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_pvi_user_locked_hint"));
-        } else if (!point.elevationEditable()) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_pvi_not_editable_hint"));
-        } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_y"));
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_drag_shift"));
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.profile_pvi_hover_right_click"));
-        }
-        ImGui.endTooltip();
     }
 
     private static String resolveHoverTitle(ProfileControlPoint point) {

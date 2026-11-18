@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -25,7 +27,7 @@ final class RoadElevationInput {
             bounds.maxYFloat(),
             format);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(
+            UIUtils.setTooltip(PlotI18n.tr(
                 "plugin.road.elevation_bounds_hint",
                 (int) bounds.minY(),
                 (int) bounds.maxY()));

@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
@@ -60,7 +62,7 @@ public final class RoadStyleProductControls {
                 road.setMaxSlope(null);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.style.max_slope_reset_default.hint"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.style.max_slope_reset_default.hint"));
             }
         }
         ImGui.spacing();
@@ -224,20 +226,20 @@ public final class RoadStyleProductControls {
             RoadParameterLimits.MAX_BRIDGE_THRESHOLD,
             PlotI18n.tr("plugin.road.bridge_threshold_blocks", value[0]));
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
         }
         ImGui.sameLine(0f, spacing);
         ImGui.alignTextToFramePadding();
         ImGui.text(label);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.bridge_threshold"));
         }
         if (showReset) {
             if (ImGui.button(resetLabel)) {
                 onReset.run();
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(resetTooltip);
+                UIUtils.setTooltip(resetTooltip);
             }
         }
         return changed;
@@ -248,7 +250,7 @@ public final class RoadStyleProductControls {
             java.util.function.Consumer<RoadTerrainStyle> onSelect) {
         ImGui.text(PlotI18n.tr("plugin.road.terrain_style"));
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.terrain_style.hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.terrain_style.hint"));
         }
         RoadTerrainStyle effective = active != null ? active : RoadTerrainStyle.BALANCED;
         renderTerrainStyleButton(RoadTerrainStyle.FOLLOW, effective, () -> onSelect.accept(RoadTerrainStyle.FOLLOW));
@@ -271,7 +273,7 @@ public final class RoadStyleProductControls {
             onClick.run();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(terrainStyleHintKey(style)));
+            UIUtils.setTooltip(PlotI18n.tr(terrainStyleHintKey(style)));
         }
         if (selected) {
             ImGui.popStyleColor();
@@ -312,7 +314,7 @@ public final class RoadStyleProductControls {
             onClick.run();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(preset.hintKey, preset.slopePercent()));
+            UIUtils.setTooltip(PlotI18n.tr(preset.hintKey, preset.slopePercent()));
         }
         if (selected) {
             ImGui.popStyleColor();

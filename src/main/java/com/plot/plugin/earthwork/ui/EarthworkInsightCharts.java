@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -541,14 +543,14 @@ public final class EarthworkInsightCharts {
                 float markerX = plotX0 + innerW * (float) ((profile.axisDistanceExact(nearest) - chartMin) / span);
                 drawList.addLine(markerX, y0 + 3f, markerX, y1 - 3f, COLOR_CURRENT, 1.0f);
                 if (nearest.zoned()) {
-                    ImGui.setTooltip(PlotI18n.tr(
+                    UIUtils.setTooltip(PlotI18n.tr(
                         "plugin.earthwork.profile.hover_zone",
                         nearest.existingY(),
                         nearest.designY(),
                         nearest.cut(),
                         nearest.fill()));
                 } else {
-                    ImGui.setTooltip(PlotI18n.tr(
+                    UIUtils.setTooltip(PlotI18n.tr(
                         "plugin.earthwork.profile.hover_exterior",
                         nearest.existingY()));
                 }

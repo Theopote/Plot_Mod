@@ -157,7 +157,7 @@ public final class RoadUiWidgets {
             });
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
     }
 

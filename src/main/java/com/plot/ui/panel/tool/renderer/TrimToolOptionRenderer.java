@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.TrimTool;
@@ -227,7 +229,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean boundaryClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(boundaryTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.boundary"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.trim.boundary"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("边界修剪按钮渲染完成，选中: {}, 点击: {}", isBoundarySelected, boundaryClicked);
@@ -241,7 +243,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean fenceClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(fenceTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.fence"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.trim.fence"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("栅栏修剪按钮渲染完成，选中: {}, 点击: {}", isFenceSelected, fenceClicked);
@@ -327,7 +329,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         }
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.fence_type"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.trim.fence_type"));
         }
 
         ImGui.popStyleVar();
@@ -358,7 +360,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                 LOGGER.debug("正多边形边数更新为: {}", sides[0]);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.fence_sides"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.trim.fence_sides"));
             }
 
             ImGui.popStyleVar(2);
@@ -412,7 +414,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             height += ImGui.getFrameHeightWithSpacing();
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.tolerance"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.trim.tolerance"));
             }
             
             ImGui.popStyleVar(2);

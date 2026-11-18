@@ -1,5 +1,7 @@
 package com.plot.plugin.building.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -128,7 +130,7 @@ public final class BuildingMassingPreviewRenderer {
 
         ImGui.invisibleButton("##massing_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.building.generate.massing_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.building.generate.massing_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onBuildingClicked != null) {
             ImVec2 mouse = ImGui.getMousePos();

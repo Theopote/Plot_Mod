@@ -5,6 +5,7 @@ import com.plot.core.gallery.GalleryRepository;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.component.UIComponent;
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.PlotMod;
 import com.plot.utils.PlotI18n;
@@ -160,9 +161,7 @@ public class GalleryPanel implements UIComponent {
         ImGui.popStyleColor(2);
 
         if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(PlotI18n.tr("panel.plot.gallery_save_selection_hint", selectedCount));
-            ImGui.endTooltip();
+            UIUtils.setTooltip(PlotI18n.tr("panel.plot.gallery_save_selection_hint", selectedCount));
         }
 
         ImGui.sameLine();
@@ -347,9 +346,7 @@ public class GalleryPanel implements UIComponent {
             placeSession.begin(item);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(PlotI18n.tr("button.plot.place"));
-            ImGui.endTooltip();
+            UIUtils.setTooltip(PlotI18n.tr("button.plot.place"));
         }
         ImGui.popStyleColor(2);
 
@@ -360,9 +357,7 @@ public class GalleryPanel implements UIComponent {
             deleteDialog.show(item);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(PlotI18n.tr("button.plot.delete"));
-            ImGui.endTooltip();
+            UIUtils.setTooltip(PlotI18n.tr("button.plot.delete"));
         }
         ImGui.popStyleColor(2);
     }

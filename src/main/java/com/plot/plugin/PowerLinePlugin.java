@@ -20,6 +20,7 @@ import com.plot.core.plugin.PluginManager;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
+import com.plot.ui.component.UIUtils;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import org.slf4j.Logger;
@@ -160,9 +161,7 @@ public class PowerLinePlugin extends Plugin {
         if (hovered == null) {
             return;
         }
-        ImGui.beginTooltip();
-        ImGui.textUnformatted(TowerPreviewMarkerTooltip.format(hovered));
-        ImGui.endTooltip();
+        UIUtils.setTooltip(TowerPreviewMarkerTooltip.format(hovered));
     }
 
     @Override

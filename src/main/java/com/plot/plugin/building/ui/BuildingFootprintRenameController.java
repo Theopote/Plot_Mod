@@ -1,5 +1,7 @@
 package com.plot.plugin.building.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.ui.utils.ImStringUtf8;
 import com.plot.utils.PlotI18n;
@@ -80,7 +82,7 @@ public final class BuildingFootprintRenameController {
             ctx.selection().select(building.getId(), ImGui.getIO().getKeyCtrl());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.building.overview_rename_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.building.overview_rename_hint"));
             if (ImGui.isMouseDoubleClicked(0)) {
                 beginRename(building);
             }

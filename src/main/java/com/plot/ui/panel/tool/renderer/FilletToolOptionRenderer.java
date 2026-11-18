@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -87,7 +89,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(String.format(PlotI18n.tr("hint.plot.fillet.radius"), step));
+            UIUtils.setTooltip(String.format(PlotI18n.tr("hint.plot.fillet.radius"), step));
         }
         
         ImGui.popItemWidth();

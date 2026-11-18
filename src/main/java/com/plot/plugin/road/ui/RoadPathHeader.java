@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.RoadAdoptDuplicateDetector;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadEdgeListHelper;
@@ -49,7 +51,7 @@ public final class RoadPathHeader {
             ctx.toolManager().activatePathPickTool();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.pick_path_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.pick_path_hint"));
         }
         used = pickWidth;
 
@@ -72,7 +74,7 @@ public final class RoadPathHeader {
             ctx.requestOverlayRefresh();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.overlay.show_slope_batter_hint"));
         }
     }
 

@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.repair.RoadAutoRepair;
@@ -126,7 +128,7 @@ public final class RoadAutoRepairUi {
         if (!anyAuto) {
             ImGui.endDisabled();
             if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.fix_road.auto_fixable_none"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.fix_road.auto_fixable_none"));
             }
         }
     }

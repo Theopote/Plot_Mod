@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -140,7 +142,7 @@ public final class PowerLineOverviewPanel {
                 ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
             }
             if (!selectionFrozen && ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
                 if (ImGui.isMouseDoubleClicked(0)) {
                     ctx.beginLineNameRename(line);
                     editorActivatedLineId = "";

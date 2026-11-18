@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
@@ -82,7 +84,7 @@ final class RoadRouteQuickTune {
             onChange.accept(laneWidthArr[0], laneCount);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
         }
 
         int[] laneArr = {laneCount};

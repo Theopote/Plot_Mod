@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.command.Command;
 import com.plot.core.command.CommandService;
 import com.plot.plugin.powerline.placement.PowerLineWorldCommandSync;
@@ -39,7 +41,7 @@ public final class PowerLineToolbarPanel {
             ctx.setLineNameEditingId("");
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.undo_project"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.powerline.undo_project"));
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -56,7 +58,7 @@ public final class PowerLineToolbarPanel {
             ctx.setLineNameEditingId("");
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.redo_project"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.powerline.redo_project"));
         }
         if (redoDisabled) {
             ImGui.endDisabled();
@@ -88,7 +90,7 @@ public final class PowerLineToolbarPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.undo_world"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.powerline.undo_world"));
         }
         if (undoWorldDisabled) {
             ImGui.endDisabled();
@@ -106,7 +108,7 @@ public final class PowerLineToolbarPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.redo_world"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.powerline.redo_world"));
         }
         if (redoWorldDisabled) {
             ImGui.endDisabled();

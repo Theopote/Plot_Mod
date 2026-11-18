@@ -359,7 +359,7 @@ public class ToolbarUIUtils {
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
-        ImGui.setTooltip(tooltip);
+        UIUtils.setTooltip(tooltip);
         ImGui.popStyleColor(3);
     }
     

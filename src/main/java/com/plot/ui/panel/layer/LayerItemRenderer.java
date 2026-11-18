@@ -1,5 +1,7 @@
 package com.plot.ui.panel.layer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.Layer;
@@ -591,7 +593,7 @@ public class LayerItemRenderer {
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
-        ImGui.setTooltip(message);
+        UIUtils.setTooltip(message);
         ImGui.popStyleColor(3);
     }
 

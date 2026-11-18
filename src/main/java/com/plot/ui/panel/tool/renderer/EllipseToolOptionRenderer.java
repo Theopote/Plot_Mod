@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.ImGuiUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
@@ -102,7 +104,7 @@ public class EllipseToolOptionRenderer extends AbstractToolOptionRenderer {
                 }
                 
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(tooltips[i]);
+                    UIUtils.setTooltip(tooltips[i]);
                 }
                 
                 // 恢复选中按钮的样式

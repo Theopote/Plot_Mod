@@ -1,5 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -78,7 +80,7 @@ public final class PatternFootprintRenameController {
             ctx.selectFootprint(footprint.getId(), ImGui.getIO().getKeyCtrl());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.overview_rename_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.pattern.overview_rename_hint"));
             if (ImGui.isMouseDoubleClicked(0)) {
                 beginRename(footprint);
             }

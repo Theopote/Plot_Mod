@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelLightPlacementResolver;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
@@ -169,7 +171,7 @@ public final class TunnelCrossSectionPreviewRenderer {
 
         ImGui.invisibleButton(buttonId, PRESET_CARD_WIDTH, PRESET_CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.tunnel.shape_preset_tooltip", label));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.tunnel.shape_preset_tooltip", label));
         }
         return ImGui.isItemClicked(0);
     }

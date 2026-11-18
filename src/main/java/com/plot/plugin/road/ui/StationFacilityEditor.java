@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.facility.RoadFacilityKind;
@@ -183,7 +185,7 @@ public final class StationFacilityEditor {
         }
         drawIntervalMarkersOnSlider(roadLength, chainageDisplay);
         if (ImGui.isItemHovered() && !sliderActive) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.station_facility_playhead_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.station_facility_playhead_hint"));
         }
 
         String stationText = RoadLengthDisplay.formatChainage(
@@ -281,7 +283,7 @@ public final class StationFacilityEditor {
             if (validation != null) {
                 tip = tip + "\n" + validation;
             }
-            ImGui.setTooltip(tip);
+            UIUtils.setTooltip(tip);
             if (click && hoveredIndex != selectedIndex && !ImGui.isItemActive()) {
                 selectIndex(hoveredIndex, true);
             }
@@ -328,7 +330,7 @@ public final class StationFacilityEditor {
                     ImGui.popStyleColor(stylePushes);
                 }
                 if (validation != null && ImGui.isItemHovered()) {
-                    ImGui.setTooltip(validation);
+                    UIUtils.setTooltip(validation);
                 }
                 ImGui.popID();
             }

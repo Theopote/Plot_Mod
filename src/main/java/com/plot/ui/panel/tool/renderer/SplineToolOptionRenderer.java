@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
@@ -183,7 +185,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                             updateToolConfig(SplineTool.CONFIG_KEY_MODE, modes[i]);
                         }
                         if (ImGui.isItemHovered()) {
-                            ImGui.setTooltip(tooltips[i]);
+                            UIUtils.setTooltip(tooltips[i]);
                         }
                     } finally {
                         ImGui.popID();

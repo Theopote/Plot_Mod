@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
@@ -162,7 +164,7 @@ public final class PowerLineRoutePanel {
             });
         if (ImGui.isItemHovered()) {
             PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
-            ImGui.setTooltip(PlotI18n.tr(
+            UIUtils.setTooltip(PlotI18n.tr(
                 "plugin.powerline.route.pole_spacing_style_tooltip",
                 PowerLineUiFormat.format(profile.denseFloor()),
                 PowerLineUiFormat.format(profile.recommendedMax()),
@@ -247,7 +249,7 @@ public final class PowerLineRoutePanel {
             PowerLineUiFormat.SLIDER,
             line::setCornerAngleThreshold);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.route.corner_hint.detail"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.powerline.route.corner_hint.detail"));
         }
     }
 

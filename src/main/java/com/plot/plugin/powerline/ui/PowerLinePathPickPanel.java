@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -47,7 +49,7 @@ public final class PowerLinePathPickPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(hintKey));
+            UIUtils.setTooltip(PlotI18n.tr(hintKey));
         }
         if (replaceMode) {
             ImGui.spacing();

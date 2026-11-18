@@ -1,5 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.pattern.model.PatternFootprint;
@@ -80,7 +82,7 @@ public final class PatternOverviewRenderer {
 
         ImGui.invisibleButton("##pattern_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.overview_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.pattern.overview_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onFootprintSelected != null) {
             ImVec2 mouse = ImGui.getMousePos();
@@ -116,7 +118,7 @@ public final class PatternOverviewRenderer {
 
         ImGui.invisibleButton("##pattern_thumb_" + footprint.getId(), THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.overview_thumbnail_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.pattern.overview_thumbnail_hint"));
         }
         return ImGui.isItemClicked(0);
     }

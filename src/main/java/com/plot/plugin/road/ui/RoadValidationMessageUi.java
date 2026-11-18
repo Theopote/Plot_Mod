@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
@@ -128,7 +130,7 @@ public final class RoadValidationMessageUi {
             ctx.requestEditRoad(roadId);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_single", roadLabel));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_single", roadLabel));
         }
         ImGui.sameLine();
         ImGui.textColored(PluginUiColors.HINT_GRAY, "\u2192 " + roadLabel);
@@ -156,14 +158,14 @@ public final class RoadValidationMessageUi {
                     ctx.requestEditRoad(roadId);
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_road"));
+                    UIUtils.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_road"));
                 }
             }
             ImGui.popStyleColor();
             ImGui.treePop();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_expand"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_expand"));
         }
     }
 

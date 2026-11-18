@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.config.ConfigManager;
@@ -132,7 +134,7 @@ public class PolygonToolOptionRenderer extends AbstractToolOptionRenderer {
                         PlotMod.LOGGER.debug("多边形绘制模式已更新为: {}", currentMode.getDisplayName());
                     }
                     if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip(tooltips[i]);
+                        UIUtils.setTooltip(tooltips[i]);
                     }
                 } finally {
                     ImGui.popID();

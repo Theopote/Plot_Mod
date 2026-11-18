@@ -1,5 +1,7 @@
 package com.plot.plugin.building.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -29,7 +31,7 @@ public final class BuildingToolbarPanel {
             ctx.undoProject();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.building.undo"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.building.undo"));
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -44,7 +46,7 @@ public final class BuildingToolbarPanel {
             ctx.redoProject();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.building.redo"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.building.redo"));
         }
         if (redoDisabled) {
             ImGui.endDisabled();

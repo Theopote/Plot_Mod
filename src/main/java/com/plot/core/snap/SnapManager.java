@@ -1,5 +1,7 @@
 package com.plot.core.snap;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.IShape;
 import com.plot.api.snap.ISnapManager;
@@ -140,7 +142,7 @@ public class SnapManager implements ISnapManager, SnapService {
                                 settingsChanged = true;
                             }
                             if (ImGui.isItemHovered()) {
-                                ImGui.setTooltip(PlotI18n.tr("snap.plot.unit_toggle_tooltip",
+                                UIUtils.setTooltip(PlotI18n.tr("snap.plot.unit_toggle_tooltip",
                                         settings.isPixelMode()
                                                 ? PlotI18n.tr("snap.plot.unit_pixel")
                                                 : PlotI18n.tr("snap.plot.unit_mm")));

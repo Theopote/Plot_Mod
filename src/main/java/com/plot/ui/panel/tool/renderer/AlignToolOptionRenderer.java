@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.AlignTool;
@@ -78,7 +80,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.align.select_mode"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.align.select_mode"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();
@@ -103,7 +105,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.align.select_reference"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.align.select_reference"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();
@@ -142,7 +144,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popStyleColor(5);
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.align.scale_on_align"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.align.scale_on_align"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();

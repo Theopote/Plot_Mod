@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
@@ -235,7 +237,7 @@ public final class RoadEdgeListPanel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.show_segments"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.show_segments"));
         }
         ImGui.sameLine();
 
@@ -422,7 +424,7 @@ public final class RoadEdgeListPanel {
             ImGui.smallButton(PlotI18n.tr("plugin.road.split_road") + "##split_disabled_" + edgeId);
             ImGui.endDisabled();
             if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.split_road_first_segment"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.split_road_first_segment"));
             }
         }
     }
@@ -436,7 +438,7 @@ public final class RoadEdgeListPanel {
         }
         ImGui.popStyleColor(3);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.delete_entire_road"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.delete_entire_road"));
         }
     }
 
@@ -449,7 +451,7 @@ public final class RoadEdgeListPanel {
         }
         ImGui.popStyleColor(3);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.delete_segment"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.delete_segment"));
         }
     }
 
@@ -458,7 +460,7 @@ public final class RoadEdgeListPanel {
             ctx.requestSplitRoad(roadId, edgeId);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.split_road"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.split_road"));
         }
     }
 

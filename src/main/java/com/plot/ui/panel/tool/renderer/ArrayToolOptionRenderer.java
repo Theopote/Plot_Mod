@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.ArrayTool;
@@ -155,7 +157,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean rectangularClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(rectangularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.rectangular"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.rectangular"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("矩形阵列按钮渲染完成，选中: {}, 点击: {}", isRectangularSelected, rectangularClicked);
@@ -169,7 +171,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean circularClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(circularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.polar"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.polar"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("环形阵列按钮渲染完成，选中: {}, 点击: {}", isCircularSelected, circularClicked);
@@ -183,7 +185,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean pathClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(pathArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.path"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.path"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("路径阵列按钮渲染完成，选中: {}, 点击: {}", isPathSelected, pathClicked);
@@ -360,11 +362,11 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (!canConfirm) {
                 ImGui.popStyleColor(3);
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.select_source_first"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.select_source_first"));
                 }
             } else {
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.confirm_rectangular"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.confirm_rectangular"));
                 }
             }
             
@@ -473,11 +475,11 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (!canConfirm) {
                 ImGui.popStyleColor(3);
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.select_source_first"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.select_source_first"));
                 }
             } else {
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.confirm_polar"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.confirm_polar"));
                 }
             }
             
@@ -583,11 +585,11 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         if (!canConfirm) {
             ImGui.popStyleColor(3);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.select_source_and_path"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.select_source_and_path"));
             }
         } else {
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.confirm_path"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.array.confirm_path"));
             }
         }
         

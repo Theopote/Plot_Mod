@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.AnnotationTool;
 import com.plot.ui.theme.ThemeManager;
@@ -83,7 +85,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean distanceClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(distanceIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.distance_icon"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.distance_icon"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -102,7 +104,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean angleClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(angleIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.angle_icon"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.angle_icon"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -121,7 +123,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean radiusClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(radiusIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.radius_icon"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.radius_icon"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -140,7 +142,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean areaClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(areaIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.area_icon"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.area_icon"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -163,7 +165,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.distance_btn"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.distance_btn"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -179,7 +181,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.angle_btn"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.angle_btn"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -195,7 +197,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.radius_btn"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.radius_btn"));
                 }
                 ImGui.popStyleColor(4);
                 
@@ -211,7 +213,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(PlotI18n.tr("hint.plot.annotation.area_btn"));
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.annotation.area_btn"));
                 }
                 ImGui.popStyleColor(4);
             }

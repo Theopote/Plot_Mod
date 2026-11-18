@@ -1,5 +1,7 @@
 package com.plot.plugin.building.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
@@ -91,7 +93,7 @@ public final class BuildingOverviewRenderer {
 
         ImGui.invisibleButton("##footprint_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.building.overview_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.building.overview_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onItemClicked != null) {
             ImVec2 mouse = ImGui.getMousePos();
@@ -147,7 +149,7 @@ public final class BuildingOverviewRenderer {
 
         ImGui.invisibleButton("##building_map_hit", width, height);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.building.overview_map_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.building.overview_map_hint"));
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onBuildingSelected != null) {
             ImVec2 mouse = ImGui.getMousePos();
@@ -185,7 +187,7 @@ public final class BuildingOverviewRenderer {
 
         ImGui.invisibleButton("##thumb", THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.building.overview_thumbnail_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.building.overview_thumbnail_hint"));
         }
         return ImGui.isItemClicked(0);
     }

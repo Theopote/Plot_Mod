@@ -1,5 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
@@ -94,7 +96,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.catenary.standard"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.catenary.standard"));
             }
             ImGui.popStyleColor(4);
 
@@ -113,7 +115,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.catenary.spline"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.catenary.spline"));
             }
             ImGui.popStyleColor(4);
             ImGui.popStyleVar(2);

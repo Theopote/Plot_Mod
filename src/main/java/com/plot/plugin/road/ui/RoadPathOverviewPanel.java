@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.validation.RoadValidationMessage;
@@ -165,7 +167,7 @@ public final class RoadPathOverviewPanel {
             ctx.requestViewProfile(primaryEdgeId);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.overview_view_profile"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.overview_view_profile"));
         }
     }
 }

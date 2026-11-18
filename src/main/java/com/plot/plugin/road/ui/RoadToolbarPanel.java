@@ -1,4 +1,6 @@
 package com.plot.plugin.road.ui;
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 
@@ -32,7 +34,7 @@ public final class RoadToolbarPanel {
                 ctx.host().commands().undo();
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.undo_world"));
+                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.undo_world"));
             }
         }
 
@@ -57,7 +59,7 @@ public final class RoadToolbarPanel {
             ctx.networkManager().undo();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.undo_network"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.undo_network"));
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -71,7 +73,7 @@ public final class RoadToolbarPanel {
             ctx.networkManager().redo();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.redo_network"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.redo_network"));
         }
         if (redoDisabled) {
             ImGui.endDisabled();

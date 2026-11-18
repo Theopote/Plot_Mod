@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -173,7 +175,7 @@ public final class RoadGenerationSettingsPanel {
             ImGui.popStyleColor(3);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(
+            UIUtils.setTooltip(PlotI18n.tr(
                 needsReview
                     ? "plugin.road.profile_source_stale_reconfirm"
                     : "plugin.road.profile_source_edited_hint"));
@@ -189,7 +191,7 @@ public final class RoadGenerationSettingsPanel {
                 enabled.get() ? NetworkElevationMode.UNIFORM_FLAT : NetworkElevationMode.PER_ROAD);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
         }
 
         // 冲突只在勾选区就地提示；顶栏不再重复，并清掉历史残留。
@@ -239,7 +241,7 @@ public final class RoadGenerationSettingsPanel {
             recommendUniformElevation(ctx, network);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_sample_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_sample_hint"));
         }
         if (noEdges) {
             ImGui.endDisabled();

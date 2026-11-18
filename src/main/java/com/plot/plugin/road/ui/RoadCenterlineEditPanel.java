@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
@@ -197,14 +199,14 @@ public final class RoadCenterlineEditPanel {
             recordMessage(insertPi.run(network, edge.getId(), canvasDistance));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_insert_pi_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_insert_pi_tip"));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_split") + "##cl_split")) {
             recordMessage(splitEdge.run(network, edge.getId(), canvasDistance));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_split_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_split_tip"));
         }
     }
 
@@ -237,7 +239,7 @@ public final class RoadCenterlineEditPanel {
             centerlineVertexIndex = vertexValue[0];
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_vertex_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_vertex_tip"));
         }
 
         float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
@@ -263,7 +265,7 @@ public final class RoadCenterlineEditPanel {
                 canvasRadius));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_fillet_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_fillet_tip"));
         }
     }
 
@@ -281,7 +283,7 @@ public final class RoadCenterlineEditPanel {
             recordMessage(reverseEdge.run(network, edge.getId()));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_reverse_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_reverse_tip"));
         }
 
         renderMergeButtons(network, edge, mergeAtNode);
@@ -302,7 +304,7 @@ public final class RoadCenterlineEditPanel {
             recordMessage(mergeAtNode.run(network, startNodeId));
         }
         if (canMergeStart && ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_start_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_start_tip"));
         }
         if (canMergeStart && canMergeEnd) {
             ImGui.sameLine();
@@ -311,7 +313,7 @@ public final class RoadCenterlineEditPanel {
             recordMessage(mergeAtNode.run(network, endNodeId));
         }
         if (canMergeEnd && ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_end_tip"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_end_tip"));
         }
     }
 }

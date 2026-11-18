@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.ui.PluginUiColors;
 import imgui.ImDrawList;
@@ -53,7 +55,7 @@ public final class PowerLineSagCardRenderer {
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(label);
+            UIUtils.setTooltip(label);
         }
         return ImGui.isItemClicked(0);
     }

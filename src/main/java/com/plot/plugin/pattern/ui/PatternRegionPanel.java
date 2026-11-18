@@ -1,5 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.plugin.pattern.PatternBlockCountCache;
 import com.plot.plugin.pattern.model.PatternFootprint;
@@ -57,7 +59,7 @@ public final class PatternRegionPanel {
             ctx.startPickSession();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.pick_range_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.pattern.pick_range_hint"));
         }
         ImGui.spacing();
         PatternUiWidgets.textColoredWrapped(

@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -74,7 +76,7 @@ final class PowerLineBuildActions {
         if (buildDisabled) {
             ImGui.endDisabled();
             if (parametricBlocked && ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.powerline.build_blocked_parametric_tooltip"));
+                UIUtils.setTooltip(PlotI18n.tr("plugin.powerline.build_blocked_parametric_tooltip"));
             }
         }
     }

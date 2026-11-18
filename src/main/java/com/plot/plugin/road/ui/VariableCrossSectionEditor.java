@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+
+import com.plot.ui.component.UIUtils;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
@@ -220,7 +222,7 @@ public final class VariableCrossSectionEditor {
                     ImGui.popStyleColor(stylePushes);
                 }
                 if (validation != null && ImGui.isItemHovered()) {
-                    ImGui.setTooltip(validation);
+                    UIUtils.setTooltip(validation);
                 }
                 ImGui.popID();
             }
@@ -347,7 +349,7 @@ public final class VariableCrossSectionEditor {
         // 桩号标记固定在各 draft.station；播放头由滑块抓手表示。
         drawStationMarkersOnSlider(roadLength, chainageDisplay);
         if (ImGui.isItemHovered() && !sliderActive) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_playhead_hint"));
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_playhead_hint"));
         }
 
         // 摘要按播放头解析生效断面（W/L 随区间变）；桩号文案用世界投影。
@@ -455,7 +457,7 @@ public final class VariableCrossSectionEditor {
             if (validation != null) {
                 tip = tip + "\n" + validation;
             }
-            ImGui.setTooltip(tip);
+            UIUtils.setTooltip(tip);
             if (click && hoveredIndex != selectedIndex && !ImGui.isItemActive()) {
                 // 避免与正在拖动的滑块抢交互。
                 selectIndex(hoveredIndex, true);

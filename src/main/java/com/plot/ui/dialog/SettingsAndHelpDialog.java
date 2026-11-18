@@ -1,4 +1,6 @@
 package com.plot.ui.dialog;
+
+import com.plot.ui.component.UIUtils;
 import com.plot.camera.CameraManager;
 import com.plot.camera.ViewRangeSettings;
 import com.plot.core.shortcut.KeyboardShortcutConverter;
@@ -393,7 +395,7 @@ public class SettingsAndHelpDialog {
                                     editingActionId = actionId;
                                 }
                                 if (ImGui.isItemHovered()) {
-                                    ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_double_click_record"));
+                                    UIUtils.setTooltip(PlotI18n.tr("settings.plot.shortcuts_double_click_record"));
                                 }
                             }
 
@@ -431,11 +433,11 @@ public class SettingsAndHelpDialog {
                                 }
                                 if (ImGui.isItemHovered()) {
                                     if (canReset) {
-                                        ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_reset_default", defaultKey));
+                                        UIUtils.setTooltip(PlotI18n.tr("settings.plot.shortcuts_reset_default", defaultKey));
                                     } else if (!hasDefault) {
-                                        ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_no_default"));
+                                        UIUtils.setTooltip(PlotI18n.tr("settings.plot.shortcuts_no_default"));
                                     } else {
-                                        ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_already_default"));
+                                        UIUtils.setTooltip(PlotI18n.tr("settings.plot.shortcuts_already_default"));
                                     }
                                 }
                                 if (!canReset) ImGui.endDisabled();
@@ -782,7 +784,7 @@ public class SettingsAndHelpDialog {
             LineToBlockGhostSettings.resetColor();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("settings.plot.line_to_block_ghost_color_reset_tooltip"));
+            UIUtils.setTooltip(PlotI18n.tr("settings.plot.line_to_block_ghost_color_reset_tooltip"));
         }
     }
 
@@ -815,7 +817,7 @@ public class SettingsAndHelpDialog {
             DrawMeasureSettings.resetLabelColor();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("settings.plot.draw_measure_label_color_reset_tooltip"));
+            UIUtils.setTooltip(PlotI18n.tr("settings.plot.draw_measure_label_color_reset_tooltip"));
         }
     }
 
@@ -840,14 +842,14 @@ public class SettingsAndHelpDialog {
             SnapVisualStyle.setCustomColor(type, float4ToArgb(rgba));
         }
         if (tooltip != null && !tooltip.isEmpty() && ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
+            UIUtils.setTooltip(tooltip);
         }
         ImGui.sameLine();
         if (ImGui.smallButton(PlotI18n.tr("button.plot.reset") + "##snap_reset_" + type.name())) {
             SnapVisualStyle.clearCustomColor(type);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("settings.plot.snap_color_reset_tooltip"));
+            UIUtils.setTooltip(PlotI18n.tr("settings.plot.snap_color_reset_tooltip"));
         }
     }
 
@@ -919,7 +921,7 @@ public class SettingsAndHelpDialog {
         ImGui.pushID(id);
         ImGui.textDisabled("(?)");
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
+            UIUtils.setTooltip(tooltip);
         }
         ImGui.popID();
     }
