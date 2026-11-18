@@ -39,9 +39,10 @@ public enum ProfileChartRenderMode {
     /**
      * 是否用求解器 design 采样画绿色设计线。
      * <p>
-     * 绿色设计线仅表示玩家在编辑器中的纵断面意图，由
+     * 绿色设计线仅表示玩家编辑曲线意图，由
      * {@link com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay} 绘制；
-     * Generate 概览（MINI/OVERVIEW）只显示地形 + 建造台阶。
+     * 本开关不再控制 VA overlay。Generate 缩略图仅在纵断面来源为「使用编辑曲线」时叠加；
+     * 「自动设计」不画设计线。
      */
     public boolean showDesignProfileLine() {
         return false;

@@ -580,8 +580,10 @@ public final class RoadNetworkManager {
         mutateNetwork(() -> network.setElevationMode(next));
         if (next == NetworkElevationMode.UNIFORM_FLAT) {
             warnIfUniformFlatGradeSeparated();
+        } else {
+            // 勾选框已表达关闭；清掉开启时刷上的立交冲突警告，避免残留在顶栏。
+            clearUniformFlatGradeSepWarningIfPresent();
         }
-        // 开关状态由勾选框本身表达，不再在标签上方刷一行 info。
     }
 
     public void setUniformElevationY(int elevation) {
@@ -667,6 +669,33 @@ public final class RoadNetworkManager {
         status.warning(PlotI18n.tr(
             "plugin.road.uniform_flat_grade_sep_conflict",
             conflicts));
+    }
+
+    /**
+     * 统一标高已关闭时清掉顶栏残留的立交冲突警告（开启时写入；关闭勾选后不应再留）。
+     * 可在 UI 每帧调用以自愈已卡住的旧状态。
+     */
+    public void clearStaleUniformFlatGradeSepWarning() {
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return;
+        }
+        clearUniformFlatGradeSepWarningIfPresent();
+    }
+
+    /** 若顶栏仍是该冲突文案则清除（文案含冲突数量，按数字归一后比对）。 */
+    private void clearUniformFlatGradeSepWarningIfPresent() {
+        String current = status.get();
+        if (current == null || current.isBlank()) {
+            return;
+        }
+        String probe = PlotI18n.tr("plugin.road.uniform_flat_grade_sep_conflict", 1);
+        if (normalizeDigits(current).equals(normalizeDigits(probe))) {
+            status.clear();
+        }
+    }
+
+    private static String normalizeDigits(String text) {
+        return text == null ? "" : text.replaceAll("\\d+", "#");
     }
 
     private void notifyNetworkChanged() {

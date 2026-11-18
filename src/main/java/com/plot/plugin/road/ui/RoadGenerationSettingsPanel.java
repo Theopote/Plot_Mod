@@ -193,6 +193,8 @@ public final class RoadGenerationSettingsPanel {
         }
 
         if (!NetworkElevationAuthority.isUniformFlat(network)) {
+            // 关闭后顶栏可能仍挂着开启时写入的冲突警告，顺手清掉。
+            ctx.networkManager().clearStaleUniformFlatGradeSepWarning();
             return;
         }
 

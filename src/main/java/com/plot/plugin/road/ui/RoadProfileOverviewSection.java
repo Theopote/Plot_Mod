@@ -120,7 +120,8 @@ public final class RoadProfileOverviewSection {
     private static void renderSharedLegend(
             RoadUiContext ctx, RoadNetwork network, List<Road> roads) {
         RoadProfileChartData legendChart = null;
-        boolean buildPreviewStale = ctx.previewManager().needsPreviewRecalc();
+        boolean anyDesignVisible = false;
+        boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
         for (Road road : roads) {
             if (road == null) {
                 continue;
@@ -134,6 +135,11 @@ public final class RoadProfileOverviewSection {
             }
             if (chart.hasWaterElevations()) {
                 legendChart = chart;
+            }
+            if (!anyDesignVisible && overviewDesignOverlay(network, road, uniformFlat) != null) {
+                anyDesignVisible = true;
+            }
+            if (legendChart.hasWaterElevations() && anyDesignVisible) {
                 break;
             }
         }
@@ -142,12 +148,7 @@ public final class RoadProfileOverviewSection {
             ImGui.spacing();
             return;
         }
-        ProfileChartLegend.renderCompact(
-            ProfileChartRenderMode.MINI,
-            null,
-            false,
-            buildPreviewStale,
-            legendChart);
+        ProfileChartLegend.renderCompactOverview(legendChart, anyDesignVisible);
         ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();
@@ -290,14 +291,9 @@ public final class RoadProfileOverviewSection {
                     PlotI18n.tr("plugin.road.terrain_profile.missing_hint"));
             } else {
                 List<RoadProfileIntersection> intersections = chartData.intersections();
-                boolean flatMode = uniformFlat
-                    || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
-                boolean showDesign = !flatMode
-                    && (road.getEffectiveProfileSource() == ProfileSource.EDITED
-                        || profileEditor.hasUnconfirmedEditsForRoad(road.getId()));
-                VerticalAlignmentProfileOverlay design = showDesign
-                    ? VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null)
-                    : null;
+                // 自动设计：缩略图不叠绿色设计纵断面；仅「使用编辑曲线」时显示。
+                VerticalAlignmentProfileOverlay design =
+                    overviewDesignOverlay(network, road, uniformFlat);
                 RoadProfileCompactCard.renderOverviewChart(
                     chartData,
                     design,
@@ -325,6 +321,26 @@ public final class RoadProfileOverviewSection {
         } finally {
             ImGui.popID();
         }
+    }
+
+    /**
+     * 概览缩略图设计线：仅 {@link ProfileSource#EDITED} 且权威可用时返回叠加数据。
+     * {@link ProfileSource#AUTO}（自动设计）一律不画，即使路上仍保留 dormant VA。
+     */
+    private static VerticalAlignmentProfileOverlay overviewDesignOverlay(
+            RoadNetwork network,
+            Road road,
+            boolean uniformFlat) {
+        if (road == null || network == null) {
+            return null;
+        }
+        if (uniformFlat || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
+            return null;
+        }
+        if (road.getEffectiveProfileSource() != ProfileSource.EDITED) {
+            return null;
+        }
+        return VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null);
     }
 
     private static void clearTopStatusIfMatches(RoadUiContext ctx, String messageKey) {

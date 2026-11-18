@@ -70,14 +70,33 @@ public final class ProfileChartLegend {
             renderCompactEditorLegend(showWaterSurface, intersections);
             return;
         }
-        renderCompactOverviewLegend(showWaterSurface);
+        // 单卡/旧入口：不知是否叠了设计线时不列设计项，避免 AUTO 道路空挂图例。
+        renderCompactOverviewLegend(showWaterSurface, false);
     }
 
-    private static void renderCompactOverviewLegend(boolean showWaterSurface) {
+    /**
+     * 生成页侧栏共用图例：设计纵断面仅在确有缩略图绿线时列出。
+     */
+    public static void renderCompactOverview(
+            RoadProfileChartData chart,
+            boolean showDesignProfile) {
+        boolean showWaterSurface = chart != null && chart.hasWaterElevations();
+        renderCompactOverviewLegend(showWaterSurface, showDesignProfile);
+    }
+
+    private static void renderCompactOverviewLegend(
+            boolean showWaterSurface,
+            boolean showDesignProfile) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
-        // 缩略图常见无可见建造台阶，「方块铺设」图例易空挂，不再列出。
+        if (showDesignProfile) {
+            ImGui.sameLine();
+            // 与缩略图 VA 绿线对齐；建造台阶常见不可见，不列「方块铺设」。
+            ImGui.textColored(
+                ProfileChartSeriesStyle.DESIGN_PROFILE,
+                "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
+        }
         appendWaterSurfaceLegend(showWaterSurface);
     }
 
