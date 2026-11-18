@@ -36,7 +36,9 @@ public final class RoadToolbarPanel {
             }
         }
 
-        if (!ctx.status().isEmpty()) {
+        // 落地进行中时进度条已有「施工进度」，跳过顶栏重复的放置提示。
+        boolean placementBusy = ctx.host().placement().isBusy();
+        if (!ctx.status().isEmpty() && !placementBusy) {
             RoadStatusUi.render(ctx.status().getStatus());
         }
         ImGui.separator();

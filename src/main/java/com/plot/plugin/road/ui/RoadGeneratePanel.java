@@ -275,10 +275,12 @@ public final class RoadGeneratePanel {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.build.preview_details"))) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.construction_length_result",
-            lastGenerationResult.normalRoadLength,
-            lastGenerationResult.bridgeLength,
-            lastGenerationResult.tunnelLength));
+        // MC i18n 对 %.Xf 不可靠，长度先格式化为最多两位小数再以 %s 传入。
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.construction_length_result",
+            RoadUiFormat.format(lastGenerationResult.normalRoadLength),
+            RoadUiFormat.format(lastGenerationResult.bridgeLength),
+            RoadUiFormat.format(lastGenerationResult.tunnelLength)));
 
         RoadNetworkValidationReport validationReport = validationReport();
         RoadNetworkValidationPanel.render(validationReport, ctx);

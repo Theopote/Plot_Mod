@@ -43,6 +43,14 @@ class RoadCrossingCornerRadiusPersistenceTest {
     }
 
     @Test
+    void atGradeNullCornerRadiusDefaultsToFilletsOff() {
+        RoadCrossing crossing = RoadCrossing.atGrade(
+            "a", 10, "b", 10, new Vec2d(0, 0));
+        assertEquals(null, crossing.cornerRadius());
+        assertEquals(0.0, crossing.effectiveCornerRadius(3.0), 1e-6);
+    }
+
+    @Test
     void gradeSeparatedCrossingForcesZeroCornerRadiusOnJunction() {
         RoadNetwork network = new RoadNetwork();
         Road lower = network.createRoad("lower");

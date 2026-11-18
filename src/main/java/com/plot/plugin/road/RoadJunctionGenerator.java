@@ -1289,7 +1289,8 @@ public class RoadJunctionGenerator {
         if (crossing != null) {
             return crossing.effectiveCornerRadius(networkDefault);
         }
-        return node != null ? node.getEffectiveCornerRadius(networkDefault) : networkDefault;
+        // 无 Crossing / 节点覆盖时默认关闭圆角（不再自动套用网络默认半径）。
+        return node != null ? node.getEffectiveCornerRadius(networkDefault) : 0.0;
     }
 
     private static RoadCrossing findAtGradeCrossingNear(RoadNetwork network, RoadNode node) {

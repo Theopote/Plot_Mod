@@ -152,11 +152,19 @@ public record RoadCrossing(
         throw new IllegalArgumentException("road not part of crossing: " + roadId);
     }
 
-    /** 平交才应用圆角；立交返回 0（禁用平交路缘倒角）。 */
+    /**
+     * 平交才应用圆角；立交返回 0。
+     * <p>
+     * {@code cornerRadius == null} 表示默认关闭圆角（不再继承网络默认半径）；
+     * 仅显式正值时启用。
+     */
     public double effectiveCornerRadius(double networkDefault) {
         if (type == CrossingType.GRADE_SEPARATED) {
             return 0.0;
         }
-        return cornerRadius != null ? Math.max(0.0, cornerRadius) : Math.max(0.0, networkDefault);
+        if (cornerRadius == null) {
+            return 0.0;
+        }
+        return Math.max(0.0, cornerRadius);
     }
 }

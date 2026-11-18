@@ -1421,7 +1421,8 @@ public final class RoadPreviewManager {
         List<BlockRecord> records =
             new ArrayList<>(lastGenerationResult.placementRecords.values());
         GenerateRoadCommand command = new GenerateRoadCommand(records, host.projection(), host.placement());
-        status.progress(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
+        // 进度由工具栏「施工进度」条展示，不再刷顶栏「正在放置道路方块」。
+        status.clear();
         command.executeScheduled(() -> {
             GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
             if (result != null && result.cancelled()) {

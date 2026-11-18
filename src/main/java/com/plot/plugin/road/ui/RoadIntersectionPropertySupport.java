@@ -63,7 +63,10 @@ public final class RoadIntersectionPropertySupport {
         return findNodeNear(network, position);
     }
 
-    /** 原始存储值：null = 跟随网络默认。Crossing 优先。 */
+    /**
+     * 原始存储值：null / 0 = 未启用圆角；正值 = 已启用。
+     * Crossing 优先于节点。
+     */
     public static Double resolveStoredCornerRadius(RoadNetworkManager manager) {
         if (manager == null || isGradeSeparatedSelection(manager)) {
             return 0.0;

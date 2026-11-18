@@ -157,9 +157,8 @@ public final class JunctionPreviewGeometry {
         RoadNetwork materialized = RoadCrossingMaterializer.materializeForSnapshot(network);
         RoadNode junction = findNearbyJunction(materialized, crossing.position(), 1.25);
         if (junction != null && junction.isJunction() && !junction.isGradeSeparated()) {
-            if (crossing.cornerRadius() != null) {
-                junction.setCornerRadius(crossing.cornerRadius());
-            }
+            junction.setCornerRadius(
+                crossing.cornerRadius() != null ? crossing.cornerRadius() : 0.0);
             JunctionGeometryResult fromNode = fromNode(
                 materialized, config, junction, crossing, coordinates);
             if (fromNode.hasFillPolygon()) {

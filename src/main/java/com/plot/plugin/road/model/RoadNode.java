@@ -201,8 +201,12 @@ public class RoadNode {
         this.cornerRadius = clampCornerRadius(cornerRadius);
     }
 
+    /**
+     * {@code null} 表示默认关闭路口圆角；仅显式正值启用。
+     * {@code networkDefault} 保留兼容调用方，不再作为 null 回退。
+     */
     public double getEffectiveCornerRadius(double networkDefault) {
-        return cornerRadius != null ? cornerRadius : networkDefault;
+        return cornerRadius != null ? Math.max(0.0, cornerRadius) : 0.0;
     }
 
     public Double getPlazaRadius() {

@@ -192,12 +192,19 @@ public final class RoadJunctionPanel {
         }
         RoadSystemConfig config = manager.getConfig();
         Double stored = RoadIntersectionPropertySupport.resolveStoredCornerRadius(manager);
-        imgui.type.ImBoolean filletsEnabled = new imgui.type.ImBoolean(
-            stored == null || stored > 1e-6);
+        // 默认不勾选：仅显式正半径视为启用（null/0 = 关闭）。
+        boolean filletsOn = stored != null && stored > 1e-6;
+        imgui.type.ImBoolean filletsEnabled = new imgui.type.ImBoolean(filletsOn);
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.junction_enable_fillets"), filletsEnabled)) {
             manager.pushHistory();
+            double enableRadius = config != null
+                ? config.getDefaultCornerRadius()
+                : RoadNode.DEFAULT_CORNER_RADIUS;
+            if (enableRadius <= 1e-6) {
+                enableRadius = RoadNode.DEFAULT_CORNER_RADIUS;
+            }
             RoadIntersectionPropertySupport.applyCornerRadius(
-                manager, filletsEnabled.get() ? null : 0.0);
+                manager, filletsEnabled.get() ? enableRadius : 0.0);
             ctx.requestJunctionFilletPreviewRefresh();
             if (ctx.previewManager() != null) {
                 ctx.previewManager().invalidatePreview();
@@ -207,7 +214,13 @@ public final class RoadJunctionPanel {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
         }
 
-        float[] cornerRadius = {(float) (stored != null ? stored : config.getDefaultCornerRadius())};
+        float draftRadius = filletsOn
+            ? stored.floatValue()
+            : (float) (config != null ? config.getDefaultCornerRadius() : RoadNode.DEFAULT_CORNER_RADIUS);
+        if (draftRadius <= 1e-6f) {
+            draftRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
+        }
+        float[] cornerRadius = {draftRadius};
         ImGui.beginDisabled(!filletsEnabled.get());
         // 固定 ##id：标签不得含变化数值，否则 ImGui 每帧换控件 ID，拖动会卡顿/跳动。
         boolean radiusChanged = ImGui.sliderFloat(
