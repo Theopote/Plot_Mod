@@ -112,7 +112,16 @@ public final class RoadVerticalProfilePanel {
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network, Road road) {
-        if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
+        if (road == null) {
+            return FlatElevationProfileOverlay.EMPTY;
+        }
+        // Live 网在统一标高下道路策略可能仍是「适应地形」；缩略图仍应画统一 Y 水平设计线。
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return FlatElevationProfileOverlay.of(
+                NetworkElevationAuthority.effectiveUniformY(network),
+                null);
+        }
+        if (RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return FlatElevationProfileOverlay.EMPTY;
         }
         return verticalModeControls.flatElevationProfileOverlay(

@@ -12,11 +12,9 @@ public record FlatElevationProfileOverlay(Integer currentElevation, Integer sugg
         return !showCurrent() && !showSuggested();
     }
 
-    /** Current flat baseline when it differs from the suggested candidate. */
+    /** Current flat baseline (uniform Y / flat base); always drawn when set. */
     public boolean showCurrent() {
-        return currentElevation != null
-            && suggestedElevation != null
-            && Math.abs(currentElevation - suggestedElevation) >= 1;
+        return currentElevation != null;
     }
 
     /** Optimizer recommendation, hidden once it matches the adopted base Y. */

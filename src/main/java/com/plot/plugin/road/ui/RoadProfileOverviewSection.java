@@ -61,11 +61,6 @@ public final class RoadProfileOverviewSection {
                 ctx.networkManager().verticalUiMessage());
             ImGui.spacing();
         }
-        if (uniformFlat) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.terrain_profile.uniform_flat_overview_hint"));
-        }
 
         Road activeRoad = RoadProfileRoadList.resolveActiveRoad(network, ctx);
         if (activeRoad != null) {
@@ -74,7 +69,7 @@ public final class RoadProfileOverviewSection {
 
         // 整区唯一地形入口：一次排队更新当前概览列表中的全部道路。
         renderSharedTerrainToolbar(ctx, network, roads, activeRoad);
-        renderSharedLegend(ctx, network, roads);
+        renderSharedLegend(ctx, network, roads, flatOverlayForRoad);
 
         var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
         for (int index = 0; index < roads.size(); index++) {
@@ -125,9 +120,13 @@ public final class RoadProfileOverviewSection {
 
     /** 侧栏共用一组图例；各缩略卡不再重复。 */
     private static void renderSharedLegend(
-            RoadUiContext ctx, RoadNetwork network, List<Road> roads) {
+            RoadUiContext ctx,
+            RoadNetwork network,
+            List<Road> roads,
+            Function<Road, FlatElevationProfileOverlay> flatOverlayForRoad) {
         RoadProfileChartData legendChart = null;
         boolean anyDesignVisible = false;
+        Integer flatBaseY = null;
         boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
         for (Road road : roads) {
             if (road == null) {
@@ -146,7 +145,13 @@ public final class RoadProfileOverviewSection {
             if (!anyDesignVisible && overviewDesignOverlay(network, road, uniformFlat) != null) {
                 anyDesignVisible = true;
             }
-            if (legendChart.hasWaterElevations() && anyDesignVisible) {
+            if (flatBaseY == null && flatOverlayForRoad != null) {
+                FlatElevationProfileOverlay flat = flatOverlayForRoad.apply(road);
+                if (flat != null && flat.showCurrent()) {
+                    flatBaseY = flat.currentElevation();
+                }
+            }
+            if (legendChart.hasWaterElevations() && anyDesignVisible && flatBaseY != null) {
                 break;
             }
         }
@@ -155,7 +160,7 @@ public final class RoadProfileOverviewSection {
             ImGui.spacing();
             return;
         }
-        ProfileChartLegend.renderCompactOverview(legendChart, anyDesignVisible);
+        ProfileChartLegend.renderCompactOverview(legendChart, anyDesignVisible, flatBaseY);
         ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();

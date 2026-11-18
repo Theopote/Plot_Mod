@@ -80,13 +80,30 @@ public final class ProfileChartLegend {
     public static void renderCompactOverview(
             RoadProfileChartData chart,
             boolean showDesignProfile) {
+        renderCompactOverview(chart, showDesignProfile, null);
+    }
+
+    /**
+     * @param flatBaseY 全网统一标高 / 水平基准线时的 Y；非 null 时图例列出青色水平设计线。
+     */
+    public static void renderCompactOverview(
+            RoadProfileChartData chart,
+            boolean showDesignProfile,
+            Integer flatBaseY) {
         boolean showWaterSurface = chart != null && chart.hasWaterElevations();
-        renderCompactOverviewLegend(showWaterSurface, showDesignProfile);
+        renderCompactOverviewLegend(showWaterSurface, showDesignProfile, flatBaseY);
     }
 
     private static void renderCompactOverviewLegend(
             boolean showWaterSurface,
             boolean showDesignProfile) {
+        renderCompactOverviewLegend(showWaterSurface, showDesignProfile, null);
+    }
+
+    private static void renderCompactOverviewLegend(
+            boolean showWaterSurface,
+            boolean showDesignProfile,
+            Integer flatBaseY) {
         ImGui.textColored(
             ProfileChartSeriesStyle.RAW_TERRAIN,
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
@@ -96,6 +113,12 @@ public final class ProfileChartLegend {
             ImGui.textColored(
                 ProfileChartSeriesStyle.DESIGN_PROFILE,
                 "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
+        }
+        if (flatBaseY != null) {
+            ImGui.sameLine();
+            ImGui.textColored(0xFF66D9EF, "--- " + PlotI18n.tr(
+                "plugin.road.profile_flat_base_y",
+                flatBaseY));
         }
         appendWaterSurfaceLegend(showWaterSurface);
     }

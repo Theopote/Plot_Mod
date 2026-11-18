@@ -201,10 +201,6 @@ public final class RoadGenerationSettingsPanel {
             return;
         }
 
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
-
         int conflicts = NetworkElevationAuthority.countGradeSeparationConflicts(network);
         if (conflicts > 0) {
             RoadUiWidgets.textWrappedColored(
