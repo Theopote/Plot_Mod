@@ -169,11 +169,15 @@ public final class RoadOverlayRenderer {
             boolean closed) {
         int count = points.size();
         int segments = closed ? count : count - 1;
+        // 虚线相位沿整条折线连续推进；按段重启会在密采样路上连成「假实线」。
+        float dashPhase = 0f;
         for (int i = 0; i < segments; i++) {
             Vec2d start = points.get(i);
             Vec2d end = points.get((i + 1) % count);
             if (style.dashed()) {
-                drawDashedSegment(drawList, camera, start, end, style.outlineColor(), style.outlineThickness());
+                dashPhase = drawDashedSegment(
+                    drawList, camera, start, end,
+                    style.outlineColor(), style.outlineThickness(), dashPhase);
             } else {
                 drawSolidSegment(drawList, camera, start, end, style.outlineColor(), style.outlineThickness());
             }
@@ -188,14 +192,16 @@ public final class RoadOverlayRenderer {
         if (centerline == null || centerline.size() < 2) {
             return;
         }
+        float dashPhase = 0f;
         for (int i = 0; i < centerline.size() - 1; i++) {
-            drawDashedSegment(
+            dashPhase = drawDashedSegment(
                 drawList,
                 camera,
                 centerline.get(i),
                 centerline.get(i + 1),
                 color,
-                1.2f);
+                1.2f,
+                dashPhase);
         }
     }
 
@@ -277,13 +283,17 @@ public final class RoadOverlayRenderer {
             thickness);
     }
 
-    private static void drawDashedSegment(
+    /**
+     * @param phase 沿折线累计的虚线相位（像素）；返回本段结束后的新相位
+     */
+    private static float drawDashedSegment(
             ImDrawList drawList,
             CanvasCamera camera,
             Vec2d start,
             Vec2d end,
             int color,
-            float thickness) {
+            float thickness,
+            float phase) {
         Vec2d screenStart = camera.worldToScreen(start);
         Vec2d screenEnd = camera.worldToScreen(end);
         float x1 = (float) screenStart.x;
@@ -293,22 +303,37 @@ public final class RoadOverlayRenderer {
         float dx = x2 - x1;
         float dy = y2 - y1;
         float length = (float) Math.hypot(dx, dy);
-        if (length < 1f) {
-            return;
+        if (length < 0.5f) {
+            return phase;
         }
         float ux = dx / length;
         float uy = dy / length;
+        float period = DASH_ON + DASH_OFF;
         float cursor = 0f;
-        while (cursor < length) {
-            float segmentEnd = Math.min(cursor + DASH_ON, length);
-            drawList.addLine(
-                x1 + ux * cursor,
-                y1 + uy * cursor,
-                x1 + ux * segmentEnd,
-                y1 + uy * segmentEnd,
-                color,
-                thickness);
-            cursor += DASH_ON + DASH_OFF;
+        float localPhase = phase;
+        if (localPhase < 0f) {
+            localPhase = 0f;
         }
+        while (cursor < length) {
+            float intoPeriod = localPhase % period;
+            if (intoPeriod < 0f) {
+                intoPeriod += period;
+            }
+            boolean onDash = intoPeriod < DASH_ON;
+            float remainInState = onDash ? (DASH_ON - intoPeriod) : (period - intoPeriod);
+            float step = Math.min(remainInState, length - cursor);
+            if (onDash && step > 0.25f) {
+                drawList.addLine(
+                    x1 + ux * cursor,
+                    y1 + uy * cursor,
+                    x1 + ux * (cursor + step),
+                    y1 + uy * (cursor + step),
+                    color,
+                    thickness);
+            }
+            cursor += step;
+            localPhase += step;
+        }
+        return localPhase;
     }
 }

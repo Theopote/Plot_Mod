@@ -19,7 +19,7 @@ import java.util.List;
  */
 final class RoadPathSlopeBatterControls {
 
-    private boolean dragActive;
+    private boolean historyPushed;
     private boolean mixed;
     private int draftValue = RoadParameterLimits.DEFAULT_SLOPE_BATTER_RUN_BLOCKS;
     private String selectionKey = "";
@@ -27,51 +27,50 @@ final class RoadPathSlopeBatterControls {
     void render(RoadUiContext ctx) {
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         if (mode == RoadSelectionHeader.Mode.NONE) {
-            endDragIfNeeded(ctx, false);
+            historyPushed = false;
             return;
         }
         LinkedHashSet<String> selectedIds = ctx.networkManager().getSelectedRoadIds();
         if (selectedIds == null || selectedIds.isEmpty()) {
-            endDragIfNeeded(ctx, false);
+            historyPushed = false;
             return;
         }
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (network == null || config == null) {
-            endDragIfNeeded(ctx, false);
+            historyPushed = false;
             return;
         }
 
-        List<Road> roads = new ArrayList<>();
-        for (String roadId : selectedIds) {
-            Road road = network.getRoad(roadId);
-            if (road != null) {
-                roads.add(road);
-            }
-        }
+        List<Road> roads = resolveSelectedRoads(network, selectedIds);
         if (roads.isEmpty()) {
-            endDragIfNeeded(ctx, false);
+            historyPushed = false;
             return;
         }
 
         String key = String.join(",", selectedIds);
         if (!key.equals(selectionKey)) {
             selectionKey = key;
-            endDragIfNeeded(ctx, false);
+            historyPushed = false;
             syncDraftFromRoads(roads, config);
         }
 
         ImGui.spacing();
         RoadUiSections.section("plugin.road.overlay.slope_batter_distance");
-        if (mixed && !dragActive) {
+        if (mixed && !historyPushed) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.overlay.slope_batter_distance_mixed_hint"));
         }
+        if (!ctx.showSlopeBatterOverlay().get()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.overlay.slope_batter_distance_preview_hint"));
+        }
 
         // 标签不得含变化数值：ImGui 用整段 label 算 ID，数字一变控件 ID 就变。
         String distanceLabel = PlotI18n.tr("plugin.road.overlay.slope_batter_distance");
-        String format = mixed && !dragActive
+        String format = mixed && !historyPushed
             ? PlotI18n.tr("plugin.road.overlay.slope_batter_distance_mixed")
             : "%d";
         int[] runBlocks = {draftValue};
@@ -83,31 +82,39 @@ final class RoadPathSlopeBatterControls {
             RoadParameterLimits.MIN_SLOPE_BATTER_RUN_BLOCKS,
             RoadParameterLimits.MAX_SLOPE_BATTER_RUN_BLOCKS,
             format);
-        if (ImGui.isItemActivated()) {
-            beginDrag(ctx);
-        }
         if (changed) {
-            if (!dragActive) {
-                beginDrag(ctx);
+            if (!historyPushed) {
+                // 推入拖动前快照并提交为一步撤销；拖动中只改 live + 刷叠加。
+                ctx.networkManager().pushHistory(RoadChangeKind.CROSS_SECTION);
+                historyPushed = true;
             }
             draftValue = RoadParameterLimits.clampSlopeBatterRunBlocks(runBlocks[0]);
             mixed = false;
-            if (dragActive) {
-                applyDraftToRoads(roads, draftValue);
-                // 拖动中每帧刷新叠加，边坡虚线实时跟手。
-                ctx.requestOverlayRefresh();
-            }
+            applyDraftToRoads(ctx.networkManager().getNetwork(), selectedIds, draftValue);
+            ctx.requestOverlayRefresh();
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) {
-            endDragIfNeeded(ctx, true);
-            syncDraftFromRoads(roads, config);
-        } else if (ImGui.isItemDeactivated()) {
-            endDragIfNeeded(ctx, false);
-            syncDraftFromRoads(roads, config);
+        if (ImGui.isItemDeactivated()) {
+            historyPushed = false;
+            List<Road> liveRoads = resolveSelectedRoads(ctx.networkManager().getNetwork(), selectedIds);
+            syncDraftFromRoads(liveRoads, config);
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.overlay.slope_batter_distance_hint"));
         }
+    }
+
+    private static List<Road> resolveSelectedRoads(RoadNetwork network, LinkedHashSet<String> selectedIds) {
+        List<Road> roads = new ArrayList<>();
+        if (network == null || selectedIds == null) {
+            return roads;
+        }
+        for (String roadId : selectedIds) {
+            Road road = network.getRoad(roadId);
+            if (road != null) {
+                roads.add(road);
+            }
+        }
+        return roads;
     }
 
     private void syncDraftFromRoads(List<Road> roads, RoadSystemConfig config) {
@@ -138,36 +145,19 @@ final class RoadPathSlopeBatterControls {
         return ResolvedCrossSection.resolve(road.getCrossSection(), config).slopeBatterMaxRunBlocks;
     }
 
-    private static void applyDraftToRoads(List<Road> roads, int value) {
+    private static void applyDraftToRoads(
+            RoadNetwork network,
+            LinkedHashSet<String> selectedIds,
+            int value) {
+        if (network == null || selectedIds == null) {
+            return;
+        }
         int clamped = RoadParameterLimits.clampSlopeBatterRunBlocks(value);
-        for (Road road : roads) {
-            road.getCrossSection().getSlopeBatter().setMaxRunBlocks(clamped);
-        }
-    }
-
-    private void beginDrag(RoadUiContext ctx) {
-        if (dragActive) {
-            return;
-        }
-        if (ctx.networkManager().hasPendingNetworkEdit()) {
-            return;
-        }
-        ctx.beginNetworkEdit(RoadChangeKind.CROSS_SECTION);
-        dragActive = true;
-    }
-
-    private void endDragIfNeeded(RoadUiContext ctx, boolean commit) {
-        if (!dragActive) {
-            return;
-        }
-        dragActive = false;
-        if (!ctx.networkManager().hasPendingNetworkEdit()) {
-            return;
-        }
-        if (commit) {
-            ctx.finishNetworkEdit();
-        } else {
-            ctx.networkManager().cancelPendingNetworkEdit();
+        for (String roadId : selectedIds) {
+            Road road = network.getRoad(roadId);
+            if (road != null) {
+                road.getCrossSection().getSlopeBatter().setMaxRunBlocks(clamped);
+            }
         }
     }
 }

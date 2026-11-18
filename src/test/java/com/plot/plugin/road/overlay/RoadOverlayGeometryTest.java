@@ -106,7 +106,8 @@ class RoadOverlayGeometryTest {
     }
 
     @Test
-    void resolveRoadSlopeBatterGeometry_returnsNullWhenSlopeDisabled() {
+    void resolveRoadSlopeBatterGeometry_stillPreviewsEnvelopeWhenSlopeConstructionDisabled() {
+        // 「显示边坡宽度」预览外缘：即使道路未启用边坡施工，也应按最大跑距画出虚线环。
         RoadSystemConfig config = slopeConfig();
         config.setIncludeSlopeBatter(false);
         RoadNetwork network = straightRoad(config);
@@ -118,7 +119,9 @@ class RoadOverlayGeometryTest {
         RoadCorridorGeometry slope = RoadOverlayGeometry.resolveRoadSlopeBatterGeometry(
             network, road, config, IdentityCoordinateService.INSTANCE, pavement);
 
-        assertEquals(null, slope);
+        assertTrue(slope != null && slope.primaryFillContour().size() >= 3);
+        assertFalse(RoadOverlayGeometry.containsPoint(pavement, 50, 8));
+        assertTrue(RoadOverlayGeometry.containsPoint(slope, 50, 8));
     }
 
     private static RoadSystemConfig slopeConfig() {

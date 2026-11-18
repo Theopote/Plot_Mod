@@ -280,7 +280,12 @@ public final class RoadOverlayGeometry {
         return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
     }
 
-    /** 画布叠加层半宽（方块数）：硬质路面，或含边坡外缘估计。 */
+    /**
+     * 画布叠加层半宽（方块数）：硬质路面，或含边坡外缘估计。
+     * <p>
+     * 「显示边坡宽度」开启时始终叠加道路有效最大跑距，便于滑条实时预览外缘；
+     * 不依赖当前是否启用边坡施工（施工包络仍走 {@link RoadCorridorWidth#earthworkEnvelopeWidthBlocks}）。
+     */
     public static double resolveOverlayHalfWidthBlocks(
             ResolvedCrossSection section,
             RoadSystemConfig config,
@@ -288,10 +293,11 @@ public final class RoadOverlayGeometry {
         if (section == null) {
             return 0.0;
         }
-        if (includeSlopeBatterOverlay) {
-            return RoadCorridorWidth.overlayHalfWidthBlocks(section, config);
+        double pavement = RoadCorridorWidth.pavementHalfWidthBlocks(section);
+        if (!includeSlopeBatterOverlay) {
+            return pavement;
         }
-        return RoadCorridorWidth.pavementHalfWidthBlocks(section);
+        return pavement + RoadCorridorWidth.slopeBatterMaxRunBlocks(section, config);
     }
 
     /** 硬质路面半宽（方块数，不含画布缩放）。 */
