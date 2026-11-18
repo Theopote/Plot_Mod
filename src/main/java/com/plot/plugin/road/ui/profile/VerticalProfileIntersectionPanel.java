@@ -188,27 +188,45 @@ public final class VerticalProfileIntersectionPanel {
         }
         if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.road.profile_intersection_detail")
-                    + "##profile_intersection_detail_" + selectedIntersectionIndex)) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.road.profile_intersection_other_section",
-                intersection.otherCrossSection().laneCount,
-                Math.round(RoadCrossSectionPreviewRenderer.CrossSectionLayout
-                    .fromResolved(intersection.otherCrossSection(), 0f)
-                    .totalWidthBlocks())));
-            float previewWidth = Math.min(ImGui.getContentRegionAvail().x, 280f);
-            float previewHeight = 56f;
-            ImDrawList drawList = ImGui.getWindowDrawList();
-            ImVec2 cursor = ImGui.getCursorScreenPos();
-            RoadCrossSectionPreviewRenderer.renderMini(
-                drawList,
-                RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-                    intersection.otherCrossSection(), 0f),
-                cursor.x,
-                cursor.y,
-                previewWidth,
-                previewHeight);
-            ImGui.dummy(previewWidth, previewHeight);
+                    + "##profile_intersection_detail_" + selectedIntersectionIndex,
+                imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderOtherRoadCrossSectionPreview(intersection);
         }
+    }
+
+    /** 相交道路横断面：一行车道/总宽 + 参考横断面工作区的预览图。 */
+    private static void renderOtherRoadCrossSectionPreview(RoadProfileIntersection intersection) {
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+            intersection.otherCrossSection(), 0f);
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.lane_count_summary",
+            intersection.otherCrossSection().laneCount,
+            Math.round(layout.totalWidthBlocks())));
+        float previewWidth = Math.max(80f, ImGui.getContentRegionAvailX());
+        float previewHeight = Math.min(148f, Math.max(110f, previewWidth * 0.48f));
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(
+            origin.x,
+            origin.y,
+            origin.x + previewWidth,
+            origin.y + previewHeight,
+            PluginUiColors.PANEL_BG_DARK);
+        drawList.addRect(
+            origin.x,
+            origin.y,
+            origin.x + previewWidth,
+            origin.y + previewHeight,
+            PluginUiColors.PANEL_BORDER);
+        RoadCrossSectionPreviewRenderer.renderMini(
+            drawList,
+            layout,
+            origin.x,
+            origin.y,
+            previewWidth,
+            previewHeight,
+            RoadCrossSectionPreviewRenderer.MiniRenderOptions.quickDesign());
+        ImGui.dummy(previewWidth, previewHeight);
     }
 
     private static RoadProfileIntersectionDragEditor.DragTarget mapIntersectionDragTarget(

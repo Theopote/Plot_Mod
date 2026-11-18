@@ -35,6 +35,7 @@ import java.util.Objects;
  */
 public final class VerticalProfileChartController {
 
+    /** 顶部旧布局用的示意高度；侧栏布局改按可用高度填充。 */
     private static final float PLAN_SCHEMATIC_HEIGHT = 96f;
 
     /** 供图表控制器注入，避免与编辑器循环依赖。 */
@@ -80,7 +81,8 @@ public final class VerticalProfileChartController {
         this.host = Objects.requireNonNull(host, "host");
     }
 
-    public void renderPlanContext(
+    /** 顶部仅保留桩号滑动条；平面示意见 {@link #renderPlanSchematic}. */
+    public void renderPlayheadScrubBar(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
@@ -88,6 +90,22 @@ public final class VerticalProfileChartController {
             List<RoadProfileIntersection> intersections,
             float canvasLength,
             boolean flatMode) {
+        renderPlayheadScrub(ctx, network, road, canvasLength, points, intersections, flatMode);
+    }
+
+    /**
+     * 道路平面示意（供主从区右侧栏）。
+     *
+     * @param previewHeight 示意画布高度；≤0 时按内容区剩余高度估算
+     */
+    public void renderPlanSchematic(
+            RoadNetwork network,
+            Road road,
+            List<ProfileControlPoint> points,
+            List<RoadProfileIntersection> intersections,
+            float canvasLength,
+            boolean flatMode,
+            float previewHeight) {
         ProfileEditorState editorState = host.editorState();
         List<RoadStationPlanSchematicRenderer.StationMarker> markers = new ArrayList<>();
         for (ProfileControlPoint point : points) {
@@ -100,6 +118,11 @@ public final class VerticalProfileChartController {
                 (float) intersections.get(i).roadStation(),
                 i == host.selectedIntersectionIndex()));
         }
+        float height = previewHeight > 1f
+            ? previewHeight
+            : Math.max(
+                PLAN_SCHEMATIC_HEIGHT,
+                ImGui.getContentRegionAvailY() - ImGui.getTextLineHeightWithSpacing() - 4f);
         Float clicked = RoadStationPlanSchematicRenderer.render(
             network,
             road,
@@ -107,12 +130,11 @@ public final class VerticalProfileChartController {
             canvasLength,
             markers,
             List.of(),
-            PLAN_SCHEMATIC_HEIGHT);
+            height);
         if (clicked != null) {
             host.setPlayheadStation(Math.clamp(clicked, 0f, canvasLength));
             host.selectAtPlayhead(points, intersections, flatMode);
         }
-        renderPlayheadScrub(ctx, network, road, canvasLength, points, intersections, flatMode);
     }
 
     void renderPlayheadScrub(
@@ -226,8 +248,6 @@ public final class VerticalProfileChartController {
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.profile_editor_interaction_hint_short"));
-        ImGui.sameLine();
-        ImGui.textDisabled("?");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_editor_interaction_hint"));
         }
@@ -277,7 +297,9 @@ public final class VerticalProfileChartController {
             ctx.requestOverlayRefresh();
         }
         ImGui.endDisabled();
-        if (!elevationEditable && profilePoint != null) {
+        if (profilePoint != null && profilePoint.endpoint()) {
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.profile_pvi_endpoint_hint"));
+        } else if (!elevationEditable && profilePoint != null) {
             String hintKey = profilePoint.sharedJunction()
                 ? "plugin.road.profile_pvi_shared_junction_hint"
                 : "plugin.road.profile_pvi_junction_fixed_hint";
@@ -285,7 +307,9 @@ public final class VerticalProfileChartController {
         }
         ImGui.separator();
         boolean canDelete = canDeleteProfilePvi(network, road, pviIndex);
-        if (!canDelete) {
+        if (profilePoint != null && profilePoint.endpoint()) {
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.profile_pvi_delete_endpoint"));
+        } else if (!canDelete) {
             ImGui.textWrapped(PlotI18n.tr(
                 VerticalProfileControlPoints.deleteDisabledMessageKey(network, road, pviIndex)));
         } else if (ImGui.menuItem(PlotI18n.tr("plugin.road.profile_pvi_delete"))) {

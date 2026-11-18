@@ -2,20 +2,14 @@ package com.plot.plugin.road.ui.profile;
 
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.profile.ProfileControlPoint;
-import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.profile.RoadProfileRoadNavigator;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewSlot;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewState;
-import com.plot.plugin.road.ui.ProfileEditorState;
-import com.plot.plugin.road.ui.RoadLengthDisplay;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
-import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImColor;
@@ -47,15 +41,9 @@ public final class VerticalProfileEditorChrome {
 
         String editorRoadId();
 
-        ProfileEditorState editorState();
-
         ProfileEditSession profileEditSession();
 
         VerticalProfileVoxelPreview voxelPreview();
-
-        int selectedIntersectionIndex();
-
-        List<RoadProfileIntersection> cachedIntersections();
 
         boolean closeConfirmPending();
 
@@ -414,13 +402,11 @@ public final class VerticalProfileEditorChrome {
     }
 
     /**
-     * 紧凑顶部：道路选择一行 +（有选中时）动态上下文一行。
-     * 标题栏已含「纵断面编辑器」，此处不再重复道路名称卡片。
+     * 紧凑顶部：道路选择一行。
+     * 选中项说明已在下方详情区展示，此处不再重复上下文行。
      */
     public void renderEditorHeader(RoadUiContext ctx, RoadNetwork network, Road road) {
-        ProfileEditorWindowSession windowSession = host.windowSession();
         String editorRoadId = host.editorRoadId();
-        ProfileEditorState editorState = host.editorState();
         List<Road> roads = RoadProfileRoadList.listStationableRoads(network);
         if (roads.isEmpty()) {
             return;
@@ -440,10 +426,8 @@ public final class VerticalProfileEditorChrome {
             currentIndex + 1,
             roads.size());
         float indexWidth = ImGui.calcTextSize(indexText).x;
-        boolean dirty = windowSession != null && windowSession.isDirty();
-        String dirtyText = PlotI18n.tr("plugin.road.profile_editor_unsaved_badge");
-        float dirtyWidth = dirty ? ImGui.calcTextSize(dirtyText).x + spacing : 0f;
-        float metaWidth = indexWidth + dirtyWidth + spacing;
+        // 未保存状态只在页脚芯片展示，顶栏不再重复「未保存修改*」。
+        float metaWidth = indexWidth + spacing;
         float comboMaxSingleRow = rowWidth - prevNextWidth - metaWidth - spacing * 2f;
         boolean wrapMeta = comboMaxSingleRow < MIN_ROAD_COMBO_WIDTH;
 
@@ -485,88 +469,5 @@ public final class VerticalProfileEditorChrome {
             ImGui.sameLine();
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, indexText);
-        if (dirty) {
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.WARNING, dirtyText);
-        }
-
-        boolean hasSelection =
-            host.selectedIntersectionIndex() >= 0 || editorState.selectedProfilePvi >= 0;
-        boolean affectsOthers = affectingAffectsOthers(network, road);
-        if (hasSelection || affectsOthers) {
-            String selection = resolveSelectionSummary(ctx, network, road);
-            String affecting = resolveAffectingSummary(network, road);
-            ImGui.textColored(
-                affectsOthers ? PluginUiColors.WARNING_LIGHT : PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.profile_editor_context_compact", selection, affecting));
-        }
-    }
-
-    private String resolveSelectionSummary(RoadUiContext ctx, RoadNetwork network, Road road) {
-        int selectedIntersectionIndex = host.selectedIntersectionIndex();
-        ProfileEditorState editorState = host.editorState();
-        ProfileEditSession profileEditSession = host.profileEditSession();
-        if (selectedIntersectionIndex >= 0) {
-            return PlotI18n.tr(
-                "plugin.road.profile_editor_selection_intersection",
-                selectedIntersectionIndex + 1);
-        }
-        if (editorState.selectedProfilePvi >= 0) {
-            RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
-            if (alignment != null
-                    && editorState.selectedProfilePvi < alignment.pviCount()) {
-                double station = alignment.getPvis().get(editorState.selectedProfilePvi).getStation();
-                return PlotI18n.tr(
-                    "plugin.road.profile_editor_selection_pvi",
-                    editorState.selectedProfilePvi + 1,
-                    RoadLengthDisplay.formatCanvasDistance(
-                        station, network, road, ctx.host().coordinates()));
-            }
-            return PlotI18n.tr(
-                "plugin.road.profile_editor_selection_pvi_index",
-                editorState.selectedProfilePvi + 1);
-        }
-        return PlotI18n.tr("plugin.road.profile_editor_selection_none");
-    }
-
-    private boolean affectingAffectsOthers(RoadNetwork network, Road road) {
-        int selectedIntersectionIndex = host.selectedIntersectionIndex();
-        ProfileEditorState editorState = host.editorState();
-        ProfileEditSession profileEditSession = host.profileEditSession();
-        if (selectedIntersectionIndex >= 0) {
-            return true;
-        }
-        if (editorState.selectedProfilePvi < 0 || network == null || road == null) {
-            return false;
-        }
-        RoadVerticalAlignment alignment = profileEditSession.effectiveAlignment(road);
-        if (alignment == null || editorState.selectedProfilePvi >= alignment.pviCount()) {
-            return false;
-        }
-        List<ProfileControlPoint> points = VerticalProfileControlPoints.forAlignment(
-            network, road, alignment);
-        return points.stream()
-            .anyMatch(point -> point.pviIndex() == editorState.selectedProfilePvi && point.sharedJunction());
-    }
-
-    private String resolveAffectingSummary(RoadNetwork network, Road road) {
-        int selectedIntersectionIndex = host.selectedIntersectionIndex();
-        if (selectedIntersectionIndex >= 0) {
-            List<RoadProfileIntersection> intersections = host.cachedIntersections();
-            if (selectedIntersectionIndex < intersections.size()) {
-                RoadProfileIntersection intersection = intersections.get(selectedIntersectionIndex);
-                if (intersection.gradeSeparated()) {
-                    return PlotI18n.tr("plugin.road.profile_editor_affect_current_only");
-                }
-                return PlotI18n.tr(
-                    "plugin.road.profile_editor_affect_intersection",
-                    intersection.otherRoadLabel());
-            }
-            return PlotI18n.tr("plugin.road.profile_editor_affect_connected");
-        }
-        if (affectingAffectsOthers(network, road)) {
-            return PlotI18n.tr("plugin.road.profile_editor_affect_junction_pvi");
-        }
-        return PlotI18n.tr("plugin.road.profile_editor_affect_current_only");
     }
 }

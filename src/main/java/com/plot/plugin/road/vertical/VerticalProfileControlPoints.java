@@ -512,6 +512,9 @@ public final class VerticalProfileControlPoints {
         if (canDelete(network, road, point)) {
             return "plugin.road.profile_pvi_delete_disabled";
         }
+        if (point != null && point.endpoint()) {
+            return "plugin.road.profile_pvi_delete_endpoint";
+        }
         if (point != null
                 && (point.role() == ProfilePointRole.JUNCTION_FIXED || point.sharedJunction())) {
             return "plugin.road.profile_pvi_delete_junction_fixed";

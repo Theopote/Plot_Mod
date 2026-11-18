@@ -130,11 +130,6 @@ final class VerticalProfileEditor {
             }
 
             @Override
-            public ProfileEditorState editorState() {
-                return editorState;
-            }
-
-            @Override
             public ProfileEditSession profileEditSession() {
                 return profileEditSession;
             }
@@ -142,16 +137,6 @@ final class VerticalProfileEditor {
             @Override
             public VerticalProfileVoxelPreview voxelPreview() {
                 return voxelPreview;
-            }
-
-            @Override
-            public int selectedIntersectionIndex() {
-                return selectedIntersectionIndex;
-            }
-
-            @Override
-            public List<RoadProfileIntersection> cachedIntersections() {
-                return cachedIntersections;
             }
 
             @Override

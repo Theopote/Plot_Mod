@@ -112,7 +112,9 @@ public final class AdaptiveProfileControls {
         if (!canDelete) {
             ImGui.endDisabled();
             if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_pvi_delete_disabled"));
+                ImGui.setTooltip(PlotI18n.tr(
+                    VerticalProfileControlPoints.deleteDisabledMessageKey(
+                        network, road, state.selectedProfilePvi)));
             }
         }
         if (!state.profileAutoFixMessage.isBlank()) {

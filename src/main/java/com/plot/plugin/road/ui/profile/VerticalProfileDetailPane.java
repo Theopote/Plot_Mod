@@ -41,8 +41,13 @@ import java.util.Objects;
  */
 public final class VerticalProfileDetailPane {
 
-    /** 左轨宽度占主从区比例。 */
-    static final float CONTROL_RAIL_WIDTH_FRACTION = 0.28f;
+    /**
+     * 左变坡点轨与右平面示意等宽；中栏详情吃剩余。
+     * 单侧约占可用宽 22%，两侧合计约 44%。
+     */
+    static final float SIDE_PANEL_WIDTH_FRACTION = 0.22f;
+    static final float SIDE_PANEL_MIN_WIDTH = 120f;
+    static final float DETAIL_MIN_WIDTH = 160f;
     /** 下半主从区最小高度。 */
     static final float MIN_DETAIL_BODY_HEIGHT = 160f;
 
@@ -77,6 +82,15 @@ public final class VerticalProfileDetailPane {
         void deleteProfilePvi(RoadUiContext ctx, RoadNetwork network, Road road, int pviIndex);
 
         boolean isChartDerivedDataStale(Road road);
+
+        void renderPlanSchematicPane(
+                RoadNetwork network,
+                Road road,
+                List<ProfileControlPoint> points,
+                List<RoadProfileIntersection> intersections,
+                float canvasLength,
+                boolean flatMode,
+                float previewHeight);
     }
 
     private final Host host;
@@ -102,8 +116,18 @@ public final class VerticalProfileDetailPane {
         // 剖面图已按「剩余 − 详情高度」计算，这里吃掉全部剩余，贴住页脚。
         float bodyHeight = Math.max(MIN_DETAIL_BODY_HEIGHT, ImGui.getContentRegionAvailY());
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float railWidth = Math.max(120f, (totalWidth - spacing) * CONTROL_RAIL_WIDTH_FRACTION);
-        float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
+        float usable = Math.max(1f, totalWidth - spacing * 2f);
+        float sideWidth = Math.max(SIDE_PANEL_MIN_WIDTH, usable * SIDE_PANEL_WIDTH_FRACTION);
+        float detailWidth = usable - sideWidth * 2f;
+        if (detailWidth < DETAIL_MIN_WIDTH) {
+            // 过窄时左右等比例压缩，优先保住中间详情最小宽。
+            sideWidth = Math.max(
+                96f,
+                (usable - DETAIL_MIN_WIDTH) * 0.5f);
+            detailWidth = Math.max(DETAIL_MIN_WIDTH, usable - sideWidth * 2f);
+        }
+        float railWidth = sideWidth;
+        float planWidth = sideWidth;
         float startX = ImGui.getCursorPosX();
         float startY = ImGui.getCursorPosY();
 
@@ -165,6 +189,18 @@ public final class VerticalProfileDetailPane {
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr("plugin.road.profile_editor_detail_empty"));
             }
+        } finally {
+            ImGui.endChild();
+        }
+
+        ImGui.setCursorPos(startX + railWidth + spacing + detailWidth + spacing, startY);
+        ImGui.beginChild("##profile_plan_schematic", planWidth, bodyHeight, true, ImGuiWindowFlags.None);
+        try {
+            float planCanvasH = Math.max(
+                72f,
+                ImGui.getContentRegionAvailY() - ImGui.getTextLineHeightWithSpacing() - 4f);
+            host.renderPlanSchematicPane(
+                editingNetwork, road, points, intersections, canvasLength, flatMode, planCanvasH);
         } finally {
             ImGui.endChild();
         }

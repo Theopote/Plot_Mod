@@ -211,6 +211,19 @@ public final class VerticalProfileEditorBody {
             public boolean isChartDerivedDataStale(Road road) {
                 return host.isChartDerivedDataStale(road);
             }
+
+            @Override
+            public void renderPlanSchematicPane(
+                    RoadNetwork network,
+                    Road road,
+                    List<ProfileControlPoint> points,
+                    List<RoadProfileIntersection> intersections,
+                    float canvasLength,
+                    boolean flatMode,
+                    float previewHeight) {
+                chartController.renderPlanSchematic(
+                    network, road, points, intersections, canvasLength, flatMode, previewHeight);
+            }
         });
         this.chartController = new VerticalProfileChartController(new VerticalProfileChartController.Host() {
             @Override
@@ -379,7 +392,8 @@ public final class VerticalProfileEditorBody {
             0.001,
             RoadStationing.canonicalLength(editingNetwork, road));
         host.setPlayheadStation(Math.clamp(host.playheadStation(), 0f, canvasLength));
-        chartController.renderPlanContext(
+        // 滑动条留在剖面图上方；平面示意移到下方三栏右侧。
+        chartController.renderPlayheadScrubBar(
             ctx, editingNetwork, road, points, intersections, canvasLength, flatMode);
         int chartSelectedPvi = flatMode
             ? VerticalProfileDetailPane.clampFlatEndpointPvi(editorState.selectedProfilePvi)
