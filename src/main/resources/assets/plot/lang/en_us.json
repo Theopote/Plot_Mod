@@ -3635,7 +3635,7 @@
   "plugin.road.station_facility_kind.guardrail": "Guardrail",
   "plugin.road.station_facility_kind.retaining_wall": "Retaining wall",
   "plugin.road.station_facility_material": "Material override",
-  "plugin.road.station_facility_material_hint": "Optional block id (empty = default)",
+  "plugin.road.station_facility_material_hint": "Default (click to choose)",
   "plugin.road.station_facility_open_end": "To road end",
   "plugin.road.station_facility_range_invalid": "Invalid station range",
   "plugin.road.station_facility_requires_stationing": "Station facilities require a connected road chain (no branching or gaps).",

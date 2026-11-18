@@ -2157,7 +2157,7 @@
   "plugin.road.station_facility_kind": "设施类型",
   "plugin.road.station_facility_side": "布置侧",
   "plugin.road.station_facility_material": "材质覆盖",
-  "plugin.road.station_facility_material_hint": "可选方块 id（留空用默认）",
+  "plugin.road.station_facility_material_hint": "默认（点击选择）",
   "plugin.road.station_facility_height": "挡土墙高度（格）",
   "plugin.road.station_facility_add": "添加设施区间",
   "plugin.road.station_facility_range_invalid": "桩号区间无效",

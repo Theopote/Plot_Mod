@@ -351,15 +351,7 @@ public final class VariableCrossSectionEditor {
         if (ImGui.isItemHovered() && !sliderActive) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_playhead_hint"));
         }
-
-        // 摘要按播放头解析生效断面（W/L 随区间变）；桩号文案用世界投影。
-        ResolvedCrossSection atPlayhead = resolveAtPlayhead(road, config, playheadStation);
-        String stationText = RoadLengthDisplay.formatChainage(
-            chainageDisplay, playheadStation, lengthNetwork, lengthRoad, lengthCoordinates);
-        String summary = atPlayhead == null
-            ? stationText
-            : stationText + " W=" + atPlayhead.carriagewayWidth + " L=" + atPlayhead.laneCount;
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, summary);
+        // 桩号/W/L 摘要已在左侧列表展示，滑条下不再重复。
 
         if (index >= 0 && index < drafts.size()) {
             String validation = validateDraft(drafts.get(index), drafts, index, roadLength);

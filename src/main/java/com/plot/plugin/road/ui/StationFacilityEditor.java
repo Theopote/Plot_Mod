@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.ui.component.UIUtils;
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.facility.RoadFacilityKind;
 import com.plot.plugin.road.model.facility.RoadFacilitySide;
@@ -17,7 +18,6 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
@@ -117,7 +117,7 @@ public final class StationFacilityEditor {
         ImGui.setCursorPos(startX + railWidth + spacing, startY);
         ImGui.beginChild("##facility_detail", detailWidth, bodyHeight, true, ImGuiWindowFlags.None);
         try {
-            renderDetailPane(canvasLength, chainageDisplay, onHistory);
+            renderDetailPane(ctx, canvasLength, chainageDisplay, onHistory);
         } finally {
             ImGui.endChild();
         }
@@ -187,10 +187,7 @@ public final class StationFacilityEditor {
         if (ImGui.isItemHovered() && !sliderActive) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.station_facility_playhead_hint"));
         }
-
-        String stationText = RoadLengthDisplay.formatChainage(
-            chainageDisplay, playheadStation, lengthNetwork, lengthRoad, lengthCoordinates);
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, stationText);
+        // 桩号数值已在滑条上显示，不再重复一行灰字。
     }
 
     /** Shift+拖：闭区间保持长度平移；open-end 只移 start。 */
@@ -375,6 +372,7 @@ public final class StationFacilityEditor {
     }
 
     private void renderDetailPane(
+            RoadUiContext ctx,
             float roadLength,
             ChainageDisplayContext chainageDisplay,
             Runnable onHistory) {
@@ -389,13 +387,14 @@ public final class StationFacilityEditor {
         ImGui.pushID("facility_detail");
         try {
             FacilityRunDraft draft = drafts.get(selectedIndex);
-            renderDetailFields(draft, roadLength, chainageDisplay, onHistory);
+            renderDetailFields(ctx, draft, roadLength, chainageDisplay, onHistory);
         } finally {
             ImGui.popID();
         }
     }
 
     private void renderDetailFields(
+            RoadUiContext ctx,
             FacilityRunDraft draft,
             float roadLength,
             ChainageDisplayContext chainageDisplay,
@@ -475,15 +474,7 @@ public final class StationFacilityEditor {
         }
         draft.side = SIDES[sideIndex.get()];
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.inputTextWithHint(
-            PlotI18n.tr("plugin.road.station_facility_material") + "##material",
-            PlotI18n.tr("plugin.road.station_facility_material_hint"),
-            draft.materialBuffer,
-            ImGuiInputTextFlags.None);
-        if (ImGui.isItemDeactivatedAfterEdit() && onHistory != null) {
-            onHistory.run();
-        }
+        renderMaterialPicker(ctx, draft, onHistory);
 
         if (draft.kind == RoadFacilityKind.RETAINING_WALL) {
             float[] height = {draft.height};
@@ -507,6 +498,46 @@ public final class StationFacilityEditor {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 describeDraft(draft, chainageDisplay, roadLength));
+        }
+    }
+
+    /** 材质覆盖：按钮打开方块选择器；空值表示沿用默认。 */
+    private void renderMaterialPicker(RoadUiContext ctx, FacilityRunDraft draft, Runnable onHistory) {
+        String raw = draft.materialBuffer.get();
+        boolean hasOverride = raw != null && !raw.isBlank();
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.station_facility_material"));
+        String display = hasOverride
+            ? RoadMaterialUtils.getDisplayName(raw.trim())
+            : PlotI18n.tr("plugin.road.station_facility_material_hint");
+        float avail = ImGui.getContentRegionAvailX();
+        float clearW = hasOverride ? ImGui.calcTextSize(PlotI18n.tr("plugin.road.style.max_slope_reset_default")).x + 16f : 0f;
+        float gap = hasOverride ? ImGui.getStyle().getItemSpacingX() : 0f;
+        float pickW = Math.max(48f, avail - clearW - gap);
+        if (ImGui.button(display + "##facility_material_pick", pickW, 0)) {
+            String current = hasOverride ? raw.trim() : "";
+            RoadUiWidgets.openBlockPicker(current, blockId -> {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                draft.materialBuffer.set(blockId != null ? blockId : "");
+            });
+        }
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
+        }
+        if (hasOverride) {
+            ImGui.sameLine(0f, gap);
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.road.style.max_slope_reset_default") + "##facility_material_clear",
+                    clearW,
+                    0)) {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                draft.materialBuffer.set("");
+            }
         }
     }
 

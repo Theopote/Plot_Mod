@@ -218,16 +218,27 @@ public final class TunnelStyleFloatingEditor {
                 }
                 if (target == Target.ROAD) {
                     renderInheritToggle();
+                    if (!inheritGlobal) {
+                        // 与「使用全局隧道默认」同一行：风格预设下拉。
+                        ImGui.sameLine(0f, ImGui.getStyle().getItemSpacingX());
+                        ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX()));
+                        TunnelStyleEditor.renderStylePresetCombo(
+                            draft, () -> draft.clamp(), presetSelection);
+                    }
                 }
                 if (target == Target.ROAD && inheritGlobal) {
                     renderInheritSummary(ctx);
                 } else {
+                    if (target == Target.ROAD) {
+                        ImGui.spacing();
+                    }
                     TunnelStyleEditor.render(
                         ctx,
                         draft,
                         () -> draft.clamp(),
                         presetSelection,
-                        target == Target.ROAD ? roadId : null);
+                        target == Target.ROAD ? roadId : null,
+                        target != Target.ROAD);
                 }
             }
             ImGui.endChild();
@@ -447,7 +458,6 @@ public final class TunnelStyleFloatingEditor {
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.tunnel.batch_inherit_hint", batchTargetCount()));
         }
-        ImGui.spacing();
     }
 
     private void renderInheritSummary(RoadUiContext ctx) {

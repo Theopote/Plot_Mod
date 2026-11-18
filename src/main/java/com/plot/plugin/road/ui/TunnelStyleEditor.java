@@ -83,12 +83,27 @@ public final class TunnelStyleEditor {
             Runnable onChanged,
             PresetSelection presetSelection,
             String roadId) {
+        render(ctx, style, onChanged, presetSelection, roadId, true);
+    }
+
+    /**
+     * @param includeStylePreset 为 false 时不画风格预设下拉（由外层与「使用全局」放同一行）。
+     */
+    public static void render(
+            RoadUiContext ctx,
+            TunnelStyle style,
+            Runnable onChanged,
+            PresetSelection presetSelection,
+            String roadId,
+            boolean includeStylePreset) {
         if (style == null) {
             return;
         }
         int envelopeWidth = resolvePreviewEnvelopeWidth(ctx, roadId);
-        renderStylePresetCombo(style, onChanged, presetSelection);
-        ImGui.spacing();
+        if (includeStylePreset) {
+            renderStylePresetCombo(style, onChanged, presetSelection);
+            ImGui.spacing();
+        }
         if (TunnelCrossSectionPreviewRenderer.renderShapePresetRow(style.getShape(), shape -> {
             style.setShape(shape);
             notifyChanged(style, onChanged, presetSelection);
@@ -321,7 +336,7 @@ public final class TunnelStyleEditor {
         }
     }
 
-    private static void renderStylePresetCombo(
+    static void renderStylePresetCombo(
             TunnelStyle style,
             Runnable onChanged,
             PresetSelection presetSelection) {
