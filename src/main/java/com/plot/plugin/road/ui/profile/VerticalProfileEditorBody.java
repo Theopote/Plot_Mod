@@ -126,6 +126,13 @@ public final class VerticalProfileEditorBody {
     private final VerticalProfileDetailPane detailPane;
     private final VerticalProfileChartController chartController;
 
+    /** 页脚图例快照：详情区不再画图例，改由按钮行下方单独一行渲染。 */
+    private List<RoadProfileIntersection> footerLegendIntersections = List.of();
+    private boolean footerLegendFlatMode;
+    private boolean footerLegendShowBuild;
+    private RoadProfileChartData footerLegendChart;
+    private boolean footerLegendReady;
+
     public VerticalProfileEditorBody(Host host) {
         this.host = Objects.requireNonNull(host, "host");
         this.detailPane = new VerticalProfileDetailPane(new VerticalProfileDetailPane.Host() {
@@ -204,18 +211,6 @@ public final class VerticalProfileEditorBody {
             public boolean isChartDerivedDataStale(Road road) {
                 return host.isChartDerivedDataStale(road);
             }
-
-            @Override
-            public void renderEditorLegend(
-                    RoadUiContext ctx,
-                    Road road,
-                    List<RoadProfileIntersection> intersections,
-                    boolean flatMode,
-                    boolean showBuildProfileLine,
-                    RoadProfileChartData chart) {
-                chartController.renderEditorLegend(
-                    ctx, road, intersections, flatMode, showBuildProfileLine, chart);
-            }
         });
         this.chartController = new VerticalProfileChartController(new VerticalProfileChartController.Host() {
             @Override
@@ -293,7 +288,26 @@ public final class VerticalProfileEditorBody {
     }
 
     public void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
+        footerLegendReady = false;
         chartController.renderMissingProfileActions(ctx, network, road);
+    }
+
+    /** 页脚图例行：有交互剖面时在编辑按钮下方占一行。 */
+    public void renderFooterLegend(RoadUiContext ctx, Road road) {
+        if (!footerLegendReady || road == null) {
+            return;
+        }
+        chartController.renderEditorLegend(
+            ctx,
+            road,
+            footerLegendIntersections,
+            footerLegendFlatMode,
+            footerLegendShowBuild,
+            footerLegendChart);
+    }
+
+    public void clearFooterLegend() {
+        footerLegendReady = false;
     }
 
     /**
@@ -334,6 +348,7 @@ public final class VerticalProfileEditorBody {
         ProfileEditorState editorState = host.editorState();
         ProfileEditorWindowSession windowSession = host.windowSession();
         VerticalProfileVoxelPreview voxelPreview = host.voxelPreview();
+        footerLegendReady = false;
 
         RoadSystemConfig config = ctx.networkManager().getConfig();
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
@@ -647,8 +662,12 @@ public final class VerticalProfileEditorBody {
             effectiveChart,
             config,
             flatMode,
-            showBuildProfileLine,
             maxGrade,
             canvasLength);
+        footerLegendIntersections = intersections != null ? List.copyOf(intersections) : List.of();
+        footerLegendFlatMode = flatMode;
+        footerLegendShowBuild = showBuildProfileLine;
+        footerLegendChart = effectiveChart;
+        footerLegendReady = true;
     }
 }

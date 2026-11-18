@@ -10,7 +10,6 @@ import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
-import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.ProfileEditorState;
 import com.plot.plugin.road.ui.RoadLengthDisplay;
@@ -141,10 +140,6 @@ public final class VerticalProfileChartController {
         if (sliderActive) {
             host.selectAtPlayhead(points, intersections, flatMode);
         }
-        ChainageDisplayContext chainage = ChainageDisplayContext.fromStart(canvasLength);
-        String stationText = RoadLengthDisplay.formatChainage(
-            chainage, host.playheadStation(), network, road, coordinates);
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, stationText);
         ImGui.spacing();
     }
 

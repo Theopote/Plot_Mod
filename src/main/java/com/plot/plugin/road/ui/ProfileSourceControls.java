@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
+import com.plot.plugin.road.vertical.EditedProfileGeometry;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.utils.PlotI18n;
@@ -30,7 +31,11 @@ final class ProfileSourceControls {
         ImGui.text(PlotI18n.tr("plugin.road.profile_source_section"));
 
         boolean canActivateEdited = ResolvedProfileAuthority.canActivateEditedProfile(network, road);
-        boolean staleSaved = ResolvedProfileAuthority.hasStoredEditedCurve(road) && !canActivateEdited;
+        boolean hasStoredCurve = ResolvedProfileAuthority.hasStoredEditedCurve(road);
+        // 路径几何已变（签名非 0 但不匹配）→ 过期提示；无曲线或未绑定签名 → 引导去编辑器确认。
+        boolean staleGeometry = hasStoredCurve
+            && road.getEditedGeometrySignature() != EditedProfileGeometry.UNBOUND_SIGNATURE
+            && !canActivateEdited;
         ProfileSource current = road.getEffectiveProfileSource();
         boolean autoSelected = current == ProfileSource.AUTO;
 
@@ -55,10 +60,12 @@ final class ProfileSourceControls {
             }
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            if (staleSaved) {
+            if (canActivateEdited) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_hint"));
+            } else if (staleGeometry) {
                 ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_stale_reconfirm"));
             } else {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_hint"));
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_source_edited_unavailable"));
             }
         }
         ImGui.endDisabled();

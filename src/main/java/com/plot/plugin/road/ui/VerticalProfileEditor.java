@@ -205,11 +205,6 @@ final class VerticalProfileEditor {
             }
 
             @Override
-            public void runConfirmAndBuildPreview(RoadUiContext ctx, RoadNetwork liveNetwork) {
-                VerticalProfileEditor.this.runConfirmAndBuildPreview(ctx, liveNetwork);
-            }
-
-            @Override
             public void restoreWindowSession() {
                 VerticalProfileEditor.this.restoreWindowSession();
             }
@@ -233,6 +228,11 @@ final class VerticalProfileEditor {
             @Override
             public void discardAndReloadWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork) {
                 VerticalProfileEditor.this.discardAndReloadWindowSession(ctx, liveNetwork);
+            }
+
+            @Override
+            public void renderFooterLegend(RoadUiContext ctx, Road road) {
+                body.renderFooterLegend(ctx, road);
             }
         });
     private final VerticalProfileIntersectionPanel intersectionPanel =
@@ -611,10 +611,12 @@ final class VerticalProfileEditor {
                 ImGuiWindowFlags.NoScrollbar);
             try {
                 if (externalTopologyConflict) {
+                    body.clearFooterLegend();
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.WARNING_LIGHT,
                         PlotI18n.tr("plugin.road.profile_editor_topology_conflict_hint"));
                 } else if (!RoadStationing.isStationable(network, road)) {
+                    body.clearFooterLegend();
                     RoadUiWidgets.textWrappedColored(
                         PluginUiColors.HINT_GRAY,
                         PlotI18n.tr("plugin.road.profile_discontinuous_road_hint"));
@@ -852,29 +854,6 @@ final class VerticalProfileEditor {
             ctx.networkManager().getConfig(),
             ctx.previewManager().getLastEdgeResults(),
             chartData);
-    }
-
-    private void runConfirmAndBuildPreview(RoadUiContext ctx, RoadNetwork liveNetwork) {
-        boolean dirty = windowSession != null && windowSession.isDirty() || profileEditSession.isDirty();
-        if (dirty && windowSession != null) {
-            Road current = windowSession.editingNetwork().getRoad(editorRoadId);
-            if (current != null) {
-                profileEditSession.commitEdit(
-                    windowSession.editingNetwork(),
-                    current,
-                    ctx.networkManager().getConfig(),
-                    windowSession,
-                    null,
-                    this::notifyWorkingProfileChanged);
-            }
-            if (confirmWindowSession(ctx, liveNetwork, true)) {
-                reopenWindowSession(ctx, liveNetwork);
-            } else {
-                ctx.status().warning(PlotI18n.tr("plugin.road.profile_editor_preview_confirm_failed"));
-            }
-            return;
-        }
-        ctx.previewManager().startNetworkPreview(liveNetwork);
     }
 
     private void ensureEditorRoadSelection(RoadUiContext ctx, RoadNetwork network) {

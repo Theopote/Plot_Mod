@@ -77,8 +77,6 @@ public final class VerticalProfileEditorChrome {
 
         void requestVoxelPreview(RoadUiContext ctx, Road road);
 
-        void runConfirmAndBuildPreview(RoadUiContext ctx, RoadNetwork liveNetwork);
-
         void restoreWindowSession();
 
         void requestEditorClose(RoadUiContext ctx, RoadNetwork liveNetwork, boolean forceIfClean);
@@ -88,6 +86,9 @@ public final class VerticalProfileEditorChrome {
         void discardWindowSession();
 
         void discardAndReloadWindowSession(RoadUiContext ctx, RoadNetwork liveNetwork);
+
+        /** 页脚图例行（编辑按钮下方）；无剖面数据时为空操作。 */
+        void renderFooterLegend(RoadUiContext ctx, Road road);
     }
 
     private final Host host;
@@ -104,10 +105,10 @@ public final class VerticalProfileEditorChrome {
         return estimateMinFooterHeight();
     }
 
-    /** 首帧最小预留：separator + 工具行 + 状态行 + 提交行 + 正常间距。 */
+    /** 首帧最小预留：separator + 状态行 + 动作行 + 图例行 + 间距。 */
     public static float estimateMinFooterHeight() {
         float row = ImGui.getFrameHeightWithSpacing();
-        return row * 3.2f + ImGui.getStyle().getItemSpacingY();
+        return row * 3.4f + ImGui.getStyle().getItemSpacingY();
     }
 
     public void renderExternalTopologyConflictBanner(RoadUiContext ctx, RoadNetwork liveNetwork) {
@@ -121,66 +122,69 @@ public final class VerticalProfileEditorChrome {
     }
 
     /**
-     * 底部操作（防裁剪）：
-     * 1) 工具按钮按宽度自动 4 列或 2×2
-     * 2) 状态单独一行
-     * 3) 恢复 / 取消 / 保存单独一行，不再与状态挤在同一行
+     * 底部操作：
+     * 1) 状态芯片单独一行
+     * 2) 动作尽量一行：左侧紧凑工具 + 右侧恢复/取消/保存；过窄时工具与提交分两行
+     * 3) 剖面图例单独一行（从右侧详情区移出）
      */
     public void renderEditorFooter(RoadUiContext ctx, RoadNetwork liveNetwork, Road road) {
         ProfileEditorWindowSession windowSession = host.windowSession();
-        ProfileEditSession profileEditSession = host.profileEditSession();
         ImGui.separator();
         float spacing = ImGui.getStyle().getItemSpacingX();
         float rowWidth = Math.max(1f, ImGui.getContentRegionAvailX());
+        float pad = ImGui.getStyle().getFramePaddingX() * 2f;
+
+        boolean dirty = windowSession != null && windowSession.isDirty();
+        renderProfilePipelineChips(ctx, road, dirty);
 
         boolean canUndo = windowSession != null && windowSession.canUndo();
         boolean canRedo = windowSession != null && windowSession.canRedo();
         boolean computing = windowSession != null
             && road != null
             && windowSession.voxelPreview(road.getId()).state() == VoxelProfilePreviewState.COMPUTING;
-        boolean previewStale = (windowSession != null && windowSession.isDirty())
-            || profileEditSession.isDirty()
-            || ctx.previewManager().needsPreviewRecalc();
 
         String undoLabel = PlotI18n.tr("plugin.road.profile_editor_undo");
         String redoLabel = PlotI18n.tr("plugin.road.profile_editor_redo");
         String voxelLabel = PlotI18n.tr("plugin.road.update_voxel_profile");
-        String previewLabel = PlotI18n.tr("plugin.road.update_road_preview");
-        float pad = ImGui.getStyle().getFramePaddingX() * 2f;
-        float minFourWide = Math.max(
-            ImGui.calcTextSize(previewLabel).x,
-            Math.max(ImGui.calcTextSize(voxelLabel).x, 64f)) + pad;
-        boolean twoColumns = (rowWidth - spacing * 3f) / 4f < minFourWide;
-        float toolWidth = twoColumns
-            ? (rowWidth - spacing) / 2f
-            : (rowWidth - spacing * 3f) / 4f;
+        String restoreLabel = PlotI18n.tr("plugin.road.profile_editor_restore");
+        String cancelLabel = PlotI18n.tr("plugin.road.profile_editor_cancel");
+        String confirmLabel = PlotI18n.tr("plugin.road.profile_editor_confirm");
+
+        float undoW = ImGui.calcTextSize(undoLabel).x + pad;
+        float redoW = ImGui.calcTextSize(redoLabel).x + pad;
+        float voxelW = ImGui.calcTextSize(voxelLabel).x + pad;
+        float restoreMin = ImGui.calcTextSize(restoreLabel).x + pad;
+        float cancelMin = ImGui.calcTextSize(cancelLabel).x + pad;
+        float confirmMin = ImGui.calcTextSize(confirmLabel).x + pad;
+        float toolsWidth = undoW + redoW + voxelW + spacing * 2f;
+        float commitMinTotal = restoreMin + cancelMin + confirmMin + spacing * 2f;
+        // 一行：工具紧凑宽度 + 剩余均分给提交组；过窄则拆两行避免中文标签被挤没。
+        boolean oneRow = rowWidth >= toolsWidth + spacing + commitMinTotal;
 
         if (!canUndo) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(undoLabel + "##profile_undo", toolWidth, 0)) {
+        if (ImGui.button(undoLabel + "##profile_undo", undoW, 0)) {
             host.undoEditorSession(ctx);
         }
         if (!canUndo) {
             ImGui.endDisabled();
         }
-        ImGui.sameLine();
+        ImGui.sameLine(0f, spacing);
         if (!canRedo) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(redoLabel + "##profile_redo", toolWidth, 0)) {
+        if (ImGui.button(redoLabel + "##profile_redo", redoW, 0)) {
             host.redoEditorSession(ctx);
         }
         if (!canRedo) {
             ImGui.endDisabled();
         }
-        if (!twoColumns) {
-            ImGui.sameLine();
-        }
+        ImGui.sameLine(0f, spacing);
         if (computing || road == null || windowSession == null) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(voxelLabel + "##update_voxel_profile", toolWidth, 0) && road != null) {
+        if (ImGui.button(voxelLabel + "##update_voxel_profile", voxelW, 0) && road != null) {
             host.requestVoxelPreview(ctx, road);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
@@ -189,44 +193,31 @@ public final class VerticalProfileEditorChrome {
         if (computing || road == null || windowSession == null) {
             ImGui.endDisabled();
         }
-        ImGui.sameLine();
-        if (!previewStale) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(previewLabel + "##profile_editor_update_preview", toolWidth, 0)) {
-            host.runConfirmAndBuildPreview(ctx, liveNetwork);
-        }
-        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.update_road_preview_hint"));
-        }
-        if (!previewStale) {
-            ImGui.endDisabled();
-        }
 
-        boolean dirty = windowSession != null && windowSession.isDirty();
-        renderProfilePipelineChips(ctx, road, dirty);
+        float commitAvail = oneRow
+            ? Math.max(1f, rowWidth - toolsWidth - spacing)
+            : rowWidth;
+        if (oneRow) {
+            ImGui.sameLine(0f, spacing);
+        }
+        float commitWidth = Math.max(
+            Math.max(restoreMin, Math.max(cancelMin, confirmMin)),
+            (commitAvail - spacing * 2f) / 3f);
 
-        float commitWidth = (rowWidth - spacing * 2f) / 3f;
         if (!dirty) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.profile_editor_restore") + "##profile_restore",
-                commitWidth,
-                0)) {
+        if (ImGui.button(restoreLabel + "##profile_restore", commitWidth, 0)) {
             host.restoreWindowSession();
         }
         if (!dirty) {
             ImGui.endDisabled();
         }
-        ImGui.sameLine();
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.profile_editor_cancel") + "##profile_cancel",
-                commitWidth,
-                0)) {
+        ImGui.sameLine(0f, spacing);
+        if (ImGui.button(cancelLabel + "##profile_cancel", commitWidth, 0)) {
             host.requestEditorClose(ctx, liveNetwork, true);
         }
-        ImGui.sameLine();
+        ImGui.sameLine(0f, spacing);
         if (dirty) {
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, PluginUiColors.INFO_BLUE);
@@ -236,10 +227,7 @@ public final class VerticalProfileEditorChrome {
         if (confirmDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.road.profile_editor_confirm") + "##profile_confirm",
-                commitWidth,
-                0)) {
+        if (ImGui.button(confirmLabel + "##profile_confirm", commitWidth, 0)) {
             host.applyWindowSessionConfirm(ctx, liveNetwork);
         }
         if (confirmDisabled && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
@@ -251,6 +239,8 @@ public final class VerticalProfileEditorChrome {
         if (dirty) {
             ImGui.popStyleColor(3);
         }
+
+        host.renderFooterLegend(ctx, road);
     }
 
     /**

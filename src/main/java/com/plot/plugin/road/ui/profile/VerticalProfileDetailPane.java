@@ -77,14 +77,6 @@ public final class VerticalProfileDetailPane {
         void deleteProfilePvi(RoadUiContext ctx, RoadNetwork network, Road road, int pviIndex);
 
         boolean isChartDerivedDataStale(Road road);
-
-        void renderEditorLegend(
-                RoadUiContext ctx,
-                Road road,
-                List<RoadProfileIntersection> intersections,
-                boolean flatMode,
-                boolean showBuildProfileLine,
-                RoadProfileChartData chart);
     }
 
     private final Host host;
@@ -102,7 +94,6 @@ public final class VerticalProfileDetailPane {
             RoadProfileChartData effectiveChart,
             RoadSystemConfig config,
             boolean flatMode,
-            boolean showBuildProfileLine,
             float maxGrade,
             float canvasLength) {
         ProfileEditSession profileEditSession = host.profileEditSession();
@@ -132,8 +123,6 @@ public final class VerticalProfileDetailPane {
             true,
             ImGuiWindowFlags.AlwaysVerticalScrollbar);
         try {
-            host.renderEditorLegend(
-                ctx, road, intersections, flatMode, showBuildProfileLine, effectiveChart);
             renderQualityWarningsOnly(
                 effectiveChart,
                 road,
