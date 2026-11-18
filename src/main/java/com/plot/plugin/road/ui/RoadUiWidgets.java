@@ -233,15 +233,39 @@ public final class RoadUiWidgets {
             String popupId,
             boolean openRequest,
             Runnable onOpenRequested) {
+        return beginDeferredPopupModal(
+            popupId, openRequest, onOpenRequested, DEFERRED_MODAL_MIN_WIDTH, Float.MAX_VALUE);
+    }
+
+    /**
+     * 同 {@link #beginDeferredPopupModal(String, boolean, Runnable)}，但锁死水平宽度、高度仍可自动增高。
+     * 适合「宽度刚好放下按钮行、正文按宽换行」的确认框。
+     */
+    public static boolean beginDeferredPopupModalFixedWidth(
+            String popupId,
+            boolean openRequest,
+            Runnable onOpenRequested,
+            float width) {
+        float w = Math.max(1f, width);
+        return beginDeferredPopupModal(popupId, openRequest, onOpenRequested, w, w);
+    }
+
+    public static boolean beginDeferredPopupModal(
+            String popupId,
+            boolean openRequest,
+            Runnable onOpenRequested,
+            float minWidth,
+            float maxWidth) {
         if (openRequest) {
             ImGui.openPopup(popupId);
             if (onOpenRequested != null) {
                 onOpenRequested.run();
             }
         }
-        float minWidth = DEFERRED_MODAL_MIN_WIDTH;
-        ImGui.setNextWindowSize(minWidth, 0f, ImGuiCond.Appearing);
-        ImGui.setNextWindowSizeConstraints(minWidth, 0f, Float.MAX_VALUE, Float.MAX_VALUE);
+        float minW = Math.max(1f, minWidth);
+        float maxW = Math.max(minW, maxWidth);
+        ImGui.setNextWindowSize(minW, 0f, ImGuiCond.Appearing);
+        ImGui.setNextWindowSizeConstraints(minW, 0f, maxW, Float.MAX_VALUE);
         float cx = ImGui.getIO().getDisplaySizeX() * 0.5f;
         float cy = ImGui.getIO().getDisplaySizeY() * 0.5f;
         ImGui.setNextWindowPos(cx, cy, ImGuiCond.Appearing, 0.5f, 0.5f);

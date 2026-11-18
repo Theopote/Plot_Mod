@@ -31,8 +31,8 @@ public final class RoadFloatingEditorShell {
     static final float CONFLICT_BANNER_RESERVE = 52f;
     /** 窄面板阈值：低于此宽度时页脚按钮换行排列。 */
     static final float NARROW_PANEL_WIDTH = 420f;
-    /** 页脚「取消 / 确认」按钮宽度（比纯文字默认框更易点）。 */
-    static final float FOOTER_ACTION_BUTTON_WIDTH = 96f;
+    /** 页脚操作按钮最小宽度；文案更长时三者一起加宽。 */
+    static final float FOOTER_ACTION_BUTTON_MIN_WIDTH = 96f;
 
     public static final int WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse
@@ -180,7 +180,7 @@ public final class RoadFloatingEditorShell {
         if (onClose != null
                 && ImGui.button(
                     PlotI18n.tr("button.plot.close") + "##readonly_close",
-                    FOOTER_ACTION_BUTTON_WIDTH,
+                    FOOTER_ACTION_BUTTON_MIN_WIDTH,
                     0)) {
             onClose.run();
         }
@@ -194,8 +194,17 @@ public final class RoadFloatingEditorShell {
             Runnable onConfirm) {
         ImGui.separator();
         boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH;
-        if (dirty && onRestore != null) {
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.restore") + "##restore")) {
+        boolean showRestore = dirty && onRestore != null;
+        String restoreLabel = PlotI18n.tr("plugin.road.floating_editor.restore");
+        String cancelLabel = PlotI18n.tr("button.plot.cancel");
+        String confirmLabel = PlotI18n.tr("plugin.road.floating_editor.confirm");
+        float buttonWidth = equalFooterActionButtonWidth(
+            showRestore ? restoreLabel : null,
+            onCancel != null ? cancelLabel : null,
+            onConfirm != null ? confirmLabel : null);
+
+        if (showRestore) {
+            if (ImGui.button(restoreLabel + "##restore", buttonWidth, 0)) {
                 onRestore.run();
             }
             if (!narrow) {
@@ -203,10 +212,7 @@ public final class RoadFloatingEditorShell {
             }
         }
         if (onCancel != null) {
-            if (ImGui.button(
-                    PlotI18n.tr("button.plot.cancel") + "##cancel",
-                    FOOTER_ACTION_BUTTON_WIDTH,
-                    0)) {
+            if (ImGui.button(cancelLabel + "##cancel", buttonWidth, 0)) {
                 onCancel.run();
             }
             if (!narrow) {
@@ -217,10 +223,7 @@ public final class RoadFloatingEditorShell {
             if (!dirty) {
                 ImGui.beginDisabled();
             }
-            if (ImGui.button(
-                    PlotI18n.tr("plugin.road.floating_editor.confirm") + "##confirm",
-                    FOOTER_ACTION_BUTTON_WIDTH,
-                    0)) {
+            if (ImGui.button(confirmLabel + "##confirm", buttonWidth, 0)) {
                 onConfirm.run();
             }
             if (!dirty) {
@@ -237,6 +240,25 @@ public final class RoadFloatingEditorShell {
         }
     }
 
+    /**
+     * 页脚操作钮等宽：至少 {@link #FOOTER_ACTION_BUTTON_MIN_WIDTH}，
+     * 并按当前可见标签中最宽文案加 FramePadding 抬高。
+     */
+    static float equalFooterActionButtonWidth(String... labels) {
+        float pad = ImGui.getStyle().getFramePaddingX() * 2f;
+        float width = FOOTER_ACTION_BUTTON_MIN_WIDTH;
+        if (labels == null) {
+            return width;
+        }
+        for (String label : labels) {
+            if (label == null || label.isBlank()) {
+                continue;
+            }
+            width = Math.max(width, ImGui.calcTextSize(label).x + pad);
+        }
+        return width;
+    }
+
     public static boolean renderCloseConfirmDialog(
             String popupId,
             boolean pending,
@@ -244,26 +266,33 @@ public final class RoadFloatingEditorShell {
             BooleanSupplier onApplyAndClose,
             Runnable onDiscardAndClose,
             Runnable onContinueEditing) {
-        if (!RoadUiWidgets.beginDeferredPopupModal(popupId, pending, clearPending)) {
+        String confirmLabel = PlotI18n.tr("plugin.road.floating_editor.confirm");
+        String discardLabel = PlotI18n.tr("plugin.road.floating_editor.discard");
+        String continueLabel = PlotI18n.tr("plugin.road.floating_editor.continue_edit");
+        float buttonWidth = equalFooterActionButtonWidth(confirmLabel, discardLabel, continueLabel);
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float padX = ImGui.getStyle().getWindowPaddingX();
+        // 宽度刚好放下三枚等宽按钮；高度随正文换行由 AlwaysAutoResize 抬高。
+        float windowWidth = buttonWidth * 3f + spacing * 2f + padX * 2f;
+        if (!RoadUiWidgets.beginDeferredPopupModalFixedWidth(
+                popupId, pending, clearPending, windowWidth)) {
             return false;
         }
         try {
-            // 不用 textWrapped：与 AlwaysAutoResize 叠加时易在窄宽下逐字折行。
-            ImGui.text(PlotI18n.tr("plugin.road.floating_editor.close_confirm_message"));
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.floating_editor.close_confirm_message"));
             ImGui.separator();
-            float buttonWidth = 120f;
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.confirm") + "##close_apply", buttonWidth, 0)) {
+            if (ImGui.button(confirmLabel + "##close_apply", buttonWidth, 0)) {
                 if (onApplyAndClose.getAsBoolean()) {
                     ImGui.closeCurrentPopup();
                 }
             }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.discard") + "##close_discard", buttonWidth, 0)) {
+            ImGui.sameLine(0f, spacing);
+            if (ImGui.button(discardLabel + "##close_discard", buttonWidth, 0)) {
                 onDiscardAndClose.run();
                 ImGui.closeCurrentPopup();
             }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.continue_edit") + "##close_continue", buttonWidth, 0)) {
+            ImGui.sameLine(0f, spacing);
+            if (ImGui.button(continueLabel + "##close_continue", buttonWidth, 0)) {
                 onContinueEditing.run();
                 ImGui.closeCurrentPopup();
             }
