@@ -102,12 +102,12 @@ public class RoadNetworkGenerator {
                 errors.add("junction " + report.nodeId() + " postMerge blocking:"
                     + " missingSurface=" + report.postMergeMissingSurfaceColumns()
                     + " protectedLosses=" + report.postMergeProtectedLosses()
-                    + " disconnectedTunnel=" + report.disconnectedTunnelComponents());
+                    + " disconnectedTunnel=" + report.disconnectedTunnelComponents()
+                    + " surfaceYMismatch=" + report.postMergeSurfaceYMismatches());
             }
             if (report.hasAdvisoryPostMergeIssues()) {
                 warnings.add("junction " + report.nodeId() + " postMerge advisory:"
                     + " semanticMismatch=" + report.postMergeSurfaceSemanticMismatches()
-                    + " surfaceYMismatch=" + report.postMergeSurfaceYMismatches()
                     + " undesignedProtrusions=" + report.postMergeUndesignedProtrusions()
                     + " crossLayerLeaks=" + report.crossLayerLeaks());
             }

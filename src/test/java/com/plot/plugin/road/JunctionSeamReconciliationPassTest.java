@@ -4,9 +4,11 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
 import com.plot.plugin.road.pipeline.corridor.JunctionElevationField;
 import com.plot.plugin.road.pipeline.corridor.JunctionFilletElevationLoft;
+import com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface;
 import com.plot.plugin.road.pipeline.corridor.JunctionSeamReconciliationPass;
 import com.plot.plugin.road.pipeline.corridor.JunctionValidationManifest;
 import com.plot.plugin.road.pipeline.corridor.JunctionWorldFootprint;
+import com.plot.plugin.road.pipeline.corridor.UnderpassPavementSealPass;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -414,7 +417,103 @@ class JunctionSeamReconciliationPassTest {
     }
 
     @Test
-    void overlappingJunctionsWithDifferentTargetYAreOrderIndependent() {
+    void unconnectedFootprintOverlapKeepsBothTargetYsOrderIndependent() {
+        OverlapFixture fixture = overlapFixture(64, 66);
+        RoadGenerationResult ab = seedOverlapAggregate(fixture.filletColumn(), 64, 66);
+        RoadGenerationResult ba = seedOverlapAggregate(fixture.filletColumn(), 64, 66);
+
+        // 无网络 / 无共享边：不得 peerMax，两高度均保留。
+        JunctionSeamReconciliationPass.apply(ab, fixture.junctionsAb());
+        JunctionSeamReconciliationPass.apply(ba, fixture.junctionsBa());
+
+        BlockPos lowY = new BlockPos(fixture.filletColumn().worldX(), 64, fixture.filletColumn().worldZ());
+        BlockPos highY = new BlockPos(fixture.filletColumn().worldX(), 66, fixture.filletColumn().worldZ());
+        assertEquals("minecraft:stone", ab.placementRecords.get(highY).newBlockId);
+        assertEquals("minecraft:stone", ba.placementRecords.get(highY).newBlockId);
+        // 低处若已有实体应保留；若仅靠回填，至少高处一致且顺序无关。
+        assertEquals(
+            ab.placementRecords.containsKey(lowY) ? ab.placementRecords.get(lowY).newBlockId : null,
+            ba.placementRecords.containsKey(lowY) ? ba.placementRecords.get(lowY).newBlockId : null);
+        assertEquals("minecraft:stone_bricks",
+            ab.placementRecords.get(new BlockPos(fixture.filletColumn().worldX(), 70, fixture.filletColumn().worldZ()))
+                .newBlockId);
+        assertEquals("minecraft:smooth_stone",
+            ab.placementRecords.get(new BlockPos(fixture.filletColumn().worldX(), 80, fixture.filletColumn().worldZ()))
+                .newBlockId);
+    }
+
+    @Test
+    void connectedSameLayerOverlapNegotiatesSharedYOrderIndependent() {
+        OverlapFixture fixture = overlapFixtureAtGrade(64, 66);
+        RoadNetwork network = new RoadNetwork();
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(20, 0));
+        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        junctions.put(a.getId(), fixture.lowBlocks());
+        junctions.put(b.getId(), fixture.highBlocks());
+        network.createEdge(a.getId(), b.getId(),
+            List.of(a.getPosition(), b.getPosition()));
+
+        RoadGenerationResult ab = seedOverlapAggregate(fixture.filletColumn(), 64, 66);
+        RoadGenerationResult ba = seedOverlapAggregate(fixture.filletColumn(), 64, 66);
+
+        JunctionSeamReconciliationPass.apply(ab, junctions, network);
+        JunctionSeamReconciliationPass.apply(
+            ba, new LinkedHashMap<>(Map.of(b.getId(), fixture.highBlocks(), a.getId(), fixture.lowBlocks())), network);
+
+        BlockPos lowY = new BlockPos(fixture.filletColumn().worldX(), 64, fixture.filletColumn().worldZ());
+        BlockPos highY = new BlockPos(fixture.filletColumn().worldX(), 66, fixture.filletColumn().worldZ());
+        assertEquals("minecraft:stone", ab.placementRecords.get(highY).newBlockId);
+        assertEquals("minecraft:stone", ba.placementRecords.get(highY).newBlockId);
+        assertTrue(isAirOrMissing(ab, lowY), "same-layer connected peers negotiate max Y");
+        assertTrue(isAirOrMissing(ba, lowY));
+    }
+
+    @Test
+    void seamClearDropsExpectedSoSealDoesNotRestore() {
+        OverlapFixture fixture = overlapFixture(64, 64);
+        ColumnKey column = fixture.filletColumn();
+        BlockPos low = new BlockPos(column.worldX(), 64, column.worldZ());
+        BlockPos spike = new BlockPos(column.worldX(), 66, column.worldZ());
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        plant(aggregate, spike, "minecraft:stone", RoadSolidLayer.ROAD);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            spike, "minecraft:stone", RoadSolidLayer.ROAD, "stale"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            low, "minecraft:stone", RoadSolidLayer.ROAD, "keep"));
+
+        JunctionSeamReconciliationPass.apply(aggregate, Map.of("n0", fixture.lowBlocks()));
+        assertTrue(isAirOrMissing(aggregate, spike));
+        assertFalse(aggregate.expectedRoadSurfaces.containsKey(spike),
+            "cleared leftover must drop ExpectedRoadSurface");
+
+        UnderpassPavementSealPass.apply(aggregate);
+        assertTrue(isAirOrMissing(aggregate, spike),
+            "seal must not restore seam-cleared leftover from stale expectation");
+    }
+
+    private record OverlapFixture(
+            ColumnKey filletColumn,
+            RoadJunctionGenerator.JunctionBlocks lowBlocks,
+            RoadJunctionGenerator.JunctionBlocks highBlocks) {
+        Map<String, RoadJunctionGenerator.JunctionBlocks> junctionsAb() {
+            return new LinkedHashMap<>(Map.of("a", lowBlocks, "b", highBlocks));
+        }
+
+        Map<String, RoadJunctionGenerator.JunctionBlocks> junctionsBa() {
+            return new LinkedHashMap<>(Map.of("b", highBlocks, "a", lowBlocks));
+        }
+    }
+
+    private static OverlapFixture overlapFixture(int lowY, int highY) {
+        return overlapFixture(lowY, highY, true);
+    }
+
+    private static OverlapFixture overlapFixtureAtGrade(int lowY, int highY) {
+        return overlapFixture(lowY, highY, false);
+    }
+
+    private static OverlapFixture overlapFixture(int lowY, int highY, boolean withElevatedDeck) {
         JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
             new Vec2d(8, 8),
             new Vec2d(3, 8),
@@ -446,47 +545,28 @@ class JunctionSeamReconciliationPassTest {
         JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, null);
         ColumnKey filletColumn = footprint.filletAdditions().iterator().next();
         JunctionElevationField lowField = JunctionElevationField.build(
-            footprint, JunctionFilletElevationLoft.inactive(64), columns, 64);
+            footprint, JunctionFilletElevationLoft.inactive(lowY), columns, lowY);
         JunctionElevationField highField = JunctionElevationField.build(
-            footprint, JunctionFilletElevationLoft.inactive(66), columns, 66);
-        assertEquals(64, lowField.surfaceY(filletColumn));
-        assertEquals(66, highField.surfaceY(filletColumn));
+            footprint, JunctionFilletElevationLoft.inactive(highY), columns, highY);
 
-        RoadGenerationResult ab = seedOverlapAggregate(filletColumn, 64, 66);
-        RoadGenerationResult ba = seedOverlapAggregate(filletColumn, 64, 66);
-
+        Integer deckY = withElevatedDeck ? 80 : null;
         RoadJunctionGenerator.JunctionBlocks low = new RoadJunctionGenerator.JunctionBlocks();
         low.setElevationField(lowField);
-        low.setValidationManifest(liningAndDeckManifest("low", filletColumn, 64));
+        low.setValidationManifest(liningAndDeckManifest("low", filletColumn, lowY, deckY));
         RoadJunctionGenerator.JunctionBlocks high = new RoadJunctionGenerator.JunctionBlocks();
         high.setElevationField(highField);
-        high.setValidationManifest(liningAndDeckManifest("high", filletColumn, 66));
-
-        JunctionSeamReconciliationPass.apply(ab, new LinkedHashMap<>(Map.of("a", low, "b", high)));
-        JunctionSeamReconciliationPass.apply(ba, new LinkedHashMap<>(Map.of("b", high, "a", low)));
-
-        BlockPos lowY = new BlockPos(filletColumn.worldX(), 64, filletColumn.worldZ());
-        BlockPos highY = new BlockPos(filletColumn.worldX(), 66, filletColumn.worldZ());
-        BlockPos lining = new BlockPos(filletColumn.worldX(), 70, filletColumn.worldZ());
-        BlockPos deck = new BlockPos(filletColumn.worldX(), 80, filletColumn.worldZ());
-
-        assertEquals(ab.placementRecords.get(highY).newBlockId, ba.placementRecords.get(highY).newBlockId,
-            "A→B and B→A must agree on canonical (max) pavement Y");
-        assertEquals("minecraft:stone", ab.placementRecords.get(highY).newBlockId);
-        assertTrue(isAirOrMissing(ab, lowY), "lower peer target must not leave a second ROAD deck");
-        assertTrue(isAirOrMissing(ba, lowY));
-        assertEquals("minecraft:stone_bricks", ab.placementRecords.get(lining).newBlockId,
-            "tunnel lining must survive overlapping seam reconcile");
-        assertEquals("minecraft:stone_bricks", ba.placementRecords.get(lining).newBlockId);
-        assertEquals("minecraft:smooth_stone", ab.placementRecords.get(deck).newBlockId,
-            "elevated deck must survive");
-        assertEquals("minecraft:smooth_stone", ba.placementRecords.get(deck).newBlockId);
+        high.setValidationManifest(liningAndDeckManifest("high", filletColumn, highY, deckY));
+        return new OverlapFixture(filletColumn, low, high);
     }
 
     private static RoadGenerationResult seedOverlapAggregate(
             ColumnKey filletColumn, int lowY, int highY) {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         plant(aggregate, new BlockPos(filletColumn.worldX(), highY + 2, filletColumn.worldZ()),
+            "minecraft:stone", RoadSolidLayer.ROAD);
+        plant(aggregate, new BlockPos(filletColumn.worldX(), lowY, filletColumn.worldZ()),
+            "minecraft:stone", RoadSolidLayer.ROAD);
+        plant(aggregate, new BlockPos(filletColumn.worldX(), highY, filletColumn.worldZ()),
             "minecraft:stone", RoadSolidLayer.ROAD);
         BlockPos lining = new BlockPos(filletColumn.worldX(), 70, filletColumn.worldZ());
         plant(aggregate, lining, "minecraft:stone_bricks", RoadSolidLayer.TUNNEL);
@@ -498,7 +578,7 @@ class JunctionSeamReconciliationPassTest {
     }
 
     private static JunctionValidationManifest liningAndDeckManifest(
-            String nodeId, ColumnKey column, int ignoredTargetY) {
+            String nodeId, ColumnKey column, int junctionY, Integer elevatedDeckY) {
         BlockPos lining = new BlockPos(column.worldX(), 70, column.worldZ());
         return new JunctionValidationManifest(
             nodeId,
@@ -506,8 +586,8 @@ class JunctionSeamReconciliationPassTest {
             List.of(lining),
             List.of(),
             List.of(),
-            64,
-            80,
+            junctionY,
+            elevatedDeckY,
             0,
             0);
     }
@@ -524,4 +604,5 @@ class JunctionSeamReconciliationPassTest {
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
     }
 }
+
 

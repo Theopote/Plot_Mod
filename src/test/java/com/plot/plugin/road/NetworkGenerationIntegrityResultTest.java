@@ -55,7 +55,7 @@ class NetworkGenerationIntegrityResultTest {
         assertFalse(result.hasPartialFailure());
 
         JunctionConstructionReport advisory = JunctionConstructionReport.empty("n-advisory")
-            .withPostMerge(0, 2, 0, 0, 1, 1, 1);
+            .withPostMerge(0, 2, 0, 0, 1, 0, 1);
         result.mergeJunctionReport(advisory);
         result.publishJunctionPostMergeDiagnostics(advisory);
         assertFalse(result.hasPartialFailure(), "advisory postMerge must not block build");
@@ -69,6 +69,18 @@ class NetworkGenerationIntegrityResultTest {
         assertTrue(result.partialFailureDetails().stream()
             .anyMatch(detail -> detail.contains("postMergeBlocking") && detail.contains("n-block")));
         assertTrue(result.getErrors().stream().anyMatch(error -> error.contains("postMerge blocking")));
+    }
+
+    @Test
+    void surfaceYMismatchBlocksBuildAsCriticalElevationBreak() {
+        var result = new RoadNetworkGenerator.NetworkGenerationResult();
+        JunctionConstructionReport yBreak = JunctionConstructionReport.empty("n-y")
+            .withPostMerge(0, 0, 0, 0, 0, 2, 0);
+        result.mergeJunctionReport(yBreak);
+        result.publishJunctionPostMergeDiagnostics(yBreak);
+        assertTrue(result.hasPartialFailure());
+        assertTrue(yBreak.hasBlockingPostMergeIssues());
+        assertFalse(yBreak.hasAdvisoryPostMergeIssues());
     }
 
     @Test

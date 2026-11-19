@@ -35,17 +35,17 @@ public record JunctionConstructionReport(
             nodeId, 0, 0, 0, 0, 0, false, 0, 0, 0, 0, 0, 0, 0, 0, false);
     }
 
-    /** 缺路面 / 保护破坏 / 隧道连通断裂 → 阻断建造（仅终态字段）。 */
+    /** 缺路面 / 保护破坏 / 隧道连通断裂 / 设计标高错位 → 阻断建造（仅终态字段）。 */
     public boolean hasBlockingPostMergeIssues() {
         return postMergeMissingSurfaceColumns > 0
             || postMergeProtectedLosses > 0
-            || disconnectedTunnelComponents > 0;
+            || disconnectedTunnelComponents > 0
+            || postMergeSurfaceYMismatches > 0;
     }
 
-    /** 语义偏差等轻微项 → 仅警告，不单独阻断。 */
+    /** 材质语义偏差等轻微项 → 仅警告，不单独阻断。 */
     public boolean hasAdvisoryPostMergeIssues() {
         return postMergeSurfaceSemanticMismatches > 0
-            || postMergeSurfaceYMismatches > 0
             || postMergeUndesignedProtrusions > 0
             || crossLayerLeaks > 0;
     }
