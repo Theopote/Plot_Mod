@@ -2,9 +2,8 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadJunctionGenerator;
-import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.corridor.ColumnDesignElevationPlanner.ColumnElevationPlan;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
@@ -21,8 +20,8 @@ import java.util.Set;
  * 最终体素局部接缝修整：在道路/路口合并之后、世界写入之前，
  * 仅修正授权范围内的标高冲突、圆角叠层残留与洞腔内残留侧墙；不重算几何，不补边坡。
  * <p>
- * 重叠路口标高：同层且拓扑相连才协商统一 Y；立交/大跨度或无连接足迹重叠则各用自身 Y，
- * 且不得剥掉对端声称的路面标高。清理路面时同步撤销 {@code expectedRoadSurfaces}，避免封口回铺。
+ * 重叠列设计 Y 由 {@link ColumnDesignElevationPlanner} 在合并前一次算定；本 Pass 只消费，
+ * 清理路面时同步撤销 {@code expectedRoadSurfaces}，避免封口回铺。
  */
 public final class JunctionSeamReconciliationPass {
     /** 圆角抬高时，向下剥离进口路面/衬砌/装饰环的最大深度（格）。 */
@@ -34,7 +33,7 @@ public final class JunctionSeamReconciliationPass {
     public static void apply(
             RoadGenerationResult aggregate,
             Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
-        apply(aggregate, junctionResults, null);
+        apply(aggregate, junctionResults, (RoadNetwork) null);
     }
 
     public static void apply(
@@ -45,7 +44,29 @@ public final class JunctionSeamReconciliationPass {
             return;
         }
         Map<ColumnKey, List<BlockPos>> solidsByColumn = indexSolidPlacements(aggregate);
-        ColumnElevationPlan plan = resolveColumnElevationPlan(junctionResults, network);
+        ColumnElevationPlan plan = ColumnDesignElevationPlanner.plan(junctionResults, network);
+        apply(aggregate, junctionResults, plan, solidsByColumn);
+    }
+
+    /**
+     * 使用已算定的列设计标高规划（assemble 前一次规划时可注入，避免接缝内再裁决）。
+     */
+    public static void apply(
+            RoadGenerationResult aggregate,
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            ColumnElevationPlan plan) {
+        if (aggregate == null || junctionResults == null || junctionResults.isEmpty()) {
+            return;
+        }
+        apply(aggregate, junctionResults, plan, indexSolidPlacements(aggregate));
+    }
+
+    private static void apply(
+            RoadGenerationResult aggregate,
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            ColumnElevationPlan plan,
+            Map<ColumnKey, List<BlockPos>> solidsByColumn) {
+        ColumnElevationPlan safePlan = plan != null ? plan : ColumnElevationPlan.empty();
         for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
             RoadJunctionGenerator.JunctionBlocks blocks = entry.getValue();
             if (blocks == null) {
@@ -56,207 +77,16 @@ public final class JunctionSeamReconciliationPass {
                 entry.getKey(),
                 blocks,
                 solidsByColumn,
-                plan);
+                safePlan);
         }
     }
 
-    /**
-     * 按列解析各路口设计 Y，以及不得被其它路口剥离的对端路面 Y。
-     */
+    /** @deprecated 保留测试兼容；新代码请用 {@link ColumnDesignElevationPlanner#plan}. */
+    @Deprecated
     static ColumnElevationPlan resolveColumnElevationPlan(
             Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
             RoadNetwork network) {
-        Map<ColumnKey, List<ColumnClaim>> claimsByColumn = new HashMap<>();
-        if (junctionResults != null) {
-            for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
-                String nodeId = entry.getKey();
-                RoadJunctionGenerator.JunctionBlocks blocks = entry.getValue();
-                if (nodeId == null || blocks == null || blocks.elevationField() == null) {
-                    continue;
-                }
-                JunctionValidationManifest manifest = blocks.validationManifest();
-                int junctionY = manifest != null ? manifest.junctionY() : blocks.elevationField().junctionY();
-                boolean gradeSeparated = isGradeSeparatedClaim(network, nodeId, manifest);
-                for (Map.Entry<ColumnKey, Integer> target : blocks.elevationField().targetYByColumn().entrySet()) {
-                    if (target.getKey() == null || target.getValue() == null) {
-                        continue;
-                    }
-                    claimsByColumn
-                        .computeIfAbsent(target.getKey(), ignored -> new ArrayList<>())
-                        .add(new ColumnClaim(nodeId, target.getValue(), junctionY, gradeSeparated));
-                }
-            }
-        }
-
-        Map<String, Map<ColumnKey, Integer>> designYByJunction = new HashMap<>();
-        Map<ColumnKey, Set<Integer>> preservedYsByColumn = new HashMap<>();
-
-        for (Map.Entry<ColumnKey, List<ColumnClaim>> entry : claimsByColumn.entrySet()) {
-            ColumnKey column = entry.getKey();
-            List<ColumnClaim> claims = entry.getValue();
-            if (claims.size() == 1) {
-                ColumnClaim only = claims.getFirst();
-                designYByJunction
-                    .computeIfAbsent(only.nodeId(), ignored -> new HashMap<>())
-                    .put(column, only.targetY());
-                continue;
-            }
-
-            boolean keepBoth = false;
-            for (ColumnClaim claim : claims) {
-                if (claim.gradeSeparated()) {
-                    keepBoth = true;
-                    break;
-                }
-            }
-            if (!keepBoth) {
-                int minJy = Integer.MAX_VALUE;
-                int maxJy = Integer.MIN_VALUE;
-                for (ColumnClaim claim : claims) {
-                    minJy = Math.min(minJy, claim.junctionY());
-                    maxJy = Math.max(maxJy, claim.junctionY());
-                }
-                if (maxJy - minJy > JunctionFilletElevationLoft.SAME_LEVEL_Y_SPAN) {
-                    keepBoth = true;
-                }
-            }
-
-            if (keepBoth || network == null || !anyConnectedPair(claims, network)) {
-                // 立交 / 大跨度 / 无拓扑连接：各用自身 Y，并保护对端声称高度。
-                Set<Integer> preserved = preservedYsByColumn.computeIfAbsent(column, ignored -> new HashSet<>());
-                for (ColumnClaim claim : claims) {
-                    designYByJunction
-                        .computeIfAbsent(claim.nodeId(), ignored -> new HashMap<>())
-                        .put(column, claim.targetY());
-                    preserved.add(claim.targetY());
-                }
-                continue;
-            }
-
-            // 同层且至少一对相连：在相连子图内协商 max；孤立声明者仍用自身 Y。
-            List<Set<String>> components = connectedComponents(claims, network);
-            Map<String, Integer> claimY = new HashMap<>();
-            for (ColumnClaim claim : claims) {
-                claimY.put(claim.nodeId(), claim.targetY());
-            }
-            Set<Integer> preserved = preservedYsByColumn.computeIfAbsent(column, ignored -> new HashSet<>());
-            Set<String> negotiated = new HashSet<>();
-            for (Set<String> component : components) {
-                if (component.size() >= 2) {
-                    int negotiatedY = Integer.MIN_VALUE;
-                    for (String id : component) {
-                        negotiatedY = Math.max(negotiatedY, claimY.getOrDefault(id, Integer.MIN_VALUE));
-                    }
-                    for (String id : component) {
-                        designYByJunction
-                            .computeIfAbsent(id, ignored -> new HashMap<>())
-                            .put(column, negotiatedY);
-                        negotiated.add(id);
-                    }
-                    preserved.add(negotiatedY);
-                }
-            }
-            for (ColumnClaim claim : claims) {
-                if (negotiated.contains(claim.nodeId())) {
-                    continue;
-                }
-                designYByJunction
-                    .computeIfAbsent(claim.nodeId(), ignored -> new HashMap<>())
-                    .put(column, claim.targetY());
-                preserved.add(claim.targetY());
-            }
-        }
-
-        Map<ColumnKey, Set<Integer>> frozenPreserved = new HashMap<>();
-        for (var entry : preservedYsByColumn.entrySet()) {
-            frozenPreserved.put(entry.getKey(), Set.copyOf(entry.getValue()));
-        }
-        return new ColumnElevationPlan(designYByJunction, frozenPreserved);
-    }
-
-    private static boolean isGradeSeparatedClaim(
-            RoadNetwork network,
-            String nodeId,
-            JunctionValidationManifest manifest) {
-        if (manifest != null && manifest.hasGradeSeparation()) {
-            return true;
-        }
-        if (network == null || nodeId == null) {
-            return false;
-        }
-        RoadNode node = network.getNode(nodeId);
-        return node != null && (node.isGradeSeparated() || node.isStackGradeSeparated());
-    }
-
-    private static boolean anyConnectedPair(List<ColumnClaim> claims, RoadNetwork network) {
-        for (int i = 0; i < claims.size(); i++) {
-            for (int j = i + 1; j < claims.size(); j++) {
-                if (nodesShareEdge(network, claims.get(i).nodeId(), claims.get(j).nodeId())) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static List<Set<String>> connectedComponents(List<ColumnClaim> claims, RoadNetwork network) {
-        Map<String, Set<String>> adjacency = new HashMap<>();
-        for (ColumnClaim claim : claims) {
-            adjacency.put(claim.nodeId(), new HashSet<>());
-        }
-        for (int i = 0; i < claims.size(); i++) {
-            for (int j = i + 1; j < claims.size(); j++) {
-                String a = claims.get(i).nodeId();
-                String b = claims.get(j).nodeId();
-                if (nodesShareEdge(network, a, b)) {
-                    adjacency.get(a).add(b);
-                    adjacency.get(b).add(a);
-                }
-            }
-        }
-        List<Set<String>> components = new ArrayList<>();
-        Set<String> visited = new HashSet<>();
-        for (ColumnClaim claim : claims) {
-            if (visited.contains(claim.nodeId())) {
-                continue;
-            }
-            Set<String> component = floodComponent(claim.nodeId(), adjacency);
-            visited.addAll(component);
-            components.add(component);
-        }
-        return components;
-    }
-
-    private static Set<String> floodComponent(String start, Map<String, Set<String>> adjacency) {
-        Set<String> component = new HashSet<>();
-        List<String> stack = new ArrayList<>();
-        stack.add(start);
-        while (!stack.isEmpty()) {
-            String id = stack.removeLast();
-            if (!component.add(id)) {
-                continue;
-            }
-            stack.addAll(adjacency.getOrDefault(id, Set.of()));
-        }
-        return component;
-    }
-
-    private static boolean nodesShareEdge(RoadNetwork network, String a, String b) {
-        if (network == null || a == null || b == null || a.equals(b)) {
-            return false;
-        }
-        for (RoadEdge edge : network.getEdgesAtNode(a)) {
-            if (edge == null) {
-                continue;
-            }
-            if (a.equals(edge.getStartNodeId()) && b.equals(edge.getEndNodeId())) {
-                return true;
-            }
-            if (b.equals(edge.getStartNodeId()) && a.equals(edge.getEndNodeId())) {
-                return true;
-            }
-        }
-        return false;
+        return ColumnDesignElevationPlanner.plan(junctionResults, network);
     }
 
     /**
@@ -295,9 +125,7 @@ public final class JunctionSeamReconciliationPass {
             : Set.of();
         Integer elevatedDeckY = manifest != null ? manifest.elevatedDeckY() : null;
         Map<ColumnKey, List<BlockPos>> index = solidsByColumn != null ? solidsByColumn : Map.of();
-        Map<ColumnKey, Integer> designByColumn = plan != null
-            ? plan.designYByJunction().getOrDefault(nodeId, Map.of())
-            : Map.of();
+        ColumnElevationPlan safePlan = plan != null ? plan : ColumnElevationPlan.empty();
 
         for (Map.Entry<ColumnKey, Integer> entry : field.targetYByColumn().entrySet()) {
             ColumnKey column = entry.getKey();
@@ -305,10 +133,8 @@ public final class JunctionSeamReconciliationPass {
             if (column == null || targetY == null) {
                 continue;
             }
-            int designY = designByColumn.getOrDefault(column, targetY);
-            Set<Integer> preservedYs = plan != null
-                ? plan.preservedYsByColumn().getOrDefault(column, Set.of())
-                : Set.of();
+            int designY = safePlan.designY(nodeId, column, targetY);
+            Set<Integer> preservedYs = safePlan.preservedYs(column);
             JunctionWorldFootprint.ElevationRole role = field.role(column);
             reconcileColumn(
                 aggregate, column, designY, elevatedDeckY, protectedBlocks, preservedYs, role, index);
@@ -605,11 +431,4 @@ public final class JunctionSeamReconciliationPass {
         }
     }
 
-    record ColumnClaim(String nodeId, int targetY, int junctionY, boolean gradeSeparated) {
-    }
-
-    record ColumnElevationPlan(
-            Map<String, Map<ColumnKey, Integer>> designYByJunction,
-            Map<ColumnKey, Set<Integer>> preservedYsByColumn) {
-    }
 }

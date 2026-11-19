@@ -41,8 +41,11 @@ public final class RoadGenerationResultAssembler {
             }
         }
         long t2 = System.nanoTime();
+        // 合并前一次规划重叠列设计 Y；接缝只消费，不再内嵌裁决。
+        var columnPlan = com.plot.plugin.road.pipeline.corridor.ColumnDesignElevationPlanner.plan(
+            junctionResults, network);
         com.plot.plugin.road.pipeline.corridor.JunctionSeamReconciliationPass.apply(
-            aggregate, junctionResults, network);
+            aggregate, junctionResults, columnPlan);
         com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
         com.plot.plugin.road.pipeline.corridor.UnderpassPavementSealPass.apply(aggregate);
         long t3 = System.nanoTime();
