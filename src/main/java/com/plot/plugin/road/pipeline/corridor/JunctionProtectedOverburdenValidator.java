@@ -76,6 +76,14 @@ public final class JunctionProtectedOverburdenValidator {
             RoadJunctionGenerator.JunctionBlocks blocks,
             RoadGenerationResult aggregate,
             TerrainSampler terrain) {
+        return evaluate(blocks, aggregate, terrain, null);
+    }
+
+    public static Metrics evaluate(
+            RoadJunctionGenerator.JunctionBlocks blocks,
+            RoadGenerationResult aggregate,
+            TerrainSampler terrain,
+            PlacementRecordColumnIndex sharedColumnIndex) {
         if (blocks == null) {
             return new Metrics(0, 0, 0);
         }
@@ -87,7 +95,9 @@ public final class JunctionProtectedOverburdenValidator {
 
         // 一次索引路口 solids，避免对每个 (column,y) 全表扫描。
         ColumnSolidIndex solidIndex = ColumnSolidIndex.from(blocks);
-        PlacementRecordColumnIndex columnIndex = PlacementRecordColumnIndex.build(aggregate);
+        PlacementRecordColumnIndex columnIndex = sharedColumnIndex != null
+            ? sharedColumnIndex
+            : PlacementRecordColumnIndex.build(aggregate);
 
         if (context != null && terrain != null) {
             for (ColumnKey column : context.protectedCavityColumns()) {

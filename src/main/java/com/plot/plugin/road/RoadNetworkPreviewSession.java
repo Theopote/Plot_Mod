@@ -5,6 +5,7 @@ import com.plot.plugin.road.manager.RoadNetworkPreviewJob;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.corridor.FinalPlacementIndex;
 import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -46,6 +47,7 @@ public final class RoadNetworkPreviewSession {
     /** 合并后校验的路口游标。 */
     private int validationJunctionIndex;
     private PlacementRecordColumnIndex validationColumnIndex;
+    private FinalPlacementIndex validationFinalIndex;
     private AggregationStep aggregationStep = AggregationStep.PENDING;
     private Map<String, RoadProfileChartData> pendingRoadProfiles = Map.of();
     private RoadGenerationResult pendingAggregate;
@@ -164,6 +166,17 @@ public final class RoadNetworkPreviewSession {
 
     void setValidationColumnIndex(PlacementRecordColumnIndex validationColumnIndex) {
         this.validationColumnIndex = validationColumnIndex;
+    }
+
+    FinalPlacementIndex validationFinalIndex() {
+        return validationFinalIndex;
+    }
+
+    void setValidationFinalIndex(FinalPlacementIndex validationFinalIndex) {
+        this.validationFinalIndex = validationFinalIndex;
+        this.validationColumnIndex = validationFinalIndex != null
+            ? validationFinalIndex.placements()
+            : null;
     }
 
     /** 壳层+连通各扫一遍路口队列。 */

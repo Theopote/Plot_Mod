@@ -10,6 +10,7 @@ import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator;
+import com.plot.plugin.road.pipeline.corridor.FinalPlacementIndex;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.JunctionProtectedOverburdenValidator;
@@ -991,9 +992,10 @@ public class RoadNetworkGenerator {
         }
         TunnelFinalVoxelValidator.applyReportToResult(
             aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
-        // 路口覆土剔除后再做一次终态期望对照，门禁读最终方块而非边级中间累加。
+        // 路面终态汇总；隧道计数保持 TunnelFinalVoxelValidator 权威，不得被简化规则覆盖。
+        FinalPlacementIndex finalIndex = FinalPlacementIndex.build(aggregate);
         networkResult.recordFinalPlacementAcceptance(
-            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate));
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate, finalIndex));
         networkResult.recordAdjacentJunctionProfileViolations(
             AdjacentJunctionProfileContinuity.find(
                 profileNetwork,
@@ -1051,7 +1053,7 @@ public class RoadNetworkGenerator {
             networkResult.getJunctionReports().get(node.getId()));
 
         JunctionProtectedOverburdenValidator.Metrics overburden =
-            JunctionProtectedOverburdenValidator.evaluate(junctionBlocks, aggregate, terrain);
+            JunctionProtectedOverburdenValidator.evaluate(junctionBlocks, aggregate, terrain, index);
         if (overburden.protectedOverburdenAirCount() > 0
                 || overburden.unexpectedSurfaceElevationCount() > 0
                 || overburden.missingAuthorizedLiningCount() > 0) {
