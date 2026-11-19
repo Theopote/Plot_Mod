@@ -153,10 +153,10 @@ public record RoadCrossing(
     }
 
     /**
-     * 平交才应用圆角；立交返回 0。
+     * Crossing 单独解析时的圆角：立交为 0；{@code null} 视为未设置→0（不继承网络默认）。
      * <p>
-     * {@code cornerRadius == null} 表示默认关闭圆角（不再继承网络默认半径）；
-     * 仅显式正值时启用。
+     * 与节点组合解析请用 {@link com.plot.plugin.road.JunctionCornerRadius}：
+     * Crossing {@code null} 不得覆盖节点显式半径。
      */
     public double effectiveCornerRadius(double networkDefault) {
         if (type == CrossingType.GRADE_SEPARATED) {

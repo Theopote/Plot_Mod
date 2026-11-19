@@ -1277,40 +1277,8 @@ public class RoadJunctionGenerator {
                 .totalHardSurfaceWidthBlocks());
     }
 
-    /**
-     * 与画布预览一致：平交圆角以 Crossing 为权威，否则用节点/网络默认。
-     */
+    /** 与画布预览一致：见 {@link JunctionCornerRadius#resolve}。 */
     public static double resolveCornerRadius(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        double networkDefault = config != null ? config.getDefaultCornerRadius() : RoadNode.DEFAULT_CORNER_RADIUS;
-        if (node != null && (node.isGradeSeparated() || node.isStackGradeSeparated())) {
-            return 0.0;
-        }
-        RoadCrossing crossing = findAtGradeCrossingNear(network, node);
-        if (crossing != null) {
-            return crossing.effectiveCornerRadius(networkDefault);
-        }
-        // 无 Crossing / 节点覆盖时默认关闭圆角（不再自动套用网络默认半径）。
-        return node != null ? node.getEffectiveCornerRadius(networkDefault) : 0.0;
-    }
-
-    private static RoadCrossing findAtGradeCrossingNear(RoadNetwork network, RoadNode node) {
-        if (network == null || node == null || node.getPosition() == null) {
-            return null;
-        }
-        RoadCrossing best = null;
-        double bestDistance = 0.75;
-        for (RoadCrossing crossing : network.getCrossings().values()) {
-            if (crossing == null
-                    || crossing.type() != CrossingType.AT_GRADE
-                    || crossing.position() == null) {
-                continue;
-            }
-            double distance = crossing.position().distance(node.getPosition());
-            if (distance <= bestDistance) {
-                bestDistance = distance;
-                best = crossing;
-            }
-        }
-        return best;
+        return JunctionCornerRadius.resolve(node, network, config);
     }
 }

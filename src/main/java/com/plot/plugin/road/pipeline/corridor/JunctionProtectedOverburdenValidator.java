@@ -87,6 +87,7 @@ public final class JunctionProtectedOverburdenValidator {
 
         // 一次索引路口 solids，避免对每个 (column,y) 全表扫描。
         ColumnSolidIndex solidIndex = ColumnSolidIndex.from(blocks);
+        PlacementRecordColumnIndex columnIndex = PlacementRecordColumnIndex.build(aggregate);
 
         if (context != null && terrain != null) {
             for (ColumnKey column : context.protectedCavityColumns()) {
@@ -123,7 +124,7 @@ public final class JunctionProtectedOverburdenValidator {
                     continue;
                 }
                 if (!hasPavementAt(aggregate, solidIndex, column, expectedY)) {
-                    if (hasAnyPavementInColumn(aggregate, solidIndex, column)) {
+                    if (hasAnyPavementInColumn(aggregate, columnIndex, solidIndex, column)) {
                         elevationMismatch++;
                     }
                 }
@@ -240,20 +241,18 @@ public final class JunctionProtectedOverburdenValidator {
 
     private static boolean hasAnyPavementInColumn(
             RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex columnIndex,
             ColumnSolidIndex solidIndex,
             ColumnKey column) {
-        if (aggregate != null && aggregate.placementLayers != null) {
-            // 仅扫该世界列：用 xz 哈希桶，避免整表线性扫描。
-            for (var entry : aggregate.placementLayers.entrySet()) {
-                BlockPos pos = entry.getKey();
-                if (pos == null || pos.getX() != column.worldX() || pos.getZ() != column.worldZ()) {
+        if (columnIndex != null && aggregate != null) {
+            for (BlockPos pos : columnIndex.positionsInColumn(column.worldX(), column.worldZ())) {
+                RoadSolidLayer layer = columnIndex.layerAt(pos, aggregate);
+                if (!JunctionSeamReconciliationPass.isStackedPavementLayer(layer)) {
                     continue;
                 }
-                if (JunctionSeamReconciliationPass.isStackedPavementLayer(entry.getValue())) {
-                    BlockRecord record = aggregate.placementRecords.get(pos);
-                    if (record != null && !"minecraft:air".equals(record.newBlockId)) {
-                        return true;
-                    }
+                BlockRecord record = columnIndex.recordAt(pos);
+                if (record != null && !"minecraft:air".equals(record.newBlockId)) {
+                    return true;
                 }
             }
         }

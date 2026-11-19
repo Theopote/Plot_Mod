@@ -88,6 +88,28 @@ public class RoadNetworkGenerator {
             junctionReports.merge(report.nodeId(), report, JunctionConstructionReport::merge);
         }
 
+        /**
+         * 将 postMerge 严重项写入 errors（阻断建造），轻微项写入 warnings。
+         */
+        void publishJunctionPostMergeDiagnostics(JunctionConstructionReport report) {
+            if (report == null || report.nodeId() == null || report.nodeId().isBlank()) {
+                return;
+            }
+            if (report.hasBlockingPostMergeIssues()) {
+                errors.add("junction " + report.nodeId() + " postMerge blocking:"
+                    + " missingSurface=" + report.postMergeMissingSurfaceColumns()
+                    + " protectedLosses=" + report.postMergeProtectedLosses()
+                    + " disconnectedTunnel=" + report.disconnectedTunnelComponents());
+            }
+            if (report.hasAdvisoryPostMergeIssues()) {
+                warnings.add("junction " + report.nodeId() + " postMerge advisory:"
+                    + " semanticMismatch=" + report.postMergeSurfaceSemanticMismatches()
+                    + " surfaceYMismatch=" + report.postMergeSurfaceYMismatches()
+                    + " undesignedProtrusions=" + report.postMergeUndesignedProtrusions()
+                    + " crossLayerLeaks=" + report.crossLayerLeaks());
+            }
+        }
+
         public Set<String> getFailedEdgeIds() {
             return Collections.unmodifiableSet(failedEdgeIds);
         }
@@ -245,7 +267,9 @@ public class RoadNetworkGenerator {
                 || !failClosedJunctionIds.isEmpty()
                 || !protectedOverburdenViolationIds.isEmpty()
                 || adjacentJunctionProfileViolations.stream().anyMatch(
-                    AdjacentJunctionProfileContinuity.Violation::blocking);
+                    AdjacentJunctionProfileContinuity.Violation::blocking)
+                || junctionReports.values().stream()
+                    .anyMatch(JunctionConstructionReport::hasBlockingPostMergeIssues);
         }
 
         /**
@@ -276,6 +300,14 @@ public class RoadNetworkGenerator {
             }
             if (!missingJunctionValidationIds.isEmpty()) {
                 details.add("missingJunctionValidation=" + missingJunctionValidationIds);
+            }
+            for (JunctionConstructionReport report : junctionReports.values()) {
+                if (report != null && report.hasBlockingPostMergeIssues()) {
+                    details.add("postMergeBlocking node=" + report.nodeId()
+                        + " missingSurface=" + report.postMergeMissingSurfaceColumns()
+                        + " protectedLosses=" + report.postMergeProtectedLosses()
+                        + " disconnectedTunnel=" + report.disconnectedTunnelComponents());
+                }
             }
             for (AdjacentJunctionProfileContinuity.Violation violation : adjacentJunctionProfileViolations) {
                 if (violation.blocking()) {
@@ -354,9 +386,11 @@ public class RoadNetworkGenerator {
         if (network == null || terrain == null || network.getEdges().isEmpty()) {
             return RoadNetworkPreviewSession.empty(network);
         }
-        reconcileCrossingsForGeneration(network);
+        // 先拷贝再 reconcile：不得改写 live 路网的 Crossing registry。
+        RoadNetwork workingCopy = network.snapshot();
+        reconcileCrossingsForGeneration(workingCopy);
         SnapshotMaterialization materialization =
-            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(workingCopy);
         RoadNetwork generationNetwork = materialization.network();
         NetworkGenerationResult networkResult = new NetworkGenerationResult();
         networkResult.recordCrossingMaterialization(materialization.report());
@@ -493,6 +527,7 @@ public class RoadNetworkGenerator {
             return 0;
         }
         Set<String> failedEdgeIds = session.networkResult().getFailedEdgeIds();
+        Set<String> skippedEdgeIds = session.networkResult().getSkippedEdgeIds();
         Map<String, Integer> nodeElevations = session.nodeElevations();
         RoadNetwork generationNetwork = session.generationNetwork();
         NetworkGenerationResult networkResult = session.networkResult();
@@ -501,10 +536,10 @@ public class RoadNetworkGenerator {
                 if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
                 processed++;
                 long junctionStarted = System.nanoTime();
-                if (!shouldGenerateJunction(node, failedEdgeIds)) {
+                if (!shouldGenerateJunction(node, failedEdgeIds, skippedEdgeIds)) {
                     networkResult.recordSkippedJunction(
                         node.getId(),
-                        "connected edge generation failed");
+                        "connected edge generation failed or skipped");
                     continue;
                 }
                 RoadJunctionGenerator.JunctionBlocks junctionBlocks =
@@ -692,14 +727,29 @@ public class RoadNetworkGenerator {
     }
 
     /**
-     * 连接任一边生成失败时，不单独生成路口（避免「路口在、连接道路没了」）。
+     * 连接任一边生成失败或跳过时，不单独生成路口（避免「路口在、连接道路没了」）。
      */
     public static boolean shouldGenerateJunction(RoadNode node, Set<String> failedEdgeIds) {
-        if (node == null || failedEdgeIds == null || failedEdgeIds.isEmpty()) {
+        return shouldGenerateJunction(node, failedEdgeIds, Set.of());
+    }
+
+    public static boolean shouldGenerateJunction(
+            RoadNode node,
+            Set<String> failedEdgeIds,
+            Set<String> skippedEdgeIds) {
+        if (node == null) {
+            return true;
+        }
+        boolean checkFailed = failedEdgeIds != null && !failedEdgeIds.isEmpty();
+        boolean checkSkipped = skippedEdgeIds != null && !skippedEdgeIds.isEmpty();
+        if (!checkFailed && !checkSkipped) {
             return true;
         }
         for (String edgeId : node.getConnectedEdgeIds()) {
-            if (failedEdgeIds.contains(edgeId)) {
+            if (checkFailed && failedEdgeIds.contains(edgeId)) {
+                return false;
+            }
+            if (checkSkipped && skippedEdgeIds.contains(edgeId)) {
                 return false;
             }
         }
@@ -973,6 +1023,8 @@ public class RoadNetworkGenerator {
             postMerge.crossLayerLeaks(),
             postMerge.surfaceYMismatches(),
             postMerge.undesignedProtrusions()));
+        networkResult.publishJunctionPostMergeDiagnostics(
+            networkResult.getJunctionReports().get(node.getId()));
 
         JunctionProtectedOverburdenValidator.Metrics overburden =
             JunctionProtectedOverburdenValidator.evaluate(junctionBlocks, aggregate, terrain);

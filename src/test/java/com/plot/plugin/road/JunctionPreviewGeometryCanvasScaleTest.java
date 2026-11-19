@@ -37,7 +37,9 @@ class JunctionPreviewGeometryCanvasScaleTest {
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
         RoadCrossingReconciler.reconcileCrossings(network);
 
-        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        RoadCrossing crossing = network.getCrossings().values().iterator().next()
+            .withCornerRadius(4.0);
+        network.registerCrossing(crossing);
         JunctionGeometryResult blockGeom = JunctionPreviewGeometry.resolve(
             network, config, null, crossing.id(), null);
         assertFalse(blockGeom.fillets().isEmpty(), "block-space fillets required");
@@ -86,13 +88,16 @@ class JunctionPreviewGeometryCanvasScaleTest {
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
         RoadCrossingReconciler.reconcileCrossings(network);
-        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        RoadCrossing crossing = network.getCrossings().values().iterator().next()
+            .withCornerRadius(3.0);
+        network.registerCrossing(crossing);
 
         JunctionGeometryResult a = JunctionPreviewGeometry.resolve(
             network, config, null, crossing.id(), null);
         JunctionGeometryResult b = JunctionPreviewGeometry.resolve(
             network, config, null, crossing.id(), SnapshotCoordinateService.uniformScale(1.0));
 
+        assertFalse(a.fillets().isEmpty(), "identity projection needs fillets");
         assertEquals(a.fillets().size(), b.fillets().size());
         for (int i = 0; i < a.fillets().size(); i++) {
             assertEquals(a.fillets().get(i).center().x, b.fillets().get(i).center().x, 1e-4);
@@ -116,7 +121,9 @@ class JunctionPreviewGeometryCanvasScaleTest {
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
         RoadCrossingReconciler.reconcileCrossings(network);
-        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        RoadCrossing crossing = network.getCrossings().values().iterator().next()
+            .withCornerRadius(4.0);
+        network.registerCrossing(crossing);
 
         var unscaled = com.plot.plugin.road.overlay.RoadJunctionOverlayController.snapshot(
             network, builder, config, null, crossing.id(), null, true);

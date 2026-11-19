@@ -157,8 +157,7 @@ public final class JunctionPreviewGeometry {
         RoadNetwork materialized = RoadCrossingMaterializer.materializeForSnapshot(network);
         RoadNode junction = findNearbyJunction(materialized, crossing.position(), 1.25);
         if (junction != null && junction.isJunction() && !junction.isGradeSeparated()) {
-            junction.setCornerRadius(
-                crossing.cornerRadius() != null ? crossing.cornerRadius() : 0.0);
+            JunctionCornerRadius.applyToJunctionNode(junction, crossing);
             JunctionGeometryResult fromNode = fromNode(
                 materialized, config, junction, crossing, coordinates);
             if (fromNode.hasFillPolygon()) {
@@ -196,7 +195,7 @@ public final class JunctionPreviewGeometry {
             curbApproaches.add(new JunctionCurbFilletBuilder.Approach(
                 approach.direction(), approach.halfWidth()));
         }
-        double cornerBlocks = crossing.effectiveCornerRadius(config.getDefaultCornerRadius());
+        double cornerBlocks = JunctionCornerRadius.resolve(null, crossing, config);
         double corner = scaleBlocksNear(
             cornerBlocks, center, List.of(), edge -> List.of(), coordinates);
         // 无边列表时用进口方向估计尺度
@@ -384,10 +383,7 @@ public final class JunctionPreviewGeometry {
             RoadSystemConfig config,
             RoadNode node,
             RoadCrossing crossing) {
-        if (crossing != null && crossing.type() == CrossingType.AT_GRADE) {
-            return crossing.effectiveCornerRadius(config.getDefaultCornerRadius());
-        }
-        return node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        return JunctionCornerRadius.resolve(node, crossing, config);
     }
 
     private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {

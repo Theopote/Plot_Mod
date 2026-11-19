@@ -458,6 +458,7 @@ class JunctionProtectedOverburdenHardTest {
 
         RoadNetwork network = crossNetwork(true);
         RoadNode junction = hub(network);
+        junction.setCornerRadius(6.0);
         Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
 
         int roadY = 64;

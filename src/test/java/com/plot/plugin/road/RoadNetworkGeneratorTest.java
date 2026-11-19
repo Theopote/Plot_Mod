@@ -171,6 +171,11 @@ class RoadNetworkGeneratorTest {
 
         assertTrue(RoadNetworkGenerator.shouldGenerateJunction(junction, Set.of()));
         assertFalse(RoadNetworkGenerator.shouldGenerateJunction(junction, Set.of(eastEdge.getId())));
+        assertFalse(RoadNetworkGenerator.shouldGenerateJunction(
+            junction, Set.of(), Set.of(eastEdge.getId())),
+            "SKIPPED connected edges must also suppress junction generation");
+        assertTrue(RoadNetworkGenerator.shouldGenerateJunction(
+            junction, Set.of(), Set.of("unrelated-edge")));
     }
 
     @Test

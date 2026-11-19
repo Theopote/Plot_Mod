@@ -168,14 +168,8 @@ public final class RoadCrossingMaterializer {
                 crossing.sharedElevation(),
                 com.plot.plugin.road.model.ManualElevationOrigin.CROSSING);
         }
-        // 平交圆角持久在 Crossing 上；物化时写入临时节点供 junction 管线读取。
-        // null / 未设置 = 默认关闭圆角；立交不套用平交路缘圆角。
-        if (crossing.type() == CrossingType.AT_GRADE) {
-            junction.setCornerRadius(
-                crossing.cornerRadius() != null ? crossing.cornerRadius() : 0.0);
-        } else {
-            junction.setCornerRadius(0.0);
-        }
+        // 平交圆角：Crossing 显式值覆盖节点；null 保留快照节点半径（未设置≠强制关）。
+        com.plot.plugin.road.JunctionCornerRadius.applyToJunctionNode(junction, crossing);
     }
 
     private static CrossingMaterializeStatus materializeRoadAtCrossing(
