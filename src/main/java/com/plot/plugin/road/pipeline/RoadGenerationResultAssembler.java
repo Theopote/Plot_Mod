@@ -50,6 +50,8 @@ public final class RoadGenerationResultAssembler {
         RoadRailConnectivityValidator.validate(aggregate);
         // 合并阶段只做候选 scrub；这里再全表收一次，保证用途表不变量。
         aggregate.scrubStaleClearancePurposes();
+        // 边级完整性指标在 mergeFrom 后已滞后；用设计期望对照最终方块覆盖严重计数。
+        com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
         long t4 = System.nanoTime();
         aggregate.assembleMergeEdgesNanos = t1 - t0;
         aggregate.assembleMergeJunctionsNanos = t2 - t1;

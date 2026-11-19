@@ -139,6 +139,64 @@ class JunctionSeamReconciliationPassTest {
     }
 
     @Test
+    void overlappingJunctionsShareUpdatedColumnIndexAfterRestore() {
+        JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
+            new Vec2d(8, 8),
+            new Vec2d(3, 8),
+            new Vec2d(8, 3),
+            8.0,
+            Math.PI / 2.0,
+            FilletArcSweep.resolveShort(new Vec2d(8, 8), new Vec2d(3, 8), new Vec2d(8, 3)));
+        JunctionGeometryResult geometry = new JunctionGeometryResult(
+            List.of(new Vec2d(-6, -6), new Vec2d(20, -6), new Vec2d(20, 20), new Vec2d(-6, 20)),
+            List.of(new Vec2d(-4, -4), new Vec2d(16, -4), new Vec2d(16, 16), new Vec2d(-4, 16)),
+            List.of(),
+            8.0,
+            8.0,
+            List.of(fillet),
+            List.of(new Vec2d(-2, -2), new Vec2d(10, -2), new Vec2d(10, 10), new Vec2d(-2, 10)),
+            List.of());
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+        JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, null);
+        JunctionElevationField field = JunctionElevationField.build(
+            footprint, JunctionFilletElevationLoft.inactive(64), columns, 64);
+        ColumnKey filletColumn = footprint.filletAdditions().iterator().next();
+        int targetY = field.surfaceY(filletColumn);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos highOnly = new BlockPos(filletColumn.worldX(), targetY + 2, filletColumn.worldZ());
+        plant(aggregate, highOnly, "minecraft:stone", RoadSolidLayer.ROAD);
+
+        RoadJunctionGenerator.JunctionBlocks first = new RoadJunctionGenerator.JunctionBlocks();
+        first.setElevationField(field);
+        first.setValidationManifest(JunctionValidationManifest.empty("near-a"));
+        RoadJunctionGenerator.JunctionBlocks second = new RoadJunctionGenerator.JunctionBlocks();
+        second.setElevationField(field);
+        second.setValidationManifest(JunctionValidationManifest.empty("near-b"));
+
+        JunctionSeamReconciliationPass.apply(
+            aggregate, Map.of("near-a", first, "near-b", second));
+
+        BlockPos restored = new BlockPos(filletColumn.worldX(), targetY, filletColumn.worldZ());
+        assertEquals("minecraft:stone", aggregate.placementRecords.get(restored).newBlockId);
+        Map<ColumnKey, List<BlockPos>> index =
+            JunctionSeamReconciliationPass.indexSolidPlacements(aggregate);
+        assertTrue(index.getOrDefault(filletColumn, List.of()).contains(restored),
+            "restored pavement from earlier overlapping junction must remain visible in column index");
+    }
+
+    @Test
     void indexSolidPlacementsGroupsByWorldColumn() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         plant(aggregate, new BlockPos(3, 64, 5), "minecraft:stone", RoadSolidLayer.ROAD);

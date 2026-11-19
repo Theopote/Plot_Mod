@@ -36,8 +36,11 @@ public final class UnderpassPavementSealPass {
                 && actualLayer == RoadSolidLayer.ROAD) {
             return;
         }
-        // 标线等合法覆盖：路面材质已在同柱其它层或标线本身可接受时跳过强制覆盖。
-        if (actual != null && actualLayer == RoadSolidLayer.MARKING) {
+        // 标线等合法覆盖：仅非空气标线跳过强制覆盖（空气+MARKING 元数据异常时仍须封口）。
+        if (actual != null
+                && actualLayer == RoadSolidLayer.MARKING
+                && actual.newBlockId != null
+                && !"minecraft:air".equals(actual.newBlockId)) {
             return;
         }
         String previous = actual != null ? actual.previousBlockId : "minecraft:air";

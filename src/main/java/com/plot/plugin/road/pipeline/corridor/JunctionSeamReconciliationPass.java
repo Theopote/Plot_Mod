@@ -86,8 +86,7 @@ public final class JunctionSeamReconciliationPass {
             }
             JunctionWorldFootprint.ElevationRole role = field.role(column);
             reconcileColumn(
-                aggregate, column, targetY, elevatedDeckY, protectedBlocks, role,
-                index.getOrDefault(column, List.of()));
+                aggregate, column, targetY, elevatedDeckY, protectedBlocks, role, index);
         }
     }
 
@@ -98,11 +97,13 @@ public final class JunctionSeamReconciliationPass {
             Integer elevatedDeckY,
             Set<BlockPos> protectedBlocks,
             JunctionWorldFootprint.ElevationRole role,
-            List<BlockPos> columnSolids) {
+            Map<ColumnKey, List<BlockPos>> solidsByColumn) {
         List<BlockPos> roadAtColumn = new ArrayList<>();
         List<BlockPos> tunnelSolids = new ArrayList<>();
         List<BlockPos> plazaFamilyBelow = new ArrayList<>();
-        List<BlockPos> solids = columnSolids != null ? columnSolids : List.of();
+        List<BlockPos> solids = solidsByColumn != null
+            ? solidsByColumn.getOrDefault(column, List.of())
+            : List.of();
         // 剥离前快照合法路面材料：strip 可能把唯一 donor 清成 air。
         String savedPavementMaterial = null;
         for (BlockPos pos : solids) {
@@ -160,6 +161,8 @@ public final class JunctionSeamReconciliationPass {
                     aggregate.placementLayers.put(target, RoadSolidLayer.ROAD);
                     aggregate.placementMaterialPriorities.put(
                         target, RoadSolidMaterialPriority.DEFAULT);
+                    // 重叠路口后续扫描须看见本路口新写入的实体格。
+                    rememberSolid(solidsByColumn, column, target);
                 }
             }
         }
@@ -324,5 +327,18 @@ public final class JunctionSeamReconciliationPass {
         aggregate.recordPlacementOverride(pos, previous, "minecraft:air");
         aggregate.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         aggregate.placementMaterialPriorities.put(pos, Integer.valueOf(RoadSolidMaterialPriority.CLEARANCE));
+    }
+
+    private static void rememberSolid(
+            Map<ColumnKey, List<BlockPos>> solidsByColumn,
+            ColumnKey column,
+            BlockPos pos) {
+        if (solidsByColumn == null || column == null || pos == null) {
+            return;
+        }
+        List<BlockPos> list = solidsByColumn.computeIfAbsent(column, ignored -> new ArrayList<>());
+        if (!list.contains(pos)) {
+            list.add(pos);
+        }
     }
 }

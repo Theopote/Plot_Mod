@@ -1418,6 +1418,11 @@ public final class RoadPreviewManager {
             status.error(PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
             return;
         }
+        if (com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator
+                .hasBlockingIssues(lastGenerationResult)) {
+            status.error(PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+            return;
+        }
         if (previewNetwork != null
                 && RoadNetworkEngineeringValidator.analyzePreGeneration(
                     previewNetwork, validationElevationBounds()).blocksBuild()) {

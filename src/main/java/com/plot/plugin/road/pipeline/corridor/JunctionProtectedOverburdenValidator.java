@@ -235,6 +235,8 @@ public final class JunctionProtectedOverburdenValidator {
                     return true;
                 }
             }
+            // 最终合并结果可用时只信 placementRecords，禁止回退生成阶段 solids 掩盖终态缺口。
+            return false;
         }
         return solidIndex != null && solidIndex.hasPavement(column, y);
     }
@@ -244,17 +246,20 @@ public final class JunctionProtectedOverburdenValidator {
             PlacementRecordColumnIndex columnIndex,
             ColumnSolidIndex solidIndex,
             ColumnKey column) {
-        if (columnIndex != null && aggregate != null) {
-            for (BlockPos pos : columnIndex.positionsInColumn(column.worldX(), column.worldZ())) {
-                RoadSolidLayer layer = columnIndex.layerAt(pos, aggregate);
-                if (!JunctionSeamReconciliationPass.isStackedPavementLayer(layer)) {
-                    continue;
-                }
-                BlockRecord record = columnIndex.recordAt(pos);
-                if (record != null && !"minecraft:air".equals(record.newBlockId)) {
-                    return true;
+        if (aggregate != null && aggregate.placementRecords != null) {
+            if (columnIndex != null) {
+                for (BlockPos pos : columnIndex.positionsInColumn(column.worldX(), column.worldZ())) {
+                    RoadSolidLayer layer = columnIndex.layerAt(pos, aggregate);
+                    if (!JunctionSeamReconciliationPass.isStackedPavementLayer(layer)) {
+                        continue;
+                    }
+                    BlockRecord record = columnIndex.recordAt(pos);
+                    if (record != null && !"minecraft:air".equals(record.newBlockId)) {
+                        return true;
+                    }
                 }
             }
+            return false;
         }
         return solidIndex != null && solidIndex.hasAnyPavement(column);
     }

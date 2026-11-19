@@ -963,7 +963,9 @@ public class RoadJunctionGenerator {
             0,
             0,
             0,
-            0));
+            0,
+            0,
+            false));
 
         // 开敞进口/街角放坡；隧道进口路肩禁止露天切坡，深覆土圆角交给隧道壳。
         if (stampSurface) {

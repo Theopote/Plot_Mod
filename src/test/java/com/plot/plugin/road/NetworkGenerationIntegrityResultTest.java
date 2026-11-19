@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -68,5 +69,32 @@ class NetworkGenerationIntegrityResultTest {
         assertTrue(result.partialFailureDetails().stream()
             .anyMatch(detail -> detail.contains("postMergeBlocking") && detail.contains("n-block")));
         assertTrue(result.getErrors().stream().anyMatch(error -> error.contains("postMerge blocking")));
+    }
+
+    @Test
+    void finalPlacementAcceptanceFailureMarksPartialFailure() {
+        var result = new RoadNetworkGenerator.NetworkGenerationResult();
+        assertFalse(result.hasPartialFailure());
+        result.recordFinalPlacementAcceptance(
+            new com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator.Report(
+                2, 0, 1, 0));
+        assertTrue(result.hasPartialFailure());
+        assertTrue(result.hasFinalPlacementAcceptanceFailure());
+        assertTrue(result.partialFailureDetails().stream()
+            .anyMatch(detail -> detail.contains("finalPlacementAcceptanceFailed")));
+    }
+
+    @Test
+    void repairedTunnelConnectivityDoesNotKeepBlockingDisconnectedCount() {
+        var result = new RoadNetworkGenerator.NetworkGenerationResult();
+        result.mergeJunctionReport(JunctionConstructionReport.empty("n1")
+            .withTunnelConnectivity(1, 0, true, 2));
+        result.mergeJunctionReport(JunctionConstructionReport.empty("n1")
+            .withPostMerge(0, 0, 0, 0, 0, 0, 0));
+        JunctionConstructionReport merged = result.getJunctionReports().get("n1");
+        assertEquals(2, merged.processDisconnectedTunnelComponents());
+        assertEquals(0, merged.disconnectedTunnelComponents());
+        assertFalse(merged.hasBlockingPostMergeIssues());
+        assertFalse(result.hasPartialFailure());
     }
 }

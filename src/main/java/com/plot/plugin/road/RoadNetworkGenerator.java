@@ -9,6 +9,7 @@ import com.plot.plugin.road.crossing.SnapshotMaterialization;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
+import com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.JunctionProtectedOverburdenValidator;
@@ -62,6 +63,7 @@ public class RoadNetworkGenerator {
         private final Set<String> missingJunctionValidationIds = new LinkedHashSet<>();
         private final Set<String> failClosedJunctionIds = new LinkedHashSet<>();
         private final Set<String> protectedOverburdenViolationIds = new LinkedHashSet<>();
+        private boolean finalPlacementAcceptanceFailed;
         private final List<CrossingMaterializationFailure> crossingMaterializationFailures = new ArrayList<>();
         private final List<AdjacentJunctionProfileContinuity.Violation> adjacentJunctionProfileViolations =
             new ArrayList<>();
@@ -132,6 +134,21 @@ public class RoadNetworkGenerator {
 
         public Set<String> getProtectedOverburdenViolationIds() {
             return Collections.unmodifiableSet(protectedOverburdenViolationIds);
+        }
+
+        public boolean hasFinalPlacementAcceptanceFailure() {
+            return finalPlacementAcceptanceFailed;
+        }
+
+        void recordFinalPlacementAcceptance(FinalPlacementAcceptanceValidator.Report report) {
+            if (report == null || !report.hasBlockingIssues()) {
+                return;
+            }
+            finalPlacementAcceptanceFailed = true;
+            errors.add("finalPlacementAcceptance:"
+                + " missingSurface=" + report.blockingSurfaceDefectCount()
+                + " unclearedCavity=" + report.unclearedTunnelCavityCount()
+                + " missingLining=" + report.missingTunnelLiningCount());
         }
 
         public List<CrossingMaterializationFailure> getCrossingMaterializationFailures() {
@@ -266,6 +283,7 @@ public class RoadNetworkGenerator {
                 || !missingJunctionValidationIds.isEmpty()
                 || !failClosedJunctionIds.isEmpty()
                 || !protectedOverburdenViolationIds.isEmpty()
+                || finalPlacementAcceptanceFailed
                 || adjacentJunctionProfileViolations.stream().anyMatch(
                     AdjacentJunctionProfileContinuity.Violation::blocking)
                 || junctionReports.values().stream()
@@ -291,6 +309,9 @@ public class RoadNetworkGenerator {
             }
             if (!protectedOverburdenViolationIds.isEmpty()) {
                 details.add("protectedOverburdenViolations=" + protectedOverburdenViolationIds);
+            }
+            if (finalPlacementAcceptanceFailed) {
+                details.add("finalPlacementAcceptanceFailed");
             }
             if (!crossingMaterializationFailures.isEmpty()) {
                 details.add("crossingMaterializationFailures=" + crossingMaterializationFailures.size());
@@ -970,6 +991,9 @@ public class RoadNetworkGenerator {
         }
         TunnelFinalVoxelValidator.applyReportToResult(
             aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
+        // 路口覆土剔除后再做一次终态期望对照，门禁读最终方块而非边级中间累加。
+        networkResult.recordFinalPlacementAcceptance(
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate));
         networkResult.recordAdjacentJunctionProfileViolations(
             AdjacentJunctionProfileContinuity.find(
                 profileNetwork,

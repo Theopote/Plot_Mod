@@ -227,6 +227,21 @@ class RoadSurfacePlacementPassTest {
     }
 
     @Test
+    void underpassPavementSealRestoresAirMarkedAsMarkingLayer() {
+        var result = new RoadGenerationResult(0);
+        BlockPos hole = new BlockPos(5, 64, 0);
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            hole, "minecraft:stone_bricks", RoadSolidLayer.ROAD, "underpass"));
+        result.recordPlacementOverride(hole, "minecraft:stone", "minecraft:air");
+        result.placementLayers.put(hole, RoadSolidLayer.MARKING);
+
+        UnderpassPavementSealPass.apply(result);
+
+        assertEquals("minecraft:stone_bricks", result.placementRecords.get(hole).newBlockId);
+        assertEquals(RoadSolidLayer.ROAD, result.placementLayers.get(hole));
+    }
+
+    @Test
     void underpassPavementSealRestoresFromExpectedSurfacesWithoutClearanceHint() {
         var result = new RoadGenerationResult(0);
         BlockPos paved = new BlockPos(0, 64, 0);
