@@ -2,6 +2,7 @@ package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.plugin.PluginState;
+import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
@@ -123,6 +124,18 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     }
 
     @Override
+    public void hideCanvasPreviews() {
+        if (uiManager != null) {
+            uiManager.hideCanvasPreviews();
+        } else if (toolManager != null) {
+            toolManager.cancel();
+            if (previewManager != null) {
+                previewManager.clearPreview();
+            }
+        }
+    }
+
+    @Override
     public void onDisable() {
         if (persistenceManager != null && networkManager != null) {
             persistenceManager.saveOnDisable(networkManager.getNetwork());
@@ -159,7 +172,10 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             return;
         }
         uiManager.renderDeferredModals();
-        if (isEnabled() && uiManager != null && getState() == PluginState.ACTIVE) {
+        if (isEnabled()
+                && uiManager != null
+                && getState() == PluginState.ACTIVE
+                && PluginManager.getInstance().shouldShowActivePluginCanvasOverlays()) {
             uiManager.renderCanvasOverlay();
         }
     }

@@ -77,16 +77,22 @@ public class PatternPlugin extends Plugin {
     public void onDeactivate() {
         // 无论插件是否启用都应该执行持久化操作，确保数据不丢失
         persistProject();
+        hideCanvasPreviews();
         super.onDeactivate();
+    }
+
+    @Override
+    public void hideCanvasPreviews() {
+        if (uiContext != null) {
+            uiContext.pickSession().cancel();
+            uiContext.clearPreview();
+        }
     }
 
     @Override
     public void onDisable() {
         persistProject();
-        if (uiContext != null) {
-            uiContext.pickSession().cancel();
-            uiContext.clearPreview();
-        }
+        hideCanvasPreviews();
         try {
             ctx().events().unsubscribeOwner(this);
         } catch (Exception e) {

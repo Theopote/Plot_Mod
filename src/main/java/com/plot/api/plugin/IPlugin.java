@@ -129,6 +129,13 @@ public interface IPlugin {
     void onDeactivate();
 
     /**
+     * 扩展面板被切走（切到属性/图库等）时调用：清除画布预览与瞬时交互，但不停用插件。
+     * <p>默认无操作；有画布预览/虚影的插件应覆盖此方法。
+     */
+    default void hideCanvasPreviews() {
+    }
+
+    /**
      * 渲染插件界面
      */
     void render();

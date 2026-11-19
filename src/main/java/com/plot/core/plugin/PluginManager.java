@@ -28,6 +28,8 @@ public class PluginManager implements IPluginManager {
     private IPluginLoader pluginLoader;
     private IPluginRepository pluginRepository;
     private IPlugin activePlugin;
+    /** 右侧「扩展」Dock 标签是否可见；离开扩展时隐藏画布预览，但保持 activePlugin。 */
+    private boolean extensionPanelVisible;
 
     private PluginManager() {
         this.plugins = new ConcurrentHashMap<>();
@@ -589,6 +591,35 @@ public class PluginManager implements IPluginManager {
 
     public IPlugin getActivePlugin() {
         return activePlugin;
+    }
+
+    /**
+     * 扩展面板是否为当前可见的右侧 Dock 标签。
+     * 画布叠加层 / 插件预览应在此为 false 时隐藏。
+     */
+    public boolean isExtensionPanelVisible() {
+        return extensionPanelVisible;
+    }
+
+    /**
+     * 由 {@code PlotScreen} 每帧同步扩展面板可见性。
+     * 从可见变为不可见时，通知当前活动插件清除画布预览（不停用插件）。
+     */
+    public void setExtensionPanelVisible(boolean visible) {
+        if (this.extensionPanelVisible == visible) {
+            return;
+        }
+        this.extensionPanelVisible = visible;
+        if (!visible && activePlugin != null) {
+            activePlugin.hideCanvasPreviews();
+        }
+    }
+
+    /**
+     * 当前是否应绘制活动插件的画布叠加层/预览：扩展面板可见且存在活动插件。
+     */
+    public boolean shouldShowActivePluginCanvasOverlays() {
+        return extensionPanelVisible && activePlugin != null;
     }
 
     public void setActivePlugin(IPlugin plugin) {

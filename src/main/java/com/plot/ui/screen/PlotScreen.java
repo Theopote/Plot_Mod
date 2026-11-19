@@ -769,6 +769,7 @@ public class PlotScreen extends Screen {
 
         try {
             boolean visible = ImGui.begin(extensionPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            PluginManager.getInstance().setExtensionPanelVisible(visible);
             try {
                 if (visible) {
                     extensionPanel.render();

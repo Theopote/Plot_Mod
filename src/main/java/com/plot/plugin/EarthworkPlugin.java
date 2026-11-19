@@ -20,6 +20,7 @@ import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkHolePickSession;
 import com.plot.api.plugin.PluginState;
+import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayController;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayEntry;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayRenderer;
@@ -153,14 +154,23 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         if (isEnabled()) {
             persistProject();
         }
+        hideCanvasPreviews();
         super.onDeactivate();
     }
 
     @Override
-    public void onDisable() {
+    public void hideCanvasPreviews() {
         pickSession.cancel();
         threePointPickSession.cancel();
         holePickSession.cancel();
+        if (uiContext != null) {
+            uiContext.clearPreview();
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        hideCanvasPreviews();
         persistProject();
         if (config != null) {
             config.save();
@@ -201,7 +211,8 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         if (!isEnabled() || config == null || uiContext == null) {
             return;
         }
-        if (getState() != PluginState.ACTIVE) {
+        if (getState() != PluginState.ACTIVE
+                || !PluginManager.getInstance().shouldShowActivePluginCanvasOverlays()) {
             return;
         }
         synchronized (projectLock) {

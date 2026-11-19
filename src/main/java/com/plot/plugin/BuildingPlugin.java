@@ -5,7 +5,6 @@ import com.plot.core.model.Shape;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import com.plot.api.plugin.IPlugin;
 import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.model.BuildingFootprint;
@@ -86,15 +85,22 @@ public class BuildingPlugin extends Plugin {
         if (isEnabled()) {
             persistProject();
         }
+        hideCanvasPreviews();
         super.onDeactivate();
+    }
+
+    @Override
+    public void hideCanvasPreviews() {
+        if (uiContext != null) {
+            uiContext.pickSession().cancel();
+            uiContext.clearPreview();
+        }
     }
 
     @Override
     public void onDisable() {
         persistProject();
-        if (uiContext != null) {
-            uiContext.pickSession().cancel();
-        }
+        hideCanvasPreviews();
 
         try {
             ctx().events().unsubscribeOwner(this);
@@ -108,8 +114,9 @@ public class BuildingPlugin extends Plugin {
         if (!isEnabled() || uiContext == null) {
             return;
         }
-        IPlugin active = PluginManager.getInstance().getActivePlugin();
-        if (active != this) {
+        PluginManager pluginManager = PluginManager.getInstance();
+        if (!pluginManager.shouldShowActivePluginCanvasOverlays()
+                || pluginManager.getActivePlugin() != this) {
             return;
         }
         boolean pickActive = uiContext.pickSession().isActive();

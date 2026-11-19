@@ -432,13 +432,18 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     }
 
     public void onDeactivate() {
+        hideCanvasPreviews();
         crossSectionPanel.finishPendingEdits();
+        ctx.clearTransientUiState();
+        RoadAutoRepairUi.invalidateCache();
+    }
+
+    /** 离开扩展面板时清除画布预览/拾取，保留插件活动态与选中（供属性面板交叉口编辑）。 */
+    public void hideCanvasPreviews() {
         ctx.toolManager().cancel();
         ctx.cancelPreviewJobSilently();
         ctx.previewManager().clearPreview();
         ctx.previewManager().clearTerrainProfileCache();
-        ctx.clearTransientUiState();
-        RoadAutoRepairUi.invalidateCache();
     }
 
     @Override
