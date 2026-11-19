@@ -1333,7 +1333,12 @@ public final class RoadPreviewManager {
     }
 
     private boolean previewWorldMatchesCurrent() {
-        return previewWorldKey.isEmpty() || previewWorldKey.equals(currentWorldKey());
+        // 失败关闭：任一侧空键视为不一致，避免无世界/切换存档时误放建造。
+        String current = currentWorldKey();
+        if (previewWorldKey.isEmpty() || current.isEmpty()) {
+            return false;
+        }
+        return previewWorldKey.equals(current);
     }
 
     private String currentWorldKey() {
@@ -1341,12 +1346,32 @@ public final class RoadPreviewManager {
         return key != null ? key : "";
     }
 
+    /**
+     * 世界会话身份：维度 + 存档名（单机）或远端地址，避免两个存档同维度主世界键碰撞。
+     */
     private static String detectCurrentWorldKey() {
         net.minecraft.world.World world = RoadNetworkGenerator.getClientWorld();
-        if (world == null) {
+        if (world == null || world.getRegistryKey() == null) {
             return "";
         }
-        return world.getRegistryKey().getValue().toString();
+        String dimension = world.getRegistryKey().getValue().toString();
+        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client == null) {
+            return dimension;
+        }
+        net.minecraft.server.MinecraftServer integrated = client.getServer();
+        if (integrated != null && integrated.getSaveProperties() != null) {
+            String levelName = integrated.getSaveProperties().getLevelName();
+            if (levelName == null || levelName.isBlank()) {
+                levelName = "unnamed";
+            }
+            return dimension + "|save:" + levelName;
+        }
+        net.minecraft.client.network.ServerInfo remote = client.getCurrentServerEntry();
+        if (remote != null && remote.address != null && !remote.address.isBlank()) {
+            return dimension + "|remote:" + remote.address;
+        }
+        return dimension;
     }
 
     /**

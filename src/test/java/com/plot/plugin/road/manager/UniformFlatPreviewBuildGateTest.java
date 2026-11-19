@@ -34,6 +34,7 @@ class UniformFlatPreviewBuildGateTest {
         status = new RoadProjectStatus();
         networkManager = new RoadNetworkManager(new RoadSystemConfig("uniform-gate"), status);
         previewManager = new RoadPreviewManager(status, host);
+        previewManager.setWorldKeyLookup(() -> "test-world");
         previewManager.setPendingNetworkEditCheck(networkManager::hasPendingNetworkEdit);
         networkManager.setOnNetworkChanged(previewManager::handleNetworkChanged);
         networkManager.setNetworkElevationMode(NetworkElevationMode.UNIFORM_FLAT);
@@ -90,7 +91,7 @@ class UniformFlatPreviewBuildGateTest {
             pos, new BlockRecord(pos, "minecraft:air", "minecraft:black_concrete"));
         setField(previewManager, "lastGenerationResult", aggregate);
         setField(previewManager, "previewNeedsRecalc", false);
-        setField(previewManager, "previewWorldKey", "");
+        setField(previewManager, "previewWorldKey", "test-world");
         setField(previewManager, "previewNetwork", new RoadNetwork());
     }
 

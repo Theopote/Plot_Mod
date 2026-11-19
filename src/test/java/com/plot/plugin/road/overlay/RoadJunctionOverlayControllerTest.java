@@ -4,11 +4,13 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.model.RoadNetwork;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -83,6 +85,10 @@ class RoadJunctionOverlayControllerTest {
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
         RoadCrossingReconciler.reconcileCrossings(network);
+        // 平交圆角默认关闭，预览需显式半径，不再继承 config.defaultCornerRadius。
+        for (RoadCrossing crossing : new ArrayList<>(network.getCrossings().values())) {
+            network.registerCrossing(crossing.withCornerRadius(6.0));
+        }
 
         List<RoadJunctionOverlayEntry> hidden = RoadJunctionOverlayController.snapshot(
             network, builder, config, null, "", null, false);
