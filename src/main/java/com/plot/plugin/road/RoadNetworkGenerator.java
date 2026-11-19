@@ -964,12 +964,13 @@ public class RoadNetworkGenerator {
             aggregate = aggregateNetworkResult(profileNetwork, networkResult);
             session.setPendingAggregate(aggregate);
         }
-        if (session.validationColumnIndex() == null) {
-            session.setValidationColumnIndex(PlacementRecordColumnIndex.build(aggregate));
+        if (session.validationFinalIndex() == null) {
+            session.setValidationFinalIndex(FinalPlacementIndex.build(aggregate));
             session.setValidationJunctionIndex(0);
         }
         List<RoadNode> junctions = session.junctionNodes();
         Set<String> skipped = networkResult.getSkippedJunctionIds();
+        FinalPlacementIndex finalIndex = session.validationFinalIndex();
         PlacementRecordColumnIndex index = session.validationColumnIndex();
         long started = System.nanoTime();
         int processed = 0;
@@ -988,12 +989,14 @@ public class RoadNetworkGenerator {
                 continue;
             }
             validateOneJunctionPostMerge(
-                node, networkResult, aggregate, index, session.terrain());
+                node, networkResult, aggregate, index, finalIndex, session.terrain());
         }
         TunnelFinalVoxelValidator.applyReportToResult(
             aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
         // 路面终态汇总；隧道计数保持 TunnelFinalVoxelValidator 权威，不得被简化规则覆盖。
-        FinalPlacementIndex finalIndex = FinalPlacementIndex.build(aggregate);
+        // strip 后 placement 可能变，重建一次索引再汇总。
+        finalIndex = FinalPlacementIndex.build(aggregate);
+        session.setValidationFinalIndex(finalIndex);
         networkResult.recordFinalPlacementAcceptance(
             FinalPlacementAcceptanceValidator.applyToAggregate(aggregate, finalIndex));
         networkResult.recordAdjacentJunctionProfileViolations(
@@ -1017,6 +1020,7 @@ public class RoadNetworkGenerator {
             NetworkGenerationResult networkResult,
             RoadGenerationResult aggregate,
             PlacementRecordColumnIndex index,
+            FinalPlacementIndex finalIndex,
             TerrainSampler terrain) {
         RoadJunctionGenerator.JunctionBlocks junctionBlocks =
             networkResult.getJunctionResults().get(node.getId());
@@ -1040,6 +1044,7 @@ public class RoadNetworkGenerator {
                 junctionBlocks.validationManifest(),
                 aggregate,
                 index,
+                finalIndex,
                 roadGenerator.coordinateTransformer());
         networkResult.mergeJunctionReport(JunctionConstructionReport.empty(node.getId()).withPostMerge(
             postMerge.missingSurfaceColumns(),

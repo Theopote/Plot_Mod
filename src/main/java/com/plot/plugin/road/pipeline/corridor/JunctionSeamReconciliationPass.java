@@ -35,12 +35,34 @@ public final class JunctionSeamReconciliationPass {
         }
         // 一次扫描建列索引，避免每个路口列都扫整网 O(C×B)。
         Map<ColumnKey, List<BlockPos>> solidsByColumn = indexSolidPlacements(aggregate);
+        // 重叠路口同列取最高设计标高，保证 A→B 与 B→A 终态一致、无双层路面。
+        Map<ColumnKey, Integer> peerMaxTargetY = collectPeerMaxTargetY(junctionResults);
         for (RoadJunctionGenerator.JunctionBlocks blocks : junctionResults.values()) {
             if (blocks == null) {
                 continue;
             }
-            reconcileJunction(aggregate, blocks, solidsByColumn);
+            reconcileJunction(aggregate, blocks, solidsByColumn, peerMaxTargetY);
         }
+    }
+
+    static Map<ColumnKey, Integer> collectPeerMaxTargetY(
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
+        Map<ColumnKey, Integer> maxByColumn = new HashMap<>();
+        if (junctionResults == null) {
+            return maxByColumn;
+        }
+        for (RoadJunctionGenerator.JunctionBlocks blocks : junctionResults.values()) {
+            if (blocks == null || blocks.elevationField() == null) {
+                continue;
+            }
+            for (Map.Entry<ColumnKey, Integer> entry : blocks.elevationField().targetYByColumn().entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null) {
+                    continue;
+                }
+                maxByColumn.merge(entry.getKey(), entry.getValue(), Math::max);
+            }
+        }
+        return maxByColumn;
     }
 
     /**
@@ -66,7 +88,8 @@ public final class JunctionSeamReconciliationPass {
     private static void reconcileJunction(
             RoadGenerationResult aggregate,
             RoadJunctionGenerator.JunctionBlocks blocks,
-            Map<ColumnKey, List<BlockPos>> solidsByColumn) {
+            Map<ColumnKey, List<BlockPos>> solidsByColumn,
+            Map<ColumnKey, Integer> peerMaxTargetY) {
         JunctionElevationField field = blocks.elevationField();
         JunctionValidationManifest manifest = blocks.validationManifest();
         if (field == null || field.targetYByColumn().isEmpty()) {
@@ -84,9 +107,12 @@ public final class JunctionSeamReconciliationPass {
             if (column == null || targetY == null) {
                 continue;
             }
+            int designY = peerMaxTargetY != null
+                ? peerMaxTargetY.getOrDefault(column, targetY)
+                : targetY;
             JunctionWorldFootprint.ElevationRole role = field.role(column);
             reconcileColumn(
-                aggregate, column, targetY, elevatedDeckY, protectedBlocks, role, index);
+                aggregate, column, designY, elevatedDeckY, protectedBlocks, role, index);
         }
     }
 

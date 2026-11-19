@@ -1,7 +1,9 @@
 package com.plot.plugin.road.pipeline.corridor;
 
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +16,6 @@ class FinalPlacementAcceptanceValidatorTest {
     @Test
     void mergeRepairClearsStaleEdgeMissingCount() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
-        // 边级中间态曾记过缺口，但合并后路口已补铺。
         aggregate.missingRoadSurfaceCount = 4;
         BlockPos hole = new BlockPos(2, 64, 0);
         aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
@@ -37,7 +38,6 @@ class FinalPlacementAcceptanceValidatorTest {
         BlockPos hole = new BlockPos(3, 64, 1);
         aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
             hole, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
-        // 合并/接缝后设计位置变空气。
         aggregate.recordPlacementOverride(hole, "minecraft:stone", "minecraft:air");
         aggregate.placementLayers.put(hole, RoadSolidLayer.ROAD);
 
@@ -65,5 +65,140 @@ class FinalPlacementAcceptanceValidatorTest {
         assertEquals(0, report.missingRoadSurfaceCount());
         assertEquals(1, report.wrongElevationOrMaterialCount());
         assertTrue(report.hasBlockingIssues());
+    }
+
+    @Test
+    void nonRoadLayerOnExpectedCarriagewayCountsAsWrong() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(4, 64, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:dirt");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.SUBGRADE);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.validate(aggregate);
+
+        assertEquals(1, report.wrongElevationOrMaterialCount());
+        assertTrue(report.hasBlockingIssues());
+    }
+
+    @Test
+    void legalMarkingOverlayDoesNotCountAsWrong() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(5, 64, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:white_concrete");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.MARKING);
+
+        assertFalse(FinalPlacementAcceptanceValidator.validate(aggregate).hasBlockingIssues());
+    }
+
+    @Test
+    void authorizedLanternInCavityDoesNotBlockAfterTunnelThenFinalChain() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(40, 66, 0);
+        BlockPos lining = cavity.west();
+        aggregate.recordExpectedTunnelCavity(cavity);
+        aggregate.recordPlacementByLayerPriority(
+            lining, "minecraft:stone", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        aggregate.recordPlacementByLayerPriority(
+            cavity, "minecraft:air", "minecraft:lantern",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
+
+        runTunnelThenFinal(aggregate, null);
+
+        assertEquals(0, aggregate.unclearedTunnelCavityCount);
+        assertEquals(0, aggregate.floatingTunnelLightCount);
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void authorizedLiningOverlapCavityDoesNotBlockAfterTunnelThenFinalChain() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(41, 66, 0);
+        aggregate.recordExpectedTunnelCavity(pos);
+        aggregate.recordExpectedTunnelLining(pos);
+        aggregate.recordPlacementByLayerPriority(
+            pos, "minecraft:air", "minecraft:stone_bricks",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+
+        runTunnelThenFinal(aggregate, null);
+
+        assertEquals(0, aggregate.unclearedTunnelCavityCount);
+        assertEquals(0, aggregate.missingTunnelLiningCount);
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void terrainObstructionWithoutPlacementBlocksAfterTunnelThenFinalChain() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(42, 66, 0);
+        aggregate.recordExpectedTunnelCavity(cavity);
+        TerrainSampler rock = solidTerrain();
+
+        runTunnelThenFinal(aggregate, rock);
+
+        assertEquals(1, aggregate.unclearedTunnelCavityCount);
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void liningOverwrittenByRoadLayerBlocksAfterTunnelThenFinalChain() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos lining = new BlockPos(43, 67, 0);
+        aggregate.recordExpectedTunnelLining(lining);
+        aggregate.recordPlacementOverride(lining, "minecraft:stone_bricks", "minecraft:oak_planks");
+        aggregate.placementLayers.put(lining, RoadSolidLayer.ROAD);
+        aggregate.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.DEFAULT);
+
+        runTunnelThenFinal(aggregate, null);
+
+        assertEquals(1, aggregate.missingTunnelLiningCount);
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void applyToAggregateDoesNotClobberTunnelCountsFromSpecialist() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.unclearedTunnelCavityCount = 7;
+        aggregate.missingTunnelLiningCount = 3;
+        aggregate.floatingTunnelLightCount = 2;
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertEquals(7, aggregate.unclearedTunnelCavityCount);
+        assertEquals(3, aggregate.missingTunnelLiningCount);
+        assertEquals(2, aggregate.floatingTunnelLightCount);
+        assertEquals(7, report.unclearedTunnelCavityCount());
+        assertEquals(3, report.missingTunnelLiningCount());
+    }
+
+    private static void runTunnelThenFinal(RoadGenerationResult aggregate, TerrainSampler terrain) {
+        TunnelFinalVoxelValidator.applyReportToResult(
+            aggregate, TunnelFinalVoxelValidator.validate(aggregate, terrain));
+        FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+    }
+
+    private static TerrainSampler solidTerrain() {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(com.plot.api.geometry.Vec2d planPoint) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return true;
+            }
+
+            @Override
+            public boolean isConstructionVolumeObstruction(int worldX, int y, int worldZ) {
+                return true;
+            }
+        };
     }
 }

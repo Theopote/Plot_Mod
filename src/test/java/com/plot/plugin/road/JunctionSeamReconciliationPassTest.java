@@ -413,6 +413,110 @@ class JunctionSeamReconciliationPassTest {
             "fillet gore lofts between curb rails; leftover approach Y is stripped later, not pinned");
     }
 
+    @Test
+    void overlappingJunctionsWithDifferentTargetYAreOrderIndependent() {
+        JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
+            new Vec2d(8, 8),
+            new Vec2d(3, 8),
+            new Vec2d(8, 3),
+            8.0,
+            Math.PI / 2.0,
+            FilletArcSweep.resolveShort(new Vec2d(8, 8), new Vec2d(3, 8), new Vec2d(8, 3)));
+        JunctionGeometryResult geometry = new JunctionGeometryResult(
+            List.of(new Vec2d(-6, -6), new Vec2d(20, -6), new Vec2d(20, 20), new Vec2d(-6, 20)),
+            List.of(new Vec2d(-4, -4), new Vec2d(16, -4), new Vec2d(16, 16), new Vec2d(-4, 16)),
+            List.of(),
+            8.0,
+            8.0,
+            List.of(fillet),
+            List.of(new Vec2d(-2, -2), new Vec2d(10, -2), new Vec2d(10, 10), new Vec2d(-2, 10)),
+            List.of());
+        RoadTerrainClearanceUtils.BlockColumnResolver columns =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.floor(planPoint.y);
+                }
+            };
+        JunctionWorldFootprint footprint = JunctionWorldFootprint.from(geometry, null);
+        ColumnKey filletColumn = footprint.filletAdditions().iterator().next();
+        JunctionElevationField lowField = JunctionElevationField.build(
+            footprint, JunctionFilletElevationLoft.inactive(64), columns, 64);
+        JunctionElevationField highField = JunctionElevationField.build(
+            footprint, JunctionFilletElevationLoft.inactive(66), columns, 66);
+        assertEquals(64, lowField.surfaceY(filletColumn));
+        assertEquals(66, highField.surfaceY(filletColumn));
+
+        RoadGenerationResult ab = seedOverlapAggregate(filletColumn, 64, 66);
+        RoadGenerationResult ba = seedOverlapAggregate(filletColumn, 64, 66);
+
+        RoadJunctionGenerator.JunctionBlocks low = new RoadJunctionGenerator.JunctionBlocks();
+        low.setElevationField(lowField);
+        low.setValidationManifest(liningAndDeckManifest("low", filletColumn, 64));
+        RoadJunctionGenerator.JunctionBlocks high = new RoadJunctionGenerator.JunctionBlocks();
+        high.setElevationField(highField);
+        high.setValidationManifest(liningAndDeckManifest("high", filletColumn, 66));
+
+        JunctionSeamReconciliationPass.apply(ab, new LinkedHashMap<>(Map.of("a", low, "b", high)));
+        JunctionSeamReconciliationPass.apply(ba, new LinkedHashMap<>(Map.of("b", high, "a", low)));
+
+        BlockPos lowY = new BlockPos(filletColumn.worldX(), 64, filletColumn.worldZ());
+        BlockPos highY = new BlockPos(filletColumn.worldX(), 66, filletColumn.worldZ());
+        BlockPos lining = new BlockPos(filletColumn.worldX(), 70, filletColumn.worldZ());
+        BlockPos deck = new BlockPos(filletColumn.worldX(), 80, filletColumn.worldZ());
+
+        assertEquals(ab.placementRecords.get(highY).newBlockId, ba.placementRecords.get(highY).newBlockId,
+            "A→B and B→A must agree on canonical (max) pavement Y");
+        assertEquals("minecraft:stone", ab.placementRecords.get(highY).newBlockId);
+        assertTrue(isAirOrMissing(ab, lowY), "lower peer target must not leave a second ROAD deck");
+        assertTrue(isAirOrMissing(ba, lowY));
+        assertEquals("minecraft:stone_bricks", ab.placementRecords.get(lining).newBlockId,
+            "tunnel lining must survive overlapping seam reconcile");
+        assertEquals("minecraft:stone_bricks", ba.placementRecords.get(lining).newBlockId);
+        assertEquals("minecraft:smooth_stone", ab.placementRecords.get(deck).newBlockId,
+            "elevated deck must survive");
+        assertEquals("minecraft:smooth_stone", ba.placementRecords.get(deck).newBlockId);
+    }
+
+    private static RoadGenerationResult seedOverlapAggregate(
+            ColumnKey filletColumn, int lowY, int highY) {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        plant(aggregate, new BlockPos(filletColumn.worldX(), highY + 2, filletColumn.worldZ()),
+            "minecraft:stone", RoadSolidLayer.ROAD);
+        BlockPos lining = new BlockPos(filletColumn.worldX(), 70, filletColumn.worldZ());
+        plant(aggregate, lining, "minecraft:stone_bricks", RoadSolidLayer.TUNNEL);
+        aggregate.expectedTunnelLining.add(lining);
+        aggregate.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.STRUCTURAL);
+        plant(aggregate, new BlockPos(filletColumn.worldX(), 80, filletColumn.worldZ()),
+            "minecraft:smooth_stone", RoadSolidLayer.ROAD);
+        return aggregate;
+    }
+
+    private static JunctionValidationManifest liningAndDeckManifest(
+            String nodeId, ColumnKey column, int ignoredTargetY) {
+        BlockPos lining = new BlockPos(column.worldX(), 70, column.worldZ());
+        return new JunctionValidationManifest(
+            nodeId,
+            List.of(),
+            List.of(lining),
+            List.of(),
+            List.of(),
+            64,
+            80,
+            0,
+            0);
+    }
+
+    private static boolean isAirOrMissing(RoadGenerationResult aggregate, BlockPos pos) {
+        var record = aggregate.placementRecords.get(pos);
+        return record == null || "minecraft:air".equals(record.newBlockId);
+    }
+
     private static void plant(
             RoadGenerationResult result, BlockPos pos, String blockId, RoadSolidLayer layer) {
         result.recordPlacementOverride(pos, "minecraft:air", blockId);
@@ -420,3 +524,4 @@ class JunctionSeamReconciliationPassTest {
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
     }
 }
+
