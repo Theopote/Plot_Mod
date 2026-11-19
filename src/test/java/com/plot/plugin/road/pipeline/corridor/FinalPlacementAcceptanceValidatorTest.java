@@ -84,6 +84,35 @@ class FinalPlacementAcceptanceValidatorTest {
     }
 
     @Test
+    void sidewalkWrongElevationBlocksAsStructuralDefect() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos expected = new BlockPos(1, 64, 2);
+        BlockPos elsewhere = new BlockPos(1, 66, 2);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            expected, "minecraft:oak_planks", RoadSolidLayer.SIDEWALK, "edge"));
+        aggregate.recordPlacementOverride(elsewhere, "minecraft:air", "minecraft:oak_planks");
+        aggregate.placementLayers.put(elsewhere, RoadSolidLayer.SIDEWALK);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.validate(aggregate);
+
+        assertEquals(1, report.wrongElevationOrMaterialCount());
+        assertTrue(report.hasBlockingIssues());
+    }
+
+    @Test
+    void roadSubstitutingForSidewalkCountsAsWrong() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(2, 64, 2);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:oak_planks", RoadSolidLayer.SIDEWALK, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.ROAD);
+
+        assertTrue(FinalPlacementAcceptanceValidator.validate(aggregate).hasBlockingIssues());
+    }
+
+    @Test
     void legalMarkingOverlayDoesNotCountAsWrong() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos pos = new BlockPos(5, 64, 0);

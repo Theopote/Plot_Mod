@@ -27,4 +27,13 @@ public record ExpectedRoadSurface(
     public boolean isCarriageway() {
         return layer == RoadSolidLayer.ROAD;
     }
+
+    /** 参与终态标高/缺铺门禁的结构面层（车行道 + 人行道/路肩等）。 */
+    public boolean isStructuralSurface() {
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN;
+    }
 }

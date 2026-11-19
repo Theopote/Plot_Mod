@@ -436,6 +436,36 @@ public final class JunctionSeamReconciliationPass {
                 clearLeftover(aggregate, pos);
             }
         }
+
+        // 设计 Y 已裁定后，作废同列非保留高度的期望，防止封口按旧期望回铺双层。
+        revokeConflictingSurfaceExpectations(aggregate, column, targetY, preservedYs);
+    }
+
+    static void revokeConflictingSurfaceExpectations(
+            RoadGenerationResult aggregate,
+            ColumnKey column,
+            int targetY,
+            Set<Integer> preservedYs) {
+        if (aggregate == null || aggregate.expectedRoadSurfaces == null || column == null) {
+            return;
+        }
+        List<BlockPos> stale = new ArrayList<>();
+        for (BlockPos pos : aggregate.expectedRoadSurfaces.keySet()) {
+            if (pos == null
+                    || pos.getX() != column.worldX()
+                    || pos.getZ() != column.worldZ()
+                    || pos.getY() == targetY) {
+                continue;
+            }
+            if (preservedYs != null && preservedYs.contains(pos.getY())) {
+                continue;
+            }
+            stale.add(pos);
+        }
+        for (BlockPos pos : stale) {
+            aggregate.expectedRoadSurfaces.remove(pos);
+            aggregate.expectedRoadSurfaces.remove(pos.toImmutable());
+        }
     }
 
     public static String resolvePavementRestoreMaterial(

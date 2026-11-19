@@ -8,6 +8,8 @@ import com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface;
 import com.plot.plugin.road.pipeline.corridor.JunctionSeamReconciliationPass;
 import com.plot.plugin.road.pipeline.corridor.JunctionValidationManifest;
 import com.plot.plugin.road.pipeline.corridor.JunctionWorldFootprint;
+import com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator;
+import com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass;
 import com.plot.plugin.road.pipeline.corridor.UnderpassPavementSealPass;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -490,6 +492,69 @@ class JunctionSeamReconciliationPassTest {
         UnderpassPavementSealPass.apply(aggregate);
         assertTrue(isAirOrMissing(aggregate, spike),
             "seal must not restore seam-cleared leftover from stale expectation");
+    }
+
+    @Test
+    void connectedSameLayerFullPipelineKeepsSinglePavementY() {
+        OverlapFixture fixture = overlapFixtureAtGrade(64, 66);
+        RoadNetwork network = new RoadNetwork();
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(20, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()));
+        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        junctions.put(a.getId(), fixture.lowBlocks());
+        junctions.put(b.getId(), fixture.highBlocks());
+
+        ColumnKey column = fixture.filletColumn();
+        BlockPos lowY = new BlockPos(column.worldX(), 64, column.worldZ());
+        BlockPos highY = new BlockPos(column.worldX(), 66, column.worldZ());
+        RoadGenerationResult aggregate = seedOverlapAggregate(column, 64, 66);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            lowY, "minecraft:stone", RoadSolidLayer.ROAD, "low"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            highY, "minecraft:stone", RoadSolidLayer.ROAD, "high"));
+
+        runSeamSealFinal(aggregate, junctions, network);
+
+        assertEquals("minecraft:stone", aggregate.placementRecords.get(highY).newBlockId);
+        assertTrue(isAirOrMissing(aggregate, lowY), "same-layer connected must not keep dual pavement");
+        assertFalse(aggregate.expectedRoadSurfaces.containsKey(lowY),
+            "losing design Y expectation must be revoked before seal");
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void gradeSeparatedOverlapFullPipelineKeepsBothPavementYs() {
+        OverlapFixture fixture = overlapFixture(64, 66); // elevatedDeck → grade-separated claim
+        ColumnKey column = fixture.filletColumn();
+        BlockPos lowY = new BlockPos(column.worldX(), 64, column.worldZ());
+        BlockPos highY = new BlockPos(column.worldX(), 66, column.worldZ());
+        RoadGenerationResult aggregate = seedOverlapAggregate(column, 64, 66);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            lowY, "minecraft:stone", RoadSolidLayer.ROAD, "lower"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            highY, "minecraft:stone", RoadSolidLayer.ROAD, "upper"));
+
+        runSeamSealFinal(aggregate, fixture.junctionsAb(), null);
+
+        assertEquals("minecraft:stone", aggregate.placementRecords.get(lowY).newBlockId);
+        assertEquals("minecraft:stone", aggregate.placementRecords.get(highY).newBlockId);
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(lowY));
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(highY));
+        assertEquals("minecraft:stone_bricks",
+            aggregate.placementRecords.get(new BlockPos(column.worldX(), 70, column.worldZ())).newBlockId,
+            "tunnel lining between decks must survive");
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    private static void runSeamSealFinal(
+            RoadGenerationResult aggregate,
+            Map<String, RoadJunctionGenerator.JunctionBlocks> junctions,
+            RoadNetwork network) {
+        JunctionSeamReconciliationPass.apply(aggregate, junctions, network);
+        RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
+        UnderpassPavementSealPass.apply(aggregate);
+        FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
     }
 
     private record OverlapFixture(

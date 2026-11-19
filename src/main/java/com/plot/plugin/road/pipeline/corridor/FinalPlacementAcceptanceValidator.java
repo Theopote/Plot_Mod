@@ -46,13 +46,13 @@ public final class FinalPlacementAcceptanceValidator {
         int missingSurface = 0;
         int wrongOrMisplaced = 0;
         for (ExpectedRoadSurface expected : aggregate.expectedRoadSurfaces.values()) {
-            if (expected == null || !expected.isCarriageway() || expected.position() == null) {
+            if (expected == null || !expected.isStructuralSurface() || expected.position() == null) {
                 continue;
             }
             BlockPos pos = expected.position();
             BlockRecord actual = aggregate.placementRecords.get(pos);
             if (actual == null || "minecraft:air".equals(actual.newBlockId)) {
-                if (hasCarriagewayElsewhereInColumn(aggregate, safeIndex, pos)) {
+                if (hasStructuralSurfaceElsewhereInColumn(aggregate, safeIndex, pos)) {
                     wrongOrMisplaced++;
                 } else {
                     missingSurface++;
@@ -64,7 +64,8 @@ public final class FinalPlacementAcceptanceValidator {
             if (layer == RoadSolidLayer.MARKING) {
                 continue;
             }
-            if (layer != RoadSolidLayer.ROAD) {
+            if (layer != expected.layer()) {
+                // 车行道不得 silently 顶替人行道/路肩；其它结构层也必须对上设计层。
                 wrongOrMisplaced++;
                 continue;
             }
@@ -107,7 +108,7 @@ public final class FinalPlacementAcceptanceValidator {
             || aggregate.floatingTunnelLightCount > 0;
     }
 
-    private static boolean hasCarriagewayElsewhereInColumn(
+    private static boolean hasStructuralSurfaceElsewhereInColumn(
             RoadGenerationResult aggregate,
             FinalPlacementIndex index,
             BlockPos expected) {
@@ -120,7 +121,7 @@ public final class FinalPlacementAcceptanceValidator {
                 if (pos == null || pos.getY() == expected.getY()) {
                     continue;
                 }
-                if (aggregate.placementLayers.get(pos) != RoadSolidLayer.ROAD) {
+                if (!isStructuralLayer(aggregate.placementLayers.get(pos))) {
                     continue;
                 }
                 BlockRecord record = index.placements().recordAt(pos);
@@ -141,7 +142,7 @@ public final class FinalPlacementAcceptanceValidator {
                     || pos.getY() == expected.getY()) {
                 continue;
             }
-            if (entry.getValue() != RoadSolidLayer.ROAD) {
+            if (!isStructuralLayer(entry.getValue())) {
                 continue;
             }
             BlockRecord record = aggregate.placementRecords.get(pos);
@@ -150,5 +151,13 @@ public final class FinalPlacementAcceptanceValidator {
             }
         }
         return false;
+    }
+
+    private static boolean isStructuralLayer(RoadSolidLayer layer) {
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN;
     }
 }
