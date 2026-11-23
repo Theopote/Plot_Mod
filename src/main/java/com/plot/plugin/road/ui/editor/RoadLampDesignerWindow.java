@@ -103,25 +103,36 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         if (!enabled) {
             return;
         }
+        var section = road.getCrossSection().resolve(ctx.networkManager().getConfig());
         float width = ImGui.getContentRegionAvailX();
         if (width < 700f) {
-            renderPreview(placementDraft, road.getCrossSection().resolve(ctx.networkManager().getConfig()));
+            // 先写参数再预览，避免本帧改动要等下一帧才反映到编译结果。
             renderParameters(furniture, true);
+            renderPreview(placementDraft, section);
             return;
         }
-        ImGui.beginChild("##lamp_preview", width * 0.46f, 0f, false, 0);
-        try {
-            renderPreview(placementDraft, road.getCrossSection().resolve(ctx.networkManager().getConfig()));
-        } finally {
-            ImGui.endChild();
-        }
-        ImGui.sameLine();
-        ImGui.beginChild("##lamp_parameters", 0f, 0f, false, 0);
+        float previewWidth = width * 0.46f;
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float paramsWidth = Math.max(160f, width - previewWidth - spacing);
+        float rowStartX = ImGui.getCursorPosX();
+        float rowStartY = ImGui.getCursorPosY();
+        // 先更新右侧参数（写入 placementDraft），再画左侧预览，保证同帧可见。
+        ImGui.setCursorPos(rowStartX + previewWidth + spacing, rowStartY);
+        ImGui.beginChild("##lamp_parameters", paramsWidth, 0f, false, 0);
         try {
             renderParameters(furniture, true);
         } finally {
             ImGui.endChild();
         }
+        float rowHeight = Math.max(ImGui.getItemRectSizeY(), 220f);
+        ImGui.setCursorPos(rowStartX, rowStartY);
+        ImGui.beginChild("##lamp_preview", previewWidth, rowHeight, false, 0);
+        try {
+            renderPreview(placementDraft, section);
+        } finally {
+            ImGui.endChild();
+        }
+        ImGui.setCursorPos(rowStartX, rowStartY + rowHeight + ImGui.getStyle().getItemSpacingY());
     }
 
     /** 首行：布置开关 + 预设；关闭布置时不渲染下方预览与参数。 */
@@ -289,6 +300,9 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         var sized = RoadLampDraft.withLevelCount(height, draft.levels(), count);
         height = sized.height();
         var levels = new ArrayList<>(sized.levels());
+        var topSeed = levels.getLast();
+        levels.set(levels.size() - 1, new RoadLampStyle.Level(
+            height - 1, topSeed.layout(), topSeed.mount(), topSeed.reach(), topSeed.chain(), topSeed.light()));
 
         for (int i = 0; i < levels.size(); i++) {
             ImGui.pushID(i);
@@ -300,13 +314,29 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             boolean center = layout == RoadLampStyle.Layout.SINGLE || layout == RoadLampStyle.Layout.TRIPLE;
             var mount = center ? RoadLampStyle.Mount.TOP
                 : combo("mount", existing.mount(), RoadLampStyle.Mount.values());
-            int y = top ? height - 1 : slider("level_y", existing.y(), 4, Math.max(4, height - 2));
+            int previousY = i == 0 ? 0 : levels.get(i - 1).y() + 1;
+            int minY = RoadLampDraft.minLevelY(previousY, mount, existing.chain());
+            int maxY = top
+                ? height - 1
+                : Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
+            int y = top
+                ? height - 1
+                : Math.clamp(slider("level_y", existing.y(), minY, maxY), minY, maxY);
             int reach = layout == RoadLampStyle.Layout.SINGLE ? existing.reach() : slider("reach", existing.reach(), 1, 4);
             int chain = mount == RoadLampStyle.Mount.CHAIN ? slider("chain", existing.chain(), 1, 3) : existing.chain();
+            // 链条加长后最低点可能下压，需按新 chain 重算下限。
+            if (!top && mount == RoadLampStyle.Mount.CHAIN) {
+                minY = RoadLampDraft.minLevelY(previousY, mount, chain);
+                maxY = Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
+                y = Math.clamp(y, minY, maxY);
+            }
             var light = combo("light", existing.light(), RoadLampStyle.Light.values());
             levels.set(i, new RoadLampStyle.Level(y, layout, mount, reach, chain, light));
             ImGui.popID();
         }
+        var reconciled = RoadLampDraft.reconcileLevels(height, levels);
+        height = reconciled.height();
+        levels = new ArrayList<>(reconciled.levels());
 
         var candidate = new RoadLampDraft(name.get(), height, material, plinth, levels, detail);
         var placementControls = new RoadLampPlacement(active.style(), sides, spacing, inset, setback, enabled, bridge);

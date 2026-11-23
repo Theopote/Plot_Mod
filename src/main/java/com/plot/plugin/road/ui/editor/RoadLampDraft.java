@@ -73,4 +73,84 @@ record RoadLampDraft(String name, int height, RoadLampStyle.Material material, b
 
     record ExpandedLevels(int height, List<RoadLampStyle.Level> levels) {
     }
+
+    /** 灯位占用的最低方块 Y（链条/檐挂会向下延伸）。 */
+    static int levelLowest(RoadLampStyle.Level level) {
+        return switch (level.mount()) {
+            case CHAIN -> level.y() - level.chain() - 1;
+            case HOOD -> level.y() - 1;
+            case TOP -> level.y();
+        };
+    }
+
+    /**
+     * 按杆高与相邻层约束钳制各层 Y；若层数在当前杆高下无法排开则自动抬高杆身，
+     * 避免草稿长期 invalid、预览停在上一份合法样式。
+     */
+    static ExpandedLevels reconcileLevels(int height, List<RoadLampStyle.Level> levels) {
+        if (levels == null || levels.isEmpty()) {
+            return new ExpandedLevels(Math.clamp(height, 5, 24), List.of());
+        }
+        int h = Math.clamp(height, 5, 24);
+        List<RoadLampStyle.Level> packed = levels;
+        for (int guard = 0; guard < 24; guard++) {
+            packed = packLevels(h, levels);
+            if (new RoadLampDraft("x", h, RoadLampStyle.Material.METAL, false, packed, RoadLampStyle.Detail.NONE)
+                    .validStyle() != null) {
+                return new ExpandedLevels(h, packed);
+            }
+            if (h >= 24) {
+                break;
+            }
+            h++;
+        }
+        return new ExpandedLevels(h, packed);
+    }
+
+    private static List<RoadLampStyle.Level> packLevels(int height, List<RoadLampStyle.Level> levels) {
+        var next = new ArrayList<>(levels);
+        var top = next.getLast();
+        next.set(next.size() - 1, copyLevel(top, height - 1));
+
+        for (int i = next.size() - 2; i >= 0; i--) {
+            var level = next.get(i);
+            int maxY = levelLowest(next.get(i + 1)) - 2;
+            int floor = minLevelY(0, level.mount(), level.chain());
+            int y = Math.clamp(level.y(), floor, Math.max(floor, maxY));
+            if (y > maxY) {
+                y = maxY;
+            }
+            next.set(i, copyLevel(level, y));
+        }
+
+        int previousY = 0;
+        for (int i = 0; i < next.size(); i++) {
+            var level = next.get(i);
+            boolean isTop = i == next.size() - 1;
+            int minY = minLevelY(previousY, level.mount(), level.chain());
+            int maxY = isTop ? height - 1 : levelLowest(next.get(i + 1)) - 2;
+            int y = isTop ? height - 1 : (minY <= maxY ? Math.clamp(level.y(), minY, maxY) : maxY);
+            next.set(i, copyLevel(level, y));
+            previousY = y + 1;
+        }
+        return List.copyOf(next);
+    }
+
+    private static RoadLampStyle.Level copyLevel(RoadLampStyle.Level level, int y) {
+        return new RoadLampStyle.Level(
+            y, level.layout(), level.mount(), level.reach(), level.chain(), level.light());
+    }
+
+    static int minLevelY(int previousY, RoadLampStyle.Mount mount, int chain) {
+        int minByPrev = switch (mount) {
+            case CHAIN -> previousY + chain + 2;
+            case HOOD, TOP -> previousY + 2;
+        };
+        int minByFloor = switch (mount) {
+            case CHAIN -> chain + 5;
+            case HOOD -> 5;
+            case TOP -> 4;
+        };
+        return Math.max(minByFloor, minByPrev);
+    }
 }

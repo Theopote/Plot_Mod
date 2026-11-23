@@ -90,7 +90,8 @@ final class RoadLampPreview {
             ImGui.getIO().setMouseWheel(0f);
         }
         if (ImGui.isItemActive() && ImGui.isMouseDragging(0)) {
-            yawDeg[0] = normalizeYaw(yawDeg[0] + ImGui.getIO().getMouseDeltaX() * YAW_DRAG_DEGREES_PER_PIXEL);
+            // 向左拖 → 模型随视角向左转（与拖动方向一致）。
+            yawDeg[0] = normalizeYaw(yawDeg[0] - ImGui.getIO().getMouseDeltaX() * YAW_DRAG_DEGREES_PER_PIXEL);
         }
     }
 

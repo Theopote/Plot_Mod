@@ -50,4 +50,27 @@ class RoadLampDraftTest {
         assertNotNull(new RoadLampDraft("Raised", three.height(), RoadLampStyle.Material.METAL, false,
             three.levels(), RoadLampStyle.Detail.NONE).validStyle());
     }
+
+    @Test
+    void reconcileLevelsClampsCollisionAfterHeightShrink() {
+        var levels = List.of(
+            new RoadLampStyle.Level(4, RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 1, 1, RoadLampStyle.Light.LANTERN),
+            new RoadLampStyle.Level(7, RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 1, 1, RoadLampStyle.Light.LANTERN),
+            new RoadLampStyle.Level(10, RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 1, 1, RoadLampStyle.Light.LANTERN));
+        // 杆高从 11 降到 8 时，旧层高会撞顶；应抬杆或重排到合法组合。
+        var reconciled = RoadLampDraft.reconcileLevels(8, levels);
+        assertNotNull(new RoadLampDraft(
+            "Packed", reconciled.height(), RoadLampStyle.Material.METAL, false,
+            reconciled.levels(), RoadLampStyle.Detail.NONE).validStyle());
+        assertEquals(reconciled.height() - 1, reconciled.levels().getLast().y());
+        assertTrue(reconciled.levels().get(0).y() < reconciled.levels().get(1).y());
+        assertTrue(reconciled.levels().get(1).y() < reconciled.levels().get(2).y());
+    }
+
+    @Test
+    void nonTopLevelMaxYLeavesRoomForTopMount() {
+        var top = new RoadLampStyle.Level(10, RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP,
+            1, 1, RoadLampStyle.Light.LANTERN);
+        assertEquals(8, RoadLampDraft.levelLowest(top) - 2);
+    }
 }
