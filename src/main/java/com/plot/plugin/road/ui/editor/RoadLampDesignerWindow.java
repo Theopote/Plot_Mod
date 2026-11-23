@@ -325,10 +325,6 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
 
     private void renderPreview(RoadLampPlacement placement, ResolvedCrossSection section) {
         contextView = toggle("road_context", contextView);
-        ImGui.setNextItemWidth(controlWidth());
-        ImGui.sliderFloat(tr("rotate"), yaw, -180f, 180f, "%.0f°");
-        ImGui.setNextItemWidth(controlWidth());
-        ImGui.sliderFloat(tr("zoom"), zoom, 0.6f, 2f, "%.1fx");
         if (!placement.style().equals(compiledStyle)) {
             compiledStyle = placement.style();
             compiled = RoadLampCompiler.compile(compiledStyle);
@@ -339,7 +335,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
         var scene = contextView ? contextScene : compiled;
         float height = Math.clamp(ImGui.getContentRegionAvailY() - 36f, 180f, 380f);
-        preview.render(scene, height, yaw[0], zoom[0]);
+        preview.render(scene, height, yaw, zoom);
         int totalHeight = compiled.stream().mapToInt(voxel -> voxel.position().getY()).max().orElse(0) + 1;
         int heads = compiledStyle.levels().stream().mapToInt(level -> switch (level.layout()) {
             case SINGLE, INWARD, OUTWARD -> 1;
@@ -348,7 +344,6 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             case CROSS -> 4;
         }).sum();
         ImGui.textWrapped(PlotI18n.tr(KEY + "structure_size", totalHeight, heads, compiled.size()));
-        if (contextView) ImGui.textWrapped(PlotI18n.tr(KEY + "context_hint", placement.spacing()));
     }
 
     private List<RoadLampCompiler.Voxel> sectionScene(ResolvedCrossSection section, RoadLampPlacement placement) {

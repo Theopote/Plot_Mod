@@ -68,6 +68,7 @@
   "plugin.road.lamp.road_context": "横断面情境",
   "plugin.road.lamp.rotate": "旋转",
   "plugin.road.lamp.zoom": "缩放",
+  "plugin.road.lamp.preview_orbit_hint": "滚轮缩放，左键左右拖动旋转",
   "plugin.road.lamp.structure_size": "总高 %d 格 · %d 个灯头 · %d 个方块",
   "plugin.road.lamp.context_hint": "布置间距 %d 格。实际落位请查看道路生成预览。",
   "plugin.road.lamp.managed": "此道路的路灯间距和样式在专业工具的路灯设计器中设置。",

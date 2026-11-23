@@ -3,6 +3,8 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
+import com.plot.ui.component.UIUtils;
+import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import net.minecraft.util.math.BlockPos;
@@ -15,15 +17,27 @@ import java.util.stream.Collectors;
 
 /** Small block-space preview for a local structure or a cross-section with mounted lamps. */
 final class RoadLampPreview {
+    private static final float MIN_ZOOM = 0.6f;
+    private static final float MAX_ZOOM = 2.0f;
+    private static final float YAW_DRAG_DEGREES_PER_PIXEL = 0.45f;
+    private static final float ZOOM_WHEEL_STEP = 0.12f;
+
     private List<RoadLampCompiler.Voxel> cachedStructure;
     private final List<Part> parts = new ArrayList<>();
     private float sortedYaw = Float.NaN;
 
-    void render(List<RoadLampCompiler.Voxel> structure, float height, float yaw, float zoom) {
+    /**
+     * @param yawDeg 可写长度 ≥1；悬停预览时左键左右拖动会改写
+     * @param zoom   可写长度 ≥1；悬停预览时滚轮会改写，范围 [{@value MIN_ZOOM}, {@value MAX_ZOOM}]
+     */
+    void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom) {
         float width = ImGui.getContentRegionAvailX();
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
-        ImGui.dummy(width, height);
+        ImGui.invisibleButton("##road_lamp_preview_orbit", width, height);
+        handleOrbitControls(yawDeg, zoom);
+        float yaw = yawDeg[0];
+        float zoomFactor = zoom[0];
         var draw = ImGui.getWindowDrawList();
         draw.addRectFilled(left, top, left + width, top + height, 0xff20242b, 4f);
         float angle = (float) Math.toRadians(yaw);
@@ -56,13 +70,38 @@ final class RoadLampPreview {
             }
         }
         if (parts.isEmpty()) return;
-        float size = zoom * Math.min((width - 16) / (maxX - minX), (height - 16) / (maxY - minY));
+        float size = zoomFactor * Math.min((width - 16) / (maxX - minX), (height - 16) / (maxY - minY));
         if (size <= 0) return;
         var view = new View(sine, cosine, size,
             left + (width - (maxX + minX) * size) / 2f, top + (height - (maxY + minY) * size) / 2f);
         draw.pushClipRect(left, top, left + width, top + height, true);
         for (var part : parts) drawPart(draw, view, part);
         draw.popClipRect();
+    }
+
+    private static void handleOrbitControls(float[] yawDeg, float[] zoom) {
+        if (!ImGui.isItemHovered()) {
+            return;
+        }
+        UIUtils.setTooltip(PlotI18n.tr("plugin.road.lamp.preview_orbit_hint"));
+        float wheel = ImGui.getIO().getMouseWheel();
+        if (wheel != 0f) {
+            zoom[0] = Math.clamp(zoom[0] + wheel * ZOOM_WHEEL_STEP, MIN_ZOOM, MAX_ZOOM);
+            ImGui.getIO().setMouseWheel(0f);
+        }
+        if (ImGui.isItemActive() && ImGui.isMouseDragging(0)) {
+            yawDeg[0] = normalizeYaw(yawDeg[0] + ImGui.getIO().getMouseDeltaX() * YAW_DRAG_DEGREES_PER_PIXEL);
+        }
+    }
+
+    private static float normalizeYaw(float yaw) {
+        float wrapped = yaw % 360f;
+        if (wrapped > 180f) {
+            wrapped -= 360f;
+        } else if (wrapped < -180f) {
+            wrapped += 360f;
+        }
+        return wrapped;
     }
 
     private void rebuildParts(List<RoadLampCompiler.Voxel> structure) {

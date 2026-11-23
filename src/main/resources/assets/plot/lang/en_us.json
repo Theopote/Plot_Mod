@@ -68,6 +68,7 @@
   "plugin.road.lamp.road_context": "Cross-section context",
   "plugin.road.lamp.rotate": "Rotate",
   "plugin.road.lamp.zoom": "Zoom",
+  "plugin.road.lamp.preview_orbit_hint": "Scroll to zoom, drag left/right to rotate",
   "plugin.road.lamp.structure_size": "%d blocks high · %d lights · %d blocks",
   "plugin.road.lamp.context_hint": "Spacing %d blocks. Check the road generation preview for actual placements.",
   "plugin.road.lamp.managed": "Set lamp spacing and style in the Street Lamp Designer.",
