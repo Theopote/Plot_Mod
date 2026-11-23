@@ -30,7 +30,7 @@ final class ProfileSourceControls {
         if (road == null || network == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.profile_source_section"));
+        // 标题由外层 PluginSectionCard（##vp_sec_profile_source）承担。
 
         boolean canActivateEdited = ResolvedProfileAuthority.canActivateEditedProfile(network, road);
         boolean hasStoredCurve = ResolvedProfileAuthority.hasStoredEditedCurve(road);

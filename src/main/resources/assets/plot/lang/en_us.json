@@ -3729,6 +3729,7 @@
   "plugin.road.uniform_elevation_strategy_average": "average",
   "plugin.road.uniform_elevation_strategy_custom": "custom",
   "plugin.road.uniform_elevation_strategy_mode": "mode",
+  "plugin.road.vertical_profile.section.network_elevation": "Network elevation",
   "plugin.road.uniform_flat_elevation": "Network-wide flat elevation",
   "plugin.road.uniform_flat_elevation_hint": "Suggested elevation writes into uniform Y; per-road profile, slope, and terrain-adaptive controls stay hidden.",
   "plugin.road.uniform_flat_grade_sep_conflict": "Network-wide flat elevation conflicts with grade separation (%d). Convert to at-grade in the Path tab, or disable uniform flat.",

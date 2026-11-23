@@ -51,8 +51,11 @@ public final class RoadVerticalProfilePanel {
             });
 
         ImGui.separator();
-        RoadUiSections.section("plugin.road.generate.profile_overview_section");
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.generate.profile_overview_section"));
+        ImGui.spacing();
         // 统一标高仍展示地形概览；主编辑入口在设计区，卡片保留次要「编辑」。
+        // 每路迷你图不套 PluginSectionCard（避免嵌套 child + 图表冲突）。
         RoadProfileOverviewSection.render(
             ctx,
             network,

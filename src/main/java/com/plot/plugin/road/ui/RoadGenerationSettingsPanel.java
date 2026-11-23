@@ -13,10 +13,10 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import net.minecraft.world.World;
 
@@ -24,29 +24,24 @@ import net.minecraft.world.World;
  * 全局生成参数（产品化预设与桥梁选项）。
  */
 public final class RoadGenerationSettingsPanel {
+    private static final String VP_SECTION = "plugin.road.vertical_profile.section.";
+
     private RoadGenerationSettingsPanel() {
     }
 
     /**
-     * 未选道路时展示全局地形/坡度默认；单选非水平道路时同理。
-     * 多选不得落到此路径（避免无提示改写主选道路或误用全局控件冒充批量）。
+     * 仅单选且非水平道路时展示地形/坡度类设计参数。
+     * 空选不展示（引导先选路）；多选不得落到此路径（避免无提示改写主选或误用全局控件冒充批量）。
      */
     public static boolean showsTerrainAdaptiveControls(RoadUiContext ctx) {
         if (NetworkElevationAuthority.isUniformFlat(ctx.networkManager().getNetwork())) {
             return false;
         }
-        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
-        if (mode == RoadSelectionHeader.Mode.MULTI) {
+        if (RoadSelectionHeader.resolveMode(ctx) != RoadSelectionHeader.Mode.SINGLE) {
             return false;
         }
-        if (mode == RoadSelectionHeader.Mode.NONE) {
-            return true;
-        }
         Road road = ctx.networkManager().getPrimarySelectedRoad();
-        if (road == null) {
-            return true;
-        }
-        return RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT;
+        return road != null && RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT;
     }
 
     /** 仅单选且为地形适应时展示逐路坡度/地形/纵断面来源。 */
@@ -62,7 +57,7 @@ public final class RoadGenerationSettingsPanel {
     }
 
     /**
-     * 纵断面工作区：统一标高模式、目标道路、纵向方式、可折叠设计参数、主编辑入口。
+     * 纵断面工作区：统一标高模式、目标道路、纵向方式、分区设计参数、主编辑入口。
      * 桥梁结构选项已迁至横断面工作区。
      */
     public static void renderVerticalDesign(
@@ -85,14 +80,35 @@ public final class RoadGenerationSettingsPanel {
             }
         }
 
-        renderUniformFlatModeControls(ctx, network);
+        PluginSectionCard.render(
+            "##vp_sec_network_elevation",
+            PlotI18n.tr(VP_SECTION + "network_elevation"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> renderUniformFlatModeControls(ctx, network));
+
         // 复选框可能刚改写了 mode：同帧重读，避免仍渲染上一模式控件。
         boolean uniformFlat = NetworkElevationAuthority.isUniformFlat(network);
         mode = RoadSelectionHeader.resolveMode(ctx);
         ImGui.spacing();
 
-        if (!uniformFlat && !network.getEdges().isEmpty() && pathPropertyPanel != null) {
-            pathPropertyPanel.renderGenerationSettings(ctx);
+        // 纵向方式 / 批量纵向：仅单选或多选时出现；空选只保留全网标高与选路提示。
+        if (!uniformFlat
+                && !network.getEdges().isEmpty()
+                && pathPropertyPanel != null
+                && (mode == RoadSelectionHeader.Mode.SINGLE
+                    || mode == RoadSelectionHeader.Mode.MULTI)) {
+            String strategyTitle = mode == RoadSelectionHeader.Mode.MULTI
+                ? PlotI18n.tr("plugin.road.vertical_batch_section")
+                : PlotI18n.tr("plugin.road.vertical_strategy");
+            PluginSectionCard.render(
+                "##vp_sec_strategy",
+                strategyTitle,
+                null,
+                PluginSectionCard.SectionTone.NEUTRAL,
+                true,
+                () -> pathPropertyPanel.renderGenerationSettings(ctx));
             ImGui.spacing();
         }
 
@@ -110,43 +126,45 @@ public final class RoadGenerationSettingsPanel {
             }
             case SINGLE -> {
                 if (showsPerRoadTerrainControls(ctx, activeRoad)) {
-                    if (ImGui.collapsingHeader(
-                            PlotI18n.tr("plugin.road.vertical_design_params")
-                                + "##vertical_design_params",
-                            ImGuiTreeNodeFlags.DefaultOpen)) {
-                        Runnable history = ctx.networkManager()::pushHistory;
-                        RoadStyleProductControls.renderRoadMaxSlopePresets(ctx, activeRoad, history);
-                        ImGui.separator();
-                        ImGui.spacing();
-                        if (RoadStyleProductControls.renderRoadTerrainStylePresets(
-                                ctx, activeRoad, history)) {
-                            ImGui.separator();
-                            ImGui.spacing();
-                        }
-                        RoadStyleProductControls.renderRoadBridgeThresholdPresets(
-                            ctx, activeRoad, history);
-                        ImGui.separator();
-                        ImGui.spacing();
-                        ProfileSourceControls.render(ctx, network, activeRoad);
+                    Runnable history = ctx.networkManager()::pushHistory;
+                    PluginSectionCard.render(
+                        "##vp_sec_max_grade",
+                        PlotI18n.tr("plugin.road.max_slope_label"),
+                        null,
+                        PluginSectionCard.SectionTone.NEUTRAL,
+                        true,
+                        () -> RoadStyleProductControls.renderRoadMaxSlopePresets(ctx, activeRoad, history));
+                    // EDITED 权威下地形风格无效，避免空卡。
+                    if (RoadStyleProductControls.showsRoadTerrainStylePresets(activeRoad)) {
+                        PluginSectionCard.render(
+                            "##vp_sec_terrain_style",
+                            PlotI18n.tr("plugin.road.terrain_style"),
+                            null,
+                            PluginSectionCard.SectionTone.NEUTRAL,
+                            true,
+                            () -> RoadStyleProductControls.renderRoadTerrainStylePresets(
+                                ctx, activeRoad, history));
                     }
+                    PluginSectionCard.render(
+                        "##vp_sec_bridge_threshold",
+                        PlotI18n.tr("plugin.road.bridge_threshold_label"),
+                        null,
+                        PluginSectionCard.SectionTone.NEUTRAL,
+                        true,
+                        () -> RoadStyleProductControls.renderRoadBridgeThresholdPresets(
+                            ctx, activeRoad, history));
+                    PluginSectionCard.render(
+                        "##vp_sec_profile_source",
+                        PlotI18n.tr("plugin.road.profile_source_section"),
+                        null,
+                        PluginSectionCard.SectionTone.NEUTRAL,
+                        true,
+                        () -> ProfileSourceControls.render(ctx, network, activeRoad));
                 }
                 // 水平道路：坡度/地形/来源不适用；基准 Y 已在路径属性中。
             }
             case NONE -> {
-                // 空选：全局默认设计参数（含地形适应），默认展开便于发现。
-                if (showsTerrainAdaptiveControls(ctx)
-                        && ImGui.collapsingHeader(
-                            PlotI18n.tr("plugin.road.vertical_design_params")
-                                + "##vertical_design_params_defaults",
-                            ImGuiTreeNodeFlags.DefaultOpen)) {
-                    RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
-                    ImGui.separator();
-                    ImGui.spacing();
-                    RoadStyleProductControls.renderTerrainStylePresets(ctx);
-                    ImGui.separator();
-                    ImGui.spacing();
-                    RoadStyleProductControls.renderConfigBridgeThresholdPresets(ctx);
-                }
+                // 空选：仅全网标高 + TargetBar 选路提示，不展示纵向方式与逐路参数。
             }
         }
 

@@ -2408,6 +2408,7 @@
   "plugin.road.streetlight_off": "关闭",
   "plugin.road.build_no_blocks": "没有可生成的道路方块",
   "plugin.road.build_success": "道路构建完成：已发送 %d 个方块指令",
+  "plugin.road.vertical_profile.section.network_elevation": "全网标高",
   "plugin.road.uniform_flat_elevation": "全网统一标高（平路）",
   "plugin.road.uniform_flat_elevation_hint": "推荐标高可直接写入统一 Y；逐路纵断面、坡度和地形适应设置全部隐藏。",
   "plugin.road.uniform_elevation_sample": "推荐标高",

@@ -120,8 +120,13 @@ public final class RoadStyleProductControls {
      *
      * @return 是否渲染了地形适应组
      */
+    /** EDITED 纵断面权威下地形风格不参与生成，主面板不应为此开空卡。 */
+    public static boolean showsRoadTerrainStylePresets(Road road) {
+        return road != null && road.getEffectiveProfileSource() != ProfileSource.EDITED;
+    }
+
     public static boolean renderRoadTerrainStylePresets(RoadUiContext ctx, Road road, Runnable onHistory) {
-        if (road == null || road.getEffectiveProfileSource() == ProfileSource.EDITED) {
+        if (!showsRoadTerrainStylePresets(road)) {
             return false;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
@@ -248,16 +253,16 @@ public final class RoadStyleProductControls {
     private static void renderTerrainStyleButtons(
             RoadTerrainStyle active,
             java.util.function.Consumer<RoadTerrainStyle> onSelect) {
-        ImGui.text(PlotI18n.tr("plugin.road.terrain_style"));
-        if (ImGui.isItemHovered()) {
-            UIUtils.setTooltip(PlotI18n.tr("plugin.road.terrain_style.hint"));
-        }
+        // 标题由纵断面主面板 PluginSectionCard（##vp_sec_terrain_style）承担。
         RoadTerrainStyle effective = active != null ? active : RoadTerrainStyle.BALANCED;
         renderTerrainStyleButton(RoadTerrainStyle.FOLLOW, effective, () -> onSelect.accept(RoadTerrainStyle.FOLLOW));
         ImGui.sameLine();
         renderTerrainStyleButton(RoadTerrainStyle.BALANCED, effective, () -> onSelect.accept(RoadTerrainStyle.BALANCED));
         ImGui.sameLine();
         renderTerrainStyleButton(RoadTerrainStyle.SMOOTH, effective, () -> onSelect.accept(RoadTerrainStyle.SMOOTH));
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.terrain_style.hint"));
+        }
         ImGui.spacing();
     }
 

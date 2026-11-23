@@ -9,6 +9,7 @@ import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,5 +75,24 @@ class RoadGenerationSettingsMultiSelectTest {
 
         assertTrue(RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx));
         assertTrue(RoadGenerationSettingsPanel.showsPerRoadTerrainControls(ctx, primary));
+        assertTrue(RoadStyleProductControls.showsRoadTerrainStylePresets(primary));
+    }
+
+    @Test
+    void noSelectionHidesTerrainAdaptiveControls() {
+        manager.resetSelection();
+
+        assertFalse(RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx));
+        assertFalse(RoadGenerationSettingsPanel.showsPerRoadTerrainControls(ctx, null));
+    }
+
+    @Test
+    void editedProfileHidesTerrainStylePresets() {
+        manager.selectRoad(roadA, false);
+        Road primary = manager.getPrimarySelectedRoad();
+        primary.setProfileSource(ProfileSource.EDITED);
+
+        assertTrue(RoadGenerationSettingsPanel.showsPerRoadTerrainControls(ctx, primary));
+        assertFalse(RoadStyleProductControls.showsRoadTerrainStylePresets(primary));
     }
 }

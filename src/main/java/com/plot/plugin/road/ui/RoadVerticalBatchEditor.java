@@ -44,8 +44,7 @@ final class RoadVerticalBatchEditor {
             return;
         }
 
-        ImGui.separator();
-        RoadUiSections.group("plugin.road.vertical_batch_section");
+        // 标题由外层 PluginSectionCard（##vp_sec_strategy）承担。
         syncDraftSelection(stationableRoadIds, network);
 
         BatchStrategyState state = resolveBatchStrategy(network, stationableRoadIds);
