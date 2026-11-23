@@ -14,6 +14,8 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.StreetFurniture;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.RoadUiWidgets;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -36,6 +38,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         RoadLampStyle.Layout.INWARD, RoadLampStyle.Layout.OUTWARD, RoadLampStyle.Layout.TWIN, RoadLampStyle.Layout.CROSS
     };
     private final ImString name = new ImString(320);
+    private final ImString lightFilter = new ImString(64);
     private final float[] yaw = {30f};
     private final float[] zoom = {1f};
     private List<RoadLampLibrary.Entry> custom = List.of();
@@ -111,7 +114,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         float availY = ImGui.getContentRegionAvailY();
         if (width < 700f) {
             // 先写参数再预览，避免本帧改动要等下一帧才反映到编译结果。
-            renderParameters(furniture, true);
+            renderParameters(furniture, section.includeMedian);
             renderPreview(placementDraft, section);
             return;
         }
@@ -125,7 +128,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         ImGui.setCursorPos(rowStartX + previewWidth + spacing, rowStartY);
         ImGui.beginChild("##lamp_parameters", paramsWidth, rowHeight, false, 0);
         try {
-            renderParameters(furniture, true);
+            renderParameters(furniture, section.includeMedian);
         } finally {
             ImGui.endChild();
         }
@@ -277,9 +280,12 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         name.set(style.name());
     }
 
-    private void renderParameters(StreetFurniture furniture, boolean enabled) {
+    private void renderParameters(StreetFurniture furniture, boolean includeMedian) {
         var active = placementDraft;
         var sides = combo("sides", active.sides(), RoadLampPlacement.Sides.values());
+        if (sides == RoadLampPlacement.Sides.MEDIAN && !includeMedian) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, tr("median_unavailable"));
+        }
         int spacing = slider("spacing", active.spacing(),
             RoadParameterLimits.MIN_STREETLIGHT_SPACING, RoadParameterLimits.MAX_STREETLIGHT_SPACING);
         int inset = sides == RoadLampPlacement.Sides.MEDIAN ? active.inset() : slider("inset", active.inset(), 0, 8);
@@ -334,16 +340,19 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 maxY = Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
                 y = Math.clamp(y, minY, maxY);
             }
-            var light = lightCombo(existing.light());
+            var light = lightCombo(existing.light(), mount);
             levels.set(i, new RoadLampStyle.Level(y, layout, mount, reach, chain, light));
             ImGui.popID();
         }
         var reconciled = RoadLampDraft.reconcileLevels(height, levels);
         height = reconciled.height();
         levels = new ArrayList<>(reconciled.levels());
+        // 层参数已更新后再提示，避免「装饰构造已选但当前灯层不满足条件」时无反馈。
+        renderDetailInactiveHint(detail, levels);
 
         var candidate = new RoadLampDraft(name.get(), height, material, plinth, levels, detail);
-        var placementControls = new RoadLampPlacement(active.style(), sides, spacing, inset, setback, enabled, bridge);
+        var placementControls = new RoadLampPlacement(
+            active.style(), sides, spacing, inset, setback, active.enabled(), bridge);
         var resolved = candidate.resolve(placementControls);
         if (resolved != null && (applyCurrent || !candidate.equals(draft) || !placementControls.equals(active)
                 || !resolved.equals(active))) {
@@ -480,17 +489,55 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         return current;
     }
 
-    /** 灯具：列出当前版本已注册的发光可放置方块，标签用方块显示名。 */
-    private static RoadLampStyle.Light lightCombo(RoadLampStyle.Light current) {
+    private static void renderDetailInactiveHint(RoadLampStyle.Detail detail, List<RoadLampStyle.Level> levels) {
+        if (detail.isVisiblyActive(levels)) {
+            return;
+        }
+        String key = switch (detail) {
+            case URBAN -> "detail_hint.urban";
+            case TIMBER -> "detail_hint.timber";
+            case EAVES -> "detail_hint.eaves";
+            case NONE, HERITAGE -> null;
+        };
+        if (key != null) {
+            ImGui.textDisabled(tr(key));
+        }
+    }
+
+    /**
+     * 灯具：搜索过滤 + 分类分节，仅列出与安装方式兼容且已注册的项。
+     */
+    private RoadLampStyle.Light lightCombo(RoadLampStyle.Light current, RoadLampStyle.Mount mount) {
+        if (!current.supportsMount(mount)) {
+            current = RoadLampStyle.Light.LANTERN;
+        }
         ImGui.setNextItemWidth(controlWidth());
         if (ImGui.beginCombo(tr("light"), RoadMaterialUtils.getDisplayName(current.blockId()))) {
-            for (RoadLampStyle.Light value : RoadLampStyle.Light.values()) {
-                if (!isRegisteredLight(value)) {
-                    continue;
-                }
-                String label = RoadMaterialUtils.getDisplayName(value.blockId());
-                if (ImGui.selectable(label + "##lamp_light_" + value.name(), value == current)) {
-                    current = value;
+            ImGui.setNextItemWidth(-1f);
+            ImGui.inputTextWithHint("##lamp_light_filter", tr("light_filter_hint"), lightFilter);
+            String query = lightFilter.get().strip().toLowerCase(Locale.ROOT);
+            for (RoadLampStyle.CatalogGroup group : RoadLampStyle.CatalogGroup.values()) {
+                boolean header = false;
+                for (RoadLampStyle.Light value : RoadLampStyle.Light.values()) {
+                    if (!value.inCatalog() || value.catalogGroup() != group
+                            || !isRegisteredLight(value) || !value.supportsMount(mount)) {
+                        continue;
+                    }
+                    String label = RoadMaterialUtils.getDisplayName(value.blockId());
+                    if (!query.isEmpty()
+                            && !label.toLowerCase(Locale.ROOT).contains(query)
+                            && !value.name().toLowerCase(Locale.ROOT).contains(query)
+                            && !value.blockId().toLowerCase(Locale.ROOT).contains(query)) {
+                        continue;
+                    }
+                    if (!header) {
+                        ImGui.separator();
+                        ImGui.textDisabled(tr("light_group." + group.name().toLowerCase(Locale.ROOT)));
+                        header = true;
+                    }
+                    if (ImGui.selectable(label + "##lamp_light_" + value.name(), value == current)) {
+                        current = value;
+                    }
                 }
             }
             ImGui.endCombo();

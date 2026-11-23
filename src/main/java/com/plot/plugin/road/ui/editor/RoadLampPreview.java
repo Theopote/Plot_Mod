@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 final class RoadLampPreview {
     private static final float MIN_ZOOM = 0.6f;
     private static final float MAX_ZOOM = 2.0f;
+    private static final float DEFAULT_YAW = 30f;
+    private static final float DEFAULT_ZOOM = 1f;
     private static final float YAW_DRAG_DEGREES_PER_PIXEL = 0.45f;
     private static final float ZOOM_WHEEL_STEP = 0.12f;
 
@@ -28,7 +30,7 @@ final class RoadLampPreview {
     private float sortedYaw = Float.NaN;
 
     /**
-     * @param yawDeg 可写长度 ≥1；悬停预览时左键左右拖动会改写
+     * @param yawDeg 可写长度 ≥1；悬停预览时左键左右拖动会改写；双击重置
      * @param zoom   可写长度 ≥1；悬停预览时滚轮会改写，范围 [{@value MIN_ZOOM}, {@value MAX_ZOOM}]
      */
     void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom) {
@@ -63,16 +65,19 @@ final class RoadLampPreview {
             sortedYaw = yaw;
         }
         for (var part : parts) {
-            for (float x : new float[]{part.x0, part.x1}) {
-                for (float z : new float[]{part.z0, part.z1}) {
-                    float u = x * cosine - z * sine;
-                    float v = depth(x, z, sine, cosine) * 0.34f;
-                    minX = Math.min(minX, u);
-                    maxX = Math.max(maxX, u);
-                    minY = Math.min(minY, v - part.y1);
-                    maxY = Math.max(maxY, v - part.y0);
-                }
-            }
+            // 展开四角比较，避免每帧 new float[]。
+            float u00 = part.x0 * cosine - part.z0 * sine;
+            float u01 = part.x0 * cosine - part.z1 * sine;
+            float u10 = part.x1 * cosine - part.z0 * sine;
+            float u11 = part.x1 * cosine - part.z1 * sine;
+            float v00 = depth(part.x0, part.z0, sine, cosine) * 0.34f;
+            float v01 = depth(part.x0, part.z1, sine, cosine) * 0.34f;
+            float v10 = depth(part.x1, part.z0, sine, cosine) * 0.34f;
+            float v11 = depth(part.x1, part.z1, sine, cosine) * 0.34f;
+            minX = Math.min(minX, Math.min(Math.min(u00, u01), Math.min(u10, u11)));
+            maxX = Math.max(maxX, Math.max(Math.max(u00, u01), Math.max(u10, u11)));
+            minY = Math.min(minY, Math.min(Math.min(v00, v01), Math.min(v10, v11)) - part.y1);
+            maxY = Math.max(maxY, Math.max(Math.max(v00, v01), Math.max(v10, v11)) - part.y0);
         }
         if (parts.isEmpty()) return;
         float size = zoomFactor * Math.min((width - 16) / (maxX - minX), (height - 16) / (maxY - minY));
@@ -89,6 +94,11 @@ final class RoadLampPreview {
             return;
         }
         UIUtils.setTooltip(PlotI18n.tr("plugin.road.lamp.preview_orbit_hint"));
+        if (ImGui.isMouseDoubleClicked(0)) {
+            yawDeg[0] = DEFAULT_YAW;
+            zoom[0] = DEFAULT_ZOOM;
+            return;
+        }
         float wheel = ImGui.getIO().getMouseWheel();
         if (wheel != 0f) {
             zoom[0] = Math.clamp(zoom[0] + wheel * ZOOM_WHEEL_STEP, MIN_ZOOM, MAX_ZOOM);
@@ -148,6 +158,18 @@ final class RoadLampPreview {
             }
         } else if (id.endsWith(":end_rod")) {
             parts.add(Part.at(pos, color, 0.375f, 0f, 0.375f, 0.625f, 1f, 0.625f));
+        } else if (id.endsWith("_torch") || id.endsWith(":torch")) {
+            parts.add(Part.at(pos, 0xff6b5840, 0.44f, 0f, 0.44f, 0.56f, 0.62f, 0.56f));
+            parts.add(Part.at(pos, color, 0.38f, 0.55f, 0.38f, 0.62f, 0.88f, 0.62f));
+        } else if (id.endsWith("_candle") || id.endsWith(":candle")) {
+            parts.add(Part.at(pos, color, 0.42f, 0f, 0.42f, 0.58f, 0.42f, 0.58f));
+            parts.add(Part.at(pos, 0xfff0d878, 0.45f, 0.42f, 0.45f, 0.55f, 0.62f, 0.55f));
+        } else if (id.endsWith("_campfire") || id.endsWith(":campfire")) {
+            parts.add(Part.at(pos, 0xff6b5840, 0.05f, 0f, 0.05f, 0.95f, 0.22f, 0.95f));
+            parts.add(Part.at(pos, color, 0.28f, 0.18f, 0.28f, 0.72f, 0.72f, 0.72f));
+        } else if (id.endsWith(":light")) {
+            // 半透明小块，表示隐形光源而非实心一格。
+            parts.add(Part.at(pos, 0x66a8e8ff, 0.28f, 0.28f, 0.28f, 0.72f, 0.72f, 0.72f));
         } else if (id.endsWith("_slab") && !"double".equals(block.property("type"))) {
             boolean top = "top".equals(block.property("type"));
             parts.add(Part.at(pos, color, 0f, top ? 0.5f : 0f, 0f, 1f, top ? 1f : 0.5f, 1f));
@@ -202,10 +224,12 @@ final class RoadLampPreview {
     }
 
     private static int shade(int argb, float multiplier) {
+        int alpha = (argb >>> 24) & 255;
         int red = (int) (((argb >> 16) & 255) * multiplier);
         int green = (int) (((argb >> 8) & 255) * multiplier);
         int blue = (int) ((argb & 255) * multiplier);
-        return 0xff000000 | (blue << 16) | (green << 8) | red;
+        // ImGui 颜色为 ABGR 打包：保留 alpha，便于隐形光源半透明预览。
+        return (alpha << 24) | (blue << 16) | (green << 8) | red;
     }
 
     private record View(float sine, float cosine, float scale, float ox, float oy) {

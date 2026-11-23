@@ -70,13 +70,13 @@ public final class RoadLampCompiler {
         int y = level.y();
         for (int i = 1; i <= reach; i++) {
             String beam = detail == RoadLampStyle.Detail.URBAN && i < reach
-                ? "minecraft:polished_deepslate_slab[type=top]" : material.beam;
+                ? material.slabTop() : material.beam;
             blocks.put(new BlockPos(i * dx, y, i * dz), beam);
             if (detail == RoadLampStyle.Detail.EAVES && level.mount() == RoadLampStyle.Mount.HOOD) {
                 var ridge = new BlockPos(i * dx, y + 1, i * dz);
                 blocks.put(ridge, material.beam);
-                blocks.putIfAbsent(ridge.add(-dz, 0, dx), "minecraft:spruce_slab[type=bottom]");
-                blocks.putIfAbsent(ridge.add(dz, 0, -dx), "minecraft:spruce_slab[type=bottom]");
+                blocks.putIfAbsent(ridge.add(-dz, 0, dx), material.slabBottom());
+                blocks.putIfAbsent(ridge.add(dz, 0, -dx), material.slabBottom());
             }
         }
         BlockPos tip = new BlockPos(reach * dx, y, reach * dz);
@@ -88,7 +88,7 @@ public final class RoadLampCompiler {
                 }
                 blocks.put(tip.down(level.chain() + 1), level.light().block(true));
                 if (detail == RoadLampStyle.Detail.TIMBER) {
-                    blocks.putIfAbsent(tip.add(dx, 0, dz), "minecraft:spruce_slab[type=top]");
+                    blocks.putIfAbsent(tip.add(dx, 0, dz), material.slabTop());
                     if (reach > 1) blocks.putIfAbsent(new BlockPos(dx, y - 1, dz), material.trim);
                 }
             }
