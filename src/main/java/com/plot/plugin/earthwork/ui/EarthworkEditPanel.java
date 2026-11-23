@@ -19,6 +19,7 @@ import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -34,6 +35,8 @@ import java.util.UUID;
 
 /** 土方编辑 Tab：区域几何、分区与坡面设置。 */
 public final class EarthworkEditPanel {
+    private static final String EW_SECTION = "plugin.earthwork.ui.section.";
+
     private final EarthworkUiContext ctx;
 
     public EarthworkEditPanel(EarthworkUiContext ctx) {
@@ -42,38 +45,53 @@ public final class EarthworkEditPanel {
 
     public void render() {
         EarthworkUiWidgets.renderRegionSelector(ctx);
-                ImGui.separator();
+        ImGui.spacing();
 
-                GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
-                if (region == null) {
-                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
-                    return;
-                }
+        GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
+        if (region == null) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
+            return;
+        }
 
-                renderSelectedZoneOverlapWarnings(region.getId());
-                renderSurfaceModeSettings(region);
-                renderZoneTypeSettings(region);
-                renderZoneEdgeSettings(region);
+        renderSelectedZoneOverlapWarnings(region.getId());
 
-                renderMaterials(region);
-                if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.region_geometry"))) {
-                    renderRegionGeometrySettings(region);
-                }
-                renderSiteLevelSettingsSection();
+        sectionCard("##ew_edit_surface", "surface", true, () -> {
+            renderSurfaceModeSettings(region);
+            renderZoneTypeSettings(region);
+        });
+        sectionCard("##ew_edit_boundary", "boundary", true, () ->
+            renderZoneEdgeBoundary(region));
+        sectionCard("##ew_edit_edge_details", "edge_details", false, () ->
+            renderZoneEdgeDetails(region));
+        sectionCard("##ew_edit_materials", "materials", true, () ->
+            renderMaterials(region));
+        sectionCard("##ew_edit_holes", "region_geometry", false, () ->
+            renderRegionGeometrySettings(region));
+        renderSiteLevelSettingsSection();
+    }
+
+    private static void sectionCard(String id, String titleKey, boolean defaultOpen, Runnable body) {
+        PluginSectionCard.render(
+            id,
+            PlotI18n.tr(EW_SECTION + titleKey),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            defaultOpen,
+            body);
     }
 
     private void renderMaterials(GradingRegion region) {
-                EarthworkUiWidgets.renderCutExposeMaterialSettings(ctx, region);
-                EarthworkUiWidgets.renderMaterialButton(
-                    ctx,
-                    PlotI18n.tr("plugin.earthwork.fill_material"),
-                    region.getFillMaterial(),
-                    blockId -> {
-                        ctx.projectHistory().push(ctx.project());
-                        region.setFillMaterial(blockId);
-                        ctx.invalidatePreview();
-                    },
-                    GradingRegion.DEFAULT_FILL_MATERIAL);
+        EarthworkUiWidgets.renderCutExposeMaterialSettings(ctx, region);
+        EarthworkUiWidgets.renderMaterialButton(
+            ctx,
+            PlotI18n.tr("plugin.earthwork.fill_material"),
+            region.getFillMaterial(),
+            blockId -> {
+                ctx.projectHistory().push(ctx.project());
+                region.setFillMaterial(blockId);
+                ctx.invalidatePreview();
+            },
+            GradingRegion.DEFAULT_FILL_MATERIAL);
     }
 
     private void renderSurfaceModeSettings(GradingRegion region) {
@@ -229,14 +247,13 @@ public final class EarthworkEditPanel {
         }
     }
 
-    private void renderZoneEdgeSettings(GradingRegion region) {
+    /** 边界处理：画布着色、图例与默认策略（标题由 Section Card 承担）。 */
+    private void renderZoneEdgeBoundary(GradingRegion region) {
         GradingZone zone = ctx.project().getZone(region.getId());
         if (zone == null) {
             return;
         }
         ZoneEdgeSettings settings = zone.getEdgeSettings();
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.edge_settings_header"));
         ctx.showEdgeTreatmentOverlayRef().set(ctx.config().isShowEdgeTreatmentOverlay());
         if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.edge_show_canvas_overlay"), ctx.showEdgeTreatmentOverlayRef())) {
             ctx.config().setShowEdgeTreatmentOverlay(ctx.showEdgeTreatmentOverlayRef().get());
@@ -263,9 +280,19 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
         }
+    }
 
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.edge_details"))) {
+    /** 边坡细节与逐边覆盖（标题由 Section Card 承担）。 */
+    private void renderZoneEdgeDetails(GradingRegion region) {
+        GradingZone zone = ctx.project().getZone(region.getId());
+        if (zone == null) {
             return;
+        }
+        ZoneEdgeSettings settings = zone.getEdgeSettings();
+        EdgeTreatment[] treatments = EdgeTreatment.values();
+        String[] treatmentLabels = new String[treatments.length];
+        for (int i = 0; i < treatments.length; i++) {
+            treatmentLabels[i] = PlotI18n.tr(treatments[i].i18nKey());
         }
 
         int[] cutPitch = {settings.getCutSlopePitchRatio()};
@@ -499,21 +526,18 @@ public final class EarthworkEditPanel {
             return;
         }
 
-        ImGui.separator();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.site_settings"))) {
-            return;
-        }
-        EarthworkUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.earthwork.ui.site_settings_hint"));
-
         CompositionPolicy policy = site.getCompositionPolicy();
         if (multiZone) {
-            renderBalanceScopeSettings(policy);
-            renderOverlapResolutionSettings(policy);
+            sectionCard("##ew_edit_site", "site_settings", false, () -> {
+                EarthworkUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.earthwork.ui.site_settings_hint"));
+                renderBalanceScopeSettings(policy);
+                renderOverlapResolutionSettings(policy);
+            });
         }
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.ui.site_boundary_tools"))) {
+        sectionCard("##ew_edit_site_boundary", "site_boundary_tools", false, () -> {
             renderExclusionZoneSettings(site);
             if (multiZone) {
                 ImGui.spacing();
@@ -531,7 +555,7 @@ public final class EarthworkEditPanel {
             }
             ImGui.spacing();
             renderRetainingEdgeSettings(site);
-        }
+        });
     }
 
     private void renderBreaklineSettings(EarthworkSite site) {

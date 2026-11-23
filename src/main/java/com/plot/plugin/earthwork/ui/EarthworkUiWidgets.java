@@ -142,11 +142,8 @@ public final class EarthworkUiWidgets {
 
         private static final String DEFAULT_CUT_SURFACE_REPLACE_BLOCK = "minecraft:stone";
 
-        /** 挖方设计面：保留原方块，或替换为指定材质（仅替换时写入 {@link GradingRegion#setCutExposeMaterial}）。 */
+        /** 挖方设计面：保留原方块，或替换为指定材质（仅替换时写入 {@link GradingRegion#setCutExposeMaterial}）。标题由编辑面板 Section Card 承担。 */
         public static void renderCutExposeMaterialSettings(EarthworkUiContext ctx, GradingRegion region) {
-            ImGui.text(PlotI18n.tr("plugin.earthwork.cut_surface_header"));
-            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_surface");
-
             ImGui.pushID("cut_surface_mode");
             boolean replace = region.getCutExposeMaterial() != null && !region.getCutExposeMaterial().isBlank();
             if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.cut_surface_keep"), !replace) && replace) {
@@ -154,6 +151,7 @@ public final class EarthworkUiWidgets {
                 region.setCutExposeMaterial("");
                 ctx.invalidatePreview();
             }
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_surface");
             if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.cut_surface_replace"), replace)) {
                 if (!replace) {
                     ctx.projectHistory().push(ctx.project());
