@@ -9,6 +9,25 @@ import com.plot.utils.PlotI18n;
  */
 public final class RoadPanelScopedStatus {
 
+    /**
+     * 浮动编辑器 / 路灯设计器等面板内反馈的 i18n key（精确匹配翻译结果）。
+     * 含格式参数的 key 用 {@link #PANEL_SCOPED_FRAGMENTS} 兜底。
+     */
+    private static final String[] PANEL_SCOPED_KEYS = {
+        "plugin.road.lamp.custom_saved",
+        "plugin.road.lamp.custom_duplicate",
+        "plugin.road.lamp.custom_deleted",
+        "plugin.road.lamp.custom_error",
+        "plugin.road.floating_editor.invalid_draft",
+        "plugin.road.floating_editor.confirm_conflict",
+        "plugin.road.floating_editor.reload_from_live_done",
+        // road_missing 常在关窗后发出，仍走顶栏以免用户看不见
+        "plugin.road.profile_editor_edge_without_road",
+        "plugin.road.profile_editor_confirm_conflict",
+        "plugin.road.uniform_flat_profile_editor_blocked",
+        "plugin.road.edit.tools.coming_soon"
+    };
+
     private RoadPanelScopedStatus() {
     }
 
@@ -34,7 +53,13 @@ public final class RoadPanelScopedStatus {
         if (message == null || message.isBlank()) {
             return false;
         }
-        // 固定前缀 / 特征片段（含中英），避免把建造/认领等全局反馈误伤。
+        for (String key : PANEL_SCOPED_KEYS) {
+            String expected = PlotI18n.tr(key);
+            if (expected != null && !expected.isBlank() && expected.equals(message)) {
+                return true;
+            }
+        }
+        // 固定前缀 / 特征片段（含中英），覆盖带格式参数的文案与旧硬编码。
         return containsAny(
             message,
             "正在读取",
@@ -53,7 +78,20 @@ public final class RoadPanelScopedStatus {
             "不可编辑单路纵断面",
             "cannot edit per-road",
             "编辑纵断面因路径变化",
-            "edited vertical profile");
+            "edited vertical profile",
+            "已保存自定义路灯预设",
+            "已有同名自定义预设",
+            "已删除自定义路灯预设",
+            "无法读取或保存自定义路灯预设",
+            "Custom lamp preset",
+            "custom lamp preset",
+            "请先修正无效",
+            "路网已在别处变更",
+            "已从当前路网重新加载",
+            "invalid draft",
+            "network changed elsewhere",
+            "reloaded from the live",
+            "vertical profile");
     }
 
     private static boolean containsAny(String message, String... fragments) {

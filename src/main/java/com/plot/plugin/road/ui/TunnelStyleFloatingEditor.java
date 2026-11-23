@@ -532,7 +532,9 @@ public final class TunnelStyleFloatingEditor {
         List<String> targets = new ArrayList<>(
             batchRoadIds.isEmpty() ? List.of(roadId) : batchRoadIds);
         if (targets.isEmpty() || targets.getFirst().isBlank()) {
+            // 面板作用域提示：不压在主面板标签顶栏。
             ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
             close();
             return;
         }
@@ -571,6 +573,7 @@ public final class TunnelStyleFloatingEditor {
         }
         if (written == 0) {
             ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
             close();
             return;
         }

@@ -14,6 +14,7 @@ import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.StreetFurniture;
+import com.plot.plugin.road.ui.RoadPanelScopedStatus;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
@@ -95,7 +96,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         contextPlacement = null;
         placementDraft = furniture != null ? current(furniture) : null;
         draft = placementDraft != null ? RoadLampDraft.from(placementDraft.style()) : null;
-        name.set(draft != null ? draft.name() : "");
+        name.set(draft != null ? localizedStyleName(draft.name()) : "");
     }
 
     @Override
@@ -150,21 +151,36 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     }
 
     /** 首行：布置开关 + 预设；关闭布置时不渲染下方预览与参数。 */
+    @Override
+    protected boolean showPanelStatusInBodyHeader() {
+        return false;
+    }
+
     private boolean renderEnabledAndPresets(StreetFurniture furniture, RoadUiContext ctx) {
+        // 旧存档/内置预设可能仍是英文内部名，同步成当前语言显示名。
+        String localizedName = localizedStyleName(name.get());
+        if (!localizedName.equals(name.get())) {
+            name.set(localizedName);
+        }
         boolean enabled = toggle("enabled", placementDraft.enabled());
         applyEnabled(furniture, enabled);
         ImGui.sameLine(0f, ImGui.getStyle().getItemSpacingX() * 2f);
 
         var style = placementDraft.style();
-        String display = RoadLampPresets.ALL.stream().filter(preset -> customId == null && preset.style().equals(style))
-            .map(preset -> tr("preset." + preset.id())).findFirst().orElse(style.name());
-        float comboWidth = Math.max(115f, ImGui.getContentRegionAvailX() * 0.55f);
+        String display = RoadLampPresets.ALL.stream()
+            .filter(preset -> customId == null && sameLampDesign(preset.style(), style))
+            .map(preset -> tr("preset." + preset.id()))
+            .findFirst()
+            .orElseGet(() -> localizedStyleName(style.name()));
+        // 预设下拉收窄，右侧留给面板反馈（如重名警告）。
+        float comboWidth = Math.clamp(ImGui.getContentRegionAvailX() * 0.28f, 100f, 160f);
         ImGui.setNextItemWidth(comboWidth);
         if (ImGui.beginCombo(tr("presets") + "##road_lamp_presets", display)) {
             for (var preset : RoadLampPresets.ALL) {
                 if (ImGui.selectable(tr("preset." + preset.id()) + "##" + preset.id(),
-                        customId == null && preset.style().equals(style))) {
-                    select(furniture, preset.style(), enabled);
+                        customId == null && sameLampDesign(preset.style(), style))) {
+                    // 写入本地化名称，避免样式名称/预设框在改参数后掉回英文内部名。
+                    select(furniture, renameStyle(preset.style(), tr("preset." + preset.id())), enabled);
                     customId = null;
                 }
             }
@@ -179,6 +195,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             }
             ImGui.endCombo();
         }
+        renderPanelStatusInline();
         if (!enabled) {
             return false;
         }
@@ -242,9 +259,11 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         try {
             custom = library.save(id, style);
             customId = matchingCustomId(style);
-            ctx.status().info(tr("custom_saved"));
+            panelSuccess(tr("custom_saved"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
         } catch (IllegalArgumentException e) {
-            ctx.status().warning(tr("custom_duplicate"));
+            panelWarning(tr("custom_duplicate"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
         } catch (IOException e) {
             reportLibraryFailure(ctx, e);
         }
@@ -260,7 +279,8 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 try {
                     custom = library.delete(customId);
                     customId = null;
-                    ctx.status().info(tr("custom_deleted"));
+                    panelInfo(tr("custom_deleted"));
+                    RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
                 } catch (IOException e) {
                     reportLibraryFailure(ctx, e);
                 }
@@ -284,7 +304,35 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         if (next != null) {
             furniture.setRoadLampPlacement(next);
         }
-        name.set(style.name());
+        name.set(localizedStyleName(style.name()));
+    }
+
+    /** 忽略样式名称，只比较灯杆几何与材质（用于判定是否仍为某内置预设）。 */
+    private static boolean sameLampDesign(RoadLampStyle left, RoadLampStyle right) {
+        return left.height() == right.height()
+            && left.material() == right.material()
+            && left.plinth() == right.plinth()
+            && left.detail() == right.detail()
+            && left.levels().equals(right.levels());
+    }
+
+    private static RoadLampStyle renameStyle(RoadLampStyle style, String name) {
+        return new RoadLampStyle(
+            name, style.height(), style.material(), style.plinth(), style.levels(), style.detail());
+    }
+
+    /** 内置预设的英文内部名映射为当前语言显示名。 */
+    private static String localizedStyleName(String name) {
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        for (var preset : RoadLampPresets.ALL) {
+            String localized = tr("preset." + preset.id());
+            if (preset.style().name().equals(name) || localized.equals(name)) {
+                return localized;
+            }
+        }
+        return name;
     }
 
     private void renderParameters(StreetFurniture furniture, boolean includeMedian) {
@@ -657,8 +705,9 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
 
     private static String tr(String key) { return PlotI18n.tr(KEY + key); }
 
-    private static void reportLibraryFailure(RoadUiContext ctx, IOException e) {
+    private void reportLibraryFailure(RoadUiContext ctx, IOException e) {
         LoggerFactory.getLogger(RoadLampDesignerWindow.class).warn("Road lamp library unavailable", e);
-        ctx.status().warning(tr("custom_error"));
+        panelWarning(tr("custom_error"));
+        RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
     }
 }

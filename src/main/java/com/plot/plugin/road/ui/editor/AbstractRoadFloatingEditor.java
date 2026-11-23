@@ -2,8 +2,11 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.manager.RoadChangeKind;
+import com.plot.plugin.road.manager.RoadStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.ui.RoadPanelScopedStatus;
+import com.plot.plugin.road.ui.RoadStatusUi;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
@@ -30,6 +33,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     protected boolean lossyBatchConfirmPending;
     /** 用户已确认接受丢弃/截断。 */
     protected boolean lossyBatchAcknowledged;
+    /** 本窗口内反馈，不进主面板标签顶栏。 */
+    private RoadStatus panelStatus = RoadStatus.empty();
 
     protected abstract RoadFloatingEditorKind editorKind();
 
@@ -171,6 +176,9 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                     if (!isReadOnlyShell()) {
                         renderRevisionConflictBanner(ctx);
                     }
+                    if (showPanelStatusInBodyHeader()) {
+                        renderPanelStatus();
+                    }
                     renderWindowBody(ctx);
                 } finally {
                     ImGui.endChild();
@@ -228,6 +236,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         lossyBatchConfirmPending = false;
         lossyBatchAcknowledged = false;
         pendingSwitchRoadId = "";
+        panelStatus = RoadStatus.empty();
         if (session != null) {
             session.cancel();
         }
@@ -247,11 +256,56 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         lossyBatchConfirmPending = false;
         lossyBatchAcknowledged = false;
         pendingSwitchRoadId = "";
+        panelStatus = RoadStatus.empty();
     }
 
     /** 子类：批量写回是否会丢弃/截断/跳过目标。 */
     protected boolean isBatchMappingLossy() {
         return false;
+    }
+
+    /** 默认在正文顶部显示面板反馈；路灯等可改为跟在控件同行。 */
+    protected boolean showPanelStatusInBodyHeader() {
+        return true;
+    }
+
+    protected final void panelInfo(String message) {
+        panelStatus = RoadStatus.of(RoadStatus.Severity.INFO, message);
+    }
+
+    protected final void panelSuccess(String message) {
+        panelStatus = RoadStatus.of(RoadStatus.Severity.SUCCESS, message);
+    }
+
+    protected final void panelWarning(String message) {
+        panelStatus = RoadStatus.of(RoadStatus.Severity.WARNING, message);
+    }
+
+    protected final void panelError(String message) {
+        panelStatus = RoadStatus.of(RoadStatus.Severity.ERROR, message);
+    }
+
+    private void renderPanelStatus() {
+        if (panelStatus == null || panelStatus.isEmpty()) {
+            return;
+        }
+        RoadStatusUi.render(panelStatus);
+        ImGui.separator();
+    }
+
+    /** 与上一项 sameLine 后渲染面板反馈（不另起分隔行）。 */
+    protected final void renderPanelStatusInline() {
+        if (panelStatus == null || panelStatus.isEmpty()) {
+            return;
+        }
+        ImGui.sameLine(0f, ImGui.getStyle().getItemSpacingX());
+        float wrap = Math.max(80f, ImGui.getContentRegionAvailX());
+        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + wrap);
+        try {
+            RoadStatusUi.render(panelStatus);
+        } finally {
+            ImGui.popTextWrapPos();
+        }
     }
 
     protected void renderLossyBatchConfirmDialog(RoadUiContext ctx) {
@@ -296,7 +350,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             return false;
         }
         if (hasInvalidDrafts()) {
-            ctx.status().warning(PlotI18n.tr("plugin.road.floating_editor.invalid_draft"));
+            panelWarning(PlotI18n.tr("plugin.road.floating_editor.invalid_draft"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
             return false;
         }
         if (isBatchMappingLossy() && !lossyBatchAcknowledged) {
@@ -332,8 +387,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
             case CONFLICT -> {
                 // 冲突时保留 A 草稿与待切换意图，不切换
                 revisionConflictPending = true;
-                ctx.status().warning(
-                    PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
+                panelWarning(PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
+                RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
                 yield false;
             }
         };
@@ -385,7 +440,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         }
         session = createSession(ctx, roadId);
         revisionConflictPending = false;
-        ctx.status().info(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_done"));
+        panelInfo(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_done"));
+        RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
     }
 
     /** Read-only/unchanged windows follow live edits; dirty windows retain their conflict protection. */
