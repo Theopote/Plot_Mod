@@ -1,5 +1,7 @@
 package com.plot.plugin.road.solid;
 
+import com.plot.plugin.road.lamp.RoadLampPlanner;
+
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
@@ -29,6 +31,7 @@ public class RoadGenerationResult {
      */
     public final java.util.Set<BlockPos> tunnelBlocks = new java.util.LinkedHashSet<>();
     public final List<BlockPos> streetlightBlocks = new ArrayList<>();
+    public final List<RoadLampPlanner.Candidate> roadLampCandidates = new ArrayList<>();
     public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
     /** 与 {@link #placementRecords} 同步：记录各 BlockPos 当前生效的图层优先级。 */
     public final Map<BlockPos, RoadSolidLayer> placementLayers = new LinkedHashMap<>();
@@ -232,6 +235,7 @@ public class RoadGenerationResult {
         bridgeBlocks.addAll(source.bridgeBlocks);
         tunnelBlocks.addAll(source.tunnelBlocks);
         streetlightBlocks.addAll(source.streetlightBlocks);
+        roadLampCandidates.addAll(source.roadLampCandidates);
         // Keep each winning record, layer and material priority consistent so junction
         // rasterization can correctly resolve remaining structural/clearance conflicts.
         for (Map.Entry<BlockPos, BlockRecord> entry : source.placementRecords.entrySet()) {

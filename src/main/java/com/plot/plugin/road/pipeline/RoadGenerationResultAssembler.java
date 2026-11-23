@@ -1,5 +1,8 @@
 package com.plot.plugin.road.pipeline;
 
+import com.plot.plugin.road.lamp.RoadLampPlacementPass;
+import com.plot.plugin.road.pipeline.corridor.ColumnKey;
+
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -51,6 +54,18 @@ public final class RoadGenerationResultAssembler {
         long t3 = System.nanoTime();
         RoadRailPlacementPass.apply(aggregate);
         RoadRailConnectivityValidator.validate(aggregate);
+        if (!aggregate.roadLampCandidates.isEmpty() && host != null) {
+            var junctionColumns = new java.util.HashSet<ColumnKey>();
+            if (junctionResults != null) {
+                for (var junction : junctionResults.values()) {
+                    var context = junction.constructionContext();
+                    junctionColumns.addAll(context.footprint().clearance());
+                    junctionColumns.addAll(context.protectedCavityColumns());
+                    junctionColumns.addAll(context.approachCavityColumns());
+                }
+            }
+            RoadLampPlacementPass.apply(aggregate, junctionColumns, host.projectionHandler()::getSetBlockArgumentAt);
+        }
         // 合并阶段只做候选 scrub；这里再全表收一次，保证用途表不变量。
         aggregate.scrubStaleClearancePurposes();
         // 边级完整性指标在 mergeFrom 后已滞后；用设计期望对照最终方块覆盖严重计数。

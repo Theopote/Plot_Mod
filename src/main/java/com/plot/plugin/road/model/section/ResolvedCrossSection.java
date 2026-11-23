@@ -1,5 +1,7 @@
 package com.plot.plugin.road.model.section;
 
+import com.plot.plugin.road.lamp.RoadLampPlacement;
+
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
@@ -49,6 +51,7 @@ public final class ResolvedCrossSection {
     public final String sidewalkMaterial;
     public final Integer streetlightSpacing;
     public final String streetlightBlock;
+    public final RoadLampPlacement roadLampPlacement;
     public final boolean includeSlopeBatter;
     public final boolean includeRetainingWall;
     public final float fillSlopeRatio;
@@ -98,6 +101,7 @@ public final class ResolvedCrossSection {
             String sidewalkMaterial,
             Integer streetlightSpacing,
             String streetlightBlock,
+            RoadLampPlacement roadLampPlacement,
             boolean includeSlopeBatter,
             boolean includeRetainingWall,
             float fillSlopeRatio,
@@ -130,6 +134,7 @@ public final class ResolvedCrossSection {
         this.sidewalkMaterial = sidewalkMaterial;
         this.streetlightSpacing = streetlightSpacing;
         this.streetlightBlock = streetlightBlock;
+        this.roadLampPlacement = roadLampPlacement;
         this.includeSlopeBatter = includeSlopeBatter;
         this.includeRetainingWall = includeRetainingWall;
         this.fillSlopeRatio = fillSlopeRatio;
@@ -330,6 +335,7 @@ public final class ResolvedCrossSection {
             resolveMaterial(sidewalkMaterial, MaterialRole.SIDEWALK, report),
             furniture.getStreetlightSpacing(),
             RoadMaterialUtils.normalizeStoredMaterial(streetlightBlock),
+            furniture.getRoadLampPlacement(),
             includeSlopeBatter,
             includeRetainingWall,
             includeSlopeBatter ? fillRatio : 0f,
@@ -555,6 +561,7 @@ public final class ResolvedCrossSection {
             && Objects.equals(sidewalkMaterial, other.sidewalkMaterial)
             && Objects.equals(streetlightSpacing, other.streetlightSpacing)
             && Objects.equals(streetlightBlock, other.streetlightBlock)
+            && Objects.equals(roadLampPlacement, other.roadLampPlacement)
             && includeSlopeBatter == other.includeSlopeBatter
             && includeRetainingWall == other.includeRetainingWall
             && Float.compare(fillSlopeRatio, other.fillSlopeRatio) == 0
@@ -679,6 +686,7 @@ public final class ResolvedCrossSection {
             discrete.sidewalkMaterial,
             streetlightSpacing,
             discrete.streetlightBlock,
+            discrete.roadLampPlacement,
             includeSlopeBatter,
             includeRetainingWall,
             includeSlopeBatter ? fillRatio : 0f,

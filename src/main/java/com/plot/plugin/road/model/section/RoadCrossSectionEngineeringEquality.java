@@ -96,7 +96,8 @@ public final class RoadCrossSectionEngineeringEquality {
             return false;
         }
         return Objects.equals(left.getStreetlightSpacing(), right.getStreetlightSpacing())
-            && Objects.equals(left.getStreetlightBlock(), right.getStreetlightBlock());
+            && Objects.equals(left.getStreetlightBlock(), right.getStreetlightBlock())
+            && Objects.equals(left.getRoadLampPlacement(), right.getRoadLampPlacement());
     }
 
     private static boolean equalsEnabledWidthMaterial(

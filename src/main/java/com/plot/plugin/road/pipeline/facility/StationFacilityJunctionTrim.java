@@ -96,6 +96,10 @@ public final class StationFacilityJunctionTrim {
         return !isSameRoadInternalConnection(network, road, node);
     }
 
+    public static boolean shouldTrimLightingAtNode(RoadNetwork network, Road road, String nodeId) {
+        return !isSameRoadInternalConnection(network, road, network.getNode(nodeId));
+    }
+
     static boolean isSameRoadInternalConnection(RoadNetwork network, Road road, RoadNode node) {
         if (network == null || road == null || node == null || node.getDegree() != 2) {
             return false;

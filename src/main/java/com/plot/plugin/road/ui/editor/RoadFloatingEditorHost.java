@@ -25,6 +25,7 @@ public final class RoadFloatingEditorHost {
         editors.put(RoadFloatingEditorKind.STATION_FACILITIES, new StationFacilityDesignerWindow());
         editors.put(RoadFloatingEditorKind.DIAGNOSTICS, new DiagnosticsDesignerWindow());
         editors.put(RoadFloatingEditorKind.BATCH_CROSS_SECTION, new BatchCrossSectionDesignerWindow());
+        editors.put(RoadFloatingEditorKind.ROAD_LAMP, new RoadLampDesignerWindow());
     }
 
     public void openOrFocus(RoadUiContext ctx, RoadFloatingEditorKind kind, String roadId) {

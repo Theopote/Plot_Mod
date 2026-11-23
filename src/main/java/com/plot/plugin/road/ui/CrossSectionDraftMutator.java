@@ -314,6 +314,10 @@ public final class CrossSectionDraftMutator {
         notifyChanged();
     }
 
+    boolean hasStructuredRoadLighting() {
+        return road != null && road.getCrossSection().getStreetFurniture().getRoadLampPlacement() != null;
+    }
+
     public void setStreetlightSpacing(int streetlightSpacing) {
         draft.setStreetlightSpacing(streetlightSpacing);
         if (road != null) {

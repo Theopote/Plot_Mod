@@ -1,5 +1,8 @@
 package com.plot.plugin.road.pipeline;
 
+import com.plot.plugin.road.lamp.RoadLampPlanner;
+import com.plot.plugin.road.lamp.RoadLampPlacementPass;
+
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
@@ -216,10 +219,9 @@ public final class RoadGenerationPipeline {
             stageStarted = stage("structures", stageStarted, edgeId);
             RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
             stageStarted = stage("rasterize", stageStarted, edgeId);
+            var projection = host instanceof RoadGenerationPipelineHost concrete ? concrete.projectionHandler() : null;
             java.util.function.Function<net.minecraft.util.math.BlockPos, String> previousBlockId =
-                host instanceof RoadGenerationPipelineHost concrete
-                    ? concrete.projectionHandler()::getBlockIdAt
-                    : null;
+                projection != null ? projection::getBlockIdAt : null;
             com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.apply(
                 result,
                 plan,
@@ -229,6 +231,11 @@ public final class RoadGenerationPipeline {
             RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain(), planHost);
             TunnelFinalVoxelValidator.applyReportToResult(
                 result, TunnelFinalVoxelValidator.validate(result, ctx.terrain()));
+            RoadLampPlanner.plan(ctx, host);
+            if (request.carriagewaySeedKey() == null) {
+                RoadLampPlacementPass.apply(result, request.junctionCorridor().worldFootprint().clearance(),
+                    pos -> projection != null ? projection.getSetBlockArgumentAt(pos) : null);
+            }
             stage("surface-validate", stageStarted, edgeId);
             stage("pipeline-total", pipelineStarted, edgeId);
             return result;

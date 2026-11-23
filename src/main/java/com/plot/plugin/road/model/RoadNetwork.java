@@ -1,5 +1,7 @@
 package com.plot.plugin.road.model;
 
+import com.plot.plugin.road.lamp.RoadLampPlacement;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -1161,6 +1163,7 @@ public class RoadNetwork {
     static class StreetFurnitureData {
         Integer streetlightSpacing;
         String streetlightBlock;
+        RoadLampPlacement roadLampPlacement;
     }
 
     static class CrossSectionData {
@@ -1249,6 +1252,7 @@ public class RoadNetwork {
                 data.streetFurniture = new StreetFurnitureData();
                 data.streetFurniture.streetlightSpacing = furniture.getStreetlightSpacing();
                 data.streetFurniture.streetlightBlock = furniture.getStreetlightBlock();
+                data.streetFurniture.roadLampPlacement = furniture.getRoadLampPlacement();
             }
             return data;
         }
@@ -1342,6 +1346,7 @@ public class RoadNetwork {
                 StreetFurniture furniture = new StreetFurniture();
                 furniture.setStreetlightSpacing(streetFurniture.streetlightSpacing);
                 furniture.setStreetlightBlock(streetFurniture.streetlightBlock);
+                furniture.setRoadLampPlacement(streetFurniture.roadLampPlacement);
                 section.setStreetFurniture(furniture);
             }
             return section;

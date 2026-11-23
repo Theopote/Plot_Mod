@@ -161,7 +161,8 @@ final class RoadEditToolLauncher {
         List<ToolSpec> tools = new ArrayList<>(List.of(
             ToolSpec.host(RoadFloatingEditorKind.CROSS_SECTION, "cross_section"),
             ToolSpec.host(RoadFloatingEditorKind.VARIABLE_CROSS_SECTION, "variable_cross_section"),
-            ToolSpec.host(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities")));
+            ToolSpec.host(RoadFloatingEditorKind.STATION_FACILITIES, "station_facilities"),
+            ToolSpec.host(RoadFloatingEditorKind.ROAD_LAMP, "road_lamp")));
         if (shouldShowDiagnosticsTool(ctx, host, List.of(roadId))) {
             tools.add(ToolSpec.host(RoadFloatingEditorKind.DIAGNOSTICS, "diagnostics"));
         }

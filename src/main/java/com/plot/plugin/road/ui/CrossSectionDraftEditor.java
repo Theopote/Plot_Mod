@@ -628,6 +628,10 @@ public final class CrossSectionDraftEditor {
         renderMedianFields(editor);
         ImGui.spacing();
 
+        if (mutator.hasStructuredRoadLighting()) {
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.lamp.managed"));
+            return;
+        }
         int[] lightSpacing = {draft.streetlightSpacing()};
         if (ImGui.sliderInt(
             PlotI18n.tr("plugin.road.streetlight_spacing") + "##" + id + "_lights",

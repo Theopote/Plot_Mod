@@ -1,11 +1,22 @@
 package com.plot.plugin.road.model.section;
 
+import com.plot.plugin.road.lamp.RoadLampPlacement;
+
 /**
  * 道路附属设施（路灯等），挂在横断面下便于与路缘偏移对齐。
  */
 public class StreetFurniture {
     private Integer streetlightSpacing;
     private String streetlightBlock;
+    private RoadLampPlacement roadLampPlacement;
+
+    public RoadLampPlacement getRoadLampPlacement() {
+        return roadLampPlacement;
+    }
+
+    public void setRoadLampPlacement(RoadLampPlacement roadLampPlacement) {
+        this.roadLampPlacement = roadLampPlacement;
+    }
 
     public StreetFurniture() {
     }
@@ -35,6 +46,7 @@ public class StreetFurniture {
     StreetFurniture copy() {
         StreetFurniture copy = new StreetFurniture(streetlightSpacing);
         copy.streetlightBlock = streetlightBlock;
+        copy.roadLampPlacement = roadLampPlacement;
         return copy;
     }
 }

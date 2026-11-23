@@ -28,7 +28,7 @@ public final class RoadFurnitureGenerator {
     public static void generate(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
         CrossSectionBuildContext crossSections = ctx.request().crossSections();
         Integer spacing = crossSections.fallback().streetlightSpacing;
-        if (spacing == null || spacing <= 0) {
+        if (crossSections.lightingPlacement() != null || spacing == null || spacing <= 0) {
             return;
         }
 

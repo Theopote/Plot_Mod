@@ -7,5 +7,6 @@ public enum RoadFloatingEditorKind {
     CENTERLINE,
     STATION_FACILITIES,
     DIAGNOSTICS,
-    BATCH_CROSS_SECTION
+    BATCH_CROSS_SECTION,
+    ROAD_LAMP
 }
