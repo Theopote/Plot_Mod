@@ -108,6 +108,51 @@ class RoadLampPlacementTest {
     }
 
     @Test
+    void curvedCantileversFaceBackTowardTheCarriageway() {
+        var scenario = RoadGoldenScenarioFactory.r02Curved();
+        var road = scenario.network().getRoads().values().iterator().next();
+        var cantilever = RoadLampPresets.ALL.get(1).style();
+        road.setIncludeSidewalk(true);
+        road.setSidewalkWidth(3);
+        road.getCrossSection().getStreetFurniture().setRoadLampPlacement(
+            new RoadLampPlacement(cantilever, RoadLampPlacement.Sides.BOTH, 8, 0, 2, true, false));
+        var result = RoadGoldenHarness.run(scenario).preview().aggregate();
+        var bases = result.streetlightBlocks.stream().filter(pos ->
+            result.placementLayers.get(pos.down()) == RoadSolidLayer.SIDEWALK).toList();
+        assertFalse(bases.isEmpty());
+        int obliqueBases = 0;
+        for (var base : bases) {
+            double radialX = base.getX() - 15;
+            double radialZ = base.getZ();
+            if (Math.abs(radialX) < 2 || Math.abs(radialZ) < 2) continue;
+            obliqueBases++;
+            double radiusError = Math.hypot(radialX, radialZ) - 12.0;
+            var tips = result.streetlightBlocks.stream().filter(pos -> pos.getY() == base.getY() + cantilever.height()
+                && Math.abs(pos.getX() - base.getX()) + Math.abs(pos.getZ() - base.getZ()) == 3).toList();
+            assertTrue(tips.stream().anyMatch(tip -> radiusError
+                * (radialX * (tip.getX() - base.getX()) + radialZ * (tip.getZ() - base.getZ())) < 0), base.toString());
+        }
+        assertTrue(obliqueBases >= 2);
+    }
+
+    @Test
+    void stationConfigDoesNotOverrideTheRoadLevelLighting() {
+        var scenario = RoadGoldenScenarioFactory.r01StraightFlat();
+        var road = scenario.network().getRoads().values().iterator().next();
+        road.setIncludeSidewalk(true);
+        road.setSidewalkWidth(3);
+        road.getCrossSection().getStreetFurniture().setRoadLampPlacement(PLACEMENT);
+        var station = road.getCrossSection().copy();
+        station.getStreetFurniture().setRoadLampPlacement(new RoadLampPlacement(
+            RoadLampPresets.ALL.get(1).style(), RoadLampPlacement.Sides.RIGHT, 16, 0, 2, false, false));
+        road.setVariableCrossSections(new com.plot.plugin.road.model.section.RoadVariableCrossSections(List.of(
+            com.plot.plugin.road.model.section.StationCrossSection.at(12, station))));
+        var result = RoadGoldenHarness.run(scenario).preview().aggregate();
+        assertEquals(6, result.streetlightCount);
+        assertEquals(6 * RoadLampCompiler.compile(STYLE).size(), result.streetlightBlocks.size());
+    }
+
+    @Test
     void bridgePlacementIsOptInAndKeepsTheDeckAndItsGuards() {
         var defaultBridge = RoadGoldenScenarioFactory.r08Bridge();
         var disabled = run(defaultBridge).aggregate();
@@ -169,6 +214,30 @@ class RoadLampPlacementTest {
         assertEquals(1, result.streetlightCount);
         assertEquals("minecraft:stone", result.placementRecords.get(blocked).previousBlockId);
         assertEquals(voxels.stream().map(RoadLampCompiler.Voxel::position).toList(), result.streetlightBlocks);
+    }
+
+    @Test
+    void intersectingCandidatesFromTwoEdgesOnlyCommitOneCompleteLamp() {
+        var shape = RoadLampCompiler.compile(RoadLampPresets.ALL.get(1).style());
+        var leftBase = new BlockPos(0, 64, 0);
+        var rightBase = new BlockPos(6, 64, 0);
+        var left = edgeWithLamp(leftBase, RoadLampCompiler.position(shape, leftBase.up(), 1, 0));
+        var right = edgeWithLamp(rightBase, RoadLampCompiler.position(shape, rightBase.up(), -1, 0));
+        var merged = new RoadGenerationResult(0);
+        merged.mergeFrom(left);
+        merged.mergeFrom(right);
+        RoadLampPlacementPass.apply(merged, Set.of(), pos -> "minecraft:air");
+        assertEquals(1, merged.streetlightCount);
+        assertEquals(shape.size(), merged.streetlightBlocks.size());
+        assertFalse(merged.placementRecords.containsKey(rightBase.up()));
+    }
+
+    private static RoadGenerationResult edgeWithLamp(BlockPos base, List<RoadLampCompiler.Voxel> voxels) {
+        var edge = new RoadGenerationResult(10);
+        edge.recordPlacementOverride(base, "minecraft:air", "minecraft:stone");
+        edge.placementLayers.put(base, RoadSolidLayer.SIDEWALK);
+        edge.roadLampCandidates.add(new RoadLampPlanner.Candidate(base, RoadSolidLayer.SIDEWALK, voxels));
+        return edge;
     }
 
     @Test

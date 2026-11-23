@@ -66,7 +66,7 @@ public final class RoadLampPlanner {
                     }
                     case STAGGERED -> {
                         offer(slots, section, center, roadLeft, blockStation, placement.spacing(), 1, 0);
-                        offer(slots, section, center, roadLeft, blockStation, placement.spacing(), -1, placement.spacing() / 2.0);
+                        offer(slots, section, center, roadLeft, blockStation, placement.spacing(), -1, placement.rightSidePhase());
                     }
                     case MEDIAN -> offer(slots, section, center, roadLeft, blockStation, placement.spacing(), 0, 0);
                 }

@@ -33,23 +33,30 @@ public final class RoadLampCompiler {
         }
         if (style.plinth()) {
             blocks.put(BlockPos.ORIGIN, material.trim);
+            if (style.detail() == RoadLampStyle.Detail.HERITAGE) blocks.put(BlockPos.ORIGIN.up(), material.beam);
         }
         for (var level : style.levels()) {
             int y = level.y();
             blocks.put(new BlockPos(0, y, 0), material.trim);
+            if (style.detail() == RoadLampStyle.Detail.HERITAGE) {
+                blocks.replace(new BlockPos(0, y - 1, 0), material.pole, material.beam);
+            }
+            if (style.detail() == RoadLampStyle.Detail.EAVES && level.mount() == RoadLampStyle.Mount.HOOD) {
+                blocks.putIfAbsent(new BlockPos(0, y + 1, 0), material.beam);
+            }
             switch (level.layout()) {
-                case SINGLE -> emitHead(blocks, level, material, 0, 0);
-                case INWARD -> emitHead(blocks, level, material, 1, 0);
-                case OUTWARD -> emitHead(blocks, level, material, -1, 0);
+                case SINGLE -> emitHead(blocks, level, material, style.detail(), 0, 0);
+                case INWARD -> emitHead(blocks, level, material, style.detail(), 1, 0);
+                case OUTWARD -> emitHead(blocks, level, material, style.detail(), -1, 0);
                 case TWIN, TRIPLE, CROSS -> {
-                    emitHead(blocks, level, material, 1, 0);
-                    emitHead(blocks, level, material, -1, 0);
+                    emitHead(blocks, level, material, style.detail(), 1, 0);
+                    emitHead(blocks, level, material, style.detail(), -1, 0);
                     if (level.layout() == RoadLampStyle.Layout.TRIPLE) {
-                        emitHead(blocks, level, material, 0, 0);
+                        emitHead(blocks, level, material, style.detail(), 0, 0);
                     }
                     if (level.layout() == RoadLampStyle.Layout.CROSS) {
-                        emitHead(blocks, level, material, 0, 1);
-                        emitHead(blocks, level, material, 0, -1);
+                        emitHead(blocks, level, material, style.detail(), 0, 1);
+                        emitHead(blocks, level, material, style.detail(), 0, -1);
                     }
                 }
             }
@@ -58,11 +65,19 @@ public final class RoadLampCompiler {
     }
 
     private static void emitHead(Map<BlockPos, String> blocks, RoadLampStyle.Level level,
-                                 RoadLampStyle.Material material, int dx, int dz) {
+                                 RoadLampStyle.Material material, RoadLampStyle.Detail detail, int dx, int dz) {
         int reach = dx == 0 && dz == 0 ? 0 : level.reach();
         int y = level.y();
         for (int i = 1; i <= reach; i++) {
-            blocks.put(new BlockPos(i * dx, y, i * dz), material.beam);
+            String beam = detail == RoadLampStyle.Detail.URBAN && i < reach
+                ? "minecraft:polished_deepslate_slab[type=top]" : material.beam;
+            blocks.put(new BlockPos(i * dx, y, i * dz), beam);
+            if (detail == RoadLampStyle.Detail.EAVES && level.mount() == RoadLampStyle.Mount.HOOD) {
+                var ridge = new BlockPos(i * dx, y + 1, i * dz);
+                blocks.put(ridge, material.beam);
+                blocks.putIfAbsent(ridge.add(-dz, 0, dx), "minecraft:spruce_slab[type=bottom]");
+                blocks.putIfAbsent(ridge.add(dz, 0, -dx), "minecraft:spruce_slab[type=bottom]");
+            }
         }
         BlockPos tip = new BlockPos(reach * dx, y, reach * dz);
         switch (level.mount()) {
@@ -72,6 +87,10 @@ public final class RoadLampCompiler {
                     blocks.put(tip.down(i), "minecraft:iron_chain[axis=y]");
                 }
                 blocks.put(tip.down(level.chain() + 1), level.light().block(true));
+                if (detail == RoadLampStyle.Detail.TIMBER) {
+                    blocks.putIfAbsent(tip.add(dx, 0, dz), "minecraft:spruce_slab[type=top]");
+                    if (reach > 1) blocks.putIfAbsent(new BlockPos(dx, y - 1, dz), material.trim);
+                }
             }
             case HOOD -> {
                 blocks.put(tip.down(), level.light().block(true));

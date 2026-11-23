@@ -114,6 +114,17 @@ afterEvaluate {
 fabricApi {
 	configureDataGeneration {
 	}
+	configureTests {
+		createSourceSet = true
+		modId = "plot_lamp_test"
+		enableGameTests = true
+		enableClientGameTests = false
+		clearRunDirectory = false
+	}
+}
+
+loom.runConfigs.named("gameTest") {
+	property("fabric-api.gametest.report-file", "reports/road-lamp-gametest.xml")
 }
 
 dependencies {

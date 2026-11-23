@@ -1,4 +1,13 @@
 {
+  "plugin.road.lamp.station_inherited": "继承整路路灯方案，间距 %d 格。请在专业工具的路灯设计器中修改。",
+  "plugin.road.lamp.station_inherited_off": "继承整路路灯方案，布置已关闭。请在专业工具的路灯设计器中修改。",
+  "plugin.road.lamp.detail": "装饰构造",
+  "plugin.road.lamp.detail.none": "基础",
+  "plugin.road.lamp.detail.urban": "薄型挑臂",
+  "plugin.road.lamp.detail.timber": "木梁托与梁端",
+  "plugin.road.lamp.detail.eaves": "双侧出檐",
+  "plugin.road.lamp.detail.heritage": "分段石座与柱帽",
+  "plugin.road.lamp.preview_last_valid": "预览显示最后一份有效的灯具结构。",
   "plugin.road.lamp.update_custom": "更新自定义预设",
   "plugin.road.lamp.delete_custom": "删除自定义预设",
   "plugin.road.lamp.delete_confirmation": "确认从预设库删除当前自定义预设？",

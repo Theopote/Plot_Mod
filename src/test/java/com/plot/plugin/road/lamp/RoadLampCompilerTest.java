@@ -39,6 +39,20 @@ class RoadLampCompilerTest {
     }
 
     @Test
+    void stylesSavedBeforeTrimDetailsKeepTheirOriginalBlocks() {
+        var detailed = RoadLampPresets.ALL.get(1).style();
+        var legacy = new RoadLampStyle(detailed.name(), detailed.height(), detailed.material(),
+            detailed.plinth(), detailed.levels());
+        var gson = new com.google.gson.Gson();
+        var oldJson = gson.toJsonTree(legacy).getAsJsonObject();
+        oldJson.remove("detail");
+        var restored = gson.fromJson(oldJson, RoadLampStyle.class);
+        assertEquals(RoadLampStyle.Detail.NONE, restored.detail());
+        assertEquals(RoadLampCompiler.compile(legacy), RoadLampCompiler.compile(restored));
+        assertNotEquals(RoadLampCompiler.compile(detailed), RoadLampCompiler.compile(restored));
+    }
+
+    @Test
     void rotationKeepsElevationAndTurnsCantileverInward() {
         var local = RoadLampCompiler.compile(RoadLampPresets.ALL.get(1).style());
         var world = RoadLampCompiler.position(local, new BlockPos(10, 64, 20), 0, -1);
@@ -55,6 +69,11 @@ class RoadLampCompilerTest {
         var style = new RoadLampStyle("两层路灯", 14, RoadLampStyle.Material.WOOD, true, java.util.List.of(
             new RoadLampStyle.Level(5, RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 2, 1, RoadLampStyle.Light.SEA),
             new RoadLampStyle.Level(13, RoadLampStyle.Layout.CROSS, RoadLampStyle.Mount.CHAIN, 3, 2, RoadLampStyle.Light.LANTERN)));
+        var network = new com.plot.plugin.road.model.RoadNetwork();
+        var road = network.createRoad("Saved design");
+        var placement = new RoadLampPlacement(style, RoadLampPlacement.Sides.LEFT, 16, 0, 4, true, false);
+        road.getCrossSection().getStreetFurniture().setRoadLampPlacement(placement);
+        String savedProject = network.toJson();
         var file = dir.resolve("lamps.json");
         var library = new RoadLampLibrary(file);
         assertTrue(library.load().isEmpty());
@@ -66,5 +85,7 @@ class RoadLampCompilerTest {
         assertEquals(new RoadLampLibrary.Entry(entry.id(), renamed), library.save(entry.id(), renamed).getFirst());
         assertTrue(library.delete(entry.id()).isEmpty());
         assertTrue(new RoadLampLibrary(file).load().isEmpty());
+        var restored = com.plot.plugin.road.model.RoadNetwork.fromJson(savedProject);
+        assertEquals(placement, restored.getRoad(road.getId()).getCrossSection().getStreetFurniture().getRoadLampPlacement());
     }
 }

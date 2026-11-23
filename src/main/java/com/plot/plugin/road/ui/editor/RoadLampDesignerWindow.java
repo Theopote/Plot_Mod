@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui.editor;
 
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampLibrary;
@@ -38,7 +39,11 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     private UUID customId;
     private RoadLampLibrary library;
     private boolean contextView;
-    private String styleError = "";
+    private RoadLampDraft draft;
+    private RoadLampPlacement placementDraft;
+    private final RoadLampPreview preview = new RoadLampPreview();
+    private RoadLampPlacement contextPlacement;
+    private List<RoadLampCompiler.Voxel> contextScene = List.of();
     private RoadLampStyle compiledStyle;
     private List<RoadLampCompiler.Voxel> compiled = List.of();
 
@@ -47,15 +52,13 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     @Override protected String windowImGuiId() { return "###road_lamp_designer"; }
     @Override protected String closeConfirmPopupId() { return "##road_lamp_close_confirm"; }
     @Override protected RoadChangeKind confirmChangeKind() { return RoadChangeKind.CROSS_SECTION; }
-    @Override protected boolean hasInvalidDrafts() { return name.get().isBlank() || name.get().strip().length() > 80; }
+    @Override protected boolean hasInvalidDrafts() { return draft != null && draft.validStyle() == null; }
 
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
         var live = ctx.networkManager().getNetwork();
         var furniture = furniture(live, roadId);
-        var style = furniture != null ? current(furniture).style() : null;
-        name.set(style != null ? style.name() : "");
-        styleError = "";
+        resetDraft(furniture);
         if (library == null) library = new RoadLampLibrary();
         try {
             custom = library.load();
@@ -63,7 +66,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             custom = List.of();
             reportLibraryFailure(ctx, e);
         }
-        customId = matchingCustomId(style);
+        customId = matchingCustomId(placementDraft != null ? placementDraft.style() : null);
         return RoadNetworkEditorSession.open(live, ctx.networkManager().getNetworkRevision(),
             (open, working) -> !Objects.equals(placement(open, roadId), placement(working, roadId)));
     }
@@ -71,13 +74,15 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     @Override
     protected void restoreSession() {
         super.restoreSession();
-        var furniture = furniture(session.workingNetwork(), roadId);
-        if (furniture != null) {
-            var style = current(furniture).style();
-            name.set(style.name());
-            customId = matchingCustomId(style);
-        }
-        styleError = "";
+        resetDraft(furniture(session.workingNetwork(), roadId));
+        customId = matchingCustomId(placementDraft != null ? placementDraft.style() : null);
+    }
+
+    private void resetDraft(StreetFurniture furniture) {
+        contextPlacement = null;
+        placementDraft = furniture != null ? current(furniture) : null;
+        draft = placementDraft != null ? RoadLampDraft.from(placementDraft.style()) : null;
+        name.set(draft != null ? draft.name() : "");
     }
 
     @Override
@@ -98,13 +103,13 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         renderLibrary(furniture, ctx);
         float width = ImGui.getContentRegionAvailX();
         if (width < 700f) {
-            renderPreview(current(furniture), road.getCrossSection().resolve(ctx.networkManager().getConfig()));
+            renderPreview(placementDraft, road.getCrossSection().resolve(ctx.networkManager().getConfig()));
             renderParameters(furniture);
             return;
         }
         ImGui.beginChild("##lamp_preview", width * 0.46f, 0f, false, 0);
         try {
-            renderPreview(current(furniture), road.getCrossSection().resolve(ctx.networkManager().getConfig()));
+            renderPreview(placementDraft, road.getCrossSection().resolve(ctx.networkManager().getConfig()));
         } finally {
             ImGui.endChild();
         }
@@ -118,8 +123,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     }
 
     private void renderLibrary(StreetFurniture furniture, RoadUiContext ctx) {
-        var placement = current(furniture);
-        var style = placement.style();
+        var style = placementDraft.style();
         String display = RoadLampPresets.ALL.stream().filter(preset -> customId == null && preset.style().equals(style))
             .map(preset -> tr("preset." + preset.id())).findFirst().orElse(style.name());
         ImGui.setNextItemWidth(Math.max(115f, ImGui.getContentRegionAvailX() * 0.46f));
@@ -127,7 +131,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             for (var preset : RoadLampPresets.ALL) {
                 if (ImGui.selectable(tr("preset." + preset.id()) + "##" + preset.id(),
                         customId == null && preset.style().equals(style))) {
-                    select(furniture, placement, preset.style());
+                    select(furniture, preset.style());
                     customId = null;
                 }
             }
@@ -135,22 +139,21 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 ImGui.separator();
                 for (var preset : custom) {
                     if (ImGui.selectable(preset.style().name() + "##" + preset.id(), preset.id().equals(customId))) {
-                        select(furniture, placement, preset.style());
+                        select(furniture, preset.style());
                         customId = preset.id();
                     }
                 }
             }
             ImGui.endCombo();
         }
-        boolean invalid = hasInvalidDrafts() || !styleError.isEmpty();
-        ImGui.beginDisabled(invalid);
+        ImGui.beginDisabled(hasInvalidDrafts());
         if (ImGui.button(tr("save_custom"))) {
-            saveCustom(ctx, null, current(furniture).style());
+            saveCustom(ctx, null, draft.validStyle());
         }
         if (customId != null) {
             ImGui.sameLine();
             if (ImGui.button(tr("update_custom"))) {
-                saveCustom(ctx, customId, current(furniture).style());
+                saveCustom(ctx, customId, draft.validStyle());
             }
         }
         ImGui.endDisabled();
@@ -163,8 +166,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             if (ImGui.button(tr("clear_override"))) {
                 furniture.setRoadLampPlacement(null);
                 customId = null;
-                name.set(current(furniture).style().name());
-                styleError = "";
+                resetDraft(furniture);
             }
         }
         ImGui.separator();
@@ -210,15 +212,15 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
     }
 
-    private void select(StreetFurniture furniture, RoadLampPlacement placement, RoadLampStyle style) {
-        furniture.setRoadLampPlacement(withStyle(placement, style));
+    private void select(StreetFurniture furniture, RoadLampStyle style) {
+        draft = RoadLampDraft.from(style);
+        placementDraft = draft.resolve(placementDraft);
+        furniture.setRoadLampPlacement(placementDraft);
         name.set(style.name());
-        styleError = "";
     }
 
     private void renderParameters(StreetFurniture furniture) {
-        var active = current(furniture);
-        var style = active.style();
+        var active = placementDraft;
         boolean enabled = toggle("enabled", active.enabled());
         var sides = combo("sides", active.sides(), RoadLampPlacement.Sides.values());
         int spacing = slider("spacing", active.spacing(),
@@ -226,20 +228,23 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         int inset = sides == RoadLampPlacement.Sides.MEDIAN ? active.inset() : slider("inset", active.inset(), 0, 8);
         int setback = slider("setback", active.junctionSetback(), 0, 32);
         boolean bridge = toggle("bridge", active.bridgeAllowed());
+        boolean applyCurrent = false;
         if (furniture.getRoadLampPlacement() == null) {
             ImGui.textWrapped(tr("inactive_draft"));
-            if (ImGui.button(tr("apply_defaults"))) {
-                furniture.setRoadLampPlacement(active);
-            }
+            ImGui.beginDisabled(hasInvalidDrafts());
+            applyCurrent = ImGui.button(tr("apply_defaults"));
+            ImGui.endDisabled();
+
         }
         ImGui.separator();
         ImGui.setNextItemWidth(controlWidth());
-        boolean renamed = ImGui.inputText(tr("name"), name);
-        int height = slider("height", style.height(), 5, 24);
-        var material = combo("material", style.material(), RoadLampStyle.Material.values());
-        boolean plinth = toggle("plinth", style.plinth());
-        int count = slider("levels", style.levels().size(), 1, 3);
-        var levels = new ArrayList<>(style.levels());
+        ImGui.inputText(tr("name"), name);
+        int height = slider("height", draft.height(), 5, 24);
+        var material = combo("material", draft.material(), RoadLampStyle.Material.values());
+        boolean plinth = toggle("plinth", draft.plinth());
+        var detail = combo("detail", draft.detail(), RoadLampStyle.Detail.values());
+        int count = slider("levels", draft.levels().size(), 1, 3);
+        var levels = new ArrayList<>(draft.levels());
         while (levels.size() < count) {
             levels.addFirst(new RoadLampStyle.Level(levels.getFirst().y() - 3,
                 RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 1, 1, RoadLampStyle.Light.LANTERN));
@@ -266,20 +271,19 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             ImGui.popID();
         }
 
-        var placementOnly = new RoadLampPlacement(style, sides, spacing, inset, setback, enabled, bridge);
-        if (!placementOnly.equals(active)) furniture.setRoadLampPlacement(placementOnly);
-        boolean styleChanged = renamed || height != style.height() || material != style.material()
-            || plinth != style.plinth() || !levels.equals(style.levels());
-        if (styleChanged) {
-            try {
-                var changed = new RoadLampStyle(name.get(), height, material, plinth, levels);
-                furniture.setRoadLampPlacement(withStyle(placementOnly, changed));
-                styleError = "";
-            } catch (IllegalArgumentException e) {
-                styleError = hasInvalidDrafts() ? tr("name_required") : tr("level_error");
-            }
+        var candidate = new RoadLampDraft(name.get(), height, material, plinth, levels, detail);
+        var placementControls = new RoadLampPlacement(active.style(), sides, spacing, inset, setback, enabled, bridge);
+        var resolved = candidate.resolve(placementControls);
+        if (resolved != null && (applyCurrent || !candidate.equals(draft) || !placementControls.equals(active)
+                || !resolved.equals(active))) {
+            furniture.setRoadLampPlacement(resolved);
         }
-        if (!styleError.isEmpty()) ImGui.textWrapped(styleError);
+        draft = candidate;
+        placementDraft = resolved != null ? resolved : placementControls;
+        if (resolved == null) {
+            ImGui.textWrapped(draft.hasInvalidName() ? tr("name_required") : tr("level_error"));
+            ImGui.textWrapped(tr("preview_last_valid"));
+        }
     }
 
     private void renderPreview(RoadLampPlacement placement, ResolvedCrossSection section) {
@@ -292,9 +296,13 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             compiledStyle = placement.style();
             compiled = RoadLampCompiler.compile(compiledStyle);
         }
-        var scene = contextView ? sectionScene(section, placement) : compiled;
+        if (contextView && !placement.equals(contextPlacement)) {
+            contextScene = sectionScene(section, placement);
+            contextPlacement = placement;
+        }
+        var scene = contextView ? contextScene : compiled;
         float height = Math.clamp(ImGui.getContentRegionAvailY() - 36f, 180f, 380f);
-        RoadLampPreview.render(scene, height, yaw[0], zoom[0]);
+        preview.render(scene, height, yaw[0], zoom[0]);
         int totalHeight = compiled.stream().mapToInt(voxel -> voxel.position().getY()).max().orElse(0) + 1;
         int heads = compiledStyle.levels().stream().mapToInt(level -> switch (level.layout()) {
             case SINGLE, INWARD, OUTWARD -> 1;
@@ -308,6 +316,8 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
 
     private List<RoadLampCompiler.Voxel> sectionScene(ResolvedCrossSection section, RoadLampPlacement placement) {
         var scene = new ArrayList<RoadLampCompiler.Voxel>();
+        int start = -placement.spacing() - 3;
+        int end = placement.spacing() + 3;
         int left = RoadLampPlanner.lateralOffset(section, 1, 0);
         int right = RoadLampPlanner.lateralOffset(section, -1, 0);
         // Bound the local display when the road has a very wide section.
@@ -316,24 +326,34 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             if (band.isEmpty()) continue;
             String block = band.get().materialId();
             if (block == null) block = section.carriagewayMaterial.getPrimaryMaterial();
-            for (int z = -3; z <= 3; z++) {
+            for (int z = start; z <= end; z++) {
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, -1, z), block));
             }
         }
-        if (!placement.enabled()) return scene;
-        switch (placement.sides()) {
-            case LEFT -> previewSide(scene, section, placement, 1, 0);
-            case RIGHT -> previewSide(scene, section, placement, -1, 0);
-            case BOTH, STAGGERED -> {
-                previewSide(scene, section, placement, 1, placement.sides() == RoadLampPlacement.Sides.BOTH ? 0 : -2);
-                previewSide(scene, section, placement, -1, placement.sides() == RoadLampPlacement.Sides.BOTH ? 0 : 2);
-            }
-            case MEDIAN -> {
-                if (section.includeMedian) {
-                    for (int y = 0; y < section.medianHeight; y++) {
-                        scene.add(new RoadLampCompiler.Voxel(new BlockPos(0, y, 0), section.medianMaterial));
+        for (int z = -placement.spacing(); placement.enabled() && z <= placement.spacing(); z += placement.spacing()) {
+            int rightZ = z + (int) Math.round(placement.rightSidePhase());
+            switch (placement.sides()) {
+                case LEFT -> previewSide(scene, section, placement, 1, z);
+                case RIGHT -> previewSide(scene, section, placement, -1, z);
+                case BOTH, STAGGERED -> {
+                    previewSide(scene, section, placement, 1, z);
+                    if (rightZ <= placement.spacing()) previewSide(scene, section, placement, -1, rightZ);
+                }
+                case MEDIAN -> {
+                    if (section.includeMedian) {
+                        scene.addAll(RoadLampCompiler.position(compiled, new BlockPos(0, section.medianHeight, z), 1, 0));
                     }
-                    scene.addAll(RoadLampCompiler.position(compiled, new BlockPos(0, section.medianHeight, 0), 1, 0));
+                }
+            }
+        }
+        if (section.includeMedian) {
+            int min = RoadDimensionUtils.minLateralOffset(section.medianWidth);
+            int max = RoadDimensionUtils.maxLateralOffset(section.medianWidth);
+            for (int x = Math.max(-48, min); x <= Math.min(48, max); x++) {
+                for (int y = 0; y < section.medianHeight; y++) {
+                    for (int z = start; z <= end; z++) {
+                        scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, y, z), section.medianMaterial));
+                    }
                 }
             }
         }
@@ -365,11 +385,6 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         return new RoadLampPlacement(RoadLampPresets.ALL.getFirst().style(), RoadLampPlacement.Sides.BOTH,
             spacing != null && spacing > 0 ? RoadParameterLimits.normalizeStreetlightSpacing(spacing) : 16,
             0, 4, true, false);
-    }
-
-    private static RoadLampPlacement withStyle(RoadLampPlacement placement, RoadLampStyle style) {
-        return new RoadLampPlacement(style, placement.sides(), placement.spacing(), placement.inset(),
-            placement.junctionSetback(), placement.enabled(), placement.bridgeAllowed());
     }
 
     private static boolean toggle(String key, boolean value) {

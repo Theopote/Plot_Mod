@@ -113,6 +113,9 @@ jobs:
           ./gradlew clean test --no-daemon --stacktrace
           --tests "com.plot.plugin.road.*"
 
+      - name: Road lamp Minecraft GameTest
+        run: ./gradlew runGameTest --no-daemon --stacktrace
+
       - name: Upload road test reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -121,6 +124,8 @@ jobs:
           path: |
             build/reports/tests/test/
             build/test-results/test/
+            build/run/gameTest/logs/latest.log
+            build/run/gameTest/reports/road-lamp-gametest.xml
           if-no-files-found: ignore
 
   server-smoke:

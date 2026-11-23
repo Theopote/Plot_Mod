@@ -628,6 +628,13 @@ public final class CrossSectionDraftEditor {
         renderMedianFields(editor);
         ImGui.spacing();
 
+        var inheritedLighting = mutator.inheritedStationLighting();
+        if (inheritedLighting != null) {
+            ImGui.textWrapped(inheritedLighting.enabled()
+                ? PlotI18n.tr("plugin.road.lamp.station_inherited", inheritedLighting.spacing())
+                : PlotI18n.tr("plugin.road.lamp.station_inherited_off"));
+            return;
+        }
         if (mutator.hasStructuredRoadLighting()) {
             ImGui.textWrapped(PlotI18n.tr("plugin.road.lamp.managed"));
             return;

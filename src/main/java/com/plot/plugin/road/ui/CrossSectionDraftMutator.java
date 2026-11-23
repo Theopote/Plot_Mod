@@ -4,6 +4,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.SlopeFormatUtils;
+import com.plot.plugin.road.lamp.RoadLampPlacement;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.model.Road;
@@ -21,6 +22,7 @@ public final class CrossSectionDraftMutator {
     private final CrossSectionDraftFieldHooks hooks;
     private final Road road;
     private final RoadSystemConfig config;
+    private RoadLampPlacement inheritedStationLighting;
     private String lastMaterialWarning;
     private String lastGeometryWarning;
 
@@ -312,6 +314,14 @@ public final class CrossSectionDraftMutator {
             road.setMarkingMaterial(safe);
         }
         notifyChanged();
+    }
+
+    void setInheritedStationLighting(RoadLampPlacement placement) {
+        inheritedStationLighting = placement;
+    }
+
+    RoadLampPlacement inheritedStationLighting() {
+        return inheritedStationLighting;
     }
 
     boolean hasStructuredRoadLighting() {

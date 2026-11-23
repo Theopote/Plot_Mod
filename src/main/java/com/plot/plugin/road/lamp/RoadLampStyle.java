@@ -4,11 +4,12 @@ import java.util.List;
 import java.util.Objects;
 
 /** Local +X points toward the carriageway. Y=0 is the first block above the pavement. */
-public record RoadLampStyle(String name, int height, Material material, boolean plinth, List<Level> levels) {
+public record RoadLampStyle(String name, int height, Material material, boolean plinth, List<Level> levels, Detail detail) {
     public RoadLampStyle {
         name = Objects.requireNonNull(name).strip();
         Objects.requireNonNull(material);
         levels = List.copyOf(levels);
+        detail = detail == null ? Detail.NONE : detail;
         if (name.isEmpty() || name.length() > 80 || height < 5 || height > 24
                 || levels.isEmpty() || levels.size() > 3 || levels.getLast().y != height - 1) {
             throw new IllegalArgumentException("Invalid lamp dimensions or name");
@@ -26,6 +27,12 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
             previousY = level.y + 1;
         }
     }
+
+    public RoadLampStyle(String name, int height, Material material, boolean plinth, List<Level> levels) {
+        this(name, height, material, plinth, levels, Detail.NONE);
+    }
+
+    public enum Detail { NONE, URBAN, TIMBER, EAVES, HERITAGE }
 
     public enum Layout { SINGLE, INWARD, OUTWARD, TWIN, TRIPLE, CROSS }
     public enum Mount { TOP, CHAIN, HOOD }

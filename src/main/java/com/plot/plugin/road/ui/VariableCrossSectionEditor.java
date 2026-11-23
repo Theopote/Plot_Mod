@@ -299,6 +299,7 @@ public final class VariableCrossSectionEditor {
             ImGui.spacing();
 
             CrossSectionDraftMutator mutator = mutatorFor(draft, onHistory);
+            mutator.setInheritedStationLighting(road.getCrossSection().getStreetFurniture().getRoadLampPlacement());
             String presetName = road.getStyleId() != null && !road.getStyleId().isBlank()
                 ? PlotI18n.tr("preset.road." + road.getStyleId())
                 : PlotI18n.tr("plugin.road.preset_custom");

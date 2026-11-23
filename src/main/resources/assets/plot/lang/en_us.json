@@ -1,4 +1,13 @@
 {
+  "plugin.road.lamp.station_inherited": "Inherits the road lighting plan with spacing of %d blocks. Edit it in the Street Lamp Designer.",
+  "plugin.road.lamp.station_inherited_off": "Inherits the road lighting plan with placement turned off. Edit it in the Street Lamp Designer.",
+  "plugin.road.lamp.detail": "Trim details",
+  "plugin.road.lamp.detail.none": "Basic",
+  "plugin.road.lamp.detail.urban": "Slim cantilever",
+  "plugin.road.lamp.detail.timber": "Timber braces and ends",
+  "plugin.road.lamp.detail.eaves": "Overhanging eaves",
+  "plugin.road.lamp.detail.heritage": "Stone plinth and capital",
+  "plugin.road.lamp.preview_last_valid": "The preview shows the last valid lamp structure.",
   "plugin.road.lamp.update_custom": "Update custom preset",
   "plugin.road.lamp.delete_custom": "Delete custom preset",
   "plugin.road.lamp.delete_confirmation": "Remove the selected custom preset from the library?",

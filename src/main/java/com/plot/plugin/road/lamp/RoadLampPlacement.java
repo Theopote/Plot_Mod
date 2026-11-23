@@ -16,5 +16,9 @@ public record RoadLampPlacement(RoadLampStyle style, Sides sides, int spacing, i
         }
     }
 
+    public double rightSidePhase() {
+        return sides == Sides.STAGGERED ? spacing / 2.0 : 0.0;
+    }
+
     public enum Sides { LEFT, RIGHT, BOTH, STAGGERED, MEDIAN }
 }
