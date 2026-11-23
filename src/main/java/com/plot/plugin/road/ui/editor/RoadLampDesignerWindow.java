@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui.editor;
 
+import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadParameterLimits;
@@ -16,10 +17,14 @@ import com.plot.plugin.road.model.section.StreetFurniture;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.component.BlockIconRenderer;
+import com.plot.ui.component.UIUtils;
+import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -34,6 +39,8 @@ import java.util.UUID;
 
 final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     private static final String KEY = "plugin.road.lamp.";
+    private static final float LIGHT_ICON_SIZE = 28f;
+    private static final float LIGHT_ICON_GAP = 4f;
     private static final RoadLampStyle.Layout[] LOWER_LAYOUTS = {
         RoadLampStyle.Layout.INWARD, RoadLampStyle.Layout.OUTWARD, RoadLampStyle.Layout.TWIN, RoadLampStyle.Layout.CROSS
     };
@@ -340,7 +347,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 maxY = Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
                 y = Math.clamp(y, minY, maxY);
             }
-            var light = lightCombo(existing.light(), mount);
+            var light = lightIconPicker(existing.light(), mount);
             levels.set(i, new RoadLampStyle.Level(y, layout, mount, reach, chain, light));
             ImGui.popID();
         }
@@ -469,7 +476,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     }
 
     private static boolean toggle(String key, boolean value) {
-        return ImGui.checkbox(tr(key), value) ? !value : value;
+        return ImGui.checkbox(tr(key), value) != value;
     }
 
     private static int slider(String key, int value, int min, int max) {
@@ -505,44 +512,130 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     }
 
     /**
-     * 灯具：搜索过滤 + 分类分节，仅列出与安装方式兼容且已注册的项。
+     * 灯具：触发按钮打开图标面板；悬停显示名称，点击选中。
+     * 方块色块由 ImGui 绘制（可裁剪），原生物品图标经 overlay 叠在可见格上。
      */
-    private RoadLampStyle.Light lightCombo(RoadLampStyle.Light current, RoadLampStyle.Mount mount) {
+    private RoadLampStyle.Light lightIconPicker(RoadLampStyle.Light current, RoadLampStyle.Mount mount) {
         if (!current.supportsMount(mount)) {
             current = RoadLampStyle.Light.LANTERN;
         }
-        ImGui.setNextItemWidth(controlWidth());
-        if (ImGui.beginCombo(tr("light"), RoadMaterialUtils.getDisplayName(current.blockId()))) {
+        String currentLabel = lightLabel(current);
+        float btnW = controlWidth();
+        float btnH = LIGHT_ICON_SIZE + 8f;
+        ImGui.alignTextToFramePadding();
+        ImGui.text(tr("light"));
+        ImGui.sameLine(0f, ImGui.getStyle().getItemInnerSpacingX());
+        if (ImGui.button("##lamp_light_trigger", btnW, btnH)) {
+            ImGui.openPopup("##lamp_light_popup");
+        }
+        float triggerX = ImGui.getItemRectMinX() + 4f;
+        float triggerY = ImGui.getItemRectMinY() + (btnH - LIGHT_ICON_SIZE) * 0.5f;
+        paintLightSwatch(triggerX, triggerY, LIGHT_ICON_SIZE, current, true);
+        queueLightItemIcon(triggerX, triggerY, LIGHT_ICON_SIZE, current);
+        var draw = ImGui.getWindowDrawList();
+        draw.addText(
+            triggerX + LIGHT_ICON_SIZE + 6f,
+            ImGui.getItemRectMinY() + (btnH - ImGui.getTextLineHeight()) * 0.5f,
+            ImGui.getColorU32(imgui.flag.ImGuiCol.Text, 1f),
+            currentLabel);
+
+        ImGui.setNextWindowSizeConstraints(260f, 180f, 440f, 380f);
+        if (ImGui.beginPopup("##lamp_light_popup")) {
             ImGui.setNextItemWidth(-1f);
             ImGui.inputTextWithHint("##lamp_light_filter", tr("light_filter_hint"), lightFilter);
             String query = lightFilter.get().strip().toLowerCase(Locale.ROOT);
-            for (RoadLampStyle.CatalogGroup group : RoadLampStyle.CatalogGroup.values()) {
-                boolean header = false;
-                for (RoadLampStyle.Light value : RoadLampStyle.Light.values()) {
-                    if (!value.inCatalog() || value.catalogGroup() != group
-                            || !isRegisteredLight(value) || !value.supportsMount(mount)) {
-                        continue;
-                    }
-                    String label = RoadMaterialUtils.getDisplayName(value.blockId());
-                    if (!query.isEmpty()
-                            && !label.toLowerCase(Locale.ROOT).contains(query)
-                            && !value.name().toLowerCase(Locale.ROOT).contains(query)
-                            && !value.blockId().toLowerCase(Locale.ROOT).contains(query)) {
-                        continue;
-                    }
-                    if (!header) {
-                        ImGui.separator();
-                        ImGui.textDisabled(tr("light_group." + group.name().toLowerCase(Locale.ROOT)));
-                        header = true;
-                    }
-                    if (ImGui.selectable(label + "##lamp_light_" + value.name(), value == current)) {
-                        current = value;
+            float cell = LIGHT_ICON_SIZE + LIGHT_ICON_GAP;
+            if (ImGui.beginChild("##lamp_light_grid", 0f, 0f, false, 0)) {
+                for (RoadLampStyle.CatalogGroup group : RoadLampStyle.CatalogGroup.values()) {
+                    boolean header = false;
+                    int column = 0;
+                    int columns = Math.max(1, (int) ((ImGui.getContentRegionAvailX() + LIGHT_ICON_GAP) / cell));
+                    for (RoadLampStyle.Light value : RoadLampStyle.Light.values()) {
+                        if (!value.inCatalog() || value.catalogGroup() != group
+                                || !isRegisteredLight(value) || !value.supportsMount(mount)) {
+                            continue;
+                        }
+                        String label = lightLabel(value);
+                        if (!query.isEmpty()
+                                && !label.toLowerCase(Locale.ROOT).contains(query)
+                                && !value.name().toLowerCase(Locale.ROOT).contains(query)
+                                && !value.blockId().toLowerCase(Locale.ROOT).contains(query)) {
+                            continue;
+                        }
+                        if (!header) {
+                            ImGui.separator();
+                            ImGui.textDisabled(tr("light_group." + group.name().toLowerCase(Locale.ROOT)));
+                            header = true;
+                            column = 0;
+                        }
+                        if (column > 0) {
+                            ImGui.sameLine(0f, LIGHT_ICON_GAP);
+                        }
+                        ImGui.pushID(value.name());
+                        boolean selected = value == current;
+                        if (ImGui.invisibleButton("##pick", LIGHT_ICON_SIZE, LIGHT_ICON_SIZE)) {
+                            current = value;
+                            ImGui.closeCurrentPopup();
+                        }
+                        float x = ImGui.getItemRectMinX();
+                        float y = ImGui.getItemRectMinY();
+                        paintLightSwatch(x, y, LIGHT_ICON_SIZE, value, selected);
+                        if (ImGui.isItemVisible()) {
+                            queueLightItemIcon(x, y, LIGHT_ICON_SIZE, value);
+                        }
+                        if (ImGui.isItemHovered()) {
+                            UIUtils.setTooltip(label);
+                        }
+                        ImGui.popID();
+                        column = (column + 1) % columns;
                     }
                 }
             }
-            ImGui.endCombo();
+            ImGui.endChild();
+            ImGui.endPopup();
         }
         return current;
+    }
+
+    /**
+     * 使用语言包里的灯具名（字体会扫 zh_cn 入字库），避免直接用游戏内名称时缺字显示为「?」。
+     */
+    private static String lightLabel(RoadLampStyle.Light light) {
+        String key = KEY + "light." + light.name().toLowerCase(Locale.ROOT);
+        String translated = PlotI18n.tr(key);
+        if (translated != null && !translated.isBlank() && !translated.equals(key)) {
+            return translated;
+        }
+        return RoadMaterialUtils.getDisplayName(light.blockId());
+    }
+
+    private static void paintLightSwatch(
+            float x, float y, float size, RoadLampStyle.Light light, boolean selected) {
+        var draw = ImGui.getWindowDrawList();
+        draw.addRectFilled(x, y, x + size, y + size, toImGuiAbgr(BlockColorRegistry.colorFor(light.blockId())), 2f);
+        int border = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.PANEL_BORDER;
+        draw.addRect(x, y, x + size, y + size, border, 2f, 0, selected ? 2f : 1f);
+    }
+
+    private static void queueLightItemIcon(float x, float y, float size, RoadLampStyle.Light light) {
+        try {
+            var block = Registries.BLOCK.get(Identifier.of(light.blockId()));
+            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+            if (stack != null && !stack.isEmpty()) {
+                GuiOverlayRenderer.queueItem(stack, x + 1f, y + 1f, Math.max(0.75f, (size - 2f) / 16f));
+            }
+        } catch (RuntimeException | Error ignored) {
+            // 无 bootstrap 或方块无物品形态时仅保留色块。
+        }
+    }
+
+    /** BlockColorRegistry 为 ARGB；ImGui draw list 为 ABGR。 */
+    private static int toImGuiAbgr(int argb) {
+        int a = (argb >>> 24) & 255;
+        int r = (argb >> 16) & 255;
+        int g = (argb >> 8) & 255;
+        int b = argb & 255;
+        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
     private static boolean isRegisteredLight(RoadLampStyle.Light light) {

@@ -57,7 +57,7 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
     public enum Mount { TOP, CHAIN, HOOD }
 
     /** Grouping for the fixture combo (search + sections). */
-    public enum CatalogGroup { COMMON, COPPER, CANDLE, OTHER }
+    public enum CatalogGroup { COMMON, COPPER, OTHER }
     /**
      * Street-lamp fixture choices: placeable light-emitting blocks for the current game version.
      * Enum names for the original four fixtures are stable for JSON persistence.
@@ -103,25 +103,25 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
         WAXED_EXPOSED_COPPER_BULB("waxed_exposed_copper_bulb", Kind.LIT_FULL),
         WAXED_WEATHERED_COPPER_BULB("waxed_weathered_copper_bulb", Kind.LIT_FULL),
         WAXED_OXIDIZED_COPPER_BULB("waxed_oxidized_copper_bulb", Kind.LIT_FULL),
-        CANDLE("candle", Kind.LIT_CANDLE),
-        WHITE_CANDLE("white_candle", Kind.LIT_CANDLE),
-        LIGHT_GRAY_CANDLE("light_gray_candle", Kind.LIT_CANDLE),
-        GRAY_CANDLE("gray_candle", Kind.LIT_CANDLE),
-        BLACK_CANDLE("black_candle", Kind.LIT_CANDLE),
-        BROWN_CANDLE("brown_candle", Kind.LIT_CANDLE),
-        RED_CANDLE("red_candle", Kind.LIT_CANDLE),
-        ORANGE_CANDLE("orange_candle", Kind.LIT_CANDLE),
-        YELLOW_CANDLE("yellow_candle", Kind.LIT_CANDLE),
-        LIME_CANDLE("lime_candle", Kind.LIT_CANDLE),
-        GREEN_CANDLE("green_candle", Kind.LIT_CANDLE),
-        CYAN_CANDLE("cyan_candle", Kind.LIT_CANDLE),
-        LIGHT_BLUE_CANDLE("light_blue_candle", Kind.LIT_CANDLE),
-        BLUE_CANDLE("blue_candle", Kind.LIT_CANDLE),
-        PURPLE_CANDLE("purple_candle", Kind.LIT_CANDLE),
-        MAGENTA_CANDLE("magenta_candle", Kind.LIT_CANDLE),
-        PINK_CANDLE("pink_candle", Kind.LIT_CANDLE),
         LIGHT("light", Kind.LIGHT_BLOCK),
-        // 保留枚举名以兼容旧存档；不再出现在灯具下拉中。
+        // 保留枚举名以兼容旧存档；不再出现在灯具面板中。
+        CANDLE("candle", Kind.LIT_CANDLE, false),
+        WHITE_CANDLE("white_candle", Kind.LIT_CANDLE, false),
+        LIGHT_GRAY_CANDLE("light_gray_candle", Kind.LIT_CANDLE, false),
+        GRAY_CANDLE("gray_candle", Kind.LIT_CANDLE, false),
+        BLACK_CANDLE("black_candle", Kind.LIT_CANDLE, false),
+        BROWN_CANDLE("brown_candle", Kind.LIT_CANDLE, false),
+        RED_CANDLE("red_candle", Kind.LIT_CANDLE, false),
+        ORANGE_CANDLE("orange_candle", Kind.LIT_CANDLE, false),
+        YELLOW_CANDLE("yellow_candle", Kind.LIT_CANDLE, false),
+        LIME_CANDLE("lime_candle", Kind.LIT_CANDLE, false),
+        GREEN_CANDLE("green_candle", Kind.LIT_CANDLE, false),
+        CYAN_CANDLE("cyan_candle", Kind.LIT_CANDLE, false),
+        LIGHT_BLUE_CANDLE("light_blue_candle", Kind.LIT_CANDLE, false),
+        BLUE_CANDLE("blue_candle", Kind.LIT_CANDLE, false),
+        PURPLE_CANDLE("purple_candle", Kind.LIT_CANDLE, false),
+        MAGENTA_CANDLE("magenta_candle", Kind.LIT_CANDLE, false),
+        PINK_CANDLE("pink_candle", Kind.LIT_CANDLE, false),
         FIREFLY_BUSH("firefly_bush", Kind.GROUND, false),
         ENCHANTING_TABLE("enchanting_table", Kind.FULL_BLOCK, false),
         ENDER_CHEST("ender_chest", Kind.FULL_BLOCK, false),
@@ -171,9 +171,6 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
 
         /** Designer combo section for catalog fixtures. */
         public CatalogGroup catalogGroup() {
-            if (kind == Kind.LIT_CANDLE) {
-                return CatalogGroup.CANDLE;
-            }
             if (name().contains("COPPER_LANTERN") || name().contains("COPPER_BULB")) {
                 return CatalogGroup.COPPER;
             }
