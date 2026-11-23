@@ -1002,8 +1002,9 @@ public class PlotScreen extends Screen {
     // 鼠标事件处理方法
     @Override
     public boolean mouseClicked(Click click, boolean handled) {
-        // 防止从子界面返回 Plot 时，最后一次关闭点击穿透到画布。
-        if (PlotScreenState.consumeSuppressNextPlotClick()) {
+        // 防止从子界面返回 Plot 时，最后一次关闭点击穿透到画布 / ImGui。
+        if (PlotScreenState.consumeSuppressNextPlotClick()
+                || PlotScreenState.isSuppressingImGuiUntilMouseRelease()) {
             return true;
         }
 
@@ -1018,6 +1019,9 @@ public class PlotScreen extends Screen {
 
     @Override
     public boolean mouseReleased(Click click) {
+        if (PlotScreenState.isSuppressingImGuiUntilMouseRelease()) {
+            return true;
+        }
         // 【优化】统一事件处理逻辑
         if (isMouseCapturedByImGui()) {
             PlotMod.LOGGER.debug("ImGui 捕获鼠标释放: x={}, y={}, button={}", 
@@ -1029,6 +1033,9 @@ public class PlotScreen extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        if (PlotScreenState.isSuppressingImGuiUntilMouseRelease()) {
+            return true;
+        }
         // 【优化】统一事件处理逻辑
         if (isMouseCapturedByImGui()) {
             PlotMod.LOGGER.debug("ImGui 捕获鼠标拖动: x={}, y={}, deltaX={}, deltaY={}", 

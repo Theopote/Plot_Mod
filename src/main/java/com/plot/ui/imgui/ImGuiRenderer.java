@@ -639,7 +639,17 @@ public class ImGuiRenderer {
             }
             lastFrameTimeNanos = now;
 
-            if (inputSuppressed) {
+            boolean anyMouseDown = false;
+            for (int i = 0; i < 3; i++) {
+                if (GLFW.glfwGetMouseButton(windowHandle, i) == GLFW.GLFW_PRESS) {
+                    anyMouseDown = true;
+                    break;
+                }
+            }
+            // 背景补绘，或从方块选择器返回后松键前：禁止真实鼠标进入 ImGui，避免点穿底层面板。
+            boolean suppressMouse = inputSuppressed
+                || com.plot.ui.screen.PlotScreenState.shouldSuppressImGuiMouse(anyMouseDown);
+            if (suppressMouse) {
                 io.setMousePos(-10_000.0f, -10_000.0f);
                 for (int i = 0; i < 3; i++) {
                     io.setMouseDown(i, false);

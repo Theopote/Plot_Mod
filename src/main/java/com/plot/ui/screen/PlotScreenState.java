@@ -17,6 +17,11 @@ public class PlotScreenState {
     private static boolean switchingToPlotSubScreen = false;
     /** 防点击穿透：返回 Plot 后短时间内吞掉一次鼠标点击。 */
     private static long suppressNextPlotClickUntilMs = 0L;
+    /**
+     * 防 ImGui 点击穿透：从方块选择等子界面返回时，鼠标往往仍按下；
+     * ImGui 直接读 GLFW，会把这次按下当成底层面板点击。屏蔽至全部按键松开。
+     */
+    private static boolean suppressImGuiUntilMouseRelease = false;
 
     /**
      * 检查 Plot 屏幕是否打开
@@ -66,9 +71,10 @@ public class PlotScreenState {
         return value;
     }
 
-    /** 标记在返回 Plot 后需要屏蔽一次点击穿透。 */
+    /** 标记在返回 Plot 后需要屏蔽一次点击穿透（画布事件 + ImGui 直至松键）。 */
     public static void markSuppressNextPlotClick() {
-        suppressNextPlotClickUntilMs = System.currentTimeMillis() + 200L;
+        suppressNextPlotClickUntilMs = System.currentTimeMillis() + 250L;
+        suppressImGuiUntilMouseRelease = true;
     }
 
     /** 消费点击穿透屏蔽标记（仅在有效时间窗内生效一次）。 */
@@ -82,6 +88,29 @@ public class PlotScreenState {
             suppressNextPlotClickUntilMs = 0L;
         }
         return false;
+    }
+
+    /**
+     * 是否应屏蔽 ImGui 真实鼠标输入。
+     *
+     * @param anyMouseButtonDown 当前是否有鼠标键按下（由 GLFW 采样）
+     * @return true 表示本帧继续把鼠标喂成「在屏外且未按下」
+     */
+    public static boolean shouldSuppressImGuiMouse(boolean anyMouseButtonDown) {
+        if (!suppressImGuiUntilMouseRelease) {
+            return false;
+        }
+        if (anyMouseButtonDown) {
+            return true;
+        }
+        // 松键后仍屏蔽本帧，避免把 release 当成点击；随后清除。
+        suppressImGuiUntilMouseRelease = false;
+        return true;
+    }
+
+    /** 当前是否仍处于「松键前屏蔽 ImGui」窗口（供 PlotScreen 事件路径查询）。 */
+    public static boolean isSuppressingImGuiUntilMouseRelease() {
+        return suppressImGuiUntilMouseRelease;
     }
 
 }
