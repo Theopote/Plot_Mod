@@ -8,16 +8,27 @@ import java.util.List;
 
 /** The editable structure stays intact while the controls describe an invalid combination. */
 record RoadLampDraft(String name, int height, RoadLampStyle.Material material, boolean plinth,
-                    List<RoadLampStyle.Level> levels, RoadLampStyle.Detail detail) {
+                    List<RoadLampStyle.Level> levels, RoadLampStyle.Detail detail,
+                    RoadLampStyle.MaterialOverrides materialOverrides) {
     private static final int MIN_LEVEL_Y = 4;
     private static final int DEFAULT_LEVEL_GAP = 3;
 
     RoadLampDraft {
         levels = List.copyOf(levels);
+        materialOverrides = materialOverrides == null
+            ? RoadLampStyle.MaterialOverrides.NONE
+            : materialOverrides;
     }
 
     static RoadLampDraft from(RoadLampStyle style) {
-        return new RoadLampDraft(style.name(), style.height(), style.material(), style.plinth(), style.levels(), style.detail());
+        return new RoadLampDraft(
+            style.name(),
+            style.height(),
+            style.material(),
+            style.plinth(),
+            style.levels(),
+            style.detail(),
+            style.materialOverrides());
     }
 
     boolean hasInvalidName() {
@@ -27,7 +38,7 @@ record RoadLampDraft(String name, int height, RoadLampStyle.Material material, b
 
     RoadLampStyle validStyle() {
         try {
-            return new RoadLampStyle(name, height, material, plinth, levels, detail);
+            return new RoadLampStyle(name, height, material, plinth, levels, detail, materialOverrides);
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -95,7 +106,9 @@ record RoadLampDraft(String name, int height, RoadLampStyle.Material material, b
         List<RoadLampStyle.Level> packed = levels;
         for (int guard = 0; guard < 24; guard++) {
             packed = packLevels(h, levels);
-            if (new RoadLampDraft("x", h, RoadLampStyle.Material.METAL, false, packed, RoadLampStyle.Detail.NONE)
+            if (new RoadLampDraft(
+                    "x", h, RoadLampStyle.Material.METAL, false, packed,
+                    RoadLampStyle.Detail.NONE, RoadLampStyle.MaterialOverrides.NONE)
                     .validStyle() != null) {
                 return new ExpandedLevels(h, packed);
             }

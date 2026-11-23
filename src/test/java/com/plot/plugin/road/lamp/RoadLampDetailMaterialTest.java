@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,6 +24,41 @@ class RoadLampDetailMaterialTest {
             .anyMatch(voxel -> voxel.block().startsWith("minecraft:dark_oak_slab")));
         assertFalse(RoadLampCompiler.compile(darkTimber).stream()
             .anyMatch(voxel -> voxel.block().contains("spruce_slab")));
+    }
+
+    @Test
+    void materialOverridesReplaceThemeBlocksAndSurviveRoundTrip() {
+        var overrides = new RoadLampStyle.MaterialOverrides(
+            "minecraft:quartz_pillar",
+            "minecraft:smooth_quartz",
+            "minecraft:calcite",
+            "minecraft:smooth_quartz_slab");
+        var style = new RoadLampStyle(
+            "quartz-street",
+            9,
+            RoadLampStyle.Material.METAL,
+            true,
+            List.of(new RoadLampStyle.Level(
+                8, RoadLampStyle.Layout.INWARD, RoadLampStyle.Mount.TOP, 3, 1, RoadLampStyle.Light.LANTERN)),
+            RoadLampStyle.Detail.URBAN,
+            overrides);
+        var voxels = RoadLampCompiler.compile(style);
+        assertTrue(voxels.stream().anyMatch(v -> v.block().equals("minecraft:quartz_pillar")));
+        assertTrue(voxels.stream().anyMatch(v -> v.block().startsWith("minecraft:smooth_quartz_slab")));
+        assertFalse(voxels.stream().anyMatch(v -> v.block().contains("polished_deepslate")));
+
+        var gson = new com.google.gson.Gson();
+        var restored = gson.fromJson(gson.toJson(style), RoadLampStyle.class);
+        assertEquals(overrides, restored.materialOverrides());
+        assertEquals(voxels, RoadLampCompiler.compile(restored));
+
+        var legacyJson = gson.toJsonTree(style).getAsJsonObject();
+        legacyJson.remove("materialOverrides");
+        var legacy = gson.fromJson(legacyJson, RoadLampStyle.class);
+        assertTrue(legacy.materialOverrides().isEmpty());
+        assertEquals(RoadLampCompiler.compile(new RoadLampStyle(
+            style.name(), style.height(), style.material(), style.plinth(), style.levels(), style.detail())),
+            RoadLampCompiler.compile(legacy));
     }
 
     @Test

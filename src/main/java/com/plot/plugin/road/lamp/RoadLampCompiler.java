@@ -35,24 +35,26 @@ public final class RoadLampCompiler {
     private static List<Voxel> compileStructure(RoadLampStyle style) {
         Map<BlockPos, String> blocks = new LinkedHashMap<>();
         Map<BlockPos, Integer> levelOf = new HashMap<>();
-        var material = style.material();
+        var material = style.resolvedMaterials();
         for (int y = 0; y < style.height(); y++) {
-            blocks.put(new BlockPos(0, y, 0), material.pole);
+            blocks.put(new BlockPos(0, y, 0), material.pole());
         }
         if (style.plinth()) {
-            blocks.put(BlockPos.ORIGIN, material.trim);
-            if (style.detail() == RoadLampStyle.Detail.HERITAGE) blocks.put(BlockPos.ORIGIN.up(), material.beam);
+            blocks.put(BlockPos.ORIGIN, material.trim());
+            if (style.detail() == RoadLampStyle.Detail.HERITAGE) {
+                blocks.put(BlockPos.ORIGIN.up(), material.beam());
+            }
         }
         List<RoadLampStyle.Level> levels = style.levels();
         for (int levelIndex = 0; levelIndex < levels.size(); levelIndex++) {
             var level = levels.get(levelIndex);
             int y = level.y();
-            blocks.put(new BlockPos(0, y, 0), material.trim);
+            blocks.put(new BlockPos(0, y, 0), material.trim());
             if (style.detail() == RoadLampStyle.Detail.HERITAGE) {
-                blocks.replace(new BlockPos(0, y - 1, 0), material.pole, material.beam);
+                blocks.replace(new BlockPos(0, y - 1, 0), material.pole(), material.beam());
             }
             if (style.detail() == RoadLampStyle.Detail.EAVES && level.mount() == RoadLampStyle.Mount.HOOD) {
-                blocks.putIfAbsent(new BlockPos(0, y + 1, 0), material.beam);
+                blocks.putIfAbsent(new BlockPos(0, y + 1, 0), material.beam());
             }
             switch (level.layout()) {
                 case SINGLE -> emitHead(blocks, levelOf, level, material, style.detail(), 0, 0, levelIndex);
@@ -77,17 +79,17 @@ public final class RoadLampCompiler {
     }
 
     private static void emitHead(Map<BlockPos, String> blocks, Map<BlockPos, Integer> levelOf,
-                                 RoadLampStyle.Level level, RoadLampStyle.Material material,
+                                 RoadLampStyle.Level level, RoadLampStyle.MaterialParts material,
                                  RoadLampStyle.Detail detail, int dx, int dz, int levelIndex) {
         int reach = dx == 0 && dz == 0 ? 0 : level.reach();
         int y = level.y();
         for (int i = 1; i <= reach; i++) {
             String beam = detail == RoadLampStyle.Detail.URBAN && i < reach
-                ? material.slabTop() : material.beam;
+                ? material.slabTop() : material.beam();
             putLevel(blocks, levelOf, new BlockPos(i * dx, y, i * dz), beam, levelIndex);
             if (detail == RoadLampStyle.Detail.EAVES && level.mount() == RoadLampStyle.Mount.HOOD) {
                 var ridge = new BlockPos(i * dx, y + 1, i * dz);
-                putLevel(blocks, levelOf, ridge, material.beam, levelIndex);
+                putLevel(blocks, levelOf, ridge, material.beam(), levelIndex);
                 putLevelIfAbsent(blocks, levelOf, ridge.add(-dz, 0, dx), material.slabBottom(), levelIndex);
                 putLevelIfAbsent(blocks, levelOf, ridge.add(dz, 0, -dx), material.slabBottom(), levelIndex);
             }
@@ -103,15 +105,15 @@ public final class RoadLampCompiler {
                 if (detail == RoadLampStyle.Detail.TIMBER) {
                     putLevelIfAbsent(blocks, levelOf, tip.add(dx, 0, dz), material.slabTop(), levelIndex);
                     if (reach > 1) {
-                        putLevelIfAbsent(blocks, levelOf, new BlockPos(dx, y - 1, dz), material.trim, levelIndex);
+                        putLevelIfAbsent(blocks, levelOf, new BlockPos(dx, y - 1, dz), material.trim(), levelIndex);
                     }
                 }
             }
             case HOOD -> {
                 putLevel(blocks, levelOf, tip.down(), level.light().block(true), levelIndex);
-                putLevel(blocks, levelOf, tip.up(), material.trim, levelIndex);
-                putLevel(blocks, levelOf, tip.add(-dz, 0, dx), material.trim, levelIndex);
-                putLevel(blocks, levelOf, tip.add(dz, 0, -dx), material.trim, levelIndex);
+                putLevel(blocks, levelOf, tip.up(), material.trim(), levelIndex);
+                putLevel(blocks, levelOf, tip.add(-dz, 0, dx), material.trim(), levelIndex);
+                putLevel(blocks, levelOf, tip.add(dz, 0, -dx), material.trim(), levelIndex);
             }
         }
     }

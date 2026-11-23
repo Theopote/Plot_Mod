@@ -4,12 +4,20 @@ import java.util.List;
 import java.util.Objects;
 
 /** Local +X points toward the carriageway. Y=0 is the first block above the pavement. */
-public record RoadLampStyle(String name, int height, Material material, boolean plinth, List<Level> levels, Detail detail) {
+public record RoadLampStyle(
+        String name,
+        int height,
+        Material material,
+        boolean plinth,
+        List<Level> levels,
+        Detail detail,
+        MaterialOverrides materialOverrides) {
     public RoadLampStyle {
         name = Objects.requireNonNull(name).strip();
         Objects.requireNonNull(material);
         levels = List.copyOf(levels);
         detail = detail == null ? Detail.NONE : detail;
+        materialOverrides = materialOverrides == null ? MaterialOverrides.NONE : materialOverrides;
         if (name.isEmpty() || name.length() > 80 || height < 5 || height > 24
                 || levels.isEmpty() || levels.size() > 3 || levels.getLast().y != height - 1) {
             throw new IllegalArgumentException("Invalid lamp dimensions or name");
@@ -28,8 +36,17 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
         }
     }
 
+    public RoadLampStyle(String name, int height, Material material, boolean plinth, List<Level> levels, Detail detail) {
+        this(name, height, material, plinth, levels, detail, MaterialOverrides.NONE);
+    }
+
     public RoadLampStyle(String name, int height, Material material, boolean plinth, List<Level> levels) {
-        this(name, height, material, plinth, levels, Detail.NONE);
+        this(name, height, material, plinth, levels, Detail.NONE, MaterialOverrides.NONE);
+    }
+
+    /** 套装材质经可选槽位覆盖后的最终方块 id。 */
+    public MaterialParts resolvedMaterials() {
+        return materialOverrides.resolve(material);
     }
 
     public enum Detail {
@@ -222,16 +239,105 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
         DARK_WOOD("dark_oak_planks", "dark_oak_fence", "spruce_planks", "dark_oak_slab"),
         COPPER("waxed_cut_copper", "polished_deepslate_wall", "waxed_chiseled_copper", "waxed_cut_copper_slab");
 
-        final String beam;
-        final String pole;
-        final String trim;
-        final String slab;
+        private final String beam;
+        private final String pole;
+        private final String trim;
+        private final String slab;
 
         Material(String beam, String pole, String trim, String slab) {
             this.beam = "minecraft:" + beam;
             this.pole = "minecraft:" + pole;
             this.trim = "minecraft:" + trim;
             this.slab = "minecraft:" + slab;
+        }
+
+        public String beamId() {
+            return beam;
+        }
+
+        public String poleId() {
+            return pole;
+        }
+
+        public String trimId() {
+            return trim;
+        }
+
+        public String slabId() {
+            return slab;
+        }
+    }
+
+    /**
+     * 可选槽位覆盖：null/空白沿用当前 {@link Material} 套装。
+     * 存盘为裸方块 id（无方块状态）；半砖的 type=top/bottom 由编译器附加。
+     */
+    public record MaterialOverrides(String pole, String beam, String trim, String slab) {
+        public static final MaterialOverrides NONE = new MaterialOverrides(null, null, null, null);
+
+        public MaterialOverrides {
+            pole = normalizeBlockId(pole);
+            beam = normalizeBlockId(beam);
+            trim = normalizeBlockId(trim);
+            slab = normalizeBlockId(slab);
+        }
+
+        public boolean isEmpty() {
+            return pole == null && beam == null && trim == null && slab == null;
+        }
+
+        public MaterialOverrides withPole(String value) {
+            return new MaterialOverrides(value, beam, trim, slab);
+        }
+
+        public MaterialOverrides withBeam(String value) {
+            return new MaterialOverrides(pole, value, trim, slab);
+        }
+
+        public MaterialOverrides withTrim(String value) {
+            return new MaterialOverrides(pole, beam, value, slab);
+        }
+
+        public MaterialOverrides withSlab(String value) {
+            return new MaterialOverrides(pole, beam, trim, value);
+        }
+
+        MaterialParts resolve(Material base) {
+            Objects.requireNonNull(base);
+            return new MaterialParts(
+                firstNonNull(beam, base.beam),
+                firstNonNull(pole, base.pole),
+                firstNonNull(trim, base.trim),
+                firstNonNull(slab, base.slab));
+        }
+
+        private static String firstNonNull(String override, String fallback) {
+            return override != null ? override : fallback;
+        }
+
+        static String normalizeBlockId(String id) {
+            if (id == null) {
+                return null;
+            }
+            String trimmed = id.strip();
+            if (trimmed.isEmpty()) {
+                return null;
+            }
+            int bracket = trimmed.indexOf('[');
+            if (bracket >= 0) {
+                trimmed = trimmed.substring(0, bracket).strip();
+            }
+            return trimmed.isEmpty() ? null : trimmed;
+        }
+    }
+
+    /** 编译用的最终杆/臂/装饰/半砖方块 id。 */
+    public record MaterialParts(String beam, String pole, String trim, String slab) {
+        public MaterialParts {
+            Objects.requireNonNull(beam);
+            Objects.requireNonNull(pole);
+            Objects.requireNonNull(trim);
+            Objects.requireNonNull(slab);
         }
 
         String slabTop() {

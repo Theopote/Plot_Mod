@@ -316,12 +316,19 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             && left.material() == right.material()
             && left.plinth() == right.plinth()
             && left.detail() == right.detail()
+            && Objects.equals(left.materialOverrides(), right.materialOverrides())
             && left.levels().equals(right.levels());
     }
 
     private static RoadLampStyle renameStyle(RoadLampStyle style, String name) {
         return new RoadLampStyle(
-            name, style.height(), style.material(), style.plinth(), style.levels(), style.detail());
+            name,
+            style.height(),
+            style.material(),
+            style.plinth(),
+            style.levels(),
+            style.detail(),
+            style.materialOverrides());
     }
 
     /** 内置预设的英文内部名映射为当前语言显示名。 */
@@ -391,6 +398,10 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         final var materialBox = new Object() {
             RoadLampStyle.Material value = draft.material();
         };
+        final var overridesRef = new java.util.concurrent.atomic.AtomicReference<>(
+            draft.materialOverrides() == null
+                ? RoadLampStyle.MaterialOverrides.NONE
+                : draft.materialOverrides());
         final var plinthBox = new Object() {
             boolean value = draft.plinth();
         };
@@ -412,6 +423,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 ImGui.inputText(tr("name"), name);
                 heightBox.value = slider("height", heightBox.value, 5, 24);
                 materialBox.value = combo("material", materialBox.value, RoadLampStyle.Material.values());
+                renderMaterialOverrides(materialBox.value, overridesRef);
                 plinthBox.value = toggle("plinth", plinthBox.value);
                 detailBox.value = combo("detail", detailBox.value, RoadLampStyle.Detail.values());
                 countBox.value = slider("levels", countBox.value, 1, 3);
@@ -499,7 +511,14 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         levels.addAll(reconciled.levels());
         renderDetailInactiveHint(detailBox.value, levels);
 
-        var candidate = new RoadLampDraft(name.get(), height, materialBox.value, plinthBox.value, levels, detailBox.value);
+        var candidate = new RoadLampDraft(
+            name.get(),
+            height,
+            materialBox.value,
+            plinthBox.value,
+            levels,
+            detailBox.value,
+            overridesRef.get());
         var placementControls = new RoadLampPlacement(
             active.style(), sidesBox.value, spacingBox.value, insetBox.value, setbackBox.value,
             active.enabled(), bridgeBox.value);
@@ -616,6 +635,67 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         return new RoadLampPlacement(RoadLampPresets.ALL.getFirst().style(), RoadLampPlacement.Sides.BOTH,
             spacing != null && spacing > 0 ? RoadParameterLimits.normalizeStreetlightSpacing(spacing) : 16,
             0, 4, true, false);
+    }
+
+    /**
+     * 材质套装下方的可选槽位覆盖；默认折叠，留空沿用套装方块。
+     * 方块选择器回调写回 {@code overridesRef}，下一帧随草稿提交。
+     */
+    private static void renderMaterialOverrides(
+            RoadLampStyle.Material theme,
+            java.util.concurrent.atomic.AtomicReference<RoadLampStyle.MaterialOverrides> overridesRef) {
+        var overrides = overridesRef.get();
+        if (overrides == null) {
+            overrides = RoadLampStyle.MaterialOverrides.NONE;
+            overridesRef.set(overrides);
+        }
+        String summary = overrides.isEmpty()
+            ? tr("material_overrides_summary_none")
+            : tr("material_overrides_summary_active");
+        if (!ImGui.collapsingHeader(
+                tr("material_overrides") + "  ·  " + summary + "##lamp_material_overrides")) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, tr("material_overrides_hint"));
+        renderMaterialOverrideSlot(
+            "override_pole", overrides.pole(), theme.poleId(),
+            id -> overridesRef.set(overridesRef.get().withPole(id)));
+        renderMaterialOverrideSlot(
+            "override_beam", overrides.beam(), theme.beamId(),
+            id -> overridesRef.set(overridesRef.get().withBeam(id)));
+        renderMaterialOverrideSlot(
+            "override_trim", overrides.trim(), theme.trimId(),
+            id -> overridesRef.set(overridesRef.get().withTrim(id)));
+        renderMaterialOverrideSlot(
+            "override_slab", overrides.slab(), theme.slabId(),
+            id -> overridesRef.set(overridesRef.get().withSlab(id)));
+        if (!overridesRef.get().isEmpty()
+                && ImGui.button(tr("material_overrides_clear_all") + "##lamp_mat_clear_all")) {
+            overridesRef.set(RoadLampStyle.MaterialOverrides.NONE);
+        }
+    }
+
+    private static void renderMaterialOverrideSlot(
+            String key,
+            String override,
+            String themeFallback,
+            java.util.function.Consumer<String> onPicked) {
+        boolean hasOverride = override != null && !override.isBlank();
+        String effective = hasOverride ? override : themeFallback;
+        String display = hasOverride
+            ? RoadMaterialUtils.getDisplayName(effective)
+            : tr("material_override_inherit") + " · " + RoadMaterialUtils.getDisplayName(themeFallback);
+        ImGui.text(tr(key));
+        ImGui.sameLine();
+        if (ImGui.button(display + "##" + key + "_pick", 0, 0)) {
+            UIUtils.openBlockPicker(effective, onPicked);
+        }
+        if (hasOverride) {
+            ImGui.sameLine();
+            if (ImGui.smallButton(tr("material_override_clear") + "##" + key + "_clear")) {
+                onPicked.accept(null);
+            }
+        }
     }
 
     private static boolean toggle(String key, boolean value) {

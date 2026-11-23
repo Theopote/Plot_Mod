@@ -12,7 +12,19 @@ public final class PlotI18n {
     }
 
     public static String tr(String key, Object... args) {
-        return Text.translatable(key, args).getString();
+        if (key == null || key.isBlank()) {
+            return "";
+        }
+        String result = Text.translatable(key, args).getString();
+        // 无语言包时 Minecraft 原样返回 key 并丢弃参数；单元测试里默认名依赖参数区分唯一性。
+        if (args != null && args.length > 0 && key.equals(result)) {
+            StringBuilder fallback = new StringBuilder(key);
+            for (Object arg : args) {
+                fallback.append(' ').append(arg);
+            }
+            return fallback.toString();
+        }
+        return result;
     }
 
     /** User-facing error message (keys use {@code error.plot.*}). */
