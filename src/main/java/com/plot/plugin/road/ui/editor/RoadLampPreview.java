@@ -217,6 +217,11 @@ final class RoadLampPreview {
         return !isLanternFixture(id) && !id.endsWith("chain") && !id.endsWith("_slab");
     }
 
+    private static final float FACE_SHADE_SIDE = 0.55f;
+    private static final float FACE_SHADE_FRONT = 0.78f;
+    private static final float FACE_SHADE_TOP = 1.05f;
+    private static final float EDGE_THICKNESS = 1.05f;
+
     private static void drawPart(ImDrawList draw, View view, Part p, int highlightLevelIndex) {
         float brightness;
         float alphaMul;
@@ -230,13 +235,15 @@ final class RoadLampPreview {
             brightness = 0.72f;
             alphaMul = 0.55f;
         }
+        // 半透明光源等跳过棱边，避免边框把体素“弄脏”。
+        boolean bevel = ((p.color >>> 24) & 255) >= 200;
         float fx = view.sine >= 0 ? p.x1 : p.x0;
         float fz = view.cosine >= 0 ? p.z1 : p.z0;
-        face(draw, view, shade(p.color, 0.69f * brightness, alphaMul),
+        face(draw, view, p.color, FACE_SHADE_SIDE * brightness, alphaMul, bevel,
             fx, p.y0, p.z0, fx, p.y0, p.z1, fx, p.y1, p.z1, fx, p.y1, p.z0);
-        face(draw, view, shade(p.color, 0.84f * brightness, alphaMul),
+        face(draw, view, p.color, FACE_SHADE_FRONT * brightness, alphaMul, bevel,
             p.x0, p.y0, fz, p.x1, p.y0, fz, p.x1, p.y1, fz, p.x0, p.y1, fz);
-        face(draw, view, shade(p.color, 1f * brightness, alphaMul),
+        face(draw, view, p.color, FACE_SHADE_TOP * brightness, alphaMul, bevel,
             p.x0, p.y1, p.z0, p.x1, p.y1, p.z0, p.x1, p.y1, p.z1, p.x0, p.y1, p.z1);
         if (highlightLevelIndex >= 0 && p.levelIndex == highlightLevelIndex) {
             // 选中层描边：顶面外轮廓，便于与亮度提升一起辨认。
@@ -253,10 +260,44 @@ final class RoadLampPreview {
         }
     }
 
-    private static void face(ImDrawList draw, View v, int color, float x0, float y0, float z0,
+    private static void face(ImDrawList draw, View v, int argb, float shadeMul, float alphaMul, boolean bevel,
+                             float x0, float y0, float z0,
                              float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3) {
-        draw.addQuadFilled(v.x(x0, z0), v.y(x0, y0, z0), v.x(x1, z1), v.y(x1, y1, z1),
-            v.x(x2, z2), v.y(x2, y2, z2), v.x(x3, z3), v.y(x3, y3, z3), color);
+        float sx0 = v.x(x0, z0);
+        float sy0 = v.y(x0, y0, z0);
+        float sx1 = v.x(x1, z1);
+        float sy1 = v.y(x1, y1, z1);
+        float sx2 = v.x(x2, z2);
+        float sy2 = v.y(x2, y2, z2);
+        float sx3 = v.x(x3, z3);
+        float sy3 = v.y(x3, y3, z3);
+        draw.addQuadFilled(sx0, sy0, sx1, sy1, sx2, sy2, sx3, sy3, shade(argb, shadeMul, alphaMul));
+        if (!bevel) {
+            return;
+        }
+        // 对齐杆塔 DETAILED LOD：靠上的边高光、靠下的边阴影（高光/阴影在 ARGB 上算再转 ABGR）。
+        float cy = (sy0 + sy1 + sy2 + sy3) * 0.25f;
+        int hi = shade(liftArgb(argb, 28), shadeMul, alphaMul);
+        int sh = shade(liftArgb(argb, -36), shadeMul, alphaMul);
+        bevelEdge(draw, sx0, sy0, sx1, sy1, cy, hi, sh);
+        bevelEdge(draw, sx1, sy1, sx2, sy2, cy, hi, sh);
+        bevelEdge(draw, sx2, sy2, sx3, sy3, cy, hi, sh);
+        bevelEdge(draw, sx3, sy3, sx0, sy0, cy, hi, sh);
+    }
+
+    private static void bevelEdge(ImDrawList draw, float ax, float ay, float bx, float by,
+                                  float faceCenterY, int highlight, int shadow) {
+        int color = (ay + by) * 0.5f <= faceCenterY ? highlight : shadow;
+        draw.addLine(ax, ay, bx, by, color, EDGE_THICKNESS);
+    }
+
+    /** ARGB 通道加减，用于棱边高光/阴影。 */
+    private static int liftArgb(int argb, int delta) {
+        int a = (argb >>> 24) & 255;
+        int r = Math.clamp(((argb >> 16) & 255) + delta, 0, 255);
+        int g = Math.clamp(((argb >> 8) & 255) + delta, 0, 255);
+        int b = Math.clamp((argb & 255) + delta, 0, 255);
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private record Part(float x0, float y0, float z0, float x1, float y1, float z1, int color, int levelIndex) {
@@ -265,10 +306,6 @@ final class RoadLampPreview {
             return new Part(p.getX() + x0, p.getY() + y0, p.getZ() + z0,
                 p.getX() + x1, p.getY() + y1, p.getZ() + z1, color, levelIndex);
         }
-    }
-
-    private static int shade(int argb, float multiplier) {
-        return shade(argb, multiplier, 1f);
     }
 
     private static int shade(int argb, float multiplier, float alphaMul) {

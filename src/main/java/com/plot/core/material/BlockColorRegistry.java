@@ -2,6 +2,9 @@ package com.plot.core.material;
 
 import com.plot.core.block.BlockAliasResolver;
 import com.plot.core.block.BlockSpec;
+import net.minecraft.block.MapColor;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +85,37 @@ public final class BlockColorRegistry {
         KNOWN.put("minecraft:magenta_concrete", 0xFFA9309F);
         KNOWN.put("minecraft:pink_concrete", 0xFFD5658E);
         KNOWN.put("minecraft:terracotta", 0xFF985E45);
+
+        // 路灯常用材质（RoadLampStyle.Material 及变体）
+        KNOWN.put("minecraft:deepslate", 0xFF4A4A4F);
+        KNOWN.put("minecraft:polished_deepslate", 0xFF48494E);
+        KNOWN.put("minecraft:chiseled_deepslate", 0xFF45464B);
+        KNOWN.put("minecraft:polished_deepslate_wall", 0xFF48494E);
+        KNOWN.put("minecraft:polished_deepslate_slab", 0xFF48494E);
+        KNOWN.put("minecraft:smooth_stone", 0xFFA0A0A0);
+        KNOWN.put("minecraft:stone_brick_wall", 0xFF7A7A7A);
+        KNOWN.put("minecraft:stone_brick_slab", 0xFF7A7A7A);
+        KNOWN.put("minecraft:chiseled_stone_bricks", 0xFF7A7A7A);
+        KNOWN.put("minecraft:stripped_spruce_wood", 0xFF69553A);
+        KNOWN.put("minecraft:spruce_planks", 0xFF6B5037);
+        KNOWN.put("minecraft:dark_oak_planks", 0xFF4A3728);
+        KNOWN.put("minecraft:waxed_cut_copper", 0xFFE08A5A);
+        KNOWN.put("minecraft:waxed_chiseled_copper", 0xFFD98455);
+        KNOWN.put("minecraft:waxed_cut_copper_slab", 0xFFE08A5A);
+        KNOWN.put("minecraft:copper_lantern", 0xFFE09A50);
+        KNOWN.put("minecraft:exposed_copper_lantern", 0xFFC09070);
+        KNOWN.put("minecraft:weathered_copper_lantern", 0xFF8FA08A);
+        KNOWN.put("minecraft:oxidized_copper_lantern", 0xFF6FA08A);
+        KNOWN.put("minecraft:shroomlight", 0xFFE8A050);
+        KNOWN.put("minecraft:ochre_froglight", 0xFFF0D878);
+        KNOWN.put("minecraft:verdant_froglight", 0xFFA8E070);
+        KNOWN.put("minecraft:pearlescent_froglight", 0xFFE8B0D0);
+        KNOWN.put("minecraft:redstone_lamp", 0xFFA88860);
+        KNOWN.put("minecraft:end_rod", 0xFFE8E0D0);
+        KNOWN.put("minecraft:torch", 0xFFE8A040);
+        KNOWN.put("minecraft:soul_torch", 0xFF5EC8D8);
+        KNOWN.put("minecraft:campfire", 0xFFE07030);
+        KNOWN.put("minecraft:soul_campfire", 0xFF40C0D0);
     }
 
     private BlockColorRegistry() {
@@ -91,10 +125,48 @@ public final class BlockColorRegistry {
         if (blockId == null || blockId.isBlank()) {
             return 0xFF808080;
         }
-        Integer known = KNOWN.get(BlockAliasResolver.resolveBlockId(BlockSpec.parse(blockId).blockId()));
+        String resolved = BlockAliasResolver.resolveBlockId(BlockSpec.parse(blockId).blockId());
+        Integer known = KNOWN.get(resolved);
         if (known != null) {
             return known;
         }
+        Integer fromMap = mapColorArgb(resolved);
+        if (fromMap != null) {
+            return fromMap;
+        }
+        return hashColor(blockId);
+    }
+
+    /** 已知手调色是否覆盖该 id（不含 MapColor / 哈希回退）。 */
+    public static boolean hasExplicitColor(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return false;
+        }
+        String resolved = BlockAliasResolver.resolveBlockId(BlockSpec.parse(blockId).blockId());
+        return KNOWN.containsKey(resolved);
+    }
+
+    /**
+     * 客户端 registry 可用时取方块默认 MapColor；单测/无 bootstrap 时返回 null。
+     */
+    static Integer mapColorArgb(String resolvedBlockId) {
+        try {
+            Identifier id = Identifier.of(resolvedBlockId);
+            if (!Registries.BLOCK.containsId(id)) {
+                return null;
+            }
+            MapColor mapColor = Registries.BLOCK.get(id).getDefaultMapColor();
+            if (mapColor == null || mapColor == MapColor.CLEAR) {
+                return null;
+            }
+            // MapColor.color 为 0xRRGGBB。
+            return 0xFF000000 | (mapColor.color & 0xFFFFFF);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static int hashColor(String blockId) {
         int hash = blockId.hashCode();
         int r = 80 + (hash & 0x7F);
         int g = 80 + ((hash >> 8) & 0x7F);
