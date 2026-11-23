@@ -23,6 +23,8 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import net.minecraft.util.math.BlockPos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,6 +46,8 @@ import java.util.function.ToIntFunction;
  * 仅 {@link VoxelRole#WALL_LINING}/{@link VoxelRole#ROOF_LINING} 可保留或写入衬砌。
  */
 public final class TunnelJunctionShellPass {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/TunnelJunctionShell");
+
     private static final double EPSILON = 1e-9;
     private static final String FALLBACK_LINING = "minecraft:stone_bricks";
     private static final String GRAVITY_RESTORE = "minecraft:stone";
@@ -728,8 +732,9 @@ public final class TunnelJunctionShellPass {
         if (snapshot != null && snapshot.isValid()) {
             try {
                 return snapshot.toCanvas(new Vec2d(column.worldX(), column.worldZ()));
-            } catch (RuntimeException ignored) {
-                // fall through
+            } catch (RuntimeException e) {
+                LOGGER.debug("隧道列投影回画布失败，使用世界坐标: col=({}, {}) ({})",
+                    column.worldX(), column.worldZ(), e.toString());
             }
         }
         return new Vec2d(column.worldX(), column.worldZ());

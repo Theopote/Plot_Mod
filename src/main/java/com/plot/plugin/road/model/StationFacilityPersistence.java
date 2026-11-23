@@ -4,6 +4,8 @@ import com.plot.plugin.road.model.facility.RoadFacilityKind;
 import com.plot.plugin.road.model.facility.RoadFacilitySide;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.List;
  * {@link RoadStationFacilities} 与 sidecar JSON DTO 互转。
  */
 public final class StationFacilityPersistence {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/StationFacilityPersistence");
 
     public static final class FacilityRunData {
         public double startStation;
@@ -71,8 +74,8 @@ public final class StationFacilityPersistence {
                     runData.material,
                     runData.height
                 ));
-            } catch (IllegalArgumentException ignored) {
-                // Skip invalid enum or station values.
+            } catch (IllegalArgumentException e) {
+                LOGGER.debug("跳过非法设施区间: kind={} side={} ({})", runData.kind, runData.side, e.toString());
             }
         }
         return facilities.isEmpty() ? null : facilities;

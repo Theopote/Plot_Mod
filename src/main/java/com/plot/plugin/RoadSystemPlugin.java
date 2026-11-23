@@ -123,6 +123,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             pathPickEscapeListener = null;
         }
         RoadCorridorWorldBlockListener.setEnabled(false);
+        RoadNetworkGenerator.installClientWorldAccess(null);
     }
 
     @Override

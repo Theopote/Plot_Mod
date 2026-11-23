@@ -7,6 +7,8 @@ import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import net.minecraft.util.math.BlockPos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -20,6 +22,8 @@ import java.util.Set;
  * 保证「走廊让出的路面列」一定有路口接管，避免接缝缺块与原地形残留。
  */
 public final class JunctionWorldFootprint {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/JunctionWorldFootprint");
+
     private final Set<ColumnKey> roadCore;
     private final Set<ColumnKey> filletAdditions;
     private final Set<ColumnKey> seamTransition;
@@ -346,8 +350,8 @@ public final class JunctionWorldFootprint {
                         return keys;
                     }
                 }
-            } catch (RuntimeException ignored) {
-                // fall through to canvas integer scan
+            } catch (RuntimeException e) {
+                LOGGER.debug("路口投影扫列失败，回退画布整数扫描: {}", e.toString());
             }
         }
         Set<ColumnKey> keys = new LinkedHashSet<>();
@@ -399,8 +403,9 @@ public final class JunctionWorldFootprint {
         if (snapshot != null && snapshot.isValid()) {
             try {
                 return snapshot.toCanvas(new Vec2d(key.worldX(), key.worldZ()));
-            } catch (RuntimeException ignored) {
-                // fall through
+            } catch (RuntimeException e) {
+                LOGGER.debug("列投影回画布失败，使用世界坐标: col=({}, {}) ({})",
+                    key.worldX(), key.worldZ(), e.toString());
             }
         }
         return new Vec2d(key.worldX(), key.worldZ());

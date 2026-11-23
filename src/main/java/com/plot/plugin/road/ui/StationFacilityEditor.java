@@ -24,6 +24,8 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.Objects;
  * 沿桩号附属设施区间：左轨列表 + 右详情；顶栏世界投影 scrub 与区间标记。
  */
 public final class StationFacilityEditor {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/StationFacilityEditor");
 
     private static final float FACILITY_RAIL_WIDTH_FRACTION = 0.28f;
     private static final int MAX_MATERIAL_LENGTH = 128;
@@ -592,7 +595,7 @@ public final class StationFacilityEditor {
         }
         if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
             selectedIndex = 0;
-            playheadStation = drafts.get(0).startStation;
+            playheadStation = drafts.getFirst().startStation;
         }
     }
 
@@ -658,7 +661,7 @@ public final class StationFacilityEditor {
         }
         if (!drafts.isEmpty()) {
             selectedIndex = 0;
-            playheadStation = drafts.get(0).startStation;
+            playheadStation = drafts.getFirst().startStation;
         } else {
             selectedIndex = -1;
         }
@@ -729,8 +732,9 @@ public final class StationFacilityEditor {
             }
             try {
                 runs.add(toRun(draft));
-            } catch (IllegalArgumentException ignored) {
-                // Skip invalid draft rows until user fixes them.
+            } catch (IllegalArgumentException e) {
+                LOGGER.debug("跳过非法设施草稿行: start={} kind={} ({})",
+                    draft.startStation, draft.kind, e.toString());
             }
         }
         return runs;

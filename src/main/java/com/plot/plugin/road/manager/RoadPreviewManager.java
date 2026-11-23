@@ -1552,8 +1552,9 @@ public final class RoadPreviewManager {
             if (ghostBlockManager != null) {
                 ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
             }
-        } catch (IllegalStateException ignored) {
+        } catch (IllegalStateException e) {
             // 逻辑侧 PluginContext 无世界服务时跳过虚影清理
+            LOGGER.debug("跳过虚影清理（无世界服务）: {}", e.toString());
         }
     }
 }

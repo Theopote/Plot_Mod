@@ -8,6 +8,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.Optional;
  * 道路网络拓扑编辑（打断、合并等）。
  */
 public final class RoadGraphEdits {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadGraph");
     public static final double DEFAULT_NODE_TOLERANCE = RoadNetworkBuilder.NODE_TOLERANCE;
 
     private final RoadNetwork network;
@@ -137,8 +140,8 @@ public final class RoadGraphEdits {
         }
         try {
             network.attachExistingEdge(snapshot);
-        } catch (RuntimeException ignored) {
-            // 回滚尽力而为
+        } catch (RuntimeException e) {
+            LOGGER.debug("边回滚 attach 失败（尽力而为）: {} ({})", snapshot.getId(), e.toString());
         }
     }
 

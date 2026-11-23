@@ -21,6 +21,8 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.geometry.WorldProjectionMath;
 import net.minecraft.util.math.BlockPos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -30,6 +32,8 @@ import java.util.List;
  * 道路几何工具（与 Shape / RoadGenerator 解耦的纯几何运算）
  */
 public final class RoadGeometryUtils {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadGeometry");
+
     /**
      * 认领样条时中心线简化容差（格）。越大点越少、曲线越“折”；
      * 生成阶段仍会按 pathSampleDistance 再细分，此处只减少路网存储/示意图上的冗余顶点。
@@ -161,8 +165,8 @@ public final class RoadGeometryUtils {
                     ? simplifyPolyline(points, ROAD_CENTERLINE_SIMPLIFY_EPSILON)
                     : points;
             }
-        } catch (Exception ignored) {
-            // fall through
+        } catch (Exception e) {
+            LOGGER.debug("未知 Shape 取点失败，回退端点: {} ({})", shape.getClass().getSimpleName(), e.toString());
         }
         List<Vec2d> endpoints = shape.getEndpoints();
         return endpoints != null ? copyAndSanitizePoints(endpoints) : List.of();

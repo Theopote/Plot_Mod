@@ -23,6 +23,8 @@ import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,6 +34,7 @@ import java.util.List;
  * 沿桩号可变横断面：左轨桩号列表 + 右详情（横断面设计器同构面板）。
  */
 public final class VariableCrossSectionEditor {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/VariableCrossSection");
 
     private static final float STATION_RAIL_WIDTH_FRACTION = 0.28f;
 
@@ -609,8 +612,8 @@ public final class VariableCrossSectionEditor {
                     ? draft.originalStation : draft.station;
                 RoadCrossSection section = rebuildStationCrossSection(draft);
                 stations.add(StationCrossSection.at(station, section));
-            } catch (IllegalArgumentException ignored) {
-                // Skip invalid draft rows until user fixes them.
+            } catch (IllegalArgumentException e) {
+                LOGGER.debug("跳过非法横断面草稿行: station={} ({})", draft.station, e.toString());
             }
         }
         return stations;
