@@ -108,6 +108,48 @@ class RoadLampPlacementTest {
     }
 
     @Test
+    void oddSpacingStaggerAnchorsPreferEarlierHalfGridSample() {
+        for (int spacing : List.of(9, 11, 15)) {
+            var scenario = RoadGoldenScenarioFactory.r01StraightFlat();
+            var road = scenario.network().getRoads().values().iterator().next();
+            var cantilever = RoadLampPresets.ALL.get(1).style();
+            road.setIncludeSidewalk(true);
+            road.setSidewalkWidth(3);
+            road.getCrossSection().getStreetFurniture().setRoadLampPlacement(
+                new RoadLampPlacement(cantilever, RoadLampPlacement.Sides.STAGGERED, spacing, 0, 2, true, false));
+            var result = RoadGoldenHarness.run(scenario).preview().aggregate();
+            var xs = result.streetlightBlocks.stream()
+                .filter(pos -> result.placementLayers.get(pos.down()) == RoadSolidLayer.SIDEWALK)
+                .map(BlockPos::getX)
+                .distinct()
+                .sorted()
+                .toList();
+            assertFalse(xs.isEmpty(), () -> "spacing=" + spacing);
+
+            double phase = spacing / 2.0;
+            int plannerPhaseAnchor = RoadLampPlanner.nearestStationSample(phase);
+            int roundedPhaseAnchor = (int) Math.round(phase);
+            assertNotEquals(plannerPhaseAnchor, roundedPhaseAnchor);
+
+            for (int x : xs) {
+                boolean left = x % spacing == 0;
+                boolean right = false;
+                for (int k = -1; k <= xs.getLast() / spacing + 1; k++) {
+                    if (x == RoadLampPlanner.nearestStationSample(k * spacing + phase)) {
+                        right = true;
+                        break;
+                    }
+                }
+                assertTrue(left || right, () -> "spacing=" + spacing + " x=" + x + " xs=" + xs);
+            }
+            assertTrue(xs.contains(plannerPhaseAnchor) || xs.stream().anyMatch(x -> x % spacing == 0),
+                () -> "spacing=" + spacing + " xs=" + xs);
+            assertFalse(xs.contains(roundedPhaseAnchor),
+                () -> "spacing=" + spacing + " should not use Math.round bias at " + roundedPhaseAnchor + " xs=" + xs);
+        }
+    }
+
+    @Test
     void curvedCantileversFaceBackTowardTheCarriageway() {
         var scenario = RoadGoldenScenarioFactory.r02Curved();
         var road = scenario.network().getRoads().values().iterator().next();

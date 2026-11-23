@@ -1,6 +1,7 @@
 {
   "plugin.road.lamp.station_inherited": "Inherits the road lighting plan with spacing of %d blocks. Edit it in the Street Lamp Designer.",
   "plugin.road.lamp.station_inherited_off": "Inherits the road lighting plan with placement turned off. Edit it in the Street Lamp Designer.",
+  "plugin.road.lamp.station_inherited_unset": "Inherits the road lighting plan. No Street Lamp Designer plan is set yet—configure it there. Variable stations cannot edit lamp spacing on their own.",
   "plugin.road.lamp.detail": "Trim details",
   "plugin.road.lamp.detail.none": "Basic",
   "plugin.road.lamp.detail.urban": "Slim cantilever",

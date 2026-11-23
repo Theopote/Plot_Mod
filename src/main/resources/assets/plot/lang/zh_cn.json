@@ -1,6 +1,7 @@
 {
   "plugin.road.lamp.station_inherited": "继承整路路灯方案，间距 %d 格。请在专业工具的路灯设计器中修改。",
   "plugin.road.lamp.station_inherited_off": "继承整路路灯方案，布置已关闭。请在专业工具的路灯设计器中修改。",
+  "plugin.road.lamp.station_inherited_unset": "继承整路路灯设置。当前道路尚未配置路灯设计器方案，请在专业工具中设置；变截面不支持单独改路灯间距。",
   "plugin.road.lamp.detail": "装饰构造",
   "plugin.road.lamp.detail.none": "基础",
   "plugin.road.lamp.detail.urban": "薄型挑臂",

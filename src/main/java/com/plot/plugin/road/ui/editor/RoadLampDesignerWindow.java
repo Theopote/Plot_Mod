@@ -244,14 +244,9 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         boolean plinth = toggle("plinth", draft.plinth());
         var detail = combo("detail", draft.detail(), RoadLampStyle.Detail.values());
         int count = slider("levels", draft.levels().size(), 1, 3);
-        var levels = new ArrayList<>(draft.levels());
-        while (levels.size() < count) {
-            levels.addFirst(new RoadLampStyle.Level(levels.getFirst().y() - 3,
-                RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 1, 1, RoadLampStyle.Light.LANTERN));
-        }
-        while (levels.size() > count) {
-            levels.removeFirst();
-        }
+        var sized = RoadLampDraft.withLevelCount(height, draft.levels(), count);
+        height = sized.height();
+        var levels = new ArrayList<>(sized.levels());
 
         for (int i = 0; i < levels.size(); i++) {
             ImGui.pushID(i);
@@ -331,13 +326,19 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             }
         }
         for (int z = -placement.spacing(); placement.enabled() && z <= placement.spacing(); z += placement.spacing()) {
-            int rightZ = z + (int) Math.round(placement.rightSidePhase());
             switch (placement.sides()) {
                 case LEFT -> previewSide(scene, section, placement, 1, z);
                 case RIGHT -> previewSide(scene, section, placement, -1, z);
-                case BOTH, STAGGERED -> {
+                case BOTH -> {
                     previewSide(scene, section, placement, 1, z);
-                    if (rightZ <= placement.spacing()) previewSide(scene, section, placement, -1, rightZ);
+                    previewSide(scene, section, placement, -1, z);
+                }
+                case STAGGERED -> {
+                    int rightZ = RoadLampPlanner.nearestStationSample(z + placement.rightSidePhase());
+                    previewSide(scene, section, placement, 1, z);
+                    if (rightZ <= placement.spacing()) {
+                        previewSide(scene, section, placement, -1, rightZ);
+                    }
                 }
                 case MEDIAN -> {
                     if (section.includeMedian) {

@@ -93,13 +93,35 @@ public final class RoadLampPlanner {
     private static void offer(Map<Slot, Sample> slots, ResolvedCrossSection section, Vec2d center, Vec2d left,
                                double station, int spacing, int side, double phase) {
         double scheduled = Math.round((station - phase) / spacing) * (double) spacing + phase;
-        double error = Math.abs(station - scheduled);
-        if (scheduled < 0.0 || error > 0.51) return;
-        var slot = new Slot(scheduled, side);
+        if (scheduled < 0.0) {
+            return;
+        }
+        // 半格相位先量化到整数采样格，再与路径采样比对；与情境预览共用 nearestStationSample。
+        int target = nearestStationSample(scheduled);
+        double error = Math.abs(station - target);
+        if (error > 0.51) {
+            return;
+        }
+        var slot = new Slot(target, side);
         Sample existing = slots.get(slot);
         if (existing == null || error < existing.error()) {
             slots.put(slot, new Sample(center, left, error, section));
         }
+    }
+
+    /**
+     * 将目标桩号落到最近的整数采样格；半格等距时取较小一侧（与沿路扫掠的「先到先得」一致）。
+     * 情境预览须用此规则，避免 {@code Math.round(spacing/2)} 在奇数间距上偏到下一格。
+     */
+    public static int nearestStationSample(double targetStation) {
+        int floor = (int) Math.floor(targetStation);
+        if (targetStation <= floor) {
+            return floor;
+        }
+        int ceil = floor + 1;
+        double errFloor = targetStation - floor;
+        double errCeil = ceil - targetStation;
+        return errFloor <= errCeil ? floor : ceil;
     }
 
     public static int lateralOffset(ResolvedCrossSection section, int side, int inset) {

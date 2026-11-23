@@ -23,6 +23,8 @@ public final class CrossSectionDraftMutator {
     private final Road road;
     private final RoadSystemConfig config;
     private RoadLampPlacement inheritedStationLighting;
+    /** 变截面编辑：路灯始终整路继承，禁止在此面板改无效的旧间距字段。 */
+    private boolean inheritRoadLighting;
     private String lastMaterialWarning;
     private String lastGeometryWarning;
 
@@ -318,6 +320,14 @@ public final class CrossSectionDraftMutator {
 
     void setInheritedStationLighting(RoadLampPlacement placement) {
         inheritedStationLighting = placement;
+    }
+
+    void setInheritRoadLighting(boolean inheritRoadLighting) {
+        this.inheritRoadLighting = inheritRoadLighting;
+    }
+
+    boolean inheritRoadLighting() {
+        return inheritRoadLighting;
     }
 
     RoadLampPlacement inheritedStationLighting() {
