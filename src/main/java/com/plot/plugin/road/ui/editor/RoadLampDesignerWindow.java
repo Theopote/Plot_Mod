@@ -398,10 +398,6 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         final var materialBox = new Object() {
             RoadLampStyle.Material value = draft.material();
         };
-        final var overridesRef = new java.util.concurrent.atomic.AtomicReference<>(
-            draft.materialOverrides() == null
-                ? RoadLampStyle.MaterialOverrides.NONE
-                : draft.materialOverrides());
         final var plinthBox = new Object() {
             boolean value = draft.plinth();
         };
@@ -411,6 +407,10 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         final var countBox = new Object() {
             int value = draft.levels().size();
         };
+        // 材质覆盖以 draft 为权威；方块选择器异步回调直接写回 draft/furniture，不能用帧内临时引用。
+        var materialOverrides = draft.materialOverrides() == null
+            ? RoadLampStyle.MaterialOverrides.NONE
+            : draft.materialOverrides();
 
         PluginSectionCard.render(
             "##lamp_sec_pole",
@@ -423,7 +423,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 ImGui.inputText(tr("name"), name);
                 heightBox.value = slider("height", heightBox.value, 5, 24);
                 materialBox.value = combo("material", materialBox.value, RoadLampStyle.Material.values());
-                renderMaterialOverrides(materialBox.value, overridesRef);
+                renderMaterialOverrides(furniture, materialBox.value, materialOverrides);
                 plinthBox.value = toggle("plinth", plinthBox.value);
                 detailBox.value = combo("detail", detailBox.value, RoadLampStyle.Detail.values());
                 countBox.value = slider("levels", countBox.value, 1, 3);
@@ -511,6 +511,10 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         levels.addAll(reconciled.levels());
         renderDetailInactiveHint(detailBox.value, levels);
 
+        // 异步方块选择可能已改写 draft.materialOverrides；本帧控件以 draft 最新覆盖为准。
+        var overridesForCandidate = draft.materialOverrides() == null
+            ? RoadLampStyle.MaterialOverrides.NONE
+            : draft.materialOverrides();
         var candidate = new RoadLampDraft(
             name.get(),
             height,
@@ -518,7 +522,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             plinthBox.value,
             levels,
             detailBox.value,
-            overridesRef.get());
+            overridesForCandidate);
         var placementControls = new RoadLampPlacement(
             active.style(), sidesBox.value, spacingBox.value, insetBox.value, setbackBox.value,
             active.enabled(), bridgeBox.value);
@@ -639,17 +643,14 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
 
     /**
      * 材质套装下方的可选槽位覆盖；默认折叠，留空沿用套装方块。
-     * 方块选择器回调写回 {@code overridesRef}，下一帧随草稿提交。
+     * 方块选择器异步回调必须写回 {@link #draft}/{@code furniture}，不能写帧内临时变量。
      */
-    private static void renderMaterialOverrides(
+    private void renderMaterialOverrides(
+            StreetFurniture furniture,
             RoadLampStyle.Material theme,
-            java.util.concurrent.atomic.AtomicReference<RoadLampStyle.MaterialOverrides> overridesRef) {
-        var overrides = overridesRef.get();
-        if (overrides == null) {
-            overrides = RoadLampStyle.MaterialOverrides.NONE;
-            overridesRef.set(overrides);
-        }
-        String summary = overrides.isEmpty()
+            RoadLampStyle.MaterialOverrides overrides) {
+        var current = overrides == null ? RoadLampStyle.MaterialOverrides.NONE : overrides;
+        String summary = current.isEmpty()
             ? tr("material_overrides_summary_none")
             : tr("material_overrides_summary_active");
         if (!ImGui.collapsingHeader(
@@ -658,20 +659,56 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, tr("material_overrides_hint"));
         renderMaterialOverrideSlot(
-            "override_pole", overrides.pole(), theme.poleId(),
-            id -> overridesRef.set(overridesRef.get().withPole(id)));
+            "override_pole", current.pole(), theme.poleId(),
+            id -> commitMaterialOverrides(furniture, o -> o.withPole(id)));
         renderMaterialOverrideSlot(
-            "override_beam", overrides.beam(), theme.beamId(),
-            id -> overridesRef.set(overridesRef.get().withBeam(id)));
+            "override_beam", current.beam(), theme.beamId(),
+            id -> commitMaterialOverrides(furniture, o -> o.withBeam(id)));
         renderMaterialOverrideSlot(
-            "override_trim", overrides.trim(), theme.trimId(),
-            id -> overridesRef.set(overridesRef.get().withTrim(id)));
+            "override_trim", current.trim(), theme.trimId(),
+            id -> commitMaterialOverrides(furniture, o -> o.withTrim(id)));
         renderMaterialOverrideSlot(
-            "override_slab", overrides.slab(), theme.slabId(),
-            id -> overridesRef.set(overridesRef.get().withSlab(id)));
-        if (!overridesRef.get().isEmpty()
+            "override_slab", current.slab(), theme.slabId(),
+            id -> commitMaterialOverrides(furniture, o -> o.withSlab(id)));
+        if (!current.isEmpty()
                 && ImGui.button(tr("material_overrides_clear_all") + "##lamp_mat_clear_all")) {
-            overridesRef.set(RoadLampStyle.MaterialOverrides.NONE);
+            commitMaterialOverrides(furniture, ignored -> RoadLampStyle.MaterialOverrides.NONE);
+        }
+    }
+
+    private void commitMaterialOverrides(
+            StreetFurniture furniture,
+            java.util.function.UnaryOperator<RoadLampStyle.MaterialOverrides> update) {
+        if (draft == null || furniture == null || update == null) {
+            return;
+        }
+        var baseOverrides = draft.materialOverrides() == null
+            ? RoadLampStyle.MaterialOverrides.NONE
+            : draft.materialOverrides();
+        var nextOverrides = update.apply(baseOverrides);
+        if (Objects.equals(baseOverrides, nextOverrides)) {
+            return;
+        }
+        var nextDraft = new RoadLampDraft(
+            draft.name(),
+            draft.height(),
+            draft.material(),
+            draft.plinth(),
+            draft.levels(),
+            draft.detail(),
+            nextOverrides);
+        draft = nextDraft;
+        var basePlacement = placementDraft != null
+            ? placementDraft
+            : furniture.getRoadLampPlacement();
+        if (basePlacement == null) {
+            return;
+        }
+        var resolved = nextDraft.resolve(basePlacement);
+        if (resolved != null) {
+            furniture.setRoadLampPlacement(resolved);
+            placementDraft = resolved;
+            compiledStyle = null;
         }
     }
 
