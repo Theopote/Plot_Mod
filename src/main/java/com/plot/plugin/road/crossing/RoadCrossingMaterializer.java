@@ -36,12 +36,24 @@ public final class RoadCrossingMaterializer {
         if (source == null) {
             return new SnapshotMaterialization(new RoadNetwork(), CrossingMaterializationReport.empty());
         }
-        return materializeOwnedWorkingCopyWithReport(source.snapshot());
+        if (source.getCrossings().isEmpty() && source.getStackCrossings().isEmpty()) {
+            return new SnapshotMaterialization(source.snapshot(), CrossingMaterializationReport.empty());
+        }
+        // 物化在 snapshot 上进行；source 保留分裂前拓扑，供编辑纵断面重绑定。
+        RoadNetwork snapshot = source.snapshot();
+        CrossingMaterializationReport crossingReport =
+            materializeAllCrossings(snapshot, source.getCrossings().values());
+        RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
+        preserveEditedProfilesAcrossSplits(source, snapshot);
+        return new SnapshotMaterialization(snapshot, crossingReport);
     }
 
     /**
      * 调用方已持有与 live 隔离的工作副本时使用：就地物化，不再二次 {@link RoadNetwork#snapshot()}。
      * 空交叉注册表时直接返回同一实例。
+     * <p>
+     * 若有 EDITED 纵断面，会先拷一份分裂前拓扑供 {@link #preserveEditedProfilesAcrossSplits}；
+     * 不可把同一 post-split 实例同时当作 source/snapshot，否则签名会因分裂而判 stale 并跳过重绑定。
      */
     public static SnapshotMaterialization materializeOwnedWorkingCopyWithReport(RoadNetwork workingCopy) {
         if (workingCopy == null) {
@@ -50,10 +62,20 @@ public final class RoadCrossingMaterializer {
         if (workingCopy.getCrossings().isEmpty() && workingCopy.getStackCrossings().isEmpty()) {
             return new SnapshotMaterialization(workingCopy, CrossingMaterializationReport.empty());
         }
+        RoadNetwork preSplit = null;
+        for (Road road : workingCopy.getRoads().values()) {
+            if (com.plot.plugin.road.vertical.ResolvedProfileAuthority.usesEditedProfileForGeneration(
+                    workingCopy, road)) {
+                preSplit = workingCopy.deepCopy();
+                break;
+            }
+        }
         CrossingMaterializationReport crossingReport =
             materializeAllCrossings(workingCopy, workingCopy.getCrossings().values());
         RoadStackCrossingMaterializer.materializeAll(workingCopy, workingCopy.getStackCrossings().values());
-        preserveEditedProfilesAcrossSplits(workingCopy, workingCopy);
+        if (preSplit != null) {
+            preserveEditedProfilesAcrossSplits(preSplit, workingCopy);
+        }
         return new SnapshotMaterialization(workingCopy, crossingReport);
     }
 

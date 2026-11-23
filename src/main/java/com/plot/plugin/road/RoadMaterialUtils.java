@@ -59,7 +59,8 @@ public final class RoadMaterialUtils {
             if (name != null && !name.isEmpty()) {
                 return name;
             }
-        } catch (RuntimeException | LinkageError e) {
+        } catch (RuntimeException | Error e) {
+            // Error 含 ExceptionInInitializerError：无 Minecraft bootstrap 的单测路径。
             LOGGER.debug("材质显示名解析失败: {} ({})", blockId, e.toString());
         }
         return blockId;
@@ -75,7 +76,7 @@ public final class RoadMaterialUtils {
             if (block != null && block != Blocks.AIR) {
                 return block;
             }
-        } catch (RuntimeException | LinkageError e) {
+        } catch (RuntimeException | Error e) {
             LOGGER.debug("材质方块解析失败: {} ({})", blockId, e.toString());
         }
         return Blocks.STONE;
@@ -95,8 +96,8 @@ public final class RoadMaterialUtils {
         }
         try {
             return Registries.BLOCK.containsId(Identifier.of(blockId));
-        } catch (RuntimeException | LinkageError e) {
-            // 无 Minecraft bootstrap 的单元测试会以 ExceptionInInitializerError 出现。
+        } catch (RuntimeException | Error e) {
+            // ExceptionInInitializerError 继承 Error 而非 LinkageError；无 bootstrap 时必须吞掉。
             LOGGER.debug("材质注册检查失败: {} ({})", blockId, e.toString());
             return false;
         }

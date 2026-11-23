@@ -222,8 +222,9 @@ public class RoadGenerationResult {
             return;
         }
         source.openRoadClearanceTops.forEach((pos, top) -> openRoadClearanceTops.merge(pos, top, Math::max));
-        // 后写入的同柱期望覆盖先前（路口权威高于走廊边缘）。
-        expectedRoadSurfaces.putAll(source.expectedRoadSurfaces);
+        // 期望与 placement 同用 first-claim：已有受保护铺装时，不得被后到的异层期望覆盖
+        //（否则验收会把「路肩期望 + 保留的车行道实体」判成层冲突假阳性）。
+        mergeExpectedSurfacesRespectingExistingPlacements(source);
         expectedTunnelCavity.addAll(source.expectedTunnelCavity);
         expectedTunnelLining.addAll(source.expectedTunnelLining);
         roadBlocks.addAll(source.roadBlocks);
@@ -359,6 +360,36 @@ public class RoadGenerationResult {
             || layer == RoadSolidLayer.SIDEWALK || layer == RoadSolidLayer.BIKE_LANE
             || layer == RoadSolidLayer.MEDIAN || layer == RoadSolidLayer.MARKING
             || layer == RoadSolidLayer.BRIDGE;
+    }
+
+    /**
+     * 合并设计期望时与 placement first-claim 对齐：若目标格已有受保护实体铺装，
+     * 后到的异层结构期望不得覆盖，避免终态验收假阳性。
+     */
+    private void mergeExpectedSurfacesRespectingExistingPlacements(RoadGenerationResult source) {
+        if (source == null || source.expectedRoadSurfaces.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<BlockPos, ExpectedRoadSurface> entry : source.expectedRoadSurfaces.entrySet()) {
+            BlockPos pos = entry.getKey();
+            ExpectedRoadSurface incoming = entry.getValue();
+            if (pos == null || incoming == null) {
+                continue;
+            }
+            BlockRecord existingRecord = placementRecords.get(pos);
+            RoadSolidLayer existingLayer = placementLayers.get(pos);
+            boolean existingProtectedSolid = existingRecord != null
+                && existingRecord.newBlockId != null
+                && !"minecraft:air".equals(existingRecord.newBlockId)
+                && isProtectedSurface(existingLayer)
+                && existingLayer != RoadSolidLayer.MARKING;
+            if (existingProtectedSolid
+                    && incoming.isStructuralSurface()
+                    && existingLayer != incoming.layer()) {
+                continue;
+            }
+            expectedRoadSurfaces.put(pos, incoming);
+        }
     }
 
     /** 截断挡墙实体（非空气）：跨边合并时保护，不被普通清障 AIR 覆盖。 */

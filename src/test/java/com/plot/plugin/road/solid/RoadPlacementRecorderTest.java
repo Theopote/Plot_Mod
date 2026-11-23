@@ -2,6 +2,8 @@ package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.pipeline.corridor.ClearancePurpose;
+import com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface;
+import com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
@@ -324,6 +326,33 @@ class RoadPlacementRecorderTest {
         assertEquals(1, aggregate.placementRecords.size());
         assertEquals("minecraft:stone", aggregate.placementRecords.get(pos).newBlockId);
         assertEquals("minecraft:grass_block", aggregate.placementRecords.get(pos).previousBlockId);
+    }
+
+    @Test
+    void mergeFromKeepsCarriagewayExpectationWhenLaterShoulderLosesPlacement() {
+        BlockPos pos = new BlockPos(8, 72, 4);
+        RoadGenerationResult road = new RoadGenerationResult(0);
+        road.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:white_concrete", RoadSolidLayer.ROAD, "a"));
+        road.recordPlacementOverride(pos, "minecraft:air", "minecraft:white_concrete");
+        road.placementLayers.put(pos, RoadSolidLayer.ROAD);
+
+        RoadGenerationResult shoulder = new RoadGenerationResult(0);
+        shoulder.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:coarse_dirt", RoadSolidLayer.SHOULDER, "b"));
+        shoulder.recordPlacementOverride(pos, "minecraft:air", "minecraft:coarse_dirt");
+        shoulder.placementLayers.put(pos, RoadSolidLayer.SHOULDER);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.mergeFrom(road);
+        aggregate.mergeFrom(shoulder);
+
+        assertEquals(RoadSolidLayer.ROAD, aggregate.placementLayers.get(pos));
+        assertEquals(RoadSolidLayer.ROAD, aggregate.expectedRoadSurfaces.get(pos).layer());
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.validate(aggregate);
+        assertEquals(0, report.missingRoadSurfaceCount());
+        assertEquals(0, report.wrongElevationOrMaterialCount());
     }
 
     @Test
