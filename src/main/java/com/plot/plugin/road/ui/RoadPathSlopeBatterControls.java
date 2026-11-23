@@ -26,29 +26,31 @@ final class RoadPathSlopeBatterControls {
     private int draftValue = RoadParameterLimits.DEFAULT_SLOPE_BATTER_RUN_BLOCKS;
     private String selectionKey = "";
 
-    void render(RoadUiContext ctx) {
-        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
-        if (mode == RoadSelectionHeader.Mode.NONE) {
-            historyPushed = false;
-            return;
+    boolean hasSelection(RoadUiContext ctx) {
+        if (RoadSelectionHeader.resolveMode(ctx) == RoadSelectionHeader.Mode.NONE) {
+            return false;
         }
         LinkedHashSet<String> selectedIds = ctx.networkManager().getSelectedRoadIds();
         if (selectedIds == null || selectedIds.isEmpty()) {
-            historyPushed = false;
-            return;
+            return false;
         }
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (network == null || config == null) {
-            historyPushed = false;
-            return;
+            return false;
         }
+        return !resolveSelectedRoads(network, selectedIds).isEmpty();
+    }
 
-        List<Road> roads = resolveSelectedRoads(network, selectedIds);
-        if (roads.isEmpty()) {
+    void render(RoadUiContext ctx) {
+        if (!hasSelection(ctx)) {
             historyPushed = false;
             return;
         }
+        LinkedHashSet<String> selectedIds = ctx.networkManager().getSelectedRoadIds();
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        List<Road> roads = resolveSelectedRoads(network, selectedIds);
 
         String key = String.join(",", selectedIds);
         if (!key.equals(selectionKey)) {
@@ -57,8 +59,6 @@ final class RoadPathSlopeBatterControls {
             syncDraftFromRoads(roads, config);
         }
 
-        ImGui.spacing();
-        RoadUiSections.section("plugin.road.overlay.slope_batter_distance");
         if (ImGui.checkbox(
                 PlotI18n.tr("plugin.road.overlay.show_slope_batter"),
                 ctx.showSlopeBatterOverlay())) {

@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.model.RoadNetwork;
-import imgui.ImGui;
 
 /** 路口几何（圆角/标线）区块：编辑 Tab 与路径 Tab 共用。 */
 final class RoadIntersectionGeometrySection {
@@ -16,9 +15,7 @@ final class RoadIntersectionGeometrySection {
         if (!RoadIntersectionPropertySupport.hasIntersectionSelection(ctx.networkManager())) {
             return;
         }
-        ImGui.separator();
-        RoadUiSections.section("plugin.road.junction_geometry_section");
+        // 标题由路径主面板 PluginSectionCard（##path_sec_junction_geometry）承担。
         junctionPanel.renderSelection(false);
-        ImGui.spacing();
     }
 }
