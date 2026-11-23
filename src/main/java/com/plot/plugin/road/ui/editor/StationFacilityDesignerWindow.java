@@ -70,11 +70,10 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
         }
         targetRoadIds = java.util.List.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
-        var openSnapshot = live.snapshot();
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
-            working -> StationFacilityEditorApplier.hasChanges(openSnapshot, working, roadId));
+            (open, working) -> StationFacilityEditorApplier.hasChanges(open, working, roadId));
     }
 
     @Override

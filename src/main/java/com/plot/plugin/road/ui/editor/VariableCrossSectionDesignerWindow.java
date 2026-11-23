@@ -70,11 +70,10 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
         }
         targetRoadIds = java.util.List.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
-        var openSnapshot = live.snapshot();
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
-            working -> VariableCrossSectionEditorApplier.hasChanges(openSnapshot, working, roadId));
+            (open, working) -> VariableCrossSectionEditorApplier.hasChanges(open, working, roadId));
     }
 
     @Override

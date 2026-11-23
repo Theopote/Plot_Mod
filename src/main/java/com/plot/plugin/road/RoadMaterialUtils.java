@@ -4,11 +4,15 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 道路材质与方块 ID 的互转。
  */
 public final class RoadMaterialUtils {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadMaterial");
+
     public static final String DEFAULT_ROAD_BLOCK = "minecraft:white_concrete";
     public static final String DEFAULT_FALLBACK_BLOCK = "minecraft:stone";
     /** Stable fill/shoulder default (no gravity). */
@@ -55,8 +59,8 @@ public final class RoadMaterialUtils {
             if (name != null && !name.isEmpty()) {
                 return name;
             }
-        } catch (Throwable ignored) {
-            // fall through
+        } catch (RuntimeException | LinkageError e) {
+            LOGGER.debug("材质显示名解析失败: {} ({})", blockId, e.toString());
         }
         return blockId;
     }
@@ -71,8 +75,8 @@ public final class RoadMaterialUtils {
             if (block != null && block != Blocks.AIR) {
                 return block;
             }
-        } catch (Throwable ignored) {
-            // fall through
+        } catch (RuntimeException | LinkageError e) {
+            LOGGER.debug("材质方块解析失败: {} ({})", blockId, e.toString());
         }
         return Blocks.STONE;
     }
@@ -91,7 +95,9 @@ public final class RoadMaterialUtils {
         }
         try {
             return Registries.BLOCK.containsId(Identifier.of(blockId));
-        } catch (Throwable e) {
+        } catch (RuntimeException | LinkageError e) {
+            // 无 Minecraft bootstrap 的单元测试会以 ExceptionInInitializerError 出现。
+            LOGGER.debug("材质注册检查失败: {} ({})", blockId, e.toString());
             return false;
         }
     }

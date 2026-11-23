@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.road.model.RoadNetwork;
 
 import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
@@ -25,20 +26,47 @@ public final class RoadNetworkEditorSession {
 
     private RoadNetworkEditorSession(
             RoadNetwork openSnapshot,
+            RoadNetwork workingNetwork,
             long openRevision,
             Predicate<RoadNetwork> dirtyPredicate) {
         this.openSnapshot = Objects.requireNonNull(openSnapshot, "openSnapshot");
+        this.workingNetwork = Objects.requireNonNull(workingNetwork, "workingNetwork");
         this.openRevision = openRevision;
         this.dirtyPredicate = Objects.requireNonNull(dirtyPredicate, "dirtyPredicate");
-        this.workingNetwork = openSnapshot.snapshot();
     }
 
+    /**
+     * 打开会话：对 live 只做一次 snapshot 作为基线，再 deepCopy 出可写工作副本。
+     * {@code dirtyCheck} 收到 (openSnapshot, working)。
+     */
+    public static RoadNetworkEditorSession open(
+            RoadNetwork live,
+            long openRevision,
+            BiPredicate<RoadNetwork, RoadNetwork> dirtyCheck) {
+        Objects.requireNonNull(live, "live");
+        Objects.requireNonNull(dirtyCheck, "dirtyCheck");
+        RoadNetwork openSnapshot = live.snapshot();
+        RoadNetwork working = openSnapshot.snapshot();
+        return new RoadNetworkEditorSession(
+            openSnapshot,
+            working,
+            openRevision,
+            w -> dirtyCheck.test(openSnapshot, w));
+    }
+
+    /**
+     * @deprecated 使用 {@link #open(RoadNetwork, long, BiPredicate)}，避免调用方再预 snapshot。
+     */
+    @Deprecated
     public static RoadNetworkEditorSession open(
             RoadNetwork live,
             long openRevision,
             Predicate<RoadNetwork> dirtyPredicate) {
         Objects.requireNonNull(live, "live");
-        return new RoadNetworkEditorSession(live.snapshot(), openRevision, dirtyPredicate);
+        Objects.requireNonNull(dirtyPredicate, "dirtyPredicate");
+        RoadNetwork openSnapshot = live.snapshot();
+        RoadNetwork working = openSnapshot.snapshot();
+        return new RoadNetworkEditorSession(openSnapshot, working, openRevision, dirtyPredicate);
     }
 
     public RoadNetwork openSnapshot() {

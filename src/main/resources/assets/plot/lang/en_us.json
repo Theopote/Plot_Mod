@@ -3161,7 +3161,7 @@
   "plugin.road.pick_path_hint": "Switched to Select tool. Click or box-select paths to add them; right-click to adopt as roads.",
   "plugin.road.placement_progress": "Construction progress: %d / %d",
   "plugin.road.preset.change": "Change preset",
-  "plugin.road.preset.library_hint": "Click a card to apply; close the window to cancel.",
+  "plugin.road.preset.library_hint": "Click applies immediately to the live network; close to cancel without selecting.",
   "plugin.road.preset.library_window": "Choose road preset",
   "plugin.road.preset_carriageway_width": "Carriageway %d blocks",
   "plugin.road.preset_cross_section_caption": "%d lanes · carriageway %d blocks",

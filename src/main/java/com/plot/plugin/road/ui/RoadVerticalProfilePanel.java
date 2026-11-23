@@ -85,6 +85,11 @@ public final class RoadVerticalProfilePanel {
         pathPropertyPanel.renderDeferredModals(ctx);
     }
 
+    /** 切项目 / 卸载时丢弃未确认的纵断面浮动窗会话。 */
+    public void discardOpenEditors() {
+        profileEditor.forceDiscardOpenSession();
+    }
+
     private void markFormalPreviewStaleAfterProfileConfirm() {
         if (ctx.previewManager() == null) {
             return;

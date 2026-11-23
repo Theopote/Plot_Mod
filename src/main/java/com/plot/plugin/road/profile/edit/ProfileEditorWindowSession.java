@@ -59,16 +59,19 @@ public final class ProfileEditorWindowSession {
         return unresolvedConstraints;
     }
 
-    private ProfileEditorWindowSession(RoadNetwork openSnapshot, long openRevision) {
+    private ProfileEditorWindowSession(
+            RoadNetwork openSnapshot,
+            RoadNetwork workingNetwork,
+            long openRevision) {
         this.openSnapshot = Objects.requireNonNull(openSnapshot, "openSnapshot");
+        this.workingNetwork = Objects.requireNonNull(workingNetwork, "workingNetwork");
         this.openRevision = openRevision;
-        this.workingNetwork = openSnapshot.snapshot();
     }
 
     public static ProfileEditorWindowSession open(RoadNetwork live, long openRevision) {
         Objects.requireNonNull(live, "live");
-        RoadNetwork snapshot = live.snapshot();
-        return new ProfileEditorWindowSession(snapshot, openRevision);
+        RoadNetwork openSnapshot = live.snapshot();
+        return new ProfileEditorWindowSession(openSnapshot, openSnapshot.snapshot(), openRevision);
     }
 
     public RoadNetwork openSnapshot() {

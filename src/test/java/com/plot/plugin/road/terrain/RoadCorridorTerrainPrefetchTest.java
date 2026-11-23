@@ -24,7 +24,7 @@ class RoadCorridorTerrainPrefetchTest {
 
     @AfterEach
     void tearDown() {
-        RoadCorridorTerrainPrefetch.clearForTests();
+        RoadCorridorTerrainPrefetch.clear();
     }
 
     @Test
@@ -194,5 +194,41 @@ class RoadCorridorTerrainPrefetchTest {
         assertTrue(RoadCorridorTerrainPrefetch.worldTerrainEpoch() > epochBefore);
         assertEquals(0, RoadCorridorTerrainPrefetch.lastPrefetchColumnKeyCountForTest(),
             "invalidate clears footprint");
+    }
+
+    @Test
+    void notifyWorldBlockChangedIgnoresOtherDimension() {
+        long column = PrefetchedGroundTerrainSampler.packColumn(12, 4);
+        long chunk = RoadCorridorTerrainPrefetch.packChunkKey(12, 4);
+        RoadCorridorTerrainPrefetch.rememberPrefetchFootprintForTest(Set.of(column), Set.of(chunk));
+        RoadCorridorTerrainPrefetch.setActiveWorldKeyIdForTest("minecraft:overworld");
+
+        long epochBefore = RoadCorridorTerrainPrefetch.worldTerrainEpoch();
+        assertFalse(
+            RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(
+                "minecraft:the_nether", new BlockPos(12, 70, 4)),
+            "nether break must not invalidate overworld corridor cache");
+        assertEquals(epochBefore, RoadCorridorTerrainPrefetch.worldTerrainEpoch());
+
+        assertTrue(
+            RoadCorridorTerrainPrefetch.notifyWorldBlockChanged(
+                "minecraft:overworld", new BlockPos(12, 70, 4)));
+        assertTrue(RoadCorridorTerrainPrefetch.worldTerrainEpoch() > epochBefore);
+    }
+
+    @Test
+    void clearCancelsInflightAndDropsCache() {
+        RoadCorridorTerrainPrefetch.rememberPrefetchFootprintForTest(
+            Set.of(PrefetchedGroundTerrainSampler.packColumn(1, 2)),
+            Set.of(RoadCorridorTerrainPrefetch.packChunkKey(1, 2)));
+        RoadCorridorTerrainPrefetch.setActiveWorldKeyIdForTest("minecraft:overworld");
+        assertTrue(RoadCorridorTerrainPrefetch.lastPrefetchColumnKeyCountForTest() > 0);
+
+        RoadCorridorTerrainPrefetch.clear();
+
+        assertEquals(0, RoadCorridorTerrainPrefetch.lastPrefetchColumnKeyCountForTest());
+        assertEquals(null, RoadCorridorTerrainPrefetch.activeWorldKeyIdForTest());
+        assertFalse(RoadCorridorTerrainPrefetch.isPrefetchPending());
+        assertFalse(RoadCorridorTerrainPrefetch.pollCompleted(null));
     }
 }

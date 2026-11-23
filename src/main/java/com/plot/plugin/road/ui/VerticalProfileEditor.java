@@ -485,6 +485,12 @@ final class VerticalProfileEditor {
         invalidateIntersectionCache();
     }
 
+    /** 切项目 / 卸载：无确认直接关闭浮动窗并丢弃草稿。 */
+    void forceDiscardOpenSession() {
+        editorWindowOpen.set(false);
+        clearCache();
+    }
+
     boolean hasUnconfirmedEditsForRoad(String roadId) {
         return editorWindowOpen.get()
             && windowSession != null

@@ -84,7 +84,7 @@ public final class VerticalProfileVoxelPreview {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ProfileEditSession editSession = host.editSession();
-        RoadNetwork compileNetwork = editSession.previewNetwork(editingNetwork, editingRoad, config).snapshot();
+        RoadNetwork compileNetwork = editSession.isolatedCompileNetwork(editingNetwork, editingRoad, config);
         Road compileRoad = compileNetwork.getRoad(road.getId());
         if (compileRoad == null) {
             return;

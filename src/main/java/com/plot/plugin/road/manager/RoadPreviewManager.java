@@ -97,7 +97,7 @@ public final class RoadPreviewManager {
     /** 发布地形任务结果时读取当前 live 路网（几何/投影必须重新校验）。 */
     private Supplier<RoadNetwork> liveNetworkLookup = () -> null;
     /** 测试可覆盖世界键；生产默认识别当前客户端世界。 */
-    private Supplier<String> worldKeyLookup = RoadPreviewManager::detectCurrentWorldKey;
+    private Supplier<String> worldKeyLookup;
     /** 纵断面「地形与预览」就地反馈（取消/失败等），不走顶栏。 */
     private String terrainUiMessage = "";
     private RoadStatus.Severity terrainUiSeverity = RoadStatus.Severity.INFO;
@@ -105,6 +105,7 @@ public final class RoadPreviewManager {
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
         this.host = Objects.requireNonNull(host, "host");
+        this.worldKeyLookup = this::detectCurrentWorldKey;
     }
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
@@ -123,7 +124,7 @@ public final class RoadPreviewManager {
     public void setWorldKeyLookup(Supplier<String> worldKeyLookup) {
         this.worldKeyLookup = worldKeyLookup != null
             ? worldKeyLookup
-            : RoadPreviewManager::detectCurrentWorldKey;
+            : this::detectCurrentWorldKey;
     }
 
     private void bumpOverviewChartCache() {
@@ -1348,30 +1349,10 @@ public final class RoadPreviewManager {
 
     /**
      * 世界会话身份：维度 + 存档名（单机）或远端地址，避免两个存档同维度主世界键碰撞。
+     * 经 {@link com.plot.api.world.IClientWorldAccess}，不直接触碰 MinecraftClient。
      */
-    private static String detectCurrentWorldKey() {
-        net.minecraft.world.World world = RoadNetworkGenerator.getClientWorld();
-        if (world == null || world.getRegistryKey() == null) {
-            return "";
-        }
-        String dimension = world.getRegistryKey().getValue().toString();
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-        if (client == null) {
-            return dimension;
-        }
-        net.minecraft.server.MinecraftServer integrated = client.getServer();
-        if (integrated != null && integrated.getSaveProperties() != null) {
-            String levelName = integrated.getSaveProperties().getLevelName();
-            if (levelName == null || levelName.isBlank()) {
-                levelName = "unnamed";
-            }
-            return dimension + "|save:" + levelName;
-        }
-        net.minecraft.client.network.ServerInfo remote = client.getCurrentServerEntry();
-        if (remote != null && remote.address != null && !remote.address.isBlank()) {
-            return dimension + "|remote:" + remote.address;
-        }
-        return dimension;
+    private String detectCurrentWorldKey() {
+        return host.clientWorld().worldSessionKey();
     }
 
     /**

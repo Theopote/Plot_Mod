@@ -36,14 +36,25 @@ public final class RoadCrossingMaterializer {
         if (source == null) {
             return new SnapshotMaterialization(new RoadNetwork(), CrossingMaterializationReport.empty());
         }
-        if (source.getCrossings().isEmpty() && source.getStackCrossings().isEmpty()) {
-            return new SnapshotMaterialization(source.snapshot(), CrossingMaterializationReport.empty());
+        return materializeOwnedWorkingCopyWithReport(source.snapshot());
+    }
+
+    /**
+     * 调用方已持有与 live 隔离的工作副本时使用：就地物化，不再二次 {@link RoadNetwork#snapshot()}。
+     * 空交叉注册表时直接返回同一实例。
+     */
+    public static SnapshotMaterialization materializeOwnedWorkingCopyWithReport(RoadNetwork workingCopy) {
+        if (workingCopy == null) {
+            return new SnapshotMaterialization(new RoadNetwork(), CrossingMaterializationReport.empty());
         }
-        RoadNetwork snapshot = source.snapshot();
-        CrossingMaterializationReport crossingReport = materializeAllCrossings(snapshot, source.getCrossings().values());
-        RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
-        preserveEditedProfilesAcrossSplits(source, snapshot);
-        return new SnapshotMaterialization(snapshot, crossingReport);
+        if (workingCopy.getCrossings().isEmpty() && workingCopy.getStackCrossings().isEmpty()) {
+            return new SnapshotMaterialization(workingCopy, CrossingMaterializationReport.empty());
+        }
+        CrossingMaterializationReport crossingReport =
+            materializeAllCrossings(workingCopy, workingCopy.getCrossings().values());
+        RoadStackCrossingMaterializer.materializeAll(workingCopy, workingCopy.getStackCrossings().values());
+        preserveEditedProfilesAcrossSplits(workingCopy, workingCopy);
+        return new SnapshotMaterialization(workingCopy, crossingReport);
     }
 
     /** Splitting instance edges at a crossing does not edit the logical road path. */

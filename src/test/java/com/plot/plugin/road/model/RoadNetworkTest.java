@@ -662,6 +662,29 @@ class RoadNetworkTest {
     }
 
     @Test
+    void deepCopyPreservesStackCrossingTransientNodeFields() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setStackCrossingId("stack-1");
+        junction.setStackGradeSeparated(true);
+        junction.setStackCrossingClearance(4.5);
+        junction.addStackLowerEdgeId("e-lower");
+        junction.addStackUpperEdgeId("e-upper");
+
+        RoadNetwork copy = network.deepCopy();
+        RoadNode restored = copy.getNode(junction.getId());
+        assertNotNull(restored);
+        assertEquals("stack-1", restored.getStackCrossingId());
+        assertTrue(restored.isStackGradeSeparated());
+        assertEquals(4.5, restored.getStackCrossingClearance());
+        assertTrue(restored.getStackLowerEdgeIds().contains("e-lower"));
+        assertTrue(restored.getStackUpperEdgeIds().contains("e-upper"));
+
+        junction.setStackCrossingId("mutated");
+        assertEquals("stack-1", restored.getStackCrossingId());
+    }
+
+    @Test
     void gradeSeparationFieldsRoundTripThroughJson() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(5, 5));

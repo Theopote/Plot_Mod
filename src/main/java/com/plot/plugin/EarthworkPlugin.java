@@ -20,7 +20,6 @@ import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkHolePickSession;
 import com.plot.api.plugin.PluginState;
-import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayController;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayEntry;
 import com.plot.plugin.earthwork.overlay.EarthworkRegionOverlayRenderer;
@@ -211,8 +210,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         if (!isEnabled() || config == null || uiContext == null) {
             return;
         }
-        if (getState() != PluginState.ACTIVE
-                || !PluginManager.getInstance().shouldShowActivePluginCanvasOverlays()) {
+        if (getState() != PluginState.ACTIVE || !ctx().shouldShowCanvasOverlays()) {
             return;
         }
         synchronized (projectLock) {

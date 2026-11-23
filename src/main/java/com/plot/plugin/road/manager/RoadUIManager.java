@@ -438,6 +438,18 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadAutoRepairUi.invalidateCache();
     }
 
+    /**
+     * 切换项目 / 卸载插件时强制丢弃所有浮动编辑会话，避免旧项目草稿串扰。
+     */
+    public void discardFloatingEditorSessions() {
+        floatingEditorHost.discardAll(ctx);
+        TunnelStyleControls.floatingEditor().close();
+        ComplexJunctionControls.floatingEditor().close();
+        ctx.closePresetLibrary();
+        verticalProfilePanel.discardOpenEditors();
+        ctx.clearTransientUiState();
+    }
+
     /** 离开扩展面板时清除画布预览/拾取，保留插件活动态与选中（供属性面板交叉口编辑）。 */
     public void hideCanvasPreviews() {
         ctx.toolManager().cancel();

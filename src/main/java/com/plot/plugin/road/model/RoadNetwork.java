@@ -85,6 +85,11 @@ public class RoadNetwork {
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
         .create();
 
+    /** 紧凑 JSON（无 pretty-print），仅作深拷贝回退或诊断；热路径优先 {@link #deepCopy()}。 */
+    private static final Gson SNAPSHOT_GSON = new GsonBuilder()
+        .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
+        .create();
+
     /** 并发安全的 id 索引；元素 {@link RoadNode} 本身非线程安全。 */
     private final Map<String, RoadNode> nodes = new ConcurrentHashMap<>();
     /** 并发安全的 id 索引；元素 {@link RoadEdge} 本身非线程安全。 */
@@ -976,10 +981,74 @@ public class RoadNetwork {
     }
 
     /**
-     * 深拷贝快照（JSON 往返），供后台生成/校验或与 live 网络隔离的只读分析使用。
+     * 深拷贝快照，供后台生成/校验或与 live 网络隔离的编辑/预览使用。
+     * <p>
+     * 走内存 {@link #deepCopy()}，保留节点上自交立交等物化瞬态字段；
+     * 不再经 Pretty-Print JSON 往返。
      */
     public RoadNetwork snapshot() {
-        return parseSnapshot(toJson());
+        return deepCopy();
+    }
+
+    /**
+     * 内存深拷贝：节点/边/道路/交叉注册表及 {@link RoadNode} 栈交瞬态字段。
+     */
+    public RoadNetwork deepCopy() {
+        RoadNetwork copy = new RoadNetwork();
+        copy.elevationMode = getElevationMode();
+        copy.uniformElevationY = uniformElevationY;
+        for (RoadNode node : nodes.values()) {
+            copy.nodes.put(node.getId(), node.copy());
+        }
+        for (RoadEdge edge : edges.values()) {
+            copy.edges.put(edge.getId(), edge.copy());
+        }
+        for (Road road : roads.values()) {
+            copy.roads.put(road.getId(), road.copy());
+        }
+        for (com.plot.plugin.road.crossing.RoadCrossing crossing : crossings.values()) {
+            copy.crossings.put(crossing.id(), copyCrossing(crossing));
+        }
+        for (com.plot.plugin.road.crossing.RoadStackCrossing stack : stackCrossings.values()) {
+            copy.stackCrossings.put(stack.id(), copyStackCrossing(stack));
+        }
+        return copy;
+    }
+
+    /** 诊断：紧凑 JSON 往返（不含 pretty-print）。 */
+    RoadNetwork snapshotViaCompactJson() {
+        return parseSnapshot(SNAPSHOT_GSON.toJson(NetworkData.from(this)));
+    }
+
+    private static com.plot.plugin.road.crossing.RoadCrossing copyCrossing(
+            com.plot.plugin.road.crossing.RoadCrossing source) {
+        return new com.plot.plugin.road.crossing.RoadCrossing(
+            source.id(),
+            source.roadAId(),
+            source.stationA(),
+            source.roadBId(),
+            source.stationB(),
+            source.position(),
+            source.type(),
+            source.elevatedRoadId(),
+            source.crossingClearance(),
+            source.sharedElevation(),
+            source.cornerRadius());
+    }
+
+    private static com.plot.plugin.road.crossing.RoadStackCrossing copyStackCrossing(
+            com.plot.plugin.road.crossing.RoadStackCrossing source) {
+        return new com.plot.plugin.road.crossing.RoadStackCrossing(
+            source.id(),
+            source.roadId(),
+            source.position(),
+            source.stationA(),
+            source.stationB(),
+            source.type(),
+            source.lowerStation(),
+            source.upperStation(),
+            source.crossingClearance(),
+            source.sharedElevation());
     }
 
     static class Vec2dData {

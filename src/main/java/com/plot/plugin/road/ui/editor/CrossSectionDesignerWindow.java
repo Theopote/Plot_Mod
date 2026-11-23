@@ -48,12 +48,11 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
         invalidateUiCaches();
         var live = ctx.networkManager().getNetwork();
         var config = ctx.networkManager().getConfig();
-        var openSnapshot = live.snapshot();
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
-            working -> CrossSectionEditorApplier.hasChanges(
-                openSnapshot, working, roadId, config));
+            (open, working) -> CrossSectionEditorApplier.hasChanges(
+                open, working, roadId, config));
     }
 
     @Override

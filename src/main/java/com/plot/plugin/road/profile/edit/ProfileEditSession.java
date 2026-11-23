@@ -52,6 +52,25 @@ public final class ProfileEditSession {
         return previewNetwork;
     }
 
+    /**
+     * 体素编译用隔离副本：最多一次 snapshot。
+     * 脏草稿时在 working 上应用草稿；干净时直接拷贝 working。不复用 overlay 缓存，避免编译写回污染。
+     */
+    public RoadNetwork isolatedCompileNetwork(RoadNetwork working, Road road, RoadSystemConfig config) {
+        if (working == null) {
+            return new RoadNetwork();
+        }
+        if (!draft.isActive() || !draft.isDirty()) {
+            return working.snapshot();
+        }
+        RoadNetwork compile = working.snapshot();
+        Road compileRoad = compile.getRoad(road != null ? road.getId() : null);
+        if (compileRoad != null) {
+            applyAndSynchronize(compile, compileRoad, config);
+        }
+        return compile;
+    }
+
     public void setElevationBounds(RoadElevationBounds bounds) {
         RoadElevationBounds next = bounds != null ? bounds : RoadWorldElevationBounds.fallback();
         if (!next.equals(elevationBounds)) previewNetwork = null;

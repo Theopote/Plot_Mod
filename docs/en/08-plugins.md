@@ -20,7 +20,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Pattern Generator** | Claim closed regions and replace surface blocks with procedural patterns or imported pixel art |
 | **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-Earthwork defaults to a **Quick** single page (claim, target height, edge, preview, build); the **Region / Edit / Generate** tabs appear only in Builder mode. Building Generator and Pattern Generator use **Region (or Footprints/Pattern) / Edit / Generate**. **Road System** uses **Path / Edit / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
+Earthwork defaults to a **Quick** single page (claim, target height, edge, preview, build); the **Region / Edit / Generate** tabs appear only in Builder mode. Building Generator and Pattern Generator use **Region (or Footprints/Pattern) / Edit / Generate**. **Road System** uses **Route / Cross-section / Vertical profile / Build**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
@@ -30,26 +30,28 @@ Earthwork defaults to a **Quick** single page (claim, target height, edge, previ
 
 1. Draw road centerlines with polyline, spline, or similar tools
 2. Open **Extension** -> **Road System** -> enable the plugin
-3. In **Path**, pick or click/box-select paths to adopt roads; manage the road list and intersections (including grade separation)
-4. In **Edit**, pick a preset, tweak width/lanes, and open floating designers for cross-section, variable section, centerline, furniture, diagnostics, and tunnel style
-5. In **Generate**, set vertical strategy (terrain adaptive / flat), slope and bridges, edit the profile, run preview, then project to the world
+3. In **Route**, pick or click/box-select paths to adopt roads; manage the road list and intersections (including grade separation)
+4. In **Cross-section**, pick a preset, tweak width/lanes, and open floating designers for cross-section, variable section, centerline, furniture, diagnostics, and tunnel style
+5. In **Vertical profile**, set vertical strategy (terrain adaptive / flat), slope and bridges, and edit the profile
+6. In **Build**, run preview and project to the world
 
-### Three-tab layout
+### Four-tab layout
 
 | Tab | Focus |
 |-----|--------|
-| **Path** | Pick/adopt, corridor overlay (optional slope batter), road list, intersection editing, network overview |
-| **Edit** | Road summary, compact preset library, quick width/lanes, floating designer launchers, tunnel override; batch cross-section when multi-selected |
-| **Generate** | Vertical strategy and slope, preview job, profile workspace, build confirm, crossing conflict summary |
+| **Route** | Pick/adopt, corridor overlay (optional slope batter), road list, intersection editing, network overview |
+| **Cross-section** | Road summary, compact preset library, quick width/lanes, floating designer launchers, tunnel override; batch cross-section when multi-selected |
+| **Vertical profile** | Vertical strategy and slope, profile workspace, crossing conflict summary |
+| **Build** | Preview job and build confirm |
 
 ### Features
 
 - Presets (urban main/secondary, rural, highway, railway embankment with sleepers and center rails, and more)
 - Canvas corridor overlay with true width; variable cross-sections widen/narrow along station
 - Floating designers: cross-section, variable section (step/smooth), centerline, furniture, diagnostics, batch cross-section; multi-select also batches tunnel / variable section / furniture / diagnostics / centerline switching; separate tunnel style and complex-junction windows (elevation, corner/plaza base vs effective radius, fit-to-approaches, approach bearings/half-width/length with jump to centerline or cross-section)
-- Vertical strategy and profile editing live on **Generate**; flat-road elevation tips; bridge/tunnel thresholds
+- Vertical strategy and profile editing live on **Vertical profile**; build preview/placement on **Build**; flat-road elevation tips; bridge/tunnel thresholds
 - Sidewalks, shoulders, drainage, streetlights; junction markings and intersection editing (multi-leg junctions open a designer)
-- Dirty floating drafts block leaving Edit / switching roads until you confirm or discard
+- Dirty floating drafts block leaving Cross-section / switching roads until you confirm or discard
 - Cut/fill estimates and preview building
 
 ### Property Panel Integration

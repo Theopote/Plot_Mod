@@ -15,7 +15,7 @@ import com.plot.plugin.powerline.ui.PowerLineUiContext;
 import com.plot.plugin.powerline.ui.PowerLineUIManager;
 import com.plot.api.world.GhostBlockOwners;
 import com.plot.api.world.IGhostBlockService;
-import com.plot.core.plugin.PluginManager;
+import com.plot.api.plugin.PluginState;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
@@ -126,9 +126,7 @@ public class PowerLinePlugin extends Plugin {
         if (!isEnabled() || uiContext == null) {
             return;
         }
-        PluginManager pluginManager = PluginManager.getInstance();
-        if (!pluginManager.shouldShowActivePluginCanvasOverlays()
-                || pluginManager.getActivePlugin() != this) {
+        if (getState() != PluginState.ACTIVE || !ctx().shouldShowCanvasOverlays()) {
             return;
         }
         synchronized (projectLock) {

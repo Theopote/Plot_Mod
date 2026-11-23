@@ -2,7 +2,6 @@ package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.plugin.PluginState;
-import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
@@ -16,6 +15,7 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
+import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
 import com.plot.plugin.road.terrain.RoadCorridorWorldBlockListener;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
@@ -68,6 +68,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             config = new RoadSystemConfig(getId());
         }
 
+        RoadNetworkGenerator.installClientWorldAccess(ctx().clientWorld());
         networkManager = new RoadNetworkManager(config, status);
         persistenceManager = new RoadPersistenceManager(getDataFolder(), status, ctx());
         previewManager = new RoadPreviewManager(status, ctx());
@@ -89,6 +90,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             previewManager.setNetworkGenerator(new RoadNetworkGenerator(roadGenerator));
             RoadCorridorWorldBlockListener.register();
         } catch (Exception e) {
+            rollbackEnablePartialState();
             LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("道路插件初始化失败", e);
         }
@@ -99,6 +101,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             persistenceManager.loadForCurrentProject(
                 network -> {
                     previewManager.clearTerrainProfileCache();
+                    RoadCorridorTerrainPrefetch.clear();
                     networkManager.setNetwork(network);
                 },
                 () -> {
@@ -107,9 +110,19 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
                 });
         } catch (Exception e) {
             ctx().events().unsubscribeOwner(this);
+            rollbackEnablePartialState();
             LOGGER.error("加载当前项目失败: {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    /** onEnable 中途失败时卸下已挂的快捷键监听，避免泄漏。 */
+    private void rollbackEnablePartialState() {
+        if (pathPickEscapeListener != null) {
+            ctx().shortcuts().removeListener(pathPickEscapeListener);
+            pathPickEscapeListener = null;
+        }
+        RoadCorridorWorldBlockListener.setEnabled(false);
     }
 
     @Override
@@ -118,6 +131,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             toolManager.cancel();
         }
         if (uiManager != null) {
+            uiManager.discardFloatingEditorSessions();
             uiManager.onDeactivate();
         }
         super.onDeactivate();
@@ -140,10 +154,16 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         if (persistenceManager != null && networkManager != null) {
             persistenceManager.saveOnDisable(networkManager.getNetwork());
         }
+        if (uiManager != null) {
+            uiManager.discardFloatingEditorSessions();
+        }
         if (previewManager != null) {
             previewManager.clearPreview();
             previewManager.clearTerrainProfileCache();
         }
+        RoadCorridorTerrainPrefetch.clear();
+        RoadCorridorWorldBlockListener.setEnabled(false);
+        RoadNetworkGenerator.installClientWorldAccess(null);
         if (toolManager != null) {
             toolManager.cancel();
         }
@@ -175,7 +195,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         if (isEnabled()
                 && uiManager != null
                 && getState() == PluginState.ACTIVE
-                && PluginManager.getInstance().shouldShowActivePluginCanvasOverlays()) {
+                && ctx().shouldShowCanvasOverlays()) {
             uiManager.renderCanvasOverlay();
         }
     }
@@ -196,10 +216,14 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     }
 
     private void onProjectLoaded(String filePath) {
+        if (uiManager != null) {
+            uiManager.discardFloatingEditorSessions();
+        }
         persistenceManager.onProjectLoaded(
             filePath,
             network -> {
                 previewManager.clearTerrainProfileCache();
+                RoadCorridorTerrainPrefetch.clear();
                 networkManager.setNetwork(network);
             },
             () -> {

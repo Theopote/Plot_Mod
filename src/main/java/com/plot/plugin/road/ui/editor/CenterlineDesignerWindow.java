@@ -83,14 +83,13 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         }
         siblingRoadIds = java.util.List.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
-        var openSnapshot = live.snapshot();
         selectedWorkingEdgeId = resolveInitialWorkingEdgeId(ctx, live.getRoad(roadId));
         horizontalAlignmentEditor.clearMessages();
         centerlineEditPanel.clearMessages();
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
-            working -> CenterlineEditorApplier.hasChanges(openSnapshot, working, roadId));
+            (open, working) -> CenterlineEditorApplier.hasChanges(open, working, roadId));
     }
 
     @Override

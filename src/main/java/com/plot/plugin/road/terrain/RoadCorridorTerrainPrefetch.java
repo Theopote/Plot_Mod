@@ -1,7 +1,9 @@
 package com.plot.plugin.road.terrain;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.IClientWorldAccess;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.IIntegratedServerScheduler;
 import com.plot.core.geometry.WorldCoordinateUtils;
 import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.core.terrain.TerrainSampler;
@@ -15,9 +17,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.profile.NodeGroundHeightResolver;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -46,6 +46,8 @@ public final class RoadCorridorTerrainPrefetch {
 
     static final int MAX_COLUMNS = 24_000;
     private static final int CHUNKS_PER_SERVER_BATCH = 8;
+    /** 单批最多同步加载/生成的新区块数；已加载区块可继续消费时间预算。 */
+    private static final int MAX_NEW_CHUNKS_PER_BATCH = 2;
     private static final int COLUMNS_PER_SERVER_BATCH = 256;
     /** 单批服务端预算，避免大型路网卡死服务端 tick。 */
     private static final long SERVER_BATCH_BUDGET_NS = TimeUnit.MILLISECONDS.toNanos(4);
@@ -58,6 +60,14 @@ public final class RoadCorridorTerrainPrefetch {
     /** 最近一次预取覆盖的列 / 区块，供世界方块变更做走廊邻近失效。 */
     private static Set<Long> lastPrefetchColumnKeys = Set.of();
     private static Set<Long> lastPrefetchChunkKeys = Set.of();
+    /** 当前预取 / 足迹所属维度 ID（如 {@code minecraft:overworld}）；跨维破坏不得误伤。 */
+    private static String activeWorldKeyId;
+    private static volatile IClientWorldAccess clientWorldAccess = IClientWorldAccess.unavailable();
+
+    /** 由道路插件生命周期安装，避免本类直接依赖 MinecraftClient。 */
+    public static void installClientWorldAccess(IClientWorldAccess access) {
+        clientWorldAccess = access != null ? access : IClientWorldAccess.unavailable();
+    }
 
     public enum Coverage {
         /** 全部目标列已纳入快照。 */
@@ -126,6 +136,7 @@ public final class RoadCorridorTerrainPrefetch {
             inflight = null;
             lastPrefetchColumnKeys = Set.of();
             lastPrefetchChunkKeys = Set.of();
+            activeWorldKeyId = null;
         }
         LOGGER.debug("走廊地形预取已因世界地形变更失效 (epoch={})", WORLD_TERRAIN_EPOCH.get());
     }
@@ -137,16 +148,36 @@ public final class RoadCorridorTerrainPrefetch {
      * @return 是否因邻近走廊而失效
      */
     public static boolean notifyWorldBlockChanged(BlockPos pos) {
+        return notifyWorldBlockChanged((String) null, pos);
+    }
+
+    /**
+     * 带维度的方块变更通知：世界键与当前预取足迹不一致时直接忽略。
+     */
+    public static boolean notifyWorldBlockChanged(RegistryKey<World> worldKey, BlockPos pos) {
+        String worldKeyId = worldKey != null && worldKey.getValue() != null
+            ? worldKey.getValue().toString()
+            : null;
+        return notifyWorldBlockChanged(worldKeyId, pos);
+    }
+
+    /**
+     * 带维度 ID 的方块变更通知（单测可避免触发 Minecraft 世界常量初始化）。
+     */
+    public static boolean notifyWorldBlockChanged(String worldKeyId, BlockPos pos) {
         if (pos == null) {
             return false;
         }
         long columnKey = PrefetchedGroundTerrainSampler.packColumn(pos.getX(), pos.getZ());
         long chunkKey = packChunkKey(pos.getX(), pos.getZ());
         synchronized (LOCK) {
+            if (worldKeyId != null && activeWorldKeyId != null && !worldKeyId.equals(activeWorldKeyId)) {
+                return false;
+            }
             boolean nearCorridor = lastPrefetchColumnKeys.contains(columnKey)
                 || lastPrefetchChunkKeys.contains(chunkKey);
             if (!nearCorridor && inflight != null) {
-                nearCorridor = inflight.chunkKeys.contains(chunkKey);
+                nearCorridor = inflight.chunkKeySet.contains(chunkKey);
             }
             if (!nearCorridor) {
                 return false;
@@ -254,6 +285,9 @@ public final class RoadCorridorTerrainPrefetch {
             }
             InflightJob done = inflight;
             inflight = null;
+            if (done.cancelled) {
+                return false;
+            }
             if (done.builder == null || done.builder.isEmpty()) {
                 return false;
             }
@@ -272,8 +306,8 @@ public final class RoadCorridorTerrainPrefetch {
         return promoted != null && promoted.status.isUsable();
     }
 
-    /** 测试 / 关闭时清空缓存与进行中任务。 */
-    public static void clearForTests() {
+    /** 清空缓存、进行中任务与足迹（插件 disable / 世界切换 / 测试）。 */
+    public static void clear() {
         synchronized (LOCK) {
             cache = null;
             if (inflight != null) {
@@ -282,6 +316,26 @@ public final class RoadCorridorTerrainPrefetch {
             inflight = null;
             lastPrefetchColumnKeys = Set.of();
             lastPrefetchChunkKeys = Set.of();
+            activeWorldKeyId = null;
+        }
+    }
+
+    /** @deprecated 使用 {@link #clear()} */
+    @Deprecated
+    public static void clearForTests() {
+        clear();
+    }
+
+    /** 测试：当前预取足迹所属世界键 ID。 */
+    static String activeWorldKeyIdForTest() {
+        synchronized (LOCK) {
+            return activeWorldKeyId;
+        }
+    }
+
+    static void setActiveWorldKeyIdForTest(String worldKeyId) {
+        synchronized (LOCK) {
+            activeWorldKeyId = worldKeyId;
         }
     }
 
@@ -542,24 +596,31 @@ public final class RoadCorridorTerrainPrefetch {
             inflight.cancelled = true;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        MinecraftServer server = client != null ? client.getServer() : null;
-        if (server == null || client.world == null) {
-            LOGGER.debug("无集成服，跳过走廊地形预取");
-            return;
-        }
-
         ColumnCollectResult collected = collectProfileSampleColumns(
             network, coordinates, config, unitsEstimator);
         if (collected.columns().isEmpty()) {
             return;
         }
 
-        RegistryKey<World> worldKey = client.world.getRegistryKey();
+        RegistryKey<World> worldKey = clientWorld.getRegistryKey();
         InflightJob job = new InflightJob(key, collected.columns(), collected.truncated());
         inflight = job;
+        activeWorldKeyId = worldKey != null && worldKey.getValue() != null
+            ? worldKey.getValue().toString()
+            : null;
         rememberFootprintLocked(job);
-        server.execute(() -> runBatch(server, worldKey, job, 0, 0));
+        boolean scheduled = clientWorldAccess.runOnIntegratedServer(scheduler ->
+            runBatch(scheduler, worldKey, job, 0, 0));
+        if (!scheduled) {
+            if (inflight == job) {
+                inflight = null;
+                activeWorldKeyId = null;
+                lastPrefetchColumnKeys = Set.of();
+                lastPrefetchChunkKeys = Set.of();
+            }
+            LOGGER.debug("无集成服，跳过走廊地形预取");
+            return;
+        }
         LOGGER.debug(
             "已启动走廊地形预取: key={}, columns={}, truncated={}",
             key,
@@ -568,7 +629,7 @@ public final class RoadCorridorTerrainPrefetch {
     }
 
     private static void runBatch(
-            MinecraftServer server,
+            IIntegratedServerScheduler scheduler,
             RegistryKey<World> worldKey,
             InflightJob job,
             int chunkIndex,
@@ -577,7 +638,7 @@ public final class RoadCorridorTerrainPrefetch {
             job.completed = true;
             return;
         }
-        ServerWorld serverWorld = server.getWorld(worldKey);
+        ServerWorld serverWorld = scheduler.getWorld(worldKey);
         if (serverWorld == null) {
             job.completed = true;
             return;
@@ -587,19 +648,27 @@ public final class RoadCorridorTerrainPrefetch {
         long deadline = batchStarted + SERVER_BATCH_BUDGET_NS;
         List<Long> chunkKeys = job.chunkKeys;
         int chunksLoaded = 0;
+        int newChunksLoaded = 0;
         while (chunkIndex < chunkKeys.size()
                 && chunksLoaded < CHUNKS_PER_SERVER_BATCH
+                && newChunksLoaded < MAX_NEW_CHUNKS_PER_BATCH
                 && System.nanoTime() < deadline) {
             long chunkKey = chunkKeys.get(chunkIndex++);
-            // getChunk 可能同步生成/加载，无法在调用内打断；预算是调度目标而非硬上限。
-            serverWorld.getChunk(ChunkPos.getPackedX(chunkKey), ChunkPos.getPackedZ(chunkKey));
+            int chunkX = ChunkPos.getPackedX(chunkKey);
+            int chunkZ = ChunkPos.getPackedZ(chunkKey);
+            boolean alreadyLoaded = serverWorld.isChunkLoaded(chunkX, chunkZ);
+            // getChunk 可能同步生成/加载，无法在调用内打断；预算是调度目标，新区块另有硬上限。
+            serverWorld.getChunk(chunkX, chunkZ);
             chunksLoaded++;
+            if (!alreadyLoaded) {
+                newChunksLoaded++;
+            }
         }
         if (chunkIndex < chunkKeys.size()) {
             logBatchTiming(job, batchStarted, chunksLoaded, 0, false);
             int nextChunk = chunkIndex;
             int nextColumn = columnIndex;
-            server.execute(() -> runBatch(server, worldKey, job, nextChunk, nextColumn));
+            scheduler.execute(() -> runBatch(scheduler, worldKey, job, nextChunk, nextColumn));
             return;
         }
 
@@ -623,7 +692,7 @@ public final class RoadCorridorTerrainPrefetch {
         if (columnIndex < columns.size()) {
             logBatchTiming(job, batchStarted, chunksLoaded, sampled, false);
             int nextColumn = columnIndex;
-            server.execute(() -> runBatch(server, worldKey, job, chunkKeys.size(), nextColumn));
+            scheduler.execute(() -> runBatch(scheduler, worldKey, job, chunkKeys.size(), nextColumn));
             return;
         }
 
@@ -674,6 +743,7 @@ public final class RoadCorridorTerrainPrefetch {
         final String key;
         final List<BlockPos> columns;
         final List<Long> chunkKeys;
+        final Set<Long> chunkKeySet;
         final boolean truncated;
         final PrefetchedGroundTerrainSampler.Builder builder = new PrefetchedGroundTerrainSampler.Builder();
         volatile boolean cancelled;
@@ -688,6 +758,7 @@ public final class RoadCorridorTerrainPrefetch {
                 chunks.add(packChunkKey(column.getX(), column.getZ()));
             }
             this.chunkKeys = List.copyOf(chunks);
+            this.chunkKeySet = Set.copyOf(chunks);
         }
     }
 }

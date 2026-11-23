@@ -56,7 +56,7 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
-            working -> batchDirty());
+            (open, working) -> batchDirty());
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.plot.client;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
 import com.plot.core.context.PluginContextFactory;
+import com.plot.core.plugin.PluginManager;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
@@ -77,7 +78,10 @@ public final class ClientServices {
             coordinateTransformer,
             ghostBlockManager,
             placementScheduler,
-            projectionHandler
+            projectionHandler,
+            null,
+            MinecraftClientWorldAccess.INSTANCE,
+            () -> PluginManager.getInstance().shouldShowActivePluginCanvasOverlays()
         );
     }
 }

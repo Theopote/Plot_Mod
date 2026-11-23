@@ -29,7 +29,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
-import net.minecraft.client.MinecraftClient;
+import com.plot.api.world.IClientWorldAccess;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -411,8 +411,9 @@ public class RoadNetworkGenerator {
         // 先拷贝再 reconcile：不得改写 live 路网的 Crossing registry。
         RoadNetwork workingCopy = network.snapshot();
         reconcileCrossingsForGeneration(workingCopy);
+        // workingCopy 已与 live 隔离，就地物化，避免二次 snapshot。
         SnapshotMaterialization materialization =
-            RoadCrossingMaterializer.materializeForSnapshotWithReport(workingCopy);
+            RoadCrossingMaterializer.materializeOwnedWorkingCopyWithReport(workingCopy);
         RoadNetwork generationNetwork = materialization.network();
         NetworkGenerationResult networkResult = new NetworkGenerationResult();
         networkResult.recordCrossingMaterialization(materialization.report());
@@ -1080,15 +1081,18 @@ public class RoadNetworkGenerator {
             roadGenerator.pipelineHost());
     }
 
+    private static volatile IClientWorldAccess clientWorldAccess = IClientWorldAccess.unavailable();
+
+    /** 由插件生命周期安装 {@link IClientWorldAccess}，避免直接依赖 MinecraftClient。 */
+    public static void installClientWorldAccess(IClientWorldAccess access) {
+        clientWorldAccess = access != null ? access : IClientWorldAccess.unavailable();
+        RoadCorridorTerrainPrefetch.installClientWorldAccess(clientWorldAccess);
+    }
+
     /**
-     * 获取客户端世界实例（缓存引用避免TOCTOU问题）
+     * 获取客户端世界实例（经 {@link IClientWorldAccess}）。
      */
     public static World getClientWorld() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return null;
-        }
-        World world = client.world;
-        return world;
+        return clientWorldAccess.currentWorld();
     }
 }

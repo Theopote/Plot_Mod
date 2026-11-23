@@ -5,7 +5,7 @@ import com.plot.core.model.Shape;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import com.plot.core.plugin.PluginManager;
+import com.plot.api.plugin.PluginState;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.overlay.BuildingOverlayController;
@@ -114,9 +114,7 @@ public class BuildingPlugin extends Plugin {
         if (!isEnabled() || uiContext == null) {
             return;
         }
-        PluginManager pluginManager = PluginManager.getInstance();
-        if (!pluginManager.shouldShowActivePluginCanvasOverlays()
-                || pluginManager.getActivePlugin() != this) {
+        if (getState() != PluginState.ACTIVE || !ctx().shouldShowCanvasOverlays()) {
             return;
         }
         boolean pickActive = uiContext.pickSession().isActive();

@@ -55,7 +55,7 @@ public final class DiagnosticsDesignerWindow extends AbstractRoadFloatingEditor 
         return RoadNetworkEditorSession.open(
             live,
             ctx.networkManager().getNetworkRevision(),
-            working -> false);
+            (open, working) -> false);
     }
 
     @Override

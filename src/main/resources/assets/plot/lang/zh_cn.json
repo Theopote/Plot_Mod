@@ -1725,7 +1725,7 @@
   "plugin.road.edit.batch_target_unset": "未指定",
   "plugin.road.preset.change": "更换预设",
   "plugin.road.preset.library_window": "选择道路预设",
-  "plugin.road.preset.library_hint": "点击卡片应用预设；关闭窗口可取消。",
+  "plugin.road.preset.library_hint": "点选即时生效并写回路网；关闭窗口可取消未点选的操作。",
   "plugin.road.generate.profile_overview_section": "地形与预览",
   "plugin.road.vertical_design_params": "设计参数",
   "plugin.road.profile_overview_road_index": "道路 %1$d / %2$d",

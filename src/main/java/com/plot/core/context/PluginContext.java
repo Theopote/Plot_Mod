@@ -2,6 +2,7 @@ package com.plot.core.context;
 
 import com.plot.api.world.IBlockPlacementService;
 import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.IClientWorldAccess;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.CommandService;
@@ -11,6 +12,7 @@ import com.plot.core.tool.ToolManager;
 import com.plot.infrastructure.event.EventBus;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 /**
  * 宿主注入给插件的服务句柄。插件应通过本对象访问 Core/infra，而不是 {@code *.getInstance()}。
@@ -31,6 +33,8 @@ public final class PluginContext {
     private final IGhostBlockService ghostBlockService;
     private final IBlockPlacementService placementService;
     private final IBlockProjectionService projectionService;
+    private final IClientWorldAccess clientWorldAccess;
+    private final BooleanSupplier showCanvasOverlays;
 
     public PluginContext(
             AppState appState,
@@ -50,7 +54,9 @@ public final class PluginContext {
             ghostBlockService,
             placementService,
             projectionService,
-            ShortcutManager.getInstance());
+            ShortcutManager.getInstance(),
+            null,
+            null);
     }
 
     public PluginContext(
@@ -63,6 +69,32 @@ public final class PluginContext {
             IBlockPlacementService placementService,
             IBlockProjectionService projectionService,
             ShortcutManager shortcutManager) {
+        this(
+            appState,
+            commandService,
+            eventBus,
+            toolManager,
+            coordinateService,
+            ghostBlockService,
+            placementService,
+            projectionService,
+            shortcutManager,
+            null,
+            null);
+    }
+
+    public PluginContext(
+            AppState appState,
+            CommandService commandService,
+            EventBus eventBus,
+            ToolManager toolManager,
+            ICoordinateService coordinateService,
+            IGhostBlockService ghostBlockService,
+            IBlockPlacementService placementService,
+            IBlockProjectionService projectionService,
+            ShortcutManager shortcutManager,
+            IClientWorldAccess clientWorldAccess,
+            BooleanSupplier showCanvasOverlays) {
         this.appState = Objects.requireNonNull(appState, "appState");
         this.commandService = Objects.requireNonNull(commandService, "commandService");
         this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
@@ -72,6 +104,8 @@ public final class PluginContext {
         this.ghostBlockService = ghostBlockService;
         this.placementService = placementService;
         this.projectionService = projectionService;
+        this.clientWorldAccess = clientWorldAccess;
+        this.showCanvasOverlays = showCanvasOverlays;
     }
 
     /**
@@ -129,6 +163,18 @@ public final class PluginContext {
     /** 世界方块读写与就绪检查。 */
     public IBlockProjectionService projection() {
         return requireWorld(projectionService, "IBlockProjectionService");
+    }
+
+    /**
+     * 客户端世界会话；逻辑侧或未注入时返回 {@link IClientWorldAccess#unavailable()}。
+     */
+    public IClientWorldAccess clientWorld() {
+        return clientWorldAccess != null ? clientWorldAccess : IClientWorldAccess.unavailable();
+    }
+
+    /** 扩展面板可见且有活动插件时是否应绘制画布叠加层。 */
+    public boolean shouldShowCanvasOverlays() {
+        return showCanvasOverlays != null && showCanvasOverlays.getAsBoolean();
     }
 
     public boolean hasWorldServices() {
