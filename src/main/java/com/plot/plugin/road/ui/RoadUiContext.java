@@ -162,8 +162,10 @@ public final class RoadUiContext {
             endRoadNameRename();
             return;
         }
-        String committed = RoadListRenameController.normalizeDraftName(
+        String draft = RoadListRenameController.normalizeDraftName(
             ImStringUtf8.read(roadNameBuffer));
+        String committed = RoadEdgeListHelper.allocateUniqueRoadName(
+            networkManager.getNetwork(), road.getId(), draft);
         if (!java.util.Objects.equals(road.getName(), committed)) {
             networkManager.pushHistory();
             road.setName(committed);

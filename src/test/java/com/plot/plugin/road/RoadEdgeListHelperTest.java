@@ -115,6 +115,21 @@ class RoadEdgeListHelperTest {
     }
 
     @Test
+    void allocateUniqueRoadNameAppendsNumericSuffix() {
+        RoadNetwork network = new RoadNetwork();
+        Road first = network.createRoad();
+        Road second = network.createRoad();
+        first.setName("环线");
+        second.setName("环线 (2)");
+
+        assertEquals("环线 (3)",
+            RoadEdgeListHelper.allocateUniqueRoadName(network, "new-id", "环线"));
+        assertEquals("环线",
+            RoadEdgeListHelper.allocateUniqueRoadName(network, first.getId(), "环线"));
+        assertNull(RoadEdgeListHelper.allocateUniqueRoadName(network, second.getId(), "  "));
+    }
+
+    @Test
     void buildDisplayRowsFlatMode() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad();

@@ -98,4 +98,35 @@ class RoadListRenameTest {
 
         assertEquals(expected, road.getName());
     }
+
+    @Test
+    void commitRoadNameRenameAppendsSuffixWhenNameAlreadyUsed() {
+        RoadNetwork network = networkManager.getNetwork();
+        Road first = network.getRoads().values().iterator().next();
+        first.setName("主干道");
+        networkManager.adoptSelectedPaths(List.of(new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false)));
+        Road second = network.getRoads().values().stream()
+            .filter(road -> !road.getId().equals(first.getId()))
+            .findFirst()
+            .orElseThrow();
+
+        ctx.beginRoadNameRename(second);
+        ctx.roadNameBuffer().set("主干道");
+        ctx.commitRoadNameRename(second);
+
+        assertEquals("主干道", first.getName());
+        assertEquals("主干道 (2)", second.getName());
+    }
+
+    @Test
+    void commitRoadNameRenameKeepsOwnNameWithoutSuffix() {
+        Road road = networkManager.getNetwork().getRoads().values().iterator().next();
+        road.setName("独有名称");
+        ctx.beginRoadNameRename(road);
+        ctx.roadNameBuffer().set("独有名称");
+        ctx.commitRoadNameRename(road);
+
+        assertEquals("独有名称", road.getName());
+    }
 }

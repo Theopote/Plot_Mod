@@ -112,6 +112,48 @@ public final class RoadEdgeListHelper {
         return formatAutoRoadLabel(network, road);
     }
 
+    /**
+     * 为道路分配网络内唯一显示名。空白仍表示「无自定义名」；
+     * 与其它道路重名时追加 {@code (2)}、{@code (3)}… 后缀。
+     *
+     * @param excludeRoadId 正在命名的道路自身，不参与冲突检测
+     */
+    public static String allocateUniqueRoadName(RoadNetwork network, String excludeRoadId, String desiredName) {
+        if (desiredName == null || desiredName.isBlank()) {
+            return null;
+        }
+        String base = desiredName.trim();
+        if (base.isEmpty()) {
+            return null;
+        }
+        if (!isRoadNameTaken(network, excludeRoadId, base)) {
+            return base;
+        }
+        for (int suffix = 2; suffix < Integer.MAX_VALUE; suffix++) {
+            String candidate = base + " (" + suffix + ")";
+            if (!isRoadNameTaken(network, excludeRoadId, candidate)) {
+                return candidate;
+            }
+        }
+        return base + " (" + System.currentTimeMillis() + ")";
+    }
+
+    public static boolean isRoadNameTaken(RoadNetwork network, String excludeRoadId, String name) {
+        if (network == null || name == null || name.isBlank()) {
+            return false;
+        }
+        for (Road other : network.getRoads().values()) {
+            if (other == null || Objects.equals(other.getId(), excludeRoadId)) {
+                continue;
+            }
+            String otherName = other.getName();
+            if (otherName != null && name.equals(otherName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 路径列表第一行：仅道路名称。 */
     public static String formatRoadDisplayName(RoadNetwork network, Road road) {
         if (road == null) {

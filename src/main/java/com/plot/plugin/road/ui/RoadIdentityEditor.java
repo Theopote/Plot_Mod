@@ -52,7 +52,7 @@ public final class RoadIdentityEditor {
             UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.road_name"));
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            commitName(road, onHistory);
+            commitName(network, road, onHistory);
         }
         ImGui.sameLine();
         boolean hasCustomName = road.getName() != null && !road.getName().isBlank();
@@ -150,10 +150,12 @@ public final class RoadIdentityEditor {
         nameBuffer.set(road.getName() != null ? road.getName() : "");
     }
 
-    private void commitName(Road road, Runnable onHistory) {
-        String committed = normalizeDraftName(ImStringUtf8.read(nameBuffer));
+    private void commitName(RoadNetwork network, Road road, Runnable onHistory) {
+        String draft = normalizeDraftName(ImStringUtf8.read(nameBuffer));
+        String committed = RoadEdgeListHelper.allocateUniqueRoadName(network, road.getId(), draft);
         String current = road.getName();
         if (Objects.equals(current, committed)) {
+            nameBuffer.set(committed != null ? committed : "");
             return;
         }
         if (onHistory != null) {

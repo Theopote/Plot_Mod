@@ -260,7 +260,9 @@ public class RoadNetwork {
         if (road.getName() != null && !road.getName().isBlank()) {
             return;
         }
-        road.setName(PlotI18n.tr("plugin.road.default_name", roads.size() + 1));
+        String desired = PlotI18n.tr("plugin.road.default_name", roads.size() + 1);
+        road.setName(com.plot.plugin.road.RoadEdgeListHelper.allocateUniqueRoadName(
+            this, road.getId(), desired));
     }
 
     /**

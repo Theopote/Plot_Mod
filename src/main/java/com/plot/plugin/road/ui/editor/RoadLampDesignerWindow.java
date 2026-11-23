@@ -98,7 +98,6 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
             return;
         }
-        ImGui.textUnformatted(road.getName());
         var furniture = road.getCrossSection().getStreetFurniture();
         renderLibrary(furniture, ctx);
         float width = ImGui.getContentRegionAvailX();

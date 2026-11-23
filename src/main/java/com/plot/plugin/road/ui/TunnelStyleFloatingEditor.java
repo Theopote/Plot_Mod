@@ -204,7 +204,7 @@ public final class TunnelStyleFloatingEditor {
                 RoadFloatingEditorShell.CASCADE_AFTER_HOST_TUNNEL));
 
         boolean visible = ImGui.begin(
-            windowTitle() + "##tunnel_style_floating",
+            windowTitle(ctx) + "##tunnel_style_floating",
             open,
             WINDOW_FLAGS);
         try {
@@ -283,14 +283,19 @@ public final class TunnelStyleFloatingEditor {
         renderLossyBatchConfirmDialog(ctx);
     }
 
-    private String windowTitle() {
+    private String windowTitle(RoadUiContext ctx) {
         if (target == Target.GLOBAL) {
             return PlotI18n.tr("plugin.road.tunnel.editor_window_global");
         }
         if (batchTargetCount() > 1) {
             return PlotI18n.tr("plugin.road.tunnel.editor_window_batch");
         }
-        return PlotI18n.tr("plugin.road.tunnel.editor_window");
+        String base = PlotI18n.tr("plugin.road.tunnel.editor_window");
+        String roadLabel = primaryRoadLabel(ctx);
+        if (roadLabel == null || roadLabel.isBlank() || roadLabel.equals(roadId)) {
+            return base;
+        }
+        return base + " (" + roadLabel + ")";
     }
 
     private void renderBatchBanner(RoadUiContext ctx) {

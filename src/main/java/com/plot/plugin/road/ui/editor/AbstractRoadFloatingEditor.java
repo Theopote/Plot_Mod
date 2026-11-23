@@ -1,6 +1,9 @@
 package com.plot.plugin.road.ui.editor;
 
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.manager.RoadChangeKind;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
@@ -33,6 +36,36 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     protected abstract String windowTitleKey();
 
     protected abstract String windowImGuiId();
+
+    /**
+     * 标题栏：工具名 +（当前道路名），便于一眼看到编辑对象。
+     * ImGui id 仍接在末尾，避免改名导致窗口状态丢失。
+     */
+    protected final String composedWindowTitle(RoadUiContext ctx) {
+        String base = PlotI18n.tr(windowTitleKey());
+        String roadLabel = titleRoadLabel(ctx);
+        if (roadLabel == null || roadLabel.isBlank()) {
+            return base + windowImGuiId();
+        }
+        return base + " (" + roadLabel + ")" + windowImGuiId();
+    }
+
+    /** 优先用工作副本路名，使会话内改名即时反映在标题。 */
+    protected String titleRoadLabel(RoadUiContext ctx) {
+        if (roadId == null || roadId.isBlank()) {
+            return null;
+        }
+        RoadNetwork network = session != null
+            ? session.workingNetwork()
+            : ctx != null && ctx.networkManager() != null
+                ? ctx.networkManager().getNetwork()
+                : null;
+        if (network == null) {
+            return null;
+        }
+        Road road = network.getRoad(roadId);
+        return road != null ? RoadEdgeListHelper.formatRoadLabel(network, road) : null;
+    }
 
     protected abstract String closeConfirmPopupId();
 
@@ -124,7 +157,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         focusOnOpen = false;
 
         boolean visible = ImGui.begin(
-            PlotI18n.tr(windowTitleKey()) + windowImGuiId(),
+            composedWindowTitle(ctx),
             windowOpen,
             RoadFloatingEditorShell.WINDOW_FLAGS);
         try {
