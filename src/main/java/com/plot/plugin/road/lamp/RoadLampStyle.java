@@ -36,12 +36,97 @@ public record RoadLampStyle(String name, int height, Material material, boolean 
 
     public enum Layout { SINGLE, INWARD, OUTWARD, TWIN, TRIPLE, CROSS }
     public enum Mount { TOP, CHAIN, HOOD }
+    /**
+     * Street-lamp fixture choices: placeable light-emitting blocks for the current game version.
+     * Enum names for the original four fixtures are stable for JSON persistence.
+     */
     public enum Light {
-        LANTERN("lantern"), SOUL("soul_lantern"), SEA("sea_lantern"), AMBER("ochre_froglight");
+        LANTERN("lantern", Kind.HANGING_LANTERN),
+        SOUL("soul_lantern", Kind.HANGING_LANTERN),
+        COPPER_LANTERN("copper_lantern", Kind.HANGING_LANTERN),
+        EXPOSED_COPPER_LANTERN("exposed_copper_lantern", Kind.HANGING_LANTERN),
+        WEATHERED_COPPER_LANTERN("weathered_copper_lantern", Kind.HANGING_LANTERN),
+        OXIDIZED_COPPER_LANTERN("oxidized_copper_lantern", Kind.HANGING_LANTERN),
+        WAXED_COPPER_LANTERN("waxed_copper_lantern", Kind.HANGING_LANTERN),
+        WAXED_EXPOSED_COPPER_LANTERN("waxed_exposed_copper_lantern", Kind.HANGING_LANTERN),
+        WAXED_WEATHERED_COPPER_LANTERN("waxed_weathered_copper_lantern", Kind.HANGING_LANTERN),
+        WAXED_OXIDIZED_COPPER_LANTERN("waxed_oxidized_copper_lantern", Kind.HANGING_LANTERN),
+        SEA("sea_lantern", Kind.PLAIN),
+        GLOWSTONE("glowstone", Kind.PLAIN),
+        SHROOMLIGHT("shroomlight", Kind.PLAIN),
+        AMBER("ochre_froglight", Kind.PLAIN),
+        VERDANT_FROGLIGHT("verdant_froglight", Kind.PLAIN),
+        PEARLESCENT_FROGLIGHT("pearlescent_froglight", Kind.PLAIN),
+        JACK_O_LANTERN("jack_o_lantern", Kind.PLAIN),
+        REDSTONE_LAMP("redstone_lamp", Kind.LIT),
+        END_ROD("end_rod", Kind.END_ROD),
+        TORCH("torch", Kind.PLAIN),
+        SOUL_TORCH("soul_torch", Kind.PLAIN),
+        COPPER_TORCH("copper_torch", Kind.PLAIN),
+        CAMPFIRE("campfire", Kind.LIT),
+        SOUL_CAMPFIRE("soul_campfire", Kind.LIT),
+        BEACON("beacon", Kind.PLAIN),
+        CRYING_OBSIDIAN("crying_obsidian", Kind.PLAIN),
+        MAGMA_BLOCK("magma_block", Kind.PLAIN),
+        SCULK_CATALYST("sculk_catalyst", Kind.PLAIN),
+        ENCHANTING_TABLE("enchanting_table", Kind.PLAIN),
+        ENDER_CHEST("ender_chest", Kind.PLAIN),
+        COPPER_BULB("copper_bulb", Kind.LIT),
+        EXPOSED_COPPER_BULB("exposed_copper_bulb", Kind.LIT),
+        WEATHERED_COPPER_BULB("weathered_copper_bulb", Kind.LIT),
+        OXIDIZED_COPPER_BULB("oxidized_copper_bulb", Kind.LIT),
+        WAXED_COPPER_BULB("waxed_copper_bulb", Kind.LIT),
+        WAXED_EXPOSED_COPPER_BULB("waxed_exposed_copper_bulb", Kind.LIT),
+        WAXED_WEATHERED_COPPER_BULB("waxed_weathered_copper_bulb", Kind.LIT),
+        WAXED_OXIDIZED_COPPER_BULB("waxed_oxidized_copper_bulb", Kind.LIT),
+        CANDLE("candle", Kind.LIT_CANDLE),
+        WHITE_CANDLE("white_candle", Kind.LIT_CANDLE),
+        LIGHT_GRAY_CANDLE("light_gray_candle", Kind.LIT_CANDLE),
+        GRAY_CANDLE("gray_candle", Kind.LIT_CANDLE),
+        BLACK_CANDLE("black_candle", Kind.LIT_CANDLE),
+        BROWN_CANDLE("brown_candle", Kind.LIT_CANDLE),
+        RED_CANDLE("red_candle", Kind.LIT_CANDLE),
+        ORANGE_CANDLE("orange_candle", Kind.LIT_CANDLE),
+        YELLOW_CANDLE("yellow_candle", Kind.LIT_CANDLE),
+        LIME_CANDLE("lime_candle", Kind.LIT_CANDLE),
+        GREEN_CANDLE("green_candle", Kind.LIT_CANDLE),
+        CYAN_CANDLE("cyan_candle", Kind.LIT_CANDLE),
+        LIGHT_BLUE_CANDLE("light_blue_candle", Kind.LIT_CANDLE),
+        BLUE_CANDLE("blue_candle", Kind.LIT_CANDLE),
+        PURPLE_CANDLE("purple_candle", Kind.LIT_CANDLE),
+        MAGENTA_CANDLE("magenta_candle", Kind.LIT_CANDLE),
+        PINK_CANDLE("pink_candle", Kind.LIT_CANDLE),
+        FIREFLY_BUSH("firefly_bush", Kind.PLAIN),
+        LIGHT("light", Kind.LIGHT_BLOCK),
+        RESPAWN_ANCHOR("respawn_anchor", Kind.RESPAWN_ANCHOR);
+
+        private enum Kind {
+            PLAIN, HANGING_LANTERN, LIT, LIT_CANDLE, END_ROD, LIGHT_BLOCK, RESPAWN_ANCHOR
+        }
+
         private final String id;
-        Light(String id) { this.id = "minecraft:" + id; }
+        private final Kind kind;
+
+        Light(String path, Kind kind) {
+            this.id = "minecraft:" + path;
+            this.kind = kind;
+        }
+
+        /** Unprefixed block id used for display and registry checks. */
+        public String blockId() {
+            return id;
+        }
+
         String block(boolean hanging) {
-            return (this == LANTERN || this == SOUL) && hanging ? id + "[hanging=true]" : id;
+            return switch (kind) {
+                case HANGING_LANTERN -> hanging ? id + "[hanging=true]" : id;
+                case LIT -> id + "[lit=true]";
+                case LIT_CANDLE -> id + "[lit=true,candles=1]";
+                case END_ROD -> id + "[facing=up]";
+                case LIGHT_BLOCK -> id + "[level=15]";
+                case RESPAWN_ANCHOR -> id + "[charges=4]";
+                case PLAIN -> id;
+            };
         }
     }
 

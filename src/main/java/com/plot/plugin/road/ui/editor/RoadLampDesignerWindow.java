@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampLibrary;
@@ -17,6 +18,8 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.LoggerFactory;
 
@@ -331,7 +334,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 maxY = Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
                 y = Math.clamp(y, minY, maxY);
             }
-            var light = combo("light", existing.light(), RoadLampStyle.Light.values());
+            var light = lightCombo(existing.light());
             levels.set(i, new RoadLampStyle.Level(y, layout, mount, reach, chain, light));
             ImGui.popID();
         }
@@ -475,6 +478,33 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             ImGui.endCombo();
         }
         return current;
+    }
+
+    /** 灯具：列出当前版本已注册的发光可放置方块，标签用方块显示名。 */
+    private static RoadLampStyle.Light lightCombo(RoadLampStyle.Light current) {
+        ImGui.setNextItemWidth(controlWidth());
+        if (ImGui.beginCombo(tr("light"), RoadMaterialUtils.getDisplayName(current.blockId()))) {
+            for (RoadLampStyle.Light value : RoadLampStyle.Light.values()) {
+                if (!isRegisteredLight(value)) {
+                    continue;
+                }
+                String label = RoadMaterialUtils.getDisplayName(value.blockId());
+                if (ImGui.selectable(label + "##lamp_light_" + value.name(), value == current)) {
+                    current = value;
+                }
+            }
+            ImGui.endCombo();
+        }
+        return current;
+    }
+
+    private static boolean isRegisteredLight(RoadLampStyle.Light light) {
+        try {
+            return Registries.BLOCK.containsId(Identifier.of(light.blockId()));
+        } catch (RuntimeException | Error e) {
+            // 无 Minecraft bootstrap 的单测路径：仍展示全部选项。
+            return true;
+        }
     }
 
     private static float controlWidth() {

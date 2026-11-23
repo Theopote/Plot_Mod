@@ -138,7 +138,7 @@ final class RoadLampPreview {
         int color = BlockColorRegistry.colorFor(id);
         if (id.equals("minecraft:iron_chain") || id.equals("minecraft:chain")) {
             parts.add(Part.at(pos, color, 0.41f, 0f, 0.41f, 0.59f, 1f, 0.59f));
-        } else if (id.endsWith(":lantern") || id.endsWith(":soul_lantern")) {
+        } else if (isLanternFixture(id)) {
             boolean hanging = "true".equals(block.property("hanging"));
             float base = hanging ? 0.12f : 0f;
             parts.add(Part.at(pos, color, 0.31f, base, 0.31f, 0.69f, base + 0.45f, 0.69f));
@@ -146,6 +146,8 @@ final class RoadLampPreview {
             if (hanging) {
                 parts.add(Part.at(pos, 0xff676767, 0.45f, 0.70f, 0.45f, 0.55f, 1f, 0.55f));
             }
+        } else if (id.endsWith(":end_rod")) {
+            parts.add(Part.at(pos, color, 0.375f, 0f, 0.375f, 0.625f, 1f, 0.625f));
         } else if (id.endsWith("_slab") && !"double".equals(block.property("type"))) {
             boolean top = "top".equals(block.property("type"));
             parts.add(Part.at(pos, color, 0f, top ? 0.5f : 0f, 0f, 1f, top ? 1f : 0.5f, 1f));
@@ -162,11 +164,17 @@ final class RoadLampPreview {
         }
     }
 
+    private static boolean isLanternFixture(String id) {
+        return (id.endsWith(":lantern") || id.endsWith("_lantern"))
+            && !id.endsWith(":sea_lantern")
+            && !id.endsWith(":jack_o_lantern");
+    }
+
     private static boolean connects(Map<BlockPos, String> blocks, BlockPos pos) {
         String block = blocks.get(pos);
         if (block == null) return false;
         String id = BlockSpec.parse(block).blockId();
-        return !id.endsWith(":lantern") && !id.endsWith(":soul_lantern") && !id.endsWith("chain") && !id.endsWith("_slab");
+        return !isLanternFixture(id) && !id.endsWith("chain") && !id.endsWith("_slab");
     }
 
     private static void drawPart(ImDrawList draw, View view, Part p) {
