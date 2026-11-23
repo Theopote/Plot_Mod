@@ -34,7 +34,12 @@ public final class RoadLampLibrary {
     public List<Entry> load() throws IOException {
         if (Files.notExists(path)) return List.of();
         try {
-            return List.of(GSON.fromJson(Files.readString(path), Entry[].class));
+            String json = Files.readString(path);
+            if (json.isBlank()) {
+                return List.of();
+            }
+            Entry[] entries = GSON.fromJson(json, Entry[].class);
+            return entries == null ? List.of() : List.of(entries);
         } catch (RuntimeException e) {
             throw new IOException("Invalid road lamp library", e);
         }
