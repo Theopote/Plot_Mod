@@ -99,11 +99,14 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             return;
         }
         var furniture = road.getCrossSection().getStreetFurniture();
-        renderLibrary(furniture, ctx);
+        boolean enabled = renderEnabledAndPresets(furniture, ctx);
+        if (!enabled) {
+            return;
+        }
         float width = ImGui.getContentRegionAvailX();
         if (width < 700f) {
             renderPreview(placementDraft, road.getCrossSection().resolve(ctx.networkManager().getConfig()));
-            renderParameters(furniture);
+            renderParameters(furniture, true);
             return;
         }
         ImGui.beginChild("##lamp_preview", width * 0.46f, 0f, false, 0);
@@ -115,22 +118,28 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         ImGui.sameLine();
         ImGui.beginChild("##lamp_parameters", 0f, 0f, false, 0);
         try {
-            renderParameters(furniture);
+            renderParameters(furniture, true);
         } finally {
             ImGui.endChild();
         }
     }
 
-    private void renderLibrary(StreetFurniture furniture, RoadUiContext ctx) {
+    /** 首行：布置开关 + 预设；关闭布置时不渲染下方预览与参数。 */
+    private boolean renderEnabledAndPresets(StreetFurniture furniture, RoadUiContext ctx) {
+        boolean enabled = toggle("enabled", placementDraft.enabled());
+        applyEnabled(furniture, enabled);
+        ImGui.sameLine(0f, ImGui.getStyle().getItemSpacingX() * 2f);
+
         var style = placementDraft.style();
         String display = RoadLampPresets.ALL.stream().filter(preset -> customId == null && preset.style().equals(style))
             .map(preset -> tr("preset." + preset.id())).findFirst().orElse(style.name());
-        ImGui.setNextItemWidth(Math.max(115f, ImGui.getContentRegionAvailX() * 0.46f));
+        float comboWidth = Math.max(115f, ImGui.getContentRegionAvailX() * 0.55f);
+        ImGui.setNextItemWidth(comboWidth);
         if (ImGui.beginCombo(tr("presets") + "##road_lamp_presets", display)) {
             for (var preset : RoadLampPresets.ALL) {
                 if (ImGui.selectable(tr("preset." + preset.id()) + "##" + preset.id(),
                         customId == null && preset.style().equals(style))) {
-                    select(furniture, preset.style());
+                    select(furniture, preset.style(), enabled);
                     customId = null;
                 }
             }
@@ -138,13 +147,17 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                 ImGui.separator();
                 for (var preset : custom) {
                     if (ImGui.selectable(preset.style().name() + "##" + preset.id(), preset.id().equals(customId))) {
-                        select(furniture, preset.style());
+                        select(furniture, preset.style(), enabled);
                         customId = preset.id();
                     }
                 }
             }
             ImGui.endCombo();
         }
+        if (!enabled) {
+            return false;
+        }
+
         ImGui.beginDisabled(hasInvalidDrafts());
         if (ImGui.button(tr("save_custom"))) {
             saveCustom(ctx, null, draft.validStyle());
@@ -169,6 +182,30 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
             }
         }
         ImGui.separator();
+        return true;
+    }
+
+    private void applyEnabled(StreetFurniture furniture, boolean enabled) {
+        var active = placementDraft;
+        if (active.enabled() == enabled) {
+            return;
+        }
+        var next = new RoadLampPlacement(
+            active.style(), active.sides(), active.spacing(), active.inset(),
+            active.junctionSetback(), enabled, active.bridgeAllowed());
+        var resolved = draft.resolve(next);
+        if (resolved != null) {
+            furniture.setRoadLampPlacement(resolved);
+            placementDraft = resolved;
+            return;
+        }
+        placementDraft = next;
+        var live = furniture.getRoadLampPlacement();
+        if (live != null) {
+            furniture.setRoadLampPlacement(new RoadLampPlacement(
+                live.style(), live.sides(), live.spacing(), live.inset(),
+                live.junctionSetback(), enabled, live.bridgeAllowed()));
+        }
     }
 
     private UUID matchingCustomId(RoadLampStyle style) {
@@ -211,16 +248,22 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
     }
 
-    private void select(StreetFurniture furniture, RoadLampStyle style) {
+    private void select(StreetFurniture furniture, RoadLampStyle style, boolean enabled) {
         draft = RoadLampDraft.from(style);
-        placementDraft = draft.resolve(placementDraft);
-        furniture.setRoadLampPlacement(placementDraft);
+        var next = draft.resolve(new RoadLampPlacement(
+            style, placementDraft.sides(), placementDraft.spacing(), placementDraft.inset(),
+            placementDraft.junctionSetback(), enabled, placementDraft.bridgeAllowed()));
+        placementDraft = next != null ? next : new RoadLampPlacement(
+            style, placementDraft.sides(), placementDraft.spacing(), placementDraft.inset(),
+            placementDraft.junctionSetback(), enabled, placementDraft.bridgeAllowed());
+        if (next != null) {
+            furniture.setRoadLampPlacement(next);
+        }
         name.set(style.name());
     }
 
-    private void renderParameters(StreetFurniture furniture) {
+    private void renderParameters(StreetFurniture furniture, boolean enabled) {
         var active = placementDraft;
-        boolean enabled = toggle("enabled", active.enabled());
         var sides = combo("sides", active.sides(), RoadLampPlacement.Sides.values());
         int spacing = slider("spacing", active.spacing(),
             RoadParameterLimits.MIN_STREETLIGHT_SPACING, RoadParameterLimits.MAX_STREETLIGHT_SPACING);
