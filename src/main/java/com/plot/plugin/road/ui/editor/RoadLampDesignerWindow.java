@@ -105,6 +105,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
         var section = road.getCrossSection().resolve(ctx.networkManager().getConfig());
         float width = ImGui.getContentRegionAvailX();
+        float availY = ImGui.getContentRegionAvailY();
         if (width < 700f) {
             // 先写参数再预览，避免本帧改动要等下一帧才反映到编译结果。
             renderParameters(furniture, true);
@@ -116,23 +117,23 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         float paramsWidth = Math.max(160f, width - previewWidth - spacing);
         float rowStartX = ImGui.getCursorPosX();
         float rowStartY = ImGui.getCursorPosY();
-        // 先更新右侧参数（写入 placementDraft），再画左侧预览，保证同帧可见。
+        float rowHeight = Math.max(220f, availY);
+        // 先更新右侧参数，再画左侧预览；两侧共用同一行高，避免父级内容被算成「双倍高度」冒出外层滚动条。
         ImGui.setCursorPos(rowStartX + previewWidth + spacing, rowStartY);
-        ImGui.beginChild("##lamp_parameters", paramsWidth, 0f, false, 0);
+        ImGui.beginChild("##lamp_parameters", paramsWidth, rowHeight, false, 0);
         try {
             renderParameters(furniture, true);
         } finally {
             ImGui.endChild();
         }
-        float rowHeight = Math.max(ImGui.getItemRectSizeY(), 220f);
         ImGui.setCursorPos(rowStartX, rowStartY);
-        ImGui.beginChild("##lamp_preview", previewWidth, rowHeight, false, 0);
+        ImGui.beginChild("##lamp_preview", previewWidth, rowHeight, false, ImGuiWindowFlags.NoScrollbar);
         try {
             renderPreview(placementDraft, section);
         } finally {
             ImGui.endChild();
         }
-        ImGui.setCursorPos(rowStartX, rowStartY + rowHeight + ImGui.getStyle().getItemSpacingY());
+        ImGui.setCursorPos(rowStartX, rowStartY + rowHeight);
     }
 
     /** 首行：布置开关 + 预设；关闭布置时不渲染下方预览与参数。 */

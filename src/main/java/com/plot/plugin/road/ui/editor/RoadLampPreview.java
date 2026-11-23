@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -39,7 +40,11 @@ final class RoadLampPreview {
         float yaw = yawDeg[0];
         float zoomFactor = zoom[0];
         var draw = ImGui.getWindowDrawList();
-        draw.addRectFilled(left, top, left + width, top + height, 0xff20242b, 4f);
+        float right = left + width;
+        float bottom = top + height;
+        // 与隧道预览同色边框，直角无圆角。
+        draw.addRectFilled(left, top, right, bottom, PluginUiColors.MAP_BG, 0f);
+        draw.addRect(left, top, right, bottom, PluginUiColors.PANEL_BORDER, 0f, 0, 1f);
         float angle = (float) Math.toRadians(yaw);
         float sine = (float) Math.sin(angle);
         float cosine = (float) Math.cos(angle);
