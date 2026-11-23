@@ -15,6 +15,7 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
+import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
 import com.plot.plugin.road.terrain.RoadCorridorWorldBlockListener;
 import com.plot.infrastructure.event.EventListener;
@@ -165,6 +166,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         RoadCorridorTerrainPrefetch.clear();
         RoadCorridorWorldBlockListener.setEnabled(false);
         RoadNetworkGenerator.installClientWorldAccess(null);
+        RoadRepairDiagnosisCache.invalidate();
         if (toolManager != null) {
             toolManager.cancel();
         }
@@ -225,6 +227,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             network -> {
                 previewManager.clearTerrainProfileCache();
                 RoadCorridorTerrainPrefetch.clear();
+                RoadRepairDiagnosisCache.invalidate();
                 networkManager.setNetwork(network);
             },
             () -> {

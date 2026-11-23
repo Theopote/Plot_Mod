@@ -12,6 +12,7 @@ import java.util.Set;
  */
 public final class RoadOverlayWarningCache {
     private static long cachedRevision = Long.MIN_VALUE;
+    private static RoadNetwork cachedNetwork;
     private static Set<String> cachedWarnings = Set.of();
 
     private RoadOverlayWarningCache() {
@@ -21,7 +22,7 @@ public final class RoadOverlayWarningCache {
         if (network == null) {
             return Set.of();
         }
-        if (networkRevision == cachedRevision) {
+        if (network == cachedNetwork && networkRevision == cachedRevision) {
             return cachedWarnings;
         }
         Set<String> warnings = new HashSet<>();
@@ -30,6 +31,7 @@ public final class RoadOverlayWarningCache {
                 warnings.add(violation.roadId());
             }
         }
+        cachedNetwork = network;
         cachedRevision = networkRevision;
         cachedWarnings = Set.copyOf(warnings);
         return cachedWarnings;
@@ -37,6 +39,7 @@ public final class RoadOverlayWarningCache {
 
     public static void invalidate() {
         cachedRevision = Long.MIN_VALUE;
+        cachedNetwork = null;
         cachedWarnings = Set.of();
     }
 }

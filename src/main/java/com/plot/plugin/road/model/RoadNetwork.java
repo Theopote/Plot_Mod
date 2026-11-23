@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -94,15 +95,22 @@ public class RoadNetwork {
 
     /** 并发安全的 id 索引；元素 {@link RoadNode} 本身非线程安全。 */
     private final Map<String, RoadNode> nodes = new ConcurrentHashMap<>();
+    private final Map<String, RoadNode> nodesView = Collections.unmodifiableMap(nodes);
     /** 并发安全的 id 索引；元素 {@link RoadEdge} 本身非线程安全。 */
     private final Map<String, RoadEdge> edges = new ConcurrentHashMap<>();
+    private final Map<String, RoadEdge> edgesView = Collections.unmodifiableMap(edges);
     /** 并发安全的 id 索引；元素 {@link Road} 本身非线程安全。 */
     private final Map<String, Road> roads = new ConcurrentHashMap<>();
+    private final Map<String, Road> roadsView = Collections.unmodifiableMap(roads);
     /** 平面交叉注册表（几何关系，非拓扑节点共享）。 */
     private final Map<String, com.plot.plugin.road.crossing.RoadCrossing> crossings = new ConcurrentHashMap<>();
+    private final Map<String, com.plot.plugin.road.crossing.RoadCrossing> crossingsView =
+        Collections.unmodifiableMap(crossings);
     /** 单路自交叠交注册表。 */
     private final Map<String, com.plot.plugin.road.crossing.RoadStackCrossing> stackCrossings =
         new ConcurrentHashMap<>();
+    private final Map<String, com.plot.plugin.road.crossing.RoadStackCrossing> stackCrossingsView =
+        Collections.unmodifiableMap(stackCrossings);
 
     private NetworkElevationMode elevationMode = NetworkElevationMode.PER_ROAD;
     private int uniformElevationY =
@@ -125,20 +133,27 @@ public class RoadNetwork {
             (int) com.plot.plugin.road.RoadParameterLimits.clampElevation(uniformElevationY);
     }
 
+    /**
+     * 只读索引视图（零拷贝）。底层为 {@link ConcurrentHashMap}，遍历弱一致；
+     * 需要隔离快照时请用 {@link #snapshot()} 或显式 {@code Map.copyOf}/{@code new ArrayList}。
+     */
     public Map<String, RoadNode> getNodes() {
-        return Map.copyOf(nodes);
+        return nodesView;
     }
 
+    /** @see #getNodes() */
     public Map<String, RoadEdge> getEdges() {
-        return Map.copyOf(edges);
+        return edgesView;
     }
 
+    /** @see #getNodes() */
     public Map<String, Road> getRoads() {
-        return Map.copyOf(roads);
+        return roadsView;
     }
 
+    /** @see #getNodes() */
     public Map<String, com.plot.plugin.road.crossing.RoadCrossing> getCrossings() {
-        return Map.copyOf(crossings);
+        return crossingsView;
     }
 
     public com.plot.plugin.road.crossing.RoadCrossing getCrossing(String crossingId) {
@@ -167,8 +182,9 @@ public class RoadNetwork {
             .toList();
     }
 
+    /** @see #getNodes() */
     public Map<String, com.plot.plugin.road.crossing.RoadStackCrossing> getStackCrossings() {
-        return Map.copyOf(stackCrossings);
+        return stackCrossingsView;
     }
 
     public com.plot.plugin.road.crossing.RoadStackCrossing getStackCrossing(String stackCrossingId) {
