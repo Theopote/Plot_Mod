@@ -11,6 +11,7 @@ import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
 import com.plot.plugin.road.ui.CrossSectionDraftMutator;
 import com.plot.plugin.road.ui.RoadCrossSectionEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -138,6 +139,8 @@ public final class CrossSectionDesignerPanel {
         }
     }
 
+    private static final String XS_SECTION = "plugin.road.floating_editor.cross_section.section.";
+
     private void renderParamsTabs(
             RoadUiContext ctx,
             CrossSectionDraftMutator mutator,
@@ -149,10 +152,15 @@ public final class CrossSectionDesignerPanel {
             try {
                 beginParamsTabBody("structure");
                 try {
-                    CrossSectionDraftEditor.renderCrossSection(
-                        ctx,
-                        mutator,
-                        CrossSectionDraftEditorOptions.styleFloatingStructure());
+                    var opts = CrossSectionDraftEditorOptions.styleFloatingStructure();
+                    sectionCard("##xs_sec_carriageway", "carriageway", true, () ->
+                        CrossSectionDraftEditor.renderCarriagewayCore(ctx, mutator, opts));
+                    if (mutator.draft() != null && mutator.draft().laneCount() > 1) {
+                        sectionCard("##xs_sec_lane_widths", "lane_widths", false, () ->
+                            CrossSectionDraftEditor.renderLaneWidths(ctx, mutator, opts));
+                    }
+                    sectionCard("##xs_sec_markings", "markings", true, () ->
+                        CrossSectionDraftEditor.renderMarkings(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -166,10 +174,9 @@ public final class CrossSectionDesignerPanel {
             try {
                 beginParamsTabBody("sidewalks");
                 try {
-                    CrossSectionDraftEditor.renderCrossSection(
-                        ctx,
-                        mutator,
-                        CrossSectionDraftEditorOptions.styleFloatingStrips());
+                    var opts = CrossSectionDraftEditorOptions.styleFloatingStrips();
+                    sectionCard("##xs_sec_strips", "strips", true, () ->
+                        CrossSectionDraftEditor.renderAppearanceStrips(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -183,9 +190,13 @@ public final class CrossSectionDesignerPanel {
             try {
                 beginParamsTabBody("slope");
                 try {
-                    CrossSectionDraftEditorOptions slopeOpts = new CrossSectionDraftEditorOptions(
-                        "xs_slope", false, null, false, false, true, false, false, false);
-                    CrossSectionDraftEditor.renderCrossSection(ctx, mutator, slopeOpts);
+                    var opts = CrossSectionDraftEditorOptions.styleFloatingSlope();
+                    sectionCard("##xs_sec_edge", "edge", true, () ->
+                        CrossSectionDraftEditor.renderRoadsideEdge(ctx, mutator, opts));
+                    sectionCard("##xs_sec_batter", "batter", true, () ->
+                        CrossSectionDraftEditor.renderSlopeRatios(ctx, mutator, opts));
+                    sectionCard("##xs_sec_max_grade", "max_grade", true, () ->
+                        CrossSectionDraftEditor.renderMaxSlope(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -199,10 +210,13 @@ public final class CrossSectionDesignerPanel {
             try {
                 beginParamsTabBody("materials");
                 try {
-                    CrossSectionDraftEditor.renderMaterials(
-                        ctx,
-                        mutator,
-                        CrossSectionDraftEditorOptions.styleBatch());
+                    var opts = CrossSectionDraftEditorOptions.styleBatch();
+                    sectionCard("##xs_sec_pavement", "pavement", true, () ->
+                        CrossSectionDraftEditor.renderPavementMaterials(ctx, mutator, opts));
+                    sectionCard("##xs_sec_slope_mats", "slope_mats", true, () ->
+                        CrossSectionDraftEditor.renderSlopeMaterials(ctx, mutator, opts));
+                    sectionCard("##xs_sec_marking_mat", "marking_mat", true, () ->
+                        CrossSectionDraftEditor.renderMarkingMaterial(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -216,10 +230,11 @@ public final class CrossSectionDesignerPanel {
             try {
                 beginParamsTabBody("furniture");
                 try {
-                    CrossSectionDraftEditor.renderFurniture(
-                        ctx,
-                        mutator,
-                        CrossSectionDraftEditorOptions.styleBatch());
+                    var opts = CrossSectionDraftEditorOptions.styleBatch();
+                    sectionCard("##xs_sec_median", "median", true, () ->
+                        CrossSectionDraftEditor.renderMedian(ctx, mutator, opts));
+                    sectionCard("##xs_sec_lighting", "lighting", true, () ->
+                        CrossSectionDraftEditor.renderLighting(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -234,7 +249,10 @@ public final class CrossSectionDesignerPanel {
             try {
                 beginParamsTabBody("bridge");
                 try {
-                    BridgeStructureControls.renderRoadOverride(ctx, bridgeRoad, null);
+                    sectionCard("##xs_sec_piers", "piers", true, () ->
+                        BridgeStructureControls.renderRoadOverridePiers(ctx, bridgeRoad, null));
+                    sectionCard("##xs_sec_guardrail", "guardrail", true, () ->
+                        BridgeStructureControls.renderRoadOverrideGuardrail(ctx, bridgeRoad, null));
                 } finally {
                     endParamsTabBody();
                 }
@@ -242,6 +260,16 @@ public final class CrossSectionDesignerPanel {
                 ImGui.endTabItem();
             }
         }
+    }
+
+    private static void sectionCard(String id, String titleKey, boolean defaultOpen, Runnable body) {
+        PluginSectionCard.render(
+            id,
+            PlotI18n.tr(XS_SECTION + titleKey),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            defaultOpen,
+            body);
     }
 
     private void renderRoadPreview(RoadNetwork network, Road road, RoadSystemConfig config) {

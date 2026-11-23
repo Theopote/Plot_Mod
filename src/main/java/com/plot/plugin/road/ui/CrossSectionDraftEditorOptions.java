@@ -12,7 +12,22 @@ public record CrossSectionDraftEditorOptions(
         boolean showSlopeBatter,
         boolean showCarriagewayCore,
         boolean showAppearanceStrips,
-        boolean showMarkings) {
+        boolean showMarkings,
+        boolean sectionCards) {
+
+    public CrossSectionDraftEditorOptions(
+            String idPrefix,
+            boolean showBanner,
+            String bannerKey,
+            boolean showLaneWidths,
+            boolean showMaxSlope,
+            boolean showSlopeBatter,
+            boolean showCarriagewayCore,
+            boolean showAppearanceStrips,
+            boolean showMarkings) {
+        this(idPrefix, showBanner, bannerKey, showLaneWidths, showMaxSlope, showSlopeBatter,
+            showCarriagewayCore, showAppearanceStrips, showMarkings, false);
+    }
 
     public static CrossSectionDraftEditorOptions adopt() {
         return new CrossSectionDraftEditorOptions(
@@ -22,7 +37,7 @@ public record CrossSectionDraftEditorOptions(
     /** 高级默认参数：不含车道数/单车道宽（由上方「快速调整」承接）。 */
     public static CrossSectionDraftEditorOptions adoptAdvanced() {
         return new CrossSectionDraftEditorOptions(
-            "default_adv", false, null, true, false, true, false, true, true);
+            "default_adv", false, null, true, false, true, false, true, true, true);
     }
 
     public static CrossSectionDraftEditorOptions batch() {
@@ -34,6 +49,21 @@ public record CrossSectionDraftEditorOptions(
             false,
             false,
             false,
+            true,
+            true);
+    }
+
+    /** 批量浮动窗：分段套卡。 */
+    public static CrossSectionDraftEditorOptions batchSectionCards() {
+        return new CrossSectionDraftEditorOptions(
+            "batch_cards",
+            true,
+            "plugin.road.batch_edit_writes_explicit",
+            false,
+            false,
+            false,
+            false,
+            true,
             true,
             true);
     }
@@ -58,18 +88,24 @@ public record CrossSectionDraftEditorOptions(
     /** 浮动横断面设计器 · 结构：行车道、车道数、分割线/中央标线（不含边坡与路肩条带）。 */
     public static CrossSectionDraftEditorOptions styleFloatingStructure() {
         return new CrossSectionDraftEditorOptions(
-            "xs_structure", false, null, true, false, false, true, false, true);
+            "xs_structure", false, null, true, false, false, true, false, true, true);
     }
 
     /** 浮动横断面设计器 · 路肩/自行车道/人行道条带（不含行车道核心、隔离带与边坡）。 */
     public static CrossSectionDraftEditorOptions styleFloatingStrips() {
         return new CrossSectionDraftEditorOptions(
-            "xs_strips", false, null, false, false, false, false, true, false);
+            "xs_strips", false, null, false, false, false, false, true, false, true);
+    }
+
+    /** 浮动横断面 · 边坡页。 */
+    public static CrossSectionDraftEditorOptions styleFloatingSlope() {
+        return new CrossSectionDraftEditorOptions(
+            "xs_slope", false, null, false, true, true, false, false, false, true);
     }
 
     /** 样式 Tab 批量编辑：材质；附属设施页复用（隔离带 + 路灯）。 */
     public static CrossSectionDraftEditorOptions styleBatch() {
         return new CrossSectionDraftEditorOptions(
-            "style_batch", false, null, false, false, false, false, false, false);
+            "style_batch", false, null, false, false, false, false, false, false, true);
     }
 }

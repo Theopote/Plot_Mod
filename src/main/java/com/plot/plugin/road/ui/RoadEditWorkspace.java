@@ -38,8 +38,8 @@ final class RoadEditWorkspace {
         RoadPresetCards.renderForRoadCompact(ctx, road, ctx::pushRoadEditHistory);
         ImGui.spacing();
 
-        RoadUiSections.section("plugin.road.edit.quick_tune");
-        RoadRouteQuickTune.renderForRoad(ctx, road, ctx::pushRoadEditHistory);
+        defaultParamsPanel.renderQuickTuneCard(
+            () -> RoadRouteQuickTune.renderForRoad(ctx, road, ctx::pushRoadEditHistory));
         ImGui.spacing();
 
         RoadEditToolLauncher.renderSingle(ctx, floatingEditorHost, road.getId());
@@ -81,8 +81,8 @@ final class RoadEditWorkspace {
             RoadCrossSectionPreviewSection.render(ctx);
             ImGui.spacing();
             RoadPresetCards.renderConfigCompact(ctx);
-            RoadUiSections.section("plugin.road.edit.quick_tune");
-            RoadRouteQuickTune.renderConfigDefaults(ctx);
+            defaultParamsPanel.renderQuickTuneCard(
+                () -> RoadRouteQuickTune.renderConfigDefaults(ctx));
             RoadUiSections.categorySeparator();
             if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
                 defaultParamsPanel.renderAdvancedDefaultsCollapsible();

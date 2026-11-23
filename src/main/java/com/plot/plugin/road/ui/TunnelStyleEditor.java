@@ -13,9 +13,10 @@ import com.plot.plugin.road.tunnel.TunnelPresetCatalog;
 import com.plot.plugin.road.tunnel.TunnelProfile;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
@@ -160,7 +161,12 @@ public final class TunnelStyleEditor {
             renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth);
             ImGui.endChild();
             ImGui.sameLine(0f, gap);
-            ImGui.beginChild("##tunnel_params_col", rightWidth, rowHeight, false);
+            ImGui.beginChild(
+                "##tunnel_params_col",
+                rightWidth,
+                rowHeight,
+                false,
+                ImGuiWindowFlags.AlwaysVerticalScrollbar);
             renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
             ImGui.endChild();
         } else {
@@ -198,112 +204,136 @@ public final class TunnelStyleEditor {
             Runnable onChanged,
             PresetSelection presetSelection,
             int envelopeWidth) {
-        int[] clearHeight = {style.getClearHeight()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.clear_height"), clearHeight,
-                TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {
-            style.setClearHeight(clearHeight[0]);
-            notifyChanged(style, onChanged, presetSelection);
-        }
-        if (style.getShape() == TunnelShape.CIRCULAR) {
-            int cavityHalf = (Math.max(1, envelopeWidth) + style.getSideClearance() * 2) / 2;
-            int effective = TunnelProfile.effectiveCircularClearHeight(
-                cavityHalf, style.getClearHeight());
-            ImGui.textDisabled(PlotI18n.tr(
-                "plugin.road.tunnel.circular_effective_height",
-                effective));
-        }
-        int[] sideClearance = {style.getSideClearance()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.side_clearance"), sideClearance,
-                TunnelStyle.MIN_SIDE_CLEARANCE, TunnelStyle.MAX_SIDE_CLEARANCE)) {
-            style.setSideClearance(sideClearance[0]);
-            notifyChanged(style, onChanged, presetSelection);
-        }
-
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.tunnel.lining_section"));
-        RoadUiWidgets.renderBlockMaterialPicker(
-            ctx,
-            "##tunnel_lining_material",
-            PlotI18n.tr("plugin.road.tunnel.lining_material"),
-            style.getLiningMaterial(),
-            material -> {
-                style.setLiningMaterial(material);
-                notifyChanged(style, onChanged, presetSelection);
-            },
-            false);
-        int[] liningThickness = {style.getLiningThickness()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.lining_thickness"), liningThickness,
-                TunnelStyle.MIN_LINING_THICKNESS, TunnelStyle.MAX_LINING_THICKNESS)) {
-            style.setLiningThickness(liningThickness[0]);
-            notifyChanged(style, onChanged, presetSelection);
-        }
-
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.tunnel.lighting_section"));
-        ImInt lightingIndex = new ImInt(lightingOrdinal(style.getLightingMode()));
-        String[] lightingLabels = {
-            PlotI18n.tr("plugin.road.tunnel.lighting.none"),
-            PlotI18n.tr("plugin.road.tunnel.lighting.wall_bands"),
-            PlotI18n.tr("plugin.road.tunnel.lighting.ceiling_band"),
-            PlotI18n.tr("plugin.road.tunnel.lighting.wall_and_ceiling")
-        };
-        if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.lighting_mode"), lightingIndex, lightingLabels)) {
-            style.setLightingMode(uiLightingModes()[lightingIndex.get()]);
-            // Mode change clears custom layout so the template takes effect immediately.
-            style.clearCustomLightLayout();
-            notifyChanged(style, onChanged, presetSelection);
-        }
-        boolean lightingActive = style.getLightingMode() != TunnelLightingMode.NONE
-            || style.hasCustomLightLayout();
-        if (lightingActive) {
-            ImInt mountIndex = new ImInt(style.getLightMount() == TunnelLightMount.EMBEDDED ? 1 : 0);
-            String[] mountLabels = {
-                PlotI18n.tr("plugin.road.tunnel.light_mount.protruding"),
-                PlotI18n.tr("plugin.road.tunnel.light_mount.embedded")
-            };
-            if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.light_mount"), mountIndex, mountLabels)) {
-                style.setLightMount(mountIndex.get() == 1
-                    ? TunnelLightMount.EMBEDDED
-                    : TunnelLightMount.PROTRUDING);
-                TunnelLightPlacementResolver.syncCustomAnchorsToMount(
-                    style, envelopeWidth, TunnelCrossSectionPreviewRenderer.PREVIEW_ROAD_Y);
-                notifyChanged(style, onChanged, presetSelection);
-            }
-            RoadUiWidgets.renderBlockMaterialPicker(
-                ctx,
-                "##tunnel_light_material",
-                PlotI18n.tr("plugin.road.tunnel.light_material"),
-                style.getLightMaterial(),
-                material -> {
-                    style.setLightMaterial(material);
+        PluginSectionCard.render(
+            "##tunnel_sec_clearance",
+            PlotI18n.tr("plugin.road.tunnel.clearance_section"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                int[] clearHeight = {style.getClearHeight()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.clear_height"), clearHeight,
+                        TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {
+                    style.setClearHeight(clearHeight[0]);
                     notifyChanged(style, onChanged, presetSelection);
-                },
-                false);
-            int[] lightSpacing = {style.getLightSpacing()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.light_spacing"), lightSpacing,
-                    TunnelStyle.MIN_LIGHT_SPACING, TunnelStyle.MAX_LIGHT_SPACING)) {
-                style.setLightSpacing(lightSpacing[0]);
-                notifyChanged(style, onChanged, presetSelection);
-            }
-            ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.light_custom_hint"));
-            if (style.hasCustomLightLayout()) {
-                if (ImGui.button(PlotI18n.tr("plugin.road.tunnel.light_reset_defaults"))) {
+                }
+                if (style.getShape() == TunnelShape.CIRCULAR) {
+                    int cavityHalf = (Math.max(1, envelopeWidth) + style.getSideClearance() * 2) / 2;
+                    int effective = TunnelProfile.effectiveCircularClearHeight(
+                        cavityHalf, style.getClearHeight());
+                    ImGui.textDisabled(PlotI18n.tr(
+                        "plugin.road.tunnel.circular_effective_height",
+                        effective));
+                }
+                int[] sideClearance = {style.getSideClearance()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.side_clearance"), sideClearance,
+                        TunnelStyle.MIN_SIDE_CLEARANCE, TunnelStyle.MAX_SIDE_CLEARANCE)) {
+                    style.setSideClearance(sideClearance[0]);
+                    notifyChanged(style, onChanged, presetSelection);
+                }
+            });
+
+        PluginSectionCard.render(
+            "##tunnel_sec_lining",
+            PlotI18n.tr("plugin.road.tunnel.lining_section"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                RoadUiWidgets.renderBlockMaterialPicker(
+                    ctx,
+                    "##tunnel_lining_material",
+                    PlotI18n.tr("plugin.road.tunnel.lining_material"),
+                    style.getLiningMaterial(),
+                    material -> {
+                        style.setLiningMaterial(material);
+                        notifyChanged(style, onChanged, presetSelection);
+                    },
+                    false);
+                int[] liningThickness = {style.getLiningThickness()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.lining_thickness"), liningThickness,
+                        TunnelStyle.MIN_LINING_THICKNESS, TunnelStyle.MAX_LINING_THICKNESS)) {
+                    style.setLiningThickness(liningThickness[0]);
+                    notifyChanged(style, onChanged, presetSelection);
+                }
+            });
+
+        PluginSectionCard.render(
+            "##tunnel_sec_lighting",
+            PlotI18n.tr("plugin.road.tunnel.lighting_section"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                ImInt lightingIndex = new ImInt(lightingOrdinal(style.getLightingMode()));
+                String[] lightingLabels = {
+                    PlotI18n.tr("plugin.road.tunnel.lighting.none"),
+                    PlotI18n.tr("plugin.road.tunnel.lighting.wall_bands"),
+                    PlotI18n.tr("plugin.road.tunnel.lighting.ceiling_band"),
+                    PlotI18n.tr("plugin.road.tunnel.lighting.wall_and_ceiling")
+                };
+                if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.lighting_mode"), lightingIndex, lightingLabels)) {
+                    style.setLightingMode(uiLightingModes()[lightingIndex.get()]);
                     style.clearCustomLightLayout();
                     notifyChanged(style, onChanged, presetSelection);
                 }
-            }
-        }
+                boolean lightingActive = style.getLightingMode() != TunnelLightingMode.NONE
+                    || style.hasCustomLightLayout();
+                if (!lightingActive) {
+                    return;
+                }
+                ImInt mountIndex = new ImInt(style.getLightMount() == TunnelLightMount.EMBEDDED ? 1 : 0);
+                String[] mountLabels = {
+                    PlotI18n.tr("plugin.road.tunnel.light_mount.protruding"),
+                    PlotI18n.tr("plugin.road.tunnel.light_mount.embedded")
+                };
+                if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.light_mount"), mountIndex, mountLabels)) {
+                    style.setLightMount(mountIndex.get() == 1
+                        ? TunnelLightMount.EMBEDDED
+                        : TunnelLightMount.PROTRUDING);
+                    TunnelLightPlacementResolver.syncCustomAnchorsToMount(
+                        style, envelopeWidth, TunnelCrossSectionPreviewRenderer.PREVIEW_ROAD_Y);
+                    notifyChanged(style, onChanged, presetSelection);
+                }
+                RoadUiWidgets.renderBlockMaterialPicker(
+                    ctx,
+                    "##tunnel_light_material",
+                    PlotI18n.tr("plugin.road.tunnel.light_material"),
+                    style.getLightMaterial(),
+                    material -> {
+                        style.setLightMaterial(material);
+                        notifyChanged(style, onChanged, presetSelection);
+                    },
+                    false);
+                int[] lightSpacing = {style.getLightSpacing()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.light_spacing"), lightSpacing,
+                        TunnelStyle.MIN_LIGHT_SPACING, TunnelStyle.MAX_LIGHT_SPACING)) {
+                    style.setLightSpacing(lightSpacing[0]);
+                    notifyChanged(style, onChanged, presetSelection);
+                }
+                ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.light_custom_hint"));
+                if (style.hasCustomLightLayout()
+                        && ImGui.button(PlotI18n.tr("plugin.road.tunnel.light_reset_defaults"))) {
+                    style.clearCustomLightLayout();
+                    notifyChanged(style, onChanged, presetSelection);
+                }
+            });
 
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.road.tunnel.decoration_section"),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImBoolean accentRings = new ImBoolean(style.isAccentRings());
-            if (ImGui.checkbox(PlotI18n.tr("plugin.road.tunnel.accent_rings"), accentRings)) {
-                style.setAccentRings(accentRings.get());
-                notifyChanged(style, onChanged, presetSelection);
-            }
-            if (style.isAccentRings()) {
-                // 横截面预览看不到纵向装饰环，不展示橙色点示意等说明，只保留可编辑控件。
+        PluginSectionCard.render(
+            "##tunnel_sec_decoration",
+            PlotI18n.tr("plugin.road.tunnel.decoration_section"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                ImBoolean accentRings = new ImBoolean(style.isAccentRings());
+                if (ImGui.checkbox(PlotI18n.tr("plugin.road.tunnel.accent_rings"), accentRings)) {
+                    style.setAccentRings(accentRings.get());
+                    notifyChanged(style, onChanged, presetSelection);
+                }
+                if (!style.isAccentRings()) {
+                    return;
+                }
                 RoadUiWidgets.renderBlockMaterialPicker(
                     ctx,
                     "##tunnel_accent_material",
@@ -320,8 +350,7 @@ public final class TunnelStyleEditor {
                     style.setAccentSpacing(accentSpacing[0]);
                     notifyChanged(style, onChanged, presetSelection);
                 }
-            }
-        }
+            });
     }
 
     private static void notifyChanged(

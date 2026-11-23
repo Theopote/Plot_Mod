@@ -143,6 +143,103 @@ public final class BridgeStructureControls {
         if (draft == null || onChanged == null) {
             return;
         }
+        // 同一帧内桥墩/护栏共用最新草稿，避免后半段读到过期副本。
+        final RoadNetworkManager.BatchEditDefaults[] current = {draft};
+        Consumer<RoadNetworkManager.BatchEditDefaults> sink = updated -> {
+            current[0] = updated;
+            onChanged.accept(updated);
+        };
+        renderBatchWorkingPiers(ctx, current[0], sink);
+        renderBatchWorkingGuardrail(ctx, current[0], sink);
+    }
+
+    public static void renderRoadOverride(RoadUiContext ctx, Road road, Runnable onHistory) {
+        renderRoadOverridePiers(ctx, road, onHistory);
+        renderRoadOverrideGuardrail(ctx, road, onHistory);
+    }
+
+    /** 单路桥墩覆盖（供 Section Card 包裹）。 */
+    public static void renderRoadOverridePiers(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        ResolvedBridgeStructure resolved = ResolvedBridgeStructure.resolve(road, config);
+        int carriagewayWidth = road.getEffectiveWidth(config);
+
+        renderBooleanOverride(
+            ctx,
+            road,
+            onHistory,
+            "generate_bridge_pillars",
+            PlotI18n.tr("plugin.road.generate_bridge_pillars"),
+            road.getGenerateBridgePillars(),
+            resolved.generatePillars(),
+            road::setGenerateBridgePillars);
+
+        if (resolved.generatePillars()) {
+            renderSpacingOverride(ctx, road, onHistory, config, resolved);
+            renderPierStyleOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
+            if (resolved.pierStyle() == BridgePierStyle.DOUBLE
+                    && RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
+                renderOffsetOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
+            }
+            renderDiameterOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
+            renderMaterialOverride(
+                ctx,
+                road,
+                onHistory,
+                "pier_material",
+                PlotI18n.tr("plugin.road.bridge_pier_material"),
+                road.getBridgePierMaterial(),
+                resolved.pierMaterial(),
+                road::setBridgePierMaterial);
+        }
+    }
+
+    /** 单路护栏覆盖（供 Section Card 包裹）。 */
+    public static void renderRoadOverrideGuardrail(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        ResolvedBridgeStructure resolved = ResolvedBridgeStructure.resolve(road, config);
+
+        renderBooleanOverride(
+            ctx,
+            road,
+            onHistory,
+            "include_bridge_guardrail",
+            PlotI18n.tr("plugin.road.include_bridge_guardrail"),
+            road.getIncludeBridgeGuardrail(),
+            resolved.includeGuardrail(),
+            road::setIncludeBridgeGuardrail);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
+
+        if (resolved.includeGuardrail()) {
+            renderHeightOverride(ctx, road, onHistory, config, resolved);
+            renderMaterialOverride(
+                ctx,
+                road,
+                onHistory,
+                "guardrail_material",
+                PlotI18n.tr("plugin.road.bridge_guardrail_material"),
+                road.getBridgeGuardrailMaterial(),
+                resolved.guardrailMaterial(),
+                road::setBridgeGuardrailMaterial);
+        }
+    }
+
+    /** 批量桥墩（供 Section Card 包裹）。 */
+    public static void renderBatchWorkingPiers(
+            RoadUiContext ctx,
+            RoadNetworkManager.BatchEditDefaults draft,
+            Consumer<RoadNetworkManager.BatchEditDefaults> onChanged) {
+        if (draft == null || onChanged == null) {
+            return;
+        }
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.bridge_structure_batch_hint"));
@@ -211,7 +308,17 @@ public final class BridgeStructureControls {
                     false);
             }
         }
+    }
 
+    /** 批量护栏（供 Section Card 包裹）。 */
+    public static void renderBatchWorkingGuardrail(
+            RoadUiContext ctx,
+            RoadNetworkManager.BatchEditDefaults draft,
+            Consumer<RoadNetworkManager.BatchEditDefaults> onChanged) {
+        if (draft == null || onChanged == null) {
+            return;
+        }
+        final RoadNetworkManager.BatchEditDefaults[] current = {draft};
         ImBoolean guardrail = new ImBoolean(current[0].includeBridgeGuardrail());
         if (ImGui.checkbox(
             PlotI18n.tr("plugin.road.include_bridge_guardrail") + "##batch_bridge_guardrail",
@@ -245,70 +352,6 @@ public final class BridgeStructureControls {
                     },
                     false);
             }
-        }
-    }
-
-    public static void renderRoadOverride(RoadUiContext ctx, Road road, Runnable onHistory) {
-        if (road == null) {
-            return;
-        }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        ResolvedBridgeStructure resolved = ResolvedBridgeStructure.resolve(road, config);
-        int carriagewayWidth = road.getEffectiveWidth(config);
-
-        renderBooleanOverride(
-            ctx,
-            road,
-            onHistory,
-            "generate_bridge_pillars",
-            PlotI18n.tr("plugin.road.generate_bridge_pillars"),
-            road.getGenerateBridgePillars(),
-            resolved.generatePillars(),
-            road::setGenerateBridgePillars);
-
-        if (resolved.generatePillars()) {
-            renderSpacingOverride(ctx, road, onHistory, config, resolved);
-            renderPierStyleOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
-            if (resolved.pierStyle() == BridgePierStyle.DOUBLE
-                    && RoadParameterLimits.allowsDoublePier(carriagewayWidth)) {
-                renderOffsetOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
-            }
-            renderDiameterOverride(ctx, road, onHistory, config, resolved, carriagewayWidth);
-            renderMaterialOverride(
-                ctx,
-                road,
-                onHistory,
-                "pier_material",
-                PlotI18n.tr("plugin.road.bridge_pier_material"),
-                road.getBridgePierMaterial(),
-                resolved.pierMaterial(),
-                road::setBridgePierMaterial);
-        }
-
-        renderBooleanOverride(
-            ctx,
-            road,
-            onHistory,
-            "include_bridge_guardrail",
-            PlotI18n.tr("plugin.road.include_bridge_guardrail"),
-            road.getIncludeBridgeGuardrail(),
-            resolved.includeGuardrail(),
-            road::setIncludeBridgeGuardrail);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.bridge_guardrail_vs_facility_hint"));
-
-        if (resolved.includeGuardrail()) {
-            renderHeightOverride(ctx, road, onHistory, config, resolved);
-            renderMaterialOverride(
-                ctx,
-                road,
-                onHistory,
-                "guardrail_material",
-                PlotI18n.tr("plugin.road.bridge_guardrail_material"),
-                road.getBridgeGuardrailMaterial(),
-                resolved.guardrailMaterial(),
-                road::setBridgeGuardrailMaterial);
         }
     }
 

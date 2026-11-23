@@ -6,9 +6,11 @@ import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.ui.BridgeStructureControls;
 import com.plot.plugin.road.ui.CrossSectionDraftEditor;
 import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
+import com.plot.plugin.road.ui.CrossSectionDraftMutator;
 import com.plot.plugin.road.ui.RoadBatchCrossSectionEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
-import com.plot.plugin.road.ui.RoadUiSections;
+import com.plot.plugin.ui.PluginSectionCard;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -67,21 +69,50 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         int roadCount = targetRoadIds.size();
         ImGui.text(PlotI18n.tr("plugin.road.floating_editor.batch_cross_section.scope", roadCount));
         ImGui.spacing();
-        CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(workingBatchDefaults);
-        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.batch();
-        CrossSectionDraftEditor.render(
-            ctx,
-            sectionDraft,
-            options,
-            () -> workingBatchDefaults = sectionDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults));
+        com.plot.plugin.road.ui.RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.batch_edit_writes_explicit"));
         ImGui.spacing();
-        RoadUiSections.section("plugin.road.edit_bridge_structure");
-        BridgeStructureControls.renderBatchWorking(
-            ctx,
-            workingBatchDefaults,
-            updated -> workingBatchDefaults = updated);
+
+        CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(workingBatchDefaults);
+        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.batchSectionCards();
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraft(
+            sectionDraft,
+            () -> workingBatchDefaults = sectionDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults));
+
+        sectionCard("##batch_xs_geometry", "plugin.road.floating_editor.batch_cross_section.section.geometry", () -> {
+            CrossSectionDraftEditor.renderAppearanceStrips(ctx, mutator, options);
+            CrossSectionDraftEditor.renderMarkings(ctx, mutator, options);
+        });
+        sectionCard("##batch_xs_materials", "plugin.road.floating_editor.batch_cross_section.section.materials", () ->
+            CrossSectionDraftEditor.renderMaterials(ctx, mutator, options));
+        sectionCard("##batch_xs_furniture", "plugin.road.floating_editor.batch_cross_section.section.furniture", () ->
+            CrossSectionDraftEditor.renderFurniture(ctx, mutator, options));
+
+        ImGui.spacing();
+        sectionCard("##batch_xs_bridge_piers", "plugin.road.floating_editor.cross_section.section.piers", () ->
+            BridgeStructureControls.renderBatchWorkingPiers(
+                ctx,
+                workingBatchDefaults,
+                updated -> workingBatchDefaults = updated));
+        sectionCard("##batch_xs_guardrail", "plugin.road.floating_editor.cross_section.section.guardrail", () ->
+            BridgeStructureControls.renderBatchWorkingGuardrail(
+                ctx,
+                workingBatchDefaults,
+                updated -> workingBatchDefaults = updated));
+
         ImGui.spacing();
         RoadBatchCrossSectionEditor.renderDraftPreview(ctx, workingBatchDefaults);
+    }
+
+    private static void sectionCard(String id, String titleKey, Runnable body) {
+        PluginSectionCard.render(
+            id,
+            PlotI18n.tr(titleKey),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            body);
     }
 
     @Override

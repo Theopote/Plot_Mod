@@ -59,6 +59,94 @@ public final class CrossSectionDraftEditor {
         }
     }
 
+    /** 行车道核心：车道数、默认车道宽、只读总宽。 */
+    public static void renderCarriagewayCore(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderCarriagewayCore(editor);
+        }
+    }
+
+    /** 分车道宽度（仅多车道时有控件）。 */
+    public static void renderLaneWidths(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderLaneWidths(editor);
+        }
+    }
+
+    /** 车道分割线 / 中央标线。 */
+    public static void renderMarkings(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderMarkingFields(editor);
+        }
+    }
+
+    /** 路肩 / 自行车道 / 人行道条带。 */
+    public static void renderAppearanceStrips(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderAppearanceStrips(editor);
+        }
+    }
+
+    /** 路边模式 + 边坡比（含高级输入）。 */
+    public static void renderSlopeBatter(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderSlopeBatterFields(editor);
+        }
+    }
+
+    /** 仅路边边缘模式。 */
+    public static void renderRoadsideEdge(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderRoadsideEdgeFields(editor);
+        }
+    }
+
+    /** 填/挖边坡比预设与高级输入（需已启用边坡）。 */
+    public static void renderSlopeRatios(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderSlopeRatioFields(editor);
+        }
+    }
+
+    /** 最大纵坡。 */
+    public static void renderMaxSlope(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderMaxSlopeField(editor);
+        }
+    }
+
     /** 铺面与边坡材质。 */
     public static void renderMaterials(
             RoadUiContext ctx,
@@ -67,6 +155,39 @@ public final class CrossSectionDraftEditor {
         EditorContext editor = EditorContext.of(ctx, mutator, options);
         if (editor != null) {
             renderMaterials(editor);
+        }
+    }
+
+    /** 行车道 + 人行道材质。 */
+    public static void renderPavementMaterials(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderPavementMaterials(editor);
+        }
+    }
+
+    /** 填/挖边坡与挡墙材质。 */
+    public static void renderSlopeMaterials(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderSlopeMaterials(editor);
+        }
+    }
+
+    /** 标线材质与解析警告。 */
+    public static void renderMarkingMaterial(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderMarkingMaterial(editor);
         }
     }
 
@@ -81,6 +202,28 @@ public final class CrossSectionDraftEditor {
         }
     }
 
+    /** 中央隔离带。 */
+    public static void renderMedian(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderMedianFields(editor);
+        }
+    }
+
+    /** 路灯间距 / 继承提示。 */
+    public static void renderLighting(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderLightingFields(editor);
+        }
+    }
+
     private static void renderBanner(EditorContext editor) {
         if (editor.options.showBanner() && editor.options.bannerKey() != null) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(editor.options.bannerKey()));
@@ -89,84 +232,15 @@ public final class CrossSectionDraftEditor {
     }
 
     private static void renderCrossSection(EditorContext editor) {
-        CrossSectionDraft draft = editor.draft;
-        CrossSectionDraftMutator mutator = editor.mutator;
-        CrossSectionDraftFieldHooks hooks = editor.hooks;
-        boolean roadEdit = editor.roadEdit;
-        String id = editor.id;
-
-        int laneCount = draft.laneCount();
-        int[] laneCountArr = {laneCount};
         if (editor.options.showCarriagewayCore()) {
-            if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.lane_count") + "##" + id + "_lanes",
-                laneCountArr,
-                RoadParameterLimits.MIN_LANE_COUNT,
-                RoadParameterLimits.MAX_LANE_COUNT,
-                "%d")) {
-                if (ImGui.isItemActivated()) {
-                    hooks.onItemActivated();
-                }
-                mutator.setLaneCount(laneCountArr[0]);
-            }
-            laneCount = draft.laneCount();
-            mutator.afterLaneCountField();
-
-            int[] laneWidthArr = {draft.defaultLaneWidth()};
-            if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.lane_travel_width") + "##" + id + "_lane_w",
-                laneWidthArr,
-                RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
-                RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
-                "%d")) {
-                if (ImGui.isItemActivated()) {
-                    hooks.onItemActivated();
-                }
-                mutator.setDefaultLaneWidth(laneWidthArr[0]);
-            }
-            if (ImGui.isItemHovered()) {
-                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
-            }
-
-            ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
-            if (ImGui.isItemHovered()) {
-                UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
-            }
-            mutator.afterWidthField();
-        } else {
-            laneCount = draft.laneCount();
+            renderCarriagewayCore(editor);
         }
-
-        if (editor.options.showLaneWidths() && laneCount > 1) {
-            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.custom_lane_widths") + "##" + id + "_lanes_adv")) {
-                var resolved = draft.resolveLaneWidths();
-                for (int i = 0; i < laneCount; i++) {
-                    int current = i < draft.laneWidths().size() && draft.laneWidths().get(i) > 0
-                        ? draft.laneWidths().get(i)
-                        : resolved.get(i);
-                    int[] perLaneArr = {current};
-                    if (ImGui.sliderInt(
-                        PlotI18n.tr("plugin.road.lane_width_label", i + 1)
-                            + "##" + id + "_lane_" + i,
-                        perLaneArr,
-                        RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
-                        RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
-                        "%d")) {
-                        if (ImGui.isItemActivated()) {
-                            hooks.onItemActivated();
-                        }
-                        mutator.setLaneWidthAt(i, perLaneArr[0]);
-                    }
-                }
-                ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
-            }
+        if (editor.options.showLaneWidths()) {
+            renderLaneWidths(editor);
         }
-
-        // 结构：车道分割线 / 中央标线（与行车道几何一起编辑）。
         if (editor.options.showMarkings()) {
             renderMarkingFields(editor);
         }
-
         if (!editor.options.showAppearanceStrips()) {
             if (editor.options.showSlopeBatter()) {
                 renderSlopeBatterFields(editor);
@@ -176,6 +250,102 @@ public final class CrossSectionDraftEditor {
             }
             return;
         }
+        renderAppearanceStrips(editor);
+        if (editor.options.showSlopeBatter()) {
+            renderSlopeBatterFields(editor);
+        }
+        if (editor.options.showMaxSlope()) {
+            renderMaxSlopeField(editor);
+        }
+        renderGeometryWarning(editor.mutator);
+    }
+
+    private static void renderCarriagewayCore(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
+
+        int[] laneCountArr = {draft.laneCount()};
+        if (ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.lane_count") + "##" + id + "_lanes",
+            laneCountArr,
+            RoadParameterLimits.MIN_LANE_COUNT,
+            RoadParameterLimits.MAX_LANE_COUNT,
+            "%d")) {
+            if (ImGui.isItemActivated()) {
+                hooks.onItemActivated();
+            }
+            mutator.setLaneCount(laneCountArr[0]);
+        }
+        mutator.afterLaneCountField();
+
+        int[] laneWidthArr = {draft.defaultLaneWidth()};
+        if (ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.lane_travel_width") + "##" + id + "_lane_w",
+            laneWidthArr,
+            RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+            RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
+            "%d")) {
+            if (ImGui.isItemActivated()) {
+                hooks.onItemActivated();
+            }
+            mutator.setDefaultLaneWidth(laneWidthArr[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.lane_travel_width"));
+        }
+
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
+        }
+        mutator.afterWidthField();
+    }
+
+    private static void renderLaneWidths(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        int laneCount = draft.laneCount();
+        if (laneCount <= 1) {
+            return;
+        }
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
+        // 扁平路径仍用 collapsingHeader；卡片路径由外层 PluginSectionCard 包裹后直接展开内容。
+        boolean nested = !editor.options.sectionCards();
+        if (nested && !ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.road.custom_lane_widths") + "##" + id + "_lanes_adv")) {
+            return;
+        }
+        var resolved = draft.resolveLaneWidths();
+        for (int i = 0; i < laneCount; i++) {
+            int current = i < draft.laneWidths().size() && draft.laneWidths().get(i) > 0
+                ? draft.laneWidths().get(i)
+                : resolved.get(i);
+            int[] perLaneArr = {current};
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.lane_width_label", i + 1)
+                    + "##" + id + "_lane_" + i,
+                perLaneArr,
+                RoadParameterLimits.MIN_LANE_WIDTH_BLOCKS,
+                RoadParameterLimits.MAX_LANE_WIDTH_BLOCKS,
+                "%d")) {
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setLaneWidthAt(i, perLaneArr[0]);
+            }
+        }
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.carriageway_width_readonly", draft.width()));
+    }
+
+    private static void renderAppearanceStrips(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
 
         ImBoolean shoulderRef = new ImBoolean(draft.includeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder") + "##" + id + "_shoulder", shoulderRef)) {
@@ -201,10 +371,6 @@ public final class CrossSectionDraftEditor {
                 mutator.setShoulderWidth(shoulderWidthArr[0]);
             }
             mutator.afterShoulderWidthField();
-        }
-
-        if (editor.options.showSlopeBatter()) {
-            renderSlopeBatterFields(editor);
         }
 
         ImBoolean bikeRef = new ImBoolean(draft.includeBikeLane());
@@ -256,22 +422,27 @@ public final class CrossSectionDraftEditor {
             }
             mutator.afterSidewalkWidthField();
         }
-
-        if (editor.options.showMaxSlope()) {
-            renderMaxSlopeField(editor);
+        if (editor.options.showAppearanceStrips()) {
+            renderGeometryWarning(mutator);
         }
-        renderGeometryWarning(mutator);
     }
 
     private static void renderSlopeBatterFields(EditorContext editor) {
+        if (!editor.options.sectionCards()) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
+        }
+        renderRoadsideEdgeFields(editor);
+        renderSlopeRatioFields(editor);
+    }
+
+    private static void renderRoadsideEdgeFields(EditorContext editor) {
         CrossSectionDraft draft = editor.draft;
         CrossSectionDraftMutator mutator = editor.mutator;
         CrossSectionDraftFieldHooks hooks = editor.hooks;
         boolean roadEdit = editor.roadEdit;
         String id = editor.id;
 
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.roadside_edge_hint"));
         String[] edgeLabels = {
             PlotI18n.tr("plugin.road.roadside_edge.none"),
@@ -299,47 +470,61 @@ public final class CrossSectionDraftEditor {
             mutator.setRoadsideEdgeMode(mode);
         }
         mutator.afterSlopeEnabledField();
-        if (draft.includeSlopeBatter()) {
-            if (SlopeAnglePresetControl.render(
-                id + "_slope_angle",
-                draft.fillSlopeRatio(),
-                draft.cutSlopeRatio(),
-                (fillRatio, cutRatio, linked) -> {
-                    if (roadEdit) {
-                        hooks.onItemActivated();
-                    }
-                    mutator.setFillSlopeRatio(fillRatio);
-                    mutator.setCutSlopeRatio(cutRatio);
-                })) {
-                mutator.afterFillSlopeField();
-                mutator.afterCutSlopeField();
+    }
+
+    private static void renderSlopeRatioFields(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        if (!draft.includeSlopeBatter()) {
+            return;
+        }
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
+
+        if (SlopeAnglePresetControl.render(
+            id + "_slope_angle",
+            draft.fillSlopeRatio(),
+            draft.cutSlopeRatio(),
+            (fillRatio, cutRatio, linked) -> {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setFillSlopeRatio(fillRatio);
+                mutator.setCutSlopeRatio(cutRatio);
+            })) {
+            mutator.afterFillSlopeField();
+            mutator.afterCutSlopeField();
+        }
+        ImGui.spacing();
+        boolean showAdvanced = editor.options.sectionCards()
+            || ImGui.treeNodeEx(PlotI18n.tr("plugin.road.slope_angle_advanced") + "##" + id);
+        if (showAdvanced) {
+            float[] fillSlopeArr = {draft.fillSlopeRatio()};
+            if (EngineeringSlopeInput.render(
+                id + "_fill_slope_ratio",
+                PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
+                fillSlopeArr,
+                EngineeringSlopeInput.ValueKind.BATTER
+            )) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setFillSlopeRatio(fillSlopeArr[0]);
             }
-            ImGui.spacing();
-            if (ImGui.treeNodeEx(PlotI18n.tr("plugin.road.slope_angle_advanced") + "##" + id)) {
-                float[] fillSlopeArr = {draft.fillSlopeRatio()};
-                if (EngineeringSlopeInput.render(
-                    id + "_fill_slope_ratio",
-                    PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
-                    fillSlopeArr,
-                    EngineeringSlopeInput.ValueKind.BATTER
-                )) {
-                    if (roadEdit) {
-                        hooks.onItemActivated();
-                    }
-                    mutator.setFillSlopeRatio(fillSlopeArr[0]);
+            float[] cutSlopeArr = {draft.cutSlopeRatio()};
+            if (EngineeringSlopeInput.render(
+                id + "_cut_slope_ratio",
+                PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
+                cutSlopeArr,
+                EngineeringSlopeInput.ValueKind.BATTER
+            )) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
                 }
-                float[] cutSlopeArr = {draft.cutSlopeRatio()};
-                if (EngineeringSlopeInput.render(
-                    id + "_cut_slope_ratio",
-                    PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
-                    cutSlopeArr,
-                    EngineeringSlopeInput.ValueKind.BATTER
-                )) {
-                    if (roadEdit) {
-                        hooks.onItemActivated();
-                    }
-                    mutator.setCutSlopeRatio(cutSlopeArr[0]);
-                }
+                mutator.setCutSlopeRatio(cutSlopeArr[0]);
+            }
+            if (!editor.options.sectionCards()) {
                 ImGui.treePop();
             }
         }
@@ -369,6 +554,19 @@ public final class CrossSectionDraftEditor {
     }
 
     private static void renderMaterials(EditorContext editor) {
+        if (editor.options.sectionCards()) {
+            // 分段 API 由外层卡片调用；整段入口仅用于扁平路径。
+            renderPavementMaterials(editor);
+            renderSlopeMaterials(editor);
+            renderMarkingMaterial(editor);
+            return;
+        }
+        renderPavementMaterials(editor);
+        renderSlopeMaterials(editor);
+        renderMarkingMaterial(editor);
+    }
+
+    private static void renderPavementMaterials(EditorContext editor) {
         CrossSectionDraft draft = editor.draft;
         CrossSectionDraftMutator mutator = editor.mutator;
         CrossSectionDraftFieldHooks hooks = editor.hooks;
@@ -400,6 +598,13 @@ public final class CrossSectionDraftEditor {
             );
             mutator.afterSidewalkMaterialField();
         }
+    }
+
+    private static void renderSlopeMaterials(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
 
         if (draft.includeSlopeBatter()) {
             final String[] fillSlopeMaterial = {draft.fillSlopeMaterial()};
@@ -434,6 +639,13 @@ public final class CrossSectionDraftEditor {
                 hooks.pushHistoryOnPicker()
             );
         }
+    }
+
+    private static void renderMarkingMaterial(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
 
         final String[] markingMaterial = {draft.markingMaterial()};
         RoadUiWidgets.renderBlockMaterialPicker(
@@ -620,13 +832,16 @@ public final class CrossSectionDraftEditor {
     }
 
     private static void renderFurniture(EditorContext editor) {
+        renderMedianFields(editor);
+        ImGui.spacing();
+        renderLightingFields(editor);
+    }
+
+    private static void renderLightingFields(EditorContext editor) {
         CrossSectionDraft draft = editor.draft;
         CrossSectionDraftMutator mutator = editor.mutator;
         CrossSectionDraftFieldHooks hooks = editor.hooks;
         String id = editor.id;
-
-        renderMedianFields(editor);
-        ImGui.spacing();
 
         if (mutator.inheritRoadLighting()) {
             var inheritedLighting = mutator.inheritedStationLighting();

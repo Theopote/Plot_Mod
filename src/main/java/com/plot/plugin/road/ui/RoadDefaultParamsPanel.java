@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
@@ -44,7 +45,7 @@ public final class RoadDefaultParamsPanel {
     public void renderRoutePrimary() {
         RoadPresetCards.renderConfigCompact(ctx);
         ImGui.spacing();
-        RoadRouteQuickTune.renderConfigDefaults(ctx);
+        renderQuickTuneCard(() -> RoadRouteQuickTune.renderConfigDefaults(ctx));
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
             renderAdvancedDefaultsCollapsible();
@@ -54,8 +55,19 @@ public final class RoadDefaultParamsPanel {
     /** 单选道路「更多道路设置」折叠区。 */
     public void renderAdvancedDefaultsCollapsible() {
         renderThemeSelector();
-        RoadUiSections.categorySeparator();
+        ImGui.spacing();
         renderAdvancedCrossSectionFields(ctx.networkManager().getConfig());
+    }
+
+    /** 主界面快速调整区（供 EditWorkspace 复用）。 */
+    public void renderQuickTuneCard(Runnable body) {
+        PluginSectionCard.render(
+            "##road_defaults_quick",
+            PlotI18n.tr("plugin.road.edit.quick_tune"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            body);
     }
 
     private void renderCrossSectionDefaults() {
@@ -74,36 +86,77 @@ public final class RoadDefaultParamsPanel {
 
     private void renderAdvancedCrossSectionFields(RoadSystemConfig config) {
         CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
-        CrossSectionDraftEditor.render(
-            ctx,
+        var options = CrossSectionDraftEditorOptions.adoptAdvanced();
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraft(
             draft,
-            CrossSectionDraftEditorOptions.adoptAdvanced(),
             () -> {
                 draft.applyToConfig(config);
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
                 markCustom();
             });
 
-        RoadUiSections.categorySeparator();
+        PluginSectionCard.render(
+            "##road_defaults_strips",
+            PlotI18n.tr("plugin.road.section.defaults_strips"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                CrossSectionDraftEditor.renderAppearanceStrips(ctx, mutator, options);
+                CrossSectionDraftEditor.renderMarkings(ctx, mutator, options);
+                CrossSectionDraftEditor.renderLaneWidths(ctx, mutator, options);
+                CrossSectionDraftEditor.renderSlopeBatter(ctx, mutator, options);
+            });
+        PluginSectionCard.render(
+            "##road_defaults_materials",
+            PlotI18n.tr("plugin.road.section.defaults_materials"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> CrossSectionDraftEditor.renderMaterials(ctx, mutator, options));
+        PluginSectionCard.render(
+            "##road_defaults_furniture",
+            PlotI18n.tr("plugin.road.section.defaults_furniture"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> CrossSectionDraftEditor.renderFurniture(ctx, mutator, options));
 
-        float[] maxSlope = {config.getMaxSlope()};
-        if (EngineeringSlopeInput.render(
-            "default_max_slope",
-            PlotI18n.tr("plugin.road.max_slope_label"),
-            maxSlope,
-            EngineeringSlopeInput.ValueKind.GRADE
-        )) {
-            config.setMaxSlope(maxSlope[0]);
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
+        PluginSectionCard.render(
+            "##road_defaults_max_grade",
+            PlotI18n.tr("plugin.road.floating_editor.cross_section.section.max_grade"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                float[] maxSlope = {config.getMaxSlope()};
+                if (EngineeringSlopeInput.render(
+                    "default_max_slope",
+                    PlotI18n.tr("plugin.road.max_slope_label"),
+                    maxSlope,
+                    EngineeringSlopeInput.ValueKind.GRADE
+                )) {
+                    config.setMaxSlope(maxSlope[0]);
+                    markCustom();
+                }
+                RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
+            });
 
-        RoadUiSections.categorySeparator();
-        RoadUiSections.section("plugin.road.section.bridge_structure_defaults");
-        BridgeStructureControls.renderNetworkDefaults(ctx);
+        PluginSectionCard.render(
+            "##road_defaults_bridge",
+            PlotI18n.tr("plugin.road.section.bridge_structure_defaults"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> BridgeStructureControls.renderNetworkDefaults(ctx));
 
-        RoadUiSections.categorySeparator();
-        renderDefaultJunctionSettings();
+        PluginSectionCard.render(
+            "##road_defaults_junction",
+            PlotI18n.tr("plugin.road.section.defaults_junction"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            this::renderDefaultJunctionSettings);
     }
 
     private void renderThemeSelector() {
