@@ -3525,7 +3525,7 @@
   "plugin.road.road_name_auto_label": "Auto label: %s",
   "plugin.road.road_name_clear": "Clear",
   "plugin.road.road_name_hint": "e.g. %s",
-  "plugin.road.route.advanced_defaults": "Advanced defaults",
+  "plugin.road.route.advanced_defaults": "Default parameters",
   "plugin.road.route.centerline": "Centerline",
   "plugin.road.route.centerline_hint": "Edit plan alignment, segment polylines, and PIs in a separate window.",
   "plugin.road.route.edit_centerline": "Edit centerline",

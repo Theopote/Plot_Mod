@@ -155,12 +155,13 @@ public final class CrossSectionDesignerPanel {
                     var opts = CrossSectionDraftEditorOptions.styleFloatingStructure();
                     sectionCard("##xs_sec_carriageway", "carriageway", true, () ->
                         CrossSectionDraftEditor.renderCarriagewayCore(ctx, mutator, opts));
+                    // 单车道无可分隔对象：分车道宽与标线卡一并隐藏（车道数改回 1 时 mutator 已清标线）。
                     if (mutator.draft() != null && mutator.draft().laneCount() > 1) {
                         sectionCard("##xs_sec_lane_widths", "lane_widths", false, () ->
                             CrossSectionDraftEditor.renderLaneWidths(ctx, mutator, opts));
+                        sectionCard("##xs_sec_markings", "markings", true, () ->
+                            CrossSectionDraftEditor.renderMarkings(ctx, mutator, opts));
                     }
-                    sectionCard("##xs_sec_markings", "markings", true, () ->
-                        CrossSectionDraftEditor.renderMarkings(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -191,12 +192,11 @@ public final class CrossSectionDesignerPanel {
                 beginParamsTabBody("slope");
                 try {
                     var opts = CrossSectionDraftEditorOptions.styleFloatingSlope();
+                    // 最大纵坡在纵断面工作区设置，横断面边坡页不再重复。
                     sectionCard("##xs_sec_edge", "edge", true, () ->
                         CrossSectionDraftEditor.renderRoadsideEdge(ctx, mutator, opts));
                     sectionCard("##xs_sec_batter", "batter", true, () ->
                         CrossSectionDraftEditor.renderSlopeRatios(ctx, mutator, opts));
-                    sectionCard("##xs_sec_max_grade", "max_grade", true, () ->
-                        CrossSectionDraftEditor.renderMaxSlope(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }

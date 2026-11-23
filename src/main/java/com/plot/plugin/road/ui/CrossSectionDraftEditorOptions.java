@@ -97,10 +97,10 @@ public record CrossSectionDraftEditorOptions(
             "xs_strips", false, null, false, false, false, false, true, false, true);
     }
 
-    /** 浮动横断面 · 边坡页。 */
+    /** 浮动横断面 · 边坡页（路边形式 / 放坡比；最大纵坡归纵断面工作区）。 */
     public static CrossSectionDraftEditorOptions styleFloatingSlope() {
         return new CrossSectionDraftEditorOptions(
-            "xs_slope", false, null, false, true, true, false, false, false, true);
+            "xs_slope", false, null, false, false, true, false, false, false, true);
     }
 
     /** 样式 Tab 批量编辑：材质；附属设施页复用（隔离带 + 路灯）。 */

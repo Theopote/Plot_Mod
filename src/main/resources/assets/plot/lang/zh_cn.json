@@ -2049,7 +2049,7 @@
   "plugin.road.terrain_style.follow.hint": "更贴近地形，减少大型桥梁和隧道",
   "plugin.road.terrain_style.balanced.hint": "在自然贴地与道路平顺之间取得平衡（推荐）",
   "plugin.road.terrain_style.smooth.hint": "优先获得平顺道路，必要时更多使用桥梁或隧道",
-  "plugin.road.route.advanced_defaults": "高级默认参数",
+  "plugin.road.route.advanced_defaults": "默认参数",
   "plugin.road.build.compact_summary": "%d 个方块 · %d 座桥 · %d 条隧 · %d 盏路灯",
   "plugin.road.build.preview_details": "方案详情",
   "plugin.road.section.network_health": "网络健康",

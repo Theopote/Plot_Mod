@@ -7,7 +7,6 @@ import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
-import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -52,11 +51,13 @@ public final class RoadDefaultParamsPanel {
         }
     }
 
-    /** 单选道路「更多道路设置」折叠区。 */
+    /** 「默认参数」折叠区：主题、横断面默认、隧道默认等。 */
     public void renderAdvancedDefaultsCollapsible() {
         renderThemeSelector();
         ImGui.spacing();
         renderAdvancedCrossSectionFields(ctx.networkManager().getConfig());
+        ImGui.spacing();
+        TunnelStyleControls.renderGlobal(ctx);
     }
 
     /** 主界面快速调整区（供 EditWorkspace 复用）。 */
@@ -122,25 +123,7 @@ public final class RoadDefaultParamsPanel {
             true,
             () -> CrossSectionDraftEditor.renderFurniture(ctx, mutator, options));
 
-        PluginSectionCard.render(
-            "##road_defaults_max_grade",
-            PlotI18n.tr("plugin.road.floating_editor.cross_section.section.max_grade"),
-            null,
-            PluginSectionCard.SectionTone.NEUTRAL,
-            true,
-            () -> {
-                float[] maxSlope = {config.getMaxSlope()};
-                if (EngineeringSlopeInput.render(
-                    "default_max_slope",
-                    PlotI18n.tr("plugin.road.max_slope_label"),
-                    maxSlope,
-                    EngineeringSlopeInput.ValueKind.GRADE
-                )) {
-                    config.setMaxSlope(maxSlope[0]);
-                    markCustom();
-                }
-                RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
-            });
+        // 最大纵坡在纵断面工作区设置，高级默认参数不再重复。
 
         PluginSectionCard.render(
             "##road_defaults_bridge",

@@ -83,13 +83,11 @@ final class RoadEditWorkspace {
             RoadPresetCards.renderConfigCompact(ctx);
             defaultParamsPanel.renderQuickTuneCard(
                 () -> RoadRouteQuickTune.renderConfigDefaults(ctx));
-            RoadUiSections.categorySeparator();
+            ImGui.spacing();
             if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
                 defaultParamsPanel.renderAdvancedDefaultsCollapsible();
             }
-            RoadUiSections.categorySeparator();
-            TunnelStyleControls.renderGlobal(ctx);
-            // 桥梁结构默认已在「高级默认参数」内渲染，避免重复。
+            // 桥梁结构 / 隧道默认已在「默认参数」内渲染，避免重复。
         }
     }
 }
