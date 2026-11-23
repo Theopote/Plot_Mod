@@ -17,6 +17,7 @@ import com.plot.plugin.road.model.section.StreetFurniture;
 import com.plot.plugin.road.ui.RoadPanelScopedStatus;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.component.UIUtils;
@@ -60,6 +61,8 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     private List<RoadLampCompiler.Voxel> contextScene = List.of();
     private RoadLampStyle compiledStyle;
     private List<RoadLampCompiler.Voxel> compiled = List.of();
+    /** 参数区层级卡焦点；-1 表示无高亮 */
+    private int hoveredOrFocusedLevelIndex = -1;
 
     @Override protected RoadFloatingEditorKind editorKind() { return RoadFloatingEditorKind.ROAD_LAMP; }
     @Override protected String windowTitleKey() { return KEY + "title"; }
@@ -337,79 +340,171 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
 
     private void renderParameters(StreetFurniture furniture, boolean includeMedian) {
         var active = placementDraft;
-        var sides = combo("sides", active.sides(), RoadLampPlacement.Sides.values());
-        if (sides == RoadLampPlacement.Sides.MEDIAN && !includeMedian) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, tr("median_unavailable"));
-        }
-        int spacing = slider("spacing", active.spacing(),
-            RoadParameterLimits.MIN_STREETLIGHT_SPACING, RoadParameterLimits.MAX_STREETLIGHT_SPACING);
-        int inset = sides == RoadLampPlacement.Sides.MEDIAN ? active.inset() : slider("inset", active.inset(), 0, 8);
-        int setback = slider("setback", active.junctionSetback(), 0, 32);
-        boolean bridge = toggle("bridge", active.bridgeAllowed());
-        boolean applyCurrent = false;
-        if (furniture.getRoadLampPlacement() == null) {
-            ImGui.textWrapped(tr("inactive_draft"));
-            ImGui.beginDisabled(hasInvalidDrafts());
-            applyCurrent = ImGui.button(tr("apply_defaults"));
-            ImGui.endDisabled();
+        final var sidesBox = new Object() {
+            RoadLampPlacement.Sides value = active.sides();
+        };
+        final var spacingBox = new Object() {
+            int value = active.spacing();
+        };
+        final var insetBox = new Object() {
+            int value = active.inset();
+        };
+        final var setbackBox = new Object() {
+            int value = active.junctionSetback();
+        };
+        final var bridgeBox = new Object() {
+            boolean value = active.bridgeAllowed();
+        };
+        final var applyBox = new Object() {
+            boolean value = false;
+        };
 
-        }
-        ImGui.separator();
-        ImGui.setNextItemWidth(controlWidth());
-        ImGui.inputText(tr("name"), name);
-        int height = slider("height", draft.height(), 5, 24);
-        var material = combo("material", draft.material(), RoadLampStyle.Material.values());
-        boolean plinth = toggle("plinth", draft.plinth());
-        var detail = combo("detail", draft.detail(), RoadLampStyle.Detail.values());
-        int count = slider("levels", draft.levels().size(), 1, 3);
-        var sized = RoadLampDraft.withLevelCount(height, draft.levels(), count);
-        height = sized.height();
-        var levels = new ArrayList<>(sized.levels());
+        PluginSectionCard.render(
+            "##lamp_sec_placement",
+            tr("section.placement"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                sidesBox.value = combo("sides", sidesBox.value, RoadLampPlacement.Sides.values());
+                if (sidesBox.value == RoadLampPlacement.Sides.MEDIAN && !includeMedian) {
+                    RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, tr("median_unavailable"));
+                }
+                spacingBox.value = slider("spacing", spacingBox.value,
+                    RoadParameterLimits.MIN_STREETLIGHT_SPACING, RoadParameterLimits.MAX_STREETLIGHT_SPACING);
+                insetBox.value = sidesBox.value == RoadLampPlacement.Sides.MEDIAN
+                    ? insetBox.value
+                    : slider("inset", insetBox.value, 0, 8);
+                setbackBox.value = slider("setback", setbackBox.value, 0, 32);
+                bridgeBox.value = toggle("bridge", bridgeBox.value);
+                if (furniture.getRoadLampPlacement() == null) {
+                    ImGui.textWrapped(tr("inactive_draft"));
+                    ImGui.beginDisabled(hasInvalidDrafts());
+                    applyBox.value = ImGui.button(tr("apply_defaults"));
+                    ImGui.endDisabled();
+                }
+            });
+
+        final var heightBox = new Object() {
+            int value = draft.height();
+        };
+        final var materialBox = new Object() {
+            RoadLampStyle.Material value = draft.material();
+        };
+        final var plinthBox = new Object() {
+            boolean value = draft.plinth();
+        };
+        final var detailBox = new Object() {
+            RoadLampStyle.Detail value = draft.detail();
+        };
+        final var countBox = new Object() {
+            int value = draft.levels().size();
+        };
+
+        PluginSectionCard.render(
+            "##lamp_sec_pole",
+            tr("section.pole"),
+            null,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                ImGui.setNextItemWidth(controlWidth());
+                ImGui.inputText(tr("name"), name);
+                heightBox.value = slider("height", heightBox.value, 5, 24);
+                materialBox.value = combo("material", materialBox.value, RoadLampStyle.Material.values());
+                plinthBox.value = toggle("plinth", plinthBox.value);
+                detailBox.value = combo("detail", detailBox.value, RoadLampStyle.Detail.values());
+                countBox.value = slider("levels", countBox.value, 1, 3);
+            });
+
+        var sized = RoadLampDraft.withLevelCount(heightBox.value, draft.levels(), countBox.value);
+        int height = sized.height();
+        final ArrayList<RoadLampStyle.Level> levels = new ArrayList<>(sized.levels());
         var topSeed = levels.getLast();
         levels.set(levels.size() - 1, new RoadLampStyle.Level(
             height - 1, topSeed.layout(), topSeed.mount(), topSeed.reach(), topSeed.chain(), topSeed.light()));
 
-        for (int i = 0; i < levels.size(); i++) {
-            ImGui.pushID(i);
-            var existing = levels.get(i);
-            boolean top = i == levels.size() - 1;
-            ImGui.text(PlotI18n.tr(KEY + "level_number", i + 1));
-            var layouts = top ? RoadLampStyle.Layout.values() : LOWER_LAYOUTS;
-            var layout = combo("layout", existing.layout(), layouts);
-            boolean center = layout == RoadLampStyle.Layout.SINGLE || layout == RoadLampStyle.Layout.TRIPLE;
-            var mount = center ? RoadLampStyle.Mount.TOP
-                : combo("mount", existing.mount(), RoadLampStyle.Mount.values());
-            int previousY = i == 0 ? 0 : levels.get(i - 1).y() + 1;
-            int minY = RoadLampDraft.minLevelY(previousY, mount, existing.chain());
-            int maxY = top
-                ? height - 1
-                : Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
-            int y = top
-                ? height - 1
-                : Math.clamp(slider("level_y", existing.y(), minY, maxY), minY, maxY);
-            int reach = layout == RoadLampStyle.Layout.SINGLE ? existing.reach() : slider("reach", existing.reach(), 1, 4);
-            int chain = mount == RoadLampStyle.Mount.CHAIN ? slider("chain", existing.chain(), 1, 3) : existing.chain();
-            // 链条加长后最低点可能下压，需按新 chain 重算下限。
-            if (!top && mount == RoadLampStyle.Mount.CHAIN) {
-                minY = RoadLampDraft.minLevelY(previousY, mount, chain);
-                maxY = Math.max(minY, RoadLampDraft.levelLowest(levels.get(i + 1)) - 2);
-                y = Math.clamp(y, minY, maxY);
-            }
-            var light = lightIconPicker(existing.light(), mount);
-            levels.set(i, new RoadLampStyle.Level(y, layout, mount, reach, chain, light));
-            ImGui.popID();
+        final int levelCount = levels.size();
+        final int[] heightRef = {height};
+        PluginSectionCard.render(
+            "##lamp_sec_levels",
+            tr("section.levels"),
+            PlotI18n.tr(KEY + "section.levels_summary", levelCount),
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> {
+                for (int i = 0; i < levels.size(); i++) {
+                    final int levelIndex = i;
+                    ImGui.pushID(levelIndex);
+                    var existing = levels.get(levelIndex);
+                    boolean top = levelIndex == levels.size() - 1;
+                    PluginSectionCard.SectionTone tone = switch (levelIndex) {
+                        case 0 -> PluginSectionCard.SectionTone.LEVEL_0;
+                        case 1 -> PluginSectionCard.SectionTone.LEVEL_1;
+                        default -> PluginSectionCard.SectionTone.LEVEL_2;
+                    };
+                    String layoutLabel = enumLabel("layout", existing.layout());
+                    String title = PlotI18n.tr(KEY + "level_card_title", levelIndex + 1, layoutLabel);
+                    String summary = PlotI18n.tr(KEY + "level_card_summary", existing.y());
+                    var levelCard = PluginSectionCard.renderResult(
+                        "##lamp_level_" + levelIndex,
+                        title,
+                        summary,
+                        tone,
+                        levelIndex == 0,
+                        () -> {
+                            var current = levels.get(levelIndex);
+                            var layouts = top ? RoadLampStyle.Layout.values() : LOWER_LAYOUTS;
+                            var layout = combo("layout", current.layout(), layouts);
+                            boolean center = layout == RoadLampStyle.Layout.SINGLE
+                                || layout == RoadLampStyle.Layout.TRIPLE;
+                            var mount = center ? RoadLampStyle.Mount.TOP
+                                : combo("mount", current.mount(), RoadLampStyle.Mount.values());
+                            int previousY = levelIndex == 0 ? 0 : levels.get(levelIndex - 1).y() + 1;
+                            int minY = RoadLampDraft.minLevelY(previousY, mount, current.chain());
+                            int maxY = top
+                                ? heightRef[0] - 1
+                                : Math.max(minY, RoadLampDraft.levelLowest(levels.get(levelIndex + 1)) - 2);
+                            int y = top
+                                ? heightRef[0] - 1
+                                : Math.clamp(slider("level_y", current.y(), minY, maxY), minY, maxY);
+                            int reach = layout == RoadLampStyle.Layout.SINGLE
+                                ? current.reach()
+                                : slider("reach", current.reach(), 1, 4);
+                            int chain = mount == RoadLampStyle.Mount.CHAIN
+                                ? slider("chain", current.chain(), 1, 3)
+                                : current.chain();
+                            if (!top && mount == RoadLampStyle.Mount.CHAIN) {
+                                minY = RoadLampDraft.minLevelY(previousY, mount, chain);
+                                maxY = Math.max(minY, RoadLampDraft.levelLowest(levels.get(levelIndex + 1)) - 2);
+                                y = Math.clamp(y, minY, maxY);
+                            }
+                            var light = lightIconPicker(current.light(), mount);
+                            levels.set(levelIndex, new RoadLampStyle.Level(y, layout, mount, reach, chain, light));
+                        });
+                    if (levelCard.hoveredOrActive()) {
+                        hoveredOrFocusedLevelIndex = levelIndex;
+                    }
+                    ImGui.popID();
+                }
+            });
+
+        if (hoveredOrFocusedLevelIndex >= levels.size()) {
+            hoveredOrFocusedLevelIndex = levels.isEmpty() ? -1 : levels.size() - 1;
         }
+
         var reconciled = RoadLampDraft.reconcileLevels(height, levels);
         height = reconciled.height();
-        levels = new ArrayList<>(reconciled.levels());
-        // 层参数已更新后再提示，避免「装饰构造已选但当前灯层不满足条件」时无反馈。
-        renderDetailInactiveHint(detail, levels);
+        levels.clear();
+        levels.addAll(reconciled.levels());
+        renderDetailInactiveHint(detailBox.value, levels);
 
-        var candidate = new RoadLampDraft(name.get(), height, material, plinth, levels, detail);
+        var candidate = new RoadLampDraft(name.get(), height, materialBox.value, plinthBox.value, levels, detailBox.value);
         var placementControls = new RoadLampPlacement(
-            active.style(), sides, spacing, inset, setback, active.enabled(), bridge);
+            active.style(), sidesBox.value, spacingBox.value, insetBox.value, setbackBox.value,
+            active.enabled(), bridgeBox.value);
         var resolved = candidate.resolve(placementControls);
-        if (resolved != null && (applyCurrent || !candidate.equals(draft) || !placementControls.equals(active)
+        if (resolved != null && (applyBox.value || !candidate.equals(draft) || !placementControls.equals(active)
                 || !resolved.equals(active))) {
             furniture.setRoadLampPlacement(resolved);
         }
@@ -433,7 +528,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
         var scene = contextView ? contextScene : compiled;
         float height = Math.clamp(ImGui.getContentRegionAvailY() - 36f, 180f, 380f);
-        preview.render(scene, height, yaw, zoom);
+        preview.render(scene, height, yaw, zoom, hoveredOrFocusedLevelIndex);
         int totalHeight = compiled.stream().mapToInt(voxel -> voxel.position().getY()).max().orElse(0) + 1;
         int heads = compiledStyle.levels().stream().mapToInt(level -> switch (level.layout()) {
             case SINGLE, INWARD, OUTWARD -> 1;

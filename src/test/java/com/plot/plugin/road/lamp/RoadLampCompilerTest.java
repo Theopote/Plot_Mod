@@ -60,7 +60,23 @@ class RoadLampCompilerTest {
             var p = local.get(i).position();
             assertEquals(new BlockPos(10 + p.getZ(), 64 + p.getY(), 20 - p.getX()), world.get(i).position());
             assertEquals(local.get(i).block(), world.get(i).block());
+            assertEquals(local.get(i).levelIndex(), world.get(i).levelIndex());
         }
+    }
+
+    @Test
+    void multiLevelHeadsCarryDistinctLevelIndices() {
+        var style = new RoadLampStyle("分层", 14, RoadLampStyle.Material.METAL, false, java.util.List.of(
+            new RoadLampStyle.Level(5, RoadLampStyle.Layout.TWIN, RoadLampStyle.Mount.TOP, 2, 1, RoadLampStyle.Light.LANTERN),
+            new RoadLampStyle.Level(13, RoadLampStyle.Layout.OUTWARD, RoadLampStyle.Mount.CHAIN, 2, 2, RoadLampStyle.Light.LANTERN)));
+        var voxels = RoadLampCompiler.compile(style);
+        assertTrue(voxels.stream().anyMatch(v -> v.levelIndex() == 0));
+        assertTrue(voxels.stream().anyMatch(v -> v.levelIndex() == 1));
+        assertTrue(voxels.stream().anyMatch(v -> v.levelIndex() < 0));
+        // 灯具体素必须挂在对应层上。
+        assertTrue(voxels.stream()
+            .filter(v -> v.block().contains("lantern"))
+            .allMatch(v -> v.levelIndex() >= 0));
     }
 
     @Test

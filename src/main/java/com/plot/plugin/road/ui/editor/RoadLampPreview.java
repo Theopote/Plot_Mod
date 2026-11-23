@@ -34,6 +34,11 @@ final class RoadLampPreview {
      * @param zoom   可写长度 ≥1；悬停预览时滚轮会改写，范围 [{@value MIN_ZOOM}, {@value MAX_ZOOM}]
      */
     void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom) {
+        render(structure, height, yawDeg, zoom, -1);
+    }
+
+    void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom,
+                int highlightLevelIndex) {
         float width = ImGui.getContentRegionAvailX();
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
@@ -85,7 +90,7 @@ final class RoadLampPreview {
         var view = new View(sine, cosine, size,
             left + (width - (maxX + minX) * size) / 2f, top + (height - (maxY + minY) * size) / 2f);
         draw.pushClipRect(left, top, left + width, top + height, true);
-        for (var part : parts) drawPart(draw, view, part);
+        for (var part : parts) drawPart(draw, view, part, highlightLevelIndex);
         draw.popClipRect();
     }
 
@@ -124,18 +129,22 @@ final class RoadLampPreview {
         parts.clear();
         var blocks = structure.stream().collect(Collectors.toMap(RoadLampCompiler.Voxel::position,
             RoadLampCompiler.Voxel::block, (previous, next) -> next));
+        var levelByPos = structure.stream().collect(Collectors.toMap(RoadLampCompiler.Voxel::position,
+            RoadLampCompiler.Voxel::levelIndex, (previous, next) -> next));
         blocks.forEach((pos, block) -> {
             BlockSpec spec = BlockSpec.parse(block);
+            int levelIndex = levelByPos.getOrDefault(pos, -1);
             if (pos.getY() == -1 && !spec.blockId().endsWith("_slab")
                     && !spec.blockId().endsWith("_wall") && !spec.blockId().endsWith("_fence")) {
                 // The flat reference pavement can be drawn one strip at a time.
                 if (block.equals(blocks.get(pos.north()))) return;
                 int length = 1;
                 while (block.equals(blocks.get(pos.south(length)))) length++;
-                parts.add(Part.at(pos, BlockColorRegistry.colorFor(spec.blockId()), 0f, 0f, 0f, 1f, 1f, length));
+                parts.add(Part.at(pos, BlockColorRegistry.colorFor(spec.blockId()), -1,
+                    0f, 0f, 0f, 1f, 1f, length));
                 return;
             }
-            addParts(parts, blocks, pos, spec);
+            addParts(parts, blocks, pos, spec, levelIndex);
         });
     }
 
@@ -143,46 +152,55 @@ final class RoadLampPreview {
         return x * sine + z * cosine;
     }
 
-    private static void addParts(List<Part> parts, Map<BlockPos, String> blocks, BlockPos pos, BlockSpec block) {
+    private static void addParts(List<Part> parts, Map<BlockPos, String> blocks, BlockPos pos,
+                                 BlockSpec block, int levelIndex) {
         String id = block.blockId();
         int color = BlockColorRegistry.colorFor(id);
         if (id.equals("minecraft:iron_chain") || id.equals("minecraft:chain")) {
-            parts.add(Part.at(pos, color, 0.41f, 0f, 0.41f, 0.59f, 1f, 0.59f));
+            parts.add(Part.at(pos, color, levelIndex, 0.41f, 0f, 0.41f, 0.59f, 1f, 0.59f));
         } else if (isLanternFixture(id)) {
             boolean hanging = "true".equals(block.property("hanging"));
             float base = hanging ? 0.12f : 0f;
-            parts.add(Part.at(pos, color, 0.31f, base, 0.31f, 0.69f, base + 0.45f, 0.69f));
-            parts.add(Part.at(pos, color, 0.39f, base + 0.45f, 0.39f, 0.61f, base + 0.58f, 0.61f));
+            parts.add(Part.at(pos, color, levelIndex, 0.31f, base, 0.31f, 0.69f, base + 0.45f, 0.69f));
+            parts.add(Part.at(pos, color, levelIndex, 0.39f, base + 0.45f, 0.39f, 0.61f, base + 0.58f, 0.61f));
             if (hanging) {
-                parts.add(Part.at(pos, 0xff676767, 0.45f, 0.70f, 0.45f, 0.55f, 1f, 0.55f));
+                parts.add(Part.at(pos, 0xff676767, levelIndex, 0.45f, 0.70f, 0.45f, 0.55f, 1f, 0.55f));
             }
         } else if (id.endsWith(":end_rod")) {
-            parts.add(Part.at(pos, color, 0.375f, 0f, 0.375f, 0.625f, 1f, 0.625f));
+            parts.add(Part.at(pos, color, levelIndex, 0.375f, 0f, 0.375f, 0.625f, 1f, 0.625f));
         } else if (id.endsWith("_torch") || id.endsWith(":torch")) {
-            parts.add(Part.at(pos, 0xff6b5840, 0.44f, 0f, 0.44f, 0.56f, 0.62f, 0.56f));
-            parts.add(Part.at(pos, color, 0.38f, 0.55f, 0.38f, 0.62f, 0.88f, 0.62f));
+            parts.add(Part.at(pos, 0xff6b5840, levelIndex, 0.44f, 0f, 0.44f, 0.56f, 0.62f, 0.56f));
+            parts.add(Part.at(pos, color, levelIndex, 0.38f, 0.55f, 0.38f, 0.62f, 0.88f, 0.62f));
         } else if (id.endsWith("_candle") || id.endsWith(":candle")) {
-            parts.add(Part.at(pos, color, 0.42f, 0f, 0.42f, 0.58f, 0.42f, 0.58f));
-            parts.add(Part.at(pos, 0xfff0d878, 0.45f, 0.42f, 0.45f, 0.55f, 0.62f, 0.55f));
+            parts.add(Part.at(pos, color, levelIndex, 0.42f, 0f, 0.42f, 0.58f, 0.42f, 0.58f));
+            parts.add(Part.at(pos, 0xfff0d878, levelIndex, 0.45f, 0.42f, 0.45f, 0.55f, 0.62f, 0.55f));
         } else if (id.endsWith("_campfire") || id.endsWith(":campfire")) {
-            parts.add(Part.at(pos, 0xff6b5840, 0.05f, 0f, 0.05f, 0.95f, 0.22f, 0.95f));
-            parts.add(Part.at(pos, color, 0.28f, 0.18f, 0.28f, 0.72f, 0.72f, 0.72f));
+            parts.add(Part.at(pos, 0xff6b5840, levelIndex, 0.05f, 0f, 0.05f, 0.95f, 0.22f, 0.95f));
+            parts.add(Part.at(pos, color, levelIndex, 0.28f, 0.18f, 0.28f, 0.72f, 0.72f, 0.72f));
         } else if (id.endsWith(":light")) {
             // 半透明小块，表示隐形光源而非实心一格。
-            parts.add(Part.at(pos, 0x66a8e8ff, 0.28f, 0.28f, 0.28f, 0.72f, 0.72f, 0.72f));
+            parts.add(Part.at(pos, 0x66a8e8ff, levelIndex, 0.28f, 0.28f, 0.28f, 0.72f, 0.72f, 0.72f));
         } else if (id.endsWith("_slab") && !"double".equals(block.property("type"))) {
             boolean top = "top".equals(block.property("type"));
-            parts.add(Part.at(pos, color, 0f, top ? 0.5f : 0f, 0f, 1f, top ? 1f : 0.5f, 1f));
+            parts.add(Part.at(pos, color, levelIndex, 0f, top ? 0.5f : 0f, 0f, 1f, top ? 1f : 0.5f, 1f));
         } else if (id.endsWith("_fence") || id.endsWith("_wall")) {
             boolean wall = id.endsWith("_wall");
             float inset = wall ? 0.25f : 0.375f;
-            parts.add(Part.at(pos, color, inset, 0f, inset, 1f - inset, 1f, 1f - inset));
-            if (connects(blocks, pos.west())) parts.add(Part.at(pos, color, 0f, 0.28f, inset, inset, 0.88f, 1f - inset));
-            if (connects(blocks, pos.east())) parts.add(Part.at(pos, color, 1f - inset, 0.28f, inset, 1f, 0.88f, 1f - inset));
-            if (connects(blocks, pos.north())) parts.add(Part.at(pos, color, inset, 0.28f, 0f, 1f - inset, 0.88f, inset));
-            if (connects(blocks, pos.south())) parts.add(Part.at(pos, color, inset, 0.28f, 1f - inset, 1f - inset, 0.88f, 1f));
+            parts.add(Part.at(pos, color, levelIndex, inset, 0f, inset, 1f - inset, 1f, 1f - inset));
+            if (connects(blocks, pos.west())) {
+                parts.add(Part.at(pos, color, levelIndex, 0f, 0.28f, inset, inset, 0.88f, 1f - inset));
+            }
+            if (connects(blocks, pos.east())) {
+                parts.add(Part.at(pos, color, levelIndex, 1f - inset, 0.28f, inset, 1f, 0.88f, 1f - inset));
+            }
+            if (connects(blocks, pos.north())) {
+                parts.add(Part.at(pos, color, levelIndex, inset, 0.28f, 0f, 1f - inset, 0.88f, inset));
+            }
+            if (connects(blocks, pos.south())) {
+                parts.add(Part.at(pos, color, levelIndex, inset, 0.28f, 1f - inset, 1f - inset, 0.88f, 1f));
+            }
         } else {
-            parts.add(Part.at(pos, color, 0f, 0f, 0f, 1f, 1f, 1f));
+            parts.add(Part.at(pos, color, levelIndex, 0f, 0f, 0f, 1f, 1f, 1f));
         }
     }
 
@@ -199,15 +217,40 @@ final class RoadLampPreview {
         return !isLanternFixture(id) && !id.endsWith("chain") && !id.endsWith("_slab");
     }
 
-    private static void drawPart(ImDrawList draw, View view, Part p) {
+    private static void drawPart(ImDrawList draw, View view, Part p, int highlightLevelIndex) {
+        float brightness;
+        float alphaMul;
+        if (highlightLevelIndex < 0 || p.levelIndex < 0) {
+            brightness = 1f;
+            alphaMul = 1f;
+        } else if (p.levelIndex == highlightLevelIndex) {
+            brightness = 1.28f;
+            alphaMul = 1f;
+        } else {
+            brightness = 0.72f;
+            alphaMul = 0.55f;
+        }
         float fx = view.sine >= 0 ? p.x1 : p.x0;
         float fz = view.cosine >= 0 ? p.z1 : p.z0;
-        face(draw, view, shade(p.color, 0.69f),
+        face(draw, view, shade(p.color, 0.69f * brightness, alphaMul),
             fx, p.y0, p.z0, fx, p.y0, p.z1, fx, p.y1, p.z1, fx, p.y1, p.z0);
-        face(draw, view, shade(p.color, 0.84f),
+        face(draw, view, shade(p.color, 0.84f * brightness, alphaMul),
             p.x0, p.y0, fz, p.x1, p.y0, fz, p.x1, p.y1, fz, p.x0, p.y1, fz);
-        face(draw, view, shade(p.color, 1f),
+        face(draw, view, shade(p.color, 1f * brightness, alphaMul),
             p.x0, p.y1, p.z0, p.x1, p.y1, p.z0, p.x1, p.y1, p.z1, p.x0, p.y1, p.z1);
+        if (highlightLevelIndex >= 0 && p.levelIndex == highlightLevelIndex) {
+            // 选中层描边：顶面外轮廓，便于与亮度提升一起辨认。
+            int outline = shade(0xffffffff, 1f, 0.85f);
+            float x0 = view.x(p.x0, p.z0);
+            float y0 = view.y(p.x0, p.y1, p.z0);
+            float x1 = view.x(p.x1, p.z0);
+            float y1 = view.y(p.x1, p.y1, p.z0);
+            float x2 = view.x(p.x1, p.z1);
+            float y2 = view.y(p.x1, p.y1, p.z1);
+            float x3 = view.x(p.x0, p.z1);
+            float y3 = view.y(p.x0, p.y1, p.z1);
+            draw.addQuad(x0, y0, x1, y1, x2, y2, x3, y3, outline, 1.25f);
+        }
     }
 
     private static void face(ImDrawList draw, View v, int color, float x0, float y0, float z0,
@@ -216,18 +259,23 @@ final class RoadLampPreview {
             v.x(x2, z2), v.y(x2, y2, z2), v.x(x3, z3), v.y(x3, y3, z3), color);
     }
 
-    private record Part(float x0, float y0, float z0, float x1, float y1, float z1, int color) {
-        static Part at(BlockPos p, int color, float x0, float y0, float z0, float x1, float y1, float z1) {
+    private record Part(float x0, float y0, float z0, float x1, float y1, float z1, int color, int levelIndex) {
+        static Part at(BlockPos p, int color, int levelIndex,
+                       float x0, float y0, float z0, float x1, float y1, float z1) {
             return new Part(p.getX() + x0, p.getY() + y0, p.getZ() + z0,
-                p.getX() + x1, p.getY() + y1, p.getZ() + z1, color);
+                p.getX() + x1, p.getY() + y1, p.getZ() + z1, color, levelIndex);
         }
     }
 
     private static int shade(int argb, float multiplier) {
-        int alpha = (argb >>> 24) & 255;
-        int red = (int) (((argb >> 16) & 255) * multiplier);
-        int green = (int) (((argb >> 8) & 255) * multiplier);
-        int blue = (int) ((argb & 255) * multiplier);
+        return shade(argb, multiplier, 1f);
+    }
+
+    private static int shade(int argb, float multiplier, float alphaMul) {
+        int alpha = Math.clamp(Math.round(((argb >>> 24) & 255) * alphaMul), 0, 255);
+        int red = Math.clamp(Math.round(((argb >> 16) & 255) * multiplier), 0, 255);
+        int green = Math.clamp(Math.round(((argb >> 8) & 255) * multiplier), 0, 255);
+        int blue = Math.clamp(Math.round((argb & 255) * multiplier), 0, 255);
         // ImGui 颜色为 ABGR 打包：保留 alpha，便于隐形光源半透明预览。
         return (alpha << 24) | (blue << 16) | (green << 8) | red;
     }
