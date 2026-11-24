@@ -229,15 +229,6 @@ public final class RoadFloatingEditorShell {
         }
     }
 
-    public static void renderFooter(
-            RoadUiContext ctx,
-            boolean dirty,
-            Runnable onRestore,
-            Runnable onCancel,
-            Runnable onConfirm) {
-        renderFooter(ctx, dirty, false, false, null, null, onRestore, onCancel, onConfirm);
-    }
-
     /**
      * 页脚：左侧撤销/重做，再还原/取消/确认。
      */

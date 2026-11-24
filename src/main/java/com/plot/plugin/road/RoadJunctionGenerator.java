@@ -3,8 +3,6 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
-import com.plot.plugin.road.crossing.CrossingType;
-import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionContext;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;

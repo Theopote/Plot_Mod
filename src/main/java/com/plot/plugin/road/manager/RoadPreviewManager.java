@@ -374,14 +374,6 @@ public final class RoadPreviewManager {
     private record OverviewChartCacheEntry(long token, RoadProfileChartData chart) {
     }
 
-    /** 当前地形采样任务是否属于指定道路。 */
-    public boolean isTerrainProfileJobForRoad(String roadId) {
-        return terrainProfileJob != null
-            && terrainProfileJob.isRunning()
-            && roadId != null
-            && roadId.equals(terrainProfileJob.key().roadId());
-    }
-
     public RoadTerrainProfileData getTerrainProfile(RoadNetwork network, String roadId) {
         return terrainProfileCache.get(roadId);
     }
@@ -406,14 +398,6 @@ public final class RoadPreviewManager {
 
     public ICoordinateService hostCoordinates() {
         return host.coordinates();
-    }
-
-    /**
-     * Level-1：排队分帧读取当前道路中心线地形。不改设计权威、不启动正式建造预览。
-     * 自动场景可命中缓存；用户点击「更新地形」应传 {@code force=true} 强制重采。
-     */
-    public boolean refreshTerrainProfile(RoadNetwork network, String roadId) {
-        return refreshTerrainProfile(network, roadId, false);
     }
 
     public boolean refreshTerrainProfile(RoadNetwork network, String roadId, boolean force) {
