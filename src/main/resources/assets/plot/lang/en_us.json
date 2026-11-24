@@ -2772,7 +2772,7 @@
   "plugin.road.center_line.single_dashed": "Single dashed",
   "plugin.road.center_line_style": "Center line",
   "plugin.road.center_line_solid": "Solid",
-  "hint.plot.road.center_line_solid": "Checked = solid line; unchecked = dashed (every other block). Applies to single/double yellow center lines only.",
+  "hint.plot.road.center_line_solid": "Checked = solid line; unchecked = dashed (3 blocks on, 1 block gap). Applies to single/double yellow center lines only.",
   "plugin.road.centerline_distance": "Position (from start)",
   "plugin.road.centerline_edit_alignment_invalid": "Could not reverse vertical alignment stations.",
   "plugin.road.centerline_edit_edge_not_found": "Segment not found.",

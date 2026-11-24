@@ -402,7 +402,7 @@ public final class RoadJunctionMarkingGenerator {
         for (RoadMarkingPasses.Pass pass : passes) {
             List<Vec2d> offsetLine = OffsetHandler.offsetPolyline(inward, pass.offset());
             for (int i = 0; i < offsetLine.size(); i++) {
-                if (!pass.solid() && i % 2 != 0) {
+                if (!pass.solid() && RoadMarkingPasses.isDashedGap(i)) {
                     continue;
                 }
                 Vec2d point = offsetLine.get(i);

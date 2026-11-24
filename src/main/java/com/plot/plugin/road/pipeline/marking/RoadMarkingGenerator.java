@@ -90,7 +90,7 @@ public final class RoadMarkingGenerator {
                 }
                 int placeY = rail ? targetY + 1 : targetY;
                 for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(crossSection)) {
-                    if (!pass.solid() && index % 2 != 0) {
+                    if (!pass.solid() && RoadMarkingPasses.isDashedGap(index)) {
                         continue;
                     }
                     // 中央标线替换中央缝分隔线：中央列用标线材质，侧缝白虚线。

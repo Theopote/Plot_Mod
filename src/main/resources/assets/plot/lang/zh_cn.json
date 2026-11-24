@@ -2379,7 +2379,7 @@
   "plugin.road.center_line.double_solid": "双实线",
   "plugin.road.center_line.rail": "铁轨",
   "plugin.road.center_line_solid": "实线",
-  "hint.plot.road.center_line_solid": "勾选为实线；不勾选为虚线（隔格绘制）。仅对单黄/双黄中央标线生效。",
+  "hint.plot.road.center_line_solid": "勾选为实线；不勾选为虚线（连续 3 格后空 1 格）。仅对单黄/双黄中央标线生效。",
   "plugin.road.marking_material": "标线材质",
   "plugin.road.lane_width_label": "车道 %d 宽度",
   "plugin.road.select_all_edges": "全选",

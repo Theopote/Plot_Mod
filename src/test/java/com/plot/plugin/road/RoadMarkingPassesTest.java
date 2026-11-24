@@ -15,6 +15,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadMarkingPassesTest {
 
     @Test
+    void dashedGapIsThreeOnOneOff() {
+        assertFalse(RoadMarkingPasses.isDashedGap(0));
+        assertFalse(RoadMarkingPasses.isDashedGap(1));
+        assertFalse(RoadMarkingPasses.isDashedGap(2));
+        assertTrue(RoadMarkingPasses.isDashedGap(3));
+        assertFalse(RoadMarkingPasses.isDashedGap(4));
+        assertTrue(RoadMarkingPasses.isDashedGap(7));
+    }
+
+    @Test
     void fromCrossSectionBuildsCenterAndLaneDividerPasses() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadCrossSection section = new RoadCrossSection();

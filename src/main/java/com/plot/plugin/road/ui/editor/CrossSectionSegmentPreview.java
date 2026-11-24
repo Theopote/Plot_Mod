@@ -104,8 +104,8 @@ final class CrossSectionSegmentPreview {
             String block = centerMarkingPass ? centerMarking : laneDivider;
             int markingY = rail && centerMarkingPass ? 0 : -1;
             for (int z = z0; z <= z1; z++) {
-                // 与世界生成一致：非实线沿纵深隔格跳过，呈虚线。
-                if (!pass.solid() && ((z - z0) & 1) != 0) {
+                // 与世界生成一致：虚线为有-有-有-空（周期 4）。
+                if (!pass.solid() && RoadMarkingPasses.isDashedGap(z - z0)) {
                     continue;
                 }
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, markingY, z), block));
