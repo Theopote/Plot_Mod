@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import com.plot.plugin.road.ui.BridgeStructureControls;
 import com.plot.plugin.road.ui.CrossSectionDraftEditor;
 import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
@@ -286,7 +287,9 @@ public final class CrossSectionDesignerPanel {
         float segmentH = Math.max(72f, availY - gap - sectionH);
         RoadCrossSectionEditor.renderPreviewWithLayout(cachedPreviewLayout, sectionH);
         var resolved = RoadCrossSectionEditor.resolvePreviewCrossSection(network, road, config);
-        segmentPreview.render(resolved, fingerprint, segmentH);
+        ResolvedBridgeStructure bridge = ResolvedBridgeStructure.resolve(road, config)
+            .withCarriagewayWidth(resolved.carriagewayWidth);
+        segmentPreview.render(resolved, bridge, fingerprint, segmentH);
     }
 
     private void renderDraftPreview(

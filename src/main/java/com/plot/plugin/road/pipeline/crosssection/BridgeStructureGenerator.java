@@ -674,11 +674,38 @@ public final class BridgeStructureGenerator {
             Vec2d forward,
             double scale,
             GradeSeparationBuildContext gradeSeparation) {
-        for (int absolute : RoadDimensionUtils.pierFootprintLaterals(centerLateralOffset, diameterBlocks)) {
-            Vec2d columnCenter = center.add(normal.multiply(absolute * scale));
-            placePierColumn(
-                solids, columnCenter, deckY, terrain, pierBlockId, heavyPier, forward, scale,
-                gradeSeparation);
+        // 圆柱截面：横向 × 沿路近似圆盘，不再只铺成横向薄片。
+        placePierCylinderDisk(
+            solids, center, normal, forward, centerLateralOffset, diameterBlocks, 0,
+            deckY, terrain, pierBlockId, scale, gradeSeparation);
+        if (heavyPier) {
+            // 长桥加固：再沿路线方向叠一圈圆柱。
+            placePierCylinderDisk(
+                solids, center, normal, forward, centerLateralOffset, diameterBlocks, 1,
+                deckY, terrain, pierBlockId, scale, gradeSeparation);
+        }
+    }
+
+    private static void placePierCylinderDisk(
+            RoadSolidModel solids,
+            Vec2d center,
+            Vec2d normal,
+            Vec2d forward,
+            int centerLateralOffset,
+            int diameterBlocks,
+            int alongRoadShift,
+            int deckY,
+            TerrainSampler terrain,
+            String pierBlockId,
+            double scale,
+            GradeSeparationBuildContext gradeSeparation) {
+        for (int[] cell : RoadDimensionUtils.pierCylinderDiskOffsets(diameterBlocks)) {
+            int lateral = centerLateralOffset + cell[0];
+            int along = cell[1] + alongRoadShift;
+            Vec2d columnCenter = center
+                .add(normal.multiply(lateral * scale))
+                .add(forward.multiply(along * scale));
+            fillPierColumn(solids, columnCenter, deckY, terrain, pierBlockId, gradeSeparation);
         }
     }
 
@@ -703,23 +730,6 @@ public final class BridgeStructureGenerator {
     private static Vec2d segmentForward(PathSegment segment) {
         Vec2d delta = segment.end.subtract(segment.start);
         return delta.lengthSquared() > EPSILON ? delta.normalize() : new Vec2d(1, 0);
-    }
-
-    private static void placePierColumn(
-            RoadSolidModel solids,
-            Vec2d canvasPos,
-            int deckY,
-            TerrainSampler terrain,
-            String blockId,
-            boolean heavyPier,
-            Vec2d forward,
-            double scale,
-            GradeSeparationBuildContext gradeSeparation) {
-        fillPierColumn(solids, canvasPos, deckY, terrain, blockId, gradeSeparation);
-        if (heavyPier) {
-            fillPierColumn(
-                solids, canvasPos.add(forward.multiply(scale)), deckY, terrain, blockId, gradeSeparation);
-        }
     }
 
     private static void fillPierColumn(

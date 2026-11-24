@@ -9,10 +9,6 @@ public final class MarkingRules {
     private MarkingRules() {
     }
 
-    public static CenterLineStyle resolveCenterLineStyle(Markings markings, RoadSystemConfig defaults) {
-        return resolveCenterLineStyle(markings, defaults, Integer.MAX_VALUE);
-    }
-
     /**
      * @param laneCount 单车道时关闭公路中央标线（无可分隔对象）；铁路中心轨 {@link CenterLineStyle#RAIL} 仍保留。
      */
@@ -35,10 +31,6 @@ public final class MarkingRules {
             return CenterLineStyle.SINGLE_DASHED;
         }
         return CenterLineStyle.NONE;
-    }
-
-    public static boolean resolveLaneDividers(Markings markings, int laneCount) {
-        return resolveLaneDividers(markings, laneCount, null);
     }
 
     /**

@@ -46,6 +46,13 @@ class BridgePierFootprintTest {
     }
 
     @Test
+    void singlePierDiameterTwoHasAlongRoadThickness() {
+        // 圆柱直径 2：沿路也应有厚度，不能只是横向一片。
+        Set<Long> along = generateInteriorAlongRoad(BridgePierStyle.SINGLE, 2, 1, 7);
+        assertTrue(along.size() >= 2, "cylindrical pier must span multiple stations along the road");
+    }
+
+    @Test
     void doublePierIsSymmetricAboutCenterline() {
         // 偏移=柱间空隙 3、直径 1 → 柱心在 ±2（中间空隙恰 3 格）
         Set<Long> laterals = generateInteriorLaterals(BridgePierStyle.DOUBLE, 1, 3, 7);
@@ -53,6 +60,36 @@ class BridgePierFootprintTest {
     }
 
     private static Set<Long> generateInteriorLaterals(
+            BridgePierStyle style,
+            int diameter,
+            int offset,
+            int roadWidth) {
+        RoadSolidModel solids = generateInteriorSolids(style, diameter, offset, roadWidth);
+        Set<Long> laterals = solids.primitives().stream()
+            .filter(primitive -> primitive.layer() == RoadSolidLayer.BRIDGE)
+            .filter(primitive -> primitive.elevation() >= 51 && primitive.elevation() <= 62)
+            .filter(primitive -> Math.abs(primitive.planPoint().x - 10.0) < 1.0)
+            .map(primitive -> Math.round(primitive.planPoint().y * 10.0))
+            .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        assertTrue(laterals.size() >= 1);
+        return laterals;
+    }
+
+    private static Set<Long> generateInteriorAlongRoad(
+            BridgePierStyle style,
+            int diameter,
+            int offset,
+            int roadWidth) {
+        RoadSolidModel solids = generateInteriorSolids(style, diameter, offset, roadWidth);
+        return solids.primitives().stream()
+            .filter(primitive -> primitive.layer() == RoadSolidLayer.BRIDGE)
+            .filter(primitive -> primitive.elevation() >= 51 && primitive.elevation() <= 62)
+            .filter(primitive -> Math.abs(primitive.planPoint().y) < 1.5)
+            .map(primitive -> Math.round(primitive.planPoint().x))
+            .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private static RoadSolidModel generateInteriorSolids(
             BridgePierStyle style,
             int diameter,
             int offset,
@@ -89,15 +126,7 @@ class BridgePierFootprintTest {
             style,
             diameter,
             offset);
-
-        Set<Long> laterals = solids.primitives().stream()
-            .filter(primitive -> primitive.layer() == RoadSolidLayer.BRIDGE)
-            .filter(primitive -> primitive.elevation() >= 51 && primitive.elevation() <= 62)
-            .filter(primitive -> Math.abs(primitive.planPoint().x - 10.0) < 1.0)
-            .map(primitive -> Math.round(primitive.planPoint().y * 10.0))
-            .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        assertTrue(laterals.size() >= 1);
-        return laterals;
+        return solids;
     }
 
     private static TerrainSampler flatBed(int bedY) {

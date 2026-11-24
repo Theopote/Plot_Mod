@@ -1,10 +1,12 @@
 package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -182,6 +184,61 @@ class CrossSectionSegmentPreviewTest {
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
         return config;
+    }
+
+    @Test
+    void buildSurfaceSegmentAddsPiersBelowDeckWhenEnabled() {
+        RoadSystemConfig config = previewConfig("seg-piers");
+        config.setLaneCount(2);
+        config.setDefaultLaneWidth(3);
+        config.setGenerateBridgePillars(true);
+        config.setBridgePierStyle(BridgePierStyle.SINGLE);
+        config.setBridgePierDiameterBlocks(2);
+        config.setBridgePierSpacingBlocks(8);
+        config.setBridgePierMaterial("minecraft:stone_bricks");
+        CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
+        ResolvedCrossSection section = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
+        ResolvedBridgeStructure bridge = ResolvedBridgeStructure.fromConfig(config, section.carriagewayWidth);
+
+        var scene = CrossSectionSegmentPreview.buildSurfaceSegment(
+            section, bridge, CrossSectionSegmentPreview.SEGMENT_LENGTH_Z);
+        long pierBlocks = scene.stream()
+            .filter(v -> "minecraft:stone_bricks".equals(v.block()))
+            .filter(v -> v.position().getY() <= -2)
+            .count();
+        assertTrue(pierBlocks > 0, "enabled piers should appear under the deck");
+        int minY = scene.stream()
+            .filter(v -> "minecraft:stone_bricks".equals(v.block()))
+            .mapToInt(v -> v.position().getY())
+            .min()
+            .orElse(0);
+        assertEquals(-1 - CrossSectionSegmentPreview.PREVIEW_PIER_HEIGHT, minY);
+        // 直径 2：圆柱截面应在 Z 向上也有厚度，不能只是横向一片。
+        long distinctZAtOrigin = scene.stream()
+            .filter(v -> "minecraft:stone_bricks".equals(v.block()))
+            .filter(v -> v.position().getY() == -2)
+            .filter(v -> Math.abs(v.position().getZ()) <= 1)
+            .map(v -> v.position().getZ())
+            .distinct()
+            .count();
+        assertTrue(distinctZAtOrigin >= 2, "pier footprint should be cylindrical, not a 1-deep sheet");
+
+        ResolvedBridgeStructure off = new ResolvedBridgeStructure(
+            false,
+            bridge.pierSpacingBlocks(),
+            bridge.pierMaterial(),
+            bridge.pierStyle(),
+            bridge.pierDiameterBlocks(),
+            bridge.pierOffsetBlocks(),
+            bridge.includeGuardrail(),
+            bridge.guardrailMaterial(),
+            bridge.guardrailHeightBlocks());
+        var noPiers = CrossSectionSegmentPreview.buildSurfaceSegment(
+            section, off, CrossSectionSegmentPreview.SEGMENT_LENGTH_Z);
+        assertEquals(0, noPiers.stream()
+            .filter(v -> v.position().getY() <= -2)
+            .filter(v -> "minecraft:stone_bricks".equals(v.block()))
+            .count());
     }
 
     @Test

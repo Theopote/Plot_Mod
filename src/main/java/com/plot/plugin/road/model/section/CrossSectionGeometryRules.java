@@ -15,11 +15,6 @@ public final class CrossSectionGeometryRules {
     private CrossSectionGeometryRules() {
     }
 
-    /** 行车道最小宽度只需覆盖车道格；隔离带不计入。 */
-    public static int requiredCarriagewayWidth(int laneCount, int ignoredMedianWidth) {
-        return Math.max(1, laneCount);
-    }
-
     /**
      * 隔离带派生宽度：仅随中央标线占格（≤{@link #MAX_MEDIAN_WIDTH_BLOCKS}）；
      * 无中央标线时为 0（同向车道分隔线不足以落座）。
@@ -77,44 +72,6 @@ public final class CrossSectionGeometryRules {
             cursor += seamBlocks;
         }
         return new int[] {0, -1};
-    }
-
-    /**
-     * 隔离带横向列范围：与中央标线占格一致（{@link #centerMarkingLateralRange}）。
-     * {@code laneDividerOffsets} 保留兼容，不再用于“靠近 0 取列”（奇数车道会误判）。
-     */
-    public static int[] medianLateralRange(
-            List<Double> laneDividerOffsets,
-            int medianWidth) {
-        int width = Math.clamp(medianWidth, 0, MAX_MEDIAN_WIDTH_BLOCKS);
-        if (width <= 0) {
-            return new int[] {0, -1};
-        }
-        // 无车道拓扑时退回路面居中；权威路径请用 centerMarkingLateralRange(laneWidths,…)。
-        return new int[] {
-            RoadDimensionUtils.minLateralOffset(width),
-            RoadDimensionUtils.maxLateralOffset(width)
-        };
-    }
-
-    /** 隔离带列范围：绑定中央标线占格。 */
-    public static int[] medianLateralRange(
-            List<Integer> laneWidths,
-            CenterLineStyle centerStyle,
-            boolean laneDividers) {
-        return centerMarkingLateralRange(laneWidths, centerStyle, laneDividers);
-    }
-
-    /** 请求宽度在派生语义下是否合法（必须等于派生宽度，或未启用）。 */
-    public static boolean isMedianFit(
-            CenterLineStyle centerStyle,
-            boolean laneDividers,
-            int laneCount,
-            int medianWidth) {
-        if (medianWidth <= 0) {
-            return true;
-        }
-        return medianWidth == derivedMedianWidth(centerStyle, laneDividers, laneCount);
     }
 
     /**

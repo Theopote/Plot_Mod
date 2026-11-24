@@ -2,7 +2,6 @@ package com.plot.plugin.road.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.SlopeFormatUtils;
 import com.plot.plugin.road.lamp.RoadLampPlacement;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
@@ -645,17 +644,6 @@ public final class CrossSectionDraftMutator {
                 ? "plugin.road.inherit_default_enabled"
                 : "plugin.road.inherit_default_disabled"),
             () -> resetToInherit(() -> road.setIncludeMedian(null)));
-    }
-
-    public void afterMedianWidthField() {
-        if (road == null || config == null || !isMedianEffectivelyEnabled()) {
-            return;
-        }
-        hooks.afterField(
-            "road_median_width",
-            road.getMedianWidth() == null,
-            PlotI18n.tr("plugin.road.inherit_default_int", config.getMedianWidth()),
-            () -> resetToInherit(() -> road.setMedianWidth(null)));
     }
 
     public void afterMedianHeightField() {

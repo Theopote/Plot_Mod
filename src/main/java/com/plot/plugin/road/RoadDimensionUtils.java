@@ -1,5 +1,8 @@
 package com.plot.plugin.road;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 道路尺寸与方块网格换算：UI 中的米制宽度按 1m = 1 方块边长四舍五入。
  */
@@ -52,6 +55,34 @@ public final class RoadDimensionUtils {
             laterals[i] = centerLateralOffset + min + i;
         }
         return laterals;
+    }
+
+    /**
+     * 圆柱桥墩水平截面：直径范围内的近似圆盘。
+     * 每项为 {@code [lateralLocal, alongRoadLocal]}，相对柱心；
+     * 绝对横向 = {@code centerLateralOffset + lateralLocal}，沿路 = 桩号 + {@code alongRoadLocal}。
+     */
+    public static int[][] pierCylinderDiskOffsets(int diameterBlocks) {
+        int diameter = Math.max(1, diameterBlocks);
+        int localMin = minLateralOffset(diameter);
+        int localMax = maxLateralOffset(diameter);
+        if (localMax < localMin) {
+            return new int[0][];
+        }
+        double mid = (localMin + localMax) * 0.5;
+        double radiusSq = (diameter * 0.5) * (diameter * 0.5);
+        List<int[]> cells = new ArrayList<>((localMax - localMin + 1) * (localMax - localMin + 1));
+        for (int lx = localMin; lx <= localMax; lx++) {
+            for (int lz = localMin; lz <= localMax; lz++) {
+                double dx = lx - mid;
+                double dz = lz - mid;
+                if (dx * dx + dz * dz > radiusSq + 1e-6) {
+                    continue;
+                }
+                cells.add(new int[] {lx, lz});
+            }
+        }
+        return cells.toArray(new int[0][]);
     }
 
     /**

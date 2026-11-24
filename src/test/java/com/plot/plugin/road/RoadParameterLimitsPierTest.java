@@ -71,6 +71,24 @@ class RoadParameterLimitsPierTest {
     }
 
     @Test
+    void pierCylinderDiskHasAlongRoadExtent() {
+        int[][] d1 = RoadDimensionUtils.pierCylinderDiskOffsets(1);
+        assertEquals(1, d1.length);
+        assertArrayEquals(new int[] {0, 0}, d1[0]);
+
+        int[][] d2 = RoadDimensionUtils.pierCylinderDiskOffsets(2);
+        assertTrue(d2.length >= 4);
+        boolean hasAlong = false;
+        for (int[] cell : d2) {
+            if (cell[1] != 0) {
+                hasAlong = true;
+                break;
+            }
+        }
+        assertTrue(hasAlong, "diameter-2 cylinder must extend along the road, not only laterally");
+    }
+
+    @Test
     void evenNarrowRoadSinglePierFootprintFillsBothColumns() {
         int width = 2;
         int diameter = RoadParameterLimits.clampBridgePierDiameterBlocks(width, 1);

@@ -211,6 +211,7 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Float.floatToIntBits(road.getEffectiveCutSlopeRatio(config));
         h = 31 * h + Float.floatToIntBits(road.getEffectiveMaxSlope(config));
         h = 31 * h + Objects.hashCode(road.getGenerateBridgePillars());
+        h = 31 * h + Double.hashCode(road.getEffectiveBridgePierSpacingBlocks(config));
         h = 31 * h + Objects.hashCode(road.getBridgePierStyle());
         h = 31 * h + Objects.hashCode(road.getBridgePierDiameterBlocks());
         h = 31 * h + Objects.hashCode(road.getBridgePierOffsetBlocks());
