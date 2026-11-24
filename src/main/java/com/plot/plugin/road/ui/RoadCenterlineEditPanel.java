@@ -8,6 +8,7 @@ import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -18,6 +19,7 @@ import java.util.List;
  * 分段中心线编辑工具（插入 PI、分割、圆角、合并等）。
  * <p>
  * 面板距离/半径以世界米（1 m = 1 格）展示；写入编辑器时换回画布弧长。
+ * 参数区分区卡片对齐路灯设计器 {@link PluginSectionCard} 布局。
  */
 public final class RoadCenterlineEditPanel {
 
@@ -161,11 +163,41 @@ public final class RoadCenterlineEditPanel {
             ImGui.spacing();
         }
 
-        renderLocateSection(network, road, edge, coordinates, maxDistance, insertPi, splitEdge);
-        ImGui.spacing();
-        renderFilletSection(network, road, edge, coordinates, maxDistance, interiorCount, filletVertex);
-        ImGui.spacing();
-        renderTopologySection(network, edge, reverseEdge, mergeAtNode);
+        String locateSummary = PlotI18n.tr(
+            "plugin.road.centerline_tool_locate_summary",
+            RoadUiFormat.formatMeters(centerlineEditDistanceBlocks));
+        PluginSectionCard.render(
+            "##cl_sec_locate",
+            PlotI18n.tr("plugin.road.centerline_tool_locate"),
+            locateSummary,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> renderLocateSection(network, road, edge, coordinates, maxDistance, insertPi, splitEdge));
+
+        String filletSummary = interiorCount > 0
+            ? PlotI18n.tr(
+                "plugin.road.centerline_tool_fillet_summary",
+                centerlineVertexIndex,
+                interiorCount,
+                RoadUiFormat.formatMeters(centerlineFilletRadiusBlocks))
+            : PlotI18n.tr("plugin.road.centerline_tool_fillet_summary_none");
+        PluginSectionCard.render(
+            "##cl_sec_fillet",
+            PlotI18n.tr("plugin.road.centerline_tool_fillet"),
+            filletSummary,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> renderFilletSection(
+                network, road, edge, coordinates, maxDistance, interiorCount, filletVertex));
+
+        String topologySummary = topologySummary(network, edge);
+        PluginSectionCard.render(
+            "##cl_sec_topology",
+            PlotI18n.tr("plugin.road.centerline_tool_topology"),
+            topologySummary,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            true,
+            () -> renderTopologySection(network, edge, reverseEdge, mergeAtNode));
     }
 
     private void renderLocateSection(
@@ -176,13 +208,12 @@ public final class RoadCenterlineEditPanel {
             float maxDistance,
             PiAction insertPi,
             PiAction splitEdge) {
-        ImGui.text(PlotI18n.tr("plugin.road.centerline_tool_locate"));
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.centerline_tool_locate_hint"));
 
         float[] distance = {centerlineEditDistanceBlocks};
-        ImGui.setNextItemWidth(Math.min(260f, ImGui.getContentRegionAvailX()));
+        ImGui.setNextItemWidth(controlWidth());
         if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.centerline_distance") + "##cl_dist",
                 distance,
@@ -218,7 +249,6 @@ public final class RoadCenterlineEditPanel {
             float maxDistance,
             int interiorCount,
             FilletAction filletVertex) {
-        ImGui.text(PlotI18n.tr("plugin.road.centerline_tool_fillet"));
         if (interiorCount <= 0) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -229,7 +259,7 @@ public final class RoadCenterlineEditPanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.centerline_tool_fillet_hint"));
 
-        ImGui.setNextItemWidth(Math.min(200f, ImGui.getContentRegionAvailX()));
+        ImGui.setNextItemWidth(controlWidth());
         int[] vertexValue = {centerlineVertexIndex};
         if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.centerline_vertex") + "##cl_vtx",
@@ -245,7 +275,7 @@ public final class RoadCenterlineEditPanel {
         float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
         centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f, maxRadius);
         float[] radius = {centerlineFilletRadiusBlocks};
-        ImGui.setNextItemWidth(Math.min(200f, ImGui.getContentRegionAvailX()));
+        ImGui.setNextItemWidth(controlWidth());
         if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.centerline_fillet_radius") + "##cl_r",
                 radius,
@@ -274,7 +304,6 @@ public final class RoadCenterlineEditPanel {
             RoadEdge edge,
             EdgeAction reverseEdge,
             NodeAction mergeAtNode) {
-        ImGui.text(PlotI18n.tr("plugin.road.centerline_tool_topology"));
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.centerline_tool_topology_hint"));
@@ -315,5 +344,24 @@ public final class RoadCenterlineEditPanel {
         if (canMergeEnd && ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_end_tip"));
         }
+    }
+
+    private static String topologySummary(RoadNetwork network, RoadEdge edge) {
+        boolean canMergeStart = RoadCenterlineEditor.canMergeAtNode(network, edge.getStartNodeId());
+        boolean canMergeEnd = RoadCenterlineEditor.canMergeAtNode(network, edge.getEndNodeId());
+        if (canMergeStart && canMergeEnd) {
+            return PlotI18n.tr("plugin.road.centerline_tool_topology_summary_both");
+        }
+        if (canMergeStart) {
+            return PlotI18n.tr("plugin.road.centerline_tool_topology_summary_start");
+        }
+        if (canMergeEnd) {
+            return PlotI18n.tr("plugin.road.centerline_tool_topology_summary_end");
+        }
+        return PlotI18n.tr("plugin.road.centerline_tool_topology_summary_none");
+    }
+
+    private static float controlWidth() {
+        return Math.max(80f, 0.52f * ImGui.getContentRegionAvailX());
     }
 }

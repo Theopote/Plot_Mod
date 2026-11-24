@@ -156,8 +156,8 @@ public final class FlatElevationRecommendationUi {
             best.estimatedFillVolume()));
         ImGui.text(PlotI18n.tr(
             "plugin.road.flat_elevation.estimated_structures",
-            best.estimatedBridgeLength(),
-            best.estimatedTunnelLength(),
+            RoadUiFormat.formatMeters(best.estimatedBridgeLength()),
+            RoadUiFormat.formatMeters(best.estimatedTunnelLength()),
             best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"))) {
             hooks.recordUndoPointBeforeEdit();
@@ -172,8 +172,8 @@ public final class FlatElevationRecommendationUi {
                     "plugin.road.flat_elevation.alternative_row",
                     candidate.elevation(),
                     candidate.estimatedEarthworkBlocks(),
-                    candidate.estimatedBridgeLength(),
-                    candidate.estimatedTunnelLength()));
+                    RoadUiFormat.formatMeters(candidate.estimatedBridgeLength()),
+                    RoadUiFormat.formatMeters(candidate.estimatedTunnelLength())));
                 ImGui.sameLine();
                 if (ImGui.smallButton(PlotI18n.tr("plugin.road.flat_elevation.adopt_y",
                         candidate.elevation()) + "##flat_alt_" + candidate.elevation())) {

@@ -61,8 +61,8 @@ final class RoadVerticalStrategySwitchDialog {
                     optimized.best().elevation(),
                     optimized.best().estimatedCutVolume(),
                     optimized.best().estimatedFillVolume(),
-                    optimized.best().estimatedBridgeLength(),
-                    optimized.best().estimatedTunnelLength(),
+                    RoadUiFormat.formatMeters(optimized.best().estimatedBridgeLength()),
+                    RoadUiFormat.formatMeters(optimized.best().estimatedTunnelLength()),
                     optimized.best().estimatedEarthworkBlocks(),
                     optimized.terrainSampleCount());
             } else {
@@ -132,7 +132,7 @@ final class RoadVerticalStrategySwitchDialog {
             case SINGLE_TO_FLAT -> {
                 ImGui.textWrapped(PlotI18n.tr(
                     "plugin.road.vertical_strategy_confirm_to_flat",
-                    elevationDraft));
+                    RoadUiFormat.formatFixed(elevationDraft, 2)));
                 if (!terrainSummary.isBlank()) {
                     RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, terrainSummary);
                 }
@@ -158,7 +158,7 @@ final class RoadVerticalStrategySwitchDialog {
                 ImGui.textWrapped(PlotI18n.tr(
                     "plugin.road.vertical_strategy_confirm_batch_flat_uniform",
                     roadIds.size(),
-                    elevationDraft));
+                    RoadUiFormat.formatFixed(elevationDraft, 2)));
                 ImGui.setNextItemWidth(160f);
                 float[] elevation = {elevationDraft};
                 ImGui.dragFloat(

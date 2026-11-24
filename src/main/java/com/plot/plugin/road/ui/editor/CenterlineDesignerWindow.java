@@ -13,8 +13,8 @@ import com.plot.plugin.road.ui.HorizontalAlignmentSummaryEditor;
 import com.plot.plugin.road.ui.RoadCenterlineEditPanel;
 import com.plot.plugin.road.ui.RoadSegmentEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
-import com.plot.plugin.road.ui.RoadUiSections;
 import com.plot.plugin.road.ui.RoadUiWidgets;
+import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -131,12 +131,15 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
         // 上路级平面线形：仅在已定义 HA 时展示；空状态（折线中心线）对拾取建路是常态，不占版面。
         if (road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty()) {
-            RoadUiSections.section("plugin.road.floating_editor.centerline.tab.alignment");
-            horizontalAlignmentEditor.render(ctx, working, road, chainageDisplay);
-            ImGui.spacing();
+            PluginSectionCard.render(
+                "##cl_sec_alignment",
+                PlotI18n.tr("plugin.road.floating_editor.centerline.tab.alignment"),
+                null,
+                PluginSectionCard.SectionTone.NEUTRAL,
+                true,
+                () -> horizontalAlignmentEditor.render(ctx, working, road, chainageDisplay));
         }
 
-        RoadUiSections.section("plugin.road.floating_editor.centerline.tab.segments");
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.floating_editor.centerline.segments_hint"));
@@ -202,18 +205,30 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                 false,
                 ImGuiWindowFlags.AlwaysVerticalScrollbar);
             try {
-                segmentEditor.renderSegmentSummary(ctx, working, road, selected, chainageDisplay);
-                ImGui.separator();
-                ImGui.spacing();
+                PluginSectionCard.render(
+                    "##cl_sec_segment_info",
+                    PlotI18n.tr("plugin.road.floating_editor.centerline.section.segment"),
+                    null,
+                    PluginSectionCard.SectionTone.NEUTRAL,
+                    true,
+                    () -> segmentEditor.renderSegmentSummary(
+                        ctx, working, road, selected, chainageDisplay));
                 centerlineEditPanel.renderWorkingNetwork(ctx, working, road, selected);
-                ImGui.spacing();
-                if (isDirty()) {
-                    RoadUiWidgets.textWrappedColored(
-                        PluginUiColors.HINT_GRAY,
-                        PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
-                } else {
-                    segmentEditor.renderElevationHint(ctx, selected);
-                }
+                PluginSectionCard.render(
+                    "##cl_sec_elevation",
+                    PlotI18n.tr("plugin.road.floating_editor.centerline.section.elevation"),
+                    null,
+                    PluginSectionCard.SectionTone.NEUTRAL,
+                    false,
+                    () -> {
+                        if (isDirty()) {
+                            RoadUiWidgets.textWrappedColored(
+                                PluginUiColors.HINT_GRAY,
+                                PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
+                        } else {
+                            segmentEditor.renderElevationHint(ctx, selected);
+                        }
+                    });
             } finally {
                 ImGui.endChild();
             }
