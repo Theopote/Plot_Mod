@@ -109,6 +109,23 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         if (session == null) {
             return;
         }
+        // 会话内 Undo 须在读取 working 之前处理，避免本帧继续用旧引用。
+        if (session.canUndo()) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.centerline_session_undo") + "##cl_session_undo")) {
+                session.undo();
+                centerlineEditPanel.clearMessages();
+                horizontalAlignmentEditor.clearMessages();
+            }
+            if (ImGui.isItemHovered()) {
+                com.plot.ui.component.UIUtils.setTooltip(
+                    PlotI18n.tr("plugin.road.centerline_session_undo_tip"));
+            }
+            ImGui.sameLine();
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.centerline_session_undo_hint"));
+        }
+
         RoadNetwork working = session.workingNetwork();
         Road road = working.getRoad(roadId);
         if (road == null) {
@@ -123,16 +140,20 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             ? ChainageDisplayContext.fromStart(RoadStationing.canonicalLength(working, road))
             : null;
 
-        // 上路级平面线形：仅在已定义 HA 时展示；空状态（折线中心线）对拾取建路是常态，不占版面。
-        if (road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty()) {
-            PluginSectionCard.render(
-                "##cl_sec_alignment",
-                PlotI18n.tr("plugin.road.floating_editor.centerline.tab.alignment"),
-                null,
-                PluginSectionCard.SectionTone.NEUTRAL,
-                true,
-                () -> horizontalAlignmentEditor.render(ctx, working, road, chainageDisplay));
-        }
+        boolean hasHa = road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty();
+        String haSummary = hasHa
+            ? PlotI18n.tr(
+                "plugin.road.floating_editor.centerline.section.alignment_summary",
+                road.getHorizontalAlignment().getElements().size())
+            : PlotI18n.tr("plugin.road.floating_editor.centerline.section.alignment_summary_none");
+        PluginSectionCard.render(
+            "##cl_sec_alignment",
+            PlotI18n.tr("plugin.road.floating_editor.centerline.tab.alignment"),
+            haSummary,
+            PluginSectionCard.SectionTone.NEUTRAL,
+            hasHa,
+            () -> horizontalAlignmentEditor.render(
+                ctx, working, road, chainageDisplay, session::pushUndoCheckpoint));
 
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
@@ -205,7 +226,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                     true,
                     () -> segmentEditor.renderSegmentSummary(
                         ctx, working, road, selected, chainageDisplay));
-                centerlineEditPanel.renderWorkingNetwork(ctx, working, road, selected);
+                centerlineEditPanel.renderWorkingNetwork(
+                    ctx, working, road, selected, session::pushUndoCheckpoint);
                 PluginSectionCard.render(
                     "##cl_sec_elevation",
                     PlotI18n.tr("plugin.road.floating_editor.centerline.section.elevation"),

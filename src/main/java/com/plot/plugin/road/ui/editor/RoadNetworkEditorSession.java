@@ -2,6 +2,8 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.model.RoadNetwork;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
@@ -17,12 +19,16 @@ public final class RoadNetworkEditorSession {
         CONFLICT
     }
 
+    private static final int MAX_UNDO_DEPTH = 32;
+
     private final RoadNetwork openSnapshot;
     private final long openRevision;
     private RoadNetwork workingNetwork;
     private final Predicate<RoadNetwork> dirtyPredicate;
     /** 一旦变脏即闩住，避免拖滑条时每帧深比较横断面。 */
     private boolean dirtyLatched;
+    /** 会话内单步撤销（工作副本快照）；还原/取消时清空。 */
+    private final Deque<RoadNetwork> undoStack = new ArrayDeque<>();
 
     private RoadNetworkEditorSession(
             RoadNetwork openSnapshot,
@@ -92,10 +98,36 @@ public final class RoadNetworkEditorSession {
     public void restore() {
         workingNetwork = openSnapshot.snapshot();
         dirtyLatched = false;
+        clearUndoStack();
     }
 
     public void cancel() {
         restore();
+    }
+
+    /** 在即将改写工作副本前压入检查点，供会话内「撤销上一步」。 */
+    public void pushUndoCheckpoint() {
+        undoStack.push(workingNetwork.deepCopy());
+        while (undoStack.size() > MAX_UNDO_DEPTH) {
+            undoStack.removeLast();
+        }
+    }
+
+    public boolean canUndo() {
+        return !undoStack.isEmpty();
+    }
+
+    public boolean undo() {
+        if (undoStack.isEmpty()) {
+            return false;
+        }
+        workingNetwork = undoStack.pop();
+        dirtyLatched = dirtyPredicate.test(workingNetwork);
+        return true;
+    }
+
+    public void clearUndoStack() {
+        undoStack.clear();
     }
 
     public ConfirmResult confirm(long liveRevision, RoadNetworkApplier applier) {

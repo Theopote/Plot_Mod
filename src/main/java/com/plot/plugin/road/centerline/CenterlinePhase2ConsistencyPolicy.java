@@ -39,7 +39,7 @@ public final class CenterlinePhase2ConsistencyPolicy {
     }
 
     /**
-     * 段几何变化：Insert PI、Fillet。
+     * 段几何变化：Insert/Delete PI、Fillet。
      */
     public static void afterSegmentGeometryEdit(
             RoadNetwork network,

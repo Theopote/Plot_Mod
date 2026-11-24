@@ -116,6 +116,42 @@ public final class RoadCenterlineEditor {
     }
 
     /**
+     * 删除分段折线的内部折点（PI）；不可删除起终点。
+     */
+    public static CenterlineEditResult removePiAtVertex(
+            RoadNetwork network,
+            String edgeId,
+            int vertexIndex) {
+        RoadEdge edge = network != null ? network.getEdge(edgeId) : null;
+        if (edge == null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
+        }
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points == null || points.size() <= 2) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.TOO_FEW_POINTS);
+        }
+        if (vertexIndex <= 0 || vertexIndex >= points.size() - 1) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_VERTEX);
+        }
+        SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+        List<Vec2d> updated = new ArrayList<>(points.size() - 1);
+        for (int i = 0; i < points.size(); i++) {
+            if (i == vertexIndex) {
+                continue;
+            }
+            Vec2d point = points.get(i);
+            updated.add(point != null ? point.copy() : null);
+        }
+        edge.setCenterlinePoints(updated);
+        return finishEdit(
+            network,
+            edgeId,
+            before,
+            CenterlineEditResult.success(),
+            CenterlineEditOperation.DELETE_PI);
+    }
+
+    /**
      * 圆角几何预览（不写回网络）；无法构造时返回 {@code null}。
      */
     public static List<Vec2d> previewFillet(List<Vec2d> points, int vertexIndex, double radius) {

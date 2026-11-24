@@ -48,6 +48,31 @@ class RoadCenterlineEditorTest {
     }
 
     @Test
+    void removePiDeletesInteriorVertex() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        RoadEdge edge = network.createEdge(
+            n1.getId(),
+            n2.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(40, 10), new Vec2d(100, 0)),
+            road.getId());
+
+        assertTrue(RoadCenterlineEditor.removePiAtVertex(network, edge.getId(), 1).isSuccess());
+        assertEquals(2, network.getEdge(edge.getId()).getCenterlinePoints().size());
+        assertEquals(
+            com.plot.plugin.road.centerline.CenterlineEditStatus.TOO_FEW_POINTS,
+            RoadCenterlineEditor.removePiAtVertex(network, edge.getId(), 1).status());
+
+        // 仍有内部点时，起终点索引不可删
+        assertTrue(RoadCenterlineEditor.insertPiAtLocalDistance(network, edge.getId(), 40.0).isSuccess());
+        assertEquals(
+            com.plot.plugin.road.centerline.CenterlineEditStatus.INVALID_VERTEX,
+            RoadCenterlineEditor.removePiAtVertex(network, edge.getId(), 0).status());
+    }
+
+    @Test
     void splitCreatesTwoEdgesAtDistance() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));

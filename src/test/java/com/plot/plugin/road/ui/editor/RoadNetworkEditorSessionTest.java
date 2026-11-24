@@ -53,6 +53,26 @@ class RoadNetworkEditorSessionTest {
     }
 
     @Test
+    void sessionUndoRestoresPreviousWorkingCopy() {
+        long revision = manager.getNetworkRevision();
+        RoadNetworkEditorSession session = RoadNetworkEditorSession.open(
+            live,
+            revision,
+            (open, working) -> working.getRoad(roadId).getWidth() != open.getRoad(roadId).getWidth());
+
+        assertFalse(session.canUndo());
+        session.pushUndoCheckpoint();
+        session.workingNetwork().getRoad(roadId).setWidth(20);
+        assertTrue(session.isDirty());
+        assertTrue(session.canUndo());
+
+        assertTrue(session.undo());
+        assertEquals(10, session.workingNetwork().getRoad(roadId).getWidth());
+        assertFalse(session.isDirty());
+        assertFalse(session.canUndo());
+    }
+
+    @Test
     void confirmDetectsRevisionConflict() {
         long revision = manager.getNetworkRevision();
         RoadNetworkEditorSession session = RoadNetworkEditorSession.open(

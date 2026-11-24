@@ -1110,6 +1110,14 @@ public final class RoadNetworkManager {
             () -> RoadCenterlineEditor.filletVertex(network, edgeId, vertexIndex, radius));
     }
 
+    public CenterlineEditResult removePiAtVertex(String edgeId, int vertexIndex) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
+        }
+        return mutateCenterlineGeometry(
+            () -> RoadCenterlineEditor.removePiAtVertex(network, edgeId, vertexIndex));
+    }
+
     public CenterlineEditResult mergeSegmentsAtNode(String nodeId) {
         return mutateNetwork(
             () -> {

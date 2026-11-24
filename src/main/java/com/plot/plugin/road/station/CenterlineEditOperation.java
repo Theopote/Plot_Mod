@@ -11,6 +11,9 @@ public enum CenterlineEditOperation {
     /** 折线插点；共线时链长不变 → {@link CenterlineEditStationPolicy#PRESERVE_STATION}。 */
     INSERT_PI(CenterlineEditStationPolicy.PRESERVE_STATION),
 
+    /** 删除内部折点；段长可能缩短 → 与 INSERT_PI 相同按段长变化解析策略。 */
+    DELETE_PI(CenterlineEditStationPolicy.PRESERVE_STATION),
+
     /** 圆角；段长变化 → {@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION}（段内比例，非绝对 chainage）。 */
     FILLET(CenterlineEditStationPolicy.REPARAMETERIZE_STATION),
 
@@ -52,7 +55,7 @@ public enum CenterlineEditOperation {
      * Insert PI 实际策略随段长是否变化而定。
      */
     public CenterlineEditStationPolicy resolveStationPolicy(double oldSegmentLength, double newSegmentLength) {
-        if (this == INSERT_PI || this == MERGE_JUNCTION_NODE) {
+        if (this == INSERT_PI || this == DELETE_PI || this == MERGE_JUNCTION_NODE) {
             return CenterlineEditStationPolicy.forSegmentGeometryEdit(oldSegmentLength, newSegmentLength);
         }
         return defaultStationPolicy;
