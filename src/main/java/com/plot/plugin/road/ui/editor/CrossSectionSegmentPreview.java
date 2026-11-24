@@ -4,7 +4,9 @@ import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMarkingPasses;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampPlanner;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -70,14 +72,25 @@ final class CrossSectionSegmentPreview {
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, -1, z), block));
             }
         }
-        // 标线叠在路表 y=0。
-        String marking = section.markingMaterial != null && !section.markingMaterial.isBlank()
-            ? section.markingMaterial
-            : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+        // 标线嵌入路表（y=-1）；铁轨抬高一格。车道分隔线（白虚线）与中央标线（材质/实虚）分开画，避免混淆。
+        CenterLineStyle centerStyle = section.centerLineStyle != null
+            ? section.centerLineStyle
+            : CenterLineStyle.NONE;
+        boolean rail = centerStyle == CenterLineStyle.RAIL;
+        String centerMarking = resolveCenterMarkingBlock(section, rail);
+        String laneDivider = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(section)) {
             int x = (int) Math.floor(pass.offset());
+            boolean centerMarkingPass = Math.abs(pass.offset()) <= 1.0 + 1e-6
+                && centerStyle != CenterLineStyle.NONE;
+            String block = centerMarkingPass ? centerMarking : laneDivider;
+            int markingY = rail && centerMarkingPass ? 0 : -1;
             for (int z = z0; z <= z1; z++) {
-                scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, 0, z), marking));
+                // 与世界生成一致：非实线沿纵深隔格跳过，呈虚线。
+                if (!pass.solid() && ((z - z0) & 1) != 0) {
+                    continue;
+                }
+                scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, markingY, z), block));
             }
         }
         if (section.includeMedian && section.medianWidth > 0 && section.medianHeight > 0) {
@@ -96,6 +109,17 @@ final class CrossSectionSegmentPreview {
         }
         appendLampStubs(scene, section, z0, z1);
         return scene;
+    }
+
+    /** 中央标线材质：铁轨用轨块，其余用断面标线材质。 */
+    private static String resolveCenterMarkingBlock(ResolvedCrossSection section, boolean rail) {
+        if (rail) {
+            return RoadMarkingGenerator.resolveRailBlockId(section.markingMaterial);
+        }
+        if (section.markingMaterial != null && !section.markingMaterial.isBlank()) {
+            return section.markingMaterial;
+        }
+        return ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     }
 
     /** 有路灯间距时，两侧外侧条带上放细竖杆示意位置。 */

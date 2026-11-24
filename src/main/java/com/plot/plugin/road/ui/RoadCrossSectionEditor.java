@@ -54,7 +54,6 @@ public final class RoadCrossSectionEditor {
         if (road == null) {
             return;
         }
-        renderPreviewSummary(network, road, config);
         renderPreviewBody(network, road, config, previewHeight);
     }
 
@@ -62,66 +61,9 @@ public final class RoadCrossSectionEditor {
      * 使用已算好的 layout 画预览（设计器拖滑条时复用缓存，避免每帧重解析）。
      */
     public static void renderPreviewWithLayout(
-            Road road,
-            RoadSystemConfig config,
             RoadCrossSectionPreviewRenderer.CrossSectionLayout layout,
             float previewHeight) {
-        if (road == null || layout == null) {
-            return;
-        }
-        String styleId = road.getStyleId();
-        String presetName = styleId != null && !styleId.isBlank()
-            ? PlotI18n.tr("preset.road." + styleId)
-            : PlotI18n.tr("plugin.road.preset_custom");
-        renderPreviewWithLayout(
-            presetName,
-            Math.round(layout.roadBlocks),
-            Math.max(1, road.getCrossSection().getCarriageway().getEffectiveLaneCount()),
-            layout,
-            previewHeight);
-    }
-
-    /** 桩号断面等：无 Road 对象时的预览摘要 + 迷你图。 */
-    public static void renderPreviewWithLayout(
-            String presetName,
-            int carriagewayWidth,
-            int laneCount,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout layout,
-            float previewHeight) {
-        if (layout == null) {
-            return;
-        }
-        String name = presetName != null && !presetName.isBlank()
-            ? presetName
-            : PlotI18n.tr("plugin.road.preset_custom");
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.edit.style_summary",
-                name,
-                carriagewayWidth > 0 ? carriagewayWidth : Math.round(layout.roadBlocks),
-                Math.max(1, laneCount)));
-        ImGui.spacing();
         renderPreviewBodyWithLayout(layout, previewHeight);
-    }
-
-    private static void renderPreviewSummary(
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config) {
-        String styleId = road.getStyleId();
-        String presetName = styleId != null && !styleId.isBlank()
-            ? PlotI18n.tr("preset.road." + styleId)
-            : PlotI18n.tr("plugin.road.preset_custom");
-        ResolvedCrossSection resolved = resolvePreviewCrossSection(network, road, config);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.edit.style_summary",
-                presetName,
-                resolved.carriagewayWidth,
-                resolved.laneCount));
-        ImGui.spacing();
     }
 
     public static void renderPreviewBody(RoadNetwork network, Road road, RoadSystemConfig config) {

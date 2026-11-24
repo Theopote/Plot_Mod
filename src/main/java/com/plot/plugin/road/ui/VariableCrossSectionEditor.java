@@ -301,10 +301,7 @@ public final class VariableCrossSectionEditor {
             CrossSectionDraftMutator mutator = mutatorFor(draft, onHistory);
             mutator.setInheritRoadLighting(true);
             mutator.setInheritedStationLighting(road.getCrossSection().getStreetFurniture().getRoadLampPlacement());
-            String presetName = road.getStyleId() != null && !road.getStyleId().isBlank()
-                ? PlotI18n.tr("preset.road." + road.getStyleId())
-                : PlotI18n.tr("plugin.road.preset_custom");
-            detailPanel.renderForDraft(ctx, mutator, draft.crossSectionDraft, config, presetName);
+            detailPanel.renderForDraft(ctx, mutator, draft.crossSectionDraft, config);
         } finally {
             ImGui.popID();
         }

@@ -75,15 +75,12 @@ public final class CrossSectionDesignerPanel {
 
     /**
      * 桩号断面详情：预览来自 draft（不含桥梁）。
-     *
-     * @param summaryPresetName 预览摘要用的预设名（可沿用道路 style）
      */
     public void renderForDraft(
             RoadUiContext ctx,
             CrossSectionDraftMutator mutator,
             CrossSectionDraft draft,
-            RoadSystemConfig config,
-            String summaryPresetName) {
+            RoadSystemConfig config) {
         if (mutator == null || draft == null || config == null) {
             return;
         }
@@ -93,7 +90,7 @@ public final class CrossSectionDesignerPanel {
             false,
             null,
             null,
-            () -> renderDraftPreview(draft, config, summaryPresetName));
+            () -> renderDraftPreview(draft, config));
     }
 
     public void invalidate() {
@@ -316,16 +313,14 @@ public final class CrossSectionDesignerPanel {
         float gap = ImGui.getStyle().getItemSpacingY();
         float sectionH = Math.max(80f, (availY - gap) * SECTION_PREVIEW_FRACTION);
         float segmentH = Math.max(72f, availY - gap - sectionH);
-        RoadCrossSectionEditor.renderPreviewWithLayout(
-            road, config, cachedPreviewLayout, sectionH);
+        RoadCrossSectionEditor.renderPreviewWithLayout(cachedPreviewLayout, sectionH);
         var resolved = RoadCrossSectionEditor.resolvePreviewCrossSection(network, road, config);
         segmentPreview.render(resolved, fingerprint, segmentH);
     }
 
     private void renderDraftPreview(
             CrossSectionDraft draft,
-            RoadSystemConfig config,
-            String summaryPresetName) {
+            RoadSystemConfig config) {
         long fingerprint = RoadCrossSectionEditor.previewFingerprint(draft);
         if (cachedPreviewLayout == null || cachedPreviewFingerprint != fingerprint) {
             cachedPreviewLayout = RoadCrossSectionEditor.previewLayoutForDraft(draft, config);
@@ -335,14 +330,8 @@ public final class CrossSectionDesignerPanel {
         float gap = ImGui.getStyle().getItemSpacingY();
         float sectionH = Math.max(80f, (availY - gap) * SECTION_PREVIEW_FRACTION);
         float segmentH = Math.max(72f, availY - gap - sectionH);
-        RoadCrossSectionEditor.renderPreviewWithLayout(
-            summaryPresetName,
-            draft.width(),
-            Math.max(1, draft.laneCount()),
-            cachedPreviewLayout,
-            sectionH);
-        var resolved = com.plot.plugin.road.model.section.ResolvedCrossSection.resolve(
-            draft.toCrossSection(), config);
+        RoadCrossSectionEditor.renderPreviewWithLayout(cachedPreviewLayout, sectionH);
+        ResolvedCrossSection resolved = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
         segmentPreview.render(resolved, fingerprint, segmentH);
     }
 
