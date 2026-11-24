@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class LaneGroupTest {
 
@@ -33,6 +34,16 @@ class LaneGroupTest {
         // W=7: lanes at [-3.5,-0.5) and (0.5,3.5]; center seam [ -0.5, 0.5 )
         List<Double> offsets = group.resolveLaneDividerOffsets(CenterLineStyle.SINGLE_DASHED, true);
         assertEquals(List.of(0.0), offsets);
+    }
+
+    @Test
+    void migrateDoesNotPackStaleDividerWidthIntoTravelLanes() {
+        LaneGroup group = new LaneGroup();
+        group.setLaneCount(2);
+        group.setDefaultLaneWidth(3);
+        group.setWidth(7); // 仍是「含 1 格同向分隔」的旧总宽
+        assertFalse(group.migrateUniformLaneWidthFromStored(7, CenterLineStyle.NONE, false, 0));
+        assertEquals(List.of(3, 3), group.resolveLaneWidths());
     }
 
     @Test

@@ -344,6 +344,7 @@ public class Road {
 
     public void setLaneDividers(Boolean laneDividers) {
         crossSection.getMarkings().setLaneDividers(laneDividers);
+        syncDerivedWidthAfterMarkingChange(laneDividers);
     }
 
     public CenterLineStyle getCenterLineStyle() {
@@ -352,6 +353,20 @@ public class Road {
 
     public void setCenterLineStyle(CenterLineStyle centerLineStyle) {
         crossSection.getMarkings().setCenterLineStyle(centerLineStyle);
+        Boolean dividers = getLaneDividers();
+        syncDerivedWidthAfterMarkingChange(dividers);
+    }
+
+    /**
+     * 标线/分隔开关变化后，按车道行驶宽重推显式总宽，避免旧总宽仍含分隔占格，
+     * 解析时被 pack 进车道行驶宽（预览上像残留一格分割线）。
+     */
+    private void syncDerivedWidthAfterMarkingChange(Boolean laneDividers) {
+        if (laneDividers == null || crossSection.getCarriageway().getWidth() == null) {
+            return;
+        }
+        CenterLineStyle style = getCenterLineStyle() != null ? getCenterLineStyle() : CenterLineStyle.NONE;
+        crossSection.getCarriageway().syncDerivedWidth(style, laneDividers, 0);
     }
 
     public String getMarkingMaterial() {

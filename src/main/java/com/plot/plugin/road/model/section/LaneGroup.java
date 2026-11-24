@@ -229,12 +229,34 @@ public class LaneGroup {
                     return true;
                 }
             }
-        } else if (CarriagewayWidthRules.derivedCarriagewayWidth(
-                resolveLaneWidths(), centerStyle, laneDividers) == target) {
-            return false;
+        } else {
+            int derived = CarriagewayWidthRules.derivedCarriagewayWidth(
+                resolveLaneWidths(), centerStyle, laneDividers);
+            if (derived == target) {
+                return false;
+            }
+            // 已有均匀默认车道宽时：若存储总宽恰好等于「打开/关闭分隔占格」另一侧的派生宽，
+            // 说明总宽仍带着过期的分隔格，不能再 pack 进行驶宽（否则预览会出现多出一格车道色、像分割线残留）。
+            if (storedWidthMatchesAlternateDividerMode(target, centerStyle, laneDividers)) {
+                return false;
+            }
         }
         applyPackedTravelWidths(target, centerStyle, laneDividers);
         return true;
+    }
+
+    /**
+     * 存储总宽是否等于在相反 {@code laneDividers} 设定下由当前行驶宽推出的总宽。
+     * 典型场景：刚关掉同向分隔线，width 仍为含分隔格的旧值。
+     */
+    private boolean storedWidthMatchesAlternateDividerMode(
+            int storedWidth,
+            CenterLineStyle centerStyle,
+            boolean laneDividers) {
+        List<Integer> widths = resolveLaneWidths();
+        int alternate = CarriagewayWidthRules.derivedCarriagewayWidth(
+            widths, centerStyle, !laneDividers);
+        return alternate == storedWidth;
     }
 
     /**

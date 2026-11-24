@@ -11,7 +11,9 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadParameterInheritance;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.MarkingRules;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.utils.PlotI18n;
@@ -255,8 +257,13 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + (road.getMedianHeight() != null
             ? road.getMedianHeight()
             : road.getCrossSection().getMedian().getEffectiveHeight());
-        h = 31 * h + (road.getLaneDividers() != null && road.getLaneDividers() ? 1 : 0);
-        h = 31 * h + Objects.hashCode(road.getCenterLineStyle());
+        // 与 ResolvedCrossSection 一致：null 继承全局，避免指纹把「继承开启」当成关闭而不刷新预览。
+        boolean laneDividers = MarkingRules.resolveLaneDividers(
+            road.getCrossSection().getMarkings(), laneCount, config);
+        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(
+            road.getCrossSection().getMarkings(), config, laneCount);
+        h = 31 * h + (laneDividers ? 1 : 0);
+        h = 31 * h + Objects.hashCode(centerLineStyle);
         h = 31 * h + (road.getEffectiveIncludeSlopeBatter(config) ? 1 : 0);
         h = 31 * h + road.getEffectiveRoadsideEdgeMode(config).ordinal();
         h = 31 * h + Float.floatToIntBits(road.getEffectiveFillSlopeRatio(config));
