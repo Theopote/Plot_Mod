@@ -125,9 +125,6 @@ public final class VariableCrossSectionEditor {
                 : PlotI18n.tr("plugin.road.variable_cross_section_hint"));
         ImGui.spacing();
 
-        renderPlanSchematic(network, road, canvasLength);
-        ImGui.spacing();
-
         float totalWidth = ImGui.getContentRegionAvailX();
         float bodyHeight = ImGui.getContentRegionAvailY();
         float spacing = ImGui.getStyle().getItemSpacingX();
@@ -136,9 +133,12 @@ public final class VariableCrossSectionEditor {
         float startX = ImGui.getCursorPosX();
         float startY = ImGui.getCursorPosY();
 
+        // 左列：平面示意（同宽）在上 + 桩号列表在下；右侧详情占满剩余高度。
         ImGui.setCursorPos(startX, startY);
         ImGui.beginChild("##vcs_station_rail", railWidth, bodyHeight, true, ImGuiWindowFlags.None);
         try {
+            renderPlanSchematic(network, road, canvasLength);
+            ImGui.spacing();
             renderStationRail(road, canvasLength, chainageDisplay, onHistory, config);
         } finally {
             ImGui.endChild();
@@ -186,13 +186,16 @@ public final class VariableCrossSectionEditor {
             markers.add(new RoadStationPlanSchematicRenderer.StationMarker(
                 drafts.get(i).station, i == selectedIndex));
         }
+        // 左列窄宽：示意高度随列宽收敛，给下方桩号列表留空间。
+        float planHeight = Math.clamp(ImGui.getContentRegionAvailX() * 0.9f, 96f, 132f);
         Float clicked = RoadStationPlanSchematicRenderer.render(
             network,
             road,
             playheadStation,
             canvasMax,
             markers,
-            List.of());
+            List.of(),
+            planHeight);
         if (clicked == null) {
             return;
         }

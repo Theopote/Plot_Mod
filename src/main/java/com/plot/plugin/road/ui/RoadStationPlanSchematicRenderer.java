@@ -153,19 +153,35 @@ public final class RoadStationPlanSchematicRenderer {
             drawList.addCircle(cursor.x, cursor.y, 7f, COLOR_CURSOR, 0, 1.5f);
         }
 
-        float legendY = y1 - 16f;
-        drawList.addCircleFilled(x0 + 12f, legendY, 3.5f, COLOR_START);
-        drawList.addText(x0 + 18f, legendY - 7f, PluginUiColors.LEGEND,
-            PlotI18n.tr("plugin.road.centerline_preview_legend_start"));
-        drawList.addCircleFilled(x0 + 70f, legendY, 3.5f, COLOR_END);
-        drawList.addText(x0 + 76f, legendY - 7f, PluginUiColors.LEGEND,
-            PlotI18n.tr("plugin.road.centerline_preview_legend_end"));
-        drawList.addCircleFilled(x0 + 120f, legendY, 3.5f, COLOR_MARKER);
-        drawList.addText(x0 + 126f, legendY - 7f, PluginUiColors.LEGEND,
-            PlotI18n.tr("plugin.road.plan_schematic_legend_marker"));
-        drawList.addCircleFilled(x0 + 180f, legendY, 3.5f, COLOR_CURSOR);
-        drawList.addText(x0 + 186f, legendY - 7f, PluginUiColors.LEGEND,
-            PlotI18n.tr("plugin.road.plan_schematic_cursor"));
+        String startLabel = PlotI18n.tr("plugin.road.centerline_preview_legend_start");
+        String endLabel = PlotI18n.tr("plugin.road.centerline_preview_legend_end");
+        String markerLabel = PlotI18n.tr("plugin.road.plan_schematic_legend_marker");
+        String cursorLabel = PlotI18n.tr("plugin.road.plan_schematic_cursor");
+        if (width < 280f) {
+            // 窄列（如变截面左轨）：两行图例，避免水平溢出。
+            float row1 = y1 - 28f;
+            float row2 = y1 - 14f;
+            drawList.addCircleFilled(x0 + 10f, row1, 3.5f, COLOR_START);
+            drawList.addText(x0 + 16f, row1 - 7f, PluginUiColors.LEGEND, startLabel);
+            float endX = x0 + 10f + 16f + ImGui.calcTextSize(startLabel).x + 12f;
+            drawList.addCircleFilled(endX, row1, 3.5f, COLOR_END);
+            drawList.addText(endX + 6f, row1 - 7f, PluginUiColors.LEGEND, endLabel);
+            drawList.addCircleFilled(x0 + 10f, row2, 3.5f, COLOR_MARKER);
+            drawList.addText(x0 + 16f, row2 - 7f, PluginUiColors.LEGEND, markerLabel);
+            float cursorX = x0 + 10f + 16f + ImGui.calcTextSize(markerLabel).x + 12f;
+            drawList.addCircleFilled(cursorX, row2, 3.5f, COLOR_CURSOR);
+            drawList.addText(cursorX + 6f, row2 - 7f, PluginUiColors.LEGEND, cursorLabel);
+        } else {
+            float legendY = y1 - 16f;
+            drawList.addCircleFilled(x0 + 12f, legendY, 3.5f, COLOR_START);
+            drawList.addText(x0 + 18f, legendY - 7f, PluginUiColors.LEGEND, startLabel);
+            drawList.addCircleFilled(x0 + 70f, legendY, 3.5f, COLOR_END);
+            drawList.addText(x0 + 76f, legendY - 7f, PluginUiColors.LEGEND, endLabel);
+            drawList.addCircleFilled(x0 + 120f, legendY, 3.5f, COLOR_MARKER);
+            drawList.addText(x0 + 126f, legendY - 7f, PluginUiColors.LEGEND, markerLabel);
+            drawList.addCircleFilled(x0 + 180f, legendY, 3.5f, COLOR_CURSOR);
+            drawList.addText(x0 + 186f, legendY - 7f, PluginUiColors.LEGEND, cursorLabel);
+        }
 
         ImGui.invisibleButton("##road_plan_schematic_hit", width, height);
         if (!ImGui.isItemClicked(ImGuiMouseButton.Left)) {
