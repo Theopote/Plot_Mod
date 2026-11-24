@@ -3849,7 +3849,7 @@
   "plugin.road.variable_cross_section_add": "Add station cross-section",
   "plugin.road.variable_cross_section_duplicate": "Duplicate station",
   "plugin.road.variable_cross_section_hint": "Define cross-section templates at chainage stations. Generation uses the active template from each station onward until the next (step).",
-  "plugin.road.variable_cross_section_hint_smooth": "Define templates at stations. Continuous widths lerp between adjacent stations; lane count and materials take the nearer side.",
+  "plugin.road.variable_cross_section_hint_smooth": "Define templates at stations. Widths and slope ratios lerp continuously; lane count, materials, markings, and median switch at the midpoint (50%).",
   "plugin.road.variable_cross_section_playhead_hint": "Drag moves the playhead: W/L and the right preview/params follow the active interval (same as selecting that station). Markers stay fixed. Hold Shift to move the selected station.",
   "plugin.road.variable_cross_section_none": "No station-based cross sections (using road default)",
   "plugin.road.variable_cross_section_requires_stationing": "Variable cross sections require a connected road chain (no branching or gaps).",

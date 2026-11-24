@@ -2,8 +2,11 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -86,6 +89,24 @@ class VariableCrossSectionEditorTest {
             road, config, 100.0, List.of(template), 50f, template);
     assertEquals(14, added.crossSectionDraft.width());
     assertTrue(Math.abs(added.station - template.station) > 1e-4f);
+  }
+
+  @Test
+  void smoothPlayheadPreviewAveragesWidthBetweenStations() {
+    RoadSystemConfig config = new RoadSystemConfig("road_system");
+    var road = new com.plot.plugin.road.model.Road("r");
+    road.setWidth(6);
+    VariableCrossSectionEditor.StationDraft narrow = draftAt(0f, 6, config);
+    VariableCrossSectionEditor.StationDraft wide = draftAt(100f, 16, config);
+    List<StationCrossSection> stations =
+        VariableCrossSectionEditor.buildStations(List.of(narrow, wide), config);
+    ResolvedCrossSection mid = VariableCrossSectionResolver.resolve(
+        road.getCrossSection(),
+        stations,
+        VariableCrossSectionTransitionMode.SMOOTH,
+        50.0,
+        config);
+    assertEquals(11, mid.carriagewayWidth);
   }
 
   @Test

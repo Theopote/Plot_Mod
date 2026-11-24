@@ -3,7 +3,15 @@ package com.plot.plugin.road.pipeline.furniture;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
@@ -49,6 +57,29 @@ class RoadFurnitureGeneratorTest {
         assertTrue(lights.stream().allMatch(light -> light.elevation() >= 71));
         assertTrue(lights.stream().allMatch(light ->
             light.elevation() == elevations.elevationAtLocalDistance(light.planPoint().x) + 1));
+    }
+
+    @Test
+    void hasAnyLegacyStreetlightSpacingSeesLaterStationWhenFallbackOff() {
+        RoadSystemConfig config = new RoadSystemConfig("furniture-var-light");
+        config.setStreetlightSpacing(0);
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r");
+        road.getCrossSection().getStreetFurniture().setStreetlightSpacing(null);
+        RoadCrossSection lit = new RoadCrossSection();
+        lit.getStreetFurniture().setStreetlightSpacing(12);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(40.0, lit)
+        ), VariableCrossSectionTransitionMode.STEP));
+        RoadEdge edge = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        CrossSectionBuildContext ctx = CrossSectionBuildContext.forEdge(network, edge, config);
+        assertTrue(ctx.hasAnyLegacyStreetlightSpacing());
+        assertTrue(
+            ctx.fallback().streetlightSpacing == null || ctx.fallback().streetlightSpacing <= 0);
     }
 
     @Test

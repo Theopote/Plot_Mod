@@ -27,8 +27,8 @@ public final class RoadFurnitureGenerator {
 
     public static void generate(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
         CrossSectionBuildContext crossSections = ctx.request().crossSections();
-        Integer spacing = crossSections.fallback().streetlightSpacing;
-        if (crossSections.lightingPlacement() != null || spacing == null || spacing <= 0) {
+        // 新版路灯设计器优先；旧式路灯需任一桩号启用 spacing，不能只看 fallback。
+        if (crossSections.lightingPlacement() != null || !crossSections.hasAnyLegacyStreetlightSpacing()) {
             return;
         }
 
@@ -37,7 +37,7 @@ public final class RoadFurnitureGenerator {
             ctx.segments(),
             ctx.heightInfos(),
             crossSections,
-            spacing,
+            1,
             ctx.unitsPerBlock(),
             ctx.request().designElevation(),
             ctx.buildProfile(),
@@ -128,11 +128,25 @@ public final class RoadFurnitureGenerator {
                     return;
                 }
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
+                Integer localSpacing = crossSection.streetlightSpacing;
+                int placeSpacing;
+                if (crossSections.isVariable()) {
+                    // 变截面：仅当前桩号启用 spacing 时放置，避免 fallback 一刀切。
+                    if (localSpacing == null || localSpacing <= 0) {
+                        return;
+                    }
+                    placeSpacing = localSpacing;
+                } else {
+                    placeSpacing = (localSpacing != null && localSpacing > 0) ? localSpacing : spacing;
+                    if (placeSpacing <= 0) {
+                        return;
+                    }
+                }
                 double skipDistance = crossSection.carriagewayWidth * unitsPerBlock;
                 if (traveledHolder[0] + 1e-6 < nextPlacementHolder[0]) {
                     return;
                 }
-                nextPlacementHolder[0] = traveledHolder[0] + Math.max(spacing, skipDistance);
+                nextPlacementHolder[0] = traveledHolder[0] + Math.max(placeSpacing, skipDistance);
                 double offset = (RoadDimensionUtils.maxLateralOffset(crossSection.carriagewayWidth)
                     + crossSection.outerBandBlockCount()
                     + 0.5) * unitsPerBlock;

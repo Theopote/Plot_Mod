@@ -67,6 +67,19 @@ public final class CrossSectionDesignerPanel {
             CrossSectionDraftMutator mutator,
             CrossSectionDraft draft,
             RoadSystemConfig config) {
+        renderForDraft(ctx, mutator, draft, config, null, Float.NaN);
+    }
+
+    /**
+     * 桩号断面详情：右侧参数仍绑定 draft；若 {@code previewOverride} 非空则左侧预览用插值断面。
+     */
+    public void renderForDraft(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraft draft,
+            RoadSystemConfig config,
+            ResolvedCrossSection previewOverride,
+            float overrideMaxSlope) {
         if (mutator == null || draft == null || config == null) {
             return;
         }
@@ -76,7 +89,16 @@ public final class CrossSectionDesignerPanel {
             false,
             null,
             null,
-            () -> renderDraftPreview(draft, config));
+            () -> {
+                if (previewOverride != null) {
+                    float maxSlope = Float.isFinite(overrideMaxSlope) && overrideMaxSlope > 0f
+                        ? overrideMaxSlope
+                        : config.getMaxSlope();
+                    renderResolvedPreview(previewOverride, maxSlope);
+                } else {
+                    renderDraftPreview(draft, config);
+                }
+            });
     }
 
     public void invalidate() {
@@ -306,6 +328,20 @@ public final class CrossSectionDesignerPanel {
         float segmentH = Math.max(72f, availY - gap - sectionH);
         RoadCrossSectionEditor.renderPreviewWithLayout(cachedPreviewLayout, sectionH);
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
+        segmentPreview.render(resolved, fingerprint, segmentH);
+    }
+
+    private void renderResolvedPreview(ResolvedCrossSection resolved, float maxSlope) {
+        long fingerprint = RoadCrossSectionEditor.previewFingerprint(resolved, maxSlope);
+        if (cachedPreviewLayout == null || cachedPreviewFingerprint != fingerprint) {
+            cachedPreviewLayout = RoadCrossSectionEditor.previewLayoutForResolved(resolved, maxSlope);
+            cachedPreviewFingerprint = fingerprint;
+        }
+        float availY = ImGui.getContentRegionAvailY();
+        float gap = ImGui.getStyle().getItemSpacingY();
+        float sectionH = Math.max(80f, (availY - gap) * SECTION_PREVIEW_FRACTION);
+        float segmentH = Math.max(72f, availY - gap - sectionH);
+        RoadCrossSectionEditor.renderPreviewWithLayout(cachedPreviewLayout, sectionH);
         segmentPreview.render(resolved, fingerprint, segmentH);
     }
 

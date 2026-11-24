@@ -251,6 +251,38 @@ class RoadOverlayGeometryTest {
     }
 
     @Test
+    void resolveRoadCorridorGeometry_stepKeepsHalfWidthUntilStation() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeSlopeBatter(false);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("step");
+        road.setWidth(6);
+        road.setIncludeSlopeBatter(false);
+        RoadCrossSection wide = new RoadCrossSection();
+        wide.getCarriageway().setWidth(12);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(50.0, wide)
+        ), VariableCrossSectionTransitionMode.STEP));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadCorridorGeometry geometry = RoadOverlayGeometry.resolveRoadCorridorGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE);
+
+        // STEP：49m 仍为半宽 3，而非斜坡插值后的 ~5.9；50m 后跳到半宽 6
+        assertTrue(RoadOverlayGeometry.containsPoint(geometry, 49, 2.5));
+        assertFalse(RoadOverlayGeometry.containsPoint(geometry, 49, 5.5));
+        assertTrue(RoadOverlayGeometry.containsPoint(geometry, 55, 5.5));
+        assertFalse(RoadOverlayGeometry.containsPoint(geometry, 55, 7.5));
+    }
+
+    @Test
     void resolveSpiralHighlightSegments_samplesClothoidsOnly() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("ha");

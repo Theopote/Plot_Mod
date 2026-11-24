@@ -249,6 +249,57 @@ public final class RoadCrossSectionEditor {
             resolved, maxSlope, -1f, null);
     }
 
+    /** 已解析断面预览布局（平滑插值播放头等）。 */
+    public static RoadCrossSectionPreviewRenderer.CrossSectionLayout previewLayoutForResolved(
+            ResolvedCrossSection resolved,
+            float maxSlope) {
+        ResolvedCrossSection section = resolved != null
+            ? resolved
+            : ResolvedCrossSection.fromConfig(null);
+        float slope = maxSlope > 0f ? maxSlope : 10f;
+        return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+            section, slope, -1f, null);
+    }
+
+    /** 已解析断面预览指纹。 */
+    public static long previewFingerprint(ResolvedCrossSection resolved, float maxSlope) {
+        if (resolved == null) {
+            return 0L;
+        }
+        long h = resolved.carriagewayWidth;
+        h = 31 * h + resolved.laneCount;
+        h = 31 * h + resolved.shoulderWidth;
+        h = 31 * h + (resolved.includeShoulder ? 1 : 0);
+        h = 31 * h + resolved.bikeLaneWidth;
+        h = 31 * h + (resolved.includeBikeLane ? 1 : 0);
+        h = 31 * h + resolved.sidewalkWidth;
+        h = 31 * h + (resolved.includeSidewalk ? 1 : 0);
+        h = 31 * h + (resolved.includeMedian ? 1 : 0);
+        h = 31 * h + resolved.medianWidth;
+        h = 31 * h + resolved.medianHeight;
+        h = 31 * h + Objects.hashCode(resolved.streetlightSpacing);
+        h = 31 * h + (resolved.laneDividers ? 1 : 0);
+        h = 31 * h + Objects.hashCode(resolved.centerLineStyle);
+        h = 31 * h + (resolved.centerLineSolid ? 1 : 0);
+        h = 31 * h + Objects.hashCode(resolved.roadsideEdgeMode());
+        h = 31 * h + Float.floatToIntBits(resolved.fillSlopeRatio);
+        h = 31 * h + Float.floatToIntBits(resolved.cutSlopeRatio);
+        h = 31 * h + Float.floatToIntBits(maxSlope);
+        h = 31 * h + Objects.hashCode(resolved.carriagewayMaterial);
+        h = 31 * h + Objects.hashCode(resolved.sidewalkMaterial);
+        h = 31 * h + Objects.hashCode(resolved.shoulderMaterial);
+        h = 31 * h + Objects.hashCode(resolved.bikeLaneMaterial);
+        h = 31 * h + Objects.hashCode(resolved.medianMaterial);
+        h = 31 * h + Objects.hashCode(resolved.markingMaterial);
+        h = 31 * h + Objects.hashCode(resolved.fillSlopeMaterial);
+        h = 31 * h + Objects.hashCode(resolved.cutSlopeMaterial);
+        h = 31 * h + Objects.hashCode(resolved.retainingWallMaterial);
+        for (int w : resolved.laneWidths) {
+            h = 31 * h + w;
+        }
+        return h;
+    }
+
     /** 桩号断面草稿预览指纹。 */
     public static long previewFingerprint(CrossSectionDraft draft) {
         if (draft == null) {

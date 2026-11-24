@@ -29,6 +29,7 @@ import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -130,8 +131,14 @@ public final class RoadOverlayGeometry {
             stations.add(sample.canonicalStation());
         }
         if (road.getVariableCrossSections() != null) {
+            boolean isStep = road.getVariableCrossSections().getTransitionMode()
+                == VariableCrossSectionTransitionMode.STEP;
             for (StationCrossSection entry : road.getVariableCrossSections().sortedStations()) {
                 double station = Math.clamp(entry.getStation(), 0.0, total);
+                // STEP：在桩号前插入 pre 点，走廊边缘呈直角阶梯而非斜坡。
+                if (isStep && station > 1e-2) {
+                    stations.add(Math.max(0.0, station - 1e-2));
+                }
                 stations.add(station);
             }
         }

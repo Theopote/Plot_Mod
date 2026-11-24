@@ -7,9 +7,11 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationing;
@@ -64,6 +66,10 @@ public final class VariableCrossSectionEditor {
     private CrossSectionDraft cachedMutatorDraft;
     /** 仅在草稿实际变更时触发 applyDraftsIfChanged，避免静止帧深度重建。 */
     private boolean draftsDirty;
+    /** SMOOTH 播放头预览缓存：桩号/草稿未变时复用插值结果。 */
+    private ResolvedCrossSection cachedSmoothPreview;
+    private float cachedSmoothPlayhead = Float.NaN;
+    private List<StationCrossSection> cachedSmoothStations;
 
     public void reset() {
         syncedRoad = null;
@@ -76,6 +82,7 @@ public final class VariableCrossSectionEditor {
         stationInputBuffer.set(0f);
         stationInputActive = false;
         draftsDirty = false;
+        invalidateSmoothPreviewCache();
         cachedMutator = null;
         cachedMutatorDraft = null;
         detailPanel.invalidate();
@@ -83,6 +90,13 @@ public final class VariableCrossSectionEditor {
 
     void markDraftsDirty() {
         draftsDirty = true;
+        invalidateSmoothPreviewCache();
+    }
+
+    private void invalidateSmoothPreviewCache() {
+        cachedSmoothPreview = null;
+        cachedSmoothPlayhead = Float.NaN;
+        cachedSmoothStations = null;
     }
 
     boolean isDraftsDirty() {
@@ -332,10 +346,53 @@ public final class VariableCrossSectionEditor {
             CrossSectionDraftMutator mutator = mutatorFor(draft, onHistory);
             mutator.setInheritRoadLighting(true);
             mutator.setInheritedStationLighting(road.getCrossSection().getStreetFurniture().getRoadLampPlacement());
-            detailPanel.renderForDraft(ctx, mutator, draft.crossSectionDraft, config);
+
+            ResolvedCrossSection smoothPreview = null;
+            if (draftTransitionMode == VariableCrossSectionTransitionMode.SMOOTH
+                    && !hasInvalidDrafts()
+                    && !stationMoveCheckpointPushed) {
+                smoothPreview = smoothPreviewAtPlayhead(road, config);
+                if (smoothPreview != null) {
+                    RoadUiWidgets.textWrappedColored(
+                        PluginUiColors.HINT_GRAY,
+                        VariableCrossSectionResolver.describeResolved(
+                            playheadStation, smoothPreview, chainageDisplay));
+                }
+            }
+            float maxSlope = draft.crossSectionDraft != null && draft.crossSectionDraft.maxSlope() > 0f
+                ? draft.crossSectionDraft.maxSlope()
+                : config.getMaxSlope();
+            detailPanel.renderForDraft(
+                ctx, mutator, draft.crossSectionDraft, config, smoothPreview, maxSlope);
         } finally {
             ImGui.popID();
         }
+    }
+
+    /**
+     * SMOOTH 模式下按当前播放头解析插值断面；草稿脏时用 buildStations，否则用路写回结果。
+     */
+    private ResolvedCrossSection smoothPreviewAtPlayhead(Road road, RoadSystemConfig config) {
+        if (Float.compare(cachedSmoothPlayhead, playheadStation) == 0 && cachedSmoothPreview != null) {
+            return cachedSmoothPreview;
+        }
+        List<StationCrossSection> stations = cachedSmoothStations;
+        if (stations == null) {
+            if (draftsDirty || road.getVariableCrossSections() == null) {
+                stations = buildStations(drafts, config);
+            } else {
+                stations = road.getVariableCrossSections().sortedStations();
+            }
+            cachedSmoothStations = stations;
+        }
+        cachedSmoothPreview = VariableCrossSectionResolver.resolve(
+            road.getCrossSection(),
+            stations,
+            VariableCrossSectionTransitionMode.SMOOTH,
+            playheadStation,
+            config);
+        cachedSmoothPlayhead = playheadStation;
+        return cachedSmoothPreview;
     }
 
     private void renderSelectedHeader(
@@ -643,6 +700,7 @@ public final class VariableCrossSectionEditor {
         cachedMutator = null;
         cachedMutatorDraft = null;
         draftsDirty = false;
+        invalidateSmoothPreviewCache();
         detailPanel.invalidate();
         if (road.getVariableCrossSections() == null) {
             draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
@@ -684,6 +742,7 @@ public final class VariableCrossSectionEditor {
         boolean modeUnchanged = currentMode == draftTransitionMode;
         if (stationsUnchanged && modeUnchanged) {
             draftsDirty = false;
+            invalidateSmoothPreviewCache();
             return;
         }
         if (built.isEmpty()) {
@@ -693,6 +752,7 @@ public final class VariableCrossSectionEditor {
         }
         syncedSections = road.getVariableCrossSections();
         draftsDirty = false;
+        invalidateSmoothPreviewCache();
     }
 
     public boolean hasInvalidDrafts() {

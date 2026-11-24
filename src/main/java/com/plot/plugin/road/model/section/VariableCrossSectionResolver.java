@@ -99,7 +99,7 @@ public final class VariableCrossSectionResolver {
             .sorted((a, b) -> Double.compare(a.getStation(), b.getStation()))
             .toList();
 
-        if (mode != VariableCrossSectionTransitionMode.SMOOTH || sorted.size() == 1) {
+        if (mode != VariableCrossSectionTransitionMode.SMOOTH) {
             StationCrossSection active = null;
             for (StationCrossSection entry : sorted) {
                 if (entry.getStation() <= chainage + EPSILON) {
@@ -121,7 +121,15 @@ public final class VariableCrossSectionResolver {
                 break;
             }
         }
+        // 首个桩号之前：隐式以 station=0 的道路默认断面为起点锚点，与 firstStation 插值。
         if (prev == null) {
+            if (next != null && next.getStation() > EPSILON) {
+                double t = Math.clamp(chainage / next.getStation(), 0.0, 1.0);
+                return ResolvedCrossSection.lerpContinuous(
+                    base.resolve(defaults),
+                    next.getCrossSection().resolve(defaults),
+                    t);
+            }
             return base.resolve(defaults);
         }
         if (next == null) {

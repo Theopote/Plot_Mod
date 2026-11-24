@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim;
 import com.plot.plugin.road.station.OrientedRoadSegment;
@@ -127,5 +128,39 @@ public final class CrossSectionBuildContext {
             return fallback;
         }
         return VariableCrossSectionResolver.resolve(network, road, chainageMeters, config);
+    }
+
+    /**
+     * 旧式路灯：道路默认或任一变截面桩号启用了 streetlightSpacing 时为 true。
+     * 新版 {@link RoadLampPlacement} 由调用方另行判断。
+     */
+    public boolean hasAnyLegacyStreetlightSpacing() {
+        if (fallback != null
+                && fallback.streetlightSpacing != null
+                && fallback.streetlightSpacing > 0) {
+            return true;
+        }
+        if (road == null) {
+            return false;
+        }
+        Integer baseSpacing = road.getCrossSection() != null
+            ? road.getCrossSection().getStreetFurniture().getStreetlightSpacing()
+            : null;
+        if (baseSpacing != null && baseSpacing > 0) {
+            return true;
+        }
+        if (road.getVariableCrossSections() == null) {
+            return false;
+        }
+        for (StationCrossSection entry : road.getVariableCrossSections().getStations()) {
+            if (entry == null || entry.getCrossSection() == null) {
+                continue;
+            }
+            Integer spacing = entry.getCrossSection().getStreetFurniture().getStreetlightSpacing();
+            if (spacing != null && spacing > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 }

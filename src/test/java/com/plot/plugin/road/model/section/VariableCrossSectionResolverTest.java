@@ -121,6 +121,24 @@ class VariableCrossSectionResolverTest {
     }
 
     @Test
+    void smoothLerpsFromBaseBeforeFirstStation() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        road.setWidth(6);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(50.0, sectionWithWidth(12))
+        ), VariableCrossSectionTransitionMode.SMOOTH));
+
+        // 隐式以 0m 道路默认 W=6 为起点，与 50m W=12 插值 → 25m 为 W=9
+        assertEquals(9, VariableCrossSectionResolver.resolve(network, road, 25.0, config).carriagewayWidth);
+        assertEquals(6, VariableCrossSectionResolver.resolve(network, road, 0.0, config).carriagewayWidth);
+        assertEquals(12, VariableCrossSectionResolver.resolve(network, road, 50.0, config).carriagewayWidth);
+        // resolveTemplate 仍为阶梯语义
+        assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(road, 25.0)));
+    }
+
+    @Test
     void smoothLerpsCarriagewayWidthBetweenStations() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadNetwork network = new RoadNetwork();
