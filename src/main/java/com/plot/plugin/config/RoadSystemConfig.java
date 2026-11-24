@@ -148,6 +148,7 @@ public class RoadSystemConfig {
         if (config.presets == null) {
             config.initDefaultPresets();
         } else {
+            pruneRetiredBuiltinStyles(config);
             mergeMissingBuiltinStyles(config);
         }
         config.selectedMaterial = MaterialMix.orDefault(
@@ -178,6 +179,17 @@ public class RoadSystemConfig {
             config.tunnelStyle = new TunnelStyle();
         }
         config.tunnelStyle.ensureConfigDefaults();
+    }
+
+    /** 从预设库移除已下线的内置 styleId（不影响道路实例上已应用的断面）。 */
+    private static void pruneRetiredBuiltinStyles(RoadSystemConfig config) {
+        if (config.presets == null || config.presets.isEmpty()) {
+            return;
+        }
+        config.presets.removeIf(style -> style != null && "railway".equals(style.id));
+        if ("railway".equals(config.selectedPreset)) {
+            config.selectedPreset = "";
+        }
     }
 
     private static void mergeMissingBuiltinStyles(RoadSystemConfig config) {

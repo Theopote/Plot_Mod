@@ -168,4 +168,31 @@ class RoadSystemConfigTest {
         assertTrue(loaded.getStyles().stream().anyMatch(style -> "custom_street".equals(style.id)));
         assertTrue(loaded.getStyles().stream().anyMatch(style -> "mountain".equals(style.id)));
     }
+
+    @Test
+    void loadFromPrunesRetiredRailwayBuiltin(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("road_system.json");
+        Files.writeString(file, """
+            {
+              "selectedPreset": "railway",
+              "presets": [
+                {
+                  "id": "railway",
+                  "width": 5,
+                  "laneCount": 1
+                },
+                {
+                  "id": "custom_street",
+                  "width": 9
+                }
+              ]
+            }
+            """);
+
+        RoadSystemConfig loaded = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
+        assertNotNull(loaded);
+        assertTrue(loaded.getStyles().stream().noneMatch(style -> "railway".equals(style.id)));
+        assertTrue(loaded.getStyles().stream().anyMatch(style -> "custom_street".equals(style.id)));
+        assertEquals("", loaded.getSelectedPreset());
+    }
 }

@@ -101,6 +101,7 @@ class RoadStyleTest {
         assertTrue(config.getStyles().stream().anyMatch(s -> "path".equals(s.id)));
         assertTrue(config.getStyles().stream().anyMatch(s -> "city_street".equals(s.id)));
         assertTrue(config.getStyles().stream().anyMatch(s -> "boulevard".equals(s.id)));
+        assertTrue(config.getStyles().stream().noneMatch(s -> "railway".equals(s.id)));
     }
 
     @Test

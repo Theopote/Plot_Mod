@@ -27,7 +27,6 @@ public final class RoadStyleCatalog {
         styles.add(avenue());
         styles.add(boulevard());
         styles.add(highway());
-        styles.add(railway());
         styles.add(mountain());
         styles.add(dirtRoad());
         styles.add(medievalRoad());
@@ -181,9 +180,8 @@ public final class RoadStyleCatalog {
     }
 
     /**
-     * 单线铁路路基：道床 + 两侧道砟肩 + 路堤边坡；中心线铺轨枕 + {@code minecraft:rail}。
-     * 材质避开 gravel 等重力方块，用深板岩/安山岩表现道砟质感。
-     * 不含道岔几何（后续增强）。
+     * 单线铁路路基参数包（已退出内置预设库，仍供交汇/标线测试与程序化造路使用）。
+     * 道床 + 两侧道砟肩 + 路堤边坡；中心线铺轨枕 + {@code minecraft:rail}。
      */
     public static RoadStyle railway() {
         RoadStyle style = base("railway");
