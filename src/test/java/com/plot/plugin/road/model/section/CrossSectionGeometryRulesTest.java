@@ -4,6 +4,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,24 +13,43 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CrossSectionGeometryRulesTest {
 
     @Test
-    void medianWidthFollowsSinglePierParity() {
-        // 奇数路宽：合法直径为奇数
-        assertEquals(1, CrossSectionGeometryRules.clampMedianWidth(5, 2, 1));
-        assertEquals(1, CrossSectionGeometryRules.clampMedianWidth(5, 2, 2));
-        assertTrue(CrossSectionGeometryRules.isMedianFit(5, 2, 1));
-        assertFalse(CrossSectionGeometryRules.isMedianFit(5, 2, 2));
-        assertEquals(5, CrossSectionGeometryRules.laneOnlyWidth(5, 2, 4));
+    void derivedMedianWidthFollowsCenterLineOrDivider() {
+        assertEquals(2, CrossSectionGeometryRules.derivedMedianWidth(
+            CenterLineStyle.DOUBLE_SOLID, false, 2));
+        assertEquals(1, CrossSectionGeometryRules.derivedMedianWidth(
+            CenterLineStyle.SINGLE_DASHED, false, 2));
+        assertEquals(1, CrossSectionGeometryRules.derivedMedianWidth(
+            CenterLineStyle.NONE, true, 2));
+        assertEquals(0, CrossSectionGeometryRules.derivedMedianWidth(
+            CenterLineStyle.NONE, false, 2));
+        assertEquals(0, CrossSectionGeometryRules.derivedMedianWidth(
+            CenterLineStyle.DOUBLE_SOLID, true, 1));
+        assertFalse(CrossSectionGeometryRules.canEnableMedian(
+            CenterLineStyle.NONE, false, 4));
+        assertTrue(CrossSectionGeometryRules.canEnableMedian(
+            CenterLineStyle.NONE, true, 2));
     }
 
     @Test
-    void highwayMedianUnchangedWhenParityMatches() {
-        assertTrue(CrossSectionGeometryRules.isMedianFit(11, 2, 1));
-        assertEquals(1, CrossSectionGeometryRules.clampMedianWidth(11, 2, 1));
+    void medianLateralRangeAlignsWithCenterMarkingOffsets() {
+        int[] doubleYellow = CrossSectionGeometryRules.medianLateralRange(
+            List.of(-4.5, -0.5, 0.5, 4.5), 2);
+        assertEquals(-1, doubleYellow[0]);
+        assertEquals(0, doubleYellow[1]);
+
+        int[] single = CrossSectionGeometryRules.medianLateralRange(List.of(0.0), 1);
+        assertEquals(0, single[0]);
+        assertEquals(0, single[1]);
+    }
+
+    @Test
+    void laneOnlyWidthIgnoresMedian() {
+        assertEquals(5, CrossSectionGeometryRules.laneOnlyWidth(5, 2, 4));
         assertEquals(11, CrossSectionGeometryRules.laneOnlyWidth(11, 2, 1));
     }
 
     @Test
-    void resolveKeepsMedianOutOfCarriagewayWidth() {
+    void resolveDisablesMedianWithoutMarkings() {
         RoadSystemConfig defaults = new RoadSystemConfig("geom-test");
         defaults.setIncludeShoulder(false);
         defaults.setIncludeSidewalk(false);
@@ -47,38 +68,37 @@ class CrossSectionGeometryRulesTest {
         CrossSectionResolveReport.ResolveResult result =
             ResolvedCrossSection.resolveWithReport(section, defaults);
 
-        // 行驶宽 2+2=4；隔离带按单柱奇偶钳到 2，不加入 W
-        assertEquals(2, result.section().medianWidth);
+        assertFalse(result.section().includeMedian);
+        assertEquals(0, result.section().medianWidth);
         assertEquals(4, result.section().carriagewayWidth);
         assertEquals(4, result.section().laneOnlyWidth);
-        assertEquals(3, result.section().medianHeight);
-        assertEquals(
-            result.section().laneOnlyWidth,
-            result.section().carriagewayWidth);
     }
 
     @Test
-    void resolveReportsGravityMaterialReplacement() {
-        RoadSystemConfig defaults = new RoadSystemConfig("mat-report");
+    void resolveDerivesDoubleSolidMedianWidth() {
+        RoadSystemConfig defaults = new RoadSystemConfig("geom-double");
         defaults.setIncludeShoulder(false);
         defaults.setIncludeSidewalk(false);
         RoadCrossSection section = new RoadCrossSection();
-        section.getCarriageway().setWidth(5);
-        section.getCarriageway().setLaneCount(1);
-        section.getShoulder().setEnabled(true);
-        section.getShoulder().setWidth(1);
-        section.getShoulder().setMaterial("minecraft:gravel");
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setLaneDividers(false);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.DOUBLE_SOLID);
+        section.getMedian().setEnabled(true);
+        section.getMedian().setWidth(1);
+        section.getMedian().setHeight(3);
+        section.getShoulder().setEnabled(false);
         section.getSidewalk().setEnabled(false);
         section.getBikeLane().setEnabled(false);
-        section.getMedian().setEnabled(false);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.DOUBLE_SOLID, false, 0);
 
-        CrossSectionResolveReport.ResolveResult result =
-            ResolvedCrossSection.resolveWithReport(section, defaults);
-
-        assertFalse(result.report().materialReplacements().isEmpty());
-        assertEquals(
-            "minecraft:coarse_dirt",
-            result.section().shoulderMaterial);
+        ResolvedCrossSection resolved = section.resolve(defaults);
+        assertTrue(resolved.includeMedian);
+        assertEquals(2, resolved.medianWidth);
+        assertEquals(3, resolved.medianHeight);
+        assertTrue(resolved.occupiesMedianColumn(-1));
+        assertTrue(resolved.occupiesMedianColumn(0));
+        assertFalse(resolved.occupiesMedianColumn(1));
     }
 
     @Test

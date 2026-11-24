@@ -1,6 +1,5 @@
 package com.plot.plugin.road.ui.editor;
 
-import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMarkingPasses;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampPlanner;
@@ -93,13 +92,12 @@ final class CrossSectionSegmentPreview {
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, markingY, z), block));
             }
         }
-        if (section.includeMedian && section.medianWidth > 0 && section.medianHeight > 0) {
-            int min = RoadDimensionUtils.minLateralOffset(section.medianWidth);
-            int max = RoadDimensionUtils.maxLateralOffset(section.medianWidth);
+        if (section.includeMedian && section.medianWidth > 0 && section.medianHeight > 0
+                && section.medianMaxLateral >= section.medianMinLateral) {
             String medianMat = section.medianMaterial != null && !section.medianMaterial.isBlank()
                 ? section.medianMaterial
                 : com.plot.plugin.road.RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL;
-            for (int x = min; x <= max; x++) {
+            for (int x = section.medianMinLateral; x <= section.medianMaxLateral; x++) {
                 for (int y = 0; y < section.medianHeight; y++) {
                     for (int z = z0; z <= z1; z++) {
                         scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, y, z), medianMat));

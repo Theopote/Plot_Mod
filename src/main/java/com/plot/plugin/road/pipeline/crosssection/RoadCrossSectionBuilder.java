@@ -296,17 +296,19 @@ public final class RoadCrossSectionBuilder {
             host::snapEndpointElevation,
             (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                if (!crossSection.includeMedian || crossSection.medianWidth <= 0) {
+                if (!crossSection.includeMedian || crossSection.medianWidth <= 0
+                        || crossSection.medianMaxLateral < crossSection.medianMinLateral) {
                     return;
                 }
-                double halfMedian = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) * unitsPerBlock;
-                Vec2d left = center.add(leftNormal.multiply(-halfMedian));
-                Vec2d right = center.add(leftNormal.multiply(halfMedian));
+                // 按标线锚点列铺隔离带（相对道路中心的整数横向格），不再固定几何中心半宽。
                 String blockId = host.resolveBlockId(crossSection.medianMaterial);
-                // 隔离带在路表之上：从路面上一格起堆叠高度。
                 int height = Math.max(1, crossSection.medianHeight);
-                for (int dy = 1; dy <= height; dy++) {
-                    solids.addSpan(left, right, targetY + dy, RoadSolidLayer.MEDIAN, blockId);
+                Vec2d lateral = leftNormal.multiply(-1);
+                for (int col = crossSection.medianMinLateral; col <= crossSection.medianMaxLateral; col++) {
+                    Vec2d point = center.add(lateral.multiply(col * unitsPerBlock));
+                    for (int dy = 1; dy <= height; dy++) {
+                        solids.add(point, targetY + dy, RoadSolidLayer.MEDIAN, blockId);
+                    }
                 }
             });
     }

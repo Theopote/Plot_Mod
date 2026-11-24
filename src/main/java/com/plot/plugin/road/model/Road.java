@@ -323,11 +323,7 @@ public class Road {
             crossSection.getMedian().setWidth(null);
             return;
         }
-        int carriageway = getWidth() != null
-            ? getWidth()
-            : Math.max(1, crossSection.getCarriageway().getEffectiveDefaultLaneWidth());
-        crossSection.getMedian().setWidth(
-            RoadParameterLimits.clampMedianWidthBlocks(carriageway, medianWidth));
+        crossSection.getMedian().setWidth(RoadParameterLimits.clampMedianWidthBlocks(0, medianWidth));
     }
 
     public Integer getMedianHeight() {

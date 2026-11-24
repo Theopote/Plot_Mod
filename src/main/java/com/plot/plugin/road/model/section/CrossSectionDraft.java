@@ -235,9 +235,9 @@ public final class CrossSectionDraft {
         section.getBikeLane().setEnabled(includeBikeLane);
         section.getBikeLane().setWidth(bikeLaneWidth);
         section.getBikeLane().setMaterial(bikeLaneMaterial);
+        syncMedianWidthFromMarkings();
         section.getMedian().setEnabled(includeMedian);
-        section.getMedian().setWidth(
-            includeMedian ? RoadParameterLimits.clampMedianWidthBlocks(width, medianWidth) : medianWidth);
+        section.getMedian().setWidth(includeMedian ? medianWidth : 0);
         section.getMedian().setHeight(medianHeight);
         section.getMedian().setMaterial(medianMaterial);
         section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
@@ -291,10 +291,10 @@ public final class CrossSectionDraft {
         } else if (width != baseline.width && baseline.width > 0) {
             section.getCarriageway().setWidth(width);
         }
-        if (medianChanged) {
+        if (medianChanged || markingsChanged || lanesChanged) {
+            syncMedianWidthFromMarkings();
             section.getMedian().setEnabled(includeMedian);
-            section.getMedian().setWidth(
-                includeMedian ? RoadParameterLimits.clampMedianWidthBlocks(width, medianWidth) : medianWidth);
+            section.getMedian().setWidth(includeMedian ? medianWidth : 0);
             section.getMedian().setHeight(medianHeight);
         }
         if (!java.util.Objects.equals(medianMaterial, baseline.medianMaterial)) {
@@ -907,8 +907,20 @@ public final class CrossSectionDraft {
             resolved,
             centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE,
             laneDividers);
+        syncMedianWidthFromMarkings();
+    }
+
+    /** 隔离带宽度随中央标线/中心缝分隔派生；无处可坐则关闭。 */
+    public void syncMedianWidthFromMarkings() {
+        CenterLineStyle style = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
+        int derived = CrossSectionGeometryRules.derivedMedianWidth(style, laneDividers, laneCount);
+        if (derived <= 0) {
+            includeMedian = false;
+            medianWidth = 0;
+            return;
+        }
         if (includeMedian) {
-            medianWidth = RoadParameterLimits.clampMedianWidthBlocks(width, Math.max(1, medianWidth));
+            medianWidth = derived;
         }
     }
 

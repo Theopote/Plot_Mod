@@ -187,14 +187,20 @@ public final class RoadParameterLimits {
     }
 
     /**
-     * 中央隔离带宽度：与单柱直径同一套奇偶/上限（落在路表中心，不占行车道宽）。
+     * 中央隔离带宽度粗钳制（1–2）；权威宽度由
+     * {@link com.plot.plugin.road.model.section.CrossSectionGeometryRules#derivedMedianWidth} 按标线派生。
      */
-    public static int clampMedianWidthBlocks(int carriagewayWidth, int medianWidth) {
-        return clampBridgePierDiameterBlocks(carriagewayWidth, medianWidth, BridgePierStyle.SINGLE);
+    public static int clampMedianWidthBlocks(int ignoredCarriagewayWidth, int medianWidth) {
+        if (medianWidth <= 0) {
+            return 0;
+        }
+        return Math.clamp(medianWidth, 1, 2);
     }
 
-    public static int[] validMedianWidths(int carriagewayWidth) {
-        return validBridgePierDiameters(carriagewayWidth, BridgePierStyle.SINGLE);
+    /** @deprecated 隔离带宽度已改为自动派生，UI 不再提供可选宽度列表。 */
+    @Deprecated
+    public static int[] validMedianWidths(int ignoredCarriagewayWidth) {
+        return new int[] {1, 2};
     }
 
     public static int clampMedianHeightBlocks(int height) {

@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.CrossSectionResolveReport;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
@@ -834,43 +835,43 @@ public final class CrossSectionDraftEditor {
         boolean roadEdit = editor.roadEdit;
         String id = editor.id;
 
+        CenterLineStyle medianStyle = draft.centerLineStyle() != null
+            ? draft.centerLineStyle()
+            : CenterLineStyle.NONE;
+        boolean medianAllowed = CrossSectionGeometryRules.canEnableMedian(
+            medianStyle, draft.laneDividers(), draft.laneCount());
+        if (!medianAllowed && draft.includeMedian()) {
+            mutator.setIncludeMedian(false);
+        }
         ImBoolean medianRef = new ImBoolean(draft.includeMedian());
+        if (!medianAllowed) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_median") + "##" + id + "_median", medianRef)) {
             if (roadEdit) {
                 hooks.onItemActivated();
             }
             mutator.setIncludeMedian(medianRef.get());
         }
+        if (!medianAllowed) {
+            ImGui.endDisabled();
+            if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+                UIUtils.setTooltip(PlotI18n.tr("plugin.road.median_requires_marking"));
+            }
+        }
         mutator.afterMedianIncludeField();
         if (!draft.includeMedian()) {
             return;
         }
-        int[] medianOptions = RoadParameterLimits.validMedianWidths(draft.width());
-        int clampedMedian = RoadParameterLimits.clampMedianWidthBlocks(
-            draft.width(), Math.max(1, draft.medianWidth()));
-        if (clampedMedian != draft.medianWidth()) {
-            mutator.setMedianWidth(clampedMedian);
+        int derivedMedian = CrossSectionGeometryRules.derivedMedianWidth(
+            medianStyle, draft.laneDividers(), draft.laneCount());
+        if (derivedMedian != draft.medianWidth()) {
+            mutator.setMedianWidth(derivedMedian);
         }
-        int[] medianWidthArr = {clampedMedian};
-        int minMedian = medianOptions.length > 0 ? medianOptions[0] : 1;
-        int maxMedian = medianOptions.length > 0
-            ? medianOptions[medianOptions.length - 1]
-            : RoadParameterLimits.MAX_BRIDGE_PIER_DIAMETER_BLOCKS;
-        if (ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.median_width") + "##" + id + "_median_w",
-            medianWidthArr,
-            minMedian,
-            maxMedian,
-            "%d")) {
-            if (ImGui.isItemActivated()) {
-                hooks.onItemActivated();
-            }
-            mutator.setMedianWidth(medianWidthArr[0]);
-        }
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.median_width_derived", derivedMedian));
         if (ImGui.isItemHovered()) {
-            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.median_width_parity"));
+            UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.median_width_derived"));
         }
-        mutator.afterMedianWidthField();
 
         int[] medianHeightArr = {draft.medianHeight()};
         if (ImGui.sliderInt(

@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui.editor;
 
 import com.plot.core.material.BlockColorRegistry;
-import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
@@ -612,16 +611,18 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
                     }
                 }
                 case MEDIAN -> {
-                    if (section.includeMedian) {
-                        scene.addAll(RoadLampCompiler.position(compiled, new BlockPos(0, section.medianHeight, z), 1, 0));
+                    if (section.includeMedian && section.medianMaxLateral >= section.medianMinLateral) {
+                        int medianX = (section.medianMinLateral + section.medianMaxLateral) / 2;
+                        scene.addAll(RoadLampCompiler.position(
+                            compiled, new BlockPos(medianX, section.medianHeight, z), 1, 0));
                     }
                 }
             }
         }
-        if (section.includeMedian) {
-            int min = RoadDimensionUtils.minLateralOffset(section.medianWidth);
-            int max = RoadDimensionUtils.maxLateralOffset(section.medianWidth);
-            for (int x = Math.max(-48, min); x <= Math.min(48, max); x++) {
+        if (section.includeMedian && section.medianMaxLateral >= section.medianMinLateral) {
+            for (int x = Math.max(-48, section.medianMinLateral);
+                 x <= Math.min(48, section.medianMaxLateral);
+                 x++) {
                 for (int y = 0; y < section.medianHeight; y++) {
                     for (int z = start; z <= end; z++) {
                         scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, y, z), section.medianMaterial));

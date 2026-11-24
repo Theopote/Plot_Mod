@@ -5112,10 +5112,13 @@
   "plugin.road.edit.batch_lane_width_set_unified": "设置统一单车道宽",
   "plugin.road.edit.batch_lane_width_target": "统一单车道宽: %d",
   "plugin.road.median_height": "隔离带高度",
-  "hint.plot.road.median_width_parity": "路表中央隔离带宽度与行车道同奇偶，上限参考单柱直径。",
+  "hint.plot.road.median_width_parity": "中央隔离带宽度由中央标线或中心缝车道分隔线自动推导。",
+  "hint.plot.road.median_width_derived": "宽度与中央标线（或无标线时的中心缝分隔线）占格一致，不可手动调整。",
   "hint.plot.road.median_height": "隔离带高出路面的格数（1–3）。",
   "hint.plot.road.bridge_pier_single_only_narrow": "行车道宽度不超过 2 格时仅可使用单柱。",
   "plugin.road.edit.overview_length_vertical": "%d段·%s·%s",
-  "plugin.road.median_fit_adjusted": "中央分隔带宽度已按路面宽度自动调整。",
+  "plugin.road.median_fit_adjusted": "中央隔离带宽度已按标线自动对齐。",
+  "plugin.road.median_width_derived": "隔离带宽度：%d 格（随标线/分隔）",
+  "plugin.road.median_requires_marking": "需先启用中央标线或车道分隔线，才能放置中央隔离带。",
   "plugin.road.median_width_clamped": "中央分隔带由 %1 格收窄为 %4 格（%2 车道 · 路面宽 %3）。"
 }

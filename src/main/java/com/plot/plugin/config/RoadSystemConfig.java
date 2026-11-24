@@ -15,6 +15,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
@@ -260,8 +261,19 @@ public class RoadSystemConfig {
             widths,
             getCenterLineStyle(),
             laneDividers);
+        syncMedianWidthFromMarkings();
+    }
+
+    private void syncMedianWidthFromMarkings() {
+        int derived = CrossSectionGeometryRules.derivedMedianWidth(
+            getCenterLineStyle(), laneDividers, getLaneCount());
+        if (derived <= 0) {
+            includeMedian = false;
+            medianWidth = 0;
+            return;
+        }
         if (includeMedian) {
-            this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(this.roadWidth, medianWidth);
+            medianWidth = derived;
         }
     }
 
@@ -569,8 +581,13 @@ public class RoadSystemConfig {
 
     public void setIncludeMedian(boolean includeMedian) {
         this.includeMedian = includeMedian;
+        // 不在此处因「标线尚未写好」而关掉；标线变更与 recompute 会再 sync。
         if (includeMedian) {
-            this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(getRoadWidth(), medianWidth);
+            int derived = CrossSectionGeometryRules.derivedMedianWidth(
+                getCenterLineStyle(), laneDividers, getLaneCount());
+            if (derived > 0) {
+                medianWidth = derived;
+            }
         }
     }
 
@@ -579,7 +596,14 @@ public class RoadSystemConfig {
     }
 
     public void setMedianWidth(int medianWidth) {
-        this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(getRoadWidth(), medianWidth);
+        this.medianWidth = RoadParameterLimits.clampMedianWidthBlocks(0, medianWidth);
+        if (includeMedian) {
+            int derived = CrossSectionGeometryRules.derivedMedianWidth(
+                getCenterLineStyle(), laneDividers, getLaneCount());
+            if (derived > 0) {
+                this.medianWidth = derived;
+            }
+        }
     }
 
     public int getMedianHeight() {
