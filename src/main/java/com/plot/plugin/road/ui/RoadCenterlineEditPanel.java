@@ -288,10 +288,6 @@ public final class RoadCenterlineEditPanel {
             Runnable beforeMutationOrNull,
             PiAction insertPi,
             PiAction splitEdge) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.centerline_tool_locate_hint"));
-
         float[] distance = {centerlineEditDistanceBlocks};
         ImGui.setNextItemWidth(controlWidth());
         if (ImGui.sliderFloat(
@@ -339,9 +335,6 @@ public final class RoadCenterlineEditPanel {
                 PlotI18n.tr("plugin.road.centerline_tool_fillet_none"));
             return;
         }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.centerline_tool_fillet_hint"));
 
         ImGui.setNextItemWidth(controlWidth());
         int[] vertexValue = {centerlineVertexIndex};
@@ -408,10 +401,6 @@ public final class RoadCenterlineEditPanel {
             EdgeAction reverseEdge,
             RoadAction reverseRoad,
             NodeAction mergeAtNode) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.centerline_tool_topology_hint"));
-
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_segment") + "##cl_rev_seg")) {
             runMutating(beforeMutationOrNull, () ->
                 recordMessage(reverseEdge.run(network, edge.getId())));

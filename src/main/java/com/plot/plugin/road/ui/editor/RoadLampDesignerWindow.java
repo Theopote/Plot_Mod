@@ -95,6 +95,21 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         customId = matchingCustomId(placementDraft != null ? placementDraft.style() : null);
     }
 
+    @Override
+    protected void onWorkingNetworkReplaced() {
+        if (session == null) {
+            return;
+        }
+        resetDraft(furniture(session.workingNetwork(), roadId));
+        customId = matchingCustomId(placementDraft != null ? placementDraft.style() : null);
+    }
+
+    private void checkpointIfActivated() {
+        if (session != null && ImGui.isItemActivated()) {
+            session.pushUndoCheckpoint();
+        }
+    }
+
     private void resetDraft(StreetFurniture furniture) {
         contextPlacement = null;
         placementDraft = furniture != null ? current(furniture) : null;
@@ -297,6 +312,9 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
     }
 
     private void select(StreetFurniture furniture, RoadLampStyle style, boolean enabled) {
+        if (session != null) {
+            session.pushUndoCheckpoint();
+        }
         draft = RoadLampDraft.from(style);
         var next = draft.resolve(new RoadLampPlacement(
             style, placementDraft.sides(), placementDraft.spacing(), placementDraft.inset(),
@@ -735,21 +753,35 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
         }
     }
 
-    private static boolean toggle(String key, boolean value) {
-        return ImGui.checkbox(tr(key), value) != value;
+    private boolean toggle(String key, boolean value) {
+        // imgui-java：checkbox 返回是否点击；`clicked != value` 即切换后的新值。
+        boolean next = ImGui.checkbox(tr(key), value) != value;
+        if (next != value && session != null) {
+            session.pushUndoCheckpoint();
+        }
+        return next;
     }
 
-    private static int slider(String key, int value, int min, int max) {
+    private int slider(String key, int value, int min, int max) {
         int[] buffer = {value};
         ImGui.setNextItemWidth(controlWidth());
-        return ImGui.sliderInt(tr(key), buffer, min, max) ? Math.clamp(buffer[0], min, max) : value;
+        if (ImGui.sliderInt(tr(key), buffer, min, max)) {
+            checkpointIfActivated();
+            return Math.clamp(buffer[0], min, max);
+        }
+        return value;
     }
 
-    private static <E extends Enum<E>> E combo(String key, E current, E[] values) {
+    private <E extends Enum<E>> E combo(String key, E current, E[] values) {
         ImGui.setNextItemWidth(controlWidth());
         if (ImGui.beginCombo(tr(key), enumLabel(key, current))) {
             for (E value : values) {
-                if (ImGui.selectable(enumLabel(key, value), value == current)) current = value;
+                if (ImGui.selectable(enumLabel(key, value), value == current) && value != current) {
+                    if (session != null) {
+                        session.pushUndoCheckpoint();
+                    }
+                    current = value;
+                }
             }
             ImGui.endCombo();
         }

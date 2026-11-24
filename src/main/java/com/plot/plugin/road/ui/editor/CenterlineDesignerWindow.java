@@ -9,8 +9,6 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.RoadCenterlineEditPanel;
 import com.plot.plugin.road.ui.RoadSegmentEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
-import com.plot.plugin.road.ui.RoadUiWidgets;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -91,6 +89,11 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     }
 
     @Override
+    protected void onWorkingNetworkReplaced() {
+        centerlineEditPanel.clearMessages();
+    }
+
+    @Override
     public boolean matchesScope(Set<String> selectedRoadIds) {
         return selectedRoadIds != null
             && selectedRoadIds.size() == 1
@@ -104,22 +107,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         if (session == null) {
             return;
         }
-        // 会话内 Undo 须在读取 working 之前处理，避免本帧继续用旧引用。
-        if (session.canUndo()) {
-            if (ImGui.button(PlotI18n.tr("plugin.road.centerline_session_undo") + "##cl_session_undo")) {
-                session.undo();
-                centerlineEditPanel.clearMessages();
-            }
-            if (ImGui.isItemHovered()) {
-                com.plot.ui.component.UIUtils.setTooltip(
-                    PlotI18n.tr("plugin.road.centerline_session_undo_tip"));
-            }
-            ImGui.sameLine();
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.centerline_session_undo_hint"));
-        }
-
         RoadNetwork working = session.workingNetwork();
         Road road = working.getRoad(roadId);
         if (road == null) {
@@ -134,9 +121,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             ? ChainageDisplayContext.fromStart(RoadStationing.canonicalLength(working, road))
             : null;
 
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.floating_editor.centerline.segments_hint"));
         if (primaryEdge == null) {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.edge_missing"));
             return;

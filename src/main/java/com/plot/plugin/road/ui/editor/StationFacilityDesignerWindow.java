@@ -120,7 +120,7 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
             session.workingNetwork(),
             road,
             chainageDisplay,
-            () -> { /* dirty tracked by session */ });
+            session::pushUndoCheckpoint);
     }
 
     @Override

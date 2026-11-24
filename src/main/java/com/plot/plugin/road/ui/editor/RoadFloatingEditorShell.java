@@ -235,8 +235,27 @@ public final class RoadFloatingEditorShell {
             Runnable onRestore,
             Runnable onCancel,
             Runnable onConfirm) {
+        renderFooter(ctx, dirty, false, false, null, null, onRestore, onCancel, onConfirm);
+    }
+
+    /**
+     * 页脚：左侧撤销/重做，再还原/取消/确认。
+     */
+    public static void renderFooter(
+            RoadUiContext ctx,
+            boolean dirty,
+            boolean canUndo,
+            boolean canRedo,
+            Runnable onUndo,
+            Runnable onRedo,
+            Runnable onRestore,
+            Runnable onCancel,
+            Runnable onConfirm) {
         ImGui.separator();
+        boolean showUndoRedo = onUndo != null || onRedo != null;
         boolean showRestore = dirty && onRestore != null;
+        String undoLabel = PlotI18n.tr("plugin.road.floating_editor.undo");
+        String redoLabel = PlotI18n.tr("plugin.road.floating_editor.redo");
         String restoreLabel = PlotI18n.tr("plugin.road.floating_editor.restore");
         String cancelLabel = PlotI18n.tr("button.plot.cancel");
         String confirmLabel = PlotI18n.tr("plugin.road.floating_editor.confirm");
@@ -244,12 +263,15 @@ public final class RoadFloatingEditorShell {
             ? PlotI18n.tr("plugin.road.floating_editor.unsaved_hint")
             : null;
         float buttonWidth = equalFooterActionButtonWidth(
+            showUndoRedo ? undoLabel : null,
+            showUndoRedo ? redoLabel : null,
             showRestore ? restoreLabel : null,
             onCancel != null ? cancelLabel : null,
             onConfirm != null ? confirmLabel : null);
         float spacing = ImGui.getStyle().getItemSpacingX();
         float rowWidth = footerActionRowWidth(
             buttonWidth,
+            showUndoRedo,
             showRestore,
             onCancel != null,
             onConfirm != null,
@@ -259,6 +281,40 @@ public final class RoadFloatingEditorShell {
         boolean narrow = ImGui.getContentRegionAvailX() < NARROW_PANEL_WIDTH
             || ImGui.getContentRegionAvailX() + 1f < rowWidth;
 
+        if (showUndoRedo) {
+            if (!canUndo || onUndo == null) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(undoLabel + "##session_undo", buttonWidth, 0) && onUndo != null) {
+                onUndo.run();
+            }
+            if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+                com.plot.ui.component.UIUtils.setTooltip(
+                    PlotI18n.tr("plugin.road.floating_editor.undo_tip"));
+            }
+            if (!canUndo || onUndo == null) {
+                ImGui.endDisabled();
+            }
+            if (!narrow) {
+                ImGui.sameLine(0f, spacing);
+            }
+            if (!canRedo || onRedo == null) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(redoLabel + "##session_redo", buttonWidth, 0) && onRedo != null) {
+                onRedo.run();
+            }
+            if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+                com.plot.ui.component.UIUtils.setTooltip(
+                    PlotI18n.tr("plugin.road.floating_editor.redo_tip"));
+            }
+            if (!canRedo || onRedo == null) {
+                ImGui.endDisabled();
+            }
+            if (!narrow) {
+                ImGui.sameLine(0f, spacing);
+            }
+        }
         if (showRestore) {
             if (ImGui.button(restoreLabel + "##restore", buttonWidth, 0)) {
                 onRestore.run();
@@ -296,6 +352,7 @@ public final class RoadFloatingEditorShell {
 
     private static float footerActionRowWidth(
             float buttonWidth,
+            boolean showUndoRedo,
             boolean showRestore,
             boolean showCancel,
             boolean showConfirm,
@@ -303,6 +360,10 @@ public final class RoadFloatingEditorShell {
             float spacing) {
         int count = 0;
         float width = 0f;
+        if (showUndoRedo) {
+            width += buttonWidth * 2f;
+            count += 2;
+        }
         if (showRestore) {
             width += buttonWidth;
             count++;

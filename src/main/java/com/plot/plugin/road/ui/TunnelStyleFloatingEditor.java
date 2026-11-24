@@ -13,8 +13,10 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,6 +47,11 @@ public final class TunnelStyleFloatingEditor {
     private boolean inheritGlobal;
     private TunnelStyle draft;
     private TunnelStyle baseline;
+    /** 撤销用镜像：在编辑激活帧压入上一稳定稿。 */
+    private TunnelStyle editMirror;
+    private final Deque<TunnelStyle> tunnelUndo = new ArrayDeque<>();
+    private final Deque<TunnelStyle> tunnelRedo = new ArrayDeque<>();
+    private static final int MAX_TUNNEL_UNDO = 32;
     private final TunnelStyleEditor.PresetSelection presetSelection = new TunnelStyleEditor.PresetSelection();
     private Runnable onHistory;
 
@@ -223,7 +230,7 @@ public final class TunnelStyleFloatingEditor {
                         ImGui.sameLine(0f, ImGui.getStyle().getItemSpacingX());
                         ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX()));
                         TunnelStyleEditor.renderStylePresetCombo(
-                            draft, () -> draft.clamp(), presetSelection);
+                            draft, this::onTunnelDraftEdited, presetSelection);
                     }
                 }
                 if (target == Target.ROAD && inheritGlobal) {
@@ -235,7 +242,7 @@ public final class TunnelStyleFloatingEditor {
                     TunnelStyleEditor.render(
                         ctx,
                         draft,
-                        () -> draft.clamp(),
+                        this::onTunnelDraftEdited,
                         presetSelection,
                         target == Target.ROAD ? roadId : null,
                         target != Target.ROAD);
@@ -247,6 +254,10 @@ public final class TunnelStyleFloatingEditor {
             RoadFloatingEditorShell.renderFooter(
                 ctx,
                 dirty,
+                !tunnelUndo.isEmpty(),
+                !tunnelRedo.isEmpty(),
+                this::undoTunnelStep,
+                this::redoTunnelStep,
                 this::restoreBaseline,
                 this::requestCancel,
                 () -> confirm(ctx));
@@ -441,6 +452,9 @@ public final class TunnelStyleFloatingEditor {
         seed.ensureConfigDefaults();
         this.baseline = seed.copy();
         this.draft = seed.copy();
+        this.editMirror = this.draft.copy();
+        this.tunnelUndo.clear();
+        this.tunnelRedo.clear();
         this.presetSelection.clear();
         this.presetSelection.detectFromStyle(this.draft);
         this.focusPending = true;
@@ -448,6 +462,39 @@ public final class TunnelStyleFloatingEditor {
         this.lossyBatchConfirmPending = false;
         this.lossyBatchAcknowledged = false;
         this.open.set(true);
+    }
+
+    private void onTunnelDraftEdited() {
+        if (editMirror != null && ImGui.isItemActivated()) {
+            tunnelUndo.push(editMirror.copy());
+            tunnelRedo.clear();
+            while (tunnelUndo.size() > MAX_TUNNEL_UNDO) {
+                tunnelUndo.removeLast();
+            }
+        }
+        draft.clamp();
+        editMirror = draft.copy();
+        presetSelection.detectFromStyle(draft);
+    }
+
+    private void undoTunnelStep() {
+        if (tunnelUndo.isEmpty() || draft == null) {
+            return;
+        }
+        tunnelRedo.push(draft.copy());
+        draft = tunnelUndo.pop();
+        editMirror = draft.copy();
+        presetSelection.detectFromStyle(draft);
+    }
+
+    private void redoTunnelStep() {
+        if (tunnelRedo.isEmpty() || draft == null) {
+            return;
+        }
+        tunnelUndo.push(draft.copy());
+        draft = tunnelRedo.pop();
+        editMirror = draft.copy();
+        presetSelection.detectFromStyle(draft);
     }
 
     private void renderInheritToggle() {
@@ -492,6 +539,9 @@ public final class TunnelStyleFloatingEditor {
         inheritGlobal = false;
         draft = baseline.copy();
         draft.ensureConfigDefaults();
+        editMirror = draft.copy();
+        tunnelUndo.clear();
+        tunnelRedo.clear();
         presetSelection.clear();
         presetSelection.detectFromStyle(draft);
     }

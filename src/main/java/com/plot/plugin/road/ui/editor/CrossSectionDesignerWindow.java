@@ -17,6 +17,7 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
     private CrossSectionDraftMutator cachedMutator;
     private String cachedMutatorRoadId = "";
     private RoadNetworkEditorSession cachedMutatorSession;
+    private com.plot.plugin.road.model.RoadNetwork cachedMutatorWorking;
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -101,21 +102,29 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
     private CrossSectionDraftMutator mutatorFor(Road road, RoadSystemConfig config) {
         if (cachedMutator == null
                 || cachedMutatorSession != session
+                || cachedMutatorWorking != session.workingNetwork()
                 || !roadId.equals(cachedMutatorRoadId)) {
             cachedMutator = CrossSectionDraftMutator.forRoad(
                 road,
                 config,
-                () -> { /* dirty tracked by session */ });
+                session::pushUndoCheckpoint);
             cachedMutatorSession = session;
             cachedMutatorRoadId = roadId;
+            cachedMutatorWorking = session.workingNetwork();
         }
         return cachedMutator;
+    }
+
+    @Override
+    protected void onWorkingNetworkReplaced() {
+        invalidateUiCaches();
     }
 
     private void invalidateUiCaches() {
         cachedMutator = null;
         cachedMutatorRoadId = "";
         cachedMutatorSession = null;
+        cachedMutatorWorking = null;
         panel.invalidate();
     }
 }

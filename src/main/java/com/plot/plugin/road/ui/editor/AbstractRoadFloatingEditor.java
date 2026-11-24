@@ -189,6 +189,10 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
                     RoadFloatingEditorShell.renderFooter(
                         ctx,
                         isDirty(),
+                        canEditorUndo(),
+                        canEditorRedo(),
+                        this::undoEditorStep,
+                        this::redoEditorStep,
                         this::restoreSession,
                         () -> discard(ctx),
                         () -> confirm(ctx));
@@ -340,6 +344,32 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         if (session != null) {
             session.restore();
         }
+        onWorkingNetworkReplaced();
+    }
+
+    /** 会话内是否可撤销（批量等可覆盖）。 */
+    protected boolean canEditorUndo() {
+        return session != null && session.canUndo();
+    }
+
+    protected boolean canEditorRedo() {
+        return session != null && session.canRedo();
+    }
+
+    protected void undoEditorStep() {
+        if (session != null && session.undo()) {
+            onWorkingNetworkReplaced();
+        }
+    }
+
+    protected void redoEditorStep() {
+        if (session != null && session.redo()) {
+            onWorkingNetworkReplaced();
+        }
+    }
+
+    /** 工作副本被撤销/重做/还原替换后回调，供清 UI 缓存。 */
+    protected void onWorkingNetworkReplaced() {
     }
 
     /**

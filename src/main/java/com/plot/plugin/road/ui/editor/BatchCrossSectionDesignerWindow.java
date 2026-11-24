@@ -14,14 +14,20 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 
 /** 批量横断面浮动编辑器。 */
 public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingEditor {
 
+    private static final int MAX_BATCH_UNDO = 32;
+
     private RoadNetworkManager.BatchEditDefaults openBatchDefaults;
     private RoadNetworkManager.BatchEditDefaults workingBatchDefaults;
     private java.util.Set<String> targetRoadIds = java.util.Set.of();
+    private final Deque<RoadNetworkManager.BatchEditDefaults> batchUndo = new ArrayDeque<>();
+    private final Deque<RoadNetworkManager.BatchEditDefaults> batchRedo = new ArrayDeque<>();
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -51,9 +57,13 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
         targetRoadIds = java.util.Set.copyOf(ctx.networkManager().getSelectedRoadIds());
-        if (targetRoadIds.isEmpty()) targetRoadIds = java.util.Set.of(roadId);
+        if (targetRoadIds.isEmpty()) {
+            targetRoadIds = java.util.Set.of(roadId);
+        }
         openBatchDefaults = ctx.networkManager().loadBatchEditDefaults();
         workingBatchDefaults = openBatchDefaults;
+        batchUndo.clear();
+        batchRedo.clear();
         var live = ctx.networkManager().getNetwork();
         return RoadNetworkEditorSession.open(
             live,
@@ -76,9 +86,10 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
 
         CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(workingBatchDefaults);
         CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.batchSectionCards();
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraft(
+        // onItemActivated 时先压检查点；本帧末再把 draft 写回 workingBatchDefaults。
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraftWithHistory(
             sectionDraft,
-            () -> workingBatchDefaults = sectionDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults));
+            this::pushBatchCheckpoint);
 
         sectionCard("##batch_xs_geometry", "plugin.road.floating_editor.batch_cross_section.section.geometry", () -> {
             CrossSectionDraftEditor.renderAppearanceStrips(ctx, mutator, options);
@@ -94,15 +105,61 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
             BridgeStructureControls.renderBatchWorkingPiers(
                 ctx,
                 workingBatchDefaults,
-                updated -> workingBatchDefaults = updated));
+                updated -> {
+                    pushBatchCheckpoint();
+                    workingBatchDefaults = updated;
+                }));
         sectionCard("##batch_xs_guardrail", "plugin.road.floating_editor.cross_section.section.guardrail", () ->
             BridgeStructureControls.renderBatchWorkingGuardrail(
                 ctx,
                 workingBatchDefaults,
-                updated -> workingBatchDefaults = updated));
+                updated -> {
+                    pushBatchCheckpoint();
+                    workingBatchDefaults = updated;
+                }));
 
+        workingBatchDefaults = sectionDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults);
         ImGui.spacing();
         RoadBatchCrossSectionEditor.renderDraftPreview(ctx, workingBatchDefaults);
+    }
+
+    private void pushBatchCheckpoint() {
+        if (workingBatchDefaults == null) {
+            return;
+        }
+        batchUndo.push(workingBatchDefaults);
+        batchRedo.clear();
+        while (batchUndo.size() > MAX_BATCH_UNDO) {
+            batchUndo.removeLast();
+        }
+    }
+
+    @Override
+    protected boolean canEditorUndo() {
+        return !batchUndo.isEmpty();
+    }
+
+    @Override
+    protected boolean canEditorRedo() {
+        return !batchRedo.isEmpty();
+    }
+
+    @Override
+    protected void undoEditorStep() {
+        if (batchUndo.isEmpty() || workingBatchDefaults == null) {
+            return;
+        }
+        batchRedo.push(workingBatchDefaults);
+        workingBatchDefaults = batchUndo.pop();
+    }
+
+    @Override
+    protected void redoEditorStep() {
+        if (batchRedo.isEmpty() || workingBatchDefaults == null) {
+            return;
+        }
+        batchUndo.push(workingBatchDefaults);
+        workingBatchDefaults = batchRedo.pop();
     }
 
     private static void sectionCard(String id, String titleKey, Runnable body) {
@@ -132,6 +189,8 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
     protected void restoreSession() {
         super.restoreSession();
         workingBatchDefaults = openBatchDefaults;
+        batchUndo.clear();
+        batchRedo.clear();
     }
 
     /** 包内测试：替换工作副本批量默认值。 */

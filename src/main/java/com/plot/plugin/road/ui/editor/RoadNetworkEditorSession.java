@@ -27,8 +27,9 @@ public final class RoadNetworkEditorSession {
     private final Predicate<RoadNetwork> dirtyPredicate;
     /** 一旦变脏即闩住，避免拖滑条时每帧深比较横断面。 */
     private boolean dirtyLatched;
-    /** 会话内单步撤销（工作副本快照）；还原/取消时清空。 */
+    /** 会话内撤销/重做（工作副本快照）；还原/取消或新编辑时清空重做栈。 */
     private final Deque<RoadNetwork> undoStack = new ArrayDeque<>();
+    private final Deque<RoadNetwork> redoStack = new ArrayDeque<>();
 
     private RoadNetworkEditorSession(
             RoadNetwork openSnapshot,
@@ -105,9 +106,10 @@ public final class RoadNetworkEditorSession {
         restore();
     }
 
-    /** 在即将改写工作副本前压入检查点，供会话内「撤销上一步」。 */
+    /** 在即将改写工作副本前压入检查点，供会话内撤销；新编辑清空重做栈。 */
     public void pushUndoCheckpoint() {
         undoStack.push(workingNetwork.deepCopy());
+        redoStack.clear();
         while (undoStack.size() > MAX_UNDO_DEPTH) {
             undoStack.removeLast();
         }
@@ -117,17 +119,39 @@ public final class RoadNetworkEditorSession {
         return !undoStack.isEmpty();
     }
 
+    public boolean canRedo() {
+        return !redoStack.isEmpty();
+    }
+
     public boolean undo() {
         if (undoStack.isEmpty()) {
             return false;
+        }
+        redoStack.push(workingNetwork.deepCopy());
+        while (redoStack.size() > MAX_UNDO_DEPTH) {
+            redoStack.removeLast();
         }
         workingNetwork = undoStack.pop();
         dirtyLatched = dirtyPredicate.test(workingNetwork);
         return true;
     }
 
+    public boolean redo() {
+        if (redoStack.isEmpty()) {
+            return false;
+        }
+        undoStack.push(workingNetwork.deepCopy());
+        while (undoStack.size() > MAX_UNDO_DEPTH) {
+            undoStack.removeLast();
+        }
+        workingNetwork = redoStack.pop();
+        dirtyLatched = dirtyPredicate.test(workingNetwork);
+        return true;
+    }
+
     public void clearUndoStack() {
         undoStack.clear();
+        redoStack.clear();
     }
 
     public ConfirmResult confirm(long liveRevision, RoadNetworkApplier applier) {

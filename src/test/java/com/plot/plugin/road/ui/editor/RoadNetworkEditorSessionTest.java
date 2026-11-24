@@ -70,6 +70,13 @@ class RoadNetworkEditorSessionTest {
         assertEquals(10, session.workingNetwork().getRoad(roadId).getWidth());
         assertFalse(session.isDirty());
         assertFalse(session.canUndo());
+        assertTrue(session.canRedo());
+
+        assertTrue(session.redo());
+        assertEquals(20, session.workingNetwork().getRoad(roadId).getWidth());
+        assertTrue(session.isDirty());
+        assertTrue(session.canUndo());
+        assertFalse(session.canRedo());
     }
 
     @Test

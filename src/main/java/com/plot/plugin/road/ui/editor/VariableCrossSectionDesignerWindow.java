@@ -119,7 +119,7 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
             session.workingNetwork(),
             road,
             chainageDisplay,
-            () -> { /* dirty tracked by session */ });
+            session::pushUndoCheckpoint);
     }
 
     @Override
