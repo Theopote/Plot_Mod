@@ -325,7 +325,8 @@ public final class VariableCrossSectionEditor {
                 return;
             }
             draft = drafts.get(selectedIndex);
-            ImGui.separator();
+            // 去掉分割线，保留与原先 separator + spacing 相当的垂直间距。
+            ImGui.dummy(0f, ImGui.getStyle().getItemSpacingY());
             ImGui.spacing();
 
             CrossSectionDraftMutator mutator = mutatorFor(draft, onHistory);
