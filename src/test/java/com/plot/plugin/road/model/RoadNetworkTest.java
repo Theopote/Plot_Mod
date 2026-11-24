@@ -36,6 +36,45 @@ class RoadNetworkTest {
     Path tempDir;
 
     @Test
+    void updateEdgeEndpointsSyncsNodeAdjacencyAndDropsOrphans() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(30, 0));
+        RoadEdge edge = network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        assertTrue(network.updateEdgeEndpoints(edge.getId(), c.getId(), d.getId()));
+        edge.setCenterlinePoints(List.of(new Vec2d(20, 0), new Vec2d(30, 0)));
+        assertEquals(c.getId(), edge.getStartNodeId());
+        assertEquals(d.getId(), edge.getEndNodeId());
+        assertTrue(c.getConnectedEdgeIds().contains(edge.getId()));
+        assertTrue(d.getConnectedEdgeIds().contains(edge.getId()));
+        assertNull(network.getNode(a.getId()));
+        assertNull(network.getNode(b.getId()));
+        assertTrue(network.validateInvariants().isValid(), network.validateInvariants().violations().toString());
+    }
+
+    @Test
+    void updateEdgeEndpointsSwapKeepsBothNodesConnected() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        assertTrue(network.updateEdgeEndpoints(edge.getId(), b.getId(), a.getId()));
+        assertEquals(b.getId(), edge.getStartNodeId());
+        assertEquals(a.getId(), edge.getEndNodeId());
+        assertTrue(a.getConnectedEdgeIds().contains(edge.getId()));
+        assertTrue(b.getConnectedEdgeIds().contains(edge.getId()));
+        assertEquals(2, network.getNodes().size());
+    }
+
+    @Test
     void assignEdgeToRoadUnlinksFromPreviousRoad() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");

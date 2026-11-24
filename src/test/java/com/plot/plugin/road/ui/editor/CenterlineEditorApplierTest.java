@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
@@ -102,6 +103,32 @@ class CenterlineEditorApplierTest {
         assertEquals(60.0, live.getEdge(split.secondEdgeId()).getLength(), 1e-6);
         assertTrue(live.validateInvariants().isValid(), live.validateInvariants().violations().toString());
         assertNotNull(live.getNode(split.nodeId()));
+    }
+
+    @Test
+    void applyToLiveRelinksNodeAdjacencyWhenExistingEdgeEndpointsChange() {
+        RoadEdge liveEdge = live.getEdge(edgeId);
+        String oldStartId = liveEdge.getStartNodeId();
+        String oldEndId = liveEdge.getEndNodeId();
+
+        RoadNetwork working = live.snapshot();
+        RoadNode newStart = working.createNode(new Vec2d(-10, 0));
+        RoadNode newEnd = working.createNode(new Vec2d(110, 0));
+        RoadEdge workingEdge = working.getEdge(edgeId);
+        assertTrue(working.updateEdgeEndpoints(edgeId, newStart.getId(), newEnd.getId()));
+        workingEdge.setCenterlinePoints(List.of(new Vec2d(-10, 0), new Vec2d(110, 0)));
+
+        CenterlineEditorApplier.applyToLive(live, working, roadId);
+
+        RoadEdge synced = live.getEdge(edgeId);
+        assertNotNull(synced);
+        assertEquals(newStart.getId(), synced.getStartNodeId());
+        assertEquals(newEnd.getId(), synced.getEndNodeId());
+        assertTrue(live.getNode(newStart.getId()).getConnectedEdgeIds().contains(edgeId));
+        assertTrue(live.getNode(newEnd.getId()).getConnectedEdgeIds().contains(edgeId));
+        assertNull(live.getNode(oldStartId));
+        assertNull(live.getNode(oldEndId));
+        assertTrue(live.validateInvariants().isValid(), live.validateInvariants().violations().toString());
     }
 
     @Test

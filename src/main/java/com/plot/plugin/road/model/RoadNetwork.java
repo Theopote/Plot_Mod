@@ -353,6 +353,61 @@ public class RoadNetwork {
     }
 
     /**
+     * 更新已有边的起终点，并同步两端节点的 {@code connectedEdgeIds}。
+     * <p>
+     * 工作副本写回等场景可能复用边 ID 但更换端点；不可只改边字段而留下陈旧邻接。
+     * 原先仅被本边引用且度降为 0 的旧端点会被移除。
+     *
+     * @return false 若边或新端点节点不存在
+     */
+    public boolean updateEdgeEndpoints(String edgeId, String newStartNodeId, String newEndNodeId) {
+        RoadEdge edge = edges.get(edgeId);
+        if (edge == null
+            || newStartNodeId == null || newStartNodeId.isBlank()
+            || newEndNodeId == null || newEndNodeId.isBlank()) {
+            return false;
+        }
+        RoadNode newStart = nodes.get(newStartNodeId);
+        RoadNode newEnd = nodes.get(newEndNodeId);
+        if (newStart == null || newEnd == null) {
+            return false;
+        }
+        String oldStartId = edge.getStartNodeId();
+        String oldEndId = edge.getEndNodeId();
+        if (newStartNodeId.equals(oldStartId) && newEndNodeId.equals(oldEndId)) {
+            return true;
+        }
+
+        // 先从旧端点摘下，再挂到新端点；起终点互换时 Set 语义仍正确。
+        RoadNode oldStart = nodes.get(oldStartId);
+        RoadNode oldEnd = nodes.get(oldEndId);
+        if (oldStart != null) {
+            oldStart.removeEdge(edgeId);
+        }
+        if (oldEnd != null) {
+            oldEnd.removeEdge(edgeId);
+        }
+        edge.setStartNodeId(newStartNodeId);
+        edge.setEndNodeId(newEndNodeId);
+        newStart.addEdge(edgeId);
+        newEnd.addEdge(edgeId);
+
+        if (oldStart != null
+            && oldStart.getDegree() == 0
+            && !oldStartId.equals(newStartNodeId)
+            && !oldStartId.equals(newEndNodeId)) {
+            nodes.remove(oldStartId);
+        }
+        if (oldEnd != null
+            && oldEnd.getDegree() == 0
+            && !oldEndId.equals(newStartNodeId)
+            && !oldEndId.equals(newEndNodeId)) {
+            nodes.remove(oldEndId);
+        }
+        return true;
+    }
+
+    /**
      * 维护 Road ↔ RoadEdge 双向归属的唯一入口。
      *
      * @return false 若 edge 不存在，或 newRoadId 非空但对应 road 不存在

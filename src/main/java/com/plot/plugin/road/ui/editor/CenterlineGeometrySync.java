@@ -51,8 +51,9 @@ final class CenterlineGeometrySync {
                     workingEdge.getSourceRoadId());
                 live.attachExistingEdge(copy);
             } else {
-                liveEdge.setStartNodeId(workingEdge.getStartNodeId());
-                liveEdge.setEndNodeId(workingEdge.getEndNodeId());
+                // 端点变更必须同步节点邻接表，不可只改边字段。
+                live.updateEdgeEndpoints(
+                    edgeId, workingEdge.getStartNodeId(), workingEdge.getEndNodeId());
                 liveEdge.setCenterlinePoints(copyPoints(workingEdge.getCenterlinePoints()));
                 liveEdge.setSlopeOverrides(workingEdge.getSlopeOverrides());
             }
