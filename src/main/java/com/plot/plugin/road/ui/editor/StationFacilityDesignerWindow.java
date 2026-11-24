@@ -31,16 +31,6 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
     }
 
     @Override
-    protected float fixedWidthOfScreen() {
-        return RoadFloatingEditorShell.VARIABLE_XS_WIDTH_OF_SCREEN;
-    }
-
-    @Override
-    protected float fixedHeightOfScreen() {
-        return RoadFloatingEditorShell.VARIABLE_XS_HEIGHT_OF_SCREEN;
-    }
-
-    @Override
     protected String windowTitleKey() {
         return "plugin.road.floating_editor.station_facilities.title";
     }

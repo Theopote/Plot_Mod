@@ -102,11 +102,6 @@ public final class StationFacilityEditor {
         syncDrafts(road);
         clampSelection();
 
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.station_facility_hint"));
-        ImGui.spacing();
-
         // 通长滑动条置顶；平面示意与设施列表同宽落在左列。
         renderOverviewScrub(canvasLength, chainageDisplay, onHistory);
         ImGui.spacing();
@@ -407,21 +402,36 @@ public final class StationFacilityEditor {
             float roadLength,
             ChainageDisplayContext chainageDisplay,
             Runnable onHistory) {
-        if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.station_facility_none"));
-            return;
-        }
-
         // 固定 ID：scrub 时不因选中项变化打断详情交互。
         ImGui.pushID("facility_detail");
         try {
-            FacilityRunDraft draft = drafts.get(selectedIndex);
-            renderDetailFields(ctx, draft, roadLength, chainageDisplay, onHistory);
+            if (selectedIndex < 0 || selectedIndex >= drafts.size()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.station_facility_none"));
+            } else {
+                FacilityRunDraft draft = drafts.get(selectedIndex);
+                renderDetailFields(ctx, draft, roadLength, chainageDisplay, onHistory);
+            }
+            renderDetailFooterHint();
         } finally {
             ImGui.popID();
         }
+    }
+
+    /** 参数面板底部说明，贴底显示。 */
+    private void renderDetailFooterHint() {
+        String hint = PlotI18n.tr("plugin.road.station_facility_hint");
+        float textW = Math.max(40f, ImGui.getContentRegionAvailX());
+        float textH = ImGui.calcTextSize(hint, false, textW).y;
+        float pad = ImGui.getStyle().getItemSpacingY();
+        float avail = ImGui.getContentRegionAvailY();
+        if (avail > textH + pad) {
+            ImGui.setCursorPosY(ImGui.getCursorPosY() + avail - textH - pad);
+        } else {
+            ImGui.spacing();
+        }
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, hint);
     }
 
     private void renderDetailFields(
