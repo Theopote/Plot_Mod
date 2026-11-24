@@ -97,6 +97,14 @@ public final class RoadNetworkEditorSession {
         return dirtyLatched;
     }
 
+    /**
+     * 重新评估脏状态并更新闩锁。用于会话外撤销栈（如批量草稿）回退到与打开时等价后，
+     * 避免 {@link #isDirty()} 因 dirtyLatched 仍弹出未保存确认。
+     */
+    public void refreshDirtyState() {
+        dirtyLatched = dirtyPredicate.test(workingNetwork);
+    }
+
     public void restore() {
         workingNetwork = openSnapshot.snapshot();
         dirtyLatched = false;

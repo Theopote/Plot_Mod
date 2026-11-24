@@ -29,6 +29,12 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
     private final Deque<RoadNetworkManager.BatchEditDefaults> batchUndo = new ArrayDeque<>();
     private final Deque<RoadNetworkManager.BatchEditDefaults> batchRedo = new ArrayDeque<>();
 
+    /** 跨帧复用草稿/Mutator，避免每帧 fromBatchDefaults 分配。 */
+    private CrossSectionDraft cachedDraft;
+    private CrossSectionDraftMutator cachedMutator;
+    private final RoadBatchCrossSectionEditor.PreviewCache previewCache =
+        new RoadBatchCrossSectionEditor.PreviewCache();
+
     @Override
     protected RoadFloatingEditorKind editorKind() {
         return RoadFloatingEditorKind.BATCH_CROSS_SECTION;
@@ -56,6 +62,7 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
 
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
+        invalidateUiCaches();
         targetRoadIds = java.util.Set.copyOf(ctx.networkManager().getSelectedRoadIds());
         if (targetRoadIds.isEmpty()) {
             targetRoadIds = java.util.Set.of(roadId);
@@ -72,6 +79,21 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
     }
 
     @Override
+    protected void restoreSession() {
+        invalidateUiCaches();
+        super.restoreSession();
+        workingBatchDefaults = openBatchDefaults;
+        batchUndo.clear();
+        batchRedo.clear();
+    }
+
+    @Override
+    public void discard(RoadUiContext ctx) {
+        invalidateUiCaches();
+        super.discard(ctx);
+    }
+
+    @Override
     protected void renderWindowBody(RoadUiContext ctx) {
         if (workingBatchDefaults == null) {
             return;
@@ -84,16 +106,17 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
             PlotI18n.tr("plugin.road.batch_edit_writes_explicit"));
         ImGui.spacing();
 
-        CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(workingBatchDefaults);
+        CrossSectionDraftMutator mutator = mutatorForWorking();
         CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.batchSectionCards();
-        // onItemActivated 时先压检查点；本帧末再把 draft 写回 workingBatchDefaults。
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraftWithHistory(
-            sectionDraft,
-            this::pushBatchCheckpoint);
+        CrossSectionDraftEditorOptions slopeOpts = CrossSectionDraftEditorOptions.styleFloatingSlope();
 
         sectionCard("##batch_xs_geometry", "plugin.road.floating_editor.batch_cross_section.section.geometry", () -> {
             CrossSectionDraftEditor.renderAppearanceStrips(ctx, mutator, options);
             CrossSectionDraftEditor.renderMarkings(ctx, mutator, options);
+        });
+        sectionCard("##batch_xs_slope", "plugin.road.floating_editor.batch_cross_section.section.slope", () -> {
+            CrossSectionDraftEditor.renderRoadsideEdge(ctx, mutator, slopeOpts);
+            CrossSectionDraftEditor.renderSlopeRatios(ctx, mutator, slopeOpts);
         });
         sectionCard("##batch_xs_materials", "plugin.road.floating_editor.batch_cross_section.section.materials", () ->
             CrossSectionDraftEditor.renderMaterials(ctx, mutator, options));
@@ -118,15 +141,40 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
                     workingBatchDefaults = updated;
                 }));
 
-        workingBatchDefaults = sectionDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults);
+        syncWorkingFromDraft();
         ImGui.spacing();
-        RoadBatchCrossSectionEditor.renderDraftPreview(ctx, workingBatchDefaults);
+        RoadBatchCrossSectionEditor.renderDraftPreview(ctx, cachedDraft, previewCache);
+    }
+
+    private CrossSectionDraftMutator mutatorForWorking() {
+        if (cachedMutator == null || cachedDraft == null) {
+            cachedDraft = CrossSectionDraft.fromBatchDefaults(workingBatchDefaults);
+            cachedMutator = CrossSectionDraftMutator.forDraftWithHistory(
+                cachedDraft,
+                this::pushBatchCheckpoint);
+            previewCache.invalidate();
+        }
+        return cachedMutator;
+    }
+
+    private void syncWorkingFromDraft() {
+        if (cachedDraft == null || workingBatchDefaults == null) {
+            return;
+        }
+        RoadNetworkManager.BatchEditDefaults next =
+            cachedDraft.toBatchDefaultsPreservingBridge(workingBatchDefaults);
+        if (!Objects.equals(next, workingBatchDefaults)) {
+            workingBatchDefaults = next;
+            previewCache.invalidate();
+        }
     }
 
     private void pushBatchCheckpoint() {
         if (workingBatchDefaults == null) {
             return;
         }
+        // 检查点前先把草稿写回，保证撤销目标与界面一致。
+        syncWorkingFromDraft();
         batchUndo.push(workingBatchDefaults);
         batchRedo.clear();
         while (batchUndo.size() > MAX_BATCH_UNDO) {
@@ -149,8 +197,13 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         if (batchUndo.isEmpty() || workingBatchDefaults == null) {
             return;
         }
+        syncWorkingFromDraft();
         batchRedo.push(workingBatchDefaults);
         workingBatchDefaults = batchUndo.pop();
+        invalidateUiCaches();
+        if (session != null) {
+            session.refreshDirtyState();
+        }
     }
 
     @Override
@@ -158,8 +211,19 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         if (batchRedo.isEmpty() || workingBatchDefaults == null) {
             return;
         }
+        syncWorkingFromDraft();
         batchUndo.push(workingBatchDefaults);
         workingBatchDefaults = batchRedo.pop();
+        invalidateUiCaches();
+        if (session != null) {
+            session.refreshDirtyState();
+        }
+    }
+
+    private void invalidateUiCaches() {
+        cachedDraft = null;
+        cachedMutator = null;
+        previewCache.invalidate();
     }
 
     private static void sectionCard(String id, String titleKey, Runnable body) {
@@ -177,6 +241,7 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         if (workingBatchDefaults == null) {
             return;
         }
+        syncWorkingFromDraft();
         ctx.networkManager().applyBatchEditWithinPendingEdit(openBatchDefaults, workingBatchDefaults, targetRoadIds);
     }
 
@@ -185,17 +250,23 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         return targetRoadIds.equals(selectedRoadIds);
     }
 
-    @Override
-    protected void restoreSession() {
-        super.restoreSession();
-        workingBatchDefaults = openBatchDefaults;
-        batchUndo.clear();
-        batchRedo.clear();
-    }
-
     /** 包内测试：替换工作副本批量默认值。 */
     void replaceWorkingBatchDefaults(RoadNetworkManager.BatchEditDefaults defaults) {
         workingBatchDefaults = defaults;
+        invalidateUiCaches();
+        if (session != null) {
+            session.refreshDirtyState();
+        }
+    }
+
+    /** 包内测试：压检查点后替换工作副本。 */
+    void mutateWorkingWithCheckpoint(RoadNetworkManager.BatchEditDefaults defaults) {
+        pushBatchCheckpoint();
+        workingBatchDefaults = defaults;
+        invalidateUiCaches();
+        if (session != null) {
+            session.refreshDirtyState();
+        }
     }
 
     private boolean batchDirty() {

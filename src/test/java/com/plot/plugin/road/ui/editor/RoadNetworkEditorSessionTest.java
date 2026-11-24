@@ -53,6 +53,24 @@ class RoadNetworkEditorSessionTest {
     }
 
     @Test
+    void refreshDirtyStateClearsLatchWhenPredicateBecomesClean() {
+        AtomicBoolean dirty = new AtomicBoolean(false);
+        RoadNetworkEditorSession session = RoadNetworkEditorSession.open(
+            live,
+            manager.getNetworkRevision(),
+            (open, working) -> dirty.get());
+
+        dirty.set(true);
+        assertTrue(session.isDirty());
+
+        dirty.set(false);
+        assertTrue(session.isDirty(), "latched dirty must stay true until refresh");
+
+        session.refreshDirtyState();
+        assertFalse(session.isDirty());
+    }
+
+    @Test
     void sessionUndoRestoresPreviousWorkingCopy() {
         long revision = manager.getNetworkRevision();
         RoadNetworkEditorSession session = RoadNetworkEditorSession.open(

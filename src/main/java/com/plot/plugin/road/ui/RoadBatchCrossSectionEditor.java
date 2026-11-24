@@ -67,8 +67,46 @@ public final class RoadBatchCrossSectionEditor {
     }
 
     public static void renderDraftPreview(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
+        if (draft == null) {
+            return;
+        }
+        renderDraftPreview(ctx, CrossSectionDraft.fromBatchDefaults(draft), null);
+    }
+
+    /**
+     * 批量预览；传入 {@link PreviewCache} 时按草稿指纹复用布局，避免每帧 resolve。
+     */
+    public static void renderDraftPreview(
+            RoadUiContext ctx,
+            CrossSectionDraft sectionDraft,
+            PreviewCache cache) {
+        if (sectionDraft == null) {
+            return;
+        }
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        ResolvedCrossSection resolved = draft.toCrossSection().resolve(config);
+        ResolvedCrossSection resolved;
+        RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
+        if (cache != null) {
+            long fingerprint = RoadCrossSectionEditor.previewFingerprint(sectionDraft);
+            if (cache.layout == null || cache.fingerprint != fingerprint) {
+                resolved = ResolvedCrossSection.resolve(sectionDraft.toCrossSection(), config);
+                cache.resolved = resolved;
+                cache.layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, 0f);
+                cache.fingerprint = fingerprint;
+            } else {
+                resolved = cache.resolved;
+            }
+            layout = cache.layout;
+        } else {
+            resolved = ResolvedCrossSection.resolve(sectionDraft.toCrossSection(), config);
+            layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, 0f);
+        }
+        renderMiniPreview(resolved, layout);
+    }
+
+    private static void renderMiniPreview(
+            ResolvedCrossSection resolved,
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout layout) {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.road.batch_cross_section_preview"));
         float width = ImGui.getContentRegionAvail().x;
@@ -80,7 +118,7 @@ public final class RoadBatchCrossSectionEditor {
         float height = 56f;
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, 0f),
+            layout,
             origin.x,
             origin.y,
             width,
@@ -103,6 +141,19 @@ public final class RoadBatchCrossSectionEditor {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.roadside_edge.retaining_wall"));
+        }
+    }
+
+    /** 批量横断面预览布局缓存。 */
+    public static final class PreviewCache {
+        long fingerprint = Long.MIN_VALUE;
+        ResolvedCrossSection resolved;
+        RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
+
+        public void invalidate() {
+            fingerprint = Long.MIN_VALUE;
+            resolved = null;
+            layout = null;
         }
     }
 }

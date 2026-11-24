@@ -3064,6 +3064,7 @@
   "plugin.road.floating_editor.cross_section.section.piers": "Piers",
   "plugin.road.floating_editor.cross_section.section.guardrail": "Deck guardrail",
   "plugin.road.floating_editor.batch_cross_section.section.geometry": "Appearance strips",
+  "plugin.road.floating_editor.batch_cross_section.section.slope": "Roadside edge & slopes",
   "plugin.road.floating_editor.batch_cross_section.section.materials": "Materials",
   "plugin.road.floating_editor.batch_cross_section.section.furniture": "Furniture",
   "plugin.road.section.defaults_strips": "Appearance & batter",

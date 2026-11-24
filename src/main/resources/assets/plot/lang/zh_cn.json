@@ -1886,6 +1886,7 @@
   "plugin.road.floating_editor.cross_section.section.piers": "桥墩",
   "plugin.road.floating_editor.cross_section.section.guardrail": "桥面护栏",
   "plugin.road.floating_editor.batch_cross_section.section.geometry": "外观条带",
+  "plugin.road.floating_editor.batch_cross_section.section.slope": "路侧边缘与边坡",
   "plugin.road.floating_editor.batch_cross_section.section.materials": "材质",
   "plugin.road.floating_editor.batch_cross_section.section.furniture": "附属设施",
   "plugin.road.section.defaults_strips": "外观与边坡",

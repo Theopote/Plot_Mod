@@ -114,6 +114,19 @@ class ProfessionalToolRegressionTest {
     }
 
     @Test
+    void batchUndoBackToOpenClearsDirtyLatch() {
+        manager.selectRoad("a", false);
+        manager.selectRoad("b", true);
+        var editor = new BatchCrossSectionDesignerWindow();
+        editor.open(ctx, "a");
+        var openDefaults = manager.loadBatchEditDefaults();
+        editor.mutateWorkingWithCheckpoint(openDefaults.withWidth(16));
+        assertTrue(editor.isDirty());
+        editor.undoEditorStep();
+        assertFalse(editor.isDirty());
+    }
+
+    @Test
     void diagnosisCacheDoesNotReuseLiveResultsForAnEditedWorkingCopy() {
         com.plot.plugin.road.repair.RoadRepairDiagnosisCache.invalidate();
         var network = manager.getNetwork();
