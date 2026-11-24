@@ -2125,7 +2125,7 @@
   "plugin.road.horizontal_alignment_none": "未定义平面线形（使用折线中心线）",
   "plugin.road.horizontal_alignment_relation_hint": "平面线形是设计线；下方分段编辑改的是折线中心线。生成与桩号以折线为准，可在此拟合或同步二者。",
   "plugin.road.horizontal_alignment_fit_from_polyline": "从当前折线拟合平面线形",
-  "plugin.road.horizontal_alignment_fit_from_polyline_tip": "根据整条道路折线中心线拟合切线+圆曲线链，写入平面线形（不改折线）。",
+  "plugin.road.horizontal_alignment_fit_from_polyline_tip": "根据折线中心线拟合切线+圆曲线（识别倒圆角采样为整段圆弧），写入平面线形（不改折线）。",
   "plugin.road.horizontal_alignment_fit_success": "已从折线拟合平面线形（%d 个线元）。",
   "plugin.road.horizontal_alignment_fit_failed": "无法从当前折线拟合平面线形。",
   "plugin.road.horizontal_alignment_fit_not_stationable": "道路拓扑不可桩号化，无法拟合平面线形。",

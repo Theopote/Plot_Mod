@@ -3120,7 +3120,7 @@
   "plugin.road.horizontal_alignment_none": "No horizontal alignment defined (using polyline centerline)",
   "plugin.road.horizontal_alignment_relation_hint": "Horizontal alignment is the design line; segment tools edit the polyline centerline. Generation uses the polyline — fit or sync them here.",
   "plugin.road.horizontal_alignment_fit_from_polyline": "Fit HA from polyline",
-  "plugin.road.horizontal_alignment_fit_from_polyline_tip": "Fit a tangent+curve chain from the road polyline centerline into HA (does not change the polyline).",
+  "plugin.road.horizontal_alignment_fit_from_polyline_tip": "Fit tangents + circular curves from the polyline (fillet samples merge into real arcs). Does not change the polyline.",
   "plugin.road.horizontal_alignment_fit_success": "Fitted horizontal alignment from polyline (%d elements).",
   "plugin.road.horizontal_alignment_fit_failed": "Could not fit a horizontal alignment from the current polyline.",
   "plugin.road.horizontal_alignment_fit_not_stationable": "Road is not stationable; cannot fit horizontal alignment.",

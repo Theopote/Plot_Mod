@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 从道路链折线中心线拟合 {@link RoadHorizontalAlignment}（切线 + 圆曲线 PI 链）。
+ * 从道路链折线中心线拟合 {@link RoadHorizontalAlignment}（切线 + 圆曲线）。
+ * <p>
+ * 优先识别倒圆角等留下的圆弧采样并合并为单个圆曲线；剩余尖角再用 PI 切线+圆弧近似。
  */
 public final class HorizontalAlignmentPolylineFitter {
 
@@ -21,8 +23,13 @@ public final class HorizontalAlignmentPolylineFitter {
     private static final double MIN_RADIUS = 0.5;
     private static final double MAX_RADIUS = 500.0;
     private static final double COLINEAR_ANGLE_RADIANS = Math.toRadians(0.5);
-    private static final double SIMPLIFY_ANGLE_RADIANS = Math.toRadians(2.0);
+    private static final double SHARP_CORNER_ANGLE_RADIANS = Math.toRadians(2.0);
+    private static final double MIN_ARC_SWEEP_RADIANS = Math.toRadians(5.0);
     private static final double RADIUS_LEG_FRACTION = 0.4;
+    /** 圆弧采样至少 4 点，避免把单个尖角三点圆当成真实圆弧。 */
+    private static final int MIN_ARC_POINTS = 4;
+    private static final double ARC_RADIUS_REL_TOL = 0.2;
+    private static final double ARC_ABS_ERROR_FLOOR = 0.25;
 
     private HorizontalAlignmentPolylineFitter() {
     }
@@ -35,14 +42,10 @@ public final class HorizontalAlignmentPolylineFitter {
         if (chainPoints.size() < 2) {
             return Optional.empty();
         }
-        List<Vec2d> vertices = simplifyVertices(chainPoints, SIMPLIFY_ANGLE_RADIANS);
-        if (vertices.size() < 2) {
-            return Optional.empty();
+        if (chainPoints.size() == 2 || isColinear(chainPoints, COLINEAR_ANGLE_RADIANS)) {
+            return Optional.of(fitStraight(chainPoints));
         }
-        if (vertices.size() == 2 || isColinear(vertices, COLINEAR_ANGLE_RADIANS)) {
-            return Optional.of(fitStraight(vertices));
-        }
-        return fitTangentArcChain(vertices);
+        return fitPrimitives(chainPoints);
     }
 
     static List<Vec2d> collectChainPoints(RoadNetwork network, Road road) {
@@ -134,66 +137,250 @@ public final class HorizontalAlignmentPolylineFitter {
         return alignment;
     }
 
-    private static Optional<RoadHorizontalAlignment> fitTangentArcChain(List<Vec2d> vertices) {
-        int vertexCount = vertices.size();
-        double[] legLengths = new double[vertexCount - 1];
-        for (int i = 0; i < vertexCount - 1; i++) {
-            legLengths[i] = vertices.get(i).distance(vertices.get(i + 1));
-            if (legLengths[i] < MIN_POINT_SPACING) {
-                return Optional.empty();
-            }
+    private static Optional<RoadHorizontalAlignment> fitPrimitives(List<Vec2d> points) {
+        List<ArcRun> arcRuns = detectArcRuns(points);
+        Vec2d startDirection = points.get(1).subtract(points.get(0));
+        if (startDirection.lengthSquared() < MIN_POINT_SPACING * MIN_POINT_SPACING) {
+            return Optional.empty();
         }
-
-        double[] turnAngles = new double[vertexCount];
-        double[] radii = new double[vertexCount];
-        for (int i = 1; i < vertexCount - 1; i++) {
-            turnAngles[i] = signedTurnAngle(vertices.get(i - 1), vertices.get(i), vertices.get(i + 1));
-            if (Math.abs(turnAngles[i]) < COLINEAR_ANGLE_RADIANS) {
-                continue;
-            }
-            radii[i] = clampRadius(Math.min(legLengths[i - 1], legLengths[i]) * RADIUS_LEG_FRACTION);
-            double inset = tangentInset(radii[i], turnAngles[i]);
-            if (legLengths[i - 1] <= inset + MIN_TANGENT_LENGTH
-                    || legLengths[i] <= inset + MIN_TANGENT_LENGTH) {
-                return Optional.empty();
-            }
-        }
-
-        Vec2d startDirection = vertices.get(1).subtract(vertices.get(0));
-        double startBearing = Math.atan2(startDirection.y, startDirection.x);
         RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
-            vertices.getFirst().copy(),
-            startBearing,
+            points.getFirst().copy(),
+            Math.atan2(startDirection.y, startDirection.x),
             List.of());
 
-        for (int leg = 0; leg < vertexCount - 1; leg++) {
-            double tangentLength = legLengths[leg];
-            int cornerAtEnd = leg + 1;
-            if (cornerAtEnd < vertexCount - 1 && Math.abs(turnAngles[cornerAtEnd]) >= COLINEAR_ANGLE_RADIANS) {
-                tangentLength -= tangentInset(radii[cornerAtEnd], turnAngles[cornerAtEnd]);
-            }
-            if (leg >= 1
-                    && leg < vertexCount - 1
-                    && Math.abs(turnAngles[leg]) >= COLINEAR_ANGLE_RADIANS) {
-                tangentLength -= tangentInset(radii[leg], turnAngles[leg]);
-            }
-            if (tangentLength < MIN_TANGENT_LENGTH) {
+        int cursor = 0;
+        for (ArcRun arc : arcRuns) {
+            if (!emitStraightCorridor(alignment, points, cursor, arc.startIndex())) {
                 return Optional.empty();
             }
-            alignment.addElement(HorizontalAlignmentElement.tangent(tangentLength));
-
-            if (cornerAtEnd < vertexCount - 1 && Math.abs(turnAngles[cornerAtEnd]) >= COLINEAR_ANGLE_RADIANS) {
-                double arcLength = radii[cornerAtEnd] * Math.abs(turnAngles[cornerAtEnd]);
-                TurnDirection direction = turnAngles[cornerAtEnd] > 0.0
-                    ? TurnDirection.LEFT
-                    : TurnDirection.RIGHT;
-                alignment.addElement(HorizontalAlignmentElement.circularArc(
-                    arcLength,
-                    radii[cornerAtEnd],
-                    direction));
+            if (arc.arcLength() < MIN_TANGENT_LENGTH) {
+                return Optional.empty();
             }
+            alignment.addElement(HorizontalAlignmentElement.circularArc(
+                arc.arcLength(),
+                arc.radius(),
+                arc.direction()));
+            cursor = arc.endIndex();
+        }
+        if (!emitStraightCorridor(alignment, points, cursor, points.size() - 1)) {
+            return Optional.empty();
         }
         return alignment.isEmpty() ? Optional.empty() : Optional.of(alignment);
+    }
+
+    /**
+     * 将 points[from..to] 写成切线；若中间有尖角则插入合成圆曲线（PI 近似）。
+     */
+    private static boolean emitStraightCorridor(
+            RoadHorizontalAlignment alignment,
+            List<Vec2d> points,
+            int from,
+            int to) {
+        if (to <= from) {
+            return true;
+        }
+        List<Integer> corners = new ArrayList<>();
+        for (int i = from + 1; i < to; i++) {
+            double turn = Math.abs(signedTurnAngle(points.get(i - 1), points.get(i), points.get(i + 1)));
+            if (turn >= SHARP_CORNER_ANGLE_RADIANS) {
+                corners.add(i);
+            }
+        }
+        if (corners.isEmpty()) {
+            double length = pathLength(points, from, to);
+            if (length <= MIN_POINT_SPACING) {
+                return true;
+            }
+            if (length < MIN_TANGENT_LENGTH) {
+                return false;
+            }
+            alignment.addElement(HorizontalAlignmentElement.tangent(length));
+            return true;
+        }
+
+        double pendingOutInset = 0.0;
+        int segmentStart = from;
+        for (int c = 0; c < corners.size(); c++) {
+            int corner = corners.get(c);
+            int nextBoundary = c + 1 < corners.size() ? corners.get(c + 1) : to;
+            double turn = signedTurnAngle(points.get(corner - 1), points.get(corner), points.get(corner + 1));
+            double pathIn = pathLength(points, segmentStart, corner);
+            double pathOut = pathLength(points, corner, nextBoundary);
+            double legIn = pathIn - pendingOutInset;
+            double legOut = pathOut;
+            if (legIn < MIN_POINT_SPACING || legOut < MIN_POINT_SPACING) {
+                return false;
+            }
+            double radius = clampRadius(Math.min(legIn, legOut) * RADIUS_LEG_FRACTION);
+            double inset = tangentInset(radius, turn);
+            if (legIn <= inset + MIN_TANGENT_LENGTH || legOut <= inset + MIN_TANGENT_LENGTH) {
+                return false;
+            }
+            double tangentIn = legIn - inset;
+            alignment.addElement(HorizontalAlignmentElement.tangent(tangentIn));
+            double arcLength = radius * Math.abs(turn);
+            if (arcLength < MIN_TANGENT_LENGTH) {
+                return false;
+            }
+            alignment.addElement(HorizontalAlignmentElement.circularArc(
+                arcLength,
+                radius,
+                turn > 0.0 ? TurnDirection.LEFT : TurnDirection.RIGHT));
+            pendingOutInset = inset;
+            segmentStart = corner;
+        }
+        double tail = pathLength(points, segmentStart, to) - pendingOutInset;
+        if (tail <= MIN_POINT_SPACING) {
+            return true;
+        }
+        if (tail < MIN_TANGENT_LENGTH) {
+            return false;
+        }
+        alignment.addElement(HorizontalAlignmentElement.tangent(tail));
+        return true;
+    }
+
+    private static double pathLength(List<Vec2d> points, int from, int to) {
+        double length = 0.0;
+        for (int i = from; i < to; i++) {
+            length += points.get(i).distance(points.get(i + 1));
+        }
+        return length;
+    }
+
+    private record ArcRun(
+            int startIndex,
+            int endIndex,
+            double radius,
+            double arcLength,
+            TurnDirection direction) {
+    }
+
+    private record CircleFit(
+            double radius,
+            double sweepRadians,
+            double maxError,
+            TurnDirection direction) {
+        boolean acceptable() {
+            if (radius < MIN_RADIUS || radius > MAX_RADIUS) {
+                return false;
+            }
+            if (Math.abs(sweepRadians) < MIN_ARC_SWEEP_RADIANS) {
+                return false;
+            }
+            double tol = Math.max(ARC_ABS_ERROR_FLOOR, radius * ARC_RADIUS_REL_TOL * 0.5);
+            return maxError <= tol;
+        }
+    }
+
+    static List<ArcRun> detectArcRuns(List<Vec2d> points) {
+        List<ArcRun> runs = new ArrayList<>();
+        int n = points.size();
+        boolean[] covered = new boolean[n];
+        int i = 0;
+        while (i <= n - MIN_ARC_POINTS) {
+            if (covered[i]) {
+                i++;
+                continue;
+            }
+            int bestEnd = -1;
+            CircleFit bestFit = null;
+            for (int j = i + MIN_ARC_POINTS - 1; j < n; j++) {
+                if (covered[j]) {
+                    break;
+                }
+                CircleFit fit = fitCircleRun(points, i, j);
+                if (fit != null && fit.acceptable()) {
+                    bestEnd = j;
+                    bestFit = fit;
+                } else if (bestEnd >= 0) {
+                    break;
+                }
+            }
+            if (bestEnd >= 0 && bestFit != null) {
+                runs.add(new ArcRun(
+                    i,
+                    bestEnd,
+                    bestFit.radius(),
+                    bestFit.radius() * Math.abs(bestFit.sweepRadians()),
+                    bestFit.direction()));
+                for (int k = i; k <= bestEnd; k++) {
+                    covered[k] = true;
+                }
+                i = bestEnd;
+            } else {
+                i++;
+            }
+        }
+        return List.copyOf(runs);
+    }
+
+    private static CircleFit fitCircleRun(List<Vec2d> points, int start, int end) {
+        if (end - start + 1 < MIN_ARC_POINTS) {
+            return null;
+        }
+        int mid = (start + end) / 2;
+        Vec2d a = points.get(start);
+        Vec2d b = points.get(mid);
+        Vec2d c = points.get(end);
+        Vec2d center = circumcenter(a, b, c);
+        if (center == null) {
+            return null;
+        }
+        double radius = center.distance(a);
+        if (radius < MIN_RADIUS || radius > MAX_RADIUS) {
+            return null;
+        }
+        double maxError = 0.0;
+        for (int i = start; i <= end; i++) {
+            maxError = Math.max(maxError, Math.abs(center.distance(points.get(i)) - radius));
+        }
+        double signedSweep = 0.0;
+        for (int i = start + 1; i < end; i++) {
+            signedSweep += signedTurnAngle(points.get(i - 1), points.get(i), points.get(i + 1));
+        }
+        if (Math.abs(signedSweep) < MIN_ARC_SWEEP_RADIANS) {
+            double startAngle = Math.atan2(a.y - center.y, a.x - center.x);
+            double endAngle = Math.atan2(c.y - center.y, c.x - center.x);
+            signedSweep = normalizeSignedAngle(endAngle - startAngle);
+        }
+        for (int i = start + 1; i < end; i++) {
+            double turn = signedTurnAngle(points.get(i - 1), points.get(i), points.get(i + 1));
+            if (Math.abs(turn) < COLINEAR_ANGLE_RADIANS) {
+                continue;
+            }
+            if ((turn > 0.0) != (signedSweep > 0.0)) {
+                return null;
+            }
+        }
+        for (int i = start + 1; i < end; i++) {
+            Vec2d localCenter = circumcenter(points.get(i - 1), points.get(i), points.get(i + 1));
+            if (localCenter == null) {
+                continue;
+            }
+            double localR = localCenter.distance(points.get(i));
+            if (localR < MIN_RADIUS) {
+                continue;
+            }
+            if (Math.abs(localR - radius) > Math.max(ARC_ABS_ERROR_FLOOR, radius * ARC_RADIUS_REL_TOL)) {
+                return null;
+            }
+        }
+        TurnDirection direction = signedSweep > 0.0 ? TurnDirection.LEFT : TurnDirection.RIGHT;
+        return new CircleFit(radius, signedSweep, maxError, direction);
+    }
+
+    private static Vec2d circumcenter(Vec2d a, Vec2d b, Vec2d c) {
+        double d = 2.0 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+        if (Math.abs(d) < 1e-12) {
+            return null;
+        }
+        double a2 = a.x * a.x + a.y * a.y;
+        double b2 = b.x * b.x + b.y * b.y;
+        double c2 = c.x * c.x + c.y * c.y;
+        double ux = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
+        double uy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+        return new Vec2d(ux, uy);
     }
 
     private static double tangentInset(double radius, double turnAngleRadians) {
