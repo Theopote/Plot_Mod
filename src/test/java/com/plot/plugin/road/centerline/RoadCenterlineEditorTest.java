@@ -109,6 +109,75 @@ class RoadCenterlineEditorTest {
     }
 
     @Test
+    void filletAcceptsRadiusAboveLegacyFiftyCap() {
+        // 滑条按路段半长可取 >50m；硬上限过小会导致「预览有、应用无反应」。
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(400, 400));
+        Road road = network.createRoad("r1");
+        RoadEdge edge = network.createEdge(
+            n1.getId(),
+            n2.getId(),
+            List.of(
+                new Vec2d(0, 0),
+                new Vec2d(200, 0),
+                new Vec2d(200, 200),
+                new Vec2d(400, 200)),
+            road.getId());
+
+        CenterlineEditResult result = RoadCenterlineEditor.filletVertex(
+            network, edge.getId(), 2, 51.54);
+        assertTrue(result.isSuccess(), String.valueOf(result.status()));
+        assertContinuousArc(RoadCenterlineEditor.previewFilletArc(
+            List.of(
+                new Vec2d(0, 0),
+                new Vec2d(200, 0),
+                new Vec2d(200, 200),
+                new Vec2d(400, 200)),
+            2,
+            51.54));
+    }
+
+    @Test
+    void previewFilletArcStaysConsistentWhenRadiusExceedsLegLength() {
+        List<Vec2d> points = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(50, 0),
+            new Vec2d(50, 50));
+        // 半径远大于腿长时仍应给出落在同一圆上的切点弧，而不是几何错位乱线。
+        List<Vec2d> arc = RoadCenterlineEditor.previewFilletArc(points, 1, 72.0);
+        assertNotNull(arc);
+        assertTrue(arc.size() >= 3);
+        Vec2d trim1 = arc.getFirst();
+        Vec2d trim2 = arc.getLast();
+        Vec2d mid = arc.get(arc.size() / 2);
+        assertTrue(trim1.distance(new Vec2d(50, 0)) < 50.0);
+        assertTrue(trim2.distance(new Vec2d(50, 50)) < 50.0);
+        assertTrue(mid.x < 50.0 && mid.y > 0.0, "mid=" + mid.x + "," + mid.y);
+        assertContinuousArc(arc);
+    }
+
+    @Test
+    void previewFilletArcIsContinuousForBothTurnDirections() {
+        List<Vec2d> rightTurn = List.of(new Vec2d(0, 0), new Vec2d(50, 0), new Vec2d(50, 50));
+        List<Vec2d> leftTurn = List.of(new Vec2d(50, 50), new Vec2d(50, 0), new Vec2d(0, 0));
+        assertContinuousArc(RoadCenterlineEditor.previewFilletArc(rightTurn, 1, 10.0));
+        assertContinuousArc(RoadCenterlineEditor.previewFilletArc(leftTurn, 1, 10.0));
+    }
+
+    private static void assertContinuousArc(List<Vec2d> arc) {
+        assertNotNull(arc);
+        assertTrue(arc.size() >= 3);
+        double maxStep = 0.0;
+        for (int i = 0; i < arc.size() - 1; i++) {
+            maxStep = Math.max(maxStep, arc.get(i).distance(arc.get(i + 1)));
+        }
+        // 相邻采样点步长应远小于切点间距，避免往返折返造成的「乱线」。
+        assertTrue(maxStep < arc.getFirst().distance(arc.getLast()) * 0.6 + 1e-6,
+            "maxStep=" + maxStep);
+    }
+
+    @Test
     void reverseRoadReordersSegmentsAndAlignments() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));

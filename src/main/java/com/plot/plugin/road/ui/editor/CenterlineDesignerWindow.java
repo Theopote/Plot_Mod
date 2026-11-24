@@ -209,6 +209,9 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             RoadEdge resolved = working.getEdge(selectedWorkingEdgeId);
             final RoadEdge selected = resolved != null ? resolved : primaryEdge;
             centerlineEditPanel.renderPinnedPreview(ctx, working, road, selected);
+            // 桩号/起终点一行说明，紧贴预览下方即可，不必再套分区卡片。
+            ImGui.spacing();
+            segmentEditor.renderSegmentSummary(ctx, working, road, selected, chainageDisplay);
             ImGui.spacing();
             float scrollH = Math.max(80f, ImGui.getContentRegionAvailY());
             ImGui.beginChild(
@@ -218,14 +221,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                 false,
                 ImGuiWindowFlags.AlwaysVerticalScrollbar);
             try {
-                PluginSectionCard.render(
-                    "##cl_sec_segment_info",
-                    PlotI18n.tr("plugin.road.floating_editor.centerline.section.segment"),
-                    null,
-                    PluginSectionCard.SectionTone.NEUTRAL,
-                    true,
-                    () -> segmentEditor.renderSegmentSummary(
-                        ctx, working, road, selected, chainageDisplay));
                 centerlineEditPanel.renderWorkingNetwork(
                     ctx, working, road, selected, session::pushUndoCheckpoint);
                 PluginSectionCard.render(

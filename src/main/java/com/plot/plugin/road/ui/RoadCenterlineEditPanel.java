@@ -29,15 +29,18 @@ public final class RoadCenterlineEditPanel {
     private float centerlineFilletRadiusBlocks = 2f;
     private int centerlineVertexIndex = 1;
     private String lastCenterlineEditMessage = "";
+    private boolean lastCenterlineEditOk = true;
     /** 圆角卡片是否展开（供钉顶预览画示意；默认开）。 */
     private boolean filletCardOpen = true;
 
     public void recordMessage(CenterlineEditResult result) {
         lastCenterlineEditMessage = CenterlineEditMessages.format(result);
+        lastCenterlineEditOk = result != null && result.isSuccess();
     }
 
     public void clearMessages() {
         lastCenterlineEditMessage = "";
+        lastCenterlineEditOk = true;
     }
 
     public void render(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
@@ -82,7 +85,8 @@ public final class RoadCenterlineEditPanel {
         } else {
             centerlineVertexIndex = 1;
         }
-        float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
+        float maxRadius = maxFilletRadiusBlocks(
+            points, centerlineVertexIndex, network, road, coordinates, maxDistance);
         centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f, maxRadius);
         float filletRadiusCanvas = (float) RoadLengthDisplay.blocksToCanvas(
             centerlineFilletRadiusBlocks, network, road, coordinates);
@@ -174,7 +178,10 @@ public final class RoadCenterlineEditPanel {
             RoadAction reverseRoad,
             NodeAction mergeAtNode) {
         if (!lastCenterlineEditMessage.isBlank()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, lastCenterlineEditMessage);
+            // 失败用警告色，避免「点了没反应」的错觉。
+            RoadUiWidgets.textWrappedColored(
+                lastCenterlineEditOk ? PluginUiColors.STATUS_OK : PluginUiColors.WARNING,
+                lastCenterlineEditMessage);
             ImGui.spacing();
         }
 
@@ -193,7 +200,7 @@ public final class RoadCenterlineEditPanel {
             centerlineVertexIndex = 1;
         }
 
-        float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
+        float maxRadius = maxFilletRadiusBlocks(points, centerlineVertexIndex, network, road, coordinates, maxDistance);
         centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f, maxRadius);
 
         if (includePreview) {
@@ -349,7 +356,9 @@ public final class RoadCenterlineEditPanel {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_vertex_tip"));
         }
 
-        float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
+        List<com.plot.api.geometry.Vec2d> points = edge.getCenterlinePoints();
+        float maxRadius = maxFilletRadiusBlocks(
+            points, centerlineVertexIndex, network, road, coordinates, maxDistance);
         centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f, maxRadius);
         float[] radius = {centerlineFilletRadiusBlocks};
         ImGui.setNextItemWidth(controlWidth());
@@ -476,6 +485,25 @@ public final class RoadCenterlineEditPanel {
             return PlotI18n.tr("plugin.road.centerline_tool_topology_summary_end");
         }
         return PlotI18n.tr("plugin.road.centerline_tool_topology_summary_none");
+    }
+
+    /**
+     * 圆角滑条上限：取「当前折点几何可构造半径」与路段半长的较小值（展示米 / blocks）。
+     */
+    private static float maxFilletRadiusBlocks(
+            List<com.plot.api.geometry.Vec2d> points,
+            int vertexIndex,
+            RoadNetwork network,
+            Road road,
+            ICoordinateService coordinates,
+            float maxDistance) {
+        float halfEdge = Math.max(0.5f, maxDistance * 0.5f);
+        double canvasMax = RoadCenterlineEditor.maxFeasibleFilletRadius(points, vertexIndex);
+        if (canvasMax <= 1e-6) {
+            return halfEdge;
+        }
+        float worldMax = (float) RoadLengthDisplay.canvasToBlocks(canvasMax, network, road, coordinates);
+        return Math.max(0.5f, Math.min(halfEdge, worldMax));
     }
 
     private static float controlWidth() {

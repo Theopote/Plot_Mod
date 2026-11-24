@@ -31,7 +31,8 @@ public final class RoadCenterlineEditor {
 
     private static final double ENDPOINT_CLEARANCE = 0.5;
     private static final double MIN_FILLET_RADIUS = 0.5;
-    private static final double MAX_FILLET_RADIUS = 50.0;
+    /** 仅作异常值防护；真实上限由折点两侧腿长与夹角决定。 */
+    private static final double MAX_FILLET_RADIUS = 1_000_000.0;
 
     private RoadCenterlineEditor() {
     }
@@ -152,10 +153,24 @@ public final class RoadCenterlineEditor {
     }
 
     /**
-     * 圆角几何预览（不写回网络）；无法构造时返回 {@code null}。
+     * 圆角几何预览（不写回网络）；返回完整新折线，无法构造时返回 {@code null}。
      */
     public static List<Vec2d> previewFillet(List<Vec2d> points, int vertexIndex, double radius) {
         return RoadCenterlineFillet.filletVertex(points, vertexIndex, radius);
+    }
+
+    /**
+     * 圆角局部弧预览：切点 → 弧 → 切点（不含折线其余部分）。
+     */
+    public static List<Vec2d> previewFilletArc(List<Vec2d> points, int vertexIndex, double radius) {
+        return RoadCenterlineFillet.filletLocalArc(points, vertexIndex, radius);
+    }
+
+    /**
+     * 指定折点在当前腿长下可构造的最大圆角半径（画布域）；不可圆角时返回 0。
+     */
+    public static double maxFeasibleFilletRadius(List<Vec2d> points, int vertexIndex) {
+        return RoadCenterlineFillet.maxFeasibleRadius(points, vertexIndex);
     }
 
     public static CenterlineEditResult filletVertex(

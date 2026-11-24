@@ -191,26 +191,32 @@ public final class CenterlineSegmentPreviewRenderer {
             float midX,
             float midY,
             float scale) {
-        List<Vec2d> filleted = RoadCenterlineEditor.previewFillet(
+        Vec2d prev = points.get(selectedPi - 1);
+        Vec2d corner = points.get(selectedPi);
+        Vec2d next = points.get(selectedPi + 1);
+        ImVec2 prevScreen = toScreen(prev, cx, cy, midX, midY, scale);
+        ImVec2 cornerScreen = toScreen(corner, cx, cy, midX, midY, scale);
+        ImVec2 nextScreen = toScreen(next, cx, cy, midX, midY, scale);
+
+        List<Vec2d> localArc = RoadCenterlineEditor.previewFilletArc(
             points, selectedPi, filletRadiusCanvas);
-        if (filleted == null || filleted.size() < 2) {
-            // 半径不可行时仍画出切线方向示意（虚线折角）。
-            Vec2d prev = points.get(selectedPi - 1);
-            Vec2d corner = points.get(selectedPi);
-            Vec2d next = points.get(selectedPi + 1);
-            ImVec2 a = toScreen(prev, cx, cy, midX, midY, scale);
-            ImVec2 b = toScreen(corner, cx, cy, midX, midY, scale);
-            ImVec2 c = toScreen(next, cx, cy, midX, midY, scale);
-            drawDashedLine(drawList, a, b, COLOR_FILLET_TRIM, 1.5f);
-            drawDashedLine(drawList, b, c, COLOR_FILLET_TRIM, 1.5f);
+        if (localArc == null || localArc.size() < 2) {
+            // 半径不可行：仅虚线标出当前折角，不叠画整条路。
+            drawDashedLine(drawList, prevScreen, cornerScreen, COLOR_FILLET_TRIM, 1.5f);
+            drawDashedLine(drawList, cornerScreen, nextScreen, COLOR_FILLET_TRIM, 1.5f);
             return;
         }
-        List<ImVec2> ghost = new ArrayList<>(filleted.size());
-        for (Vec2d p : filleted) {
-            ghost.add(toScreen(p, cx, cy, midX, midY, scale));
-        }
-        for (int i = 0; i < ghost.size() - 1; i++) {
-            drawDashedLine(drawList, ghost.get(i), ghost.get(i + 1), COLOR_FILLET, 2.2f);
+
+        // 将被削掉的折角用淡虚线标出，圆角弧用实线示意（避免整折线虚线叠画乱线）。
+        ImVec2 trim1 = toScreen(localArc.getFirst(), cx, cy, midX, midY, scale);
+        ImVec2 trim2 = toScreen(localArc.getLast(), cx, cy, midX, midY, scale);
+        drawDashedLine(drawList, trim1, cornerScreen, COLOR_FILLET_TRIM, 1.4f);
+        drawDashedLine(drawList, cornerScreen, trim2, COLOR_FILLET_TRIM, 1.4f);
+
+        for (int i = 0; i < localArc.size() - 1; i++) {
+            ImVec2 a = toScreen(localArc.get(i), cx, cy, midX, midY, scale);
+            ImVec2 b = toScreen(localArc.get(i + 1), cx, cy, midX, midY, scale);
+            drawList.addLine(a.x, a.y, b.x, b.y, COLOR_FILLET, 2.4f);
         }
     }
 
