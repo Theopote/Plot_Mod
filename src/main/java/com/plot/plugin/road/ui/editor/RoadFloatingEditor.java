@@ -26,6 +26,11 @@ public interface RoadFloatingEditor {
 
     boolean isDirty();
 
+    /** 未保存确认 / 版本冲突等对话框打开中，应阻止导航。 */
+    default boolean isInteractionBlocked() {
+        return false;
+    }
+
     void open(RoadUiContext ctx, String roadId);
 
     void focus();

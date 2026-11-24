@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditor;
+import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorShell;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -22,9 +23,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 隧道样式独立浮动窗口：标题栏 + 关闭 + 确定/取消，编辑草稿后确认写回。
+ * 隧道样式浮动窗口：Style 级草稿 + 确认写回，由 {@link com.plot.plugin.road.ui.editor.RoadFloatingEditorHost}
+ * 统一渲染 / 脏门禁 / discard；支持全局默认、单路与批量。
  */
-public final class TunnelStyleFloatingEditor {
+public final class TunnelStyleFloatingEditor implements RoadFloatingEditor {
     private enum Target {
         GLOBAL,
         ROAD
@@ -37,6 +39,9 @@ public final class TunnelStyleFloatingEditor {
     private boolean closeConfirmPending;
     private boolean lossyBatchConfirmPending;
     private boolean lossyBatchAcknowledged;
+    private boolean revisionConflictPending;
+    private boolean reloadConfirmPending;
+    private long openRevision = Long.MIN_VALUE;
     private Target target = Target.GLOBAL;
     private String roadId = "";
     /** 批量写入目标（含主路）；单路时为空或仅含 {@link #roadId}。 */
@@ -56,8 +61,44 @@ public final class TunnelStyleFloatingEditor {
     private final TunnelStyleEditor.PreviewSession previewSession = new TunnelStyleEditor.PreviewSession();
     private Runnable onHistory;
 
+    @Override
+    public RoadFloatingEditorKind kind() {
+        return RoadFloatingEditorKind.TUNNEL_STYLE;
+    }
+
+    @Override
+    public String roadId() {
+        return roadId;
+    }
+
+    @Override
     public boolean isOpen() {
         return open.get();
+    }
+
+    @Override
+    public void open(RoadUiContext ctx, String roadId) {
+        if (ctx == null || roadId == null || roadId.isBlank()) {
+            return;
+        }
+        Road road = ctx.networkManager().getNetwork().getRoad(roadId);
+        if (road == null) {
+            return;
+        }
+        openRoad(ctx, road, ctx::pushRoadEditHistory);
+    }
+
+    @Override
+    public void focus() {
+        if (isOpen()) {
+            focusPending = true;
+            open.set(true);
+        }
+    }
+
+    @Override
+    public void discard(RoadUiContext ctx) {
+        close();
     }
 
     public void openGlobal(RoadUiContext ctx) {
@@ -70,7 +111,9 @@ public final class TunnelStyleFloatingEditor {
             "",
             false,
             live != null ? live.copy() : new TunnelStyle(),
-            null);
+            null,
+            List.of(),
+            ctx);
     }
 
     public void openRoad(RoadUiContext ctx, Road road, Runnable onHistory) {
@@ -101,7 +144,7 @@ public final class TunnelStyleFloatingEditor {
         TunnelStyle seed = inheriting
             ? TunnelStyle.fromResolved(TunnelStyle.resolve(road, config))
             : road.getStoredTunnelStyle().copy();
-        beginSession(Target.ROAD, primaryId, inheriting, seed, onHistory, targets);
+        beginSession(Target.ROAD, primaryId, inheriting, seed, onHistory, targets, ctx);
     }
 
     public void close() {
@@ -110,6 +153,9 @@ public final class TunnelStyleFloatingEditor {
         closeConfirmPending = false;
         lossyBatchConfirmPending = false;
         lossyBatchAcknowledged = false;
+        revisionConflictPending = false;
+        reloadConfirmPending = false;
+        openRevision = Long.MIN_VALUE;
         draft = null;
         baseline = null;
         presetSelection.clear();
@@ -129,6 +175,7 @@ public final class TunnelStyleFloatingEditor {
         return isDirty();
     }
 
+    @Override
     public boolean isDirty() {
         // 勾选「使用全局」：仅当道路当前有显式覆盖时算脏（确认后清除覆盖）。
         if (target == Target.ROAD && inheritGlobal) {
@@ -137,10 +184,15 @@ public final class TunnelStyleFloatingEditor {
         return draft != null && baseline != null && !draft.equals(baseline);
     }
 
+    @Override
     public boolean isInteractionBlocked() {
-        return closeConfirmPending || lossyBatchConfirmPending;
+        return closeConfirmPending
+            || lossyBatchConfirmPending
+            || revisionConflictPending
+            || reloadConfirmPending;
     }
 
+    @Override
     public boolean matchesScope(Set<String> selectedRoadIds) {
         if (target != Target.ROAD) {
             return true;
@@ -165,19 +217,20 @@ public final class TunnelStyleFloatingEditor {
     /**
      * 离开编辑 Tab 或作用域切换：干净则关闭，脏则弹出确认。
      *
-     * @return {@link RoadFloatingEditor.FinishResult#PROMPT_SHOWN} 时应阻止切换
+     * @return {@link FinishResult#PROMPT_SHOWN} 时应阻止切换
      */
-    public RoadFloatingEditor.FinishResult finishOrPrompt(RoadUiContext ctx) {
+    @Override
+    public FinishResult finishOrPrompt(RoadUiContext ctx) {
         if (!isOpen()) {
-            return RoadFloatingEditor.FinishResult.CLOSED;
+            return FinishResult.CLOSED;
         }
         if (isDirty()) {
             closeConfirmPending = true;
             open.set(true);
-            return RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
+            return FinishResult.PROMPT_SHOWN;
         }
         close();
-        return RoadFloatingEditor.FinishResult.CLOSED;
+        return FinishResult.CLOSED;
     }
 
     /** 测试用：修改草稿字段后走确认写回。 */
@@ -197,10 +250,12 @@ public final class TunnelStyleFloatingEditor {
         discardAndClose();
     }
 
+    @Override
     public void render(RoadUiContext ctx) {
         if (ctx == null || !open.get() || draft == null || baseline == null) {
             return;
         }
+        refreshCleanSession(ctx);
         boolean focus = focusPending;
         focusPending = false;
         // 排在 Host 专业窗之后，避免与横断面等完全重叠
@@ -219,9 +274,10 @@ public final class TunnelStyleFloatingEditor {
             if (!visible) {
                 return;
             }
-            float footer = RoadFloatingEditorShell.footerReserveHeight(false);
+            float footer = RoadFloatingEditorShell.footerReserveHeight(revisionConflictPending);
             ImGui.beginChild("##tunnel_style_body", 0f, -footer, false, 0);
             try {
+                renderRevisionConflictBanner(ctx);
                 if (target == Target.ROAD && batchTargetCount() > 1) {
                     renderBatchBanner(ctx);
                 }
@@ -271,7 +327,7 @@ public final class TunnelStyleFloatingEditor {
         }
 
         // 标题栏 ×：有未保存改动时拦截并弹出确认
-        if (!open.get() && !closeConfirmPending && !lossyBatchConfirmPending) {
+        if (!open.get() && !closeConfirmPending && !lossyBatchConfirmPending && !revisionConflictPending) {
             if (isDirty()) {
                 open.set(true);
                 closeConfirmPending = true;
@@ -286,8 +342,8 @@ public final class TunnelStyleFloatingEditor {
             () -> closeConfirmPending = false,
             () -> {
                 confirm(ctx);
-                // 若仍需批量二次确认，仅关掉关闭确认框，留给 lossy 对话框。
-                return !lossyBatchConfirmPending;
+                // 若仍需批量二次确认 / 冲突，仅关掉关闭确认框。
+                return !lossyBatchConfirmPending && !revisionConflictPending;
             },
             this::discardAndClose,
             () -> {
@@ -296,6 +352,88 @@ public final class TunnelStyleFloatingEditor {
             });
 
         renderLossyBatchConfirmDialog(ctx);
+        renderReloadConfirmDialog(ctx);
+    }
+
+    private void refreshCleanSession(RoadUiContext ctx) {
+        if (target != Target.ROAD || isDirty() || revisionConflictPending) {
+            return;
+        }
+        long liveRevision = ctx.networkManager().getNetworkRevision();
+        if (liveRevision == openRevision) {
+            return;
+        }
+        resyncSessionFromLive(ctx, false);
+    }
+
+    private void renderRevisionConflictBanner(RoadUiContext ctx) {
+        if (!revisionConflictPending) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live")
+                + "##tunnel_reload_live")) {
+            reloadConfirmPending = true;
+        }
+        ImGui.separator();
+    }
+
+    private void renderReloadConfirmDialog(RoadUiContext ctx) {
+        RoadFloatingEditorShell.renderReloadConfirmDialog(
+            "##tunnel_style_reload_confirm",
+            reloadConfirmPending,
+            () -> reloadConfirmPending = false,
+            () -> {
+                resyncSessionFromLive(ctx, true);
+                reloadConfirmPending = false;
+            },
+            () -> reloadConfirmPending = false);
+    }
+
+    private void resyncSessionFromLive(RoadUiContext ctx, boolean notify) {
+        if (ctx == null) {
+            return;
+        }
+        if (target == Target.GLOBAL) {
+            TunnelStyle live = ctx.networkManager().getConfig() != null
+                ? ctx.networkManager().getConfig().getTunnelStyle()
+                : null;
+            beginSession(
+                Target.GLOBAL,
+                "",
+                false,
+                live != null ? live.copy() : new TunnelStyle(),
+                onHistory,
+                List.of(),
+                ctx);
+        } else {
+            LinkedHashSet<String> targets = new LinkedHashSet<>(batchRoadIds);
+            if (targets.isEmpty() && !roadId.isBlank()) {
+                targets.add(roadId);
+            }
+            if (targets.isEmpty()) {
+                close();
+                return;
+            }
+            String primaryId = targets.getFirst();
+            Road road = ctx.networkManager().getNetwork().getRoad(primaryId);
+            if (road == null) {
+                close();
+                return;
+            }
+            RoadSystemConfig config = ctx.networkManager().getConfig();
+            boolean inheriting = road.getStoredTunnelStyle() == null;
+            TunnelStyle seed = inheriting
+                ? TunnelStyle.fromResolved(TunnelStyle.resolve(road, config))
+                : road.getStoredTunnelStyle().copy();
+            beginSession(Target.ROAD, primaryId, inheriting, seed, onHistory, targets, ctx);
+        }
+        if (notify) {
+            ctx.status().info(PlotI18n.tr("plugin.road.floating_editor.reload_from_live_done"));
+            RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
+        }
     }
 
     private String windowTitle(RoadUiContext ctx) {
@@ -424,17 +562,9 @@ public final class TunnelStyleFloatingEditor {
             String roadId,
             boolean roadWasInheriting,
             TunnelStyle initial,
-            Runnable onHistory) {
-        beginSession(target, roadId, roadWasInheriting, initial, onHistory, List.of());
-    }
-
-    private void beginSession(
-            Target target,
-            String roadId,
-            boolean roadWasInheriting,
-            TunnelStyle initial,
             Runnable onHistory,
-            Collection<String> batchTargets) {
+            Collection<String> batchTargets,
+            RoadUiContext ctx) {
         this.target = target;
         this.roadId = roadId != null ? roadId : "";
         this.roadWasInheriting = roadWasInheriting;
@@ -465,6 +595,11 @@ public final class TunnelStyleFloatingEditor {
         this.closeConfirmPending = false;
         this.lossyBatchConfirmPending = false;
         this.lossyBatchAcknowledged = false;
+        this.revisionConflictPending = false;
+        this.reloadConfirmPending = false;
+        this.openRevision = ctx != null && ctx.networkManager() != null
+            ? ctx.networkManager().getNetworkRevision()
+            : Long.MIN_VALUE;
         this.open.set(true);
     }
 
@@ -594,6 +729,12 @@ public final class TunnelStyleFloatingEditor {
         }
         if (!isDirty()) {
             close();
+            return;
+        }
+        if (ctx.networkManager().getNetworkRevision() != openRevision) {
+            revisionConflictPending = true;
+            open.set(true);
+            closeConfirmPending = false;
             return;
         }
         if (needsLossyBatchAck(ctx) && !lossyBatchAcknowledged) {

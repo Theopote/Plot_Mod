@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.TunnelStyleControls;
 import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
@@ -26,6 +27,8 @@ public final class RoadFloatingEditorHost {
         editors.put(RoadFloatingEditorKind.DIAGNOSTICS, new DiagnosticsDesignerWindow());
         editors.put(RoadFloatingEditorKind.BATCH_CROSS_SECTION, new BatchCrossSectionDesignerWindow());
         editors.put(RoadFloatingEditorKind.ROAD_LAMP, new RoadLampDesignerWindow());
+        // 与 TunnelStyleControls 共用同一实例，保留全局/批量打开入口。
+        editors.put(RoadFloatingEditorKind.TUNNEL_STYLE, TunnelStyleControls.floatingEditor());
     }
 
     public void openOrFocus(RoadUiContext ctx, RoadFloatingEditorKind kind, String roadId) {
@@ -137,7 +140,7 @@ public final class RoadFloatingEditorHost {
     /** 是否有浮动编辑器正在等待未保存或版本冲突处理。 */
     public boolean hasInteractionBlocked() {
         for (RoadFloatingEditor editor : editors.values()) {
-            if (editor instanceof AbstractRoadFloatingEditor floating && floating.isInteractionBlocked()) {
+            if (editor.isInteractionBlocked()) {
                 return true;
             }
         }

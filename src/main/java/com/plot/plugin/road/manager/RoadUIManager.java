@@ -27,7 +27,6 @@ import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
 import com.plot.plugin.road.ui.RoadVerticalProfilePanel;
-import com.plot.plugin.road.ui.TunnelStyleControls;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorHost;
 import com.plot.plugin.road.ui.editor.RoadFloatingEditorKind;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -125,7 +124,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         verticalProfilePanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
         floatingEditorHost.renderAll(ctx);
         RoadPresetCards.renderFloatingWindow(ctx);
-        TunnelStyleControls.renderFloatingWindow(ctx);
         ComplexJunctionControls.renderFloatingWindow(ctx);
 
         RoadUiTab pendingTab = ctx.pendingTab();
@@ -447,7 +445,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
      */
     public void discardFloatingEditorSessions() {
         floatingEditorHost.discardAll(ctx);
-        TunnelStyleControls.floatingEditor().close();
         ComplexJunctionControls.floatingEditor().close();
         ctx.closePresetLibrary();
         verticalProfilePanel.discardOpenEditors();

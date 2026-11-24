@@ -266,6 +266,21 @@ class TunnelStyleFloatingEditorTest {
     }
 
     @Test
+    void confirmConflictsWhenNetworkRevisionChanges() {
+        Road road = manager.getNetwork().getRoad(roadId);
+        editor.openRoad(ctx, road, null);
+        editor.mutateDraftForTest(d -> d.setClearHeight(d.getClearHeight() + 2));
+
+        manager.mutateNetwork(() ->
+            manager.getNetwork().getRoad(roadId).setName("externally-edited"));
+
+        editor.confirmForTest(ctx);
+        assertTrue(editor.isOpen(), "conflict must keep window open");
+        assertTrue(editor.isInteractionBlocked());
+        assertNull(road.getStoredTunnelStyle(), "must not write on conflict");
+    }
+
+    @Test
     void heterogeneousBatchRequiresAckBeforeWrite() {
         RoadNetwork network = manager.getNetwork();
         Road second = network.createRoad("side");

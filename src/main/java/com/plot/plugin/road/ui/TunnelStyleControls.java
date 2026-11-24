@@ -5,15 +5,13 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
-import com.plot.plugin.road.ui.editor.RoadFloatingEditor;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 
-import java.util.Set;
-
 /**
- * Compact tunnel style entry points for Edit tab；完整编辑走 {@link TunnelStyleFloatingEditor}。
+ * Compact tunnel style entry points；完整编辑窗由 {@link com.plot.plugin.road.ui.editor.RoadFloatingEditorHost}
+ * 托管同一 {@link TunnelStyleFloatingEditor} 实例。
  */
 public final class TunnelStyleControls {
     private static final TunnelStyleFloatingEditor FLOATING = new TunnelStyleFloatingEditor();
@@ -64,47 +62,6 @@ public final class TunnelStyleControls {
         }
         TunnelStyle style = road.getStoredTunnelStyle();
         renderCompactRow(style, () -> FLOATING.openRoad(ctx, road, onHistory));
-    }
-
-    /** 由 {@link com.plot.plugin.road.manager.RoadUIManager} 每帧调用。 */
-    public static void renderFloatingWindow(RoadUiContext ctx) {
-        FLOATING.render(ctx);
-    }
-
-    public static boolean isInteractionBlocked() {
-        return FLOATING.isInteractionBlocked();
-    }
-
-    public static boolean hasDirtyEditor() {
-        return FLOATING.isOpen() && FLOATING.isDirty();
-    }
-
-    /**
-     * 导航门禁：脏则弹确认并拦截，干净则保持打开。
-     *
-     * @return true 若应阻止导航
-     */
-    public static boolean promptDirtyAndBlockLeave(RoadUiContext ctx) {
-        if (isInteractionBlocked()) {
-            return true;
-        }
-        if (!hasDirtyEditor()) {
-            return false;
-        }
-        return FLOATING.finishOrPrompt(ctx) == RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
-    }
-
-    /** 停用或强制收起：脏弹确认，干净关闭。 @return true 若应阻止离开 */
-    public static boolean finishOrPromptLeaving(RoadUiContext ctx) {
-        return FLOATING.finishOrPrompt(ctx) == RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
-    }
-
-    /** @return true 若道路级隧道窗绑在范围外且应阻止换路 */
-    public static boolean finishOrPromptOutsideScope(RoadUiContext ctx, Set<String> selectedRoadIds) {
-        if (!FLOATING.isOpen() || FLOATING.matchesScope(selectedRoadIds)) {
-            return false;
-        }
-        return FLOATING.finishOrPrompt(ctx) == RoadFloatingEditor.FinishResult.PROMPT_SHOWN;
     }
 
     private static void renderCompactRow(TunnelStyle style, Runnable onEdit) {

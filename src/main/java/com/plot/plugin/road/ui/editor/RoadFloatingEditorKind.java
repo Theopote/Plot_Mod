@@ -8,5 +8,7 @@ public enum RoadFloatingEditorKind {
     STATION_FACILITIES,
     DIAGNOSTICS,
     BATCH_CROSS_SECTION,
-    ROAD_LAMP
+    ROAD_LAMP,
+    /** 隧道样式（Style 级草稿；支持全局 / 单路 / 批量）。 */
+    TUNNEL_STYLE
 }

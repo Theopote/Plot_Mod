@@ -28,6 +28,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FloatingEditorLifecycleTest {
@@ -233,6 +234,17 @@ class FloatingEditorLifecycleTest {
         assertEquals(RoadFloatingEditor.FinishResult.PROMPT_SHOWN, editor.finishOrPrompt(ctx));
         assertTrue(host.hasInteractionBlocked());
         assertTrue(editor.isOpen());
+    }
+
+    @Test
+    void tunnelStyleEditorIsHostedAsSharedInstance() {
+        assertSame(
+            com.plot.plugin.road.ui.TunnelStyleControls.floatingEditor(),
+            host.editorForKind(RoadFloatingEditorKind.TUNNEL_STYLE));
+        host.openOrFocus(ctx, RoadFloatingEditorKind.TUNNEL_STYLE, roadA);
+        assertTrue(host.isOpen(RoadFloatingEditorKind.TUNNEL_STYLE));
+        host.discardAll(ctx);
+        assertFalse(host.isOpen(RoadFloatingEditorKind.TUNNEL_STYLE));
     }
 
     private static void assertNotNullVariableSections(Road road) {

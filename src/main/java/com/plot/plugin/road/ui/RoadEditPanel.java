@@ -91,15 +91,12 @@ public final class RoadEditPanel {
      */
     public boolean finishPendingEdits() {
         segmentEditor.finishOrCancelSlopeOverrideEdit(ctx);
-        boolean blocked = floatingEditorHost.finishOrPromptAll(ctx);
-        blocked |= TunnelStyleControls.finishOrPromptLeaving(ctx);
-        return blocked;
+        return floatingEditorHost.finishOrPromptAll(ctx);
     }
 
     /** 已有未保存确认等待用户时，同样视为挡住离开。 */
     public boolean hasLeaveBlocked() {
-        return floatingEditorHost.hasInteractionBlocked()
-            || TunnelStyleControls.isInteractionBlocked();
+        return floatingEditorHost.hasInteractionBlocked();
     }
 
     /**
@@ -114,16 +111,12 @@ public final class RoadEditPanel {
             return true;
         }
         segmentEditor.finishOrCancelSlopeOverrideEdit(ctx);
-        boolean blocked = floatingEditorHost.promptDirtyAndBlockLeave(ctx);
-        blocked |= TunnelStyleControls.promptDirtyAndBlockLeave(ctx);
-        return blocked;
+        return floatingEditorHost.promptDirtyAndBlockLeave(ctx);
     }
 
     private boolean finishPendingEditsForScope(Set<String> selectedRoadIds) {
         segmentEditor.finishOrCancelSlopeOverrideEdit(ctx);
-        boolean blocked = floatingEditorHost.finishOrPromptOutsideScope(ctx, selectedRoadIds);
-        blocked |= TunnelStyleControls.finishOrPromptOutsideScope(ctx, selectedRoadIds);
-        return blocked;
+        return floatingEditorHost.finishOrPromptOutsideScope(ctx, selectedRoadIds);
     }
 
     private void restoreRoadSelection(Set<String> roadIds) {

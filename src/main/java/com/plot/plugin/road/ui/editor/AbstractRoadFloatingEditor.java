@@ -332,7 +332,8 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
     }
 
     /** 作用域切换等场景：是否有未保存确认或版本冲突待处理。 */
-    boolean isInteractionBlocked() {
+    @Override
+    public boolean isInteractionBlocked() {
         return scopeBlocked
             || closeConfirmPending
             || revisionConflictPending
