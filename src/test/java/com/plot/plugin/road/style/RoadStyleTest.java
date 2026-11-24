@@ -33,12 +33,23 @@ class RoadStyleTest {
     }
 
     @Test
-    void highwayStyleSetsMedianAndDoubleCenterLine() {
+    void highwayStyleSetsMedianAndFourLanes() {
         RoadStyle style = RoadStyleCatalog.highway();
         RoadCrossSection section = style.toCrossSection();
 
         assertTrue(section.getMedian().getEnabled());
+        assertEquals(4, section.getCarriageway().getEffectiveLaneCount());
         assertEquals(CenterLineStyle.DOUBLE_SOLID, section.getMarkings().getCenterLineStyle());
+        assertEquals(Boolean.TRUE, section.getMarkings().getLaneDividers());
+    }
+
+    @Test
+    void boulevardIncludesBikeLane() {
+        RoadStyle style = RoadStyleCatalog.boulevard();
+        RoadCrossSection section = style.toCrossSection();
+        assertEquals(Boolean.TRUE, section.getBikeLane().getEnabled());
+        assertEquals(1, section.getBikeLane().getWidth());
+        assertEquals(9, style.width);
     }
 
     @Test

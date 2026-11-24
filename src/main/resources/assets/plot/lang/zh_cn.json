@@ -5088,7 +5088,6 @@
   "plugin.road.profile_intersection_clearance": "Clearance: %s blocks",
   "plugin.road.style.max_slope": "Max grade",
   "plugin.road.tunnel.shape": "截面形状",
-  "preset.road.city_secondary": "Urban Secondary Road",
   "plugin.road.bridge_threshold_label": "架桥净高阈值",
   "plugin.road.bridge_threshold_reset_style": "恢复默认",
   "plugin.road.bridge_threshold_reset_style.hint": "清除自定义，改用当前地形风格默认（%s 格）",

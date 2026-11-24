@@ -2,6 +2,10 @@ package com.plot.plugin.road.style;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.lamp.RoadLampPlacement;
+import com.plot.plugin.road.lamp.RoadLampPresets;
+import com.plot.plugin.road.lamp.RoadLampStyle;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
@@ -44,6 +48,11 @@ public class RoadStyle {
     public String centerLineStyle;
     public Boolean laneDividers;
     public Integer streetlightSpacing;
+    /**
+     * 新版专业路灯预设 id（见 {@link RoadLampPresets}）；非空时写入
+     * {@link com.plot.plugin.road.model.section.StreetFurniture#setRoadLampPlacement}。
+     */
+    public String lampPresetId;
     /** 可选默认主题；全局主题见 {@link com.plot.plugin.config.RoadSystemConfig#getRoadThemeId()}。 */
     public String themeId;
 
@@ -144,6 +153,7 @@ public class RoadStyle {
         copy.centerLineStyle = centerLineStyle;
         copy.laneDividers = laneDividers;
         copy.streetlightSpacing = streetlightSpacing;
+        copy.lampPresetId = lampPresetId;
         copy.themeId = themeId;
         return copy;
     }
@@ -229,7 +239,38 @@ public class RoadStyle {
         } else {
             section.getStreetFurniture().setStreetlightBlock(null);
         }
+        applyLampPreset(section, style);
         return section;
+    }
+
+    private static void applyLampPreset(RoadCrossSection section, RoadStyle style) {
+        if (style.lampPresetId == null || style.lampPresetId.isBlank()) {
+            return;
+        }
+        RoadLampStyle lampStyle = null;
+        for (RoadLampPresets.Preset preset : RoadLampPresets.ALL) {
+            if (style.lampPresetId.equals(preset.id())) {
+                lampStyle = preset.style();
+                break;
+            }
+        }
+        if (lampStyle == null) {
+            return;
+        }
+        int spacing = style.streetlightSpacing != null && style.streetlightSpacing > 0
+            ? RoadParameterLimits.normalizeStreetlightSpacing(style.streetlightSpacing)
+            : 16;
+        section.getStreetFurniture().setRoadLampPlacement(new RoadLampPlacement(
+            lampStyle,
+            RoadLampPlacement.Sides.BOTH,
+            spacing,
+            0,
+            4,
+            true,
+            false));
+        if (section.getStreetFurniture().getStreetlightSpacing() == null) {
+            section.getStreetFurniture().setStreetlightSpacing(spacing);
+        }
     }
 
     public void applyTo(Road road) {

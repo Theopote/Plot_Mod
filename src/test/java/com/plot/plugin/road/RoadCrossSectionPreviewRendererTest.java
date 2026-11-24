@@ -68,7 +68,8 @@ class RoadCrossSectionPreviewRendererTest {
         var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
             RoadStyleCatalog.countryRoad());
         assertTrue(layout.includeSlopeBatter);
-        assertEquals(7f, layout.totalWidthBlocks());
+        // 车行 7 + 两侧肩各 1。
+        assertEquals(9f, layout.totalWidthBlocks());
     }
 
     @Test
@@ -231,7 +232,7 @@ class RoadCrossSectionPreviewRendererTest {
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:black_concrete", 0),
             highway.roadColor);
         assertEquals(
-            RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:gray_concrete", 0),
+            RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:black_concrete", 0),
             cityMain.roadColor);
         assertEquals(
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:gray_concrete", 0),
@@ -242,7 +243,8 @@ class RoadCrossSectionPreviewRendererTest {
         assertEquals(
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:cyan_concrete", 0),
             cyberpunk.sidewalkColor);
-        assertNotEquals(highway.roadColor, cityMain.roadColor);
+        // 主干与高速同为黑砼，以外侧条带区分：高速有硬路肩，主干有人行道。
+        assertNotEquals(highway.sidewalkColor, cityMain.sidewalkColor);
         assertNotEquals(park.roadColor, cyberpunk.roadColor);
     }
 
