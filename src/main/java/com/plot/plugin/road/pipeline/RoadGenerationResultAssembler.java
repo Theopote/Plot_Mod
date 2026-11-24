@@ -6,7 +6,7 @@ import com.plot.plugin.road.pipeline.corridor.ColumnKey;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -28,7 +28,7 @@ public final class RoadGenerationResultAssembler {
     public static RoadGenerationResult aggregateNetwork(
             RoadNetwork network,
             Iterable<RoadGenerationResult> edgeResults,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             RoadGenerationPipelineHost host) {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         long t0 = System.nanoTime();
@@ -39,7 +39,7 @@ public final class RoadGenerationResultAssembler {
         }
         long t1 = System.nanoTime();
         if (network != null && junctionResults != null && host != null) {
-            for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
+            for (Map.Entry<String, JunctionBlocks> entry : junctionResults.entrySet()) {
                 mergeJunctionForNode(aggregate, network.getNode(entry.getKey()), entry.getValue(), network, host);
             }
         }
@@ -81,7 +81,7 @@ public final class RoadGenerationResultAssembler {
     public static void mergeJunctionForNode(
             RoadGenerationResult target,
             RoadNode node,
-            RoadJunctionGenerator.JunctionBlocks junction,
+            JunctionBlocks junction,
             RoadNetwork network,
             RoadGenerationPipelineHost host) {
         if (target == null || junction == null || host == null) {
@@ -106,7 +106,7 @@ public final class RoadGenerationResultAssembler {
 
     public static void mergeJunction(
             RoadGenerationResult target,
-            RoadJunctionGenerator.JunctionBlocks junction,
+            JunctionBlocks junction,
             ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler,
             String roadBlockId,
@@ -129,7 +129,7 @@ public final class RoadGenerationResultAssembler {
 
     public static void mergeJunctionBlocks(
             RoadGenerationResult target,
-            RoadJunctionGenerator.JunctionBlocks junction,
+            JunctionBlocks junction,
             RoadGenerationPipelineHost host,
             String roadMaterial,
             String sidewalkMaterial) {

@@ -56,7 +56,7 @@ public class RoadNetworkGenerator {
     public static class NetworkGenerationResult {
         private final Map<String, EdgeGenerationResult> edgeOutcomes = new LinkedHashMap<>();
         private final Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
-        private final Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
+        private final Map<String, JunctionBlocks> junctionResults = new LinkedHashMap<>();
         private final Map<String, JunctionConstructionReport> junctionReports = new LinkedHashMap<>();
         private final Set<String> failedEdgeIds = new LinkedHashSet<>();
         private final Set<String> skippedEdgeIds = new LinkedHashSet<>();
@@ -76,7 +76,7 @@ public class RoadNetworkGenerator {
             return Collections.unmodifiableMap(edgeResults);
         }
 
-        public Map<String, RoadJunctionGenerator.JunctionBlocks> getJunctionResults() {
+        public Map<String, JunctionBlocks> getJunctionResults() {
             return Collections.unmodifiableMap(junctionResults);
         }
 
@@ -565,7 +565,7 @@ public class RoadNetworkGenerator {
                         "connected edge generation failed or skipped");
                     continue;
                 }
-                RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+                JunctionBlocks junctionBlocks =
                     junctionGenerator.generateJunction(
                         node,
                         generationNetwork,
@@ -779,7 +779,7 @@ public class RoadNetworkGenerator {
         return true;
     }
 
-    static boolean hasJunctionGenerationManifest(RoadJunctionGenerator.JunctionBlocks blocks) {
+    static boolean hasJunctionGenerationManifest(JunctionBlocks blocks) {
         if (blocks == null || blocks.validationManifest() == null) {
             return false;
         }
@@ -1023,7 +1023,7 @@ public class RoadNetworkGenerator {
             PlacementRecordColumnIndex index,
             FinalPlacementIndex finalIndex,
             TerrainSampler terrain) {
-        RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+        JunctionBlocks junctionBlocks =
             networkResult.getJunctionResults().get(node.getId());
         if (junctionBlocks == null || junctionBlocks.validationManifest() == null) {
             networkResult.recordMissingJunctionValidation(

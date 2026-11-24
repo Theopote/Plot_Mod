@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMarkingPasses;
+import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampPlanner;
 import com.plot.plugin.road.model.section.BridgePierStyle;
@@ -75,18 +76,22 @@ final class CrossSectionSegmentPreview {
         int half = Math.max(1, (int) Math.ceil(section.carriagewayWidth / 2.0)
             + section.shoulderWidth + section.bikeLaneWidth + section.sidewalkWidth + 2);
         half = Math.min(48, half);
-        String carriageway = section.carriagewayMaterial != null
-            ? section.carriagewayMaterial.getPrimaryMaterial()
-            : "minecraft:gray_concrete";
+        String carriageway = resolvePreviewBlock(
+            section.carriagewayMaterial != null
+                ? section.carriagewayMaterial.getPrimaryMaterial()
+                : null,
+            "minecraft:gray_concrete");
         for (int x = -half; x <= half; x++) {
             var band = section.surfaceBandAtLateral(x);
             if (band.isEmpty()) {
                 continue;
             }
-            String block = band.get().materialId();
-            if (block == null || block.isBlank()) {
-                block = carriageway;
+            var spec = band.get();
+            String block = spec.materialId();
+            if ((block == null || block.isBlank()) && spec.materialMix() != null) {
+                block = spec.materialMix().getPrimaryMaterial();
             }
+            block = resolvePreviewBlock(block, carriageway);
             for (int z = z0; z <= z1; z++) {
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, -1, z), block));
             }
@@ -96,7 +101,9 @@ final class CrossSectionSegmentPreview {
             ? section.centerLineStyle
             : CenterLineStyle.NONE;
         boolean rail = centerStyle == CenterLineStyle.RAIL;
-        String centerMarking = resolveCenterMarkingBlock(section, rail);
+        String centerMarking = resolvePreviewBlock(
+            resolveCenterMarkingBlock(section, rail),
+            ResolvedCrossSection.DEFAULT_MARKING_MATERIAL);
         String laneDivider = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(section)) {
             int x = (int) Math.floor(pass.offset());
@@ -113,9 +120,9 @@ final class CrossSectionSegmentPreview {
         }
         if (section.includeMedian && section.medianWidth > 0 && section.medianHeight > 0
                 && section.medianMaxLateral >= section.medianMinLateral) {
-            String medianMat = section.medianMaterial != null && !section.medianMaterial.isBlank()
-                ? section.medianMaterial
-                : com.plot.plugin.road.RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL;
+            String medianMat = resolvePreviewBlock(
+                section.medianMaterial,
+                com.plot.plugin.road.RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL);
             for (int x = section.medianMinLateral; x <= section.medianMaxLateral; x++) {
                 for (int y = 0; y < section.medianHeight; y++) {
                     for (int z = z0; z <= z1; z++) {
@@ -150,9 +157,9 @@ final class CrossSectionSegmentPreview {
         } else {
             centers = new int[] {0};
         }
-        String material = clamped.pierMaterial() != null && !clamped.pierMaterial().isBlank()
-            ? clamped.pierMaterial()
-            : ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL;
+        String material = resolvePreviewBlock(
+            clamped.pierMaterial(),
+            ResolvedBridgeStructure.DEFAULT_PIER_MATERIAL);
         int step = Math.max(1, (int) Math.round(clamped.pierSpacingBlocks()));
         // 路表在 y=-1；桥墩顶贴路底 y=-2，向下共 PREVIEW_PIER_HEIGHT 格。
         int pierTopY = -2;
@@ -196,6 +203,16 @@ final class CrossSectionSegmentPreview {
             return section.markingMaterial;
         }
         return ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+    }
+
+    /** 预览体素 id：空白用 fallback，再走道路材质规范化，避免脏字符串进色表。 */
+    private static String resolvePreviewBlock(String material, String fallback) {
+        String raw = material != null && !material.isBlank() ? material : fallback;
+        if (raw == null || raw.isBlank()) {
+            return "minecraft:stone";
+        }
+        String resolved = RoadMaterialUtils.resolveBlockId(raw);
+        return resolved != null && !resolved.isBlank() ? resolved : raw;
     }
 
     /** 有路灯间距时，两侧外侧条带上放细竖杆示意位置。 */

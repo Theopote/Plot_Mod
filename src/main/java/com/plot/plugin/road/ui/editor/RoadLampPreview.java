@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.core.block.BlockSpec;
 import com.plot.core.material.BlockColorRegistry;
+import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
@@ -12,6 +13,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -67,9 +69,13 @@ public final class RoadLampPreview {
             sortedYaw = Float.NaN;
         }
         if (yaw != sortedYaw) {
+            // 同深度用格子坐标作稳定次序，避免 Hash 遍历导致同帧闪烁/错叠。
             parts.sort(Comparator.comparingInt((Part part) -> part.y0 < 0f ? 0 : 1)
                 .thenComparingDouble(part -> depth(part.x0 + part.x1, part.z0 + part.z1, sine, cosine) * 0.5
-                    + (part.y0 + part.y1) * 0.275));
+                    + (part.y0 + part.y1) * 0.275)
+                .thenComparingDouble(part -> part.x0)
+                .thenComparingDouble(part -> part.z0)
+                .thenComparingDouble(part -> part.y0));
             sortedYaw = yaw;
         }
         for (var part : parts) {
@@ -130,32 +136,22 @@ public final class RoadLampPreview {
 
     private void rebuildParts(List<RoadLampCompiler.Voxel> structure) {
         parts.clear();
-        var blocks = structure.stream().collect(Collectors.toMap(RoadLampCompiler.Voxel::position,
-            RoadLampCompiler.Voxel::block, (previous, next) -> next));
-        var levelByPos = structure.stream().collect(Collectors.toMap(RoadLampCompiler.Voxel::position,
-            RoadLampCompiler.Voxel::levelIndex, (previous, next) -> next));
-        // 路表含标线等异材质时禁止沿 Z 合并长条：长条按中心深度排序，会与短块交错成「阶梯/撕裂」。
-        boolean mixedPavementLayer = pavementLayerHasMixedMaterials(blocks);
+        // LinkedHashMap：后写覆盖先写（标线盖路面），并保持稳定遍历序。
+        var blocks = structure.stream().collect(Collectors.toMap(
+            RoadLampCompiler.Voxel::position,
+            RoadLampCompiler.Voxel::block,
+            (previous, next) -> next,
+            LinkedHashMap::new));
+        var levelByPos = structure.stream().collect(Collectors.toMap(
+            RoadLampCompiler.Voxel::position,
+            RoadLampCompiler.Voxel::levelIndex,
+            (previous, next) -> next,
+            LinkedHashMap::new));
+        // 不再沿 Z 合并长条：横断面预览纵深短，合并后画家算法会在斜视角出现阶梯/撕裂/错色条。
+        // mixed 检测仍保留给调用方/测试，作为「路表是否含异材质」信号。
         blocks.forEach((pos, block) -> {
             BlockSpec spec = BlockSpec.parse(block);
             int levelIndex = levelByPos.getOrDefault(pos, -1);
-            if (!mixedPavementLayer
-                    && pos.getY() == -1
-                    && !spec.blockId().endsWith("_slab")
-                    && !spec.blockId().endsWith("_wall")
-                    && !spec.blockId().endsWith("_fence")) {
-                // 均一路面：沿南北合并成条带，减少绘制量。
-                if (block.equals(blocks.get(pos.north()))) {
-                    return;
-                }
-                int length = 1;
-                while (block.equals(blocks.get(pos.south(length)))) {
-                    length++;
-                }
-                parts.add(Part.at(pos, BlockColorRegistry.colorFor(spec.blockId()), -1,
-                    0f, 0f, 0f, 1f, 1f, length));
-                return;
-            }
             addParts(parts, blocks, pos, spec, levelIndex);
         });
     }
@@ -183,7 +179,8 @@ public final class RoadLampPreview {
     private static void addParts(List<Part> parts, Map<BlockPos, String> blocks, BlockPos pos,
                                  BlockSpec block, int levelIndex) {
         String id = block.blockId();
-        int color = BlockColorRegistry.colorFor(id);
+        // 与 2D 横断预览一致：先规范化 block id 再取色，减少别名/脏 id 落到哈希杂色。
+        int color = BlockColorRegistry.colorFor(RoadMaterialUtils.resolveBlockId(id));
         if (id.equals("minecraft:iron_chain") || id.equals("minecraft:chain")) {
             parts.add(Part.at(pos, color, levelIndex, 0.41f, 0f, 0.41f, 0.59f, 1f, 0.59f));
         } else if (isLanternFixture(id)) {
@@ -245,10 +242,13 @@ public final class RoadLampPreview {
         return !isLanternFixture(id) && !id.endsWith("chain") && !id.endsWith("_slab");
     }
 
-    private static final float FACE_SHADE_SIDE = 0.55f;
-    private static final float FACE_SHADE_FRONT = 0.78f;
+    /** 侧/前略提亮，避免黑混凝土等在 PANEL_BG_DARK 上几乎看不见。 */
+    private static final float FACE_SHADE_SIDE = 0.68f;
+    private static final float FACE_SHADE_FRONT = 0.86f;
     private static final float FACE_SHADE_TOP = 1.05f;
     private static final float EDGE_THICKNESS = 1.05f;
+    /** 通道最低亮度，防止乘暗后变成「缺块」。 */
+    private static final int SHADE_RGB_FLOOR = 28;
 
     private static void drawPart(ImDrawList draw, View view, Part p, int highlightLevelIndex) {
         float brightness;
@@ -341,6 +341,11 @@ public final class RoadLampPreview {
         int red = Math.clamp(Math.round(((argb >> 16) & 255) * multiplier), 0, 255);
         int green = Math.clamp(Math.round(((argb >> 8) & 255) * multiplier), 0, 255);
         int blue = Math.clamp(Math.round((argb & 255) * multiplier), 0, 255);
+        if (alpha >= 200) {
+            red = Math.max(red, SHADE_RGB_FLOOR);
+            green = Math.max(green, SHADE_RGB_FLOOR);
+            blue = Math.max(blue, SHADE_RGB_FLOOR);
+        }
         // ImGui 颜色为 ABGR 打包：保留 alpha，便于隐形光源半透明预览。
         return (alpha << 24) | (blue << 16) | (green << 8) | red;
     }

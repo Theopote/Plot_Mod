@@ -1,6 +1,6 @@
 package com.plot.plugin.road.pipeline.corridor;
 
-import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -56,7 +56,7 @@ public final class ColumnDesignElevationPlanner {
     }
 
     public static ColumnElevationPlan plan(
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             RoadNetwork network) {
         Map<ColumnKey, List<ColumnClaim>> claimsByColumn = collectClaims(junctionResults, network);
         if (claimsByColumn.isEmpty()) {
@@ -137,15 +137,15 @@ public final class ColumnDesignElevationPlanner {
     }
 
     private static Map<ColumnKey, List<ColumnClaim>> collectClaims(
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             RoadNetwork network) {
         Map<ColumnKey, List<ColumnClaim>> claimsByColumn = new HashMap<>();
         if (junctionResults == null || junctionResults.isEmpty()) {
             return claimsByColumn;
         }
-        for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
+        for (Map.Entry<String, JunctionBlocks> entry : junctionResults.entrySet()) {
             String nodeId = entry.getKey();
-            RoadJunctionGenerator.JunctionBlocks blocks = entry.getValue();
+            JunctionBlocks blocks = entry.getValue();
             if (nodeId == null || blocks == null || blocks.elevationField() == null) {
                 continue;
             }

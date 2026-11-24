@@ -5,6 +5,7 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -266,7 +267,7 @@ class JunctionPlazaClearanceTest {
         assertTrue(airOverride, "junction TUNNEL air must override leftover edge ROAD");
     }
 
-    private static boolean hasAirNearOrigin(RoadJunctionGenerator.JunctionBlocks blocks, int y) {
+    private static boolean hasAirNearOrigin(JunctionBlocks blocks, int y) {
         return blocks.getSolids().primitives().stream().anyMatch(primitive ->
             "minecraft:air".equals(primitive.materialId())
                 && primitive.elevation() == y
@@ -274,7 +275,7 @@ class JunctionPlazaClearanceTest {
                 && Math.abs(primitive.planPoint().y) <= 2.5);
     }
 
-    private static String airElevationsNearOrigin(RoadJunctionGenerator.JunctionBlocks blocks) {
+    private static String airElevationsNearOrigin(JunctionBlocks blocks) {
         return blocks.getSolids().primitives().stream()
             .filter(primitive -> "minecraft:air".equals(primitive.materialId())
                 && Math.abs(primitive.planPoint().x) <= 2.5

@@ -38,7 +38,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     public void generateMarkings(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadNode node,
             RoadNetwork network,
             List<RoadEdge> edges,
@@ -113,7 +113,7 @@ public final class RoadJunctionMarkingGenerator {
      * 立交上层铁路：在桥面标高贯通轨枕+铁轨，避免被下层广场切断轨面高程。
      */
     public void generateElevatedRailwayContinuation(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadNode node,
             RoadNetwork network,
             List<RoadEdge> elevatedEdges,
@@ -186,7 +186,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     private void placeElevatedRailStrip(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             List<Vec2d> inward,
             int elevatedDeckY,
             ResolvedCrossSection crossSection) {
@@ -212,7 +212,7 @@ public final class RoadJunctionMarkingGenerator {
      * 无足够对向进口时不强制选直股，仅保留各进口延续轨。
      */
     private void placeRailwayTurnoutMarkers(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadNode node,
             RoadNetwork network,
             Vec2d center,
@@ -354,7 +354,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     private void generateContinuedRailApproach(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadEdge edge,
             String nodeId,
             List<Vec2d> junctionPolygon,
@@ -374,7 +374,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     private void generateContinuedMarkings(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadEdge edge,
             String nodeId,
             List<Vec2d> junctionPolygon,
@@ -420,7 +420,7 @@ public final class RoadJunctionMarkingGenerator {
      * 铁路进口：路口广场内延续轨枕 + 铁轨（多路汇合处形成可连通的道岔状轨网）。
      */
     private void generateContinuedRails(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             List<Vec2d> inward,
             List<Vec2d> junctionPolygon,
             int junctionY,
@@ -478,7 +478,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     private void generateCrosswalk(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             Vec2d center,
             Vec2d direction,
             double junctionRadius,
@@ -503,7 +503,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     private void generateTurnArrows(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             Vec2d center,
             Vec2d direction,
             double junctionRadius,
@@ -537,7 +537,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     private void placeArrowGlyph(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             Vec2d base,
             Vec2d outward,
             Vec2d perpendicular,
@@ -588,7 +588,7 @@ public final class RoadJunctionMarkingGenerator {
     }
 
     void generateStopLines(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadNode node,
             RoadNetwork network,
             List<RoadEdge> edges,
@@ -665,7 +665,7 @@ public final class RoadJunctionMarkingGenerator {
         return Math.max(safeJunction * 0.7, safeJunction - pullIn);
     }
 
-    private void addMarking(RoadJunctionGenerator.JunctionBlocks blocks, Vec2d point, int junctionY) {
+    private void addMarking(JunctionBlocks blocks, Vec2d point, int junctionY) {
         blocks.getSolids().add(point, junctionY, RoadSolidLayer.MARKING);
     }
 

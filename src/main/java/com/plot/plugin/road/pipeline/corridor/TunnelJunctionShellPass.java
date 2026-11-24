@@ -8,6 +8,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
@@ -98,7 +99,7 @@ public final class TunnelJunctionShellPass {
             TerrainSampler terrain,
             MaterialResolver materials,
             TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
+            Map<String, JunctionBlocks> junctionResults) {
         apply(network, edgeResults, nodeElevations, config, coordinateTransformer,
             unitsPerBlockEstimator, terrain, materials, previousBlockResolver, junctionResults, null);
     }
@@ -116,14 +117,14 @@ public final class TunnelJunctionShellPass {
             TerrainSampler terrain,
             MaterialResolver materials,
             TunnelJunctionConnectivityPass.PreviousBlockResolver previousBlockResolver,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             Set<String> onlyNodeIds) {
         if (network == null || edgeResults == null || edgeResults.isEmpty()
                 || config == null || terrain == null) {
             return;
         }
         Map<String, Integer> elevations = nodeElevations != null ? nodeElevations : Map.of();
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions =
+        Map<String, JunctionBlocks> junctions =
             junctionResults != null ? junctionResults : Map.of();
         MaterialResolver resolvedMaterials = materials != null
             ? materials
@@ -158,7 +159,7 @@ public final class TunnelJunctionShellPass {
             if (geometry == null || !geometry.hasFillPolygon()) {
                 continue;
             }
-            RoadJunctionGenerator.JunctionBlocks authoredJunction = junctions.get(node.getId());
+            JunctionBlocks authoredJunction = junctions.get(node.getId());
             JunctionWorldFootprint footprint = resolveShellFootprint(
                 authoredJunction, geometry, coordinateTransformer);
             if (footprint.isEmpty()) {
@@ -567,7 +568,7 @@ public final class TunnelJunctionShellPass {
     }
 
     static JunctionWorldFootprint resolveShellFootprint(
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionBlocks junctionBlocks,
             JunctionGeometryResult geometry,
             ICoordinateService coordinateTransformer) {
         if (junctionBlocks != null && junctionBlocks.constructionContext() != null) {
@@ -580,7 +581,7 @@ public final class TunnelJunctionShellPass {
     }
 
     static JunctionElevationField resolveShellElevationField(
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionBlocks junctionBlocks,
             JunctionWorldFootprint footprint,
             JunctionFilletElevationLoft filletLoft,
             RoadTerrainClearanceUtils.BlockColumnResolver columns,
@@ -600,7 +601,7 @@ public final class TunnelJunctionShellPass {
      * 有权威高程场时直接复用，避免壳层再构建 fillet loft；否则现场 build。
      */
     static JunctionElevationField resolveShellElevationField(
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionBlocks junctionBlocks,
             JunctionWorldFootprint footprint,
             JunctionGeometryResult geometry,
             Map<String, RoadGenerationResult> edgeResults,

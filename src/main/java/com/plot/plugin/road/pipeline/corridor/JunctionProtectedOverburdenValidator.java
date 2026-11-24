@@ -3,7 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
@@ -35,7 +35,7 @@ public final class JunctionProtectedOverburdenValidator {
      * @return 撤销的空气格数
      */
     public static int stripUnauthorizedOverburdenAir(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadGenerationResult aggregate) {
         if (blocks == null || aggregate == null || aggregate.placementRecords == null) {
             return 0;
@@ -73,14 +73,14 @@ public final class JunctionProtectedOverburdenValidator {
     }
 
     public static Metrics evaluate(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadGenerationResult aggregate,
             TerrainSampler terrain) {
         return evaluate(blocks, aggregate, terrain, null);
     }
 
     public static Metrics evaluate(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadGenerationResult aggregate,
             TerrainSampler terrain,
             PlacementRecordColumnIndex sharedColumnIndex) {
@@ -155,7 +155,7 @@ public final class JunctionProtectedOverburdenValidator {
      * 原 expectedTunnelLining 仍可能残留，不得当成「授权衬砌丢失」拦建造。
      */
     static int countMissingLiningInJunctionScope(
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             RoadGenerationResult aggregate) {
         if (blocks == null || aggregate == null || aggregate.expectedTunnelLining == null
                 || aggregate.expectedTunnelLining.isEmpty()) {
@@ -279,7 +279,7 @@ public final class JunctionProtectedOverburdenValidator {
             Map<Long, Set<Integer>> airYs,
             Map<Long, Set<Integer>> pavementYs) {
 
-        static ColumnSolidIndex from(RoadJunctionGenerator.JunctionBlocks blocks) {
+        static ColumnSolidIndex from(JunctionBlocks blocks) {
             Map<Long, Set<Integer>> air = new HashMap<>();
             Map<Long, Set<Integer>> pavement = new HashMap<>();
             if (blocks == null || blocks.getSolids() == null) {

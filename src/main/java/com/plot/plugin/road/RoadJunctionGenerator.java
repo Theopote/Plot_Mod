@@ -27,7 +27,6 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -44,66 +43,6 @@ import java.util.function.Function;
  */
 public class RoadJunctionGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadJunctionGenerator");
-
-    /**
-     * 路口实体蓝图（平面坐标 + 标高 + 层），落地前不含 BlockPos。
-     */
-    public static class JunctionBlocks {
-        private final RoadSolidModel solids = new RoadSolidModel();
-        private JunctionConstructionReport report = JunctionConstructionReport.empty("");
-        private JunctionValidationManifest validationManifest = JunctionValidationManifest.empty("");
-        private JunctionElevationField elevationField = JunctionElevationField.inactive(0);
-        private JunctionConstructionContext constructionContext =
-            JunctionConstructionContext.openOnly("", JunctionWorldFootprint.empty(),
-                JunctionElevationField.inactive(0), null);
-
-        public RoadSolidModel getSolids() {
-            return solids;
-        }
-
-        public JunctionConstructionReport report() {
-            return report;
-        }
-
-        public JunctionValidationManifest validationManifest() {
-            return validationManifest;
-        }
-
-        public JunctionElevationField elevationField() {
-            return elevationField;
-        }
-
-        public JunctionConstructionContext constructionContext() {
-            return constructionContext;
-        }
-
-        void setReport(JunctionConstructionReport report) {
-            this.report = report != null ? report : JunctionConstructionReport.empty("");
-        }
-
-        void setValidationManifest(JunctionValidationManifest validationManifest) {
-            this.validationManifest = validationManifest != null
-                ? validationManifest
-                : JunctionValidationManifest.empty("");
-        }
-
-        void setElevationField(JunctionElevationField elevationField) {
-            this.elevationField = elevationField != null
-                ? elevationField
-                : JunctionElevationField.inactive(0);
-        }
-
-        void setConstructionContext(JunctionConstructionContext constructionContext) {
-            this.constructionContext = constructionContext != null
-                ? constructionContext
-                : JunctionConstructionContext.openOnly("", JunctionWorldFootprint.empty(),
-                    JunctionElevationField.inactive(0), null);
-        }
-
-        public boolean isEmpty() {
-            return solids.isEmpty();
-        }
-    }
 
     private final RoadGenerator generator;
     private final RoadJunctionMarkingGenerator markingGenerator;

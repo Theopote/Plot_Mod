@@ -77,7 +77,7 @@ class JunctionSeamReconciliationPassTest {
         plant(aggregate, pavement, "minecraft:stone", RoadSolidLayer.ROAD);
         // Y-1 故意不写 placementRecords，模拟天然地形承托。
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         blocks.setElevationField(field);
         blocks.setValidationManifest(JunctionValidationManifest.empty("n0"));
         JunctionSeamReconciliationPass.apply(aggregate, Map.of("n0", blocks));
@@ -132,7 +132,7 @@ class JunctionSeamReconciliationPassTest {
         BlockPos highOnly = new BlockPos(filletColumn.worldX(), targetY + 2, filletColumn.worldZ());
         plant(aggregate, highOnly, "minecraft:stone", RoadSolidLayer.ROAD);
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         blocks.setElevationField(field);
         blocks.setValidationManifest(JunctionValidationManifest.empty("n0"));
         JunctionSeamReconciliationPass.apply(aggregate, Map.of("n0", blocks));
@@ -183,10 +183,10 @@ class JunctionSeamReconciliationPassTest {
         BlockPos highOnly = new BlockPos(filletColumn.worldX(), targetY + 2, filletColumn.worldZ());
         plant(aggregate, highOnly, "minecraft:stone", RoadSolidLayer.ROAD);
 
-        RoadJunctionGenerator.JunctionBlocks first = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks first = new JunctionBlocks();
         first.setElevationField(field);
         first.setValidationManifest(JunctionValidationManifest.empty("near-a"));
-        RoadJunctionGenerator.JunctionBlocks second = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks second = new JunctionBlocks();
         second.setElevationField(field);
         second.setValidationManifest(JunctionValidationManifest.empty("near-b"));
 
@@ -275,11 +275,11 @@ class JunctionSeamReconciliationPassTest {
         plant(aggregate, surfaceRoad, "minecraft:stone", RoadSolidLayer.ROAD);
         aggregate.placementMaterialPriorities.put(underAccent, RoadSolidMaterialPriority.ACCENT_RING);
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         blocks.setElevationField(field);
         blocks.setValidationManifest(JunctionValidationManifest.empty("n0"));
 
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        Map<String, JunctionBlocks> junctions = new LinkedHashMap<>();
         junctions.put("n0", blocks);
         JunctionSeamReconciliationPass.apply(aggregate, junctions);
 
@@ -333,7 +333,7 @@ class JunctionSeamReconciliationPassTest {
         plant(aggregate, spikeFillet, "minecraft:stone", RoadSolidLayer.ROAD);
         plant(aggregate, spikeCore, "minecraft:stone", RoadSolidLayer.ROAD);
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         blocks.setElevationField(field);
         blocks.setValidationManifest(JunctionValidationManifest.empty("n0"));
         JunctionSeamReconciliationPass.apply(aggregate, Map.of("n0", blocks));
@@ -450,7 +450,7 @@ class JunctionSeamReconciliationPassTest {
         RoadNetwork network = new RoadNetwork();
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(20, 0));
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        Map<String, JunctionBlocks> junctions = new LinkedHashMap<>();
         junctions.put(a.getId(), fixture.lowBlocks());
         junctions.put(b.getId(), fixture.highBlocks());
         network.createEdge(a.getId(), b.getId(),
@@ -501,7 +501,7 @@ class JunctionSeamReconciliationPassTest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(20, 0));
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()));
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        Map<String, JunctionBlocks> junctions = new LinkedHashMap<>();
         junctions.put(a.getId(), fixture.lowBlocks());
         junctions.put(b.getId(), fixture.highBlocks());
 
@@ -549,7 +549,7 @@ class JunctionSeamReconciliationPassTest {
 
     private static void runSeamSealFinal(
             RoadGenerationResult aggregate,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctions,
+            Map<String, JunctionBlocks> junctions,
             RoadNetwork network) {
         JunctionSeamReconciliationPass.apply(aggregate, junctions, network);
         RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
@@ -559,13 +559,13 @@ class JunctionSeamReconciliationPassTest {
 
     private record OverlapFixture(
             ColumnKey filletColumn,
-            RoadJunctionGenerator.JunctionBlocks lowBlocks,
-            RoadJunctionGenerator.JunctionBlocks highBlocks) {
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctionsAb() {
+            JunctionBlocks lowBlocks,
+            JunctionBlocks highBlocks) {
+        Map<String, JunctionBlocks> junctionsAb() {
             return new LinkedHashMap<>(Map.of("a", lowBlocks, "b", highBlocks));
         }
 
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctionsBa() {
+        Map<String, JunctionBlocks> junctionsBa() {
             return new LinkedHashMap<>(Map.of("b", highBlocks, "a", lowBlocks));
         }
     }
@@ -615,10 +615,10 @@ class JunctionSeamReconciliationPassTest {
             footprint, JunctionFilletElevationLoft.inactive(highY), columns, highY);
 
         Integer deckY = withElevatedDeck ? 80 : null;
-        RoadJunctionGenerator.JunctionBlocks low = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks low = new JunctionBlocks();
         low.setElevationField(lowField);
         low.setValidationManifest(liningAndDeckManifest("low", filletColumn, lowY, deckY));
-        RoadJunctionGenerator.JunctionBlocks high = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks high = new JunctionBlocks();
         high.setElevationField(highField);
         high.setValidationManifest(liningAndDeckManifest("high", filletColumn, highY, deckY));
         return new OverlapFixture(filletColumn, low, high);

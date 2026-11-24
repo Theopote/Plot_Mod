@@ -7,6 +7,7 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
@@ -58,7 +59,7 @@ class RoadJunctionFinalWorldStateIntegrationTest {
         assertNotNull(preview.aggregate());
         assertFalse(preview.aggregate().placementRecords.isEmpty());
 
-        RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+        JunctionBlocks junctionBlocks =
             preview.networkResult().getJunctionResults().get(junction.getId());
         assertNotNull(junctionBlocks, "junction solids must be stored on network result");
         JunctionValidationManifest manifest = junctionBlocks.validationManifest();
@@ -119,7 +120,7 @@ class RoadJunctionFinalWorldStateIntegrationTest {
         RoadNetworkGenerator.PreviewResult preview =
             networkGenerator.generatePreview(network, new FlatTerrainSampler(68));
 
-        RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+        JunctionBlocks junctionBlocks =
             preview.networkResult().getJunctionResults().get(junction.getId());
         assertNotNull(junctionBlocks);
         JunctionValidationManifest manifest = junctionBlocks.validationManifest();

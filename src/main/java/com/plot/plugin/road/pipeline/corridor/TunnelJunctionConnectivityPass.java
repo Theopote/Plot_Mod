@@ -8,7 +8,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.JunctionGeometryResult;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
@@ -166,12 +166,12 @@ public final class TunnelJunctionConnectivityPass {
             Map<String, JunctionConstructionReport> reportSink,
             TerrainSampler terrain,
             Set<String> onlyNodeIds,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
+            Map<String, JunctionBlocks> junctionResults) {
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
         Map<String, Integer> elevations = nodeElevations != null ? nodeElevations : Map.of();
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions =
+        Map<String, JunctionBlocks> junctions =
             junctionResults != null ? junctionResults : Map.of();
         for (RoadNode node : network.getNodes().values()) {
             if (!qualifiesForConnectivity(node)) {
@@ -213,7 +213,7 @@ public final class TunnelJunctionConnectivityPass {
             int disconnectedComponents = 0;
 
             Integer clearHeight = TunnelJunctionSeedResolver.resolveTunnelClearHeight(approaches);
-            RoadJunctionGenerator.JunctionBlocks authored = junctions.get(node.getId());
+            JunctionBlocks authored = junctions.get(node.getId());
             List<RoadEdge> connected = connectedEdges(network, node);
             int junctionY = elevations.getOrDefault(node.getId(), approaches.getFirst().roadY());
             JunctionWorldFootprint footprint = resolveConnectivityFootprint(
@@ -403,7 +403,7 @@ public final class TunnelJunctionConnectivityPass {
     }
 
     static JunctionWorldFootprint resolveConnectivityFootprint(
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionBlocks junctionBlocks,
             JunctionGeometryResult geometry,
             ICoordinateService coordinateTransformer) {
         if (junctionBlocks != null && junctionBlocks.constructionContext() != null) {
@@ -419,7 +419,7 @@ public final class TunnelJunctionConnectivityPass {
      * 优先复用路口生成阶段权威高程场；缺失时才重建 fillet loft + elevation field。
      */
     static JunctionElevationField resolveConnectivityElevationField(
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks,
+            JunctionBlocks junctionBlocks,
             JunctionWorldFootprint footprint,
             JunctionGeometryResult geometry,
             Map<String, RoadGenerationResult> edgeResults,

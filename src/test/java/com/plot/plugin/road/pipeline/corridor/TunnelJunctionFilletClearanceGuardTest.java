@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.Road;
@@ -56,7 +57,7 @@ class TunnelJunctionFilletClearanceGuardTest {
         TerrainSampler mountain = surfaceAt(surfaceY);
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+        JunctionBlocks blocks = new RoadJunctionGenerator(generator)
             .generateJunction(junction, network, mountain, Map.of(junction.getId(), roadY), edgeResults);
 
         assertFalse(blocks.getSolids().primitives().isEmpty(), "tunnel junction must emit solids");
@@ -147,7 +148,7 @@ class TunnelJunctionFilletClearanceGuardTest {
         int surfaceY = 70;
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+        JunctionBlocks blocks = new RoadJunctionGenerator(generator)
             .generateJunction(
                 junction, network, surfaceAt(surfaceY), Map.of(junction.getId(), roadY), edgeResults);
 
@@ -209,7 +210,7 @@ class TunnelJunctionFilletClearanceGuardTest {
         int surfaceY = 70;
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+        JunctionBlocks blocks = new RoadJunctionGenerator(generator)
             .generateJunction(
                 junction, network, surfaceAt(surfaceY), Map.of(junction.getId(), roadY), edgeResults);
 
@@ -244,7 +245,7 @@ class TunnelJunctionFilletClearanceGuardTest {
         int surfaceY = 67; // 浅覆，未达封闭门槛
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+        JunctionBlocks blocks = new RoadJunctionGenerator(generator)
             .generateJunction(
                 junction, network, surfaceAt(surfaceY), Map.of(junction.getId(), roadY), edgeResults);
 

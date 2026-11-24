@@ -980,7 +980,7 @@ public final class RoadPreviewManager {
         failPreviewJob(job, null);
     }
 
-    void failPreviewJob(RoadNetworkPreviewJob job, RuntimeException error) {
+    void failPreviewJob(RoadNetworkPreviewJob job, Throwable error) {
         cancelPendingGhostProjection();
         if (previewJob == job) {
             previewJob = null;

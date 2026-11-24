@@ -5,6 +5,7 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -66,7 +67,7 @@ class JunctionOpenCutFilletBatterTest {
         int surfaceY = 64 + 12; // 12 格覆土开敞路堑
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+        JunctionBlocks blocks = new RoadJunctionGenerator(generator)
             .generateJunction(
                 junction, network, surfaceAt(surfaceY), Map.of(junction.getId(), roadY), edgeResults);
 

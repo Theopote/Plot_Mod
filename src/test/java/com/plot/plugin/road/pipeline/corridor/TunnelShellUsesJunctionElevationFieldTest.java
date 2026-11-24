@@ -7,6 +7,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -47,7 +48,7 @@ class TunnelShellUsesJunctionElevationFieldTest {
 
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(generator)
+        JunctionBlocks blocks = new RoadJunctionGenerator(generator)
             .generateJunction(junction, network, mountain, Map.of(junction.getId(), ROAD_Y), edgeResults);
         assertFalse(blocks.elevationField().targetYByColumn().isEmpty(), "precondition: authored field");
 

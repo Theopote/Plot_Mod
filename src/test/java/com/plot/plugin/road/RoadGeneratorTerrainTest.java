@@ -307,7 +307,7 @@ class RoadGeneratorTerrainTest {
         network.createEdge(junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)));
 
-        RoadJunctionGenerator.JunctionBlocks blocks = junctionGenerator.generateJunction(junction, network, terrain);
+        JunctionBlocks blocks = junctionGenerator.generateJunction(junction, network, terrain);
 
         assertFalse(blocks.isEmpty());
         assertTrue(blocks.getSolids().primitives().stream().allMatch(p -> p.elevation() == 65));

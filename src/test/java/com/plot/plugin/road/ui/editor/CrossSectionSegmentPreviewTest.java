@@ -142,7 +142,23 @@ class CrossSectionSegmentPreviewTest {
                 (previous, next) -> next));
         assertTrue(
             RoadLampPreview.pavementLayerHasMixedMaterials(pavement),
-            "embedded markings must mark pavement as mixed so preview skips Z-strip merge");
+            "embedded markings must leave mixed pavement layer (marking vs carriageway)");
+    }
+
+    @Test
+    void surfaceSegmentUsesResolvedCarriagewayBlockId() {
+        RoadSystemConfig config = previewConfig("seg-mat");
+        config.setSelectedMaterial("minecraft:black_concrete");
+        CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
+        ResolvedCrossSection section = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
+
+        var scene = CrossSectionSegmentPreview.buildSurfaceSegment(
+            section, CrossSectionSegmentPreview.SEGMENT_LENGTH_Z);
+        long black = scene.stream()
+            .filter(v -> v.position().getY() == -1)
+            .filter(v -> "minecraft:black_concrete".equals(v.block()))
+            .count();
+        assertTrue(black > 0, "3D segment must use resolved carriageway block, not a null/fallback id");
     }
 
     @Test

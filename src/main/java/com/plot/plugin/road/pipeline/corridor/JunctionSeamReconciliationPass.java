@@ -1,7 +1,7 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.core.command.BlockRecord;
-import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.corridor.ColumnDesignElevationPlanner.ColumnElevationPlan;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -32,13 +32,13 @@ public final class JunctionSeamReconciliationPass {
 
     public static void apply(
             RoadGenerationResult aggregate,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults) {
+            Map<String, JunctionBlocks> junctionResults) {
         apply(aggregate, junctionResults, (RoadNetwork) null);
     }
 
     public static void apply(
             RoadGenerationResult aggregate,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             RoadNetwork network) {
         if (aggregate == null || junctionResults == null || junctionResults.isEmpty()) {
             return;
@@ -53,7 +53,7 @@ public final class JunctionSeamReconciliationPass {
      */
     public static void apply(
             RoadGenerationResult aggregate,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             ColumnElevationPlan plan) {
         if (aggregate == null || junctionResults == null || junctionResults.isEmpty()) {
             return;
@@ -63,12 +63,12 @@ public final class JunctionSeamReconciliationPass {
 
     private static void apply(
             RoadGenerationResult aggregate,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             ColumnElevationPlan plan,
             Map<ColumnKey, List<BlockPos>> solidsByColumn) {
         ColumnElevationPlan safePlan = plan != null ? plan : ColumnElevationPlan.empty();
-        for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry : junctionResults.entrySet()) {
-            RoadJunctionGenerator.JunctionBlocks blocks = entry.getValue();
+        for (Map.Entry<String, JunctionBlocks> entry : junctionResults.entrySet()) {
+            JunctionBlocks blocks = entry.getValue();
             if (blocks == null) {
                 continue;
             }
@@ -84,7 +84,7 @@ public final class JunctionSeamReconciliationPass {
     /** @deprecated 保留测试兼容；新代码请用 {@link ColumnDesignElevationPlanner#plan}. */
     @Deprecated
     static ColumnElevationPlan resolveColumnElevationPlan(
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             RoadNetwork network) {
         return ColumnDesignElevationPlanner.plan(junctionResults, network);
     }
@@ -112,7 +112,7 @@ public final class JunctionSeamReconciliationPass {
     private static void reconcileJunction(
             RoadGenerationResult aggregate,
             String nodeId,
-            RoadJunctionGenerator.JunctionBlocks blocks,
+            JunctionBlocks blocks,
             Map<ColumnKey, List<BlockPos>> solidsByColumn,
             ColumnElevationPlan plan) {
         JunctionElevationField field = blocks.elevationField();

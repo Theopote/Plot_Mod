@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -40,7 +41,7 @@ class JunctionProtectedOverburdenAggregateAuthorityTest {
         RoadNode junction = hub(network);
         Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator(
+        JunctionBlocks blocks = new RoadJunctionGenerator(
             new RoadGenerator(config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance()))
             .generateJunction(junction, network, surfaceAt(90), Map.of(junction.getId(), 64), edgeResults);
 

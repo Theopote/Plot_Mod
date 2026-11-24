@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -45,7 +46,7 @@ class JunctionProtectedOverburdenHardTest {
 
         int roadY = 64;
         int surfaceY = 90;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
 
         assertFalse(blocks.getSolids().primitives().isEmpty());
@@ -76,7 +77,7 @@ class JunctionProtectedOverburdenHardTest {
         RoadNetwork network = crossNetwork(true);
         RoadNode junction = hub(network);
         Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(90), 64, edgeResults);
 
         RoadGenerationResult aggregate = rasterize(blocks);
@@ -105,7 +106,7 @@ class JunctionProtectedOverburdenHardTest {
         RoadNode junction = hub(network);
         Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
         int surfaceY = 90;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), 64, edgeResults);
         RoadGenerationResult aggregate = rasterize(blocks);
 
@@ -149,7 +150,7 @@ class JunctionProtectedOverburdenHardTest {
         RoadNetwork network = crossNetwork(true);
         RoadNode junction = hub(network);
         Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(90), 64, edgeResults);
         RoadGenerationResult aggregate = rasterize(blocks);
 
@@ -206,7 +207,7 @@ class JunctionProtectedOverburdenHardTest {
 
         int roadY = 64;
         int surfaceY = roadY + 12;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
         JunctionConstructionContext ctx = blocks.constructionContext();
         assertNotNull(ctx);
@@ -333,7 +334,7 @@ class JunctionProtectedOverburdenHardTest {
 
         int roadY = 64;
         int surfaceY = 90;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
         assertFalse(blocks.constructionContext().failClosed(),
             "short ROAD→TUNNEL stub must collect approaches, not fail-closed");
@@ -383,7 +384,7 @@ class JunctionProtectedOverburdenHardTest {
         assertFalse(approaches.isEmpty(),
             "type-window tunnel evidence must be collected as approaches");
 
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(90), 64, edgeResults);
         assertFalse(blocks.constructionContext().failClosed(),
             "must not fail-closed when approaches can be collected via type window");
@@ -410,7 +411,7 @@ class JunctionProtectedOverburdenHardTest {
 
         int roadY = 64;
         int surfaceY = 90;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
         JunctionConstructionContext ctx = blocks.constructionContext();
         JunctionWorldFootprint footprint = ctx.footprint();
@@ -463,7 +464,7 @@ class JunctionProtectedOverburdenHardTest {
 
         int roadY = 64;
         int surfaceY = 90;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(surfaceY), roadY, edgeResults);
         JunctionConstructionContext ctx = blocks.constructionContext();
         JunctionWorldFootprint footprint = ctx.footprint();
@@ -494,7 +495,7 @@ class JunctionProtectedOverburdenHardTest {
         Map<String, RoadGenerationResult> edgeResults = tunnelEdges(network);
 
         int roadY = 64;
-        RoadJunctionGenerator.JunctionBlocks blocks = generate(
+        JunctionBlocks blocks = generate(
             config, network, junction, surfaceAt(90), roadY, edgeResults);
         JunctionElevationField field = blocks.elevationField();
         for (var entry : field.targetYByColumn().entrySet()) {
@@ -503,7 +504,7 @@ class JunctionProtectedOverburdenHardTest {
         }
     }
 
-    private static boolean hasNoSurfaceAir(RoadJunctionGenerator.JunctionBlocks blocks, int surfaceY) {
+    private static boolean hasNoSurfaceAir(JunctionBlocks blocks, int surfaceY) {
         return blocks.getSolids().primitives().stream().noneMatch(p ->
             p != null && "minecraft:air".equals(p.materialId()) && p.elevation() >= surfaceY);
     }
@@ -515,7 +516,7 @@ class JunctionProtectedOverburdenHardTest {
         return result;
     }
 
-    private static RoadGenerationResult rasterize(RoadJunctionGenerator.JunctionBlocks blocks) {
+    private static RoadGenerationResult rasterize(JunctionBlocks blocks) {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         // 路口 solids 转放置记录，供最终合成指标使用。
         for (RoadSolidPrimitive p : blocks.getSolids().primitives()) {
@@ -532,7 +533,7 @@ class JunctionProtectedOverburdenHardTest {
         return aggregate;
     }
 
-    private static RoadJunctionGenerator.JunctionBlocks generate(
+    private static JunctionBlocks generate(
             RoadSystemConfig config,
             RoadNetwork network,
             RoadNode junction,

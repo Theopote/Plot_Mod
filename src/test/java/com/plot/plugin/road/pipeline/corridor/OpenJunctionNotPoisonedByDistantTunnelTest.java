@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -66,7 +67,7 @@ class OpenJunctionNotPoisonedByDistantTunnelTest {
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
-        RoadJunctionGenerator.JunctionBlocks blocks = junctionGenerator.generateJunction(
+        JunctionBlocks blocks = junctionGenerator.generateJunction(
             junction, network, hillside, Map.of(junction.getId(), junctionY), edgeResults);
 
         assertFalse(blocks.getSolids().primitives().isEmpty(), "open junction must emit solids");

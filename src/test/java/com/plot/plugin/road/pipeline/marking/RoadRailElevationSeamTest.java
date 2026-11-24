@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.marking;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadJunctionMarkingGenerator;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
@@ -141,7 +142,7 @@ class RoadRailElevationSeamTest {
             RoadJunctionCenterlineResolver.forNetwork(network));
 
         return new Fixture(
-            markingGenerator, network, junction, road, edges, polygon, new RoadJunctionGenerator.JunctionBlocks());
+            markingGenerator, network, junction, road, edges, polygon, new JunctionBlocks());
     }
 
     private record Fixture(
@@ -151,6 +152,6 @@ class RoadRailElevationSeamTest {
             Road road,
             List<RoadEdge> edges,
             List<Vec2d> polygon,
-            RoadJunctionGenerator.JunctionBlocks blocks) {
+            JunctionBlocks blocks) {
     }
 }

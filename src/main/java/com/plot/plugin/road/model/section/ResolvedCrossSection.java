@@ -515,7 +515,10 @@ public final class ResolvedCrossSection {
         int roadMin = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
         int roadMax = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
         if (lateral >= roadMin && lateral <= roadMax) {
-            return Optional.of(new SurfaceBandSpec(RoadSolidLayer.ROAD, carriagewayMaterial, null));
+            String roadMat = carriagewayMaterial != null
+                ? carriagewayMaterial.getPrimaryMaterial()
+                : null;
+            return Optional.of(new SurfaceBandSpec(RoadSolidLayer.ROAD, carriagewayMaterial, roadMat));
         }
         if (lateral > roadMax) {
             return outerBandAtDistance(lateral - roadMax);

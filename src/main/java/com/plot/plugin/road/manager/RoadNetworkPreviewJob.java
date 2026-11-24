@@ -85,9 +85,10 @@ public final class RoadNetworkPreviewJob {
                 default -> {
                 }
             }
-        } catch (RuntimeException e) {
+        } catch (Throwable t) {
+            // 含 NoClassDefFoundError：增量编译/热替换时嵌套类短暂缺失不能每帧冒泡到 PlotScreen。
             phase = Phase.FAILED;
-            manager.failPreviewJob(this, e);
+            manager.failPreviewJob(this, t);
         }
     }
 

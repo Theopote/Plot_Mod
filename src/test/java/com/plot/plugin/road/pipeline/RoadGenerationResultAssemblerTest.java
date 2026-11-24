@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
@@ -79,7 +80,7 @@ class RoadGenerationResultAssemblerTest {
     @Test
     void mergeJunctionFlushesSolids() {
         RoadGenerationResult target = new RoadGenerationResult(0);
-        RoadJunctionGenerator.JunctionBlocks junction = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks junction = new JunctionBlocks();
         junction.getSolids().add(new Vec2d(0, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone");
 
         RoadGenerationResultAssembler.mergeJunction(
@@ -119,7 +120,7 @@ class RoadGenerationResultAssemblerTest {
         RoadNetwork network = new RoadNetwork();
         RoadGenerationResult edge = new RoadGenerationResult(10.0);
         edge.bridgeCount = 1;
-        RoadJunctionGenerator.JunctionBlocks junction = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks junction = new JunctionBlocks();
         junction.getSolids().add(new Vec2d(0, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone");
 
         RoadGenerationResult aggregate = RoadGenerationResultAssembler.aggregateNetwork(

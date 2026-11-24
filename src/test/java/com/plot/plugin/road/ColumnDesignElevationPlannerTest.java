@@ -28,7 +28,7 @@ class ColumnDesignElevationPlannerTest {
         RoadNode b = network.createNode(new Vec2d(20, 0));
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()));
 
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        Map<String, JunctionBlocks> junctions = new LinkedHashMap<>();
         junctions.put(a.getId(), fixture.low());
         junctions.put(b.getId(), fixture.high());
 
@@ -44,7 +44,7 @@ class ColumnDesignElevationPlannerTest {
     @Test
     void gradeSeparatedKeepsBothDesignYs() {
         Fixture fixture = fixture(64, 66, true);
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        Map<String, JunctionBlocks> junctions = new LinkedHashMap<>();
         junctions.put("low", fixture.low());
         junctions.put("high", fixture.high());
 
@@ -60,7 +60,7 @@ class ColumnDesignElevationPlannerTest {
     @Test
     void unconnectedOverlapKeepsBothWithoutNetwork() {
         Fixture fixture = fixture(64, 66, false);
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctions = new LinkedHashMap<>();
+        Map<String, JunctionBlocks> junctions = new LinkedHashMap<>();
         junctions.put("a", fixture.low());
         junctions.put("b", fixture.high());
 
@@ -73,8 +73,8 @@ class ColumnDesignElevationPlannerTest {
 
     private record Fixture(
             ColumnKey column,
-            RoadJunctionGenerator.JunctionBlocks low,
-            RoadJunctionGenerator.JunctionBlocks high) {
+            JunctionBlocks low,
+            JunctionBlocks high) {
     }
 
     private static Fixture fixture(int lowY, int highY, boolean elevatedDeck) {
@@ -114,10 +114,10 @@ class ColumnDesignElevationPlannerTest {
             footprint, JunctionFilletElevationLoft.inactive(highY), columns, highY);
         Integer deckY = elevatedDeck ? 80 : null;
 
-        RoadJunctionGenerator.JunctionBlocks low = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks low = new JunctionBlocks();
         low.setElevationField(lowField);
         low.setValidationManifest(manifest("low", column, lowY, deckY));
-        RoadJunctionGenerator.JunctionBlocks high = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks high = new JunctionBlocks();
         high.setElevationField(highField);
         high.setValidationManifest(manifest("high", column, highY, deckY));
         return new Fixture(column, low, high);

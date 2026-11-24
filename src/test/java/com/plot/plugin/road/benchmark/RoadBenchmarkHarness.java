@@ -2,6 +2,7 @@ package com.plot.plugin.road.benchmark;
 
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.JunctionBlocks;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
@@ -28,7 +29,7 @@ public final class RoadBenchmarkHarness {
     public record PreviewRun(
             RoadGenerationResult aggregate,
             Map<String, RoadGenerationResult> edgeResults,
-            Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults,
+            Map<String, JunctionBlocks> junctionResults,
             long junctionGenerationNanos) {
     }
 

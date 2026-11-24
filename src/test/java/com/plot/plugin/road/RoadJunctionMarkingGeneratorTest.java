@@ -58,7 +58,7 @@ class RoadJunctionMarkingGeneratorTest {
             2.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateStopLines(blocks, junction, network, edges, 64);
         markingGenerator.generateMarkings(blocks, junction, network, edges, polygon, 64);
 
@@ -94,7 +94,7 @@ class RoadJunctionMarkingGeneratorTest {
                 List.of(new Vec2d(0, -10), new Vec2d(0, 0)), road.getId())
         );
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateMarkings(
             blocks, junction, network, edges, List.of(), 64);
 
@@ -171,7 +171,7 @@ class RoadJunctionMarkingGeneratorTest {
                 List.of(new Vec2d(0, -10), new Vec2d(0, 0)), road.getId())
         );
 
-        RoadJunctionGenerator.JunctionBlocks fullBlocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks fullBlocks = new JunctionBlocks();
         markingGenerator.generateStopLines(fullBlocks, junction, network, edges, 64);
         markingGenerator.generateMarkings(fullBlocks, junction, network, edges, List.of(), 64);
 
@@ -179,7 +179,7 @@ class RoadJunctionMarkingGeneratorTest {
         junction.setTurnArrows(JunctionMarkingSetting.ON);
         junction.setStopLines(JunctionMarkingSetting.ON);
 
-        RoadJunctionGenerator.JunctionBlocks enabledBlocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks enabledBlocks = new JunctionBlocks();
         markingGenerator.generateStopLines(enabledBlocks, junction, network, edges, 64);
         markingGenerator.generateMarkings(enabledBlocks, junction, network, edges, List.of(), 64);
 
@@ -225,7 +225,7 @@ class RoadJunctionMarkingGeneratorTest {
             2.0,
             RoadJunctionCenterlineResolver.forNetwork(network));
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateStopLines(blocks, junction, network, edges, 64);
         markingGenerator.generateMarkings(blocks, junction, network, edges, polygon, 64);
 
@@ -310,7 +310,7 @@ class RoadJunctionMarkingGeneratorTest {
                 south.getId(), junction.getId(),
                 List.of(new Vec2d(0, -10), new Vec2d(0, 0)), road.getId()));
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateMarkings(blocks, junction, network, edges, List.of(), 64);
 
         assertTrue(
@@ -353,7 +353,7 @@ class RoadJunctionMarkingGeneratorTest {
                 south.getId(), junction.getId(),
                 List.of(new Vec2d(0, -10), new Vec2d(0, 0)), road.getId()));
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateMarkings(blocks, junction, network, edges, List.of(), 64);
 
         assertTrue(
@@ -397,7 +397,7 @@ class RoadJunctionMarkingGeneratorTest {
                 List.of(new Vec2d(0, -12), new Vec2d(0, 0)), elevated.getId()));
 
         int deckY = 70;
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateElevatedRailwayContinuation(
             blocks, junction, network, elevatedEdges, deckY);
 
@@ -453,7 +453,7 @@ class RoadJunctionMarkingGeneratorTest {
                 junction.getId(), c.getId(),
                 List.of(new Vec2d(0, 0), new Vec2d(4, 9)), road.getId()));
 
-        RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
+        JunctionBlocks blocks = new JunctionBlocks();
         markingGenerator.generateMarkings(blocks, junction, network, edges, List.of(), 64);
 
         assertTrue(
