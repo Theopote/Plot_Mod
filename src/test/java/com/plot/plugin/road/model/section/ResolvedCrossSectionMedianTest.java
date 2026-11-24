@@ -36,9 +36,9 @@ class ResolvedCrossSectionMedianTest {
         assertEquals(2, resolved.laneWidths.size());
         assertEquals(2, resolved.medianWidth);
         assertEquals(2, resolved.medianHeight);
-        assertTrue(resolved.laneDividerOffsets.stream().anyMatch(o -> Math.abs(o) < 1.0));
-        assertTrue(resolved.occupiesMedianColumn(-1));
+        assertTrue(resolved.laneDividerOffsets.stream().anyMatch(o -> Math.abs(o) < 2.0));
         assertTrue(resolved.occupiesMedianColumn(0));
+        assertTrue(resolved.occupiesMedianColumn(1));
         assertEquals(10, resolved.totalHardSurfaceWidthBlocks());
     }
 
@@ -49,10 +49,10 @@ class ResolvedCrossSectionMedianTest {
         section.getCarriageway().setLaneCount(2);
         section.getCarriageway().setDefaultLaneWidth(4);
         section.getMarkings().setLaneDividers(true);
-        section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(1);
-        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, true, 0);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.SINGLE_DASHED, true, 0);
         section.getShoulder().setEnabled(false);
         section.getBikeLane().setEnabled(false);
         section.getSidewalk().setEnabled(true);
@@ -60,13 +60,33 @@ class ResolvedCrossSectionMedianTest {
 
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
 
-        // W=4+4+1缝=9；两侧人行道 2+2 → 总硬宽 13；无中央标线时隔离带宽=分隔 1
+        // 单黄占中心缝：W=4+4+1=9；两侧人行道 2+2 → 总硬宽 13；隔离带 1 格落在标线上
         assertEquals(9, resolved.carriagewayWidth);
         assertEquals(2, resolved.outerBandBlockCount());
         assertEquals(13, resolved.totalHardSurfaceWidthBlocks());
         assertEquals(1, resolved.medianWidth);
         assertEquals(RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS, resolved.medianHeight);
         assertTrue(resolved.occupiesMedianColumn(0));
+    }
+
+    @Test
+    void medianDisabledWithLaneDividersOnly() {
+        RoadSystemConfig defaults = bareDefaults();
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setLaneDividers(true);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.NONE);
+        section.getMedian().setEnabled(true);
+        section.getMedian().setWidth(2);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, true, 0);
+        section.getShoulder().setEnabled(false);
+        section.getSidewalk().setEnabled(false);
+        section.getBikeLane().setEnabled(false);
+
+        ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
+        assertFalse(resolved.includeMedian);
+        assertEquals(0, resolved.medianWidth);
     }
 
     @Test
@@ -86,10 +106,10 @@ class ResolvedCrossSectionMedianTest {
 
         ResolvedCrossSection resolved = ResolvedCrossSection.resolve(section, defaults);
         assertEquals(2, resolved.medianWidth);
-        assertEquals(-1, resolved.medianMinLateral);
-        assertEquals(0, resolved.medianMaxLateral);
-        assertTrue(resolved.occupiesMedianColumn(-1));
+        assertEquals(0, resolved.medianMinLateral);
+        assertEquals(1, resolved.medianMaxLateral);
         assertTrue(resolved.occupiesMedianColumn(0));
+        assertTrue(resolved.occupiesMedianColumn(1));
         // 侧向白线列不在隔离带范围内
         assertFalse(resolved.occupiesMedianColumn(-5));
         assertFalse(resolved.occupiesMedianColumn(4));
@@ -121,8 +141,9 @@ class ResolvedCrossSectionMedianTest {
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setLaneCount(2);
         section.getCarriageway().setDefaultLaneWidth(3);
-        section.getMarkings().setLaneDividers(true);
-        section.getCarriageway().syncDerivedWidth(CenterLineStyle.NONE, true, 0);
+        section.getMarkings().setLaneDividers(false);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.SINGLE_DASHED, false, 0);
         section.getMedian().setEnabled(true);
         section.getMedian().setWidth(1);
         section.getMedian().setHeight(9);

@@ -421,15 +421,17 @@ public final class RoadCrossSectionPreviewRenderer {
         }
         float scale = roadWidthPx / Math.max(1f, layout.roadBlocks);
         int roadBlocks = Math.max(1, Math.round(layout.roadBlocks));
+        int roadMin = RoadDimensionUtils.minLateralOffset(roadBlocks);
         float half = layout.roadBlocks / 2f;
-        // 分隔占格：按偏移落到整列，画满一格（与人行道条带同为方块示意，而非细线）。
+        // 分隔占格：偏移→整数横向格→相对行车道左缘，与 3D/世界路面格子一致。
         int markingColor = layout.markingColor != 0 ? layout.markingColor : COLOR_MARKING;
         for (Float ratio : layout.markingLineRatios) {
             if (ratio == null) {
                 continue;
             }
             double offset = ratio * layout.roadBlocks - half;
-            int column = (int) Math.floor(offset + half);
+            int lateral = (int) Math.floor(offset);
+            int column = lateral - roadMin;
             if (column < 0 || column >= roadBlocks) {
                 continue;
             }
@@ -439,7 +441,7 @@ public final class RoadCrossSectionPreviewRenderer {
             drawVoxelFace(drawList, left, split, right, deckY + deckH, 0xFF73777A);
             drawVoxelFace(drawList, left, deckY, right, split, markingColor);
         }
-        // 路表中央隔离带：叠在中央标线/中心缝分隔列上，高度 1–3。
+        // 路表中央隔离带：叠在中央标线占格上，高度 1–3。
         if (layout.medianBlocks > 0f && layout.medianHeightBlocks > 0f
                 && layout.medianMaxLateral >= layout.medianMinLateral) {
             int heightCols = Math.max(1, Math.round(layout.medianHeightBlocks));
@@ -447,7 +449,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 float top = deckY - (row + 1) * scale;
                 float bottom = deckY - row * scale;
                 for (int col = layout.medianMinLateral; col <= layout.medianMaxLateral; col++) {
-                    float left = roadStartX + (col + half) * scale;
+                    float left = roadStartX + (col - roadMin) * scale;
                     float right = left + scale;
                     drawVoxelFace(drawList, left, top, right, bottom, layout.medianColor);
                 }

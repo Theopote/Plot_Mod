@@ -13,33 +13,42 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CrossSectionGeometryRulesTest {
 
     @Test
-    void derivedMedianWidthFollowsCenterLineOrDivider() {
+    void derivedMedianWidthFollowsCenterLineOnly() {
         assertEquals(2, CrossSectionGeometryRules.derivedMedianWidth(
             CenterLineStyle.DOUBLE_SOLID, false, 2));
         assertEquals(1, CrossSectionGeometryRules.derivedMedianWidth(
             CenterLineStyle.SINGLE_DASHED, false, 2));
         assertEquals(1, CrossSectionGeometryRules.derivedMedianWidth(
+            CenterLineStyle.RAIL, true, 2));
+        // 仅有同向白线、无中央标线时不可启用
+        assertEquals(0, CrossSectionGeometryRules.derivedMedianWidth(
             CenterLineStyle.NONE, true, 2));
         assertEquals(0, CrossSectionGeometryRules.derivedMedianWidth(
             CenterLineStyle.NONE, false, 2));
         assertEquals(0, CrossSectionGeometryRules.derivedMedianWidth(
             CenterLineStyle.DOUBLE_SOLID, true, 1));
         assertFalse(CrossSectionGeometryRules.canEnableMedian(
-            CenterLineStyle.NONE, false, 4));
+            CenterLineStyle.NONE, true, 4));
         assertTrue(CrossSectionGeometryRules.canEnableMedian(
-            CenterLineStyle.NONE, true, 2));
+            CenterLineStyle.SINGLE_DASHED, false, 2));
     }
 
     @Test
-    void medianLateralRangeAlignsWithCenterMarkingOffsets() {
+    void medianLateralRangeStaysOnCenterMarkings() {
         int[] doubleYellow = CrossSectionGeometryRules.medianLateralRange(
-            List.of(-4.5, -0.5, 0.5, 4.5), 2);
-        assertEquals(-1, doubleYellow[0]);
-        assertEquals(0, doubleYellow[1]);
+            List.of(-3.5, 0.5, 1.5, 5.5), 2);
+        assertEquals(0, doubleYellow[0]);
+        assertEquals(1, doubleYellow[1]);
 
-        int[] single = CrossSectionGeometryRules.medianLateralRange(List.of(0.0), 1);
+        int[] single = CrossSectionGeometryRules.medianLateralRange(List.of(0.5), 1);
         assertEquals(0, single[0]);
         assertEquals(0, single[1]);
+
+        // 侧向白线过散时不跨路面，退回路面居中双格 [0,1]
+        int[] scattered = CrossSectionGeometryRules.medianLateralRange(
+            List.of(-6.0, 6.0), 2);
+        assertEquals(0, scattered[0]);
+        assertEquals(1, scattered[1]);
     }
 
     @Test
@@ -96,9 +105,10 @@ class CrossSectionGeometryRulesTest {
         assertTrue(resolved.includeMedian);
         assertEquals(2, resolved.medianWidth);
         assertEquals(3, resolved.medianHeight);
-        assertTrue(resolved.occupiesMedianColumn(-1));
         assertTrue(resolved.occupiesMedianColumn(0));
-        assertFalse(resolved.occupiesMedianColumn(1));
+        assertTrue(resolved.occupiesMedianColumn(1));
+        assertFalse(resolved.occupiesMedianColumn(-1));
+        assertFalse(resolved.occupiesMedianColumn(2));
     }
 
     @Test

@@ -131,21 +131,46 @@ final class RoadLampPreview {
             RoadLampCompiler.Voxel::block, (previous, next) -> next));
         var levelByPos = structure.stream().collect(Collectors.toMap(RoadLampCompiler.Voxel::position,
             RoadLampCompiler.Voxel::levelIndex, (previous, next) -> next));
+        // 路表含标线等异材质时禁止沿 Z 合并长条：长条按中心深度排序，会与短块交错成「阶梯/撕裂」。
+        boolean mixedPavementLayer = pavementLayerHasMixedMaterials(blocks);
         blocks.forEach((pos, block) -> {
             BlockSpec spec = BlockSpec.parse(block);
             int levelIndex = levelByPos.getOrDefault(pos, -1);
-            if (pos.getY() == -1 && !spec.blockId().endsWith("_slab")
-                    && !spec.blockId().endsWith("_wall") && !spec.blockId().endsWith("_fence")) {
-                // The flat reference pavement can be drawn one strip at a time.
-                if (block.equals(blocks.get(pos.north()))) return;
+            if (!mixedPavementLayer
+                    && pos.getY() == -1
+                    && !spec.blockId().endsWith("_slab")
+                    && !spec.blockId().endsWith("_wall")
+                    && !spec.blockId().endsWith("_fence")) {
+                // 均一路面：沿南北合并成条带，减少绘制量。
+                if (block.equals(blocks.get(pos.north()))) {
+                    return;
+                }
                 int length = 1;
-                while (block.equals(blocks.get(pos.south(length)))) length++;
+                while (block.equals(blocks.get(pos.south(length)))) {
+                    length++;
+                }
                 parts.add(Part.at(pos, BlockColorRegistry.colorFor(spec.blockId()), -1,
                     0f, 0f, 0f, 1f, 1f, length));
                 return;
             }
             addParts(parts, blocks, pos, spec, levelIndex);
         });
+    }
+
+    /** 路表 y=-1 是否含多种材质（标线嵌入后为 true，禁止条带合并）。 */
+    static boolean pavementLayerHasMixedMaterials(Map<BlockPos, String> blocks) {
+        String sample = null;
+        for (var entry : blocks.entrySet()) {
+            if (entry.getKey().getY() != -1) {
+                continue;
+            }
+            if (sample == null) {
+                sample = entry.getValue();
+            } else if (!sample.equals(entry.getValue())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static float depth(float x, float z, float sine, float cosine) {

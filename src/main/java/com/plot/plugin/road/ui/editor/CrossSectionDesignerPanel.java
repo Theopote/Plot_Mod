@@ -174,6 +174,7 @@ public final class CrossSectionDesignerPanel {
                 beginParamsTabBody("structure");
                 try {
                     var opts = CrossSectionDraftEditorOptions.styleFloatingStructure();
+                    var furnitureOpts = CrossSectionDraftEditorOptions.styleBatch();
                     sectionCard("##xs_sec_carriageway", "carriageway", true, () ->
                         CrossSectionDraftEditor.renderCarriagewayCore(ctx, mutator, opts));
                     // 单车道无可分隔对象：分车道宽与标线卡一并隐藏（车道数改回 1 时 mutator 已清标线）。
@@ -183,6 +184,9 @@ public final class CrossSectionDesignerPanel {
                         sectionCard("##xs_sec_markings", "markings", true, () ->
                             CrossSectionDraftEditor.renderMarkings(ctx, mutator, opts));
                     }
+                    // 原「附属设施」页：中央隔离带放在结构页底部（路灯改由专业路灯设计器设置）。
+                    sectionCard("##xs_sec_median", "median", true, () ->
+                        CrossSectionDraftEditor.renderMedian(ctx, mutator, furnitureOpts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -245,24 +249,6 @@ public final class CrossSectionDesignerPanel {
                         CrossSectionDraftEditor.renderSlopeMaterials(ctx, mutator, opts));
                     sectionCard("##xs_sec_marking_mat", "marking_mat", true, () ->
                         CrossSectionDraftEditor.renderMarkingMaterial(ctx, mutator, opts));
-                } finally {
-                    endParamsTabBody();
-                }
-            } finally {
-                ImGui.endTabItem();
-            }
-        }
-        if (ImGui.beginTabItem(
-            PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.furniture"),
-            ImGuiTabItemFlags.None)) {
-            try {
-                beginParamsTabBody("furniture");
-                try {
-                    var opts = CrossSectionDraftEditorOptions.styleBatch();
-                    sectionCard("##xs_sec_median", "median", true, () ->
-                        CrossSectionDraftEditor.renderMedian(ctx, mutator, opts));
-                    sectionCard("##xs_sec_lighting", "lighting", true, () ->
-                        CrossSectionDraftEditor.renderLighting(ctx, mutator, opts));
                 } finally {
                     endParamsTabBody();
                 }
@@ -353,7 +339,6 @@ public final class CrossSectionDesignerPanel {
         width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.sidewalks", tabExtra);
         width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.slope", tabExtra);
         width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.materials", tabExtra);
-        width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.furniture", tabExtra);
         if (includeBridge) {
             width += tabLabelWidth("plugin.road.floating_editor.cross_section.tab.bridge", tabExtra);
         }

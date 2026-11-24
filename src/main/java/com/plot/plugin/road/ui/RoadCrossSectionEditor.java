@@ -204,8 +204,11 @@ public final class RoadCrossSectionEditor {
             road.getCrossSection().getMarkings(), laneCount, config);
         CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(
             road.getCrossSection().getMarkings(), config, laneCount);
+        boolean centerLineSolid = MarkingRules.resolveCenterLineSolid(
+            road.getCrossSection().getMarkings(), centerLineStyle, config);
         h = 31 * h + (laneDividers ? 1 : 0);
         h = 31 * h + Objects.hashCode(centerLineStyle);
+        h = 31 * h + (centerLineSolid ? 1 : 0);
         h = 31 * h + (road.getEffectiveIncludeSlopeBatter(config) ? 1 : 0);
         h = 31 * h + road.getEffectiveRoadsideEdgeMode(config).ordinal();
         h = 31 * h + Float.floatToIntBits(road.getEffectiveFillSlopeRatio(config));
@@ -269,6 +272,7 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + draft.streetlightSpacing();
         h = 31 * h + (draft.laneDividers() ? 1 : 0);
         h = 31 * h + Objects.hashCode(draft.centerLineStyle());
+        h = 31 * h + (draft.centerLineSolid() ? 1 : 0);
         h = 31 * h + Objects.hashCode(draft.roadsideEdgeMode());
         h = 31 * h + Float.floatToIntBits(draft.fillSlopeRatio());
         h = 31 * h + Float.floatToIntBits(draft.cutSlopeRatio());

@@ -1,6 +1,8 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 
 import java.util.ArrayList;
@@ -27,19 +29,20 @@ public final class RoadMarkingPasses {
         CenterLineStyle style = crossSection.centerLineStyle != null
             ? crossSection.centerLineStyle
             : CenterLineStyle.NONE;
+        boolean centerSolid = crossSection.centerLineSolid;
 
         List<Double> offsets = crossSection.laneDividerOffsets;
         if (offsets != null && !offsets.isEmpty()) {
-            appendDividerOffsets(passes, offsets, style);
+            appendDividerOffsets(passes, offsets, style, centerSolid);
             return passes;
         }
 
         // 无解析偏移时的样式回退。
         switch (style) {
-            case SINGLE_DASHED -> passes.add(new Pass(0.0, false));
+            case SINGLE_DASHED -> passes.add(new Pass(0.0, centerSolid));
             case DOUBLE_SOLID -> {
-                passes.add(new Pass(-0.5, true));
-                passes.add(new Pass(0.5, true));
+                passes.add(new Pass(-0.5, centerSolid));
+                passes.add(new Pass(0.5, centerSolid));
             }
             case RAIL -> passes.add(new Pass(0.0, true));
             default -> {
@@ -51,17 +54,27 @@ public final class RoadMarkingPasses {
     private static void appendDividerOffsets(
             List<Pass> passes,
             List<Double> offsets,
-            CenterLineStyle style) {
+            CenterLineStyle style,
+            boolean centerSolid) {
         if (offsets == null) {
             return;
         }
+        int centerBlocks = CarriagewayWidthRules.centerLineBlocks(style);
+        int[] centerCols = centerBlocks > 0
+            ? CrossSectionGeometryRules.medianLateralRange(offsets, centerBlocks)
+            : new int[] {0, -1};
+        boolean yellowCenter = style == CenterLineStyle.SINGLE_DASHED
+            || style == CenterLineStyle.DOUBLE_SOLID;
         for (Double offset : offsets) {
             if (offset == null) {
                 continue;
             }
-            boolean centerColumn = Math.abs(offset) <= 1.0 + 1e-6;
+            int col = (int) Math.floor(offset);
+            boolean centerColumn = centerBlocks > 0
+                && col >= centerCols[0]
+                && col <= centerCols[1];
             boolean solid = centerColumn
-                && (style == CenterLineStyle.DOUBLE_SOLID || style == CenterLineStyle.RAIL);
+                && (style == CenterLineStyle.RAIL || (yellowCenter && centerSolid));
             passes.add(new Pass(offset, solid));
         }
     }

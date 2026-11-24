@@ -43,6 +43,8 @@ public final class ResolvedCrossSection {
     public final String medianMaterial;
     public final boolean laneDividers;
     public final CenterLineStyle centerLineStyle;
+    /** 中央公路标线是否实线；铁轨恒为 true。 */
+    public final boolean centerLineSolid;
     public final String markingMaterial;
     public final boolean includeShoulder;
     public final int shoulderWidth;
@@ -95,6 +97,7 @@ public final class ResolvedCrossSection {
             String medianMaterial,
             boolean laneDividers,
             CenterLineStyle centerLineStyle,
+            boolean centerLineSolid,
             String markingMaterial,
             boolean includeShoulder,
             int shoulderWidth,
@@ -130,6 +133,7 @@ public final class ResolvedCrossSection {
         this.medianMaterial = medianMaterial;
         this.laneDividers = laneDividers;
         this.centerLineStyle = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
+        this.centerLineSolid = centerLineSolid;
         this.markingMaterial = markingMaterial;
         this.includeShoulder = includeShoulder;
         this.shoulderWidth = shoulderWidth;
@@ -206,6 +210,7 @@ public final class ResolvedCrossSection {
         int laneCount = carriageway.getEffectiveLaneCount();
         boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount, config);
         CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config, laneCount);
+        boolean centerLineSolid = MarkingRules.resolveCenterLineSolid(markings, centerLineStyle, config);
         String markingMaterial = markings.getMaterial() != null
             ? markings.getMaterial()
             : DEFAULT_MARKING_MATERIAL;
@@ -235,7 +240,7 @@ public final class ResolvedCrossSection {
         int safeWidth = CarriagewayWidthRules.derivedCarriagewayWidth(
             laneWidths, centerLineStyle, laneDividers);
         laneCount = laneWidths.size();
-        // 隔离带在路表之上：宽度/位置由中央标线或中心缝分隔派生，无坐落点则关闭。
+        // 隔离带叠在中央标线占格上：宽度≤2；无中央标线则关闭（同向白线不可落座）。
         List<Double> laneDividerOffsets =
             List.copyOf(carriageway.resolveLaneDividerOffsets(centerLineStyle, laneDividers));
         int derivedMedian = CrossSectionGeometryRules.derivedMedianWidth(
@@ -254,10 +259,10 @@ public final class ResolvedCrossSection {
             if (requestedMedian > 0 && requestedMedian != medianWidth) {
                 report.noteGeometry(
                     "median_derived:" + requestedMedian + "->" + medianWidth
-                        + " center=" + centerLineStyle + " dividers=" + laneDividers);
+                        + " center=" + centerLineStyle);
             }
         } else if (includeMedianRequested && derivedMedian <= 0) {
-            report.noteGeometry("median_disabled:no_center_marking_or_divider");
+            report.noteGeometry("median_disabled:no_center_line");
         }
         // 不回写 carriageway.width：解析结果只存在于 ResolvedCrossSection，避免污染 null 继承。
         int laneOnlyWidth = safeWidth;
@@ -338,6 +343,7 @@ public final class ResolvedCrossSection {
             resolveMaterial(medianMaterial, MaterialRole.MEDIAN, report),
             laneDividers,
             centerLineStyle,
+            centerLineSolid,
             resolveMaterial(markingMaterial, MaterialRole.MARKING, report),
             includeShoulder,
             Math.max(0, shoulderWidth),
@@ -564,6 +570,7 @@ public final class ResolvedCrossSection {
             && Objects.equals(medianMaterial, other.medianMaterial)
             && laneDividers == other.laneDividers
             && centerLineStyle == other.centerLineStyle
+            && centerLineSolid == other.centerLineSolid
             && Objects.equals(markingMaterial, other.markingMaterial)
             && includeShoulder == other.includeShoulder
             && shoulderWidth == other.shoulderWidth
@@ -688,6 +695,7 @@ public final class ResolvedCrossSection {
             discrete.medianMaterial,
             discrete.laneDividers,
             discrete.centerLineStyle,
+            discrete.centerLineSolid,
             discrete.markingMaterial,
             includeShoulder,
             Math.max(0, shoulderWidth),

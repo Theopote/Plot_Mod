@@ -35,6 +35,8 @@ public final class CrossSectionDraft {
     private int streetlightSpacing;
     private boolean laneDividers;
     private CenterLineStyle centerLineStyle;
+    /** 中央公路标线是否实线；与 {@link #centerLineStyle} 占格解耦。 */
+    private boolean centerLineSolid;
     private String markingMaterial;
     private RoadsideEdgeMode roadsideEdgeMode = RoadsideEdgeMode.SLOPE_BATTER;
     private float fillSlopeRatio;
@@ -71,6 +73,7 @@ public final class CrossSectionDraft {
         draft.streetlightSpacing = config.getStreetlightSpacing();
         draft.laneDividers = config.isLaneDividers();
         draft.centerLineStyle = config.getCenterLineStyle();
+        draft.centerLineSolid = config.isCenterLineSolid();
         draft.markingMaterial = config.getMarkingMaterial();
         draft.roadsideEdgeMode = config.getRoadsideEdgeMode();
         draft.fillSlopeRatio = config.getFillSlopeRatio();
@@ -92,6 +95,7 @@ public final class CrossSectionDraft {
         // 先写入标线与车道，再派生总宽；避免 setRoadWidth 在错误分隔上下文下重新打包打乱车道宽。
         config.setLaneDividers(laneDividers);
         config.setCenterLineStyle(centerLineStyle);
+        config.setCenterLineSolid(centerLineSolid);
         config.setLaneCount(laneCount);
         config.setDefaultLaneWidth(defaultLaneWidth);
         config.setLaneWidths(new ArrayList<>(laneWidths));
@@ -142,6 +146,7 @@ public final class CrossSectionDraft {
         draft.streetlightSpacing = defaults.streetlightSpacing();
         draft.laneDividers = defaults.laneDividers();
         draft.centerLineStyle = defaults.centerLineStyle();
+        draft.centerLineSolid = defaults.centerLineSolid();
         draft.markingMaterial = defaults.markingMaterial();
         draft.roadsideEdgeMode = defaults.includeRetainingWall()
             ? RoadsideEdgeMode.RETAINING_WALL
@@ -183,6 +188,7 @@ public final class CrossSectionDraft {
             streetlightSpacing,
             laneDividers,
             centerLineStyle,
+            centerLineSolid,
             markingMaterial,
             includeSlopeBatter(),
             includeRetainingWall(),
@@ -243,6 +249,7 @@ public final class CrossSectionDraft {
         section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
         section.getMarkings().setLaneDividers(laneDividers);
         section.getMarkings().setCenterLineStyle(centerLineStyle);
+        section.getMarkings().setCenterLineSolid(centerLineSolid);
         section.getMarkings().setMaterial(markingMaterial);
         section.getSlopeBatter().setMode(roadsideEdgeMode);
         section.getSlopeBatter().setFillRatio(fillSlopeRatio);
@@ -269,7 +276,8 @@ public final class CrossSectionDraft {
             || !laneWidths.equals(baseline.laneWidths)
             || defaultLaneWidth != baseline.defaultLaneWidth;
         boolean markingsChanged = laneDividers != baseline.laneDividers
-            || centerLineStyle != baseline.centerLineStyle;
+            || centerLineStyle != baseline.centerLineStyle
+            || centerLineSolid != baseline.centerLineSolid;
         boolean medianChanged = includeMedian != baseline.includeMedian
             || medianWidth != baseline.medianWidth
             || medianHeight != baseline.medianHeight;
@@ -339,6 +347,9 @@ public final class CrossSectionDraft {
         if (centerLineStyle != baseline.centerLineStyle) {
             section.getMarkings().setCenterLineStyle(centerLineStyle);
         }
+        if (centerLineSolid != baseline.centerLineSolid) {
+            section.getMarkings().setCenterLineSolid(centerLineSolid);
+        }
         if (!java.util.Objects.equals(markingMaterial, baseline.markingMaterial)) {
             section.getMarkings().setMaterial(markingMaterial);
         }
@@ -389,6 +400,7 @@ public final class CrossSectionDraft {
         streetlightSpacing = other.streetlightSpacing;
         laneDividers = other.laneDividers;
         centerLineStyle = other.centerLineStyle;
+        centerLineSolid = other.centerLineSolid;
         markingMaterial = other.markingMaterial;
         roadsideEdgeMode = other.roadsideEdgeMode;
         fillSlopeRatio = other.fillSlopeRatio;
@@ -501,6 +513,11 @@ public final class CrossSectionDraft {
         draft.centerLineStyle = road.getCenterLineStyle() != null
             ? road.getCenterLineStyle()
             : defaults.getCenterLineStyle();
+        if (road.getCenterLineSolid() != null) {
+            draft.centerLineSolid = road.getCenterLineSolid();
+        } else {
+            draft.centerLineSolid = defaults.isCenterLineSolid();
+        }
         draft.markingMaterial = road.getMarkingMaterial() != null
             ? road.getMarkingMaterial()
             : defaults.getMarkingMaterial();
@@ -585,6 +602,7 @@ public final class CrossSectionDraft {
         draft.centerLineStyle = resolved.centerLineStyle != null
             ? resolved.centerLineStyle
             : CenterLineStyle.NONE;
+        draft.centerLineSolid = resolved.centerLineSolid;
         draft.markingMaterial = resolved.markingMaterial;
         draft.roadsideEdgeMode = resolved.roadsideEdgeMode();
         draft.fillSlopeRatio = resolved.fillSlopeRatio;
@@ -777,6 +795,14 @@ public final class CrossSectionDraft {
     public void setCenterLineStyle(CenterLineStyle centerLineStyle) {
         this.centerLineStyle = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
         recomputeDerivedWidth();
+    }
+
+    public boolean centerLineSolid() {
+        return centerLineSolid;
+    }
+
+    public void setCenterLineSolid(boolean centerLineSolid) {
+        this.centerLineSolid = centerLineSolid;
     }
 
     public String markingMaterial() {

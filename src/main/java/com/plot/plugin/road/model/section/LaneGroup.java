@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model.section;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 
@@ -312,7 +313,9 @@ public class LaneGroup {
 
         int total = CarriagewayWidthRules.derivedCarriagewayWidth(
             laneWidths, centerStyle, laneDividers, 0);
-        double cursor = -total / 2.0;
+        // 与路面格子同一套左缘：偶数宽时 -total/2 会比 minLateralOffset 偏左 1 格，
+        // 导致中央标线/隔离带相对横断面向左错位。
+        double cursor = RoadDimensionUtils.minLateralOffset(total);
         List<Double> offsets = new ArrayList<>();
         // 中央标线落在最靠近几何中心的车道缝：2→0，3→1，4→1
         int centerSeam = (lanes - 1) / 2;

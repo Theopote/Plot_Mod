@@ -85,7 +85,7 @@ public record CrossSectionDraftEditorOptions(
             "style_adv", false, null, true, false, true, false, false, false);
     }
 
-    /** 浮动横断面设计器 · 结构：行车道、车道数、分割线/中央标线（不含边坡与路肩条带）。 */
+    /** 浮动横断面设计器 · 结构：行车道、车道数、标线；页底另挂隔离带与路灯（不含边坡与路肩条带）。 */
     public static CrossSectionDraftEditorOptions styleFloatingStructure() {
         return new CrossSectionDraftEditorOptions(
             "xs_structure", false, null, true, false, false, true, false, true, true);
@@ -103,7 +103,7 @@ public record CrossSectionDraftEditorOptions(
             "xs_slope", false, null, false, false, true, false, false, false, true);
     }
 
-    /** 样式 Tab 批量编辑：材质；附属设施页复用（隔离带 + 路灯）。 */
+    /** 材质页与结构页底隔离带/路灯等无横断面几何字段的控件选项。 */
     public static CrossSectionDraftEditorOptions styleBatch() {
         return new CrossSectionDraftEditorOptions(
             "style_batch", false, null, false, false, false, false, false, false, true);

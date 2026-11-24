@@ -188,7 +188,7 @@ public final class RoadParameterLimits {
 
     /**
      * 中央隔离带宽度粗钳制（1–2）；权威宽度由
-     * {@link com.plot.plugin.road.model.section.CrossSectionGeometryRules#derivedMedianWidth} 按标线派生。
+     * {@link com.plot.plugin.road.model.section.CrossSectionGeometryRules#derivedMedianWidth} 按中央标线派生。
      */
     public static int clampMedianWidthBlocks(int ignoredCarriagewayWidth, int medianWidth) {
         if (medianWidth <= 0) {

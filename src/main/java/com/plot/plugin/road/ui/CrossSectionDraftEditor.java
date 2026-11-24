@@ -820,6 +820,24 @@ public final class CrossSectionDraftEditor {
                 UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.center_line_blocks"));
             }
             mutator.afterCenterLineField();
+
+            // 单/双黄线可切换虚实；铁轨恒为实线，不显示复选框。
+            boolean yellowCenter = draft.centerLineStyle() == CenterLineStyle.SINGLE_DASHED
+                || draft.centerLineStyle() == CenterLineStyle.DOUBLE_SOLID;
+            if (yellowCenter) {
+                ImBoolean solidRef = new ImBoolean(draft.centerLineSolid());
+                if (ImGui.checkbox(
+                    PlotI18n.tr("plugin.road.center_line_solid") + "##" + id + "_center_solid",
+                    solidRef)) {
+                    if (roadEdit) {
+                        hooks.onItemActivated();
+                    }
+                    mutator.setCenterLineSolid(solidRef.get());
+                }
+                if (ImGui.isItemHovered()) {
+                    UIUtils.setTooltip(PlotI18n.tr("hint.plot.road.center_line_solid"));
+                }
+            }
         } else if (draft.laneDividers() || draft.centerLineStyle() != CenterLineStyle.NONE) {
             // 单车道无可分隔对象：强制关闭标线，避免预览残留中央色块。
             mutator.setLaneDividers(false);

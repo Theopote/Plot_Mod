@@ -16,6 +16,7 @@ import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
+import com.plot.plugin.road.model.section.MarkingRules;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
@@ -79,6 +80,8 @@ public class RoadSystemConfig {
     private int medianHeight = RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
     private boolean laneDividers = false;
     private String centerLineStyle = CenterLineStyle.NONE.name();
+    /** 中央公路标线是否实线；与 {@link #centerLineStyle} 占格解耦。 */
+    private boolean centerLineSolid = false;
     private String markingMaterial = "minecraft:white_concrete";
     private int streetlightSpacing = 0;
     private boolean includeSlopeBatter = true;
@@ -637,7 +640,27 @@ public class RoadSystemConfig {
 
     public void setCenterLineStyle(CenterLineStyle style) {
         this.centerLineStyle = style != null ? style.name() : CenterLineStyle.NONE.name();
+        if (style == CenterLineStyle.DOUBLE_SOLID) {
+            this.centerLineSolid = true;
+        } else if (style == CenterLineStyle.SINGLE_DASHED) {
+            this.centerLineSolid = false;
+        }
         recomputeDerivedRoadWidth();
+    }
+
+    public boolean isCenterLineSolid() {
+        CenterLineStyle style = getCenterLineStyle();
+        if (style == CenterLineStyle.RAIL) {
+            return true;
+        }
+        if (style == CenterLineStyle.NONE) {
+            return false;
+        }
+        return centerLineSolid;
+    }
+
+    public void setCenterLineSolid(boolean centerLineSolid) {
+        this.centerLineSolid = centerLineSolid;
     }
 
     public String getMarkingMaterial() {
@@ -789,7 +812,9 @@ public class RoadSystemConfig {
         // 先写入车道数与标线，再按总宽打包，避免 setRoadWidth 用到过期的车道/分隔上下文。
         this.laneCount = RoadParameterLimits.clampLaneCount(effective.resolveLaneCount());
         this.laneDividers = effective.resolveLaneDividers();
-        this.centerLineStyle = effective.resolveCenterLineStyle().name();
+        CenterLineStyle appliedCenter = effective.resolveCenterLineStyle();
+        this.centerLineStyle = appliedCenter.name();
+        this.centerLineSolid = MarkingRules.defaultSolidForStyle(appliedCenter);
         setRoadWidth(effective.width);
         this.includeSidewalk = effective.hasSidewalk;
         if (effective.hasSidewalk) {

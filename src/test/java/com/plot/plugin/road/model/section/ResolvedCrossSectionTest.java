@@ -48,7 +48,7 @@ class ResolvedCrossSectionTest {
 
         assertEquals(List.of(3, 3), resolved.laneWidths);
         assertEquals(7, resolved.carriagewayWidth);
-        assertEquals(List.of(0.0), resolved.laneDividerOffsets);
+        assertEquals(List.of(0.5), resolved.laneDividerOffsets);
     }
 
     @Test

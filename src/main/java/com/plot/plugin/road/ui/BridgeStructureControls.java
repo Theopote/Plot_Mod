@@ -574,8 +574,8 @@ public final class BridgeStructureControls {
     }
 
     /**
-     * 直径/偏移合法值常为稀疏序列：用下拉选择；仅一个合法值时禁用下拉并提示约束原因，
-     * 避免滑条 min==max 时看起来像坏了。
+     * 直径/偏移合法值常为稀疏序列（如同奇偶步长 2）：滑条按选项下标拖动，显示真实格数。
+     * 仅一个合法值时禁用滑条并提示约束原因。
      */
     private static void renderDiscreteIntChoices(
             String label,
@@ -587,12 +587,16 @@ public final class BridgeStructureControls {
         if (options == null || options.length == 0) {
             return;
         }
-        String[] labels = new String[options.length];
         int selected = 0;
+        int nearestDist = Integer.MAX_VALUE;
         for (int i = 0; i < options.length; i++) {
-            labels[i] = Integer.toString(options[i]);
-            if (options[i] == current) {
+            int dist = Math.abs(options[i] - current);
+            if (options[i] == current || dist < nearestDist) {
                 selected = i;
+                nearestDist = dist;
+                if (dist == 0) {
+                    break;
+                }
             }
         }
         boolean locked = options.length == 1;
@@ -600,16 +604,17 @@ public final class BridgeStructureControls {
             onChanged.accept(options[0]);
             selected = 0;
         }
-        ImInt index = new ImInt(selected);
+        int[] index = {selected};
         if (locked) {
             ImGui.beginDisabled();
         }
-        boolean changed = ImGui.combo(label, index, labels);
+        boolean changed = ImGui.sliderInt(label, index, 0, options.length - 1, Integer.toString(options[index[0]]));
         if (locked) {
             ImGui.endDisabled();
         }
         if (changed && !locked) {
-            onChanged.accept(options[index.get()]);
+            int next = Math.clamp(index[0], 0, options.length - 1);
+            onChanged.accept(options[next]);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
             UIUtils.setTooltip(locked ? lockedHint : multiHint);

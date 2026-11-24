@@ -38,6 +38,7 @@ public final class CrossSectionDraftComparer {
             && left.streetlightSpacing() == right.streetlightSpacing()
             && left.laneDividers() == right.laneDividers()
             && left.centerLineStyle() == right.centerLineStyle()
+            && left.centerLineSolid() == right.centerLineSolid()
             && Objects.equals(left.markingMaterial(), right.markingMaterial())
             && left.roadsideEdgeMode() == right.roadsideEdgeMode()
             && left.fillSlopeRatio() == right.fillSlopeRatio()

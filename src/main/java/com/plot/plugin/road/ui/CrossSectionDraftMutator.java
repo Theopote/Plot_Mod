@@ -329,11 +329,29 @@ public final class CrossSectionDraftMutator {
 
     public void setCenterLineStyle(CenterLineStyle centerLineStyle) {
         draft.setCenterLineStyle(centerLineStyle);
+        // 切换占格样式时给虚实一个符合习惯的默认；用户仍可用「实线」复选框改。
+        if (centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
+            draft.setCenterLineSolid(true);
+        } else if (centerLineStyle == CenterLineStyle.SINGLE_DASHED) {
+            draft.setCenterLineSolid(false);
+        }
         if (road != null) {
             road.setCenterLineStyle(centerLineStyle);
+            if (centerLineStyle == CenterLineStyle.DOUBLE_SOLID
+                    || centerLineStyle == CenterLineStyle.SINGLE_DASHED) {
+                road.setCenterLineSolid(draft.centerLineSolid());
+            }
             syncRoadCarriagewayWidth();
         }
         syncMedianFromMarkings();
+        notifyChanged();
+    }
+
+    public void setCenterLineSolid(boolean centerLineSolid) {
+        draft.setCenterLineSolid(centerLineSolid);
+        if (road != null) {
+            road.setCenterLineSolid(centerLineSolid);
+        }
         notifyChanged();
     }
 

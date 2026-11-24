@@ -27,8 +27,9 @@ class RoadMarkingPassesTest {
         var passes = RoadMarkingPasses.fromCrossSection(resolved);
 
         assertTrue(passes.size() >= 3);
-        assertTrue(passes.stream().anyMatch(pass -> pass.solid() && pass.offset() < 0));
-        assertTrue(passes.stream().anyMatch(pass -> pass.solid() && pass.offset() > 0));
+        // 双黄居中在 0.5/1.5（相对路面格子），两侧白线虚线。
+        assertTrue(passes.stream().anyMatch(pass -> pass.solid() && Math.abs(pass.offset() - 0.5) < 1e-6));
+        assertTrue(passes.stream().anyMatch(pass -> pass.solid() && Math.abs(pass.offset() - 1.5) < 1e-6));
         assertTrue(passes.stream().anyMatch(pass -> !pass.solid()));
     }
 
@@ -42,9 +43,9 @@ class RoadMarkingPassesTest {
         section.getMarkings().setLaneDividers(true);
 
         ResolvedCrossSection resolved = section.resolve(config);
-        assertEquals(List.of(0.0), resolved.laneDividerOffsets);
+        assertEquals(List.of(0.5), resolved.laneDividerOffsets);
         var passes = RoadMarkingPasses.fromCrossSection(resolved);
-        assertTrue(passes.stream().anyMatch(pass -> Math.abs(pass.offset()) < 1e-6));
+        assertTrue(passes.stream().anyMatch(pass -> Math.abs(pass.offset() - 0.5) < 1e-6));
     }
 
     @Test
@@ -65,7 +66,7 @@ class RoadMarkingPassesTest {
         assertTrue(resolved.includeMedian);
         var passes = RoadMarkingPasses.fromCrossSection(resolved);
         assertTrue(
-            passes.stream().anyMatch(pass -> Math.abs(pass.offset()) < 1e-6),
+            passes.stream().anyMatch(pass -> Math.abs(pass.offset() - 0.5) < 1e-6),
             "median must not suppress center pavement marking");
     }
 
@@ -117,8 +118,41 @@ class RoadMarkingPassesTest {
 
         var passes = RoadMarkingPasses.fromCrossSection(section.resolve(config));
         assertEquals(1, passes.size());
-        assertEquals(0.0, passes.getFirst().offset(), 1e-6);
+        assertEquals(0.5, passes.getFirst().offset(), 1e-6);
         assertFalse(passes.getFirst().solid());
+    }
+
+    @Test
+    void singleYellowCanBeForcedSolid() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setCenterLineSolid(true);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        assertTrue(resolved.centerLineSolid);
+        var passes = RoadMarkingPasses.fromCrossSection(resolved);
+        assertEquals(1, passes.size());
+        assertTrue(passes.getFirst().solid());
+    }
+
+    @Test
+    void doubleYellowCanBeForcedDashed() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.DOUBLE_SOLID);
+        section.getMarkings().setCenterLineSolid(false);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.DOUBLE_SOLID, false, 0);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        assertFalse(resolved.centerLineSolid);
+        var passes = RoadMarkingPasses.fromCrossSection(resolved);
+        assertEquals(2, passes.size());
+        assertTrue(passes.stream().noneMatch(RoadMarkingPasses.Pass::solid));
     }
 
     @Test
@@ -134,7 +168,7 @@ class RoadMarkingPassesTest {
         assertEquals(CenterLineStyle.RAIL, resolved.centerLineStyle);
         var passes = RoadMarkingPasses.fromCrossSection(resolved);
         assertEquals(1, passes.size());
-        assertEquals(0.0, passes.getFirst().offset(), 1e-6);
+        assertEquals(0.5, passes.getFirst().offset(), 1e-6);
         assertTrue(passes.getFirst().solid());
         assertTrue(RoadMarkingPasses.hasAnyMarkings(resolved));
     }

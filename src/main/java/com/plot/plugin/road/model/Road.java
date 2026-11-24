@@ -353,6 +353,14 @@ public class Road {
         syncDerivedWidthAfterMarkingChange(dividers);
     }
 
+    public Boolean getCenterLineSolid() {
+        return crossSection.getMarkings().getCenterLineSolid();
+    }
+
+    public void setCenterLineSolid(Boolean centerLineSolid) {
+        crossSection.getMarkings().setCenterLineSolid(centerLineSolid);
+    }
+
     /**
      * 标线/分隔开关变化后，按车道行驶宽重推显式总宽，避免旧总宽仍含分隔占格，
      * 解析时被 pack 进车道行驶宽（预览上像残留一格分割线）。

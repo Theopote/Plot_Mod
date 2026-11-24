@@ -105,6 +105,7 @@ public final class RoadNetworkManager {
     private int batchStreetlightSpacing = 0;
     private boolean batchLaneDividers = false;
     private CenterLineStyle batchCenterLineStyle = CenterLineStyle.NONE;
+    private boolean batchCenterLineSolid = false;
     private String batchMarkingMaterial = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     private float batchEditMaxSlope = 10f;
     private boolean batchIncludeSlopeBatter = false;
@@ -1631,6 +1632,9 @@ public final class RoadNetworkManager {
         batchCenterLineStyle = road.getCenterLineStyle() != null
             ? road.getCenterLineStyle()
             : CenterLineStyle.NONE;
+        batchCenterLineSolid = road.getCenterLineSolid() != null
+            ? road.getCenterLineSolid()
+            : com.plot.plugin.road.model.section.MarkingRules.defaultSolidForStyle(batchCenterLineStyle);
         batchMarkingMaterial = road.getMarkingMaterial() != null
             ? road.getMarkingMaterial()
             : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
@@ -1685,6 +1689,7 @@ public final class RoadNetworkManager {
             batchStreetlightSpacing,
             batchLaneDividers,
             batchCenterLineStyle,
+            batchCenterLineSolid,
             batchMarkingMaterial,
             batchIncludeSlopeBatter,
             batchIncludeRetainingWall,
@@ -1724,6 +1729,7 @@ public final class RoadNetworkManager {
         batchStreetlightSpacing = draft.streetlightSpacing();
         batchLaneDividers = draft.laneDividers();
         batchCenterLineStyle = draft.centerLineStyle();
+        batchCenterLineSolid = draft.centerLineSolid();
         batchMarkingMaterial = draft.markingMaterial();
         batchIncludeSlopeBatter = draft.includeSlopeBatter();
         batchIncludeRetainingWall = draft.includeRetainingWall();
@@ -1851,7 +1857,8 @@ public final class RoadNetworkManager {
         if (before.laneDividers() != after.laneDividers()) {
             fields.add(RoadBatchEditField.LANE_DIVIDERS);
         }
-        if (before.centerLineStyle() != after.centerLineStyle()) {
+        if (before.centerLineStyle() != after.centerLineStyle()
+                || before.centerLineSolid() != after.centerLineSolid()) {
             fields.add(RoadBatchEditField.CENTER_LINE_STYLE);
         }
         if (!Objects.equals(before.markingMaterial(), after.markingMaterial())) {
@@ -1963,6 +1970,7 @@ public final class RoadNetworkManager {
         }
         if (fields.contains(RoadBatchEditField.CENTER_LINE_STYLE)) {
             road.setCenterLineStyle(draft.centerLineStyle());
+            road.setCenterLineSolid(draft.centerLineSolid());
         }
         if (fields.contains(RoadBatchEditField.MARKING_MATERIAL)) {
             road.setMarkingMaterial(draft.markingMaterial());
@@ -2230,6 +2238,7 @@ public final class RoadNetworkManager {
             int streetlightSpacing,
             boolean laneDividers,
             CenterLineStyle centerLineStyle,
+            boolean centerLineSolid,
             String markingMaterial,
             boolean includeSlopeBatter,
             boolean includeRetainingWall,
@@ -2249,7 +2258,7 @@ public final class RoadNetworkManager {
             String bridgeGuardrailMaterial,
             int bridgeGuardrailHeightBlocks) {
 
-        /** 兼容旧调用：桥梁字段取默认值。 */
+        /** 兼容旧调用：桥梁字段取默认值；实线按样式默认。 */
         public BatchEditDefaults(
                 int width,
                 int laneCount,
@@ -2291,6 +2300,62 @@ public final class RoadNetworkManager {
                 streetlightSpacing,
                 laneDividers,
                 centerLineStyle,
+                com.plot.plugin.road.model.section.MarkingRules.defaultSolidForStyle(centerLineStyle),
+                markingMaterial,
+                includeSlopeBatter,
+                includeRetainingWall,
+                fillSlopeRatio,
+                cutSlopeRatio,
+                fillSlopeMaterial,
+                cutSlopeMaterial,
+                retainingWallMaterial,
+                maxSlope);
+        }
+
+        /** 横断面草稿转批量默认：桥梁字段取默认值。 */
+        public BatchEditDefaults(
+                int width,
+                int laneCount,
+                MaterialMix material,
+                boolean includeShoulder,
+                int shoulderWidth,
+                boolean includeSidewalk,
+                int sidewalkWidth,
+                String sidewalkMaterial,
+                boolean includeBikeLane,
+                int bikeLaneWidth,
+                boolean includeMedian,
+                int medianWidth,
+                int streetlightSpacing,
+                boolean laneDividers,
+                CenterLineStyle centerLineStyle,
+                boolean centerLineSolid,
+                String markingMaterial,
+                boolean includeSlopeBatter,
+                boolean includeRetainingWall,
+                float fillSlopeRatio,
+                float cutSlopeRatio,
+                String fillSlopeMaterial,
+                String cutSlopeMaterial,
+                String retainingWallMaterial,
+                float maxSlope) {
+            this(
+                width,
+                laneCount,
+                material,
+                includeShoulder,
+                shoulderWidth,
+                includeSidewalk,
+                sidewalkWidth,
+                sidewalkMaterial,
+                includeBikeLane,
+                bikeLaneWidth,
+                includeMedian,
+                medianWidth,
+                streetlightSpacing,
+                laneDividers,
+                centerLineStyle,
+                centerLineSolid,
                 markingMaterial,
                 includeSlopeBatter,
                 includeRetainingWall,
@@ -2348,6 +2413,7 @@ public final class RoadNetworkManager {
                 crossSection.streetlightSpacing(),
                 crossSection.laneDividers(),
                 crossSection.centerLineStyle(),
+                crossSection.centerLineSolid(),
                 crossSection.markingMaterial(),
                 crossSection.includeSlopeBatter(),
                 crossSection.includeRetainingWall(),
@@ -2385,6 +2451,7 @@ public final class RoadNetworkManager {
                 streetlightSpacing,
                 laneDividers,
                 centerLineStyle,
+                centerLineSolid,
                 markingMaterial,
                 includeSlopeBatter,
                 includeRetainingWall,
@@ -2422,6 +2489,7 @@ public final class RoadNetworkManager {
                 streetlightSpacing,
                 laneDividers,
                 centerLineStyle,
+                centerLineSolid,
                 markingMaterial,
                 includeSlopeBatter,
                 includeRetainingWall,
@@ -2468,6 +2536,7 @@ public final class RoadNetworkManager {
                 streetlightSpacing,
                 laneDividers,
                 centerLineStyle,
+                centerLineSolid,
                 markingMaterial,
                 includeSlopeBatter,
                 includeRetainingWall,
@@ -2506,6 +2575,7 @@ public final class RoadNetworkManager {
             section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
             section.getMarkings().setLaneDividers(laneDividers);
             section.getMarkings().setCenterLineStyle(centerLineStyle);
+            section.getMarkings().setCenterLineSolid(centerLineSolid);
             section.getMarkings().setMaterial(markingMaterial);
             if (includeRetainingWall) {
                 section.getSlopeBatter().setMode(RoadsideEdgeMode.RETAINING_WALL);

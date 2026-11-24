@@ -1201,6 +1201,7 @@ public class RoadNetwork {
         Boolean laneDividers;
         Boolean centerLine;
         String centerLineStyle;
+        Boolean centerLineSolid;
         String material;
     }
 
@@ -1284,6 +1285,7 @@ public class RoadNetwork {
                 data.markings.centerLineStyle = markings.getCenterLineStyle() != null
                     ? markings.getCenterLineStyle().name()
                     : null;
+                data.markings.centerLineSolid = markings.getCenterLineSolid();
                 data.markings.material = markings.getMaterial();
             }
             Shoulder shoulder = section.getShoulder();
@@ -1375,6 +1377,7 @@ public class RoadNetwork {
                         markingsComponent.setCenterLineStyle(CenterLineStyle.NONE);
                     }
                 }
+                markingsComponent.setCenterLineSolid(markings.centerLineSolid);
                 markingsComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(markings.material));
                 section.setMarkings(markingsComponent);
             }

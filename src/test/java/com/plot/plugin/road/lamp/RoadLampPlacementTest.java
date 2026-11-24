@@ -219,14 +219,23 @@ class RoadLampPlacementTest {
     void locatesTopOfRaisedMedian() {
         var scenario = RoadGoldenScenarioFactory.r01StraightFlat();
         var road = scenario.network().getRoads().values().iterator().next();
-        road.getCrossSection().setMedian(new com.plot.plugin.road.model.section.Median(true, 2, 3, "minecraft:stone_bricks"));
-        road.getCrossSection().getStreetFurniture().setRoadLampPlacement(
+        // 隔离带只能落在中央标线上：至少双车道 + 双黄，路灯立在标线上方的隔离带顶。
+        var section = road.getCrossSection();
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().setDefaultLaneWidth(3);
+        section.getCarriageway().syncDerivedWidth(
+            com.plot.plugin.road.model.section.CenterLineStyle.DOUBLE_SOLID, false, 0);
+        section.getMarkings().setCenterLineStyle(
+            com.plot.plugin.road.model.section.CenterLineStyle.DOUBLE_SOLID);
+        section.setMedian(new com.plot.plugin.road.model.section.Median(true, 2, 3, "minecraft:stone_bricks"));
+        section.getStreetFurniture().setRoadLampPlacement(
             new RoadLampPlacement(STYLE, RoadLampPlacement.Sides.MEDIAN, 8, 0, 2, true, false));
         var result = RoadGoldenHarness.run(scenario).preview().aggregate();
         var bases = result.streetlightBlocks.stream()
             .filter(pos -> result.placementLayers.get(pos.down()) == RoadSolidLayer.MEDIAN).toList();
         assertEquals(3, bases.size());
-        assertTrue(bases.stream().allMatch(pos -> pos.getY() == bases.getFirst().getY() && pos.getZ() == 0));
+        assertTrue(bases.stream().allMatch(pos -> pos.getY() == bases.getFirst().getY()
+            && (pos.getZ() == 0 || pos.getZ() == 1)));
     }
 
     @Test

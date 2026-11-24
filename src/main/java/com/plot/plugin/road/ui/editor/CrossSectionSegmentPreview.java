@@ -3,7 +3,9 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.road.RoadMarkingPasses;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampPlanner;
+import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import net.minecraft.util.math.BlockPos;
@@ -71,17 +73,22 @@ final class CrossSectionSegmentPreview {
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, -1, z), block));
             }
         }
-        // 标线嵌入路表（y=-1）；铁轨抬高一格。车道分隔线（白虚线）与中央标线（材质/实虚）分开画，避免混淆。
+        // 标线嵌入路表（y=-1）；铁轨抬高一格。车道分隔线（白虚线）与中央标线分开画。
         CenterLineStyle centerStyle = section.centerLineStyle != null
             ? section.centerLineStyle
             : CenterLineStyle.NONE;
         boolean rail = centerStyle == CenterLineStyle.RAIL;
         String centerMarking = resolveCenterMarkingBlock(section, rail);
         String laneDivider = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+        int centerBlocks = CarriagewayWidthRules.centerLineBlocks(centerStyle);
+        int[] centerCols = centerBlocks > 0
+            ? CrossSectionGeometryRules.medianLateralRange(section.laneDividerOffsets, centerBlocks)
+            : new int[] {0, -1};
         for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(section)) {
             int x = (int) Math.floor(pass.offset());
-            boolean centerMarkingPass = Math.abs(pass.offset()) <= 1.0 + 1e-6
-                && centerStyle != CenterLineStyle.NONE;
+            boolean centerMarkingPass = centerBlocks > 0
+                && x >= centerCols[0]
+                && x <= centerCols[1];
             String block = centerMarkingPass ? centerMarking : laneDivider;
             int markingY = rail && centerMarkingPass ? 0 : -1;
             for (int z = z0; z <= z1; z++) {

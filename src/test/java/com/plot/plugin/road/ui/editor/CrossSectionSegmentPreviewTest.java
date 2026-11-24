@@ -112,6 +112,36 @@ class CrossSectionSegmentPreviewTest {
         assertTrue(white < CrossSectionSegmentPreview.SEGMENT_LENGTH_Z * 2);
     }
 
+    @Test
+    void oddLaneCenterLineUsesYellowNotWhiteDividerPaint() {
+        RoadSystemConfig config = previewConfig("seg-3lane");
+        config.setLaneCount(3);
+        config.setDefaultLaneWidth(5);
+        config.setLaneDividers(true);
+        config.setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        config.setMarkingMaterial("minecraft:yellow_concrete");
+        CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
+        ResolvedCrossSection section = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
+
+        var scene = CrossSectionSegmentPreview.buildSurfaceSegment(
+            section, CrossSectionSegmentPreview.SEGMENT_LENGTH_Z);
+        long yellow = scene.stream()
+            .filter(v -> "minecraft:yellow_concrete".equals(v.block()))
+            .filter(v -> v.position().getY() == -1)
+            .count();
+        assertTrue(yellow > 0, "3-lane single yellow must still paint center seam yellow");
+
+        var pavement = scene.stream()
+            .filter(v -> v.position().getY() == -1)
+            .collect(java.util.stream.Collectors.toMap(
+                v -> v.position(),
+                v -> v.block(),
+                (previous, next) -> next));
+        assertTrue(
+            RoadLampPreview.pavementLayerHasMixedMaterials(pavement),
+            "embedded markings must mark pavement as mixed so preview skips Z-strip merge");
+    }
+
     /** 路面用灰混凝土，避免与白标线同材质导致断言误判。 */
     private static RoadSystemConfig previewConfig(String id) {
         RoadSystemConfig config = new RoadSystemConfig(id);

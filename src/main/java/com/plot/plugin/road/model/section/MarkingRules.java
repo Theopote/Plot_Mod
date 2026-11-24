@@ -59,4 +59,30 @@ public final class MarkingRules {
         }
         return true;
     }
+
+    /**
+     * 中央标线是否实线。铁轨恒为实线；公路黄线显式 {@link Markings#getCenterLineSolid()} 优先，
+     * 否则按占格样式默认（双黄实、单黄虚）。{@code defaults} 保留参数供调用方兼容。
+     */
+    public static boolean resolveCenterLineSolid(
+            Markings markings,
+            CenterLineStyle style,
+            RoadSystemConfig defaults) {
+        CenterLineStyle resolved = style != null ? style : CenterLineStyle.NONE;
+        if (resolved == CenterLineStyle.RAIL) {
+            return true;
+        }
+        if (resolved == CenterLineStyle.NONE) {
+            return false;
+        }
+        if (markings != null && markings.getCenterLineSolid() != null) {
+            return markings.getCenterLineSolid();
+        }
+        return defaultSolidForStyle(resolved);
+    }
+
+    /** 旧档无 solid 字段时的样式默认：双黄实、单黄虚。 */
+    public static boolean defaultSolidForStyle(CenterLineStyle style) {
+        return style == CenterLineStyle.DOUBLE_SOLID;
+    }
 }
