@@ -251,10 +251,34 @@ public final class JunctionFinalVoxelValidator {
             }
             BlockRecord record = aggregate.placementRecords.get(expected);
             if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                // 立交/行车/隧道净空空气（含未写入 cavity 集合的井筒清障）不是甲板拆除。
+                if (isAuthorizedClearanceAir(aggregate, expected, record)) {
+                    continue;
+                }
                 losses++;
             }
         }
         return losses;
+    }
+
+    private static boolean isAuthorizedClearanceAir(
+            RoadGenerationResult aggregate,
+            BlockPos pos,
+            BlockRecord record) {
+        if (aggregate == null || pos == null || record == null
+                || !"minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        if (aggregate.placementLayers.get(pos) != RoadSolidLayer.TUNNEL
+                && (aggregate.tunnelBlocks == null || !aggregate.tunnelBlocks.contains(pos))) {
+            return false;
+        }
+        ClearancePurpose purpose = aggregate.placementClearancePurposes != null
+            ? aggregate.placementClearancePurposes.get(pos)
+            : null;
+        return purpose == ClearancePurpose.GRADE_SEPARATION
+            || purpose == ClearancePurpose.ROAD_HEADROOM
+            || purpose == ClearancePurpose.TUNNEL_INTERIOR;
     }
 
     /**
@@ -340,21 +364,23 @@ public final class JunctionFinalVoxelValidator {
         if (openVolume.isEmpty()) {
             return seeds.size();
         }
-        int invalidSeeds = 0;
         List<BlockPos> validSeeds = new ArrayList<>();
         for (BlockPos seed : seeds) {
             if (openVolume.contains(seed)) {
                 validSeeds.add(seed);
-            } else {
-                invalidSeeds++;
             }
         }
         if (validSeeds.isEmpty()) {
             return seeds.size();
         }
+        // 洞腔体积内至少两个有效种子才能证明「进口互不连通」。
+        // 落在体积外的种子是种子定位噪声，不得叠加进断开计数（否则单粒越界种子就会假拦建造）。
+        if (validSeeds.size() < 2) {
+            return 0;
+        }
         TunnelJunctionAirConnectivityValidator.Result flood =
             TunnelJunctionAirConnectivityValidator.validate(openVolume, validSeeds);
-        return flood.disconnectedComponentCount() + invalidSeeds;
+        return flood.disconnectedComponentCount();
     }
 
     private static Set<BlockPos> collectPostMergeOpenVolume(

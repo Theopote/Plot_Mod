@@ -320,6 +320,67 @@ class JunctionFinalVoxelValidatorTest {
     }
 
     @Test
+    void protectedLossIgnoresGradeSeparationClearanceAir() {
+        BlockPos underDeck = new BlockPos(3, 70, 3);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(),
+            List.of(underDeck),
+            List.of(),
+            squareFootprint(),
+            64,
+            72,
+            60,
+            68);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(underDeck, "minecraft:dirt", "minecraft:air");
+        aggregate.placementLayers.put(underDeck, RoadSolidLayer.TUNNEL);
+        aggregate.placementClearancePurposes.put(underDeck, ClearancePurpose.GRADE_SEPARATION);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.protectedLosses(),
+            "grade-sep shaft clearance must not count as protected structure loss");
+    }
+
+    @Test
+    void singleOffVolumePortalSeedDoesNotInflateDisconnectedCount() {
+        BlockPos seedIn = new BlockPos(0, 64, 0);
+        BlockPos seedOut = new BlockPos(50, 64, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(),
+            List.of(),
+            List.of(
+                new TunnelPortalSeed("e1", seedIn),
+                new TunnelPortalSeed("e2", seedOut)),
+            squareFootprint(),
+            64,
+            null,
+            64,
+            64);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(seedIn, "minecraft:stone", "minecraft:air");
+        aggregate.placementLayers.put(seedIn, RoadSolidLayer.TUNNEL);
+        aggregate.tunnelBlocks.add(seedIn);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.disconnectedTunnelComponents(),
+            "one on-volume seed + one off-volume seed must not block as disconnected");
+    }
+
+    @Test
     void floodFillUsesPortalSeedsNotAllAir() {
         BlockPos seedA = new BlockPos(0, 64, 0);
         BlockPos seedB = new BlockPos(10, 64, 0);

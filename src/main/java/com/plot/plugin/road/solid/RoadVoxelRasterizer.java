@@ -251,6 +251,9 @@ public final class RoadVoxelRasterizer {
             result.placementMaterialPriorities.put(pos, primitive.materialPriority());
             result.recordExpectedRoadSurface(new ExpectedRoadSurface(
                 pos, blockId, primitive.layer(), result.edgeId != null ? result.edgeId : ""));
+            // 广场面层取代边隧道期望，避免 missingLining / unclearedCavity 假阳性。
+            result.expectedTunnelLining.remove(pos.toImmutable());
+            result.expectedTunnelCavity.remove(pos.toImmutable());
             return;
         }
         // A sloping upper deck can be below the node's nominal clearance plane.

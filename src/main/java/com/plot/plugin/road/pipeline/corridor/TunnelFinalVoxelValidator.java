@@ -89,6 +89,10 @@ public final class TunnelFinalVoxelValidator {
                     && authorizedLining.contains(pos)) {
                 continue;
             }
+            // 广场/路面设计面层占据洞腔掩膜交叠格：属路口所有权顶替，不是未清洞腔。
+            if (isPlazaSurfaceSolid(result, pos, record, layer)) {
+                continue;
+            }
             if (terrain != null
                     && terrain.isChunkLoaded(pos.getX(), pos.getZ())
                     && isObstruction(terrain, pos.getX(), pos.getY(), pos.getZ())) {
@@ -111,6 +115,23 @@ public final class TunnelFinalVoxelValidator {
         return count;
     }
 
+    private static boolean isPlazaSurfaceSolid(
+            RoadGenerationResult result,
+            BlockPos pos,
+            BlockRecord record,
+            RoadSolidLayer layer) {
+        if (record == null || record.newBlockId == null || "minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN
+            || layer == RoadSolidLayer.MARKING
+            || layer == RoadSolidLayer.BRIDGE;
+    }
+
     static int countMissingTunnelLiningExact(RoadGenerationResult result) {
         Set<BlockPos> expected = result.expectedTunnelLining;
         if (expected == null || expected.isEmpty()) {
@@ -118,10 +139,7 @@ public final class TunnelFinalVoxelValidator {
         }
         int count = 0;
         for (BlockPos pos : expected) {
-            if (isAuthorizedLiningAbsence(result, pos)) {
-                continue;
-            }
-            if (!isLiningSolid(result, pos)) {
+            if (isMissingLiningHole(result, pos)) {
                 count++;
             }
         }
@@ -138,14 +156,37 @@ public final class TunnelFinalVoxelValidator {
         }
         int count = 0;
         for (BlockPos pos : expected) {
-            if (isAuthorizedLiningAbsence(result, pos)) {
-                continue;
-            }
-            if (!isLiningSolid(result, pos) && hasCardinalLining(result, pos)) {
+            if (isMissingLiningHole(result, pos) && hasCardinalLining(result, pos)) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * 仅统计「空洞」：无落点或未授权空气。
+     * <p>
+     * 与 {@link JunctionProtectedOverburdenValidator#countMissingLiningInJunctionScope} 对齐——
+     * 任意非空气实体（含广场 ROAD 顶替）不算衬砌空洞；授权洞腔 / TUNNEL 空气也不算。
+     */
+    private static boolean isMissingLiningHole(RoadGenerationResult result, BlockPos pos) {
+        if (result == null || pos == null) {
+            return false;
+        }
+        if (isLiningSolid(result, pos)) {
+            return false;
+        }
+        if (isAuthorizedLiningAbsence(result, pos)) {
+            return false;
+        }
+        BlockRecord record = result.placementRecords.get(pos);
+        if (record != null
+                && record.newBlockId != null
+                && !"minecraft:air".equals(record.newBlockId)) {
+            // 被其它实体占据（广场面层/底板等设计顶替），不是 lining 空洞。
+            return false;
+        }
+        return true;
     }
 
     /**

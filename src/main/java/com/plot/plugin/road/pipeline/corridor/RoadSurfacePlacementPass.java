@@ -64,6 +64,7 @@ public final class RoadSurfacePlacementPass {
                 result.recordPlacementOverride(pos, previous, cell.materialId());
                 result.placementLayers.put(pos, cell.layer());
                 result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
+                revokeTunnelExpectations(result, pos);
                 continue;
             }
             var layer = result.placementLayers.get(pos);
@@ -72,7 +73,18 @@ public final class RoadSurfacePlacementPass {
             result.recordPlacementOverride(pos, existing.previousBlockId, cell.materialId());
             result.placementLayers.put(pos, cell.layer());
             result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
+            // 路面掩膜顶替 TUNNEL 空气/衬砌后，必须作废隧道期望，避免终态 missingLining/unclearedCavity。
+            revokeTunnelExpectations(result, pos);
         }
+    }
+
+    private static void revokeTunnelExpectations(RoadGenerationResult result, BlockPos pos) {
+        if (result == null || pos == null) {
+            return;
+        }
+        BlockPos key = pos.toImmutable();
+        result.expectedTunnelLining.remove(key);
+        result.expectedTunnelCavity.remove(key);
     }
 
     private static String resolvePrevious(Function<BlockPos, String> previousBlockId, BlockPos pos) {
@@ -168,6 +180,8 @@ public final class RoadSurfacePlacementPass {
                     result.recordPlacementOverride(pos, "minecraft:air", "minecraft:air");
                     result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
                     result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
+                    result.placementClearancePurposes.put(pos, ClearancePurpose.GRADE_SEPARATION);
+                    result.adoptClearanceAsTunnelCavity(pos, ClearancePurpose.GRADE_SEPARATION);
                 }
                 continue;
             }
@@ -179,9 +193,14 @@ public final class RoadSurfacePlacementPass {
                     && layer != RoadSolidLayer.TUNNEL) {
                 continue;
             }
+            ClearancePurpose purpose = elevatedPavementY != null
+                ? ClearancePurpose.GRADE_SEPARATION
+                : ClearancePurpose.ROAD_HEADROOM;
             result.recordPlacementOverride(pos, record.previousBlockId, "minecraft:air");
             result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
             result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
+            result.placementClearancePurposes.put(pos, purpose);
+            result.adoptClearanceAsTunnelCavity(pos, purpose);
         }
     }
 

@@ -175,7 +175,7 @@ class FinalPlacementAcceptanceValidatorTest {
     }
 
     @Test
-    void liningOverwrittenByRoadLayerBlocksAfterTunnelThenFinalChain() {
+    void liningSupersededByPlazaSurfaceIsNotMissingLiningHole() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos lining = new BlockPos(43, 67, 0);
         aggregate.recordExpectedTunnelLining(lining);
@@ -185,8 +185,9 @@ class FinalPlacementAcceptanceValidatorTest {
 
         runTunnelThenFinal(aggregate, null);
 
-        assertEquals(1, aggregate.missingTunnelLiningCount);
-        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+        // 与覆土校验同口径：非空气实体占据 ≠ lining 空洞（广场面层顶替属设计行为）。
+        assertEquals(0, aggregate.missingTunnelLiningCount);
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 
     @Test

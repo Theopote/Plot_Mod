@@ -270,9 +270,10 @@ public final class JunctionExpectedProtectedCollector {
     }
 
     private static boolean isProtectedLayer(RoadSolidLayer layer) {
+        // SUBGRADE 常为地形残留，立交井筒清障会合法换成空气；不得列入保护清单，
+        // 否则 postMerge protectedLosses 会把净空误判为上层结构拆除。
         return layer == RoadSolidLayer.ROAD
             || layer == RoadSolidLayer.BRIDGE
-            || layer == RoadSolidLayer.SUBGRADE
             || layer == RoadSolidLayer.GUARDRAIL
             || layer == RoadSolidLayer.SIDEWALK
             || layer == RoadSolidLayer.SHOULDER

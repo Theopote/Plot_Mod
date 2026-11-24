@@ -159,6 +159,36 @@ public class RoadGenerationResult {
         }
     }
 
+    /** 作废该格路面设计期望（净空/清障已取代铺装）。 */
+    public void revokeSurfaceExpectation(BlockPos pos) {
+        if (pos == null) {
+            return;
+        }
+        expectedRoadSurfaces.remove(pos);
+        expectedRoadSurfaces.remove(pos.toImmutable());
+    }
+
+    /**
+     * 合并净空空气胜出后：登记洞腔并清除残留 lining 期望。
+     * 边坡开挖空气不登记洞腔（覆土保护路径另算）。
+     */
+    public void adoptClearanceAsTunnelCavity(BlockPos pos, ClearancePurpose purpose) {
+        if (pos == null) {
+            return;
+        }
+        BlockPos key = pos.toImmutable();
+        expectedTunnelLining.remove(key);
+        if (purpose == ClearancePurpose.SLOPE_EXCAVATION) {
+            return;
+        }
+        if (purpose == ClearancePurpose.TUNNEL_INTERIOR
+                || purpose == ClearancePurpose.GRADE_SEPARATION
+                || purpose == ClearancePurpose.ROAD_HEADROOM
+                || purpose == null) {
+            expectedTunnelCavity.add(key);
+        }
+    }
+
     public void recordPlacementIfAbsent(BlockPos pos, String previousBlockId, String newBlockId) {
         RoadPlacementRecorder.recordIfAbsent(placementRecords, pos, previousBlockId, newBlockId);
     }
@@ -218,6 +248,20 @@ public class RoadGenerationResult {
             layer,
             materialPriority,
             clearancePurpose);
+        // TUNNEL 层优先级高于 ROAD：净空空气可盖掉铺装。胜出后必须同步作废期望。
+        if (pos != null
+                && layer == RoadSolidLayer.TUNNEL
+                && "minecraft:air".equals(newBlockId)) {
+            BlockRecord won = placementRecords.get(pos.toImmutable());
+            if (won == null) {
+                won = placementRecords.get(pos);
+            }
+            if (won != null && "minecraft:air".equals(won.newBlockId)
+                    && placementLayers.get(pos) == RoadSolidLayer.TUNNEL) {
+                revokeSurfaceExpectation(pos);
+                adoptClearanceAsTunnelCavity(pos, clearancePurpose);
+            }
+        }
     }
 
     public void mergeFrom(RoadGenerationResult source) {
@@ -308,10 +352,23 @@ public class RoadGenerationResult {
                     pos, RoadSolidMaterialPriority.DEFAULT));
                 // 用途只描述最终获胜的 AIR；实体方块覆盖后必须清除。
                 syncClearancePurposeAfterMerge(pos, incomingAir, existingPurpose, incomingPurpose);
+                if (replaceWithClearance) {
+                    // 净空空气已取代铺装/衬砌：作废路面期望，洞腔期望与 lining 对齐，避免终态假阳性。
+                    revokeSurfaceExpectation(pos);
+                    adoptClearanceAsTunnelCavity(pos, incomingPurpose);
+                } else if (replaceWithSurface || replaceWithDeckSupport) {
+                    // 铺装/底板胜出：该格不再是隧道衬砌或洞腔设计位。
+                    expectedTunnelLining.remove(pos.toImmutable());
+                    expectedTunnelCavity.remove(pos.toImmutable());
+                }
             } else if (!placementRecords.containsKey(pos)) {
                 placementRecords.put(pos, incoming);
                 if (incomingAir && incomingPurpose != null) {
                     placementClearancePurposes.put(pos, incomingPurpose);
+                }
+                if (incomingAir) {
+                    revokeSurfaceExpectation(pos);
+                    adoptClearanceAsTunnelCavity(pos, incomingPurpose);
                 }
             }
         }

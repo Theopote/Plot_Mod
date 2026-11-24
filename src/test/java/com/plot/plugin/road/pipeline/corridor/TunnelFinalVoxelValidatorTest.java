@@ -188,7 +188,7 @@ class TunnelFinalVoxelValidatorTest {
     }
 
     @Test
-    void aggregateRevalidationDetectsPostMergeLiningOverwrite() {
+    void aggregateRevalidationTreatsPlazaOverwriteAsOccupiedNotMissingHole() {
         RoadGenerationResult tunnelEdge = new RoadGenerationResult(0);
         BlockPos lining = new BlockPos(30, 67, 0);
         tunnelEdge.recordExpectedTunnelLining(lining);
@@ -199,14 +199,23 @@ class TunnelFinalVoxelValidatorTest {
 
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         aggregate.mergeFrom(tunnelEdge);
-        // Another edge overwrites the shell after merge.
+        // Plaza/surface ownership replaces shell — occupied cell, not a lining hole.
         aggregate.recordPlacementOverride(lining, "minecraft:stone_bricks", "minecraft:oak_planks");
         aggregate.placementLayers.put(lining, RoadSolidLayer.ROAD);
         aggregate.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.DEFAULT);
 
         TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(aggregate, null);
-        assertEquals(1, report.missingTunnelLiningCount(),
-            "post-merge overwrite of expected lining must be visible on aggregate revalidation");
+        assertEquals(0, report.missingTunnelLiningCount(),
+            "non-air plaza overwrite must not inflate missingTunnelLiningCount");
+    }
+
+    @Test
+    void trueLiningHoleWithNoPlacementStillCounts() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos lining = new BlockPos(31, 67, 0);
+        result.recordExpectedTunnelLining(lining);
+
+        assertEquals(1, TunnelFinalVoxelValidator.validate(result, null).missingTunnelLiningCount());
     }
 
     @Test

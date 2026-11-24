@@ -412,10 +412,9 @@ public final class JunctionSeamReconciliationPass {
         aggregate.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         aggregate.placementMaterialPriorities.put(pos, Integer.valueOf(RoadSolidMaterialPriority.CLEARANCE));
         // 同步作废设计期望，避免 UnderpassPavementSealPass 把已清层再铺回来。
-        if (aggregate.expectedRoadSurfaces != null) {
-            aggregate.expectedRoadSurfaces.remove(pos);
-            aggregate.expectedRoadSurfaces.remove(pos.toImmutable());
-        }
+        aggregate.revokeSurfaceExpectation(pos);
+        // 接缝清场空气即授权洞腔，清除残留 lining 期望。
+        aggregate.adoptClearanceAsTunnelCavity(pos, ClearancePurpose.TUNNEL_INTERIOR);
     }
 
     private static void rememberSolid(

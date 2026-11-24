@@ -51,6 +51,10 @@ public final class UnderpassPavementSealPass {
         result.placementLayers.put(pos, expected.layer());
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.DEFAULT);
         result.roadBlocks.add(pos);
+        // 封口路面取代隧道期望，避免 missingLining / unclearedCavity 假阳性。
+        BlockPos key = pos.toImmutable();
+        result.expectedTunnelLining.remove(key);
+        result.expectedTunnelCavity.remove(key);
         // 保留已有净空顶；若无记录则不强行猜测，避免误清桥下非道路区。
     }
 }
