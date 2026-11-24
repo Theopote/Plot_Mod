@@ -22,6 +22,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,10 @@ public final class VariableCrossSectionEditor {
     private int selectedIndex = -1;
     /** 沿路浏览位置（画布/canonical 域）；拖滑条默认 scrub，Shift 时移动选中桩号。 */
     private float playheadStation;
+    /** Shift+拖移动桩号时，本次拖动是否已压入撤销检查点（含中途才按下 Shift）。 */
+    private boolean stationMoveCheckpointPushed;
+    private final ImFloat stationInputBuffer = new ImFloat(0f);
+    private boolean stationInputActive;
 
     /** 本帧长度展示上下文：内部桩号为画布域，滑条/文案为世界投影（与路径面板一致，1m=1格）。 */
     private RoadNetwork lengthNetwork;
@@ -57,6 +62,8 @@ public final class VariableCrossSectionEditor {
     private final CrossSectionDesignerPanel detailPanel = new CrossSectionDesignerPanel();
     private CrossSectionDraftMutator cachedMutator;
     private CrossSectionDraft cachedMutatorDraft;
+    /** 仅在草稿实际变更时触发 applyDraftsIfChanged，避免静止帧深度重建。 */
+    private boolean draftsDirty;
 
     public void reset() {
         syncedRoad = null;
@@ -65,9 +72,21 @@ public final class VariableCrossSectionEditor {
         drafts.clear();
         selectedIndex = -1;
         playheadStation = 0f;
+        stationMoveCheckpointPushed = false;
+        stationInputBuffer.set(0f);
+        stationInputActive = false;
+        draftsDirty = false;
         cachedMutator = null;
         cachedMutatorDraft = null;
         detailPanel.invalidate();
+    }
+
+    void markDraftsDirty() {
+        draftsDirty = true;
+    }
+
+    boolean isDraftsDirty() {
+        return draftsDirty;
     }
 
     public void render(
@@ -133,7 +152,9 @@ public final class VariableCrossSectionEditor {
             ImGui.endChild();
         }
 
-        applyDraftsIfChanged(road, config);
+        if (draftsDirty) {
+            applyDraftsIfChanged(road, config);
+        }
     }
 
     private void renderTransitionMode(Runnable onHistory) {
@@ -153,6 +174,7 @@ public final class VariableCrossSectionEditor {
             draftTransitionMode = index.get() == 1
                 ? VariableCrossSectionTransitionMode.SMOOTH
                 : VariableCrossSectionTransitionMode.STEP;
+            markDraftsDirty();
         }
     }
 
@@ -249,8 +271,13 @@ public final class VariableCrossSectionEditor {
             if (onHistory != null) {
                 onHistory.run();
             }
-            drafts.add(StationDraft.defaultEntry(road, config, roadLength, drafts, playheadStation));
-            selectIndex(drafts.size() - 1, true);
+            StationDraft added = StationDraft.defaultEntry(
+                road, config, roadLength, drafts, playheadStation, templateDraftForAdd(playheadStation));
+            drafts.add(added);
+            selectedIndex = drafts.size() - 1;
+            sortDraftsKeepingSelection();
+            selectIndex(selectedIndex, true);
+            markDraftsDirty();
             applyDraftsIfChanged(road, config);
         }
         ImGui.sameLine(0f, spacing);
@@ -322,22 +349,34 @@ public final class VariableCrossSectionEditor {
         float worldPlayhead = (float) RoadLengthDisplay.canvasToBlocks(
             playheadStation, lengthNetwork, lengthRoad, lengthCoordinates);
         worldPlayhead = Math.clamp(worldPlayhead, 0f, worldMax);
+        float avail = ImGui.getContentRegionAvailX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float inputW = Math.clamp(avail * 0.28f, 64f, 96f);
+        float sliderW = Math.max(48f, avail - spacing - inputW);
         float[] station = {worldPlayhead};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat("##vcs_station_slider", station, 0, worldMax, RoadUiFormat.SLIDER_METERS);
+        ImGui.setNextItemWidth(sliderW);
+        boolean sliderChanged = ImGui.sliderFloat(
+            "##vcs_station_slider", station, 0, worldMax, RoadUiFormat.SLIDER_METERS);
         boolean sliderActive = ImGui.isItemActive();
-        boolean sliderActivated = ImGui.isItemActivated();
-        playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
-            station[0], lengthNetwork, lengthRoad, lengthCoordinates);
-        playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        if (sliderChanged) {
+            playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
+                station[0], lengthNetwork, lengthRoad, lengthCoordinates);
+            playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        }
 
         boolean moveSelected = ImGui.getIO().getKeyShift();
-        if (sliderActivated && moveSelected && onHistory != null) {
-            onHistory.run();
-        }
         if (sliderActive && moveSelected && index >= 0 && index < drafts.size()) {
-            // Shift+拖：移动选中桩号标记。
-            drafts.get(index).station = playheadStation;
+            // 首次进入移动模式即压检查点（含拖动中途才按 Shift）。
+            if (!stationMoveCheckpointPushed) {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                stationMoveCheckpointPushed = true;
+            }
+            if (sliderChanged || drafts.get(index).station != playheadStation) {
+                drafts.get(index).station = playheadStation;
+                markDraftsDirty();
+            }
         } else if (sliderActive && !moveSelected) {
             // 普通拖：播放头 scrub；选中控制该区间的桩号，右侧预览/参数跟着变（标记位置不变）。
             int owner = controllingDraftIndex(playheadStation);
@@ -345,13 +384,52 @@ public final class VariableCrossSectionEditor {
                 selectIndex(owner, false);
             }
         }
+        if (!sliderActive && stationMoveCheckpointPushed) {
+            sortDraftsKeepingSelection();
+            markDraftsDirty();
+            applyDraftsIfChanged(road, config);
+            stationMoveCheckpointPushed = false;
+        }
         index = selectedIndex;
         // 桩号标记固定在各 draft.station；播放头由滑块抓手表示。
         drawStationMarkersOnSlider(roadLength, chainageDisplay);
         if (ImGui.isItemHovered() && !sliderActive) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_playhead_hint"));
         }
-        // 桩号/W/L 摘要已在左侧列表展示，滑条下不再重复。
+
+        ImGui.sameLine(0f, spacing);
+        float worldStationValue = Math.clamp(
+            (float) RoadLengthDisplay.canvasToBlocks(
+                playheadStation, lengthNetwork, lengthRoad, lengthCoordinates),
+            0f,
+            worldMax);
+        // 输入框未激活时跟随播放头；激活期间保留缓冲，避免打断键入。
+        if (!stationInputActive) {
+            stationInputBuffer.set(worldStationValue);
+        }
+        ImGui.setNextItemWidth(inputW);
+        boolean stationInputChanged = ImGui.inputFloat(
+            "##vcs_station_input", stationInputBuffer, 0f, 0f, "%.2f");
+        stationInputActive = ImGui.isItemActive();
+        // 聚焦时先压检查点，再应用数值编辑（与 Shift+拖的“改前快照”一致）。
+        if (ImGui.isItemActivated() && onHistory != null) {
+            onHistory.run();
+        }
+        if (stationInputChanged && index >= 0 && index < drafts.size()) {
+            float canvasStation = (float) RoadLengthDisplay.blocksToCanvas(
+                Math.clamp(stationInputBuffer.get(), 0f, worldMax),
+                lengthNetwork, lengthRoad, lengthCoordinates);
+            canvasStation = Math.clamp(canvasStation, 0f, canvasMax);
+            playheadStation = canvasStation;
+            drafts.get(index).station = canvasStation;
+            sortDraftsKeepingSelection();
+            markDraftsDirty();
+            applyDraftsIfChanged(road, config);
+            index = selectedIndex;
+        }
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(PlotI18n.tr("plugin.road.variable_cross_section_station"));
+        }
 
         if (index >= 0 && index < drafts.size()) {
             String validation = validateDraft(drafts.get(index), drafts, index, roadLength);
@@ -378,6 +456,7 @@ public final class VariableCrossSectionEditor {
         } else {
             selectIndex(Math.min(index, drafts.size() - 1), true);
         }
+        markDraftsDirty();
         applyDraftsIfChanged(road, config);
     }
 
@@ -461,7 +540,8 @@ public final class VariableCrossSectionEditor {
         if (cachedMutator == null || cachedMutatorDraft != draft.crossSectionDraft) {
             cachedMutator = CrossSectionDraftMutator.forDraftWithHistory(
                 draft.crossSectionDraft,
-                onHistory);
+                onHistory,
+                this::markDraftsDirty);
             cachedMutatorDraft = draft.crossSectionDraft;
             detailPanel.invalidate();
         }
@@ -478,6 +558,35 @@ public final class VariableCrossSectionEditor {
         if (syncPlayhead && index >= 0 && index < drafts.size()) {
             playheadStation = drafts.get(index).station;
         }
+    }
+
+    /** 按桩号升序重排 drafts，并保持 selectedIndex 指向同一条 StationDraft。 */
+    void sortDraftsKeepingSelection() {
+        if (drafts.size() <= 1) {
+            return;
+        }
+        StationDraft selected = selectedIndex >= 0 && selectedIndex < drafts.size()
+            ? drafts.get(selectedIndex)
+            : null;
+        drafts.sort(Comparator.comparingDouble(d -> d.station));
+        if (selected != null) {
+            int found = drafts.indexOf(selected);
+            selectedIndex = found >= 0 ? found : Math.min(selectedIndex, drafts.size() - 1);
+        }
+    }
+
+    /**
+     * 新建桩号的断面模板：优先播放头所在区间（阶梯语义），否则当前选中桩号，再否则 null（道路默认）。
+     */
+    private StationDraft templateDraftForAdd(float playhead) {
+        int owner = controllingDraftIndex(playhead);
+        if (owner >= 0 && owner < drafts.size()) {
+            return drafts.get(owner);
+        }
+        if (selectedIndex >= 0 && selectedIndex < drafts.size()) {
+            return drafts.get(selectedIndex);
+        }
+        return null;
     }
 
     private void clampSelection() {
@@ -529,6 +638,7 @@ public final class VariableCrossSectionEditor {
         drafts.clear();
         cachedMutator = null;
         cachedMutatorDraft = null;
+        draftsDirty = false;
         detailPanel.invalidate();
         if (road.getVariableCrossSections() == null) {
             draftTransitionMode = VariableCrossSectionTransitionMode.STEP;
@@ -553,7 +663,12 @@ public final class VariableCrossSectionEditor {
     }
 
     private void applyDraftsIfChanged(Road road, RoadSystemConfig config) {
-        if (hasInvalidDrafts()) return;
+        if (!draftsDirty) {
+            return;
+        }
+        if (hasInvalidDrafts()) {
+            return;
+        }
         List<StationCrossSection> built = buildStations(drafts, config);
         List<StationCrossSection> current = road.getVariableCrossSections() != null
             ? road.getVariableCrossSections().sortedStations()
@@ -564,6 +679,7 @@ public final class VariableCrossSectionEditor {
         boolean stationsUnchanged = stationsEqual(current, built, config);
         boolean modeUnchanged = currentMode == draftTransitionMode;
         if (stationsUnchanged && modeUnchanged) {
+            draftsDirty = false;
             return;
         }
         if (built.isEmpty()) {
@@ -572,6 +688,7 @@ public final class VariableCrossSectionEditor {
             road.setVariableCrossSections(new RoadVariableCrossSections(built, draftTransitionMode));
         }
         syncedSections = road.getVariableCrossSections();
+        draftsDirty = false;
     }
 
     public boolean hasInvalidDrafts() {
@@ -694,11 +811,12 @@ public final class VariableCrossSectionEditor {
         }
 
         static StationDraft defaultEntry(Road road, RoadSystemConfig config, double roadLength) {
-            return defaultEntry(road, config, roadLength, List.of(), Float.NaN);
+            return defaultEntry(road, config, roadLength, List.of(), Float.NaN, null);
         }
 
         /**
          * 新建桩号：优先播放头，否则落在现有最大桩号之后，并避开已占用位置。
+         * 断面优先复制 {@code template}（播放头区间/选中桩号），否则用道路默认断面。
          */
         static StationDraft defaultEntry(
                 Road road,
@@ -706,9 +824,26 @@ public final class VariableCrossSectionEditor {
                 double roadLength,
                 List<StationDraft> existing,
                 float preferredStation) {
+            return defaultEntry(road, config, roadLength, existing, preferredStation, null);
+        }
+
+        static StationDraft defaultEntry(
+                Road road,
+                RoadSystemConfig config,
+                double roadLength,
+                List<StationDraft> existing,
+                float preferredStation,
+                StationDraft template) {
             StationDraft draft = new StationDraft();
             draft.station = nextFreeStation(roadLength, existing, preferredStation);
-            draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(road.getCrossSection(), config);
+            if (template != null) {
+                RoadCrossSection seed = rebuildStationCrossSection(template);
+                draft.originalCrossSection = seed.copy();
+                draft.originalDraft = CrossSectionDraft.fromCrossSection(seed.copy(), config);
+                draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(seed, config);
+            } else {
+                draft.crossSectionDraft = CrossSectionDraft.fromCrossSection(road.getCrossSection(), config);
+            }
             return draft;
         }
 

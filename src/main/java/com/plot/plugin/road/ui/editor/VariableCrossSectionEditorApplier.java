@@ -82,6 +82,12 @@ public final class VariableCrossSectionEditorApplier {
                 applied++;
                 continue;
             }
+            // 源道路直接写回副本，避免经映射误改自身桩号；与 preview 计数口径一致。
+            if (targetId.equals(sourceRoadId)) {
+                liveRoad.setVariableCrossSections(source.copy());
+                applied++;
+                continue;
+            }
             double targetLength = RoadStationing.canonicalLength(live, liveRoad);
             BatchStationDataMapper.MapResult<RoadVariableCrossSections> mapped =
                 BatchStationDataMapper.mapVariableCrossSections(source, sourceLength, targetLength, mode);
@@ -117,6 +123,7 @@ public final class VariableCrossSectionEditorApplier {
         int applied = 0;
         for (String targetId : targetRoadIds) {
             if (targetId.equals(sourceRoad.getId())) {
+                applied++;
                 continue;
             }
             Road target = network.getRoad(targetId);

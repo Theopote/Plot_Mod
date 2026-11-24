@@ -65,11 +65,42 @@ class BatchDesignerApplyTest {
 
         assertEquals(0, report.droppedItems());
         assertEquals(0, report.skippedTargets());
+        assertEquals(2, report.appliedTargets());
         var stations = live.getRoad(b.getId()).getVariableCrossSections().sortedStations();
         assertEquals(3, stations.size());
         assertEquals(8.0, stations.get(0).getStation(), 1e-6);
         assertEquals(24.0, stations.get(1).getStation(), 1e-6);
         assertEquals(36.0, stations.get(2).getStation(), 1e-6);
+        // 源道路应按工作副本原样写回，不被映射改写桩号。
+        var sourceStations = live.getRoad(a.getId()).getVariableCrossSections().sortedStations();
+        assertEquals(20.0, sourceStations.get(0).getStation(), 1e-6);
+        assertEquals(60.0, sourceStations.get(1).getStation(), 1e-6);
+        assertEquals(90.0, sourceStations.get(2).getStation(), 1e-6);
+    }
+
+    @Test
+    void variableCrossSectionPreviewCountsSourceLikeApply() {
+        RoadNetwork live = networkWithRoads(100.0, 40.0);
+        Road a = named(live, "a");
+        Road b = named(live, "b");
+        RoadNetwork working = live.snapshot();
+        RoadVariableCrossSections source = new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(20.0, new RoadCrossSection()),
+            StationCrossSection.at(60.0, new RoadCrossSection())
+        ));
+        working.getRoad(a.getId()).setVariableCrossSections(source);
+
+        Set<String> targets = Set.of(a.getId(), b.getId());
+        BatchApplyReport preview = VariableCrossSectionEditorApplier.preview(
+            working, working.getRoad(a.getId()), source, targets, BatchStationMappingMode.PROPORTIONAL);
+        BatchApplyReport applied = VariableCrossSectionEditorApplier.applyToLive(
+            live, working, a.getId(), targets, BatchStationMappingMode.PROPORTIONAL);
+
+        assertEquals(applied.appliedTargets(), preview.appliedTargets());
+        assertEquals(applied.skippedTargets(), preview.skippedTargets());
+        assertEquals(applied.droppedItems(), preview.droppedItems());
+        assertEquals(applied.clampedItems(), preview.clampedItems());
+        assertEquals(2, preview.appliedTargets());
     }
 
     @Test

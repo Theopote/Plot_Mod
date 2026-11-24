@@ -2,9 +2,8 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.ChainageDisplayMode;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.VariableCrossSectionEditor;
@@ -19,9 +18,12 @@ import java.util.Set;
 public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloatingEditor {
 
     private final VariableCrossSectionEditor editor = new VariableCrossSectionEditor();
-    private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     private java.util.List<String> targetRoadIds = java.util.List.of();
     private BatchStationMappingMode batchMappingMode = BatchStationMappingMode.PROPORTIONAL;
+    /** 多选映射预览：按工作副本断面引用 + 映射模式缓存，避免静止帧重算。 */
+    private BatchApplyReport cachedBatchPreview;
+    private RoadVariableCrossSections cachedPreviewSections;
+    private BatchStationMappingMode cachedPreviewMode;
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -64,6 +66,7 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
         editor.reset();
+        invalidateBatchPreviewCache();
         LinkedHashSet<String> selected = new LinkedHashSet<>(ctx.networkManager().getSelectedRoadIds());
         if (selected.isEmpty() && roadId != null && !roadId.isBlank()) {
             selected.add(roadId);
@@ -98,22 +101,14 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
             if (previous != batchMappingMode) {
                 lossyBatchAcknowledged = false;
             }
-            BatchApplyReport preview = BatchStationMappingUi.previewVariable(
-                session.workingNetwork(),
-                road,
-                road.getVariableCrossSections(),
-                new LinkedHashSet<>(targetRoadIds),
-                batchMappingMode);
+            BatchApplyReport preview = cachedOrComputeBatchPreview(road);
             BatchStationMappingUi.renderPreviewReport(preview);
             ImGui.spacing();
         }
-        ChainageDisplayContext chainageDisplay = null;
-        if (RoadStationing.isStationable(session.workingNetwork(), road)) {
-            chainageDisplay = new ChainageDisplayContext(
-                RoadStationing.canonicalLength(session.workingNetwork(), road),
-                chainageDisplayMode,
-                RoadStationFormat.DISTANCE_METERS);
-        }
+        // 与中心线设计器一致：只读展示桩号，固定自起点递增（无切换 UI）。
+        ChainageDisplayContext chainageDisplay = RoadStationing.isStationable(session.workingNetwork(), road)
+            ? ChainageDisplayContext.fromStart(RoadStationing.canonicalLength(session.workingNetwork(), road))
+            : null;
         editor.render(
             ctx,
             session.workingNetwork(),
@@ -131,12 +126,31 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
         if (road == null || road.getVariableCrossSections() == null) {
             return false;
         }
-        return BatchStationMappingUi.previewVariable(
+        return cachedOrComputeBatchPreview(road).isLossy();
+    }
+
+    private BatchApplyReport cachedOrComputeBatchPreview(Road road) {
+        RoadVariableCrossSections sections = road.getVariableCrossSections();
+        if (cachedBatchPreview != null
+                && cachedPreviewSections == sections
+                && cachedPreviewMode == batchMappingMode) {
+            return cachedBatchPreview;
+        }
+        cachedBatchPreview = BatchStationMappingUi.previewVariable(
             session.workingNetwork(),
             road,
-            road.getVariableCrossSections(),
+            sections,
             new LinkedHashSet<>(targetRoadIds),
-            batchMappingMode).isLossy();
+            batchMappingMode);
+        cachedPreviewSections = sections;
+        cachedPreviewMode = batchMappingMode;
+        return cachedBatchPreview;
+    }
+
+    private void invalidateBatchPreviewCache() {
+        cachedBatchPreview = null;
+        cachedPreviewSections = null;
+        cachedPreviewMode = null;
     }
 
     @Override
@@ -159,12 +173,21 @@ public final class VariableCrossSectionDesignerWindow extends AbstractRoadFloati
     protected void restoreSession() {
         super.restoreSession();
         editor.reset();
+        invalidateBatchPreviewCache();
+        lossyBatchAcknowledged = false;
+    }
+
+    @Override
+    protected void onWorkingNetworkReplaced() {
+        editor.reset();
+        invalidateBatchPreviewCache();
         lossyBatchAcknowledged = false;
     }
 
     @Override
     public void discard(RoadUiContext ctx) {
         editor.reset();
+        invalidateBatchPreviewCache();
         super.discard(ctx);
     }
 }

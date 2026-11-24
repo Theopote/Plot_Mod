@@ -50,7 +50,8 @@ final class RoadLampPreview {
         float right = left + width;
         float bottom = top + height;
         // 与隧道预览同色边框，直角无圆角。
-        draw.addRectFilled(left, top, right, bottom, PluginUiColors.MAP_BG, 0f);
+        // 与横断 2D 预览底色一致（PANEL_BG_DARK / 0xFF141414）。
+        draw.addRectFilled(left, top, right, bottom, PluginUiColors.PANEL_BG_DARK, 0f);
         draw.addRect(left, top, right, bottom, PluginUiColors.PANEL_BORDER, 0f, 0, 1f);
         float angle = (float) Math.toRadians(yaw);
         float sine = (float) Math.sin(angle);

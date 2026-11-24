@@ -6,9 +6,12 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VariableCrossSectionEditorTest {
@@ -71,6 +74,98 @@ class VariableCrossSectionEditorTest {
             road, config, 100.0, List.of(first, second), first.station);
     assertTrue(Math.abs(third.station - first.station) > 1e-4f);
     assertTrue(Math.abs(third.station - second.station) > 1e-4f);
+  }
+
+  @Test
+  void defaultEntryCopiesTemplateCrossSection() {
+    RoadSystemConfig config = new RoadSystemConfig("road_system");
+    var road = new com.plot.plugin.road.model.Road("r");
+    VariableCrossSectionEditor.StationDraft template = draftAt(20f, 14, config);
+    VariableCrossSectionEditor.StationDraft added =
+        VariableCrossSectionEditor.StationDraft.defaultEntry(
+            road, config, 100.0, List.of(template), 50f, template);
+    assertEquals(14, added.crossSectionDraft.width());
+    assertTrue(Math.abs(added.station - template.station) > 1e-4f);
+  }
+
+  @Test
+  void applyDraftsIfChangedSkipsWhenNotDirty() throws Exception {
+    RoadSystemConfig config = new RoadSystemConfig("road_system");
+    var road = new com.plot.plugin.road.model.Road("r");
+    road.setVariableCrossSections(new com.plot.plugin.road.model.section.RoadVariableCrossSections(List.of(
+        StationCrossSection.at(10.0, sectionWithWidth(8)),
+        StationCrossSection.at(40.0, sectionWithWidth(10)))));
+    var original = road.getVariableCrossSections();
+    VariableCrossSectionEditor editor = new VariableCrossSectionEditor();
+    invoke(editor, "syncDrafts", new Class<?>[]{
+        com.plot.plugin.road.model.Road.class, RoadSystemConfig.class}, road, config);
+    draftsOf(editor).getFirst().station = 15f;
+
+    invoke(editor, "applyDraftsIfChanged", new Class<?>[]{
+        com.plot.plugin.road.model.Road.class, RoadSystemConfig.class}, road, config);
+
+    assertSame(original, road.getVariableCrossSections());
+    assertEquals(10.0, road.getVariableCrossSections().sortedStations().getFirst().getStation());
+    assertFalse(editor.isDraftsDirty());
+  }
+
+  @Test
+  void applyDraftsIfChangedWritesWhenDirty() throws Exception {
+    RoadSystemConfig config = new RoadSystemConfig("road_system");
+    var road = new com.plot.plugin.road.model.Road("r");
+    road.setVariableCrossSections(new com.plot.plugin.road.model.section.RoadVariableCrossSections(List.of(
+        StationCrossSection.at(10.0, sectionWithWidth(8)),
+        StationCrossSection.at(40.0, sectionWithWidth(10)))));
+    VariableCrossSectionEditor editor = new VariableCrossSectionEditor();
+    invoke(editor, "syncDrafts", new Class<?>[]{
+        com.plot.plugin.road.model.Road.class, RoadSystemConfig.class}, road, config);
+    draftsOf(editor).getFirst().station = 15f;
+    editor.markDraftsDirty();
+
+    invoke(editor, "applyDraftsIfChanged", new Class<?>[]{
+        com.plot.plugin.road.model.Road.class, RoadSystemConfig.class}, road, config);
+
+    assertEquals(15.0, road.getVariableCrossSections().sortedStations().getFirst().getStation());
+    assertFalse(editor.isDraftsDirty());
+  }
+
+  @Test
+  void sortDraftsKeepingSelectionReordersAndKeepsIdentity() throws Exception {
+    RoadSystemConfig config = new RoadSystemConfig("road_system");
+    VariableCrossSectionEditor editor = new VariableCrossSectionEditor();
+    List<VariableCrossSectionEditor.StationDraft> drafts = draftsOf(editor);
+    VariableCrossSectionEditor.StationDraft late = draftAt(120f, 14, config);
+    VariableCrossSectionEditor.StationDraft mid = draftAt(50f, 10, config);
+    VariableCrossSectionEditor.StationDraft early = draftAt(20f, 8, config);
+    drafts.add(late);
+    drafts.add(mid);
+    drafts.add(early);
+    Field selectedIndex = VariableCrossSectionEditor.class.getDeclaredField("selectedIndex");
+    selectedIndex.setAccessible(true);
+    selectedIndex.setInt(editor, 1); // mid @ 50m
+
+    editor.sortDraftsKeepingSelection();
+
+    assertEquals(20f, drafts.get(0).station, 1e-4f);
+    assertEquals(50f, drafts.get(1).station, 1e-4f);
+    assertEquals(120f, drafts.get(2).station, 1e-4f);
+    assertEquals(1, selectedIndex.getInt(editor));
+    assertSame(mid, drafts.get(1));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<VariableCrossSectionEditor.StationDraft> draftsOf(
+      VariableCrossSectionEditor editor) throws Exception {
+    Field field = VariableCrossSectionEditor.class.getDeclaredField("drafts");
+    field.setAccessible(true);
+    return (List<VariableCrossSectionEditor.StationDraft>) field.get(editor);
+  }
+
+  private static void invoke(Object target, String name, Class<?>[] types, Object... arguments)
+      throws Exception {
+    var method = target.getClass().getDeclaredMethod(name, types);
+    method.setAccessible(true);
+    method.invoke(target, arguments);
   }
 
   private static VariableCrossSectionEditor.StationDraft draftAt(

@@ -46,10 +46,20 @@ public final class CrossSectionDraftMutator {
     }
 
     public static CrossSectionDraftMutator forDraftWithHistory(CrossSectionDraft draft, Runnable onHistory) {
+        return forDraftWithHistory(draft, onHistory, null);
+    }
+
+    /**
+     * @param onChanged 字段实际变更后回调（可用于脏标记）；与 {@code onHistory}（激活时压检查点）独立。
+     */
+    public static CrossSectionDraftMutator forDraftWithHistory(
+            CrossSectionDraft draft,
+            Runnable onHistory,
+            Runnable onChanged) {
         CrossSectionDraftFieldHooks hooks = onHistory != null
             ? new DraftHistoryHooks(onHistory)
             : CrossSectionDraftFieldHooks.NONE;
-        return new CrossSectionDraftMutator(draft, null, hooks, null, null);
+        return new CrossSectionDraftMutator(draft, onChanged, hooks, null, null);
     }
 
     public static CrossSectionDraftMutator forRoad(
