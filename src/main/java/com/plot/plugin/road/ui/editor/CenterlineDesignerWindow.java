@@ -121,13 +121,12 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         selectedWorkingEdgeId = resolveWorkingEdgeId(working, road, selectedWorkingEdgeId);
         RoadEdge primaryEdge = working.getEdge(selectedWorkingEdgeId);
 
-        ChainageDisplayContext chainageDisplay = null;
-        if (RoadStationing.isStationable(working, road)) {
-            chainageDisplay = new ChainageDisplayContext(
+        final ChainageDisplayContext chainageDisplay = RoadStationing.isStationable(working, road)
+            ? new ChainageDisplayContext(
                 RoadStationing.canonicalLength(working, road),
                 chainageDisplayMode,
-                RoadStationFormat.DISTANCE_METERS);
-        }
+                RoadStationFormat.DISTANCE_METERS)
+            : null;
 
         // 上路级平面线形：仅在已定义 HA 时展示；空状态（折线中心线）对拾取建路是常态，不占版面。
         if (road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty()) {
@@ -191,10 +190,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             true,
             ImGuiWindowFlags.NoScrollbar);
         try {
-            RoadEdge selected = working.getEdge(selectedWorkingEdgeId);
-            if (selected == null) {
-                selected = primaryEdge;
-            }
+            RoadEdge resolved = working.getEdge(selectedWorkingEdgeId);
+            final RoadEdge selected = resolved != null ? resolved : primaryEdge;
             centerlineEditPanel.renderPinnedPreview(ctx, selected);
             ImGui.spacing();
             float scrollH = Math.max(80f, ImGui.getContentRegionAvailY());
