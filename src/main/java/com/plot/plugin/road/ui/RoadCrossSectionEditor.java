@@ -4,6 +4,7 @@ package com.plot.plugin.road.ui;
 import com.plot.ui.component.UIUtils;
 import com.plot.plugin.ui.PluginUiColors;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
@@ -223,12 +224,16 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Objects.hashCode(road.getEffectiveCutSlopeMaterial(config));
         h = 31 * h + Objects.hashCode(road.getEffectiveRetainingWallMaterial(config));
         h = 31 * h + Objects.hashCode(road.getStreetlightSpacing());
-        h = 31 * h + Objects.hashCode(road.getMaterial());
-        h = 31 * h + Objects.hashCode(road.getSidewalkMaterial());
-        h = 31 * h + Objects.hashCode(road.getShoulderMaterial());
-        h = 31 * h + Objects.hashCode(road.getBikeLaneMaterial());
-        h = 31 * h + Objects.hashCode(road.getMedianMaterial());
-        h = 31 * h + Objects.hashCode(road.getMarkingMaterial());
+        // 用 resolve 后的有效材质内容哈希：继承全局时改配置也会刷新；勿用 MaterialMix 身份哈希。
+        ResolvedCrossSection effective = road.getCrossSection() != null
+            ? road.getCrossSection().resolve(config)
+            : ResolvedCrossSection.fromConfig(config);
+        h = 31 * h + materialMixFingerprint(effective.carriagewayMaterial);
+        h = 31 * h + Objects.hashCode(effective.sidewalkMaterial);
+        h = 31 * h + Objects.hashCode(effective.shoulderMaterial);
+        h = 31 * h + Objects.hashCode(effective.bikeLaneMaterial);
+        h = 31 * h + Objects.hashCode(effective.medianMaterial);
+        h = 31 * h + Objects.hashCode(effective.markingMaterial);
         for (int w : carriageway.resolveLaneWidths()) {
             h = 31 * h + w;
         }
@@ -285,7 +290,7 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Float.floatToIntBits(resolved.fillSlopeRatio);
         h = 31 * h + Float.floatToIntBits(resolved.cutSlopeRatio);
         h = 31 * h + Float.floatToIntBits(maxSlope);
-        h = 31 * h + Objects.hashCode(resolved.carriagewayMaterial);
+        h = 31 * h + materialMixFingerprint(resolved.carriagewayMaterial);
         h = 31 * h + Objects.hashCode(resolved.sidewalkMaterial);
         h = 31 * h + Objects.hashCode(resolved.shoulderMaterial);
         h = 31 * h + Objects.hashCode(resolved.bikeLaneMaterial);
@@ -325,7 +330,7 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Float.floatToIntBits(draft.fillSlopeRatio());
         h = 31 * h + Float.floatToIntBits(draft.cutSlopeRatio());
         h = 31 * h + Float.floatToIntBits(draft.maxSlope());
-        h = 31 * h + Objects.hashCode(draft.material());
+        h = 31 * h + materialMixFingerprint(draft.material());
         h = 31 * h + Objects.hashCode(draft.sidewalkMaterial());
         h = 31 * h + Objects.hashCode(draft.shoulderMaterial());
         h = 31 * h + Objects.hashCode(draft.bikeLaneMaterial());
@@ -337,6 +342,17 @@ public final class RoadCrossSectionEditor {
         for (int w : draft.resolveLaneWidths()) {
             h = 31 * h + w;
         }
+        return h;
+    }
+
+    /** 按主/点缀材质与比例哈希，避免 {@link MaterialMix} 无 equals/hashCode 时用身份导致指纹不刷新。 */
+    static long materialMixFingerprint(MaterialMix mix) {
+        if (mix == null) {
+            return 0L;
+        }
+        long h = Objects.hashCode(mix.getPrimaryMaterial());
+        h = 31 * h + Objects.hashCode(mix.getAccentMaterial());
+        h = 31 * h + Float.floatToIntBits(mix.getAccentRatio());
         return h;
     }
 

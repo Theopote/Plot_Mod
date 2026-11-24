@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadsideEdgeMode;
@@ -480,8 +481,9 @@ public final class RoadCrossSectionPreviewRenderer {
         return x + w;
     }
 
-    private static void drawVoxelFace(ImDrawList draw, float x0, float y0, float x1, float y1, int color) {
-        draw.addRectFilled(x0, y0, x1, y1, color);
+    private static void drawVoxelFace(ImDrawList draw, float x0, float y0, float x1, float y1, int argb) {
+        // colorForMaterial / ARGB 字面量 → ImDrawList ABGR（与 3D RoadLampPreview 一致）。
+        draw.addRectFilled(x0, y0, x1, y1, PluginUiColors.argbToAbgr(argb));
         if (x1 - x0 >= 3f && y1 - y0 >= 3f) {
             draw.addLine(x0 + 1, y0 + 1, x1 - 1, y0 + 1, 0x45FFFFFF, 1f);
             draw.addLine(x1 - 1, y0 + 1, x1 - 1, y1 - 1, 0x50000000, 1f);

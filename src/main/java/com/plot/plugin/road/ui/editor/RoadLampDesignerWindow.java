@@ -924,11 +924,7 @@ final class RoadLampDesignerWindow extends AbstractRoadFloatingEditor {
 
     /** BlockColorRegistry 为 ARGB；ImGui draw list 为 ABGR。 */
     private static int toImGuiAbgr(int argb) {
-        int a = (argb >>> 24) & 255;
-        int r = (argb >> 16) & 255;
-        int g = (argb >> 8) & 255;
-        int b = argb & 255;
-        return (a << 24) | (b << 16) | (g << 8) | r;
+        return com.plot.plugin.ui.PluginUiColors.argbToAbgr(argb);
     }
 
     private static boolean isRegisteredLight(RoadLampStyle.Light light) {

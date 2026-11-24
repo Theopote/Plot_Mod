@@ -6,6 +6,8 @@ import imgui.ImColor;
  * 插件 ImGui 文字/控件颜色（ABGR，经 {@link ImColor#rgba} 打包）。
  * <p>
  * 勿使用超过 32 位的十六进制字面量（如 {@code 0xFF808080FFL}），强转 int 会截断最高字节导致颜色错误。
+ * {@link com.plot.core.material.BlockColorRegistry} 等返回 ARGB；写入 ImDrawList 前请
+ * {@link #argbToAbgr(int)}。
  */
 public final class PluginUiColors {
     /** 次要说明、空状态提示 */
@@ -50,5 +52,14 @@ public final class PluginUiColors {
     public static final int DELETE_ACTIVE = ImColor.rgba(204, 0, 0, 255);
 
     private PluginUiColors() {
+    }
+
+    /** BlockColorRegistry / 手写 0xAARRGGBB → ImDrawList 用的 ABGR。 */
+    public static int argbToAbgr(int argb) {
+        int a = (argb >>> 24) & 255;
+        int r = (argb >> 16) & 255;
+        int g = (argb >> 8) & 255;
+        int b = argb & 255;
+        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 }

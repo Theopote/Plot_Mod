@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -9,6 +10,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.ui.PluginUiColors;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -68,6 +70,41 @@ class RoadCrossSectionEditorPreviewFingerprintTest {
         before = RoadCrossSectionEditor.previewFingerprint(draft);
         draft.setRetainingWallMaterial("minecraft:polished_andesite");
         assertNotEquals(before, RoadCrossSectionEditor.previewFingerprint(draft));
+    }
+
+    @Test
+    void roadFingerprintTracksInheritedConfigMaterial() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setSelectedMaterial(MaterialMix.single("minecraft:gray_concrete"));
+        Road road = new Road("r1");
+        road.setMaterial((MaterialMix) null);
+        long before = RoadCrossSectionEditor.previewFingerprint(road, config);
+        config.setSelectedMaterial(MaterialMix.single("minecraft:black_concrete"));
+        assertNotEquals(
+            before,
+            RoadCrossSectionEditor.previewFingerprint(road, config),
+            "inherited carriageway must refresh preview when global material changes");
+    }
+
+    @Test
+    void materialMixFingerprintUsesContentNotIdentity() {
+        MaterialMix left = MaterialMix.single("minecraft:yellow_concrete");
+        MaterialMix right = MaterialMix.single("minecraft:yellow_concrete");
+        assertEquals(
+            RoadCrossSectionEditor.materialMixFingerprint(left),
+            RoadCrossSectionEditor.materialMixFingerprint(right));
+        right.setPrimaryMaterial("minecraft:cyan_concrete");
+        assertNotEquals(
+            RoadCrossSectionEditor.materialMixFingerprint(left),
+            RoadCrossSectionEditor.materialMixFingerprint(right));
+    }
+
+    @Test
+    void argbToAbgrSwapsRedAndBlue() {
+        int argb = 0xFFF1AF15; // yellow_concrete registry
+        int abgr = PluginUiColors.argbToAbgr(argb);
+        assertEquals(0xFF15AFF1, abgr);
+        assertEquals(argb, PluginUiColors.argbToAbgr(abgr), "swap is involution");
     }
 
     @Test
