@@ -258,6 +258,33 @@ public final class CrossSectionDraftMutator {
         notifyChanged();
     }
 
+    public void setShoulderMaterial(String shoulderMaterial) {
+        String safe = sanitizeStoredMaterial(shoulderMaterial, MaterialRole.SHOULDER);
+        draft.setShoulderMaterial(safe);
+        if (road != null) {
+            road.setShoulderMaterial(safe);
+        }
+        notifyChanged();
+    }
+
+    public void setBikeLaneMaterial(String bikeLaneMaterial) {
+        String safe = sanitizeStoredMaterial(bikeLaneMaterial, MaterialRole.BIKE_LANE);
+        draft.setBikeLaneMaterial(safe);
+        if (road != null) {
+            road.setBikeLaneMaterial(safe);
+        }
+        notifyChanged();
+    }
+
+    public void setMedianMaterial(String medianMaterial) {
+        String safe = sanitizeStoredMaterial(medianMaterial, MaterialRole.MEDIAN);
+        draft.setMedianMaterial(safe);
+        if (road != null) {
+            road.setMedianMaterial(safe);
+        }
+        notifyChanged();
+    }
+
     public void setIncludeMedian(boolean includeMedian) {
         draft.setIncludeMedian(includeMedian);
         if (includeMedian) {

@@ -283,6 +283,9 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Objects.hashCode(road.getStreetlightSpacing());
         h = 31 * h + Objects.hashCode(road.getMaterial());
         h = 31 * h + Objects.hashCode(road.getSidewalkMaterial());
+        h = 31 * h + Objects.hashCode(road.getShoulderMaterial());
+        h = 31 * h + Objects.hashCode(road.getBikeLaneMaterial());
+        h = 31 * h + Objects.hashCode(road.getMedianMaterial());
         h = 31 * h + Objects.hashCode(road.getMarkingMaterial());
         for (int w : carriageway.resolveLaneWidths()) {
             h = 31 * h + w;
@@ -330,6 +333,9 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Float.floatToIntBits(draft.maxSlope());
         h = 31 * h + Objects.hashCode(draft.material());
         h = 31 * h + Objects.hashCode(draft.sidewalkMaterial());
+        h = 31 * h + Objects.hashCode(draft.shoulderMaterial());
+        h = 31 * h + Objects.hashCode(draft.bikeLaneMaterial());
+        h = 31 * h + Objects.hashCode(draft.medianMaterial());
         h = 31 * h + Objects.hashCode(draft.markingMaterial());
         h = 31 * h + Objects.hashCode(draft.fillSlopeMaterial());
         h = 31 * h + Objects.hashCode(draft.cutSlopeMaterial());
@@ -341,7 +347,7 @@ public final class RoadCrossSectionEditor {
     }
 
     /** 迷你预览：有可变断面时用道路中点桩号的解析结果，否则道路默认断面。 */
-    static ResolvedCrossSection resolvePreviewCrossSection(
+    public static ResolvedCrossSection resolvePreviewCrossSection(
             RoadNetwork network,
             Road road,
             RoadSystemConfig config) {

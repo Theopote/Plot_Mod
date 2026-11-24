@@ -1,5 +1,6 @@
 package com.plot.plugin.road;
 
+import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.BridgePierStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
@@ -1014,7 +1015,10 @@ public final class RoadCrossSectionPreviewRenderer {
         if (cached != null) {
             return cached;
         }
-        int color = resolveMaterialColor(material, fallback);
+        // 优先方块色表（与路灯三维预览一致），启发式仅作未知 id 兜底。
+        String blockId = RoadMaterialUtils.resolveBlockId(material);
+        int registry = BlockColorRegistry.colorFor(blockId != null ? blockId : material);
+        int color = (registry & 0x00FFFFFF) != 0 ? registry : resolveMaterialColor(material, fallback);
         if (MATERIAL_COLOR_CACHE.size() < 256) {
             MATERIAL_COLOR_CACHE.put(material, color);
         }

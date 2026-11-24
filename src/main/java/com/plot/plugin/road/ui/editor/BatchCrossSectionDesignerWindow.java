@@ -243,6 +243,30 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
         }
         syncWorkingFromDraft();
         ctx.networkManager().applyBatchEditWithinPendingEdit(openBatchDefaults, workingBatchDefaults, targetRoadIds);
+        applyStripMaterialsFromDraft(ctx);
+    }
+
+    /** BatchEditDefaults 尚无条带材质字段；确认时从缓存草稿写回路网。 */
+    private void applyStripMaterialsFromDraft(RoadUiContext ctx) {
+        if (cachedDraft == null || targetRoadIds.isEmpty()) {
+            return;
+        }
+        var live = ctx.networkManager().getNetwork();
+        for (String id : targetRoadIds) {
+            var road = live.getRoad(id);
+            if (road == null) {
+                continue;
+            }
+            if (cachedDraft.includeShoulder() && cachedDraft.shoulderMaterial() != null) {
+                road.setShoulderMaterial(cachedDraft.shoulderMaterial());
+            }
+            if (cachedDraft.includeBikeLane() && cachedDraft.bikeLaneMaterial() != null) {
+                road.setBikeLaneMaterial(cachedDraft.bikeLaneMaterial());
+            }
+            if (cachedDraft.includeMedian() && cachedDraft.medianMaterial() != null) {
+                road.setMedianMaterial(cachedDraft.medianMaterial());
+            }
+        }
     }
 
     @Override
@@ -270,8 +294,18 @@ public final class BatchCrossSectionDesignerWindow extends AbstractRoadFloatingE
     }
 
     private boolean batchDirty() {
-        return openBatchDefaults != null
-            && workingBatchDefaults != null
-            && !Objects.equals(openBatchDefaults, workingBatchDefaults);
+        if (openBatchDefaults == null || workingBatchDefaults == null) {
+            return false;
+        }
+        if (!Objects.equals(openBatchDefaults, workingBatchDefaults)) {
+            return true;
+        }
+        if (cachedDraft == null) {
+            return false;
+        }
+        CrossSectionDraft opened = CrossSectionDraft.fromBatchDefaults(openBatchDefaults);
+        return !Objects.equals(cachedDraft.shoulderMaterial(), opened.shoulderMaterial())
+            || !Objects.equals(cachedDraft.bikeLaneMaterial(), opened.bikeLaneMaterial())
+            || !Objects.equals(cachedDraft.medianMaterial(), opened.medianMaterial());
     }
 }

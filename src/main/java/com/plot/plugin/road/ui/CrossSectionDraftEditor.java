@@ -557,11 +557,13 @@ public final class CrossSectionDraftEditor {
         if (editor.options.sectionCards()) {
             // 分段 API 由外层卡片调用；整段入口仅用于扁平路径。
             renderPavementMaterials(editor);
+            renderStripMaterials(editor);
             renderSlopeMaterials(editor);
             renderMarkingMaterial(editor);
             return;
         }
         renderPavementMaterials(editor);
+        renderStripMaterials(editor);
         renderSlopeMaterials(editor);
         renderMarkingMaterial(editor);
     }
@@ -597,6 +599,63 @@ public final class CrossSectionDraftEditor {
                 hooks.pushHistoryOnPicker()
             );
             mutator.afterSidewalkMaterialField();
+        }
+    }
+
+    /** 路肩 / 自行车道 / 隔离带材质（随启用状态显示）。 */
+    public static void renderStripMaterials(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderStripMaterials(editor);
+        }
+    }
+
+    private static void renderStripMaterials(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
+        if (draft.includeShoulder()) {
+            final String[] shoulderMaterial = {draft.shoulderMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_shoulder_material",
+                PlotI18n.tr("plugin.road.shoulder_material"),
+                shoulderMaterial[0] != null && !shoulderMaterial[0].isBlank()
+                    ? shoulderMaterial[0]
+                    : "minecraft:gravel",
+                mutator::setShoulderMaterial,
+                hooks.pushHistoryOnPicker()
+            );
+        }
+        if (draft.includeBikeLane()) {
+            final String[] bikeLaneMaterial = {draft.bikeLaneMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_bike_lane_material",
+                PlotI18n.tr("plugin.road.bike_lane_material"),
+                bikeLaneMaterial[0] != null && !bikeLaneMaterial[0].isBlank()
+                    ? bikeLaneMaterial[0]
+                    : ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL,
+                mutator::setBikeLaneMaterial,
+                hooks.pushHistoryOnPicker()
+            );
+        }
+        if (draft.includeMedian()) {
+            final String[] medianMaterial = {draft.medianMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_median_material",
+                PlotI18n.tr("plugin.road.median_material"),
+                medianMaterial[0] != null && !medianMaterial[0].isBlank()
+                    ? medianMaterial[0]
+                    : com.plot.plugin.road.RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL,
+                mutator::setMedianMaterial,
+                hooks.pushHistoryOnPicker()
+            );
         }
     }
 

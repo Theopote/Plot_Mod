@@ -21,14 +21,17 @@ public final class CrossSectionDraft {
     private MaterialMix material;
     private boolean includeShoulder;
     private int shoulderWidth;
+    private String shoulderMaterial;
     private boolean includeSidewalk;
     private int sidewalkWidth;
     private String sidewalkMaterial;
     private boolean includeBikeLane;
     private int bikeLaneWidth;
+    private String bikeLaneMaterial;
     private boolean includeMedian;
     private int medianWidth;
     private int medianHeight = RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
+    private String medianMaterial;
     private int streetlightSpacing;
     private boolean laneDividers;
     private CenterLineStyle centerLineStyle;
@@ -54,14 +57,17 @@ public final class CrossSectionDraft {
         draft.material = config.getSelectedMaterial();
         draft.includeShoulder = config.isIncludeShoulder();
         draft.shoulderWidth = config.getShoulderWidth();
+        draft.shoulderMaterial = config.getFillSlopeMaterial();
         draft.includeSidewalk = config.isIncludeSidewalk();
         draft.sidewalkWidth = config.getSidewalkWidth();
         draft.sidewalkMaterial = config.getSelectedSidewalkMaterial();
         draft.includeBikeLane = config.isIncludeBikeLane();
         draft.bikeLaneWidth = config.getBikeLaneWidth();
+        draft.bikeLaneMaterial = ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL;
         draft.includeMedian = config.isIncludeMedian();
         draft.medianWidth = config.getMedianWidth();
         draft.medianHeight = config.getMedianHeight();
+        draft.medianMaterial = RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL;
         draft.streetlightSpacing = config.getStreetlightSpacing();
         draft.laneDividers = config.isLaneDividers();
         draft.centerLineStyle = config.getCenterLineStyle();
@@ -122,14 +128,17 @@ public final class CrossSectionDraft {
         draft.material = defaults.material();
         draft.includeShoulder = defaults.includeShoulder();
         draft.shoulderWidth = defaults.shoulderWidth();
+        draft.shoulderMaterial = defaults.fillSlopeMaterial();
         draft.includeSidewalk = defaults.includeSidewalk();
         draft.sidewalkWidth = defaults.sidewalkWidth();
         draft.sidewalkMaterial = defaults.sidewalkMaterial();
         draft.includeBikeLane = defaults.includeBikeLane();
         draft.bikeLaneWidth = defaults.bikeLaneWidth();
+        draft.bikeLaneMaterial = ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL;
         draft.includeMedian = defaults.includeMedian();
         draft.medianWidth = defaults.medianWidth();
         draft.medianHeight = RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
+        draft.medianMaterial = RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL;
         draft.streetlightSpacing = defaults.streetlightSpacing();
         draft.laneDividers = defaults.laneDividers();
         draft.centerLineStyle = defaults.centerLineStyle();
@@ -196,10 +205,7 @@ public final class CrossSectionDraft {
         return section;
     }
 
-    /**
-     * Writes every draft-exposed field onto {@code section}. Fields the draft schema
-     * does not cover (shoulder / median / bike materials, null inheritance) are left alone.
-     */
+    /** Writes every draft-exposed field onto {@code section}. */
     public void applyExposedFieldsOnto(RoadCrossSection section) {
         if (section == null) {
             return;
@@ -222,15 +228,18 @@ public final class CrossSectionDraft {
         width = section.getCarriageway().getWidth() != null ? section.getCarriageway().getWidth() : width;
         section.getShoulder().setEnabled(includeShoulder);
         section.getShoulder().setWidth(shoulderWidth);
+        section.getShoulder().setMaterial(shoulderMaterial);
         section.getSidewalk().setEnabled(includeSidewalk);
         section.getSidewalk().setWidth(sidewalkWidth);
         section.getSidewalk().setMaterial(sidewalkMaterial);
         section.getBikeLane().setEnabled(includeBikeLane);
         section.getBikeLane().setWidth(bikeLaneWidth);
+        section.getBikeLane().setMaterial(bikeLaneMaterial);
         section.getMedian().setEnabled(includeMedian);
         section.getMedian().setWidth(
             includeMedian ? RoadParameterLimits.clampMedianWidthBlocks(width, medianWidth) : medianWidth);
         section.getMedian().setHeight(medianHeight);
+        section.getMedian().setMaterial(medianMaterial);
         section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
         section.getMarkings().setLaneDividers(laneDividers);
         section.getMarkings().setCenterLineStyle(centerLineStyle);
@@ -288,6 +297,9 @@ public final class CrossSectionDraft {
                 includeMedian ? RoadParameterLimits.clampMedianWidthBlocks(width, medianWidth) : medianWidth);
             section.getMedian().setHeight(medianHeight);
         }
+        if (!java.util.Objects.equals(medianMaterial, baseline.medianMaterial)) {
+            section.getMedian().setMaterial(medianMaterial);
+        }
         if (!materialsEqual(material, baseline.material)) {
             section.getCarriageway().setMaterial(material);
         }
@@ -296,6 +308,9 @@ public final class CrossSectionDraft {
         }
         if (shoulderWidth != baseline.shoulderWidth) {
             section.getShoulder().setWidth(shoulderWidth);
+        }
+        if (!java.util.Objects.equals(shoulderMaterial, baseline.shoulderMaterial)) {
+            section.getShoulder().setMaterial(shoulderMaterial);
         }
         if (includeSidewalk != baseline.includeSidewalk) {
             section.getSidewalk().setEnabled(includeSidewalk);
@@ -311,6 +326,9 @@ public final class CrossSectionDraft {
         }
         if (bikeLaneWidth != baseline.bikeLaneWidth) {
             section.getBikeLane().setWidth(bikeLaneWidth);
+        }
+        if (!java.util.Objects.equals(bikeLaneMaterial, baseline.bikeLaneMaterial)) {
+            section.getBikeLane().setMaterial(bikeLaneMaterial);
         }
         if (streetlightSpacing != baseline.streetlightSpacing) {
             section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
@@ -357,14 +375,17 @@ public final class CrossSectionDraft {
         material = other.material;
         includeShoulder = other.includeShoulder;
         shoulderWidth = other.shoulderWidth;
+        shoulderMaterial = other.shoulderMaterial;
         includeSidewalk = other.includeSidewalk;
         sidewalkWidth = other.sidewalkWidth;
         sidewalkMaterial = other.sidewalkMaterial;
         includeBikeLane = other.includeBikeLane;
         bikeLaneWidth = other.bikeLaneWidth;
+        bikeLaneMaterial = other.bikeLaneMaterial;
         includeMedian = other.includeMedian;
         medianWidth = other.medianWidth;
         medianHeight = other.medianHeight;
+        medianMaterial = other.medianMaterial;
         streetlightSpacing = other.streetlightSpacing;
         laneDividers = other.laneDividers;
         centerLineStyle = other.centerLineStyle;
@@ -422,6 +443,11 @@ public final class CrossSectionDraft {
         if (road.getShoulderWidth() != null) {
             draft.shoulderWidth = road.getShoulderWidth();
         }
+        if (road.getShoulderMaterial() != null) {
+            draft.shoulderMaterial = road.getShoulderMaterial();
+        } else {
+            draft.shoulderMaterial = road.getEffectiveFillSlopeMaterial(defaults);
+        }
         if (road.getIncludeSidewalk() != null) {
             draft.includeSidewalk = road.getIncludeSidewalk();
         } else {
@@ -441,6 +467,11 @@ public final class CrossSectionDraft {
         if (road.getBikeLaneWidth() != null) {
             draft.bikeLaneWidth = road.getBikeLaneWidth();
         }
+        if (road.getBikeLaneMaterial() != null) {
+            draft.bikeLaneMaterial = road.getBikeLaneMaterial();
+        } else {
+            draft.bikeLaneMaterial = ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL;
+        }
         if (road.getIncludeMedian() != null) {
             draft.includeMedian = road.getIncludeMedian();
         } else {
@@ -453,6 +484,11 @@ public final class CrossSectionDraft {
             draft.medianHeight = road.getMedianHeight();
         } else {
             draft.medianHeight = defaults.getMedianHeight();
+        }
+        if (road.getMedianMaterial() != null) {
+            draft.medianMaterial = road.getMedianMaterial();
+        } else {
+            draft.medianMaterial = RoadParameterLimits.DEFAULT_MEDIAN_MATERIAL;
         }
         draft.streetlightSpacing = road.getStreetlightSpacing() != null
             ? road.getStreetlightSpacing()
@@ -531,16 +567,19 @@ public final class CrossSectionDraft {
             : resolved.carriagewayMaterial;
         draft.includeShoulder = resolved.includeShoulder;
         draft.shoulderWidth = resolved.shoulderWidth;
+        draft.shoulderMaterial = resolved.shoulderMaterial;
         draft.includeSidewalk = resolved.includeSidewalk;
         draft.sidewalkWidth = resolved.sidewalkWidth;
         draft.sidewalkMaterial = resolved.sidewalkMaterial;
         draft.includeBikeLane = resolved.includeBikeLane;
         draft.bikeLaneWidth = resolved.bikeLaneWidth;
+        draft.bikeLaneMaterial = resolved.bikeLaneMaterial;
         draft.includeMedian = resolved.includeMedian;
         draft.medianWidth = resolved.medianWidth;
         draft.medianHeight = resolved.medianHeight > 0
             ? resolved.medianHeight
             : RoadParameterLimits.DEFAULT_MEDIAN_HEIGHT_BLOCKS;
+        draft.medianMaterial = resolved.medianMaterial;
         draft.streetlightSpacing = resolved.streetlightSpacing != null ? resolved.streetlightSpacing : 0;
         draft.laneDividers = resolved.laneDividers;
         draft.centerLineStyle = resolved.centerLineStyle != null
@@ -626,6 +665,14 @@ public final class CrossSectionDraft {
         this.shoulderWidth = shoulderWidth;
     }
 
+    public String shoulderMaterial() {
+        return shoulderMaterial;
+    }
+
+    public void setShoulderMaterial(String shoulderMaterial) {
+        this.shoulderMaterial = shoulderMaterial;
+    }
+
     public boolean includeSidewalk() {
         return includeSidewalk;
     }
@@ -666,6 +713,14 @@ public final class CrossSectionDraft {
         this.bikeLaneWidth = bikeLaneWidth;
     }
 
+    public String bikeLaneMaterial() {
+        return bikeLaneMaterial;
+    }
+
+    public void setBikeLaneMaterial(String bikeLaneMaterial) {
+        this.bikeLaneMaterial = bikeLaneMaterial;
+    }
+
     public boolean includeMedian() {
         return includeMedian;
     }
@@ -688,6 +743,14 @@ public final class CrossSectionDraft {
 
     public void setMedianHeight(int medianHeight) {
         this.medianHeight = RoadParameterLimits.clampMedianHeightBlocks(medianHeight);
+    }
+
+    public String medianMaterial() {
+        return medianMaterial;
+    }
+
+    public void setMedianMaterial(String medianMaterial) {
+        this.medianMaterial = medianMaterial;
     }
 
     public int streetlightSpacing() {

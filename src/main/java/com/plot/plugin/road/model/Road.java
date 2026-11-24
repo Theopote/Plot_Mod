@@ -521,6 +521,14 @@ public class Road {
         crossSection.getBikeLane().setMaterial(bikeLaneMaterial);
     }
 
+    public String getMedianMaterial() {
+        return crossSection.getMedian().getMaterial();
+    }
+
+    public void setMedianMaterial(String medianMaterial) {
+        crossSection.getMedian().setMaterial(medianMaterial);
+    }
+
     public Integer getStreetlightSpacing() {
         return crossSection.getStreetFurniture().getStreetlightSpacing();
     }

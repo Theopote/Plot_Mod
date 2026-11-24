@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.ui.BridgeStructureControls;
 import com.plot.plugin.road.ui.CrossSectionDraftEditor;
 import com.plot.plugin.road.ui.CrossSectionDraftEditorOptions;
@@ -27,8 +28,11 @@ import imgui.flag.ImGuiWindowFlags;
  */
 public final class CrossSectionDesignerPanel {
 
+    private static final float SECTION_PREVIEW_FRACTION = 0.60f;
+
     private RoadCrossSectionPreviewRenderer.CrossSectionLayout cachedPreviewLayout;
     private long cachedPreviewFingerprint = Long.MIN_VALUE;
+    private final CrossSectionSegmentPreview segmentPreview = new CrossSectionSegmentPreview();
 
     /**
      * @param includeBridge 为 true 时渲染桥梁结构页（道路级）；桩号断面传 false
@@ -95,6 +99,7 @@ public final class CrossSectionDesignerPanel {
     public void invalidate() {
         cachedPreviewLayout = null;
         cachedPreviewFingerprint = Long.MIN_VALUE;
+        segmentPreview.invalidate();
     }
 
     private void renderDualColumn(
@@ -232,6 +237,13 @@ public final class CrossSectionDesignerPanel {
                     var opts = CrossSectionDraftEditorOptions.styleBatch();
                     sectionCard("##xs_sec_pavement", "pavement", true, () ->
                         CrossSectionDraftEditor.renderPavementMaterials(ctx, mutator, opts));
+                    if (mutator.draft() != null
+                            && (mutator.draft().includeShoulder()
+                            || mutator.draft().includeBikeLane()
+                            || mutator.draft().includeMedian())) {
+                        sectionCard("##xs_sec_strip_mats", "strip_mats", true, () ->
+                            CrossSectionDraftEditor.renderStripMaterials(ctx, mutator, opts));
+                    }
                     sectionCard("##xs_sec_slope_mats", "slope_mats", true, () ->
                         CrossSectionDraftEditor.renderSlopeMaterials(ctx, mutator, opts));
                     sectionCard("##xs_sec_marking_mat", "marking_mat", true, () ->
@@ -300,8 +312,14 @@ public final class CrossSectionDesignerPanel {
                 network, road, config, false);
             cachedPreviewFingerprint = fingerprint;
         }
+        float availY = ImGui.getContentRegionAvailY();
+        float gap = ImGui.getStyle().getItemSpacingY();
+        float sectionH = Math.max(80f, (availY - gap) * SECTION_PREVIEW_FRACTION);
+        float segmentH = Math.max(72f, availY - gap - sectionH);
         RoadCrossSectionEditor.renderPreviewWithLayout(
-            road, config, cachedPreviewLayout, -1f);
+            road, config, cachedPreviewLayout, sectionH);
+        var resolved = RoadCrossSectionEditor.resolvePreviewCrossSection(network, road, config);
+        segmentPreview.render(resolved, fingerprint, segmentH);
     }
 
     private void renderDraftPreview(
@@ -313,12 +331,19 @@ public final class CrossSectionDesignerPanel {
             cachedPreviewLayout = RoadCrossSectionEditor.previewLayoutForDraft(draft, config);
             cachedPreviewFingerprint = fingerprint;
         }
+        float availY = ImGui.getContentRegionAvailY();
+        float gap = ImGui.getStyle().getItemSpacingY();
+        float sectionH = Math.max(80f, (availY - gap) * SECTION_PREVIEW_FRACTION);
+        float segmentH = Math.max(72f, availY - gap - sectionH);
         RoadCrossSectionEditor.renderPreviewWithLayout(
             summaryPresetName,
             draft.width(),
             Math.max(1, draft.laneCount()),
             cachedPreviewLayout,
-            -1f);
+            sectionH);
+        var resolved = com.plot.plugin.road.model.section.ResolvedCrossSection.resolve(
+            draft.toCrossSection(), config);
+        segmentPreview.render(resolved, fingerprint, segmentH);
     }
 
     private static void beginParamsTabBody(String tabKey) {
