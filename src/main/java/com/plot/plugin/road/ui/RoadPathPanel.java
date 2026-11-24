@@ -102,7 +102,8 @@ public final class RoadPathPanel {
             return;
         }
         int selectedCount = ctx.networkManager().getSelectedRoadIds().size();
-        if (mode == RoadSelectionHeader.Mode.MULTI && selectedCount > 1) {
+        boolean multiSelected = mode == RoadSelectionHeader.Mode.MULTI && selectedCount > 1;
+        if (multiSelected) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.edit.tools.batch_centerline.multi_hint", selectedCount));
@@ -116,9 +117,11 @@ public final class RoadPathPanel {
         if (active) {
             ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
         }
+        ImGui.beginDisabled(multiSelected);
         if (ImGui.button(PlotI18n.tr("plugin.road.route.edit_centerline") + "##path_edit_centerline")) {
             ctx.requestEditCenterline(road.getId());
         }
+        ImGui.endDisabled();
         if (active) {
             ImGui.popStyleColor();
         }

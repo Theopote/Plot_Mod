@@ -1,6 +1,5 @@
 package com.plot.plugin.road.ui.editor;
 
-import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -19,12 +18,14 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
-import imgui.type.ImInt;
 
-import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** 中心线 / 平面线形浮动编辑器（多选时可切换当前编辑道路）。 */
+/**
+ * 中心线 / 平面线形浮动编辑器。
+ * <p>
+ * 仅编辑当前一条道路：打开时收敛为单选，确认写回后保持该路选中并落到草稿分段。
+ */
 public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
     /** 下半区左轨（分段列表）宽度占比，对齐设施/变截面主从。 */
@@ -37,8 +38,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     /** 窗口内草稿分段选择；确认成功前不写入全局选中。 */
     private String selectedWorkingEdgeId = "";
-    /** 打开时的多选范围（保序）；用于作用域守卫与目标路切换。 */
-    private java.util.List<String> siblingRoadIds = java.util.List.of();
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -77,11 +76,10 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
-        LinkedHashSet<String> selected = new LinkedHashSet<>(ctx.networkManager().getSelectedRoadIds());
-        if (selected.isEmpty() && roadId != null && !roadId.isBlank()) {
-            selected.add(roadId);
+        // 中心线一次只改一条路：打开时收敛选择，避免多选作用域与确认写回冲突。
+        if (roadId != null && !roadId.isBlank()) {
+            ctx.networkManager().selectRoad(roadId, false);
         }
-        siblingRoadIds = java.util.List.copyOf(selected);
         var live = ctx.networkManager().getNetwork();
         selectedWorkingEdgeId = resolveInitialWorkingEdgeId(ctx, live.getRoad(roadId));
         horizontalAlignmentEditor.clearMessages();
@@ -95,7 +93,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     @Override
     public void discard(RoadUiContext ctx) {
         selectedWorkingEdgeId = "";
-        siblingRoadIds = java.util.List.of();
         horizontalAlignmentEditor.clearMessages();
         centerlineEditPanel.clearMessages();
         super.discard(ctx);
@@ -103,7 +100,11 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
     @Override
     public boolean matchesScope(Set<String> selectedRoadIds) {
-        return new LinkedHashSet<>(siblingRoadIds).equals(selectedRoadIds);
+        return selectedRoadIds != null
+            && selectedRoadIds.size() == 1
+            && roadId != null
+            && !roadId.isBlank()
+            && selectedRoadIds.contains(roadId);
     }
 
     @Override
@@ -117,7 +118,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             ImGui.text(PlotI18n.tr("plugin.road.floating_editor.road_missing"));
             return;
         }
-        renderMultiRoadSwitcher(ctx, working);
         selectedWorkingEdgeId = resolveWorkingEdgeId(working, road, selectedWorkingEdgeId);
         RoadEdge primaryEdge = working.getEdge(selectedWorkingEdgeId);
 
@@ -241,7 +241,7 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(live);
         com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(live);
         ctx.networkManager().invalidateEditedProfilesIfGeometryChanged();
-        // 拓扑可能已变：先按 road 刷新选择集，再落到草稿中选中的 live Edge。
+        // 拓扑可能已变：保持单选当前路，再落到草稿中选中的 live Edge。
         if (live.getRoad(roadId) != null) {
             ctx.networkManager().selectRoad(roadId, false);
         }
@@ -266,39 +266,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     /** 包内测试：切换草稿分段选择。 */
     void selectWorkingEdge(String edgeId) {
         selectedWorkingEdgeId = edgeId != null ? edgeId : "";
-    }
-
-    private void renderMultiRoadSwitcher(RoadUiContext ctx, RoadNetwork working) {
-        if (siblingRoadIds.size() <= 1) {
-            return;
-        }
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.floating_editor.centerline.batch_scope",
-                siblingRoadIds.size()));
-        String[] labels = new String[siblingRoadIds.size()];
-        int current = 0;
-        for (int i = 0; i < siblingRoadIds.size(); i++) {
-            String id = siblingRoadIds.get(i);
-            Road candidate = working.getRoad(id);
-            labels[i] = candidate != null
-                ? RoadEdgeListHelper.formatRoadLabel(working, candidate)
-                : id;
-            if (id.equals(roadId)) {
-                current = i;
-            }
-        }
-        ImInt index = new ImInt(current);
-        if (ImGui.combo(
-                PlotI18n.tr("plugin.road.floating_editor.centerline.switch_road")
-                    + "##centerline_switch_road",
-                index,
-                labels)
-            && index.get() != current) {
-            open(ctx, siblingRoadIds.get(index.get()));
-        }
-        ImGui.spacing();
     }
 
     private static String resolveInitialWorkingEdgeId(RoadUiContext ctx, Road liveRoad) {

@@ -188,7 +188,7 @@ class FloatingEditorLifecycleTest {
     }
 
     @Test
-    void centerlineMultiSelectCanSwitchTargetWhenClean() {
+    void centerlineOpenCollapsesToSingleRoadScope() {
         manager.selectRoad(roadA, false);
         manager.selectRoad(roadB, true);
         CenterlineDesignerWindow editor = (CenterlineDesignerWindow) host.editorForKind(
@@ -196,17 +196,15 @@ class FloatingEditorLifecycleTest {
         editor.open(ctx, roadA);
         assertTrue(editor.isOpen());
         assertEquals(roadA, editor.roadId());
+        assertEquals(Set.of(roadA), manager.getSelectedRoadIds());
         assertTrue(editor.matchesScope(manager.getSelectedRoadIds()));
-        editor.open(ctx, roadB);
-        assertEquals(roadB, editor.roadId());
-        assertTrue(editor.matchesScope(manager.getSelectedRoadIds()));
+        assertFalse(editor.matchesScope(Set.of(roadA, roadB)));
         assertEquals(RoadFloatingEditor.FinishResult.CLOSED, editor.finishOrPrompt(ctx));
     }
 
     @Test
-    void centerlineDirtySwitchRemembersPendingTargetThenContinuesAfterConfirm() {
+    void centerlineDirtyOpenOtherRoadRemembersPendingTargetThenContinuesAfterConfirm() {
         manager.selectRoad(roadA, false);
-        manager.selectRoad(roadB, true);
         CenterlineDesignerWindow editor = (CenterlineDesignerWindow) host.editorForKind(
             RoadFloatingEditorKind.CENTERLINE);
         editor.open(ctx, roadA);
@@ -221,6 +219,7 @@ class FloatingEditorLifecycleTest {
 
         assertTrue(editor.confirmEdits(ctx));
         assertEquals(roadB, editor.roadId(), "after save, switch to pending B");
+        assertEquals(Set.of(roadB), manager.getSelectedRoadIds());
         assertEquals("", editor.pendingSwitchRoadId());
         assertFalse(editor.isDirty());
     }
