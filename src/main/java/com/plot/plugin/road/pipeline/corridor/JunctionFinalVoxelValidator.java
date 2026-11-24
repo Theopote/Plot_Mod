@@ -69,15 +69,6 @@ public final class JunctionFinalVoxelValidator {
             protrusions);
     }
 
-    /**
-     * 对照设计期望路面（{@link ExpectedRoadSurface}）：缺失或错材质计入缺口/语义偏差。
-     */
-    static SurfaceCounts countExpectedPavement(
-            RoadGenerationResult aggregate,
-            Set<ColumnKey> footprintColumns) {
-        return countExpectedPavement(aggregate, footprintColumns, null);
-    }
-
     static SurfaceCounts countExpectedPavement(
             RoadGenerationResult aggregate,
             Set<ColumnKey> footprintColumns,
@@ -249,7 +240,10 @@ public final class JunctionFinalVoxelValidator {
             if (authorizedCavity.contains(expected)) {
                 continue;
             }
-            BlockRecord record = aggregate.placementRecords.get(expected);
+            BlockRecord record = null;
+            if (aggregate != null) {
+                record = aggregate.placementRecords.get(expected);
+            }
             if (record == null || "minecraft:air".equals(record.newBlockId)) {
                 // 立交/行车/隧道净空空气（含未写入 cavity 集合的井筒清障）不是甲板拆除。
                 if (isAuthorizedClearanceAir(aggregate, expected, record)) {

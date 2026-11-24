@@ -142,14 +142,25 @@ public class RoadNetworkGenerator {
         }
 
         void recordFinalPlacementAcceptance(FinalPlacementAcceptanceValidator.Report report) {
+            recordFinalPlacementAcceptance(report, null);
+        }
+
+        void recordFinalPlacementAcceptance(
+                FinalPlacementAcceptanceValidator.Report report,
+                RoadGenerationResult aggregate) {
             if (report == null || !report.hasBlockingIssues()) {
                 return;
             }
             finalPlacementAcceptanceFailed = true;
             errors.add("finalPlacementAcceptance:"
-                + " missingSurface=" + report.blockingSurfaceDefectCount()
+                + " missing=" + report.missingRoadSurfaceCount()
+                + " wrongYOrMaterial=" + report.wrongElevationOrMaterialCount()
                 + " unclearedCavity=" + report.unclearedTunnelCavityCount()
                 + " missingLining=" + report.missingTunnelLiningCount());
+            List<String> samples = FinalPlacementAcceptanceValidator.sampleSurfaceDefects(aggregate, 6);
+            if (!samples.isEmpty()) {
+                errors.add("finalPlacementSurfaceSamples: " + String.join(" | ", samples));
+            }
         }
 
         public List<CrossingMaterializationFailure> getCrossingMaterializationFailures() {
@@ -998,8 +1009,9 @@ public class RoadNetworkGenerator {
         // strip 后 placement 可能变，重建一次索引再汇总。
         finalIndex = FinalPlacementIndex.build(aggregate);
         session.setValidationFinalIndex(finalIndex);
-        networkResult.recordFinalPlacementAcceptance(
-            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate, finalIndex));
+        FinalPlacementAcceptanceValidator.Report acceptance =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate, finalIndex);
+        networkResult.recordFinalPlacementAcceptance(acceptance, aggregate);
         networkResult.recordAdjacentJunctionProfileViolations(
             AdjacentJunctionProfileContinuity.find(
                 profileNetwork,

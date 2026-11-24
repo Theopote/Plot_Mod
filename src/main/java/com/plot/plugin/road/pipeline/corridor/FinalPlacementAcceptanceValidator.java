@@ -5,6 +5,9 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 全网合并后的终态汇总：对照设计期望路面更新严重计数，并汇总已由专项校验写入的隧道指标。
  * <p>
@@ -93,9 +96,57 @@ public final class FinalPlacementAcceptanceValidator {
         if (aggregate == null) {
             return Report.CLEAN;
         }
-        Report report = validate(aggregate, index);
+        FinalPlacementIndex safeIndex = index != null ? index : FinalPlacementIndex.build(aggregate);
+        // 立交/路口交接后，旧 Y 的边期望常残留在已清空气格上；同柱已有路面则作废，避免假拦建造。
+        scrubSupersededSurfaceExpectations(aggregate, safeIndex);
+        Report report = validate(aggregate, safeIndex);
         aggregate.missingRoadSurfaceCount = report.blockingSurfaceDefectCount();
         return report;
+    }
+
+    /**
+     * 作废已被交接取代的路面期望：期望格为空/空气，且同柱另有结构路面，或该格已是隧道净空空气。
+     */
+    static int scrubSupersededSurfaceExpectations(
+            RoadGenerationResult aggregate,
+            FinalPlacementIndex index) {
+        if (aggregate == null || aggregate.expectedRoadSurfaces == null
+                || aggregate.expectedRoadSurfaces.isEmpty()) {
+            return 0;
+        }
+        FinalPlacementIndex safeIndex = index != null ? index : FinalPlacementIndex.build(aggregate);
+        List<BlockPos> stale = new ArrayList<>();
+        for (ExpectedRoadSurface expected : aggregate.expectedRoadSurfaces.values()) {
+            if (expected == null || !expected.isStructuralSurface() || expected.position() == null) {
+                continue;
+            }
+            BlockPos pos = expected.position();
+            BlockRecord actual = aggregate.placementRecords.get(pos);
+            boolean emptyOrAir = actual == null || "minecraft:air".equals(actual.newBlockId);
+            if (!emptyOrAir) {
+                continue;
+            }
+            if (isTunnelClearanceAir(aggregate, pos, actual)
+                    || hasStructuralSurfaceElsewhereInColumn(aggregate, safeIndex, pos)) {
+                stale.add(pos);
+            }
+        }
+        for (BlockPos pos : stale) {
+            aggregate.revokeSurfaceExpectation(pos);
+        }
+        return stale.size();
+    }
+
+    private static boolean isTunnelClearanceAir(
+            RoadGenerationResult aggregate,
+            BlockPos pos,
+            BlockRecord actual) {
+        if (actual == null || !"minecraft:air".equals(actual.newBlockId)) {
+            return false;
+        }
+        RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+        return layer == RoadSolidLayer.TUNNEL
+            || (aggregate.tunnelBlocks != null && aggregate.tunnelBlocks.contains(pos));
     }
 
     public static boolean hasBlockingIssues(RoadGenerationResult aggregate) {
@@ -158,6 +209,47 @@ public final class FinalPlacementAcceptanceValidator {
             || layer == RoadSolidLayer.SIDEWALK
             || layer == RoadSolidLayer.SHOULDER
             || layer == RoadSolidLayer.BIKE_LANE
-            || layer == RoadSolidLayer.MEDIAN;
+            || layer == RoadSolidLayer.MEDIAN
+            || layer == RoadSolidLayer.BRIDGE;
+    }
+
+    /** 诊断：前几个路面缺陷样本（日志用）。 */
+    public static List<String> sampleSurfaceDefects(RoadGenerationResult aggregate, int limit) {
+        List<String> samples = new ArrayList<>();
+        if (aggregate == null || limit <= 0) {
+            return samples;
+        }
+        FinalPlacementIndex index = FinalPlacementIndex.build(aggregate);
+        for (ExpectedRoadSurface expected : aggregate.expectedRoadSurfaces.values()) {
+            if (samples.size() >= limit) {
+                break;
+            }
+            if (expected == null || !expected.isStructuralSurface() || expected.position() == null) {
+                continue;
+            }
+            BlockPos pos = expected.position();
+            BlockRecord actual = aggregate.placementRecords.get(pos);
+            if (actual == null || "minecraft:air".equals(actual.newBlockId)) {
+                String kind = hasStructuralSurfaceElsewhereInColumn(aggregate, index, pos)
+                    ? "wrongY"
+                    : "missing";
+                samples.add(kind + "@" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
+                    + " expect=" + expected.layer());
+                continue;
+            }
+            RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+            if (layer == RoadSolidLayer.MARKING) {
+                continue;
+            }
+            if (layer != expected.layer()) {
+                samples.add("layer@" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
+                    + " expect=" + expected.layer() + " actual=" + layer);
+            } else if (expected.materialId() != null
+                    && !expected.materialId().equals(actual.newBlockId)) {
+                samples.add("material@" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
+                    + " expect=" + expected.materialId() + " actual=" + actual.newBlockId);
+            }
+        }
+        return samples;
     }
 }

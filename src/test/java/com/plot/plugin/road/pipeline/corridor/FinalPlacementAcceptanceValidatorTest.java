@@ -50,7 +50,7 @@ class FinalPlacementAcceptanceValidatorTest {
     }
 
     @Test
-    void wrongElevationCountsAsBlockingSurfaceDefect() {
+    void wrongElevationCountsAsBlockingSurfaceDefectOnRawValidate() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos expected = new BlockPos(0, 64, 0);
         BlockPos elsewhere = new BlockPos(0, 66, 0);
@@ -65,6 +65,41 @@ class FinalPlacementAcceptanceValidatorTest {
         assertEquals(0, report.missingRoadSurfaceCount());
         assertEquals(1, report.wrongElevationOrMaterialCount());
         assertTrue(report.hasBlockingIssues());
+    }
+
+    @Test
+    void applyToAggregateScrubsSupersededWrongYExpectation() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos expected = new BlockPos(0, 64, 0);
+        BlockPos elsewhere = new BlockPos(0, 66, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            expected, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+        aggregate.recordPlacementOverride(elsewhere, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(elsewhere, RoadSolidLayer.ROAD);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertFalse(aggregate.expectedRoadSurfaces.containsKey(expected),
+            "stale Y expectation must be scrubbed when column already has pavement");
+        assertFalse(report.hasBlockingIssues());
+        assertEquals(0, aggregate.missingRoadSurfaceCount);
+    }
+
+    @Test
+    void applyToAggregateScrubsTunnelClearanceAirExpectation() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(1, 64, 1);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:stone", "minecraft:air");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertFalse(aggregate.expectedRoadSurfaces.containsKey(pos));
+        assertFalse(report.hasBlockingIssues());
     }
 
     @Test
