@@ -29,8 +29,8 @@ public final class RoadFloatingEditorShell {
     public static final float FIXED_MAX_WIDTH_OF_SCREEN = 0.90f;
     /** 页脚实际占用：分隔线 + 按钮行（勿再加大，否则按钮下会出现空白）。 */
     static final float FOOTER_RESERVE_HEIGHT = 36f;
-    /** 版本冲突横幅额外占用（中文标签较长时需两行）。 */
-    static final float CONFLICT_BANNER_RESERVE = 52f;
+    /** 版本冲突横幅额外占用（重新加载按钮 + 分隔线；文案在面板状态行）。 */
+    static final float CONFLICT_BANNER_RESERVE = 28f;
     /** 窄面板阈值：低于此宽度时页脚按钮换行排列。 */
     static final float NARROW_PANEL_WIDTH = 420f;
     /** 页脚操作按钮最小宽度；文案更长时三者一起加宽。 */

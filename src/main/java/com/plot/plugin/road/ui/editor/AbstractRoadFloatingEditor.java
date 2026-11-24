@@ -8,8 +8,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.ui.RoadPanelScopedStatus;
 import com.plot.plugin.road.ui.RoadStatusUi;
 import com.plot.plugin.road.ui.RoadUiContext;
-import com.plot.plugin.road.ui.RoadUiWidgets;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -487,9 +485,7 @@ abstract class AbstractRoadFloatingEditor implements RoadFloatingEditor {
         if (!revisionConflictPending) {
             return;
         }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr("plugin.road.floating_editor.confirm_conflict"));
+        // 文案由 panelWarning + renderPanelStatus 展示，此处只放重新加载操作，避免重复一行。
         if (ImGui.button(PlotI18n.tr("plugin.road.floating_editor.reload_from_live") + "##reload_live")) {
             reloadConfirmPending = true;
         }

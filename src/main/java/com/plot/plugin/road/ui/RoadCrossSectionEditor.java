@@ -340,7 +340,26 @@ public final class RoadCrossSectionEditor {
         return h;
     }
 
-    /** 迷你预览：有可变断面时用道路中点桩号的解析结果，否则道路默认断面。 */
+    /**
+     * 典型（道路默认）横断面解析，供「横断面设计器」预览：始终反映正在编辑的典型断面。
+     * 有桩号变截面时不要用这个方法去看中点生效断面——那是 {@link #resolvePreviewCrossSection}。
+     */
+    public static ResolvedCrossSection resolveTypicalPreviewCrossSection(
+            Road road,
+            RoadSystemConfig config) {
+        if (road == null) {
+            return ResolvedCrossSection.fromConfig(config);
+        }
+        return road.getCrossSection() != null
+            ? road.getCrossSection().resolve(config)
+            : ResolvedCrossSection.fromConfig(config);
+    }
+
+    /**
+     * 概览/迷你预览：有可变断面时用道路中点桩号的解析结果，否则道路默认断面。
+     * 编辑典型断面的浮动设计器应使用 {@link #resolveTypicalPreviewCrossSection} /
+     * {@link #previewLayoutForTypicalRoad}，否则改参后预览看起来「不动」。
+     */
     public static ResolvedCrossSection resolvePreviewCrossSection(
             RoadNetwork network,
             Road road,
@@ -353,9 +372,25 @@ public final class RoadCrossSectionEditor {
             double station = Math.max(0.0, length * 0.5);
             return VariableCrossSectionResolver.resolve(network, road, station, config);
         }
-        return road.getCrossSection() != null
-            ? road.getCrossSection().resolve(config)
-            : ResolvedCrossSection.fromConfig(config);
+        return resolveTypicalPreviewCrossSection(road, config);
+    }
+
+    /**
+     * 典型断面预览布局（忽略桩号变截面中点解析）。
+     */
+    public static RoadCrossSectionPreviewRenderer.CrossSectionLayout previewLayoutForTypicalRoad(
+            Road road,
+            RoadSystemConfig config) {
+        float designMax = road != null ? road.getEffectiveMaxSlope(config) : 10f;
+        ResolvedCrossSection previewSection = resolveTypicalPreviewCrossSection(road, config);
+        var bridge = com.plot.plugin.road.pipeline.crosssection.ResolvedBridgeStructure
+            .resolve(road, config)
+            .withCarriagewayWidth(previewSection.carriagewayWidth);
+        return RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+            previewSection,
+            designMax,
+            -1f,
+            bridge);
     }
 
     public static void renderPresetButtons(RoadUiContext ctx, Road road, Runnable onChanged) {

@@ -56,18 +56,7 @@ public final class CrossSectionDesignerPanel {
             includeBridge,
             bridgeRoad,
             beforeBridgeMutation,
-            () -> renderRoadPreview(network, road, config));
-    }
-
-    /**
-     * 桩号断面详情：预览来自 draft（不含桥梁）。
-     */
-    public void renderForDraft(
-            RoadUiContext ctx,
-            CrossSectionDraftMutator mutator,
-            CrossSectionDraft draft,
-            RoadSystemConfig config) {
-        renderForDraft(ctx, mutator, draft, config, null, Float.NaN);
+            () -> renderRoadPreview(road, config));
     }
 
     /**
@@ -296,11 +285,12 @@ public final class CrossSectionDesignerPanel {
             body);
     }
 
-    private void renderRoadPreview(RoadNetwork network, Road road, RoadSystemConfig config) {
+    private void renderRoadPreview(Road road, RoadSystemConfig config) {
+        // 典型横断面设计器必须预览正在编辑的默认断面；若走中点变截面解析，
+        // 指纹虽变但画面仍是桩号模板，看起来像「改了预览却不动」。
         long fingerprint = RoadCrossSectionEditor.previewFingerprint(road, config);
         if (cachedPreviewLayout == null || cachedPreviewFingerprint != fingerprint) {
-            cachedPreviewLayout = RoadCrossSectionEditor.previewLayoutForRoad(
-                network, road, config, false);
+            cachedPreviewLayout = RoadCrossSectionEditor.previewLayoutForTypicalRoad(road, config);
             cachedPreviewFingerprint = fingerprint;
         }
         float availY = ImGui.getContentRegionAvailY();
@@ -308,7 +298,7 @@ public final class CrossSectionDesignerPanel {
         float sectionH = Math.max(80f, (availY - gap) * SECTION_PREVIEW_FRACTION);
         float segmentH = Math.max(72f, availY - gap - sectionH);
         RoadCrossSectionEditor.renderPreviewWithLayout(cachedPreviewLayout, sectionH);
-        var resolved = RoadCrossSectionEditor.resolvePreviewCrossSection(network, road, config);
+        var resolved = RoadCrossSectionEditor.resolveTypicalPreviewCrossSection(road, config);
         ResolvedBridgeStructure bridge = ResolvedBridgeStructure.resolve(road, config)
             .withCarriagewayWidth(resolved.carriagewayWidth);
         segmentPreview.render(resolved, bridge, fingerprint, segmentH);
