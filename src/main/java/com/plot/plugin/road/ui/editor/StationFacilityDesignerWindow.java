@@ -2,9 +2,8 @@ package com.plot.plugin.road.ui.editor;
 
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.ChainageDisplayMode;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.StationFacilityEditor;
@@ -19,9 +18,12 @@ import java.util.Set;
 public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEditor {
 
     private final StationFacilityEditor editor = new StationFacilityEditor();
-    private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     private java.util.List<String> targetRoadIds = java.util.List.of();
     private BatchStationMappingMode batchMappingMode = BatchStationMappingMode.PROPORTIONAL;
+    /** 多选映射预览：按工作副本设施引用 + 映射模式缓存，避免静止帧重算。 */
+    private BatchApplyReport cachedBatchPreview;
+    private RoadStationFacilities cachedPreviewFacilities;
+    private BatchStationMappingMode cachedPreviewMode;
 
     @Override
     protected RoadFloatingEditorKind editorKind() {
@@ -64,6 +66,7 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
     @Override
     protected RoadNetworkEditorSession createSession(RoadUiContext ctx, String roadId) {
         editor.reset();
+        invalidateBatchPreviewCache();
         LinkedHashSet<String> selected = new LinkedHashSet<>(ctx.networkManager().getSelectedRoadIds());
         if (selected.isEmpty() && roadId != null && !roadId.isBlank()) {
             selected.add(roadId);
@@ -99,22 +102,14 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
                 lossyBatchAcknowledged = false;
             }
             BatchStationMappingUi.renderFacilitySideNote();
-            BatchApplyReport preview = BatchStationMappingUi.previewFacilities(
-                session.workingNetwork(),
-                road,
-                road.getStationFacilities(),
-                new LinkedHashSet<>(targetRoadIds),
-                batchMappingMode);
+            BatchApplyReport preview = cachedOrComputeBatchPreview(road);
             BatchStationMappingUi.renderPreviewReport(preview);
             ImGui.spacing();
         }
-        ChainageDisplayContext chainageDisplay = null;
-        if (RoadStationing.isStationable(session.workingNetwork(), road)) {
-            chainageDisplay = new ChainageDisplayContext(
-                RoadStationing.canonicalLength(session.workingNetwork(), road),
-                chainageDisplayMode,
-                RoadStationFormat.DISTANCE_METERS);
-        }
+        // 与变截面/中心线设计器一致：只读展示桩号，固定自起点递增。
+        ChainageDisplayContext chainageDisplay = RoadStationing.isStationable(session.workingNetwork(), road)
+            ? ChainageDisplayContext.fromStart(RoadStationing.canonicalLength(session.workingNetwork(), road))
+            : null;
         editor.render(
             ctx,
             session.workingNetwork(),
@@ -132,12 +127,31 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
         if (road == null || road.getStationFacilities() == null) {
             return false;
         }
-        return BatchStationMappingUi.previewFacilities(
+        return cachedOrComputeBatchPreview(road).isLossy();
+    }
+
+    private BatchApplyReport cachedOrComputeBatchPreview(Road road) {
+        RoadStationFacilities facilities = road.getStationFacilities();
+        if (cachedBatchPreview != null
+                && cachedPreviewFacilities == facilities
+                && cachedPreviewMode == batchMappingMode) {
+            return cachedBatchPreview;
+        }
+        cachedBatchPreview = BatchStationMappingUi.previewFacilities(
             session.workingNetwork(),
             road,
-            road.getStationFacilities(),
+            facilities,
             new LinkedHashSet<>(targetRoadIds),
-            batchMappingMode).isLossy();
+            batchMappingMode);
+        cachedPreviewFacilities = facilities;
+        cachedPreviewMode = batchMappingMode;
+        return cachedBatchPreview;
+    }
+
+    private void invalidateBatchPreviewCache() {
+        cachedBatchPreview = null;
+        cachedPreviewFacilities = null;
+        cachedPreviewMode = null;
     }
 
     @Override
@@ -160,6 +174,21 @@ public final class StationFacilityDesignerWindow extends AbstractRoadFloatingEdi
     protected void restoreSession() {
         super.restoreSession();
         editor.reset();
+        invalidateBatchPreviewCache();
         lossyBatchAcknowledged = false;
+    }
+
+    @Override
+    protected void onWorkingNetworkReplaced() {
+        editor.reset();
+        invalidateBatchPreviewCache();
+        lossyBatchAcknowledged = false;
+    }
+
+    @Override
+    public void discard(RoadUiContext ctx) {
+        editor.reset();
+        invalidateBatchPreviewCache();
+        super.discard(ctx);
     }
 }

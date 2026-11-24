@@ -80,6 +80,12 @@ public final class StationFacilityEditorApplier {
                 applied++;
                 continue;
             }
+            // 源道路直接写回副本，避免经映射误改自身桩号；与 preview 计数口径一致。
+            if (targetId.equals(sourceRoadId)) {
+                liveRoad.setStationFacilities(source.copy());
+                applied++;
+                continue;
+            }
             double targetLength = RoadStationing.canonicalLength(live, liveRoad);
             BatchStationDataMapper.MapResult<RoadStationFacilities> mapped =
                 BatchStationDataMapper.mapStationFacilities(source, sourceLength, targetLength, mode);
@@ -115,6 +121,7 @@ public final class StationFacilityEditorApplier {
         int applied = 0;
         for (String targetId : targetRoadIds) {
             if (targetId.equals(sourceRoad.getId())) {
+                applied++;
                 continue;
             }
             Road target = network.getRoad(targetId);

@@ -49,6 +49,8 @@ public final class StationFacilityEditor {
     private int selectedIndex = -1;
     /** 沿路浏览位置（画布/canonical 域）；拖滑条默认 scrub，Shift 时平移选中区间。 */
     private float playheadStation;
+    /** 仅在草稿实际变更时触发 applyDraftsIfChanged，避免静止帧深度比较。 */
+    private boolean draftsDirty;
 
     private RoadNetwork lengthNetwork;
     private Road lengthRoad;
@@ -62,6 +64,15 @@ public final class StationFacilityEditor {
         drafts.clear();
         selectedIndex = -1;
         playheadStation = 0f;
+        draftsDirty = false;
+    }
+
+    void markDraftsDirty() {
+        draftsDirty = true;
+    }
+
+    boolean isDraftsDirty() {
+        return draftsDirty;
     }
 
     public void render(
@@ -125,7 +136,9 @@ public final class StationFacilityEditor {
             ImGui.endChild();
         }
 
-        applyDraftsIfChanged(road);
+        if (draftsDirty) {
+            applyDraftsIfChanged(road);
+        }
     }
 
     private void renderPlanSchematic(RoadNetwork network, Road road, float roadLength) {
@@ -179,7 +192,9 @@ public final class StationFacilityEditor {
             onHistory.run();
         }
         if (sliderActive && moveSelected && selectedIndex >= 0 && selectedIndex < drafts.size()) {
-            translateSelectedInterval(playheadStation, canvasMax);
+            if (translateSelectedInterval(playheadStation, canvasMax)) {
+                markDraftsDirty();
+            }
         } else if (sliderActive && !moveSelected) {
             int owner = coveringDraftIndex(playheadStation, canvasMax);
             if (owner >= 0 && owner != selectedIndex) {
@@ -193,22 +208,23 @@ public final class StationFacilityEditor {
         // 桩号数值已在滑条上显示，不再重复一行灰字。
     }
 
-    /** Shift+拖：闭区间保持长度平移；open-end 只移 start。 */
-    private void translateSelectedInterval(float newPlayhead, float canvasMax) {
+    /** Shift+拖：闭区间保持长度平移；open-end 只移 start。返回是否实际改动。 */
+    private boolean translateSelectedInterval(float newPlayhead, float canvasMax) {
         FacilityRunDraft draft = drafts.get(selectedIndex);
         float oldStart = draft.startStation;
         float delta = newPlayhead - oldStart;
         if (Math.abs(delta) < 1e-6f) {
-            return;
+            return false;
         }
         if (draft.openEnded) {
             draft.startStation = Math.clamp(newPlayhead, 0f, canvasMax);
-            return;
+            return Math.abs(draft.startStation - oldStart) > 1e-6f;
         }
         float span = Math.max(0.1f, draft.endStation - draft.startStation);
         float newStart = Math.clamp(oldStart + delta, 0f, Math.max(0f, canvasMax - span));
         draft.startStation = newStart;
         draft.endStation = Math.min(canvasMax, newStart + span);
+        return true;
     }
 
     private void drawIntervalMarkersOnSlider(float roadLength, ChainageDisplayContext chainageDisplay) {
@@ -353,6 +369,7 @@ public final class StationFacilityEditor {
             }
             drafts.add(FacilityRunDraft.defaultRun(roadLength, playheadStation));
             selectIndex(drafts.size() - 1, true);
+            markDraftsDirty();
             applyDraftsIfChanged(road);
         }
         ImGui.sameLine(0f, spacing);
@@ -410,16 +427,20 @@ public final class StationFacilityEditor {
         worldStart = Math.clamp(worldStart, 0f, Math.max(0f, worldMax - 0.1f));
         float[] start = {worldStart};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat(PlotI18n.tr("plugin.road.station_facility_start") + "##start", start,
+        boolean startEdited = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.station_facility_start") + "##start", start,
             0, Math.max(0f, worldMax - 0.1f), RoadUiFormat.SLIDER_METERS);
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
-        draft.startStation = (float) RoadLengthDisplay.blocksToCanvas(
-            start[0], lengthNetwork, lengthRoad, lengthCoordinates);
-        draft.startStation = Math.clamp(draft.startStation, 0f, canvasMax);
-        if (!draft.openEnded && draft.endStation <= draft.startStation + 1e-6f) {
-            draft.endStation = Math.min(canvasMax, draft.startStation + 1f);
+        if (startEdited) {
+            draft.startStation = (float) RoadLengthDisplay.blocksToCanvas(
+                start[0], lengthNetwork, lengthRoad, lengthCoordinates);
+            draft.startStation = Math.clamp(draft.startStation, 0f, canvasMax);
+            if (!draft.openEnded && draft.endStation <= draft.startStation + 1e-6f) {
+                draft.endStation = Math.min(canvasMax, draft.startStation + 1f);
+            }
+            markDraftsDirty();
         }
 
         ImBoolean openEnded = new ImBoolean(draft.openEnded);
@@ -427,8 +448,9 @@ public final class StationFacilityEditor {
             if (onHistory != null) {
                 onHistory.run();
             }
+            draft.openEnded = openEnded.get();
+            markDraftsDirty();
         }
-        draft.openEnded = openEnded.get();
 
         if (!draft.openEnded) {
             float worldEnd = (float) RoadLengthDisplay.canvasToBlocks(
@@ -439,7 +461,7 @@ public final class StationFacilityEditor {
             worldEnd = Math.clamp(worldEnd, endMin, worldMax);
             float[] end = {worldEnd};
             ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            ImGui.sliderFloat(
+            boolean endEdited = ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.station_facility_end") + "##end",
                 end,
                 endMin,
@@ -448,9 +470,12 @@ public final class StationFacilityEditor {
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }
-            draft.endStation = (float) RoadLengthDisplay.blocksToCanvas(
-                end[0], lengthNetwork, lengthRoad, lengthCoordinates);
-            draft.endStation = Math.clamp(draft.endStation, 0f, canvasMax);
+            if (endEdited) {
+                draft.endStation = (float) RoadLengthDisplay.blocksToCanvas(
+                    end[0], lengthNetwork, lengthRoad, lengthCoordinates);
+                draft.endStation = Math.clamp(draft.endStation, 0f, canvasMax);
+                markDraftsDirty();
+            }
         }
 
         ImInt kindIndex = new ImInt(draft.kind.ordinal());
@@ -462,8 +487,9 @@ public final class StationFacilityEditor {
             if (onHistory != null) {
                 onHistory.run();
             }
+            draft.kind = KINDS[kindIndex.get()];
+            markDraftsDirty();
         }
-        draft.kind = KINDS[kindIndex.get()];
 
         ImInt sideIndex = new ImInt(draft.side.ordinal());
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
@@ -474,15 +500,16 @@ public final class StationFacilityEditor {
             if (onHistory != null) {
                 onHistory.run();
             }
+            draft.side = SIDES[sideIndex.get()];
+            markDraftsDirty();
         }
-        draft.side = SIDES[sideIndex.get()];
 
         renderMaterialPicker(ctx, draft, onHistory);
 
         if (draft.kind == RoadFacilityKind.RETAINING_WALL) {
             float[] height = {draft.height};
             ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            ImGui.sliderFloat(
+            boolean heightEdited = ImGui.sliderFloat(
                 PlotI18n.tr("plugin.road.station_facility_height") + "##height",
                 height,
                 1f,
@@ -491,7 +518,10 @@ public final class StationFacilityEditor {
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }
-            draft.height = height[0];
+            if (heightEdited) {
+                draft.height = height[0];
+                markDraftsDirty();
+            }
         }
 
         String validation = validateDraft(draft, roadLength);
@@ -525,6 +555,7 @@ public final class StationFacilityEditor {
                     onHistory.run();
                 }
                 draft.materialBuffer.set(blockId != null ? blockId : "");
+                markDraftsDirty();
             });
         }
         if (ImGui.isItemHovered()) {
@@ -540,6 +571,7 @@ public final class StationFacilityEditor {
                     onHistory.run();
                 }
                 draft.materialBuffer.set("");
+                markDraftsDirty();
             }
         }
     }
@@ -578,6 +610,7 @@ public final class StationFacilityEditor {
         } else {
             selectIndex(Math.min(index, drafts.size() - 1), true);
         }
+        markDraftsDirty();
         applyDraftsIfChanged(road);
     }
 
@@ -652,6 +685,7 @@ public final class StationFacilityEditor {
         syncedRoad = road;
         syncedFacilities = road.getStationFacilities();
         drafts.clear();
+        draftsDirty = false;
         if (road.getStationFacilities() == null) {
             selectedIndex = -1;
             return;
@@ -668,16 +702,23 @@ public final class StationFacilityEditor {
     }
 
     private void applyDraftsIfChanged(Road road) {
-        if (hasInvalidDrafts()) return;
+        if (!draftsDirty) {
+            return;
+        }
+        if (hasInvalidDrafts()) {
+            return;
+        }
         List<StationFacilityRun> built = buildRuns(drafts);
         List<StationFacilityRun> current = road.getStationFacilities() != null
             ? road.getStationFacilities().sortedRuns()
             : List.of();
         if (runsEqual(current, built)) {
+            draftsDirty = false;
             return;
         }
         road.setStationFacilities(built.isEmpty() ? null : new RoadStationFacilities(built));
         syncedFacilities = road.getStationFacilities();
+        draftsDirty = false;
     }
 
     public boolean hasInvalidDrafts() {

@@ -157,14 +157,38 @@ class BatchDesignerApplyTest {
             StationFacilityRun.of(1.0, 3.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
         )));
 
-        StationFacilityEditorApplier.applyToLive(
+        BatchApplyReport report = StationFacilityEditorApplier.applyToLive(
             live, working, a.getId(), Set.of(a.getId(), b.getId()), BatchStationMappingMode.PROPORTIONAL);
 
+        assertEquals(2, report.appliedTargets());
         assertEquals(1, live.getRoad(a.getId()).getStationFacilities().runCount());
         assertEquals(1, live.getRoad(b.getId()).getStationFacilities().runCount());
         assertEquals(
             RoadFacilityKind.GUARDRAIL,
             live.getRoad(b.getId()).getStationFacilities().sortedRuns().getFirst().getKind());
+    }
+
+    @Test
+    void stationFacilitiesPreviewCountsSourceLikeApply() {
+        RoadNetwork live = networkWithRoads(50.0, 40.0);
+        Road a = named(live, "a");
+        Road b = named(live, "b");
+        RoadNetwork working = live.snapshot();
+        RoadStationFacilities source = new RoadStationFacilities(List.of(
+            StationFacilityRun.of(5.0, 15.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        ));
+        working.getRoad(a.getId()).setStationFacilities(source);
+
+        Set<String> targets = Set.of(a.getId(), b.getId());
+        BatchApplyReport preview = StationFacilityEditorApplier.preview(
+            working, working.getRoad(a.getId()), source, targets, BatchStationMappingMode.PROPORTIONAL);
+        BatchApplyReport applied = StationFacilityEditorApplier.applyToLive(
+            live, working, a.getId(), targets, BatchStationMappingMode.PROPORTIONAL);
+
+        assertEquals(applied.appliedTargets(), preview.appliedTargets());
+        assertEquals(applied.skippedTargets(), preview.skippedTargets());
+        assertEquals(applied.droppedItems(), preview.droppedItems());
+        assertEquals(2, preview.appliedTargets());
     }
 
     @Test

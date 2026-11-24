@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.facility;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadStationFacilityGeneratorTest {
@@ -62,6 +64,45 @@ class RoadStationFacilityGeneratorTest {
 
         assertTrue(solids.count(RoadSolidLayer.GUARDRAIL) > 0);
         assertTrue(solids.count(RoadSolidLayer.RETAINING_WALL) >= 4);
+    }
+
+    @Test
+    void generateAlongStationsSkipsBridgeAndTunnelSegments() {
+        RoadSolidModel solids = new RoadSolidModel();
+        Road road = new Road("r1");
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(0.0, 60.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.BOTH)
+        )));
+
+        PathSegment roadSeg = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        PathSegment bridgeSeg = new PathSegment(new Vec2d(20, 0), new Vec2d(40, 0));
+        PathSegment tunnelSeg = new PathSegment(new Vec2d(40, 0), new Vec2d(60, 0));
+        List<PathSegment> segments = List.of(roadSeg, bridgeSeg, tunnelSeg);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(roadSeg, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(bridgeSeg, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(tunnelSeg, 64, 64, 64, 64, 0.0));
+
+        RoadStationFacilityGenerator.generateAlongStations(
+            solids,
+            segments,
+            heightInfos,
+            CrossSectionBuildContext.fixed(sectionWithoutExtras()),
+            road,
+            new OrientedRoadSegment("edge", true, null, null, 0.0, 60.0),
+            60.0,
+            60.0,
+            StationFacilityJunctionTrim.FacilityEndpointTrim.NONE,
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            material -> material,
+            (center, targetY) -> targetY,
+            List.of(RoadConstructionType.ROAD, RoadConstructionType.BRIDGE, RoadConstructionType.TUNNEL));
+
+        assertTrue(solids.count(RoadSolidLayer.GUARDRAIL) > 0);
+        assertTrue(solids.byLayer(RoadSolidLayer.GUARDRAIL).stream()
+            .allMatch(voxel -> voxel.planPoint().x <= 20.0 + 1e-3));
     }
 
     @Test

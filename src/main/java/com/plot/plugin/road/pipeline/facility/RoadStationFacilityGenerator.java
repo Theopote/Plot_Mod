@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.facility;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.facility.RoadFacilityKind;
@@ -11,6 +12,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
@@ -40,6 +42,8 @@ public final class RoadStationFacilityGenerator {
             return;
         }
 
+        List<RoadConstructionType> constructionTypes =
+            ctx.detection() != null ? ctx.detection().constructionTypes() : null;
         generateAlongStations(
             ctx.solids(),
             ctx.segments(),
@@ -60,7 +64,8 @@ public final class RoadStationFacilityGenerator {
             ctx.request().designElevation(),
             ctx.buildProfile(),
             host::resolveBlockId,
-            host::snapEndpointElevation);
+            host::snapEndpointElevation,
+            constructionTypes);
     }
 
     static void generateAlongStations(
@@ -78,6 +83,27 @@ public final class RoadStationFacilityGenerator {
             BuildHeightProfile buildProfile,
             MaterialResolver materialResolver,
             ElevationSnapper elevationSnapper) {
+        generateAlongStations(
+            solids, segments, heightInfos, crossSections, road, oriented, roadEndStation, edgeLength,
+            trim, unitsPerBlock, designElevation, buildProfile, materialResolver, elevationSnapper, null);
+    }
+
+    static void generateAlongStations(
+            RoadSolidModel solids,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            Road road,
+            OrientedRoadSegment oriented,
+            double roadEndStation,
+            double edgeLength,
+            StationFacilityJunctionTrim.FacilityEndpointTrim trim,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            MaterialResolver materialResolver,
+            ElevationSnapper elevationSnapper,
+            List<RoadConstructionType> constructionTypes) {
         if (trim == null) {
             trim = StationFacilityJunctionTrim.FacilityEndpointTrim.NONE;
         }
@@ -91,6 +117,13 @@ public final class RoadStationFacilityGenerator {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
+            // 桥/隧/洞门/桥台：跳过护栏与挡土墙，避免穿入净空或与桥护栏重叠。
+            RoadConstructionType constructionType =
+                RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
+            if (constructionType.isStructure()) {
+                geometryLocalBase += segment.distance;
+                continue;
+            }
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, oriented.forward());
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
