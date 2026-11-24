@@ -30,6 +30,8 @@ public final class CrossSectionDraftComparer {
             && left.bikeLaneWidth() == right.bikeLaneWidth()
             && left.includeMedian() == right.includeMedian()
             && left.medianWidth() == right.medianWidth()
+            && left.medianHeight() == right.medianHeight()
+            && left.defaultLaneWidth() == right.defaultLaneWidth()
             && left.streetlightSpacing() == right.streetlightSpacing()
             && left.laneDividers() == right.laneDividers()
             && left.centerLineStyle() == right.centerLineStyle()

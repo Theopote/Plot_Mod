@@ -267,6 +267,13 @@ public final class RoadCrossSectionEditor {
         h = 31 * h + Objects.hashCode(road.getBridgePierDiameterBlocks());
         h = 31 * h + Objects.hashCode(road.getBridgePierOffsetBlocks());
         h = 31 * h + Objects.hashCode(road.getIncludeBridgeGuardrail());
+        h = 31 * h + road.getEffectiveBridgeGuardrailHeightBlocks(config);
+        h = 31 * h + Objects.hashCode(road.getEffectiveBridgeGuardrailMaterial(config));
+        h = 31 * h + Objects.hashCode(road.getEffectiveBridgePierMaterial(config));
+        h = 31 * h + Objects.hashCode(road.getEffectiveFillSlopeMaterial(config));
+        h = 31 * h + Objects.hashCode(road.getEffectiveCutSlopeMaterial(config));
+        h = 31 * h + Objects.hashCode(road.getEffectiveRetainingWallMaterial(config));
+        h = 31 * h + Objects.hashCode(road.getStreetlightSpacing());
         h = 31 * h + Objects.hashCode(road.getMaterial());
         h = 31 * h + Objects.hashCode(road.getSidewalkMaterial());
         h = 31 * h + Objects.hashCode(road.getMarkingMaterial());

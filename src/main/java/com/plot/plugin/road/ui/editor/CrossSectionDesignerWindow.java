@@ -87,7 +87,8 @@ public final class CrossSectionDesignerWindow extends AbstractRoadFloatingEditor
             road,
             config,
             true,
-            road);
+            road,
+            session::pushUndoCheckpoint);
     }
 
     @Override

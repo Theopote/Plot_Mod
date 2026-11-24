@@ -42,6 +42,21 @@ public final class CrossSectionDesignerPanel {
             RoadSystemConfig config,
             boolean includeBridge,
             Road bridgeRoad) {
+        renderForRoad(ctx, mutator, network, road, config, includeBridge, bridgeRoad, null);
+    }
+
+    /**
+     * @param beforeBridgeMutation 修改桥墩/护栏前的会话撤销检查点；可为 null
+     */
+    public void renderForRoad(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            boolean includeBridge,
+            Road bridgeRoad,
+            Runnable beforeBridgeMutation) {
         if (mutator == null || road == null || config == null) {
             return;
         }
@@ -50,6 +65,7 @@ public final class CrossSectionDesignerPanel {
             mutator,
             includeBridge,
             bridgeRoad,
+            beforeBridgeMutation,
             () -> renderRoadPreview(network, road, config));
     }
 
@@ -72,6 +88,7 @@ public final class CrossSectionDesignerPanel {
             mutator,
             false,
             null,
+            null,
             () -> renderDraftPreview(draft, config, summaryPresetName));
     }
 
@@ -85,6 +102,7 @@ public final class CrossSectionDesignerPanel {
             CrossSectionDraftMutator mutator,
             boolean includeBridge,
             Road bridgeRoad,
+            Runnable beforeBridgeMutation,
             Runnable previewRenderer) {
         float totalWidth = ImGui.getContentRegionAvailX();
         float columnHeight = ImGui.getContentRegionAvailY();
@@ -111,7 +129,7 @@ public final class CrossSectionDesignerPanel {
             // 不 ResizeDown 挤压页签；宽度不够时由外壳加宽（触顶后再滚动）。
             if (ImGui.beginTabBar("##xs_tabs", ImGuiTabBarFlags.FittingPolicyScroll)) {
                 try {
-                    renderParamsTabs(ctx, mutator, includeBridge, bridgeRoad);
+                    renderParamsTabs(ctx, mutator, includeBridge, bridgeRoad, beforeBridgeMutation);
                 } finally {
                     ImGui.endTabBar();
                 }
@@ -145,7 +163,8 @@ public final class CrossSectionDesignerPanel {
             RoadUiContext ctx,
             CrossSectionDraftMutator mutator,
             boolean includeBridge,
-            Road bridgeRoad) {
+            Road bridgeRoad,
+            Runnable beforeBridgeMutation) {
         if (ImGui.beginTabItem(
             PlotI18n.tr("plugin.road.floating_editor.cross_section.tab.structure"),
             ImGuiTabItemFlags.None)) {
@@ -250,9 +269,11 @@ public final class CrossSectionDesignerPanel {
                 beginParamsTabBody("bridge");
                 try {
                     sectionCard("##xs_sec_piers", "piers", true, () ->
-                        BridgeStructureControls.renderRoadOverridePiers(ctx, bridgeRoad, null));
+                        BridgeStructureControls.renderRoadOverridePiers(
+                            ctx, bridgeRoad, beforeBridgeMutation));
                     sectionCard("##xs_sec_guardrail", "guardrail", true, () ->
-                        BridgeStructureControls.renderRoadOverrideGuardrail(ctx, bridgeRoad, null));
+                        BridgeStructureControls.renderRoadOverrideGuardrail(
+                            ctx, bridgeRoad, beforeBridgeMutation));
                 } finally {
                     endParamsTabBody();
                 }
