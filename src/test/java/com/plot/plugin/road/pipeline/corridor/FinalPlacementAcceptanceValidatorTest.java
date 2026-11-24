@@ -190,6 +190,24 @@ class FinalPlacementAcceptanceValidatorTest {
     }
 
     @Test
+    void connectivityOpenedLiningAirDoesNotBlockAfterTunnelThenFinalChain() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos opened = new BlockPos(44, 67, 0);
+        aggregate.recordExpectedTunnelLining(opened);
+        aggregate.recordExpectedTunnelCavity(opened);
+        aggregate.recordPlacementByLayerPriority(
+            opened, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
+
+        runTunnelThenFinal(aggregate, null);
+
+        assertEquals(0, aggregate.missingTunnelLiningCount);
+        assertEquals(0, aggregate.unclearedTunnelCavityCount);
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
     void applyToAggregateDoesNotClobberTunnelCountsFromSpecialist() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         aggregate.unclearedTunnelCavityCount = 7;

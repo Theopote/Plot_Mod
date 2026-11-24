@@ -2453,6 +2453,7 @@
   "plugin.road.preview_cancelled": "方案生成已取消。",
   "plugin.road.generate_preview_failed": "方案生成失败，请检查道路数据并查看日志",
   "plugin.road.generate_preview_ready": "方案已生成，可以落地建造",
+  "plugin.road.generate_preview_blocked": "方案已生成，但存在校验问题，暂不可建造",
   "plugin.road.generate_partial_failure": "%d / %d 条边成功，%d 条失败，%d 个路口已跳过",
   "plugin.road.preview_invalidated": "路网已变更，方案已失效，请重新生成",
   "plugin.road.default_params_scope_hint": "以下为「新认领道路」的默认横断面与工程默认值；认领时会冻结为道路的显式参数，之后修改此处不影响已认领道路。已有道路请到「编辑」修改。",

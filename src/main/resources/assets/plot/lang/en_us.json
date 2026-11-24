@@ -3110,6 +3110,7 @@
   "plugin.road.generate_partial_failure": "%d / %d edges succeeded, %d failed, %d junction(s) skipped",
   "plugin.road.generate_preview_failed": "Failed to generate the road plan. Check the road data and logs.",
   "plugin.road.generate_preview_ready": "Plan generated. You can build now.",
+  "plugin.road.generate_preview_blocked": "Plan generated, but validation issues block building",
   "plugin.road.generate_world_unavailable": "World is not ready. Cannot generate roads.",
   "plugin.road.grade_separation": "Grade Separation",
   "plugin.road.grade_separation_manual_override": "Manual elevation is the lower deck; elevated road = manual Y + clearance",

@@ -109,6 +109,38 @@ class TunnelFinalVoxelValidatorTest {
     }
 
     @Test
+    void missingLiningIgnoresAuthorizedCavityOpenedByConnectivity() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos opened = new BlockPos(18, 67, 0);
+        result.recordExpectedTunnelLining(opened);
+        result.recordExpectedTunnelCavity(opened);
+        result.recordPlacementByLayerPriority(
+            opened, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
+        assertEquals(0, report.missingTunnelLiningCount(),
+            "connectivity-opened cavity must not count as missing lining");
+        assertEquals(0, report.unclearedTunnelCavityCount());
+    }
+
+    @Test
+    void missingLiningIgnoresTunnelLayerAirEvenWithoutCavityExpectation() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos opened = new BlockPos(19, 67, 0);
+        result.recordExpectedTunnelLining(opened);
+        result.recordPlacementByLayerPriority(
+            opened, "minecraft:stone", "minecraft:air",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR,
+            ClearancePurpose.TUNNEL_INTERIOR);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
+        assertEquals(0, report.missingTunnelLiningCount(),
+            "TUNNEL-layer air is authorized clearance, not lining loss");
+    }
+
+    @Test
     void missingLiningExactCountsGapEvenWhenNeighborHasLining() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos missing = new BlockPos(20, 70, 0);

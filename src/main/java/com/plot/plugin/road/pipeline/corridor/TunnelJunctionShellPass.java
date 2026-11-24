@@ -817,6 +817,9 @@ public final class TunnelJunctionShellPass {
                 carrier.tunnelBlocks.add(pos);
             }
             carrier.recordExpectedTunnelCavity(pos);
+            if (carrier.expectedTunnelLining != null) {
+                carrier.expectedTunnelLining.remove(pos.toImmutable());
+            }
         }
     }
 }

@@ -1213,9 +1213,16 @@ public final class RoadPreviewManager {
     }
 
     private void applyPreviewReadyStatus() {
-        StringBuilder message = new StringBuilder(PlotI18n.tr("plugin.road.generate_preview_ready"));
-        RoadStatus.Severity severity = RoadStatus.Severity.SUCCESS;
-        if (lastNetworkGenerationResult != null && lastNetworkGenerationResult.hasPartialFailure()) {
+        boolean partialFailure = lastNetworkGenerationResult != null
+            && lastNetworkGenerationResult.hasPartialFailure();
+        // 口径与建造面板一致：有校验阻断时不得写「可以落地建造」。
+        StringBuilder message = new StringBuilder(partialFailure
+            ? PlotI18n.tr("plugin.road.generate_preview_blocked")
+            : PlotI18n.tr("plugin.road.generate_preview_ready"));
+        RoadStatus.Severity severity = partialFailure
+            ? RoadStatus.Severity.WARNING
+            : RoadStatus.Severity.SUCCESS;
+        if (partialFailure && lastNetworkGenerationResult != null) {
             message.append(" — ").append(PlotI18n.tr(
                 "plugin.road.generate_partial_failure",
                 lastNetworkGenerationResult.successEdgeCount(),
@@ -1231,7 +1238,6 @@ public final class RoadPreviewManager {
                 }
                 message.append(" — ").append(first);
             }
-            severity = RoadStatus.Severity.WARNING;
         }
         if (lastGenerationResult != null && lastGenerationResult.droppedSolidCount > 0) {
             message.append(" — ").append(PlotI18n.tr(

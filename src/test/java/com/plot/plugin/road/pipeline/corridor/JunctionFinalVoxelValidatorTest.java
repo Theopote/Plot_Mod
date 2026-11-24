@@ -291,6 +291,35 @@ class JunctionFinalVoxelValidatorTest {
     }
 
     @Test
+    void protectedLossIgnoresAuthorizedTunnelCavityAir() {
+        BlockPos deck = new BlockPos(2, 72, 2);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(),
+            List.of(deck),
+            List.of(),
+            squareFootprint(),
+            64,
+            72,
+            60,
+            68);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordExpectedTunnelCavity(deck);
+        aggregate.recordPlacementOverride(deck, "minecraft:stone", "minecraft:air");
+        aggregate.placementLayers.put(deck, RoadSolidLayer.TUNNEL);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.protectedLosses(),
+            "connectivity-authorized cavity must not count as protected structure loss");
+    }
+
+    @Test
     void floodFillUsesPortalSeedsNotAllAir() {
         BlockPos seedA = new BlockPos(0, 64, 0);
         BlockPos seedB = new BlockPos(10, 64, 0);

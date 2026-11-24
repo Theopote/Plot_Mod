@@ -118,6 +118,14 @@ public final class RoadGeneratePanel {
             return;
         }
         if (preview.isBuildPreviewCurrent()) {
+            // 顶栏隐藏的方案状态改在建造标签下展示，避免「可建造 / 暂不可建造」分处矛盾。
+            var scoped = ctx.status().getStatus();
+            if (scoped != null
+                    && !scoped.isEmpty()
+                    && RoadPanelScopedStatus.isGeneratePanelMessage(scoped.message())) {
+                RoadStatusUi.render(scoped);
+                return;
+            }
             RoadNetworkGenerator.NetworkGenerationResult networkResult =
                 preview.getLastNetworkGenerationResult();
             if (networkResult != null && networkResult.hasPartialFailure()) {

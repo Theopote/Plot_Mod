@@ -25,7 +25,10 @@ public final class RoadPanelScopedStatus {
         "plugin.road.profile_editor_edge_without_road",
         "plugin.road.profile_editor_confirm_conflict",
         "plugin.road.uniform_flat_profile_editor_blocked",
-        "plugin.road.edit.tools.coming_soon"
+        "plugin.road.edit.tools.coming_soon",
+        // 建造页方案状态：展示在「建造」标签下的面板内，不压在标签上方
+        "plugin.road.generate_preview_ready",
+        "plugin.road.generate_preview_blocked"
     };
 
     private RoadPanelScopedStatus() {
@@ -91,7 +94,35 @@ public final class RoadPanelScopedStatus {
             "invalid draft",
             "network changed elsewhere",
             "reloaded from the live",
-            "vertical profile");
+            "vertical profile",
+            "方案已生成，可以落地建造",
+            "方案已生成，但存在校验问题",
+            "Plan generated. You can build",
+            "Plan generated, but validation",
+            "条边成功",
+            "edges succeeded",
+            // 单元测试无语言包时 tr() 原样返回 key
+            "plugin.road.generate_preview_ready",
+            "plugin.road.generate_preview_blocked",
+            "plugin.road.generate_partial_failure");
+    }
+
+    /** 建造工作区应展示的方案生成状态（含边统计等格式化后缀）。 */
+    public static boolean isGeneratePanelMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        return containsAny(
+            message,
+            "方案已生成，可以落地建造",
+            "方案已生成，但存在校验问题",
+            "Plan generated. You can build",
+            "Plan generated, but validation",
+            "条边成功",
+            "edges succeeded",
+            "plugin.road.generate_preview_ready",
+            "plugin.road.generate_preview_blocked",
+            "plugin.road.generate_partial_failure");
     }
 
     private static boolean containsAny(String message, String... fragments) {

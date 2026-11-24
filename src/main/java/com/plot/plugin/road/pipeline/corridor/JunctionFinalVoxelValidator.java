@@ -241,7 +241,14 @@ public final class JunctionFinalVoxelValidator {
             JunctionValidationManifest manifest,
             RoadGenerationResult aggregate) {
         int losses = 0;
+        Set<BlockPos> authorizedCavity = aggregate != null && aggregate.expectedTunnelCavity != null
+            ? aggregate.expectedTunnelCavity
+            : Set.of();
         for (BlockPos expected : manifest.expectedProtectedBlocks()) {
+            // 连通清障授权洞腔空气不是「上层保护结构被拆除」。
+            if (authorizedCavity.contains(expected)) {
+                continue;
+            }
             BlockRecord record = aggregate.placementRecords.get(expected);
             if (record == null || "minecraft:air".equals(record.newBlockId)) {
                 losses++;

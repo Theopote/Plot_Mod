@@ -118,6 +118,9 @@ public final class TunnelFinalVoxelValidator {
         }
         int count = 0;
         for (BlockPos pos : expected) {
+            if (isAuthorizedLiningAbsence(result, pos)) {
+                continue;
+            }
             if (!isLiningSolid(result, pos)) {
                 count++;
             }
@@ -135,11 +138,33 @@ public final class TunnelFinalVoxelValidator {
         }
         int count = 0;
         for (BlockPos pos : expected) {
+            if (isAuthorizedLiningAbsence(result, pos)) {
+                continue;
+            }
             if (!isLiningSolid(result, pos) && hasCardinalLining(result, pos)) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * 连通清障把走廊衬砌合法打开为洞腔后，{@code expectedTunnelLining} 可能仍残留；
+     * 与 {@link JunctionProtectedOverburdenValidator#countMissingLiningInJunctionScope} 同口径，
+     * 不得把授权洞腔空气当成衬砌丢失拦建造。
+     */
+    private static boolean isAuthorizedLiningAbsence(RoadGenerationResult result, BlockPos pos) {
+        if (result == null || pos == null) {
+            return false;
+        }
+        if (result.expectedTunnelCavity != null && result.expectedTunnelCavity.contains(pos)) {
+            return true;
+        }
+        BlockRecord record = result.placementRecords.get(pos);
+        if (record == null || !"minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        return result.placementLayers.get(pos) == RoadSolidLayer.TUNNEL;
     }
 
     /**

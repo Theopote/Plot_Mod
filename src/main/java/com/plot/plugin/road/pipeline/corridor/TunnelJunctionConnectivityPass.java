@@ -655,6 +655,9 @@ public final class TunnelJunctionConnectivityPass {
                 if (existing != null && "minecraft:air".equals(existing.newBlockId)) {
                     hasAir = true;
                     result.recordExpectedTunnelCavity(pos);
+                    if (result.expectedTunnelLining != null) {
+                        result.expectedTunnelLining.remove(pos.toImmutable());
+                    }
                 }
             }
             if (hasAir) {
@@ -667,6 +670,9 @@ public final class TunnelJunctionConnectivityPass {
             carrier.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
             carrier.tunnelBlocks.add(pos);
             carrier.recordExpectedTunnelCavity(pos);
+            if (carrier.expectedTunnelLining != null) {
+                carrier.expectedTunnelLining.remove(pos.toImmutable());
+            }
         }
         return new OpenVolumeStats(blocked, protectedConflicts);
     }
@@ -723,6 +729,10 @@ public final class TunnelJunctionConnectivityPass {
         result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
         result.recordExpectedTunnelCavity(pos);
+        // 洞腔空气已取代衬砌实体：清除残留 lining 期望，避免终态验收假阳性。
+        if (result.expectedTunnelLining != null) {
+            result.expectedTunnelLining.remove(pos.toImmutable());
+        }
         return true;
     }
 

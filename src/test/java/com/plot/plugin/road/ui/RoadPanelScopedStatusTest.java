@@ -27,4 +27,19 @@ class RoadPanelScopedStatusTest {
             RoadStatus.of(RoadStatus.Severity.WARNING,
                 PlotI18n.tr("plugin.road.floating_editor.road_missing"))));
     }
+
+    @Test
+    void generatePreviewStatusHiddenFromToolbarAndScopedToPanel() {
+        String ready = PlotI18n.tr("plugin.road.generate_preview_ready")
+            + " — " + PlotI18n.tr("plugin.road.generate_partial_failure", 8, 8, 0, 0);
+        String blocked = PlotI18n.tr("plugin.road.generate_preview_blocked")
+            + " — " + PlotI18n.tr("plugin.road.generate_partial_failure", 8, 8, 0, 0)
+            + " — finalPlacementAcceptanceFailed";
+        assertTrue(RoadPanelScopedStatus.shouldHideFromToolbar(
+            RoadStatus.of(RoadStatus.Severity.SUCCESS, ready)));
+        assertTrue(RoadPanelScopedStatus.shouldHideFromToolbar(
+            RoadStatus.of(RoadStatus.Severity.WARNING, blocked)));
+        assertTrue(RoadPanelScopedStatus.isGeneratePanelMessage(ready));
+        assertTrue(RoadPanelScopedStatus.isGeneratePanelMessage(blocked));
+    }
 }
