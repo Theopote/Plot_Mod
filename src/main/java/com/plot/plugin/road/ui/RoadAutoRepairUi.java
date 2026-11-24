@@ -5,7 +5,6 @@ import com.plot.ui.component.UIUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.repair.RoadAutoRepair;
-import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.plugin.road.repair.RoadRepairIssue;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -15,18 +14,18 @@ import java.util.List;
 
 /**
  * 编辑 Tab / 诊断窗「一键自动修路」UI。
+ * 反馈文案与诊断缓存挂在 {@link RoadUiContext}，随上下文生命周期管理。
  */
 public final class RoadAutoRepairUi {
-
-    private static String lastFeedback = "";
-    private static int lastFeedbackColor = PluginUiColors.HINT_GRAY;
 
     private RoadAutoRepairUi() {
     }
 
     /** 路网或选中道路变更后使诊断缓存失效。 */
-    public static void invalidateCache() {
-        RoadRepairDiagnosisCache.invalidate();
+    public static void invalidateCache(RoadUiContext ctx) {
+        if (ctx != null) {
+            ctx.repairDiagnosisCache().invalidate();
+        }
     }
 
     public static void render(RoadUiContext ctx, RoadNetwork network, Road road) {
@@ -39,7 +38,7 @@ public final class RoadAutoRepairUi {
             return;
         }
 
-        List<RoadRepairIssue> issues = RoadRepairDiagnosisCache.diagnose(ctx, network, road);
+        List<RoadRepairIssue> issues = ctx.repairDiagnosisCache().diagnose(ctx, network, road);
         if (issues.isEmpty()) {
             return;
         }
@@ -57,7 +56,7 @@ public final class RoadAutoRepairUi {
             return;
         }
 
-        List<RoadRepairIssue> issues = RoadRepairDiagnosisCache.diagnose(ctx, network, road);
+        List<RoadRepairIssue> issues = ctx.repairDiagnosisCache().diagnose(ctx, network, road);
         if (issues.isEmpty()) {
             return;
         }
@@ -85,13 +84,14 @@ public final class RoadAutoRepairUi {
         renderFixButton(ctx, road, issues);
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.fix_road.recheck") + "##fix_road_recheck_" + road.getId())) {
-            invalidateCache();
-            lastFeedback = "";
+            invalidateCache(ctx);
+            ctx.clearAutoRepairFeedback();
         }
 
-        if (!lastFeedback.isBlank()) {
+        String feedback = ctx.autoRepairFeedback();
+        if (!feedback.isBlank()) {
             ImGui.spacing();
-            RoadUiWidgets.textWrappedColored(lastFeedbackColor, lastFeedback);
+            RoadUiWidgets.textWrappedColored(ctx.autoRepairFeedbackColor(), feedback);
         }
         ImGui.spacing();
     }
@@ -137,7 +137,7 @@ public final class RoadAutoRepairUi {
         if (ctx == null || road == null) {
             return false;
         }
-        List<RoadRepairIssue> before = RoadRepairDiagnosisCache.diagnose(
+        List<RoadRepairIssue> before = ctx.repairDiagnosisCache().diagnose(
             ctx, ctx.networkManager().getNetwork(), road);
         boolean anyAuto = false;
         for (RoadRepairIssue issue : before) {
@@ -147,31 +147,31 @@ public final class RoadAutoRepairUi {
             }
         }
         if (!anyAuto) {
-            lastFeedback = PlotI18n.tr("plugin.road.fix_road.auto_fixable_none");
-            lastFeedbackColor = PluginUiColors.HINT_GRAY;
-            ctx.status().info(lastFeedback);
+            String message = PlotI18n.tr("plugin.road.fix_road.auto_fixable_none");
+            ctx.setAutoRepairFeedback(message, PluginUiColors.HINT_GRAY);
+            ctx.status().info(message);
             return false;
         }
 
         RoadAutoRepair.Result result = ctx.networkManager().fixRoad(road);
-        invalidateCache();
+        invalidateCache(ctx);
         ctx.onGenerationConfigChanged();
         ctx.requestOverlayRefresh();
 
         if (result.fullyRepaired()) {
-            lastFeedback = PlotI18n.tr("plugin.road.fix_road.success");
-            lastFeedbackColor = PluginUiColors.STATUS_OK;
-            ctx.status().success(lastFeedback);
+            String message = PlotI18n.tr("plugin.road.fix_road.success");
+            ctx.setAutoRepairFeedback(message, PluginUiColors.STATUS_OK);
+            ctx.status().success(message);
         } else if (result.changed()) {
-            lastFeedback = PlotI18n.tr(
+            String message = PlotI18n.tr(
                 "plugin.road.fix_road.partial",
                 result.issuesAfter().size());
-            lastFeedbackColor = PluginUiColors.WARNING;
-            ctx.status().warning(lastFeedback);
+            ctx.setAutoRepairFeedback(message, PluginUiColors.WARNING);
+            ctx.status().warning(message);
         } else {
-            lastFeedback = PlotI18n.tr("plugin.road.fix_road.noop");
-            lastFeedbackColor = PluginUiColors.HINT_GRAY;
-            ctx.status().info(lastFeedback);
+            String message = PlotI18n.tr("plugin.road.fix_road.noop");
+            ctx.setAutoRepairFeedback(message, PluginUiColors.HINT_GRAY);
+            ctx.status().info(message);
         }
 
         if (result.roadId() != null && !result.roadId().isBlank()) {
@@ -181,7 +181,7 @@ public final class RoadAutoRepairUi {
     }
 
     /** 测试用：最近一次修复反馈文案。 */
-    static String lastFeedbackForTest() {
-        return lastFeedback;
+    static String lastFeedbackForTest(RoadUiContext ctx) {
+        return ctx != null ? ctx.autoRepairFeedback() : "";
     }
 }

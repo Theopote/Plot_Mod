@@ -8,10 +8,8 @@ import com.plot.plugin.road.overlay.RoadJunctionOverlayEntry;
 import com.plot.plugin.road.overlay.RoadOverlayCompositor;
 import com.plot.plugin.road.overlay.RoadOverlayController;
 import com.plot.plugin.road.overlay.RoadOverlayEntry;
-import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.plugin.road.ui.ComplexJunctionControls;
 import com.plot.plugin.road.ui.RoadAdoptPanel;
-import com.plot.plugin.road.ui.RoadAutoRepairUi;
 import com.plot.plugin.road.ui.RoadBuildPanel;
 import com.plot.plugin.road.ui.RoadCrossSectionPanel;
 import com.plot.plugin.road.ui.RoadDefaultParamsPanel;
@@ -246,7 +244,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     }
 
     public void onPathsPicked() {
-        RoadRepairDiagnosisCache.invalidate();
+        ctx.repairDiagnosisCache().invalidate();
         LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
         if (!roadIds.isEmpty()) {
             ctx.networkManager().selectRoad(roadIds.getFirst(), false);
@@ -342,7 +340,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             candidates,
             pickActive,
             Set.of(),
-            ctx.showSlopeBatterOverlay().get());
+            ctx.showSlopeBatterOverlay().get(),
+            ctx.overlayWarningCache());
     }
 
     private void captureJunctionOverlaySnapshot() {
@@ -435,7 +434,12 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         hideCanvasPreviews();
         crossSectionPanel.finishPendingEdits();
         ctx.clearTransientUiState();
-        RoadAutoRepairUi.invalidateCache();
+    }
+
+    /** 项目切换 / 插件卸载时丢弃诊断与叠加警告缓存。 */
+    public void invalidateDiagnosisCaches() {
+        ctx.repairDiagnosisCache().invalidate();
+        ctx.clearAutoRepairFeedback();
     }
 
     /**

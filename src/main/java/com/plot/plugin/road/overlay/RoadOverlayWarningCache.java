@@ -9,16 +9,14 @@ import java.util.Set;
 
 /**
  * 道路叠加层警告态缓存：避免每帧 {@link RoadCenterlineShapeValidator#validate} 全路网扫描。
+ * 实例归属 {@link com.plot.plugin.road.ui.RoadUiContext}，随 UI 上下文生命周期失效。
  */
 public final class RoadOverlayWarningCache {
-    private static long cachedRevision = Long.MIN_VALUE;
-    private static RoadNetwork cachedNetwork;
-    private static Set<String> cachedWarnings = Set.of();
+    private long cachedRevision = Long.MIN_VALUE;
+    private RoadNetwork cachedNetwork;
+    private Set<String> cachedWarnings = Set.of();
 
-    private RoadOverlayWarningCache() {
-    }
-
-    static Set<String> warnings(RoadNetwork network, long networkRevision) {
+    public Set<String> warnings(RoadNetwork network, long networkRevision) {
         if (network == null) {
             return Set.of();
         }
@@ -37,7 +35,7 @@ public final class RoadOverlayWarningCache {
         return cachedWarnings;
     }
 
-    public static void invalidate() {
+    public void invalidate() {
         cachedRevision = Long.MIN_VALUE;
         cachedNetwork = null;
         cachedWarnings = Set.of();

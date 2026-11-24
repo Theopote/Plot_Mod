@@ -8,30 +8,44 @@ import com.plot.plugin.road.overlay.RoadOverlayWarningCache;
 import com.plot.plugin.road.ui.RoadUiContext;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 道路健康诊断缓存：复用 Crossing 注册完整性探测结果，
  * 供 Auto Repair 横幅与 Topology Hints 共用，避免每帧重复求交。
+ * 实例归属 {@link RoadUiContext}。
  */
 public final class RoadRepairDiagnosisCache {
 
-    private static long cachedRevision = Long.MIN_VALUE;
-    private static String cachedRoadId = "";
-    private static boolean cachedAdoptPending;
-    private static List<RoadRepairIssue> cachedIssues = List.of();
-    private static RoadNetwork cachedNetwork;
+    private final RoadOverlayWarningCache overlayWarningCache;
 
-    private RoadRepairDiagnosisCache() {
+    private long cachedRevision = Long.MIN_VALUE;
+    private String cachedRoadId = "";
+    private boolean cachedAdoptPending;
+    private List<RoadRepairIssue> cachedIssues = List.of();
+    private RoadNetwork cachedNetwork;
+
+    public RoadRepairDiagnosisCache() {
+        this(new RoadOverlayWarningCache());
     }
 
-    public static void invalidate() {
+    public RoadRepairDiagnosisCache(RoadOverlayWarningCache overlayWarningCache) {
+        this.overlayWarningCache = Objects.requireNonNull(overlayWarningCache, "overlayWarningCache");
+    }
+
+    public RoadOverlayWarningCache overlayWarningCache() {
+        return overlayWarningCache;
+    }
+
+    public void invalidate() {
         cachedRevision = Long.MIN_VALUE;
         cachedRoadId = "";
         cachedNetwork = null;
-        RoadOverlayWarningCache.invalidate();
+        cachedIssues = List.of();
+        overlayWarningCache.invalidate();
     }
 
-    public static List<RoadRepairIssue> diagnose(RoadUiContext ctx, RoadNetwork network, Road road) {
+    public List<RoadRepairIssue> diagnose(RoadUiContext ctx, RoadNetwork network, Road road) {
         if (ctx == null || network == null || road == null) {
             return List.of();
         }
@@ -63,7 +77,7 @@ public final class RoadRepairDiagnosisCache {
         return issues;
     }
 
-    public static boolean hasIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
+    public boolean hasIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
         return !diagnose(ctx, network, road).isEmpty();
     }
 }

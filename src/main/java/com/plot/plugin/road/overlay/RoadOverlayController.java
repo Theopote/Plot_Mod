@@ -32,10 +32,37 @@ public final class RoadOverlayController {
             boolean pickSessionActive,
             Set<String> previewedRoadIds,
             boolean includeSlopeBatterOverlay) {
+        return snapshot(
+            network,
+            config,
+            coordinates,
+            networkRevision,
+            selectedRoadIds,
+            primaryRoadId,
+            pickCandidatePaths,
+            pickSessionActive,
+            previewedRoadIds,
+            includeSlopeBatterOverlay,
+            null);
+    }
+
+    public static List<RoadOverlayEntry> snapshot(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            ICoordinateService coordinates,
+            long networkRevision,
+            LinkedHashSet<String> selectedRoadIds,
+            String primaryRoadId,
+            List<Shape> pickCandidatePaths,
+            boolean pickSessionActive,
+            Set<String> previewedRoadIds,
+            boolean includeSlopeBatterOverlay,
+            RoadOverlayWarningCache warningCache) {
         if (network == null || config == null) {
             return List.of();
         }
-        Set<String> warnings = RoadOverlayWarningCache.warnings(network, networkRevision);
+        RoadOverlayWarningCache cache = warningCache != null ? warningCache : new RoadOverlayWarningCache();
+        Set<String> warnings = cache.warnings(network, networkRevision);
         Set<String> previewed = previewedRoadIds != null ? previewedRoadIds : Set.of();
         List<RoadOverlayEntry> entries = new ArrayList<>();
 

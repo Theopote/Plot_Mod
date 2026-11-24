@@ -1,0 +1,156 @@
+package com.plot.plugin.common;
+
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.model.RoadNetwork;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ObjectSnapshotHistoryTest {
+
+    private static ObjectSnapshotHistory<RoadNetwork> history() {
+        return new ObjectSnapshotHistory<>(RoadNetwork::deepCopy);
+    }
+
+    @Test
+    void pushUndoRedoRoundTripsSnapshots() {
+        ObjectSnapshotHistory<RoadNetwork> history = history();
+
+        RoadNetwork v1 = new RoadNetwork();
+        v1.createNode(new Vec2d(0, 0));
+
+        RoadNetwork v2 = new RoadNetwork();
+        v2.createNode(new Vec2d(10, 0));
+
+        history.push(v1);
+        assertTrue(history.canUndo());
+        assertFalse(history.canRedo());
+
+        RoadNetwork undone = history.undo(v2);
+        assertNotSame(v1, undone);
+        assertEquals(1, undone.getNodes().size());
+        assertEquals(0, undone.getNodes().values().iterator().next().getPosition().x, 1e-6);
+        assertTrue(history.canRedo());
+
+        RoadNetwork redone = history.redo(undone);
+        assertEquals(1, redone.getNodes().size());
+        assertEquals(10, redone.getNodes().values().iterator().next().getPosition().x, 1e-6);
+    }
+
+    @Test
+    void pushClearsRedoStack() {
+        ObjectSnapshotHistory<RoadNetwork> history = history();
+
+        RoadNetwork a = new RoadNetwork();
+        a.createNode(new Vec2d(1, 1));
+        RoadNetwork b = new RoadNetwork();
+        b.createNode(new Vec2d(2, 2));
+
+        history.push(a);
+        history.push(b);
+        history.undo(b);
+        assertTrue(history.canRedo());
+
+        RoadNetwork c = new RoadNetwork();
+        c.createNode(new Vec2d(3, 3));
+        history.push(c);
+        assertFalse(history.canRedo());
+    }
+
+    @Test
+    void clearEmptiesBothStacks() {
+        ObjectSnapshotHistory<RoadNetwork> history = new ObjectSnapshotHistory<>(RoadNetwork::deepCopy, 3);
+
+        RoadNetwork network = new RoadNetwork();
+        network.createNode(new Vec2d(0, 0));
+        history.push(network);
+        history.push(network);
+        history.clear();
+
+        assertFalse(history.canUndo());
+        assertFalse(history.canRedo());
+    }
+
+    @Test
+    void abortedStagedPushPreservesRedoStack() {
+        ObjectSnapshotHistory<RoadNetwork> history = history();
+
+        RoadNetwork a = new RoadNetwork();
+        a.createNode(new Vec2d(1, 1));
+        RoadNetwork b = new RoadNetwork();
+        b.createNode(new Vec2d(2, 2));
+
+        history.push(a);
+        history.undo(b);
+        assertTrue(history.canRedo());
+
+        RoadNetwork mutated = new RoadNetwork();
+        mutated.createNode(new Vec2d(9, 9));
+        history.stagePush(b);
+        history.discardStagedPush(mutated);
+
+        assertTrue(history.canRedo(), "failed/no-op edit must not clear redo");
+    }
+
+    @Test
+    void undoDiscardsStagedPushWithoutPoppingCommittedFrame() {
+        ObjectSnapshotHistory<RoadNetwork> history = history();
+
+        RoadNetwork committed = new RoadNetwork();
+        committed.createNode(new Vec2d(1, 1));
+        history.push(committed);
+
+        RoadNetwork beforeMutation = new RoadNetwork();
+        beforeMutation.createNode(new Vec2d(2, 2));
+        history.stagePush(beforeMutation);
+
+        RoadNetwork midEdit = new RoadNetwork();
+        midEdit.createNode(new Vec2d(9, 9));
+        RoadNetwork restored = history.undo(midEdit);
+
+        assertEquals(2, restored.getNodes().values().iterator().next().getPosition().x, 1e-6);
+        assertTrue(history.canUndo(), "committed undo frame must remain");
+        assertFalse(history.hasStagedPush());
+    }
+
+    @Test
+    void discardLatestUndoSnapshotRestoresPushedStateAndRemovesUndoFrame() {
+        ObjectSnapshotHistory<RoadNetwork> history = history();
+
+        RoadNetwork original = new RoadNetwork();
+        original.createNode(new Vec2d(0, 0));
+
+        RoadNetwork mutated = new RoadNetwork();
+        mutated.createNode(new Vec2d(99, 0));
+
+        history.push(original);
+        assertTrue(history.canUndo());
+
+        RoadNetwork restored = history.discardLatestUndoSnapshot(mutated);
+        assertEquals(1, restored.getNodes().size());
+        assertEquals(0, restored.getNodes().values().iterator().next().getPosition().x, 1e-6);
+        assertFalse(history.canUndo());
+    }
+
+    @Test
+    void mutatingRestoredNetworkDoesNotCorruptOlderStackedSnapshots() {
+        ObjectSnapshotHistory<RoadNetwork> history = history();
+
+        RoadNetwork v1 = new RoadNetwork();
+        v1.createNode(new Vec2d(0, 0));
+        history.push(v1);
+
+        RoadNetwork v2 = new RoadNetwork();
+        v2.createNode(new Vec2d(10, 0));
+        history.push(v2);
+
+        RoadNetwork mid = history.undo(v2.deepCopy());
+        mid.getNodes().values().iterator().next().setPosition(new Vec2d(77, 77));
+
+        RoadNetwork early = history.undo(mid);
+        assertEquals(0, early.getNodes().values().iterator().next().getPosition().x, 1e-6);
+    }
+}

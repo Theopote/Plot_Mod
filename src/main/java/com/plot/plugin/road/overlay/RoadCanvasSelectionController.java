@@ -6,7 +6,6 @@ import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.manager.RoadNetworkManager;
-import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.ui.canvas.Canvas;
 import imgui.ImGui;
 
@@ -69,9 +68,7 @@ public final class RoadCanvasSelectionController {
         if (overlayOn
                 && networkManager.getLoopSeamPickSession().isActive()
                 && ImGui.isMouseReleased(0)) {
-            if (networkManager.tryApplyLoopSeamPick(world)) {
-                invalidateOverlay();
-            }
+            networkManager.tryApplyLoopSeamPick(world);
             return;
         }
         if (ImGui.isMouseClicked(0)) {
@@ -135,7 +132,6 @@ public final class RoadCanvasSelectionController {
             if (!ctrl) {
                 appState.setSelectedShapes(List.of());
             }
-            invalidateOverlay();
             return;
         }
 
@@ -148,14 +144,12 @@ public final class RoadCanvasSelectionController {
                     if (!ctrl) {
                         networkManager.clearCanvasSelection();
                     }
-                    invalidateOverlay();
                 }
             } else {
                 networkManager.selectRoad(hit.roadId(), ctrl);
                 if (!ctrl) {
                     appState.setSelectedShapes(List.of());
                 }
-                invalidateOverlay();
             }
             return;
         }
@@ -204,8 +198,6 @@ public final class RoadCanvasSelectionController {
                 networkManager.clearCanvasSelection();
             }
         }
-
-        invalidateOverlay();
     }
 
     private static void clearEmptyCanvasSelection(
@@ -218,7 +210,6 @@ public final class RoadCanvasSelectionController {
         }
         networkManager.clearCanvasSelection();
         appState.setSelectedShapes(List.of());
-        invalidateOverlay();
     }
 
     private static void applyRoadSelection(
@@ -287,7 +278,4 @@ public final class RoadCanvasSelectionController {
         return null;
     }
 
-    private static void invalidateOverlay() {
-        RoadRepairDiagnosisCache.invalidate();
-    }
 }

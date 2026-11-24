@@ -6,7 +6,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
-import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.plugin.road.repair.RoadRepairIssue;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -24,7 +23,7 @@ public final class RoadEditDiagnosticsBanner {
             return 0;
         }
         // Repair 诊断已覆盖拓扑 + 中心线形状；勿再叠加 ShapeValidator 以免双计。
-        int count = RoadRepairDiagnosisCache.diagnose(ctx, network, road).size();
+        int count = ctx.repairDiagnosisCache().diagnose(ctx, network, road).size();
         if (count > 0) {
             return count;
         }
@@ -59,7 +58,7 @@ public final class RoadEditDiagnosticsBanner {
     }
 
     public static void renderDetailedIssues(RoadUiContext ctx, RoadNetwork network, Road road) {
-        List<RoadRepairIssue> repairIssues = RoadRepairDiagnosisCache.diagnose(ctx, network, road);
+        List<RoadRepairIssue> repairIssues = ctx.repairDiagnosisCache().diagnose(ctx, network, road);
         if (!repairIssues.isEmpty()) {
             RoadAutoRepairUi.renderDetailed(ctx, network, road);
             return;
@@ -69,7 +68,7 @@ public final class RoadEditDiagnosticsBanner {
     }
 
     private static void renderTopologyHints(RoadUiContext ctx, RoadNetwork network, Road road) {
-        if (RoadRepairDiagnosisCache.hasIssues(ctx, network, road)) {
+        if (ctx.repairDiagnosisCache().hasIssues(ctx, network, road)) {
             return;
         }
         List<RoadTopologyViolation> violations = RoadTopologyInvariantValidator.validateRoad(network, road);

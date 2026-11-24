@@ -1,18 +1,16 @@
 package com.plot.plugin.road.model;
 
-import com.plot.plugin.common.JsonSnapshotHistory;
+import com.plot.plugin.common.ObjectSnapshotHistory;
 
 /**
- * 道路网络轻量撤销栈（深拷贝 JSON 快照）。
+ * 道路网络轻量撤销栈（内存 {@link RoadNetwork#deepCopy()} 快照）。
  *
- * <p>每次 {@link #commitStagedPush} 对当前 live 网络做 {@link RoadNetwork#snapshot()} 等价序列化；
- * undo/redo 用快照整体替换 live 实例，与单写者模型一致。
+ * <p>每次 {@link #commitStagedPush} 对当前 live 网络做深拷贝入栈；
+ * undo/redo 用快照整体替换 live 实例，与单写者模型一致。不经 Pretty-Print JSON。
  */
 public class RoadNetworkHistory {
-    private final JsonSnapshotHistory<RoadNetwork> delegate = new JsonSnapshotHistory<>(
-        RoadNetwork::toJson,
-        RoadNetwork::parseSnapshot
-    );
+    private final ObjectSnapshotHistory<RoadNetwork> delegate =
+        new ObjectSnapshotHistory<>(RoadNetwork::deepCopy);
 
     public void stagePush(RoadNetwork current) {
         delegate.stagePush(current);
@@ -50,7 +48,7 @@ public class RoadNetworkHistory {
         delegate.clear();
     }
 
-    /** @see JsonSnapshotHistory#discardLatestUndoSnapshot */
+    /** @see ObjectSnapshotHistory#discardLatestUndoSnapshot */
     public RoadNetwork discardLatestUndoSnapshot(RoadNetwork current) {
         return delegate.discardLatestUndoSnapshot(current);
     }

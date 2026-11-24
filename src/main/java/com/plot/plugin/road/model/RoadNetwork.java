@@ -72,8 +72,9 @@ import java.util.stream.Collectors;
  * 并发读写的元素引用仍指向同一可变实例；例如 UI 正在改 {@code crossSection} 的同时
  * {@link #toJson()} 持久化，理论上可能读到中间状态。
  *
- * <p><strong>后台或跨线程读者</strong>：应使用 {@link #snapshot()}（或等价的 JSON 往返）取得
+ * <p><strong>后台或跨线程读者</strong>：应使用 {@link #snapshot()}（内存 {@link #deepCopy()}）取得
  * 独立副本后再做生成、校验、探测等耗时工作，不要与 live 实例并发读写。
+ * 主路网撤销栈（{@link RoadNetworkHistory}）同样走深拷贝，不经 Pretty-Print JSON。
  *
  * @see RoadNetworkManager
  * @see RoadNetworkHistory

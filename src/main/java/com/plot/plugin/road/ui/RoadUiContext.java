@@ -9,6 +9,9 @@ import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.overlay.RoadOverlayWarningCache;
+import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.CanvasAccess;
 import com.plot.ui.utils.ImStringUtf8;
 import imgui.type.ImBoolean;
@@ -72,6 +75,9 @@ public final class RoadUiContext {
     private boolean junctionFilletPreviewDirty;
 
     private final RoadListRenameController roadListRename = new RoadListRenameController(this);
+    private final RoadRepairDiagnosisCache repairDiagnosisCache = new RoadRepairDiagnosisCache();
+    private String autoRepairFeedback = "";
+    private int autoRepairFeedbackColor = PluginUiColors.HINT_GRAY;
     private final ImString roadNameBuffer = createRoadNameBuffer();
     private String roadNameEditingId = "";
     private String roadNameBeforeRename = "";
@@ -126,6 +132,32 @@ public final class RoadUiContext {
 
     public RoadListRenameController roadListRename() {
         return roadListRename;
+    }
+
+    public RoadRepairDiagnosisCache repairDiagnosisCache() {
+        return repairDiagnosisCache;
+    }
+
+    public RoadOverlayWarningCache overlayWarningCache() {
+        return repairDiagnosisCache.overlayWarningCache();
+    }
+
+    public String autoRepairFeedback() {
+        return autoRepairFeedback;
+    }
+
+    public int autoRepairFeedbackColor() {
+        return autoRepairFeedbackColor;
+    }
+
+    public void setAutoRepairFeedback(String message, int color) {
+        autoRepairFeedback = message != null ? message : "";
+        autoRepairFeedbackColor = color;
+    }
+
+    public void clearAutoRepairFeedback() {
+        autoRepairFeedback = "";
+        autoRepairFeedbackColor = PluginUiColors.HINT_GRAY;
     }
 
     public String roadNameEditingId() {
@@ -493,6 +525,8 @@ public final class RoadUiContext {
         clearBuildConfirmPending();
         pendingDeleteEdgeId = "";
         pendingDeleteRoadId = "";
+        clearAutoRepairFeedback();
+        repairDiagnosisCache.invalidate();
     }
 
     /**

@@ -128,18 +128,18 @@ class ProfessionalToolRegressionTest {
 
     @Test
     void diagnosisCacheDoesNotReuseLiveResultsForAnEditedWorkingCopy() {
-        com.plot.plugin.road.repair.RoadRepairDiagnosisCache.invalidate();
+        ctx.repairDiagnosisCache().invalidate();
         var network = manager.getNetwork();
-        com.plot.plugin.road.repair.RoadRepairDiagnosisCache.diagnose(ctx, network, network.getRoad("a"));
+        ctx.repairDiagnosisCache().diagnose(ctx, network, network.getRoad("a"));
         var working = network.snapshot();
         var road = working.getRoad("a");
         road.setVerticalAlignment(new com.plot.plugin.road.vertical.RoadVerticalAlignment(List.of(
             com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(0, 64),
             com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(100, 64))));
-        assertTrue(com.plot.plugin.road.repair.RoadRepairDiagnosisCache.diagnose(ctx, working, road)
+        assertTrue(ctx.repairDiagnosisCache().diagnose(ctx, working, road)
             .contains(com.plot.plugin.road.repair.RoadRepairIssue.VERTICAL_PROFILE_MISMATCH));
         road.setVerticalAlignment(null);
-        assertFalse(com.plot.plugin.road.repair.RoadRepairDiagnosisCache.diagnose(ctx, working, road)
+        assertFalse(ctx.repairDiagnosisCache().diagnose(ctx, working, road)
             .contains(com.plot.plugin.road.repair.RoadRepairIssue.VERTICAL_PROFILE_MISMATCH));
     }
 
