@@ -137,7 +137,11 @@ public final class VariableCrossSectionEditor {
         float totalWidth = ImGui.getContentRegionAvailX();
         float bodyHeight = ImGui.getContentRegionAvailY();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float railWidth = Math.max(120f, (totalWidth - spacing) * STATION_RAIL_WIDTH_FRACTION);
+        // 左栏至少容纳平面示意单行图例（起点/终点/标记/当前位置）。
+        float legendRailMin = RoadStationPlanSchematicRenderer.singleRowLegendMinWidth()
+            + ImGui.getStyle().getWindowPaddingX() * 2f;
+        float railWidth = Math.max(legendRailMin, (totalWidth - spacing) * STATION_RAIL_WIDTH_FRACTION);
+        railWidth = Math.min(railWidth, Math.max(legendRailMin, totalWidth - spacing - 160f));
         float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
         float startX = ImGui.getCursorPosX();
         float startY = ImGui.getCursorPosY();

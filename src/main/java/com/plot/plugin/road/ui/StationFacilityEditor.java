@@ -107,15 +107,18 @@ public final class StationFacilityEditor {
             PlotI18n.tr("plugin.road.station_facility_hint"));
         ImGui.spacing();
 
-        renderPlanSchematic(network, road, canvasLength);
-        ImGui.spacing();
+        // 通长滑动条置顶；平面示意与设施列表同宽落在左列。
         renderOverviewScrub(canvasLength, chainageDisplay, onHistory);
         ImGui.spacing();
 
         float totalWidth = ImGui.getContentRegionAvailX();
         float bodyHeight = ImGui.getContentRegionAvailY();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float railWidth = Math.max(120f, (totalWidth - spacing) * FACILITY_RAIL_WIDTH_FRACTION);
+        // 左栏至少容纳平面示意单行图例（起点/终点/标记/当前位置）。
+        float legendRailMin = RoadStationPlanSchematicRenderer.singleRowLegendMinWidth()
+            + ImGui.getStyle().getWindowPaddingX() * 2f;
+        float railWidth = Math.max(legendRailMin, (totalWidth - spacing) * FACILITY_RAIL_WIDTH_FRACTION);
+        railWidth = Math.min(railWidth, Math.max(legendRailMin, totalWidth - spacing - 160f));
         float detailWidth = Math.max(160f, totalWidth - spacing - railWidth);
         float startX = ImGui.getCursorPosX();
         float startY = ImGui.getCursorPosY();
@@ -123,6 +126,8 @@ public final class StationFacilityEditor {
         ImGui.setCursorPos(startX, startY);
         ImGui.beginChild("##facility_station_rail", railWidth, bodyHeight, true, ImGuiWindowFlags.None);
         try {
+            renderPlanSchematic(network, road, canvasLength);
+            ImGui.spacing();
             renderFacilityRail(road, canvasLength, chainageDisplay, onHistory);
         } finally {
             ImGui.endChild();
@@ -151,13 +156,16 @@ public final class StationFacilityEditor {
             intervals.add(new RoadStationPlanSchematicRenderer.StationInterval(
                 draft.startStation, end, i == selectedIndex));
         }
+        // 左列窄宽：示意高度随列宽收敛，给下方设施列表留空间。
+        float planHeight = Math.clamp(ImGui.getContentRegionAvailX() * 0.9f, 96f, 132f);
         Float clicked = RoadStationPlanSchematicRenderer.render(
             network,
             road,
             playheadStation,
             canvasMax,
             List.of(),
-            intervals);
+            intervals,
+            planHeight);
         if (clicked == null) {
             return;
         }
@@ -180,12 +188,15 @@ public final class StationFacilityEditor {
         worldPlayhead = Math.clamp(worldPlayhead, 0f, worldMax);
         float[] station = {worldPlayhead};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.sliderFloat("##facility_playhead", station, 0, worldMax, RoadUiFormat.SLIDER_METERS);
+        boolean sliderChanged = ImGui.sliderFloat(
+            "##facility_playhead", station, 0, worldMax, RoadUiFormat.SLIDER_METERS);
         boolean sliderActive = ImGui.isItemActive();
         boolean sliderActivated = ImGui.isItemActivated();
-        playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
-            station[0], lengthNetwork, lengthRoad, lengthCoordinates);
-        playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        if (sliderChanged) {
+            playheadStation = (float) RoadLengthDisplay.blocksToCanvas(
+                station[0], lengthNetwork, lengthRoad, lengthCoordinates);
+            playheadStation = Math.clamp(playheadStation, 0f, canvasMax);
+        }
 
         boolean moveSelected = ImGui.getIO().getKeyShift();
         if (sliderActivated && moveSelected && onHistory != null) {

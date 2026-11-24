@@ -23,6 +23,9 @@ public final class RoadStationPlanSchematicRenderer {
 
     private static final float PREVIEW_HEIGHT = 148f;
     private static final float PAD = 14f;
+    private static final float LEGEND_ITEM_GAP = 12f;
+    private static final float LEGEND_DOT_TO_TEXT = 6f;
+    private static final float LEGEND_SIDE_PAD = 10f;
     private static final int COLOR_LINE = PluginUiColors.ACCENT_BLUE;
     private static final int COLOR_START = ImColor.rgba(90, 217, 115, 255);
     private static final int COLOR_END = ImColor.rgba(242, 140, 90, 255);
@@ -153,35 +156,7 @@ public final class RoadStationPlanSchematicRenderer {
             drawList.addCircle(cursor.x, cursor.y, 7f, COLOR_CURSOR, 0, 1.5f);
         }
 
-        String startLabel = PlotI18n.tr("plugin.road.centerline_preview_legend_start");
-        String endLabel = PlotI18n.tr("plugin.road.centerline_preview_legend_end");
-        String markerLabel = PlotI18n.tr("plugin.road.plan_schematic_legend_marker");
-        String cursorLabel = PlotI18n.tr("plugin.road.plan_schematic_cursor");
-        if (width < 280f) {
-            // 窄列（如变截面左轨）：两行图例，避免水平溢出。
-            float row1 = y1 - 28f;
-            float row2 = y1 - 14f;
-            drawList.addCircleFilled(x0 + 10f, row1, 3.5f, COLOR_START);
-            drawList.addText(x0 + 16f, row1 - 7f, PluginUiColors.LEGEND, startLabel);
-            float endX = x0 + 10f + 16f + ImGui.calcTextSize(startLabel).x + 12f;
-            drawList.addCircleFilled(endX, row1, 3.5f, COLOR_END);
-            drawList.addText(endX + 6f, row1 - 7f, PluginUiColors.LEGEND, endLabel);
-            drawList.addCircleFilled(x0 + 10f, row2, 3.5f, COLOR_MARKER);
-            drawList.addText(x0 + 16f, row2 - 7f, PluginUiColors.LEGEND, markerLabel);
-            float cursorX = x0 + 10f + 16f + ImGui.calcTextSize(markerLabel).x + 12f;
-            drawList.addCircleFilled(cursorX, row2, 3.5f, COLOR_CURSOR);
-            drawList.addText(cursorX + 6f, row2 - 7f, PluginUiColors.LEGEND, cursorLabel);
-        } else {
-            float legendY = y1 - 16f;
-            drawList.addCircleFilled(x0 + 12f, legendY, 3.5f, COLOR_START);
-            drawList.addText(x0 + 18f, legendY - 7f, PluginUiColors.LEGEND, startLabel);
-            drawList.addCircleFilled(x0 + 70f, legendY, 3.5f, COLOR_END);
-            drawList.addText(x0 + 76f, legendY - 7f, PluginUiColors.LEGEND, endLabel);
-            drawList.addCircleFilled(x0 + 120f, legendY, 3.5f, COLOR_MARKER);
-            drawList.addText(x0 + 126f, legendY - 7f, PluginUiColors.LEGEND, markerLabel);
-            drawList.addCircleFilled(x0 + 180f, legendY, 3.5f, COLOR_CURSOR);
-            drawList.addText(x0 + 186f, legendY - 7f, PluginUiColors.LEGEND, cursorLabel);
-        }
+        drawLegend(drawList, x0, y1, width);
 
         ImGui.invisibleButton("##road_plan_schematic_hit", width, height);
         if (!ImGui.isItemClicked(ImGuiMouseButton.Left)) {
@@ -193,6 +168,65 @@ public final class RoadStationPlanSchematicRenderer {
             return null;
         }
         return Math.clamp(frac, 0f, 1f) * Math.max(0.001f, canvasLength);
+    }
+
+    /**
+     * 单行图例（起点/终点/标记/当前位置）所需最小内容宽度；左栏宽度应不低于此值 + 子窗口内边距。
+     */
+    public static float singleRowLegendMinWidth() {
+        String[] labels = legendLabels();
+        float width = LEGEND_SIDE_PAD;
+        for (int i = 0; i < labels.length; i++) {
+            if (i > 0) {
+                width += LEGEND_ITEM_GAP;
+            }
+            width += legendItemWidth(labels[i]);
+        }
+        return width + LEGEND_SIDE_PAD;
+    }
+
+    private static void drawLegend(ImDrawList drawList, float x0, float y1, float width) {
+        String[] labels = legendLabels();
+        int[] colors = {COLOR_START, COLOR_END, COLOR_MARKER, COLOR_CURSOR};
+        float needed = singleRowLegendMinWidth();
+        if (width + 1e-3f >= needed) {
+            float x = x0 + LEGEND_SIDE_PAD;
+            float y = y1 - 16f;
+            for (int i = 0; i < labels.length; i++) {
+                drawList.addCircleFilled(x, y, 3.5f, colors[i]);
+                drawList.addText(x + LEGEND_DOT_TO_TEXT, y - 7f, PluginUiColors.LEGEND, labels[i]);
+                x += legendItemWidth(labels[i]) + LEGEND_ITEM_GAP;
+            }
+            return;
+        }
+        // 极端窄窗兜底：两行，避免裁切。
+        float row1 = y1 - 28f;
+        float row2 = y1 - 14f;
+        float x = x0 + LEGEND_SIDE_PAD;
+        for (int i = 0; i < 2; i++) {
+            drawList.addCircleFilled(x, row1, 3.5f, colors[i]);
+            drawList.addText(x + LEGEND_DOT_TO_TEXT, row1 - 7f, PluginUiColors.LEGEND, labels[i]);
+            x += legendItemWidth(labels[i]) + LEGEND_ITEM_GAP;
+        }
+        x = x0 + LEGEND_SIDE_PAD;
+        for (int i = 2; i < labels.length; i++) {
+            drawList.addCircleFilled(x, row2, 3.5f, colors[i]);
+            drawList.addText(x + LEGEND_DOT_TO_TEXT, row2 - 7f, PluginUiColors.LEGEND, labels[i]);
+            x += legendItemWidth(labels[i]) + LEGEND_ITEM_GAP;
+        }
+    }
+
+    private static String[] legendLabels() {
+        return new String[] {
+            PlotI18n.tr("plugin.road.centerline_preview_legend_start"),
+            PlotI18n.tr("plugin.road.centerline_preview_legend_end"),
+            PlotI18n.tr("plugin.road.plan_schematic_legend_marker"),
+            PlotI18n.tr("plugin.road.plan_schematic_cursor")
+        };
+    }
+
+    private static float legendItemWidth(String label) {
+        return LEGEND_DOT_TO_TEXT + ImGui.calcTextSize(label).x;
     }
 
     static List<Vec2d> buildRoadPolyline(RoadNetwork network, Road road) {
