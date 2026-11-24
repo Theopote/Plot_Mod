@@ -201,22 +201,17 @@ public final class CenterlineSegmentPreviewRenderer {
         List<Vec2d> localArc = RoadCenterlineEditor.previewFilletArc(
             points, selectedPi, filletRadiusCanvas);
         if (localArc == null || localArc.size() < 2) {
-            // 半径不可行：仅虚线标出当前折角，不叠画整条路。
+            // 半径不可行：在夹角处淡虚线标出当前折角，提示无法生成圆角路径。
             drawDashedLine(drawList, prevScreen, cornerScreen, COLOR_FILLET_TRIM, 1.5f);
             drawDashedLine(drawList, cornerScreen, nextScreen, COLOR_FILLET_TRIM, 1.5f);
             return;
         }
 
-        // 将被削掉的折角用淡虚线标出，圆角弧用实线示意（避免整折线虚线叠画乱线）。
-        ImVec2 trim1 = toScreen(localArc.getFirst(), cx, cy, midX, midY, scale);
-        ImVec2 trim2 = toScreen(localArc.getLast(), cx, cy, midX, midY, scale);
-        drawDashedLine(drawList, trim1, cornerScreen, COLOR_FILLET_TRIM, 1.4f);
-        drawDashedLine(drawList, cornerScreen, trim2, COLOR_FILLET_TRIM, 1.4f);
-
+        // 虚线 = 应用后的新路径（夹角内的圆角弧），原折线实线保持不变作对照。
         for (int i = 0; i < localArc.size() - 1; i++) {
             ImVec2 a = toScreen(localArc.get(i), cx, cy, midX, midY, scale);
             ImVec2 b = toScreen(localArc.get(i + 1), cx, cy, midX, midY, scale);
-            drawList.addLine(a.x, a.y, b.x, b.y, COLOR_FILLET, 2.4f);
+            drawDashedLine(drawList, a, b, COLOR_FILLET, 2.2f);
         }
     }
 

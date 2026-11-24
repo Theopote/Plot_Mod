@@ -2227,7 +2227,7 @@
   "plugin.road.centerline_tool_locate_hint": "拖滑条或点击顶部固定预览设置蓝色光标，再选「插入折点」或「打断成两段」。",
   "plugin.road.centerline_tool_locate_summary": "光标 %s",
   "plugin.road.centerline_tool_fillet": "折点圆角",
-  "plugin.road.centerline_tool_fillet_hint": "点击预览折点或拖滑条选中（橙色）；实线为圆角弧，淡虚线为将被削掉的折角，确认后点「应用圆角」。",
+  "plugin.road.centerline_tool_fillet_hint": "点击预览折点或拖滑条选中（橙色）；夹角内虚线为应用后的圆角路径，确认后点「应用圆角」。",
   "plugin.road.centerline_tool_fillet_none": "本段没有中间折点，无法圆角。可先「插入折点」。",
   "plugin.road.centerline_tool_fillet_summary": "折点 #%d / %d · 半径 %s",
   "plugin.road.centerline_tool_fillet_summary_none": "无中间折点",
