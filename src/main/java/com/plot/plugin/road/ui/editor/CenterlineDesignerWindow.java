@@ -6,12 +6,10 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.ui.HorizontalAlignmentSummaryEditor;
 import com.plot.plugin.road.ui.RoadCenterlineEditPanel;
 import com.plot.plugin.road.ui.RoadSegmentEditor;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiWidgets;
-import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -20,17 +18,16 @@ import imgui.flag.ImGuiWindowFlags;
 import java.util.Set;
 
 /**
- * 中心线 / 平面线形浮动编辑器。
+ * 中心线浮动编辑器（分段折线编辑）。
  * <p>
  * 仅编辑当前一条道路：打开时收敛为单选，确认写回后保持该路选中并落到草稿分段。
+ * 平面线形入口暂不在此展示（底层 HA 仍可由生成/同步使用）。
  */
 public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
 
     /** 下半区左轨（分段列表）宽度占比，对齐设施/变截面主从。 */
     private static final float SEGMENT_RAIL_WIDTH_FRACTION = 0.28f;
 
-    private final HorizontalAlignmentSummaryEditor horizontalAlignmentEditor =
-        new HorizontalAlignmentSummaryEditor();
     private final RoadCenterlineEditPanel centerlineEditPanel = new RoadCenterlineEditPanel();
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
     /** 窗口内草稿分段选择；确认成功前不写入全局选中。 */
@@ -79,7 +76,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         }
         var live = ctx.networkManager().getNetwork();
         selectedWorkingEdgeId = resolveInitialWorkingEdgeId(ctx, live.getRoad(roadId));
-        horizontalAlignmentEditor.clearMessages();
         centerlineEditPanel.clearMessages();
         return RoadNetworkEditorSession.open(
             live,
@@ -90,7 +86,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     @Override
     public void discard(RoadUiContext ctx) {
         selectedWorkingEdgeId = "";
-        horizontalAlignmentEditor.clearMessages();
         centerlineEditPanel.clearMessages();
         super.discard(ctx);
     }
@@ -114,7 +109,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             if (ImGui.button(PlotI18n.tr("plugin.road.centerline_session_undo") + "##cl_session_undo")) {
                 session.undo();
                 centerlineEditPanel.clearMessages();
-                horizontalAlignmentEditor.clearMessages();
             }
             if (ImGui.isItemHovered()) {
                 com.plot.ui.component.UIUtils.setTooltip(
@@ -139,21 +133,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         final ChainageDisplayContext chainageDisplay = RoadStationing.isStationable(working, road)
             ? ChainageDisplayContext.fromStart(RoadStationing.canonicalLength(working, road))
             : null;
-
-        boolean hasHa = road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty();
-        String haSummary = hasHa
-            ? PlotI18n.tr(
-                "plugin.road.floating_editor.centerline.section.alignment_summary",
-                road.getHorizontalAlignment().getElements().size())
-            : PlotI18n.tr("plugin.road.floating_editor.centerline.section.alignment_summary_none");
-        PluginSectionCard.render(
-            "##cl_sec_alignment",
-            PlotI18n.tr("plugin.road.floating_editor.centerline.tab.alignment"),
-            haSummary,
-            PluginSectionCard.SectionTone.NEUTRAL,
-            hasHa,
-            () -> horizontalAlignmentEditor.render(
-                ctx, working, road, chainageDisplay, session::pushUndoCheckpoint));
 
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
@@ -223,21 +202,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
             try {
                 centerlineEditPanel.renderWorkingNetwork(
                     ctx, working, road, selected, session::pushUndoCheckpoint);
-                PluginSectionCard.render(
-                    "##cl_sec_elevation",
-                    PlotI18n.tr("plugin.road.floating_editor.centerline.section.elevation"),
-                    null,
-                    PluginSectionCard.SectionTone.NEUTRAL,
-                    false,
-                    () -> {
-                        if (isDirty()) {
-                            RoadUiWidgets.textWrappedColored(
-                                PluginUiColors.HINT_GRAY,
-                                PlotI18n.tr("plugin.road.elevation_hint_after_confirm"));
-                        } else {
-                            segmentEditor.renderElevationHint(ctx, selected);
-                        }
-                    });
             } finally {
                 ImGui.endChild();
             }
