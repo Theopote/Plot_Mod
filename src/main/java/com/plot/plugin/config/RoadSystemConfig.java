@@ -283,7 +283,9 @@ public class RoadSystemConfig {
         int derived = CrossSectionGeometryRules.derivedMedianWidth(
             getCenterLineStyle(), laneDividers, getLaneCount());
         if (derived <= 0) {
-            includeMedian = false;
+            // 只清宽度，保留 includeMedian：顺序写入（先开隔离带再写标线）或
+            // setLaneDividers → setCenterLineStyle 的中间态不应永久关掉开关。
+            // 最终能否启用由 ResolvedCrossSection / Draft sync 判定。
             medianWidth = 0;
             return;
         }

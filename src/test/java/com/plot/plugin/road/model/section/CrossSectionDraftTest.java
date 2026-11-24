@@ -18,6 +18,7 @@ class CrossSectionDraftTest {
         config.setLaneWidths(java.util.List.of(3, 3, 3));
         config.setIncludeBikeLane(true);
         config.setBikeLaneWidth(2);
+        // 故意先开隔离带再写标线：中间态 derivedMedian=0 不得永久清掉 includeMedian。
         config.setIncludeMedian(true);
         config.setMedianWidth(2);
         config.setLaneDividers(true);
