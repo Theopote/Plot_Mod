@@ -8,12 +8,14 @@ import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.ui.editor.RoadNetworkEditorSession;
 import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 分段中心线编辑工具（插入/删除 PI、分割、圆角、合并、整路反转等）。
@@ -104,21 +106,21 @@ public final class RoadCenterlineEditPanel {
     /**
      * 浮动编辑器工作副本：工具区（预览由 {@link #renderPinnedPreview} 单独钉顶）。
      *
-     * @param beforeMutationOrNull 写回前会话 Undo 检查点；可为 null
+     * @param sessionOrNull 会话；非空时仅在编辑成功后写入撤销检查点
      */
     public void renderWorkingNetwork(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             RoadEdge edge,
-            Runnable beforeMutationOrNull) {
+            RoadNetworkEditorSession sessionOrNull) {
         renderControls(
             ctx,
             network,
             road,
             edge,
             false,
-            beforeMutationOrNull,
+            sessionOrNull,
             RoadCenterlineEditor::insertPiAtLocalDistance,
             RoadCenterlineEditor::splitAtLocalDistance,
             RoadCenterlineEditor::filletVertex,
@@ -169,7 +171,7 @@ public final class RoadCenterlineEditPanel {
             Road road,
             RoadEdge edge,
             boolean includePreview,
-            Runnable beforeMutationOrNull,
+            RoadNetworkEditorSession sessionOrNull,
             PiAction insertPi,
             PiAction splitEdge,
             FilletAction filletVertex,
@@ -228,7 +230,7 @@ public final class RoadCenterlineEditPanel {
             PluginSectionCard.SectionTone.NEUTRAL,
             true,
             () -> renderLocateSection(
-                network, road, edge, coordinates, maxDistance, beforeMutationOrNull, insertPi, splitEdge));
+                network, road, edge, coordinates, maxDistance, sessionOrNull, insertPi, splitEdge));
 
         String filletSummary = interiorCount > 0
             ? PlotI18n.tr(
@@ -250,7 +252,7 @@ public final class RoadCenterlineEditPanel {
                 coordinates,
                 maxDistance,
                 interiorCount,
-                beforeMutationOrNull,
+                sessionOrNull,
                 filletVertex,
                 removePi));
 
@@ -262,7 +264,7 @@ public final class RoadCenterlineEditPanel {
             PluginSectionCard.SectionTone.NEUTRAL,
             true,
             () -> renderTopologySection(
-                network, road, edge, beforeMutationOrNull, reverseEdge, reverseRoad, mergeAtNode));
+                network, road, edge, sessionOrNull, reverseEdge, reverseRoad, mergeAtNode));
     }
 
     private void applyPreviewInteraction(
@@ -285,7 +287,7 @@ public final class RoadCenterlineEditPanel {
             RoadEdge edge,
             ICoordinateService coordinates,
             float maxDistance,
-            Runnable beforeMutationOrNull,
+            RoadNetworkEditorSession sessionOrNull,
             PiAction insertPi,
             PiAction splitEdge) {
         float[] distance = {centerlineEditDistanceBlocks};
@@ -303,16 +305,14 @@ public final class RoadCenterlineEditPanel {
             centerlineEditDistanceBlocks, network, road, coordinates);
 
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_insert_pi") + "##cl_pi")) {
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(insertPi.run(network, edge.getId(), canvasDistance)));
+            runMutating(sessionOrNull, () -> insertPi.run(network, edge.getId(), canvasDistance));
         }
         if (ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_insert_pi_tip"));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_split") + "##cl_split")) {
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(splitEdge.run(network, edge.getId(), canvasDistance)));
+            runMutating(sessionOrNull, () -> splitEdge.run(network, edge.getId(), canvasDistance));
         }
         if (ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_split_tip"));
@@ -326,7 +326,7 @@ public final class RoadCenterlineEditPanel {
             ICoordinateService coordinates,
             float maxDistance,
             int interiorCount,
-            Runnable beforeMutationOrNull,
+            RoadNetworkEditorSession sessionOrNull,
             FilletAction filletVertex,
             RemovePiAction removePi) {
         if (interiorCount <= 0) {
@@ -368,8 +368,8 @@ public final class RoadCenterlineEditPanel {
             double canvasRadius = RoadLengthDisplay.blocksToCanvas(
                 centerlineFilletRadiusBlocks, network, road, coordinates);
             int vertex = centerlineVertexIndex;
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(filletVertex.run(network, edge.getId(), vertex, canvasRadius)));
+            runMutating(sessionOrNull, () ->
+                filletVertex.run(network, edge.getId(), vertex, canvasRadius));
         }
         if (ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_fillet_tip"));
@@ -377,15 +377,15 @@ public final class RoadCenterlineEditPanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_delete_pi") + "##cl_del_pi")) {
             int vertex = centerlineVertexIndex;
-            runMutating(beforeMutationOrNull, () -> {
+            runMutating(sessionOrNull, () -> {
                 CenterlineEditResult result = removePi.run(network, edge.getId(), vertex);
-                recordMessage(result);
                 if (result.isSuccess()) {
                     int remaining = Math.max(0, edge.getCenterlinePoints().size() - 2);
                     centerlineVertexIndex = remaining > 0
                         ? Math.clamp(vertex, 1, remaining)
                         : 1;
                 }
+                return result;
             });
         }
         if (ImGui.isItemHovered()) {
@@ -397,33 +397,31 @@ public final class RoadCenterlineEditPanel {
             RoadNetwork network,
             Road road,
             RoadEdge edge,
-            Runnable beforeMutationOrNull,
+            RoadNetworkEditorSession sessionOrNull,
             EdgeAction reverseEdge,
             RoadAction reverseRoad,
             NodeAction mergeAtNode) {
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_segment") + "##cl_rev_seg")) {
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(reverseEdge.run(network, edge.getId())));
+            runMutating(sessionOrNull, () -> reverseEdge.run(network, edge.getId()));
         }
         if (ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_reverse_tip"));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_road") + "##cl_rev_road")) {
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(reverseRoad.run(network, road)));
+            runMutating(sessionOrNull, () -> reverseRoad.run(network, road));
         }
         if (ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_reverse_road_tip"));
         }
 
-        renderMergeButtons(network, edge, beforeMutationOrNull, mergeAtNode);
+        renderMergeButtons(network, edge, sessionOrNull, mergeAtNode);
     }
 
     private void renderMergeButtons(
             RoadNetwork network,
             RoadEdge edge,
-            Runnable beforeMutationOrNull,
+            RoadNetworkEditorSession sessionOrNull,
             NodeAction mergeAtNode) {
         String startNodeId = edge.getStartNodeId();
         String endNodeId = edge.getEndNodeId();
@@ -436,8 +434,7 @@ public final class RoadCenterlineEditPanel {
             return;
         }
         if (canMergeStart && ImGui.button(PlotI18n.tr("plugin.road.centerline_merge_start") + "##cl_m_s")) {
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(mergeAtNode.run(network, startNodeId)));
+            runMutating(sessionOrNull, () -> mergeAtNode.run(network, startNodeId));
         }
         if (canMergeStart && ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_start_tip"));
@@ -446,19 +443,23 @@ public final class RoadCenterlineEditPanel {
             ImGui.sameLine();
         }
         if (canMergeEnd && ImGui.button(PlotI18n.tr("plugin.road.centerline_merge_end") + "##cl_m_e")) {
-            runMutating(beforeMutationOrNull, () ->
-                recordMessage(mergeAtNode.run(network, endNodeId)));
+            runMutating(sessionOrNull, () -> mergeAtNode.run(network, endNodeId));
         }
         if (canMergeEnd && ImGui.isItemHovered()) {
             UIUtils.setTooltip(PlotI18n.tr("plugin.road.centerline_merge_end_tip"));
         }
     }
 
-    private static void runMutating(Runnable beforeMutationOrNull, Runnable mutation) {
-        if (beforeMutationOrNull != null) {
-            beforeMutationOrNull.run();
+    private void runMutating(
+            RoadNetworkEditorSession sessionOrNull,
+            Supplier<CenterlineEditResult> mutation) {
+        CenterlineEditResult result;
+        if (sessionOrNull != null) {
+            result = sessionOrNull.runWithUndoCheckpoint(mutation, CenterlineEditResult::isSuccess);
+        } else {
+            result = mutation.get();
         }
-        mutation.run();
+        recordMessage(result);
     }
 
     private static String topologySummary(RoadNetwork network, RoadEdge edge) {

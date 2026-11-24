@@ -7,6 +7,7 @@ import java.util.Deque;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * 浮动编辑器窗口级事务：打开时捕获快照，编辑期间写入工作副本，确认时一次性写回 live。
@@ -106,13 +107,59 @@ public final class RoadNetworkEditorSession {
         restore();
     }
 
-    /** 在即将改写工作副本前压入检查点，供会话内撤销；新编辑清空重做栈。 */
+    /**
+     * 在即将改写工作副本前压入检查点，供会话内撤销；新编辑清空重做栈。
+     * <p>
+     * 滑条等「几乎总会改写」的路径可直接用；若操作可能失败，改用
+     * {@link #stageUndoCheckpoint()} + {@link #commitStagedUndoCheckpoint}，
+     * 避免失败时留下空撤销步并清掉重做栈。
+     */
     public void pushUndoCheckpoint() {
         undoStack.push(workingNetwork.deepCopy());
         redoStack.clear();
         while (undoStack.size() > MAX_UNDO_DEPTH) {
             undoStack.removeLast();
         }
+    }
+
+    /**
+     * 暂存撤销检查点（深拷贝当前工作副本），不改动 undo/redo 栈。
+     * 仅当随后的编辑成功时再 {@link #commitStagedUndoCheckpoint}。
+     */
+    public StagedUndoCheckpoint stageUndoCheckpoint() {
+        return new StagedUndoCheckpoint(workingNetwork.deepCopy());
+    }
+
+    /**
+     * 提交暂存检查点：压入撤销栈并清空重做栈。
+     */
+    public void commitStagedUndoCheckpoint(StagedUndoCheckpoint staged) {
+        if (staged == null || staged.snapshot() == null) {
+            return;
+        }
+        undoStack.push(staged.snapshot());
+        redoStack.clear();
+        while (undoStack.size() > MAX_UNDO_DEPTH) {
+            undoStack.removeLast();
+        }
+    }
+
+    /**
+     * 先暂存检查点再执行编辑；仅成功时提交检查点，失败不污染撤销/重做栈。
+     */
+    public <T> T runWithUndoCheckpoint(Supplier<T> mutation, java.util.function.Predicate<T> successTest) {
+        Objects.requireNonNull(mutation, "mutation");
+        Objects.requireNonNull(successTest, "successTest");
+        StagedUndoCheckpoint staged = stageUndoCheckpoint();
+        T result = mutation.get();
+        if (successTest.test(result)) {
+            commitStagedUndoCheckpoint(staged);
+        }
+        return result;
+    }
+
+    /** 编辑前暂存的撤销检查点（成功后再提交）。 */
+    public record StagedUndoCheckpoint(RoadNetwork snapshot) {
     }
 
     public boolean canUndo() {

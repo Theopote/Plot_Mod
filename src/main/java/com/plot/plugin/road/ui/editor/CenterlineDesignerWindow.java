@@ -182,10 +182,10 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
                 0f,
                 scrollH,
                 false,
-                ImGuiWindowFlags.AlwaysVerticalScrollbar);
+                0);
             try {
                 centerlineEditPanel.renderWorkingNetwork(
-                    ctx, working, road, selected, session::pushUndoCheckpoint);
+                    ctx, working, road, selected, session);
             } finally {
                 ImGui.endChild();
             }

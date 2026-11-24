@@ -80,6 +80,29 @@ class RoadNetworkEditorSessionTest {
     }
 
     @Test
+    void failedMutationDoesNotPushEmptyUndoOrClearRedo() {
+        long revision = manager.getNetworkRevision();
+        RoadNetworkEditorSession session = RoadNetworkEditorSession.open(
+            live,
+            revision,
+            (open, working) -> working.getRoad(roadId).getWidth() != open.getRoad(roadId).getWidth());
+
+        session.pushUndoCheckpoint();
+        session.workingNetwork().getRoad(roadId).setWidth(20);
+        assertTrue(session.undo());
+        assertTrue(session.canRedo());
+        assertFalse(session.canUndo());
+
+        Boolean failed = session.runWithUndoCheckpoint(
+            () -> Boolean.FALSE,
+            Boolean::booleanValue);
+        assertFalse(failed);
+        assertFalse(session.canUndo(), "failed edit must not leave empty undo step");
+        assertTrue(session.canRedo(), "failed edit must keep redo stack");
+        assertEquals(10, session.workingNetwork().getRoad(roadId).getWidth());
+    }
+
+    @Test
     void confirmDetectsRevisionConflict() {
         long revision = manager.getNetworkRevision();
         RoadNetworkEditorSession session = RoadNetworkEditorSession.open(
