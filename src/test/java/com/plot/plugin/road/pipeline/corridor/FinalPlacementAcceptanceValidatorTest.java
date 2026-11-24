@@ -160,6 +160,31 @@ class FinalPlacementAcceptanceValidatorTest {
     }
 
     @Test
+    void legalGuardrailOverlayOnSidewalkDoesNotCountAsWrong() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(6, 64, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:oak_planks", RoadSolidLayer.SIDEWALK, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:cobblestone_wall");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.GUARDRAIL);
+
+        assertFalse(FinalPlacementAcceptanceValidator.validate(aggregate).hasBlockingIssues(),
+            "guardrail on sidewalk expectation must not block final placement");
+    }
+
+    @Test
+    void legalGuardrailOverlayOnBikeLaneDoesNotCountAsWrong() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(7, 64, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:gray_concrete", RoadSolidLayer.BIKE_LANE, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:iron_bars");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.GUARDRAIL);
+
+        assertFalse(FinalPlacementAcceptanceValidator.validate(aggregate).hasBlockingIssues());
+    }
+
+    @Test
     void authorizedLanternInCavityDoesNotBlockAfterTunnelThenFinalChain() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos cavity = new BlockPos(40, 66, 0);

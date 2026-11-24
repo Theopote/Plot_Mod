@@ -63,8 +63,8 @@ public final class FinalPlacementAcceptanceValidator {
                 continue;
             }
             RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-            // 合法标线覆盖：保留，不要求重铺底层材质。
-            if (layer == RoadSolidLayer.MARKING) {
+            // 合法附属覆盖（标线/护栏）：占用人行道、非机动车道等期望位，不要求底层材质重铺。
+            if (isAuthorizedSurfaceOverlay(layer)) {
                 continue;
             }
             if (layer != expected.layer()) {
@@ -238,7 +238,7 @@ public final class FinalPlacementAcceptanceValidator {
                 continue;
             }
             RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-            if (layer == RoadSolidLayer.MARKING) {
+            if (isAuthorizedSurfaceOverlay(layer)) {
                 continue;
             }
             if (layer != expected.layer()) {
@@ -251,5 +251,10 @@ public final class FinalPlacementAcceptanceValidator {
             }
         }
         return samples;
+    }
+
+    /** 标线、护栏等附属设施覆盖结构路面期望位时，不计入层/材质冲突。 */
+    private static boolean isAuthorizedSurfaceOverlay(RoadSolidLayer layer) {
+        return layer == RoadSolidLayer.MARKING || layer == RoadSolidLayer.GUARDRAIL;
     }
 }
