@@ -3719,6 +3719,7 @@
   "plugin.road.tunnel.accent_material": "Ring material",
   "plugin.road.tunnel.accent_rings": "Accent rings",
   "plugin.road.tunnel.accent_spacing": "Accent ring spacing",
+  "plugin.road.tunnel.road_context": "Cross-section context",
   "plugin.road.tunnel.batch_scope_hint": "Using “%1$s” as the template; confirm overwrites tunnel style on %2$d selected roads.",
   "plugin.road.tunnel.batch_inherit_hint": "Confirm clears tunnel overrides on these %d roads so they inherit the global style.",
   "plugin.road.tunnel.batch_heterogeneous_hint": "Selected roads currently have different tunnel styles; confirm will unify them to this draft.",

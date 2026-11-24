@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
@@ -13,12 +14,16 @@ import com.plot.plugin.road.tunnel.TunnelPresetCatalog;
 import com.plot.plugin.road.tunnel.TunnelProfile;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
+import com.plot.plugin.road.ui.editor.RoadLampPreview;
 import com.plot.plugin.ui.PluginSectionCard;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Full tunnel style editor body used by {@link TunnelStyleFloatingEditor}.
@@ -62,8 +67,42 @@ public final class TunnelStyleEditor {
         }
     }
 
+    /**
+     * Session-scoped 3D segment preview state for the open floating editor
+     * (checkbox, orbit, and cached voxels).
+     */
+    public static final class PreviewSession {
+        private boolean segmentContext;
+        private final float[] yaw = {30f};
+        private final float[] zoom = {1f};
+        private final RoadLampPreview preview = new RoadLampPreview();
+        private List<RoadLampCompiler.Voxel> cachedScene = List.of();
+        private Object cacheKey;
+
+        public boolean segmentContext() {
+            return segmentContext;
+        }
+
+        public void setSegmentContext(boolean segmentContext) {
+            this.segmentContext = segmentContext;
+        }
+
+        List<RoadLampCompiler.Voxel> sceneFor(TunnelStyle style, int envelopeWidth) {
+            Object key = TunnelSegmentPreviewScene.cacheKey(style, envelopeWidth);
+            if (!Objects.equals(key, cacheKey)) {
+                cachedScene = TunnelSegmentPreviewScene.build(style, envelopeWidth);
+                cacheKey = key;
+            }
+            return cachedScene != null ? cachedScene : List.of();
+        }
+
+        void renderSegment(List<RoadLampCompiler.Voxel> scene, float height) {
+            preview.render(scene, height, yaw, zoom);
+        }
+    }
+
     public static void render(RoadUiContext ctx, TunnelStyle style, Runnable onChanged) {
-        render(ctx, style, onChanged, null, null);
+        render(ctx, style, onChanged, null, null, true, null);
     }
 
     public static void render(
@@ -71,7 +110,7 @@ public final class TunnelStyleEditor {
             TunnelStyle style,
             Runnable onChanged,
             PresetSelection presetSelection) {
-        render(ctx, style, onChanged, presetSelection, null);
+        render(ctx, style, onChanged, presetSelection, null, true, null);
     }
 
     /**
@@ -84,7 +123,7 @@ public final class TunnelStyleEditor {
             Runnable onChanged,
             PresetSelection presetSelection,
             String roadId) {
-        render(ctx, style, onChanged, presetSelection, roadId, true);
+        render(ctx, style, onChanged, presetSelection, roadId, true, null);
     }
 
     /**
@@ -97,6 +136,21 @@ public final class TunnelStyleEditor {
             PresetSelection presetSelection,
             String roadId,
             boolean includeStylePreset) {
+        render(ctx, style, onChanged, presetSelection, roadId, includeStylePreset, null);
+    }
+
+    /**
+     * @param includeStylePreset 为 false 时不画风格预设下拉（由外层与「使用全局」放同一行）。
+     * @param previewSession when non-null, enables the lamp-style「横断面情境」3D segment toggle.
+     */
+    public static void render(
+            RoadUiContext ctx,
+            TunnelStyle style,
+            Runnable onChanged,
+            PresetSelection presetSelection,
+            String roadId,
+            boolean includeStylePreset,
+            PreviewSession previewSession) {
         if (style == null) {
             return;
         }
@@ -112,7 +166,7 @@ public final class TunnelStyleEditor {
             // selection handled in callback
         }
         ImGui.spacing();
-        renderPreviewAndParams(ctx, style, onChanged, presetSelection, envelopeWidth);
+        renderPreviewAndParams(ctx, style, onChanged, presetSelection, envelopeWidth, previewSession);
     }
 
     /**
@@ -143,7 +197,8 @@ public final class TunnelStyleEditor {
             TunnelStyle style,
             Runnable onChanged,
             PresetSelection presetSelection,
-            int envelopeWidth) {
+            int envelopeWidth,
+            PreviewSession previewSession) {
         float avail = ImGui.getContentRegionAvailX();
         float gap = ImGui.getStyle().getItemSpacingX();
         float leftWidth = Math.max(PREVIEW_COLUMN_MIN, avail * PREVIEW_COLUMN_RATIO);
@@ -158,8 +213,11 @@ public final class TunnelStyleEditor {
         float rowHeight = Math.max(LIVE_PREVIEW_HEIGHT_MIN, ImGui.getContentRegionAvailY());
         if (sideBySide) {
             ImGui.beginChild("##tunnel_preview_col", leftWidth, rowHeight, false);
-            renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth);
-            ImGui.endChild();
+            try {
+                renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth, previewSession);
+            } finally {
+                ImGui.endChild();
+            }
             ImGui.sameLine(0f, gap);
             ImGui.beginChild(
                 "##tunnel_params_col",
@@ -167,13 +225,19 @@ public final class TunnelStyleEditor {
                 rowHeight,
                 false,
                 ImGuiWindowFlags.AlwaysVerticalScrollbar);
-            renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
-            ImGui.endChild();
+            try {
+                renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
+            } finally {
+                ImGui.endChild();
+            }
         } else {
             float previewHeight = Math.max(LIVE_PREVIEW_HEIGHT_MIN, rowHeight * 0.42f);
             ImGui.beginChild("##tunnel_preview_col", avail, previewHeight, false);
-            renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth);
-            ImGui.endChild();
+            try {
+                renderLivePreviewColumn(style, onChanged, presetSelection, envelopeWidth, previewSession);
+            } finally {
+                ImGui.endChild();
+            }
             ImGui.spacing();
             renderParameterColumn(ctx, style, onChanged, presetSelection, envelopeWidth);
         }
@@ -183,8 +247,19 @@ public final class TunnelStyleEditor {
             TunnelStyle style,
             Runnable onChanged,
             PresetSelection presetSelection,
-            int envelopeWidth) {
-        if (TunnelCrossSectionPreviewRenderer.renderLivePreview(style, envelopeWidth, true)) {
+            int envelopeWidth,
+            PreviewSession previewSession) {
+        if (previewSession != null) {
+            boolean next = ImGui.checkbox(
+                PlotI18n.tr("plugin.road.tunnel.road_context"),
+                previewSession.segmentContext()) != previewSession.segmentContext();
+            previewSession.setSegmentContext(next);
+        }
+        if (previewSession != null && previewSession.segmentContext()) {
+            List<RoadLampCompiler.Voxel> scene = previewSession.sceneFor(style, envelopeWidth);
+            float height = Math.max(LIVE_PREVIEW_HEIGHT_MIN, ImGui.getContentRegionAvailY() - 8f);
+            previewSession.renderSegment(scene, height);
+        } else if (TunnelCrossSectionPreviewRenderer.renderLivePreview(style, envelopeWidth, true)) {
             notifyChanged(style, onChanged, presetSelection);
         }
         TunnelLightPlacementResolver.ResolveResult lightResult =

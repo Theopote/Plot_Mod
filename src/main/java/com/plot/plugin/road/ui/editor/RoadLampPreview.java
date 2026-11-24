@@ -17,7 +17,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /** Small block-space preview for a local structure or a cross-section with mounted lamps. */
-final class RoadLampPreview {
+public final class RoadLampPreview {
+    public RoadLampPreview() {
+    }
     private static final float MIN_ZOOM = 0.6f;
     private static final float MAX_ZOOM = 2.0f;
     private static final float DEFAULT_YAW = 30f;
@@ -33,11 +35,11 @@ final class RoadLampPreview {
      * @param yawDeg 可写长度 ≥1；悬停预览时左键左右拖动会改写；双击重置
      * @param zoom   可写长度 ≥1；悬停预览时滚轮会改写，范围 [{@value MIN_ZOOM}, {@value MAX_ZOOM}]
      */
-    void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom) {
+    public void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom) {
         render(structure, height, yawDeg, zoom, -1);
     }
 
-    void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom,
+    public void render(List<RoadLampCompiler.Voxel> structure, float height, float[] yawDeg, float[] zoom,
                 int highlightLevelIndex) {
         float width = ImGui.getContentRegionAvailX();
         float left = ImGui.getCursorScreenPosX();

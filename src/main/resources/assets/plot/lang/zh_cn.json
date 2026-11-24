@@ -924,6 +924,7 @@
   "plugin.road.tunnel.circular_effective_height": "当前圆形截面有效净高：%d 格",
   "plugin.road.tunnel.shape_preset_tooltip": "使用%s截面",
   "plugin.road.tunnel.accent_spacing": "装饰环间距",
+  "plugin.road.tunnel.road_context": "横断面情境",
   "plugin.road.tunnel.edit": "编辑…",
   "plugin.road.tunnel.editor_window": "隧道样式",
   "settings.plot.shortcuts_action": "动作",

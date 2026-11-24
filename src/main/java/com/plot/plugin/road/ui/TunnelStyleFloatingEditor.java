@@ -53,6 +53,7 @@ public final class TunnelStyleFloatingEditor {
     private final Deque<TunnelStyle> tunnelRedo = new ArrayDeque<>();
     private static final int MAX_TUNNEL_UNDO = 32;
     private final TunnelStyleEditor.PresetSelection presetSelection = new TunnelStyleEditor.PresetSelection();
+    private final TunnelStyleEditor.PreviewSession previewSession = new TunnelStyleEditor.PreviewSession();
     private Runnable onHistory;
 
     public boolean isOpen() {
@@ -219,7 +220,8 @@ public final class TunnelStyleFloatingEditor {
                 return;
             }
             float footer = RoadFloatingEditorShell.footerReserveHeight(false);
-            if (ImGui.beginChild("##tunnel_style_body", 0f, -footer, false, 0)) {
+            ImGui.beginChild("##tunnel_style_body", 0f, -footer, false, 0);
+            try {
                 if (target == Target.ROAD && batchTargetCount() > 1) {
                     renderBatchBanner(ctx);
                 }
@@ -245,10 +247,12 @@ public final class TunnelStyleFloatingEditor {
                         this::onTunnelDraftEdited,
                         presetSelection,
                         target == Target.ROAD ? roadId : null,
-                        target != Target.ROAD);
+                        target != Target.ROAD,
+                        previewSession);
                 }
+            } finally {
+                ImGui.endChild();
             }
-            ImGui.endChild();
 
             boolean dirty = isDirty();
             RoadFloatingEditorShell.renderFooter(
