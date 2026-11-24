@@ -133,10 +133,6 @@ public class RoadNetworkGenerator {
             return Collections.unmodifiableSet(failClosedJunctionIds);
         }
 
-        public Set<String> getProtectedOverburdenViolationIds() {
-            return Collections.unmodifiableSet(protectedOverburdenViolationIds);
-        }
-
         public boolean hasFinalPlacementAcceptanceFailure() {
             return finalPlacementAcceptanceFailed;
         }
@@ -160,6 +156,10 @@ public class RoadNetworkGenerator {
             List<String> samples = FinalPlacementAcceptanceValidator.sampleSurfaceDefects(aggregate, 6);
             if (!samples.isEmpty()) {
                 errors.add("finalPlacementSurfaceSamples: " + String.join(" | ", samples));
+            }
+            List<String> cavitySamples = TunnelFinalVoxelValidator.sampleUnclearedCavity(aggregate, null, 6);
+            if (!cavitySamples.isEmpty()) {
+                errors.add("finalPlacementCavitySamples: " + String.join(" | ", cavitySamples));
             }
         }
 

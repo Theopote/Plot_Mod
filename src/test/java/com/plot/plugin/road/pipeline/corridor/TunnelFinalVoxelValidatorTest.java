@@ -158,6 +158,19 @@ class TunnelFinalVoxelValidatorTest {
     }
 
     @Test
+    void guardrailInsideExpectedCavityIsNotUncleared() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(23, 66, 0);
+        result.recordExpectedTunnelCavity(cavity);
+        result.recordPlacementOverride(cavity, "minecraft:air", "minecraft:cobblestone_wall");
+        result.placementLayers.put(cavity, RoadSolidLayer.GUARDRAIL);
+
+        TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
+        assertEquals(0, report.unclearedTunnelCavityCount(),
+            "guardrail occupying cavity mask overlap must not block");
+    }
+
+    @Test
     void unauthorizedLiningInsideExpectedCavityCountsAsUncleared() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos cavity = new BlockPos(21, 66, 0);

@@ -7,6 +7,8 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -89,8 +91,8 @@ public final class TunnelFinalVoxelValidator {
                     && authorizedLining.contains(pos)) {
                 continue;
             }
-            // 广场/路面设计面层占据洞腔掩膜交叠格：属路口所有权顶替，不是未清洞腔。
-            if (isPlazaSurfaceSolid(result, pos, record, layer)) {
+            // 广场面层 / 护栏等附属设施占据洞腔掩膜交叠格：设计顶替，不是未清洞腔。
+            if (isAuthorizedCavityOccupant(record, layer)) {
                 continue;
             }
             if (terrain != null
@@ -115,11 +117,7 @@ public final class TunnelFinalVoxelValidator {
         return count;
     }
 
-    private static boolean isPlazaSurfaceSolid(
-            RoadGenerationResult result,
-            BlockPos pos,
-            BlockRecord record,
-            RoadSolidLayer layer) {
+    private static boolean isAuthorizedCavityOccupant(BlockRecord record, RoadSolidLayer layer) {
         if (record == null || record.newBlockId == null || "minecraft:air".equals(record.newBlockId)) {
             return false;
         }
@@ -129,7 +127,9 @@ public final class TunnelFinalVoxelValidator {
             || layer == RoadSolidLayer.BIKE_LANE
             || layer == RoadSolidLayer.MEDIAN
             || layer == RoadSolidLayer.MARKING
-            || layer == RoadSolidLayer.BRIDGE;
+            || layer == RoadSolidLayer.BRIDGE
+            || layer == RoadSolidLayer.GUARDRAIL
+            || layer == RoadSolidLayer.STREETLIGHT;
     }
 
     static int countMissingTunnelLiningExact(RoadGenerationResult result) {
@@ -268,5 +268,58 @@ public final class TunnelFinalVoxelValidator {
             || terrain.isSolidBlock(x, y, z)
             || terrain.isRoadClearableDecoration(x, y, z)
             || terrain.isFluidBlock(x, y, z);
+    }
+
+    /** 诊断：未清洞腔样本（日志用）。 */
+    public static List<String> sampleUnclearedCavity(RoadGenerationResult result, TerrainSampler terrain, int limit) {
+        List<String> samples = new ArrayList<>();
+        if (result == null || result.expectedTunnelCavity == null || limit <= 0) {
+            return samples;
+        }
+        Set<BlockPos> authorizedLining = result.expectedTunnelLining;
+        for (BlockPos pos : result.expectedTunnelCavity) {
+            if (samples.size() >= limit) {
+                break;
+            }
+            if (pos == null) {
+                continue;
+            }
+            BlockRecord record = result.placementRecords.get(pos);
+            if (record != null && "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            RoadSolidLayer layer = result.placementLayers.get(pos);
+            if (layer == RoadSolidLayer.TUNNEL) {
+                Integer priority = result.placementMaterialPriorities.get(pos);
+                if (priority != null && priority >= RoadSolidMaterialPriority.DECORATIVE
+                        && record != null
+                        && record.newBlockId != null
+                        && !"minecraft:air".equals(record.newBlockId)) {
+                    continue;
+                }
+            }
+            if (isLiningSolid(result, pos)
+                    && authorizedLining != null
+                    && authorizedLining.contains(pos)) {
+                continue;
+            }
+            if (isAuthorizedCavityOccupant(record, layer)) {
+                continue;
+            }
+            boolean terrainHit = terrain != null
+                && terrain.isChunkLoaded(pos.getX(), pos.getZ())
+                && isObstruction(terrain, pos.getX(), pos.getY(), pos.getZ());
+            boolean solidHit = record != null
+                && record.newBlockId != null
+                && !"minecraft:air".equals(record.newBlockId);
+            if (!terrainHit && !solidHit) {
+                continue;
+            }
+            samples.add("cavity@" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
+                + " layer=" + layer
+                + " block=" + (record != null ? record.newBlockId : "null")
+                + (terrainHit ? " terrain" : ""));
+        }
+        return samples;
     }
 }
