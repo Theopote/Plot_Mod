@@ -29,6 +29,8 @@ public final class RoadCenterlineEditPanel {
     private float centerlineFilletRadiusBlocks = 2f;
     private int centerlineVertexIndex = 1;
     private String lastCenterlineEditMessage = "";
+    /** 圆角卡片是否展开（供钉顶预览画示意；默认开）。 */
+    private boolean filletCardOpen = true;
 
     public void recordMessage(CenterlineEditResult result) {
         lastCenterlineEditMessage = CenterlineEditMessages.format(result);
@@ -58,7 +60,8 @@ public final class RoadCenterlineEditPanel {
     /**
      * 钉在详情栏顶部的平面示意（不随下方工具区滚动）。
      */
-    public void renderPinnedPreview(RoadUiContext ctx, RoadEdge edge) {
+    public void renderPinnedPreview(
+            RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
         if (ctx == null || edge == null || ctx.host() == null) {
             return;
         }
@@ -75,14 +78,19 @@ public final class RoadCenterlineEditPanel {
         } else {
             centerlineVertexIndex = 1;
         }
-        Float clicked = CenterlineSegmentPreviewRenderer.render(
-            edge,
-            centerlineEditDistanceBlocks,
-            edgeBlocks,
-            interiorCount > 0 ? centerlineVertexIndex : 0);
-        if (clicked != null) {
-            centerlineEditDistanceBlocks = Math.clamp(clicked, 0f, maxDistance);
-        }
+        float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
+        centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f, maxRadius);
+        float filletRadiusCanvas = (float) RoadLengthDisplay.blocksToCanvas(
+            centerlineFilletRadiusBlocks, network, road, coordinates);
+        applyPreviewInteraction(
+            CenterlineSegmentPreviewRenderer.render(
+                edge,
+                centerlineEditDistanceBlocks,
+                edgeBlocks,
+                interiorCount > 0 ? centerlineVertexIndex : 0,
+                filletRadiusCanvas,
+                filletCardOpen && interiorCount > 0),
+            maxDistance);
     }
 
     /** 浮动编辑器工作副本：工具区（预览由 {@link #renderPinnedPreview} 单独钉顶）。 */
@@ -151,15 +159,21 @@ public final class RoadCenterlineEditPanel {
             centerlineVertexIndex = 1;
         }
 
+        float maxRadius = Math.max(0.5f, maxDistance * 0.5f);
+        centerlineFilletRadiusBlocks = Math.clamp(centerlineFilletRadiusBlocks, 0.5f, maxRadius);
+
         if (includePreview) {
-            Float clicked = CenterlineSegmentPreviewRenderer.render(
-                edge,
-                centerlineEditDistanceBlocks,
-                edgeBlocks,
-                interiorCount > 0 ? centerlineVertexIndex : 0);
-            if (clicked != null) {
-                centerlineEditDistanceBlocks = Math.clamp(clicked, 0f, maxDistance);
-            }
+            float filletRadiusCanvas = (float) RoadLengthDisplay.blocksToCanvas(
+                centerlineFilletRadiusBlocks, network, road, coordinates);
+            applyPreviewInteraction(
+                CenterlineSegmentPreviewRenderer.render(
+                    edge,
+                    centerlineEditDistanceBlocks,
+                    edgeBlocks,
+                    interiorCount > 0 ? centerlineVertexIndex : 0,
+                    filletRadiusCanvas,
+                    filletCardOpen && interiorCount > 0),
+                maxDistance);
             ImGui.spacing();
         }
 
@@ -181,7 +195,7 @@ public final class RoadCenterlineEditPanel {
                 interiorCount,
                 RoadUiFormat.formatMeters(centerlineFilletRadiusBlocks))
             : PlotI18n.tr("plugin.road.centerline_tool_fillet_summary_none");
-        PluginSectionCard.render(
+        filletCardOpen = PluginSectionCard.render(
             "##cl_sec_fillet",
             PlotI18n.tr("plugin.road.centerline_tool_fillet"),
             filletSummary,
@@ -198,6 +212,20 @@ public final class RoadCenterlineEditPanel {
             PluginSectionCard.SectionTone.NEUTRAL,
             true,
             () -> renderTopologySection(network, edge, reverseEdge, mergeAtNode));
+    }
+
+    private void applyPreviewInteraction(
+            CenterlineSegmentPreviewRenderer.PreviewInteraction hit, float maxDistance) {
+        if (hit == null) {
+            return;
+        }
+        if (hit.hitPi()) {
+            centerlineVertexIndex = hit.selectedPiIndex();
+            return;
+        }
+        if (hit.hitDistance()) {
+            centerlineEditDistanceBlocks = Math.clamp(hit.distanceBlocks(), 0f, maxDistance);
+        }
     }
 
     private void renderLocateSection(

@@ -5,8 +5,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.ChainageDisplayMode;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.HorizontalAlignmentSummaryEditor;
 import com.plot.plugin.road.ui.RoadCenterlineEditPanel;
@@ -35,7 +33,6 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         new HorizontalAlignmentSummaryEditor();
     private final RoadCenterlineEditPanel centerlineEditPanel = new RoadCenterlineEditPanel();
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
-    private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     /** 窗口内草稿分段选择；确认成功前不写入全局选中。 */
     private String selectedWorkingEdgeId = "";
 
@@ -121,11 +118,9 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         selectedWorkingEdgeId = resolveWorkingEdgeId(working, road, selectedWorkingEdgeId);
         RoadEdge primaryEdge = working.getEdge(selectedWorkingEdgeId);
 
+        // 中心线设计器仅只读展示桩号，固定自起点递增（无切换 UI）。
         final ChainageDisplayContext chainageDisplay = RoadStationing.isStationable(working, road)
-            ? new ChainageDisplayContext(
-                RoadStationing.canonicalLength(working, road),
-                chainageDisplayMode,
-                RoadStationFormat.DISTANCE_METERS)
+            ? ChainageDisplayContext.fromStart(RoadStationing.canonicalLength(working, road))
             : null;
 
         // 上路级平面线形：仅在已定义 HA 时展示；空状态（折线中心线）对拾取建路是常态，不占版面。
@@ -192,7 +187,7 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
         try {
             RoadEdge resolved = working.getEdge(selectedWorkingEdgeId);
             final RoadEdge selected = resolved != null ? resolved : primaryEdge;
-            centerlineEditPanel.renderPinnedPreview(ctx, selected);
+            centerlineEditPanel.renderPinnedPreview(ctx, working, road, selected);
             ImGui.spacing();
             float scrollH = Math.max(80f, ImGui.getContentRegionAvailY());
             ImGui.beginChild(

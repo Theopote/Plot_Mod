@@ -115,6 +115,13 @@ public final class RoadCenterlineEditor {
             .orElseGet(() -> CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE));
     }
 
+    /**
+     * 圆角几何预览（不写回网络）；无法构造时返回 {@code null}。
+     */
+    public static List<Vec2d> previewFillet(List<Vec2d> points, int vertexIndex, double radius) {
+        return RoadCenterlineFillet.filletVertex(points, vertexIndex, radius);
+    }
+
     public static CenterlineEditResult filletVertex(
             RoadNetwork network,
             String edgeId,

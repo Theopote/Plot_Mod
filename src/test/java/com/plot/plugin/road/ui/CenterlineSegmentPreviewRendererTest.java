@@ -34,4 +34,17 @@ class CenterlineSegmentPreviewRendererTest {
         float start = CenterlineSegmentPreviewRenderer.nearestFractionOnPolyline(screen, -5f, 0f);
         assertTrue(start < 0.05f, "start=" + start);
     }
+
+    @Test
+    void hitInteriorPiPrefersNearestVertexWithinRadius() {
+        List<ImVec2> screen = List.of(
+            new ImVec2(0, 0),
+            new ImVec2(40, 0),
+            new ImVec2(80, 20),
+            new ImVec2(120, 0));
+        assertEquals(1, CenterlineSegmentPreviewRenderer.hitInteriorPi(screen, 42f, 2f));
+        assertEquals(2, CenterlineSegmentPreviewRenderer.hitInteriorPi(screen, 81f, 18f));
+        assertEquals(0, CenterlineSegmentPreviewRenderer.hitInteriorPi(screen, 0f, 0f));
+        assertEquals(0, CenterlineSegmentPreviewRenderer.hitInteriorPi(screen, 200f, 200f));
+    }
 }
