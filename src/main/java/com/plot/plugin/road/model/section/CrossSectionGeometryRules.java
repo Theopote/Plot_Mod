@@ -2,8 +2,6 @@ package com.plot.plugin.road.model.section;
 
 import com.plot.plugin.road.RoadDimensionUtils;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -50,9 +48,40 @@ public final class CrossSectionGeometryRules {
     }
 
     /**
-     * 隔离带横向列范围 {@code [min, max]}（含），严格落在中央标线占格上。
-     * 取最靠近中心的标线偏移；若偏移过散（跨度大于宽度）则退回几何中心，避免盖住行驶路面。
-     * 双黄仅有一条中心偏移时，向两侧扩满宽度（仍不超过标线占格数）。
+     * 中央标线占格 {@code [min, max]}（含）：按与 {@link LaneGroup#resolveLaneDividerOffsets}
+     * 相同的车道缝推进得到，保证奇数车道时中央缝不在几何 0 也能命中（不会误把侧向白线当中央）。
+     * 无中央标线时返回 {@code [0, -1]}。
+     */
+    public static int[] centerMarkingLateralRange(
+            List<Integer> laneWidths,
+            CenterLineStyle centerStyle,
+            boolean laneDividers) {
+        int centerBlocks = CarriagewayWidthRules.centerLineBlocks(centerStyle);
+        if (centerBlocks <= 0 || laneWidths == null || laneWidths.size() <= 1) {
+            return new int[] {0, -1};
+        }
+        int lanes = laneWidths.size();
+        int total = CarriagewayWidthRules.derivedCarriagewayWidth(
+            laneWidths, centerStyle, laneDividers, 0);
+        double cursor = RoadDimensionUtils.minLateralOffset(total);
+        int centerSeam = (lanes - 1) / 2;
+        for (int i = 0; i < lanes - 1; i++) {
+            cursor += Math.max(0, laneWidths.get(i) != null ? laneWidths.get(i) : 0);
+            boolean isCenterSeam = i == centerSeam;
+            if (isCenterSeam) {
+                int min = (int) Math.floor(cursor + 0.5);
+                int max = (int) Math.floor(cursor + centerBlocks - 0.5);
+                return new int[] {min, max};
+            }
+            int seamBlocks = laneDividers ? 1 : 0;
+            cursor += seamBlocks;
+        }
+        return new int[] {0, -1};
+    }
+
+    /**
+     * 隔离带横向列范围：与中央标线占格一致（{@link #centerMarkingLateralRange}）。
+     * {@code laneDividerOffsets} 保留兼容，不再用于“靠近 0 取列”（奇数车道会误判）。
      */
     public static int[] medianLateralRange(
             List<Double> laneDividerOffsets,
@@ -61,46 +90,19 @@ public final class CrossSectionGeometryRules {
         if (width <= 0) {
             return new int[] {0, -1};
         }
-        // 与路面格子一致：宽 1→[0,0]，宽 2→[0,1]（RoadDimensionUtils 偶数居中）。
-        int[] markingCentered = new int[] {
+        // 无车道拓扑时退回路面居中；权威路径请用 centerMarkingLateralRange(laneWidths,…)。
+        return new int[] {
             RoadDimensionUtils.minLateralOffset(width),
             RoadDimensionUtils.maxLateralOffset(width)
         };
-        if (laneDividerOffsets == null || laneDividerOffsets.isEmpty()) {
-            return markingCentered;
-        }
-        List<Double> ranked = new ArrayList<>(laneDividerOffsets.size());
-        for (Double offset : laneDividerOffsets) {
-            if (offset != null) {
-                ranked.add(offset);
-            }
-        }
-        if (ranked.isEmpty()) {
-            return markingCentered;
-        }
-        ranked.sort(Comparator.comparingDouble(Math::abs));
-        // 只用最靠近中心的 width 条偏移（对应中央标线列）；白线侧缝不参与。
-        int take = Math.min(width, ranked.size());
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-        for (int i = 0; i < take; i++) {
-            int col = (int) Math.floor(ranked.get(i));
-            min = Math.min(min, col);
-            max = Math.max(max, col);
-        }
-        // 偏移过散则说明取到了侧向白线，改用路面居中范围，避免隔离带盖住行驶面。
-        if (max - min + 1 > width) {
-            return markingCentered;
-        }
-        // 双黄等需要 2 格但只解析到 1 个中心偏移时，就地扩满标线占格。
-        while (max - min + 1 < width) {
-            if (Math.abs(min - 1) <= Math.abs(max + 1)) {
-                min--;
-            } else {
-                max++;
-            }
-        }
-        return new int[] {min, max};
+    }
+
+    /** 隔离带列范围：绑定中央标线占格。 */
+    public static int[] medianLateralRange(
+            List<Integer> laneWidths,
+            CenterLineStyle centerStyle,
+            boolean laneDividers) {
+        return centerMarkingLateralRange(laneWidths, centerStyle, laneDividers);
     }
 
     /** 请求宽度在派生语义下是否合法（必须等于派生宽度，或未启用）。 */

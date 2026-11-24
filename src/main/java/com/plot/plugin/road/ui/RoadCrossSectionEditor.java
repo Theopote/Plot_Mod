@@ -66,10 +66,6 @@ public final class RoadCrossSectionEditor {
         renderPreviewBodyWithLayout(layout, previewHeight);
     }
 
-    public static void renderPreviewBody(RoadNetwork network, Road road, RoadSystemConfig config) {
-        renderPreviewBody(network, road, config, DESIGNER_PREVIEW_MIN_HEIGHT);
-    }
-
     public static void renderPreviewBody(
             RoadNetwork network,
             Road road,

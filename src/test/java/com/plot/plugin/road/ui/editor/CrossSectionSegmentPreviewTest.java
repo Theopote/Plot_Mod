@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import org.junit.jupiter.api.Test;
 
@@ -140,6 +141,38 @@ class CrossSectionSegmentPreviewTest {
         assertTrue(
             RoadLampPreview.pavementLayerHasMixedMaterials(pavement),
             "embedded markings must mark pavement as mixed so preview skips Z-strip merge");
+    }
+
+    @Test
+    void threeLaneDoubleYellowPaintsCenterNotSideDivider() {
+        RoadSystemConfig config = previewConfig("seg-3lane-double");
+        config.setLaneCount(3);
+        config.setDefaultLaneWidth(6);
+        config.setLaneDividers(true);
+        config.setCenterLineStyle(CenterLineStyle.DOUBLE_SOLID);
+        config.setCenterLineSolid(true);
+        config.setMarkingMaterial("minecraft:yellow_concrete");
+        CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
+        ResolvedCrossSection section = ResolvedCrossSection.resolve(draft.toCrossSection(), config);
+        int[] center = CrossSectionGeometryRules.centerMarkingLateralRange(
+            section.laneWidths, section.centerLineStyle, section.laneDividers);
+        assertEquals(3, center[0]);
+        assertEquals(4, center[1]);
+
+        var scene = CrossSectionSegmentPreview.buildSurfaceSegment(
+            section, CrossSectionSegmentPreview.SEGMENT_LENGTH_Z);
+        long yellowOnCenter = scene.stream()
+            .filter(v -> "minecraft:yellow_concrete".equals(v.block()))
+            .filter(v -> v.position().getY() == -1)
+            .filter(v -> v.position().getX() >= center[0] && v.position().getX() <= center[1])
+            .count();
+        long whiteOnCenter = scene.stream()
+            .filter(v -> ResolvedCrossSection.DEFAULT_MARKING_MATERIAL.equals(v.block()))
+            .filter(v -> v.position().getY() == -1)
+            .filter(v -> v.position().getX() >= center[0] && v.position().getX() <= center[1])
+            .count();
+        assertTrue(yellowOnCenter > 0, "double yellow must occupy the center seam columns");
+        assertEquals(0, whiteOnCenter, "center seam must not keep white lane-divider paint");
     }
 
     /** 路面用灰混凝土，避免与白标线同材质导致断言误判。 */

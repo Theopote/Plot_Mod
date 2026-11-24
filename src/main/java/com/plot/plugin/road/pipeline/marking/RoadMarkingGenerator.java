@@ -74,8 +74,12 @@ public final class RoadMarkingGenerator {
                     return;
                 }
                 boolean rail = crossSection.centerLineStyle == CenterLineStyle.RAIL;
-                String blockId = materialResolver.resolve(
-                    rail ? resolveRailBlockId(crossSection.markingMaterial) : crossSection.markingMaterial);
+                String centerBlockId = materialResolver.resolve(
+                    rail
+                        ? resolveRailBlockId(crossSection.markingMaterial)
+                        : crossSection.markingMaterial);
+                String dividerBlockId = materialResolver.resolve(
+                    ResolvedCrossSection.DEFAULT_MARKING_MATERIAL);
                 Vec2d lateral = leftNormal.multiply(-1);
                 if (rail && index % RAIL_SLEEPER_EVERY_SAMPLES == 0) {
                     String sleeperId = materialResolver.resolve(RAIL_SLEEPER_MATERIAL);
@@ -89,6 +93,8 @@ public final class RoadMarkingGenerator {
                     if (!pass.solid() && index % 2 != 0) {
                         continue;
                     }
+                    // 中央标线替换中央缝分隔线：中央列用标线材质，侧缝白虚线。
+                    String blockId = pass.center() ? centerBlockId : dividerBlockId;
                     Vec2d point = center.add(lateral.multiply(pass.offset() * unitsPerBlock));
                     solids.add(point, placeY, RoadSolidLayer.MARKING, blockId);
                 }

@@ -27,10 +27,34 @@ class RoadMarkingPassesTest {
         var passes = RoadMarkingPasses.fromCrossSection(resolved);
 
         assertTrue(passes.size() >= 3);
-        // 双黄居中在 0.5/1.5（相对路面格子），两侧白线虚线。
-        assertTrue(passes.stream().anyMatch(pass -> pass.solid() && Math.abs(pass.offset() - 0.5) < 1e-6));
-        assertTrue(passes.stream().anyMatch(pass -> pass.solid() && Math.abs(pass.offset() - 1.5) < 1e-6));
-        assertTrue(passes.stream().anyMatch(pass -> !pass.solid()));
+        // 双黄居中在 0.5/1.5（相对路面格子），两侧白线虚线；中央列标记 center。
+        assertTrue(passes.stream().anyMatch(pass ->
+            pass.center() && pass.solid() && Math.abs(pass.offset() - 0.5) < 1e-6));
+        assertTrue(passes.stream().anyMatch(pass ->
+            pass.center() && pass.solid() && Math.abs(pass.offset() - 1.5) < 1e-6));
+        assertTrue(passes.stream().anyMatch(pass -> !pass.center() && !pass.solid()));
+    }
+
+    @Test
+    void threeLaneDoubleYellowReplacesCenterSeamDivider() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(3);
+        section.getCarriageway().setDefaultLaneWidth(6);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.DOUBLE_SOLID);
+        section.getMarkings().setCenterLineSolid(true);
+        section.getMarkings().setLaneDividers(true);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.DOUBLE_SOLID, true, 0);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+        var passes = RoadMarkingPasses.fromCrossSection(resolved);
+        assertEquals(3, passes.size());
+        long center = passes.stream().filter(RoadMarkingPasses.Pass::center).count();
+        long side = passes.stream().filter(pass -> !pass.center()).count();
+        assertEquals(2, center);
+        assertEquals(1, side);
+        assertTrue(passes.stream().filter(RoadMarkingPasses.Pass::center).allMatch(RoadMarkingPasses.Pass::solid));
+        assertTrue(passes.stream().filter(pass -> !pass.center()).noneMatch(RoadMarkingPasses.Pass::solid));
     }
 
     @Test

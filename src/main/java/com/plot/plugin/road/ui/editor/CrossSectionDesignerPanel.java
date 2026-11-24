@@ -35,21 +35,6 @@ public final class CrossSectionDesignerPanel {
     private final CrossSectionSegmentPreview segmentPreview = new CrossSectionSegmentPreview();
 
     /**
-     * @param includeBridge 为 true 时渲染桥梁结构页（道路级）；桩号断面传 false
-     * @param bridgeRoad    桥梁覆盖写回目标；{@code includeBridge=false} 时可 null
-     */
-    public void renderForRoad(
-            RoadUiContext ctx,
-            CrossSectionDraftMutator mutator,
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config,
-            boolean includeBridge,
-            Road bridgeRoad) {
-        renderForRoad(ctx, mutator, network, road, config, includeBridge, bridgeRoad, null);
-    }
-
-    /**
      * @param beforeBridgeMutation 修改桥墩/护栏前的会话撤销检查点；可为 null
      */
     public void renderForRoad(

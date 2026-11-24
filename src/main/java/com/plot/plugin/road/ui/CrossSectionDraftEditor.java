@@ -137,17 +137,6 @@ public final class CrossSectionDraftEditor {
         }
     }
 
-    /** 最大纵坡。 */
-    public static void renderMaxSlope(
-            RoadUiContext ctx,
-            CrossSectionDraftMutator mutator,
-            CrossSectionDraftEditorOptions options) {
-        EditorContext editor = EditorContext.of(ctx, mutator, options);
-        if (editor != null) {
-            renderMaxSlopeField(editor);
-        }
-    }
-
     /** 铺面与边坡材质。 */
     public static void renderMaterials(
             RoadUiContext ctx,

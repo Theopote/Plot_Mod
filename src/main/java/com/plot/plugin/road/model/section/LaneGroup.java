@@ -325,14 +325,13 @@ public class LaneGroup {
             if (i >= lanes - 1) {
                 break;
             }
+            // 中央标线优先：中央缝只占中央标线格，替换同向白线。
             boolean isCenterSeam = i == centerSeam;
             int seamBlocks = 0;
             if (isCenterSeam && centerBlocks > 0) {
                 seamBlocks = centerBlocks;
             } else if (laneDividers) {
                 seamBlocks = 1;
-            } else if (isCenterSeam && centerBlocks > 0) {
-                seamBlocks = centerBlocks;
             }
             if (seamBlocks == 1) {
                 offsets.add(cursor + 0.5);

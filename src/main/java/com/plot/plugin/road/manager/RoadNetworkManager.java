@@ -25,7 +25,6 @@ import com.plot.plugin.road.station.RoadStationDataTransforms.StationDataSnapsho
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationRange;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
-import com.plot.plugin.road.vertical.NetworkElevationAuthority;
 import com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -537,31 +536,6 @@ public final class RoadNetworkManager {
 
     public RoadUniformElevationUtils.ElevationRecommendation getLastUniformElevationPreview() {
         return lastUniformElevationPreview;
-    }
-
-    public void clearLastUniformElevationPreview() {
-        lastUniformElevationPreview = null;
-    }
-
-    /**
-     * 启用全网统一标高模式，并写入推荐/指定 Y（不改写道路 VA / maxSlope）。
-     */
-    public RoadUniformElevationUtils.ElevationRecommendation applyUniformFlatElevation(
-            TerrainSampler terrain) {
-        RoadUniformElevationUtils.ElevationRecommendation recommendation =
-            previewUniformElevation(terrain);
-        if (recommendation == null) {
-            return null;
-        }
-        String strategy = recommendation.usedMode()
-            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
-            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
-        applyUniformFlatElevationAt(
-            recommendation.elevation(),
-            strategy,
-            recommendation.sampleCount(),
-            recommendation.average());
-        return recommendation;
     }
 
     /**

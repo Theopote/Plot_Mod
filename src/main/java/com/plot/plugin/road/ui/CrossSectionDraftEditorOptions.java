@@ -73,18 +73,6 @@ public record CrossSectionDraftEditorOptions(
             "road", false, null, true, true, true, true, true, true);
     }
 
-    /** 编辑 Tab 主界面：路肩/人行道等外观，不含宽度、车道与坡度。 */
-    public static CrossSectionDraftEditorOptions styleAppearance() {
-        return new CrossSectionDraftEditorOptions(
-            "style", false, null, false, false, false, false, true, false);
-    }
-
-    /** 高级道路设计：分车道宽、边坡比等工程参数（不重复主界面的宽度/车道/路肩/人行道）。 */
-    public static CrossSectionDraftEditorOptions styleAdvanced() {
-        return new CrossSectionDraftEditorOptions(
-            "style_adv", false, null, true, false, true, false, false, false);
-    }
-
     /** 浮动横断面设计器 · 结构：行车道、车道数、标线；页底另挂隔离带与路灯（不含边坡与路肩条带）。 */
     public static CrossSectionDraftEditorOptions styleFloatingStructure() {
         return new CrossSectionDraftEditorOptions(

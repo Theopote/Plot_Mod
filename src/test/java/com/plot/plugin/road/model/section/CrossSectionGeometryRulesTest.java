@@ -34,21 +34,23 @@ class CrossSectionGeometryRulesTest {
     }
 
     @Test
-    void medianLateralRangeStaysOnCenterMarkings() {
-        int[] doubleYellow = CrossSectionGeometryRules.medianLateralRange(
-            List.of(-3.5, 0.5, 1.5, 5.5), 2);
-        assertEquals(0, doubleYellow[0]);
-        assertEquals(1, doubleYellow[1]);
+    void centerMarkingLateralRangeFollowsCenterSeamNotGeometricZero() {
+        // 3×6 + 白1 + 双黄2 = 21；中央缝在第二/三车道之间，不在几何 0
+        List<Integer> lanes = List.of(6, 6, 6);
+        int[] range = CrossSectionGeometryRules.centerMarkingLateralRange(
+            lanes, CenterLineStyle.DOUBLE_SOLID, true);
+        assertEquals(3, range[0]);
+        assertEquals(4, range[1]);
 
-        int[] single = CrossSectionGeometryRules.medianLateralRange(List.of(0.5), 1);
-        assertEquals(0, single[0]);
-        assertEquals(0, single[1]);
+        int[] twoLane = CrossSectionGeometryRules.centerMarkingLateralRange(
+            List.of(3, 3), CenterLineStyle.DOUBLE_SOLID, false);
+        assertEquals(0, twoLane[0]);
+        assertEquals(1, twoLane[1]);
 
-        // 侧向白线过散时不跨路面，退回路面居中双格 [0,1]
-        int[] scattered = CrossSectionGeometryRules.medianLateralRange(
-            List.of(-6.0, 6.0), 2);
-        assertEquals(0, scattered[0]);
-        assertEquals(1, scattered[1]);
+        int[] none = CrossSectionGeometryRules.centerMarkingLateralRange(
+            lanes, CenterLineStyle.NONE, true);
+        assertEquals(0, none[0]);
+        assertTrue(none[1] < none[0]);
     }
 
     @Test
@@ -109,6 +111,31 @@ class CrossSectionGeometryRulesTest {
         assertTrue(resolved.occupiesMedianColumn(1));
         assertFalse(resolved.occupiesMedianColumn(-1));
         assertFalse(resolved.occupiesMedianColumn(2));
+    }
+
+    @Test
+    void threeLaneMedianBindsToOffsetCenterMarking() {
+        RoadSystemConfig defaults = new RoadSystemConfig("geom-3lane");
+        defaults.setIncludeShoulder(false);
+        defaults.setIncludeSidewalk(false);
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setLaneCount(3);
+        section.getCarriageway().setDefaultLaneWidth(6);
+        section.getMarkings().setLaneDividers(true);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.DOUBLE_SOLID);
+        section.getMedian().setEnabled(true);
+        section.getMedian().setHeight(2);
+        section.getShoulder().setEnabled(false);
+        section.getSidewalk().setEnabled(false);
+        section.getBikeLane().setEnabled(false);
+        section.getCarriageway().syncDerivedWidth(CenterLineStyle.DOUBLE_SOLID, true, 0);
+
+        ResolvedCrossSection resolved = section.resolve(defaults);
+        assertEquals(21, resolved.carriagewayWidth);
+        assertTrue(resolved.includeMedian);
+        assertEquals(3, resolved.medianMinLateral);
+        assertEquals(4, resolved.medianMaxLateral);
+        assertFalse(resolved.occupiesMedianColumn(0));
     }
 
     @Test

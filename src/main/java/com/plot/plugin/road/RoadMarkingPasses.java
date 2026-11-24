@@ -10,11 +10,19 @@ import java.util.List;
 
 /**
  * 从横断面解析车道/中央标线偏移（边与路口共用）。
- * 优先使用 {@link ResolvedCrossSection#laneDividerOffsets}（已含分隔占格中心）。
- * 中央隔离带叠在路表之上，不抑制路面标线。
+ * 中央标线优先于同向分隔线：中央缝只画中央标线，不叠白虚线。
+ * 中央隔离带叠在中央标线占格之上，不抑制路面标线。
  */
 public final class RoadMarkingPasses {
-    public record Pass(double offset, boolean solid) {
+    /**
+     * @param offset 相对道路中心的横向偏移（格心）
+     * @param solid  实线（隔格跳过为虚线）
+     * @param center 是否为中央标线列（材质/优先级高于车道分隔线）
+     */
+    public record Pass(double offset, boolean solid, boolean center) {
+        public Pass(double offset, boolean solid) {
+            this(offset, solid, false);
+        }
     }
 
     private RoadMarkingPasses() {
@@ -33,18 +41,18 @@ public final class RoadMarkingPasses {
 
         List<Double> offsets = crossSection.laneDividerOffsets;
         if (offsets != null && !offsets.isEmpty()) {
-            appendDividerOffsets(passes, offsets, style, centerSolid);
+            appendDividerOffsets(passes, offsets, crossSection, style, centerSolid);
             return passes;
         }
 
         // 无解析偏移时的样式回退。
         switch (style) {
-            case SINGLE_DASHED -> passes.add(new Pass(0.0, centerSolid));
+            case SINGLE_DASHED -> passes.add(new Pass(0.0, centerSolid, true));
             case DOUBLE_SOLID -> {
-                passes.add(new Pass(-0.5, centerSolid));
-                passes.add(new Pass(0.5, centerSolid));
+                passes.add(new Pass(-0.5, centerSolid, true));
+                passes.add(new Pass(0.5, centerSolid, true));
             }
-            case RAIL -> passes.add(new Pass(0.0, true));
+            case RAIL -> passes.add(new Pass(0.0, true, true));
             default -> {
             }
         }
@@ -54,14 +62,17 @@ public final class RoadMarkingPasses {
     private static void appendDividerOffsets(
             List<Pass> passes,
             List<Double> offsets,
+            ResolvedCrossSection crossSection,
             CenterLineStyle style,
             boolean centerSolid) {
         if (offsets == null) {
             return;
         }
         int centerBlocks = CarriagewayWidthRules.centerLineBlocks(style);
+        // 用车道缝拓扑定位中央列，避免奇数车道时“靠近 0”误判侧向白线。
         int[] centerCols = centerBlocks > 0
-            ? CrossSectionGeometryRules.medianLateralRange(offsets, centerBlocks)
+            ? CrossSectionGeometryRules.centerMarkingLateralRange(
+                crossSection.laneWidths, style, crossSection.laneDividers)
             : new int[] {0, -1};
         boolean yellowCenter = style == CenterLineStyle.SINGLE_DASHED
             || style == CenterLineStyle.DOUBLE_SOLID;
@@ -71,11 +82,16 @@ public final class RoadMarkingPasses {
             }
             int col = (int) Math.floor(offset);
             boolean centerColumn = centerBlocks > 0
+                && centerCols[1] >= centerCols[0]
                 && col >= centerCols[0]
                 && col <= centerCols[1];
             boolean solid = centerColumn
                 && (style == CenterLineStyle.RAIL || (yellowCenter && centerSolid));
-            passes.add(new Pass(offset, solid));
+            // 非中央列：仅车道分隔线虚线；中央列替换分隔线。
+            if (!centerColumn && !crossSection.laneDividers) {
+                continue;
+            }
+            passes.add(new Pass(offset, solid, centerColumn));
         }
     }
 

@@ -3,9 +3,7 @@ package com.plot.plugin.road.ui.editor;
 import com.plot.plugin.road.RoadMarkingPasses;
 import com.plot.plugin.road.lamp.RoadLampCompiler;
 import com.plot.plugin.road.lamp.RoadLampPlanner;
-import com.plot.plugin.road.model.section.CarriagewayWidthRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
-import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import net.minecraft.util.math.BlockPos;
@@ -73,22 +71,16 @@ final class CrossSectionSegmentPreview {
                 scene.add(new RoadLampCompiler.Voxel(new BlockPos(x, -1, z), block));
             }
         }
-        // 标线嵌入路表（y=-1）；铁轨抬高一格。车道分隔线（白虚线）与中央标线分开画。
+        // 标线嵌入路表（y=-1）；铁轨抬高一格。中央标线替换中央缝分隔线（黄/轨 vs 白虚线）。
         CenterLineStyle centerStyle = section.centerLineStyle != null
             ? section.centerLineStyle
             : CenterLineStyle.NONE;
         boolean rail = centerStyle == CenterLineStyle.RAIL;
         String centerMarking = resolveCenterMarkingBlock(section, rail);
         String laneDivider = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
-        int centerBlocks = CarriagewayWidthRules.centerLineBlocks(centerStyle);
-        int[] centerCols = centerBlocks > 0
-            ? CrossSectionGeometryRules.medianLateralRange(section.laneDividerOffsets, centerBlocks)
-            : new int[] {0, -1};
         for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(section)) {
             int x = (int) Math.floor(pass.offset());
-            boolean centerMarkingPass = centerBlocks > 0
-                && x >= centerCols[0]
-                && x <= centerCols[1];
+            boolean centerMarkingPass = pass.center();
             String block = centerMarkingPass ? centerMarking : laneDivider;
             int markingY = rail && centerMarkingPass ? 0 : -1;
             for (int z = z0; z <= z1; z++) {

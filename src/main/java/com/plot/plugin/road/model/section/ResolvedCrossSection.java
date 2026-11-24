@@ -252,14 +252,22 @@ public final class ResolvedCrossSection {
         int medianHeight = 0;
         if (includeMedian) {
             medianWidth = derivedMedian;
-            int[] range = CrossSectionGeometryRules.medianLateralRange(laneDividerOffsets, medianWidth);
+            // 隔离带列与中央标线占格绑定（含奇数车道中央缝偏置），不用“靠近 0”猜测。
+            int[] range = CrossSectionGeometryRules.centerMarkingLateralRange(
+                laneWidths, centerLineStyle, laneDividers);
             medianMinLateral = range[0];
             medianMaxLateral = range[1];
-            medianHeight = median.getEffectiveHeight();
-            if (requestedMedian > 0 && requestedMedian != medianWidth) {
-                report.noteGeometry(
-                    "median_derived:" + requestedMedian + "->" + medianWidth
-                        + " center=" + centerLineStyle);
+            if (medianMaxLateral < medianMinLateral) {
+                includeMedian = false;
+                medianWidth = 0;
+                report.noteGeometry("median_disabled:no_center_columns");
+            } else {
+                medianHeight = median.getEffectiveHeight();
+                if (requestedMedian > 0 && requestedMedian != medianWidth) {
+                    report.noteGeometry(
+                        "median_derived:" + requestedMedian + "->" + medianWidth
+                            + " center=" + centerLineStyle);
+                }
             }
         } else if (includeMedianRequested && derivedMedian <= 0) {
             report.noteGeometry("median_disabled:no_center_line");
@@ -637,14 +645,20 @@ public final class ResolvedCrossSection {
         int medianMaxLateral = -1;
         int medianHeight = 0;
         if (includeMedian) {
-            int[] range = CrossSectionGeometryRules.medianLateralRange(laneDividerOffsets, medianWidth);
+            int[] range = CrossSectionGeometryRules.centerMarkingLateralRange(
+                laneWidths, discrete.centerLineStyle, discrete.laneDividers);
             medianMinLateral = range[0];
             medianMaxLateral = range[1];
-            medianHeight = lerpRound(
-                Math.max(1, from.medianHeight),
-                Math.max(1, to.medianHeight),
-                t);
-            medianHeight = RoadParameterLimits.clampMedianHeightBlocks(medianHeight);
+            if (medianMaxLateral < medianMinLateral) {
+                includeMedian = false;
+                medianWidth = 0;
+            } else {
+                medianHeight = lerpRound(
+                    Math.max(1, from.medianHeight),
+                    Math.max(1, to.medianHeight),
+                    t);
+                medianHeight = RoadParameterLimits.clampMedianHeightBlocks(medianHeight);
+            }
         }
 
         int shoulderWidth = lerpRound(
