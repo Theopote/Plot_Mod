@@ -132,11 +132,6 @@ public final class VariableCrossSectionEditor {
         clampSelection();
 
         renderTransitionMode(onHistory);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            draftTransitionMode == VariableCrossSectionTransitionMode.SMOOTH
-                ? PlotI18n.tr("plugin.road.variable_cross_section_hint_smooth")
-                : PlotI18n.tr("plugin.road.variable_cross_section_hint"));
         ImGui.spacing();
 
         float totalWidth = ImGui.getContentRegionAvailX();
@@ -177,7 +172,11 @@ public final class VariableCrossSectionEditor {
             PlotI18n.tr("plugin.road.variable_cross_section_transition.step"),
             PlotI18n.tr("plugin.road.variable_cross_section_transition.smooth")
         };
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        // 固定合适宽度，右侧显示「过渡方式」标签（ImGui combo 默认标签在右）。
+        float comboW = Math.max(
+            96f,
+            ImGui.calcTextSize(labels[0]).x + ImGui.calcTextSize(labels[1]).x + 40f);
+        ImGui.setNextItemWidth(Math.min(comboW, ImGui.getContentRegionAvailX() * 0.45f));
         if (ImGui.combo(
                 PlotI18n.tr("plugin.road.variable_cross_section_transition") + "##vcs_transition",
                 index,
@@ -189,6 +188,12 @@ public final class VariableCrossSectionEditor {
                 ? VariableCrossSectionTransitionMode.SMOOTH
                 : VariableCrossSectionTransitionMode.STEP;
             markDraftsDirty();
+        }
+        if (ImGui.isItemHovered()) {
+            UIUtils.setTooltip(
+                draftTransitionMode == VariableCrossSectionTransitionMode.SMOOTH
+                    ? PlotI18n.tr("plugin.road.variable_cross_section_hint_smooth")
+                    : PlotI18n.tr("plugin.road.variable_cross_section_hint"));
         }
     }
 
