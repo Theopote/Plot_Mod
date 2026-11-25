@@ -5,6 +5,7 @@ import com.plot.core.geometry.GeometryUtils;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -101,27 +102,44 @@ public final class RoadStackCrossingDetector {
         if (centerline.size() < 4) {
             return List.of();
         }
+        boolean isLoop = road.getTopologyMode() == RoadTopologyMode.LOOP;
+        int lastSegmentIndex = centerline.size() - 2;
         double[] cumulative = cumulativeDistances(centerline);
+        double loopLength = cumulative[centerline.size() - 1];
         Map<String, RoadStackCrossing> detected = new LinkedHashMap<>();
         for (int i = 0; i < centerline.size() - 1; i++) {
             Vec2d a1 = centerline.get(i);
             Vec2d a2 = centerline.get(i + 1);
             for (int j = i + 2; j < centerline.size() - 1; j++) {
+                boolean wrapAdjacent = isLoop && i == 0 && j == lastSegmentIndex;
                 Vec2d b1 = centerline.get(j);
                 Vec2d b2 = centerline.get(j + 1);
                 for (Vec2d hit : GeometryUtils.segmentIntersection(a1, a2, b1, b2)) {
+                    if (wrapAdjacent && isLoopClosureEndpoint(centerline, hit)) {
+                        // Topological first/last adjacency — not a real self-crossing.
+                        continue;
+                    }
                     if (RoadCrossingDetectionSupport.isPhysicalOpenEndpoint(
                             session.network(), road, hit)) {
                         continue;
                     }
                     double localA = localStation(cumulative, i, a1, a2, hit);
                     double localB = localStation(cumulative, j, b1, b2, hit);
-                    if (Math.abs(localA - localB) < MIN_STATION_SEPARATION) {
+                    if (stationSeparation(localA, localB, loopLength, isLoop) < MIN_STATION_SEPARATION) {
                         continue;
                     }
-                    OptionalDouble chainageA = session.toCanonicalChainage(road, localA);
-                    OptionalDouble chainageB = session.toCanonicalChainage(road, localB);
+                    OptionalDouble chainageA = session.toCanonicalChainage(
+                        road, geometry, i, hit, localA);
+                    OptionalDouble chainageB = session.toCanonicalChainage(
+                        road, geometry, j, hit, localB);
                     if (chainageA.isEmpty() || chainageB.isEmpty()) {
+                        continue;
+                    }
+                    if (stationSeparation(
+                            chainageA.getAsDouble(),
+                            chainageB.getAsDouble(),
+                            loopLength,
+                            isLoop) < MIN_STATION_SEPARATION) {
                         continue;
                     }
                     RoadStackCrossing stack = CrossingGradeClassifier.classifyStack(
@@ -135,6 +153,37 @@ public final class RoadStackCrossingDetector {
             }
         }
         return List.copyOf(detected.values());
+    }
+
+    /**
+     * True when {@code hit} is only the normal LOOP closure vertex (first ≈ last).
+     * Does not filter true self-crossings that happen to lie elsewhere on wrap-adjacent segments.
+     */
+    private static boolean isLoopClosureEndpoint(List<Vec2d> centerline, Vec2d hit) {
+        if (centerline == null || centerline.size() < 2 || hit == null) {
+            return false;
+        }
+        Vec2d first = centerline.getFirst();
+        Vec2d last = centerline.getLast();
+        boolean closed = RoadGeometryUtils.pointsNear(first, last, INTERSECTION_EPSILON);
+        if (closed) {
+            return RoadGeometryUtils.pointsNear(hit, first, INTERSECTION_EPSILON);
+        }
+        // Open polyline of a LOOP: first and last are still the physical join ends.
+        return RoadGeometryUtils.pointsNear(hit, first, INTERSECTION_EPSILON)
+            || RoadGeometryUtils.pointsNear(hit, last, INTERSECTION_EPSILON);
+    }
+
+    private static double stationSeparation(
+            double stationA,
+            double stationB,
+            double loopLength,
+            boolean isLoop) {
+        double delta = Math.abs(stationA - stationB);
+        if (!isLoop || loopLength <= INTERSECTION_EPSILON) {
+            return delta;
+        }
+        return Math.min(delta, Math.max(0.0, loopLength - delta));
     }
 
     private static double[] cumulativeDistances(List<Vec2d> centerline) {

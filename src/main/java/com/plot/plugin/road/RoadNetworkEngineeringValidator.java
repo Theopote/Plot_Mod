@@ -186,6 +186,8 @@ public final class RoadNetworkEngineeringValidator {
             items.add(RoadNetworkValidationReport.Item.ok("plugin.road.validation.intersections_resolved"));
         }
 
+        addMultiLayerStackWarnings(items, network);
+
         return new RoadNetworkValidationReport(items);
     }
 
@@ -223,7 +225,29 @@ public final class RoadNetworkEngineeringValidator {
                 "plugin.road.validation.intersections_pending"));
         }
 
+        addMultiLayerStackWarnings(items, network);
+
         return new RoadNetworkValidationReport(items);
+    }
+
+    /**
+     * Surfaces multi-pass self-crossings that generators may not materialize yet.
+     * Keeps the relationships; does not block build or invent a 3-layer generator.
+     */
+    private static void addMultiLayerStackWarnings(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        if (network == null || network.getStackCrossings().isEmpty()) {
+            return;
+        }
+        int warningCount = com.plot.plugin.road.crossing.RoadStackCrossingDetector
+            .multiLayerWarnings(List.copyOf(network.getStackCrossings().values()))
+            .size();
+        if (warningCount > 0) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.multi_layer_stack",
+                warningCount));
+        }
     }
 
     private static void addRoadTopologyItems(

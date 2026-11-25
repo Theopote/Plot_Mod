@@ -7,6 +7,7 @@ import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadTopologyMode;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -30,10 +32,18 @@ final class RoadCrossingDetectionSupport {
     private RoadCrossingDetectionSupport() {
     }
 
+    enum StationSource {
+        /** Unrotated instance polyline; LOOP seam applied once when converting. */
+        INSTANCE_PHYSICAL,
+        /** HA / design samples already in canonical station domain — never re-rotate. */
+        HA_CANONICAL
+    }
+
     static final class DetectionSession {
         private final RoadNetwork network;
         private final Map<String, List<PlanCenterlineSample>> samplesByRoadId = new HashMap<>();
         private final Map<String, CachedRoadGeometry> geometryByRoadId = new HashMap<>();
+        private final Map<String, Optional<RoadLoopSeamService.SeamProjection>> seamByRoadId = new HashMap<>();
 
         DetectionSession(RoadNetwork network) {
             this.network = network;
@@ -64,20 +74,27 @@ final class RoadCrossingDetectionSupport {
         }
 
         /**
-         * Convert arc length along the detection polyline into current canonical chainage.
-         * Detection polylines for LOOP use unrotated physical geometry; seam shift is applied here.
+         * Convert a detection hit into current canonical chainage using the geometry's
+         * authoritative station source (instance arc length vs HA sample stations).
          */
-        OptionalDouble toCanonicalChainage(Road road, double detectionChainage) {
-            if (road == null || !Double.isFinite(detectionChainage)) {
+        OptionalDouble toCanonicalChainage(
+                Road road,
+                CachedRoadGeometry geometry,
+                int segmentIndex,
+                Vec2d hit,
+                double detectionChainage) {
+            if (road == null || geometry == null || !geometry.valid() || !Double.isFinite(detectionChainage)) {
                 return OptionalDouble.empty();
             }
             if (!RoadStationing.isStationable(network, road)) {
                 return OptionalDouble.empty();
             }
+            if (geometry.stationSource() == StationSource.HA_CANONICAL) {
+                return interpolateHaStation(geometry.samples(), segmentIndex, hit);
+            }
             double physical = detectionChainage;
-            if (road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null) {
-                RoadLoopSeamService.SeamProjection seam = RoadLoopSeamService.projectForPick(
-                    network, road, road.getLoopSeam().position());
+            if (road.getTopologyMode() == RoadTopologyMode.LOOP) {
+                RoadLoopSeamService.SeamProjection seam = seamFor(road);
                 if (seam != null) {
                     double loopLength = RoadStationing.instanceLength(network, road);
                     physical = RoadLoopSeamService.rotateLoopStation(
@@ -87,15 +104,29 @@ final class RoadCrossingDetectionSupport {
             return OptionalDouble.of(RoadStationing.toCanonicalChainage(network, road, physical));
         }
 
+        RoadLoopSeamService.SeamProjection seamFor(Road road) {
+            if (road == null || road.getId() == null) {
+                return null;
+            }
+            return seamByRoadId.computeIfAbsent(road.getId(), id -> {
+                if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
+                    return Optional.empty();
+                }
+                RoadLoopSeam seam = road.getLoopSeam();
+                if (seam == null) {
+                    return Optional.empty();
+                }
+                return Optional.ofNullable(RoadLoopSeamService.resolveFromSeam(network, road, seam));
+            }).orElse(null);
+        }
+
         private CachedRoadGeometry buildGeometry(Road road) {
             if (!RoadStationing.isStationable(network, road)) {
                 return CachedRoadGeometry.invalid();
             }
             if (RoadPlanGeometry.hasDesignAlignment(network, road)) {
-                List<Vec2d> points = samplesFor(road).stream()
-                    .map(PlanCenterlineSample::position)
-                    .toList();
-                return CachedRoadGeometry.of(points);
+                List<PlanCenterlineSample> samples = samplesFor(road);
+                return CachedRoadGeometry.ofHa(samples);
             }
             return instancePlanGeometry(road);
         }
@@ -115,25 +146,75 @@ final class RoadCrossingDetectionSupport {
                     return CachedRoadGeometry.invalid();
                 }
             }
-            return CachedRoadGeometry.of(List.copyOf(merged));
+            return CachedRoadGeometry.ofInstance(List.copyOf(merged));
         }
     }
 
-    record CachedRoadGeometry(List<Vec2d> points, double[] aabb, boolean valid) {
+    record CachedRoadGeometry(
+            List<Vec2d> points,
+            double[] aabb,
+            boolean valid,
+            StationSource stationSource,
+            List<PlanCenterlineSample> samples,
+            PolylineShape polyline) {
+
         static CachedRoadGeometry invalid() {
-            return new CachedRoadGeometry(List.of(), null, false);
+            return new CachedRoadGeometry(
+                List.of(), null, false, StationSource.INSTANCE_PHYSICAL, List.of(), null);
         }
 
-        static CachedRoadGeometry of(List<Vec2d> points) {
+        static CachedRoadGeometry ofInstance(List<Vec2d> points) {
             if (points == null || points.size() < 2) {
                 return invalid();
             }
-            return new CachedRoadGeometry(List.copyOf(points), RoadGeometryUtils.polylineAabb(points), true);
+            List<Vec2d> copy = List.copyOf(points);
+            return new CachedRoadGeometry(
+                copy,
+                RoadGeometryUtils.polylineAabb(copy),
+                true,
+                StationSource.INSTANCE_PHYSICAL,
+                List.of(),
+                new PolylineShape(copy, false));
         }
 
-        PolylineShape polyline() {
-            return valid && points.size() >= 2 ? new PolylineShape(points, false) : null;
+        static CachedRoadGeometry ofHa(List<PlanCenterlineSample> samples) {
+            if (samples == null || samples.size() < 2) {
+                return invalid();
+            }
+            List<PlanCenterlineSample> sampleCopy = List.copyOf(samples);
+            List<Vec2d> points = sampleCopy.stream()
+                .map(PlanCenterlineSample::position)
+                .map(Vec2d::copy)
+                .toList();
+            return new CachedRoadGeometry(
+                points,
+                RoadGeometryUtils.polylineAabb(points),
+                true,
+                StationSource.HA_CANONICAL,
+                sampleCopy,
+                new PolylineShape(points, false));
         }
+    }
+
+    static OptionalDouble interpolateHaStation(
+            List<PlanCenterlineSample> samples,
+            int segmentIndex,
+            Vec2d hit) {
+        if (samples == null || hit == null || segmentIndex < 0 || segmentIndex + 1 >= samples.size()) {
+            return OptionalDouble.empty();
+        }
+        PlanCenterlineSample start = samples.get(segmentIndex);
+        PlanCenterlineSample end = samples.get(segmentIndex + 1);
+        if (start == null || end == null || start.position() == null || end.position() == null) {
+            return OptionalDouble.empty();
+        }
+        double segmentLength = start.position().distance(end.position());
+        if (segmentLength <= INTERSECTION_EPSILON) {
+            return OptionalDouble.of(start.canonicalStation());
+        }
+        double t = Math.clamp(start.position().distance(hit) / segmentLength, 0.0, 1.0);
+        return OptionalDouble.of(
+            start.canonicalStation() + t * (end.canonicalStation() - start.canonicalStation()));
     }
 
     static List<OrientedRoadSegment> detectionSegments(RoadNetwork network, Road road) {

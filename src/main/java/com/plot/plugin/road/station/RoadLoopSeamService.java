@@ -190,6 +190,17 @@ public final class RoadLoopSeamService {
         return List.copyOf(rotated);
     }
 
+    /**
+     * Resolve seam onto the unrotated oriented chain, preferring {@code segmentHintId}/
+     * {@code localFraction} when present so self-cross positions do not pick the wrong pass.
+     */
+    public static SeamProjection resolveFromSeam(RoadNetwork network, Road road, RoadLoopSeam seam) {
+        if (network == null || road == null || seam == null) {
+            return null;
+        }
+        return resolveSeamProjection(network, road, seam);
+    }
+
     private static SeamProjection resolveSeamProjection(RoadNetwork network, Road road, RoadLoopSeam seam) {
         if (seam.segmentHintId() != null && seam.localFraction() != null) {
             for (OrientedRoadSegment segment : RoadStationing.buildBaseOrientedSegments(network, road)) {

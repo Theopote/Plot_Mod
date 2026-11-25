@@ -107,7 +107,9 @@ public final class RoadIntersectionInventory {
             if (crossing.position() == null) {
                 continue;
             }
-            if (!roadsOverlap(nodeRoadIds, crossing)) {
+            // Require the full participating road pair — a single shared road is not enough
+            // to hide an independent co-located junction (e.g. A-B node vs A-C registry).
+            if (!roadsFullyCover(nodeRoadIds, crossing)) {
                 continue;
             }
             if (RoadGeometryUtils.pointsNear(node.getPosition(), crossing.position(), COVER_TOLERANCE)) {
@@ -117,11 +119,11 @@ public final class RoadIntersectionInventory {
         return false;
     }
 
-    private static boolean roadsOverlap(Set<String> nodeRoadIds, RoadCrossing crossing) {
-        if (nodeRoadIds == null || nodeRoadIds.isEmpty()) {
+    private static boolean roadsFullyCover(Set<String> nodeRoadIds, RoadCrossing crossing) {
+        if (nodeRoadIds == null || nodeRoadIds.isEmpty() || crossing == null) {
             return false;
         }
-        return nodeRoadIds.contains(crossing.roadAId()) || nodeRoadIds.contains(crossing.roadBId());
+        return nodeRoadIds.contains(crossing.roadAId()) && nodeRoadIds.contains(crossing.roadBId());
     }
 
     private static Set<String> incidentRoadIds(RoadNetwork network, RoadNode node) {
