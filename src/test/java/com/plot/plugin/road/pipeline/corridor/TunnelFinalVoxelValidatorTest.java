@@ -209,6 +209,26 @@ class TunnelFinalVoxelValidatorTest {
             "ROAD layer alone must not exempt cavity without design expectation");
     }
 
+    /**
+     * B02：护栏常在 deckY+level，路面期望在 deckY。同柱同 XZ 不同高度时，
+     * 当前洞腔授权只看护栏格是否有期望——不得回退为纯图层豁免。
+     * 真实桥隧连接场景若误报，应复用生成阶段位置约束再定点修。
+     */
+    @Test
+    void guardrailAboveDeckExpectationIsNotAuthorizedByLowerSurfaceAlone() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos deck = new BlockPos(27, 64, 0);
+        BlockPos rail = new BlockPos(27, 65, 0); // BridgeGuardrailGenerator: deckY + level
+        result.recordExpectedTunnelCavity(rail);
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            deck, "minecraft:stone", RoadSolidLayer.ROAD, "deck"));
+        result.recordPlacementOverride(rail, "minecraft:air", "minecraft:oak_fence");
+        result.placementLayers.put(rail, RoadSolidLayer.GUARDRAIL);
+
+        assertEquals(1, TunnelFinalVoxelValidator.validate(result, null).unclearedTunnelCavityCount(),
+            "guardrail Y must not inherit authorization from pavement expectation at deckY");
+    }
+
     @Test
     void unauthorizedLiningInsideExpectedCavityCountsAsUncleared() {
         RoadGenerationResult result = new RoadGenerationResult(0);
