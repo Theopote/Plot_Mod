@@ -89,7 +89,7 @@ class NetworkGenerationIntegrityResultTest {
         assertFalse(result.hasPartialFailure());
         result.recordFinalPlacementAcceptance(
             new com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator.Report(
-                2, 0, 1, 0));
+                2, 0, 0, 1, 0, 0));
         assertTrue(result.hasPartialFailure());
         assertTrue(result.hasFinalPlacementAcceptanceFailure());
         assertTrue(result.partialFailureDetails().stream()

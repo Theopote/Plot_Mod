@@ -30,6 +30,18 @@ public final class RoadGenerationResultAssembler {
             Iterable<RoadGenerationResult> edgeResults,
             Map<String, JunctionBlocks> junctionResults,
             RoadGenerationPipelineHost host) {
+        return aggregateNetwork(network, edgeResults, junctionResults, host, true);
+    }
+
+    /**
+     * @param runFinalAcceptance false 时跳过合并内终态验收（预览 MERGE 用，由 VALIDATE 阶段权威执行）。
+     */
+    public static RoadGenerationResult aggregateNetwork(
+            RoadNetwork network,
+            Iterable<RoadGenerationResult> edgeResults,
+            Map<String, JunctionBlocks> junctionResults,
+            RoadGenerationPipelineHost host,
+            boolean runFinalAcceptance) {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         long t0 = System.nanoTime();
         if (edgeResults != null) {
@@ -49,9 +61,11 @@ public final class RoadGenerationResultAssembler {
             junctionResults, network);
         com.plot.plugin.road.pipeline.corridor.JunctionSeamReconciliationPass.apply(
             aggregate, junctionResults, columnPlan);
+        long tSeam = System.nanoTime();
         com.plot.plugin.road.pipeline.corridor.RoadSurfacePlacementPass.clearIntrudingFill(aggregate);
+        long tClear = System.nanoTime();
         com.plot.plugin.road.pipeline.corridor.UnderpassPavementSealPass.apply(aggregate);
-        long t3 = System.nanoTime();
+        long tSeal = System.nanoTime();
         RoadRailPlacementPass.apply(aggregate);
         RoadRailConnectivityValidator.validate(aggregate);
         if (!aggregate.roadLampCandidates.isEmpty() && host != null) {
@@ -68,13 +82,21 @@ public final class RoadGenerationResultAssembler {
         }
         // 合并阶段只做候选 scrub；这里再全表收一次，保证用途表不变量。
         aggregate.scrubStaleClearancePurposes();
-        // 边级完整性指标在 mergeFrom 后已滞后；用设计期望对照最终方块覆盖严重计数。
-        com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
-        long t4 = System.nanoTime();
+        long tRail = System.nanoTime();
+        long acceptanceNanos = 0L;
+        if (runFinalAcceptance) {
+            // 边级完整性指标在 mergeFrom 后已滞后；用设计期望对照最终方块覆盖严重计数。
+            long tAcc0 = System.nanoTime();
+            com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+            acceptanceNanos = System.nanoTime() - tAcc0;
+        }
         aggregate.assembleMergeEdgesNanos = t1 - t0;
         aggregate.assembleMergeJunctionsNanos = t2 - t1;
-        aggregate.assembleClearIntrudingFillNanos = t3 - t2;
-        aggregate.assembleRailPassNanos = t4 - t3;
+        aggregate.assembleSeamNanos = tSeam - t2;
+        aggregate.assembleClearIntrudingFillNanos = tClear - tSeam;
+        aggregate.assembleUnderpassSealNanos = tSeal - tClear;
+        aggregate.assembleRailPassNanos = tRail - tSeal;
+        aggregate.assembleAcceptanceNanos = acceptanceNanos;
         return aggregate;
     }
 

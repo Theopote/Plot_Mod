@@ -209,7 +209,7 @@ public final class TunnelFinalVoxelValidator {
     }
 
     /**
-     * DECORATIVE 隧道灯具四周无 STRUCTURAL/ACCENT 衬砌邻格。
+     * DECORATIVE 隧道灯具四周无合法安装面（衬砌 / 护栏 / 结构路面 / 桥面）。
      */
     static int countFloatingTunnelLights(RoadGenerationResult result) {
         int count = 0;
@@ -230,7 +230,7 @@ public final class TunnelFinalVoxelValidator {
             boolean hasMount = false;
             for (int[] dir : dirs) {
                 BlockPos neighbor = pos.add(dir[0], dir[1], dir[2]);
-                if (isLiningSolid(result, neighbor)) {
+                if (isLightMountSolid(result, neighbor)) {
                     hasMount = true;
                     break;
                 }
@@ -240,6 +240,29 @@ public final class TunnelFinalVoxelValidator {
             }
         }
         return count;
+    }
+
+    /** 灯具可挂接：隧道衬砌，或护栏/桥面/路面等结构实体。 */
+    private static boolean isLightMountSolid(RoadGenerationResult result, BlockPos pos) {
+        if (isLiningSolid(result, pos)) {
+            return true;
+        }
+        if (result == null || pos == null) {
+            return false;
+        }
+        BlockRecord record = result.placementRecords.get(pos);
+        if (record == null || record.newBlockId == null || "minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        RoadSolidLayer layer = result.placementLayers.get(pos);
+        return layer == RoadSolidLayer.GUARDRAIL
+            || layer == RoadSolidLayer.BRIDGE
+            || layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN
+            || layer == RoadSolidLayer.RETAINING_WALL;
     }
 
     private static boolean hasCardinalLining(RoadGenerationResult result, BlockPos pos) {

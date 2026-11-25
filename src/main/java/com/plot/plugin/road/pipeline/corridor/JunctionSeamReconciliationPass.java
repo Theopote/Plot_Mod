@@ -67,6 +67,7 @@ public final class JunctionSeamReconciliationPass {
             ColumnElevationPlan plan,
             Map<ColumnKey, List<BlockPos>> solidsByColumn) {
         ColumnElevationPlan safePlan = plan != null ? plan : ColumnElevationPlan.empty();
+        Map<ColumnKey, List<BlockPos>> expectedByColumn = indexExpectedSurfacesByColumn(aggregate);
         for (Map.Entry<String, JunctionBlocks> entry : junctionResults.entrySet()) {
             JunctionBlocks blocks = entry.getValue();
             if (blocks == null) {
@@ -77,6 +78,7 @@ public final class JunctionSeamReconciliationPass {
                 entry.getKey(),
                 blocks,
                 solidsByColumn,
+                expectedByColumn,
                 safePlan);
         }
     }
@@ -109,11 +111,32 @@ public final class JunctionSeamReconciliationPass {
         return byColumn;
     }
 
+    /**
+     * 设计期望路面按世界列归桶；接缝撤销只访问当前列，避免 O(C×S) 全表扫描。
+     */
+    public static Map<ColumnKey, List<BlockPos>> indexExpectedSurfacesByColumn(
+            RoadGenerationResult aggregate) {
+        Map<ColumnKey, List<BlockPos>> byColumn = new HashMap<>();
+        if (aggregate == null || aggregate.expectedRoadSurfaces == null
+                || aggregate.expectedRoadSurfaces.isEmpty()) {
+            return byColumn;
+        }
+        for (BlockPos pos : aggregate.expectedRoadSurfaces.keySet()) {
+            if (pos == null) {
+                continue;
+            }
+            ColumnKey key = new ColumnKey(pos.getX(), pos.getZ());
+            byColumn.computeIfAbsent(key, ignored -> new ArrayList<>()).add(pos);
+        }
+        return byColumn;
+    }
+
     private static void reconcileJunction(
             RoadGenerationResult aggregate,
             String nodeId,
             JunctionBlocks blocks,
             Map<ColumnKey, List<BlockPos>> solidsByColumn,
+            Map<ColumnKey, List<BlockPos>> expectedByColumn,
             ColumnElevationPlan plan) {
         JunctionElevationField field = blocks.elevationField();
         JunctionValidationManifest manifest = blocks.validationManifest();
@@ -125,6 +148,8 @@ public final class JunctionSeamReconciliationPass {
             : Set.of();
         Integer elevatedDeckY = manifest != null ? manifest.elevatedDeckY() : null;
         Map<ColumnKey, List<BlockPos>> index = solidsByColumn != null ? solidsByColumn : Map.of();
+        Map<ColumnKey, List<BlockPos>> expectedIndex =
+            expectedByColumn != null ? expectedByColumn : Map.of();
         ColumnElevationPlan safePlan = plan != null ? plan : ColumnElevationPlan.empty();
 
         for (Map.Entry<ColumnKey, Integer> entry : field.targetYByColumn().entrySet()) {
@@ -137,7 +162,8 @@ public final class JunctionSeamReconciliationPass {
             Set<Integer> preservedYs = safePlan.preservedYs(column);
             JunctionWorldFootprint.ElevationRole role = field.role(column);
             reconcileColumn(
-                aggregate, column, designY, elevatedDeckY, protectedBlocks, preservedYs, role, index);
+                aggregate, column, designY, elevatedDeckY, protectedBlocks, preservedYs, role,
+                index, expectedIndex);
         }
     }
 
@@ -149,7 +175,8 @@ public final class JunctionSeamReconciliationPass {
             Set<BlockPos> protectedBlocks,
             Set<Integer> preservedYs,
             JunctionWorldFootprint.ElevationRole role,
-            Map<ColumnKey, List<BlockPos>> solidsByColumn) {
+            Map<ColumnKey, List<BlockPos>> solidsByColumn,
+            Map<ColumnKey, List<BlockPos>> expectedByColumn) {
         List<BlockPos> roadAtColumn = new ArrayList<>();
         List<BlockPos> tunnelSolids = new ArrayList<>();
         List<BlockPos> plazaFamilyBelow = new ArrayList<>();
@@ -264,23 +291,37 @@ public final class JunctionSeamReconciliationPass {
         }
 
         // 设计 Y 已裁定后，作废同列非保留高度的期望，防止封口按旧期望回铺双层。
-        revokeConflictingSurfaceExpectations(aggregate, column, targetY, preservedYs);
+        revokeConflictingSurfaceExpectations(
+            aggregate, column, targetY, preservedYs, expectedByColumn);
     }
 
-    static void revokeConflictingSurfaceExpectations(
+    public static void revokeConflictingSurfaceExpectations(
             RoadGenerationResult aggregate,
             ColumnKey column,
             int targetY,
             Set<Integer> preservedYs) {
+        revokeConflictingSurfaceExpectations(
+            aggregate, column, targetY, preservedYs, indexExpectedSurfacesByColumn(aggregate));
+    }
+
+    public static void revokeConflictingSurfaceExpectations(
+            RoadGenerationResult aggregate,
+            ColumnKey column,
+            int targetY,
+            Set<Integer> preservedYs,
+            Map<ColumnKey, List<BlockPos>> expectedByColumn) {
         if (aggregate == null || aggregate.expectedRoadSurfaces == null || column == null) {
             return;
         }
+        List<BlockPos> columnExpectations = expectedByColumn != null
+            ? expectedByColumn.get(column)
+            : null;
+        if (columnExpectations == null || columnExpectations.isEmpty()) {
+            return;
+        }
         List<BlockPos> stale = new ArrayList<>();
-        for (BlockPos pos : aggregate.expectedRoadSurfaces.keySet()) {
-            if (pos == null
-                    || pos.getX() != column.worldX()
-                    || pos.getZ() != column.worldZ()
-                    || pos.getY() == targetY) {
+        for (BlockPos pos : columnExpectations) {
+            if (pos == null || pos.getY() == targetY) {
                 continue;
             }
             if (preservedYs != null && preservedYs.contains(pos.getY())) {
@@ -288,9 +329,16 @@ public final class JunctionSeamReconciliationPass {
             }
             stale.add(pos);
         }
+        if (stale.isEmpty()) {
+            return;
+        }
         for (BlockPos pos : stale) {
-            aggregate.expectedRoadSurfaces.remove(pos);
-            aggregate.expectedRoadSurfaces.remove(pos.toImmutable());
+            aggregate.revokeSurfaceExpectation(pos);
+            columnExpectations.remove(pos);
+            columnExpectations.remove(pos.toImmutable());
+        }
+        if (columnExpectations.isEmpty()) {
+            expectedByColumn.remove(column);
         }
     }
 

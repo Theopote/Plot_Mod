@@ -258,4 +258,19 @@ class TunnelFinalVoxelValidatorTest {
         TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
         assertEquals(0, report.floatingTunnelLightCount());
     }
+
+    @Test
+    void lightMountedOnGuardrailIsNotFloating() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos light = new BlockPos(14, 70, 0);
+        BlockPos rail = light.west();
+        result.recordPlacementOverride(rail, "minecraft:air", "minecraft:cobblestone_wall");
+        result.placementLayers.put(rail, RoadSolidLayer.GUARDRAIL);
+        result.recordPlacementByLayerPriority(
+            light, "minecraft:air", "minecraft:lantern",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
+
+        assertEquals(0, TunnelFinalVoxelValidator.validate(result, null).floatingTunnelLightCount(),
+            "guardrail is a valid lantern mount");
+    }
 }

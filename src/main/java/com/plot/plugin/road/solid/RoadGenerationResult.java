@@ -60,8 +60,16 @@ public class RoadGenerationResult {
      */
     public long assembleMergeEdgesNanos;
     public long assembleMergeJunctionsNanos;
+    /** 接缝修整（含设计标高规划消费）。 */
+    public long assembleSeamNanos;
+    /** 侵入填方清理。 */
     public long assembleClearIntrudingFillNanos;
+    /** 立交路面封口。 */
+    public long assembleUnderpassSealNanos;
+    /** 铁轨 + 路灯 + 用途表 scrub。 */
     public long assembleRailPassNanos;
+    /** 终态路面验收（可在预览 MERGE 跳过，由 VALIDATE 阶段执行）。 */
+    public long assembleAcceptanceNanos;
     public int cutVolume;
     public int fillVolume;
     public int bridgeCount;
@@ -425,7 +433,8 @@ public class RoadGenerationResult {
 
     /**
      * 合并设计期望时与 placement first-claim 对齐：若目标格已有受保护实体铺装，
-     * 后到的异层结构期望不得覆盖，避免终态验收假阳性。
+     * 后到的结构期望（含同层不同材质）不得覆盖，避免终态验收假阳性。
+     * 路口广场等授权覆盖走 {@code recordExpectedRoadSurface} 直写，不经此路径。
      */
     private void mergeExpectedSurfacesRespectingExistingPlacements(RoadGenerationResult source) {
         if (source == null || source.expectedRoadSurfaces.isEmpty()) {
@@ -444,9 +453,8 @@ public class RoadGenerationResult {
                 && !"minecraft:air".equals(existingRecord.newBlockId)
                 && isProtectedSurface(existingLayer)
                 && existingLayer != RoadSolidLayer.MARKING;
-            if (existingProtectedSolid
-                    && incoming.isStructuralSurface()
-                    && existingLayer != incoming.layer()) {
+            // first-claim：已有受保护实体时保留其期望，同层不同材质也不被后到边覆盖。
+            if (existingProtectedSolid && incoming.isStructuralSurface()) {
                 continue;
             }
             expectedRoadSurfaces.put(pos, incoming);

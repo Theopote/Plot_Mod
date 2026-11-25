@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadGenerationResultAssemblerTest {
@@ -132,7 +133,45 @@ class RoadGenerationResultAssemblerTest {
         assertEquals(1, aggregate.bridgeCount);
         assertTrue(aggregate.assembleMergeEdgesNanos >= 0);
         assertTrue(aggregate.assembleMergeJunctionsNanos >= 0);
+        assertTrue(aggregate.assembleSeamNanos >= 0);
         assertTrue(aggregate.assembleClearIntrudingFillNanos >= 0);
+        assertTrue(aggregate.assembleUnderpassSealNanos >= 0);
         assertTrue(aggregate.assembleRailPassNanos >= 0);
+        assertTrue(aggregate.assembleAcceptanceNanos >= 0);
+    }
+
+    @Test
+    void aggregateNetworkCanSkipFinalAcceptance() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGenerationPipelineHost host = new RoadGenerationPipelineHost(
+            config,
+            null,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadNetwork network = new RoadNetwork();
+
+        RoadGenerationResult skipped = RoadGenerationResultAssembler.aggregateNetwork(
+            network, List.of(edgeWithExpectedSurface(1)), Map.of(), host, false);
+        assertEquals(0L, skipped.assembleAcceptanceNanos,
+            "preview MERGE path must not run acceptance inside assemble");
+        assertFalse(skipped.expectedRoadSurfaces.isEmpty());
+
+        RoadGenerationResult withAcceptance = RoadGenerationResultAssembler.aggregateNetwork(
+            network, List.of(edgeWithExpectedSurface(2)), Map.of(), host, true);
+        assertFalse(withAcceptance.expectedRoadSurfaces.isEmpty());
+        // Acceptance stage is entered (timing recorded); seal may already have filled the cell.
+        assertTrue(withAcceptance.assembleAcceptanceNanos >= 0L);
+        com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator.applyToAggregate(skipped);
+        assertEquals(
+            com.plot.plugin.road.pipeline.corridor.FinalPlacementAcceptanceValidator
+                .validate(skipped).blockingSurfaceDefectCount(),
+            skipped.missingRoadSurfaceCount);
+    }
+
+    private static RoadGenerationResult edgeWithExpectedSurface(int x) {
+        RoadGenerationResult edge = new RoadGenerationResult(10.0);
+        var hole = new net.minecraft.util.math.BlockPos(x, 64, 1);
+        edge.recordExpectedRoadSurface(new com.plot.plugin.road.pipeline.corridor.ExpectedRoadSurface(
+            hole, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+        return edge;
     }
 }

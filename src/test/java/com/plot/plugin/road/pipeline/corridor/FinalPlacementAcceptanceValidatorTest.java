@@ -7,6 +7,8 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,12 +65,14 @@ class FinalPlacementAcceptanceValidatorTest {
             FinalPlacementAcceptanceValidator.validate(aggregate);
 
         assertEquals(0, report.missingRoadSurfaceCount());
+        assertEquals(1, report.wrongElevationCount());
+        assertEquals(0, report.wrongMaterialOrLayerCount());
         assertEquals(1, report.wrongElevationOrMaterialCount());
         assertTrue(report.hasBlockingIssues());
     }
 
     @Test
-    void applyToAggregateScrubsSupersededWrongYExpectation() {
+    void applyToAggregateKeepsUnauthorizedWrongYExpectationAndBlocks() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos expected = new BlockPos(0, 64, 0);
         BlockPos elsewhere = new BlockPos(0, 66, 0);
@@ -80,14 +84,16 @@ class FinalPlacementAcceptanceValidatorTest {
         FinalPlacementAcceptanceValidator.Report report =
             FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
 
-        assertFalse(aggregate.expectedRoadSurfaces.containsKey(expected),
-            "stale Y expectation must be scrubbed when column already has pavement");
-        assertFalse(report.hasBlockingIssues());
-        assertEquals(0, aggregate.missingRoadSurfaceCount);
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(expected),
+            "unauthorized wrong-Y must not scrub design expectation");
+        assertEquals(1, report.wrongElevationCount());
+        assertTrue(report.hasBlockingIssues());
+        assertTrue(aggregate.missingRoadSurfaceCount >= 1);
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 
     @Test
-    void applyToAggregateScrubsTunnelClearanceAirExpectation() {
+    void applyToAggregateDoesNotScrubUnauthorizedTunnelClearanceAirExpectation() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos pos = new BlockPos(1, 64, 1);
         aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
@@ -98,8 +104,57 @@ class FinalPlacementAcceptanceValidatorTest {
         FinalPlacementAcceptanceValidator.Report report =
             FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
 
-        assertFalse(aggregate.expectedRoadSurfaces.containsKey(pos));
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(pos),
+            "tunnel air alone must not scrub pavement expectation in final acceptance");
+        assertTrue(report.missingRoadSurfaceCount() >= 1 || report.wrongElevationCount() >= 1);
+        assertTrue(report.hasBlockingIssues());
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void dualLayerColumnLowerMissingUpperPresentBlocks() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos lower = new BlockPos(10, 64, 0);
+        BlockPos upper = new BlockPos(10, 80, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            lower, "minecraft:stone", RoadSolidLayer.ROAD, "lower"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            upper, "minecraft:stone", RoadSolidLayer.ROAD, "upper"));
+        aggregate.recordPlacementOverride(upper, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(upper, RoadSolidLayer.ROAD);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(lower));
+        assertEquals(1, report.wrongElevationCount());
+        assertTrue(report.hasBlockingIssues());
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void authorizedSeamRevokeClearsOldYExpectationBeforeFinalAcceptance() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        ColumnKey column = new ColumnKey(5, 5);
+        BlockPos stale = new BlockPos(5, 64, 5);
+        BlockPos design = new BlockPos(5, 66, 5);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            stale, "minecraft:stone", RoadSolidLayer.ROAD, "stale"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            design, "minecraft:stone", RoadSolidLayer.ROAD, "design"));
+        aggregate.recordPlacementOverride(design, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(design, RoadSolidLayer.ROAD);
+
+        JunctionSeamReconciliationPass.revokeConflictingSurfaceExpectations(
+            aggregate, column, 66, Set.of());
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertFalse(aggregate.expectedRoadSurfaces.containsKey(stale));
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(design));
         assertFalse(report.hasBlockingIssues());
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 
     @Test
@@ -114,6 +169,7 @@ class FinalPlacementAcceptanceValidatorTest {
         FinalPlacementAcceptanceValidator.Report report =
             FinalPlacementAcceptanceValidator.validate(aggregate);
 
+        assertEquals(1, report.wrongMaterialOrLayerCount());
         assertEquals(1, report.wrongElevationOrMaterialCount());
         assertTrue(report.hasBlockingIssues());
     }
@@ -131,7 +187,7 @@ class FinalPlacementAcceptanceValidatorTest {
         FinalPlacementAcceptanceValidator.Report report =
             FinalPlacementAcceptanceValidator.validate(aggregate);
 
-        assertEquals(1, report.wrongElevationOrMaterialCount());
+        assertEquals(1, report.wrongElevationCount());
         assertTrue(report.hasBlockingIssues());
     }
 
@@ -182,6 +238,53 @@ class FinalPlacementAcceptanceValidatorTest {
         aggregate.placementLayers.put(pos, RoadSolidLayer.GUARDRAIL);
 
         assertFalse(FinalPlacementAcceptanceValidator.validate(aggregate).hasBlockingIssues());
+    }
+
+    @Test
+    void illegalGuardrailInsideCarriagewayBlocks() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(8, 64, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:iron_bars");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.GUARDRAIL);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.validate(aggregate);
+
+        assertEquals(1, report.wrongMaterialOrLayerCount());
+        assertTrue(report.hasBlockingIssues());
+    }
+
+    @Test
+    void floatingTunnelLightBlocksReportAndAggregateGateConsistently() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.floatingTunnelLightCount = 2;
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertEquals(2, report.floatingTunnelLightCount());
+        assertTrue(report.hasBlockingIssues());
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+    }
+
+    @Test
+    void materialMismatchIsSeparateFromWrongElevation() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(9, 64, 0);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:black_concrete", RoadSolidLayer.ROAD, "a"));
+        aggregate.recordPlacementOverride(pos, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(pos, RoadSolidLayer.ROAD);
+
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.validate(aggregate);
+
+        assertEquals(0, report.missingRoadSurfaceCount());
+        assertEquals(0, report.wrongElevationCount());
+        assertEquals(1, report.wrongMaterialOrLayerCount());
+        assertTrue(report.hasBlockingIssues());
     }
 
     @Test
@@ -283,6 +386,9 @@ class FinalPlacementAcceptanceValidatorTest {
         assertEquals(2, aggregate.floatingTunnelLightCount);
         assertEquals(7, report.unclearedTunnelCavityCount());
         assertEquals(3, report.missingTunnelLiningCount());
+        assertEquals(2, report.floatingTunnelLightCount());
+        assertTrue(report.hasBlockingIssues());
+        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 
     private static void runTunnelThenFinal(RoadGenerationResult aggregate, TerrainSampler terrain) {

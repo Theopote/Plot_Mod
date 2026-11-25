@@ -145,14 +145,18 @@ public class RoadNetworkGenerator {
                 FinalPlacementAcceptanceValidator.Report report,
                 RoadGenerationResult aggregate) {
             if (report == null || !report.hasBlockingIssues()) {
+                // 干净报告必须清旗，避免热重载/重复汇总残留误拦。
+                finalPlacementAcceptanceFailed = false;
                 return;
             }
             finalPlacementAcceptanceFailed = true;
             errors.add("finalPlacementAcceptance:"
                 + " missing=" + report.missingRoadSurfaceCount()
-                + " wrongYOrMaterial=" + report.wrongElevationOrMaterialCount()
+                + " wrongY=" + report.wrongElevationCount()
+                + " wrongMaterialOrLayer=" + report.wrongMaterialOrLayerCount()
                 + " unclearedCavity=" + report.unclearedTunnelCavityCount()
-                + " missingLining=" + report.missingTunnelLiningCount());
+                + " missingLining=" + report.missingTunnelLiningCount()
+                + " floatingLight=" + report.floatingTunnelLightCount());
             List<String> samples = FinalPlacementAcceptanceValidator.sampleSurfaceDefects(aggregate, 6);
             if (!samples.isEmpty()) {
                 errors.add("finalPlacementSurfaceSamples: " + String.join(" | ", samples));
@@ -160,6 +164,9 @@ public class RoadNetworkGenerator {
             List<String> cavitySamples = TunnelFinalVoxelValidator.sampleUnclearedCavity(aggregate, null, 6);
             if (!cavitySamples.isEmpty()) {
                 errors.add("finalPlacementCavitySamples: " + String.join(" | ", cavitySamples));
+            }
+            if (report.floatingTunnelLightCount() > 0) {
+                errors.add("finalPlacementFloatingLights=" + report.floatingTunnelLightCount());
             }
         }
 
@@ -712,15 +719,18 @@ public class RoadNetworkGenerator {
                 }
                 case MERGE -> {
                     long mergeStarted = System.nanoTime();
+                    // 预览 MERGE 跳过终态验收；VALIDATE（隧道专项后）再权威执行，避免重复扫期望表。
                     RoadGenerationResult aggregate = aggregateNetworkResult(
-                        session.generationNetwork(), session.networkResult());
+                        session.generationNetwork(), session.networkResult(), false);
                     session.setPendingAggregate(aggregate);
                     LOGGER.info(
-                        "预览汇总合并完成 placements={} mergeEdgesMs={} mergeJunctionsMs={} clearMs={} railMs={} totalMs={}",
+                        "预览汇总合并完成 placements={} mergeEdgesMs={} mergeJunctionsMs={} seamMs={} clearMs={} sealMs={} railMs={} totalMs={}",
                         aggregate.placementRecords.size(),
                         aggregate.assembleMergeEdgesNanos / 1_000_000L,
                         aggregate.assembleMergeJunctionsNanos / 1_000_000L,
+                        aggregate.assembleSeamNanos / 1_000_000L,
                         aggregate.assembleClearIntrudingFillNanos / 1_000_000L,
+                        aggregate.assembleUnderpassSealNanos / 1_000_000L,
                         aggregate.assembleRailPassNanos / 1_000_000L,
                         (System.nanoTime() - mergeStarted) / 1_000_000L);
                     session.setAggregationStep(RoadNetworkPreviewSession.AggregationStep.VALIDATE);
@@ -1086,11 +1096,19 @@ public class RoadNetworkGenerator {
     private RoadGenerationResult aggregateNetworkResult(
             RoadNetwork network,
             NetworkGenerationResult networkResult) {
+        return aggregateNetworkResult(network, networkResult, true);
+    }
+
+    private RoadGenerationResult aggregateNetworkResult(
+            RoadNetwork network,
+            NetworkGenerationResult networkResult,
+            boolean runFinalAcceptance) {
         return RoadGenerationResultAssembler.aggregateNetwork(
             network,
             networkResult.getEdgeResults().values(),
             networkResult.getJunctionResults(),
-            roadGenerator.pipelineHost());
+            roadGenerator.pipelineHost(),
+            runFinalAcceptance);
     }
 
     private static volatile IClientWorldAccess clientWorldAccess = IClientWorldAccess.unavailable();

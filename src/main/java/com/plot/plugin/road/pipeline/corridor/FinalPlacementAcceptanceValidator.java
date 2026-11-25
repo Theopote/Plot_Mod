@@ -12,6 +12,7 @@ import java.util.List;
  * 全网合并后的终态汇总：对照设计期望路面更新严重计数，并汇总已由专项校验写入的隧道指标。
  * <p>
  * 隧道洞腔/衬砌/灯具规则以 {@link TunnelFinalVoxelValidator} 为准，本类不得再实现简化版覆盖。
+ * 期望作废只由设计裁决路径执行（接缝修整、合并净空胜出等），不得依实际方块反向 scrub。
  */
 public final class FinalPlacementAcceptanceValidator {
     private FinalPlacementAcceptanceValidator() {
@@ -19,21 +20,30 @@ public final class FinalPlacementAcceptanceValidator {
 
     public record Report(
             int missingRoadSurfaceCount,
-            int wrongElevationOrMaterialCount,
+            int wrongElevationCount,
+            int wrongMaterialOrLayerCount,
             int unclearedTunnelCavityCount,
-            int missingTunnelLiningCount) {
-        public static final Report CLEAN = new Report(0, 0, 0, 0);
+            int missingTunnelLiningCount,
+            int floatingTunnelLightCount) {
+        public static final Report CLEAN = new Report(0, 0, 0, 0, 0, 0);
 
         public boolean hasBlockingIssues() {
             return missingRoadSurfaceCount > 0
-                || wrongElevationOrMaterialCount > 0
+                || wrongElevationCount > 0
+                || wrongMaterialOrLayerCount > 0
                 || unclearedTunnelCavityCount > 0
-                || missingTunnelLiningCount > 0;
+                || missingTunnelLiningCount > 0
+                || floatingTunnelLightCount > 0;
         }
 
-        /** 建造门禁用的路面严重项合计（缺铺 + 错高程/错图层/错材质）。 */
+        /** 错高程 + 错图层/错材质合计（兼容旧诊断口径）。 */
+        public int wrongElevationOrMaterialCount() {
+            return wrongElevationCount + wrongMaterialOrLayerCount;
+        }
+
+        /** 建造门禁用的路面严重项合计（缺铺 + 错高程 + 错图层/错材质）。 */
         public int blockingSurfaceDefectCount() {
-            return missingRoadSurfaceCount + wrongElevationOrMaterialCount;
+            return missingRoadSurfaceCount + wrongElevationOrMaterialCount();
         }
     }
 
@@ -47,7 +57,8 @@ public final class FinalPlacementAcceptanceValidator {
         }
         FinalPlacementIndex safeIndex = index != null ? index : FinalPlacementIndex.build(aggregate);
         int missingSurface = 0;
-        int wrongOrMisplaced = 0;
+        int wrongElevation = 0;
+        int wrongMaterialOrLayer = 0;
         for (ExpectedRoadSurface expected : aggregate.expectedRoadSurfaces.values()) {
             if (expected == null || !expected.isStructuralSurface() || expected.position() == null) {
                 continue;
@@ -56,37 +67,40 @@ public final class FinalPlacementAcceptanceValidator {
             BlockRecord actual = aggregate.placementRecords.get(pos);
             if (actual == null || "minecraft:air".equals(actual.newBlockId)) {
                 if (hasStructuralSurfaceElsewhereInColumn(aggregate, safeIndex, pos)) {
-                    wrongOrMisplaced++;
+                    wrongElevation++;
                 } else {
                     missingSurface++;
                 }
                 continue;
             }
             RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-            // 合法附属覆盖（标线/护栏）：占用人行道、非机动车道等期望位，不要求底层材质重铺。
-            if (isAuthorizedSurfaceOverlay(layer)) {
+            // 合法附属覆盖：标线可盖车行道；护栏仅允许占用人行道/路肩/非机动车道/中央分隔带边缘。
+            if (isAuthorizedSurfaceOverlay(layer, expected.layer())) {
                 continue;
             }
             if (layer != expected.layer()) {
                 // 车行道不得 silently 顶替人行道/路肩；其它结构层也必须对上设计层。
-                wrongOrMisplaced++;
+                wrongMaterialOrLayer++;
                 continue;
             }
             if (expected.materialId() != null
                     && !expected.materialId().equals(actual.newBlockId)) {
-                wrongOrMisplaced++;
+                wrongMaterialOrLayer++;
             }
         }
         // 隧道计数只读专项校验已写入的聚合字段，不在此重算。
         return new Report(
             missingSurface,
-            wrongOrMisplaced,
+            wrongElevation,
+            wrongMaterialOrLayer,
             Math.max(0, aggregate.unclearedTunnelCavityCount),
-            Math.max(0, aggregate.missingTunnelLiningCount));
+            Math.max(0, aggregate.missingTunnelLiningCount),
+            Math.max(0, aggregate.floatingTunnelLightCount));
     }
 
     /**
      * 仅覆盖路面终态计数；隧道指标保持 {@link TunnelFinalVoxelValidator} 已写入的值。
+     * 不 scrub 设计期望——授权作废由接缝/合并路径完成。
      */
     public static Report applyToAggregate(RoadGenerationResult aggregate) {
         return applyToAggregate(aggregate, FinalPlacementIndex.build(aggregate));
@@ -97,58 +111,15 @@ public final class FinalPlacementAcceptanceValidator {
             return Report.CLEAN;
         }
         FinalPlacementIndex safeIndex = index != null ? index : FinalPlacementIndex.build(aggregate);
-        // 立交/路口交接后，旧 Y 的边期望常残留在已清空气格上；同柱已有路面则作废，避免假拦建造。
-        scrubSupersededSurfaceExpectations(aggregate, safeIndex);
         Report report = validate(aggregate, safeIndex);
+        // 兼容门禁字段：合计路面严重项；分类以 Report 为准。
         aggregate.missingRoadSurfaceCount = report.blockingSurfaceDefectCount();
         return report;
     }
 
     /**
-     * 作废已被交接取代的路面期望：期望格为空/空气，且同柱另有结构路面，或该格已是隧道净空空气。
+     * 与 {@link Report#hasBlockingIssues()} 同口径：路面严重项 + 隧道洞腔/衬砌/悬空灯具。
      */
-    static int scrubSupersededSurfaceExpectations(
-            RoadGenerationResult aggregate,
-            FinalPlacementIndex index) {
-        if (aggregate == null || aggregate.expectedRoadSurfaces == null
-                || aggregate.expectedRoadSurfaces.isEmpty()) {
-            return 0;
-        }
-        FinalPlacementIndex safeIndex = index != null ? index : FinalPlacementIndex.build(aggregate);
-        List<BlockPos> stale = new ArrayList<>();
-        for (ExpectedRoadSurface expected : aggregate.expectedRoadSurfaces.values()) {
-            if (expected == null || !expected.isStructuralSurface() || expected.position() == null) {
-                continue;
-            }
-            BlockPos pos = expected.position();
-            BlockRecord actual = aggregate.placementRecords.get(pos);
-            boolean emptyOrAir = actual == null || "minecraft:air".equals(actual.newBlockId);
-            if (!emptyOrAir) {
-                continue;
-            }
-            if (isTunnelClearanceAir(aggregate, pos, actual)
-                    || hasStructuralSurfaceElsewhereInColumn(aggregate, safeIndex, pos)) {
-                stale.add(pos);
-            }
-        }
-        for (BlockPos pos : stale) {
-            aggregate.revokeSurfaceExpectation(pos);
-        }
-        return stale.size();
-    }
-
-    private static boolean isTunnelClearanceAir(
-            RoadGenerationResult aggregate,
-            BlockPos pos,
-            BlockRecord actual) {
-        if (actual == null || !"minecraft:air".equals(actual.newBlockId)) {
-            return false;
-        }
-        RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-        return layer == RoadSolidLayer.TUNNEL
-            || (aggregate.tunnelBlocks != null && aggregate.tunnelBlocks.contains(pos));
-    }
-
     public static boolean hasBlockingIssues(RoadGenerationResult aggregate) {
         if (aggregate == null) {
             return false;
@@ -238,7 +209,7 @@ public final class FinalPlacementAcceptanceValidator {
                 continue;
             }
             RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-            if (isAuthorizedSurfaceOverlay(layer)) {
+            if (isAuthorizedSurfaceOverlay(layer, expected.layer())) {
                 continue;
             }
             if (layer != expected.layer()) {
@@ -253,8 +224,25 @@ public final class FinalPlacementAcceptanceValidator {
         return samples;
     }
 
-    /** 标线、护栏等附属设施覆盖结构路面期望位时，不计入层/材质冲突。 */
-    private static boolean isAuthorizedSurfaceOverlay(RoadSolidLayer layer) {
-        return layer == RoadSolidLayer.MARKING || layer == RoadSolidLayer.GUARDRAIL;
+    /**
+     * 标线可覆盖结构路面期望位；护栏仅允许覆盖路侧边缘层（人行道/路肩/非机动车道/中央分隔带），
+     * 不得无条件豁免车行道内部护栏。
+     */
+    static boolean isAuthorizedSurfaceOverlay(RoadSolidLayer actualLayer, RoadSolidLayer expectedLayer) {
+        if (actualLayer == RoadSolidLayer.MARKING) {
+            return expectedLayer == RoadSolidLayer.ROAD
+                || expectedLayer == RoadSolidLayer.SIDEWALK
+                || expectedLayer == RoadSolidLayer.SHOULDER
+                || expectedLayer == RoadSolidLayer.BIKE_LANE
+                || expectedLayer == RoadSolidLayer.MEDIAN
+                || expectedLayer == RoadSolidLayer.BRIDGE;
+        }
+        if (actualLayer != RoadSolidLayer.GUARDRAIL) {
+            return false;
+        }
+        return expectedLayer == RoadSolidLayer.SIDEWALK
+            || expectedLayer == RoadSolidLayer.SHOULDER
+            || expectedLayer == RoadSolidLayer.BIKE_LANE
+            || expectedLayer == RoadSolidLayer.MEDIAN;
     }
 }

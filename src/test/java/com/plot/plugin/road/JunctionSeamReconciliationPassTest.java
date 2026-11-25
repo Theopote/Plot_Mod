@@ -220,6 +220,43 @@ class JunctionSeamReconciliationPassTest {
     }
 
     @Test
+    void revokeConflictingSurfaceExpectationsScalesWithColumnIndex() {
+        int columns = 5_000;
+        int expectationsPerColumn = 40;
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        for (int x = 0; x < columns; x++) {
+            for (int dy = 0; dy < expectationsPerColumn; dy++) {
+                BlockPos pos = new BlockPos(x, 60 + dy, 0);
+                aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+                    pos, "minecraft:stone", RoadSolidLayer.ROAD, "edge"));
+            }
+        }
+        assertEquals(columns * expectationsPerColumn, aggregate.expectedRoadSurfaces.size());
+
+        Map<ColumnKey, List<BlockPos>> expectedByColumn =
+            JunctionSeamReconciliationPass.indexExpectedSurfacesByColumn(aggregate);
+        long start = System.nanoTime();
+        for (int x = 0; x < columns; x++) {
+            JunctionSeamReconciliationPass.revokeConflictingSurfaceExpectations(
+                aggregate,
+                new ColumnKey(x, 0),
+                64,
+                java.util.Collections.emptySet(),
+                expectedByColumn);
+        }
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+        // Indexed O(S+K) path; full-table O(C×S) would be ~200M scans and far slower.
+        assertTrue(elapsedMs < 5_000,
+            "indexed revoke took " + elapsedMs + "ms on " + (columns * expectationsPerColumn)
+                + " expectations across " + columns + " columns");
+
+        ColumnKey sample = new ColumnKey(0, 0);
+        assertFalse(aggregate.expectedRoadSurfaces.containsKey(new BlockPos(0, 60, 0)));
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(new BlockPos(0, 64, 0)));
+        assertEquals(1, expectedByColumn.getOrDefault(sample, List.of()).size());
+    }
+
+    @Test
     void stripsStackedEdgeAndLiningUnderFilletPavement() {
         JunctionGeometryResult.FilletCorner fillet = new JunctionGeometryResult.FilletCorner(
             new Vec2d(8, 8),

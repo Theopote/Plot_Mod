@@ -356,6 +356,35 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void mergeFromKeepsFirstClaimExpectationForSameLayerDifferentMaterial() {
+        BlockPos pos = new BlockPos(11, 64, 2);
+        RoadGenerationResult first = new RoadGenerationResult(0);
+        first.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:black_concrete", RoadSolidLayer.ROAD, "a"));
+        first.recordPlacementOverride(pos, "minecraft:air", "minecraft:black_concrete");
+        first.placementLayers.put(pos, RoadSolidLayer.ROAD);
+
+        RoadGenerationResult second = new RoadGenerationResult(0);
+        second.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            pos, "minecraft:stone", RoadSolidLayer.ROAD, "b"));
+        second.recordPlacementOverride(pos, "minecraft:air", "minecraft:stone");
+        second.placementLayers.put(pos, RoadSolidLayer.ROAD);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.mergeFrom(first);
+        aggregate.mergeFrom(second);
+
+        assertEquals("minecraft:black_concrete", aggregate.placementRecords.get(pos).newBlockId);
+        assertEquals("minecraft:black_concrete",
+            aggregate.expectedRoadSurfaces.get(pos).materialId());
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.validate(aggregate);
+        assertEquals(0, report.missingRoadSurfaceCount());
+        assertEquals(0, report.wrongMaterialOrLayerCount());
+        assertFalse(report.hasBlockingIssues());
+    }
+
+    @Test
     void mergeFromCopiesWinningClearanceRecordAndMetadataTogether() {
         RoadGenerationResult first = new RoadGenerationResult(0);
         RoadGenerationResult second = new RoadGenerationResult(0);
