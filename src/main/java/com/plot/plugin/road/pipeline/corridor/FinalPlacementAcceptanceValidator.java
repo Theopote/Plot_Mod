@@ -27,13 +27,20 @@ public final class FinalPlacementAcceptanceValidator {
             int floatingTunnelLightCount) {
         public static final Report CLEAN = new Report(0, 0, 0, 0, 0, 0);
 
+        /**
+         * 建造门禁：路面严重项 + 洞腔/衬砌。
+         * 悬空灯具仅观感告警，不阻断落地（见 {@link #floatingTunnelLightCount()}）。
+         */
         public boolean hasBlockingIssues() {
             return missingRoadSurfaceCount > 0
                 || wrongElevationCount > 0
                 || wrongMaterialOrLayerCount > 0
                 || unclearedTunnelCavityCount > 0
-                || missingTunnelLiningCount > 0
-                || floatingTunnelLightCount > 0;
+                || missingTunnelLiningCount > 0;
+        }
+
+        public boolean hasFloatingLightAdvisory() {
+            return floatingTunnelLightCount > 0;
         }
 
         /** 错高程 + 错图层/错材质合计（兼容旧诊断口径）。 */
@@ -118,7 +125,8 @@ public final class FinalPlacementAcceptanceValidator {
     }
 
     /**
-     * 与 {@link Report#hasBlockingIssues()} 同口径：路面严重项 + 隧道洞腔/衬砌/悬空灯具。
+     * 与 {@link Report#hasBlockingIssues()} 同口径：路面严重项 + 隧道洞腔/衬砌。
+     * 悬空灯具不进建造门禁。
      */
     public static boolean hasBlockingIssues(RoadGenerationResult aggregate) {
         if (aggregate == null) {
@@ -126,8 +134,7 @@ public final class FinalPlacementAcceptanceValidator {
         }
         return aggregate.missingRoadSurfaceCount > 0
             || aggregate.unclearedTunnelCavityCount > 0
-            || aggregate.missingTunnelLiningCount > 0
-            || aggregate.floatingTunnelLightCount > 0;
+            || aggregate.missingTunnelLiningCount > 0;
     }
 
     private static boolean hasStructuralSurfaceElsewhereInColumn(

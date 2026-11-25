@@ -257,7 +257,7 @@ class FinalPlacementAcceptanceValidatorTest {
     }
 
     @Test
-    void floatingTunnelLightBlocksReportAndAggregateGateConsistently() {
+    void floatingTunnelLightIsAdvisoryAndDoesNotBlockBuild() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         aggregate.floatingTunnelLightCount = 2;
 
@@ -265,8 +265,9 @@ class FinalPlacementAcceptanceValidatorTest {
             FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
 
         assertEquals(2, report.floatingTunnelLightCount());
-        assertTrue(report.hasBlockingIssues());
-        assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
+        assertTrue(report.hasFloatingLightAdvisory());
+        assertFalse(report.hasBlockingIssues(), "floating lights must not block build");
+        assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 
     @Test
@@ -387,7 +388,8 @@ class FinalPlacementAcceptanceValidatorTest {
         assertEquals(7, report.unclearedTunnelCavityCount());
         assertEquals(3, report.missingTunnelLiningCount());
         assertEquals(2, report.floatingTunnelLightCount());
-        assertTrue(report.hasBlockingIssues());
+        assertTrue(report.hasBlockingIssues(), "uncleared cavity / missing lining still block");
+        assertTrue(report.hasFloatingLightAdvisory());
         assertTrue(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 

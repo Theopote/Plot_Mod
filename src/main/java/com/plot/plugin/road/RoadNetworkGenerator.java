@@ -144,7 +144,16 @@ public class RoadNetworkGenerator {
         void recordFinalPlacementAcceptance(
                 FinalPlacementAcceptanceValidator.Report report,
                 RoadGenerationResult aggregate) {
-            if (report == null || !report.hasBlockingIssues()) {
+            if (report == null) {
+                finalPlacementAcceptanceFailed = false;
+                return;
+            }
+            if (report.hasFloatingLightAdvisory()) {
+                // 悬空灯仅警告，不置失败旗、不进建造门禁。
+                warnings.add("finalPlacementFloatingLights=" + report.floatingTunnelLightCount()
+                    + " (advisory, does not block build)");
+            }
+            if (!report.hasBlockingIssues()) {
                 // 干净报告必须清旗，避免热重载/重复汇总残留误拦。
                 finalPlacementAcceptanceFailed = false;
                 return;
@@ -164,9 +173,6 @@ public class RoadNetworkGenerator {
             List<String> cavitySamples = TunnelFinalVoxelValidator.sampleUnclearedCavity(aggregate, null, 6);
             if (!cavitySamples.isEmpty()) {
                 errors.add("finalPlacementCavitySamples: " + String.join(" | ", cavitySamples));
-            }
-            if (report.floatingTunnelLightCount() > 0) {
-                errors.add("finalPlacementFloatingLights=" + report.floatingTunnelLightCount());
             }
         }
 
