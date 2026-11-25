@@ -204,23 +204,6 @@ public final class RoadStationDataTransforms {
             newSegmentLength));
     }
 
-    public static void rescaleAfterGeometryEdit(
-            RoadNetwork network,
-            Road road,
-            String edgeId,
-            double oldSegmentLength,
-            double newSegmentLength) {
-        if (network == null || road == null || edgeId == null || oldSegmentLength <= EPSILON) {
-            return;
-        }
-        double rangeStart = RoadStationing.segmentStartStation(network, road, edgeId);
-        if (rangeStart < 0.0) {
-            return;
-        }
-        double totalLengthBefore = RoadStationing.canonicalLength(network, road) - newSegmentLength + oldSegmentLength;
-        rescaleAfterGeometryEdit(road, rangeStart, oldSegmentLength, newSegmentLength, totalLengthBefore);
-    }
-
     public record SegmentGeometrySnapshot(
             double rangeStart,
             double oldSegmentLength,

@@ -52,3 +52,6 @@ replay_*.log
 logs/
 *.log
 *.log.gz
+
+# local CI log/report downloads
+.tmp-ci-*/
