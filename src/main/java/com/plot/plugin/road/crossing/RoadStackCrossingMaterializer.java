@@ -101,21 +101,21 @@ public final class RoadStackCrossingMaterializer {
         List<Vec2d> upperRefs = passReferencePoints(
             network, stackCrossing.roadId(), stackCrossing.resolvedUpperStation());
 
-        PassMaterializeResult passA = materializeStationPass(
-            network, stackCrossing.roadId(), stackCrossing.stationA(), junction, position);
-        PassMaterializeResult passB = materializeStationPass(
-            network, stackCrossing.roadId(), stackCrossing.stationB(), junction, position);
-
-        Map<String, PassRole> lineage = new HashMap<>();
+        Map<ArmRef, PassRole> lineage = new HashMap<>();
         boolean stationAIsLower = Math.abs(stackCrossing.stationA() - stackCrossing.resolvedLowerStation())
             <= Math.abs(stackCrossing.stationA() - stackCrossing.resolvedUpperStation());
-        tagPassEdges(lineage, passA, stationAIsLower ? PassRole.LOWER : PassRole.UPPER);
-        tagPassEdges(lineage, passB, stationAIsLower ? PassRole.UPPER : PassRole.LOWER);
+        PassRole roleA = stationAIsLower ? PassRole.LOWER : PassRole.UPPER;
+        PassRole roleB = stationAIsLower ? PassRole.UPPER : PassRole.LOWER;
+
+        PassMaterializeResult passA = materializeStationPass(
+            network, stackCrossing.roadId(), stackCrossing.stationA(), junction, position, lineage, roleA);
+        PassMaterializeResult passB = materializeStationPass(
+            network, stackCrossing.roadId(), stackCrossing.stationB(), junction, position, lineage, roleB);
 
         breakJunctionSelfLoops(network, junction, lineage);
 
-        CrossingMaterializeStatus verifiedA = verifyPassConnected(network, junction, passA);
-        CrossingMaterializeStatus verifiedB = verifyPassConnected(network, junction, passB);
+        CrossingMaterializeStatus verifiedA = verifyPassConnected(network, junction, passA, lineage, roleA);
+        CrossingMaterializeStatus verifiedB = verifyPassConnected(network, junction, passB, lineage, roleB);
         if (!verifiedA.isSuccessful() || !verifiedB.isSuccessful()) {
             return Optional.of(failure(
                 stackCrossing,
@@ -123,7 +123,7 @@ public final class RoadStackCrossingMaterializer {
                 verifiedB,
                 "stack arms incomplete after materialize"));
         }
-        if (!passArmSetsDistinct(passA, passB, lineage)) {
+        if (!passRolesDistinct(lineage)) {
             return Optional.of(failure(
                 stackCrossing,
                 CrossingMaterializeStatus.SPLIT_FAILED,
@@ -160,14 +160,16 @@ public final class RoadStackCrossingMaterializer {
 
     /**
      * Split (or relink) at the resolved SegmentStation localDistance — never re-pick the first
-     * spatial hit on a multi-pass edge.
+     * spatial hit on a multi-pass edge. Tags junction endpoints with the pass role.
      */
     private static PassMaterializeResult materializeStationPass(
             RoadNetwork network,
             String roadId,
             double station,
             RoadNode junction,
-            Vec2d position) {
+            Vec2d position,
+            Map<ArmRef, PassRole> lineage,
+            PassRole passRole) {
         Road road = network.getRoad(roadId);
         if (road == null) {
             return PassMaterializeResult.failed(CrossingMaterializeStatus.ROAD_NOT_FOUND);
@@ -188,10 +190,11 @@ public final class RoadStackCrossingMaterializer {
             if (splitPoint == null) {
                 return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
             }
-            // Spatial sanity: resolved local arc must land near the crossing position.
-            if (position != null && splitPoint.distance(position) > NODE_TOLERANCE * 2.0) {
+            if (position != null && splitPoint.distance(position) > NODE_TOLERANCE) {
                 return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
             }
+            PassRole parentStartRole = lineage.get(new ArmRef(edge.getId(), true));
+            PassRole parentEndRole = lineage.get(new ArmRef(edge.getId(), false));
             Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
                 edge.getId(),
                 junction.getId(),
@@ -201,27 +204,93 @@ public final class RoadStackCrossingMaterializer {
             if (split.isEmpty()) {
                 return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
             }
-            Set<String> junctionEdges = new HashSet<>();
-            addIfJunctionIncident(network, junction.getId(), split.get().firstEdgeId(), junctionEdges);
-            addIfJunctionIncident(network, junction.getId(), split.get().secondEdgeId(), junctionEdges);
-            return new PassMaterializeResult(CrossingMaterializeStatus.SUCCESS, junctionEdges);
+            clearEdgeLineage(lineage, edge.getId());
+            Set<ArmRef> tagged = tagSplitResult(
+                network, junction.getId(), split.get(), lineage, passRole, parentStartRole, parentEndRole);
+            return new PassMaterializeResult(CrossingMaterializeStatus.SUCCESS, tagged);
         }
         if (isNearEdgeEndpoint(edge, position)) {
             CrossingMaterializeStatus status = connectEdgeEndpointToNode(network, edge, position, junction);
             if (!status.isSuccessful() && status != CrossingMaterializeStatus.ALREADY_CONNECTED) {
                 return PassMaterializeResult.failed(status);
             }
-            Set<String> junctionEdges = new HashSet<>();
+            Set<ArmRef> tagged = new HashSet<>();
             if (junction.getConnectedEdgeIds().contains(edge.getId())) {
-                junctionEdges.add(edge.getId());
+                boolean atStart = junction.getId().equals(edge.getStartNodeId());
+                ArmRef ref = new ArmRef(edge.getId(), atStart);
+                lineage.put(ref, passRole);
+                tagged.add(ref);
             }
             return new PassMaterializeResult(
                 status == CrossingMaterializeStatus.ALREADY_CONNECTED
                     ? CrossingMaterializeStatus.SUCCESS
                     : status,
-                junctionEdges);
+                tagged);
         }
         return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
+    }
+
+    /**
+     * finalizeSplit creates first(start→node) and second(node→end). Junction endpoint(s) get
+     * {@code passRole}; non-junction ends keep parent roles. Self-loops get both endpoints tagged:
+     * start inherits parent junction-side role when present, else passRole; end gets passRole.
+     */
+    private static Set<ArmRef> tagSplitResult(
+            RoadNetwork network,
+            String junctionId,
+            RoadGraphEdits.SplitResult split,
+            Map<ArmRef, PassRole> lineage,
+            PassRole passRole,
+            PassRole parentStartRole,
+            PassRole parentEndRole) {
+        Set<ArmRef> tagged = new HashSet<>();
+        RoadEdge first = network.getEdge(split.firstEdgeId());
+        RoadEdge second = network.getEdge(split.secondEdgeId());
+        if (first != null) {
+            boolean firstStartAtJ = junctionId.equals(first.getStartNodeId());
+            boolean firstEndAtJ = junctionId.equals(first.getEndNodeId());
+            if (firstStartAtJ && firstEndAtJ) {
+                // Self-loop bridging after prior pass → this pass.
+                PassRole startRole = parentStartRole != null ? parentStartRole : passRole;
+                lineage.put(new ArmRef(first.getId(), true), startRole);
+                lineage.put(new ArmRef(first.getId(), false), passRole);
+                tagged.add(new ArmRef(first.getId(), true));
+                tagged.add(new ArmRef(first.getId(), false));
+            } else {
+                if (firstStartAtJ) {
+                    lineage.put(new ArmRef(first.getId(), true), passRole);
+                    tagged.add(new ArmRef(first.getId(), true));
+                } else if (parentStartRole != null) {
+                    lineage.put(new ArmRef(first.getId(), true), parentStartRole);
+                }
+                if (firstEndAtJ) {
+                    lineage.put(new ArmRef(first.getId(), false), passRole);
+                    tagged.add(new ArmRef(first.getId(), false));
+                } else if (parentEndRole != null && !firstStartAtJ) {
+                    // first end is the split node (junction); already handled when firstEndAtJ
+                }
+            }
+        }
+        if (second != null) {
+            boolean secondStartAtJ = junctionId.equals(second.getStartNodeId());
+            boolean secondEndAtJ = junctionId.equals(second.getEndNodeId());
+            if (secondStartAtJ) {
+                lineage.put(new ArmRef(second.getId(), true), passRole);
+                tagged.add(new ArmRef(second.getId(), true));
+            }
+            if (secondEndAtJ) {
+                lineage.put(new ArmRef(second.getId(), false), passRole);
+                tagged.add(new ArmRef(second.getId(), false));
+            } else if (parentEndRole != null) {
+                lineage.put(new ArmRef(second.getId(), false), parentEndRole);
+            }
+        }
+        return tagged;
+    }
+
+    private static void clearEdgeLineage(Map<ArmRef, PassRole> lineage, String edgeId) {
+        lineage.remove(new ArmRef(edgeId, true));
+        lineage.remove(new ArmRef(edgeId, false));
     }
 
     private static int segmentIndexAtLocalDistance(List<Vec2d> points, double localDistance) {
@@ -236,7 +305,6 @@ public final class RoadStackCrossingMaterializer {
                 continue;
             }
             if (accumulated + segmentLength >= target - 1e-9) {
-                // Endpoint of the whole polyline is not an interior split.
                 boolean atPolyStart = i == 0 && target <= 1e-9;
                 boolean atPolyEnd = i == points.size() - 2
                     && target >= accumulated + segmentLength - 1e-9;
@@ -250,90 +318,57 @@ public final class RoadStackCrossingMaterializer {
         return -1;
     }
 
-    private static void addIfJunctionIncident(
-            RoadNetwork network,
-            String junctionId,
-            String edgeId,
-            Set<String> out) {
-        RoadEdge edge = network.getEdge(edgeId);
-        if (edge == null) {
-            return;
-        }
-        if (junctionId.equals(edge.getStartNodeId()) || junctionId.equals(edge.getEndNodeId())) {
-            out.add(edgeId);
-        }
-    }
-
     private static CrossingMaterializeStatus verifyPassConnected(
             RoadNetwork network,
             RoadNode junction,
-            PassMaterializeResult pass) {
+            PassMaterializeResult pass,
+            Map<ArmRef, PassRole> lineage,
+            PassRole passRole) {
         if (!pass.status().isSuccessful()) {
             return pass.status();
         }
-        if (pass.junctionEdgeIds().isEmpty()) {
+        if (pass.taggedArms().isEmpty()) {
             return CrossingMaterializeStatus.SPLIT_FAILED;
         }
-        for (String edgeId : pass.junctionEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
+        // After self-loop break, original refs may be remapped — require at least one live junction
+        // arm still carrying this pass role.
+        for (Map.Entry<ArmRef, PassRole> entry : lineage.entrySet()) {
+            if (entry.getValue() != passRole) {
+                continue;
+            }
+            RoadEdge edge = network.getEdge(entry.getKey().edgeId());
             if (edge == null) {
                 continue;
             }
-            if (junction.getId().equals(edge.getStartNodeId())
-                    || junction.getId().equals(edge.getEndNodeId())) {
+            boolean junctionAtStart = junction.getId().equals(edge.getStartNodeId());
+            boolean junctionAtEnd = junction.getId().equals(edge.getEndNodeId());
+            if (entry.getKey().atStart() && junctionAtStart) {
                 return CrossingMaterializeStatus.SUCCESS;
             }
-        }
-        // Lineage may have been remapped by self-loop break — accept if junction still has road arms.
-        for (String edgeId : junction.getConnectedEdgeIds()) {
-            if (network.getEdge(edgeId) != null) {
+            if (!entry.getKey().atStart() && junctionAtEnd) {
                 return CrossingMaterializeStatus.SUCCESS;
             }
         }
         return CrossingMaterializeStatus.SPLIT_FAILED;
     }
 
-    private static boolean passArmSetsDistinct(
-            PassMaterializeResult passA,
-            PassMaterializeResult passB,
-            Map<String, PassRole> lineage) {
-        Set<String> lower = new HashSet<>();
-        Set<String> upper = new HashSet<>();
-        for (Map.Entry<String, PassRole> entry : lineage.entrySet()) {
-            if (entry.getValue() == PassRole.LOWER) {
-                lower.add(entry.getKey());
-            } else if (entry.getValue() == PassRole.UPPER) {
-                upper.add(entry.getKey());
+    private static boolean passRolesDistinct(Map<ArmRef, PassRole> lineage) {
+        boolean hasLower = false;
+        boolean hasUpper = false;
+        for (PassRole role : lineage.values()) {
+            if (role == PassRole.LOWER) {
+                hasLower = true;
+            } else if (role == PassRole.UPPER) {
+                hasUpper = true;
             }
         }
-        if (!lower.isEmpty() && !upper.isEmpty()) {
-            Set<String> overlap = new HashSet<>(lower);
-            overlap.retainAll(upper);
-            return overlap.isEmpty();
-        }
-        // Fallback: raw pass edge sets before remapping.
-        Set<String> a = new HashSet<>(passA.junctionEdgeIds());
-        Set<String> b = new HashSet<>(passB.junctionEdgeIds());
-        a.retainAll(b);
-        return a.isEmpty() && !passA.junctionEdgeIds().isEmpty() && !passB.junctionEdgeIds().isEmpty();
-    }
-
-    private static void tagPassEdges(
-            Map<String, PassRole> lineage,
-            PassMaterializeResult pass,
-            PassRole role) {
-        if (!pass.status().isSuccessful()) {
-            return;
-        }
-        for (String edgeId : pass.junctionEdgeIds()) {
-            lineage.put(edgeId, role);
-        }
+        return hasLower && hasUpper;
     }
 
     private static void breakJunctionSelfLoops(
             RoadNetwork network,
             RoadNode junction,
-            Map<String, PassRole> lineage) {
+            Map<ArmRef, PassRole> lineage) {
         List<String> edgeIds = new ArrayList<>(junction.getConnectedEdgeIds());
         for (String edgeId : edgeIds) {
             RoadEdge edge = network.getEdge(edgeId);
@@ -352,7 +387,8 @@ public final class RoadStackCrossingMaterializer {
             if (breakNode == null) {
                 continue;
             }
-            PassRole parentRole = lineage.get(edgeId);
+            PassRole startRole = lineage.get(new ArmRef(edgeId, true));
+            PassRole endRole = lineage.get(new ArmRef(edgeId, false));
             Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtNode(
                 edge.getId(),
                 breakNode.getId(),
@@ -361,12 +397,13 @@ public final class RoadStackCrossingMaterializer {
             if (split.isEmpty()) {
                 continue;
             }
-            lineage.remove(edgeId);
-            if (parentRole != null) {
-                // Self-loop between two passes: first half inherits parent; second half is the other pass.
-                // Prefer reference-point assist later for the far half when both roles are needed.
-                lineage.put(split.get().firstEdgeId(), parentRole);
-                lineage.put(split.get().secondEdgeId(), parentRole);
+            clearEdgeLineage(lineage, edgeId);
+            // first = start→break (junction at start); second = break→end (junction at end)
+            if (startRole != null) {
+                lineage.put(new ArmRef(split.get().firstEdgeId(), true), startRole);
+            }
+            if (endRole != null) {
+                lineage.put(new ArmRef(split.get().secondEdgeId(), false), endRole);
             }
         }
     }
@@ -391,7 +428,7 @@ public final class RoadStackCrossingMaterializer {
             Set<String> claimedGradeSepNodeIds,
             List<Vec2d> lowerRefs,
             List<Vec2d> upperRefs,
-            Map<String, PassRole> lineage) {
+            Map<ArmRef, PassRole> lineage) {
         if (stackCrossing.sharedElevation() != null
                 && VerticalProfileGenerationPolicy.isStackCrossingSharedElevationAuthoritative(
                     network, stackCrossing)) {
@@ -415,6 +452,12 @@ public final class RoadStackCrossingMaterializer {
         if (claimedGradeSepNodeIds.contains(junction.getId())
                 && !stackCrossing.id().equals(junction.getStackCrossingId())) {
             return Optional.of("multiple grade-separated stacks cannot share one node");
+        }
+        // Two-road grade metadata on the same node is incompatible with stack grade separation.
+        if (junction.isGradeSeparated()
+                && junction.getElevatedRoadId() != null
+                && !junction.getElevatedRoadId().isBlank()) {
+            return Optional.of("node already has two-road grade separation incompatible with stack");
         }
         junction.clearStackCrossingMetadata();
         junction.setStackCrossingId(stackCrossing.id());
@@ -446,8 +489,8 @@ public final class RoadStackCrossingMaterializer {
     }
 
     /**
-     * Prefer split lineage; use reference-point distance only for untagged arms.
-     * Empty refs / tied distances / incomplete 2+2 sets fail closed.
+     * Prefer endpoint lineage; reference-point distance only for truly untagged arms.
+     * Never trim HashSet membership to force 2+2.
      */
     private static Optional<String> assignStackArmRoles(
             RoadNetwork network,
@@ -455,7 +498,7 @@ public final class RoadStackCrossingMaterializer {
             RoadNode junction,
             List<Vec2d> lowerRefs,
             List<Vec2d> upperRefs,
-            Map<String, PassRole> lineage) {
+            Map<ArmRef, PassRole> lineage) {
         String roadId = stackCrossing.roadId();
         String junctionId = junction.getId();
         List<String> roadArms = new ArrayList<>();
@@ -470,38 +513,22 @@ public final class RoadStackCrossingMaterializer {
         Set<String> upper = new HashSet<>();
         List<String> untagged = new ArrayList<>();
         for (String edgeId : roadArms) {
-            PassRole role = lineage.get(edgeId);
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            boolean atStart = junctionId.equals(edge.getStartNodeId());
+            if (!atStart && !junctionId.equals(edge.getEndNodeId())) {
+                untagged.add(edgeId);
+                continue;
+            }
+            PassRole role = lineage.get(new ArmRef(edgeId, atStart));
             if (role == PassRole.LOWER) {
                 lower.add(edgeId);
             } else if (role == PassRole.UPPER) {
                 upper.add(edgeId);
             } else {
                 untagged.add(edgeId);
-            }
-        }
-
-        // After self-loop break both children may share one parent role; reclassify extras with refs.
-        if (lower.size() > 2 || upper.size() > 2 || !untagged.isEmpty()
-                || (lower.size() + upper.size() < roadArms.size())) {
-            for (String edgeId : new ArrayList<>(lower)) {
-                if (lower.size() <= 2) {
-                    break;
-                }
-                // Keep two; move surplus to untagged for ref assist.
-                lower.remove(edgeId);
-                untagged.add(edgeId);
-            }
-            for (String edgeId : new ArrayList<>(upper)) {
-                if (upper.size() <= 2) {
-                    break;
-                }
-                upper.remove(edgeId);
-                untagged.add(edgeId);
-            }
-            for (String edgeId : roadArms) {
-                if (!lower.contains(edgeId) && !upper.contains(edgeId) && !untagged.contains(edgeId)) {
-                    untagged.add(edgeId);
-                }
             }
         }
 
@@ -529,33 +556,6 @@ public final class RoadStackCrossingMaterializer {
                 lower.add(edgeId);
             } else {
                 upper.add(edgeId);
-            }
-        }
-
-        // When lineage tagged a whole self-loop as one role, split arms by refs if 2+2 not met.
-        if ((lower.size() != 2 || upper.size() != 2) && roadArms.size() == 4) {
-            lower.clear();
-            upper.clear();
-            if (lowerRefs.isEmpty() || upperRefs.isEmpty()) {
-                return Optional.of("stack arm roles incomplete and reference assist unavailable");
-            }
-            for (String edgeId : roadArms) {
-                RoadEdge edge = network.getEdge(edgeId);
-                Optional<Vec2d> sample = armSampleAwayFromJunction(edge, junctionId);
-                if (sample.isEmpty()) {
-                    return Optional.of("stack arm sample unavailable during reclassify");
-                }
-                double lowerDist = minDistance(sample.get(), lowerRefs);
-                double upperDist = minDistance(sample.get(), upperRefs);
-                if (Math.abs(lowerDist - upperDist) <= ARM_CLASSIFY_TIE_EPSILON
-                        || (!Double.isFinite(lowerDist) && !Double.isFinite(upperDist))) {
-                    return Optional.of("stack arm reclassify ambiguous");
-                }
-                if (lowerDist < upperDist) {
-                    lower.add(edgeId);
-                } else {
-                    upper.add(edgeId);
-                }
             }
         }
 
@@ -635,6 +635,14 @@ public final class RoadStackCrossingMaterializer {
                     && claimedGradeSepNodeIds != null
                     && claimedGradeSepNodeIds.contains(node.getId())
                     && !stackCrossing.id().equals(node.getStackCrossingId())) {
+                return null;
+            }
+            // Two-road grade-separated node cannot host an independent stack grade design.
+            if (stackCrossing != null
+                    && stackCrossing.isGradeSeparated()
+                    && node.isGradeSeparated()
+                    && node.getElevatedRoadId() != null
+                    && !node.getElevatedRoadId().isBlank()) {
                 return null;
             }
             return node;
@@ -729,9 +737,13 @@ public final class RoadStackCrossingMaterializer {
         UPPER
     }
 
+    /** Junction-incident endpoint identity for a stack arm. */
+    private record ArmRef(String edgeId, boolean atStart) {
+    }
+
     private record PassMaterializeResult(
             CrossingMaterializeStatus status,
-            Set<String> junctionEdgeIds) {
+            Set<ArmRef> taggedArms) {
         static PassMaterializeResult failed(CrossingMaterializeStatus status) {
             return new PassMaterializeResult(status, Set.of());
         }

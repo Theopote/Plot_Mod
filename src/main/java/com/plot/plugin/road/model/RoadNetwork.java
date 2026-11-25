@@ -766,10 +766,8 @@ public class RoadNetwork {
             if (!Double.isFinite(lower) || !Double.isFinite(upper)) {
                 return false;
             }
-            if (!stackPassStationsMatch(stack, lower, upper)) {
-                return false;
-            }
-            if (Math.abs(lower - upper) <= 1e-6) {
+            double[] normalized = normalizeStackPassStations(stack, lower, upper);
+            if (normalized == null) {
                 return false;
             }
             if (crossingClearance != null
@@ -783,8 +781,8 @@ public class RoadNetwork {
                 stack.stationA(),
                 stack.stationB(),
                 com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED,
-                lower,
-                upper,
+                normalized[0],
+                normalized[1],
                 // null：运行时按下穿道路隧道净高解析，不在此烘焙固定默认值
                 crossingClearance,
                 stack.sharedElevation()));
@@ -804,17 +802,28 @@ public class RoadNetwork {
         return true;
     }
 
-    /** lower/upper must each correspond to one of the two geometric pass stations (order may swap). */
-    private static boolean stackPassStationsMatch(
+    /**
+     * One-to-one match of lower/upper to the two geometric pass stations (order may swap).
+     * Returns {@code {authoritativeLower, authoritativeUpper}} or null when invalid /
+     * both inputs collapse onto the same pass.
+     */
+    private static double[] normalizeStackPassStations(
             com.plot.plugin.road.crossing.RoadStackCrossing stack,
             double lower,
             double upper) {
         final double eps = 0.5;
-        boolean lowerOk = Math.abs(lower - stack.stationA()) <= eps
-            || Math.abs(lower - stack.stationB()) <= eps;
-        boolean upperOk = Math.abs(upper - stack.stationA()) <= eps
-            || Math.abs(upper - stack.stationB()) <= eps;
-        return lowerOk && upperOk;
+        boolean lowerA = Math.abs(lower - stack.stationA()) <= eps;
+        boolean lowerB = Math.abs(lower - stack.stationB()) <= eps;
+        boolean upperA = Math.abs(upper - stack.stationA()) <= eps;
+        boolean upperB = Math.abs(upper - stack.stationB()) <= eps;
+        // Require exclusive pairing — reject both-near-same-pass inputs.
+        if (lowerA && upperB && !lowerB && !upperA) {
+            return new double[] {stack.stationA(), stack.stationB()};
+        }
+        if (lowerB && upperA && !lowerA && !upperB) {
+            return new double[] {stack.stationB(), stack.stationA()};
+        }
+        return null;
     }
 
     public boolean setCrossingGradeSeparation(

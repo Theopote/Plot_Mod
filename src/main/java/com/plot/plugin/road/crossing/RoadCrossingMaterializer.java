@@ -163,8 +163,10 @@ public final class RoadCrossingMaterializer {
         CrossingMaterializeStatus armB = materializeRoadAtCrossing(
             network, crossing.roadBId(), crossing.stationB(), junction, position);
 
-        CrossingMaterializeStatus verifiedA = verifyArm(network, junction, crossing.roadAId(), armA);
-        CrossingMaterializeStatus verifiedB = verifyArm(network, junction, crossing.roadBId(), armB);
+        CrossingMaterializeStatus verifiedA = verifyArm(
+            network, junction, crossing.roadAId(), crossing.stationA(), position, armA);
+        CrossingMaterializeStatus verifiedB = verifyArm(
+            network, junction, crossing.roadBId(), crossing.stationB(), position, armB);
         if (!verifiedA.isSuccessful() || !verifiedB.isSuccessful()) {
             // Do not apply design attributes onto an incomplete junction.
             return Optional.of(new CrossingMaterializationFailure(
@@ -210,11 +212,16 @@ public final class RoadCrossingMaterializer {
             RoadNetwork network,
             RoadNode junction,
             String roadId,
+            double station,
+            Vec2d position,
             CrossingMaterializeStatus status) {
         if (!status.isSuccessful()) {
             return status;
         }
-        if (!isRoadConnectedToJunction(network, junction, roadId)) {
+        if (status == CrossingMaterializeStatus.ALREADY_CONNECTED) {
+            return status;
+        }
+        if (!isResolvedEdgeConnectedNearPosition(network, junction, roadId, station, position)) {
             return CrossingMaterializeStatus.SPLIT_FAILED;
         }
         return status;
@@ -273,19 +280,25 @@ public final class RoadCrossingMaterializer {
             RoadNetwork network,
             RoadCrossing crossing,
             RoadNode junction) {
+        if (junction.isStackGradeSeparated()) {
+            return Optional.of(
+                "node already has stack grade separation incompatible with crossing "
+                    + crossing.id());
+        }
         if (!junction.isGradeSeparated()) {
             return Optional.empty();
         }
         String existingElevated = junction.getElevatedRoadId();
         String nextElevated = crossing.elevatedRoadId();
-        if (existingElevated == null || existingElevated.isBlank()
-                || nextElevated == null || nextElevated.isBlank()) {
+        if (existingElevated != null
+                && !existingElevated.isBlank()
+                && nextElevated != null
+                && !nextElevated.isBlank()
+                && existingElevated.equals(nextElevated)) {
             return Optional.empty();
         }
-        if (existingElevated.equals(nextElevated)) {
-            return Optional.empty();
-        }
-        // Another grade-separated crossing already owns a different elevated road at this node.
+        // Another grade-separated crossing already owns this node with a different elevated road.
+        boolean otherOwner = false;
         for (RoadCrossing other : network.getCrossings().values()) {
             if (other == null || other.id().equals(crossing.id())) {
                 continue;
@@ -297,23 +310,31 @@ public final class RoadCrossingMaterializer {
                     other.position(), junction.getPosition(), NODE_TOLERANCE)) {
                 continue;
             }
+            otherOwner = true;
             if (other.elevatedRoadId() != null
                     && !other.elevatedRoadId().isBlank()
+                    && nextElevated != null
+                    && !nextElevated.isBlank()
                     && !other.elevatedRoadId().equals(nextElevated)) {
                 return Optional.of(
                     "incompatible multi-layer grade separation at shared node: existing elevated="
-                        + existingElevated + " incoming elevated=" + nextElevated);
+                        + other.elevatedRoadId() + " incoming elevated=" + nextElevated);
             }
         }
-        // Node already grade-separated with a different elevated road (e.g. stack or prior apply).
-        if (junction.isStackGradeSeparated()) {
-            return Optional.of(
-                "node already has stack grade separation incompatible with crossing "
-                    + crossing.id());
+        // Same crossing updating elevated A→B: node elevated alone is not a foreign owner.
+        if (!otherOwner) {
+            return Optional.empty();
         }
-        return Optional.of(
-            "node elevatedRoadId=" + existingElevated
-                + " conflicts with crossing elevatedRoadId=" + nextElevated);
+        if (existingElevated != null
+                && !existingElevated.isBlank()
+                && nextElevated != null
+                && !nextElevated.isBlank()
+                && !existingElevated.equals(nextElevated)) {
+            return Optional.of(
+                "node elevatedRoadId=" + existingElevated
+                    + " conflicts with crossing elevatedRoadId=" + nextElevated);
+        }
+        return Optional.empty();
     }
 
     private static void clearGradeSeparationIfOwnedByCrossing(
@@ -349,9 +370,6 @@ public final class RoadCrossingMaterializer {
         if (road == null) {
             return CrossingMaterializeStatus.ROAD_NOT_FOUND;
         }
-        if (isRoadConnectedToJunction(network, junction, roadId)) {
-            return CrossingMaterializeStatus.ALREADY_CONNECTED;
-        }
         Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
         if (resolved.isEmpty()) {
             return CrossingMaterializeStatus.STATION_UNRESOLVED;
@@ -361,15 +379,20 @@ public final class RoadCrossingMaterializer {
         if (edge == null) {
             return CrossingMaterializeStatus.EDGE_NOT_FOUND;
         }
+        if (isResolvedEdgeAlreadyConnected(network, junction, edge, position)) {
+            return CrossingMaterializeStatus.ALREADY_CONNECTED;
+        }
         if (isNearEdgeEndpoint(edge, position)) {
             return connectEdgeEndpointToNode(network, edge, position, junction);
         }
-        // Prefer SegmentStation localDistance so multi-hit polylines split at the intended pass.
         List<Vec2d> points = edge.getCenterlinePoints();
         double localDistance = resolved.get().localDistance();
         Vec2d splitPoint = RoadGeometryUtils.pointAtDistance(points, localDistance);
         if (splitPoint == null) {
-            splitPoint = position;
+            return CrossingMaterializeStatus.SPLIT_FAILED;
+        }
+        if (splitPoint.distance(position) > NODE_TOLERANCE) {
+            return CrossingMaterializeStatus.SPLIT_FAILED;
         }
         int segmentIndex = segmentIndexAtLocalDistance(points, localDistance);
         Optional<RoadGraphEdits.SplitResult> split;
@@ -383,12 +406,84 @@ public final class RoadCrossingMaterializer {
         if (split.isPresent()) {
             return CrossingMaterializeStatus.SUCCESS;
         }
-        if (isRoadConnectedToJunction(network, junction, roadId)) {
+        if (isResolvedEdgeAlreadyConnected(network, junction, edge, position)) {
             return CrossingMaterializeStatus.ALREADY_CONNECTED;
         }
         return CrossingMaterializeStatus.SPLIT_FAILED;
     }
 
+    /** Resolved edge is already junction-incident and the junction endpoint is near the crossing. */
+    private static boolean isResolvedEdgeAlreadyConnected(
+            RoadNetwork network,
+            RoadNode junction,
+            RoadEdge edge,
+            Vec2d position) {
+        if (network == null || junction == null || edge == null || position == null) {
+            return false;
+        }
+        boolean atStart = junction.getId().equals(edge.getStartNodeId());
+        boolean atEnd = junction.getId().equals(edge.getEndNodeId());
+        if (!atStart && !atEnd) {
+            return false;
+        }
+        return RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE);
+    }
+
+    private static boolean isResolvedEdgeConnectedNearPosition(
+            RoadNetwork network,
+            RoadNode junction,
+            String roadId,
+            double station,
+            Vec2d position) {
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return false;
+        }
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
+        if (resolved.isEmpty()) {
+            // After split the original segment may be gone; require some road edge at junction near position.
+            for (String edgeId : junction.getConnectedEdgeIds()) {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge != null && roadId.equals(edge.getRoadId())
+                        && RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        RoadEdge edge = network.getEdge(resolved.get().segmentId());
+        if (edge == null) {
+            for (String edgeId : junction.getConnectedEdgeIds()) {
+                RoadEdge connected = network.getEdge(edgeId);
+                if (connected != null && roadId.equals(connected.getRoadId())
+                        && RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return isResolvedEdgeAlreadyConnected(network, junction, edge, position)
+            || junctionHasRoadNearPosition(network, junction, roadId, position);
+    }
+
+    private static boolean junctionHasRoadNearPosition(
+            RoadNetwork network,
+            RoadNode junction,
+            String roadId,
+            Vec2d position) {
+        if (!RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
+            return false;
+        }
+        for (String edgeId : junction.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && roadId.equals(edge.getRoadId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Package-visible helper for tests: any edge of {@code roadId} incident on the junction. */
     static boolean isRoadConnectedToJunction(RoadNetwork network, RoadNode junction, String roadId) {
         if (network == null || junction == null || roadId == null) {
             return false;
