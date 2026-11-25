@@ -700,27 +700,7 @@ public final class RoadStackCrossingMaterializer {
         if (oldNodeId.equals(newNodeId)) {
             return true;
         }
-        RoadNode oldNode = network.getNode(oldNodeId);
-        RoadNode newNode = network.getNode(newNodeId);
-        if (oldNode == null || newNode == null) {
-            return false;
-        }
-        boolean relinked = false;
-        if (edge.getStartNodeId().equals(oldNodeId)) {
-            oldNode.removeEdge(edge.getId());
-            edge.setStartNodeId(newNodeId);
-            newNode.addEdge(edge.getId());
-            relinked = true;
-        } else if (edge.getEndNodeId().equals(oldNodeId)) {
-            oldNode.removeEdge(edge.getId());
-            edge.setEndNodeId(newNodeId);
-            newNode.addEdge(edge.getId());
-            relinked = true;
-        }
-        if (relinked && oldNode.getDegree() == 0) {
-            network.removeNode(oldNodeId);
-        }
-        return relinked;
+        return RoadGraphEdits.of(network).relinkEdgeEndpoint(edge.getId(), oldNodeId, newNodeId);
     }
 
     private static CrossingMaterializationFailure failure(

@@ -132,6 +132,52 @@ public final class RoadTopologyRoadSplitter {
         }
     }
 
+    /**
+     * Explicit edit/repair path: demote an open {@link RoadTopologyMode#LOOP} road to LINEAR
+     * and clear the obsolete seam. Never auto-closes or stitches endpoints.
+     *
+     * @return true when the road was demoted
+     */
+    public static boolean demoteOpenLoopToLinear(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return false;
+        }
+        Road current = network.getRoad(road.getId());
+        if (current == null || current.getTopologyMode() != RoadTopologyMode.LOOP) {
+            return false;
+        }
+        Subgraph subgraph = Subgraph.build(network, current);
+        if (subgraph.endpointCount <= 0) {
+            return false;
+        }
+        current.setTopologyMode(RoadTopologyMode.LINEAR);
+        current.setLoopSeam(null);
+        return true;
+    }
+
+    /** Promote a real closed ring (or single self-loop edge) to LOOP with default seam. */
+    public static boolean promoteClosedRoadToLoop(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return false;
+        }
+        Road current = network.getRoad(road.getId());
+        if (current == null || current.getTopologyMode() == RoadTopologyMode.LOOP) {
+            return false;
+        }
+        Subgraph subgraph = Subgraph.build(network, current);
+        if (subgraph.edgeIds.size() == 1) {
+            return promoteSingleSelfLoop(network, current, subgraph);
+        }
+        if (subgraph.componentCount == 1
+                && !subgraph.hasBranching
+                && subgraph.endpointCount == 0
+                && !subgraph.edgeIds.isEmpty()) {
+            promoteToLoop(network, current);
+            return true;
+        }
+        return false;
+    }
+
     private static boolean promoteSingleSelfLoop(RoadNetwork network, Road road, Subgraph subgraph) {
         if (subgraph.edgeIds.size() != 1 || subgraph.hasBranching || subgraph.componentCount != 1) {
             return false;

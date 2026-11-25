@@ -48,8 +48,61 @@ public final class RoadGraphEdits {
         if (splitPoint == null) {
             return Optional.empty();
         }
-        RoadNode node = findOrCreateNode(splitPoint, tolerance);
-        return splitEdgeInternal(edgeId, node.getId(), splitPoint, tolerance);
+        String existingId = findNearbyNodeId(splitPoint, tolerance);
+        boolean createdNode = existingId == null;
+        RoadNode node = createdNode
+            ? network.createNode(splitPoint.copy())
+            : network.getNode(existingId);
+        if (node == null) {
+            return Optional.empty();
+        }
+        Optional<SplitResult> split = splitEdgeInternal(edgeId, node.getId(), splitPoint, tolerance);
+        if (split.isEmpty() && createdNode && network.getNode(node.getId()) != null
+                && network.getNode(node.getId()).getDegree() == 0) {
+            network.removeNode(node.getId());
+        }
+        return split;
+    }
+
+    /**
+     * Split using a known local arc distance (segment index), never nearest-segment search.
+     */
+    public Optional<SplitResult> splitEdgeAtLocalDistance(String edgeId, double localDistance) {
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null || !Double.isFinite(localDistance)) {
+            return Optional.empty();
+        }
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points.size() < 2) {
+            return Optional.empty();
+        }
+        double total = RoadGeometryUtils.calculatePathLength(points);
+        if (localDistance <= DEFAULT_NODE_TOLERANCE || localDistance >= total - DEFAULT_NODE_TOLERANCE) {
+            return Optional.empty();
+        }
+        int segmentIndex = segmentIndexAtLocalDistance(points, localDistance);
+        if (segmentIndex < 0) {
+            return Optional.empty();
+        }
+        Vec2d splitPoint = RoadGeometryUtils.pointAtDistance(points, localDistance);
+        if (splitPoint == null) {
+            return Optional.empty();
+        }
+        String existingId = findNearbyNodeId(splitPoint, DEFAULT_NODE_TOLERANCE);
+        boolean createdNode = existingId == null;
+        RoadNode node = createdNode
+            ? network.createNode(splitPoint.copy())
+            : network.getNode(existingId);
+        if (node == null) {
+            return Optional.empty();
+        }
+        Optional<SplitResult> split = splitEdgeAtInteriorSegment(
+            edgeId, node.getId(), segmentIndex, splitPoint, DEFAULT_NODE_TOLERANCE);
+        if (split.isEmpty() && createdNode && network.getNode(node.getId()) != null
+                && network.getNode(node.getId()).getDegree() == 0) {
+            network.removeNode(node.getId());
+        }
+        return split;
     }
 
     public Optional<String> mergeThroughNode(String nodeId) {
@@ -81,6 +134,10 @@ public final class RoadGraphEdits {
         if (nodeA == null || nodeB == null) {
             return Optional.empty();
         }
+        // Reject unintended self-loop merge.
+        if (nodeA.equals(nodeB)) {
+            return Optional.empty();
+        }
 
         List<Vec2d> mergedPoints = mergeCenterlines(edgeA, edgeB, nodeA, nodeId, nodeB);
         if (mergedPoints.size() < 2) {
@@ -89,7 +146,7 @@ public final class RoadGraphEdits {
 
         List<RoadEdge.SlopeOverride> mergedOverrides = mergeSlopeOverrides(edgeA, edgeB, nodeId);
 
-        // 快照供失败回滚（detach 后不可仅 return empty）
+        // Snapshot edges before unlink; keep through-node until createEdge succeeds.
         RoadEdge snapshotA = copyEdge(edgeA);
         RoadEdge snapshotB = copyEdge(edgeB);
 
@@ -104,19 +161,13 @@ public final class RoadGraphEdits {
         }
 
         try {
-            network.removeNode(nodeId);
-        } catch (IllegalStateException e) {
-            restoreEdge(snapshotA);
-            restoreEdge(snapshotB);
-            return Optional.empty();
-        }
-
-        try {
             RoadEdge merged = network.createEdge(nodeA, nodeB, mergedPoints, roadId);
             merged.setSlopeOverrides(mergedOverrides);
+            if (through.getDegree() == 0) {
+                network.removeNode(nodeId);
+            }
             return Optional.of(merged.getId());
         } catch (RuntimeException e) {
-            // 节点已删、合并失败：尽量恢复原边（through 节点无法完整恢复，记录错误）
             restoreEdge(snapshotA);
             restoreEdge(snapshotB);
             return Optional.empty();
@@ -220,8 +271,9 @@ public final class RoadGraphEdits {
         RoadEdge snapshot = copyEdge(edge);
         detachAndUnlink(edge);
 
+        RoadEdge firstEdge = null;
         try {
-            RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
+            firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
             RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
             firstEdge.setSourceRoadId(sourceRoadId);
             secondEdge.setSourceRoadId(sourceRoadId);
@@ -229,6 +281,10 @@ public final class RoadGraphEdits {
             secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
             return Optional.of(new SplitResult(firstEdge.getId(), secondEdge.getId(), nodeId));
         } catch (RuntimeException e) {
+            if (firstEdge != null && network.getEdge(firstEdge.getId()) != null) {
+                network.unassignEdgeFromRoad(firstEdge.getId());
+                network.detachEdge(firstEdge.getId());
+            }
             restoreEdge(snapshot);
             return Optional.empty();
         }
@@ -271,13 +327,38 @@ public final class RoadGraphEdits {
         return result;
     }
 
-    private RoadNode findOrCreateNode(Vec2d position, double tolerance) {
+    private String findNearbyNodeId(Vec2d position, double tolerance) {
         for (RoadNode node : network.getNodes().values()) {
             if (RoadGeometryUtils.pointsNear(node.getPosition(), position, tolerance)) {
-                return node;
+                return node.getId();
             }
         }
-        return network.createNode(position);
+        return null;
+    }
+
+    private static int segmentIndexAtLocalDistance(List<Vec2d> points, double localDistance) {
+        if (points == null || points.size() < 2 || !Double.isFinite(localDistance)) {
+            return -1;
+        }
+        double target = Math.max(0.0, localDistance);
+        double accumulated = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            double segmentLength = points.get(i).distance(points.get(i + 1));
+            if (segmentLength <= 1e-9) {
+                continue;
+            }
+            if (accumulated + segmentLength >= target - 1e-9) {
+                boolean atPolyStart = i == 0 && target <= 1e-9;
+                boolean atPolyEnd = i == points.size() - 2
+                    && target >= accumulated + segmentLength - 1e-9;
+                if (atPolyStart || atPolyEnd) {
+                    return -1;
+                }
+                return i;
+            }
+            accumulated += segmentLength;
+        }
+        return -1;
     }
 
     private void detachAndUnlink(RoadEdge edge) {
@@ -455,6 +536,25 @@ public final class RoadGraphEdits {
         return false;
     }
 
+    /**
+     * Relink an edge endpoint to another node and sync the matching centerline vertex.
+     * Removes the old node when it becomes degree-0.
+     */
+    public boolean relinkEdgeEndpoint(String edgeId, String oldNodeId, String newNodeId) {
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            return false;
+        }
+        boolean relinked = relinkEdgeEndpoint(edge, oldNodeId, newNodeId);
+        if (relinked) {
+            RoadNode oldNode = network.getNode(oldNodeId);
+            if (oldNode != null && oldNode.getDegree() == 0 && !oldNodeId.equals(newNodeId)) {
+                network.removeNode(oldNodeId);
+            }
+        }
+        return relinked;
+    }
+
     private boolean relinkEdgeEndpoint(RoadEdge edge, String oldNodeId, String newNodeId) {
         if (oldNodeId.equals(newNodeId)) {
             return false;
@@ -467,9 +567,14 @@ public final class RoadGraphEdits {
         Vec2d newPosition = newNode.getPosition().copy();
         List<Vec2d> centerline = new ArrayList<>(edge.getCenterlinePoints());
         if (centerline.isEmpty()) {
-            centerline = List.of(newPosition.copy(), newPosition.copy());
+            centerline = new ArrayList<>(List.of(newPosition.copy(), newPosition.copy()));
         }
         if (edge.getStartNodeId().equals(oldNodeId)) {
+            // Avoid zero-length edge after snap.
+            if (centerline.size() >= 2
+                    && centerline.get(centerline.size() - 1).distance(newPosition) <= 1e-9) {
+                return false;
+            }
             oldNode.removeEdge(edge.getId());
             edge.setStartNodeId(newNodeId);
             centerline.set(0, newPosition);
@@ -478,6 +583,10 @@ public final class RoadGraphEdits {
             return true;
         }
         if (edge.getEndNodeId().equals(oldNodeId)) {
+            if (centerline.size() >= 2
+                    && centerline.getFirst().distance(newPosition) <= 1e-9) {
+                return false;
+            }
             oldNode.removeEdge(edge.getId());
             edge.setEndNodeId(newNodeId);
             centerline.set(centerline.size() - 1, newPosition);

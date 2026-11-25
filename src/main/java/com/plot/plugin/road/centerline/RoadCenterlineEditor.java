@@ -89,8 +89,9 @@ public final class RoadCenterlineEditor {
         if (splitPoint == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE);
         }
+        // Local-arc split: keep segment index; never re-pick nearest segment by plane coords.
         Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network)
-            .splitEdgeAtPoint(edgeId, splitPoint);
+            .splitEdgeAtLocalDistance(edgeId, localDistance);
         if (split.isEmpty()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.SPLIT_FAILED);
         }

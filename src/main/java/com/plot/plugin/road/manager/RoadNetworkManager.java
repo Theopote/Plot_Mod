@@ -904,7 +904,7 @@ public final class RoadNetworkManager {
             ensureSelectionValid();
             remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
             // Geometry gone → drop orphan RoadCrossing markers from the registry/overlay.
-            reconcileCrossingsInPlace();
+            observeReconcileInPlace();
         });
     }
 
@@ -928,17 +928,26 @@ public final class RoadNetworkManager {
         boolean disconnectedOrBranching = violations.stream().anyMatch(v ->
             v.kind() == RoadTopologyViolationKind.ROAD_DISCONNECTED
                 || v.kind() == RoadTopologyViolationKind.ROAD_BRANCHING);
+        boolean loopOpen = violations.stream().anyMatch(v ->
+            v.kind() == RoadTopologyViolationKind.ROAD_LOOP_OPEN);
         if (disconnectedOrBranching) {
             // Clear before repair so splitter does not remap with post-delete broken chainage.
             road.setVerticalAlignment(null);
             road.setVariableCrossSections(null);
             road.setStationFacilities(null);
             RoadTopologyRoadSplitter.repairRoad(network, road);
+            // Surviving LOOP fragments that became open chains must demote.
+            for (Road surviving : network.getRoads().values()) {
+                RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, surviving);
+            }
             applyCapturedStationDataToSurvivingRoads(
                 stationSnapshot,
                 before != null ? before.totalLengthBefore() : 0.0,
                 edgeRangesBefore);
             return;
+        }
+        if (loopOpen) {
+            RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, road);
         }
         if (before == null) {
             return;
@@ -1054,8 +1063,31 @@ public final class RoadNetworkManager {
             abortPendingNetworkEdit();
             return null;
         }
+        // Model already migrated ownership; observe reconcile for pending design ambiguity.
+        observeReconcileInPlace();
         commitNetworkChange();
         return newRoadId;
+    }
+
+    /**
+     * Logical merge with one undo frame: model merge + crossing migration + reconcile observe.
+     */
+    public String mergeRoadTailIntoHead(String headRoadId, String tailRoadId) {
+        if (headRoadId == null || tailRoadId == null || headRoadId.equals(tailRoadId)) {
+            return null;
+        }
+        if (network.getRoad(headRoadId) == null || network.getRoad(tailRoadId) == null) {
+            return null;
+        }
+        pushUndoSnapshot();
+        String mergedId = network.mergeRoadTailIntoHead(headRoadId, tailRoadId);
+        if (mergedId == null) {
+            abortPendingNetworkEdit();
+            return null;
+        }
+        observeReconcileInPlace();
+        commitNetworkChange();
+        return mergedId;
     }
 
     public CenterlineEditResult insertPiAtLocalDistance(String edgeId, double localDistance) {
@@ -1098,7 +1130,7 @@ public final class RoadNetworkManager {
             () -> {
                 CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, nodeId);
                 if (result.isSuccess() && result.mergedEdgeId() != null) {
-                    reconcileCrossingsInPlace();
+                    observeReconcileInPlace();
                     setPrimarySelectedEdge(result.mergedEdgeId());
                 }
                 return result;
@@ -1125,7 +1157,7 @@ public final class RoadNetworkManager {
             () -> {
                 CenterlineEditResult result = mutation.get();
                 if (result.isSuccess()) {
-                    reconcileCrossingsInPlace();
+                    observeReconcileInPlace();
                 }
                 return result;
             },
@@ -1179,7 +1211,7 @@ public final class RoadNetworkManager {
                 CenterlineEditResult result =
                     HorizontalAlignmentCenterlineMaterializer.materialize(network, liveRoad);
                 if (result.isSuccess()) {
-                    reconcileCrossingsInPlace();
+                    observeReconcileInPlace();
                 }
                 return result;
             },
@@ -1187,11 +1219,37 @@ public final class RoadNetworkManager {
             RoadChangeKind.GEOMETRY);
     }
 
-    /** 内联刷新 Crossing 注册表（不推入额外 Undo 帧）。 */
-    void reconcileCrossingsInPlace() {
-        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
-        com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(network);
+    /**
+     * Inline crossing refresh (no extra undo frame). Returns combined result and propagates
+     * incomplete/ambiguous state via {@link #adoptIntersectionRepairPending}.
+     */
+    IntersectionResult reconcileCrossingsInPlace() {
+        com.plot.plugin.road.crossing.CrossingReconcileResult twoRoad =
+            com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossingsDetailed(network);
+        var stacks =
+            com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossingsDetailed(network);
         RoadProfileConstraintSynchronizer.releaseStaleCrossingAnchors(network, config);
+        boolean incomplete = twoRoad.result() == IntersectionResult.INCOMPLETE
+            || stacks.result() == IntersectionResult.INCOMPLETE
+            || twoRoad.hasAmbiguity()
+            || stacks.hasAmbiguity();
+        return incomplete ? IntersectionResult.INCOMPLETE : IntersectionResult.COMPLETE;
+    }
+
+    /** Reconcile and surface incomplete as a pending repair flag (geometry edit still commits). */
+    private void observeReconcileInPlace() {
+        IntersectionResult result = reconcileCrossingsInPlace();
+        if (result == IntersectionResult.INCOMPLETE) {
+            adoptIntersectionRepairPending = true;
+            status.warning(PlotI18n.tr("plugin.road.reconcile_intersections_incomplete"));
+        } else {
+            adoptIntersectionRepairPending = false;
+        }
+    }
+
+    /** For floating editors that mutate live after apply — same contract as in-transaction observe. */
+    public void observeReconcileAfterExternalEdit() {
+        observeReconcileInPlace();
     }
 
     /** 校验一键修复：同步可维护道路的分段存储顺序。 */

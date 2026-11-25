@@ -198,8 +198,8 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     protected void applySessionToLive(RoadUiContext ctx) {
         var live = ctx.networkManager().getNetwork();
         CenterlineEditorApplier.applyToLive(live, session.workingNetwork(), roadId);
-        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(live);
-        com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(live);
+        // Observe incomplete/ambiguous the same way as manager geometry edits (no silent drop).
+        ctx.networkManager().observeReconcileAfterExternalEdit();
         ctx.networkManager().invalidateEditedProfilesIfGeometryChanged();
         // 拓扑可能已变：保持单选当前路，再落到草稿中选中的 live Edge。
         if (live.getRoad(roadId) != null) {

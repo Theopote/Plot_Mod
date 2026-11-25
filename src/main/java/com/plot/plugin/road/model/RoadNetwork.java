@@ -447,17 +447,17 @@ public class RoadNetwork {
 
     /**
      * 解除 edge 与 road 的双向归属，不改变拓扑。
+     * Scrubs the edge id from every road's segment list (not only {@code edge.roadId}).
      */
     public boolean unassignEdgeFromRoad(String edgeId) {
         RoadEdge edge = edges.get(edgeId);
         if (edge == null) {
             return false;
         }
-        String oldRoadId = edge.getRoadId();
-        if (oldRoadId != null) {
-            Road oldRoad = roads.get(oldRoadId);
-            if (oldRoad != null) {
-                oldRoad.removeSegment(edgeId);
+        for (Road road : roads.values()) {
+            if (road != null && road.getOrderedSegmentIds().contains(edgeId)) {
+                road.removeSegment(edgeId);
+                RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, road);
             }
         }
         edge.setRoadId(null);
@@ -469,8 +469,15 @@ public class RoadNetwork {
      */
     public void reconcileRoadSegmentLinks() {
         for (Road road : roads.values()) {
-            for (String segmentId : road.getOrderedSegmentIds()) {
+            for (String segmentId : List.copyOf(road.getOrderedSegmentIds())) {
                 if (!edges.containsKey(segmentId)) {
+                    road.removeSegment(segmentId);
+                    continue;
+                }
+                RoadEdge edge = edges.get(segmentId);
+                String owner = edge != null ? edge.getRoadId() : null;
+                // Orphan / null-road edges must not linger in any road's segment list.
+                if (owner == null || owner.isBlank() || !owner.equals(road.getId())) {
                     road.removeSegment(segmentId);
                 }
             }
@@ -478,6 +485,12 @@ public class RoadNetwork {
         for (RoadEdge edge : edges.values()) {
             String roadId = edge.getRoadId();
             if (roadId == null || roadId.isBlank()) {
+                // Ensure no road still lists this unowned edge.
+                for (Road road : roads.values()) {
+                    if (road.getOrderedSegmentIds().contains(edge.getId())) {
+                        road.removeSegment(edge.getId());
+                    }
+                }
                 continue;
             }
             if (!roads.containsKey(roadId)) {
@@ -573,6 +586,13 @@ public class RoadNetwork {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
         }
+        // LOOP opened by logical split → demote open fragments; closed rings stay LOOP.
+        RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, road);
+        RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, newRoad);
+        if (splitStation >= 0.0) {
+            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.afterRoadSplit(
+                this, roadId, newRoad.getId(), splitStation);
+        }
         return newRoad.getId();
     }
 
@@ -605,9 +625,24 @@ public class RoadNetwork {
 
         boolean appendTail = headExit.isPresent() && headExit.equals(tailEntry);
         boolean prependTail = headEntry.isPresent() && headEntry.equals(tailExit);
+        // Ring case: both open chains share the same two endpoints; orientation may flip.
+        if (!appendTail && !prependTail
+                && headEntry.isPresent() && headExit.isPresent()
+                && tailEntry.isPresent() && tailExit.isPresent()
+                && Set.of(headEntry.get(), headExit.get()).equals(Set.of(tailEntry.get(), tailExit.get()))
+                && !headEntry.get().equals(headExit.get())) {
+            tailSegments = orientSegmentChainFrom(tailSegments, headExit.get());
+            if (tailSegments.isEmpty()) {
+                return null;
+            }
+            appendTail = true;
+        }
         if (!appendTail && !prependTail) {
             return null;
         }
+
+        double headLengthBefore = RoadStationing.canonicalLength(this, head);
+        double tailLengthBefore = RoadStationing.canonicalLength(this, tail);
 
         if (appendTail) {
             CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy().applyRoadMerge(this, head, tail);
@@ -618,11 +653,11 @@ public class RoadNetwork {
                 assignEdgeToRoad(segmentId, headRoadId);
             }
             head.reorderSegments(mergedSegments);
+            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.afterRoadMerge(
+                this, headRoadId, tailRoadId, headLengthBefore, true);
         } else {
-            double tailLength = RoadStationing.canonicalLength(this, tail);
-            double headLength = RoadStationing.canonicalLength(this, head);
             boolean refit = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
-                .applyRoadMerge(head, tail, head, tailLength, headLength);
+                .applyRoadMerge(head, tail, head, tailLengthBefore, headLengthBefore);
             List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
             mergedSegments.addAll(tailSegments);
             mergedSegments.addAll(headSegments);
@@ -633,11 +668,58 @@ public class RoadNetwork {
             if (refit) {
                 RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
             }
+            // For prepend, offset param is former tail length (shifts former head stations).
+            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.afterRoadMerge(
+                this, headRoadId, tailRoadId, tailLengthBefore, false);
         }
 
         roads.remove(tailRoadId);
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, head);
+        // Real closed ring after merge → LOOP; never invent connections from proximity.
+        if (!RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head)) {
+            RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, head);
+        }
         return headRoadId;
+    }
+
+    /**
+     * Walk {@code segmentIds} as an undirected chain starting at {@code startNodeId}.
+     * Returns empty when the segments are not a single chain from that node.
+     */
+    private List<String> orientSegmentChainFrom(List<String> segmentIds, String startNodeId) {
+        if (segmentIds == null || segmentIds.isEmpty() || startNodeId == null) {
+            return List.of();
+        }
+        Set<String> remaining = new LinkedHashSet<>(segmentIds);
+        List<String> ordered = new ArrayList<>(segmentIds.size());
+        String current = startNodeId;
+        while (!remaining.isEmpty()) {
+            String nextEdgeId = null;
+            String nextNode = null;
+            for (String edgeId : remaining) {
+                RoadEdge edge = edges.get(edgeId);
+                if (edge == null) {
+                    continue;
+                }
+                if (current.equals(edge.getStartNodeId())) {
+                    nextEdgeId = edgeId;
+                    nextNode = edge.getEndNodeId();
+                    break;
+                }
+                if (current.equals(edge.getEndNodeId())) {
+                    nextEdgeId = edgeId;
+                    nextNode = edge.getStartNodeId();
+                    break;
+                }
+            }
+            if (nextEdgeId == null) {
+                return List.of();
+            }
+            ordered.add(nextEdgeId);
+            remaining.remove(nextEdgeId);
+            current = nextNode;
+        }
+        return ordered;
     }
 
     /**
