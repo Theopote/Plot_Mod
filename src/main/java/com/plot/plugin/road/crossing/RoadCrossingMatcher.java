@@ -30,8 +30,9 @@ public final class RoadCrossingMatcher {
     }
 
     /**
-     * Batch staged match: exact stableKey first (globally), then unique position assists
-     * within each road pair. Weak matches never preempt another detection's exact target.
+     * Batch staged match: exact stableKey first (globally), then order-independent
+     * unique position assists within each road pair. Weak matches never preempt
+     * another detection's exact target, and contested assist targets become AMBIGUOUS.
      */
     public static List<CrossingMatchAssignment> matchAll(
             List<RoadCrossing> detected,
@@ -43,12 +44,21 @@ public final class RoadCrossingMatcher {
             ? List.copyOf(existingCrossings)
             : List.of();
         Map<String, RoadCrossing> byStableKey = new HashMap<>();
+        Set<String> duplicateStableKeys = new HashSet<>();
         Map<String, List<RoadCrossing>> byPair = new HashMap<>();
         for (RoadCrossing crossing : existing) {
             if (crossing == null) {
                 continue;
             }
-            byStableKey.putIfAbsent(crossing.stableKey(), crossing);
+            String key = crossing.stableKey();
+            if (duplicateStableKeys.contains(key)) {
+                // already known duplicate
+            } else if (byStableKey.containsKey(key)) {
+                byStableKey.remove(key);
+                duplicateStableKeys.add(key);
+            } else {
+                byStableKey.put(key, crossing);
+            }
             byPair.computeIfAbsent(
                     roadPairKey(crossing.roadAId(), crossing.roadBId()),
                     ignored -> new ArrayList<>())
@@ -58,21 +68,28 @@ public final class RoadCrossingMatcher {
         CrossingMatchAssignment[] assignments = new CrossingMatchAssignment[detected.size()];
         Set<String> claimedIds = new HashSet<>();
 
-        // Stage 1: exact stableKey.
+        // Stage 1: exact stableKey (duplicate keys are identity conflicts).
         for (int i = 0; i < detected.size(); i++) {
             RoadCrossing detectedCrossing = detected.get(i);
             if (detectedCrossing == null) {
                 assignments[i] = CrossingMatchAssignment.noMatch(i);
                 continue;
             }
-            RoadCrossing exact = byStableKey.get(detectedCrossing.stableKey());
+            String key = detectedCrossing.stableKey();
+            if (duplicateStableKeys.contains(key)) {
+                assignments[i] = CrossingMatchAssignment.ambiguous(i);
+                continue;
+            }
+            RoadCrossing exact = byStableKey.get(key);
             if (exact != null && !claimedIds.contains(exact.id())) {
                 claimedIds.add(exact.id());
                 assignments[i] = CrossingMatchAssignment.matched(i, exact.id());
             }
         }
 
-        // Stage 2: unique position assist within road pair.
+        // Stage 2: collect preferred position assists, then resolve uniquely (order-independent).
+        List<Integer> remaining = new ArrayList<>();
+        PositionMatchResult[] preferred = new PositionMatchResult[detected.size()];
         for (int i = 0; i < detected.size(); i++) {
             if (assignments[i] != null) {
                 continue;
@@ -91,14 +108,32 @@ public final class RoadCrossingMatcher {
                     available.add(candidate);
                 }
             }
-            PositionMatchResult positionMatch = matchByPositionDetailed(detectedCrossing, available);
-            if (positionMatch.outcome() == CrossingMatchOutcome.MATCHED) {
-                claimedIds.add(positionMatch.existingId());
-                assignments[i] = CrossingMatchAssignment.matched(i, positionMatch.existingId());
-            } else if (positionMatch.outcome() == CrossingMatchOutcome.AMBIGUOUS) {
+            preferred[i] = matchByPositionDetailed(detectedCrossing, available);
+            remaining.add(i);
+        }
+
+        Map<String, Integer> preferCount = new HashMap<>();
+        for (int i : remaining) {
+            PositionMatchResult result = preferred[i];
+            if (result != null
+                    && result.outcome() == CrossingMatchOutcome.MATCHED
+                    && result.existingId() != null) {
+                preferCount.merge(result.existingId(), 1, Integer::sum);
+            }
+        }
+
+        for (int i : remaining) {
+            PositionMatchResult result = preferred[i];
+            if (result == null || result.outcome() == CrossingMatchOutcome.NO_MATCH) {
+                assignments[i] = CrossingMatchAssignment.noMatch(i);
+            } else if (result.outcome() == CrossingMatchOutcome.AMBIGUOUS) {
+                assignments[i] = CrossingMatchAssignment.ambiguous(i);
+            } else if (preferCount.getOrDefault(result.existingId(), 0) > 1) {
+                // Contested existing record — do not let traversal order decide the winner.
                 assignments[i] = CrossingMatchAssignment.ambiguous(i);
             } else {
-                assignments[i] = CrossingMatchAssignment.noMatch(i);
+                claimedIds.add(result.existingId());
+                assignments[i] = CrossingMatchAssignment.matched(i, result.existingId());
             }
         }
 

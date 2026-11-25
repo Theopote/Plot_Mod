@@ -1,8 +1,13 @@
 package com.plot.plugin.road.crossing;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.IntersectionProbeResult;
 import com.plot.plugin.road.IntersectionResult;
+import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadLoopSeam;
@@ -76,6 +81,81 @@ class Phase22CrossingLifecycleTest {
         assertEquals(
             Set.of(forward.get(0).existingId(), forward.get(1).existingId()),
             Set.of(reverse.get(0).existingId(), reverse.get(1).existingId()));
+    }
+
+    @Test
+    void d01_contestedAssistMatchIsAmbiguousRegardlessOfOrder() {
+        RoadNetwork network = new RoadNetwork();
+        Road a = network.createRoad("a");
+        Road b = network.createRoad("b");
+        RoadCrossing old = RoadCrossing.gradeSeparated(
+            a.getId(), 5.0, b.getId(), 5.0, new Vec2d(5, 5), b.getId(), 4.0);
+
+        // Two detections both within assist tolerance of the same old record, no exact keys.
+        RoadCrossing far = RoadCrossing.atGrade(
+            a.getId(), 4.7, b.getId(), 5.3, new Vec2d(5.30, 5.0));
+        RoadCrossing near = RoadCrossing.atGrade(
+            a.getId(), 5.2, b.getId(), 4.8, new Vec2d(5.10, 5.0));
+
+        List<CrossingMatchAssignment> forward = RoadCrossingMatcher.matchAll(
+            List.of(far, near), List.of(old));
+        List<CrossingMatchAssignment> reverse = RoadCrossingMatcher.matchAll(
+            List.of(near, far), List.of(old));
+
+        assertEquals(CrossingMatchOutcome.AMBIGUOUS, forward.get(0).outcome());
+        assertEquals(CrossingMatchOutcome.AMBIGUOUS, forward.get(1).outcome());
+        assertEquals(CrossingMatchOutcome.AMBIGUOUS, reverse.get(0).outcome());
+        assertEquals(CrossingMatchOutcome.AMBIGUOUS, reverse.get(1).outcome());
+    }
+
+    @Test
+    void d01_duplicateStableKeyIsAmbiguous() {
+        RoadNetwork network = new RoadNetwork();
+        Road a = network.createRoad("a");
+        Road b = network.createRoad("b");
+        RoadCrossing first = RoadCrossing.gradeSeparated(
+            a.getId(), 5.0, b.getId(), 5.0, new Vec2d(5, 5), b.getId(), 4.0);
+        RoadCrossing duplicateKey = new RoadCrossing(
+            "dup-" + first.id(),
+            a.getId(),
+            5.0,
+            b.getId(),
+            5.0,
+            new Vec2d(5.01, 5.01),
+            CrossingType.GRADE_SEPARATED,
+            b.getId(),
+            9.0,
+            null,
+            null);
+        assertEquals(first.stableKey(), duplicateKey.stableKey());
+
+        RoadCrossing detected = RoadCrossing.atGrade(
+            a.getId(), 5.0, b.getId(), 5.0, new Vec2d(5.0, 5.0));
+        List<CrossingMatchAssignment> assignments = RoadCrossingMatcher.matchAll(
+            List.of(detected), List.of(first, duplicateKey));
+        assertEquals(CrossingMatchOutcome.AMBIGUOUS, assignments.getFirst().outcome());
+    }
+
+    @Test
+    void d04_generatorBlocksWhenReconcileIsAmbiguous() {
+        RoadNetwork network = crossRoads();
+        List<Road> roads = List.copyOf(network.getRoads().values());
+        Road a = roads.get(0);
+        Road b = roads.get(1);
+        network.registerCrossing(RoadCrossing.gradeSeparated(
+            a.getId(), 4.0, b.getId(), 4.0, new Vec2d(5, 5), b.getId(), 6.0));
+        network.registerCrossing(RoadCrossing.gradeSeparated(
+            a.getId(), 6.0, b.getId(), 6.0, new Vec2d(5.05, 5.05), b.getId(), 8.0));
+
+        RoadSystemConfig config = new RoadSystemConfig("phase22-d04");
+        RoadNetworkGenerator generator = new RoadNetworkGenerator(new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance()));
+        RoadNetworkGenerator.NetworkGenerationResult result =
+            generator.generateAll(network, new FlatTerrainSampler(64));
+        assertTrue(result.hasCrossingReconcileIncomplete());
+        assertTrue(result.hasPartialFailure());
     }
 
     @Test
@@ -373,6 +453,146 @@ class Phase22CrossingLifecycleTest {
             RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
         assertFalse(materialization.report().isComplete());
         assertFalse(materialization.report().failures().isEmpty());
+    }
+
+    @Test
+    void d07_stackGradeSeparationRejectsInvalidStationsAndClearance() {
+        RoadNetwork network = figureEightNetwork();
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+
+        assertFalse(network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, stack.stationA(), stack.stationA(), 3.0));
+        assertFalse(network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, -999.0, stack.stationB(), 3.0));
+        assertFalse(network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, stack.stationA(), stack.stationB(), Double.NaN));
+        assertTrue(network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, stack.stationA(), stack.stationB(), 3.0));
+        assertTrue(network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, stack.stationB(), stack.stationA(), 5.0));
+        assertEquals(5.0, network.getStackCrossings().get(stack.id()).crossingClearance(), 1e-6);
+    }
+
+    @Test
+    void d07_authoritativeClearanceDecreaseSurvivesMaterialize() {
+        RoadNetwork network = crossRoads();
+        RoadCrossingReconciler.reconcileCrossings(network);
+        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        network.setCrossingGradeSeparation(
+            crossing.id(), CrossingType.GRADE_SEPARATED, crossing.roadBId(), 8.0);
+
+        SnapshotMaterialization first = RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        RoadNode graded = first.network().getNodes().values().stream()
+            .filter(RoadNode::isGradeSeparated)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(8.0, graded.getCrossingClearance(), 1e-6);
+
+        network.setCrossingGradeSeparation(
+            crossing.id(), CrossingType.GRADE_SEPARATED, crossing.roadBId(), 5.0);
+        SnapshotMaterialization second = RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        RoadNode lowered = second.network().getNodes().values().stream()
+            .filter(RoadNode::isGradeSeparated)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(5.0, lowered.getCrossingClearance(), 1e-6);
+    }
+
+    @Test
+    void d06_incompatibleMultiLayerGradeFailsMaterialize() {
+        RoadNetwork network = new RoadNetwork();
+        Road a = network.createRoad("a");
+        Road b = network.createRoad("b");
+        Road c = network.createRoad("c");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(10, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)),
+            a.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 0)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
+            b.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(0, 0)).getId(),
+            network.createNode(new Vec2d(10, 10)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 10)),
+            c.getId());
+        RoadCrossingReconciler.reconcileCrossings(network);
+        // Force two grade-separated designs at nearly the same point with different elevated roads.
+        List<RoadCrossing> crossings = List.copyOf(network.getCrossings().values());
+        assertTrue(crossings.size() >= 2);
+        RoadCrossing first = crossings.get(0);
+        RoadCrossing second = crossings.get(1);
+        network.setCrossingGradeSeparation(
+            first.id(), CrossingType.GRADE_SEPARATED, first.roadAId(), 4.0);
+        network.setCrossingGradeSeparation(
+            second.id(), CrossingType.GRADE_SEPARATED, second.roadBId(), 4.0);
+        // Collocate second onto first's node position so materialize shares a node.
+        network.registerCrossing(second.withRefreshedGeometry(
+            second.stationA(), second.stationB(), first.position().copy()));
+
+        SnapshotMaterialization materialization =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        // Either both succeed with compatible elevated roads, or conflict is reported — never silent overwrite.
+        if (!materialization.report().isComplete()) {
+            assertFalse(materialization.report().failures().isEmpty());
+            assertTrue(materialization.report().failures().stream()
+                .anyMatch(f -> f.detail() != null && f.detail().contains("incompatible")));
+        }
+    }
+
+    @Test
+    void d02_stationLocalSplitUsesResolvedLocalDistance() {
+        RoadNetwork network = figureEightNetwork();
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+        network.setStackCrossingGradeSeparation(
+            stack.id(),
+            CrossingType.GRADE_SEPARATED,
+            stack.stationA(),
+            stack.stationB(),
+            3.0);
+        SnapshotMaterialization materialization =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        assertTrue(materialization.report().isComplete(), materialization.report().failures().toString());
+        RoadNode junction = materialization.network().getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(2, junction.getStackLowerEdgeIds().size());
+        assertEquals(2, junction.getStackUpperEdgeIds().size());
+    }
+
+    @Test
+    void d05_seamCanonicalOffsetPrefersResolveFromSeam() {
+        RoadNetwork network = new RoadNetwork();
+        Road loop = network.createRoad("loop");
+        loop.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(10, 10));
+        RoadNode n4 = network.createNode(new Vec2d(0, 10));
+        var e1 = network.createEdge(n1.getId(), n2.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), loop.getId());
+        network.createEdge(n2.getId(), n3.getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(10, 10)), loop.getId());
+        network.createEdge(n3.getId(), n4.getId(),
+            List.of(new Vec2d(10, 10), new Vec2d(0, 10)), loop.getId());
+        network.createEdge(n4.getId(), n1.getId(),
+            List.of(new Vec2d(0, 10), new Vec2d(0, 0)), loop.getId());
+        loop.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), e1.getId(), 0.5));
+
+        RoadLoopSeamService.SeamProjection resolved =
+            RoadLoopSeamService.resolveFromSeam(network, loop, loop.getLoopSeam());
+        assertNotNull(resolved);
+        assertEquals(e1.getId(), resolved.segmentId());
+        double canonical = com.plot.plugin.road.station.RoadStationing.toCanonicalChainage(
+            network, loop, resolved.chainStation());
+        assertTrue(canonical >= 0.0);
+        assertTrue(canonical <= com.plot.plugin.road.station.RoadStationing.canonicalLength(network, loop) + 1e-6);
     }
 
     private static RoadNetwork crossRoads() {

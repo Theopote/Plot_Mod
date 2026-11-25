@@ -175,7 +175,16 @@ public final class RoadCrossingMaterializer {
                 verifiedB,
                 "crossing arms incomplete: A=" + verifiedA + ", B=" + verifiedB));
         }
-        applyCrossingDesignToJunction(network, crossing, junction);
+        Optional<String> designFailure = applyCrossingDesignToJunction(network, crossing, junction);
+        if (designFailure.isPresent()) {
+            return Optional.of(new CrossingMaterializationFailure(
+                crossing.id(),
+                crossing.roadAId(),
+                crossing.roadBId(),
+                CrossingMaterializeStatus.SPLIT_FAILED,
+                CrossingMaterializeStatus.SPLIT_FAILED,
+                designFailure.get()));
+        }
         return Optional.empty();
     }
 
@@ -211,22 +220,32 @@ public final class RoadCrossingMaterializer {
         return status;
     }
 
-    private static void applyCrossingDesignToJunction(
+    /**
+     * @return failure detail when grade design cannot be applied without overwriting another crossing
+     */
+    private static Optional<String> applyCrossingDesignToJunction(
             RoadNetwork network,
             RoadCrossing crossing,
             RoadNode junction) {
         if (crossing.type() == CrossingType.GRADE_SEPARATED) {
+            Optional<String> conflict = gradeSeparationConflict(network, crossing, junction);
+            if (conflict.isPresent()) {
+                return conflict;
+            }
             boolean applied = network.setNodeGradeSeparation(
                 junction.getId(),
                 true,
                 crossing.elevatedRoadId(),
                 crossing.crossingClearance());
             if (!applied) {
-                network.applyCrossingGradeSeparation(
+                boolean forced = network.applyCrossingGradeSeparation(
                     junction.getId(),
                     crossing.elevatedRoadId(),
                     crossing.crossingClearance(),
                     true);
+                if (!forced) {
+                    return Optional.of("failed to apply grade separation for crossing " + crossing.id());
+                }
             } else if (crossing.crossingClearance() != null) {
                 // Registry clearance is authoritative — replace, don't Math.max.
                 junction.setCrossingClearance(crossing.crossingClearance());
@@ -243,6 +262,58 @@ public final class RoadCrossingMaterializer {
         }
         // 平交圆角：Crossing 显式值覆盖节点；null 保留快照节点半径（未设置≠强制关）。
         com.plot.plugin.road.JunctionCornerRadius.applyToJunctionNode(junction, crossing);
+        return Optional.empty();
+    }
+
+    /**
+     * Node model stores a single elevatedRoadId — refuse incompatible multi-layer grade designs
+     * that would overwrite another GRADE_SEPARATED registry crossing at this node.
+     */
+    private static Optional<String> gradeSeparationConflict(
+            RoadNetwork network,
+            RoadCrossing crossing,
+            RoadNode junction) {
+        if (!junction.isGradeSeparated()) {
+            return Optional.empty();
+        }
+        String existingElevated = junction.getElevatedRoadId();
+        String nextElevated = crossing.elevatedRoadId();
+        if (existingElevated == null || existingElevated.isBlank()
+                || nextElevated == null || nextElevated.isBlank()) {
+            return Optional.empty();
+        }
+        if (existingElevated.equals(nextElevated)) {
+            return Optional.empty();
+        }
+        // Another grade-separated crossing already owns a different elevated road at this node.
+        for (RoadCrossing other : network.getCrossings().values()) {
+            if (other == null || other.id().equals(crossing.id())) {
+                continue;
+            }
+            if (other.type() != CrossingType.GRADE_SEPARATED || other.position() == null) {
+                continue;
+            }
+            if (!RoadGeometryUtils.pointsNear(
+                    other.position(), junction.getPosition(), NODE_TOLERANCE)) {
+                continue;
+            }
+            if (other.elevatedRoadId() != null
+                    && !other.elevatedRoadId().isBlank()
+                    && !other.elevatedRoadId().equals(nextElevated)) {
+                return Optional.of(
+                    "incompatible multi-layer grade separation at shared node: existing elevated="
+                        + existingElevated + " incoming elevated=" + nextElevated);
+            }
+        }
+        // Node already grade-separated with a different elevated road (e.g. stack or prior apply).
+        if (junction.isStackGradeSeparated()) {
+            return Optional.of(
+                "node already has stack grade separation incompatible with crossing "
+                    + crossing.id());
+        }
+        return Optional.of(
+            "node elevatedRoadId=" + existingElevated
+                + " conflicts with crossing elevatedRoadId=" + nextElevated);
     }
 
     private static void clearGradeSeparationIfOwnedByCrossing(
@@ -293,8 +364,22 @@ public final class RoadCrossingMaterializer {
         if (isNearEdgeEndpoint(edge, position)) {
             return connectEdgeEndpointToNode(network, edge, position, junction);
         }
-        Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtNode(
-            edgeId, junction.getId(), position, NODE_TOLERANCE);
+        // Prefer SegmentStation localDistance so multi-hit polylines split at the intended pass.
+        List<Vec2d> points = edge.getCenterlinePoints();
+        double localDistance = resolved.get().localDistance();
+        Vec2d splitPoint = RoadGeometryUtils.pointAtDistance(points, localDistance);
+        if (splitPoint == null) {
+            splitPoint = position;
+        }
+        int segmentIndex = segmentIndexAtLocalDistance(points, localDistance);
+        Optional<RoadGraphEdits.SplitResult> split;
+        if (segmentIndex >= 0) {
+            split = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
+                edgeId, junction.getId(), segmentIndex, splitPoint, NODE_TOLERANCE);
+        } else {
+            split = RoadGraphEdits.of(network).splitEdgeAtNode(
+                edgeId, junction.getId(), splitPoint, NODE_TOLERANCE);
+        }
         if (split.isPresent()) {
             return CrossingMaterializeStatus.SUCCESS;
         }
@@ -324,6 +409,31 @@ public final class RoadCrossingMaterializer {
             }
         }
         return network.createNode(position.copy());
+    }
+
+    private static int segmentIndexAtLocalDistance(List<Vec2d> points, double localDistance) {
+        if (points == null || points.size() < 2 || !Double.isFinite(localDistance)) {
+            return -1;
+        }
+        double target = Math.max(0.0, localDistance);
+        double accumulated = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            double segmentLength = points.get(i).distance(points.get(i + 1));
+            if (segmentLength <= 1e-9) {
+                continue;
+            }
+            if (accumulated + segmentLength >= target - 1e-9) {
+                boolean atPolyStart = i == 0 && target <= 1e-9;
+                boolean atPolyEnd = i == points.size() - 2
+                    && target >= accumulated + segmentLength - 1e-9;
+                if (atPolyStart || atPolyEnd) {
+                    return -1;
+                }
+                return i;
+            }
+            accumulated += segmentLength;
+        }
+        return -1;
     }
 
     private static boolean isNearEdgeEndpoint(RoadEdge edge, Vec2d point) {

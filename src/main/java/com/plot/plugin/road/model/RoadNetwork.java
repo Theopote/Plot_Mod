@@ -763,6 +763,19 @@ public class RoadNetwork {
         if (type == com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
             double lower = lowerStation != null ? lowerStation : stack.stationA();
             double upper = upperStation != null ? upperStation : stack.stationB();
+            if (!Double.isFinite(lower) || !Double.isFinite(upper)) {
+                return false;
+            }
+            if (!stackPassStationsMatch(stack, lower, upper)) {
+                return false;
+            }
+            if (Math.abs(lower - upper) <= 1e-6) {
+                return false;
+            }
+            if (crossingClearance != null
+                    && (!Double.isFinite(crossingClearance) || crossingClearance < 0.0)) {
+                return false;
+            }
             stackCrossings.put(stackCrossingId, new com.plot.plugin.road.crossing.RoadStackCrossing(
                 stack.id(),
                 stack.roadId(),
@@ -789,6 +802,19 @@ public class RoadNetwork {
                 stack.sharedElevation()));
         }
         return true;
+    }
+
+    /** lower/upper must each correspond to one of the two geometric pass stations (order may swap). */
+    private static boolean stackPassStationsMatch(
+            com.plot.plugin.road.crossing.RoadStackCrossing stack,
+            double lower,
+            double upper) {
+        final double eps = 0.5;
+        boolean lowerOk = Math.abs(lower - stack.stationA()) <= eps
+            || Math.abs(lower - stack.stationB()) <= eps;
+        boolean upperOk = Math.abs(upper - stack.stationA()) <= eps
+            || Math.abs(upper - stack.stationB()) <= eps;
+        return lowerOk && upperOk;
     }
 
     public boolean setCrossingGradeSeparation(

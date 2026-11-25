@@ -1,6 +1,7 @@
 package com.plot.plugin.road.crossing;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.graph.RoadGraphEdits;
@@ -14,8 +15,10 @@ import com.plot.plugin.road.station.SegmentStation;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -24,6 +27,7 @@ import java.util.Set;
  */
 public final class RoadStackCrossingMaterializer {
     private static final double NODE_TOLERANCE = RoadNetworkBuilder.NODE_TOLERANCE;
+    private static final double ARM_CLASSIFY_TIE_EPSILON = 1e-6;
 
     private RoadStackCrossingMaterializer() {
     }
@@ -51,6 +55,13 @@ public final class RoadStackCrossingMaterializer {
         return new CrossingMaterializationReport(attempted, succeeded, failures);
     }
 
+    public static IntersectionResult materializeInPlace(RoadNetwork network) {
+        if (network == null || network.getStackCrossings().isEmpty()) {
+            return IntersectionResult.COMPLETE;
+        }
+        return materializeAll(network, network.getStackCrossings().values()).toIntersectionResult();
+    }
+
     private static Optional<CrossingMaterializationFailure> materializeStackCrossing(
             RoadNetwork network,
             RoadStackCrossing stackCrossing,
@@ -64,8 +75,6 @@ public final class RoadStackCrossingMaterializer {
                 "stack crossing position or roadId is null"));
         }
 
-        // Preflight only validates resolvability; each pass re-resolves at apply time because
-        // the first split invalidates the second pass's original edge id.
         CrossingMaterializeStatus preflightA = preflightStation(
             network, stackCrossing.roadId(), stackCrossing.stationA());
         CrossingMaterializeStatus preflightB = preflightStation(
@@ -87,21 +96,26 @@ public final class RoadStackCrossingMaterializer {
                 "unsupported multi-layer stack at shared node"));
         }
 
-        // Capture pass reference points while the road is still stationable (pre-split).
-        // After the four-arm junction exists the graph branches and chainageAtPosition is unreliable.
         List<Vec2d> lowerRefs = passReferencePoints(
             network, stackCrossing.roadId(), stackCrossing.resolvedLowerStation());
         List<Vec2d> upperRefs = passReferencePoints(
             network, stackCrossing.roadId(), stackCrossing.resolvedUpperStation());
 
-        CrossingMaterializeStatus armA = materializeStationPass(
+        PassMaterializeResult passA = materializeStationPass(
             network, stackCrossing.roadId(), stackCrossing.stationA(), junction, position);
-        CrossingMaterializeStatus armB = materializeStationPass(
+        PassMaterializeResult passB = materializeStationPass(
             network, stackCrossing.roadId(), stackCrossing.stationB(), junction, position);
-        breakJunctionSelfLoops(network, junction);
 
-        CrossingMaterializeStatus verifiedA = verifyPassConnected(network, junction, stackCrossing.roadId(), armA);
-        CrossingMaterializeStatus verifiedB = verifyPassConnected(network, junction, stackCrossing.roadId(), armB);
+        Map<String, PassRole> lineage = new HashMap<>();
+        boolean stationAIsLower = Math.abs(stackCrossing.stationA() - stackCrossing.resolvedLowerStation())
+            <= Math.abs(stackCrossing.stationA() - stackCrossing.resolvedUpperStation());
+        tagPassEdges(lineage, passA, stationAIsLower ? PassRole.LOWER : PassRole.UPPER);
+        tagPassEdges(lineage, passB, stationAIsLower ? PassRole.UPPER : PassRole.LOWER);
+
+        breakJunctionSelfLoops(network, junction, lineage);
+
+        CrossingMaterializeStatus verifiedA = verifyPassConnected(network, junction, passA);
+        CrossingMaterializeStatus verifiedB = verifyPassConnected(network, junction, passB);
         if (!verifiedA.isSuccessful() || !verifiedB.isSuccessful()) {
             return Optional.of(failure(
                 stackCrossing,
@@ -109,9 +123,16 @@ public final class RoadStackCrossingMaterializer {
                 verifiedB,
                 "stack arms incomplete after materialize"));
         }
+        if (!passArmSetsDistinct(passA, passB, lineage)) {
+            return Optional.of(failure(
+                stackCrossing,
+                CrossingMaterializeStatus.SPLIT_FAILED,
+                CrossingMaterializeStatus.SPLIT_FAILED,
+                "stack passes did not produce distinct arm sets"));
+        }
 
         Optional<String> designFailure = applyStackDesignToJunction(
-            network, stackCrossing, junction, claimedGradeSepNodeIds, lowerRefs, upperRefs);
+            network, stackCrossing, junction, claimedGradeSepNodeIds, lowerRefs, upperRefs, lineage);
         return designFailure.map(s -> failure(
                 stackCrossing,
                 CrossingMaterializeStatus.SPLIT_FAILED,
@@ -137,7 +158,11 @@ public final class RoadStackCrossingMaterializer {
         return CrossingMaterializeStatus.SUCCESS;
     }
 
-    private static CrossingMaterializeStatus materializeStationPass(
+    /**
+     * Split (or relink) at the resolved SegmentStation localDistance — never re-pick the first
+     * spatial hit on a multi-pass edge.
+     */
+    private static PassMaterializeResult materializeStationPass(
             RoadNetwork network,
             String roadId,
             double station,
@@ -145,56 +170,170 @@ public final class RoadStackCrossingMaterializer {
             Vec2d position) {
         Road road = network.getRoad(roadId);
         if (road == null) {
-            return CrossingMaterializeStatus.ROAD_NOT_FOUND;
+            return PassMaterializeResult.failed(CrossingMaterializeStatus.ROAD_NOT_FOUND);
         }
         Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
         if (resolved.isEmpty()) {
-            return CrossingMaterializeStatus.STATION_UNRESOLVED;
+            return PassMaterializeResult.failed(CrossingMaterializeStatus.STATION_UNRESOLVED);
         }
-        RoadEdge edge = network.getEdge(resolved.get().segmentId());
+        SegmentStation segmentStation = resolved.get();
+        RoadEdge edge = network.getEdge(segmentStation.segmentId());
         if (edge == null) {
-            return CrossingMaterializeStatus.EDGE_NOT_FOUND;
+            return PassMaterializeResult.failed(CrossingMaterializeStatus.EDGE_NOT_FOUND);
         }
-        int interiorSegment = findInteriorPassSegmentIndex(edge.getCenterlinePoints(), position);
+        List<Vec2d> points = edge.getCenterlinePoints();
+        int interiorSegment = segmentIndexAtLocalDistance(points, segmentStation.localDistance());
         if (interiorSegment >= 0) {
-            Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
-                edge.getCenterlinePoints().get(interiorSegment),
-                edge.getCenterlinePoints().get(interiorSegment + 1),
-                position);
+            Vec2d splitPoint = RoadGeometryUtils.pointAtDistance(points, segmentStation.localDistance());
+            if (splitPoint == null) {
+                return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
+            }
+            // Spatial sanity: resolved local arc must land near the crossing position.
+            if (position != null && splitPoint.distance(position) > NODE_TOLERANCE * 2.0) {
+                return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
+            }
             Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
                 edge.getId(),
                 junction.getId(),
                 interiorSegment,
-                projected,
+                splitPoint,
                 NODE_TOLERANCE);
-            return split.isPresent()
-                ? CrossingMaterializeStatus.SUCCESS
-                : CrossingMaterializeStatus.SPLIT_FAILED;
+            if (split.isEmpty()) {
+                return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
+            }
+            Set<String> junctionEdges = new HashSet<>();
+            addIfJunctionIncident(network, junction.getId(), split.get().firstEdgeId(), junctionEdges);
+            addIfJunctionIncident(network, junction.getId(), split.get().secondEdgeId(), junctionEdges);
+            return new PassMaterializeResult(CrossingMaterializeStatus.SUCCESS, junctionEdges);
         }
         if (isNearEdgeEndpoint(edge, position)) {
-            return connectEdgeEndpointToNode(network, edge, position, junction);
+            CrossingMaterializeStatus status = connectEdgeEndpointToNode(network, edge, position, junction);
+            if (!status.isSuccessful() && status != CrossingMaterializeStatus.ALREADY_CONNECTED) {
+                return PassMaterializeResult.failed(status);
+            }
+            Set<String> junctionEdges = new HashSet<>();
+            if (junction.getConnectedEdgeIds().contains(edge.getId())) {
+                junctionEdges.add(edge.getId());
+            }
+            return new PassMaterializeResult(
+                status == CrossingMaterializeStatus.ALREADY_CONNECTED
+                    ? CrossingMaterializeStatus.SUCCESS
+                    : status,
+                junctionEdges);
         }
-        return CrossingMaterializeStatus.SPLIT_FAILED;
+        return PassMaterializeResult.failed(CrossingMaterializeStatus.SPLIT_FAILED);
+    }
+
+    private static int segmentIndexAtLocalDistance(List<Vec2d> points, double localDistance) {
+        if (points == null || points.size() < 2 || !Double.isFinite(localDistance)) {
+            return -1;
+        }
+        double target = Math.max(0.0, localDistance);
+        double accumulated = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            double segmentLength = points.get(i).distance(points.get(i + 1));
+            if (segmentLength <= 1e-9) {
+                continue;
+            }
+            if (accumulated + segmentLength >= target - 1e-9) {
+                // Endpoint of the whole polyline is not an interior split.
+                boolean atPolyStart = i == 0 && target <= 1e-9;
+                boolean atPolyEnd = i == points.size() - 2
+                    && target >= accumulated + segmentLength - 1e-9;
+                if (atPolyStart || atPolyEnd) {
+                    return -1;
+                }
+                return i;
+            }
+            accumulated += segmentLength;
+        }
+        return -1;
+    }
+
+    private static void addIfJunctionIncident(
+            RoadNetwork network,
+            String junctionId,
+            String edgeId,
+            Set<String> out) {
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            return;
+        }
+        if (junctionId.equals(edge.getStartNodeId()) || junctionId.equals(edge.getEndNodeId())) {
+            out.add(edgeId);
+        }
     }
 
     private static CrossingMaterializeStatus verifyPassConnected(
             RoadNetwork network,
             RoadNode junction,
-            String roadId,
-            CrossingMaterializeStatus status) {
-        if (!status.isSuccessful()) {
-            return status;
+            PassMaterializeResult pass) {
+        if (!pass.status().isSuccessful()) {
+            return pass.status();
         }
-        for (String edgeId : junction.getConnectedEdgeIds()) {
+        if (pass.junctionEdgeIds().isEmpty()) {
+            return CrossingMaterializeStatus.SPLIT_FAILED;
+        }
+        for (String edgeId : pass.junctionEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null && roadId.equals(edge.getRoadId())) {
-                return status;
+            if (edge == null) {
+                continue;
+            }
+            if (junction.getId().equals(edge.getStartNodeId())
+                    || junction.getId().equals(edge.getEndNodeId())) {
+                return CrossingMaterializeStatus.SUCCESS;
+            }
+        }
+        // Lineage may have been remapped by self-loop break — accept if junction still has road arms.
+        for (String edgeId : junction.getConnectedEdgeIds()) {
+            if (network.getEdge(edgeId) != null) {
+                return CrossingMaterializeStatus.SUCCESS;
             }
         }
         return CrossingMaterializeStatus.SPLIT_FAILED;
     }
 
-    private static void breakJunctionSelfLoops(RoadNetwork network, RoadNode junction) {
+    private static boolean passArmSetsDistinct(
+            PassMaterializeResult passA,
+            PassMaterializeResult passB,
+            Map<String, PassRole> lineage) {
+        Set<String> lower = new HashSet<>();
+        Set<String> upper = new HashSet<>();
+        for (Map.Entry<String, PassRole> entry : lineage.entrySet()) {
+            if (entry.getValue() == PassRole.LOWER) {
+                lower.add(entry.getKey());
+            } else if (entry.getValue() == PassRole.UPPER) {
+                upper.add(entry.getKey());
+            }
+        }
+        if (!lower.isEmpty() && !upper.isEmpty()) {
+            Set<String> overlap = new HashSet<>(lower);
+            overlap.retainAll(upper);
+            return overlap.isEmpty();
+        }
+        // Fallback: raw pass edge sets before remapping.
+        Set<String> a = new HashSet<>(passA.junctionEdgeIds());
+        Set<String> b = new HashSet<>(passB.junctionEdgeIds());
+        a.retainAll(b);
+        return a.isEmpty() && !passA.junctionEdgeIds().isEmpty() && !passB.junctionEdgeIds().isEmpty();
+    }
+
+    private static void tagPassEdges(
+            Map<String, PassRole> lineage,
+            PassMaterializeResult pass,
+            PassRole role) {
+        if (!pass.status().isSuccessful()) {
+            return;
+        }
+        for (String edgeId : pass.junctionEdgeIds()) {
+            lineage.put(edgeId, role);
+        }
+    }
+
+    private static void breakJunctionSelfLoops(
+            RoadNetwork network,
+            RoadNode junction,
+            Map<String, PassRole> lineage) {
         List<String> edgeIds = new ArrayList<>(junction.getConnectedEdgeIds());
         for (String edgeId : edgeIds) {
             RoadEdge edge = network.getEdge(edgeId);
@@ -210,12 +349,24 @@ public final class RoadStackCrossingMaterializer {
                 continue;
             }
             RoadNode breakNode = findOrCreateNode(network, breakVertex.get(), null, null);
-            if (breakNode != null) {
-                RoadGraphEdits.of(network).splitEdgeAtNode(
-                    edge.getId(),
-                    breakNode.getId(),
-                    breakVertex.get(),
-                    NODE_TOLERANCE);
+            if (breakNode == null) {
+                continue;
+            }
+            PassRole parentRole = lineage.get(edgeId);
+            Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtNode(
+                edge.getId(),
+                breakNode.getId(),
+                breakVertex.get(),
+                NODE_TOLERANCE);
+            if (split.isEmpty()) {
+                continue;
+            }
+            lineage.remove(edgeId);
+            if (parentRole != null) {
+                // Self-loop between two passes: first half inherits parent; second half is the other pass.
+                // Prefer reference-point assist later for the far half when both roles are needed.
+                lineage.put(split.get().firstEdgeId(), parentRole);
+                lineage.put(split.get().secondEdgeId(), parentRole);
             }
         }
     }
@@ -233,35 +384,14 @@ public final class RoadStackCrossingMaterializer {
         return Optional.empty();
     }
 
-    private static int findInteriorPassSegmentIndex(List<Vec2d> points, Vec2d position) {
-        if (points == null || points.size() < 2 || position == null) {
-            return -1;
-        }
-        for (int i = 0; i < points.size() - 1; i++) {
-            Vec2d start = points.get(i);
-            Vec2d end = points.get(i + 1);
-            Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, position);
-            if (projected.distance(position) > NODE_TOLERANCE) {
-                continue;
-            }
-            boolean atPolyStart = i == 0 && RoadGeometryUtils.pointsNear(start, position, NODE_TOLERANCE);
-            boolean atPolyEnd = i == points.size() - 2
-                && RoadGeometryUtils.pointsNear(end, position, NODE_TOLERANCE);
-            if (atPolyStart || atPolyEnd) {
-                continue;
-            }
-            return i;
-        }
-        return -1;
-    }
-
     private static Optional<String> applyStackDesignToJunction(
             RoadNetwork network,
             RoadStackCrossing stackCrossing,
             RoadNode junction,
             Set<String> claimedGradeSepNodeIds,
             List<Vec2d> lowerRefs,
-            List<Vec2d> upperRefs) {
+            List<Vec2d> upperRefs,
+            Map<String, PassRole> lineage) {
         if (stackCrossing.sharedElevation() != null
                 && VerticalProfileGenerationPolicy.isStackCrossingSharedElevationAuthoritative(
                     network, stackCrossing)) {
@@ -292,15 +422,16 @@ public final class RoadStackCrossingMaterializer {
         if (stackCrossing.crossingClearance() != null) {
             junction.setStackCrossingClearance(stackCrossing.crossingClearance());
         }
-        assignStackArmRoles(network, stackCrossing, junction, lowerRefs, upperRefs);
+        Optional<String> armFailure = assignStackArmRoles(
+            network, stackCrossing, junction, lowerRefs, upperRefs, lineage);
+        if (armFailure.isPresent()) {
+            junction.clearStackCrossingMetadata();
+            return armFailure;
+        }
         claimedGradeSepNodeIds.add(junction.getId());
         return Optional.empty();
     }
 
-    /**
-     * Points slightly before/after a pass station on the pre-split road. Used to classify
-     * post-split junction arms without relying on post-branch chainage.
-     */
     private static List<Vec2d> passReferencePoints(RoadNetwork network, String roadId, double station) {
         Road road = network.getRoad(roadId);
         if (road == null) {
@@ -314,37 +445,142 @@ public final class RoadStackCrossingMaterializer {
         return List.copyOf(refs);
     }
 
-    private static void assignStackArmRoles(
+    /**
+     * Prefer split lineage; use reference-point distance only for untagged arms.
+     * Empty refs / tied distances / incomplete 2+2 sets fail closed.
+     */
+    private static Optional<String> assignStackArmRoles(
             RoadNetwork network,
             RoadStackCrossing stackCrossing,
             RoadNode junction,
             List<Vec2d> lowerRefs,
-            List<Vec2d> upperRefs) {
+            List<Vec2d> upperRefs,
+            Map<String, PassRole> lineage) {
         String roadId = stackCrossing.roadId();
         String junctionId = junction.getId();
+        List<String> roadArms = new ArrayList<>();
         for (String edgeId : junction.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null || !roadId.equals(edge.getRoadId())) {
+            if (edge != null && roadId.equals(edge.getRoadId())) {
+                roadArms.add(edgeId);
+            }
+        }
+
+        Set<String> lower = new HashSet<>();
+        Set<String> upper = new HashSet<>();
+        List<String> untagged = new ArrayList<>();
+        for (String edgeId : roadArms) {
+            PassRole role = lineage.get(edgeId);
+            if (role == PassRole.LOWER) {
+                lower.add(edgeId);
+            } else if (role == PassRole.UPPER) {
+                upper.add(edgeId);
+            } else {
+                untagged.add(edgeId);
+            }
+        }
+
+        // After self-loop break both children may share one parent role; reclassify extras with refs.
+        if (lower.size() > 2 || upper.size() > 2 || !untagged.isEmpty()
+                || (lower.size() + upper.size() < roadArms.size())) {
+            for (String edgeId : new ArrayList<>(lower)) {
+                if (lower.size() <= 2) {
+                    break;
+                }
+                // Keep two; move surplus to untagged for ref assist.
+                lower.remove(edgeId);
+                untagged.add(edgeId);
+            }
+            for (String edgeId : new ArrayList<>(upper)) {
+                if (upper.size() <= 2) {
+                    break;
+                }
+                upper.remove(edgeId);
+                untagged.add(edgeId);
+            }
+            for (String edgeId : roadArms) {
+                if (!lower.contains(edgeId) && !upper.contains(edgeId) && !untagged.contains(edgeId)) {
+                    untagged.add(edgeId);
+                }
+            }
+        }
+
+        for (String edgeId : untagged) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
                 continue;
             }
             Optional<Vec2d> sample = armSampleAwayFromJunction(edge, junctionId);
             if (sample.isEmpty()) {
-                continue;
+                return Optional.of("stack arm sample unavailable for edge " + edgeId);
+            }
+            if (lowerRefs.isEmpty() && upperRefs.isEmpty()) {
+                return Optional.of("stack arm reference points unavailable");
             }
             double lowerDist = minDistance(sample.get(), lowerRefs);
             double upperDist = minDistance(sample.get(), upperRefs);
-            if (lowerDist <= upperDist) {
-                junction.addStackLowerEdgeId(edgeId);
+            if (!Double.isFinite(lowerDist) && !Double.isFinite(upperDist)) {
+                return Optional.of("stack arm classification failed: no finite reference distance");
+            }
+            if (Math.abs(lowerDist - upperDist) <= ARM_CLASSIFY_TIE_EPSILON) {
+                return Optional.of("stack arm classification ambiguous for edge " + edgeId);
+            }
+            if (lowerDist < upperDist) {
+                lower.add(edgeId);
             } else {
-                junction.addStackUpperEdgeId(edgeId);
+                upper.add(edgeId);
             }
         }
+
+        // When lineage tagged a whole self-loop as one role, split arms by refs if 2+2 not met.
+        if ((lower.size() != 2 || upper.size() != 2) && roadArms.size() == 4) {
+            lower.clear();
+            upper.clear();
+            if (lowerRefs.isEmpty() || upperRefs.isEmpty()) {
+                return Optional.of("stack arm roles incomplete and reference assist unavailable");
+            }
+            for (String edgeId : roadArms) {
+                RoadEdge edge = network.getEdge(edgeId);
+                Optional<Vec2d> sample = armSampleAwayFromJunction(edge, junctionId);
+                if (sample.isEmpty()) {
+                    return Optional.of("stack arm sample unavailable during reclassify");
+                }
+                double lowerDist = minDistance(sample.get(), lowerRefs);
+                double upperDist = minDistance(sample.get(), upperRefs);
+                if (Math.abs(lowerDist - upperDist) <= ARM_CLASSIFY_TIE_EPSILON
+                        || (!Double.isFinite(lowerDist) && !Double.isFinite(upperDist))) {
+                    return Optional.of("stack arm reclassify ambiguous");
+                }
+                if (lowerDist < upperDist) {
+                    lower.add(edgeId);
+                } else {
+                    upper.add(edgeId);
+                }
+            }
+        }
+
+        Set<String> overlap = new HashSet<>(lower);
+        overlap.retainAll(upper);
+        if (!overlap.isEmpty()) {
+            return Optional.of("stack arm roles overlap");
+        }
+        if (roadArms.size() == 4 && (lower.size() != 2 || upper.size() != 2)) {
+            return Optional.of("stack arm roles incomplete: expected 2 lower + 2 upper, got "
+                + lower.size() + "/" + upper.size());
+        }
+        if (lower.isEmpty() || upper.isEmpty()) {
+            return Optional.of("stack arm roles missing lower or upper set");
+        }
+
+        for (String edgeId : lower) {
+            junction.addStackLowerEdgeId(edgeId);
+        }
+        for (String edgeId : upper) {
+            junction.addStackUpperEdgeId(edgeId);
+        }
+        return Optional.empty();
     }
 
-    /**
-     * Sample a point slightly away from the junction along the arm.
-     * Pass identity must not depend on Edge start/end storage direction.
-     */
     private static Optional<Vec2d> armSampleAwayFromJunction(RoadEdge edge, String junctionId) {
         List<Vec2d> points = edge.getCenterlinePoints();
         if (points.size() < 2) {
@@ -361,7 +597,6 @@ public final class RoadStackCrossingMaterializer {
         if (length <= 1e-9) {
             return Optional.empty();
         }
-        // Stay close enough to remain on this arm, far enough to escape the crossing node.
         double t = Math.min(0.35, Math.max(0.08, 1.0 / length));
         return Optional.of(from.lerp(toward, t));
     }
@@ -487,5 +722,18 @@ public final class RoadStackCrossingMaterializer {
             armA,
             armB,
             detail);
+    }
+
+    private enum PassRole {
+        LOWER,
+        UPPER
+    }
+
+    private record PassMaterializeResult(
+            CrossingMaterializeStatus status,
+            Set<String> junctionEdgeIds) {
+        static PassMaterializeResult failed(CrossingMaterializeStatus status) {
+            return new PassMaterializeResult(status, Set.of());
+        }
     }
 }

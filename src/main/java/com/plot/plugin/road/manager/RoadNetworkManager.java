@@ -1509,10 +1509,12 @@ public final class RoadNetworkManager {
         }
         double loopLength = RoadStationing.canonicalLength(network, road);
         double oldOffset = road.getLoopSeam() != null
-            ? seamChainOffset(network, road, road.getLoopSeam())
+            ? seamCanonicalOffset(network, road, road.getLoopSeam())
             : 0.0;
+        // SeamProjection.chainStation is instance-oriented-chain domain; rotateLoopStations uses canonical.
+        double newOffset = RoadStationing.toCanonicalChainage(network, road, projection.chainStation());
         // newStation = oldStation - (newOffset - oldOffset)  => shift = newOffset - oldOffset
-        pendingLoopSeamShift = projection.chainStation() - oldOffset;
+        pendingLoopSeamShift = newOffset - oldOffset;
         if (pendingLoopSeamShift < -1e-6) {
             pendingLoopSeamShift += loopLength;
         } else if (pendingLoopSeamShift > loopLength + 1e-6) {
@@ -1523,12 +1525,22 @@ public final class RoadNetworkManager {
         return true;
     }
 
-    private static double seamChainOffset(
+    /**
+     * Canonical seam offset for station rotation. Prefers segmentHintId/localFraction via
+     * {@link com.plot.plugin.road.station.RoadLoopSeamService#resolveFromSeam}; falls back to spatial pick.
+     */
+    private static double seamCanonicalOffset(
             RoadNetwork network,
             Road road,
             com.plot.plugin.road.model.RoadLoopSeam seam) {
-        var projection = projectLoopSeam(network, road, seam.position());
-        return projection != null ? projection.chainStation() : 0.0;
+        var resolved = com.plot.plugin.road.station.RoadLoopSeamService.resolveFromSeam(network, road, seam);
+        if (resolved == null) {
+            resolved = projectLoopSeam(network, road, seam.position());
+        }
+        if (resolved == null) {
+            return 0.0;
+        }
+        return RoadStationing.toCanonicalChainage(network, road, resolved.chainStation());
     }
 
     private static com.plot.plugin.road.station.RoadLoopSeamService.SeamProjection projectLoopSeam(

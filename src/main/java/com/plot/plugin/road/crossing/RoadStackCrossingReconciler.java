@@ -172,8 +172,10 @@ public final class RoadStackCrossingReconciler {
             RoadStackCrossing detected,
             RoadStackCrossing existing) {
         if (existing != null) {
+            // Map detected stations onto existing pass slots by nearest station, not sort order.
+            double[] aligned = alignDetectedStationsToExisting(existing, detected);
             RoadStackCrossing refreshed = existing.withRefreshedGeometry(
-                detected.stationA(), detected.stationB(), detected.position());
+                aligned[0], aligned[1], detected.position());
             if (positionChanged(existing.position(), refreshed.position())
                     && refreshed.sharedElevation() != null
                     && !VerticalProfileGenerationPolicy.isStackCrossingSharedElevationAuthoritative(
@@ -193,5 +195,19 @@ public final class RoadStackCrossingReconciler {
             detected.upperStation(),
             detected.crossingClearance(),
             detected.sharedElevation());
+    }
+
+    /** Returns {newStationA, newStationB} aligned to existing pass A/B identity. */
+    private static double[] alignDetectedStationsToExisting(
+            RoadStackCrossing existing,
+            RoadStackCrossing detected) {
+        double direct = Math.abs(existing.stationA() - detected.stationA())
+            + Math.abs(existing.stationB() - detected.stationB());
+        double swapped = Math.abs(existing.stationA() - detected.stationB())
+            + Math.abs(existing.stationB() - detected.stationA());
+        if (swapped < direct) {
+            return new double[] {detected.stationB(), detected.stationA()};
+        }
+        return new double[] {detected.stationA(), detected.stationB()};
     }
 }

@@ -28,12 +28,21 @@ final class RoadStackCrossingMatcher {
             ? List.copyOf(existingStacks)
             : List.of();
         Map<String, RoadStackCrossing> byStableKey = new HashMap<>();
+        Set<String> duplicateStableKeys = new HashSet<>();
         Map<String, List<RoadStackCrossing>> byRoad = new HashMap<>();
         for (RoadStackCrossing stack : existing) {
             if (stack == null) {
                 continue;
             }
-            byStableKey.putIfAbsent(stack.stableKey(), stack);
+            String key = stack.stableKey();
+            if (duplicateStableKeys.contains(key)) {
+                // already known duplicate
+            } else if (byStableKey.containsKey(key)) {
+                byStableKey.remove(key);
+                duplicateStableKeys.add(key);
+            } else {
+                byStableKey.put(key, stack);
+            }
             byRoad.computeIfAbsent(stack.roadId(), ignored -> new ArrayList<>()).add(stack);
         }
 
@@ -46,13 +55,21 @@ final class RoadStackCrossingMatcher {
                 assignments[i] = CrossingMatchAssignment.noMatch(i);
                 continue;
             }
-            RoadStackCrossing exact = byStableKey.get(detectedStack.stableKey());
+            String key = detectedStack.stableKey();
+            if (duplicateStableKeys.contains(key)) {
+                assignments[i] = CrossingMatchAssignment.ambiguous(i);
+                continue;
+            }
+            RoadStackCrossing exact = byStableKey.get(key);
             if (exact != null && !claimedIds.contains(exact.id())) {
                 claimedIds.add(exact.id());
                 assignments[i] = CrossingMatchAssignment.matched(i, exact.id());
             }
         }
 
+        // Stage 2: collect preferred assists first, then resolve uniquely (order-independent).
+        List<Integer> remaining = new ArrayList<>();
+        AssistMatchResult[] preferred = new AssistMatchResult[detected.size()];
         for (int i = 0; i < detected.size(); i++) {
             if (assignments[i] != null) {
                 continue;
@@ -71,24 +88,35 @@ final class RoadStackCrossingMatcher {
             }
 
             AssistMatchResult stationMatch = matchByStationPairDetailed(detectedStack, available);
-            if (stationMatch.outcome() == CrossingMatchOutcome.MATCHED) {
-                claimedIds.add(stationMatch.existingId());
-                assignments[i] = CrossingMatchAssignment.matched(i, stationMatch.existingId());
-                continue;
+            if (stationMatch.outcome() != CrossingMatchOutcome.NO_MATCH) {
+                preferred[i] = stationMatch;
+            } else {
+                preferred[i] = matchByPositionDetailed(detectedStack, available);
             }
-            if (stationMatch.outcome() == CrossingMatchOutcome.AMBIGUOUS) {
-                assignments[i] = CrossingMatchAssignment.ambiguous(i);
-                continue;
-            }
+            remaining.add(i);
+        }
 
-            AssistMatchResult positionMatch = matchByPositionDetailed(detectedStack, available);
-            if (positionMatch.outcome() == CrossingMatchOutcome.MATCHED) {
-                claimedIds.add(positionMatch.existingId());
-                assignments[i] = CrossingMatchAssignment.matched(i, positionMatch.existingId());
-            } else if (positionMatch.outcome() == CrossingMatchOutcome.AMBIGUOUS) {
+        Map<String, Integer> preferCount = new HashMap<>();
+        for (int i : remaining) {
+            AssistMatchResult result = preferred[i];
+            if (result != null
+                    && result.outcome() == CrossingMatchOutcome.MATCHED
+                    && result.existingId() != null) {
+                preferCount.merge(result.existingId(), 1, Integer::sum);
+            }
+        }
+
+        for (int i : remaining) {
+            AssistMatchResult result = preferred[i];
+            if (result == null || result.outcome() == CrossingMatchOutcome.NO_MATCH) {
+                assignments[i] = CrossingMatchAssignment.noMatch(i);
+            } else if (result.outcome() == CrossingMatchOutcome.AMBIGUOUS) {
+                assignments[i] = CrossingMatchAssignment.ambiguous(i);
+            } else if (preferCount.getOrDefault(result.existingId(), 0) > 1) {
                 assignments[i] = CrossingMatchAssignment.ambiguous(i);
             } else {
-                assignments[i] = CrossingMatchAssignment.noMatch(i);
+                claimedIds.add(result.existingId());
+                assignments[i] = CrossingMatchAssignment.matched(i, result.existingId());
             }
         }
 

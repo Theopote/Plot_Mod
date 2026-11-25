@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.plugin.road.crossing.CrossingMaterializationFailure;
 import com.plot.plugin.road.crossing.CrossingMaterializationReport;
+import com.plot.plugin.road.crossing.CrossingReconcileResult;
 import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
@@ -66,6 +67,7 @@ public class RoadNetworkGenerator {
         private final Set<String> protectedOverburdenViolationIds = new LinkedHashSet<>();
         private boolean finalPlacementAcceptanceFailed;
         private final List<CrossingMaterializationFailure> crossingMaterializationFailures = new ArrayList<>();
+        private boolean crossingReconcileIncomplete;
         private final List<AdjacentJunctionProfileContinuity.Violation> adjacentJunctionProfileViolations =
             new ArrayList<>();
         private final List<String> warnings = new ArrayList<>();
@@ -249,6 +251,21 @@ public class RoadNetworkGenerator {
             }
         }
 
+        /**
+         * Registry reconcile could not uniquely match crossings (AMBIGUOUS / INCOMPLETE).
+         * Blocks construction the same way materialization failures do.
+         */
+        void recordCrossingReconcileIncomplete(String detail) {
+            crossingReconcileIncomplete = true;
+            errors.add(detail != null && !detail.isBlank()
+                ? detail
+                : "crossing reconcile incomplete: unresolved identity ambiguity");
+        }
+
+        public boolean hasCrossingReconcileIncomplete() {
+            return crossingReconcileIncomplete;
+        }
+
         void recordMissingJunctionValidation(String nodeId, String reason) {
             if (nodeId == null) {
                 return;
@@ -307,6 +324,7 @@ public class RoadNetworkGenerator {
                 || !skippedEdgeIds.isEmpty()
                 || !skippedJunctionIds.isEmpty()
                 || !crossingMaterializationFailures.isEmpty()
+                || crossingReconcileIncomplete
                 || !missingJunctionValidationIds.isEmpty()
                 || !failClosedJunctionIds.isEmpty()
                 || !protectedOverburdenViolationIds.isEmpty()
@@ -339,6 +357,9 @@ public class RoadNetworkGenerator {
             }
             if (finalPlacementAcceptanceFailed) {
                 details.add("finalPlacementAcceptanceFailed");
+            }
+            if (crossingReconcileIncomplete) {
+                details.add("crossingReconcileIncomplete");
             }
             if (!crossingMaterializationFailures.isEmpty()) {
                 details.add("crossingMaterializationFailures=" + crossingMaterializationFailures.size());
@@ -436,12 +457,28 @@ public class RoadNetworkGenerator {
         }
         // 先拷贝再 reconcile：不得改写 live 路网的 Crossing registry。
         RoadNetwork workingCopy = network.snapshot();
-        reconcileCrossingsForGeneration(workingCopy);
+        NetworkGenerationResult networkResult = new NetworkGenerationResult();
+        IntersectionResult reconcileResult = reconcileCrossingsForGeneration(workingCopy);
+        if (reconcileResult == IntersectionResult.INCOMPLETE) {
+            networkResult.recordCrossingReconcileIncomplete(
+                "crossing reconcile incomplete: unresolved match ambiguity");
+            // Fail-closed: do not materialize an ambiguous registry into buildable topology.
+            List<RoadEdge> edges = RoadEdgeGenerationOrdering.sortForGeneration(
+                workingCopy,
+                new ArrayList<>(workingCopy.getEdges().values()));
+            List<RoadNode> junctionNodes = RoadNetworkPreviewSession.collectJunctionNodes(workingCopy);
+            return new RoadNetworkPreviewSession(
+                network,
+                workingCopy,
+                networkResult,
+                terrain,
+                edges,
+                junctionNodes);
+        }
         // workingCopy 已与 live 隔离，就地物化，避免二次 snapshot。
         SnapshotMaterialization materialization =
             RoadCrossingMaterializer.materializeOwnedWorkingCopyWithReport(workingCopy);
         RoadNetwork generationNetwork = materialization.network();
-        NetworkGenerationResult networkResult = new NetworkGenerationResult();
         networkResult.recordCrossingMaterialization(materialization.report());
         List<RoadEdge> edges = RoadEdgeGenerationOrdering.sortForGeneration(
             generationNetwork,
@@ -925,12 +962,24 @@ public class RoadNetworkGenerator {
         }
     }
 
-    private static void reconcileCrossingsForGeneration(RoadNetwork network) {
+    /**
+     * Reconcile two-road and stack crossings on the generation working copy.
+     * Returns {@link IntersectionResult#INCOMPLETE} when either pass reports ambiguity.
+     */
+    private static IntersectionResult reconcileCrossingsForGeneration(RoadNetwork network) {
         if (network == null) {
-            return;
+            return IntersectionResult.COMPLETE;
         }
-        RoadCrossingReconciler.reconcileCrossings(network);
-        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        CrossingReconcileResult twoRoad = RoadCrossingReconciler.reconcileCrossingsDetailed(network);
+        RoadStackCrossingReconciler.StackCrossingReconcileResult stacks =
+            RoadStackCrossingReconciler.reconcileStackCrossingsDetailed(network);
+        if (twoRoad.result() == IntersectionResult.INCOMPLETE
+                || twoRoad.hasAmbiguity()
+                || stacks.result() == IntersectionResult.INCOMPLETE
+                || stacks.hasAmbiguity()) {
+            return IntersectionResult.INCOMPLETE;
+        }
+        return IntersectionResult.COMPLETE;
     }
 
     private void applyTunnelJunctionConnectivity(RoadNetworkPreviewSession session) {
