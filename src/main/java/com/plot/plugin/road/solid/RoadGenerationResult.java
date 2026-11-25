@@ -256,7 +256,8 @@ public class RoadGenerationResult {
             layer,
             materialPriority,
             clearancePurpose);
-        // TUNNEL 层优先级高于 ROAD：净空空气可盖掉铺装。胜出后必须同步作废期望。
+        // TUNNEL 层优先级高于 ROAD：净空空气可盖掉铺装。
+        // 仅授权净空用途可作废设计期望；边坡/未标注不得掩盖缺铺。
         if (pos != null
                 && layer == RoadSolidLayer.TUNNEL
                 && "minecraft:air".equals(newBlockId)) {
@@ -266,7 +267,9 @@ public class RoadGenerationResult {
             }
             if (won != null && "minecraft:air".equals(won.newBlockId)
                     && placementLayers.get(pos) == RoadSolidLayer.TUNNEL) {
-                revokeSurfaceExpectation(pos);
+                if (ClearancePurpose.authorizesSurfaceExpectationRevoke(clearancePurpose)) {
+                    revokeSurfaceExpectation(pos);
+                }
                 adoptClearanceAsTunnelCavity(pos, clearancePurpose);
             }
         }
@@ -361,8 +364,10 @@ public class RoadGenerationResult {
                 // 用途只描述最终获胜的 AIR；实体方块覆盖后必须清除。
                 syncClearancePurposeAfterMerge(pos, incomingAir, existingPurpose, incomingPurpose);
                 if (replaceWithClearance) {
-                    // 净空空气已取代铺装/衬砌：作废路面期望，洞腔期望与 lining 对齐，避免终态假阳性。
-                    revokeSurfaceExpectation(pos);
+                    // 净空空气已取代铺装/衬砌：仅授权用途可作废路面期望。
+                    if (ClearancePurpose.authorizesSurfaceExpectationRevoke(incomingPurpose)) {
+                        revokeSurfaceExpectation(pos);
+                    }
                     adoptClearanceAsTunnelCavity(pos, incomingPurpose);
                 } else if (replaceWithSurface || replaceWithDeckSupport) {
                     // 铺装/底板胜出：该格不再是隧道衬砌或洞腔设计位。
@@ -375,7 +380,10 @@ public class RoadGenerationResult {
                     placementClearancePurposes.put(pos, incomingPurpose);
                 }
                 if (incomingAir) {
-                    revokeSurfaceExpectation(pos);
+                    // 先占空气也须有设计撤销权，否则边坡空气会抹掉真实缺铺期望。
+                    if (ClearancePurpose.authorizesSurfaceExpectationRevoke(incomingPurpose)) {
+                        revokeSurfaceExpectation(pos);
+                    }
                     adoptClearanceAsTunnelCavity(pos, incomingPurpose);
                 }
             }

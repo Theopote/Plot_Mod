@@ -138,12 +138,19 @@ public class RoadNetworkGenerator {
         }
 
         void recordFinalPlacementAcceptance(FinalPlacementAcceptanceValidator.Report report) {
-            recordFinalPlacementAcceptance(report, null);
+            recordFinalPlacementAcceptance(report, null, null);
         }
 
         void recordFinalPlacementAcceptance(
                 FinalPlacementAcceptanceValidator.Report report,
                 RoadGenerationResult aggregate) {
+            recordFinalPlacementAcceptance(report, aggregate, null);
+        }
+
+        void recordFinalPlacementAcceptance(
+                FinalPlacementAcceptanceValidator.Report report,
+                RoadGenerationResult aggregate,
+                TerrainSampler terrain) {
             if (report == null) {
                 finalPlacementAcceptanceFailed = false;
                 return;
@@ -170,7 +177,8 @@ public class RoadNetworkGenerator {
             if (!samples.isEmpty()) {
                 errors.add("finalPlacementSurfaceSamples: " + String.join(" | ", samples));
             }
-            List<String> cavitySamples = TunnelFinalVoxelValidator.sampleUnclearedCavity(aggregate, null, 6);
+            List<String> cavitySamples = TunnelFinalVoxelValidator.sampleUnclearedCavity(
+                aggregate, terrain, 6);
             if (!cavitySamples.isEmpty()) {
                 errors.add("finalPlacementCavitySamples: " + String.join(" | ", cavitySamples));
             }
@@ -1019,6 +1027,8 @@ public class RoadNetworkGenerator {
             validateOneJunctionPostMerge(
                 node, networkResult, aggregate, index, finalIndex, session.terrain());
         }
+        // 预览 MERGE 已跳过终态验收；此处记录 VALIDATE 真实耗时（隧道专项 + 索引 + 路面汇总）。
+        long acceptanceStarted = System.nanoTime();
         TunnelFinalVoxelValidator.applyReportToResult(
             aggregate, TunnelFinalVoxelValidator.validate(aggregate, session.terrain()));
         // 路面终态汇总；隧道计数保持 TunnelFinalVoxelValidator 权威，不得被简化规则覆盖。
@@ -1027,7 +1037,8 @@ public class RoadNetworkGenerator {
         session.setValidationFinalIndex(finalIndex);
         FinalPlacementAcceptanceValidator.Report acceptance =
             FinalPlacementAcceptanceValidator.applyToAggregate(aggregate, finalIndex);
-        networkResult.recordFinalPlacementAcceptance(acceptance, aggregate);
+        aggregate.assembleAcceptanceNanos = System.nanoTime() - acceptanceStarted;
+        networkResult.recordFinalPlacementAcceptance(acceptance, aggregate, session.terrain());
         networkResult.recordAdjacentJunctionProfileViolations(
             AdjacentJunctionProfileContinuity.find(
                 profileNetwork,

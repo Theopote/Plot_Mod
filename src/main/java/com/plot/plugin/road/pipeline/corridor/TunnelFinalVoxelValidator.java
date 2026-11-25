@@ -67,69 +67,108 @@ public final class TunnelFinalVoxelValidator {
         if (expected == null || expected.isEmpty()) {
             return 0;
         }
-        Set<BlockPos> authorizedLining = result.expectedTunnelLining;
         int count = 0;
         for (BlockPos pos : expected) {
-            BlockRecord record = result.placementRecords.get(pos);
-            if (record != null && "minecraft:air".equals(record.newBlockId)) {
-                continue;
-            }
-            RoadSolidLayer layer = result.placementLayers.get(pos);
-            if (layer == RoadSolidLayer.TUNNEL) {
-                Integer priority = result.placementMaterialPriorities.get(pos);
-                // 合法灯具可占据洞腔格
-                if (priority != null && priority >= RoadSolidMaterialPriority.DECORATIVE
-                        && record != null
-                        && record.newBlockId != null
-                        && !"minecraft:air".equals(record.newBlockId)) {
-                    continue;
-                }
-            }
-            // 仅当该格本身是计划衬砌时，才允许结构衬砌占洞腔（掩膜交叠授权）。
-            if (isLiningSolid(result, pos)
-                    && authorizedLining != null
-                    && authorizedLining.contains(pos)) {
-                continue;
-            }
-            // 广场面层 / 护栏等附属设施占据洞腔掩膜交叠格：设计顶替，不是未清洞腔。
-            if (isAuthorizedCavityOccupant(record, layer)) {
-                continue;
-            }
-            if (terrain != null
-                    && terrain.isChunkLoaded(pos.getX(), pos.getZ())
-                    && isObstruction(terrain, pos.getX(), pos.getY(), pos.getZ())) {
-                count++;
-            } else if (record != null
-                    && record.newBlockId != null
-                    && !"minecraft:air".equals(record.newBlockId)
-                    && layer != RoadSolidLayer.TUNNEL) {
-                count++;
-            } else if (record != null
-                    && record.newBlockId != null
-                    && !"minecraft:air".equals(record.newBlockId)
-                    && layer == RoadSolidLayer.TUNNEL
-                    && (result.placementMaterialPriorities.get(pos) == null
-                        || result.placementMaterialPriorities.get(pos) < RoadSolidMaterialPriority.DECORATIVE)) {
-                // 无地形时：非灯具隧道实体占洞腔（含未授权衬砌侵入）
+            if (isUnclearedCavityCell(result, terrain, pos)) {
                 count++;
             }
         }
         return count;
     }
 
-    private static boolean isAuthorizedCavityOccupant(BlockRecord record, RoadSolidLayer layer) {
-        if (record == null || record.newBlockId == null || "minecraft:air".equals(record.newBlockId)) {
+    /**
+     * 单格洞腔缺陷判定：计数与诊断采样共用，避免口径漂移。
+     */
+    static boolean isUnclearedCavityCell(
+            RoadGenerationResult result,
+            TerrainSampler terrain,
+            BlockPos pos) {
+        if (result == null || pos == null) {
             return false;
         }
-        return layer == RoadSolidLayer.ROAD
-            || layer == RoadSolidLayer.SIDEWALK
-            || layer == RoadSolidLayer.SHOULDER
-            || layer == RoadSolidLayer.BIKE_LANE
-            || layer == RoadSolidLayer.MEDIAN
-            || layer == RoadSolidLayer.MARKING
-            || layer == RoadSolidLayer.BRIDGE
-            || layer == RoadSolidLayer.GUARDRAIL
-            || layer == RoadSolidLayer.STREETLIGHT;
+        BlockRecord record = result.placementRecords.get(pos);
+        if (record != null && "minecraft:air".equals(record.newBlockId)) {
+            return false;
+        }
+        RoadSolidLayer layer = result.placementLayers.get(pos);
+        if (layer == RoadSolidLayer.TUNNEL) {
+            Integer priority = result.placementMaterialPriorities.get(pos);
+            // 合法灯具可占据洞腔格
+            if (priority != null && priority >= RoadSolidMaterialPriority.DECORATIVE
+                    && record != null
+                    && record.newBlockId != null
+                    && !"minecraft:air".equals(record.newBlockId)) {
+                return false;
+            }
+        }
+        Set<BlockPos> authorizedLining = result.expectedTunnelLining;
+        // 仅当该格本身是计划衬砌时，才允许结构衬砌占洞腔（掩膜交叠授权）。
+        if (isLiningSolid(result, pos)
+                && authorizedLining != null
+                && authorizedLining.contains(pos)) {
+            return false;
+        }
+        // 广场面层 / 路侧设施：必须有设计所有权，不得仅凭图层豁免。
+        if (isAuthorizedCavityOccupant(result, pos, record, layer)) {
+            return false;
+        }
+        if (terrain != null
+                && terrain.isChunkLoaded(pos.getX(), pos.getZ())
+                && isObstruction(terrain, pos.getX(), pos.getY(), pos.getZ())) {
+            return true;
+        }
+        if (record != null
+                && record.newBlockId != null
+                && !"minecraft:air".equals(record.newBlockId)
+                && layer != RoadSolidLayer.TUNNEL) {
+            return true;
+        }
+        if (record != null
+                && record.newBlockId != null
+                && !"minecraft:air".equals(record.newBlockId)
+                && layer == RoadSolidLayer.TUNNEL
+                && (result.placementMaterialPriorities.get(pos) == null
+                    || result.placementMaterialPriorities.get(pos) < RoadSolidMaterialPriority.DECORATIVE)) {
+            // 无地形时：非灯具隧道实体占洞腔（含未授权衬砌侵入）
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 设计授权的洞腔占据：广场/结构面层须有期望路面；护栏须叠在期望结构面上；
+     * 路灯须在 streetlightBlocks 或期望路面位。
+     */
+    static boolean isAuthorizedCavityOccupant(
+            RoadGenerationResult result,
+            BlockPos pos,
+            BlockRecord record,
+            RoadSolidLayer layer) {
+        if (result == null || pos == null
+                || record == null || record.newBlockId == null
+                || "minecraft:air".equals(record.newBlockId)
+                || layer == null) {
+            return false;
+        }
+        boolean hasExpectedSurface = result.expectedRoadSurfaces != null
+            && result.expectedRoadSurfaces.containsKey(pos);
+        if (layer == RoadSolidLayer.STREETLIGHT) {
+            return (result.streetlightBlocks != null && result.streetlightBlocks.contains(pos))
+                || hasExpectedSurface;
+        }
+        if (layer == RoadSolidLayer.GUARDRAIL) {
+            return hasExpectedSurface;
+        }
+        if (layer == RoadSolidLayer.ROAD
+                || layer == RoadSolidLayer.SIDEWALK
+                || layer == RoadSolidLayer.SHOULDER
+                || layer == RoadSolidLayer.BIKE_LANE
+                || layer == RoadSolidLayer.MEDIAN
+                || layer == RoadSolidLayer.MARKING
+                || layer == RoadSolidLayer.BRIDGE) {
+            return hasExpectedSurface;
+        }
+        return false;
     }
 
     static int countMissingTunnelLiningExact(RoadGenerationResult result) {
@@ -209,11 +248,12 @@ public final class TunnelFinalVoxelValidator {
     }
 
     /**
-     * DECORATIVE 隧道灯具四周无合法安装面（衬砌 / 护栏 / 结构路面 / 桥面）。
+     * DECORATIVE 隧道灯具无合法安装面。
+     * 普通 lantern / soul_lantern：仅顶部悬挂或底部承托；侧贴不算。
+     * 其它嵌入式发光体：六邻任一合法安装面即可。
      */
     static int countFloatingTunnelLights(RoadGenerationResult result) {
         int count = 0;
-        int[][] dirs = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
         for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
             BlockPos pos = entry.getKey();
             if (result.placementLayers.get(pos) != RoadSolidLayer.TUNNEL) {
@@ -227,19 +267,28 @@ public final class TunnelFinalVoxelValidator {
             if (record == null || record.newBlockId == null || "minecraft:air".equals(record.newBlockId)) {
                 continue;
             }
-            boolean hasMount = false;
-            for (int[] dir : dirs) {
-                BlockPos neighbor = pos.add(dir[0], dir[1], dir[2]);
-                if (isLightMountSolid(result, neighbor)) {
-                    hasMount = true;
-                    break;
-                }
-            }
-            if (!hasMount) {
+            if (!hasValidLightMount(result, pos, record.newBlockId)) {
                 count++;
             }
         }
         return count;
+    }
+
+    static boolean hasValidLightMount(RoadGenerationResult result, BlockPos pos, String blockId) {
+        if (isLanternBlock(blockId)) {
+            return isLightMountSolid(result, pos.up()) || isLightMountSolid(result, pos.down());
+        }
+        int[][] dirs = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+        for (int[] dir : dirs) {
+            if (isLightMountSolid(result, pos.add(dir[0], dir[1], dir[2]))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isLanternBlock(String blockId) {
+        return "minecraft:lantern".equals(blockId) || "minecraft:soul_lantern".equals(blockId);
     }
 
     /** 灯具可挂接：隧道衬砌，或护栏/桥面/路面等结构实体。 */
@@ -293,51 +342,24 @@ public final class TunnelFinalVoxelValidator {
             || terrain.isFluidBlock(x, y, z);
     }
 
-    /** 诊断：未清洞腔样本（日志用）。 */
+    /** 诊断：未清洞腔样本（日志用）。与 {@link #countUnclearedTunnelCavity} 共用单格判定。 */
     public static List<String> sampleUnclearedCavity(RoadGenerationResult result, TerrainSampler terrain, int limit) {
         List<String> samples = new ArrayList<>();
         if (result == null || result.expectedTunnelCavity == null || limit <= 0) {
             return samples;
         }
-        Set<BlockPos> authorizedLining = result.expectedTunnelLining;
         for (BlockPos pos : result.expectedTunnelCavity) {
             if (samples.size() >= limit) {
                 break;
             }
-            if (pos == null) {
+            if (pos == null || !isUnclearedCavityCell(result, terrain, pos)) {
                 continue;
             }
             BlockRecord record = result.placementRecords.get(pos);
-            if (record != null && "minecraft:air".equals(record.newBlockId)) {
-                continue;
-            }
             RoadSolidLayer layer = result.placementLayers.get(pos);
-            if (layer == RoadSolidLayer.TUNNEL) {
-                Integer priority = result.placementMaterialPriorities.get(pos);
-                if (priority != null && priority >= RoadSolidMaterialPriority.DECORATIVE
-                        && record != null
-                        && record.newBlockId != null
-                        && !"minecraft:air".equals(record.newBlockId)) {
-                    continue;
-                }
-            }
-            if (isLiningSolid(result, pos)
-                    && authorizedLining != null
-                    && authorizedLining.contains(pos)) {
-                continue;
-            }
-            if (isAuthorizedCavityOccupant(record, layer)) {
-                continue;
-            }
             boolean terrainHit = terrain != null
                 && terrain.isChunkLoaded(pos.getX(), pos.getZ())
                 && isObstruction(terrain, pos.getX(), pos.getY(), pos.getZ());
-            boolean solidHit = record != null
-                && record.newBlockId != null
-                && !"minecraft:air".equals(record.newBlockId);
-            if (!terrainHit && !solidHit) {
-                continue;
-            }
             samples.add("cavity@" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
                 + " layer=" + layer
                 + " block=" + (record != null ? record.newBlockId : "null")

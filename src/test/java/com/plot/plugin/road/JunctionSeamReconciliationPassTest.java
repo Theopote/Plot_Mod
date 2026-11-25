@@ -584,6 +584,52 @@ class JunctionSeamReconciliationPassTest {
         assertFalse(FinalPlacementAcceptanceValidator.hasBlockingIssues(aggregate));
     }
 
+    @Test
+    void singleJunctionElevatedDeckKeepsUpperExpectationWithSolid() {
+        // 单路口声明列不会写入 multilayer preservedYs；须靠 elevatedDeckY 同时保护实体与期望。
+        OverlapFixture fixture = overlapFixture(64, 66);
+        ColumnKey column = fixture.filletColumn();
+        BlockPos lowY = new BlockPos(column.worldX(), 64, column.worldZ());
+        BlockPos deckY = new BlockPos(column.worldX(), 80, column.worldZ());
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        plant(aggregate, lowY, "minecraft:stone", RoadSolidLayer.ROAD);
+        plant(aggregate, deckY, "minecraft:smooth_stone", RoadSolidLayer.ROAD);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            lowY, "minecraft:stone", RoadSolidLayer.ROAD, "lower"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            deckY, "minecraft:smooth_stone", RoadSolidLayer.ROAD, "deck"));
+
+        JunctionSeamReconciliationPass.apply(aggregate, Map.of("a", fixture.lowBlocks()));
+
+        assertEquals("minecraft:smooth_stone", aggregate.placementRecords.get(deckY).newBlockId);
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(deckY),
+            "elevated deck expectation must survive lower-junction seam revoke");
+    }
+
+    @Test
+    void elevatedDeckMissingUpperStillKeepsExpectationAndBlocksFinalAcceptance() {
+        OverlapFixture fixture = overlapFixture(64, 66);
+        ColumnKey column = fixture.filletColumn();
+        BlockPos lowY = new BlockPos(column.worldX(), 64, column.worldZ());
+        BlockPos deckY = new BlockPos(column.worldX(), 80, column.worldZ());
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        plant(aggregate, lowY, "minecraft:stone", RoadSolidLayer.ROAD);
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            lowY, "minecraft:stone", RoadSolidLayer.ROAD, "lower"));
+        aggregate.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            deckY, "minecraft:smooth_stone", RoadSolidLayer.ROAD, "deck"));
+
+        JunctionSeamReconciliationPass.apply(aggregate, Map.of("a", fixture.lowBlocks()));
+        // 不跑封口：封口会按残留期望回铺；本用例验证接缝未 scrub 上层期望。
+        FinalPlacementAcceptanceValidator.Report report =
+            FinalPlacementAcceptanceValidator.applyToAggregate(aggregate);
+
+        assertTrue(aggregate.expectedRoadSurfaces.containsKey(deckY),
+            "missing upper deck must not be scrubbed by lower seam");
+        assertTrue(report.hasBlockingIssues(),
+            "upper missing with lower complete must still block build");
+    }
+
     private static void runSeamSealFinal(
             RoadGenerationResult aggregate,
             Map<String, JunctionBlocks> junctions,

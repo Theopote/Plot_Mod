@@ -158,7 +158,7 @@ class TunnelFinalVoxelValidatorTest {
     }
 
     @Test
-    void guardrailInsideExpectedCavityIsNotUncleared() {
+    void bareGuardrailInsideExpectedCavityCountsAsUncleared() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos cavity = new BlockPos(23, 66, 0);
         result.recordExpectedTunnelCavity(cavity);
@@ -166,8 +166,47 @@ class TunnelFinalVoxelValidatorTest {
         result.placementLayers.put(cavity, RoadSolidLayer.GUARDRAIL);
 
         TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
-        assertEquals(0, report.unclearedTunnelCavityCount(),
-            "guardrail occupying cavity mask overlap must not block");
+        assertEquals(1, report.unclearedTunnelCavityCount(),
+            "guardrail without design surface ownership must not auto-exempt cavity");
+    }
+
+    @Test
+    void guardrailOnExpectedEdgeSurfaceInsideCavityIsNotUncleared() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(24, 66, 0);
+        result.recordExpectedTunnelCavity(cavity);
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            cavity, "minecraft:oak_planks", RoadSolidLayer.SIDEWALK, "edge"));
+        result.recordPlacementOverride(cavity, "minecraft:air", "minecraft:cobblestone_wall");
+        result.placementLayers.put(cavity, RoadSolidLayer.GUARDRAIL);
+
+        assertEquals(0, TunnelFinalVoxelValidator.validate(result, null).unclearedTunnelCavityCount(),
+            "guardrail overlay on designed edge surface is authorized");
+    }
+
+    @Test
+    void plazaRoadWithExpectedSurfaceInsideCavityIsNotUncleared() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(25, 66, 0);
+        result.recordExpectedTunnelCavity(cavity);
+        result.recordExpectedRoadSurface(new ExpectedRoadSurface(
+            cavity, "minecraft:stone", RoadSolidLayer.ROAD, "plaza"));
+        result.recordPlacementOverride(cavity, "minecraft:air", "minecraft:stone");
+        result.placementLayers.put(cavity, RoadSolidLayer.ROAD);
+
+        assertEquals(0, TunnelFinalVoxelValidator.validate(result, null).unclearedTunnelCavityCount());
+    }
+
+    @Test
+    void plazaRoadWithoutExpectedSurfaceInsideCavityCountsAsUncleared() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos cavity = new BlockPos(26, 66, 0);
+        result.recordExpectedTunnelCavity(cavity);
+        result.recordPlacementOverride(cavity, "minecraft:air", "minecraft:stone");
+        result.placementLayers.put(cavity, RoadSolidLayer.ROAD);
+
+        assertEquals(1, TunnelFinalVoxelValidator.validate(result, null).unclearedTunnelCavityCount(),
+            "ROAD layer alone must not exempt cavity without design expectation");
     }
 
     @Test
@@ -244,7 +283,7 @@ class TunnelFinalVoxelValidatorTest {
     }
 
     @Test
-    void lightWithAdjacentLiningIsNotFloating() {
+    void lanternWithOnlySideLiningIsFloating() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos light = new BlockPos(13, 70, 0);
         BlockPos lining = light.west();
@@ -256,11 +295,42 @@ class TunnelFinalVoxelValidatorTest {
             RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
 
         TunnelFinalVoxelValidator.Report report = TunnelFinalVoxelValidator.validate(result, null);
-        assertEquals(0, report.floatingTunnelLightCount());
+        assertEquals(1, report.floatingTunnelLightCount(),
+            "ordinary lantern cannot mount on a side-only neighbor");
     }
 
     @Test
-    void lightMountedOnGuardrailIsNotFloating() {
+    void lanternHangingFromLiningAboveIsNotFloating() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos light = new BlockPos(13, 70, 1);
+        BlockPos lining = light.up();
+        result.recordPlacementByLayerPriority(
+            lining, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        result.recordPlacementByLayerPriority(
+            light, "minecraft:air", "minecraft:lantern",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
+
+        assertEquals(0, TunnelFinalVoxelValidator.validate(result, null).floatingTunnelLightCount());
+    }
+
+    @Test
+    void lanternSittingOnLiningBelowIsNotFloating() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos light = new BlockPos(13, 70, 2);
+        BlockPos lining = light.down();
+        result.recordPlacementByLayerPriority(
+            lining, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        result.recordPlacementByLayerPriority(
+            light, "minecraft:air", "minecraft:lantern",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
+
+        assertEquals(0, TunnelFinalVoxelValidator.validate(result, null).floatingTunnelLightCount());
+    }
+
+    @Test
+    void lanternSideMountedOnGuardrailIsFloating() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos light = new BlockPos(14, 70, 0);
         BlockPos rail = light.west();
@@ -270,7 +340,23 @@ class TunnelFinalVoxelValidatorTest {
             light, "minecraft:air", "minecraft:lantern",
             RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
 
+        assertEquals(1, TunnelFinalVoxelValidator.validate(result, null).floatingTunnelLightCount(),
+            "side-only guardrail is not a valid ordinary lantern mount");
+    }
+
+    @Test
+    void embeddedGlowstoneWithSideLiningIsNotFloating() {
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        BlockPos light = new BlockPos(15, 70, 0);
+        BlockPos lining = light.west();
+        result.recordPlacementByLayerPriority(
+            lining, "minecraft:stone", "minecraft:cobblestone",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.STRUCTURAL);
+        result.recordPlacementByLayerPriority(
+            light, "minecraft:air", "minecraft:glowstone",
+            RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
+
         assertEquals(0, TunnelFinalVoxelValidator.validate(result, null).floatingTunnelLightCount(),
-            "guardrail is a valid lantern mount");
+            "embedded glow materials may use side lining contact");
     }
 }

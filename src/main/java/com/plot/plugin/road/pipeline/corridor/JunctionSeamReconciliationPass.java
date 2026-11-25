@@ -290,9 +290,9 @@ public final class JunctionSeamReconciliationPass {
             }
         }
 
-        // 设计 Y 已裁定后，作废同列非保留高度的期望，防止封口按旧期望回铺双层。
+        // 设计 Y 已裁定后，作废同列非保留高度的期望；保护条件与实体剥离一致。
         revokeConflictingSurfaceExpectations(
-            aggregate, column, targetY, preservedYs, expectedByColumn);
+            aggregate, column, targetY, preservedYs, elevatedDeckY, protectedBlocks, expectedByColumn);
     }
 
     public static void revokeConflictingSurfaceExpectations(
@@ -301,7 +301,8 @@ public final class JunctionSeamReconciliationPass {
             int targetY,
             Set<Integer> preservedYs) {
         revokeConflictingSurfaceExpectations(
-            aggregate, column, targetY, preservedYs, indexExpectedSurfacesByColumn(aggregate));
+            aggregate, column, targetY, preservedYs, null, Set.of(),
+            indexExpectedSurfacesByColumn(aggregate));
     }
 
     public static void revokeConflictingSurfaceExpectations(
@@ -309,6 +310,21 @@ public final class JunctionSeamReconciliationPass {
             ColumnKey column,
             int targetY,
             Set<Integer> preservedYs,
+            Map<ColumnKey, List<BlockPos>> expectedByColumn) {
+        revokeConflictingSurfaceExpectations(
+            aggregate, column, targetY, preservedYs, null, Set.of(), expectedByColumn);
+    }
+
+    /**
+     * 与实体接缝剥离同一套保护：targetY / preservedYs / elevatedDeckY / protectedBlocks。
+     */
+    public static void revokeConflictingSurfaceExpectations(
+            RoadGenerationResult aggregate,
+            ColumnKey column,
+            int targetY,
+            Set<Integer> preservedYs,
+            Integer elevatedDeckY,
+            Set<BlockPos> protectedBlocks,
             Map<ColumnKey, List<BlockPos>> expectedByColumn) {
         if (aggregate == null || aggregate.expectedRoadSurfaces == null || column == null) {
             return;
@@ -319,6 +335,7 @@ public final class JunctionSeamReconciliationPass {
         if (columnExpectations == null || columnExpectations.isEmpty()) {
             return;
         }
+        Set<BlockPos> protectedSet = protectedBlocks != null ? protectedBlocks : Set.of();
         List<BlockPos> stale = new ArrayList<>();
         for (BlockPos pos : columnExpectations) {
             if (pos == null || pos.getY() == targetY) {
@@ -327,15 +344,22 @@ public final class JunctionSeamReconciliationPass {
             if (preservedYs != null && preservedYs.contains(pos.getY())) {
                 continue;
             }
+            // 与 reconcileColumn 实体保护对齐：上层桥面/底板不得因下层接缝撤销期望。
+            if (elevatedDeckY != null && pos.getY() >= elevatedDeckY - 1) {
+                continue;
+            }
+            if (protectedSet.contains(pos) || protectedSet.contains(pos.toImmutable())) {
+                continue;
+            }
             stale.add(pos);
         }
         if (stale.isEmpty()) {
             return;
         }
         for (BlockPos pos : stale) {
-            aggregate.revokeSurfaceExpectation(pos);
-            columnExpectations.remove(pos);
-            columnExpectations.remove(pos.toImmutable());
+            BlockPos key = pos.toImmutable();
+            aggregate.revokeSurfaceExpectation(key);
+            columnExpectations.remove(key);
         }
         if (columnExpectations.isEmpty()) {
             expectedByColumn.remove(column);

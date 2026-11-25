@@ -292,7 +292,7 @@ class FinalPlacementAcceptanceValidatorTest {
     void authorizedLanternInCavityDoesNotBlockAfterTunnelThenFinalChain() {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         BlockPos cavity = new BlockPos(40, 66, 0);
-        BlockPos lining = cavity.west();
+        BlockPos lining = cavity.up(); // ordinary lantern needs hang/sit mount, not side contact
         aggregate.recordExpectedTunnelCavity(cavity);
         aggregate.recordPlacementByLayerPriority(
             lining, "minecraft:stone", "minecraft:stone_bricks",
