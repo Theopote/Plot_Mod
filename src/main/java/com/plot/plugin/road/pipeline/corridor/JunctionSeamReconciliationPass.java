@@ -482,7 +482,7 @@ public final class JunctionSeamReconciliationPass {
         String previous = existing != null ? existing.previousBlockId : "minecraft:stone";
         aggregate.recordPlacementOverride(pos, previous, "minecraft:air");
         aggregate.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
-        aggregate.placementMaterialPriorities.put(pos, Integer.valueOf(RoadSolidMaterialPriority.CLEARANCE));
+        aggregate.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
         // 同步作废设计期望，避免 UnderpassPavementSealPass 把已清层再铺回来。
         aggregate.revokeSurfaceExpectation(pos);
         // 接缝清场空气即授权洞腔，清除残留 lining 期望。

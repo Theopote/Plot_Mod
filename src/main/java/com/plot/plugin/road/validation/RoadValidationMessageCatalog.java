@@ -1,11 +1,9 @@
 package com.plot.plugin.road.validation;
 
 import com.plot.plugin.road.RoadNetworkValidationReport;
-import com.plot.plugin.road.alignment.HorizontalAlignmentViolationKind;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.RoadCenterlineViolationKind;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
-import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,24 +55,6 @@ public final class RoadValidationMessageCatalog {
                 "road_order_mismatch_single",
                 RoadValidationAction.SYNC_SEGMENT_ORDER);
         };
-    }
-
-    public static RoadValidationMessage fromVerticalKind(VerticalAlignmentViolationKind kind) {
-        return switch (kind) {
-            case PVI_STATION_DUPLICATE, PVI_STATION_NOT_INCREASING, VERTICAL_CURVE_OVERLAP,
-                 VERTICAL_CURVE_OUT_OF_RANGE ->
-                RoadValidationMessage.of(
-                    RoadNetworkValidationReport.Level.WARNING, "vertical_profile_conflict");
-        };
-    }
-
-    public static RoadValidationMessage fromHorizontalKind(HorizontalAlignmentViolationKind kind) {
-        if (kind == HorizontalAlignmentViolationKind.ALIGNMENT_TOPOLOGY_MISMATCH) {
-            return RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING,
-                "alignment_topology_mismatch_single");
-        }
-        return null;
     }
 
     public static RoadValidationMessage fromCenterlineKind(RoadCenterlineViolationKind kind) {

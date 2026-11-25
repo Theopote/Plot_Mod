@@ -272,50 +272,6 @@ public final class RoadStationing {
             .orElse(true);
     }
 
-    public static Optional<String> segmentChainEntryNodeId(RoadNetwork network, Road road, String segmentId) {
-        return orientedSegment(network, road, segmentId).map(OrientedRoadSegment::entryNodeId);
-    }
-
-    public static Optional<String> segmentChainExitNodeId(RoadNetwork network, Road road, String segmentId) {
-        return orientedSegment(network, road, segmentId).map(OrientedRoadSegment::exitNodeId);
-    }
-
-    public static double chainLocalFromGeometryLocal(
-            RoadNetwork network,
-            Road road,
-            RoadEdge edge,
-            double geometryLocalDistance) {
-        return orientedSegment(network, road, edge.getId())
-            .map(segment -> segment.chainLocalFromGeometryLocal(geometryLocalDistance))
-            .orElse(Math.max(0.0, geometryLocalDistance));
-    }
-
-    public static double geometryLocalFromChainLocal(
-            RoadNetwork network,
-            Road road,
-            RoadEdge edge,
-            double chainLocalDistance) {
-        return orientedSegment(network, road, edge.getId())
-            .map(segment -> segment.geometryLocalFromChainLocal(chainLocalDistance))
-            .orElse(Math.max(0.0, chainLocalDistance));
-    }
-
-    public static OptionalDouble nodeChainLocalDistance(
-            RoadNetwork network,
-            Road road,
-            RoadEdge edge,
-            String nodeId) {
-        Optional<OrientedRoadSegment> oriented = orientedSegment(network, road, edge.getId());
-        if (oriented.isEmpty() || nodeId == null || nodeId.isBlank()) {
-            return OptionalDouble.empty();
-        }
-        OptionalDouble station = oriented.get().roadStationAtNode(nodeId);
-        if (station.isEmpty()) {
-            return OptionalDouble.empty();
-        }
-        return OptionalDouble.of(station.getAsDouble() - oriented.get().startStation());
-    }
-
     public static OptionalDouble stationAtNode(
             RoadNetwork network,
             Road road,
@@ -365,17 +321,6 @@ public final class RoadStationing {
         return orientedSegment(network, road, segmentId)
             .map(segment -> toCanonicalChainage(network, road, segment.startStation()))
             .orElse(-1.0);
-    }
-
-    /**
-     * 边内几何局部距离 → 道路桩号。
-     */
-    public static Optional<RoadStation> roadStationAtEdgeLocalDistance(
-            RoadNetwork network,
-            Road road,
-            String segmentId,
-            double geometryLocalDistance) {
-        return stationAt(network, road, segmentId, geometryLocalDistance);
     }
 
     /**
@@ -593,18 +538,6 @@ public final class RoadStationing {
             return "-";
         }
         return format(station.chainageMeters(), format);
-    }
-
-    public static String formatRange(double startMeters, double endMeters, RoadStationFormat format) {
-        return format(startMeters, format) + " – " + format(endMeters, format);
-    }
-
-    public static List<Double> segmentStartStations(RoadNetwork network, Road road) {
-        List<Double> stations = new ArrayList<>();
-        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
-            stations.add(toCanonicalChainage(network, road, segment.startStation()));
-        }
-        return stations;
     }
 
     /**

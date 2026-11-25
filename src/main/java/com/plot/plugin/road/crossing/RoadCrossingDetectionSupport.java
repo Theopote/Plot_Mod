@@ -64,10 +64,6 @@ final class RoadCrossingDetectionSupport {
             return geometryByRoadId.computeIfAbsent(road.getId(), id -> buildGeometry(road));
         }
 
-        List<Vec2d> planCenterline(Road road) {
-            return geometryFor(road).points();
-        }
-
         List<PlanCenterlineSample> samplesFor(Road road) {
             return samplesByRoadId.computeIfAbsent(
                 road.getId(), id -> RoadPlanGeometry.resolveRoadCenterlineSamples(network, road));

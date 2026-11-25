@@ -122,16 +122,6 @@ public final class RoadTopologyInvariantValidator {
         return true;
     }
 
-    public static String hintMessageKey(RoadTopologyViolationKind kind) {
-        return switch (kind) {
-            case ROAD_DISCONNECTED -> "plugin.road.topology_hint.disconnected";
-            case ROAD_BRANCHING -> "plugin.road.topology_hint.branching";
-            case ROAD_CYCLE -> "plugin.road.topology_hint.cycle";
-            case ROAD_LOOP_OPEN -> "plugin.road.topology_hint.loop_open";
-            case ROAD_ORDER_MISMATCH -> "plugin.road.topology_hint.order_mismatch";
-        };
-    }
-
     public static Map<RoadTopologyViolationKind, Integer> countByKind(RoadNetwork network) {
         EnumMap<RoadTopologyViolationKind, Integer> counts = new EnumMap<>(RoadTopologyViolationKind.class);
         for (RoadTopologyViolationKind kind : RoadTopologyViolationKind.values()) {

@@ -1,7 +1,6 @@
 package com.plot.plugin.road.crossing;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.graph.RoadGraphEdits;
@@ -50,13 +49,6 @@ public final class RoadStackCrossingMaterializer {
             }
         }
         return new CrossingMaterializationReport(attempted, succeeded, failures);
-    }
-
-    public static IntersectionResult materializeInPlace(RoadNetwork network) {
-        if (network == null || network.getStackCrossings().isEmpty()) {
-            return IntersectionResult.COMPLETE;
-        }
-        return materializeAll(network, network.getStackCrossings().values()).toIntersectionResult();
     }
 
     private static Optional<CrossingMaterializationFailure> materializeStackCrossing(
@@ -120,14 +112,11 @@ public final class RoadStackCrossingMaterializer {
 
         Optional<String> designFailure = applyStackDesignToJunction(
             network, stackCrossing, junction, claimedGradeSepNodeIds, lowerRefs, upperRefs);
-        if (designFailure.isPresent()) {
-            return Optional.of(failure(
+        return designFailure.map(s -> failure(
                 stackCrossing,
                 CrossingMaterializeStatus.SPLIT_FAILED,
                 CrossingMaterializeStatus.SPLIT_FAILED,
-                designFailure.get()));
-        }
-        return Optional.empty();
+                s));
     }
 
     private static CrossingMaterializeStatus preflightStation(
@@ -221,11 +210,13 @@ public final class RoadStackCrossingMaterializer {
                 continue;
             }
             RoadNode breakNode = findOrCreateNode(network, breakVertex.get(), null, null);
-            RoadGraphEdits.of(network).splitEdgeAtNode(
-                edge.getId(),
-                breakNode.getId(),
-                breakVertex.get(),
-                NODE_TOLERANCE);
+            if (breakNode != null) {
+                RoadGraphEdits.of(network).splitEdgeAtNode(
+                    edge.getId(),
+                    breakNode.getId(),
+                    breakVertex.get(),
+                    NODE_TOLERANCE);
+            }
         }
     }
 

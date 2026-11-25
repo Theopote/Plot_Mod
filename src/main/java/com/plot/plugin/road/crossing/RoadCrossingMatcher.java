@@ -1,8 +1,5 @@
 package com.plot.plugin.road.crossing;
 
-import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.road.RoadGeometryUtils;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -174,10 +171,6 @@ public final class RoadCrossingMatcher {
             return PositionMatchResult.ambiguous();
         }
         return PositionMatchResult.matched(best.id());
-    }
-
-    public static boolean positionsEquivalent(Vec2d a, Vec2d b) {
-        return a != null && b != null && RoadGeometryUtils.pointsNear(a, b, MATCH_POSITION_TOLERANCE);
     }
 
     private record PositionMatchResult(CrossingMatchOutcome outcome, String existingId) {

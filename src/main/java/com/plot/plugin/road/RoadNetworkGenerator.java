@@ -143,12 +143,6 @@ public class RoadNetworkGenerator {
 
         void recordFinalPlacementAcceptance(
                 FinalPlacementAcceptanceValidator.Report report,
-                RoadGenerationResult aggregate) {
-            recordFinalPlacementAcceptance(report, aggregate, null);
-        }
-
-        void recordFinalPlacementAcceptance(
-                FinalPlacementAcceptanceValidator.Report report,
                 RoadGenerationResult aggregate,
                 TerrainSampler terrain) {
             if (report == null) {
