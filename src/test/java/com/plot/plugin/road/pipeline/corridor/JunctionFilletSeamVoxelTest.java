@@ -63,8 +63,13 @@ class JunctionFilletSeamVoxelTest {
             List.of(a0.getPosition(), a1.getPosition()), primary.getId());
         live.createEdge(b0.getId(), b1.getId(),
             List.of(b0.getPosition(), b1.getPosition()), secondary.getId());
+        Vec2d crossingPos = new Vec2d(0, 0);
+        double stationA = com.plot.plugin.road.station.RoadStationing
+            .chainageAtPosition(live, primary, crossingPos).orElseThrow();
+        double stationB = com.plot.plugin.road.station.RoadStationing
+            .chainageAtPosition(live, secondary, crossingPos).orElseThrow();
         live.registerCrossing(RoadCrossing.atGrade(
-            primary.getId(), 50, secondary.getId(), 50, new Vec2d(0, 0)).withCornerRadius(4.0));
+            primary.getId(), stationA, secondary.getId(), stationB, crossingPos).withCornerRadius(4.0));
 
         RoadNetwork network = RoadCrossingMaterializer.materializeForSnapshot(live);
         RoadNode junction = network.getNodes().values().stream()

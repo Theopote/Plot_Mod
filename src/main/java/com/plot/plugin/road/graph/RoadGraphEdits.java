@@ -238,10 +238,12 @@ public final class RoadGraphEdits {
         if (parts.size() != 2) {
             return Optional.empty();
         }
-        double endpointTol = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
+        // Parts end on the centerline projection; snap to the validated nearby node (pickTol).
+        // Do not use the 1mm invariant tolerance here — station/registry picks can sit slightly
+        // off the geometric mid-point (skew crossings) while still within node pickTol.
         Vec2d nodePos = splitNode.getPosition().copy();
-        if (!snapPartEndpointWithinTolerance(parts.get(0), false, nodePos, endpointTol)
-                || !snapPartEndpointWithinTolerance(parts.get(1), true, nodePos, endpointTol)) {
+        if (!snapPartEndpointWithinTolerance(parts.get(0), false, nodePos, pickTol)
+                || !snapPartEndpointWithinTolerance(parts.get(1), true, nodePos, pickTol)) {
             return Optional.empty();
         }
         return finalizeSplit(edge, nodeId, parts.get(0), parts.get(1));
@@ -283,10 +285,9 @@ public final class RoadGraphEdits {
         if (parts.size() != 2) {
             return Optional.empty();
         }
-        double endpointTol = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
         Vec2d nodePos = splitNode.getPosition().copy();
-        if (!snapPartEndpointWithinTolerance(parts.get(0), false, nodePos, endpointTol)
-                || !snapPartEndpointWithinTolerance(parts.get(1), true, nodePos, endpointTol)) {
+        if (!snapPartEndpointWithinTolerance(parts.get(0), false, nodePos, pickTol)
+                || !snapPartEndpointWithinTolerance(parts.get(1), true, nodePos, pickTol)) {
             return Optional.empty();
         }
         return finalizeSplit(edge, nodeId, parts.get(0), parts.get(1));
@@ -307,15 +308,15 @@ public final class RoadGraphEdits {
         if (splitNode == null) {
             return Optional.empty();
         }
-        // Ensure child endpoints coincide with the topology node (final consistency).
-        double endpointTol = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
+        // Caller already snapped within pickTol; re-assert endpoints match the topology node.
         Vec2d nodePos = splitNode.getPosition().copy();
-        if (!snapPartEndpointWithinTolerance(firstPart, false, nodePos, endpointTol)
-                || !snapPartEndpointWithinTolerance(secondPart, true, nodePos, endpointTol)) {
+        if (!snapPartEndpointWithinTolerance(firstPart, false, nodePos, DEFAULT_NODE_TOLERANCE)
+                || !snapPartEndpointWithinTolerance(secondPart, true, nodePos, DEFAULT_NODE_TOLERANCE)) {
             return Optional.empty();
         }
-        if (RoadGeometryUtils.calculatePathLength(firstPart) < endpointTol
-            || RoadGeometryUtils.calculatePathLength(secondPart) < endpointTol) {
+        double minPartLength = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
+        if (RoadGeometryUtils.calculatePathLength(firstPart) < minPartLength
+            || RoadGeometryUtils.calculatePathLength(secondPart) < minPartLength) {
             return Optional.empty();
         }
 
