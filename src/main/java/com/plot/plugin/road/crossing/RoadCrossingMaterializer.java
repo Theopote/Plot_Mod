@@ -379,46 +379,50 @@ public final class RoadCrossingMaterializer {
         if (edge == null) {
             return CrossingMaterializeStatus.EDGE_NOT_FOUND;
         }
-        if (isResolvedEdgeAlreadyConnected(network, junction, edge, position)) {
-            return CrossingMaterializeStatus.ALREADY_CONNECTED;
-        }
-        if (isNearEdgeEndpoint(edge, position)) {
-            return connectEdgeEndpointToNode(network, edge, position, junction);
-        }
         List<Vec2d> points = edge.getCenterlinePoints();
         double localDistance = resolved.get().localDistance();
         Vec2d splitPoint = RoadGeometryUtils.pointAtDistance(points, localDistance);
         if (splitPoint == null) {
             return CrossingMaterializeStatus.SPLIT_FAILED;
         }
+        // Station→coordinate consistency before ALREADY_CONNECTED / endpoint / interior paths.
         if (splitPoint.distance(position) > NODE_TOLERANCE) {
             return CrossingMaterializeStatus.SPLIT_FAILED;
         }
-        int segmentIndex = segmentIndexAtLocalDistance(points, localDistance);
-        Optional<RoadGraphEdits.SplitResult> split;
-        if (segmentIndex >= 0) {
-            split = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
-                edgeId, junction.getId(), segmentIndex, splitPoint, NODE_TOLERANCE);
-        } else {
-            split = RoadGraphEdits.of(network).splitEdgeAtNode(
-                edgeId, junction.getId(), splitPoint, NODE_TOLERANCE);
-        }
-        if (split.isPresent()) {
-            return CrossingMaterializeStatus.SUCCESS;
-        }
-        if (isResolvedEdgeAlreadyConnected(network, junction, edge, position)) {
+        if (isStationAtConnectedJunctionEndpoint(network, junction, edge, points, localDistance, position)) {
             return CrossingMaterializeStatus.ALREADY_CONNECTED;
+        }
+        // Endpoint vs interior from local arc — not spatial isNearEdgeEndpoint alone.
+        int segmentIndex = segmentIndexAtLocalDistance(points, localDistance);
+        if (segmentIndex >= 0) {
+            Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
+                edgeId, junction.getId(), segmentIndex, splitPoint, NODE_TOLERANCE);
+            if (split.isPresent()) {
+                return CrossingMaterializeStatus.SUCCESS;
+            }
+            return CrossingMaterializeStatus.SPLIT_FAILED;
+        }
+        if (isLocalDistanceAtPolylineEnd(points, localDistance)) {
+            return connectEdgeEndpointToNode(network, edge, splitPoint, junction);
         }
         return CrossingMaterializeStatus.SPLIT_FAILED;
     }
 
-    /** Resolved edge is already junction-incident and the junction endpoint is near the crossing. */
-    private static boolean isResolvedEdgeAlreadyConnected(
+    /**
+     * ALREADY_CONNECTED only when the resolved local station is the junction endpoint of this edge
+     * (not merely that the edge touches the junction somewhere else).
+     */
+    private static boolean isStationAtConnectedJunctionEndpoint(
             RoadNetwork network,
             RoadNode junction,
             RoadEdge edge,
+            List<Vec2d> points,
+            double localDistance,
             Vec2d position) {
         if (network == null || junction == null || edge == null || position == null) {
+            return false;
+        }
+        if (!RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
             return false;
         }
         boolean atStart = junction.getId().equals(edge.getStartNodeId());
@@ -426,7 +430,18 @@ public final class RoadCrossingMaterializer {
         if (!atStart && !atEnd) {
             return false;
         }
-        return RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE);
+        double total = RoadGeometryUtils.calculatePathLength(points);
+        boolean stationAtStart = localDistance <= NODE_TOLERANCE;
+        boolean stationAtEnd = localDistance >= total - NODE_TOLERANCE;
+        return (atStart && stationAtStart) || (atEnd && stationAtEnd);
+    }
+
+    private static boolean isLocalDistanceAtPolylineEnd(List<Vec2d> points, double localDistance) {
+        if (points == null || points.size() < 2 || !Double.isFinite(localDistance)) {
+            return false;
+        }
+        double total = RoadGeometryUtils.calculatePathLength(points);
+        return localDistance <= NODE_TOLERANCE || localDistance >= total - NODE_TOLERANCE;
     }
 
     private static boolean isResolvedEdgeConnectedNearPosition(
@@ -439,44 +454,37 @@ public final class RoadCrossingMaterializer {
         if (road == null) {
             return false;
         }
-        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
-        if (resolved.isEmpty()) {
-            // After split the original segment may be gone; require some road edge at junction near position.
-            for (String edgeId : junction.getConnectedEdgeIds()) {
-                RoadEdge edge = network.getEdge(edgeId);
-                if (edge != null && roadId.equals(edge.getRoadId())
-                        && RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        RoadEdge edge = network.getEdge(resolved.get().segmentId());
-        if (edge == null) {
-            for (String edgeId : junction.getConnectedEdgeIds()) {
-                RoadEdge connected = network.getEdge(edgeId);
-                if (connected != null && roadId.equals(connected.getRoadId())
-                        && RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        return isResolvedEdgeAlreadyConnected(network, junction, edge, position)
-            || junctionHasRoadNearPosition(network, junction, roadId, position);
-    }
-
-    private static boolean junctionHasRoadNearPosition(
-            RoadNetwork network,
-            RoadNode junction,
-            String roadId,
-            Vec2d position) {
         if (!RoadGeometryUtils.pointsNear(junction.getPosition(), position, NODE_TOLERANCE)) {
             return false;
         }
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
+        if (resolved.isPresent()) {
+            RoadEdge edge = network.getEdge(resolved.get().segmentId());
+            if (edge != null) {
+                List<Vec2d> points = edge.getCenterlinePoints();
+                Vec2d stationPoint = RoadGeometryUtils.pointAtDistance(points, resolved.get().localDistance());
+                if (stationPoint != null
+                        && stationPoint.distance(position) <= NODE_TOLERANCE
+                        && (junction.getId().equals(edge.getStartNodeId())
+                            || junction.getId().equals(edge.getEndNodeId()))) {
+                    return true;
+                }
+            }
+        }
+        // After split the original segment id is gone — accept a road edge whose junction
+        // endpoint coincides with the crossing position (geometry, not Road-ID-only).
         for (String edgeId : junction.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null && roadId.equals(edge.getRoadId())) {
+            if (edge == null || !roadId.equals(edge.getRoadId())) {
+                continue;
+            }
+            List<Vec2d> points = edge.getCenterlinePoints();
+            if (points.size() < 2) {
+                continue;
+            }
+            boolean atStart = junction.getId().equals(edge.getStartNodeId());
+            Vec2d endpoint = atStart ? points.getFirst() : points.getLast();
+            if (endpoint.distance(position) <= NODE_TOLERANCE) {
                 return true;
             }
         }

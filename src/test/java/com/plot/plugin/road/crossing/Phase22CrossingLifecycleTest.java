@@ -338,6 +338,50 @@ class Phase22CrossingLifecycleTest {
             swappedJunction, swappedJunction.getStackUpperEdgeIds(), swapped.network()));
     }
 
+    @Test
+    void f01_reversedFigureEightArmDirectionsMatchForward() {
+        SnapshotMaterialization forward = gradeSeparatedFigureEight(figureEightNetwork());
+        SnapshotMaterialization reversed = gradeSeparatedFigureEight(figureEightNetworkReversed());
+        assertTrue(forward.report().isComplete(), forward.report().failures().toString());
+        assertTrue(reversed.report().isComplete(), reversed.report().failures().toString());
+
+        RoadNode fwdJunction = forward.network().getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        RoadNode revJunction = reversed.network().getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        Set<String> fwdLower = armDirectionKeys(
+            fwdJunction, fwdJunction.getStackLowerEdgeIds(), forward.network());
+        Set<String> fwdUpper = armDirectionKeys(
+            fwdJunction, fwdJunction.getStackUpperEdgeIds(), forward.network());
+        Set<String> revLower = armDirectionKeys(
+            revJunction, revJunction.getStackLowerEdgeIds(), reversed.network());
+        Set<String> revUpper = armDirectionKeys(
+            revJunction, revJunction.getStackUpperEdgeIds(), reversed.network());
+        // Pass A/B labeling may flip under reversed storage; compare as unordered pair.
+        assertTrue(
+            (fwdLower.equals(revLower) && fwdUpper.equals(revUpper))
+                || (fwdLower.equals(revUpper) && fwdUpper.equals(revLower)),
+            () -> "forward lower=" + fwdLower + " upper=" + fwdUpper
+                + " reversed lower=" + revLower + " upper=" + revUpper);
+    }
+
+    private static SnapshotMaterialization gradeSeparatedFigureEight(RoadNetwork network) {
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+        network.setStackCrossingGradeSeparation(
+            stack.id(),
+            CrossingType.GRADE_SEPARATED,
+            stack.stationA(),
+            stack.stationB(),
+            3.0);
+        return RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+    }
+
     /** Fingerprint arms by unit direction leaving the junction (stable across snapshot UUIDs). */
     private static Set<String> armDirectionKeys(RoadNode junction, Set<String> edgeIds, RoadNetwork network) {
         Set<String> keys = new HashSet<>();
@@ -592,6 +636,101 @@ class Phase22CrossingLifecycleTest {
     }
 
     @Test
+    void f02_junctionIncidentEdgeWithFarStationFails() {
+        // Edge A already touches junction at its start; registry claims that junction position
+        // but station A is far along the edge — must not false-ALREADY_CONNECTED.
+        RoadNetwork network = new RoadNetwork();
+        Road a = network.createRoad("road-a");
+        Road b = network.createRoad("road-b");
+        RoadNode junction = network.createNode(new Vec2d(0, 5));
+        network.createEdge(
+            junction.getId(),
+            network.createNode(new Vec2d(20, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(20, 5)),
+            a.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(10, 0)).getId(),
+            network.createNode(new Vec2d(10, 10)).getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(10, 10)),
+            b.getId());
+        network.registerCrossing(RoadCrossing.atGrade(
+            a.getId(), 10.0, b.getId(), 5.0, new Vec2d(0, 5)));
+
+        SnapshotMaterialization materialization =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        assertFalse(materialization.report().isComplete());
+        assertTrue(materialization.report().failures().stream()
+            .anyMatch(f -> f.armA() == CrossingMaterializeStatus.SPLIT_FAILED
+                || f.armB() == CrossingMaterializeStatus.SPLIT_FAILED));
+    }
+
+    @Test
+    void f02_positionNearEndpointWithInteriorStationDoesNotAlreadyConnect() {
+        // Registry position sits on A's start endpoint, but station A is mid-edge.
+        // Spatial endpoint proximity must not yield false ALREADY_CONNECTED / endpoint connect.
+        RoadNetwork network = new RoadNetwork();
+        Road a = network.createRoad("road-a");
+        Road b = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(20, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(20, 5)),
+            a.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(10, 0)).getId(),
+            network.createNode(new Vec2d(10, 10)).getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(10, 10)),
+            b.getId());
+        network.registerCrossing(RoadCrossing.atGrade(
+            a.getId(), 10.0, b.getId(), 5.0, new Vec2d(0.2, 5)));
+
+        SnapshotMaterialization materialization =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        assertFalse(materialization.report().isComplete());
+        assertTrue(materialization.report().failures().stream()
+            .anyMatch(f -> f.armA() == CrossingMaterializeStatus.SPLIT_FAILED));
+        assertTrue(materialization.report().failures().stream()
+            .noneMatch(f -> f.armA() == CrossingMaterializeStatus.ALREADY_CONNECTED
+                || f.armA() == CrossingMaterializeStatus.SUCCESS));
+    }
+
+    @Test
+    void f02_interiorStationSplitsIntoTwoHalfEdges() {
+        RoadNetwork network = crossRoads();
+        RoadCrossingReconciler.reconcileCrossings(network);
+        SnapshotMaterialization materialization =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(network);
+        assertTrue(materialization.report().isComplete(), materialization.report().failures().toString());
+        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        RoadNode junction = materialization.network().getNodes().values().stream()
+            .filter(node -> node.getPosition().distance(crossing.position()) < 0.5)
+            .findFirst()
+            .orElseThrow();
+        long roadAArms = junction.getConnectedEdgeIds().stream()
+            .map(materialization.network()::getEdge)
+            .filter(edge -> edge != null && crossing.roadAId().equals(edge.getRoadId()))
+            .count();
+        long roadBArms = junction.getConnectedEdgeIds().stream()
+            .map(materialization.network()::getEdge)
+            .filter(edge -> edge != null && crossing.roadBId().equals(edge.getRoadId()))
+            .count();
+        assertEquals(2, roadAArms);
+        assertEquals(2, roadBArms);
+    }
+
+    @Test
+    void f02_crossRoadsAndFigureEightHappyPathsStayComplete() {
+        RoadNetwork cross = crossRoads();
+        RoadCrossingReconciler.reconcileCrossings(cross);
+        SnapshotMaterialization crossMat =
+            RoadCrossingMaterializer.materializeForSnapshotWithReport(cross);
+        assertTrue(crossMat.report().isComplete(), crossMat.report().failures().toString());
+
+        SnapshotMaterialization eight = gradeSeparatedFigureEight(figureEightNetwork());
+        assertTrue(eight.report().isComplete(), eight.report().failures().toString());
+    }
+
+    @Test
     void d02_stationLocalSplitUsesResolvedLocalDistance() {
         RoadNetwork network = figureEightNetwork();
         RoadStackCrossingReconciler.reconcileStackCrossings(network);
@@ -672,6 +811,24 @@ class Phase22CrossingLifecycleTest {
                 new Vec2d(10, 10),
                 new Vec2d(0, 10),
                 new Vec2d(10, 0)),
+            road.getId());
+        return network;
+    }
+
+    /** Same figure-eight geometry with centerline points and start/end nodes flipped. */
+    private static RoadNetwork figureEightNetworkReversed() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("figure-eight");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(
+            n2.getId(),
+            n1.getId(),
+            List.of(
+                new Vec2d(10, 0),
+                new Vec2d(0, 10),
+                new Vec2d(10, 10),
+                new Vec2d(0, 0)),
             road.getId());
         return network;
     }
