@@ -569,9 +569,11 @@ public class RoadNetwork {
         List<String> headIds = new ArrayList<>(segmentIds.subList(0, index));
         List<String> tailIds = new ArrayList<>(segmentIds.subList(index, segmentIds.size()));
         double splitStation = RoadStationing.segmentStartStation(this, road, segmentEdgeId);
+        var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
+            this, Set.of(roadId));
         Road newRoad = createRoad();
         newRoad.copyEngineeringFrom(road);
-        // 先切桩号工程数据，再迁分段，最后统一重拟合 HA（拟合依赖 segment 链）。
+        // Station policy first (partition data), then edge ownership, then mode, then crossings, then HA.
         boolean refitHa = false;
         if (splitStation >= 0.0) {
             refitHa = CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy()
@@ -582,16 +584,13 @@ public class RoadNetwork {
         }
         road.reorderSegments(headIds);
         newRoad.reorderSegments(tailIds);
-        if (refitHa) {
-            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
-            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
-        }
         // LOOP opened by logical split → demote open fragments; closed rings stay LOOP.
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, road);
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, newRoad);
-        if (splitStation >= 0.0) {
-            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.afterRoadSplit(
-                this, roadId, newRoad.getId(), splitStation);
+        com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(this, crossingCapture);
+        if (refitHa) {
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
         }
         return newRoad.getId();
     }
@@ -643,41 +642,35 @@ public class RoadNetwork {
 
         double headLengthBefore = RoadStationing.canonicalLength(this, head);
         double tailLengthBefore = RoadStationing.canonicalLength(this, tail);
+        var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
+            this, Set.of(headRoadId, tailRoadId));
 
+        // Station-data merge without HA refit → edge join → topology mode → crossings → HA last.
+        boolean refitHa;
+        List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
         if (appendTail) {
-            CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy().applyRoadMerge(this, head, tail);
-            List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
+            refitHa = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
+                .applyRoadMerge(head, head, tail, headLengthBefore, tailLengthBefore);
             mergedSegments.addAll(headSegments);
             mergedSegments.addAll(tailSegments);
-            for (String segmentId : tailSegments) {
-                assignEdgeToRoad(segmentId, headRoadId);
-            }
-            head.reorderSegments(mergedSegments);
-            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.afterRoadMerge(
-                this, headRoadId, tailRoadId, headLengthBefore, true);
         } else {
-            boolean refit = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
+            refitHa = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
                 .applyRoadMerge(head, tail, head, tailLengthBefore, headLengthBefore);
-            List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
             mergedSegments.addAll(tailSegments);
             mergedSegments.addAll(headSegments);
-            for (String segmentId : tailSegments) {
-                assignEdgeToRoad(segmentId, headRoadId);
-            }
-            head.reorderSegments(mergedSegments);
-            if (refit) {
-                RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
-            }
-            // For prepend, offset param is former tail length (shifts former head stations).
-            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.afterRoadMerge(
-                this, headRoadId, tailRoadId, tailLengthBefore, false);
         }
-
+        for (String segmentId : tailSegments) {
+            assignEdgeToRoad(segmentId, headRoadId);
+        }
+        head.reorderSegments(mergedSegments);
         roads.remove(tailRoadId);
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, head);
-        // Real closed ring after merge → LOOP; never invent connections from proximity.
         if (!RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head)) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, head);
+        }
+        com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(this, crossingCapture);
+        if (refitHa) {
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
         }
         return headRoadId;
     }

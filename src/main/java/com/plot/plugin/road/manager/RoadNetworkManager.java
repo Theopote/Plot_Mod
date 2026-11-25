@@ -175,6 +175,7 @@ public final class RoadNetworkManager {
         abandonUniformElevationDragWithoutRestore();
         this.network = network != null ? network : new RoadNetwork();
         this.network.assertInvariants();
+        refreshCrossingIntegrityState();
         notifyNetworkChanged();
     }
 
@@ -478,6 +479,7 @@ public final class RoadNetworkManager {
         network.assertInvariants();
         ensureSelectionValid();
         lastBatchSelectionKey = "";
+        refreshCrossingIntegrityState();
         notifyNetworkChanged(RoadChangeKind.HISTORY);
     }
 
@@ -486,6 +488,7 @@ public final class RoadNetworkManager {
         network.assertInvariants();
         ensureSelectionValid();
         lastBatchSelectionKey = "";
+        refreshCrossingIntegrityState();
         notifyNetworkChanged(RoadChangeKind.HISTORY);
     }
 
@@ -896,6 +899,10 @@ public final class RoadNetworkManager {
                 ? StationDataSnapshot.capture(roadBefore)
                 : null;
             Map<String, StationRange> edgeRangesBefore = captureEdgeStationRanges(roadBefore);
+            var crossingCapture = roadId != null
+                ? com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
+                    network, java.util.Set.of(roadId))
+                : null;
             network.removeEdge(edgeId);
             selectedEdgeIds.remove(edgeId);
             if (edgeId.equals(lastSelectedEdgeId)) {
@@ -903,6 +910,13 @@ public final class RoadNetworkManager {
             }
             ensureSelectionValid();
             remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
+            if (crossingCapture != null) {
+                var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
+                    network, crossingCapture);
+                if (apply.isPending()) {
+                    adoptIntersectionRepairPending = true;
+                }
+            }
             // Geometry gone → drop orphan RoadCrossing markers from the registry/overlay.
             observeReconcileInPlace();
         });
@@ -1250,6 +1264,21 @@ public final class RoadNetworkManager {
     /** For floating editors that mutate live after apply — same contract as in-transaction observe. */
     public void observeReconcileAfterExternalEdit() {
         observeReconcileInPlace();
+    }
+
+    /**
+     * Recompute {@link #adoptIntersectionRepairPending} from the current network without mutating
+     * the crossing registry (used after undo/redo/load).
+     */
+    public void refreshCrossingIntegrityState() {
+        if (network == null) {
+            adoptIntersectionRepairPending = false;
+            return;
+        }
+        var probe = com.plot.plugin.road.crossing.RoadCrossingReconciler.probeRegistryCompleteness(network);
+        // Ambiguity / INCOMPLETE must fail-closed as pending; drift alone uses hasPendingWork().
+        adoptIntersectionRepairPending = probe != null
+            && (probe.isIncomplete() || probe.hasPendingWork());
     }
 
     /** 校验一键修复：同步可维护道路的分段存储顺序。 */

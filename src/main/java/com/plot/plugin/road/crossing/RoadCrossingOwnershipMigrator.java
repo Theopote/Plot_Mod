@@ -1,329 +1,498 @@
 package com.plot.plugin.road.crossing;
 
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.station.SegmentStation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.Set;
 
 /**
- * Migrates crossing registry ownership after logical road split/merge using known
- * split stations — never Matcher tolerance.
+ * Migrates crossing registry ownership after logical topology edits using physical pass
+ * bindings (edge + local arc). Never assumes travel direction or widens Matcher tolerance.
  */
 public final class RoadCrossingOwnershipMigrator {
     private static final double EPSILON = 1e-6;
+    private static final double NODE_TOLERANCE = RoadNetworkBuilder.NODE_TOLERANCE;
 
     private RoadCrossingOwnershipMigrator() {
     }
 
-    /**
-     * After {@code headRoadId} was split at {@code splitStation}, tail segments live on
-     * {@code tailRoadId}. Rewrite two-road and stack crossings accordingly.
-     */
-    public static void afterRoadSplit(
-            RoadNetwork network,
-            String headRoadId,
-            String tailRoadId,
-            double splitStation) {
-        if (network == null || headRoadId == null || tailRoadId == null || !Double.isFinite(splitStation)) {
-            return;
+    public enum Kind { TWO_ROAD, STACK }
+
+    public enum PassRole { A, B }
+
+    /** Ephemeral capture of one physical pass (edit-transaction only). */
+    public record CrossingPassBinding(
+            String crossingId,
+            Kind kind,
+            PassRole role,
+            String roadId,
+            String edgeId,
+            double localDistance,
+            double originalStation,
+            Vec2d worldPosition,
+            CrossingType type,
+            String elevatedRoadId,
+            Double crossingClearance,
+            Double sharedElevation,
+            Double cornerRadius,
+            Double lowerStationHint,
+            Double upperStationHint) {
+        public CrossingPassBinding {
+            if (worldPosition != null) {
+                worldPosition = worldPosition.copy();
+            }
         }
-        migrateTwoRoadAfterSplit(network, headRoadId, tailRoadId, splitStation);
-        migrateStackAfterSplit(network, headRoadId, tailRoadId, splitStation);
     }
 
-    /**
-     * After {@code removedTailRoadId} was merged into {@code headRoadId}.
-     *
-     * @param headLengthBefore length of head before merge (used when tail was appended)
-     * @param appendTail       true when tail was appended after head; false when prepended
-     */
-    public static void afterRoadMerge(
-            RoadNetwork network,
-            String headRoadId,
-            String removedTailRoadId,
-            double headLengthBefore,
-            boolean appendTail) {
-        if (network == null || headRoadId == null || removedTailRoadId == null) {
-            return;
+    public record CaptureResult(List<CrossingPassBinding> bindings, boolean hadUnresolved) {
+        public CaptureResult {
+            bindings = bindings != null ? List.copyOf(bindings) : List.of();
         }
-        migrateTwoRoadAfterMerge(network, headRoadId, removedTailRoadId, headLengthBefore, appendTail);
-        migrateStackAfterMerge(network, headRoadId, removedTailRoadId, headLengthBefore, appendTail);
+
+        public boolean isEmpty() {
+            return bindings.isEmpty();
+        }
     }
 
-    private static void migrateTwoRoadAfterSplit(
-            RoadNetwork network,
-            String headRoadId,
-            String tailRoadId,
-            double splitStation) {
-        List<RoadCrossing> crossings = new ArrayList<>(network.getCrossings().values());
-        for (RoadCrossing crossing : crossings) {
-            if (!crossing.involvesRoad(headRoadId)) {
+    public record ApplyResult(boolean complete, int rewritten, int removedSpurious) {
+        public boolean isPending() {
+            return !complete;
+        }
+    }
+
+    public static CaptureResult captureForRoads(RoadNetwork network, Set<String> roadIds) {
+        if (network == null || roadIds == null || roadIds.isEmpty()) {
+            return new CaptureResult(List.of(), false);
+        }
+        List<CrossingPassBinding> bindings = new ArrayList<>();
+        boolean unresolved = false;
+        for (RoadCrossing crossing : network.getCrossings().values()) {
+            if (!roadIds.contains(crossing.roadAId()) && !roadIds.contains(crossing.roadBId())) {
                 continue;
             }
-            String roadA = crossing.roadAId();
-            String roadB = crossing.roadBId();
-            double stationA = crossing.stationA();
-            double stationB = crossing.stationB();
-            String elevated = crossing.elevatedRoadId();
+            Optional<CrossingPassBinding> a = captureTwoRoadPass(network, crossing, PassRole.A);
+            Optional<CrossingPassBinding> b = captureTwoRoadPass(network, crossing, PassRole.B);
+            if (a.isEmpty() || b.isEmpty()) {
+                unresolved = true;
+                continue;
+            }
+            bindings.add(a.get());
+            bindings.add(b.get());
+        }
+        for (RoadStackCrossing stack : network.getStackCrossings().values()) {
+            if (!roadIds.contains(stack.roadId())) {
+                continue;
+            }
+            Optional<CrossingPassBinding> a = captureStackPass(network, stack, PassRole.A);
+            Optional<CrossingPassBinding> b = captureStackPass(network, stack, PassRole.B);
+            if (a.isEmpty() || b.isEmpty()) {
+                unresolved = true;
+                continue;
+            }
+            bindings.add(a.get());
+            bindings.add(b.get());
+        }
+        return new CaptureResult(bindings, unresolved);
+    }
 
-            if (headRoadId.equals(roadA) && stationA >= splitStation - EPSILON) {
-                roadA = tailRoadId;
-                stationA = Math.max(0.0, stationA - splitStation);
+    public static ApplyResult reapply(RoadNetwork network, CaptureResult capture) {
+        if (network == null || capture == null || capture.isEmpty()) {
+            return new ApplyResult(!capture.hadUnresolved(), 0, 0);
+        }
+        Map<String, List<CrossingPassBinding>> twoRoad = new HashMap<>();
+        Map<String, List<CrossingPassBinding>> stacks = new HashMap<>();
+        for (CrossingPassBinding binding : capture.bindings()) {
+            if (binding.kind() == Kind.TWO_ROAD) {
+                twoRoad.computeIfAbsent(binding.crossingId(), ignored -> new ArrayList<>()).add(binding);
+            } else {
+                stacks.computeIfAbsent(binding.crossingId(), ignored -> new ArrayList<>()).add(binding);
             }
-            if (headRoadId.equals(roadB) && stationB >= splitStation - EPSILON) {
-                roadB = tailRoadId;
-                stationB = Math.max(0.0, stationB - splitStation);
+        }
+        int rewritten = 0;
+        int removed = 0;
+        boolean complete = !capture.hadUnresolved();
+
+        for (Map.Entry<String, List<CrossingPassBinding>> entry : twoRoad.entrySet()) {
+            CrossingPassBinding passA = findRole(entry.getValue(), PassRole.A);
+            CrossingPassBinding passB = findRole(entry.getValue(), PassRole.B);
+            if (passA == null || passB == null) {
+                complete = false;
+                continue;
             }
-            if (elevated != null && elevated.equals(headRoadId)) {
-                // Elevated pass moved with whichever arm carried that station.
-                if (crossing.roadAId().equals(headRoadId) && crossing.stationA() >= splitStation - EPSILON) {
-                    elevated = tailRoadId;
-                } else if (crossing.roadBId().equals(headRoadId)
-                        && crossing.stationB() >= splitStation - EPSILON) {
-                    elevated = tailRoadId;
+            Optional<ResolvedPass> resolvedA = resolvePass(network, passA);
+            Optional<ResolvedPass> resolvedB = resolvePass(network, passB);
+            if (resolvedA.isEmpty() || resolvedB.isEmpty()) {
+                complete = false;
+                continue;
+            }
+            ResolvedPass a = resolvedA.get();
+            ResolvedPass b = resolvedB.get();
+            String elevated = remapElevated(passA.elevatedRoadId(), passA.roadId(), passB.roadId(), a.roadId(), b.roadId());
+
+            if (a.roadId().equals(b.roadId())) {
+                if (!isValidStackConversion(network, a, b)) {
+                    network.removeCrossing(entry.getKey());
+                    removed++;
+                    continue;
                 }
-            }
-
-            if (roadA.equals(crossing.roadAId())
-                    && roadB.equals(crossing.roadBId())
-                    && Math.abs(stationA - crossing.stationA()) <= EPSILON
-                    && Math.abs(stationB - crossing.stationB()) <= EPSILON
-                    && java.util.Objects.equals(elevated, crossing.elevatedRoadId())) {
-                continue;
-            }
-            network.registerCrossing(new RoadCrossing(
-                crossing.id(),
-                roadA,
-                stationA,
-                roadB,
-                stationB,
-                crossing.position(),
-                crossing.type(),
-                elevated,
-                crossing.crossingClearance(),
-                crossing.sharedElevation(),
-                crossing.cornerRadius()));
-        }
-    }
-
-    private static void migrateStackAfterSplit(
-            RoadNetwork network,
-            String headRoadId,
-            String tailRoadId,
-            double splitStation) {
-        List<RoadStackCrossing> stacks = new ArrayList<>(network.getStackCrossings().values());
-        for (RoadStackCrossing stack : stacks) {
-            if (!headRoadId.equals(stack.roadId())) {
-                continue;
-            }
-            boolean aOnTail = stack.stationA() >= splitStation - EPSILON;
-            boolean bOnTail = stack.stationB() >= splitStation - EPSILON;
-            if (aOnTail == bOnTail) {
-                String roadId = aOnTail ? tailRoadId : headRoadId;
-                double stationA = aOnTail ? Math.max(0.0, stack.stationA() - splitStation) : stack.stationA();
-                double stationB = bOnTail ? Math.max(0.0, stack.stationB() - splitStation) : stack.stationB();
-                Double lower = aOnTail ? offsetOptional(stack.lowerStation(), splitStation) : stack.lowerStation();
-                Double upper = aOnTail ? offsetOptional(stack.upperStation(), splitStation) : stack.upperStation();
-                network.registerStackCrossing(new RoadStackCrossing(
-                    stack.id(),
-                    roadId,
-                    stack.position(),
-                    stationA,
-                    stationB,
-                    stack.type(),
-                    lower,
-                    upper,
-                    stack.crossingClearance(),
-                    stack.sharedElevation()));
-                continue;
-            }
-            // Passes land on different roads → convert to ordinary two-road crossing.
-            String roadA = aOnTail ? tailRoadId : headRoadId;
-            String roadB = bOnTail ? tailRoadId : headRoadId;
-            double stationA = aOnTail ? Math.max(0.0, stack.stationA() - splitStation) : stack.stationA();
-            double stationB = bOnTail ? Math.max(0.0, stack.stationB() - splitStation) : stack.stationB();
-            String elevated = null;
-            if (stack.isGradeSeparated()) {
-                double upper = stack.resolvedUpperStation();
-                boolean upperWasA = Math.abs(upper - stack.stationA()) <= Math.abs(upper - stack.stationB());
-                elevated = upperWasA ? roadA : roadB;
-            }
-            network.removeStackCrossing(stack.id());
-            network.registerCrossing(new RoadCrossing(
-                stack.id(),
-                roadA,
-                stationA,
-                roadB,
-                stationB,
-                stack.position(),
-                stack.type(),
-                elevated,
-                stack.crossingClearance(),
-                stack.sharedElevation(),
-                null));
-        }
-    }
-
-    private static void migrateTwoRoadAfterMerge(
-            RoadNetwork network,
-            String headRoadId,
-            String removedTailRoadId,
-            double headLengthBefore,
-            boolean appendTail) {
-        List<RoadCrossing> crossings = new ArrayList<>(network.getCrossings().values());
-        for (RoadCrossing crossing : crossings) {
-            if (!crossing.involvesRoad(removedTailRoadId) && !crossing.involvesRoad(headRoadId)) {
-                continue;
-            }
-            String roadA = rewriteMergedRoadId(crossing.roadAId(), headRoadId, removedTailRoadId);
-            String roadB = rewriteMergedRoadId(crossing.roadBId(), headRoadId, removedTailRoadId);
-            double stationA = rewriteMergedStation(
-                crossing.roadAId(), crossing.stationA(), headRoadId, removedTailRoadId, headLengthBefore, appendTail);
-            double stationB = rewriteMergedStation(
-                crossing.roadBId(), crossing.stationB(), headRoadId, removedTailRoadId, headLengthBefore, appendTail);
-            String elevated = crossing.elevatedRoadId() == null
-                ? null
-                : rewriteMergedRoadId(crossing.elevatedRoadId(), headRoadId, removedTailRoadId);
-
-            // Same road on both arms after merge → restore stack identity when possible.
-            if (roadA.equals(roadB)) {
-                network.removeCrossing(crossing.id());
+                network.removeCrossing(entry.getKey());
                 Double lower = null;
                 Double upper = null;
-                if (crossing.type() == CrossingType.GRADE_SEPARATED) {
-                    if (crossing.elevatedRoadId() != null
-                            && crossing.elevatedRoadId().equals(crossing.roadAId())) {
-                        upper = stationA;
-                        lower = stationB;
-                    } else if (crossing.elevatedRoadId() != null
-                            && crossing.elevatedRoadId().equals(crossing.roadBId())) {
-                        upper = stationB;
-                        lower = stationA;
-                    } else {
-                        upper = Math.max(stationA, stationB);
-                        lower = Math.min(stationA, stationB);
+                if (passA.type() == CrossingType.GRADE_SEPARATED) {
+                    if (passA.elevatedRoadId() == null) {
+                        // Cannot invent upper from station magnitude — keep pending design without false roles.
+                        complete = false;
+                        network.registerStackCrossing(new RoadStackCrossing(
+                            entry.getKey(),
+                            a.roadId(),
+                            midpoint(a.position(), b.position()),
+                            a.station(),
+                            b.station(),
+                            CrossingType.GRADE_SEPARATED,
+                            null,
+                            null,
+                            passA.crossingClearance(),
+                            passA.sharedElevation()));
+                        rewritten++;
+                        continue;
                     }
-                    network.registerStackCrossing(new RoadStackCrossing(
-                        crossing.id(),
-                        roadA,
-                        crossing.position(),
-                        stationA,
-                        stationB,
-                        CrossingType.GRADE_SEPARATED,
-                        lower,
-                        upper,
-                        crossing.crossingClearance(),
-                        crossing.sharedElevation()));
-                } else {
-                    network.registerStackCrossing(new RoadStackCrossing(
-                        crossing.id(),
-                        roadA,
-                        crossing.position(),
-                        stationA,
-                        stationB,
-                        crossing.type(),
-                        null,
-                        null,
-                        crossing.crossingClearance(),
-                        crossing.sharedElevation()));
+                    if (passA.elevatedRoadId().equals(passA.roadId())) {
+                        upper = a.station();
+                        lower = b.station();
+                    } else if (passA.elevatedRoadId().equals(passB.roadId())) {
+                        upper = b.station();
+                        lower = a.station();
+                    } else {
+                        complete = false;
+                        upper = null;
+                        lower = null;
+                    }
                 }
+                network.registerStackCrossing(new RoadStackCrossing(
+                    entry.getKey(),
+                    a.roadId(),
+                    midpoint(a.position(), b.position()),
+                    a.station(),
+                    b.station(),
+                    passA.type(),
+                    lower,
+                    upper,
+                    passA.crossingClearance(),
+                    passA.sharedElevation()));
+                rewritten++;
                 continue;
             }
 
             network.registerCrossing(new RoadCrossing(
-                crossing.id(),
-                roadA,
-                stationA,
-                roadB,
-                stationB,
-                crossing.position(),
-                crossing.type(),
+                entry.getKey(),
+                a.roadId(),
+                a.station(),
+                b.roadId(),
+                b.station(),
+                midpoint(a.position(), b.position()),
+                passA.type(),
                 elevated,
-                crossing.crossingClearance(),
-                crossing.sharedElevation(),
-                crossing.cornerRadius()));
+                passA.crossingClearance(),
+                passA.sharedElevation(),
+                passA.cornerRadius()));
+            rewritten++;
         }
-    }
 
-    private static void migrateStackAfterMerge(
-            RoadNetwork network,
-            String headRoadId,
-            String removedTailRoadId,
-            double headLengthBefore,
-            boolean appendTail) {
-        List<RoadStackCrossing> stacks = new ArrayList<>(network.getStackCrossings().values());
-        for (RoadStackCrossing stack : stacks) {
-            if (!removedTailRoadId.equals(stack.roadId()) && !headRoadId.equals(stack.roadId())) {
+        for (Map.Entry<String, List<CrossingPassBinding>> entry : stacks.entrySet()) {
+            CrossingPassBinding passA = findRole(entry.getValue(), PassRole.A);
+            CrossingPassBinding passB = findRole(entry.getValue(), PassRole.B);
+            if (passA == null || passB == null) {
+                complete = false;
                 continue;
             }
-            if (headRoadId.equals(stack.roadId()) && appendTail) {
-                // Stations on head unchanged when tail is appended.
+            Optional<ResolvedPass> resolvedA = resolvePass(network, passA);
+            Optional<ResolvedPass> resolvedB = resolvePass(network, passB);
+            if (resolvedA.isEmpty() || resolvedB.isEmpty()) {
+                complete = false;
                 continue;
             }
-            double stationA = rewriteMergedStation(
-                stack.roadId(), stack.stationA(), headRoadId, removedTailRoadId, headLengthBefore, appendTail);
-            double stationB = rewriteMergedStation(
-                stack.roadId(), stack.stationB(), headRoadId, removedTailRoadId, headLengthBefore, appendTail);
-            Double lower = stack.lowerStation() == null
-                ? null
-                : rewriteMergedStation(
-                    stack.roadId(), stack.lowerStation(), headRoadId, removedTailRoadId, headLengthBefore, appendTail);
-            Double upper = stack.upperStation() == null
-                ? null
-                : rewriteMergedStation(
-                    stack.roadId(), stack.upperStation(), headRoadId, removedTailRoadId, headLengthBefore, appendTail);
+            ResolvedPass a = resolvedA.get();
+            ResolvedPass b = resolvedB.get();
+
+            if (!a.roadId().equals(b.roadId())) {
+                String elevated = null;
+                if (passA.type() == CrossingType.GRADE_SEPARATED && passA.upperStationHint() != null) {
+                    double da = Math.abs(passA.upperStationHint() - passA.originalStation());
+                    double db = Math.abs(passA.upperStationHint() - passB.originalStation());
+                    elevated = da <= db ? a.roadId() : b.roadId();
+                }
+                network.removeStackCrossing(entry.getKey());
+                network.registerCrossing(new RoadCrossing(
+                    entry.getKey(),
+                    a.roadId(),
+                    a.station(),
+                    b.roadId(),
+                    b.station(),
+                    midpoint(a.position(), b.position()),
+                    passA.type(),
+                    elevated,
+                    passA.crossingClearance(),
+                    passA.sharedElevation(),
+                    passA.cornerRadius()));
+                rewritten++;
+                continue;
+            }
+
+            Double lower = remapStationHint(passA.lowerStationHint(), passA, passB, a, b);
+            Double upper = remapStationHint(passA.upperStationHint(), passA, passB, a, b);
             network.registerStackCrossing(new RoadStackCrossing(
-                stack.id(),
-                headRoadId,
-                stack.position(),
-                stationA,
-                stationB,
-                stack.type(),
+                entry.getKey(),
+                a.roadId(),
+                midpoint(a.position(), b.position()),
+                a.station(),
+                b.station(),
+                passA.type(),
                 lower,
                 upper,
-                stack.crossingClearance(),
-                stack.sharedElevation()));
+                passA.crossingClearance(),
+                passA.sharedElevation()));
+            rewritten++;
         }
+        return new ApplyResult(complete, rewritten, removed);
     }
 
-    private static String rewriteMergedRoadId(String roadId, String headRoadId, String removedTailRoadId) {
-        if (removedTailRoadId.equals(roadId)) {
-            return headRoadId;
-        }
-        return roadId;
+    private record ResolvedPass(String roadId, double station, Vec2d position, String edgeId) {
     }
 
-    private static double rewriteMergedStation(
-            String originalRoadId,
-            double station,
-            String headRoadId,
-            String removedTailRoadId,
-            double headLengthBefore,
-            boolean appendTail) {
-        if (removedTailRoadId.equals(originalRoadId)) {
-            if (appendTail) {
-                return station + Math.max(0.0, headLengthBefore);
+    private static CrossingPassBinding findRole(List<CrossingPassBinding> bindings, PassRole role) {
+        for (CrossingPassBinding binding : bindings) {
+            if (binding.role() == role) {
+                return binding;
             }
-            return station;
         }
-        if (headRoadId.equals(originalRoadId) && !appendTail) {
-            // Head was shifted by prepended tail length — caller passes headLengthBefore as
-            // pre-merge head length; for prepend the offset is the former tail length which
-            // is encoded by rewriting only former-tail stations above. Head stations shift
-            // when prepend: station += formerTailLength. We don't have formerTailLength here
-            // separately; headLengthBefore for prepend path is unused for head stations —
-            // Manager will pass formerTailLength as the offset via a dedicated param.
-            // Convention: when !appendTail, headLengthBefore means formerTailLength.
-            return station + Math.max(0.0, headLengthBefore);
-        }
-        return station;
+        return null;
     }
 
-    private static Double offsetOptional(Double station, double splitStation) {
-        if (station == null) {
+    private static Optional<CrossingPassBinding> captureTwoRoadPass(
+            RoadNetwork network,
+            RoadCrossing crossing,
+            PassRole role) {
+        String roadId = role == PassRole.A ? crossing.roadAId() : crossing.roadBId();
+        double station = role == PassRole.A ? crossing.stationA() : crossing.stationB();
+        Road road = network.getRoad(roadId);
+        if (road == null || !RoadStationing.isStationable(network, road)) {
+            return Optional.empty();
+        }
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
+        if (resolved.isEmpty()) {
+            return Optional.empty();
+        }
+        RoadEdge edge = network.getEdge(resolved.get().segmentId());
+        if (edge == null) {
+            return Optional.empty();
+        }
+        Vec2d point = RoadGeometryUtils.pointAtDistance(edge.getCenterlinePoints(), resolved.get().localDistance());
+        if (point == null) {
+            point = crossing.position();
+        }
+        return Optional.of(new CrossingPassBinding(
+            crossing.id(),
+            Kind.TWO_ROAD,
+            role,
+            roadId,
+            edge.getId(),
+            resolved.get().localDistance(),
+            station,
+            point,
+            crossing.type(),
+            crossing.elevatedRoadId(),
+            crossing.crossingClearance(),
+            crossing.sharedElevation(),
+            crossing.cornerRadius(),
+            null,
+            null));
+    }
+
+    private static Optional<CrossingPassBinding> captureStackPass(
+            RoadNetwork network,
+            RoadStackCrossing stack,
+            PassRole role) {
+        double station = role == PassRole.A ? stack.stationA() : stack.stationB();
+        Road road = network.getRoad(stack.roadId());
+        if (road == null || !RoadStationing.isStationable(network, road)) {
+            return Optional.empty();
+        }
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
+        if (resolved.isEmpty()) {
+            return Optional.empty();
+        }
+        RoadEdge edge = network.getEdge(resolved.get().segmentId());
+        if (edge == null) {
+            return Optional.empty();
+        }
+        Vec2d point = RoadGeometryUtils.pointAtDistance(edge.getCenterlinePoints(), resolved.get().localDistance());
+        if (point == null) {
+            point = stack.position();
+        }
+        return Optional.of(new CrossingPassBinding(
+            stack.id(),
+            Kind.STACK,
+            role,
+            stack.roadId(),
+            edge.getId(),
+            resolved.get().localDistance(),
+            station,
+            point,
+            stack.type(),
+            null,
+            stack.crossingClearance(),
+            stack.sharedElevation(),
+            null,
+            stack.lowerStation(),
+            stack.upperStation()));
+    }
+
+    private static Optional<ResolvedPass> resolvePass(RoadNetwork network, CrossingPassBinding binding) {
+        RoadEdge edge = network.getEdge(binding.edgeId());
+        Vec2d world = binding.worldPosition();
+        if (edge != null && edge.getRoadId() != null) {
+            Road road = network.getRoad(edge.getRoadId());
+            if (road != null && RoadStationing.isStationable(network, road)) {
+                Vec2d point = RoadGeometryUtils.pointAtDistance(
+                    edge.getCenterlinePoints(), binding.localDistance());
+                if (point == null) {
+                    point = world;
+                }
+                if (point != null) {
+                    OptionalDouble chainage = RoadStationing.chainageAtPosition(network, road, point);
+                    if (chainage.isPresent()) {
+                        return Optional.of(new ResolvedPass(
+                            road.getId(), chainage.getAsDouble(), point, edge.getId()));
+                    }
+                }
+            }
+        }
+        if (world == null) {
+            return Optional.empty();
+        }
+        ResolvedPass best = null;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (Road road : network.getRoads().values()) {
+            if (!RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            OptionalDouble chainage = RoadStationing.chainageAtPosition(network, road, world);
+            if (chainage.isEmpty()) {
+                continue;
+            }
+            Optional<SegmentStation> seg = RoadStationing.resolve(network, road, chainage.getAsDouble());
+            if (seg.isEmpty()) {
+                continue;
+            }
+            RoadEdge candidate = network.getEdge(seg.get().segmentId());
+            if (candidate == null) {
+                continue;
+            }
+            Vec2d onRoad = RoadGeometryUtils.pointAtDistance(
+                candidate.getCenterlinePoints(), seg.get().localDistance());
+            if (onRoad == null) {
+                continue;
+            }
+            double d = onRoad.distance(world);
+            if (d < bestDist && d <= NODE_TOLERANCE) {
+                bestDist = d;
+                best = new ResolvedPass(road.getId(), chainage.getAsDouble(), onRoad, candidate.getId());
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    private static boolean isValidStackConversion(RoadNetwork network, ResolvedPass a, ResolvedPass b) {
+        if (Math.abs(a.station() - b.station()) <= EPSILON) {
+            return false;
+        }
+        RoadEdge ea = network.getEdge(a.edgeId());
+        RoadEdge eb = network.getEdge(b.edgeId());
+        if (ea != null && eb != null && !ea.getId().equals(eb.getId())) {
+            Set<String> shared = new HashSet<>(Set.of(ea.getStartNodeId(), ea.getEndNodeId()));
+            shared.retainAll(Set.of(eb.getStartNodeId(), eb.getEndNodeId()));
+            if (!shared.isEmpty()
+                    && a.position().distance(b.position()) <= NODE_TOLERANCE
+                    && (nearEndpoint(ea, a.position()) || nearEndpoint(eb, b.position()))) {
+                return false;
+            }
+        }
+        Road road = network.getRoad(a.roadId());
+        if (road != null && road.getTopologyMode() == RoadTopologyMode.LOOP) {
+            double len = RoadStationing.canonicalLength(network, road);
+            if (isLoopZeroOrL(a.station(), len) && isLoopZeroOrL(b.station(), len)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean nearEndpoint(RoadEdge edge, Vec2d position) {
+        List<com.plot.api.geometry.Vec2d> pts = edge.getCenterlinePoints();
+        if (pts.size() < 2 || position == null) {
+            return false;
+        }
+        return pts.getFirst().distance(position) <= NODE_TOLERANCE
+            || pts.getLast().distance(position) <= NODE_TOLERANCE;
+    }
+
+    private static boolean isLoopZeroOrL(double station, double length) {
+        return station <= EPSILON || Math.abs(station - length) <= EPSILON;
+    }
+
+    private static String remapElevated(
+            String elevated,
+            String origA,
+            String origB,
+            String newA,
+            String newB) {
+        if (elevated == null) {
             return null;
         }
-        return Math.max(0.0, station - splitStation);
+        if (elevated.equals(origA)) {
+            return newA;
+        }
+        if (elevated.equals(origB)) {
+            return newB;
+        }
+        return elevated;
     }
 
+    private static Double remapStationHint(
+            Double hint,
+            CrossingPassBinding passA,
+            CrossingPassBinding passB,
+            ResolvedPass a,
+            ResolvedPass b) {
+        if (hint == null) {
+            return null;
+        }
+        double da = Math.abs(hint - passA.originalStation());
+        double db = Math.abs(hint - passB.originalStation());
+        return da <= db ? a.station() : b.station();
+    }
+
+    private static Vec2d midpoint(Vec2d a, Vec2d b) {
+        if (a == null) {
+            return b != null ? b.copy() : new Vec2d(0, 0);
+        }
+        if (b == null) {
+            return a.copy();
+        }
+        return new Vec2d((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
+    }
 }

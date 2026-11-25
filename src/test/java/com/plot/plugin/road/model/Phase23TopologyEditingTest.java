@@ -123,9 +123,16 @@ class Phase23TopologyEditingTest {
         assertNotNull(kept);
         assertEquals(CrossingType.GRADE_SEPARATED, kept.type());
         assertEquals(3.5, kept.crossingClearance(), 1e-6);
-        assertTrue(kept.involvesRoad(newRoadId) || kept.involvesRoad(a.getId()));
+        // Station 15 was on the tail segment → must belong to the new road.
+        assertTrue(kept.involvesRoad(newRoadId), "crossing at station 15 must move to newRoad");
+        assertFalse(kept.involvesRoad(a.getId()) && kept.roadAId().equals(a.getId())
+                && kept.roadBId().equals(a.getId()));
+        assertEquals(newRoadId, kept.involvesRoad(newRoadId)
+            ? (kept.roadAId().equals(newRoadId) ? kept.roadAId() : kept.roadBId())
+            : null);
         assertTrue(kept.involvesRoad(b.getId()));
         assertEquals(b.getId(), kept.elevatedRoadId());
+        assertTrue(kept.position().distance(new Vec2d(15, 5)) < 0.5);
     }
 
     @Test
@@ -150,16 +157,15 @@ class Phase23TopologyEditingTest {
         String newRoadId = manager.splitRoadBeforeSegment(road.getId(), segs.get(1));
         assertNotNull(newRoadId);
 
-        // Original stack id should now be a two-road crossing (passes on different roads) or retained stack.
         RoadCrossing converted = network.getCrossing(stackId);
-        RoadStackCrossing stillStack = network.getStackCrossing(stackId);
-        assertTrue(converted != null || stillStack != null);
-        if (converted != null) {
-            assertEquals(CrossingType.GRADE_SEPARATED, converted.type());
-            if (clearance != null) {
-                assertEquals(clearance, converted.crossingClearance(), 1e-6);
-            }
+        assertNull(network.getStackCrossing(stackId), "passes on different roads must leave stack registry");
+        assertNotNull(converted, "stack must convert to two-road crossing");
+        assertEquals(CrossingType.GRADE_SEPARATED, converted.type());
+        assertNotEquals(converted.roadAId(), converted.roadBId());
+        if (clearance != null) {
+            assertEquals(clearance, converted.crossingClearance(), 1e-6);
         }
+        assertNotNull(converted.elevatedRoadId());
     }
 
     @Test
@@ -196,21 +202,53 @@ class Phase23TopologyEditingTest {
         Road road = figureEight();
         String edgeId = road.getOrderedSegmentIds().getFirst();
         RoadEdge edge = network.getEdge(edgeId);
+        List<Vec2d> pts = edge.getCenterlinePoints();
+        double seg0 = pts.get(0).distance(pts.get(1));
+        double seg1 = pts.get(1).distance(pts.get(2));
+        double secondPassLocal = seg0 + seg1 + pts.get(2).distance(pts.get(3)) * 0.5;
+        Vec2d expected = com.plot.plugin.road.RoadGeometryUtils.pointAtDistance(pts, secondPassLocal);
         double total = edge.getLength();
-        // Second pass is late along the polyline (after self-cross ~ mid).
-        double secondPassLocal = total * 0.75;
-        Vec2d expected = com.plot.plugin.road.RoadGeometryUtils.pointAtDistance(
-            edge.getCenterlinePoints(), secondPassLocal);
         CenterlineEditResult split = RoadCenterlineEditor.splitAtLocalDistance(
             network, edgeId, secondPassLocal);
         assertTrue(split.isSuccess(), split.status().toString());
         RoadNode node = network.getNode(split.nodeId());
         assertNotNull(node);
-        assertTrue(node.getPosition().distance(expected) < 0.5);
-        // First-pass geometry near (5,5) should still exist as continuous early edge, not split there.
+        assertTrue(node.getPosition().distance(expected) < 1e-3);
         RoadEdge first = network.getEdge(split.firstEdgeId());
+        RoadEdge second = network.getEdge(split.secondEdgeId());
         assertNotNull(first);
-        assertTrue(first.getLength() > total * 0.5);
+        assertNotNull(second);
+        assertEquals(secondPassLocal, first.getLength(), 0.05);
+        assertEquals(total - secondPassLocal, second.getLength(), 0.05);
+        assertTrue(first.getLength() > seg0 + seg1 * 0.5);
+    }
+
+    @Test
+    void u01_geometricSplitNearForeignNodeDoesNotJoinRoads() {
+        Road a = network.createRoad("a");
+        Road b = network.createRoad("b");
+        RoadEdge edgeA = network.createEdge(
+            network.createNode(new Vec2d(0, 0)).getId(),
+            network.createNode(new Vec2d(20, 0)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)),
+            a.getId());
+        RoadNode foreign = network.createNode(new Vec2d(10.2, 0.3));
+        network.createEdge(
+            foreign.getId(),
+            network.createNode(new Vec2d(10.2, 10)).getId(),
+            List.of(new Vec2d(10.2, 0.3), new Vec2d(10.2, 10)),
+            b.getId());
+        CenterlineEditResult split = RoadCenterlineEditor.splitAtLocalDistance(
+            network, edgeA.getId(), 10.0);
+        assertTrue(split.isSuccess());
+        assertNotEquals(foreign.getId(), split.nodeId(), "must not reuse foreign-road node");
+        RoadNode splitNode = network.getNode(split.nodeId());
+        assertTrue(splitNode.getPosition().distance(new Vec2d(10, 0)) < 1e-3);
+        assertTrue(foreign.getConnectedEdgeIds().stream()
+            .allMatch(id -> {
+                RoadEdge e = network.getEdge(id);
+                return e != null && b.getId().equals(e.getRoadId());
+            }));
     }
 
     @Test
@@ -379,16 +417,26 @@ class Phase23TopologyEditingTest {
             network.createNode(new Vec2d(5, 10)).getId(),
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
             b.getId());
-        // Contested: two nearby design records for same physical cross.
+        // Two design records nearly equidistant from the true (5,5) detection → contested assist.
+        // Distances to (5,5) are ~0.07 and ~0.07; |Δ| ≤ AMBIGUITY_TOLERANCE (0.1).
         network.registerCrossing(RoadCrossing.gradeSeparated(
-            a.getId(), 5.0, b.getId(), 5.0, new Vec2d(5, 5), b.getId(), 4.0));
-        network.registerCrossing(RoadCrossing.atGrade(
-            a.getId(), 5.2, b.getId(), 4.8, new Vec2d(5.2, 5.0)));
+            a.getId(), 4.0, b.getId(), 4.0, new Vec2d(5.05, 5.05), b.getId(), 4.0));
+        network.registerCrossing(RoadCrossing.gradeSeparated(
+            a.getId(), 6.0, b.getId(), 6.0, new Vec2d(4.95, 4.95), b.getId(), 8.0));
 
+        var result = manager.reconcileCrossings();
+        assertEquals(com.plot.plugin.road.IntersectionResult.INCOMPLETE, result);
+        assertTrue(manager.isAdoptIntersectionRepairPending());
+
+        manager.undo();
+        network = manager.getNetwork();
+        manager.refreshCrossingIntegrityState();
+        assertTrue(manager.isAdoptIntersectionRepairPending(),
+            "contested registry after undo must still probe as pending");
+
+        // Inline observe path must also set the flag (floating-editor contract).
         manager.observeReconcileAfterExternalEdit();
-        // Contested registry may resolve or stay incomplete; API must remain consistent.
-        boolean pending = manager.isAdoptIntersectionRepairPending();
-        assertTrue(pending || !pending);
+        assertTrue(manager.isAdoptIntersectionRepairPending());
     }
 
     @Test
@@ -422,11 +470,13 @@ class Phase23TopologyEditingTest {
         assertNotNull(network.getCrossing(crossingId));
         assertEquals(a.getId(), network.getCrossing(crossingId).roadAId());
         assertEquals(2, network.getRoad(a.getId()).getOrderedSegmentIds().size());
+        assertFalse(manager.isAdoptIntersectionRepairPending());
 
         manager.redo();
         network = manager.getNetwork();
         assertNotNull(network.getCrossing(crossingId));
         assertEquals(CrossingType.GRADE_SEPARATED, network.getCrossing(crossingId).type());
+        assertEquals(3.0, network.getCrossing(crossingId).crossingClearance(), 1e-6);
     }
 
     private Road squareLoop() {
