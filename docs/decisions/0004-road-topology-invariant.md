@@ -53,6 +53,7 @@ Accepted — 2026-08-30（**定义原则 + 检测框架**；enforce 与 `RoadTop
 | `ROAD_DISCONNECTED` | 同一 Road 多连通分量 | warning |
 | `ROAD_BRANCHING` | 子图内度数 > 2 | warning |
 | `ROAD_CYCLE` | 闭合环 | warning（隐含 `LINEAR` 模式） |
+| `ROAD_LOOP_OPEN` | `LOOP` 模式但实际为开放链 | warning（只诊断，不自动补线 / 不自动降为 LINEAR） |
 | `ROAD_ORDER_MISMATCH` | 存储顺序 ≠ `RoadSegmentOrdering` 拓扑序 | warning |
 
 实现：`RoadTopologyInvariantValidator`（**只检测、不修复、不阻断 build**）。
@@ -62,6 +63,7 @@ Accepted — 2026-08-30（**定义原则 + 检测框架**；enforce 与 `RoadTop
 - ~~在 `Road` 上增加 `RoadTopologyMode { LINEAR, LOOP }`~~  
   **已实现（2026-08-30）**：`Road.topologyMode` 字段 + sidecar JSON `topologyMode`（缺省/省略为 `LINEAR`）+ 编辑 Tab 下拉。
 - `LOOP` 模式下 `ROAD_CYCLE` 不再报 violation（仍禁止分叉与断开）
+- **已实现（Phase 2.1）**：`LOOP` 实际断开时报告 `ROAD_LOOP_OPEN`；`isStationable` 拒绝该状态
 - 可选：将 `ROAD_*` 从 warning 升级为 error / 阻断生成（产品决策）
 
 ### 3. 明确不做（当前）

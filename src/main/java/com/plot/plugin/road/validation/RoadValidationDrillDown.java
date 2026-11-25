@@ -44,6 +44,7 @@ public final class RoadValidationDrillDown {
             case "road_disconnected",
                  "road_branching",
                  "road_cycle",
+                 "road_loop_open",
                  "road_order_mismatch",
                  "centerline_self_overlap",
                  "centerline_non_linear",
@@ -74,6 +75,7 @@ public final class RoadValidationDrillDown {
             case "road_disconnected" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_DISCONNECTED);
             case "road_branching" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_BRANCHING);
             case "road_cycle" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_CYCLE);
+            case "road_loop_open" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_LOOP_OPEN);
             case "road_order_mismatch" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_ORDER_MISMATCH);
             case "centerline_self_overlap" -> roadsWithCenterlineKind(
                 network, RoadCenterlineViolationKind.SELF_OVERLAP);

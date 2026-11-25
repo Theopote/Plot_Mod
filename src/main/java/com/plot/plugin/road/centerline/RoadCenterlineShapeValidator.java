@@ -115,6 +115,9 @@ public final class RoadCenterlineShapeValidator {
                 && road.getTopologyMode() != RoadTopologyMode.LOOP) {
                 return true;
             }
+            if (violation.kind() == RoadTopologyViolationKind.ROAD_LOOP_OPEN) {
+                return true;
+            }
         }
         return false;
     }

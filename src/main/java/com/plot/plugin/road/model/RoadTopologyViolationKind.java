@@ -13,6 +13,8 @@ public enum RoadTopologyViolationKind {
     ROAD_BRANCHING,
     /** 闭合环；当前默认按 {@link RoadTopologyMode#LINEAR} 校验时为 warning */
     ROAD_CYCLE,
+    /** {@link RoadTopologyMode#LOOP} 道路实际为开放链（存在端点） */
+    ROAD_LOOP_OPEN,
     /** {@link Road#getOrderedSegmentIds()} 存储顺序与 {@link RoadSegmentOrdering} 拓扑序不一致 */
     ROAD_ORDER_MISMATCH
 }

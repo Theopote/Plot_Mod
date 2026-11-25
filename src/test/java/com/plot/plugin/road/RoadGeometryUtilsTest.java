@@ -363,4 +363,52 @@ class RoadGeometryUtilsTest {
 
         assertEquals(3, groups.size());
     }
+
+    @Test
+    void clipPolylineByArcLengthKeepsExactEndpointForNonIntegerLength() {
+        // G01: length 1.13 with former 0.25 spacing would miss 1.13
+        List<Vec2d> points = List.of(new Vec2d(0, 0), new Vec2d(1.13, 0));
+        List<Vec2d> clipped = RoadGeometryUtils.clipPolylineByArcLength(points, 0.0, 1.13);
+        assertEquals(2, clipped.size());
+        assertEquals(0.0, clipped.getFirst().x, 1e-9);
+        assertEquals(1.13, clipped.getLast().x, 1e-9);
+    }
+
+    @Test
+    void clipPolylineByArcLengthPreservesInteriorCorners() {
+        // G02
+        List<Vec2d> points = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(1, 0),
+            new Vec2d(1, 1),
+            new Vec2d(2, 1));
+        List<Vec2d> clipped = RoadGeometryUtils.clipPolylineByArcLength(points, 0.25, 2.75);
+        assertTrue(clipped.stream().anyMatch(p -> p.distance(new Vec2d(1, 0)) < 1e-9));
+        assertTrue(clipped.stream().anyMatch(p -> p.distance(new Vec2d(1, 1)) < 1e-9));
+        assertEquals(0.25, clipped.getFirst().x, 1e-9);
+        assertEquals(0.0, clipped.getFirst().y, 1e-9);
+        assertEquals(1.75, clipped.getLast().x, 1e-6);
+        assertEquals(1.0, clipped.getLast().y, 1e-6);
+    }
+
+    @Test
+    void clipPolylineByArcLengthForwardAndReverseMatchPhysically() {
+        // G03
+        List<Vec2d> points = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(2, 0),
+            new Vec2d(2, 2));
+        List<Vec2d> forward = RoadGeometryUtils.clipPolylineByArcLength(points, 0.5, 3.5);
+        List<Vec2d> reverseSource = List.of(
+            points.get(2).copy(), points.get(1).copy(), points.get(0).copy());
+        double total = RoadGeometryUtils.calculatePathLength(points);
+        List<Vec2d> reverseClip = RoadGeometryUtils.clipPolylineByArcLength(
+            reverseSource, total - 3.5, total - 0.5);
+        assertEquals(forward.size(), reverseClip.size());
+        for (int i = 0; i < forward.size(); i++) {
+            Vec2d expected = forward.get(i);
+            Vec2d actual = reverseClip.get(reverseClip.size() - 1 - i);
+            assertTrue(expected.distance(actual) < 1e-6);
+        }
+    }
 }

@@ -13,8 +13,8 @@ import java.util.Set;
 /**
  * 校验单条 {@link Road} 是否满足拓扑不变量。
  * <p>
- * 当前策略：所有 Road 隐含 {@link RoadTopologyMode#LINEAR} — 必须连通、无分叉；
- * 闭合环与存储顺序问题仅报告 warning，不阻断操作。
+ * {@link RoadTopologyMode#LINEAR}：连通、无分叉、开放链（两个端点）。
+ * {@link RoadTopologyMode#LOOP}：连通、无分叉、无开放端点。
  *
  * @see docs/decisions/0004-road-topology-invariant.md
  */
@@ -42,8 +42,14 @@ public final class RoadTopologyInvariantValidator {
         String roadId = road.getId();
 
         RoadSubgraph subgraph = RoadSubgraph.build(network, road);
-        if (subgraph.edgeIds().size() <= 1) {
-            return List.of();
+        if (subgraph.edgeIds().isEmpty()) {
+            return List.copyOf(violations);
+        }
+
+        if (subgraph.edgeIds().size() == 1) {
+            maybeAddLoopOpen(violations, roadId, road, subgraph);
+            maybeAddLinearCycleForSingleSelfLoop(violations, roadId, road, network, subgraph);
+            return List.copyOf(violations);
         }
 
         if (subgraph.componentCount() > 1) {
@@ -59,12 +65,39 @@ public final class RoadTopologyInvariantValidator {
         if (subgraph.endpointCount() == 0 && road.getTopologyMode() != RoadTopologyMode.LOOP) {
             violations.add(new RoadTopologyViolation(roadId, RoadTopologyViolationKind.ROAD_CYCLE));
         }
+        maybeAddLoopOpen(violations, roadId, road, subgraph);
 
         if (hasOrderMismatch(network, road, subgraph)) {
             violations.add(new RoadTopologyViolation(roadId, RoadTopologyViolationKind.ROAD_ORDER_MISMATCH));
         }
 
         return List.copyOf(violations);
+    }
+
+    private static void maybeAddLoopOpen(
+            List<RoadTopologyViolation> violations,
+            String roadId,
+            Road road,
+            RoadSubgraph subgraph) {
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP && subgraph.endpointCount() > 0) {
+            violations.add(new RoadTopologyViolation(roadId, RoadTopologyViolationKind.ROAD_LOOP_OPEN));
+        }
+    }
+
+    private static void maybeAddLinearCycleForSingleSelfLoop(
+            List<RoadTopologyViolation> violations,
+            String roadId,
+            Road road,
+            RoadNetwork network,
+            RoadSubgraph subgraph) {
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP || subgraph.endpointCount() != 0) {
+            return;
+        }
+        String edgeId = subgraph.edgeIds().iterator().next();
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge != null && edge.getStartNodeId().equals(edge.getEndNodeId())) {
+            violations.add(new RoadTopologyViolation(roadId, RoadTopologyViolationKind.ROAD_CYCLE));
+        }
     }
 
     /**
@@ -94,6 +127,7 @@ public final class RoadTopologyInvariantValidator {
             case ROAD_DISCONNECTED -> "plugin.road.topology_hint.disconnected";
             case ROAD_BRANCHING -> "plugin.road.topology_hint.branching";
             case ROAD_CYCLE -> "plugin.road.topology_hint.cycle";
+            case ROAD_LOOP_OPEN -> "plugin.road.topology_hint.loop_open";
             case ROAD_ORDER_MISMATCH -> "plugin.road.topology_hint.order_mismatch";
         };
     }

@@ -9,6 +9,8 @@ public enum RoadRepairIssue {
     TOPOLOGY_DISCONNECTED,
     TOPOLOGY_BRANCHING,
     TOPOLOGY_CYCLE,
+    /** LOOP mode but geometry is an open chain — diagnose only; no auto demotion. */
+    TOPOLOGY_LOOP_OPEN,
     SEGMENT_ORDER_MISMATCH,
     HORIZONTAL_ALIGNMENT_MISMATCH,
     JUNCTION_ENDPOINT_MISMATCH,
@@ -30,6 +32,6 @@ public enum RoadRepairIssue {
      * 中心线自重叠需要手动改折线，无法自动消除。
      */
     public boolean isAutoFixable() {
-        return this != CENTERLINE_SELF_OVERLAP;
+        return this != CENTERLINE_SELF_OVERLAP && this != TOPOLOGY_LOOP_OPEN;
     }
 }

@@ -166,6 +166,7 @@ public final class RoadAutoRepair {
                 case ROAD_DISCONNECTED -> issues.add(RoadRepairIssue.TOPOLOGY_DISCONNECTED);
                 case ROAD_BRANCHING -> issues.add(RoadRepairIssue.TOPOLOGY_BRANCHING);
                 case ROAD_CYCLE -> issues.add(RoadRepairIssue.TOPOLOGY_CYCLE);
+                case ROAD_LOOP_OPEN -> issues.add(RoadRepairIssue.TOPOLOGY_LOOP_OPEN);
                 case ROAD_ORDER_MISMATCH -> issues.add(RoadRepairIssue.SEGMENT_ORDER_MISMATCH);
             }
         }

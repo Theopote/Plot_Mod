@@ -2,12 +2,15 @@ package com.plot.plugin.road.crossing;
 
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.graph.RoadGraphQueries;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 可编辑交点清单：交叉注册表 + 自交 + 未被注册表覆盖的遗留拓扑路口。
@@ -45,8 +48,8 @@ public final class RoadIntersectionInventory {
             if (node == null || node.getDegree() < 2) {
                 continue;
             }
-            if (isCoveredByRegistryCrossing(node, crossings)
-                    || isCoveredByStackCrossing(node, stackCrossings)) {
+            if (isCoveredByRegistryCrossing(network, node, crossings)
+                    || isCoveredByStackCrossing(network, node, stackCrossings)) {
                 continue;
             }
             if (node.isJunction()
@@ -59,29 +62,79 @@ public final class RoadIntersectionInventory {
         return junctions;
     }
 
-    private static boolean isCoveredByStackCrossing(RoadNode node, List<RoadStackCrossing> stacks) {
-        if (node.getPosition() == null || stacks == null) {
+    private static boolean isCoveredByStackCrossing(
+            RoadNetwork network,
+            RoadNode node,
+            List<RoadStackCrossing> stacks) {
+        if (stacks == null || stacks.isEmpty()) {
+            return false;
+        }
+        String boundId = node.getStackCrossingId();
+        if (boundId != null && !boundId.isBlank()) {
+            for (RoadStackCrossing stack : stacks) {
+                if (boundId.equals(stack.id())) {
+                    return true;
+                }
+            }
+        }
+        Set<String> nodeRoadIds = incidentRoadIds(network, node);
+        if (node.getPosition() == null) {
             return false;
         }
         for (RoadStackCrossing stack : stacks) {
-            if (stack.position() != null
-                    && RoadGeometryUtils.pointsNear(node.getPosition(), stack.position(), COVER_TOLERANCE)) {
+            if (stack.position() == null) {
+                continue;
+            }
+            if (!RoadGeometryUtils.pointsNear(node.getPosition(), stack.position(), COVER_TOLERANCE)) {
+                continue;
+            }
+            if (stack.roadId() != null && nodeRoadIds.contains(stack.roadId())) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean isCoveredByRegistryCrossing(RoadNode node, List<RoadCrossing> crossings) {
-        if (node.getPosition() == null || crossings == null) {
+    private static boolean isCoveredByRegistryCrossing(
+            RoadNetwork network,
+            RoadNode node,
+            List<RoadCrossing> crossings) {
+        if (node.getPosition() == null || crossings == null || crossings.isEmpty()) {
             return false;
         }
+        Set<String> nodeRoadIds = incidentRoadIds(network, node);
         for (RoadCrossing crossing : crossings) {
-            if (crossing.position() != null
-                    && RoadGeometryUtils.pointsNear(node.getPosition(), crossing.position(), COVER_TOLERANCE)) {
+            if (crossing.position() == null) {
+                continue;
+            }
+            if (!roadsOverlap(nodeRoadIds, crossing)) {
+                continue;
+            }
+            if (RoadGeometryUtils.pointsNear(node.getPosition(), crossing.position(), COVER_TOLERANCE)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean roadsOverlap(Set<String> nodeRoadIds, RoadCrossing crossing) {
+        if (nodeRoadIds == null || nodeRoadIds.isEmpty()) {
+            return false;
+        }
+        return nodeRoadIds.contains(crossing.roadAId()) || nodeRoadIds.contains(crossing.roadBId());
+    }
+
+    private static Set<String> incidentRoadIds(RoadNetwork network, RoadNode node) {
+        Set<String> roadIds = new HashSet<>();
+        if (network == null || node == null) {
+            return roadIds;
+        }
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && edge.getRoadId() != null) {
+                roadIds.add(edge.getRoadId());
+            }
+        }
+        return roadIds;
     }
 }

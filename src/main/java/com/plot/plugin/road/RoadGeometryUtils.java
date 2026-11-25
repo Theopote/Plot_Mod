@@ -380,6 +380,100 @@ public final class RoadGeometryUtils {
     }
 
     /**
+     * Exact arc-length clip of a polyline: precise start, all interior original vertices,
+     * and precise end. Does not resample at a fixed spacing.
+     */
+    public static List<Vec2d> clipPolylineByArcLength(
+            List<Vec2d> points,
+            double startDistance,
+            double endDistance) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+        if (points.size() == 1) {
+            return List.of(points.getFirst().copy());
+        }
+        if (!Double.isFinite(startDistance) || !Double.isFinite(endDistance)) {
+            return List.of();
+        }
+        double lo = Math.min(startDistance, endDistance);
+        double hi = Math.max(startDistance, endDistance);
+        double total = calculatePathLength(points);
+        if (total <= 1e-12) {
+            return List.of(points.getFirst().copy());
+        }
+        lo = Math.clamp(lo, 0.0, total);
+        hi = Math.clamp(hi, 0.0, total);
+        if (hi - lo <= 1e-12) {
+            Vec2d single = pointAtDistance(points, lo);
+            return single != null ? List.of(single) : List.of();
+        }
+
+        final double vertexEpsilon = 1e-9;
+        List<Vec2d> clipped = new ArrayList<>();
+        Vec2d startPoint = pointAtDistance(points, lo);
+        if (startPoint != null) {
+            clipped.add(startPoint);
+        }
+
+        double accumulated = 0.0;
+        for (int i = 1; i < points.size(); i++) {
+            Vec2d prev = points.get(i - 1);
+            Vec2d curr = points.get(i);
+            double segmentLength = prev.distance(curr);
+            accumulated += segmentLength;
+            if (accumulated <= lo + vertexEpsilon || accumulated >= hi - vertexEpsilon) {
+                continue;
+            }
+            if (clipped.isEmpty() || clipped.getLast().distance(curr) > vertexEpsilon) {
+                clipped.add(curr.copy());
+            }
+        }
+
+        Vec2d endPoint = pointAtDistance(points, hi);
+        if (endPoint != null
+                && (clipped.isEmpty() || clipped.getLast().distance(endPoint) > vertexEpsilon)) {
+            clipped.add(endPoint);
+        }
+        return List.copyOf(clipped);
+    }
+
+    /** Axis-aligned bounds of a polyline in plan XZ; empty when fewer than one point. */
+    public static double[] polylineAabb(List<Vec2d> points) {
+        if (points == null || points.isEmpty()) {
+            return null;
+        }
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        for (Vec2d point : points) {
+            if (point == null) {
+                continue;
+            }
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        }
+        if (!Double.isFinite(minX)) {
+            return null;
+        }
+        return new double[]{minX, minY, maxX, maxY};
+    }
+
+    public static boolean aabbOverlap(double[] a, double[] b, double pad) {
+        if (a == null || b == null || a.length < 4 || b.length < 4) {
+            return false;
+        }
+        double p = Math.max(0.0, pad);
+        return a[0] <= b[2] + p
+            && a[2] >= b[0] - p
+            && a[1] <= b[3] + p
+            && a[3] >= b[1] - p;
+    }
+
+    /**
      * 在折线上按弧长插入顶点（不拆分拓扑边）。距端点过近时返回 empty。
      */
     public static java.util.Optional<List<Vec2d>> insertVertexAtDistance(

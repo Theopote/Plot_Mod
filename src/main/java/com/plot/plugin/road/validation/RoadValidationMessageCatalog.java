@@ -48,6 +48,10 @@ public final class RoadValidationMessageCatalog {
                 RoadNetworkValidationReport.Level.WARNING,
                 "road_cycle_single",
                 RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
+            case ROAD_LOOP_OPEN -> RoadValidationMessage.of(
+                RoadNetworkValidationReport.Level.WARNING,
+                "road_loop_open_single",
+                RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
             case ROAD_ORDER_MISMATCH -> RoadValidationMessage.of(
                 RoadNetworkValidationReport.Level.WARNING,
                 "road_order_mismatch_single",
@@ -134,6 +138,8 @@ public final class RoadValidationMessageCatalog {
             IssueTemplate.warning("road_branching", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.road_cycle",
             IssueTemplate.warning("road_cycle", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
+        map.put("plugin.road.validation.road_loop_open",
+            IssueTemplate.warning("road_loop_open", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.road_order_mismatch",
             IssueTemplate.warning("road_order_mismatch", RoadValidationAction.SYNC_SEGMENT_ORDER));
         map.put("plugin.road.validation.centerline_shape_ok", IssueTemplate.ok("centerline_shape_ok"));

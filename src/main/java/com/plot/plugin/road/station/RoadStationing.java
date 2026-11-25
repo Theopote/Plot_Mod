@@ -241,7 +241,8 @@ public final class RoadStationing {
         }
         for (RoadTopologyViolation violation : RoadTopologyInvariantValidator.validateRoad(network, road)) {
             if (violation.kind() == RoadTopologyViolationKind.ROAD_DISCONNECTED
-                    || violation.kind() == RoadTopologyViolationKind.ROAD_BRANCHING) {
+                    || violation.kind() == RoadTopologyViolationKind.ROAD_BRANCHING
+                    || violation.kind() == RoadTopologyViolationKind.ROAD_LOOP_OPEN) {
                 return false;
             }
             if (violation.kind() == RoadTopologyViolationKind.ROAD_CYCLE

@@ -248,6 +248,9 @@ public final class RoadNetworkEngineeringValidator {
             items, counts, RoadTopologyViolationKind.ROAD_CYCLE,
             "plugin.road.validation.road_cycle");
         addRoadTopologyWarningIfPositive(
+            items, counts, RoadTopologyViolationKind.ROAD_LOOP_OPEN,
+            "plugin.road.validation.road_loop_open");
+        addRoadTopologyWarningIfPositive(
             items, counts, RoadTopologyViolationKind.ROAD_ORDER_MISMATCH,
             "plugin.road.validation.road_order_mismatch");
     }

@@ -186,4 +186,34 @@ class RoadTopologyInvariantValidatorTest {
 
         assertEquals(0, RoadTopologyInvariantValidator.countRoadsWithShapeViolations(network));
     }
+
+    @Test
+    void detectsLoopModeOpenedIntoChain() {
+        // G09
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("was-loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(10, 10));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+
+        List<RoadTopologyViolation> violations = RoadTopologyInvariantValidator.validateRoad(network, road);
+        assertTrue(violations.stream().anyMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_LOOP_OPEN));
+    }
+
+    @Test
+    void singleOpenEdgeLoopModeReportsLoopOpen() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("open-loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        List<RoadTopologyViolation> violations = RoadTopologyInvariantValidator.validateRoad(network, road);
+        assertEquals(1, violations.size());
+        assertEquals(RoadTopologyViolationKind.ROAD_LOOP_OPEN, violations.getFirst().kind());
+    }
 }

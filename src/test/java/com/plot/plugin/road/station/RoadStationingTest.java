@@ -104,6 +104,20 @@ class RoadStationingTest {
     }
 
     @Test
+    void openLoopRoadIsNotStationable() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("open-loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+
+        assertFalse(RoadStationing.isStationable(network, road));
+    }
+
+    @Test
     void formatFromEndUsesEPrefix() {
         assertEquals("EK0+000", RoadStationing.formatFromEnd(0.0, RoadStationFormat.KILOMETER_PLUS));
         assertEquals("EK0+020", RoadStationing.formatFromEnd(20.0, RoadStationFormat.KILOMETER_PLUS));
