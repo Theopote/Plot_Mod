@@ -912,7 +912,10 @@ public final class RoadNetworkManager {
             remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
             if (crossingCapture != null) {
                 var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
-                    network, crossingCapture);
+                    network,
+                    crossingCapture,
+                    com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.MissingPassPolicy.REMOVE);
+                // Expected removals are complete; only capture-time unresolved designs stay pending.
                 if (apply.isPending()) {
                     adoptIntersectionRepairPending = true;
                 }
@@ -1073,7 +1076,7 @@ public final class RoadNetworkManager {
         }
         pushUndoSnapshot();
         String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId);
-        if (newRoadId == null) {
+        if (newRoadId == null || network.consumeCrossingMigrationFailure()) {
             abortPendingNetworkEdit();
             return null;
         }
@@ -1095,7 +1098,7 @@ public final class RoadNetworkManager {
         }
         pushUndoSnapshot();
         String mergedId = network.mergeRoadTailIntoHead(headRoadId, tailRoadId);
-        if (mergedId == null) {
+        if (mergedId == null || network.consumeCrossingMigrationFailure()) {
             abortPendingNetworkEdit();
             return null;
         }

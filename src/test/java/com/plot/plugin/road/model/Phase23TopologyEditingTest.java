@@ -6,6 +6,7 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.graph.RoadExplicitConnector;
@@ -13,11 +14,14 @@ import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Phase 2.3 topology editing regressions T-R01–T-R16.
+ * Phase 2.3 topology editing regressions T-R01–T-R16 and V-R01–V-R06.
  */
 class Phase23TopologyEditingTest {
     private RoadNetworkManager manager;
@@ -477,6 +481,234 @@ class Phase23TopologyEditingTest {
         assertNotNull(network.getCrossing(crossingId));
         assertEquals(CrossingType.GRADE_SEPARATED, network.getCrossing(crossingId).type());
         assertEquals(3.0, network.getCrossing(crossingId).crossingClearance(), 1e-6);
+    }
+
+    @Test
+    void vr01_figureEightDualPassStationsSurviveReapply() {
+        Road road = figureEight();
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadStackCrossing before = network.getStackCrossings().values().iterator().next();
+        double sA = before.stationA();
+        double sB = before.stationB();
+        assertTrue(Math.abs(sA - sB) > 1.0, "two physical passes must differ");
+        assertEquals(7.07, sA, 0.2);
+        assertEquals(31.21, sB, 0.2);
+
+        var capture = RoadCrossingOwnershipMigrator.captureForRoads(network, Set.of(road.getId()));
+        var apply = RoadCrossingOwnershipMigrator.reapply(
+            network, capture, RoadCrossingOwnershipMigrator.MissingPassPolicy.FAIL);
+        assertTrue(apply.complete());
+
+        RoadStackCrossing after = network.getStackCrossing(before.id());
+        assertNotNull(after);
+        assertEquals(sA, after.stationA(), 1e-6);
+        assertEquals(sB, after.stationB(), 1e-6);
+        assertTrue(after.position().distance(new Vec2d(5, 5)) < 0.5);
+    }
+
+    @Test
+    void vr02_loopInteriorSeamSelectsCorrectTraversalSlice() {
+        Road road = squareLoop();
+        String bottom = road.getOrderedSegmentIds().getFirst();
+        RoadEdge edge = network.getEdge(bottom);
+        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), bottom, 0.5));
+
+        double midLocal = edge.getLength() * 0.5;
+        double earlyLocal = midLocal * 0.25;
+        double lateLocal = midLocal + (edge.getLength() - midLocal) * 0.75;
+
+        var early = RoadStationing.stationAt(network, road, bottom, earlyLocal);
+        var late = RoadStationing.stationAt(network, road, bottom, lateLocal);
+        assertTrue(early.isPresent());
+        assertTrue(late.isPresent());
+        assertNotEquals(early.get().chainageMeters(), late.get().chainageMeters(), 1e-3);
+
+        // Local distance exactly at seam belongs to one slice; outside the edge fails.
+        assertTrue(RoadStationing.stationAt(network, road, bottom, midLocal).isPresent());
+        assertTrue(RoadStationing.stationAt(network, road, bottom, edge.getLength() + 10.0).isEmpty());
+    }
+
+    @Test
+    void vr03_deleteCrossingEdgeDoesNotBindNearbyRoad() {
+        Road a = network.createRoad("a");
+        Road nearby = network.createRoad("nearby");
+        RoadNode a0 = network.createNode(new Vec2d(0, 5));
+        RoadNode a1 = network.createNode(new Vec2d(10, 5));
+        RoadEdge edgeA = network.createEdge(
+            a0.getId(), a1.getId(), List.of(new Vec2d(0, 5), new Vec2d(10, 5)), a.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 0)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
+            nearby.getId());
+        RoadCrossing design = RoadCrossing.gradeSeparated(
+            a.getId(), 5.0, nearby.getId(), 5.0, new Vec2d(5, 5), nearby.getId(), 4.0);
+        network.registerCrossing(design);
+        String crossingId = design.id();
+
+        manager.deleteEdge(edgeA.getId());
+        network = manager.getNetwork();
+
+        assertNull(network.getCrossing(crossingId), "deleted edge must drop its crossing");
+        assertTrue(network.crossingsForRoad(nearby.getId()).isEmpty(),
+            "must not rebind the deleted pass onto the nearby road");
+        assertNull(network.getEdge(edgeA.getId()));
+    }
+
+    @Test
+    void vr04_migrationFailureRollsBackLogicalMerge() {
+        Road road = figureEight();
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+        network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, stack.stationA(), stack.stationB(), 3.0);
+        String stackId = stack.id();
+
+        String edgeId = road.getOrderedSegmentIds().getFirst();
+        CenterlineEditResult geoSplit = RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, 8.0);
+        assertTrue(geoSplit.isSuccess());
+        road = network.getRoad(road.getId());
+        List<String> segs = RoadSegmentOrdering.orderedSegmentIds(network, road);
+        String newRoadId = manager.splitRoadBeforeSegment(road.getId(), segs.get(1));
+        assertNotNull(newRoadId);
+        network = manager.getNetwork();
+
+        RoadCrossing converted = network.getCrossing(stackId);
+        assertNotNull(converted);
+        // Corner radius cannot survive stack conversion — merge must refuse and roll back.
+        network.registerCrossing(new RoadCrossing(
+            converted.id(),
+            converted.roadAId(),
+            converted.stationA(),
+            converted.roadBId(),
+            converted.stationB(),
+            converted.position(),
+            converted.type(),
+            converted.elevatedRoadId(),
+            converted.crossingClearance(),
+            converted.sharedElevation(),
+            2.5));
+
+        String headId = converted.roadAId();
+        String tailId = converted.roadBId();
+        String merged = manager.mergeRoadTailIntoHead(headId, tailId);
+        assertNull(merged, "migration failure must abort the logical merge");
+        network = manager.getNetwork();
+
+        RoadCrossing kept = network.getCrossing(stackId);
+        assertNotNull(kept, "original two-road design must be restored");
+        assertEquals(2.5, kept.cornerRadius(), 1e-6);
+        assertEquals(CrossingType.GRADE_SEPARATED, kept.type());
+        assertNotNull(network.getRoad(headId));
+        assertNotNull(network.getRoad(tailId));
+    }
+
+    @Test
+    void vr05_farSplitPointRejectedWithoutNetworkChange() {
+        Road road = network.createRoad("r");
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(20, 0));
+        RoadEdge edge = network.createEdge(
+            n0.getId(), n1.getId(), List.of(new Vec2d(0, 0), new Vec2d(20, 0)), road.getId());
+        int edgesBefore = network.getEdges().size();
+        String edgeId = edge.getId();
+        double lengthBefore = edge.getLength();
+
+        RoadNode farNode = network.createNode(new Vec2d(10, 5));
+        Optional<RoadGraphEdits.SplitResult> far = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
+            edgeId, farNode.getId(), 0, new Vec2d(10, 5), 0.5);
+        assertTrue(far.isEmpty());
+        assertEquals(edgesBefore, network.getEdges().size());
+        assertNotNull(network.getEdge(edgeId));
+        assertEquals(lengthBefore, network.getEdge(edgeId).getLength(), 1e-9);
+
+        // Wrong segment index: point lies on segment 0, but ask for segment 1.
+        RoadEdge bent = network.createEdge(
+            network.createNode(new Vec2d(0, 10)).getId(),
+            network.createNode(new Vec2d(20, 10)).getId(),
+            List.of(new Vec2d(0, 10), new Vec2d(10, 15), new Vec2d(20, 10)),
+            road.getId());
+        int edgesAfterBent = network.getEdges().size();
+        RoadNode onFirst = network.createNode(new Vec2d(5, 12.5));
+        Optional<RoadGraphEdits.SplitResult> wrongSeg = RoadGraphEdits.of(network).splitEdgeAtInteriorSegment(
+            bent.getId(), onFirst.getId(), 1, new Vec2d(5, 12.5), 0.5);
+        assertTrue(wrongSeg.isEmpty());
+        assertEquals(edgesAfterBent, network.getEdges().size());
+        assertNotNull(network.getEdge(bent.getId()));
+    }
+
+    @Test
+    void vr06_reverseMergePreservesRolesOrRejectsAlongData() {
+        // Ring-style join that reorients tail edges (enter via geometric end).
+        Road head = network.createRoad("head");
+        Road tail = network.createRoad("tail");
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(10, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 10));
+        RoadNode n3 = network.createNode(new Vec2d(0, 10));
+        String h0 = network.createEdge(n0.getId(), n1.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), head.getId()).getId();
+        String h1 = network.createEdge(n1.getId(), n2.getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(10, 10)), head.getId()).getId();
+        // Stored forward n0→n3→n2; ring merge walks from n2 and reverses traversal.
+        String t0 = network.createEdge(n0.getId(), n3.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 10)), tail.getId()).getId();
+        String t1 = network.createEdge(n3.getId(), n2.getId(),
+            List.of(new Vec2d(0, 10), new Vec2d(10, 10)), tail.getId()).getId();
+        head.reorderSegments(List.of(h0, h1));
+        tail.reorderSegments(List.of(t0, t1));
+
+        Road cross = network.createRoad("cross");
+        network.createEdge(
+            network.createNode(new Vec2d(5, -2)).getId(),
+            network.createNode(new Vec2d(5, 2)).getId(),
+            List.of(new Vec2d(5, -2), new Vec2d(5, 2)),
+            cross.getId());
+        RoadCrossing design = RoadCrossing.gradeSeparated(
+            head.getId(), 5.0, cross.getId(), 2.0, new Vec2d(5, 0), cross.getId(), 4.0);
+        network.registerCrossing(design);
+        String crossingId = design.id();
+        String elevated = design.elevatedRoadId();
+        double clearance = design.crossingClearance();
+
+        String merged = manager.mergeRoadTailIntoHead(head.getId(), tail.getId());
+        assertEquals(head.getId(), merged);
+        network = manager.getNetwork();
+        RoadCrossing kept = network.getCrossing(crossingId);
+        assertNotNull(kept);
+        assertEquals(elevated, kept.elevatedRoadId());
+        assertEquals(clearance, kept.crossingClearance(), 1e-6);
+        assertEquals(CrossingType.GRADE_SEPARATED, kept.type());
+        assertTrue(kept.involvesRoad(head.getId()));
+        assertTrue(kept.involvesRoad(cross.getId()));
+
+        // Rebuild with VA on the reverse-oriented tail → must refuse.
+        manager = new RoadNetworkManager(new RoadSystemConfig("phase23-vr06b"), new RoadProjectStatus());
+        network = manager.getNetwork();
+        Road head2 = network.createRoad("head2");
+        Road tail2 = network.createRoad("tail2");
+        RoadNode m0 = network.createNode(new Vec2d(0, 0));
+        RoadNode m1 = network.createNode(new Vec2d(10, 0));
+        RoadNode m2 = network.createNode(new Vec2d(10, 10));
+        RoadNode m3 = network.createNode(new Vec2d(0, 10));
+        String a0 = network.createEdge(m0.getId(), m1.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), head2.getId()).getId();
+        String a1 = network.createEdge(m1.getId(), m2.getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(10, 10)), head2.getId()).getId();
+        String b0 = network.createEdge(m0.getId(), m3.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 10)), tail2.getId()).getId();
+        String b1 = network.createEdge(m3.getId(), m2.getId(),
+            List.of(new Vec2d(0, 10), new Vec2d(10, 10)), tail2.getId()).getId();
+        head2.reorderSegments(List.of(a0, a1));
+        tail2.reorderSegments(List.of(b0, b1));
+        tail2.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(20.0, 70.0))));
+
+        assertNull(manager.mergeRoadTailIntoHead(head2.getId(), tail2.getId()));
+        assertNotNull(network.getRoad(head2.getId()));
+        assertNotNull(network.getRoad(tail2.getId()));
+        assertEquals(2, network.getRoad(tail2.getId()).getOrderedSegmentIds().size());
     }
 
     private Road squareLoop() {

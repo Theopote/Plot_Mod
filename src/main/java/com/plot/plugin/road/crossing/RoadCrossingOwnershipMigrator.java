@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
+import com.plot.plugin.road.station.RoadStation;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.SegmentStation;
 
@@ -16,7 +17,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.Set;
 
 /**
@@ -33,6 +33,13 @@ public final class RoadCrossingOwnershipMigrator {
     public enum Kind { TWO_ROAD, STACK }
 
     public enum PassRole { A, B }
+
+    /**
+     * How to treat a captured pass whose edge is gone or unresolvable.
+     * {@link #REMOVE} — intentional edge deletion: drop the crossing.
+     * {@link #FAIL} — logical split/merge: leave design untouched and report incomplete.
+     */
+    public enum MissingPassPolicy { REMOVE, FAIL }
 
     /** Ephemeral capture of one physical pass (edit-transaction only). */
     public record CrossingPassBinding(
@@ -110,9 +117,20 @@ public final class RoadCrossingOwnershipMigrator {
     }
 
     public static ApplyResult reapply(RoadNetwork network, CaptureResult capture) {
-        if (network == null || capture == null || capture.isEmpty()) {
+        return reapply(network, capture, MissingPassPolicy.FAIL);
+    }
+
+    public static ApplyResult reapply(
+            RoadNetwork network,
+            CaptureResult capture,
+            MissingPassPolicy policy) {
+        if (network == null || capture == null) {
+            return new ApplyResult(true, 0, 0);
+        }
+        if (capture.isEmpty()) {
             return new ApplyResult(!capture.hadUnresolved(), 0, 0);
         }
+        MissingPassPolicy missingPolicy = policy != null ? policy : MissingPassPolicy.FAIL;
         Map<String, List<CrossingPassBinding>> twoRoad = new HashMap<>();
         Map<String, List<CrossingPassBinding>> stacks = new HashMap<>();
         for (CrossingPassBinding binding : capture.bindings()) {
@@ -136,52 +154,41 @@ public final class RoadCrossingOwnershipMigrator {
             Optional<ResolvedPass> resolvedA = resolvePass(network, passA);
             Optional<ResolvedPass> resolvedB = resolvePass(network, passB);
             if (resolvedA.isEmpty() || resolvedB.isEmpty()) {
-                complete = false;
+                if (missingPolicy == MissingPassPolicy.REMOVE) {
+                    network.removeCrossing(entry.getKey());
+                    removed++;
+                } else {
+                    complete = false;
+                }
                 continue;
             }
             ResolvedPass a = resolvedA.get();
             ResolvedPass b = resolvedB.get();
-            String elevated = remapElevated(passA.elevatedRoadId(), passA.roadId(), passB.roadId(), a.roadId(), b.roadId());
+            String elevated = remapElevated(
+                passA.elevatedRoadId(), passA.roadId(), passB.roadId(), a.roadId(), b.roadId());
 
             if (a.roadId().equals(b.roadId())) {
-                if (!isValidStackConversion(network, a, b)) {
-                    network.removeCrossing(entry.getKey());
-                    removed++;
+                if (!canConvertTwoRoadToStack(network, passA, passB, a, b, entry.getKey())) {
+                    if (missingPolicy == MissingPassPolicy.REMOVE) {
+                        network.removeCrossing(entry.getKey());
+                        removed++;
+                    } else {
+                        complete = false;
+                    }
                     continue;
                 }
-                network.removeCrossing(entry.getKey());
                 Double lower = null;
                 Double upper = null;
                 if (passA.type() == CrossingType.GRADE_SEPARATED) {
-                    if (passA.elevatedRoadId() == null) {
-                        // Cannot invent upper from station magnitude — keep pending design without false roles.
-                        complete = false;
-                        network.registerStackCrossing(new RoadStackCrossing(
-                            entry.getKey(),
-                            a.roadId(),
-                            midpoint(a.position(), b.position()),
-                            a.station(),
-                            b.station(),
-                            CrossingType.GRADE_SEPARATED,
-                            null,
-                            null,
-                            passA.crossingClearance(),
-                            passA.sharedElevation()));
-                        rewritten++;
-                        continue;
-                    }
                     if (passA.elevatedRoadId().equals(passA.roadId())) {
                         upper = a.station();
                         lower = b.station();
-                    } else if (passA.elevatedRoadId().equals(passB.roadId())) {
+                    } else {
                         upper = b.station();
                         lower = a.station();
-                    } else {
-                        complete = false;
-                        upper = null;
-                        lower = null;
                     }
                 }
+                network.removeCrossing(entry.getKey());
                 network.registerStackCrossing(new RoadStackCrossing(
                     entry.getKey(),
                     a.roadId(),
@@ -222,7 +229,12 @@ public final class RoadCrossingOwnershipMigrator {
             Optional<ResolvedPass> resolvedA = resolvePass(network, passA);
             Optional<ResolvedPass> resolvedB = resolvePass(network, passB);
             if (resolvedA.isEmpty() || resolvedB.isEmpty()) {
-                complete = false;
+                if (missingPolicy == MissingPassPolicy.REMOVE) {
+                    network.removeStackCrossing(entry.getKey());
+                    removed++;
+                } else {
+                    complete = false;
+                }
                 continue;
             }
             ResolvedPass a = resolvedA.get();
@@ -230,7 +242,16 @@ public final class RoadCrossingOwnershipMigrator {
 
             if (!a.roadId().equals(b.roadId())) {
                 String elevated = null;
-                if (passA.type() == CrossingType.GRADE_SEPARATED && passA.upperStationHint() != null) {
+                if (passA.type() == CrossingType.GRADE_SEPARATED) {
+                    if (passA.upperStationHint() == null) {
+                        if (missingPolicy == MissingPassPolicy.REMOVE) {
+                            network.removeStackCrossing(entry.getKey());
+                            removed++;
+                        } else {
+                            complete = false;
+                        }
+                        continue;
+                    }
                     double da = Math.abs(passA.upperStationHint() - passA.originalStation());
                     double db = Math.abs(passA.upperStationHint() - passB.originalStation());
                     elevated = da <= db ? a.roadId() : b.roadId();
@@ -254,6 +275,16 @@ public final class RoadCrossingOwnershipMigrator {
 
             Double lower = remapStationHint(passA.lowerStationHint(), passA, passB, a, b);
             Double upper = remapStationHint(passA.upperStationHint(), passA, passB, a, b);
+            if (passA.type() == CrossingType.GRADE_SEPARATED
+                    && (upper == null || lower == null)) {
+                if (missingPolicy == MissingPassPolicy.REMOVE) {
+                    network.removeStackCrossing(entry.getKey());
+                    removed++;
+                } else {
+                    complete = false;
+                }
+                continue;
+            }
             network.registerStackCrossing(new RoadStackCrossing(
                 entry.getKey(),
                 a.roadId(),
@@ -361,62 +392,68 @@ public final class RoadCrossingOwnershipMigrator {
             stack.upperStation()));
     }
 
+    /**
+     * Resolve a captured physical pass via edgeId + localDistance only.
+     * Missing edges return empty — never scan the whole network for a nearby road.
+     */
     private static Optional<ResolvedPass> resolvePass(RoadNetwork network, CrossingPassBinding binding) {
-        RoadEdge edge = network.getEdge(binding.edgeId());
-        Vec2d world = binding.worldPosition();
-        if (edge != null && edge.getRoadId() != null) {
-            Road road = network.getRoad(edge.getRoadId());
-            if (road != null && RoadStationing.isStationable(network, road)) {
-                Vec2d point = RoadGeometryUtils.pointAtDistance(
-                    edge.getCenterlinePoints(), binding.localDistance());
-                if (point == null) {
-                    point = world;
-                }
-                if (point != null) {
-                    OptionalDouble chainage = RoadStationing.chainageAtPosition(network, road, point);
-                    if (chainage.isPresent()) {
-                        return Optional.of(new ResolvedPass(
-                            road.getId(), chainage.getAsDouble(), point, edge.getId()));
-                    }
-                }
-            }
-        }
-        if (world == null) {
+        if (binding == null || binding.edgeId() == null) {
             return Optional.empty();
         }
-        ResolvedPass best = null;
-        double bestDist = Double.POSITIVE_INFINITY;
-        for (Road road : network.getRoads().values()) {
-            if (!RoadStationing.isStationable(network, road)) {
-                continue;
+        RoadEdge edge = network.getEdge(binding.edgeId());
+        if (edge == null || edge.getRoadId() == null) {
+            return Optional.empty();
+        }
+        Road road = network.getRoad(edge.getRoadId());
+        if (road == null || !RoadStationing.isStationable(network, road)) {
+            return Optional.empty();
+        }
+        Optional<RoadStation> station = RoadStationing.stationAt(
+            network, road, binding.edgeId(), binding.localDistance());
+        if (station.isEmpty()) {
+            return Optional.empty();
+        }
+        Vec2d point = RoadGeometryUtils.pointAtDistance(
+            edge.getCenterlinePoints(), binding.localDistance());
+        if (point == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new ResolvedPass(
+            road.getId(), station.get().chainageMeters(), point, edge.getId()));
+    }
+
+    private static boolean canConvertTwoRoadToStack(
+            RoadNetwork network,
+            CrossingPassBinding passA,
+            CrossingPassBinding passB,
+            ResolvedPass a,
+            ResolvedPass b,
+            String crossingId) {
+        if (passA.cornerRadius() != null) {
+            return false;
+        }
+        if (passA.type() == CrossingType.GRADE_SEPARATED) {
+            String elevated = passA.elevatedRoadId();
+            if (elevated == null) {
+                return false;
             }
-            OptionalDouble chainage = RoadStationing.chainageAtPosition(network, road, world);
-            if (chainage.isEmpty()) {
-                continue;
-            }
-            Optional<SegmentStation> seg = RoadStationing.resolve(network, road, chainage.getAsDouble());
-            if (seg.isEmpty()) {
-                continue;
-            }
-            RoadEdge candidate = network.getEdge(seg.get().segmentId());
-            if (candidate == null) {
-                continue;
-            }
-            Vec2d onRoad = RoadGeometryUtils.pointAtDistance(
-                candidate.getCenterlinePoints(), seg.get().localDistance());
-            if (onRoad == null) {
-                continue;
-            }
-            double d = onRoad.distance(world);
-            if (d < bestDist && d <= NODE_TOLERANCE) {
-                bestDist = d;
-                best = new ResolvedPass(road.getId(), chainage.getAsDouble(), onRoad, candidate.getId());
+            if (!elevated.equals(passA.roadId()) && !elevated.equals(passB.roadId())) {
+                return false;
             }
         }
-        return Optional.ofNullable(best);
+        if (!isValidStackConversion(network, a, b)) {
+            return false;
+        }
+        return !conflictsWithExistingStack(network, a.roadId(), a.station(), b.station(), crossingId);
     }
 
     private static boolean isValidStackConversion(RoadNetwork network, ResolvedPass a, ResolvedPass b) {
+        if (a.position() == null || b.position() == null) {
+            return false;
+        }
+        if (a.position().distance(b.position()) > NODE_TOLERANCE) {
+            return false;
+        }
         if (Math.abs(a.station() - b.station()) <= EPSILON) {
             return false;
         }
@@ -426,7 +463,6 @@ public final class RoadCrossingOwnershipMigrator {
             Set<String> shared = new HashSet<>(Set.of(ea.getStartNodeId(), ea.getEndNodeId()));
             shared.retainAll(Set.of(eb.getStartNodeId(), eb.getEndNodeId()));
             if (!shared.isEmpty()
-                    && a.position().distance(b.position()) <= NODE_TOLERANCE
                     && (nearEndpoint(ea, a.position()) || nearEndpoint(eb, b.position()))) {
                 return false;
             }
@@ -439,6 +475,27 @@ public final class RoadCrossingOwnershipMigrator {
             }
         }
         return true;
+    }
+
+    private static boolean conflictsWithExistingStack(
+            RoadNetwork network,
+            String roadId,
+            double stationA,
+            double stationB,
+            String excludeCrossingId) {
+        for (RoadStackCrossing existing : network.stackCrossingsForRoad(roadId)) {
+            if (excludeCrossingId != null && excludeCrossingId.equals(existing.id())) {
+                continue;
+            }
+            boolean nearA = Math.abs(existing.stationA() - stationA) <= NODE_TOLERANCE
+                || Math.abs(existing.stationB() - stationA) <= NODE_TOLERANCE;
+            boolean nearB = Math.abs(existing.stationA() - stationB) <= NODE_TOLERANCE
+                || Math.abs(existing.stationB() - stationB) <= NODE_TOLERANCE;
+            if (nearA && nearB) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean nearEndpoint(RoadEdge edge, Vec2d position) {

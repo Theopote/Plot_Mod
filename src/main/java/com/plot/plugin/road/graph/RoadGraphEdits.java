@@ -215,21 +215,35 @@ public final class RoadGraphEdits {
         if (edge == null || splitNode == null || splitPoint == null) {
             return Optional.empty();
         }
-        double pickTol = Double.isFinite(tolerance) && tolerance > 0 ? tolerance : DEFAULT_NODE_TOLERANCE;
-        // Pick tolerance: node must be near the intended split; then snap geometry to node.
-        if (splitNode.getPosition().distance(splitPoint) > pickTol) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points.size() < 2 || segmentIndex < 0 || segmentIndex >= points.size() - 1) {
             return Optional.empty();
         }
+        double pickTol = Double.isFinite(tolerance) && tolerance > 0 ? tolerance : DEFAULT_NODE_TOLERANCE;
+        Vec2d segStart = points.get(segmentIndex);
+        Vec2d segEnd = points.get(segmentIndex + 1);
+        Vec2d projected = RoadGeometryUtils.projectPointOnSegment(segStart, segEnd, splitPoint);
+        // Split point must lie on the named segment; node must lie on that projection.
+        if (projected.distance(splitPoint) > pickTol) {
+            return Optional.empty();
+        }
+        if (splitNode.getPosition().distance(projected) > pickTol) {
+            return Optional.empty();
+        }
+        // Ordinary geometric split: cut at the on-centerline projection, not an off-line pick.
         List<List<Vec2d>> parts = RoadGeometryUtils.splitPolylineAtSegment(
-            edge.getCenterlinePoints(),
+            points,
             segmentIndex,
-            splitPoint);
+            projected);
         if (parts.size() != 2) {
             return Optional.empty();
         }
+        double endpointTol = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
         Vec2d nodePos = splitNode.getPosition().copy();
-        snapPartEndpointToNode(parts.get(0), false, nodePos);
-        snapPartEndpointToNode(parts.get(1), true, nodePos);
+        if (!snapPartEndpointWithinTolerance(parts.get(0), false, nodePos, endpointTol)
+                || !snapPartEndpointWithinTolerance(parts.get(1), true, nodePos, endpointTol)) {
+            return Optional.empty();
+        }
         return finalizeSplit(edge, nodeId, parts.get(0), parts.get(1));
     }
 
@@ -248,18 +262,33 @@ public final class RoadGraphEdits {
         }
 
         Vec2d point = splitPoint != null ? splitPoint : splitNode.getPosition();
+        double pickTol = Double.isFinite(tolerance) && tolerance > 0 ? tolerance : DEFAULT_NODE_TOLERANCE;
+        List<Vec2d> points = edge.getCenterlinePoints();
+        int nearest = RoadGeometryUtils.findNearestSegmentIndex(points, point);
+        if (nearest < 0) {
+            return Optional.empty();
+        }
+        Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
+            points.get(nearest), points.get(nearest + 1), point);
+        if (projected.distance(point) > pickTol
+                || splitNode.getPosition().distance(projected) > pickTol) {
+            return Optional.empty();
+        }
 
         List<List<Vec2d>> parts = RoadGeometryUtils.splitPolylineAt(
-            edge.getCenterlinePoints(),
-            point,
-            tolerance
+            points,
+            projected,
+            pickTol
         );
         if (parts.size() != 2) {
             return Optional.empty();
         }
+        double endpointTol = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
         Vec2d nodePos = splitNode.getPosition().copy();
-        snapPartEndpointToNode(parts.get(0), false, nodePos);
-        snapPartEndpointToNode(parts.get(1), true, nodePos);
+        if (!snapPartEndpointWithinTolerance(parts.get(0), false, nodePos, endpointTol)
+                || !snapPartEndpointWithinTolerance(parts.get(1), true, nodePos, endpointTol)) {
+            return Optional.empty();
+        }
         return finalizeSplit(edge, nodeId, parts.get(0), parts.get(1));
     }
 
@@ -271,18 +300,22 @@ public final class RoadGraphEdits {
         if (firstPart.size() < 2 || secondPart.size() < 2) {
             return Optional.empty();
         }
+        if (!allFinite(firstPart) || !allFinite(secondPart)) {
+            return Optional.empty();
+        }
         RoadNode splitNode = network.getNode(nodeId);
         if (splitNode == null) {
             return Optional.empty();
         }
         // Ensure child endpoints coincide with the topology node (final consistency).
+        double endpointTol = RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS;
         Vec2d nodePos = splitNode.getPosition().copy();
-        snapPartEndpointToNode(firstPart, false, nodePos);
-        snapPartEndpointToNode(secondPart, true, nodePos);
-        if (RoadGeometryUtils.calculatePathLength(firstPart)
-                < RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS
-            || RoadGeometryUtils.calculatePathLength(secondPart)
-                < RoadNetworkInvariantValidator.GEOMETRY_ENDPOINT_TOLERANCE_METERS) {
+        if (!snapPartEndpointWithinTolerance(firstPart, false, nodePos, endpointTol)
+                || !snapPartEndpointWithinTolerance(secondPart, true, nodePos, endpointTol)) {
+            return Optional.empty();
+        }
+        if (RoadGeometryUtils.calculatePathLength(firstPart) < endpointTol
+            || RoadGeometryUtils.calculatePathLength(secondPart) < endpointTol) {
             return Optional.empty();
         }
 
@@ -291,6 +324,14 @@ public final class RoadGraphEdits {
         double splitDistance = RoadGeometryUtils.calculatePathLength(firstPart);
         double totalLength = edge.getLength();
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
+        List<RoadEdge.SlopeOverride> firstSlopes =
+            splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true);
+        List<RoadEdge.SlopeOverride> secondSlopes =
+            splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false);
+        if (!slopeOverridesValid(firstSlopes, splitDistance)
+                || !slopeOverridesValid(secondSlopes, RoadGeometryUtils.calculatePathLength(secondPart))) {
+            return Optional.empty();
+        }
         String roadId = edge.getRoadId();
         String sourceRoadId = edge.getSourceRoadId();
 
@@ -304,8 +345,8 @@ public final class RoadGraphEdits {
             secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
             firstEdge.setSourceRoadId(sourceRoadId);
             secondEdge.setSourceRoadId(sourceRoadId);
-            firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
-            secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
+            firstEdge.setSlopeOverrides(firstSlopes);
+            secondEdge.setSlopeOverrides(secondSlopes);
             return Optional.of(new SplitResult(firstEdge.getId(), secondEdge.getId(), nodeId));
         } catch (RuntimeException e) {
             cleanupCreatedChild(secondEdge);
@@ -313,6 +354,52 @@ public final class RoadGraphEdits {
             restoreEdge(snapshot);
             return Optional.empty();
         }
+    }
+
+    private static boolean snapPartEndpointWithinTolerance(
+            List<Vec2d> part,
+            boolean atStart,
+            Vec2d nodePos,
+            double tolerance) {
+        if (part == null || part.size() < 2 || nodePos == null) {
+            return false;
+        }
+        int index = atStart ? 0 : part.size() - 1;
+        Vec2d current = part.get(index);
+        if (current.distance(nodePos) > tolerance) {
+            return false;
+        }
+        part.set(index, nodePos.copy());
+        return true;
+    }
+
+    private static boolean allFinite(List<Vec2d> points) {
+        for (Vec2d point : points) {
+            if (point == null || !Double.isFinite(point.x) || !Double.isFinite(point.y)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean slopeOverridesValid(List<RoadEdge.SlopeOverride> overrides, double edgeLength) {
+        if (overrides == null || overrides.isEmpty()) {
+            return true;
+        }
+        if (!Double.isFinite(edgeLength) || edgeLength < 0) {
+            return false;
+        }
+        for (RoadEdge.SlopeOverride override : overrides) {
+            if (override == null
+                    || !Double.isFinite(override.startDistance)
+                    || !Double.isFinite(override.endDistance)
+                    || override.startDistance < -1e-6
+                    || override.endDistance > edgeLength + 1e-6
+                    || override.startDistance > override.endDistance + 1e-6) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void cleanupCreatedChild(RoadEdge child) {

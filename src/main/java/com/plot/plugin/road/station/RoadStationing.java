@@ -423,10 +423,6 @@ public final class RoadStationing {
         if (!Double.isFinite(geometryLocalDistance)) {
             return Optional.empty();
         }
-        Optional<OrientedRoadSegment> oriented = orientedSegment(network, road, segmentId);
-        if (oriented.isEmpty()) {
-            return Optional.empty();
-        }
         RoadEdge edge = network.getEdge(segmentId);
         if (edge == null) {
             return Optional.empty();
@@ -435,7 +431,19 @@ public final class RoadStationing {
                 || geometryLocalDistance > edge.getLength() + STATION_EPSILON) {
             return Optional.empty();
         }
-        double instanceChainage = oriented.get().roadStationAtGeometryLocal(geometryLocalDistance);
+        // LOOP interior seam may split one edge into two slices — pick the slice that
+        // actually contains this local distance; never clamp into the wrong slice.
+        OrientedRoadSegment oriented = null;
+        for (OrientedRoadSegment candidate : orientedSegmentsForEdge(network, road, segmentId)) {
+            if (candidate.containsGeometryLocal(geometryLocalDistance)) {
+                oriented = candidate;
+                break;
+            }
+        }
+        if (oriented == null) {
+            return Optional.empty();
+        }
+        double instanceChainage = oriented.roadStationAtGeometryLocal(geometryLocalDistance);
         double chainage = toCanonicalChainage(network, road, instanceChainage);
         if (!isValid(network, new RoadStation(road.getId(), chainage))) {
             return Optional.empty();

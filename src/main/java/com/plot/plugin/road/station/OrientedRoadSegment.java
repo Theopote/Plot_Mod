@@ -43,6 +43,13 @@ public record OrientedRoadSegment(
             || geometryChainEnd < length - EPSILON;
     }
 
+    /** True when {@code geometryLocalDistance} lies on this traversal slice (no clamp). */
+    public boolean containsGeometryLocal(double geometryLocalDistance) {
+        return Double.isFinite(geometryLocalDistance)
+            && geometryLocalDistance >= geometryChainStart - EPSILON
+            && geometryLocalDistance <= geometryChainEnd + EPSILON;
+    }
+
     /**
      * 边内几何局部距离（从几何 start 起）→ 链局部距离（从链入口起）。
      */
