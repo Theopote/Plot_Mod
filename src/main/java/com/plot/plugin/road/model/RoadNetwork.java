@@ -428,21 +428,20 @@ public class RoadNetwork {
         }
 
         String oldRoadId = edge.getRoadId();
-        if (oldRoadId != null && !oldRoadId.equals(newRoadId)) {
-            Road oldRoad = roads.get(oldRoadId);
-            if (oldRoad != null) {
-                oldRoad.removeSegment(edgeId);
+        // Drop membership from every road that still lists this edge (covers stale setRoadId).
+        for (Road road : roads.values()) {
+            if (road == null || road.getId() == null || road.getId().equals(newRoadId)) {
+                continue;
+            }
+            if (road.getOrderedSegmentIds().contains(edgeId)
+                    || (oldRoadId != null && oldRoadId.equals(road.getId()))) {
+                road.removeSegment(edgeId);
+                RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, road);
             }
         }
         edge.setRoadId(newRoadId);
         newRoad.addSegment(edgeId);
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, newRoad);
-        if (oldRoadId != null && !oldRoadId.equals(newRoadId)) {
-            Road oldRoad = roads.get(oldRoadId);
-            if (oldRoad != null) {
-                RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, oldRoad);
-            }
-        }
         return true;
     }
 

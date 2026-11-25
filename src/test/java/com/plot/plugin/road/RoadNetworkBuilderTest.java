@@ -395,7 +395,8 @@ class RoadNetworkBuilderTest {
         segmentB.setSourceRoadId(adoptGroup);
 
         Road reassignedRoad = network.createRoad("reassigned-road");
-        segmentB.setRoadId(reassignedRoad.getId());
+        // Must go through assignEdgeToRoad only — a bare setRoadId leaves the old road's
+        // segment list stale (ROAD_DISCONNECTED), and crossing detection correctly skips it.
         network.assignEdgeToRoad(segmentB.getId(), reassignedRoad.getId());
         assertNotEquals(segmentA.getRoadId(), segmentB.getRoadId());
 
