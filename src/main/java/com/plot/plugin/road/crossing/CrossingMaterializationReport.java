@@ -20,6 +20,18 @@ public record CrossingMaterializationReport(
         return new CrossingMaterializationReport(0, 0, List.of());
     }
 
+    public CrossingMaterializationReport merge(CrossingMaterializationReport other) {
+        if (other == null) {
+            return this;
+        }
+        List<CrossingMaterializationFailure> merged = new java.util.ArrayList<>(failures);
+        merged.addAll(other.failures());
+        return new CrossingMaterializationReport(
+            attemptedCount + other.attemptedCount(),
+            succeededCount + other.succeededCount(),
+            merged);
+    }
+
     public boolean isComplete() {
         return failures.isEmpty();
     }

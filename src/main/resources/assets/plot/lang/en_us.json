@@ -3568,6 +3568,7 @@
   "plugin.road.profile_water_surface": "Water Surface",
   "plugin.road.recalculate_preview": "Regenerate construction plan",
   "plugin.road.reconcile_intersections_success": "Intersection topology reconciled",
+  "plugin.road.reconcile_intersections_incomplete": "Crossing registry still has unresolved or ambiguous matches",
   "plugin.road.redo_network": "Redo Road Edit",
   "plugin.road.rename": "Rename",
   "plugin.road.repair_topology_loop_promoted": "Marked %d road(s) as closed loops (LOOP mode).",

@@ -43,9 +43,10 @@ public final class RoadCrossingMaterializer {
         RoadNetwork snapshot = source.snapshot();
         CrossingMaterializationReport crossingReport =
             materializeAllCrossings(snapshot, source.getCrossings().values());
-        RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
+        CrossingMaterializationReport stackReport =
+            RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
         preserveEditedProfilesAcrossSplits(source, snapshot);
-        return new SnapshotMaterialization(snapshot, crossingReport);
+        return new SnapshotMaterialization(snapshot, crossingReport.merge(stackReport));
     }
 
     /**
@@ -72,11 +73,12 @@ public final class RoadCrossingMaterializer {
         }
         CrossingMaterializationReport crossingReport =
             materializeAllCrossings(workingCopy, workingCopy.getCrossings().values());
-        RoadStackCrossingMaterializer.materializeAll(workingCopy, workingCopy.getStackCrossings().values());
+        CrossingMaterializationReport stackReport =
+            RoadStackCrossingMaterializer.materializeAll(workingCopy, workingCopy.getStackCrossings().values());
         if (preSplit != null) {
             preserveEditedProfilesAcrossSplits(preSplit, workingCopy);
         }
-        return new SnapshotMaterialization(workingCopy, crossingReport);
+        return new SnapshotMaterialization(workingCopy, crossingReport.merge(stackReport));
     }
 
     /** Splitting instance edges at a crossing does not edit the logical road path. */
@@ -142,6 +144,19 @@ public final class RoadCrossingMaterializer {
                 CrossingMaterializeStatus.STATION_UNRESOLVED,
                 "crossing position is null"));
         }
+        CrossingMaterializeStatus preflightA = preflightRoadAtCrossing(
+            network, crossing.roadAId(), crossing.stationA());
+        CrossingMaterializeStatus preflightB = preflightRoadAtCrossing(
+            network, crossing.roadBId(), crossing.stationB());
+        if (!preflightA.isSuccessful() || !preflightB.isSuccessful()) {
+            return Optional.of(new CrossingMaterializationFailure(
+                crossing.id(),
+                crossing.roadAId(),
+                crossing.roadBId(),
+                preflightA,
+                preflightB,
+                "crossing preflight failed: A=" + preflightA + ", B=" + preflightB));
+        }
         RoadNode junction = findOrCreateNode(network, position);
         CrossingMaterializeStatus armA = materializeRoadAtCrossing(
             network, crossing.roadAId(), crossing.stationA(), junction, position);
@@ -151,6 +166,7 @@ public final class RoadCrossingMaterializer {
         CrossingMaterializeStatus verifiedA = verifyArm(network, junction, crossing.roadAId(), armA);
         CrossingMaterializeStatus verifiedB = verifyArm(network, junction, crossing.roadBId(), armB);
         if (!verifiedA.isSuccessful() || !verifiedB.isSuccessful()) {
+            // Do not apply design attributes onto an incomplete junction.
             return Optional.of(new CrossingMaterializationFailure(
                 crossing.id(),
                 crossing.roadAId(),
@@ -161,6 +177,24 @@ public final class RoadCrossingMaterializer {
         }
         applyCrossingDesignToJunction(network, crossing, junction);
         return Optional.empty();
+    }
+
+    private static CrossingMaterializeStatus preflightRoadAtCrossing(
+            RoadNetwork network,
+            String roadId,
+            double station) {
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return CrossingMaterializeStatus.ROAD_NOT_FOUND;
+        }
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, station);
+        if (resolved.isEmpty()) {
+            return CrossingMaterializeStatus.STATION_UNRESOLVED;
+        }
+        if (network.getEdge(resolved.get().segmentId()) == null) {
+            return CrossingMaterializeStatus.EDGE_NOT_FOUND;
+        }
+        return CrossingMaterializeStatus.SUCCESS;
     }
 
     private static CrossingMaterializeStatus verifyArm(
@@ -191,8 +225,14 @@ public final class RoadCrossingMaterializer {
                 network.applyCrossingGradeSeparation(
                     junction.getId(),
                     crossing.elevatedRoadId(),
-                    crossing.crossingClearance());
+                    crossing.crossingClearance(),
+                    true);
+            } else if (crossing.crossingClearance() != null) {
+                // Registry clearance is authoritative — replace, don't Math.max.
+                junction.setCrossingClearance(crossing.crossingClearance());
             }
+        } else if (crossing.type() == CrossingType.AT_GRADE) {
+            clearGradeSeparationIfOwnedByCrossing(network, crossing, junction);
         }
         if (crossing.sharedElevation() != null
                 && VerticalProfileGenerationPolicy.isCrossingSharedElevationAuthoritative(
@@ -203,6 +243,29 @@ public final class RoadCrossingMaterializer {
         }
         // 平交圆角：Crossing 显式值覆盖节点；null 保留快照节点半径（未设置≠强制关）。
         com.plot.plugin.road.JunctionCornerRadius.applyToJunctionNode(junction, crossing);
+    }
+
+    private static void clearGradeSeparationIfOwnedByCrossing(
+            RoadNetwork network,
+            RoadCrossing crossing,
+            RoadNode junction) {
+        if (!junction.isGradeSeparated()) {
+            return;
+        }
+        // Keep grade metadata when another grade-separated registry crossing still uses this node.
+        for (RoadCrossing other : network.getCrossings().values()) {
+            if (other == null || other.id().equals(crossing.id())) {
+                continue;
+            }
+            if (other.type() != CrossingType.GRADE_SEPARATED || other.position() == null) {
+                continue;
+            }
+            if (RoadGeometryUtils.pointsNear(
+                    other.position(), junction.getPosition(), NODE_TOLERANCE)) {
+                return;
+            }
+        }
+        junction.clearGradeSeparation();
     }
 
     private static CrossingMaterializeStatus materializeRoadAtCrossing(

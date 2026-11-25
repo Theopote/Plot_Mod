@@ -828,6 +828,21 @@ public final class RoadStationDataTransforms {
                 crossing.stationOn(road.getId()), shiftMeters, loopLength);
             network.registerCrossing(crossing.withStationsOnRoad(road.getId(), rotatedStation));
         }
+        for (com.plot.plugin.road.crossing.RoadStackCrossing stack
+                : network.stackCrossingsForRoad(road.getId())) {
+            double rotatedA = RoadLoopSeamService.rotateLoopStation(
+                stack.stationA(), shiftMeters, loopLength);
+            double rotatedB = RoadLoopSeamService.rotateLoopStation(
+                stack.stationB(), shiftMeters, loopLength);
+            Double rotatedLower = stack.lowerStation() != null
+                ? RoadLoopSeamService.rotateLoopStation(stack.lowerStation(), shiftMeters, loopLength)
+                : null;
+            Double rotatedUpper = stack.upperStation() != null
+                ? RoadLoopSeamService.rotateLoopStation(stack.upperStation(), shiftMeters, loopLength)
+                : null;
+            network.registerStackCrossing(stack.withRotatedStations(
+                rotatedA, rotatedB, rotatedLower, rotatedUpper));
+        }
     }
 
     /**

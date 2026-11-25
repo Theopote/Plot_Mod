@@ -857,6 +857,19 @@ public class RoadNetwork {
             String nodeId,
             String elevatedRoadId,
             Double crossingClearance) {
+        return applyCrossingGradeSeparation(nodeId, elevatedRoadId, crossingClearance, false);
+    }
+
+    /**
+     * @param authoritativeClearance when true, registry clearance replaces the node value
+     *                               (user edit 8→5 must stick); when false, keep max for
+     *                               auto-detect paths that must not shrink an edited underpass.
+     */
+    public boolean applyCrossingGradeSeparation(
+            String nodeId,
+            String elevatedRoadId,
+            Double crossingClearance,
+            boolean authoritativeClearance) {
         RoadNode node = nodes.get(nodeId);
         if (node == null) {
             return false;
@@ -872,12 +885,14 @@ public class RoadNetwork {
             node.setElevatedRoadId(null);
         }
         node.setGradeSeparated(true);
-        // Null means "keep / unspecified"; do not wipe a user or prior clearance.
-        // When both are set, keep the larger so auto-detect cannot shrink an edited underpass.
         if (crossingClearance != null) {
-            Double existing = node.getCrossingClearance();
-            node.setCrossingClearance(
-                existing == null ? crossingClearance : Math.max(existing, crossingClearance));
+            if (authoritativeClearance) {
+                node.setCrossingClearance(crossingClearance);
+            } else {
+                Double existing = node.getCrossingClearance();
+                node.setCrossingClearance(
+                    existing == null ? crossingClearance : Math.max(existing, crossingClearance));
+            }
         }
         return true;
     }

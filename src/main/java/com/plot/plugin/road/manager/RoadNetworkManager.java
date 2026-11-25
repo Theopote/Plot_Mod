@@ -1398,17 +1398,33 @@ public final class RoadNetworkManager {
      */
     public IntersectionResult reconcileCrossings() {
         pushUndoSnapshot();
-        com.plot.plugin.road.crossing.CrossingReconcileResult result =
+        com.plot.plugin.road.crossing.CrossingReconcileResult twoRoad =
             com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossingsDetailed(network);
-        if (!result.changed()) {
+        com.plot.plugin.road.crossing.RoadStackCrossingReconciler.StackCrossingReconcileResult stacks =
+            com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossingsDetailed(network);
+        RoadProfileConstraintSynchronizer.releaseStaleCrossingAnchors(network, config);
+        boolean changed = twoRoad.changed() || stacks.changed();
+        boolean incomplete = twoRoad.isPending() || stacks.hasAmbiguity()
+            || stacks.result() == IntersectionResult.INCOMPLETE;
+        if (!changed && !incomplete) {
             abortPendingNetworkEdit();
             adoptIntersectionRepairPending = false;
-            return result.result();
+            return IntersectionResult.COMPLETE;
+        }
+        if (!changed && incomplete) {
+            abortPendingNetworkEdit();
+            adoptIntersectionRepairPending = true;
+            status.warning(PlotI18n.tr("plugin.road.reconcile_intersections_incomplete"));
+            return IntersectionResult.INCOMPLETE;
         }
         commitNetworkChange();
-        adoptIntersectionRepairPending = false;
+        adoptIntersectionRepairPending = incomplete;
+        if (incomplete) {
+            status.warning(PlotI18n.tr("plugin.road.reconcile_intersections_incomplete"));
+            return IntersectionResult.INCOMPLETE;
+        }
         status.success(PlotI18n.tr("plugin.road.reconcile_intersections_success"));
-        return result.result();
+        return IntersectionResult.COMPLETE;
     }
 
     public RoadLoopSeamPickSession getLoopSeamPickSession() {
@@ -1480,7 +1496,9 @@ public final class RoadNetworkManager {
             projection.position(), projection.segmentId(), projection.localFraction());
         boolean hasStationData = road.getVerticalAlignment() != null && road.getVerticalAlignment().pviCount() > 0
             || road.getVariableCrossSections() != null
-            || road.getStationFacilities() != null && !road.getStationFacilities().isEmpty();
+            || road.getStationFacilities() != null && !road.getStationFacilities().isEmpty()
+            || !network.crossingsForRoad(road.getId()).isEmpty()
+            || !network.stackCrossingsForRoad(road.getId()).isEmpty();
         if (!hasStationData) {
             pushUndoSnapshot();
             road.setLoopSeam(replacement);
@@ -1493,9 +1511,12 @@ public final class RoadNetworkManager {
         double oldOffset = road.getLoopSeam() != null
             ? seamChainOffset(network, road, road.getLoopSeam())
             : 0.0;
-        pendingLoopSeamShift = oldOffset - projection.chainStation();
+        // newStation = oldStation - (newOffset - oldOffset)  => shift = newOffset - oldOffset
+        pendingLoopSeamShift = projection.chainStation() - oldOffset;
         if (pendingLoopSeamShift < -1e-6) {
             pendingLoopSeamShift += loopLength;
+        } else if (pendingLoopSeamShift > loopLength + 1e-6) {
+            pendingLoopSeamShift -= loopLength;
         }
         pendingLoopSeamReplacement = replacement;
         loopSeamRemapConfirmPending = true;

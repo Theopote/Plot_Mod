@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
+import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -105,7 +106,10 @@ public final class RoadStackCrossingDetector {
         boolean isLoop = road.getTopologyMode() == RoadTopologyMode.LOOP;
         int lastSegmentIndex = centerline.size() - 2;
         double[] cumulative = cumulativeDistances(centerline);
-        double loopLength = cumulative[centerline.size() - 1];
+        double detectionLoopLength = cumulative[centerline.size() - 1];
+        double canonicalLoopLength = isLoop
+            ? RoadStationing.canonicalLength(session.network(), road)
+            : detectionLoopLength;
         Map<String, RoadStackCrossing> detected = new LinkedHashMap<>();
         for (int i = 0; i < centerline.size() - 1; i++) {
             Vec2d a1 = centerline.get(i);
@@ -125,7 +129,8 @@ public final class RoadStackCrossingDetector {
                     }
                     double localA = localStation(cumulative, i, a1, a2, hit);
                     double localB = localStation(cumulative, j, b1, b2, hit);
-                    if (stationSeparation(localA, localB, loopLength, isLoop) < MIN_STATION_SEPARATION) {
+                    if (stationSeparation(localA, localB, detectionLoopLength, isLoop)
+                            < MIN_STATION_SEPARATION) {
                         continue;
                     }
                     OptionalDouble chainageA = session.toCanonicalChainage(
@@ -135,20 +140,25 @@ public final class RoadStackCrossingDetector {
                     if (chainageA.isEmpty() || chainageB.isEmpty()) {
                         continue;
                     }
-                    if (stationSeparation(
-                            chainageA.getAsDouble(),
-                            chainageB.getAsDouble(),
-                            loopLength,
-                            isLoop) < MIN_STATION_SEPARATION) {
+                    double canonicalA = isLoop
+                        ? RoadStackCrossing.normalizeLoopStation(
+                            chainageA.getAsDouble(), canonicalLoopLength)
+                        : chainageA.getAsDouble();
+                    double canonicalB = isLoop
+                        ? RoadStackCrossing.normalizeLoopStation(
+                            chainageB.getAsDouble(), canonicalLoopLength)
+                        : chainageB.getAsDouble();
+                    if (stationSeparation(canonicalA, canonicalB, canonicalLoopLength, isLoop)
+                            < MIN_STATION_SEPARATION) {
                         continue;
                     }
                     RoadStackCrossing stack = CrossingGradeClassifier.classifyStack(
                         session.network(),
                         road.getId(),
-                        chainageA.getAsDouble(),
-                        chainageB.getAsDouble(),
+                        canonicalA,
+                        canonicalB,
                         hit.copy());
-                    detected.putIfAbsent(stack.stableKey(), stack);
+                    detected.putIfAbsent(stack.stableKey(canonicalLoopLength, isLoop), stack);
                 }
             }
         }

@@ -77,7 +77,23 @@ public record RoadStackCrossing(
             double stationA,
             double stationB,
             Vec2d position) {
-        double[] ordered = orderStations(stationA, stationB);
+        return stableKey(roadId, stationA, stationB, position, Double.NaN, false);
+    }
+
+    /**
+     * Stable key with optional LOOP 0/L normalization so the same physical pass is not
+     * registered twice at station 0 and L.
+     */
+    public static String stableKey(
+            String roadId,
+            double stationA,
+            double stationB,
+            Vec2d position,
+            double loopLength,
+            boolean normalizeLoop) {
+        double a = normalizeLoop ? normalizeLoopStation(stationA, loopLength) : stationA;
+        double b = normalizeLoop ? normalizeLoopStation(stationB, loopLength) : stationB;
+        double[] ordered = orderStations(a, b);
         String posKey = position != null
             ? Math.round(position.x * 100.0) + "," + Math.round(position.y * 100.0)
             : "0,0";
@@ -91,13 +107,37 @@ public record RoadStackCrossing(
         return stableKey(roadId, stationA, stationB, position);
     }
 
+    public String stableKey(double loopLength, boolean normalizeLoop) {
+        return stableKey(roadId, stationA, stationB, position, loopLength, normalizeLoop);
+    }
+
+    static double normalizeLoopStation(double station, double loopLength) {
+        if (!Double.isFinite(station) || !Double.isFinite(loopLength) || loopLength <= STATION_ORDER_EPSILON) {
+            return station;
+        }
+        double wrapped = station % loopLength;
+        if (wrapped < 0.0) {
+            wrapped += loopLength;
+        }
+        if (wrapped <= STATION_ORDER_EPSILON || Math.abs(wrapped - loopLength) <= STATION_ORDER_EPSILON) {
+            return 0.0;
+        }
+        return wrapped;
+    }
+
     public RoadStackCrossing withRefreshedGeometry(
             double newStationA,
             double newStationB,
             Vec2d newPosition) {
+        // Preserve physical lower/upper pass identity — never re-derive from station sort order.
         boolean lowerWasA = Math.abs(resolvedLowerStation() - stationA)
             <= Math.abs(resolvedLowerStation() - stationB);
-        double[] ordered = orderStations(newStationA, newStationB);
+        Double newLower = lowerStation != null
+            ? (lowerWasA ? newStationA : newStationB)
+            : null;
+        Double newUpper = upperStation != null
+            ? (lowerWasA ? newStationB : newStationA)
+            : null;
         return new RoadStackCrossing(
             id,
             roadId,
@@ -105,8 +145,30 @@ public record RoadStackCrossing(
             newStationA,
             newStationB,
             type,
-            lowerStation != null ? ordered[lowerWasA ? 0 : 1] : null,
-            upperStation != null ? ordered[lowerWasA ? 1 : 0] : null,
+            newLower,
+            newUpper,
+            crossingClearance,
+            sharedElevation);
+    }
+
+    /**
+     * Seam migration: rotate every station field independently so grade roles stay tied to
+     * physical passes rather than post-rotate station ordering.
+     */
+    public RoadStackCrossing withRotatedStations(
+            double newStationA,
+            double newStationB,
+            Double newLowerStation,
+            Double newUpperStation) {
+        return new RoadStackCrossing(
+            id,
+            roadId,
+            position,
+            newStationA,
+            newStationB,
+            type,
+            newLowerStation,
+            newUpperStation,
             crossingClearance,
             sharedElevation);
     }
