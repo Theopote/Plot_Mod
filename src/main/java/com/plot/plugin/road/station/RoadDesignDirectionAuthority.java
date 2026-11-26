@@ -74,7 +74,18 @@ public final class RoadDesignDirectionAuthority {
         if (edge == null || !road.getSegmentIds().contains(entryEdgeId)) {
             return false;
         }
-        return entryNodeId.equals(edge.getStartNodeId()) || entryNodeId.equals(edge.getEndNodeId());
+        if (!entryNodeId.equals(edge.getStartNodeId()) && !entryNodeId.equals(edge.getEndNodeId())) {
+            return false;
+        }
+        // LINEAR design entry must remain a chain endpoint. Binding created on the first edge
+        // would otherwise stick after later edges make that node interior (broken chain walks).
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
+            List<String> atEntry = nodeToEdgeIds.get(entryNodeId);
+            if (atEntry == null || atEntry.size() != 1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

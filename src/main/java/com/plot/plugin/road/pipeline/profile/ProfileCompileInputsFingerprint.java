@@ -13,7 +13,6 @@ import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 
 import java.util.List;
@@ -78,7 +77,9 @@ public record ProfileCompileInputsFingerprint(
     /**
      * Physical-walk geometry signature for EDITED profile binding.
      * Deliberately ignores {@link OrientedRoadSegment#forward()} so Reverse Edge (storage-only)
-     * does not invalidate confirmed profiles.
+     * does not invalidate confirmed profiles. Interior polyline densification (e.g. insert PI on
+     * an unchanged span) must not change this hash — shape detail belongs in
+     * {@link #previewGeometryHash}.
      */
     public static int geometryHash(RoadNetwork network, Road road) {
         if (road == null || !RoadStationing.isStationable(network, road)) {
@@ -88,26 +89,6 @@ public record ProfileCompileInputsFingerprint(
         hash = 31 * hash + Objects.hashCode(road.getDesignEntryNodeId());
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
             hash = 31 * hash + Objects.hash(segment.edgeId(), segment.length());
-            RoadEdge edge = network.getEdge(segment.edgeId());
-            if (edge == null || edge.getCenterlinePoints() == null) {
-                continue;
-            }
-            // Hash world points in chain walk order (entry→exit), independent of storage direction.
-            var points = edge.getCenterlinePoints();
-            if (segment.forward()) {
-                for (var point : points) {
-                    if (point != null) {
-                        hash = 31 * hash + Objects.hash(point.x, point.y);
-                    }
-                }
-            } else {
-                for (int i = points.size() - 1; i >= 0; i--) {
-                    var point = points.get(i);
-                    if (point != null) {
-                        hash = 31 * hash + Objects.hash(point.x, point.y);
-                    }
-                }
-            }
             RoadNode entry = network.getNode(segment.entryNodeId());
             RoadNode exit = network.getNode(segment.exitNodeId());
             hash = 31 * hash + nodeHash(entry) + 17 * nodeHash(exit);
@@ -115,6 +96,11 @@ public record ProfileCompileInputsFingerprint(
         return hash;
     }
 
+    /**
+     * Preview cache signature: includes polyline shape (chain walk order) or HA elements so
+     * equal-length mirrored edits invalidate the voxel preview without double-folding the same
+     * point sequence into {@link #geometryHash}.
+     */
     private static int previewGeometryHash(RoadNetwork network, Road road) {
         int hash = geometryHash(network, road);
         if (road == null || !RoadStationing.isStationable(network, road)) return hash;
@@ -131,8 +117,21 @@ public record ProfileCompileInputsFingerprint(
             for (var segment : RoadStationing.orientedSegments(network, road)) {
                 RoadEdge edge = network.getEdge(segment.edgeId());
                 if (edge == null || edge.getCenterlinePoints() == null) continue;
-                for (Vec2d point : edge.getCenterlinePoints()) {
-                    hash = 31 * hash + Objects.hash(point.x, point.y);
+                // Chain walk order — independent of storage reverse.
+                var points = edge.getCenterlinePoints();
+                if (segment.forward()) {
+                    for (Vec2d point : points) {
+                        if (point != null) {
+                            hash = 31 * hash + Objects.hash(point.x, point.y);
+                        }
+                    }
+                } else {
+                    for (int i = points.size() - 1; i >= 0; i--) {
+                        Vec2d point = points.get(i);
+                        if (point != null) {
+                            hash = 31 * hash + Objects.hash(point.x, point.y);
+                        }
+                    }
                 }
             }
         }

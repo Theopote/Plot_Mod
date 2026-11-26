@@ -201,7 +201,7 @@ class CenterlineEditorApplierTest {
     }
 
     @Test
-    void applyToLiveInvalidatesEditedProfileAfterPiInsertChangesPlanGeometry() {
+    void applyToLivePreservesEditedProfileAfterCollinearPiInsert() {
         RoadNetworkManager manager = new RoadNetworkManager(new RoadSystemConfig("test"), new RoadProjectStatus());
         live = manager.getNetwork();
         Road road = live.createRoad("profile");
@@ -224,8 +224,8 @@ class CenterlineEditorApplierTest {
         ctxCommitCenterline(manager, working, roadId);
         manager.invalidateEditedProfilesIfGeometryChanged();
 
-        // Physical-geometry fingerprint changes when plan vertices change — EDITED must drop.
-        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+        // Collinear densification does not change the EDITED binding signature (length/endpoints).
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
         assertEquals(2, road.getVerticalAlignment().pviCount());
         assertEquals(0.0, road.getVerticalAlignment().getPvis().getFirst().getStation(), 1e-6);
         assertEquals(100.0, road.getVerticalAlignment().getPvis().get(1).getStation(), 1e-6);
