@@ -100,13 +100,13 @@ class Phase241StationAuthorityTest {
         assertTrue(map.isReliable());
         double midInstance = 50.0;
         double canonical = map.toCanonical(midInstance);
-        // Whole-road ratio would be 50 * 120/100 = 60; endpoints must still map exactly.
+        // Collinear shortened instance must not keep identity overlap (50→50); use length-param map.
+        double ratioMid = midInstance * (design / instance);
         assertEquals(0.0, map.toCanonical(0.0), 1e-6);
         assertEquals(design, map.toCanonical(instance), 1e-6);
         assertEquals(0.0, map.toInstance(0.0), 1e-6);
         assertEquals(instance, map.toInstance(design), 1e-6);
-        assertTrue(Double.isFinite(canonical));
-        // Midpoint may be near ratio but mapping is from anchors — round-trip must hold.
+        assertEquals(ratioMid, canonical, 1e-4);
         assertEquals(midInstance, map.toInstance(canonical), 1e-4);
     }
 

@@ -91,7 +91,7 @@ public final class StationDomainMap {
             }
             // Segment start (skip duplicate of previous end).
             appendBoundaryAnchor(
-                network, road, haSamples, designTotal,
+                network, road, haSamples, designTotal, instanceTotal,
                 segment, points, segment.geometryChainStart(),
                 instance, canonical);
             // Interior vertices as local feature anchors (keeps fillets local).
@@ -105,14 +105,14 @@ public final class StationDomainMap {
                 double next = walked + segLen;
                 if (next > geomStart + EPSILON && next < geomEnd - EPSILON) {
                     appendBoundaryAnchor(
-                        network, road, haSamples, designTotal,
+                        network, road, haSamples, designTotal, instanceTotal,
                         segment, points, next,
                         instance, canonical);
                 }
                 walked = next;
             }
             appendBoundaryAnchor(
-                network, road, haSamples, designTotal,
+                network, road, haSamples, designTotal, instanceTotal,
                 segment, points, geomEnd,
                 instance, canonical);
         }
@@ -149,6 +149,7 @@ public final class StationDomainMap {
             Road road,
             List<PlanCenterlineSample> haSamples,
             double designTotal,
+            double instanceTotal,
             OrientedRoadSegment segment,
             List<Vec2d> points,
             double geometryLocal,
@@ -166,6 +167,14 @@ public final class StationDomainMap {
             return;
         }
         double canonicalStation = RoadPlanGeometry.canonicalFromHaNative(network, road, nativeStation, designTotal);
+        // Shortened/stretched polylines that still lie on the HA geometry match
+        // nearest-native ≈ instance station (identity overlap). That is the wrong
+        // correspondence for arc-length domain conversion — prefer length-param map.
+        if (instanceTotal > EPSILON
+                && Math.abs(designTotal - instanceTotal) > EPSILON
+                && Math.abs(canonicalStation - instanceStation) <= MATCH_TOLERANCE) {
+            canonicalStation = instanceStation * (designTotal / instanceTotal);
+        }
         addAnchor(instance, canonical, instanceStation, canonicalStation);
     }
 
