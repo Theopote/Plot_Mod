@@ -362,9 +362,8 @@ public final class StationDomainMap {
      * Project onto HA sample polyline. {@code minNativeCursor} enforces ascending native
      * along the <em>unrotated physical</em> walk (no LOOP wrap).
      * <p>
-     * Among in-tolerance hits with {@code native >= cursor}, prefer the <em>earliest</em> native
-     * (then nearest). This keeps closed-HA start/end coincidence and self-crossing passes
-     * ordered by the walk instead of binding physical 0 to design length.
+     * Among in-tolerance hits with {@code native >= cursor}, prefer the <em>minimum spatial
+     * error</em> (then earliest native). Closed 0/L wrap still tie-breaks without false ambiguity.
      */
     private static double projectHaNative(
             List<PlanCenterlineSample> samples,
@@ -391,8 +390,8 @@ public final class StationDomainMap {
                 continue;
             }
             if (!Double.isFinite(bestStation)
-                    || nativeStation + EPSILON < bestStation
-                    || (Math.abs(nativeStation - bestStation) <= EPSILON && distance + EPSILON < bestDist)) {
+                    || distance + EPSILON < bestDist
+                    || (Math.abs(distance - bestDist) <= EPSILON && nativeStation + EPSILON < bestStation)) {
                 bestStation = nativeStation;
                 bestDist = distance;
             }
@@ -423,12 +422,15 @@ public final class StationDomainMap {
                 && Math.abs(p - physical.getLast()) <= EPSILON
                 && Math.abs(n - nativeStations.getLast()) > EPSILON) {
             // Shared-node re-entry can project with chord jitter; keep the existing native.
+            // Do not let a later ordinary sample overwrite a confirmed edge-boundary native.
             return Math.abs(n - nativeStations.getLast()) <= MATCH_TOLERANCE;
         }
         if (!nativeStations.isEmpty()
                 && Math.abs(n - nativeStations.getLast()) <= EPSILON
                 && Math.abs(p - physical.getLast()) > EPSILON) {
             // Closed HA endpoint: several trailing physical samples clamp to the same native.
+            // Endpoint-only clamp — never overwrite an earlier confirmed boundary with a
+            // later ordinary anchor that shares native but advances physical improperly.
             if (p + EPSILON >= physical.getLast()) {
                 physical.set(physical.size() - 1, p);
                 return true;

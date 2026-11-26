@@ -1,6 +1,6 @@
 package com.plot.plugin.road.model;
 
-import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.station.RoadDesignDirectionAuthority;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,9 +15,8 @@ import java.util.Set;
  * {@link Road} 内部用有序列表保存分段；求交打断、拆分、重分配后存储顺序可能与几何链不一致。
  * UI、split、里程等逻辑应使用本类，而非 {@link Road#getSegmentIds()}。
  * <p>
- * <b>前提</b>：算法假定同一 {@link Road} 的分段构成简单路径（open chain）。
- * 闭合环、分叉、断开分量等拓扑下顺序为 best-effort，不变量见
- * {@code docs/decisions/0004-road-topology-invariant.md}。
+ * Design-chain start uses persisted {@link Road#getDesignEntryNodeId()} /
+ * {@link Road#getDesignEntryEdgeId()} via {@link RoadDesignDirectionAuthority}.
  */
 public final class RoadSegmentOrdering {
 
@@ -30,33 +29,34 @@ public final class RoadSegmentOrdering {
         }
         List<String> segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
         if (segmentIds.size() <= 1) {
+            if (segmentIds.size() == 1) {
+                RoadDesignDirectionAuthority.ensureBound(network, road);
+            }
             return segmentIds;
         }
 
         Map<String, RoadEdge> edgesById = new HashMap<>();
-        Map<String, List<String>> nodeToEdgeIds = new HashMap<>();
         for (String segmentId : segmentIds) {
             RoadEdge edge = network.getEdge(segmentId);
-            if (edge == null) {
-                continue;
+            if (edge != null) {
+                edgesById.put(segmentId, edge);
             }
-            edgesById.put(segmentId, edge);
-            nodeToEdgeIds.computeIfAbsent(edge.getStartNodeId(), ignored -> new ArrayList<>()).add(segmentId);
-            nodeToEdgeIds.computeIfAbsent(edge.getEndNodeId(), ignored -> new ArrayList<>()).add(segmentId);
         }
         if (edgesById.isEmpty()) {
             return segmentIds;
         }
 
-        String startNodeId = findChainStart(network, nodeToEdgeIds);
-        if (startNodeId == null) {
+        RoadDesignDirectionAuthority.ResolvedStart start =
+            RoadDesignDirectionAuthority.resolveStart(network, road);
+        if (start.entryNodeId() == null) {
             return segmentIds;
         }
 
         List<String> ordered = new ArrayList<>(edgesById.size());
         Set<String> visited = new HashSet<>();
-        String currentNodeId = startNodeId;
-        String currentEdgeId = firstUnvisitedEdge(nodeToEdgeIds.get(startNodeId), visited);
+        String currentNodeId = start.entryNodeId();
+        String currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
+            network, road, currentNodeId, start.preferredEntryEdgeId(), visited);
 
         while (currentEdgeId != null) {
             visited.add(currentEdgeId);
@@ -69,7 +69,8 @@ public final class RoadSegmentOrdering {
                 ? edge.getEndNodeId()
                 : edge.getStartNodeId();
             currentNodeId = nextNodeId;
-            currentEdgeId = firstUnvisitedEdge(nodeToEdgeIds.get(nextNodeId), visited);
+            currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
+                network, road, currentNodeId, null, visited);
         }
 
         for (String segmentId : segmentIds) {
@@ -95,59 +96,5 @@ public final class RoadSegmentOrdering {
         for (Road road : network.getRoads().values()) {
             applyTopologicalOrder(network, road);
         }
-    }
-
-    private static String findChainStart(RoadNetwork network, Map<String, List<String>> nodeToEdgeIds) {
-        String endpoint = null;
-        Vec2d endpointPos = null;
-        for (Map.Entry<String, List<String>> entry : nodeToEdgeIds.entrySet()) {
-            if (entry.getValue().size() != 1) {
-                continue;
-            }
-            RoadNode node = network.getNode(entry.getKey());
-            if (node == null || node.getPosition() == null) {
-                continue;
-            }
-            Vec2d pos = node.getPosition();
-            if (endpointPos == null || comparePosition(pos, endpointPos) < 0) {
-                endpointPos = pos;
-                endpoint = entry.getKey();
-            }
-        }
-        if (endpoint != null) {
-            return endpoint;
-        }
-
-        String fallback = null;
-        Vec2d fallbackPos = null;
-        for (String nodeId : nodeToEdgeIds.keySet()) {
-            RoadNode node = network.getNode(nodeId);
-            if (node == null || node.getPosition() == null) {
-                continue;
-            }
-            Vec2d pos = node.getPosition();
-            if (fallbackPos == null || comparePosition(pos, fallbackPos) < 0) {
-                fallbackPos = pos;
-                fallback = nodeId;
-            }
-        }
-        return fallback;
-    }
-
-    private static int comparePosition(Vec2d left, Vec2d right) {
-        int byX = Double.compare(left.x, right.x);
-        return byX != 0 ? byX : Double.compare(left.y, right.y);
-    }
-
-    private static String firstUnvisitedEdge(List<String> edgeIds, Set<String> visited) {
-        if (edgeIds == null) {
-            return null;
-        }
-        for (String edgeId : edgeIds) {
-            if (!visited.contains(edgeId)) {
-                return edgeId;
-            }
-        }
-        return null;
     }
 }

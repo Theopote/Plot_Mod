@@ -1667,6 +1667,8 @@ public class RoadNetwork {
         Float maxSlope;
         String topologyMode;
         LoopSeamData loopSeam;
+        String designEntryNodeId;
+        String designEntryEdgeId;
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
@@ -1785,6 +1787,8 @@ public class RoadNetwork {
                     seamData.localFraction = road.getLoopSeam().localFraction();
                     roadData.loopSeam = seamData;
                 }
+                roadData.designEntryNodeId = road.getDesignEntryNodeId();
+                roadData.designEntryEdgeId = road.getDesignEntryEdgeId();
                 roadData.horizontalAlignment = HorizontalAlignmentPersistence.toData(road.getHorizontalAlignment());
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
                 if (road.getStoredVerticalMode() != null) {
@@ -1933,6 +1937,9 @@ public class RoadNetwork {
                             roadData.loopSeam.segmentHintId,
                             roadData.loopSeam.localFraction));
                     }
+                    // Design-entry binding applied after edges exist — mid-load
+                    // assignEdgeToRoad → syncStorageOrder → ensureBound must not rebind
+                    // against a partial topology and wipe the persisted authority.
                     road.setHorizontalAlignment(HorizontalAlignmentPersistence.fromData(roadData.horizontalAlignment));
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.fromStored(
@@ -2043,6 +2050,19 @@ public class RoadNetwork {
 
             rebuildTopologyFromEdges(network);
             network.reconcileRoadSegmentLinks();
+            if (hasRoadData) {
+                for (RoadData roadData : roads) {
+                    if (roadData == null || roadData.id == null) {
+                        continue;
+                    }
+                    Road road = network.roads.get(roadData.id);
+                    if (road == null) {
+                        continue;
+                    }
+                    road.setDesignEntryNodeId(roadData.designEntryNodeId);
+                    road.setDesignEntryEdgeId(roadData.designEntryEdgeId);
+                }
+            }
             network.assertInvariants();
             return network;
         }

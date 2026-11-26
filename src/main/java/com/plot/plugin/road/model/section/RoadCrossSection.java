@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.style.RoadStyle;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -234,6 +235,20 @@ public class RoadCrossSection {
         copy.slopeBatter = slopeBatter.copy();
         copy.streetFurniture = streetFurniture.copy();
         return copy;
+    }
+
+    /**
+     * Reverse-Road lateral mirror: lane width sequence is reversed so world placement stays put
+     * when left/right semantics flip with design direction.
+     */
+    public RoadCrossSection mirroredForReverseDirection() {
+        RoadCrossSection mirrored = copy();
+        List<Lane> lanes = new ArrayList<>(mirrored.carriageway.getLanes());
+        if (lanes.size() > 1) {
+            java.util.Collections.reverse(lanes);
+            mirrored.carriageway.setLanes(lanes);
+        }
+        return mirrored;
     }
 
 }

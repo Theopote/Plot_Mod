@@ -205,6 +205,10 @@ public final class VerticalAlignmentProfileSolver {
             manualStartHeight,
             manualEndHeight,
             designElevation);
+        if (candidateDesign.isEmpty() && !sampleData.groundSamples().isEmpty()) {
+            // Non-finite station mapping — fail this edge's solve (no fabricated elevations).
+            return ProfileSolveResult.empty();
+        }
 
         List<Double> segmentDistances = new ArrayList<>(segments.size());
         List<Float> maxSlopePercents = new ArrayList<>(segments.size());
@@ -336,9 +340,15 @@ public final class VerticalAlignmentProfileSolver {
                 ? sampleData.cumulativeDistances().get(i)
                 : sampledPathLength;
             double chainage = designElevation.mapLocalToChainage(localDistance);
-            double target = VerticalAlignmentGeometry
-                .elevationAt(designElevation.alignment(), chainage)
-                .orElse(designElevation.elevationAtChainage(chainage));
+            if (!Double.isFinite(chainage)) {
+                // Fail closed: never fall through to station-0 elevation via VoxelVerticalProfile.
+                return List.of();
+            }
+            var geometryElevation = VerticalAlignmentGeometry
+                .elevationAt(designElevation.alignment(), chainage);
+            double target = geometryElevation.isPresent()
+                ? geometryElevation.getAsDouble()
+                : designElevation.elevationAtChainage(chainage);
             if (i == 0 && manualStartHeight != null) {
                 target = manualStartHeight;
             }

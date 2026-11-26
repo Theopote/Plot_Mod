@@ -75,13 +75,16 @@ public final class RoadStationing {
     public static List<OrientedRoadSegment> physicalEdgeSegmentsForMaterialization(
             RoadNetwork network,
             Road road) {
-        List<OrientedRoadSegment> base = orientedSegmentsWithoutLoopRotation(network, road);
+        // Physical/HA map walk: start from design entry node but do not lock LOOP circulation
+        // via designEntryEdgeId — HA-origin rotation + monotonic flip choose orientation.
+        List<OrientedRoadSegment> base = buildLinearOrientedSegments(network, road, false, false);
         return rotatePhysicalChainToHaOrigin(network, road, base);
     }
 
     /**
-     * Align physical materialization walk to HA: start nearest the HA origin and proceed in
-     * increasing-native order. Required for a strictly monotonic physical↔native map.
+     * Align physical materialization walk for a monotonic physical↔native map.
+     * With HA: start nearest the HA origin (design binding remains the station-chain authority).
+     * Without HA: rotate to the persisted design-entry binding.
      */
     static List<OrientedRoadSegment> rotatePhysicalChainToHaOrigin(
             RoadNetwork network,
@@ -90,7 +93,16 @@ public final class RoadStationing {
         if (network == null || road == null || segments == null || segments.isEmpty()) {
             return segments == null ? List.of() : segments;
         }
+
         if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            RoadDesignDirectionAuthority.ensureBound(network, road);
+            String designEntry = road.getDesignEntryNodeId();
+            if (designEntry != null && segments.size() > 1) {
+                int bestIndex = indexWithEntryNode(segments, designEntry);
+                if (bestIndex > 0) {
+                    return List.copyOf(rotateSegments(segments, bestIndex));
+                }
+            }
             return segments;
         }
         Vec2d origin = road.getHorizontalAlignment().getOrigin();
@@ -113,15 +125,8 @@ public final class RoadStationing {
                     bestIndex = i;
                 }
             }
-            if (bestIndex != 0) {
-                List<OrientedRoadSegment> rotated = new ArrayList<>(segments.size());
-                double station = 0.0;
-                for (int k = 0; k < segments.size(); k++) {
-                    OrientedRoadSegment original = segments.get((bestIndex + k) % segments.size());
-                    rotated.add(original.withStartStation(station));
-                    station += original.length();
-                }
-                oriented = rotated;
+            if (bestIndex > 0) {
+                oriented = rotateSegments(segments, bestIndex);
             }
         } else {
             // LINEAR: if HA origin is closer to the chain exit, flip so physical 0 meets HA 0.
@@ -138,6 +143,26 @@ public final class RoadStationing {
             oriented = reversePhysicalSegments(oriented);
         }
         return List.copyOf(oriented);
+    }
+
+    private static int indexWithEntryNode(List<OrientedRoadSegment> segments, String entryNodeId) {
+        for (int i = 0; i < segments.size(); i++) {
+            if (entryNodeId.equals(segments.get(i).entryNodeId())) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static List<OrientedRoadSegment> rotateSegments(List<OrientedRoadSegment> segments, int bestIndex) {
+        List<OrientedRoadSegment> rotated = new ArrayList<>(segments.size());
+        double station = 0.0;
+        for (int k = 0; k < segments.size(); k++) {
+            OrientedRoadSegment original = segments.get((bestIndex + k) % segments.size());
+            rotated.add(original.withStartStation(station));
+            station += original.length();
+        }
+        return rotated;
     }
 
     private static boolean firstSegmentDecreasesHaNative(
@@ -236,16 +261,25 @@ public final class RoadStationing {
     }
 
     static List<OrientedRoadSegment> buildBaseOrientedSegments(RoadNetwork network, Road road) {
-        return buildLinearOrientedSegments(network, road, false);
+        return buildLinearOrientedSegments(network, road, false, true);
     }
 
     private static List<OrientedRoadSegment> buildLinearOrientedSegments(
             RoadNetwork network,
             Road road,
             boolean applyLoopSeam) {
+        return buildLinearOrientedSegments(network, road, applyLoopSeam, true);
+    }
+
+    private static List<OrientedRoadSegment> buildLinearOrientedSegments(
+            RoadNetwork network,
+            Road road,
+            boolean applyLoopSeam,
+            boolean useDesignEntryEdge) {
         List<OrientedRoadSegment> oriented = new ArrayList<>();
         double station = 0.0;
-        for (SegmentChainBinding binding : segmentChainBindings(network, road, applyLoopSeam)) {
+        for (SegmentChainBinding binding : segmentChainBindings(
+                network, road, applyLoopSeam, useDesignEntryEdge)) {
             RoadEdge edge = network.getEdge(binding.segmentId());
             if (edge == null) {
                 continue;
@@ -896,6 +930,14 @@ public final class RoadStationing {
             RoadNetwork network,
             Road road,
             boolean applyLoopSeam) {
+        return segmentChainBindings(network, road, applyLoopSeam, true);
+    }
+
+    private static List<SegmentChainBinding> segmentChainBindings(
+            RoadNetwork network,
+            Road road,
+            boolean applyLoopSeam,
+            boolean useDesignEntryEdge) {
         if (network == null || road == null) {
             return List.of();
         }
@@ -905,27 +947,27 @@ public final class RoadStationing {
         }
 
         Map<String, RoadEdge> edgesById = new HashMap<>();
-        Map<String, List<String>> nodeToEdgeIds = new HashMap<>();
         for (String segmentId : segmentIds) {
             RoadEdge edge = network.getEdge(segmentId);
-            if (edge == null) {
-                continue;
+            if (edge != null) {
+                edgesById.put(segmentId, edge);
             }
-            edgesById.put(segmentId, edge);
-            nodeToEdgeIds.computeIfAbsent(edge.getStartNodeId(), ignored -> new ArrayList<>()).add(segmentId);
-            nodeToEdgeIds.computeIfAbsent(edge.getEndNodeId(), ignored -> new ArrayList<>()).add(segmentId);
         }
         if (edgesById.isEmpty()) {
             return List.of();
         }
 
-        String startNodeId = findChainStart(network, nodeToEdgeIds);
+        RoadDesignDirectionAuthority.ResolvedStart resolved =
+            RoadDesignDirectionAuthority.resolveStart(network, road);
+        String startNodeId = resolved.entryNodeId();
+        String preferredEdgeId = useDesignEntryEdge ? resolved.preferredEntryEdgeId() : null;
         if (applyLoopSeam
                 && road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP
                 && road.getLoopSeam() != null) {
             String seamStart = RoadLoopSeamService.resolveChainStartNodeId(network, road, road.getLoopSeam());
-            if (seamStart != null && nodeToEdgeIds.containsKey(seamStart)) {
+            if (seamStart != null && resolved.nodeToEdgeIds().containsKey(seamStart)) {
                 startNodeId = seamStart;
+                preferredEdgeId = null; // seam rotates start; edge preference is for design walk
             }
         }
         if (startNodeId == null) {
@@ -935,7 +977,8 @@ public final class RoadStationing {
         List<SegmentChainBinding> bindings = new ArrayList<>(edgesById.size());
         Set<String> visited = new HashSet<>();
         String currentNodeId = startNodeId;
-        String currentEdgeId = firstUnvisitedEdge(nodeToEdgeIds.get(startNodeId), visited);
+        String currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
+            network, road, currentNodeId, preferredEdgeId, visited);
 
         while (currentEdgeId != null) {
             visited.add(currentEdgeId);
@@ -948,63 +991,10 @@ public final class RoadStationing {
                 ? edge.getEndNodeId()
                 : edge.getStartNodeId();
             currentNodeId = nextNodeId;
-            currentEdgeId = firstUnvisitedEdge(nodeToEdgeIds.get(nextNodeId), visited);
+            currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
+                network, road, currentNodeId, null, visited);
         }
         return bindings;
-    }
-
-    private static String findChainStart(RoadNetwork network, Map<String, List<String>> nodeToEdgeIds) {
-        String endpoint = null;
-        Vec2d endpointPos = null;
-        for (Map.Entry<String, List<String>> entry : nodeToEdgeIds.entrySet()) {
-            if (entry.getValue().size() != 1) {
-                continue;
-            }
-            RoadNode node = network.getNode(entry.getKey());
-            if (node == null || node.getPosition() == null) {
-                continue;
-            }
-            Vec2d pos = node.getPosition();
-            if (endpointPos == null || comparePosition(pos, endpointPos) < 0) {
-                endpointPos = pos;
-                endpoint = entry.getKey();
-            }
-        }
-        if (endpoint != null) {
-            return endpoint;
-        }
-
-        String fallback = null;
-        Vec2d fallbackPos = null;
-        for (String nodeId : nodeToEdgeIds.keySet()) {
-            RoadNode node = network.getNode(nodeId);
-            if (node == null || node.getPosition() == null) {
-                continue;
-            }
-            Vec2d pos = node.getPosition();
-            if (fallbackPos == null || comparePosition(pos, fallbackPos) < 0) {
-                fallbackPos = pos;
-                fallback = nodeId;
-            }
-        }
-        return fallback;
-    }
-
-    private static int comparePosition(Vec2d left, Vec2d right) {
-        int byX = Double.compare(left.x, right.x);
-        return byX != 0 ? byX : Double.compare(left.y, right.y);
-    }
-
-    private static String firstUnvisitedEdge(List<String> edgeIds, Set<String> visited) {
-        if (edgeIds == null) {
-            return null;
-        }
-        for (String edgeId : edgeIds) {
-            if (!visited.contains(edgeId)) {
-                return edgeId;
-            }
-        }
-        return null;
     }
 
     private static String formatDistanceMeters(double meters) {

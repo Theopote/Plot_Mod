@@ -22,6 +22,17 @@ public final class CenterlineEditorApplier {
         if (!Objects.equals(original.getOrderedSegmentIds(), working.getOrderedSegmentIds())) {
             return true;
         }
+        if (!Objects.equals(original.getDesignEntryNodeId(), working.getDesignEntryNodeId())
+                || !Objects.equals(original.getDesignEntryEdgeId(), working.getDesignEntryEdgeId())) {
+            return true;
+        }
+        if (!Objects.equals(original.getLoopSeam(), working.getLoopSeam())) {
+            return true;
+        }
+        if (!Objects.equals(original.getStoredProfileSource(), working.getStoredProfileSource())
+                || original.getEditedGeometrySignature() != working.getEditedGeometrySignature()) {
+            return true;
+        }
         if (!alignmentsEqual(
             original.getHorizontalAlignment(),
             working.getHorizontalAlignment())) {

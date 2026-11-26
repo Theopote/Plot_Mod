@@ -88,12 +88,14 @@ public final class RoadLoopSeamService {
         if (seam.segmentHintId() != null && seam.localFraction() != null) {
             RoadEdge hinted = network.getEdge(seam.segmentHintId());
             if (hinted != null) {
+                // localFraction is geometry-storage; convert to chain orientation for node pick.
                 boolean forward = orientedForwardAtSegment(network, road, seam.segmentHintId(), seam.localFraction());
-                double fraction = seam.localFraction();
-                if (fraction <= EPSILON) {
+                double geometryFraction = seam.localFraction();
+                double chainFraction = forward ? geometryFraction : 1.0 - geometryFraction;
+                if (chainFraction <= EPSILON) {
                     return forward ? hinted.getStartNodeId() : hinted.getEndNodeId();
                 }
-                if (fraction >= 1.0 - EPSILON) {
+                if (chainFraction >= 1.0 - EPSILON) {
                     return forward ? hinted.getEndNodeId() : hinted.getStartNodeId();
                 }
                 return forward ? hinted.getStartNodeId() : hinted.getEndNodeId();
@@ -231,22 +233,25 @@ public final class RoadLoopSeamService {
                 if (!segment.edgeId().equals(seam.segmentHintId())) {
                     continue;
                 }
-                double chainLocal = seam.localFraction() * segment.length();
-                double geometryLocal = segment.geometryLocalFromChainLocal(chainLocal);
                 RoadEdge edge = network.getEdge(seam.segmentHintId());
                 if (edge == null) {
                     break;
                 }
+                // localFraction is geometry-storage domain (same as RoadStationing.physicalSeamStation).
+                double geometryLength = edge.getLength();
+                double geometryLocal = seam.localFraction() * geometryLength;
+                double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
                 Vec2d position = pointOnEdge(edge, geometryLocal);
                 if (position == null) {
                     break;
                 }
+                double chainFraction = segment.length() > EPSILON ? chainLocal / segment.length() : 0.0;
                 return new SeamProjection(
                     position,
                     seam.segmentHintId(),
                     segment.entryNodeId(),
                     segment.exitNodeId(),
-                    seam.localFraction(),
+                    chainFraction,
                     segment.startStation() + chainLocal);
             }
         }

@@ -88,7 +88,7 @@ class CenterlineProfileAuthorityIntegrationTest {
     }
 
     @Test
-    void reverseInvalidatesEditedSourceAndGenerationIgnoresStoredCurve() {
+    void reverseRoadKeepsEditedAuthorityAfterSignatureRebind() {
         RoadNetwork live = straightRoad("reverse-auth", 100.0);
         Road road = live.getRoad("reverse-auth");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
@@ -102,17 +102,18 @@ class CenterlineProfileAuthorityIntegrationTest {
         assertTrue(RoadCenterlineEditor.reverseRoad(working, working.getRoad(road.getId())).isSuccess());
 
         applyCenterline(live, working, road.getId());
-        assertTrue(ResolvedProfileAuthority.invalidateEditedProfileIfStale(live, road));
+        assertFalse(ResolvedProfileAuthority.invalidateEditedProfileIfStale(live, road));
 
-        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
         assertTrue(ResolvedProfileAuthority.hasStoredEditedCurve(road));
-        assertFalse(ResolvedProfileAuthority.usesEditedProfileForGeneration(live, road));
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(live, road));
 
         RoadNetwork generationSnapshot = live.snapshot();
         VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(generationSnapshot);
         Road generationRoad = generationSnapshot.getRoad(road.getId());
-        assertFalse(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(
+        assertTrue(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(
             generationSnapshot, generationRoad));
+        assertEquals(64.0, generationRoad.getVerticalAlignment().getPvis().getFirst().getElevation(), EPS);
     }
 
     @Test
@@ -133,29 +134,23 @@ class CenterlineProfileAuthorityIntegrationTest {
     }
 
     @Test
-    void reconfirmedEditedProfileUsesSyncedMirroredCurveForGeneration() {
-        RoadNetwork live = straightRoad("reconfirm", 100.0);
-        Road road = live.getRoad("reconfirm");
-        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+    void reverseEdgeDoesNotInvalidateEditedProfileGeometryHash() {
+        RoadNetwork live = straightRoad("rev-edge-auth", 100.0);
+        Road road = live.getRoad("rev-edge-auth");
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 64.0),
             PointOfVerticalIntersection.of(100.0, 72.0))));
         ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+        int beforeHash = road.getEditedGeometrySignature();
 
         RoadNetwork working = live.snapshot().snapshot();
-        assertTrue(RoadCenterlineEditor.reverseRoad(working, working.getRoad(road.getId())).isSuccess());
+        String edgeId = working.getRoad(road.getId()).getOrderedSegmentIds().getFirst();
+        assertTrue(RoadCenterlineEditor.reverseEdge(working, edgeId).isSuccess());
         applyCenterline(live, working, road.getId());
-        ResolvedProfileAuthority.invalidateEditedProfileIfStale(live, road);
 
-        ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
-        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(live, road));
-
-        RoadNetwork generationSnapshot = live.snapshot();
-        VerticalProfileGenerationPolicy.applyGenerationProfileAuthority(generationSnapshot);
-        Road generationRoad = generationSnapshot.getRoad(road.getId());
-        assertTrue(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(
-            generationSnapshot, generationRoad));
-        assertEquals(72.0, generationRoad.getVerticalAlignment().getPvis().getFirst().getElevation(), EPS);
+        assertFalse(ResolvedProfileAuthority.invalidateEditedProfileIfStale(live, road));
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+        assertEquals(beforeHash, ProfileCompileInputsFingerprint.geometryHash(live, road));
     }
 
     @Test

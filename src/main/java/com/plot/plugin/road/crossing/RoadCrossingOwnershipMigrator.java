@@ -109,6 +109,48 @@ public final class RoadCrossingOwnershipMigrator {
         return new CaptureResult(bindings, unresolved);
     }
 
+    /**
+     * After edge storage reverse, remap captured geometry-local distances {@code d' = L - d}
+     * so the same world point resolves. Does not change canonical-station semantics by itself —
+     * Reverse Edge keeps station; Reverse Road mirrors via flipped design walk.
+     */
+    public static CaptureResult remapLocalDistancesAfterStorageReverse(
+            RoadNetwork network,
+            CaptureResult capture,
+            Set<String> reversedEdgeIds) {
+        if (network == null || capture == null || capture.isEmpty()
+                || reversedEdgeIds == null || reversedEdgeIds.isEmpty()) {
+            return capture;
+        }
+        List<CrossingPassBinding> remapped = new ArrayList<>(capture.bindings().size());
+        for (CrossingPassBinding binding : capture.bindings()) {
+            if (binding.edgeId() == null || !reversedEdgeIds.contains(binding.edgeId())) {
+                remapped.add(binding);
+                continue;
+            }
+            RoadEdge edge = network.getEdge(binding.edgeId());
+            double length = edge != null ? edge.getLength() : 0.0;
+            double local = Math.max(0.0, Math.min(length, length - binding.localDistance()));
+            remapped.add(new CrossingPassBinding(
+                binding.crossingId(),
+                binding.kind(),
+                binding.role(),
+                binding.roadId(),
+                binding.edgeId(),
+                local,
+                binding.originalStation(),
+                binding.worldPosition(),
+                binding.type(),
+                binding.elevatedRoadId(),
+                binding.crossingClearance(),
+                binding.sharedElevation(),
+                binding.cornerRadius(),
+                binding.lowerStationHint(),
+                binding.upperStationHint()));
+        }
+        return new CaptureResult(remapped, capture.hadUnresolved());
+    }
+
     /** Logical split/merge: unresolved passes fail the edit (do not drop designs). */
     public static ApplyResult reapply(RoadNetwork network, CaptureResult capture) {
         return reapply(network, capture, Set.of());

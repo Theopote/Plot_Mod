@@ -234,13 +234,17 @@ public final class RoadStationMirroring {
         List<Interval> intervals = buildIntervals(sorted, defaultSection, totalLength);
         List<Interval> mirrored = new ArrayList<>();
         for (Interval interval : intervals) {
+            RoadCrossSection template = interval.template != null
+                ? interval.template.mirroredForReverseDirection()
+                : null;
             mirrored.add(new Interval(
                 totalLength - interval.end,
                 totalLength - interval.start,
-                interval.template));
+                template));
         }
         mirrored.sort(Comparator.comparingDouble(interval -> interval.start));
-        return intervalsToVariableCrossSections(mirrored, defaultSection);
+        RoadCrossSection mirroredDefault = defaultSection.mirroredForReverseDirection();
+        return intervalsToVariableCrossSections(mirrored, mirroredDefault);
     }
 
     public static RoadStationFacilities mirrorStationFacilities(

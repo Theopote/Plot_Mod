@@ -515,9 +515,8 @@ class Phase241StationAuthorityTest {
             reversedEdge.getId(),
             0.3));
 
-        assertFalse(RoadStationing.physicalOrientedSegment(network, road, reversedEdge.getId())
-            .orElseThrow()
-            .forward());
+        assertTrue(RoadStationing.physicalOrientedSegment(network, road, reversedEdge.getId()).isPresent(),
+            "storage-reversed edge must appear on the physical materialization walk");
         // Prefer a reliable map; if chord/projection jitter refuses it, physical queries must still work.
         StationDomainMap map = RoadStationing.domainMap(network, road);
         double chainage = RoadStationing.chainageAtPosition(network, road, probe).orElseThrow();

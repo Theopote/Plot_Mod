@@ -116,14 +116,11 @@ public final class CenterlinePhase2ConsistencyPolicy {
     }
 
     /**
-     * 单段反向。
+     * 单段反向：仅存储方向变化，不重拟合/清除 HA，不物化派生中心线。
      */
     public static void afterReverseEdge(RoadNetwork network, String edgeId) {
         CenterlineEditOperation.REVERSE_EDGE.defaultStationPolicy().applyReverseEdge(network, edgeId);
-        Road road = roadForEdge(network, edgeId);
-        if (road != null) {
-            syncHorizontalAlignment(network, road);
-        }
+        // Reverse Edge is storage-only — never refit/clear HA or rematerialize.
     }
 
     private static void syncHorizontalAlignment(RoadNetwork network, Road road) {

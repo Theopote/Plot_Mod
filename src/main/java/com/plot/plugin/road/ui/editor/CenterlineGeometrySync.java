@@ -16,6 +16,7 @@ import java.util.Set;
  * <p>
  * 纵断面（VA）须与 {@link com.plot.plugin.road.station.CenterlineEditStationPolicy} 在工作副本上的
  * 变换结果一并写回，否则几何反向/重参数化后 live 仍保留旧桩号标高，体素预览与生成会偏离。
+ * Phase 2.4.2 also syncs design-direction binding, seam, profile authority, and cross-section.
  */
 final class CenterlineGeometrySync {
 
@@ -66,6 +67,11 @@ final class CenterlineGeometrySync {
         }
 
         liveRoad.reorderSegments(List.copyOf(targetSegments));
+        liveRoad.setDesignEntryNodeId(workingRoad.getDesignEntryNodeId());
+        liveRoad.setDesignEntryEdgeId(workingRoad.getDesignEntryEdgeId());
+        liveRoad.setLoopSeam(workingRoad.getLoopSeam());
+        liveRoad.setCrossSection(
+            workingRoad.getCrossSection() != null ? workingRoad.getCrossSection().copy() : null);
         if (workingRoad.getHorizontalAlignment() != null) {
             liveRoad.setHorizontalAlignment(workingRoad.getHorizontalAlignment().copy());
         } else {
@@ -78,6 +84,8 @@ final class CenterlineGeometrySync {
         } else {
             liveRoad.setVerticalAlignment(null);
         }
+        liveRoad.setProfileSource(workingRoad.getStoredProfileSource());
+        liveRoad.setEditedGeometrySignature(workingRoad.getEditedGeometrySignature());
     }
 
     private static void ensureNode(RoadNetwork live, RoadNetwork working, String nodeId) {

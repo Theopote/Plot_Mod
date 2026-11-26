@@ -127,7 +127,7 @@ class RoadCrossingAdvancedScenariosTest {
     }
 
     @Test
-    void reverseRoad_reconcilePreservesCrossingPhysicalChainage() {
+    void reverseRoad_reconcileMirrorsCrossingCanonicalStation() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
@@ -146,6 +146,7 @@ class RoadCrossingAdvancedScenariosTest {
         RoadCrossing original = network.getCrossings().values().iterator().next();
         double stationOnABefore = original.stationOn(roadA.getId());
         assertEquals(1.0, stationOnABefore, 0.5);
+        double lengthA = RoadStationing.canonicalLength(network, roadA);
 
         assertTrue(RoadCenterlineEditor.reverseRoad(network, roadA).isSuccess());
         RoadCrossingReconciler.reconcileCrossings(network);
@@ -153,10 +154,9 @@ class RoadCrossingAdvancedScenariosTest {
         RoadCrossing updated = network.getCrossings().values().iterator().next();
         assertEquals(original.id(), updated.id());
         double stationOnAAfter = updated.stationOn(roadA.getId());
-        assertEquals(stationOnABefore, stationOnAAfter, 0.5);
+        assertEquals(lengthA - stationOnABefore, stationOnAAfter, 0.5);
         assertEquals(1.0, updated.position().x, EPS);
         assertEquals(5.0, updated.position().y, EPS);
-        assertFalse(RoadStationing.orientedSegments(network, roadA).getFirst().forward());
     }
 
     @Test
@@ -189,7 +189,7 @@ class RoadCrossingAdvancedScenariosTest {
     }
 
     @Test
-    void reverseRoadViaManager_preservesCrossingIdentityAndPhysicalStation() {
+    void reverseRoadViaManager_preservesCrossingIdentityAndMirrorsStation() {
         RoadNetworkManager manager = new RoadNetworkManager(
             new RoadSystemConfig("test"), new RoadProjectStatus());
         manager.adoptSelectedPaths(List.of(
@@ -209,12 +209,13 @@ class RoadCrossingAdvancedScenariosTest {
         RoadCrossing original = network.getCrossings().values().iterator().next();
         String originalId = original.id();
         double stationBefore = original.stationOn(horizontal.getId());
+        double length = RoadStationing.canonicalLength(network, horizontal);
 
         assertTrue(manager.reverseRoad(horizontal).isSuccess());
 
         RoadCrossing updated = network.getCrossing(originalId);
         assertNotNull(updated);
-        assertEquals(stationBefore, updated.stationOn(horizontal.getId()), 0.5);
+        assertEquals(length - stationBefore, updated.stationOn(horizontal.getId()), 0.5);
         assertEquals(1.0, updated.position().x, EPS);
         assertEquals(5.0, updated.position().y, EPS);
     }

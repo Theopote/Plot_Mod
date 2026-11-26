@@ -60,6 +60,10 @@ public class Road {
     private Float maxSlope;
     private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
     private RoadLoopSeam loopSeam;
+    /** Persisted design-chain entry node; null until first stationable bind. */
+    private String designEntryNodeId;
+    /** Edge leaving {@link #designEntryNodeId} in design walk (required for LOOP; set for LINEAR too). */
+    private String designEntryEdgeId;
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
     private RoadVerticalMode verticalMode;
@@ -566,6 +570,26 @@ public class Road {
         this.loopSeam = loopSeam;
     }
 
+    public String getDesignEntryNodeId() {
+        return designEntryNodeId;
+    }
+
+    public void setDesignEntryNodeId(String designEntryNodeId) {
+        this.designEntryNodeId = designEntryNodeId != null && !designEntryNodeId.isBlank()
+            ? designEntryNodeId
+            : null;
+    }
+
+    public String getDesignEntryEdgeId() {
+        return designEntryEdgeId;
+    }
+
+    public void setDesignEntryEdgeId(String designEntryEdgeId) {
+        this.designEntryEdgeId = designEntryEdgeId != null && !designEntryEdgeId.isBlank()
+            ? designEntryEdgeId
+            : null;
+    }
+
     public RoadHorizontalAlignment getHorizontalAlignment() {
         return horizontalAlignment;
     }
@@ -1008,6 +1032,8 @@ public class Road {
         copy.themeId = themeId;
         copy.topologyMode = getTopologyMode();
         copy.loopSeam = loopSeam;
+        copy.designEntryNodeId = designEntryNodeId;
+        copy.designEntryEdgeId = designEntryEdgeId;
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         copy.verticalMode = verticalMode;

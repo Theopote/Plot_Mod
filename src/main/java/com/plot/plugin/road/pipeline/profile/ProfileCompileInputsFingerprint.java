@@ -75,21 +75,42 @@ public record ProfileCompileInputsFingerprint(
                 effective.algorithmVersion()));
     }
 
-    /** Existing persisted edited-profile bindings use this signature; keep its format stable. */
+    /**
+     * Physical-walk geometry signature for EDITED profile binding.
+     * Deliberately ignores {@link OrientedRoadSegment#forward()} so Reverse Edge (storage-only)
+     * does not invalidate confirmed profiles.
+     */
     public static int geometryHash(RoadNetwork network, Road road) {
         if (road == null || !RoadStationing.isStationable(network, road)) {
             return 0;
         }
         int hash = Double.hashCode(RoadStationing.canonicalLength(network, road));
+        hash = 31 * hash + Objects.hashCode(road.getDesignEntryNodeId());
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
-            hash = 31 * hash + Objects.hash(segment.edgeId(), segment.forward(), segment.length());
+            hash = 31 * hash + Objects.hash(segment.edgeId(), segment.length());
             RoadEdge edge = network.getEdge(segment.edgeId());
-            if (edge == null) {
+            if (edge == null || edge.getCenterlinePoints() == null) {
                 continue;
             }
-            RoadNode start = network.getNode(edge.getStartNodeId());
-            RoadNode end = network.getNode(edge.getEndNodeId());
-            hash = 31 * hash + nodeHash(start) + 17 * nodeHash(end);
+            // Hash world points in chain walk order (entry→exit), independent of storage direction.
+            var points = edge.getCenterlinePoints();
+            if (segment.forward()) {
+                for (var point : points) {
+                    if (point != null) {
+                        hash = 31 * hash + Objects.hash(point.x, point.y);
+                    }
+                }
+            } else {
+                for (int i = points.size() - 1; i >= 0; i--) {
+                    var point = points.get(i);
+                    if (point != null) {
+                        hash = 31 * hash + Objects.hash(point.x, point.y);
+                    }
+                }
+            }
+            RoadNode entry = network.getNode(segment.entryNodeId());
+            RoadNode exit = network.getNode(segment.exitNodeId());
+            hash = 31 * hash + nodeHash(entry) + 17 * nodeHash(exit);
         }
         return hash;
     }
