@@ -61,6 +61,13 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
     double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
         RoadModelUtils.getEffectiveWidth(network, edge, config));
     Road road = network.getRoadForEdge(edge);
+    // Confirmed edited VA + unreliable station map must not silently fall back to terrain solve.
+    if (ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)
+        && !RoadStationing.domainMap(network, road).isReliable()) {
+      throw new IllegalStateException(
+          "design vertical alignment requires a reliable station domain map for road "
+              + (road != null ? road.getId() : "?"));
+    }
     if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
       double maxGrade = road.getEffectiveMaxSlope(config);
       if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
@@ -68,29 +75,25 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
       }
       RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolve(network, road, maxGrade);
       RoadVerticalMode solverMode = verticalAlignmentSolverMode(network, road);
-      return RoadStationing.orientedSegment(network, road, edge.getId())
-          .map(oriented -> VerticalAlignmentProfileSolver.solveForEdge(
-              alignment,
-              oriented,
-              segments,
-              terrain,
-              halfWidth,
-              manualStartHeight,
-              manualEndHeight,
-              profileSupport,
-              config,
-              solverMode,
-              road.getEffectiveTerrainFollowPreset(config)))
-          .orElseGet(() -> RoadProfileSolver.solveForEdge(
-              segments,
-              terrain,
-              network,
-              edge,
-              config,
-              halfWidth,
-              manualStartHeight,
-              manualEndHeight,
-              profileSupport));
+      ProfileSolveResult solved = VerticalAlignmentProfileSolver.solveForEdge(
+          alignment,
+          network,
+          road,
+          edge,
+          segments,
+          terrain,
+          halfWidth,
+          manualStartHeight,
+          manualEndHeight,
+          profileSupport,
+          config,
+          solverMode,
+          road.getEffectiveTerrainFollowPreset(config));
+      if (solved.heightInfos().isEmpty()) {
+        throw new IllegalStateException(
+            "design vertical alignment solve produced no heights for edge " + edge.getId());
+      }
+      return solved;
     }
     return RoadProfileSolver.solveForEdge(
         segments,

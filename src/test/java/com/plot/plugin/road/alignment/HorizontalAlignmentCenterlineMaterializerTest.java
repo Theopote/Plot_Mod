@@ -35,19 +35,20 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         RoadEdge edge = network.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
 
+        // Offset HA has no reliable physical↔native map — derived materialize must refuse
+        // (HA rebinding / FITTED sync is the path that creates correspondence first).
         RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 5), 0.0, List.of());
         alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
         road.setHorizontalAlignment(alignment);
 
+        assertFalse(HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road));
         CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+        assertEquals(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID, result.status());
 
-        assertTrue(result.isSuccess());
-        List<Vec2d> points = network.getEdge(edge.getId()).getCenterlinePoints();
-        assertTrue(points.size() >= 2);
-        assertEquals(5.0, points.getFirst().y, 0.1);
-        assertEquals(5.0, points.getLast().y, 0.1);
-        assertEquals(5.0, network.getNode(n1.getId()).getPosition().y, 0.1);
-        assertEquals(5.0, network.getNode(n2.getId()).getPosition().y, 0.1);
+        // Matching HA: materialize is a safe derived refresh.
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0), 0.0, List.of(HorizontalAlignmentElement.tangent(100.0))));
+        assertTrue(HorizontalAlignmentCenterlineMaterializer.materialize(network, road).isSuccess());
         assertTrue(HorizontalAlignmentCenterlineConsistency.evaluate(network, road).isConsistent());
     }
 
@@ -127,7 +128,8 @@ class HorizontalAlignmentCenterlineMaterializerTest {
 
         CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, roadA);
 
-        assertEquals(CenterlineEditStatus.JUNCTION_ENDPOINT_CONFLICT, result.status());
+        // Unreliable map gates materialize before junction conflict status is returned.
+        assertEquals(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID, result.status());
         assertEquals(before, edgeA.getCenterlinePoints());
     }
 
@@ -153,9 +155,10 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         roadA.setHorizontalAlignment(alignment);
 
         List<Vec2d> before = List.copyOf(edgeA.getCenterlinePoints());
+        assertFalse(HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, roadA));
         CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, roadA);
 
-        assertEquals(CenterlineEditStatus.JUNCTION_ENDPOINT_CONFLICT, result.status());
+        assertEquals(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID, result.status());
         assertEquals(before, edgeA.getCenterlinePoints());
     }
 
@@ -352,12 +355,13 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         Vec2d n0Before = network.getNode(n0.getId()).getPosition().copy();
         Vec2d n1Before = network.getNode(n1.getId()).getPosition().copy();
 
-        assertTrue(HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road));
+        // Out-and-back onto a single tangent has no reliable monotonic map.
+        assertFalse(HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road));
         assertTrue(HorizontalAlignmentCenterlineMaterializer.prepareMaterialization(
             network, road, alignment, 2.0).isEmpty());
 
         CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
-        assertEquals(CenterlineEditStatus.TOO_FEW_POINTS, result.status());
+        assertEquals(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID, result.status());
         assertEquals(forwardBefore, forward.getCenterlinePoints());
         assertEquals(backBefore, back.getCenterlinePoints());
         assertEquals(n0Before, network.getNode(n0.getId()).getPosition());

@@ -22,11 +22,7 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Generates bridge substructures: interior piers with caps and abutments at crossing boundaries.
@@ -96,39 +92,6 @@ public final class BridgeStructureGenerator {
             buildProfile,
             profileWaterCrossings,
             GradeSeparationBuildContext.NONE,
-            DEFAULT_PIER_SPACING_BLOCKS,
-            PIER_MATERIAL,
-            BridgePierStyle.SINGLE,
-            RoadParameterLimits.DEFAULT_BRIDGE_PIER_DIAMETER_BLOCKS,
-            RoadParameterLimits.DEFAULT_BRIDGE_PIER_OFFSET_BLOCKS);
-    }
-
-    static void generate(
-            Host host,
-            RoadSolidModel solids,
-            List<RoadConstructionType> constructionTypes,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            CrossSectionBuildContext crossSections,
-            TerrainSampler terrain,
-            double unitsPerBlock,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile,
-            List<WaterCrossing> profileWaterCrossings,
-            GradeSeparationBuildContext gradeSeparation) {
-        generate(
-            host,
-            solids,
-            constructionTypes,
-            segments,
-            heightInfos,
-            crossSections,
-            terrain,
-            unitsPerBlock,
-            designElevation,
-            buildProfile,
-            profileWaterCrossings,
-            gradeSeparation,
             DEFAULT_PIER_SPACING_BLOCKS,
             PIER_MATERIAL,
             BridgePierStyle.SINGLE,
@@ -451,7 +414,7 @@ public final class BridgeStructureGenerator {
             }
             while (pillarChainage <= maxChainage + EPSILON) {
                 double geometryDistance = crossSections.orientedSegment() != null
-                    ? crossSections.orientedSegment()
+                    ? Objects.requireNonNull(crossSections.orientedSegment())
                         .geometryLocalAtRoadStation(pillarChainage)
                         .orElse(accumulated)
                     : pillarChainage;

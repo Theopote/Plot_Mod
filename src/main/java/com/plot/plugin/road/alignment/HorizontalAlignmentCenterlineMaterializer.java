@@ -340,13 +340,17 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             if (!Double.isFinite(startNative) || !Double.isFinite(endNative)) {
                 return List.of();
             }
-        } else if (Math.abs(designLen - RoadPlanGeometry.instanceLength(network, road))
-                <= HorizontalAlignmentCenterlineConsistency.DEFAULT_LENGTH_TOLERANCE_METERS) {
-            // Length-compatible fallback when map is unavailable (materialize eligibility already checked).
-            startNative = startPhysical;
-            endNative = endPhysical;
         } else {
-            return List.of();
+            // Read/display only: never used for materialize write (canMaterialize requires reliable map).
+            // Single-segment proportional span when totals are compatible — not a multi-edge identity claim.
+            double instanceLen = RoadPlanGeometry.instanceLength(network, road);
+            if (!(Math.abs(designLen - instanceLen)
+                    <= HorizontalAlignmentCenterlineConsistency.DEFAULT_LENGTH_TOLERANCE_METERS)
+                    || !(instanceLen > MIN_POINT_SPACING)) {
+                return List.of();
+            }
+            startNative = startPhysical / instanceLen * designLen;
+            endNative = endPhysical / instanceLen * designLen;
         }
         if (forceIncludeDesignEnd) {
             endNative = Math.max(endNative, designLen);

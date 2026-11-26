@@ -100,16 +100,34 @@ public record DesignElevationSource(
         if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return inactive();
         }
+        return forEdgeWithAlignment(network, road, edge, segments, road.getVerticalAlignment());
+    }
+
+    /**
+     * Binds network/road so {@link #mapLocalToChainage} uses canonical conversion and LOOP slices.
+     * Used by the main VA profile solver (must not use the network-less 3-arg ctor).
+     */
+    public static DesignElevationSource forEdgeWithAlignment(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            List<PathSegment> segments,
+            RoadVerticalAlignment alignment) {
+        if (network == null || road == null || edge == null || segments == null || segments.isEmpty()) {
+            return inactive();
+        }
+        if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
+            return inactive();
+        }
         List<OrientedRoadSegment> slices = RoadStationing.orientedSegmentsForEdge(network, road, edge.getId());
         if (slices.isEmpty()) {
             return inactive();
         }
-        OrientedRoadSegment segment = slices.getFirst();
         return new DesignElevationSource(
-            road.getVerticalAlignment(),
-            segment,
+            alignment,
+            slices.getFirst(),
             ProfileGroundSampler.sampledPathLength(segments),
-            VoxelVerticalProfile.fromAlignment(road.getVerticalAlignment()),
+            VoxelVerticalProfile.fromAlignment(alignment),
             network,
             road);
     }

@@ -104,19 +104,24 @@ public final class NodeTargetHeightResolver {
             return context.groundHeightAtNode(terrain, node, network);
         }
 
-        ProfileSolveResult profile = context.solveEdgeProfile(
-            segments,
-            terrain,
-            network,
-            edge,
-            edgeStart,
-            edgeEnd,
-            gradeSeparation.resolveForcedEndpointHeight(
-                edgeStart, network, edge, terrain, applyGradeSeparation,
-                naturalRoadHeightAtNode(), naturalEdgeHeightAtNode()),
-            gradeSeparation.resolveForcedEndpointHeight(
-                edgeEnd, network, edge, terrain, applyGradeSeparation,
-                naturalRoadHeightAtNode(), naturalEdgeHeightAtNode()));
+        ProfileSolveResult profile;
+        try {
+            profile = context.solveEdgeProfile(
+                segments,
+                terrain,
+                network,
+                edge,
+                edgeStart,
+                edgeEnd,
+                gradeSeparation.resolveForcedEndpointHeight(
+                    edgeStart, network, edge, terrain, applyGradeSeparation,
+                    naturalRoadHeightAtNode(), naturalEdgeHeightAtNode()),
+                gradeSeparation.resolveForcedEndpointHeight(
+                    edgeEnd, network, edge, terrain, applyGradeSeparation,
+                    naturalRoadHeightAtNode(), naturalEdgeHeightAtNode()));
+        } catch (IllegalStateException ex) {
+            return context.groundHeightAtNode(terrain, node, network);
+        }
         List<SegmentHeightInfo> heightInfos = profile.heightInfos();
         if (heightInfos.isEmpty()) {
             return context.groundHeightAtNode(terrain, node, network);

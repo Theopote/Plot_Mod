@@ -544,6 +544,24 @@ public class RoadNetworkGenerator {
             LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
         try (var ignored = session.stationingCache().activate()) {
+            // Fail-closed preflight: confirmed design VA without a reliable station map.
+            for (var road : generationNetwork.getRoads().values()) {
+                if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority
+                        .usesEditedProfileForGeneration(generationNetwork, road)) {
+                    continue;
+                }
+                if (com.plot.plugin.road.station.RoadStationing.domainMap(generationNetwork, road)
+                        .isReliable()) {
+                    continue;
+                }
+                String message = "design vertical alignment requires a reliable station domain map for road "
+                    + road.getId();
+                for (String edgeId : road.getOrderedSegmentIds()) {
+                    session.networkResult().recordEdgeOutcome(
+                        edgeId,
+                        com.plot.plugin.road.pipeline.EdgeGenerationResult.failed(message));
+                }
+            }
             int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
                 generationNetwork,
                 roadGenerator.getConfig());

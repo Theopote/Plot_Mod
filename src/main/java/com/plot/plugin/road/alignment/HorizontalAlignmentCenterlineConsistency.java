@@ -66,9 +66,12 @@ public final class HorizontalAlignmentCenterlineConsistency {
             RoadNetwork network,
             Road road,
             double lengthToleranceMeters) {
-        // Materialization eligibility is length-domain only; StationDomainMap reliability
-        // is required for consistency reporting, not for writing derived centerlines.
+        // Derived refresh requires a reliable physical↔native map — length alone is not enough.
         if (!isEvaluable(network, road)) {
+            return false;
+        }
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        if (map == null || !map.isReliable()) {
             return false;
         }
         double roadLength = RoadPlanGeometry.instanceLength(network, road);

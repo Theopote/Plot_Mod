@@ -191,17 +191,23 @@ public final class NetworkNodeElevationResolver {
 
             Integer pinnedStart = junctionHeights.get(startNode.getId());
             Integer pinnedEnd = junctionHeights.get(endNode.getId());
-            ProfileSolveResult profile = context.solveEdgeProfile(
-                segments,
-                terrain,
-                network,
-                edge,
-                startNode,
-                endNode,
-                resolvePinnedEndpoint(
-                    startNode, network, edge, terrain, false, naturalRoadHeight, pinnedStart),
-                resolvePinnedEndpoint(
-                    endNode, network, edge, terrain, false, naturalRoadHeight, pinnedEnd));
+            ProfileSolveResult profile;
+            try {
+                profile = context.solveEdgeProfile(
+                    segments,
+                    terrain,
+                    network,
+                    edge,
+                    startNode,
+                    endNode,
+                    resolvePinnedEndpoint(
+                        startNode, network, edge, terrain, false, naturalRoadHeight, pinnedStart),
+                    resolvePinnedEndpoint(
+                        endNode, network, edge, terrain, false, naturalRoadHeight, pinnedEnd));
+            } catch (IllegalStateException ex) {
+                // Confirmed VA + unreliable map: skip natural-height sampling; edge build will fail closed.
+                continue;
+            }
             List<SegmentHeightInfo> heightInfos = profile.heightInfos();
             if (heightInfos.isEmpty()) {
                 continue;

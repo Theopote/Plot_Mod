@@ -1,7 +1,9 @@
 package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.AlignmentPose;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
+import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
@@ -21,6 +23,7 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -237,6 +240,7 @@ class RoadLoopSeamTest {
 
     private static RoadNetwork buildSquareLoopHaNetwork() {
         double arcLen = Math.PI * 10.0 / 2.0;
+        double sideChain = 10.0 + arcLen;
         RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
             new Vec2d(0, 0),
             0.0,
@@ -255,20 +259,32 @@ class RoadLoopSeamTest {
         road.setHorizontalAlignment(alignment);
         road.setTopologyMode(RoadTopologyMode.LOOP);
 
-        RoadNode n0 = network.createNode(new Vec2d(0, 0));
-        RoadNode n1 = network.createNode(new Vec2d(10, 0));
-        RoadNode n2 = network.createNode(new Vec2d(10, 10));
-        RoadNode n3 = network.createNode(new Vec2d(0, 10));
-        RoadEdge edge1 = network.createEdge(n0.getId(), n1.getId(), List.of(
-            new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
-        network.createEdge(n1.getId(), n2.getId(), List.of(
-            new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
-        network.createEdge(n2.getId(), n3.getId(), List.of(
-            new Vec2d(10, 10), new Vec2d(0, 10)), road.getId());
-        network.createEdge(n3.getId(), n0.getId(), List.of(
-            new Vec2d(0, 10), new Vec2d(0, 0)), road.getId());
+        // Instance must lie on HA so StationDomainMap (and seam→native offset) stays reliable.
+        List<RoadNode> corners = new ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            AlignmentPose pose = HorizontalAlignmentGeometry.poseAt(alignment, i * sideChain).orElseThrow();
+            corners.add(network.createNode(new Vec2d(pose.x(), pose.y())));
+        }
+        RoadEdge edge1 = null;
+        for (int i = 0; i < 4; i++) {
+            double start = i * sideChain;
+            double end = (i + 1) * sideChain;
+            List<Vec2d> points = new ArrayList<>();
+            for (double chainage = start; chainage <= end + 1e-6; chainage += 0.5) {
+                HorizontalAlignmentGeometry.poseAt(alignment, Math.min(chainage, end))
+                    .ifPresent(pose -> points.add(new Vec2d(pose.x(), pose.y())));
+            }
+            RoadEdge edge = network.createEdge(
+                corners.get(i).getId(),
+                corners.get((i + 1) % 4).getId(),
+                points,
+                road.getId());
+            if (edge1 == null) {
+                edge1 = edge;
+            }
+        }
 
-        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), edge1.getId(), 0.5));
+        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), edge1.getId(), 5.0 / sideChain));
         return network;
     }
 

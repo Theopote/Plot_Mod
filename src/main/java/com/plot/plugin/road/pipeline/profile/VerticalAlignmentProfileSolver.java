@@ -1,6 +1,9 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.profile.environment.EnvironmentFeasibilityProjector;
@@ -105,6 +108,44 @@ public final class VerticalAlignmentProfileSolver {
             TerrainFollowPreset.STANDARD);
     }
 
+    /**
+     * Generation entry: canonical station mapping via network/road-bound {@link DesignElevationSource}.
+     */
+    public static ProfileSolveResult solveForEdge(
+            RoadVerticalAlignment alignment,
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            double halfWidth,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            ProfileSolveSupport support,
+            RoadSystemConfig config,
+            RoadVerticalMode verticalMode,
+            TerrainFollowPreset terrainFollowPreset) {
+        if (segments == null || segments.isEmpty() || !VerticalAlignmentGeometry.isEvaluable(alignment)) {
+            return ProfileSolveResult.empty();
+        }
+        DesignElevationSource designElevation = DesignElevationSource.forEdgeWithAlignment(
+            network, road, edge, segments, alignment);
+        if (!designElevation.isActive()) {
+            return ProfileSolveResult.empty();
+        }
+        return solveForEdgeWithSource(
+            designElevation,
+            segments,
+            terrain,
+            halfWidth,
+            manualStartHeight,
+            manualEndHeight,
+            support,
+            config,
+            verticalMode,
+            terrainFollowPreset);
+    }
+
     public static ProfileSolveResult solveForEdge(
             RoadVerticalAlignment alignment,
             OrientedRoadSegment oriented,
@@ -121,13 +162,38 @@ public final class VerticalAlignmentProfileSolver {
             return ProfileSolveResult.empty();
         }
 
-        ProfileGroundSampler.SampleData sampleData =
-            ProfileGroundSampler.collect(segments, terrain, halfWidth);
         double sampledPathLength = ProfileGroundSampler.sampledPathLength(segments);
+        // Legacy/test path without network: instance-domain mapping only.
         DesignElevationSource designElevation = new DesignElevationSource(
             alignment,
             oriented,
             sampledPathLength);
+        return solveForEdgeWithSource(
+            designElevation,
+            segments,
+            terrain,
+            halfWidth,
+            manualStartHeight,
+            manualEndHeight,
+            support,
+            config,
+            verticalMode,
+            terrainFollowPreset);
+    }
+
+    private static ProfileSolveResult solveForEdgeWithSource(
+            DesignElevationSource designElevation,
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            double halfWidth,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            ProfileSolveSupport support,
+            RoadSystemConfig config,
+            RoadVerticalMode verticalMode,
+            TerrainFollowPreset terrainFollowPreset) {
+        ProfileGroundSampler.SampleData sampleData =
+            ProfileGroundSampler.collect(segments, terrain, halfWidth);
 
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(

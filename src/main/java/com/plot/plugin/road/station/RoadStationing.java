@@ -80,48 +80,116 @@ public final class RoadStationing {
     }
 
     /**
-     * Rotate LOOP physical segments so the walk starts at the entry closest to HA origin.
-     * LINEAR / no-HA chains are unchanged.
+     * Align physical materialization walk to HA: start nearest the HA origin and proceed in
+     * increasing-native order. Required for a strictly monotonic physical↔native map.
      */
     static List<OrientedRoadSegment> rotatePhysicalChainToHaOrigin(
             RoadNetwork network,
             Road road,
             List<OrientedRoadSegment> segments) {
-        if (network == null || road == null || segments == null || segments.size() <= 1) {
+        if (network == null || road == null || segments == null || segments.isEmpty()) {
             return segments == null ? List.of() : segments;
         }
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP
-                || !RoadPlanGeometry.hasDesignAlignment(network, road)) {
+        if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
             return segments;
         }
         Vec2d origin = road.getHorizontalAlignment().getOrigin();
         if (origin == null) {
             return segments;
         }
-        int bestIndex = 0;
-        double bestDist = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < segments.size(); i++) {
-            RoadNode entry = network.getNode(segments.get(i).entryNodeId());
-            if (entry == null || entry.getPosition() == null) {
-                continue;
+
+        List<OrientedRoadSegment> oriented = segments;
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP && segments.size() > 1) {
+            int bestIndex = 0;
+            double bestDist = Double.POSITIVE_INFINITY;
+            for (int i = 0; i < segments.size(); i++) {
+                RoadNode entry = network.getNode(segments.get(i).entryNodeId());
+                if (entry == null || entry.getPosition() == null) {
+                    continue;
+                }
+                double dist = entry.getPosition().distance(origin);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIndex = i;
+                }
             }
-            double dist = entry.getPosition().distance(origin);
-            if (dist < bestDist) {
-                bestDist = dist;
-                bestIndex = i;
+            if (bestIndex != 0) {
+                List<OrientedRoadSegment> rotated = new ArrayList<>(segments.size());
+                double station = 0.0;
+                for (int k = 0; k < segments.size(); k++) {
+                    OrientedRoadSegment original = segments.get((bestIndex + k) % segments.size());
+                    rotated.add(original.withStartStation(station));
+                    station += original.length();
+                }
+                oriented = rotated;
+            }
+        } else {
+            // LINEAR: if HA origin is closer to the chain exit, flip so physical 0 meets HA 0.
+            RoadNode entry = network.getNode(segments.getFirst().entryNodeId());
+            RoadNode exit = network.getNode(segments.getLast().exitNodeId());
+            if (entry != null && exit != null
+                    && entry.getPosition() != null && exit.getPosition() != null
+                    && exit.getPosition().distance(origin) + 1e-6 < entry.getPosition().distance(origin)) {
+                oriented = reversePhysicalSegments(segments);
             }
         }
-        if (bestIndex == 0) {
-            return segments;
+
+        if (firstSegmentDecreasesHaNative(network, road, oriented)) {
+            oriented = reversePhysicalSegments(oriented);
         }
-        List<OrientedRoadSegment> rotated = new ArrayList<>(segments.size());
+        return List.copyOf(oriented);
+    }
+
+    private static boolean firstSegmentDecreasesHaNative(
+            RoadNetwork network,
+            Road road,
+            List<OrientedRoadSegment> segments) {
+        if (segments.isEmpty()) {
+            return false;
+        }
+        OrientedRoadSegment first = segments.getFirst();
+        RoadEdge edge = network.getEdge(first.edgeId());
+        if (edge == null || edge.getCenterlinePoints() == null || edge.getCenterlinePoints().size() < 2) {
+            return false;
+        }
+        Vec2d entryWorld = RoadGeometryUtils.pointAtDistance(
+            edge.getCenterlinePoints(), first.geometryLocalFromChainLocal(0.0));
+        Vec2d probeWorld = RoadGeometryUtils.pointAtDistance(
+            edge.getCenterlinePoints(),
+            first.geometryLocalFromChainLocal(Math.min(0.5, Math.max(1e-3, first.length() * 0.05))));
+        if (entryWorld == null || probeWorld == null) {
+            return false;
+        }
+        Vec2d chainDir = probeWorld.subtract(entryWorld);
+        if (chainDir.lengthSquared() < 1e-8) {
+            return false;
+        }
+        double chainBearing = Math.atan2(chainDir.y, chainDir.x);
+        double haBearing = road.getHorizontalAlignment().getStartBearingRadians();
+        double delta = Math.abs(Math.atan2(
+            Math.sin(chainBearing - haBearing),
+            Math.cos(chainBearing - haBearing)));
+        // First physical step should follow HA start bearing when the walk begins at HA origin.
+        return delta > Math.PI * 0.5;
+    }
+
+    private static List<OrientedRoadSegment> reversePhysicalSegments(List<OrientedRoadSegment> segments) {
+        List<OrientedRoadSegment> reversed = new ArrayList<>(segments.size());
         double station = 0.0;
-        for (int k = 0; k < segments.size(); k++) {
-            OrientedRoadSegment original = segments.get((bestIndex + k) % segments.size());
-            rotated.add(original.withStartStation(station));
+        for (int i = segments.size() - 1; i >= 0; i--) {
+            OrientedRoadSegment original = segments.get(i);
+            reversed.add(new OrientedRoadSegment(
+                original.edgeId(),
+                !original.forward(),
+                original.exitNodeId(),
+                original.entryNodeId(),
+                station,
+                original.length(),
+                0.0,
+                original.length()));
             station += original.length();
         }
-        return List.copyOf(rotated);
+        return reversed;
     }
 
     /**
@@ -648,8 +716,12 @@ public final class RoadStationing {
                 if (!segment.edgeId().equals(seam.segmentHintId())) {
                     continue;
                 }
-                double chainLocal = seam.localFraction() * segment.length();
-                return segment.startStation() + chainLocal;
+                RoadEdge edge = network.getEdge(segment.edgeId());
+                double geometryLength = edge != null ? edge.getLength() : segment.length();
+                // localFraction is along storage geometry; convert through chain orientation.
+                double geometryLocal = seam.localFraction() * geometryLength;
+                double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
+                return segment.roadStationAtChainLocal(chainLocal);
             }
         }
         RoadLoopSeamService.SeamProjection projection =

@@ -66,7 +66,7 @@ class Phase23TopologyEditingTest {
         String e2 = road.getOrderedSegmentIds().get(2);
         manager.deleteEdge(e0);
         manager.deleteEdge(e2);
-        assertTrue(network.getRoads().size() >= 1);
+        assertTrue(!network.getRoads().isEmpty());
         for (Road surviving : network.getRoads().values()) {
             assertNotEquals(RoadTopologyMode.LOOP, surviving.getTopologyMode());
             assertTrue(RoadTopologyInvariantValidator.validateRoad(network, surviving).stream()

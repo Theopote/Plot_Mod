@@ -7,9 +7,9 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
-import com.plot.plugin.road.station.RoadLoopSeamService;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.SegmentStation;
+import com.plot.plugin.road.station.StationDomainMap;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -693,18 +693,20 @@ public final class RoadPlanGeometry {
                 || road.getLoopSeam() == null) {
             return 0.0;
         }
-        RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
-        if (alignment == null || alignment.isEmpty()) {
+        if (!hasDesignAlignment(network, road)) {
             return 0.0;
         }
-        Vec2d seamPosition = RoadLoopSeamService.overlayPosition(network, road);
-        if (seamPosition == null) {
+        // Single authority: physical seam identity → StationDomainMap → HA native.
+        // Do not re-project seam XY onto the full HA (ambiguous on self-crossing loops).
+        double physicalSeam = RoadStationing.physicalSeamStation(network, road);
+        if (!Double.isFinite(physicalSeam)) {
             return Double.NaN;
         }
-        List<PlanCenterlineSample> nativeSamples = sampleHaNativeUnrotated(
-            alignment,
-            HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
-        return chainageAtPositionOnPlanSamples(seamPosition, nativeSamples).orElse(Double.NaN);
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        if (map == null || !map.isReliable()) {
+            return Double.NaN;
+        }
+        return map.toNative(physicalSeam, false);
     }
 
     public static List<PlanCenterlineSample> sampleHaNativeUnrotatedPublic(

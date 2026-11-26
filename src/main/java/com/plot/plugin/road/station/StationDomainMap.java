@@ -12,7 +12,6 @@ import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadTopologyMode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -119,16 +118,7 @@ public final class StationDomainMap {
         int matchedCriticalInteriors = 0;
         int expectedCriticalInteriors = 0;
 
-        double seamPhysical = Double.NaN;
-        if (road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null) {
-            double candidate = RoadStationing.physicalSeamStation(network, road);
-            if (Double.isFinite(candidate)
-                    && candidate > EPSILON
-                    && candidate < physicalTotal - EPSILON) {
-                seamPhysical = candidate;
-            }
-        }
-
+        // Seam is NOT a map-build anchor — offset is queried later via toNative(physicalSeam).
         List<OrientedRoadSegment> segments =
             RoadStationing.physicalEdgeSegmentsForMaterialization(network, road);
         for (OrientedRoadSegment segment : segments) {
@@ -147,29 +137,18 @@ public final class StationDomainMap {
 
             List<Double> chainLocals = chainLocalFeatureStations(segment, points);
             Set<Double> criticalChainLocals = curvatureChangeChainLocals(segment, points);
-            // Insert seam into this edge's feature stations when it falls strictly inside.
-            boolean seamOnThisEdge = Double.isFinite(seamPhysical)
-                && seamPhysical > segment.startStation() + EPSILON
-                && seamPhysical < segment.endStation() - EPSILON;
-            if (seamOnThisEdge) {
-                double seamChainLocal = seamPhysical - segment.startStation();
-                chainLocals.add(seamChainLocal);
-                criticalChainLocals.add(seamChainLocal);
-                chainLocals.sort(Double::compareTo);
-            }
             for (double chainLocal : chainLocals) {
                 boolean atEntry = chainLocal <= EPSILON;
                 boolean atExit = chainLocal >= segment.length() - EPSILON;
-                boolean atSeam = Double.isFinite(seamPhysical)
-                    && Math.abs(segment.startStation() + chainLocal - seamPhysical) <= EPSILON;
-                boolean criticalInterior = atSeam || isNearAny(criticalChainLocals, chainLocal);
-                if (criticalInterior && !atEntry && !atExit) {
+                boolean criticalInterior = !atEntry && !atExit
+                    && isNearAny(criticalChainLocals, chainLocal);
+                if (criticalInterior) {
                     expectedCriticalInteriors++;
                 }
                 AnchorMatch match = matchPhysicalAnchor(
                     haSamples, segment, points, chainLocal, minNativeCursor);
                 if (match == null) {
-                    if (atEntry || atExit || atSeam || criticalInterior) {
+                    if (atEntry || atExit || criticalInterior) {
                         return unreliable(physicalTotal, designTotal);
                     }
                     continue;
@@ -187,7 +166,7 @@ public final class StationDomainMap {
                 if (atExit) {
                     matchedEdgeBoundaries.add(exitKey);
                 }
-                if (criticalInterior && !atEntry && !atExit) {
+                if (criticalInterior) {
                     matchedCriticalInteriors++;
                 }
             }
@@ -382,13 +361,17 @@ public final class StationDomainMap {
     /**
      * Project onto HA sample polyline. {@code minNativeCursor} enforces ascending native
      * along the <em>unrotated physical</em> walk (no LOOP wrap).
+     * <p>
+     * Among in-tolerance hits with {@code native >= cursor}, prefer the <em>earliest</em> native
+     * (then nearest). This keeps closed-HA start/end coincidence and self-crossing passes
+     * ordered by the walk instead of binding physical 0 to design length.
      */
     private static double projectHaNative(
             List<PlanCenterlineSample> samples,
             Vec2d world,
             double minNativeCursor) {
-        double bestDist = Double.POSITIVE_INFINITY;
         double bestStation = Double.NaN;
+        double bestDist = Double.POSITIVE_INFINITY;
         for (int i = 0; i < samples.size() - 1; i++) {
             PlanCenterlineSample a = samples.get(i);
             PlanCenterlineSample b = samples.get(i + 1);
@@ -397,7 +380,7 @@ public final class StationDomainMap {
             }
             Vec2d projected = RoadGeometryUtils.projectPointOnSegment(a.position(), b.position(), world);
             double distance = projected.distance(world);
-            if (distance >= bestDist) {
+            if (distance > MATCH_TOLERANCE + EPSILON) {
                 continue;
             }
             double span = a.position().distance(b.position());
@@ -407,11 +390,12 @@ public final class StationDomainMap {
             if (nativeStation + EPSILON < minNativeCursor) {
                 continue;
             }
-            bestDist = distance;
-            bestStation = nativeStation;
-        }
-        if (!(bestDist <= MATCH_TOLERANCE) || !Double.isFinite(bestStation)) {
-            return Double.NaN;
+            if (!Double.isFinite(bestStation)
+                    || nativeStation + EPSILON < bestStation
+                    || (Math.abs(nativeStation - bestStation) <= EPSILON && distance + EPSILON < bestDist)) {
+                bestStation = nativeStation;
+                bestDist = distance;
+            }
         }
         return bestStation;
     }
@@ -438,11 +422,17 @@ public final class StationDomainMap {
         if (!physical.isEmpty()
                 && Math.abs(p - physical.getLast()) <= EPSILON
                 && Math.abs(n - nativeStations.getLast()) > EPSILON) {
-            return false;
+            // Shared-node re-entry can project with chord jitter; keep the existing native.
+            return Math.abs(n - nativeStations.getLast()) <= MATCH_TOLERANCE;
         }
         if (!nativeStations.isEmpty()
                 && Math.abs(n - nativeStations.getLast()) <= EPSILON
                 && Math.abs(p - physical.getLast()) > EPSILON) {
+            // Closed HA endpoint: several trailing physical samples clamp to the same native.
+            if (p + EPSILON >= physical.getLast()) {
+                physical.set(physical.size() - 1, p);
+                return true;
+            }
             return false;
         }
         physical.add(p);

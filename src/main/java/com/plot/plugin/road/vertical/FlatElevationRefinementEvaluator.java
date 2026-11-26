@@ -120,7 +120,9 @@ final class FlatElevationRefinementEvaluator {
             RoadModelUtils.getEffectiveWidth(network, edge, config));
         ProfileSolveResult solved = VerticalAlignmentProfileSolver.solveForEdge(
             alignment,
-            oriented.get(),
+            network,
+            road,
+            edge,
             segments,
             terrain,
             halfWidth,

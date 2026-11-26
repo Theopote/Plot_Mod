@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DerivedCenterlineSynchronizerTest {
 
     @Test
-    void synchronizeRoadWritesDesignGeometryToEdgeCache() {
+    void synchronizeRoadRequiresReliableDomainMap() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
@@ -27,12 +27,16 @@ class DerivedCenterlineSynchronizerTest {
         RoadEdge edge = network.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(80, 0)), road.getId());
 
-        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 6), 0.0, List.of());
-        alignment.addElement(HorizontalAlignmentElement.tangent(80.0));
-        road.setHorizontalAlignment(alignment);
+        // Offset HA: no reliable map → derived refresh must no-op.
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 6), 0.0, List.of(HorizontalAlignmentElement.tangent(80.0))));
+        assertFalse(DerivedCenterlineSynchronizer.synchronizeRoad(network, road, 2.0));
+        assertEquals(0.0, edge.getCenterlinePoints().getFirst().y, 1e-6);
 
+        // Matching HA: derived refresh may rewrite densified design samples.
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0), 0.0, List.of(HorizontalAlignmentElement.tangent(80.0))));
         assertTrue(DerivedCenterlineSynchronizer.synchronizeRoad(network, road, 2.0));
-        assertEquals(6.0, edge.getCenterlinePoints().getFirst().y, 0.2);
         assertTrue(HorizontalAlignmentCenterlineConsistency.evaluate(network, road).isConsistent());
     }
 
@@ -49,7 +53,7 @@ class DerivedCenterlineSynchronizerTest {
     }
 
     @Test
-    void generateEdgeAutoMaterializesBeforeBuilding() {
+    void generateEdgeDoesNotSilentlyMaterializeUnreliableOffsetHa() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
@@ -71,11 +75,10 @@ class DerivedCenterlineSynchronizerTest {
         alignment.addElement(HorizontalAlignmentElement.tangent(60.0));
         road.setHorizontalAlignment(alignment);
 
-        assertFalse(HorizontalAlignmentCenterlineConsistency.evaluate(network, road).isConsistent());
-
+        assertFalse(HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road));
         generator.generateEdge(network, edge, n1, n2, terrain, null);
 
-        assertEquals(12.0, edge.getCenterlinePoints().getFirst().y, 0.3);
-        assertTrue(HorizontalAlignmentCenterlineConsistency.evaluate(network, road).isConsistent());
+        // Without a reliable map, generate must not rewrite instance onto the offset HA.
+        assertEquals(0.0, edge.getCenterlinePoints().getFirst().y, 0.3);
     }
 }
