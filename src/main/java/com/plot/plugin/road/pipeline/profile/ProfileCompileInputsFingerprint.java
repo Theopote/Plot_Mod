@@ -149,9 +149,10 @@ public record ProfileCompileInputsFingerprint(
     }
 
     /**
-     * Preview cache signature: includes polyline shape (chain walk order) or HA elements so
-     * equal-length mirrored edits invalidate the voxel preview without double-folding the same
-     * point sequence into {@link #geometryHash}.
+     * Preview cache signature. Polyline shape is already in {@link #geometryHash} via
+     * collinear-simplified chain walk — do not fold the same points again (polynomial
+     * double-fold collides for equal-length mirrored bends). Extra HA element hashing
+     * covers design-alignment edits that are not yet materialized into the instance polyline.
      */
     private static int previewGeometryHash(RoadNetwork network, Road road) {
         int hash = geometryHash(network, road);
@@ -164,27 +165,6 @@ public record ProfileCompileInputsFingerprint(
             for (var element : alignment.getElements()) {
                 hash = 31 * hash + Objects.hash(element.getType(), element.getLength(),
                     element.getRadius(), element.getDirection(), element.getSpiralParameterA());
-            }
-        } else {
-            for (var segment : RoadStationing.orientedSegments(network, road)) {
-                RoadEdge edge = network.getEdge(segment.edgeId());
-                if (edge == null || edge.getCenterlinePoints() == null) continue;
-                // Chain walk order — independent of storage reverse.
-                var points = edge.getCenterlinePoints();
-                if (segment.forward()) {
-                    for (Vec2d point : points) {
-                        if (point != null) {
-                            hash = 31 * hash + Objects.hash(point.x, point.y);
-                        }
-                    }
-                } else {
-                    for (int i = points.size() - 1; i >= 0; i--) {
-                        Vec2d point = points.get(i);
-                        if (point != null) {
-                            hash = 31 * hash + Objects.hash(point.x, point.y);
-                        }
-                    }
-                }
             }
         }
         return hash;
