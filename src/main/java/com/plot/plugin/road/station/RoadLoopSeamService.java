@@ -35,7 +35,7 @@ public final class RoadLoopSeamService {
                 return RoadLoopSeam.onSegment(
                     projection.position(),
                     projection.segmentId(),
-                    projection.localFraction());
+                    projection.geometryLocalFraction());
             }
         }
         String nodeId = fallbackNodeId(network, road);
@@ -252,6 +252,7 @@ public final class RoadLoopSeamService {
                     segment.entryNodeId(),
                     segment.exitNodeId(),
                     chainFraction,
+                    seam.localFraction(),
                     segment.startStation() + chainLocal);
             }
         }
@@ -340,12 +341,17 @@ public final class RoadLoopSeamService {
         return projectOntoOrientedChain(network, road, query);
     }
 
+    /**
+     * @param localFraction chain-local fraction along the oriented segment (traversal)
+     * @param geometryLocalFraction storage-geometry fraction along the edge (persist this)
+     */
     public record SeamProjection(
             Vec2d position,
             String segmentId,
             String entryNodeId,
             String exitNodeId,
             double localFraction,
+            double geometryLocalFraction,
             double chainStation) {
     }
 
@@ -361,6 +367,7 @@ public final class RoadLoopSeamService {
                 continue;
             }
             List<Vec2d> points = edge.getCenterlinePoints();
+            double edgeLength = edge.getLength();
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec2d start = points.get(i);
                 Vec2d end = points.get(i + 1);
@@ -374,14 +381,16 @@ public final class RoadLoopSeamService {
                     geometryLocal += points.get(j).distance(points.get(j + 1));
                 }
                 double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
-                double localFraction = segment.length() > EPSILON ? chainLocal / segment.length() : 0.0;
+                double chainFraction = segment.length() > EPSILON ? chainLocal / segment.length() : 0.0;
+                double geometryFraction = edgeLength > EPSILON ? geometryLocal / edgeLength : 0.0;
                 bestDistance = distance;
                 best = new SeamProjection(
                     projected.copy(),
                     segment.edgeId(),
                     segment.entryNodeId(),
                     segment.exitNodeId(),
-                    localFraction,
+                    chainFraction,
+                    geometryFraction,
                     segment.startStation() + chainLocal);
             }
         }

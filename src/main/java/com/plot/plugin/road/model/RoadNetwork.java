@@ -435,12 +435,10 @@ public class RoadNetwork {
         }
 
         String oldRoadId = edge.getRoadId();
-        // Already correctly bound — skip syncStorageOrder (load/reconcile must not
-        // rewrite persisted segment order via ensureBound on a partial or HashMap walk).
-        if (newRoadId.equals(oldRoadId) && newRoad.getOrderedSegmentIds().contains(edgeId)) {
-            return true;
-        }
-        // Drop membership from every road that still lists this edge (covers stale setRoadId).
+        boolean alreadyOnTarget = newRoadId.equals(oldRoadId)
+            && newRoad.getOrderedSegmentIds().contains(edgeId);
+        // Always scrub other roads' stale membership; only skip sync on the target when
+        // the edge is already correctly listed there (load/reconcile must not rewrite order).
         for (Road road : roads.values()) {
             if (road == null || road.getId() == null || road.getId().equals(newRoadId)) {
                 continue;
@@ -450,6 +448,9 @@ public class RoadNetwork {
                 road.removeSegment(edgeId);
                 RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, road);
             }
+        }
+        if (alreadyOnTarget) {
+            return true;
         }
         edge.setRoadId(newRoadId);
         newRoad.addSegment(edgeId);

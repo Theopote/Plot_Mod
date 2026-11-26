@@ -8,18 +8,23 @@ import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.TurnDirection;
 import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElementType;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.RoadDesignDirectionAuthority;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.RoadStationMirroring;
 import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.pipeline.profile.ProfileCompileInputsFingerprint;
@@ -225,26 +230,51 @@ public final class RoadCenterlineEditor {
     }
 
     public static CenterlineEditResult reverseEdge(RoadNetwork network, String edgeId) {
-        RoadEdge edge = network != null ? network.getEdge(edgeId) : null;
-        if (edge == null) {
+        RoadEdge liveEdge = network != null ? network.getEdge(edgeId) : null;
+        if (liveEdge == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
         }
-        Set<String> roadIds = edge.getRoadId() != null ? Set.of(edge.getRoadId()) : Set.of();
-        RoadCrossingOwnershipMigrator.CaptureResult crossingCapture =
-            RoadCrossingOwnershipMigrator.captureForRoads(network, roadIds);
+        Set<String> roadIds = liveEdge.getRoadId() != null ? Set.of(liveEdge.getRoadId()) : Set.of();
 
-        CenterlineEditResult result = reverseEdgeGeometry(network, edgeId);
+        // Working-copy transform: failures leave live untouched.
+        RoadNetwork working = network.snapshot();
+        RoadCrossingOwnershipMigrator.CaptureResult crossingCapture =
+            RoadCrossingOwnershipMigrator.captureForRoads(working, roadIds);
+        if (crossingCapture.hadUnresolved()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+        }
+
+        CenterlineEditResult result = reverseEdgeGeometry(working, edgeId);
         if (!result.isSuccess()) {
             return result;
         }
         if (!crossingCapture.isEmpty()) {
             RoadCrossingOwnershipMigrator.CaptureResult remapped =
                 RoadCrossingOwnershipMigrator.remapLocalDistancesAfterStorageReverse(
-                    network, crossingCapture, Set.of(edgeId));
-            RoadCrossingOwnershipMigrator.reapply(network, remapped);
+                    working, crossingCapture, Set.of(edgeId));
+            RoadCrossingOwnershipMigrator.ApplyResult apply =
+                RoadCrossingOwnershipMigrator.reapply(working, remapped);
+            if (!apply.complete()) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+            }
         }
-        CenterlinePhase2ConsistencyPolicy.afterReverseEdge(network, edgeId);
-        return result;
+        CenterlinePhase2ConsistencyPolicy.afterReverseEdge(working, edgeId);
+
+        String roadId = liveEdge.getRoadId();
+        if (roadId != null) {
+            com.plot.plugin.road.ui.editor.CenterlineEditorApplier.applyToLive(network, working, roadId);
+        } else {
+            // Orphan edge: copy geometry endpoints only.
+            RoadEdge workingEdge = working.getEdge(edgeId);
+            if (workingEdge != null) {
+                network.updateEdgeEndpoints(
+                    edgeId, workingEdge.getStartNodeId(), workingEdge.getEndNodeId());
+                liveEdge.setCenterlinePoints(workingEdge.getCenterlinePoints());
+                liveEdge.setSlopeOverrides(workingEdge.getSlopeOverrides());
+            }
+        }
+        copyCrossingRegistryFromWorking(network, working, roadIds);
+        return CenterlineEditResult.success();
     }
 
     static CenterlineEditResult reverseEdgeGeometry(RoadNetwork network, String edgeId) {
@@ -292,12 +322,18 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
 
-        ProfileSource priorSource = workingRoad.getStoredProfileSource();
-        int priorSignature = workingRoad.getEditedGeometrySignature();
+        boolean priorEditedValid = ResolvedProfileAuthority.hasValidEditedProfile(working, workingRoad);
         RoadCrossingOwnershipMigrator.CaptureResult crossingCapture =
             RoadCrossingOwnershipMigrator.captureForRoads(working, Set.of(workingRoad.getId()));
-        List<Double> elevationsBefore = samplePhysicalElevations(working, workingRoad);
+        if (crossingCapture.hadUnresolved()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+        }
+        List<PhysicalSample> samplesBefore = samplePhysicalState(working, workingRoad);
         Set<String> reversedEdges = new HashSet<>(ordered);
+        RoadCrossSection oldDefault = workingRoad.getCrossSection() != null
+            ? workingRoad.getCrossSection().copy()
+            : new RoadCrossSection();
+        RoadVariableCrossSections oldVcs = workingRoad.getVariableCrossSections();
 
         for (String edgeId : ordered) {
             CenterlineEditResult result = reverseEdgeGeometry(working, edgeId);
@@ -325,56 +361,94 @@ public final class RoadCenterlineEditor {
             }
             workingRoad.setVerticalAlignment(reversedVertical);
         }
-        if (workingRoad.getCrossSection() != null) {
-            workingRoad.setCrossSection(workingRoad.getCrossSection().mirroredForReverseDirection());
+
+        // D02: mirror VCS from pre-mirror default, then set mirrored default once.
+        if (oldVcs != null && !oldVcs.isEmpty()) {
+            workingRoad.setVariableCrossSections(
+                RoadStationMirroring.mirrorVariableCrossSections(oldVcs, oldDefault, totalLength));
         }
-        CenterlineEditOperation.REVERSE_ROAD.defaultStationPolicy().applyReverseRoad(workingRoad, totalLength);
+        if (workingRoad.getStationFacilities() != null && !workingRoad.getStationFacilities().isEmpty()) {
+            workingRoad.setStationFacilities(
+                RoadStationMirroring.mirrorStationFacilities(workingRoad.getStationFacilities(), totalLength));
+        }
+        workingRoad.setCrossSection(oldDefault.mirroredForReverseDirection());
 
         if (!crossingCapture.isEmpty()) {
             RoadCrossingOwnershipMigrator.CaptureResult remapped =
                 RoadCrossingOwnershipMigrator.remapLocalDistancesAfterStorageReverse(
                     working, crossingCapture, reversedEdges);
-            RoadCrossingOwnershipMigrator.reapply(working, remapped);
+            RoadCrossingOwnershipMigrator.ApplyResult apply =
+                RoadCrossingOwnershipMigrator.reapply(working, remapped);
+            if (!apply.complete()) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+            }
         }
 
-        if (!physicalElevationsEquivalent(elevationsBefore, workingRoad, totalLength)) {
+        if (!physicalStateEquivalent(samplesBefore, working, workingRoad, totalLength)) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
         }
 
-        if (priorSource == ProfileSource.EDITED) {
+        // D05: rebind EDITED only when the prior binding was already valid.
+        if (priorEditedValid) {
             workingRoad.setProfileSource(ProfileSource.EDITED);
             workingRoad.setEditedGeometrySignature(
                 ProfileCompileInputsFingerprint.geometryHash(working, workingRoad));
-        } else if (priorSignature != 0) {
-            workingRoad.setEditedGeometrySignature(
-                ProfileCompileInputsFingerprint.geometryHash(working, workingRoad));
         }
 
-        commitReverseRoadWorkingCopy(network, working, road.getId(), crossingCapture, reversedEdges);
+        com.plot.plugin.road.ui.editor.CenterlineEditorApplier.applyToLive(network, working, road.getId());
+        copyCrossingRegistryFromWorking(network, working, Set.of(road.getId()));
         return CenterlineEditResult.success();
     }
 
-    private static void commitReverseRoadWorkingCopy(
+    private static void copyCrossingRegistryFromWorking(
             RoadNetwork live,
             RoadNetwork working,
-            String roadId,
-            RoadCrossingOwnershipMigrator.CaptureResult crossingCapture,
-            Set<String> reversedEdges) {
-        // Apply geometry/direction/VA via the floating-editor sync path (same fields).
-        com.plot.plugin.road.ui.editor.CenterlineEditorApplier.applyToLive(live, working, roadId);
-        if (crossingCapture != null && !crossingCapture.isEmpty()) {
-            RoadCrossingOwnershipMigrator.CaptureResult remapped =
-                RoadCrossingOwnershipMigrator.remapLocalDistancesAfterStorageReverse(
-                    live, crossingCapture, reversedEdges);
-            RoadCrossingOwnershipMigrator.reapply(live, remapped);
+            Set<String> roadIds) {
+        if (live == null || working == null || roadIds == null || roadIds.isEmpty()) {
+            return;
+        }
+        Set<String> relevantCrossingIds = new HashSet<>();
+        for (RoadCrossing crossing : working.getCrossings().values()) {
+            if (crossing == null) {
+                continue;
+            }
+            if (roadIds.contains(crossing.roadAId()) || roadIds.contains(crossing.roadBId())) {
+                live.registerCrossing(crossing);
+                relevantCrossingIds.add(crossing.id());
+            }
+        }
+        for (RoadCrossing crossing : List.copyOf(live.getCrossings().values())) {
+            if (crossing == null) {
+                continue;
+            }
+            if ((roadIds.contains(crossing.roadAId()) || roadIds.contains(crossing.roadBId()))
+                    && !relevantCrossingIds.contains(crossing.id())
+                    && working.getCrossing(crossing.id()) == null) {
+                live.removeCrossing(crossing.id());
+            }
+        }
+        Set<String> relevantStacks = new HashSet<>();
+        for (RoadStackCrossing stack : working.getStackCrossings().values()) {
+            if (stack != null && roadIds.contains(stack.roadId())) {
+                live.registerStackCrossing(stack);
+                relevantStacks.add(stack.id());
+            }
+        }
+        for (RoadStackCrossing stack : List.copyOf(live.getStackCrossings().values())) {
+            if (stack != null
+                    && roadIds.contains(stack.roadId())
+                    && !relevantStacks.contains(stack.id())
+                    && working.getStackCrossing(stack.id()) == null) {
+                live.removeStackCrossing(stack.id());
+            }
         }
     }
 
-    private static List<Double> samplePhysicalElevations(RoadNetwork network, Road road) {
-        List<Double> samples = new ArrayList<>();
-        if (road.getVerticalAlignment() == null) {
-            return samples;
-        }
+    private record PhysicalSample(double station, double elevation, Vec2d world) {
+    }
+
+    private static List<PhysicalSample> samplePhysicalState(RoadNetwork network, Road road) {
+        List<PhysicalSample> samples = new ArrayList<>();
         double length = RoadStationing.canonicalLength(network, road);
         if (!(length > 0.0)) {
             return samples;
@@ -382,32 +456,41 @@ public final class RoadCenterlineEditor {
         int count = Math.max(2, (int) Math.ceil(length) + 1);
         for (int i = 0; i < count; i++) {
             double s = length * i / (count - 1);
-            samples.add(VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), s)
-                .orElse(Double.NaN));
+            double elevation = road.getVerticalAlignment() != null
+                ? VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), s).orElse(Double.NaN)
+                : Double.NaN;
+            Vec2d world = RoadStationing.pointAtStation(network, road, s).orElse(null);
+            samples.add(new PhysicalSample(s, elevation, world != null ? world.copy() : null));
         }
         return samples;
     }
 
-    private static boolean physicalElevationsEquivalent(
-            List<Double> before,
+    private static boolean physicalStateEquivalent(
+            List<PhysicalSample> before,
+            RoadNetwork network,
             Road road,
             double totalLength) {
-        if (before.isEmpty() || road.getVerticalAlignment() == null) {
+        if (before.isEmpty()) {
             return true;
         }
         if (!(totalLength > 0.0) || before.size() < 2) {
             return true;
         }
-        for (int i = 0; i < before.size(); i++) {
-            double s = totalLength * i / (before.size() - 1);
-            double expected = before.get(i);
-            double actual = VerticalAlignmentGeometry.elevationAt(
-                road.getVerticalAlignment(), totalLength - s).orElse(Double.NaN);
-            if (!Double.isFinite(expected) || !Double.isFinite(actual)) {
-                return false;
+        boolean hasVa = road.getVerticalAlignment() != null;
+        for (PhysicalSample sample : before) {
+            double mirroredStation = totalLength - sample.station();
+            if (sample.world() != null) {
+                Vec2d after = RoadStationing.pointAtStation(network, road, mirroredStation).orElse(null);
+                if (after == null || after.distance(sample.world()) > 1e-2) {
+                    return false;
+                }
             }
-            if (Math.abs(expected - actual) > 1e-3) {
-                return false;
+            if (hasVa && Double.isFinite(sample.elevation())) {
+                double actual = VerticalAlignmentGeometry.elevationAt(
+                    road.getVerticalAlignment(), mirroredStation).orElse(Double.NaN);
+                if (!Double.isFinite(actual) || Math.abs(sample.elevation() - actual) > 1e-3) {
+                    return false;
+                }
             }
         }
         return true;
@@ -425,11 +508,22 @@ public final class RoadCenterlineEditor {
                 }
             }
         }
-        if (road.getVerticalAlignment() != null
-                && !road.getVerticalAlignment().hasStrictlyIncreasingStorageOrder()) {
-            return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+        if (road.getVerticalAlignment() != null) {
+            if (!road.getVerticalAlignment().hasStrictlyIncreasingStorageOrder()) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+            }
+            var sorted = road.getVerticalAlignment().sortedPvis();
+            if (!sorted.isEmpty() && Math.abs(sorted.getFirst().getStation()) > 1e-3) {
+                // Incomplete VA (non-zero start) — refuse rather than shift-domain mirror.
+                return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+            }
         }
         RoadDesignDirectionAuthority.ensureBound(network, road);
+        if (road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP
+                && road.getOrderedSegmentIds().size() == 1) {
+            // Single-edge self-loop cannot express opposite circulation via entry-edge flip.
+            return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_STATIONABLE);
+        }
         return CenterlineEditResult.success();
     }
 

@@ -75,16 +75,17 @@ public final class RoadStationing {
     public static List<OrientedRoadSegment> physicalEdgeSegmentsForMaterialization(
             RoadNetwork network,
             Road road) {
-        // Physical/HA map walk: start from design entry node but do not lock LOOP circulation
-        // via designEntryEdgeId — HA-origin rotation + monotonic flip choose orientation.
-        List<OrientedRoadSegment> base = buildLinearOrientedSegments(network, road, false, false);
+        // Same design-entry circulation as stationing; HA may rotate start (LOOP) or
+        // reverse LINEAR walk — see {@link #isPhysicalWalkOpposedToDesign}.
+        List<OrientedRoadSegment> base = buildLinearOrientedSegments(network, road, false, true);
         return rotatePhysicalChainToHaOrigin(network, road, base);
     }
 
     /**
-     * Align physical materialization walk for a monotonic physical↔native map.
-     * With HA: start nearest the HA origin (design binding remains the station-chain authority).
-     * Without HA: rotate to the persisted design-entry binding.
+     * Align physical materialization walk with design circulation when possible.
+     * LOOP: rotate start to the design-walk node nearest HA origin (no circulation flip).
+     * LINEAR: may reverse so physical 0 meets HA origin; callers must use
+     * {@link #rotatedToPhysical} / {@link #physicalToRotated} which apply {@code L-s} when opposed.
      */
     static List<OrientedRoadSegment> rotatePhysicalChainToHaOrigin(
             RoadNetwork network,
@@ -95,19 +96,11 @@ public final class RoadStationing {
         }
 
         if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
-            RoadDesignDirectionAuthority.ensureBound(network, road);
-            String designEntry = road.getDesignEntryNodeId();
-            if (designEntry != null && segments.size() > 1) {
-                int bestIndex = indexWithEntryNode(segments, designEntry);
-                if (bestIndex > 0) {
-                    return List.copyOf(rotateSegments(segments, bestIndex));
-                }
-            }
-            return segments;
+            return List.copyOf(segments);
         }
         Vec2d origin = road.getHorizontalAlignment().getOrigin();
         if (origin == null) {
-            return segments;
+            return List.copyOf(segments);
         }
 
         List<OrientedRoadSegment> oriented = segments;
@@ -129,7 +122,7 @@ public final class RoadStationing {
                 oriented = rotateSegments(segments, bestIndex);
             }
         } else {
-            // LINEAR: if HA origin is closer to the chain exit, flip so physical 0 meets HA 0.
+            // LINEAR: reverse when HA origin is nearer the design exit (physical 0 ↔ HA 0).
             RoadNode entry = network.getNode(segments.getFirst().entryNodeId());
             RoadNode exit = network.getNode(segments.getLast().exitNodeId());
             if (entry != null && exit != null
@@ -139,10 +132,40 @@ public final class RoadStationing {
             }
         }
 
+        // If still decreasing native, reverse circulation and rely on rotated↔physical L-s.
         if (firstSegmentDecreasesHaNative(network, road, oriented)) {
             oriented = reversePhysicalSegments(oriented);
         }
         return List.copyOf(oriented);
+    }
+
+    /**
+     * True when the physical materialization edge sequence is the reverse of the design walk
+     * (LINEAR HA-origin flip). LOOP start rotation alone is not opposition.
+     */
+    static boolean isPhysicalWalkOpposedToDesign(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return false;
+        }
+        List<OrientedRoadSegment> design = orientedSegmentsWithoutLoopRotation(network, road);
+        List<OrientedRoadSegment> physical = physicalEdgeSegmentsForMaterialization(network, road);
+        if (design.isEmpty() || design.size() != physical.size()) {
+            return false;
+        }
+        // Opposed means the physical sequence is the design sequence reversed with flipped
+        // storage orientation. A single-edge road must not treat edgeId==edgeId alone as opposed.
+        int n = design.size();
+        for (int i = 0; i < n; i++) {
+            OrientedRoadSegment designSeg = design.get(i);
+            OrientedRoadSegment physicalSeg = physical.get(n - 1 - i);
+            if (!designSeg.edgeId().equals(physicalSeg.edgeId())) {
+                return false;
+            }
+            if (designSeg.forward() == physicalSeg.forward()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static int indexWithEntryNode(List<OrientedRoadSegment> segments, String entryNodeId) {
@@ -774,62 +797,72 @@ public final class RoadStationing {
     }
 
     /**
-     * Oriented/rotated instance ↔ physical instance for LOOP seam; identity otherwise.
+     * Oriented/rotated instance ↔ physical instance.
+     * LINEAR identity unless physical walk is opposed to design ({@code L - s}).
+     * LOOP applies seam offset; opposition also mirrors within the physical total.
      */
     public static double rotatedToPhysical(RoadNetwork network, Road road, double rotatedInstance) {
         if (!Double.isFinite(rotatedInstance) || network == null || road == null) {
             return Double.NaN;
         }
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
-            return rotatedInstance;
-        }
         double physicalTotal = physicalInstanceLength(network, road);
         if (!(physicalTotal > STATION_EPSILON)) {
             return Double.NaN;
+        }
+        boolean opposed = isPhysicalWalkOpposedToDesign(network, road);
+        double station = opposed ? physicalTotal - rotatedInstance : rotatedInstance;
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            return clampStation(station, physicalTotal);
         }
         double seam = physicalSeamStation(network, road);
         if (!Double.isFinite(seam)) {
             return Double.NaN;
         }
-        double physical = seam + rotatedInstance;
-        while (physical >= physicalTotal - STATION_EPSILON) {
-            physical -= physicalTotal;
-        }
-        while (physical < -STATION_EPSILON) {
-            physical += physicalTotal;
-        }
-        if (physical < 0.0) {
-            physical = 0.0;
-        }
-        return physical;
+        return clampStation(wrapStation(seam + station, physicalTotal), physicalTotal);
     }
 
     public static double physicalToRotated(RoadNetwork network, Road road, double physicalInstance) {
         if (!Double.isFinite(physicalInstance) || network == null || road == null) {
             return Double.NaN;
         }
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
-            return physicalInstance;
-        }
         double physicalTotal = physicalInstanceLength(network, road);
         if (!(physicalTotal > STATION_EPSILON)) {
             return Double.NaN;
         }
-        double seam = physicalSeamStation(network, road);
-        if (!Double.isFinite(seam)) {
-            return Double.NaN;
+        boolean opposed = isPhysicalWalkOpposedToDesign(network, road);
+        double station = physicalInstance;
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null) {
+            double seam = physicalSeamStation(network, road);
+            if (!Double.isFinite(seam)) {
+                return Double.NaN;
+            }
+            station = wrapStation(physicalInstance - seam, physicalTotal);
         }
-        double rotated = physicalInstance - seam;
-        while (rotated < -STATION_EPSILON) {
-            rotated += physicalTotal;
+        if (opposed) {
+            station = physicalTotal - station;
         }
-        while (rotated >= physicalTotal - STATION_EPSILON) {
-            rotated -= physicalTotal;
+        return clampStation(station, physicalTotal);
+    }
+
+    private static double wrapStation(double station, double total) {
+        double value = station;
+        while (value >= total - STATION_EPSILON) {
+            value -= total;
         }
-        if (rotated < 0.0) {
-            rotated = 0.0;
+        while (value < -STATION_EPSILON) {
+            value += total;
         }
-        return rotated;
+        return value;
+    }
+
+    private static double clampStation(double station, double total) {
+        if (station < 0.0) {
+            return 0.0;
+        }
+        if (station > total) {
+            return total;
+        }
+        return station;
     }
 
     private static double physicalInstanceLength(RoadNetwork network, Road road) {
@@ -976,9 +1009,10 @@ public final class RoadStationing {
 
         List<SegmentChainBinding> bindings = new ArrayList<>(edgesById.size());
         Set<String> visited = new HashSet<>();
+        var adjacency = resolved.nodeToEdgeIds();
         String currentNodeId = startNodeId;
         String currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
-            network, road, currentNodeId, preferredEdgeId, visited);
+            adjacency, currentNodeId, preferredEdgeId, visited);
 
         while (currentEdgeId != null) {
             visited.add(currentEdgeId);
@@ -992,7 +1026,7 @@ public final class RoadStationing {
                 : edge.getStartNodeId();
             currentNodeId = nextNodeId;
             currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
-                network, road, currentNodeId, null, visited);
+                adjacency, currentNodeId, null, visited);
         }
         return bindings;
     }

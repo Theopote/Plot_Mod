@@ -15,6 +15,7 @@ import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -76,10 +77,9 @@ public record ProfileCompileInputsFingerprint(
 
     /**
      * Physical-walk geometry signature for EDITED profile binding.
-     * Deliberately ignores {@link OrientedRoadSegment#forward()} so Reverse Edge (storage-only)
-     * does not invalidate confirmed profiles. Interior polyline densification (e.g. insert PI on
-     * an unchanged span) must not change this hash — shape detail belongs in
-     * {@link #previewGeometryHash}.
+     * Hashes a collinear-simplified chain-walk polyline so densify-only PI inserts stay stable
+     * while equal-length shape changes (e.g. opposite bend) invalidate. Ignores storage
+     * {@code forward} so Reverse Edge alone does not invalidate.
      */
     public static int geometryHash(RoadNetwork network, Road road) {
         if (road == null || !RoadStationing.isStationable(network, road)) {
@@ -89,11 +89,63 @@ public record ProfileCompileInputsFingerprint(
         hash = 31 * hash + Objects.hashCode(road.getDesignEntryNodeId());
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
             hash = 31 * hash + Objects.hash(segment.edgeId(), segment.length());
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge != null && edge.getCenterlinePoints() != null) {
+                List<Vec2d> walk = chainWalkPoints(edge.getCenterlinePoints(), segment.forward());
+                for (Vec2d point : simplifyCollinear(walk)) {
+                    hash = 31 * hash + Objects.hash(
+                        Math.rint(point.x * 1e6) / 1e6,
+                        Math.rint(point.y * 1e6) / 1e6);
+                }
+            }
             RoadNode entry = network.getNode(segment.entryNodeId());
             RoadNode exit = network.getNode(segment.exitNodeId());
             hash = 31 * hash + nodeHash(entry) + 17 * nodeHash(exit);
         }
         return hash;
+    }
+
+    private static List<Vec2d> chainWalkPoints(List<Vec2d> points, boolean forward) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+        if (forward) {
+            return List.copyOf(points);
+        }
+        List<Vec2d> reversed = new ArrayList<>(points.size());
+        for (int i = points.size() - 1; i >= 0; i--) {
+            reversed.add(points.get(i));
+        }
+        return reversed;
+    }
+
+    /** Drop near-collinear densify vertices; keep corners that change heading. */
+    static List<Vec2d> simplifyCollinear(List<Vec2d> points) {
+        if (points == null || points.size() <= 2) {
+            return points == null ? List.of() : List.copyOf(points);
+        }
+        final double eps = 1e-4;
+        List<Vec2d> simplified = new ArrayList<>();
+        simplified.add(points.getFirst());
+        for (int i = 1; i < points.size() - 1; i++) {
+            Vec2d prev = simplified.getLast();
+            Vec2d cur = points.get(i);
+            Vec2d next = points.get(i + 1);
+            if (prev == null || cur == null || next == null) {
+                continue;
+            }
+            double ax = cur.x - prev.x;
+            double ay = cur.y - prev.y;
+            double bx = next.x - cur.x;
+            double by = next.y - cur.y;
+            double cross = ax * by - ay * bx;
+            double scale = Math.hypot(ax, ay) * Math.hypot(bx, by);
+            if (scale <= eps || Math.abs(cross) > eps * Math.max(1.0, scale)) {
+                simplified.add(cur);
+            }
+        }
+        simplified.add(points.getLast());
+        return simplified;
     }
 
     /**

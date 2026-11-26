@@ -37,6 +37,7 @@ final class CenterlineEditMessages {
             case ALIGNMENT_STATIONS_INVALID -> "plugin.road.centerline_edit_alignment_invalid";
             case HORIZONTAL_ALIGNMENT_NOT_DEFINED -> "plugin.road.horizontal_alignment_materialize_no_alignment";
             case ROAD_NOT_STATIONABLE -> "plugin.road.horizontal_alignment_materialize_not_stationable";
+            case CROSSING_MIGRATION_FAILED -> "plugin.road.centerline_edit_failed";
             case JUNCTION_ENDPOINT_CONFLICT -> null;
             default -> "plugin.road.centerline_edit_failed";
         };

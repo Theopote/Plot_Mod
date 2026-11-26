@@ -132,11 +132,11 @@ public final class RoadStationMirroring {
         if (sorted.size() < 2 && sorted.size() != source.pviCount()) {
             return null;
         }
-        double startStation = sorted.getFirst().getStation();
+        // Absolute mirror s' = L - s (not L-(s-startStation)).
         List<PointOfVerticalIntersection> reversed = new ArrayList<>();
         for (int i = sorted.size() - 1; i >= 0; i--) {
             PointOfVerticalIntersection pvi = sorted.get(i);
-            double mirroredStation = totalLength - (pvi.getStation() - startStation);
+            double mirroredStation = totalLength - pvi.getStation();
             reversed.add(new PointOfVerticalIntersection(
                 mirroredStation,
                 pvi.getElevation(),

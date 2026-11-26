@@ -89,20 +89,27 @@ public final class RoadDesignDirectionAuthority {
     }
 
     /**
-     * Resolves the chain-start node for traversal. Initializes binding when missing.
-     * Prefer {@code preferredFirstEdgeId} when leaving the entry node (LOOP design entry edge).
+     * Resolves the chain-start for traversal without mutating the model.
+     * Prefer persisted binding when valid; otherwise return a deterministic start for this read
+     * (call {@link #ensureBound} from create/edit/repair/preflight to persist).
      */
     public static ResolvedStart resolveStart(RoadNetwork network, Road road) {
         Map<String, List<String>> nodeToEdgeIds = nodeToEdgeIds(network, road);
-        String entryNodeId = ensureBound(network, road);
+        if (nodeToEdgeIds.isEmpty()) {
+            return new ResolvedStart(null, null, nodeToEdgeIds);
+        }
+        if (isBindingValid(network, road, nodeToEdgeIds)) {
+            String preferredEdge = road.getDesignEntryEdgeId();
+            if (preferredEdge != null && network.getEdge(preferredEdge) == null) {
+                preferredEdge = null;
+            }
+            return new ResolvedStart(road.getDesignEntryNodeId(), preferredEdge, nodeToEdgeIds);
+        }
+        String entryNodeId = deterministicEntryNodeId(network, nodeToEdgeIds);
         if (entryNodeId == null) {
             return new ResolvedStart(null, null, nodeToEdgeIds);
         }
-        String preferredEdge = road.getDesignEntryEdgeId();
-        if (preferredEdge != null && network.getEdge(preferredEdge) == null) {
-            preferredEdge = null;
-        }
-        return new ResolvedStart(entryNodeId, preferredEdge, nodeToEdgeIds);
+        return new ResolvedStart(entryNodeId, firstEdgeAtNode(nodeToEdgeIds.get(entryNodeId)), nodeToEdgeIds);
     }
 
     /**
@@ -175,10 +182,18 @@ public final class RoadDesignDirectionAuthority {
             String nodeId,
             String preferredEdgeId,
             Set<String> visited) {
-        if (nodeId == null) {
+        return firstEdgeAtNode(nodeToEdgeIds(network, road), nodeId, preferredEdgeId, visited);
+    }
+
+    /** Prefer this overload in chain walks to reuse {@link ResolvedStart#nodeToEdgeIds()}. */
+    public static String firstEdgeAtNode(
+            Map<String, List<String>> nodeToEdgeIds,
+            String nodeId,
+            String preferredEdgeId,
+            Set<String> visited) {
+        if (nodeId == null || nodeToEdgeIds == null) {
             return null;
         }
-        Map<String, List<String>> nodeToEdgeIds = nodeToEdgeIds(network, road);
         List<String> edges = nodeToEdgeIds.get(nodeId);
         if (edges == null || edges.isEmpty()) {
             return null;

@@ -1,12 +1,15 @@
 package com.plot.plugin.road.ui.editor;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -86,6 +89,52 @@ final class CenterlineGeometrySync {
         }
         liveRoad.setProfileSource(workingRoad.getStoredProfileSource());
         liveRoad.setEditedGeometrySignature(workingRoad.getEditedGeometrySignature());
+        // D01: keep verified reverse-migration crossing identity authoritative on floating apply.
+        copyCrossingRegistryForRoad(live, working, roadId);
+    }
+
+    private static void copyCrossingRegistryForRoad(
+            RoadNetwork live,
+            RoadNetwork working,
+            String roadId) {
+        if (live == null || working == null || roadId == null || roadId.isBlank()) {
+            return;
+        }
+        Set<String> relevantCrossingIds = new HashSet<>();
+        for (RoadCrossing crossing : working.getCrossings().values()) {
+            if (crossing == null) {
+                continue;
+            }
+            if (roadId.equals(crossing.roadAId()) || roadId.equals(crossing.roadBId())) {
+                live.registerCrossing(crossing);
+                relevantCrossingIds.add(crossing.id());
+            }
+        }
+        for (RoadCrossing crossing : List.copyOf(live.getCrossings().values())) {
+            if (crossing == null) {
+                continue;
+            }
+            if ((roadId.equals(crossing.roadAId()) || roadId.equals(crossing.roadBId()))
+                    && !relevantCrossingIds.contains(crossing.id())
+                    && working.getCrossing(crossing.id()) == null) {
+                live.removeCrossing(crossing.id());
+            }
+        }
+        Set<String> relevantStacks = new HashSet<>();
+        for (RoadStackCrossing stack : working.getStackCrossings().values()) {
+            if (stack != null && roadId.equals(stack.roadId())) {
+                live.registerStackCrossing(stack);
+                relevantStacks.add(stack.id());
+            }
+        }
+        for (RoadStackCrossing stack : List.copyOf(live.getStackCrossings().values())) {
+            if (stack != null
+                    && roadId.equals(stack.roadId())
+                    && !relevantStacks.contains(stack.id())
+                    && working.getStackCrossing(stack.id()) == null) {
+                live.removeStackCrossing(stack.id());
+            }
+        }
     }
 
     private static void ensureNode(RoadNetwork live, RoadNetwork working, String nodeId) {

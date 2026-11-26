@@ -1621,7 +1621,7 @@ public final class RoadNetworkManager {
             return true;
         }
         com.plot.plugin.road.model.RoadLoopSeam replacement = com.plot.plugin.road.model.RoadLoopSeam.onSegment(
-            projection.position(), projection.segmentId(), projection.localFraction());
+            projection.position(), projection.segmentId(), projection.geometryLocalFraction());
         boolean hasStationData = road.getVerticalAlignment() != null && road.getVerticalAlignment().pviCount() > 0
             || road.getVariableCrossSections() != null
             || road.getStationFacilities() != null && !road.getStationFacilities().isEmpty()

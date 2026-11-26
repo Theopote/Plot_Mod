@@ -54,9 +54,10 @@ public final class RoadSegmentOrdering {
 
         List<String> ordered = new ArrayList<>(edgesById.size());
         Set<String> visited = new HashSet<>();
+        var adjacency = start.nodeToEdgeIds();
         String currentNodeId = start.entryNodeId();
         String currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
-            network, road, currentNodeId, start.preferredEntryEdgeId(), visited);
+            adjacency, currentNodeId, start.preferredEntryEdgeId(), visited);
 
         while (currentEdgeId != null) {
             visited.add(currentEdgeId);
@@ -70,7 +71,7 @@ public final class RoadSegmentOrdering {
                 : edge.getStartNodeId();
             currentNodeId = nextNodeId;
             currentEdgeId = RoadDesignDirectionAuthority.firstEdgeAtNode(
-                network, road, currentNodeId, null, visited);
+                adjacency, currentNodeId, null, visited);
         }
 
         for (String segmentId : segmentIds) {

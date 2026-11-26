@@ -108,7 +108,7 @@ public final class StationDomainMap {
 
         List<Double> physical = new ArrayList<>();
         List<Double> nativeStations = new ArrayList<>();
-        if (!addAnchorStrict(physical, nativeStations, 0.0, 0.0)) {
+        if (!addAnchorStrict(physical, nativeStations, 0.0, 0.0, physicalTotal, designTotal)) {
             return unreliable(physicalTotal, designTotal);
         }
 
@@ -153,7 +153,10 @@ public final class StationDomainMap {
                     }
                     continue;
                 }
-                if (!addAnchorStrict(physical, nativeStations, match.physicalStation(), match.nativeStation())) {
+                if (!addAnchorStrict(
+                        physical, nativeStations,
+                        match.physicalStation(), match.nativeStation(),
+                        physicalTotal, designTotal)) {
                     if (atEntry || atExit || criticalInterior) {
                         return unreliable(physicalTotal, designTotal);
                     }
@@ -184,7 +187,8 @@ public final class StationDomainMap {
             } else if (Math.abs(physical.getLast() - physicalTotal) <= 10.0 * EPSILON
                     && nativeStations.getLast() + EPSILON < designTotal) {
                 nativeStations.set(nativeStations.size() - 1, designTotal);
-            } else if (!addAnchorStrict(physical, nativeStations, physicalTotal, designTotal)) {
+            } else if (!addAnchorStrict(
+                    physical, nativeStations, physicalTotal, designTotal, physicalTotal, designTotal)) {
                 return unreliable(physicalTotal, designTotal);
             }
         }
@@ -403,7 +407,9 @@ public final class StationDomainMap {
             List<Double> physical,
             List<Double> nativeStations,
             double p,
-            double n) {
+            double n,
+            double physicalTotal,
+            double designTotal) {
         if (!Double.isFinite(p) || !Double.isFinite(n)) {
             return false;
         }
@@ -428,10 +434,10 @@ public final class StationDomainMap {
         if (!nativeStations.isEmpty()
                 && Math.abs(n - nativeStations.getLast()) <= EPSILON
                 && Math.abs(p - physical.getLast()) > EPSILON) {
-            // Closed HA endpoint: several trailing physical samples clamp to the same native.
-            // Endpoint-only clamp — never overwrite an earlier confirmed boundary with a
-            // later ordinary anchor that shares native but advances physical improperly.
-            if (p + EPSILON >= physical.getLast()) {
+            // Closed HA endpoint only: advance the last physical anchor at true terminus.
+            boolean atNativeEnd = n + EPSILON >= designTotal;
+            boolean atPhysicalEnd = p + EPSILON >= physicalTotal;
+            if (atNativeEnd && atPhysicalEnd && p + EPSILON >= physical.getLast()) {
                 physical.set(physical.size() - 1, p);
                 return true;
             }
