@@ -48,11 +48,16 @@ class CenterlineWorkingCopyIsolationTest {
         roadId = road.getId();
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(100, 0));
+        // Mid bulge stays within StationDomainMap match tolerance so materialize is allowed,
+        // but is large enough that derived refresh visibly rewrites the polyline.
         RoadEdge edge = network.createEdge(
-            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), roadId);
+            a.getId(), b.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(50, 0.4), new Vec2d(100, 0)),
+            roadId);
         edgeId = edge.getId();
 
-        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 5), 0.0, List.of());
+        // Matching HA (not a large offset): unreliable maps must refuse materialize.
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of());
         alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
         road.setHorizontalAlignment(alignment);
 
@@ -74,30 +79,23 @@ class CenterlineWorkingCopyIsolationTest {
         editor.open(ctx, roadId);
 
         long revisionBefore = manager.getNetworkRevision();
-        Vec2d liveStartBefore = manager.getNetwork().getEdge(edgeId).getCenterlinePoints().getFirst().copy();
+        double liveMidBefore = midY(manager.getNetwork().getEdge(edgeId));
 
         RoadNetwork working = editor.editorSession().workingNetwork();
         Road workingRoad = working.getRoad(roadId);
         CenterlineEditResult materialize =
             HorizontalAlignmentCenterlineMaterializer.materialize(working, workingRoad);
         assertTrue(materialize.isSuccess());
-        assertNotEquals(
-            liveStartBefore.y,
-            working.getEdge(edgeId).getCenterlinePoints().getFirst().y,
-            0.01);
+        assertTrue(Math.abs(midY(working.getEdge(edgeId))) < 0.05,
+            "working copy should snap bulge onto HA");
+        assertNotEquals(liveMidBefore, midY(working.getEdge(edgeId)), 0.01);
 
         assertEquals(revisionBefore, manager.getNetworkRevision());
-        assertEquals(
-            liveStartBefore.y,
-            manager.getNetwork().getEdge(edgeId).getCenterlinePoints().getFirst().y,
-            1e-9);
+        assertEquals(liveMidBefore, midY(manager.getNetwork().getEdge(edgeId)), 1e-9);
 
         editor.discard(ctx);
         assertEquals(revisionBefore, manager.getNetworkRevision());
-        assertEquals(
-            liveStartBefore.y,
-            manager.getNetwork().getEdge(edgeId).getCenterlinePoints().getFirst().y,
-            1e-9);
+        assertEquals(liveMidBefore, midY(manager.getNetwork().getEdge(edgeId)), 1e-9);
     }
 
     @Test
@@ -113,29 +111,27 @@ class CenterlineWorkingCopyIsolationTest {
 
         assertTrue(editor.confirmEdits(ctx));
         assertEquals(revisionBefore + 1, manager.getNetworkRevision());
-        assertEquals(
-            5.0,
-            manager.getNetwork().getEdge(edgeId).getCenterlinePoints().getFirst().y,
-            0.1);
+        assertTrue(Math.abs(midY(manager.getNetwork().getEdge(edgeId))) < 0.05,
+            "confirm must write materialized HA centerline to live");
     }
 
     @Test
     void managerMaterializeResolvesLiveRoadByIdNotWorkingInstance() {
         RoadNetwork working = manager.getNetwork().snapshot();
         Road workingRoad = working.getRoad(roadId);
-        // 工作副本上改 HA 起点，正式路网仍为 y=5 对齐线形
+        // Working HA is deliberately offset/unreliable; manager must still use live matching HA.
         workingRoad.setHorizontalAlignment(
             new RoadHorizontalAlignment(new Vec2d(0, 20), 0.0, List.of(
                 HorizontalAlignmentElement.tangent(100.0))));
 
         long revisionBefore = manager.getNetworkRevision();
+        double liveMidBefore = midY(manager.getNetwork().getEdge(edgeId));
         CenterlineEditResult result = manager.materializeHorizontalAlignment(workingRoad);
         assertTrue(result.isSuccess());
-        // Manager 必须用 live Road（y=5），而不是 working 实例（y=20）
-        assertEquals(
-            5.0,
-            manager.getNetwork().getEdge(edgeId).getCenterlinePoints().getFirst().y,
-            0.1);
+        // Live matching HA at y=0 — bulge cleared; working's y=20 HA must not win.
+        assertTrue(Math.abs(midY(manager.getNetwork().getEdge(edgeId))) < 0.05);
+        assertNotEquals(liveMidBefore, midY(manager.getNetwork().getEdge(edgeId)), 0.01);
+        assertEquals(0.0, manager.getNetwork().getEdge(edgeId).getCenterlinePoints().getFirst().y, 0.1);
         assertEquals(revisionBefore + 1, manager.getNetworkRevision());
     }
 
@@ -179,6 +175,22 @@ class CenterlineWorkingCopyIsolationTest {
         assertTrue(editor.confirmEdits(ctx));
         assertEquals(split.secondEdgeId(), manager.getPrimarySelectedEdgeId());
         assertNotNull(manager.getNetwork().getEdge(split.secondEdgeId()));
+    }
+
+    private static double midY(RoadEdge edge) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        assertTrue(points.size() >= 2);
+        double target = 50.0;
+        Vec2d best = points.getFirst();
+        double bestDist = Math.abs(best.x - target);
+        for (Vec2d point : points) {
+            double dist = Math.abs(point.x - target);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = point;
+            }
+        }
+        return best.y;
     }
 
     private static PluginContext pluginContext() {
