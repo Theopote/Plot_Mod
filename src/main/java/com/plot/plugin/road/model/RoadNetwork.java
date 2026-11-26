@@ -50,6 +50,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -434,6 +435,11 @@ public class RoadNetwork {
         }
 
         String oldRoadId = edge.getRoadId();
+        // Already correctly bound — skip syncStorageOrder (load/reconcile must not
+        // rewrite persisted segment order via ensureBound on a partial or HashMap walk).
+        if (newRoadId.equals(oldRoadId) && newRoad.getOrderedSegmentIds().contains(edgeId)) {
+            return true;
+        }
         // Drop membership from every road that still lists this edge (covers stale setRoadId).
         for (Road road : roads.values()) {
             if (road == null || road.getId() == null || road.getId().equals(newRoadId)) {
@@ -1854,7 +1860,12 @@ public class RoadNetwork {
                 data.stackCrossings.add(stackData);
             }
 
-            for (RoadEdge edge : network.edges.values()) {
+            // ConcurrentHashMap iteration order is not stable across JVMs — sort for deterministic JSON.
+            List<RoadEdge> orderedEdges = new ArrayList<>(network.edges.values());
+            orderedEdges.sort(Comparator.comparing(
+                edge -> edge.getId() != null ? edge.getId() : "",
+                String::compareTo));
+            for (RoadEdge edge : orderedEdges) {
                 EdgeData edgeData = new EdgeData();
                 edgeData.id = edge.getId();
                 edgeData.startNodeId = edge.getStartNodeId();
@@ -2003,9 +2014,14 @@ public class RoadNetwork {
                     adoptGroupId
                 );
                 network.edges.put(edge.getId(), edge);
-
+                // Do not assignEdgeToRoad here: syncStorageOrder→ensureBound on a partial edge
+                // set rewrites persisted segment order (ConcurrentHashMap-sensitive on Linux CI).
+                // Membership comes from roadData.segmentIds; orphans are fixed in reconcile.
                 if (roadId != null && !roadId.isBlank()) {
-                    network.assignEdgeToRoad(edge.getId(), roadId);
+                    Road road = network.roads.get(roadId);
+                    if (road != null && !road.getOrderedSegmentIds().contains(edge.getId())) {
+                        road.addSegment(edge.getId());
+                    }
                 }
             }
 
@@ -2049,7 +2065,8 @@ public class RoadNetwork {
             }
 
             rebuildTopologyFromEdges(network);
-            network.reconcileRoadSegmentLinks();
+            // Restore design-entry authority before reconcile so any real re-assign syncs
+            // against the persisted binding instead of a mid-load ensureBound guess.
             if (hasRoadData) {
                 for (RoadData roadData : roads) {
                     if (roadData == null || roadData.id == null) {
@@ -2063,6 +2080,7 @@ public class RoadNetwork {
                     road.setDesignEntryEdgeId(roadData.designEntryEdgeId);
                 }
             }
+            network.reconcileRoadSegmentLinks();
             network.assertInvariants();
             return network;
         }

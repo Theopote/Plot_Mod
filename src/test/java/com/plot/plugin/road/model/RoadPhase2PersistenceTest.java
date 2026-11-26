@@ -52,6 +52,24 @@ class RoadPhase2PersistenceTest {
     }
 
     @Test
+    void jsonRoundTripPreservesSegmentOrderWhenEdgesArrayIsReversed() {
+        RoadNetwork network = buildNetworkWithPhase2Road();
+        Road original = network.getRoad("phase2-road");
+        List<String> expectedSegmentIds = List.copyOf(original.getOrderedSegmentIds());
+
+        com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(network.toJson()).getAsJsonObject();
+        com.google.gson.JsonArray edges = root.getAsJsonArray("edges");
+        assertEquals(2, edges.size());
+        // Adversarial order: load second edge before first (Linux ConcurrentHashMap flake).
+        com.google.gson.JsonElement e0 = edges.get(0);
+        edges.set(0, edges.get(1));
+        edges.set(1, e0);
+
+        RoadNetwork restored = RoadNetwork.parseSnapshot(root.toString());
+        assertEquals(expectedSegmentIds, restored.getRoad("phase2-road").getOrderedSegmentIds());
+    }
+
+    @Test
     void snapshotRoundTripPreservesAllPhase2EngineeringSemantics() {
         RoadNetwork network = buildNetworkWithPhase2Road();
         Road original = network.getRoad("phase2-road");
