@@ -250,7 +250,37 @@ public final class RoadStationing {
                 return false;
             }
         }
-        return !orientedSegments(network, road).isEmpty();
+        List<OrientedRoadSegment> segments = orientedSegments(network, road);
+        if (segments.isEmpty()) {
+            return false;
+        }
+        double length = 0.0;
+        for (OrientedRoadSegment segment : segments) {
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge == null) {
+                return false;
+            }
+            List<Vec2d> points = edge.getCenterlinePoints();
+            if (points == null || points.size() < 2) {
+                return false;
+            }
+            for (Vec2d point : points) {
+                if (point == null || !Double.isFinite(point.x) || !Double.isFinite(point.y)) {
+                    return false;
+                }
+            }
+            if (!Double.isFinite(segment.length()) || segment.length() < 0) {
+                return false;
+            }
+            length += segment.length();
+        }
+        if (!(length > STATION_EPSILON)) {
+            return false;
+        }
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null) {
+            return RoadLoopSeamService.isSeamResolvable(network, road);
+        }
+        return true;
     }
 
     public static boolean isValid(RoadNetwork network, RoadStation station) {
@@ -550,34 +580,60 @@ public final class RoadStationing {
 
     /**
      * Canonical 桩号 → 实例折线链上弧长（{@link OrientedRoadSegment} 域）。
+     * 非法输入返回 {@link Double#NaN}，不伪装成 0。
      */
     public static double toInstanceChainage(RoadNetwork network, Road road, double canonicalChainage) {
-        double canonicalTotal = canonicalLength(network, road);
-        double instanceTotal = instanceLength(network, road);
-        if (!Double.isFinite(canonicalChainage) || canonicalTotal <= STATION_EPSILON) {
-            return 0.0;
+        if (!Double.isFinite(canonicalChainage) || network == null || road == null) {
+            return Double.NaN;
         }
-        if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
-            return canonicalChainage;
+        StationDomainMap map = domainMap(network, road);
+        if (map == null || !map.isReliable()) {
+            double canonicalTotal = canonicalLength(network, road);
+            double instanceTotal = instanceLength(network, road);
+            if (canonicalTotal <= STATION_EPSILON || instanceTotal <= STATION_EPSILON) {
+                return Double.NaN;
+            }
+            if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
+                return canonicalChainage;
+            }
+            // Unreliable map: refuse whole-road ratio guessing for divergent lengths.
+            return Double.NaN;
         }
-        double ratio = Math.clamp(canonicalChainage / canonicalTotal, 0.0, 1.0);
-        return ratio * instanceTotal;
+        return map.toInstance(canonicalChainage);
     }
 
     /**
      * 实例折线链上弧长 → canonical 桩号。
+     * 非法输入返回 {@link Double#NaN}，不伪装成 0。
      */
     public static double toCanonicalChainage(RoadNetwork network, Road road, double instanceChainage) {
-        double canonicalTotal = canonicalLength(network, road);
-        double instanceTotal = instanceLength(network, road);
-        if (!Double.isFinite(instanceChainage) || instanceTotal <= STATION_EPSILON) {
-            return 0.0;
+        if (!Double.isFinite(instanceChainage) || network == null || road == null) {
+            return Double.NaN;
         }
-        if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
-            return instanceChainage;
+        StationDomainMap map = domainMap(network, road);
+        if (map == null || !map.isReliable()) {
+            double canonicalTotal = canonicalLength(network, road);
+            double instanceTotal = instanceLength(network, road);
+            if (instanceTotal <= STATION_EPSILON || canonicalTotal <= STATION_EPSILON) {
+                return Double.NaN;
+            }
+            if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
+                return instanceChainage;
+            }
+            return Double.NaN;
         }
-        double ratio = Math.clamp(instanceChainage / instanceTotal, 0.0, 1.0);
-        return ratio * canonicalTotal;
+        return map.toCanonical(instanceChainage);
+    }
+
+    public static StationDomainMap domainMap(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return StationDomainMap.identity(0.0);
+        }
+        var cache = RoadStationingReadCache.activeFor(network);
+        if (cache != null) {
+            return cache.domainMap(road.getId(), () -> StationDomainMap.build(network, road));
+        }
+        return StationDomainMap.build(network, road);
     }
 
     private record SegmentChainBinding(String segmentId, String entryNodeId) {

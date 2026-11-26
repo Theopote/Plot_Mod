@@ -50,7 +50,9 @@ public final class HorizontalAlignmentPolylineFitter {
 
     static List<Vec2d> collectChainPoints(RoadNetwork network, Road road) {
         List<Vec2d> points = new ArrayList<>();
-        for (OrientedRoadSegment oriented : RoadStationing.orientedSegments(network, road)) {
+        // Physical HA fit: unrotated chain, each Edge once — never re-read a seam-split Edge whole.
+        for (OrientedRoadSegment oriented :
+                RoadStationing.physicalEdgeSegmentsForMaterialization(network, road)) {
             RoadEdge edge = network.getEdge(oriented.edgeId());
             if (edge == null) {
                 continue;
@@ -59,9 +61,10 @@ public final class HorizontalAlignmentPolylineFitter {
             if (geometry == null || geometry.isEmpty()) {
                 continue;
             }
+            Vec2d entry = oriented.forward() ? geometry.getFirst() : geometry.getLast();
             int startIndex = 0;
-            if (!points.isEmpty()
-                    && geometry.getFirst().distance(points.getLast()) <= MIN_POINT_SPACING) {
+            if (!points.isEmpty() && entry != null
+                    && entry.distance(points.getLast()) <= MIN_POINT_SPACING) {
                 startIndex = 1;
             }
             if (oriented.forward()) {
@@ -84,22 +87,6 @@ public final class HorizontalAlignmentPolylineFitter {
         if (points.isEmpty() || points.getLast().distance(candidate) > MIN_POINT_SPACING) {
             points.add(candidate.copy());
         }
-    }
-
-    static List<Vec2d> simplifyVertices(List<Vec2d> points, double angleThresholdRadians) {
-        if (points.size() <= 2) {
-            return List.copyOf(points);
-        }
-        List<Vec2d> simplified = new ArrayList<>();
-        simplified.add(points.getFirst().copy());
-        for (int i = 1; i < points.size() - 1; i++) {
-            double turn = Math.abs(signedTurnAngle(points.get(i - 1), points.get(i), points.get(i + 1)));
-            if (turn >= angleThresholdRadians) {
-                simplified.add(points.get(i).copy());
-            }
-        }
-        simplified.add(points.getLast().copy());
-        return List.copyOf(simplified);
     }
 
     static boolean isColinear(List<Vec2d> points, double toleranceRadians) {

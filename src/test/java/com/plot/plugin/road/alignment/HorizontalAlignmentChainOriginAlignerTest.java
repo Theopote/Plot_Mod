@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HorizontalAlignmentChainOriginAlignerTest {
 
     @Test
-    void alignToChainStartSnapsOriginAndBearing() {
+    void alignToChainStartSnapsOriginWithoutRewritingBearing() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
         RoadNode n1 = network.createNode(new Vec2d(10, 20));
@@ -31,6 +31,10 @@ class HorizontalAlignmentChainOriginAlignerTest {
         assertTrue(HorizontalAlignmentChainOriginAligner.alignToChainStart(network, road));
         assertEquals(10.0, road.getHorizontalAlignment().getOrigin().x, 1e-6);
         assertEquals(20.0, road.getHorizontalAlignment().getOrigin().y, 1e-6);
+        // Derived refresh keeps authoritative bearing; only explicit refit syncs it.
+        assertEquals(Math.PI / 2, road.getHorizontalAlignment().getStartBearingRadians(), 1e-6);
+
+        assertTrue(HorizontalAlignmentChainOriginAligner.alignOriginAndBearingToChainStart(network, road));
         assertEquals(0.0, road.getHorizontalAlignment().getStartBearingRadians(), 1e-6);
     }
 

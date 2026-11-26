@@ -20,12 +20,15 @@ public final class RoadStationingReadCache {
     private final RoadNetwork network;
     private final Map<Key, List<OrientedRoadSegment>> segments = new HashMap<>();
     private final Map<String, Boolean> stationable = new HashMap<>();
+    private final Map<String, StationDomainMap> domainMaps = new HashMap<>();
+    private final Map<String, Double> seamOffsets = new HashMap<>();
+    private final Map<String, Integer> haSampleScanCount = new HashMap<>();
 
     public RoadStationingReadCache(RoadNetwork frozenNetwork) {
         network = frozenNetwork;
     }
 
-    static RoadStationingReadCache activeFor(RoadNetwork network) {
+    public static RoadStationingReadCache activeFor(RoadNetwork network) {
         var cache = ACTIVE.get();
         return cache != null && cache.network == network ? cache : null;
     }
@@ -55,6 +58,30 @@ public final class RoadStationingReadCache {
             stationable.put(roadId, value);
         }
         return value;
+    }
+
+    StationDomainMap domainMap(String roadId, Supplier<StationDomainMap> build) {
+        StationDomainMap value = domainMaps.get(roadId);
+        if (value == null) {
+            value = build.get();
+            domainMaps.put(roadId, value);
+        }
+        return value;
+    }
+
+    public double seamOffset(String roadId, java.util.function.DoubleSupplier build) {
+        Double value = seamOffsets.get(roadId);
+        if (value == null) {
+            value = build.getAsDouble();
+            seamOffsets.put(roadId, value);
+            haSampleScanCount.merge(roadId, 1, Integer::sum);
+        }
+        return value;
+    }
+
+    /** Test/diagnostic: how many times HA seam sampling ran for a road in this snapshot. */
+    public int haSampleScanCount(String roadId) {
+        return haSampleScanCount.getOrDefault(roadId, 0);
     }
 
     public Scope activate() {

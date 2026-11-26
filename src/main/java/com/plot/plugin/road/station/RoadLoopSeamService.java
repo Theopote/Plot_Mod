@@ -55,6 +55,30 @@ public final class RoadLoopSeamService {
     }
 
     /**
+     * Whether a LOOP seam can be resolved onto the road chain (finite position, optional
+     * segment hint exists, and projection lands on the centerline within node tolerance).
+     */
+    public static boolean isSeamResolvable(RoadNetwork network, Road road) {
+        if (network == null || road == null || road.getLoopSeam() == null) {
+            return false;
+        }
+        RoadLoopSeam seam = road.getLoopSeam();
+        Vec2d position = seam.position();
+        if (position == null || !Double.isFinite(position.x) || !Double.isFinite(position.y)) {
+            return false;
+        }
+        if (seam.segmentHintId() != null && network.getEdge(seam.segmentHintId()) == null) {
+            return false;
+        }
+        SeamProjection projection = projectOntoOrientedChain(network, road, position);
+        if (projection == null || projection.position() == null) {
+            return false;
+        }
+        return position.distance(projection.position())
+            <= com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE;
+    }
+
+    /**
      * 解析闭环链遍历起点节点（用于 {@link RoadStationing} 旋转）。
      */
     public static String resolveChainStartNodeId(RoadNetwork network, Road road, RoadLoopSeam seam) {

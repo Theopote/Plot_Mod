@@ -223,23 +223,62 @@ public final class RoadPlanGeometry {
             return List.of();
         }
         Road road = network.getRoadForEdge(edge);
-        if (road == null || !hasDesignAlignment(network, road)) {
+        if (road == null) {
             return List.of();
         }
-        return RoadStationing.physicalOrientedSegment(network, road, edge.getId())
-            .map(oriented -> HorizontalAlignmentCenterlineMaterializer.samplePlanCenterline(
-                network,
-                road,
-                road.getHorizontalAlignment(),
-                oriented,
-                sampleSpacingMeters))
-            .orElse(List.of());
+        if (hasDesignAlignment(network, road)) {
+            return RoadStationing.physicalOrientedSegment(network, road, edge.getId())
+                .map(oriented -> HorizontalAlignmentCenterlineMaterializer.samplePlanCenterline(
+                    network,
+                    road,
+                    road.getHorizontalAlignment(),
+                    oriented,
+                    sampleSpacingMeters))
+                .orElse(List.of());
+        }
+        return samplePhysicalInstanceEdge(edge, sampleSpacingMeters);
+    }
+
+    /** Instance-polyline samples along one physical Edge (exact start/end, no seam join). */
+    private static List<PlanCenterlineSample> samplePhysicalInstanceEdge(
+            RoadEdge edge,
+            double sampleSpacingMeters) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points == null || points.size() < 2) {
+            return List.of();
+        }
+        double length = edge.getLength();
+        if (!(length > STATION_EPSILON)) {
+            return List.of();
+        }
+        double spacing = sampleSpacingMeters > STATION_EPSILON
+            ? sampleSpacingMeters
+            : HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS;
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        Vec2d start = points.getFirst();
+        samples.add(new PlanCenterlineSample(start.copy(), 0.0));
+        for (double d = spacing; d < length - STATION_EPSILON; d += spacing) {
+            Vec2d point = RoadGeometryUtils.pointAtDistance(points, d);
+            if (point != null
+                    && samples.getLast().position().distance(point) > STATION_EPSILON) {
+                samples.add(new PlanCenterlineSample(point, d));
+            }
+        }
+        Vec2d end = points.getLast();
+        if (samples.getLast().position().distance(end) > STATION_EPSILON) {
+            samples.add(new PlanCenterlineSample(end.copy(), length));
+        } else {
+            samples.set(samples.size() - 1, new PlanCenterlineSample(end.copy(), length));
+        }
+        return List.copyOf(samples);
     }
 
     /**
-     * Road traversal 视角的 Edge 采样（LOOP interior seam 下同一 edgeId 可含多个 slice）。
+     * Road traversal 视角的 Edge 采样。
      * <p>
-     * 用于 Crossing / station / profile；勿用于 {@link RoadEdge#setCenterlinePoints} 写回。
+     * 单 slice 时返回一条连续折线（含准确起终点）。多 slice（LOOP interior seam）时
+     * 请使用 {@link #resolveEdgeTraversalSliceSamples}，勿将不连续区间当一条折线。
+     * 勿用于 {@link RoadEdge#setCenterlinePoints} 写回（用 {@link #resolvePhysicalEdgeCenterlineSamples}）。
      */
     public static List<PlanCenterlineSample> resolveEdgeCenterlineSamples(RoadNetwork network, RoadEdge edge) {
         return resolveEdgeCenterlineSamples(
@@ -263,11 +302,68 @@ public final class RoadPlanGeometry {
         if (slices.isEmpty()) {
             return List.of();
         }
-        return filterSamplesForSlices(
-            network,
-            road,
-            resolveRoadCenterlineSamples(network, road, sampleSpacingMeters),
-            slices);
+        if (slices.size() == 1) {
+            return sampleContinuousSlice(
+                network, road, slices.getFirst(), sampleSpacingMeters);
+        }
+        // Multi-slice: return physical continuous samples to avoid false joins across seam.
+        return resolvePhysicalEdgeCenterlineSamples(network, edge, sampleSpacingMeters);
+    }
+
+    /**
+     * One continuous sample list per traversal slice (each includes exact start/end).
+     */
+    public static List<List<PlanCenterlineSample>> resolveEdgeTraversalSliceSamples(
+            RoadNetwork network,
+            RoadEdge edge,
+            double sampleSpacingMeters) {
+        if (edge == null || network == null || edge.getRoadId() == null) {
+            return List.of();
+        }
+        Road road = network.getRoadForEdge(edge);
+        if (road == null) {
+            return List.of();
+        }
+        List<OrientedRoadSegment> slices = RoadStationing.orientedSegmentsForEdge(network, road, edge.getId());
+        if (slices.isEmpty()) {
+            return List.of();
+        }
+        List<List<PlanCenterlineSample>> out = new ArrayList<>(slices.size());
+        for (OrientedRoadSegment slice : slices) {
+            out.add(sampleContinuousSlice(network, road, slice, sampleSpacingMeters));
+        }
+        return List.copyOf(out);
+    }
+
+    private static List<PlanCenterlineSample> sampleContinuousSlice(
+            RoadNetwork network,
+            Road road,
+            OrientedRoadSegment slice,
+            double sampleSpacingMeters) {
+        double spacing = sampleSpacingMeters > STATION_EPSILON
+            ? sampleSpacingMeters
+            : HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS;
+        double start = RoadStationing.toCanonicalChainage(network, road, slice.startStation());
+        double end = RoadStationing.toCanonicalChainage(network, road, slice.endStation());
+        if (!Double.isFinite(start) || !Double.isFinite(end)) {
+            start = slice.startStation();
+            end = slice.endStation();
+        }
+        if (end < start) {
+            double tmp = start;
+            start = end;
+            end = tmp;
+        }
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        appendRoadSampleIfDistinct(network, road, samples, start);
+        for (double chainage = start + spacing; chainage < end - STATION_EPSILON; chainage += spacing) {
+            appendRoadSampleIfDistinct(network, road, samples, chainage);
+        }
+        appendRoadSampleIfDistinct(network, road, samples, end);
+        if (!slice.forward() && samples.size() > 1) {
+            Collections.reverse(samples);
+        }
+        return List.copyOf(samples);
     }
 
     /**
@@ -333,50 +429,59 @@ public final class RoadPlanGeometry {
             return Optional.empty();
         }
 
+        // SegmentStation.localDistance is already from geometry storage start — do not mirror again.
         double clamped = Math.max(0.0, Math.min(geometryLocalDistance, edge.getLength()));
-        Vec2d from;
-        Vec2d to;
-        if (oriented.get().forward()) {
-            Vec2d point = RoadGeometryUtils.pointAtDistance(points, clamped);
-            if (point == null) {
-                return Optional.empty();
-            }
-            double ahead = Math.min(clamped + STATION_EPSILON, edge.getLength());
-            Vec2d aheadPoint = RoadGeometryUtils.pointAtDistance(points, ahead);
-            if (aheadPoint == null || point.distance(aheadPoint) < STATION_EPSILON) {
-                if (clamped <= STATION_EPSILON) {
-                    from = points.getFirst();
-                    to = points.get(1);
-                } else {
-                    from = points.get(points.size() - 2);
-                    to = points.getLast();
-                }
-            } else {
-                from = point;
-                to = aheadPoint;
-            }
-        } else {
-            // geometryLocalDistance 是链局部距离；point→behindPoint 已沿 Road chain 方向。
-            double geometryFromEnd = edge.getLength() - clamped;
-            Vec2d point = RoadGeometryUtils.pointAtDistance(points, geometryFromEnd);
-            if (point == null) {
-                return Optional.empty();
-            }
-            double behind = Math.max(geometryFromEnd - STATION_EPSILON, 0.0);
-            Vec2d behindPoint = RoadGeometryUtils.pointAtDistance(points, behind);
-            if (behindPoint == null || point.distance(behindPoint) < STATION_EPSILON) {
-                from = points.getLast();
-                to = points.get(points.size() - 2);
-            } else {
-                from = point;
-                to = behindPoint;
-            }
-        }
-        Vec2d direction = to.subtract(from);
-        if (direction.lengthSquared() < STATION_EPSILON * STATION_EPSILON) {
+        Optional<double[]> tangent = tangentOnPolyline(points, clamped);
+        if (tangent.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(Math.atan2(direction.y, direction.x));
+        double dx = tangent.get()[0];
+        double dy = tangent.get()[1];
+        if (!oriented.get().forward()) {
+            dx = -dx;
+            dy = -dy;
+        }
+        if (dx * dx + dy * dy < STATION_EPSILON * STATION_EPSILON) {
+            return Optional.empty();
+        }
+        return Optional.of(Math.atan2(dy, dx));
+    }
+
+    /**
+     * Unitless tangent (dx, dy) of the polyline at geometry-local distance from storage start.
+     */
+    static Optional<double[]> tangentOnPolyline(List<Vec2d> points, double geometryLocal) {
+        if (points == null || points.size() < 2 || !Double.isFinite(geometryLocal)) {
+            return Optional.empty();
+        }
+        double remaining = Math.max(0.0, geometryLocal);
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d a = points.get(i);
+            Vec2d b = points.get(i + 1);
+            if (a == null || b == null) {
+                continue;
+            }
+            double len = a.distance(b);
+            if (len <= STATION_EPSILON) {
+                continue;
+            }
+            if (remaining <= len + STATION_EPSILON) {
+                return Optional.of(new double[] {b.x - a.x, b.y - a.y});
+            }
+            remaining -= len;
+        }
+        for (int i = points.size() - 2; i >= 0; i--) {
+            Vec2d a = points.get(i);
+            Vec2d b = points.get(i + 1);
+            if (a == null || b == null) {
+                continue;
+            }
+            double len = a.distance(b);
+            if (len > STATION_EPSILON) {
+                return Optional.of(new double[] {b.x - a.x, b.y - a.y});
+            }
+        }
+        return Optional.empty();
     }
 
     private static Optional<OrientedRoadSegment> resolveOrientedSegment(
@@ -394,26 +499,66 @@ public final class RoadPlanGeometry {
     /**
      * LOOP canonical 桩号 → HA native 桩号；LINEAR 或无 seam 时恒等。
      */
-    static double haNativeStation(RoadNetwork network, Road road, double canonicalStation) {
+    public static double haNativeStation(RoadNetwork network, Road road, double canonicalStation) {
         if (road == null || !Double.isFinite(canonicalStation)) {
-            return 0.0;
+            return Double.NaN;
         }
         if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
             return canonicalStation;
         }
-        double designLength = designLength(network, road);
-        if (designLength <= STATION_EPSILON) {
+        double designLen = designLength(network, road);
+        if (designLen <= STATION_EPSILON) {
             return canonicalStation;
         }
         double offset = seamHaNativeOffset(network, road);
-        double nativeStation = canonicalStation + offset;
-        if (nativeStation >= designLength - STATION_EPSILON) {
-            nativeStation -= designLength;
+        if (!Double.isFinite(offset)) {
+            return Double.NaN;
         }
-        return Math.max(0.0, Math.min(nativeStation, designLength));
+        double nativeStation = canonicalStation + offset;
+        if (nativeStation >= designLen - STATION_EPSILON) {
+            nativeStation -= designLen;
+        }
+        return Math.max(0.0, Math.min(nativeStation, designLen));
     }
 
-    private static double seamHaNativeOffset(RoadNetwork network, Road road) {
+    /** HA native → LOOP canonical；LINEAR 或无 seam 时恒等。 */
+    public static double canonicalFromHaNative(
+            RoadNetwork network,
+            Road road,
+            double nativeStation,
+            double designTotal) {
+        if (road == null || !Double.isFinite(nativeStation)) {
+            return Double.NaN;
+        }
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            return nativeStation;
+        }
+        double designLen = designTotal > STATION_EPSILON ? designTotal : designLength(network, road);
+        if (designLen <= STATION_EPSILON) {
+            return nativeStation;
+        }
+        double offset = seamHaNativeOffset(network, road);
+        if (!Double.isFinite(offset)) {
+            return Double.NaN;
+        }
+        double canonical = nativeStation - offset;
+        if (canonical < -STATION_EPSILON) {
+            canonical += designLen;
+        } else if (canonical >= designLen - STATION_EPSILON) {
+            canonical -= designLen;
+        }
+        return Math.max(0.0, Math.min(canonical, designLen));
+    }
+
+    public static double seamHaNativeOffset(RoadNetwork network, Road road) {
+        var cache = com.plot.plugin.road.station.RoadStationingReadCache.activeFor(network);
+        if (cache != null && road != null) {
+            return cache.seamOffset(road.getId(), () -> seamHaNativeOffsetUncached(network, road));
+        }
+        return seamHaNativeOffsetUncached(network, road);
+    }
+
+    private static double seamHaNativeOffsetUncached(RoadNetwork network, Road road) {
         if (network == null || road == null
                 || road.getTopologyMode() != RoadTopologyMode.LOOP
                 || road.getLoopSeam() == null) {
@@ -425,17 +570,26 @@ public final class RoadPlanGeometry {
         }
         Vec2d seamPosition = RoadLoopSeamService.overlayPosition(network, road);
         if (seamPosition == null) {
-            return 0.0;
+            return Double.NaN;
         }
         List<PlanCenterlineSample> nativeSamples = sampleHaNativeUnrotated(
             alignment,
             HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
-        return chainageAtPositionOnPlanSamples(seamPosition, nativeSamples).orElse(0.0);
+        return chainageAtPositionOnPlanSamples(seamPosition, nativeSamples).orElse(Double.NaN);
     }
 
-    private static List<PlanCenterlineSample> sampleHaNativeUnrotated(
+    public static List<PlanCenterlineSample> sampleHaNativeUnrotatedPublic(
             RoadHorizontalAlignment alignment,
             double sampleSpacingMeters) {
+        return sampleHaNativeUnrotated(alignment, sampleSpacingMeters);
+    }
+
+    static List<PlanCenterlineSample> sampleHaNativeUnrotated(
+            RoadHorizontalAlignment alignment,
+            double sampleSpacingMeters) {
+        if (alignment == null || alignment.isEmpty()) {
+            return List.of();
+        }
         double total = HorizontalAlignmentGeometry.totalLength(alignment);
         if (total <= STATION_EPSILON) {
             return List.of();
@@ -478,30 +632,4 @@ public final class RoadPlanGeometry {
         });
     }
 
-    private static List<PlanCenterlineSample> filterSamplesForSlices(
-            RoadNetwork network,
-            Road road,
-            List<PlanCenterlineSample> roadSamples,
-            List<OrientedRoadSegment> slices) {
-        if (roadSamples.isEmpty() || slices.isEmpty()) {
-            return List.of();
-        }
-        List<PlanCenterlineSample> filtered = new ArrayList<>();
-        for (OrientedRoadSegment slice : slices) {
-            double start = RoadStationing.toCanonicalChainage(network, road, slice.startStation());
-            double end = RoadStationing.toCanonicalChainage(network, road, slice.endStation());
-            List<PlanCenterlineSample> sliceSamples = new ArrayList<>();
-            for (PlanCenterlineSample sample : roadSamples) {
-                if (sample.canonicalStation() >= start - STATION_EPSILON
-                        && sample.canonicalStation() <= end + STATION_EPSILON) {
-                    sliceSamples.add(sample);
-                }
-            }
-            if (!slice.forward()) {
-                Collections.reverse(sliceSamples);
-            }
-            filtered.addAll(sliceSamples);
-        }
-        return List.copyOf(filtered);
-    }
 }

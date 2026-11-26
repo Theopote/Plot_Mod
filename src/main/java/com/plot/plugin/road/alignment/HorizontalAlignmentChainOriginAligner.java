@@ -23,6 +23,13 @@ public final class HorizontalAlignmentChainOriginAligner {
     private HorizontalAlignmentChainOriginAligner() {
     }
 
+    /**
+     * Align HA origin to the chain start node.
+     * <p>
+     * Origin translation only — does <strong>not</strong> rewrite start bearing from a discrete
+     * centerline chord (that would drift authoritative HA during derived-geometry refresh).
+     * Bearing updates belong to explicit user-driven refit paths.
+     */
     public static boolean alignToChainStart(RoadNetwork network, Road road) {
         RoadHorizontalAlignment alignment = road != null ? road.getHorizontalAlignment() : null;
         if (network == null || road == null || alignment == null || alignment.isEmpty()) {
@@ -38,18 +45,26 @@ public final class HorizontalAlignmentChainOriginAligner {
             return false;
         }
 
-        boolean changed = false;
         Vec2d targetOrigin = chainOrigin.get();
         if (alignment.getOrigin().distance(targetOrigin) > ANCHOR_TOLERANCE_METERS) {
             alignment.setOrigin(targetOrigin.copy());
-            changed = true;
+            return true;
         }
+        return false;
+    }
 
+    /** Explicit user/refit path: also sync start bearing from the chain-entry chord. */
+    public static boolean alignOriginAndBearingToChainStart(RoadNetwork network, Road road) {
+        boolean changed = alignToChainStart(network, road);
+        RoadHorizontalAlignment alignment = road != null ? road.getHorizontalAlignment() : null;
+        if (network == null || road == null || alignment == null || alignment.isEmpty()) {
+            return changed;
+        }
         OptionalDouble bearing = bearingAtChainStart(network, road);
         if (bearing.isPresent()
                 && !anglesEqual(alignment.getStartBearingRadians(), bearing.getAsDouble())) {
             alignment.setStartBearingRadians(bearing.getAsDouble());
-            changed = true;
+            return true;
         }
         return changed;
     }

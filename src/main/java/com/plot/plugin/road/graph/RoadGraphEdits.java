@@ -426,17 +426,6 @@ public final class RoadGraphEdits {
         network.detachEdge(child.getId());
     }
 
-    private static void snapPartEndpointToNode(List<Vec2d> part, boolean atStart, Vec2d nodePos) {
-        if (part == null || part.size() < 2 || nodePos == null) {
-            return;
-        }
-        if (atStart) {
-            part.set(0, nodePos.copy());
-        } else {
-            part.set(part.size() - 1, nodePos.copy());
-        }
-    }
-
     public static List<RoadEdge.SlopeOverride> splitSlopeOverrides(
             List<RoadEdge.SlopeOverride> overrides,
             double splitDistance,

@@ -2,6 +2,7 @@ package com.plot.plugin.road.alignment;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
@@ -46,7 +47,9 @@ public final class HorizontalAlignmentTopologyValidator {
         }
 
         RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
-        List<OrientedRoadSegment> segments = RoadStationing.orientedSegments(network, road);
+        // Physical nodes only — use unrotated physical chain, not seam-split virtual boundaries.
+        List<OrientedRoadSegment> segments =
+            RoadStationing.physicalEdgeSegmentsForMaterialization(network, road);
         if (segments.isEmpty()) {
             return List.of();
         }
@@ -54,13 +57,15 @@ public final class HorizontalAlignmentTopologyValidator {
         List<HorizontalAlignmentViolation> violations = new ArrayList<>();
         Set<String> checkedNodes = new HashSet<>();
 
+        // Resolve each physical node via oriented (seam-rotated) stationAtNode → canonical,
+        // never via unrotated physical startStation values (those are a different domain on LOOP).
         OrientedRoadSegment first = segments.getFirst();
         checkBoundaryNode(
             network,
             road,
             alignment,
             first.entryNodeId(),
-            RoadStationing.toCanonicalChainage(network, road, first.startStation()),
+            canonicalStationAtNode(network, road, first.edgeId(), first.entryNodeId()),
             toleranceMeters,
             checkedNodes,
             violations);
@@ -71,13 +76,40 @@ public final class HorizontalAlignmentTopologyValidator {
                 road,
                 alignment,
                 segment.exitNodeId(),
-                RoadStationing.toCanonicalChainage(network, road, segment.endStation()),
+                canonicalStationAtNode(network, road, segment.edgeId(), segment.exitNodeId()),
                 toleranceMeters,
                 checkedNodes,
                 violations);
         }
 
         return List.copyOf(violations);
+    }
+
+    private static double canonicalStationAtNode(
+            RoadNetwork network,
+            Road road,
+            String edgeId,
+            String nodeId) {
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge != null) {
+            // Prefer slice-aware lookup: seam-split edges expose multiple oriented spans.
+            for (OrientedRoadSegment slice :
+                    RoadStationing.orientedSegmentsForEdge(network, road, edgeId)) {
+                var local = slice.roadStationAtNode(nodeId);
+                if (local.isPresent()) {
+                    return RoadStationing.toCanonicalChainage(network, road, local.getAsDouble());
+                }
+            }
+            var viaEdge = RoadStationing.stationAtNode(network, road, edge, nodeId);
+            if (viaEdge.isPresent()) {
+                return viaEdge.getAsDouble();
+            }
+        }
+        RoadNode node = network.getNode(nodeId);
+        if (node == null || node.getPosition() == null) {
+            return Double.NaN;
+        }
+        return RoadStationing.chainageAtPosition(network, road, node.getPosition()).orElse(Double.NaN);
     }
 
     private static void checkBoundaryNode(
@@ -98,7 +130,26 @@ public final class HorizontalAlignmentTopologyValidator {
             return;
         }
 
-        Optional<AlignmentPose> pose = HorizontalAlignmentGeometry.poseAt(alignment, canonicalChainage);
+        if (!Double.isFinite(canonicalChainage)) {
+            violations.add(new HorizontalAlignmentViolation(
+                road.getId(),
+                HorizontalAlignmentViolationKind.ALIGNMENT_TOPOLOGY_MISMATCH,
+                nodeId,
+                canonicalChainage,
+                Double.POSITIVE_INFINITY));
+            return;
+        }
+        double nativeStation = RoadPlanGeometry.haNativeStation(network, road, canonicalChainage);
+        if (!Double.isFinite(nativeStation)) {
+            violations.add(new HorizontalAlignmentViolation(
+                road.getId(),
+                HorizontalAlignmentViolationKind.ALIGNMENT_TOPOLOGY_MISMATCH,
+                nodeId,
+                canonicalChainage,
+                Double.POSITIVE_INFINITY));
+            return;
+        }
+        Optional<AlignmentPose> pose = HorizontalAlignmentGeometry.poseAt(alignment, nativeStation);
         if (pose.isEmpty()) {
             violations.add(new HorizontalAlignmentViolation(
                 road.getId(),

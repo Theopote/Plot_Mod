@@ -95,10 +95,17 @@ public final class HorizontalAlignmentCenterlineConsistency {
         double deviationSum = 0.0;
         int sampleCount = 0;
 
-        for (double chainage = 0.0; chainage <= roadLength + 1e-6; chainage += spacing) {
-            double clamped = Math.min(chainage, roadLength);
-            Optional<Vec2d> centerlinePoint = RoadPlanGeometry.instancePointAtStation(network, road, clamped);
-            Optional<AlignmentPose> designPose = HorizontalAlignmentGeometry.poseAt(alignment, clamped);
+        // Compare in the same physical frame: instance at instance chainage vs HA at matching native station.
+        for (double instanceChainage = 0.0; instanceChainage <= roadLength + 1e-6; instanceChainage += spacing) {
+            double clampedInstance = Math.min(instanceChainage, roadLength);
+            Optional<Vec2d> centerlinePoint =
+                RoadPlanGeometry.instancePointAtStation(network, road, clampedInstance);
+            double canonical = RoadStationing.toCanonicalChainage(network, road, clampedInstance);
+            if (!Double.isFinite(canonical)) {
+                canonical = clampedInstance;
+            }
+            double nativeStation = RoadPlanGeometry.haNativeStation(network, road, canonical);
+            Optional<AlignmentPose> designPose = HorizontalAlignmentGeometry.poseAt(alignment, nativeStation);
             if (centerlinePoint.isEmpty() || designPose.isEmpty()) {
                 continue;
             }
@@ -106,6 +113,19 @@ public final class HorizontalAlignmentCenterlineConsistency {
             maxDeviation = Math.max(maxDeviation, deviation);
             deviationSum += deviation;
             sampleCount++;
+        }
+        // Exact endpoint
+        Optional<Vec2d> endPoint = RoadPlanGeometry.instancePointAtStation(network, road, roadLength);
+        double endCanonical = RoadStationing.toCanonicalChainage(network, road, roadLength);
+        if (Double.isFinite(endCanonical)) {
+            Optional<AlignmentPose> endPose = HorizontalAlignmentGeometry.poseAt(
+                alignment, RoadPlanGeometry.haNativeStation(network, road, endCanonical));
+            if (endPoint.isPresent() && endPose.isPresent()) {
+                double deviation = endPoint.get().distance(new Vec2d(endPose.get().x(), endPose.get().y()));
+                maxDeviation = Math.max(maxDeviation, deviation);
+                deviationSum += deviation;
+                sampleCount++;
+            }
         }
 
         double meanDeviation = sampleCount > 0 ? deviationSum / sampleCount : 0.0;
