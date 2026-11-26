@@ -37,7 +37,9 @@ public final class HorizontalAlignmentChainOriginAligner {
         }
 
         Optional<Vec2d> chainOrigin = RoadStationing.chainOrigin(network, road);
-        Optional<Vec2d> centerlineStart = RoadPlanGeometry.instancePointAtStation(network, road, 0.0);
+        // Instance domain: chainage 0 on the oriented polyline (not canonical→instance map).
+        Optional<Vec2d> centerlineStart =
+            RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 0.0);
         if (chainOrigin.isEmpty() || centerlineStart.isEmpty()) {
             return false;
         }

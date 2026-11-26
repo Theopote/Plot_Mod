@@ -434,9 +434,16 @@ public final class RoadStationing {
                 for (int j = 0; j < i; j++) {
                     geometryLocal += points.get(j).distance(points.get(j + 1));
                 }
+                if (!segment.containsGeometryLocal(geometryLocal)) {
+                    continue;
+                }
                 bestDistance = distance;
                 double instanceChainage = segment.roadStationAtGeometryLocal(geometryLocal);
-                bestChainage = toCanonicalChainage(network, road, instanceChainage);
+                double canonical = toCanonicalChainage(network, road, instanceChainage);
+                if (!Double.isFinite(canonical)) {
+                    continue;
+                }
+                bestChainage = canonical;
             }
         }
         return bestChainage != null ? OptionalDouble.of(bestChainage) : OptionalDouble.empty();
@@ -475,7 +482,7 @@ public final class RoadStationing {
         }
         double instanceChainage = oriented.roadStationAtGeometryLocal(geometryLocalDistance);
         double chainage = toCanonicalChainage(network, road, instanceChainage);
-        if (!isValid(network, new RoadStation(road.getId(), chainage))) {
+        if (!Double.isFinite(chainage) || !isValid(network, new RoadStation(road.getId(), chainage))) {
             return Optional.empty();
         }
         return Optional.of(new RoadStation(road.getId(), chainage));
@@ -588,15 +595,7 @@ public final class RoadStationing {
         }
         StationDomainMap map = domainMap(network, road);
         if (map == null || !map.isReliable()) {
-            double canonicalTotal = canonicalLength(network, road);
-            double instanceTotal = instanceLength(network, road);
-            if (canonicalTotal <= STATION_EPSILON || instanceTotal <= STATION_EPSILON) {
-                return Double.NaN;
-            }
-            if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
-                return canonicalChainage;
-            }
-            // Unreliable map: refuse whole-road ratio guessing for divergent lengths.
+            // Unreliable map: never guess via whole-road ratio or equal-length identity.
             return Double.NaN;
         }
         return map.toInstance(canonicalChainage);
@@ -612,14 +611,6 @@ public final class RoadStationing {
         }
         StationDomainMap map = domainMap(network, road);
         if (map == null || !map.isReliable()) {
-            double canonicalTotal = canonicalLength(network, road);
-            double instanceTotal = instanceLength(network, road);
-            if (instanceTotal <= STATION_EPSILON || canonicalTotal <= STATION_EPSILON) {
-                return Double.NaN;
-            }
-            if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
-                return instanceChainage;
-            }
             return Double.NaN;
         }
         return map.toCanonical(instanceChainage);

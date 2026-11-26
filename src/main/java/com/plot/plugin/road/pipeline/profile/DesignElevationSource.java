@@ -25,6 +25,8 @@ public record DesignElevationSource(
         RoadNetwork network,
         Road road) {
 
+    private static final int UNRESOLVED_ELEVATION = 0;
+
     public DesignElevationSource(
             RoadVerticalAlignment alignment,
             OrientedRoadSegment oriented,
@@ -103,8 +105,7 @@ public record DesignElevationSource(
         if (slices.isEmpty()) {
             return inactive();
         }
-        // Prefer the primary physical span; callers with mid-edge seam use elevationAtLocalDistance
-        // which re-resolves the slice via geometry local.
+        // Bind primary slice for legacy accessors; queries re-resolve via full-edge geometryLocal.
         OrientedRoadSegment segment = slices.getFirst();
         return new DesignElevationSource(
             road.getVerticalAlignment(),
@@ -127,51 +128,27 @@ public record DesignElevationSource(
         return oriented.forward();
     }
 
-    /** Maps edge-local canvas distance → canonical station for VA lookup. */
+    /**
+     * Maps edge-local canvas distance → canonical station for VA lookup.
+     * Uses the full physical Edge length for geometryLocal scaling (never a seam slice length).
+     * Returns {@link Double#NaN} when canonical resolution fails — never falls back to instance.
+     */
     public double mapLocalToChainage(double localCanvasDistance) {
-        if (network != null && road != null && oriented != null) {
-            OrientedRoadSegment slice = resolveSliceForLocal(localCanvasDistance);
-            double instanceStation = EdgeChainageMapper.toInstanceChainage(
-                slice != null ? slice : oriented, localCanvasDistance, sampledPathLength);
-            double canonical = RoadStationing.toCanonicalChainage(network, road, instanceStation);
-            return Double.isFinite(canonical) ? canonical : instanceStation;
-        }
-        return EdgeChainageMapper.toInstanceChainage(
-            oriented, localCanvasDistance, sampledPathLength);
-    }
-
-    private OrientedRoadSegment resolveSliceForLocal(double localCanvasDistance) {
         if (network == null || road == null || oriented == null || oriented.edgeId() == null) {
-            return oriented;
+            return EdgeChainageMapper.toInstanceChainage(
+                oriented, localCanvasDistance, sampledPathLength);
         }
-        List<OrientedRoadSegment> slices =
-            RoadStationing.orientedSegmentsForEdge(network, road, oriented.edgeId());
-        if (slices.isEmpty()) {
-            return oriented;
+        RoadEdge edge = network.getEdge(oriented.edgeId());
+        if (edge == null) {
+            return Double.NaN;
         }
-        if (slices.size() == 1) {
-            return slices.getFirst();
+        double geometryLocal = geometryLocalOnPhysicalEdge(localCanvasDistance, edge.getLength());
+        OrientedRoadSegment slice = sliceContaining(geometryLocal);
+        if (slice == null) {
+            return Double.NaN;
         }
-        double geometryLocal = localCanvasDistance;
-        if (sampledPathLength > 1e-9 && oriented.length() > 1e-9) {
-            geometryLocal = localCanvasDistance / sampledPathLength * oriented.length();
-        }
-        // When forEdge bound the primary span, convert canvas distance relative to that span's
-        // geometry range for multi-slice lookup using absolute geometry-local coords.
-        if (oriented.geometryChainStart() > 1e-9 || oriented.geometryChainEnd() < oriented.length() - 1e-9) {
-            // localCanvasDistance is already relative to full sampled path of the edge generation;
-            // prefer absolute geometry local derived from the owning edge length when available.
-            RoadEdge edge = network.getEdge(oriented.edgeId());
-            if (edge != null && sampledPathLength > 1e-9 && edge.getLength() > 1e-9) {
-                geometryLocal = localCanvasDistance / sampledPathLength * edge.getLength();
-            }
-        }
-        for (OrientedRoadSegment slice : slices) {
-            if (slice.containsGeometryLocal(geometryLocal)) {
-                return slice;
-            }
-        }
-        return oriented;
+        double instanceStation = slice.roadStationAtGeometryLocal(geometryLocal);
+        return RoadStationing.toCanonicalChainage(network, road, instanceStation);
     }
 
     public int elevationAtChainage(double chainageMeters) {
@@ -179,21 +156,32 @@ public record DesignElevationSource(
     }
 
     public int elevationAtLocalDistance(double localCanvasDistance) {
-        if (network != null && road != null && oriented != null && oriented.edgeId() != null) {
-            double geometryLocal = localCanvasDistance;
-            if (sampledPathLength > 1e-9 && oriented.length() > 1e-9) {
-                geometryLocal = localCanvasDistance / sampledPathLength * oriented.length();
-            }
-            for (OrientedRoadSegment slice :
-                    RoadStationing.orientedSegmentsForEdge(network, road, oriented.edgeId())) {
-                if (slice.containsGeometryLocal(geometryLocal)) {
-                    double instanceStation = slice.roadStationAtGeometryLocal(geometryLocal);
-                    double canonical = RoadStationing.toCanonicalChainage(network, road, instanceStation);
-                    return elevationAtChainage(Double.isFinite(canonical) ? canonical : instanceStation);
-                }
+        double canonical = mapLocalToChainage(localCanvasDistance);
+        if (!Double.isFinite(canonical)) {
+            return UNRESOLVED_ELEVATION;
+        }
+        return elevationAtChainage(canonical);
+    }
+
+    private double geometryLocalOnPhysicalEdge(double localCanvasDistance, double physicalEdgeLength) {
+        if (sampledPathLength > 1e-9 && physicalEdgeLength > 1e-9) {
+            return localCanvasDistance / sampledPathLength * physicalEdgeLength;
+        }
+        return localCanvasDistance;
+    }
+
+    private OrientedRoadSegment sliceContaining(double geometryLocal) {
+        List<OrientedRoadSegment> slices =
+            RoadStationing.orientedSegmentsForEdge(network, road, oriented.edgeId());
+        if (slices.isEmpty()) {
+            return null;
+        }
+        for (OrientedRoadSegment slice : slices) {
+            if (slice.containsGeometryLocal(geometryLocal)) {
+                return slice;
             }
         }
-        return elevationAtChainage(mapLocalToChainage(localCanvasDistance));
+        return slices.size() == 1 ? slices.getFirst() : null;
     }
 
     /**

@@ -97,7 +97,11 @@ public final class HorizontalAlignmentTopologyValidator {
                     RoadStationing.orientedSegmentsForEdge(network, road, edgeId)) {
                 var local = slice.roadStationAtNode(nodeId);
                 if (local.isPresent()) {
-                    return RoadStationing.toCanonicalChainage(network, road, local.getAsDouble());
+                    double canonical = RoadStationing.toCanonicalChainage(
+                        network, road, local.getAsDouble());
+                    // When the domain map is unavailable, report instance station for diagnostics
+                    // (pose comparison still uses haNativeStation on that value).
+                    return Double.isFinite(canonical) ? canonical : local.getAsDouble();
                 }
             }
             var viaEdge = RoadStationing.stationAtNode(network, road, edge, nodeId);

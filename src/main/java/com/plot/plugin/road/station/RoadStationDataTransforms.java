@@ -81,7 +81,8 @@ public final class RoadStationDataTransforms {
         HorizontalAlignmentPolylineFitter.fit(network, road).ifPresentOrElse(
             fitted -> {
                 road.setHorizontalAlignment(fitted);
-                HorizontalAlignmentChainOriginAligner.alignToChainStart(network, road);
+                // Explicit user/refit path may sync origin and bearing to the new chain.
+                HorizontalAlignmentChainOriginAligner.alignOriginAndBearingToChainStart(network, road);
             },
             () -> road.setHorizontalAlignment(null));
     }

@@ -75,7 +75,7 @@ class HorizontalAlignmentChainOriginAlignerTest {
     }
 
     @Test
-    void materializeAlignsOriginToChainStart() {
+    void materializeDoesNotRewriteAuthoritativeHaOrigin() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
@@ -89,9 +89,8 @@ class HorizontalAlignmentChainOriginAlignerTest {
 
         HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
 
-        Vec2d chainOrigin = RoadStationing.chainOrigin(network, road).orElseThrow();
-        assertEquals(chainOrigin.x, road.getHorizontalAlignment().getOrigin().x, 1e-6);
-        assertEquals(chainOrigin.y, road.getHorizontalAlignment().getOrigin().y, 1e-6);
-        assertTrue(HorizontalAlignmentCenterlineConsistency.evaluate(network, road).isConsistent());
+        assertEquals(0.0, road.getHorizontalAlignment().getOrigin().x, 1e-6);
+        assertEquals(5.0, road.getHorizontalAlignment().getOrigin().y, 1e-6);
+        assertEquals(0.0, road.getHorizontalAlignment().getStartBearingRadians(), 1e-6);
     }
 }

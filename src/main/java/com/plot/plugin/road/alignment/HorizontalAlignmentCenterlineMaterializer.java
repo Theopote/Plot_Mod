@@ -156,7 +156,7 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             }
         }
 
-        HorizontalAlignmentChainOriginAligner.alignToChainStart(network, road);
+        // Derived geometry refresh must not rewrite authoritative HA origin/bearing/elements.
         return materializeSuccess(plan.skippedNodeUpdates());
     }
 
@@ -301,6 +301,11 @@ public final class HorizontalAlignmentCenterlineMaterializer {
         return entry ? geometryPoints.getLast() : geometryPoints.getFirst();
     }
 
+    /**
+     * Physical-edge HA sampling in <strong>HA native</strong> domain.
+     * {@code oriented} must come from {@link RoadStationing#physicalEdgeSegmentsForMaterialization}
+     * (unrotated). Do not convert through seam-rotated {@code toCanonicalChainage}.
+     */
     static List<PlanCenterlineSample> samplePlanCenterline(
             RoadNetwork network,
             Road road,
@@ -311,14 +316,21 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             return List.of();
         }
         double spacingClamped = spacing > MIN_POINT_SPACING ? spacing : DEFAULT_SAMPLE_SPACING_METERS;
-        double startCanonical = RoadStationing.toCanonicalChainage(network, road, oriented.startStation());
-        double endCanonical = RoadStationing.toCanonicalChainage(network, road, oriented.endStation());
-        List<PlanCenterlineSample> alongChain = new ArrayList<>();
-        for (double chainage = startCanonical; chainage <= endCanonical + 1e-6; chainage += spacingClamped) {
-            double clamped = Math.min(chainage, endCanonical);
-            appendSampleIfDistinct(alongChain, alignment, clamped);
+        // Physical unrotated instance stations align with HA native for materialization.
+        double designLen = HorizontalAlignmentGeometry.totalLength(alignment);
+        double startNative = Math.min(oriented.startStation(), oriented.endStation());
+        double endNative = Math.max(oriented.startStation(), oriented.endStation());
+        startNative = Math.max(0.0, Math.min(startNative, designLen));
+        endNative = Math.max(0.0, Math.min(endNative, designLen));
+        if (endNative < startNative + MIN_POINT_SPACING) {
+            return List.of();
         }
-        appendSampleIfDistinct(alongChain, alignment, endCanonical);
+        List<PlanCenterlineSample> alongChain = new ArrayList<>();
+        for (double nativeStation = startNative; nativeStation <= endNative + 1e-6; nativeStation += spacingClamped) {
+            double clamped = Math.min(nativeStation, endNative);
+            appendNativeSampleIfDistinct(alongChain, alignment, clamped);
+        }
+        appendNativeSampleIfDistinct(alongChain, alignment, endNative);
         if (alongChain.isEmpty()) {
             return List.of();
         }
@@ -328,15 +340,15 @@ public final class HorizontalAlignmentCenterlineMaterializer {
         return List.copyOf(alongChain);
     }
 
-    private static void appendSampleIfDistinct(
+    private static void appendNativeSampleIfDistinct(
             List<PlanCenterlineSample> alongChain,
             RoadHorizontalAlignment alignment,
-            double canonicalStation) {
-        HorizontalAlignmentGeometry.poseAt(alignment, canonicalStation).ifPresent(pose -> {
+            double nativeStation) {
+        HorizontalAlignmentGeometry.poseAt(alignment, nativeStation).ifPresent(pose -> {
             Vec2d point = new Vec2d(pose.x(), pose.y());
             if (alongChain.isEmpty()
                     || alongChain.getLast().position().distance(point) > MIN_POINT_SPACING) {
-                alongChain.add(new PlanCenterlineSample(point, canonicalStation));
+                alongChain.add(PlanCenterlineSample.haNative(point, nativeStation));
             }
         });
     }

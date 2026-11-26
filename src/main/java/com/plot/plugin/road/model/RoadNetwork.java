@@ -600,15 +600,16 @@ public class RoadNetwork {
         // LOOP opened by logical split → demote open fragments; closed rings stay LOOP.
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, road);
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, newRoad);
+        // Final direction + HA domain first, then migrate crossings into that domain.
+        if (refitHa) {
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
+        }
         var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
             this, crossingCapture);
         if (apply.isPending()) {
             crossingMigrationFailure = true;
             return null;
-        }
-        if (refitHa) {
-            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
-            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
         }
         return newRoad.getId();
     }
@@ -686,7 +687,7 @@ public class RoadNetwork {
         var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
             this, Set.of(headRoadId, tailRoadId));
 
-        // Station-data merge without HA refit → edge join → topology mode → crossings → HA last.
+        // Station-data merge → edge join → topology → HA final domain → crossings.
         boolean refitHa;
         List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
         if (appendTail) {
@@ -709,14 +710,14 @@ public class RoadNetwork {
         if (!RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head)) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, head);
         }
+        if (refitHa) {
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
+        }
         var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
             this, crossingCapture);
         if (apply.isPending()) {
             crossingMigrationFailure = true;
             return null;
-        }
-        if (refitHa) {
-            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
         }
         return headRoadId;
     }

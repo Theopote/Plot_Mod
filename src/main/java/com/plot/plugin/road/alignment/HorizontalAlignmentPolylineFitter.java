@@ -48,7 +48,7 @@ public final class HorizontalAlignmentPolylineFitter {
         return fitPrimitives(chainPoints);
     }
 
-    static List<Vec2d> collectChainPoints(RoadNetwork network, Road road) {
+    public static List<Vec2d> collectChainPoints(RoadNetwork network, Road road) {
         List<Vec2d> points = new ArrayList<>();
         // Physical HA fit: unrotated chain, each Edge once — never re-read a seam-split Edge whole.
         for (OrientedRoadSegment oriented :
@@ -89,7 +89,7 @@ public final class HorizontalAlignmentPolylineFitter {
         }
     }
 
-    static boolean isColinear(List<Vec2d> points, double toleranceRadians) {
+    public static boolean isColinear(List<Vec2d> points, double toleranceRadians) {
         if (points.size() <= 2) {
             return true;
         }

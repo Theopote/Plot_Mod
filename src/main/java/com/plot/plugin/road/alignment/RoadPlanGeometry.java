@@ -116,16 +116,58 @@ public final class RoadPlanGeometry {
         return instanceBearingAtStation(network, road, chainageMeters);
     }
 
+    /**
+     * Point on the instance polyline at a <strong>canonical</strong> station
+     * (converts via domain map; falls back to instance-domain lookup only when the
+     * numeric domains are equal-length and the map is unavailable).
+     */
     public static Optional<Vec2d> instancePointAtStation(
             RoadNetwork network,
             Road road,
             double chainageMeters) {
-        return RoadStationing.edgeLocalDistanceAtRoadStation(network, road, chainageMeters)
-            .flatMap(segment -> instancePointAtEdgeLocal(
-                network,
-                road,
-                segment.segmentId(),
-                segment.localDistance()));
+        double instance = RoadStationing.toInstanceChainage(network, road, chainageMeters);
+        if (!Double.isFinite(instance)) {
+            double canonicalTotal = canonicalLength(network, road);
+            double instanceTotal = instanceLength(network, road);
+            if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
+                instance = chainageMeters;
+            } else {
+                return Optional.empty();
+            }
+        }
+        return instancePointAtInstanceChainage(network, road, instance);
+    }
+
+    /**
+     * Point on the instance polyline at an <strong>instance</strong> chainage
+     * (OrientedRoadSegment arc length — no domain-map conversion).
+     */
+    public static Optional<Vec2d> instancePointAtInstanceChainage(
+            RoadNetwork network,
+            Road road,
+            double instanceChainage) {
+        if (network == null || road == null || !Double.isFinite(instanceChainage)) {
+            return Optional.empty();
+        }
+        List<OrientedRoadSegment> segments = RoadStationing.orientedSegments(network, road);
+        for (int i = 0; i < segments.size(); i++) {
+            OrientedRoadSegment segment = segments.get(i);
+            boolean last = i == segments.size() - 1;
+            if (instanceChainage < segment.startStation() - STATION_EPSILON) {
+                continue;
+            }
+            if (!last && instanceChainage >= segment.endStation() - STATION_EPSILON) {
+                continue;
+            }
+            if (last && instanceChainage > segment.endStation() + STATION_EPSILON) {
+                continue;
+            }
+            double chainLocal = Math.max(0.0, Math.min(
+                instanceChainage - segment.startStation(), segment.length()));
+            double geometryLocal = segment.geometryLocalFromChainLocal(chainLocal);
+            return instancePointAtEdgeLocal(network, road, segment.edgeId(), geometryLocal);
+        }
+        return Optional.empty();
     }
 
     public static Optional<Vec2d> instancePointAtEdgeLocal(
@@ -239,7 +281,11 @@ public final class RoadPlanGeometry {
         return samplePhysicalInstanceEdge(edge, sampleSpacingMeters);
     }
 
-    /** Instance-polyline samples along one physical Edge (exact start/end, no seam join). */
+    /**
+     * Instance-polyline samples along one physical Edge.
+     * Station field stores <strong>geometryLocal</strong> (not canonical).
+     * Includes exact start/end and original polyline vertices.
+     */
     private static List<PlanCenterlineSample> samplePhysicalInstanceEdge(
             RoadEdge edge,
             double sampleSpacingMeters) {
@@ -254,21 +300,37 @@ public final class RoadPlanGeometry {
         double spacing = sampleSpacingMeters > STATION_EPSILON
             ? sampleSpacingMeters
             : HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS;
-        List<PlanCenterlineSample> samples = new ArrayList<>();
-        Vec2d start = points.getFirst();
-        samples.add(new PlanCenterlineSample(start.copy(), 0.0));
-        for (double d = spacing; d < length - STATION_EPSILON; d += spacing) {
-            Vec2d point = RoadGeometryUtils.pointAtDistance(points, d);
-            if (point != null
-                    && samples.getLast().position().distance(point) > STATION_EPSILON) {
-                samples.add(new PlanCenterlineSample(point, d));
+        List<Double> stations = new ArrayList<>();
+        stations.add(0.0);
+        double walked = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            walked += points.get(i).distance(points.get(i + 1));
+            if (walked > STATION_EPSILON && walked < length - STATION_EPSILON) {
+                stations.add(walked);
             }
         }
-        Vec2d end = points.getLast();
-        if (samples.getLast().position().distance(end) > STATION_EPSILON) {
-            samples.add(new PlanCenterlineSample(end.copy(), length));
-        } else {
-            samples.set(samples.size() - 1, new PlanCenterlineSample(end.copy(), length));
+        for (double d = spacing; d < length - STATION_EPSILON; d += spacing) {
+            stations.add(d);
+        }
+        stations.add(length);
+        stations.sort(Double::compareTo);
+
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        for (double d : stations) {
+            Vec2d point = RoadGeometryUtils.pointAtDistance(points, d);
+            if (point == null) {
+                continue;
+            }
+            if (samples.isEmpty()
+                    || samples.getLast().position().distance(point) > STATION_EPSILON
+                    || Math.abs(samples.getLast().canonicalStation() - d) > STATION_EPSILON) {
+                if (!samples.isEmpty()
+                        && samples.getLast().position().distance(point) <= STATION_EPSILON) {
+                    samples.set(samples.size() - 1, PlanCenterlineSample.geometryLocal(point.copy(), d));
+                } else {
+                    samples.add(PlanCenterlineSample.geometryLocal(point.copy(), d));
+                }
+            }
         }
         return List.copyOf(samples);
     }
@@ -346,20 +408,44 @@ public final class RoadPlanGeometry {
         double start = RoadStationing.toCanonicalChainage(network, road, slice.startStation());
         double end = RoadStationing.toCanonicalChainage(network, road, slice.endStation());
         if (!Double.isFinite(start) || !Double.isFinite(end)) {
-            start = slice.startStation();
-            end = slice.endStation();
+            // Do not mix instance into canonical — fail closed with empty samples.
+            return List.of();
         }
         if (end < start) {
             double tmp = start;
             start = end;
             end = tmp;
         }
-        List<PlanCenterlineSample> samples = new ArrayList<>();
-        appendRoadSampleIfDistinct(network, road, samples, start);
+        List<Double> stations = new ArrayList<>();
+        stations.add(start);
         for (double chainage = start + spacing; chainage < end - STATION_EPSILON; chainage += spacing) {
+            stations.add(chainage);
+        }
+        stations.add(end);
+        // Insert instance polyline vertices that fall inside this slice (shape fidelity).
+        RoadEdge edge = network.getEdge(slice.edgeId());
+        if (edge != null && edge.getCenterlinePoints() != null) {
+            double walked = 0.0;
+            List<Vec2d> points = edge.getCenterlinePoints();
+            for (int i = 0; i < points.size() - 1; i++) {
+                walked += points.get(i).distance(points.get(i + 1));
+                if (!slice.containsGeometryLocal(walked)) {
+                    continue;
+                }
+                double instanceStation = slice.roadStationAtGeometryLocal(walked);
+                double canonical = RoadStationing.toCanonicalChainage(network, road, instanceStation);
+                if (Double.isFinite(canonical)
+                        && canonical > start + STATION_EPSILON
+                        && canonical < end - STATION_EPSILON) {
+                    stations.add(canonical);
+                }
+            }
+        }
+        stations.sort(Double::compareTo);
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        for (double chainage : stations) {
             appendRoadSampleIfDistinct(network, road, samples, chainage);
         }
-        appendRoadSampleIfDistinct(network, road, samples, end);
         if (!slice.forward() && samples.size() > 1) {
             Collections.reverse(samples);
         }

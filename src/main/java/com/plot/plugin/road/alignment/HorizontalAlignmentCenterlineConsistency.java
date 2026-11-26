@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.station.StationDomainMap;
 
 import java.util.Optional;
 
@@ -11,6 +12,7 @@ import java.util.Optional;
  * 比较设计平面线形与 {@link com.plot.plugin.road.model.RoadEdge} 折线中心线的一致性。
  * <p>
  * 沿道路桩号同步采样，度量横向偏差；用于发现「双几何真相」而不静默选边。
+ * Compares {@code P_instance(s_i)} with {@code P_HA(M(s_i))} for the same physical pass.
  */
 public final class HorizontalAlignmentCenterlineConsistency {
 
@@ -64,8 +66,14 @@ public final class HorizontalAlignmentCenterlineConsistency {
             RoadNetwork network,
             Road road,
             double lengthToleranceMeters) {
-        Report report = evaluate(network, road, DEFAULT_SAMPLE_SPACING_METERS, lengthToleranceMeters);
-        return report.evaluable() && report.lengthMatches();
+        // Materialization eligibility is length-domain only; StationDomainMap reliability
+        // is required for consistency reporting, not for writing derived centerlines.
+        if (!isEvaluable(network, road)) {
+            return false;
+        }
+        double roadLength = RoadPlanGeometry.instanceLength(network, road);
+        double alignmentLength = RoadPlanGeometry.designLength(network, road);
+        return Math.abs(alignmentLength - roadLength) <= lengthToleranceMeters;
     }
 
     public static Report evaluate(RoadNetwork network, Road road) {
@@ -86,6 +94,13 @@ public final class HorizontalAlignmentCenterlineConsistency {
         double alignmentLength = RoadPlanGeometry.designLength(network, road);
         boolean lengthMatches = Math.abs(alignmentLength - roadLength) <= lengthToleranceMeters;
 
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        if (map == null || !map.isReliable()) {
+            return new Report(
+                false, roadLength, alignmentLength, lengthMatches,
+                Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, 0.0, 0);
+        }
+
         double originDeviation = RoadStationing.chainOrigin(network, road)
             .map(origin -> origin.distance(alignment.getOrigin()))
             .orElse(Double.POSITIVE_INFINITY);
@@ -94,41 +109,39 @@ public final class HorizontalAlignmentCenterlineConsistency {
         double maxDeviation = 0.0;
         double deviationSum = 0.0;
         int sampleCount = 0;
+        int failedSamples = 0;
+        int attempted = 0;
 
-        // Compare in the same physical frame: instance at instance chainage vs HA at matching native station.
         for (double instanceChainage = 0.0; instanceChainage <= roadLength + 1e-6; instanceChainage += spacing) {
             double clampedInstance = Math.min(instanceChainage, roadLength);
-            Optional<Vec2d> centerlinePoint =
-                RoadPlanGeometry.instancePointAtStation(network, road, clampedInstance);
-            double canonical = RoadStationing.toCanonicalChainage(network, road, clampedInstance);
-            if (!Double.isFinite(canonical)) {
-                canonical = clampedInstance;
-            }
-            double nativeStation = RoadPlanGeometry.haNativeStation(network, road, canonical);
-            Optional<AlignmentPose> designPose = HorizontalAlignmentGeometry.poseAt(alignment, nativeStation);
-            if (centerlinePoint.isEmpty() || designPose.isEmpty()) {
-                continue;
-            }
-            double deviation = centerlinePoint.get().distance(new Vec2d(designPose.get().x(), designPose.get().y()));
-            maxDeviation = Math.max(maxDeviation, deviation);
-            deviationSum += deviation;
-            sampleCount++;
-        }
-        // Exact endpoint
-        Optional<Vec2d> endPoint = RoadPlanGeometry.instancePointAtStation(network, road, roadLength);
-        double endCanonical = RoadStationing.toCanonicalChainage(network, road, roadLength);
-        if (Double.isFinite(endCanonical)) {
-            Optional<AlignmentPose> endPose = HorizontalAlignmentGeometry.poseAt(
-                alignment, RoadPlanGeometry.haNativeStation(network, road, endCanonical));
-            if (endPoint.isPresent() && endPose.isPresent()) {
-                double deviation = endPoint.get().distance(new Vec2d(endPose.get().x(), endPose.get().y()));
-                maxDeviation = Math.max(maxDeviation, deviation);
-                deviationSum += deviation;
+            attempted++;
+            SampleOutcome outcome = samplePair(network, road, alignment, map, clampedInstance);
+            if (outcome.ok()) {
+                maxDeviation = Math.max(maxDeviation, outcome.deviation());
+                deviationSum += outcome.deviation();
                 sampleCount++;
+            } else {
+                failedSamples++;
             }
         }
 
-        double meanDeviation = sampleCount > 0 ? deviationSum / sampleCount : 0.0;
+        attempted++;
+        SampleOutcome endOutcome = samplePair(network, road, alignment, map, roadLength);
+        if (endOutcome.ok()) {
+            maxDeviation = Math.max(maxDeviation, endOutcome.deviation());
+            deviationSum += endOutcome.deviation();
+            sampleCount++;
+        } else {
+            failedSamples++;
+        }
+
+        // Query failures must surface — do not treat missing samples as zero deviation.
+        if (sampleCount == 0 || failedSamples * 2 >= attempted) {
+            return new Report(
+                false, roadLength, alignmentLength, lengthMatches,
+                originDeviation, Double.POSITIVE_INFINITY, 0.0, sampleCount);
+        }
+
         return new Report(
             true,
             roadLength,
@@ -136,7 +149,42 @@ public final class HorizontalAlignmentCenterlineConsistency {
             lengthMatches,
             originDeviation,
             maxDeviation,
-            meanDeviation,
+            deviationSum / sampleCount,
             sampleCount);
+    }
+
+    private static SampleOutcome samplePair(
+            RoadNetwork network,
+            Road road,
+            RoadHorizontalAlignment alignment,
+            StationDomainMap map,
+            double instanceChainage) {
+        Optional<Vec2d> centerlinePoint =
+            RoadPlanGeometry.instancePointAtInstanceChainage(network, road, instanceChainage);
+        double canonical = map.toCanonical(instanceChainage);
+        if (!Double.isFinite(canonical) || centerlinePoint.isEmpty()) {
+            return SampleOutcome.fail();
+        }
+        double nativeStation = RoadPlanGeometry.haNativeStation(network, road, canonical);
+        if (!Double.isFinite(nativeStation)) {
+            return SampleOutcome.fail();
+        }
+        Optional<AlignmentPose> designPose = HorizontalAlignmentGeometry.poseAt(alignment, nativeStation);
+        if (designPose.isEmpty()) {
+            return SampleOutcome.fail();
+        }
+        double deviation = centerlinePoint.get().distance(
+            new Vec2d(designPose.get().x(), designPose.get().y()));
+        return SampleOutcome.ok(deviation);
+    }
+
+    private record SampleOutcome(boolean ok, double deviation) {
+        static SampleOutcome ok(double deviation) {
+            return new SampleOutcome(true, deviation);
+        }
+
+        static SampleOutcome fail() {
+            return new SampleOutcome(false, Double.POSITIVE_INFINITY);
+        }
     }
 }
