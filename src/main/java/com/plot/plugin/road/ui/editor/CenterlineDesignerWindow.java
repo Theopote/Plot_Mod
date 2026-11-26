@@ -198,6 +198,12 @@ public final class CenterlineDesignerWindow extends AbstractRoadFloatingEditor {
     protected void applySessionToLive(RoadUiContext ctx) {
         var live = ctx.networkManager().getNetwork();
         CenterlineEditorApplier.applyToLive(live, session.workingNetwork(), roadId);
+        // Reverse migration mutates crossings on working; ordinary PI/fillet edits do not.
+        if (com.plot.plugin.road.crossing.RoadCrossingRegistrySync.roadCrossingsDiffer(
+                session.openSnapshot(), session.workingNetwork(), roadId)) {
+            com.plot.plugin.road.crossing.RoadCrossingRegistrySync.copyForRoads(
+                live, session.workingNetwork(), java.util.Set.of(roadId));
+        }
         // Observe incomplete/ambiguous the same way as manager geometry edits (no silent drop).
         ctx.networkManager().observeReconcileAfterExternalEdit();
         ctx.networkManager().invalidateEditedProfilesIfGeometryChanged();

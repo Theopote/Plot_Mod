@@ -140,10 +140,12 @@ public final class RoadStationing {
     }
 
     /**
-     * True when the physical materialization edge sequence is the reverse of the design walk
-     * (LINEAR HA-origin flip). LOOP start rotation alone is not opposition.
+     * True when the physical materialization walk circulates opposite the design walk
+     * (LINEAR HA-origin flip, or LOOP reverse with optional start rotation).
+     * Detected by per-edge {@code forward()} flip — not by list index mirror — so LOOP
+     * reverse+rotate still counts as opposed while rotation-only does not.
      */
-    static boolean isPhysicalWalkOpposedToDesign(RoadNetwork network, Road road) {
+    public static boolean isPhysicalWalkOpposedToDesign(RoadNetwork network, Road road) {
         if (network == null || road == null) {
             return false;
         }
@@ -152,16 +154,20 @@ public final class RoadStationing {
         if (design.isEmpty() || design.size() != physical.size()) {
             return false;
         }
-        // Opposed means the physical sequence is the design sequence reversed with flipped
-        // storage orientation. A single-edge road must not treat edgeId==edgeId alone as opposed.
-        int n = design.size();
-        for (int i = 0; i < n; i++) {
-            OrientedRoadSegment designSeg = design.get(i);
-            OrientedRoadSegment physicalSeg = physical.get(n - 1 - i);
-            if (!designSeg.edgeId().equals(physicalSeg.edgeId())) {
-                return false;
-            }
-            if (designSeg.forward() == physicalSeg.forward()) {
+        Map<String, Boolean> designForward = new HashMap<>();
+        for (OrientedRoadSegment segment : design) {
+            designForward.put(segment.edgeId(), segment.forward());
+        }
+        Map<String, Boolean> physicalForward = new HashMap<>();
+        for (OrientedRoadSegment segment : physical) {
+            physicalForward.put(segment.edgeId(), segment.forward());
+        }
+        if (!designForward.keySet().equals(physicalForward.keySet())) {
+            return false;
+        }
+        for (Map.Entry<String, Boolean> entry : designForward.entrySet()) {
+            Boolean physicalDir = physicalForward.get(entry.getKey());
+            if (physicalDir == null || physicalDir.equals(entry.getValue())) {
                 return false;
             }
         }
@@ -790,8 +796,12 @@ public final class RoadStationing {
             if (!segment.edgeId().equals(projection.segmentId())) {
                 continue;
             }
-            // Map base-chain local fraction onto the HA-aligned physical walk.
-            return segment.startStation() + projection.localFraction() * segment.length();
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            double geometryLength = edge != null ? edge.getLength() : segment.length();
+            // geometryLocalFraction is storage-geometry; convert onto the physical walk.
+            double geometryLocal = projection.geometryLocalFraction() * geometryLength;
+            double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
+            return segment.roadStationAtChainLocal(chainLocal);
         }
         return Double.NaN;
     }

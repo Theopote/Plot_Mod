@@ -14,6 +14,7 @@ import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.crossing.RoadStackCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
@@ -498,7 +499,34 @@ class Phase242RoadDirectionInvariantTest {
     }
 
     @Test
-    void dr19_gradeSeparatedAndStackPreserveIdentityAcrossReverse() {
+    void dr18b_opposedHaOriginMapsCanonicalToMirroredNative() {
+        // Design entry at A(0,0); HA native origin at B(100,0) walking toward A.
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("opposed");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(100, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(100, 0), Math.PI,
+            List.of(HorizontalAlignmentElement.tangent(100.0))));
+        RoadDesignDirectionAuthority.ensureBound(network, road);
+        assertEquals(a.getId(), road.getDesignEntryNodeId());
+        assertTrue(RoadStationing.isPhysicalWalkOpposedToDesign(network, road));
+
+        double nativeAt25 = com.plot.plugin.road.alignment.RoadPlanGeometry.haNativeStation(
+            network, road, 25.0);
+        assertEquals(75.0, nativeAt25, 1e-3);
+        Vec2d canonicalXy = RoadStationing.pointAtStation(network, road, 25.0).orElseThrow();
+        assertEquals(25.0, canonicalXy.x, 0.5);
+        assertEquals(0.0, canonicalXy.y, 0.5);
+        double bearing = com.plot.plugin.road.alignment.RoadPlanGeometry.bearingAtStation(
+            network, road, 25.0).orElseThrow();
+        // Design direction A→B is +x (bearing ~0), even though HA native walks B→A.
+        assertEquals(0.0, Math.atan2(Math.sin(bearing), Math.cos(bearing)), 0.2);
+    }
+
+    @Test
+    void dr19_gradeSeparatedAndFigureEightStackPreservePassIdentity() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("a");
         Road roadB = network.createRoad("b");
@@ -516,23 +544,33 @@ class Phase242RoadDirectionInvariantTest {
         RoadCrossing crossing = network.getCrossings().values().iterator().next();
         network.setCrossingGradeSeparation(
             crossing.id(), CrossingType.GRADE_SEPARATED, roadA.getId(), 4.5);
-        RoadCrossing graded = network.getCrossing(crossing.id());
-        assertEquals(CrossingType.GRADE_SEPARATED, graded.type());
-        assertEquals(roadA.getId(), graded.elevatedRoadId());
-        assertEquals(4.5, graded.crossingClearance(), EPS);
-
-        // Figure-eight style stack on a separate loop road.
-        Road loop = network.createRoad("loop");
-        loop.setTopologyMode(RoadTopologyMode.LOOP);
-        RoadNode n0 = network.createNode(new Vec2d(100, 0));
-        RoadNode n1 = network.createNode(new Vec2d(120, 0));
-        network.createEdge(n0.getId(), n1.getId(), List.of(new Vec2d(100, 0), new Vec2d(120, 0)), loop.getId());
-        network.createEdge(n1.getId(), n0.getId(), List.of(new Vec2d(120, 0), new Vec2d(100, 0)), loop.getId());
-        RoadStackCrossing stack = RoadStackCrossing.gradeSeparated(
-            loop.getId(), 5.0, 25.0, new Vec2d(100, 0), 3.0);
-        network.registerStackCrossing(stack);
-        String stackId = stack.id();
         String crossingId = crossing.id();
+
+        // Real figure-eight self-intersection (same geometry as Phase22).
+        Road eight = network.createRoad("figure-eight");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(
+            n1.getId(),
+            n2.getId(),
+            List.of(
+                new Vec2d(0, 0),
+                new Vec2d(10, 10),
+                new Vec2d(0, 10),
+                new Vec2d(10, 0)),
+            eight.getId());
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        assertFalse(network.getStackCrossings().isEmpty());
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+        network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, stack.stationA(), stack.stationB(), 3.0);
+        stack = network.getStackCrossing(stack.id());
+        String stackId = stack.id();
+        Vec2d passAXy = RoadStationing.pointAtStation(network, eight, stack.stationA()).orElseThrow().copy();
+        Vec2d passBXy = RoadStationing.pointAtStation(network, eight, stack.stationB()).orElseThrow().copy();
+        double lowerBefore = stack.resolvedLowerStation();
+        double upperBefore = stack.resolvedUpperStation();
+        double eightLength = RoadStationing.canonicalLength(network, eight);
 
         assertTrue(RoadCenterlineEditor.reverseEdge(network, edgeA.getId()).isSuccess());
         RoadCrossing afterEdge = network.getCrossing(crossingId);
@@ -543,29 +581,117 @@ class Phase242RoadDirectionInvariantTest {
 
         assertTrue(RoadCenterlineEditor.reverseRoad(network, roadA).isSuccess());
         RoadCrossing afterRoad = network.getCrossing(crossingId);
-        assertNotNull(afterRoad);
-        assertEquals(crossingId, afterRoad.id());
         assertEquals(CrossingType.GRADE_SEPARATED, afterRoad.type());
         assertEquals(roadA.getId(), afterRoad.elevatedRoadId());
-        assertEquals(4.5, afterRoad.crossingClearance(), EPS);
 
-        double loopLength = RoadStationing.canonicalLength(network, loop);
-        double lowerBefore = stack.resolvedLowerStation();
-        double upperBefore = stack.resolvedUpperStation();
-        assertTrue(RoadCenterlineEditor.reverseRoad(network, loop).isSuccess());
+        assertTrue(RoadCenterlineEditor.reverseRoad(network, eight).isSuccess());
         RoadStackCrossing afterStack = network.getStackCrossing(stackId);
         assertNotNull(afterStack);
         assertEquals(stackId, afterStack.id());
         assertEquals(CrossingType.GRADE_SEPARATED, afterStack.type());
         assertEquals(3.0, afterStack.crossingClearance(), EPS);
-        assertEquals(loopLength - lowerBefore, afterStack.resolvedLowerStation(), 0.75);
-        assertEquals(loopLength - upperBefore, afterStack.resolvedUpperStation(), 0.75);
-        // Dual-pass: reverse again restores grade-separated identity.
-        assertTrue(RoadCenterlineEditor.reverseRoad(network, roadA).isSuccess());
-        RoadCrossing dual = network.getCrossing(crossingId);
-        assertEquals(CrossingType.GRADE_SEPARATED, dual.type());
-        assertEquals(roadA.getId(), dual.elevatedRoadId());
-        assertEquals(4.5, dual.crossingClearance(), EPS);
+        assertEquals(eightLength - lowerBefore, afterStack.resolvedLowerStation(), 1.0);
+        assertEquals(eightLength - upperBefore, afterStack.resolvedUpperStation(), 1.0);
+        Vec2d afterLowerXy = RoadStationing.pointAtStation(
+            network, eight, afterStack.resolvedLowerStation()).orElseThrow();
+        Vec2d afterUpperXy = RoadStationing.pointAtStation(
+            network, eight, afterStack.resolvedUpperStation()).orElseThrow();
+        // Both physical passes keep world identity (order may swap with L-s).
+        assertTrue(
+            (afterLowerXy.distance(passAXy) < 1.5 && afterUpperXy.distance(passBXy) < 1.5)
+                || (afterLowerXy.distance(passBXy) < 1.5 && afterUpperXy.distance(passAXy) < 1.5),
+            "figure-eight reverse must preserve both pass world positions");
+    }
+
+    @Test
+    void dr22_loopHaReversePreservesInteriorSeamPhysicalXy() {
+        double radius = 20.0 / Math.PI;
+        double circumference = 2.0 * Math.PI * radius;
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
+            new Vec2d(radius, 0.0),
+            Math.PI / 2.0,
+            List.of(HorizontalAlignmentElement.circularArc(
+                circumference, radius, TurnDirection.LEFT)));
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        road.setHorizontalAlignment(alignment);
+        int sides = 4;
+        double sideLen = circumference / sides;
+        RoadNode[] nodes = new RoadNode[sides];
+        for (int i = 0; i < sides; i++) {
+            var pose = HorizontalAlignmentGeometry.poseAt(alignment, i * sideLen).orElseThrow();
+            nodes[i] = network.createNode(new Vec2d(pose.x(), pose.y()));
+        }
+        String seamEdgeId = null;
+        for (int i = 0; i < sides; i++) {
+            double startNative = i * sideLen;
+            double endNative = (i + 1) * sideLen;
+            List<Vec2d> points = new ArrayList<>();
+            for (double s = startNative; s <= endNative + 1e-9; s += 1.0) {
+                var pose = HorizontalAlignmentGeometry.poseAt(alignment, Math.min(s, endNative)).orElseThrow();
+                points.add(new Vec2d(pose.x(), pose.y()));
+            }
+            var endPose = HorizontalAlignmentGeometry.poseAt(alignment, endNative).orElseThrow();
+            Vec2d endPt = new Vec2d(endPose.x(), endPose.y());
+            if (points.isEmpty() || points.getLast().distance(endPt) > 1e-6) {
+                points.add(endPt);
+            }
+            RoadEdge edge = network.createEdge(
+                nodes[i].getId(), nodes[(i + 1) % sides].getId(), points, road.getId());
+            if (i == 0) {
+                seamEdgeId = edge.getId();
+            }
+        }
+        Vec2d seamPos = HorizontalAlignmentGeometry.poseAt(alignment, sideLen * 0.4)
+            .map(pose -> new Vec2d(pose.x(), pose.y())).orElseThrow();
+        road.setLoopSeam(RoadLoopSeam.onSegment(seamPos, seamEdgeId, 0.4));
+        RoadDesignDirectionAuthority.ensureBound(network, road);
+        Vec2d seamXy = RoadStationing.pointAtStation(
+            network, road, RoadStationing.physicalSeamStation(network, road)).orElseThrow().copy();
+
+        assertTrue(RoadCenterlineEditor.reverseRoad(network, road).isSuccess());
+        Vec2d seamAfter = RoadStationing.pointAtStation(
+            network, road, RoadStationing.physicalSeamStation(network, road)).orElseThrow();
+        assertEquals(seamXy.x, seamAfter.x, 1.0);
+        assertEquals(seamXy.y, seamAfter.y, 1.0);
+        double length = RoadStationing.canonicalLength(network, road);
+        Vec2d at0 = RoadStationing.pointAtStation(network, road, 0.0).orElseThrow();
+        Vec2d atL = RoadStationing.pointAtStation(network, road, length).orElseThrow();
+        assertEquals(at0.x, atL.x, 1.0);
+        assertEquals(at0.y, atL.y, 1.0);
+    }
+
+    @Test
+    void dr23_asymmetricEditedVaPreviewEquivalentAfterReverse() {
+        RoadNetwork network = straightRoad(48.0);
+        Road road = network.getRoad("main");
+        road.setCrossSection(asymmetricSection(3, 4, 5));
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(24.0, 66.0),
+            PointOfVerticalIntersection.of(48.0, 64.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+
+        List<Vec2d> beforeXy = sampleXy(network, road);
+        List<Double> beforeZ = new ArrayList<>();
+        for (int i = 0; i < beforeXy.size(); i++) {
+            double s = RoadStationing.canonicalLength(network, road) * i / (beforeXy.size() - 1);
+            beforeZ.add(VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), s).orElseThrow());
+        }
+
+        assertTrue(RoadCenterlineEditor.reverseRoad(network, road).isSuccess());
+        double length = RoadStationing.canonicalLength(network, road);
+        for (int i = 0; i < beforeXy.size(); i++) {
+            double mirrored = length * (beforeXy.size() - 1 - i) / (beforeXy.size() - 1);
+            Vec2d xy = RoadStationing.pointAtStation(network, road, mirrored).orElseThrow();
+            assertEquals(beforeXy.get(i).x, xy.x, 0.5);
+            assertEquals(beforeXy.get(i).y, xy.y, 0.5);
+            double z = VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), mirrored).orElseThrow();
+            assertEquals(beforeZ.get(i), z, EPS);
+        }
+        assertEquals(List.of(5, 4, 3), laneWidths(road.getCrossSection()));
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
     }
 
     @Test

@@ -139,8 +139,12 @@ public record ProfileCompileInputsFingerprint(
             double bx = next.x - cur.x;
             double by = next.y - cur.y;
             double cross = ax * by - ay * bx;
+            double dot = ax * bx + ay * by;
             double scale = Math.hypot(ax, ay) * Math.hypot(bx, by);
-            if (scale <= eps || Math.abs(cross) > eps * Math.max(1.0, scale)) {
+            // Collinear densify may drop; 180° turn-backs (dot <= 0) must stay.
+            if (scale <= eps
+                    || Math.abs(cross) > eps * Math.max(1.0, scale)
+                    || dot <= eps * Math.max(1.0, scale)) {
                 simplified.add(cur);
             }
         }

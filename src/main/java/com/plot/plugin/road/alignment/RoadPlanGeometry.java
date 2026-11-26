@@ -108,10 +108,19 @@ public final class RoadPlanGeometry {
 
     public static Optional<Double> bearingAtStation(RoadNetwork network, Road road, double chainageMeters) {
         if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.poseAt(
+            Optional<Double> haBearing = HorizontalAlignmentGeometry.poseAt(
                     road.getHorizontalAlignment(),
                     haNativeStation(network, road, chainageMeters))
                 .map(AlignmentPose::bearingRadians);
+            if (haBearing.isEmpty()) {
+                return Optional.empty();
+            }
+            // Opposed HA walk: increasing canonical follows design entry→exit = HA tangent + π.
+            if (RoadStationing.isPhysicalWalkOpposedToDesign(network, road)) {
+                double flipped = haBearing.get() + Math.PI;
+                return Optional.of(Math.atan2(Math.sin(flipped), Math.cos(flipped)));
+            }
+            return haBearing;
         }
         return instanceBearingAtStation(network, road, chainageMeters);
     }
@@ -626,13 +635,20 @@ public final class RoadPlanGeometry {
     }
 
     /**
-     * LOOP canonical 桩号 → HA native 桩号；LINEAR 或无 seam 时恒等。
+     * Canonical (design-entry) station → HA native station.
+     * LINEAR: identity unless physical/HA walk is opposed to design ({@code L - s}).
+     * LOOP with seam: seam offset (opposition handled in rotated↔physical).
      */
     public static double haNativeStation(RoadNetwork network, Road road, double canonicalStation) {
         if (road == null || !Double.isFinite(canonicalStation)) {
             return Double.NaN;
         }
         if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            double designLen = designLength(network, road);
+            if (designLen > STATION_EPSILON
+                    && RoadStationing.isPhysicalWalkOpposedToDesign(network, road)) {
+                return Math.max(0.0, Math.min(designLen - canonicalStation, designLen));
+            }
             return canonicalStation;
         }
         double designLen = designLength(network, road);
@@ -650,7 +666,7 @@ public final class RoadPlanGeometry {
         return Math.max(0.0, Math.min(nativeStation, designLen));
     }
 
-    /** HA native → LOOP canonical；LINEAR 或无 seam 时恒等。 */
+    /** HA native → canonical (design-entry). LINEAR opposed uses {@code L - s}. */
     public static double canonicalFromHaNative(
             RoadNetwork network,
             Road road,
@@ -660,6 +676,11 @@ public final class RoadPlanGeometry {
             return Double.NaN;
         }
         if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            double designLen = designTotal > STATION_EPSILON ? designTotal : designLength(network, road);
+            if (designLen > STATION_EPSILON
+                    && RoadStationing.isPhysicalWalkOpposedToDesign(network, road)) {
+                return Math.max(0.0, Math.min(designLen - nativeStation, designLen));
+            }
             return nativeStation;
         }
         double designLen = designTotal > STATION_EPSILON ? designTotal : designLength(network, road);
