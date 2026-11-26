@@ -3647,6 +3647,8 @@
   "plugin.road.sort.start_x": "Start X",
   "plugin.road.sort.start_y": "Start Y",
   "plugin.road.split_road": "Split here",
+  "plugin.road.edit_crossing_migration_failed": "Could not reliably migrate crossing designs; the edit was reverted.",
+  "plugin.road.edit_along_track_protected": "This edit would affect existing profile/width/facility data and is temporarily blocked.",
   "plugin.road.split_road_confirm": "Split the logical road before this segment?",
   "plugin.road.split_road_confirm_hint": "Segments before this one stay on the original road; this segment and all following segments move to a new road.",
   "plugin.road.stack_pass_earlier_above": "Station %s above",

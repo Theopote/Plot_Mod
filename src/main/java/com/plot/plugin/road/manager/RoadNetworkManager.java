@@ -18,6 +18,7 @@ import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
@@ -890,39 +891,57 @@ public final class RoadNetworkManager {
         if (edgeId == null || edgeId.isEmpty()) {
             return;
         }
-        mutateNetwork(() -> {
-            RoadEdge edge = network.getEdge(edgeId);
-            String roadId = edge != null ? edge.getRoadId() : null;
-            Road roadBefore = roadId != null ? network.getRoad(roadId) : null;
-            SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
-            StationDataSnapshot stationSnapshot = roadBefore != null
-                ? StationDataSnapshot.capture(roadBefore)
-                : null;
-            Map<String, StationRange> edgeRangesBefore = captureEdgeStationRanges(roadBefore);
-            var crossingCapture = roadId != null
-                ? com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
-                    network, java.util.Set.of(roadId))
-                : null;
-            network.removeEdge(edgeId);
-            selectedEdgeIds.remove(edgeId);
-            if (edgeId.equals(lastSelectedEdgeId)) {
-                lastSelectedEdgeId = getPrimarySelectedEdgeId();
-            }
-            ensureSelectionValid();
-            remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
-            if (crossingCapture != null) {
-                var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
-                    network,
-                    crossingCapture,
-                    com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.MissingPassPolicy.REMOVE);
-                // Expected removals are complete; only capture-time unresolved designs stay pending.
-                if (apply.isPending()) {
-                    adoptIntersectionRepairPending = true;
+        RoadEdge preview = network.getEdge(edgeId);
+        if (preview == null) {
+            return;
+        }
+        String previewRoadId = preview.getRoadId();
+        Road previewRoad = previewRoadId != null ? network.getRoad(previewRoadId) : null;
+        // W04: LOOP + along-track data — refuse until Phase 2.4 seam/station migration.
+        if (previewRoad != null
+                && previewRoad.getTopologyMode() == RoadTopologyMode.LOOP
+                && network.hasProtectedAlongTrackData(previewRoad)) {
+            status.warning(PlotI18n.tr("plugin.road.edit_along_track_protected"));
+            return;
+        }
+        Boolean ok = mutateNetwork(
+            () -> {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge == null) {
+                    return Boolean.FALSE;
                 }
-            }
-            // Geometry gone → drop orphan RoadCrossing markers from the registry/overlay.
-            observeReconcileInPlace();
-        });
+                String roadId = edge.getRoadId();
+                Road roadBefore = roadId != null ? network.getRoad(roadId) : null;
+                SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+                StationDataSnapshot stationSnapshot = roadBefore != null
+                    ? StationDataSnapshot.capture(roadBefore)
+                    : null;
+                Map<String, StationRange> edgeRangesBefore = captureEdgeStationRanges(roadBefore);
+                var crossingCapture = roadId != null
+                    ? com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
+                        network, java.util.Set.of(roadId))
+                    : null;
+                network.removeEdge(edgeId);
+                selectedEdgeIds.remove(edgeId);
+                if (edgeId.equals(lastSelectedEdgeId)) {
+                    lastSelectedEdgeId = getPrimarySelectedEdgeId();
+                }
+                ensureSelectionValid();
+                remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
+                if (crossingCapture != null) {
+                    var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
+                        network, crossingCapture, java.util.Set.of(edgeId));
+                    if (apply.isPending()) {
+                        return Boolean.FALSE;
+                    }
+                }
+                observeReconcileInPlace();
+                return Boolean.TRUE;
+            },
+            Boolean.TRUE::equals);
+        if (!Boolean.TRUE.equals(ok)) {
+            status.warning(PlotI18n.tr("plugin.road.edit_crossing_migration_failed"));
+        }
     }
 
     /**
@@ -1076,8 +1095,17 @@ public final class RoadNetworkManager {
         }
         pushUndoSnapshot();
         String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId);
-        if (newRoadId == null || network.consumeCrossingMigrationFailure()) {
+        boolean migrationFailed = network.consumeCrossingMigrationFailure();
+        if (newRoadId == null || migrationFailed) {
             abortPendingNetworkEdit();
+            Road stillThere = network.getRoad(roadId);
+            if (stillThere != null
+                    && stillThere.getTopologyMode() == RoadTopologyMode.LOOP
+                    && network.hasProtectedAlongTrackData(stillThere)) {
+                status.warning(PlotI18n.tr("plugin.road.edit_along_track_protected"));
+            } else {
+                status.warning(PlotI18n.tr("plugin.road.edit_crossing_migration_failed"));
+            }
             return null;
         }
         // Model already migrated ownership; observe reconcile for pending design ambiguity.
@@ -1093,13 +1121,23 @@ public final class RoadNetworkManager {
         if (headRoadId == null || tailRoadId == null || headRoadId.equals(tailRoadId)) {
             return null;
         }
-        if (network.getRoad(headRoadId) == null || network.getRoad(tailRoadId) == null) {
+        Road headBefore = network.getRoad(headRoadId);
+        Road tailBefore = network.getRoad(tailRoadId);
+        if (headBefore == null || tailBefore == null) {
             return null;
         }
+        boolean alongProtected = network.hasProtectedAlongTrackData(headBefore)
+            || network.hasProtectedAlongTrackData(tailBefore);
         pushUndoSnapshot();
         String mergedId = network.mergeRoadTailIntoHead(headRoadId, tailRoadId);
-        if (mergedId == null || network.consumeCrossingMigrationFailure()) {
+        boolean migrationFailed = network.consumeCrossingMigrationFailure();
+        if (mergedId == null || migrationFailed) {
             abortPendingNetworkEdit();
+            if (alongProtected) {
+                status.warning(PlotI18n.tr("plugin.road.edit_along_track_protected"));
+            } else {
+                status.warning(PlotI18n.tr("plugin.road.edit_crossing_migration_failed"));
+            }
             return null;
         }
         observeReconcileInPlace();

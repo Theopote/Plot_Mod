@@ -46,15 +46,30 @@ public final class RoadGraphEdits {
     }
 
     /**
-     * Geometric split at a plane point: always creates an independent node at {@code splitPoint}.
-     * Does not reuse nearby foreign-road nodes (that would invent topology connections).
+     * Geometric split at a plane point: projects onto the edge centerline first, then creates
+     * an independent node at the projection. Does not warp the centerline to an off-line pick.
      */
     public Optional<SplitResult> splitEdgeAtPoint(String edgeId, Vec2d splitPoint, double tolerance) {
         if (splitPoint == null) {
             return Optional.empty();
         }
-        RoadNode node = network.createNode(splitPoint.copy());
-        Optional<SplitResult> split = splitEdgeInternal(edgeId, node.getId(), splitPoint, tolerance);
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            return Optional.empty();
+        }
+        double pickTol = Double.isFinite(tolerance) && tolerance > 0 ? tolerance : DEFAULT_NODE_TOLERANCE;
+        List<Vec2d> points = edge.getCenterlinePoints();
+        int nearest = RoadGeometryUtils.findNearestSegmentIndex(points, splitPoint);
+        if (nearest < 0) {
+            return Optional.empty();
+        }
+        Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
+            points.get(nearest), points.get(nearest + 1), splitPoint);
+        if (projected.distance(splitPoint) > pickTol) {
+            return Optional.empty();
+        }
+        RoadNode node = network.createNode(projected.copy());
+        Optional<SplitResult> split = splitEdgeInternal(edgeId, node.getId(), projected, pickTol);
         if (split.isEmpty() && network.getNode(node.getId()) != null
                 && network.getNode(node.getId()).getDegree() == 0) {
             network.removeNode(node.getId());

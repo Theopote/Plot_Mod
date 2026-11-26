@@ -559,8 +559,10 @@ public class RoadNetwork {
 
     /**
      * 在指定分段前断开逻辑道路：该分段及其后续分段移至新 Road，之前分段保留在原 Road。
+     * <p>返回 {@code null} 表示拒绝或交叉迁移失败；调用方不得假定拓扑已提交成功。
+     * UI 路径须经 {@link RoadNetworkManager} 快照事务。
      *
-     * @return 新 Road 的 id；若无法拆分（分段不存在或为第一段）则 null
+     * @return 新 Road 的 id；失败时 null
      */
     public String splitRoadBeforeSegment(String roadId, String segmentEdgeId) {
         crossingMigrationFailure = false;
@@ -599,10 +601,11 @@ public class RoadNetwork {
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, road);
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, newRoad);
         var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
-            this,
-            crossingCapture,
-            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.MissingPassPolicy.FAIL);
-        crossingMigrationFailure = apply.isPending();
+            this, crossingCapture);
+        if (apply.isPending()) {
+            crossingMigrationFailure = true;
+            return null;
+        }
         if (refitHa) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
@@ -620,8 +623,10 @@ public class RoadNetwork {
     /**
      * 在链端点将 {@code tailRoadId} 并入 {@code headRoadId}：保留 head 的 id，删除 tail。
      * 支持 tail 接在 head 之后，或接在 head 之前。
+     * <p>返回 {@code null} 表示拒绝或交叉迁移失败；调用方不得假定拓扑已提交成功。
+     * UI 路径须经 {@link RoadNetworkManager} 快照事务。
      *
-     * @return 合并后的 road id（即 head）；无法合并时 null
+     * @return 合并后的 road id（即 head）；失败时 null
      */
     public String mergeRoadTailIntoHead(String headRoadId, String tailRoadId) {
         crossingMigrationFailure = false;
@@ -705,17 +710,19 @@ public class RoadNetwork {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, head);
         }
         var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
-            this,
-            crossingCapture,
-            com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.MissingPassPolicy.FAIL);
-        crossingMigrationFailure = apply.isPending();
+            this, crossingCapture);
+        if (apply.isPending()) {
+            crossingMigrationFailure = true;
+            return null;
+        }
         if (refitHa) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
         }
         return headRoadId;
     }
 
-    private boolean hasProtectedAlongTrackData(Road road) {
+    /** VA / VCS / facilities that Phase 2.3 cannot reliably remap under reverse/loop edits. */
+    public boolean hasProtectedAlongTrackData(Road road) {
         if (road == null) {
             return false;
         }

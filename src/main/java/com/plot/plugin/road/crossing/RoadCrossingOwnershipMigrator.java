@@ -34,13 +34,6 @@ public final class RoadCrossingOwnershipMigrator {
 
     public enum PassRole { A, B }
 
-    /**
-     * How to treat a captured pass whose edge is gone or unresolvable.
-     * {@link #REMOVE} — intentional edge deletion: drop the crossing.
-     * {@link #FAIL} — logical split/merge: leave design untouched and report incomplete.
-     */
-    public enum MissingPassPolicy { REMOVE, FAIL }
-
     /** Ephemeral capture of one physical pass (edit-transaction only). */
     public record CrossingPassBinding(
             String crossingId,
@@ -116,21 +109,29 @@ public final class RoadCrossingOwnershipMigrator {
         return new CaptureResult(bindings, unresolved);
     }
 
+    /** Logical split/merge: unresolved passes fail the edit (do not drop designs). */
     public static ApplyResult reapply(RoadNetwork network, CaptureResult capture) {
-        return reapply(network, capture, MissingPassPolicy.FAIL);
+        return reapply(network, capture, Set.of());
     }
 
+    /**
+     * Re-resolve captured passes after a topology edit.
+     *
+     * @param deletedEdgeIds edges removed in this edit; only crossings whose physical pass
+     *                       used one of these edges may be dropped. All other resolve/conversion
+     *                       failures leave the design untouched and set {@code complete=false}.
+     */
     public static ApplyResult reapply(
             RoadNetwork network,
             CaptureResult capture,
-            MissingPassPolicy policy) {
+            Set<String> deletedEdgeIds) {
         if (network == null || capture == null) {
             return new ApplyResult(true, 0, 0);
         }
         if (capture.isEmpty()) {
             return new ApplyResult(!capture.hadUnresolved(), 0, 0);
         }
-        MissingPassPolicy missingPolicy = policy != null ? policy : MissingPassPolicy.FAIL;
+        Set<String> deleted = deletedEdgeIds != null ? deletedEdgeIds : Set.of();
         Map<String, List<CrossingPassBinding>> twoRoad = new HashMap<>();
         Map<String, List<CrossingPassBinding>> stacks = new HashMap<>();
         for (CrossingPassBinding binding : capture.bindings()) {
@@ -154,7 +155,7 @@ public final class RoadCrossingOwnershipMigrator {
             Optional<ResolvedPass> resolvedA = resolvePass(network, passA);
             Optional<ResolvedPass> resolvedB = resolvePass(network, passB);
             if (resolvedA.isEmpty() || resolvedB.isEmpty()) {
-                if (missingPolicy == MissingPassPolicy.REMOVE) {
+                if (passEdgeDeleted(passA, passB, resolvedA, resolvedB, deleted)) {
                     network.removeCrossing(entry.getKey());
                     removed++;
                 } else {
@@ -169,12 +170,7 @@ public final class RoadCrossingOwnershipMigrator {
 
             if (a.roadId().equals(b.roadId())) {
                 if (!canConvertTwoRoadToStack(network, passA, passB, a, b, entry.getKey())) {
-                    if (missingPolicy == MissingPassPolicy.REMOVE) {
-                        network.removeCrossing(entry.getKey());
-                        removed++;
-                    } else {
-                        complete = false;
-                    }
+                    complete = false;
                     continue;
                 }
                 Double lower = null;
@@ -229,7 +225,7 @@ public final class RoadCrossingOwnershipMigrator {
             Optional<ResolvedPass> resolvedA = resolvePass(network, passA);
             Optional<ResolvedPass> resolvedB = resolvePass(network, passB);
             if (resolvedA.isEmpty() || resolvedB.isEmpty()) {
-                if (missingPolicy == MissingPassPolicy.REMOVE) {
+                if (passEdgeDeleted(passA, passB, resolvedA, resolvedB, deleted)) {
                     network.removeStackCrossing(entry.getKey());
                     removed++;
                 } else {
@@ -244,12 +240,7 @@ public final class RoadCrossingOwnershipMigrator {
                 String elevated = null;
                 if (passA.type() == CrossingType.GRADE_SEPARATED) {
                     if (passA.upperStationHint() == null) {
-                        if (missingPolicy == MissingPassPolicy.REMOVE) {
-                            network.removeStackCrossing(entry.getKey());
-                            removed++;
-                        } else {
-                            complete = false;
-                        }
+                        complete = false;
                         continue;
                     }
                     double da = Math.abs(passA.upperStationHint() - passA.originalStation());
@@ -277,12 +268,7 @@ public final class RoadCrossingOwnershipMigrator {
             Double upper = remapStationHint(passA.upperStationHint(), passA, passB, a, b);
             if (passA.type() == CrossingType.GRADE_SEPARATED
                     && (upper == null || lower == null)) {
-                if (missingPolicy == MissingPassPolicy.REMOVE) {
-                    network.removeStackCrossing(entry.getKey());
-                    removed++;
-                } else {
-                    complete = false;
-                }
+                complete = false;
                 continue;
             }
             network.registerStackCrossing(new RoadStackCrossing(
@@ -299,6 +285,16 @@ public final class RoadCrossingOwnershipMigrator {
             rewritten++;
         }
         return new ApplyResult(complete, rewritten, removed);
+    }
+
+    private static boolean passEdgeDeleted(
+            CrossingPassBinding passA,
+            CrossingPassBinding passB,
+            Optional<ResolvedPass> resolvedA,
+            Optional<ResolvedPass> resolvedB,
+            Set<String> deletedEdgeIds) {
+        return (resolvedA.isEmpty() && deletedEdgeIds.contains(passA.edgeId()))
+            || (resolvedB.isEmpty() && deletedEdgeIds.contains(passB.edgeId()));
     }
 
     private record ResolvedPass(String roadId, double station, Vec2d position, String edgeId) {

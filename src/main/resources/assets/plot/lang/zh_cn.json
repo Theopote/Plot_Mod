@@ -2404,6 +2404,8 @@
   "plugin.road.delete_road": "删除整条道路",
   "plugin.road.delete_segment": "删除此分段",
   "plugin.road.split_road": "在此断开",
+  "plugin.road.edit_crossing_migration_failed": "无法可靠迁移交叉设计，已撤销本次编辑。",
+  "plugin.road.edit_along_track_protected": "该操作会影响已有纵断面/变宽/设施数据，暂不支持；请等待桩号迁移完善后再试。",
   "plugin.road.delete_segment_confirm": "仅删除此分段？将移除该段几何，同一路的其他分段保留。",
   "plugin.road.split_road_confirm": "在此分段前断开逻辑道路？",
   "plugin.road.split_road_confirm_hint": "此分段之前的分段保留在原道路；此分段及之后分段划入新道路。",
