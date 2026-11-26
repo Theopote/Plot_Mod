@@ -126,14 +126,17 @@ public final class TunnelStructureGenerator {
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
                 double worldStation = geometryLocal / scale;
-                int targetY = DesignElevationSource.resolveTargetElevation(
+                var resolvedY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     geometryLocal,
                     t,
                     worldStation);
-                targetY = host.snapEndpointElevation(center, targetY);
+                if (resolvedY.isEmpty()) {
+                    continue;
+                }
+                int targetY = host.snapEndpointElevation(center, resolvedY.getAsInt());
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
@@ -713,14 +716,17 @@ public final class TunnelStructureGenerator {
                     : heightInfos.getLast();
                 Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
                 Vec2d center = segment.start.lerp(segment.end, depthLocation.t());
-                int targetY = DesignElevationSource.resolveTargetElevation(
+                var resolvedDepthY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     depthLocation.geometryLocal(),
                     depthLocation.t(),
                     geometryLocal / scale);
-                targetY = host.snapEndpointElevation(center, targetY);
+                if (resolvedDepthY.isEmpty()) {
+                    continue;
+                }
+                int targetY = host.snapEndpointElevation(center, resolvedDepthY.getAsInt());
                 double chainage = crossSections.chainageAtGeometryLocal(depthLocation.geometryLocal());
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
@@ -828,9 +834,12 @@ public final class TunnelStructureGenerator {
         Vec2d fromNormal = PathSegmentGeometry.chainLeftNormal(incoming, chainForward);
         Vec2d toNormal = PathSegmentGeometry.chainLeftNormal(outgoing, chainForward);
         double worldStation = geometryLocalAtVertex / scale;
-        int resolvedY = DesignElevationSource.resolveTargetElevation(
+        var resolvedY = DesignElevationSource.resolveTargetElevation(
             designElevation, buildProfile, outgoingInfo, geometryLocalAtVertex, 0.0, worldStation);
-        final int targetY = host.snapEndpointElevation(center, resolvedY);
+        if (resolvedY.isEmpty()) {
+            return RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        }
+        final int targetY = host.snapEndpointElevation(center, resolvedY.getAsInt());
         double chainage = crossSections.chainageAtGeometryLocal(geometryLocalAtVertex);
         ResolvedCrossSection crossSection = crossSections.resolve(chainage);
         int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);

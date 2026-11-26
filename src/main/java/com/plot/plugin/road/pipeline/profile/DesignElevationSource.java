@@ -13,6 +13,7 @@ import com.plot.core.geometry.VoxelElevationDiscretizer;
 import com.plot.plugin.road.vertical.VoxelVerticalProfile;
 
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * 生成阶段按道路桩号查询设计纵断面高程（canonical station 域）。
@@ -24,8 +25,6 @@ public record DesignElevationSource(
         VoxelVerticalProfile voxelProfile,
         RoadNetwork network,
         Road road) {
-
-    private static final int UNRESOLVED_ELEVATION = 0;
 
     public DesignElevationSource(
             RoadVerticalAlignment alignment,
@@ -105,7 +104,6 @@ public record DesignElevationSource(
         if (slices.isEmpty()) {
             return inactive();
         }
-        // Bind primary slice for legacy accessors; queries re-resolve via full-edge geometryLocal.
         OrientedRoadSegment segment = slices.getFirst();
         return new DesignElevationSource(
             road.getVerticalAlignment(),
@@ -155,12 +153,19 @@ public record DesignElevationSource(
         return voxelProfile.elevationAt(chainageMeters);
     }
 
-    public int elevationAtLocalDistance(double localCanvasDistance) {
+    /**
+     * Design elevation at edge-local distance. Empty when canonical mapping fails —
+     * never returns fabricated Y=0 / minY placeholders.
+     */
+    public OptionalInt elevationAtLocalDistance(double localCanvasDistance) {
         double canonical = mapLocalToChainage(localCanvasDistance);
         if (!Double.isFinite(canonical)) {
-            return UNRESOLVED_ELEVATION;
+            return OptionalInt.empty();
         }
-        return elevationAtChainage(canonical);
+        if (!voxelProfile.isActive()) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(elevationAtChainage(canonical));
     }
 
     private double geometryLocalOnPhysicalEdge(double localCanvasDistance, double physicalEdgeLength) {
@@ -187,16 +192,12 @@ public record DesignElevationSource(
     /**
      * Build-height priority for corridor / cross-section sampling:
      * <ol>
-     *   <li>{@link BuildHeightProfile} when active (compiled each generate from MANUAL_PROFILE
-     *       via {@code VerticalAlignmentProfileSolver}, or from AUTO_SMOOTH terrain follow)</li>
-     *   <li>{@link DesignElevationSource} when active (raw alignment sample; AUTO_SMOOTH roads
-     *       typically leave this inactive via {@code VerticalAlignmentProfileSupport})</li>
+     *   <li>{@link BuildHeightProfile} when active</li>
+     *   <li>{@link DesignElevationSource} when active — failure yields empty (no fabricated Y)</li>
      *   <li>Linear interpolation of {@link SegmentHeightInfo} targets</li>
      * </ol>
-     * PVI edits only affect build when the road is {@code MANUAL_PROFILE} and generate re-solves
-     * a fresh {@code buildProfile} from the updated alignment.
      */
-    public static int resolveTargetElevation(
+    public static OptionalInt resolveTargetElevation(
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
             SegmentHeightInfo info,
@@ -204,13 +205,13 @@ public record DesignElevationSource(
             double segmentInterpolation,
             double worldStation) {
         if (buildProfile != null && buildProfile.isActive()) {
-            return buildProfile.elevationAtWorldStation(worldStation);
+            return OptionalInt.of(buildProfile.elevationAtWorldStation(worldStation));
         }
         if (designElevation != null && designElevation.isActive()) {
             return designElevation.elevationAtLocalDistance(geometryLocalCanvas);
         }
-        return VoxelElevationDiscretizer.linearElevationAtRatio(
-            info.targetStart, info.targetEnd, segmentInterpolation);
+        return OptionalInt.of(VoxelElevationDiscretizer.linearElevationAtRatio(
+            info.targetStart, info.targetEnd, segmentInterpolation));
     }
 
 }

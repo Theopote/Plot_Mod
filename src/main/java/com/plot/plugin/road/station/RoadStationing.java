@@ -69,11 +69,59 @@ public final class RoadStationing {
 
     /**
      * 物理 Edge 写回用语义：不应用 LOOP seam slice 拆分，每个 edgeId 至多出现一次。
+     * When HA is present on a LOOP, the chain is rotated so physical station 0 is at the
+     * entry nearest the HA origin — required for a strictly monotonic physical↔native map.
      */
     public static List<OrientedRoadSegment> physicalEdgeSegmentsForMaterialization(
             RoadNetwork network,
             Road road) {
-        return orientedSegmentsWithoutLoopRotation(network, road);
+        List<OrientedRoadSegment> base = orientedSegmentsWithoutLoopRotation(network, road);
+        return rotatePhysicalChainToHaOrigin(network, road, base);
+    }
+
+    /**
+     * Rotate LOOP physical segments so the walk starts at the entry closest to HA origin.
+     * LINEAR / no-HA chains are unchanged.
+     */
+    static List<OrientedRoadSegment> rotatePhysicalChainToHaOrigin(
+            RoadNetwork network,
+            Road road,
+            List<OrientedRoadSegment> segments) {
+        if (network == null || road == null || segments == null || segments.size() <= 1) {
+            return segments == null ? List.of() : segments;
+        }
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP
+                || !RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            return segments;
+        }
+        Vec2d origin = road.getHorizontalAlignment().getOrigin();
+        if (origin == null) {
+            return segments;
+        }
+        int bestIndex = 0;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < segments.size(); i++) {
+            RoadNode entry = network.getNode(segments.get(i).entryNodeId());
+            if (entry == null || entry.getPosition() == null) {
+                continue;
+            }
+            double dist = entry.getPosition().distance(origin);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+        if (bestIndex == 0) {
+            return segments;
+        }
+        List<OrientedRoadSegment> rotated = new ArrayList<>(segments.size());
+        double station = 0.0;
+        for (int k = 0; k < segments.size(); k++) {
+            OrientedRoadSegment original = segments.get((bestIndex + k) % segments.size());
+            rotated.add(original.withStartStation(station));
+            station += original.length();
+        }
+        return List.copyOf(rotated);
     }
 
     /**
@@ -586,34 +634,176 @@ public final class RoadStationing {
     }
 
     /**
-     * Canonical 桩号 → 实例折线链上弧长（{@link OrientedRoadSegment} 域）。
-     * 非法输入返回 {@link Double#NaN}，不伪装成 0。
+     * Seam arc length on the physical materialization chain
+     * ({@link #physicalEdgeSegmentsForMaterialization}).
+     */
+    public static double physicalSeamStation(RoadNetwork network, Road road) {
+        if (network == null || road == null || road.getLoopSeam() == null) {
+            return Double.NaN;
+        }
+        var seam = road.getLoopSeam();
+        List<OrientedRoadSegment> physical = physicalEdgeSegmentsForMaterialization(network, road);
+        if (seam.segmentHintId() != null && seam.localFraction() != null) {
+            for (OrientedRoadSegment segment : physical) {
+                if (!segment.edgeId().equals(seam.segmentHintId())) {
+                    continue;
+                }
+                double chainLocal = seam.localFraction() * segment.length();
+                return segment.startStation() + chainLocal;
+            }
+        }
+        RoadLoopSeamService.SeamProjection projection =
+            RoadLoopSeamService.resolveFromSeam(network, road, seam);
+        if (projection == null) {
+            return Double.NaN;
+        }
+        for (OrientedRoadSegment segment : physical) {
+            if (!segment.edgeId().equals(projection.segmentId())) {
+                continue;
+            }
+            // Map base-chain local fraction onto the HA-aligned physical walk.
+            return segment.startStation() + projection.localFraction() * segment.length();
+        }
+        return Double.NaN;
+    }
+
+    /**
+     * Oriented/rotated instance ↔ physical instance for LOOP seam; identity otherwise.
+     */
+    public static double rotatedToPhysical(RoadNetwork network, Road road, double rotatedInstance) {
+        if (!Double.isFinite(rotatedInstance) || network == null || road == null) {
+            return Double.NaN;
+        }
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            return rotatedInstance;
+        }
+        double physicalTotal = physicalInstanceLength(network, road);
+        if (!(physicalTotal > STATION_EPSILON)) {
+            return Double.NaN;
+        }
+        double seam = physicalSeamStation(network, road);
+        if (!Double.isFinite(seam)) {
+            return Double.NaN;
+        }
+        double physical = seam + rotatedInstance;
+        while (physical >= physicalTotal - STATION_EPSILON) {
+            physical -= physicalTotal;
+        }
+        while (physical < -STATION_EPSILON) {
+            physical += physicalTotal;
+        }
+        if (physical < 0.0) {
+            physical = 0.0;
+        }
+        return physical;
+    }
+
+    public static double physicalToRotated(RoadNetwork network, Road road, double physicalInstance) {
+        if (!Double.isFinite(physicalInstance) || network == null || road == null) {
+            return Double.NaN;
+        }
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            return physicalInstance;
+        }
+        double physicalTotal = physicalInstanceLength(network, road);
+        if (!(physicalTotal > STATION_EPSILON)) {
+            return Double.NaN;
+        }
+        double seam = physicalSeamStation(network, road);
+        if (!Double.isFinite(seam)) {
+            return Double.NaN;
+        }
+        double rotated = physicalInstance - seam;
+        while (rotated < -STATION_EPSILON) {
+            rotated += physicalTotal;
+        }
+        while (rotated >= physicalTotal - STATION_EPSILON) {
+            rotated -= physicalTotal;
+        }
+        if (rotated < 0.0) {
+            rotated = 0.0;
+        }
+        return rotated;
+    }
+
+    private static double physicalInstanceLength(RoadNetwork network, Road road) {
+        double length = 0.0;
+        for (OrientedRoadSegment segment : physicalEdgeSegmentsForMaterialization(network, road)) {
+            length += segment.length();
+        }
+        return length;
+    }
+
+    /**
+     * Canonical 桩号 → oriented/rotated 实例折线链上弧长。
+     * 路径：canonical → HA native → physical → rotated。非法输入返回 {@link Double#NaN}。
      */
     public static double toInstanceChainage(RoadNetwork network, Road road, double canonicalChainage) {
         if (!Double.isFinite(canonicalChainage) || network == null || road == null) {
             return Double.NaN;
         }
+        // Without HA, oriented/rotated instance IS the canonical domain.
+        if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            return canonicalChainage;
+        }
         StationDomainMap map = domainMap(network, road);
         if (map == null || !map.isReliable()) {
-            // Unreliable map: never guess via whole-road ratio or equal-length identity.
             return Double.NaN;
         }
-        return map.toInstance(canonicalChainage);
+        double instanceTotal = RoadPlanGeometry.instanceLength(network, road);
+        double canonicalTotal = RoadPlanGeometry.canonicalLength(network, road);
+        boolean loopSeam = road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null;
+        if (loopSeam && Math.abs(canonicalChainage) <= STATION_EPSILON) {
+            return 0.0;
+        }
+        if (loopSeam && Math.abs(canonicalChainage - canonicalTotal) <= STATION_EPSILON) {
+            return instanceTotal;
+        }
+        double nativeStation = RoadPlanGeometry.haNativeStation(network, road, canonicalChainage);
+        if (!Double.isFinite(nativeStation)) {
+            return Double.NaN;
+        }
+        double physical = map.toPhysical(nativeStation);
+        if (!Double.isFinite(physical)) {
+            return Double.NaN;
+        }
+        return physicalToRotated(network, road, physical);
     }
 
     /**
-     * 实例折线链上弧长 → canonical 桩号。
-     * 非法输入返回 {@link Double#NaN}，不伪装成 0。
+     * Oriented/rotated 实例弧长 → canonical 桩号。
+     * 路径：rotated → physical → HA native → canonical。非法输入返回 {@link Double#NaN}。
      */
     public static double toCanonicalChainage(RoadNetwork network, Road road, double instanceChainage) {
         if (!Double.isFinite(instanceChainage) || network == null || road == null) {
             return Double.NaN;
         }
+        // Without HA, oriented/rotated instance IS the canonical domain.
+        if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            return instanceChainage;
+        }
         StationDomainMap map = domainMap(network, road);
         if (map == null || !map.isReliable()) {
             return Double.NaN;
         }
-        return map.toCanonical(instanceChainage);
+        double instanceTotal = RoadPlanGeometry.instanceLength(network, road);
+        double canonicalTotal = RoadPlanGeometry.canonicalLength(network, road);
+        boolean loopSeam = road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null;
+        if (loopSeam && Math.abs(instanceChainage) <= STATION_EPSILON) {
+            return 0.0;
+        }
+        if (loopSeam && Math.abs(instanceChainage - instanceTotal) <= STATION_EPSILON) {
+            return canonicalTotal;
+        }
+        double physical = rotatedToPhysical(network, road, instanceChainage);
+        if (!Double.isFinite(physical)) {
+            return Double.NaN;
+        }
+        double nativeStation = map.toNative(physical);
+        if (!Double.isFinite(nativeStation)) {
+            return Double.NaN;
+        }
+        return RoadPlanGeometry.canonicalFromHaNative(network, road, nativeStation, map.nativeTotal());
     }
 
     public static StationDomainMap domainMap(RoadNetwork network, Road road) {

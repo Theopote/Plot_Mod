@@ -99,14 +99,17 @@ public final class TunnelInteriorClearancePass {
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
                 double worldStation = geometryLocal / scale;
-                int targetY = DesignElevationSource.resolveTargetElevation(
+                var resolvedY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     geometryLocal,
                     t,
                     worldStation);
-                targetY = host.snapEndpointElevation(center, targetY);
+                if (resolvedY.isEmpty()) {
+                    continue;
+                }
+                int targetY = host.snapEndpointElevation(center, resolvedY.getAsInt());
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
@@ -151,8 +154,12 @@ public final class TunnelInteriorClearancePass {
         Vec2d fromNormal = PathSegmentGeometry.chainLeftNormal(incoming, chainForward);
         Vec2d toNormal = PathSegmentGeometry.chainLeftNormal(outgoing, chainForward);
         double worldStation = geometryLocalAtVertex / scale;
-        int targetY = DesignElevationSource.resolveTargetElevation(
+        var resolvedY = DesignElevationSource.resolveTargetElevation(
             designElevation, buildProfile, outgoingInfo, geometryLocalAtVertex, 0.0, worldStation);
+        if (resolvedY.isEmpty()) {
+            return 0;
+        }
+        int targetY = resolvedY.getAsInt();
         double chainage = crossSections.chainageAtGeometryLocal(geometryLocalAtVertex);
         ResolvedCrossSection crossSection = crossSections.resolve(chainage);
         int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);

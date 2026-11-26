@@ -131,14 +131,17 @@ public final class RoadStationFacilityGenerator {
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
                 double worldStation = geometryLocal / scale;
-                int targetY = DesignElevationSource.resolveTargetElevation(
+                var resolvedY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     geometryLocal,
                     t,
                     worldStation);
-                targetY = elevationSnapper.snap(center, targetY);
+                if (resolvedY.isEmpty()) {
+                    continue;
+                }
+                int targetY = elevationSnapper.snap(center, resolvedY.getAsInt());
                 double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!trim.shouldPlace(geometryLocal, edgeLength)) {

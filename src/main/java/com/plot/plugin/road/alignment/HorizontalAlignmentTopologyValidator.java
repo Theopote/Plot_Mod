@@ -99,9 +99,8 @@ public final class HorizontalAlignmentTopologyValidator {
                 if (local.isPresent()) {
                     double canonical = RoadStationing.toCanonicalChainage(
                         network, road, local.getAsDouble());
-                    // When the domain map is unavailable, report instance station for diagnostics
-                    // (pose comparison still uses haNativeStation on that value).
-                    return Double.isFinite(canonical) ? canonical : local.getAsDouble();
+                    // Never substitute instance for unresolved canonical.
+                    return Double.isFinite(canonical) ? canonical : Double.NaN;
                 }
             }
             var viaEdge = RoadStationing.stationAtNode(network, road, edge, nodeId);

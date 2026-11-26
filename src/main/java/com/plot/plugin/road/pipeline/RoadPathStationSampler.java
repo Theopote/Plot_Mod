@@ -119,13 +119,17 @@ public final class RoadPathStationSampler {
                     continue;
                 }
                 double worldStation = geometryLocal / scale;
-                int targetY = DesignElevationSource.resolveTargetElevation(
+                var resolvedY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     geometryLocal,
                     t,
                     worldStation);
+                if (resolvedY.isEmpty()) {
+                    continue;
+                }
+                int targetY = resolvedY.getAsInt();
                 if (elevationSnapper != null) {
                     targetY = elevationSnapper.snap(center, targetY);
                 }

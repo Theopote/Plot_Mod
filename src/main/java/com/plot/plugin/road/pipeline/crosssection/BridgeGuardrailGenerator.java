@@ -104,14 +104,17 @@ public final class BridgeGuardrailGenerator {
                         profileWaterCrossings, worldStation)) {
                     continue;
                 }
-                int deckY = DesignElevationSource.resolveTargetElevation(
+                var resolvedY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     geometryLocal,
                     t,
                     worldStation);
-                deckY = host.snapEndpointElevation(center, deckY);
+                if (resolvedY.isEmpty()) {
+                    continue;
+                }
+                int deckY = host.snapEndpointElevation(center, resolvedY.getAsInt());
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 placeGuardrails(

@@ -527,15 +527,18 @@ public final class BridgeStructureGenerator {
             int pierOffsetBlocks) {
         PathSegment segment = segments.get(location.segmentIndex());
         SegmentHeightInfo info = heightInfos.get(location.segmentIndex());
-        int deckY = DesignElevationSource.resolveTargetElevation(
+        var resolvedY = DesignElevationSource.resolveTargetElevation(
             designElevation,
             buildProfile,
             info,
             location.geometryLocal(),
             location.t(),
             location.geometryLocal() / Math.max(unitsPerBlock, EPSILON));
+        if (resolvedY.isEmpty()) {
+            return;
+        }
         Vec2d center = segment.start.lerp(segment.end, location.t());
-        deckY = host.snapEndpointElevation(center, deckY);
+        int deckY = host.snapEndpointElevation(center, resolvedY.getAsInt());
         Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(
             segment,
             crossSections.samplingOriented().forward());

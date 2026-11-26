@@ -56,7 +56,7 @@ class RoadFurnitureGeneratorTest {
         assertFalse(lights.isEmpty());
         assertTrue(lights.stream().allMatch(light -> light.elevation() >= 71));
         assertTrue(lights.stream().allMatch(light ->
-            light.elevation() == elevations.elevationAtLocalDistance(light.planPoint().x) + 1));
+            light.elevation() == elevations.elevationAtLocalDistance(light.planPoint().x).orElseThrow() + 1));
     }
 
     @Test

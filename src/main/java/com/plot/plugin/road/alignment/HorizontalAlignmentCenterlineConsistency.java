@@ -115,7 +115,7 @@ public final class HorizontalAlignmentCenterlineConsistency {
         for (double instanceChainage = 0.0; instanceChainage <= roadLength + 1e-6; instanceChainage += spacing) {
             double clampedInstance = Math.min(instanceChainage, roadLength);
             attempted++;
-            SampleOutcome outcome = samplePair(network, road, alignment, map, clampedInstance);
+            SampleOutcome outcome = samplePair(network, road, alignment, clampedInstance);
             if (outcome.ok()) {
                 maxDeviation = Math.max(maxDeviation, outcome.deviation());
                 deviationSum += outcome.deviation();
@@ -126,7 +126,7 @@ public final class HorizontalAlignmentCenterlineConsistency {
         }
 
         attempted++;
-        SampleOutcome endOutcome = samplePair(network, road, alignment, map, roadLength);
+        SampleOutcome endOutcome = samplePair(network, road, alignment, roadLength);
         if (endOutcome.ok()) {
             maxDeviation = Math.max(maxDeviation, endOutcome.deviation());
             deviationSum += endOutcome.deviation();
@@ -135,8 +135,12 @@ public final class HorizontalAlignmentCenterlineConsistency {
             failedSamples++;
         }
 
-        // Query failures must surface — do not treat missing samples as zero deviation.
-        if (sampleCount == 0 || failedSamples * 2 >= attempted) {
+        // Endpoints are critical; any failure or high failure rate → not evaluable.
+        SampleOutcome startCritical = samplePair(network, road, alignment, 0.0);
+        SampleOutcome endCritical = samplePair(network, road, alignment, roadLength);
+        if (!startCritical.ok() || !endCritical.ok()
+                || sampleCount == 0
+                || failedSamples * 2 >= attempted) {
             return new Report(
                 false, roadLength, alignmentLength, lengthMatches,
                 originDeviation, Double.POSITIVE_INFINITY, 0.0, sampleCount);
@@ -157,11 +161,10 @@ public final class HorizontalAlignmentCenterlineConsistency {
             RoadNetwork network,
             Road road,
             RoadHorizontalAlignment alignment,
-            StationDomainMap map,
             double instanceChainage) {
         Optional<Vec2d> centerlinePoint =
             RoadPlanGeometry.instancePointAtInstanceChainage(network, road, instanceChainage);
-        double canonical = map.toCanonical(instanceChainage);
+        double canonical = RoadStationing.toCanonicalChainage(network, road, instanceChainage);
         if (!Double.isFinite(canonical) || centerlinePoint.isEmpty()) {
             return SampleOutcome.fail();
         }

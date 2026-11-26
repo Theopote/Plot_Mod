@@ -22,6 +22,10 @@ public final class VerticalAlignmentProfileSupport {
         if (!RoadStationing.isStationable(network, road)) {
             return false;
         }
+        // Design VA requires a reliable physical↔native station map; never sample fabricated Y.
+        if (!RoadStationing.domainMap(network, road).isReliable()) {
+            return false;
+        }
         RoadVerticalMode mode = road.getVerticalMode();
         if (mode == RoadVerticalMode.FLAT) {
             return FlatVerticalIntentSupport.resolveIntent(network, road) != null;

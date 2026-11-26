@@ -2,7 +2,9 @@ package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
+import com.plot.plugin.road.alignment.HorizontalAlignmentElementType;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPolylineFitter;
 import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
@@ -10,28 +12,34 @@ import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Lightweight piecewise map between instance chainage and canonical station.
- * Built once per road (cached in {@link RoadStationingReadCache}); queries interpolate
- * between ordered anchors — never an unverified whole-road length ratio.
+ * Piecewise map between <strong>unrotated physical instance</strong> chainage and
+ * <strong>HA native</strong> station. Seam rotation is applied outside this class
+ * via {@link RoadPlanGeometry#haNativeStation} / {@link RoadPlanGeometry#canonicalFromHaNative}.
  */
 public final class StationDomainMap {
     private static final double EPSILON = 1e-6;
     private static final double MATCH_TOLERANCE = 0.75;
     private static final double COLINEAR_ANGLE_RADIANS = Math.toRadians(0.5);
+    /** Corner / kink threshold — gentle arc samples are not critical interiors. */
+    private static final double CRITICAL_CORNER_ANGLE_RADIANS = Math.toRadians(15.0);
     private static final double COLINEAR_RATIO_TOLERANCE = 1e-3;
+    private static final double POSE_TOLERANCE = RoadNetworkBuilder.NODE_TOLERANCE;
 
-    private final double[] instanceAnchors;
-    private final double[] canonicalAnchors;
+    private final double[] physicalAnchors;
+    private final double[] nativeAnchors;
     private final boolean reliable;
 
-    private StationDomainMap(double[] instanceAnchors, double[] canonicalAnchors, boolean reliable) {
-        this.instanceAnchors = instanceAnchors;
-        this.canonicalAnchors = canonicalAnchors;
+    private StationDomainMap(double[] physicalAnchors, double[] nativeAnchors, boolean reliable) {
+        this.physicalAnchors = physicalAnchors;
+        this.nativeAnchors = nativeAnchors;
         this.reliable = reliable;
     }
 
@@ -40,15 +48,22 @@ public final class StationDomainMap {
     }
 
     public int anchorCount() {
-        return instanceAnchors.length;
+        return physicalAnchors.length;
     }
 
     public double instanceTotal() {
-        return instanceAnchors.length == 0 ? 0.0 : instanceAnchors[instanceAnchors.length - 1];
+        return physicalAnchors.length == 0 ? 0.0 : physicalAnchors[physicalAnchors.length - 1];
     }
 
+    /** HA native total (design length when reliable). */
+    public double nativeTotal() {
+        return nativeAnchors.length == 0 ? 0.0 : nativeAnchors[nativeAnchors.length - 1];
+    }
+
+    /** @deprecated use {@link #nativeTotal()} — kept for callers that expected design/canonical span */
+    @Deprecated
     public double canonicalTotal() {
-        return canonicalAnchors.length == 0 ? 0.0 : canonicalAnchors[canonicalAnchors.length - 1];
+        return nativeTotal();
     }
 
     public static StationDomainMap identity(double length) {
@@ -56,33 +71,31 @@ public final class StationDomainMap {
         return new StationDomainMap(new double[] {0.0, L}, new double[] {0.0, L}, true);
     }
 
-    /** Unreliable empty/failure map — conversions return NaN. */
-    public static StationDomainMap unreliable(double instanceTotal, double canonicalTotal) {
+    public static StationDomainMap unreliable(double instanceTotal, double nativeTotal) {
         double i = Math.max(0.0, instanceTotal);
-        double c = Math.max(0.0, canonicalTotal);
-        return new StationDomainMap(new double[] {0.0, i}, new double[] {0.0, c}, false);
+        double n = Math.max(0.0, nativeTotal);
+        return new StationDomainMap(new double[] {0.0, i}, new double[] {0.0, n}, false);
     }
 
     public static StationDomainMap build(RoadNetwork network, Road road) {
         if (network == null || road == null || !RoadStationing.isStationable(network, road)) {
             return unreliable(0.0, 0.0);
         }
-        double instanceTotal = RoadPlanGeometry.instanceLength(network, road);
-        if (!Double.isFinite(instanceTotal) || instanceTotal <= EPSILON) {
+        double physicalTotal = physicalInstanceLength(network, road);
+        if (!Double.isFinite(physicalTotal) || physicalTotal <= EPSILON) {
             return unreliable(0.0, 0.0);
         }
         if (!RoadPlanGeometry.hasDesignAlignment(network, road)) {
-            return identity(instanceTotal);
+            return identity(physicalTotal);
         }
         double designTotal = RoadPlanGeometry.designLength(network, road);
         if (!Double.isFinite(designTotal) || designTotal <= EPSILON) {
-            return unreliable(instanceTotal, 0.0);
+            return unreliable(physicalTotal, 0.0);
         }
 
-        // Whole-road collinear parametric stretch — verified once for the road, not per-anchor.
-        if (isVerifiedCollinearParametricStretch(network, road, instanceTotal, designTotal)) {
+        if (isVerifiedCollinearParametricStretch(network, road, physicalTotal, designTotal)) {
             return new StationDomainMap(
-                new double[] {0.0, instanceTotal},
+                new double[] {0.0, physicalTotal},
                 new double[] {0.0, designTotal},
                 true);
         }
@@ -91,19 +104,33 @@ public final class StationDomainMap {
         List<PlanCenterlineSample> haSamples = RoadPlanGeometry.sampleHaNativeUnrotatedPublic(
             alignment, HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
         if (haSamples.size() < 2) {
-            return unreliable(instanceTotal, designTotal);
+            return unreliable(physicalTotal, designTotal);
         }
 
-        List<Double> instance = new ArrayList<>();
-        List<Double> canonical = new ArrayList<>();
-        if (!addAnchorStrict(instance, canonical, 0.0, 0.0)) {
-            return unreliable(instanceTotal, designTotal);
+        List<Double> physical = new ArrayList<>();
+        List<Double> nativeStations = new ArrayList<>();
+        if (!addAnchorStrict(physical, nativeStations, 0.0, 0.0)) {
+            return unreliable(physicalTotal, designTotal);
         }
+
         double minNativeCursor = -EPSILON;
-        int matchedInterior = 0;
-        int expectedInterior = 0;
+        Set<String> matchedEdgeBoundaries = new HashSet<>();
+        Set<String> requiredEdgeBoundaries = new HashSet<>();
+        int matchedCriticalInteriors = 0;
+        int expectedCriticalInteriors = 0;
 
-        List<OrientedRoadSegment> segments = RoadStationing.orientedSegments(network, road);
+        double seamPhysical = Double.NaN;
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null) {
+            double candidate = RoadStationing.physicalSeamStation(network, road);
+            if (Double.isFinite(candidate)
+                    && candidate > EPSILON
+                    && candidate < physicalTotal - EPSILON) {
+                seamPhysical = candidate;
+            }
+        }
+
+        List<OrientedRoadSegment> segments =
+            RoadStationing.physicalEdgeSegmentsForMaterialization(network, road);
         for (OrientedRoadSegment segment : segments) {
             RoadEdge edge = network.getEdge(segment.edgeId());
             if (edge == null) {
@@ -113,84 +140,193 @@ public final class StationDomainMap {
             if (points == null || points.size() < 2) {
                 continue;
             }
+            String entryKey = segment.edgeId() + "#entry";
+            String exitKey = segment.edgeId() + "#exit";
+            requiredEdgeBoundaries.add(entryKey);
+            requiredEdgeBoundaries.add(exitKey);
+
             List<Double> chainLocals = chainLocalFeatureStations(segment, points);
-            expectedInterior += Math.max(0, chainLocals.size() - 2);
+            Set<Double> criticalChainLocals = curvatureChangeChainLocals(segment, points);
+            // Insert seam into this edge's feature stations when it falls strictly inside.
+            boolean seamOnThisEdge = Double.isFinite(seamPhysical)
+                && seamPhysical > segment.startStation() + EPSILON
+                && seamPhysical < segment.endStation() - EPSILON;
+            if (seamOnThisEdge) {
+                double seamChainLocal = seamPhysical - segment.startStation();
+                chainLocals.add(seamChainLocal);
+                criticalChainLocals.add(seamChainLocal);
+                chainLocals.sort(Double::compareTo);
+            }
             for (double chainLocal : chainLocals) {
-                boolean interior = chainLocal > EPSILON && chainLocal < segment.length() - EPSILON;
-                boolean boundary = !interior;
-                AnchorMatch match = matchAnchor(
-                    network, road, haSamples, designTotal, segment, points, chainLocal, minNativeCursor);
+                boolean atEntry = chainLocal <= EPSILON;
+                boolean atExit = chainLocal >= segment.length() - EPSILON;
+                boolean atSeam = Double.isFinite(seamPhysical)
+                    && Math.abs(segment.startStation() + chainLocal - seamPhysical) <= EPSILON;
+                boolean criticalInterior = atSeam || isNearAny(criticalChainLocals, chainLocal);
+                if (criticalInterior && !atEntry && !atExit) {
+                    expectedCriticalInteriors++;
+                }
+                AnchorMatch match = matchPhysicalAnchor(
+                    haSamples, segment, points, chainLocal, minNativeCursor);
                 if (match == null) {
-                    if (boundary && chainLocal > EPSILON) {
-                        // Missing a non-origin segment boundary → map cannot be trusted.
-                        return unreliable(instanceTotal, designTotal);
+                    if (atEntry || atExit || atSeam || criticalInterior) {
+                        return unreliable(physicalTotal, designTotal);
                     }
                     continue;
                 }
-                if (!addAnchorStrict(instance, canonical, match.instanceStation(), match.canonicalStation())) {
-                    return unreliable(instanceTotal, designTotal);
+                if (!addAnchorStrict(physical, nativeStations, match.physicalStation(), match.nativeStation())) {
+                    if (atEntry || atExit || criticalInterior) {
+                        return unreliable(physicalTotal, designTotal);
+                    }
+                    continue;
                 }
                 minNativeCursor = match.nativeStation();
-                if (interior) {
-                    matchedInterior++;
+                if (atEntry) {
+                    matchedEdgeBoundaries.add(entryKey);
+                }
+                if (atExit) {
+                    matchedEdgeBoundaries.add(exitKey);
+                }
+                if (criticalInterior && !atEntry && !atExit) {
+                    matchedCriticalInteriors++;
                 }
             }
         }
 
-        if (instance.isEmpty()) {
-            return unreliable(instanceTotal, designTotal);
+        if (physical.isEmpty()) {
+            return unreliable(physicalTotal, designTotal);
         }
-        if (Math.abs(instance.getLast() - instanceTotal) > EPSILON
-                || Math.abs(canonical.getLast() - designTotal) > EPSILON) {
-            if (!addAnchorStrict(instance, canonical, instanceTotal, designTotal)) {
-                return unreliable(instanceTotal, designTotal);
+        // Close endpoints: chord-sampled polylines may be slightly shorter than design.
+        if (Math.abs(physical.getLast() - physicalTotal) > EPSILON
+                || Math.abs(nativeStations.getLast() - designTotal) > EPSILON) {
+            if (Math.abs(nativeStations.getLast() - designTotal) <= 10.0 * EPSILON
+                    && physical.getLast() + EPSILON < physicalTotal) {
+                physical.set(physical.size() - 1, physicalTotal);
+            } else if (Math.abs(physical.getLast() - physicalTotal) <= 10.0 * EPSILON
+                    && nativeStations.getLast() + EPSILON < designTotal) {
+                nativeStations.set(nativeStations.size() - 1, designTotal);
+            } else if (!addAnchorStrict(physical, nativeStations, physicalTotal, designTotal)) {
+                return unreliable(physicalTotal, designTotal);
             }
         }
 
         boolean reliable = evaluateReliability(
-            instance, canonical, instanceTotal, designTotal, expectedInterior, matchedInterior);
-        return new StationDomainMap(toArray(instance), toArray(canonical), reliable);
+            physical,
+            nativeStations,
+            physicalTotal,
+            designTotal,
+            requiredEdgeBoundaries,
+            matchedEdgeBoundaries,
+            expectedCriticalInteriors,
+            matchedCriticalInteriors);
+        return new StationDomainMap(toArray(physical), toArray(nativeStations), reliable);
+    }
+
+    /** Physical instance → HA native. */
+    public double toNative(double physicalInstance, boolean clamp) {
+        if (!reliable || !Double.isFinite(physicalInstance) || physicalAnchors.length < 2) {
+            return Double.NaN;
+        }
+        return interpolate(physicalAnchors, nativeAnchors, physicalInstance, clamp);
+    }
+
+    public double toNative(double physicalInstance) {
+        return toNative(physicalInstance, true);
+    }
+
+    /** HA native → physical instance. */
+    public double toPhysical(double nativeStation, boolean clamp) {
+        if (!reliable || !Double.isFinite(nativeStation) || nativeAnchors.length < 2) {
+            return Double.NaN;
+        }
+        return interpolate(nativeAnchors, physicalAnchors, nativeStation, clamp);
+    }
+
+    public double toPhysical(double nativeStation) {
+        return toPhysical(nativeStation, true);
     }
 
     /**
-     * Instance → canonical with endpoint clamp (legacy convenience).
-     * Prefer {@link #toCanonicalStrict} when out-of-range must fail.
+     * @deprecated physical→native; name kept for LINEAR tests where native≈canonical.
      */
-    public double toCanonical(double instanceChainage) {
-        return toCanonical(instanceChainage, true);
+    @Deprecated
+    public double toCanonical(double physicalInstance) {
+        return toNative(physicalInstance, true);
     }
 
-    public double toCanonicalStrict(double instanceChainage) {
-        return toCanonical(instanceChainage, false);
+    @Deprecated
+    public double toCanonicalStrict(double physicalInstance) {
+        return toNative(physicalInstance, false);
     }
 
-    public double toCanonical(double instanceChainage, boolean clamp) {
-        if (!reliable || !Double.isFinite(instanceChainage) || instanceAnchors.length < 2) {
-            return Double.NaN;
+    @Deprecated
+    public double toInstance(double nativeStation) {
+        return toPhysical(nativeStation, true);
+    }
+
+    @Deprecated
+    public double toInstanceStrict(double nativeStation) {
+        return toPhysical(nativeStation, false);
+    }
+
+    private static double physicalInstanceLength(RoadNetwork network, Road road) {
+        double length = 0.0;
+        for (OrientedRoadSegment segment :
+                RoadStationing.physicalEdgeSegmentsForMaterialization(network, road)) {
+            length += segment.length();
         }
-        return interpolate(instanceAnchors, canonicalAnchors, instanceChainage, clamp);
+        return length;
     }
 
-    public double toInstance(double canonicalStation) {
-        return toInstance(canonicalStation, true);
-    }
-
-    public double toInstanceStrict(double canonicalStation) {
-        return toInstance(canonicalStation, false);
-    }
-
-    public double toInstance(double canonicalStation, boolean clamp) {
-        if (!reliable || !Double.isFinite(canonicalStation) || canonicalAnchors.length < 2) {
-            return Double.NaN;
+    /** Chain-locals at polyline vertices where bearing changes beyond collinear tolerance. */
+    private static Set<Double> curvatureChangeChainLocals(
+            OrientedRoadSegment segment,
+            List<Vec2d> points) {
+        Set<Double> critical = new HashSet<>();
+        if (points == null || points.size() < 3) {
+            return critical;
         }
-        return interpolate(canonicalAnchors, instanceAnchors, canonicalStation, clamp);
+        double walked = 0.0;
+        for (int i = 1; i < points.size() - 1; i++) {
+            Vec2d prev = points.get(i - 1);
+            Vec2d cur = points.get(i);
+            Vec2d next = points.get(i + 1);
+            walked += prev.distance(cur);
+            if (cur == null || prev == null || next == null) {
+                continue;
+            }
+            Vec2d in = cur.subtract(prev);
+            Vec2d out = next.subtract(cur);
+            if (in.lengthSquared() < EPSILON * EPSILON || out.lengthSquared() < EPSILON * EPSILON) {
+                continue;
+            }
+            double angle = Math.abs(Math.atan2(
+                in.x * out.y - in.y * out.x,
+                in.x * out.x + in.y * out.y));
+            if (angle <= CRITICAL_CORNER_ANGLE_RADIANS) {
+                continue;
+            }
+            if (walked <= segment.geometryChainStart() + EPSILON
+                    || walked >= segment.geometryChainEnd() - EPSILON) {
+                continue;
+            }
+            double chainLocal = segment.chainLocalFromGeometryLocal(walked);
+            if (chainLocal > EPSILON && chainLocal < segment.length() - EPSILON) {
+                critical.add(chainLocal);
+            }
+        }
+        return critical;
     }
 
-    /**
-     * Chain-direction feature stations (0 and length inclusive, plus interior vertices).
-     * Uses {@link OrientedRoadSegment#geometryLocalFromChainLocal} so reverse edges
-     * still emit ascending instance chainage.
-     */
+    private static boolean isNearAny(Set<Double> values, double candidate) {
+        for (double value : values) {
+            if (Math.abs(value - candidate) <= EPSILON) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static List<Double> chainLocalFeatureStations(
             OrientedRoadSegment segment,
             List<Vec2d> points) {
@@ -215,7 +351,6 @@ public final class StationDomainMap {
         }
         chainLocals.add(segment.length());
         chainLocals.sort(Double::compareTo);
-        // Dedup
         List<Double> unique = new ArrayList<>(chainLocals.size());
         for (double value : chainLocals) {
             if (unique.isEmpty() || Math.abs(unique.getLast() - value) > EPSILON) {
@@ -225,17 +360,14 @@ public final class StationDomainMap {
         return unique;
     }
 
-    private static AnchorMatch matchAnchor(
-            RoadNetwork network,
-            Road road,
+    private static AnchorMatch matchPhysicalAnchor(
             List<PlanCenterlineSample> haSamples,
-            double designTotal,
             OrientedRoadSegment segment,
             List<Vec2d> points,
             double chainLocal,
             double minNativeCursor) {
         double geometryLocal = segment.geometryLocalFromChainLocal(chainLocal);
-        double instanceStation = segment.roadStationAtChainLocal(chainLocal);
+        double physicalStation = segment.roadStationAtChainLocal(chainLocal);
         Vec2d world = RoadGeometryUtils.pointAtDistance(points, geometryLocal);
         if (world == null) {
             return null;
@@ -244,17 +376,12 @@ public final class StationDomainMap {
         if (!Double.isFinite(nativeStation)) {
             return null;
         }
-        double canonicalStation = RoadPlanGeometry.canonicalFromHaNative(
-            network, road, nativeStation, designTotal);
-        if (!Double.isFinite(canonicalStation)) {
-            return null;
-        }
-        return new AnchorMatch(instanceStation, canonicalStation, nativeStation);
+        return new AnchorMatch(physicalStation, nativeStation);
     }
 
     /**
-     * Project onto HA sample polyline segments (not discrete nearest sample only).
-     * {@code minNativeCursor} enforces along-chain order so repeat XY passes stay distinct.
+     * Project onto HA sample polyline. {@code minNativeCursor} enforces ascending native
+     * along the <em>unrotated physical</em> walk (no LOOP wrap).
      */
     private static double projectHaNative(
             List<PlanCenterlineSample> samples,
@@ -275,6 +402,7 @@ public final class StationDomainMap {
             }
             double span = a.position().distance(b.position());
             double t = span <= EPSILON ? 0.0 : a.position().distance(projected) / span;
+            // PlanCenterlineSample.canonicalStation holds HA native for sampleHaNativeUnrotated.
             double nativeStation = a.canonicalStation() + t * (b.canonicalStation() - a.canonicalStation());
             if (nativeStation + EPSILON < minNativeCursor) {
                 continue;
@@ -289,84 +417,77 @@ public final class StationDomainMap {
     }
 
     private static boolean addAnchorStrict(
-            List<Double> instance,
-            List<Double> canonical,
-            double i,
-            double c) {
-        if (!Double.isFinite(i) || !Double.isFinite(c)) {
+            List<Double> physical,
+            List<Double> nativeStations,
+            double p,
+            double n) {
+        if (!Double.isFinite(p) || !Double.isFinite(n)) {
             return false;
         }
-        if (!instance.isEmpty()
-                && Math.abs(instance.getLast() - i) <= EPSILON
-                && Math.abs(canonical.getLast() - c) <= EPSILON) {
+        if (!physical.isEmpty()
+                && Math.abs(physical.getLast() - p) <= EPSILON
+                && Math.abs(nativeStations.getLast() - n) <= EPSILON) {
             return true;
         }
-        if (!instance.isEmpty() && i + EPSILON < instance.getLast()) {
+        if (!physical.isEmpty() && p + EPSILON < physical.getLast()) {
             return false;
         }
-        if (!canonical.isEmpty() && c + EPSILON < canonical.getLast()) {
+        if (!nativeStations.isEmpty() && n + EPSILON < nativeStations.getLast()) {
             return false;
         }
-        // Reject unexplained zero-length intervals after the first pair.
-        if (!instance.isEmpty()
-                && Math.abs(i - instance.getLast()) <= EPSILON
-                && Math.abs(c - canonical.getLast()) > EPSILON) {
+        if (!physical.isEmpty()
+                && Math.abs(p - physical.getLast()) <= EPSILON
+                && Math.abs(n - nativeStations.getLast()) > EPSILON) {
             return false;
         }
-        if (!canonical.isEmpty()
-                && Math.abs(c - canonical.getLast()) <= EPSILON
-                && Math.abs(i - instance.getLast()) > EPSILON) {
+        if (!nativeStations.isEmpty()
+                && Math.abs(n - nativeStations.getLast()) <= EPSILON
+                && Math.abs(p - physical.getLast()) > EPSILON) {
             return false;
         }
-        instance.add(i);
-        canonical.add(c);
+        physical.add(p);
+        nativeStations.add(n);
         return true;
     }
 
     private static boolean evaluateReliability(
-            List<Double> instance,
-            List<Double> canonical,
-            double instanceTotal,
+            List<Double> physical,
+            List<Double> nativeStations,
+            double physicalTotal,
             double designTotal,
-            int expectedInterior,
-            int matchedInterior) {
-        if (instance.size() < 2 || canonical.size() != instance.size()) {
+            Set<String> requiredEdgeBoundaries,
+            Set<String> matchedEdgeBoundaries,
+            int expectedCriticalInteriors,
+            int matchedCriticalInteriors) {
+        if (physical.size() < 2 || nativeStations.size() != physical.size()) {
             return false;
         }
-        // Endpoints alone are not enough when the road has interior geometry to match.
-        if (expectedInterior > 0 && matchedInterior == 0 && instance.size() <= 2) {
+        if (!matchedEdgeBoundaries.containsAll(requiredEdgeBoundaries)) {
             return false;
         }
-        if (!isStrictlyMonotonic(instance) || !isStrictlyMonotonic(canonical)) {
+        if (expectedCriticalInteriors > 0
+                && matchedCriticalInteriors < expectedCriticalInteriors) {
             return false;
         }
-        if (Math.abs(instance.getFirst()) > EPSILON || Math.abs(canonical.getFirst()) > EPSILON) {
+        if (!isStrictlyMonotonic(physical) || !isStrictlyMonotonic(nativeStations)) {
             return false;
         }
-        if (Math.abs(instance.getLast() - instanceTotal) > 10.0 * EPSILON) {
+        if (Math.abs(physical.getFirst()) > EPSILON || Math.abs(nativeStations.getFirst()) > EPSILON) {
             return false;
         }
-        if (Math.abs(canonical.getLast() - designTotal) > 10.0 * EPSILON) {
+        if (Math.abs(physical.getLast() - physicalTotal) > 10.0 * EPSILON) {
             return false;
         }
-        // Require coverage: at least one interior anchor when totals diverge locally,
-        // or when more than two anchors were expected from vertices.
-        if (expectedInterior > 0 && matchedInterior < Math.min(expectedInterior, 1)) {
+        if (Math.abs(nativeStations.getLast() - designTotal) > 10.0 * EPSILON) {
             return false;
         }
         return true;
     }
 
-    /**
-     * Whole-road collinear parametric correspondence (identity or uniform stretch).
-     * Equal totals alone are not enough — both the instance chain and HA must be a
-     * single collinear tangent parameterisation. Non-colinear same-length roads still
-     * go through local anchor matching.
-     */
     private static boolean isVerifiedCollinearParametricStretch(
             RoadNetwork network,
             Road road,
-            double instanceTotal,
+            double physicalTotal,
             double designTotal) {
         List<Vec2d> chain = HorizontalAlignmentPolylineFitter.collectChainPoints(network, road);
         if (chain.size() < 2 || !HorizontalAlignmentPolylineFitter.isColinear(chain, COLINEAR_ANGLE_RADIANS)) {
@@ -376,10 +497,29 @@ public final class StationDomainMap {
         if (alignment == null || alignment.isEmpty() || alignment.getElements().size() != 1) {
             return false;
         }
-        double ratio = designTotal / instanceTotal;
+        if (alignment.getElements().getFirst().getType() != HorizontalAlignmentElementType.TANGENT) {
+            return false;
+        }
+        Vec2d origin = alignment.getOrigin();
+        Vec2d chainStart = chain.getFirst();
+        if (origin == null || chainStart == null || origin.distance(chainStart) > POSE_TOLERANCE) {
+            return false;
+        }
+        Vec2d firstLeg = chain.get(1).subtract(chain.getFirst());
+        if (firstLeg.lengthSquared() < EPSILON * EPSILON) {
+            return false;
+        }
+        double chainBearing = Math.atan2(firstLeg.y, firstLeg.x);
+        double delta = Math.abs(Math.atan2(
+            Math.sin(alignment.getStartBearingRadians() - chainBearing),
+            Math.cos(alignment.getStartBearingRadians() - chainBearing)));
+        if (delta > COLINEAR_ANGLE_RADIANS) {
+            return false;
+        }
+        double ratio = designTotal / physicalTotal;
         return Double.isFinite(ratio)
             && ratio > COLINEAR_RATIO_TOLERANCE
-            && Math.abs(ratio * instanceTotal - designTotal) <= EPSILON;
+            && Math.abs(ratio * physicalTotal - designTotal) <= EPSILON;
     }
 
     private static double interpolate(double[] from, double[] to, double value, boolean clamp) {
@@ -446,6 +586,6 @@ public final class StationDomainMap {
         return out;
     }
 
-    private record AnchorMatch(double instanceStation, double canonicalStation, double nativeStation) {
+    private record AnchorMatch(double physicalStation, double nativeStation) {
     }
 }

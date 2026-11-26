@@ -3,26 +3,31 @@ package com.plot.plugin.road.alignment;
 import com.plot.api.geometry.Vec2d;
 
 /**
- * Plan 中心线采样点。
- * <p>
- * Field {@code canonicalStation} is historical naming; callers must know which domain produced it:
- * <ul>
- *   <li>{@link #canonical} — design/canonical station (traversal / VA / facilities)</li>
- *   <li>{@link #haNative} — HA native station (physical materialization; unrotated)</li>
- *   <li>{@link #geometryLocal} — edge-local arc length (instance polyline without HA)</li>
- * </ul>
+ * Plan 中心线采样点，带显式 {@link StationDomain}（禁止仅靠注释区分域）。
  */
-public record PlanCenterlineSample(Vec2d position, double canonicalStation) {
+public record PlanCenterlineSample(Vec2d position, double canonicalStation, StationDomain domain) {
+
+    public PlanCenterlineSample {
+        if (domain == null) {
+            domain = StationDomain.CANONICAL;
+        }
+    }
+
+    /** @deprecated prefer {@link #canonical(Vec2d, double)} */
+    @Deprecated
+    public PlanCenterlineSample(Vec2d position, double canonicalStation) {
+        this(position, canonicalStation, StationDomain.CANONICAL);
+    }
 
     public static PlanCenterlineSample canonical(Vec2d position, double canonicalStation) {
-        return new PlanCenterlineSample(position, canonicalStation);
+        return new PlanCenterlineSample(position, canonicalStation, StationDomain.CANONICAL);
     }
 
     public static PlanCenterlineSample haNative(Vec2d position, double nativeStation) {
-        return new PlanCenterlineSample(position, nativeStation);
+        return new PlanCenterlineSample(position, nativeStation, StationDomain.HA_NATIVE);
     }
 
     public static PlanCenterlineSample geometryLocal(Vec2d position, double geometryLocal) {
-        return new PlanCenterlineSample(position, geometryLocal);
+        return new PlanCenterlineSample(position, geometryLocal, StationDomain.GEOMETRY_LOCAL);
     }
 }

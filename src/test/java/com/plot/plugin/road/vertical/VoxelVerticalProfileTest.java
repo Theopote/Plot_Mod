@@ -46,8 +46,8 @@ class VoxelVerticalProfileTest {
             profile);
 
         assertSame(first.voxelProfile(), secondReversed.voxelProfile());
-        assertEquals(first.elevationAtChainage(20), secondReversed.elevationAtLocalDistance(20));
-        assertEquals(profile.elevationAt(40), secondReversed.elevationAtLocalDistance(0));
+        assertEquals(first.elevationAtChainage(20), secondReversed.elevationAtLocalDistance(20).orElseThrow());
+        assertEquals(profile.elevationAt(40), secondReversed.elevationAtLocalDistance(0).orElseThrow());
     }
 
     @Test

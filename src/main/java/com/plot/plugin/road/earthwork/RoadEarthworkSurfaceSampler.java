@@ -64,7 +64,8 @@ public final class RoadEarthworkSurfaceSampler {
         List<PathSegment> segments = toPathSegments(centerline);
         DesignElevationSource designElevation = DesignElevationSource.forEdge(network, edge, segments);
         if (designElevation.isActive()) {
-            return designElevation.elevationAtLocalDistance(localDistance);
+            var elev = designElevation.elevationAtLocalDistance(localDistance);
+            return elev.isPresent() ? elev.getAsInt() : null;
         }
         return interpolateManualNodeElevations(network, edge, centerline, localDistance);
     }

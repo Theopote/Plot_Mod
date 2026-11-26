@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.station.StationDomainMap;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -104,13 +105,14 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             RoadStationing.physicalEdgeSegmentsForMaterialization(network, road);
         Map<String, List<Vec2d>> centerlinesByEdgeId = new LinkedHashMap<>();
 
-        for (OrientedRoadSegment oriented : orientedSegments) {
+        for (int i = 0; i < orientedSegments.size(); i++) {
+            OrientedRoadSegment oriented = orientedSegments.get(i);
             if (network.getEdge(oriented.edgeId()) == null) {
                 return Optional.empty();
             }
-
+            boolean lastPhysical = i == orientedSegments.size() - 1;
             List<Vec2d> geometryPoints = sampleGeometryPoints(
-                network, road, alignment, oriented, spacing);
+                network, road, alignment, oriented, spacing, lastPhysical);
             if (geometryPoints.size() < 2) {
                 return Optional.empty();
             }
@@ -304,7 +306,7 @@ public final class HorizontalAlignmentCenterlineMaterializer {
     /**
      * Physical-edge HA sampling in <strong>HA native</strong> domain.
      * {@code oriented} must come from {@link RoadStationing#physicalEdgeSegmentsForMaterialization}
-     * (unrotated). Do not convert through seam-rotated {@code toCanonicalChainage}.
+     * (unrotated). Maps physical instance stations through {@link StationDomainMap#toNative}.
      */
     static List<PlanCenterlineSample> samplePlanCenterline(
             RoadNetwork network,
@@ -312,25 +314,70 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,
             double spacing) {
+        return samplePlanCenterline(network, road, alignment, oriented, spacing, false);
+    }
+
+    static List<PlanCenterlineSample> samplePlanCenterline(
+            RoadNetwork network,
+            Road road,
+            RoadHorizontalAlignment alignment,
+            OrientedRoadSegment oriented,
+            double spacing,
+            boolean forceIncludeDesignEnd) {
         if (network == null || road == null || alignment == null || alignment.isEmpty() || oriented == null) {
             return List.of();
         }
         double spacingClamped = spacing > MIN_POINT_SPACING ? spacing : DEFAULT_SAMPLE_SPACING_METERS;
-        // Physical unrotated instance stations align with HA native for materialization.
         double designLen = HorizontalAlignmentGeometry.totalLength(alignment);
-        double startNative = Math.min(oriented.startStation(), oriented.endStation());
-        double endNative = Math.max(oriented.startStation(), oriented.endStation());
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        double startPhysical = Math.min(oriented.startStation(), oriented.endStation());
+        double endPhysical = Math.max(oriented.startStation(), oriented.endStation());
+        double startNative;
+        double endNative;
+        if (map != null && map.isReliable()) {
+            startNative = map.toNative(startPhysical);
+            endNative = map.toNative(endPhysical);
+            if (!Double.isFinite(startNative) || !Double.isFinite(endNative)) {
+                return List.of();
+            }
+        } else if (Math.abs(designLen - RoadPlanGeometry.instanceLength(network, road))
+                <= HorizontalAlignmentCenterlineConsistency.DEFAULT_LENGTH_TOLERANCE_METERS) {
+            // Length-compatible fallback when map is unavailable (materialize eligibility already checked).
+            startNative = startPhysical;
+            endNative = endPhysical;
+        } else {
+            return List.of();
+        }
+        if (forceIncludeDesignEnd) {
+            endNative = Math.max(endNative, designLen);
+        }
         startNative = Math.max(0.0, Math.min(startNative, designLen));
         endNative = Math.max(0.0, Math.min(endNative, designLen));
         if (endNative < startNative + MIN_POINT_SPACING) {
             return List.of();
         }
-        List<PlanCenterlineSample> alongChain = new ArrayList<>();
-        for (double nativeStation = startNative; nativeStation <= endNative + 1e-6; nativeStation += spacingClamped) {
-            double clamped = Math.min(nativeStation, endNative);
-            appendNativeSampleIfDistinct(alongChain, alignment, clamped);
+        List<Double> nativeStations = new ArrayList<>();
+        nativeStations.add(startNative);
+        for (double nativeStation = startNative + spacingClamped;
+                nativeStation < endNative - 1e-6;
+                nativeStation += spacingClamped) {
+            nativeStations.add(nativeStation);
         }
-        appendNativeSampleIfDistinct(alongChain, alignment, endNative);
+        nativeStations.add(endNative);
+        // Element boundaries within this native span.
+        double walked = 0.0;
+        for (HorizontalAlignmentElement element : alignment.getElements()) {
+            walked += element.getLength();
+            if (walked > startNative + 1e-6 && walked < endNative - 1e-6) {
+                nativeStations.add(walked);
+            }
+        }
+        nativeStations.sort(Double::compareTo);
+
+        List<PlanCenterlineSample> alongChain = new ArrayList<>();
+        for (double nativeStation : nativeStations) {
+            appendNativeSampleIfDistinct(alongChain, alignment, nativeStation);
+        }
         if (alongChain.isEmpty()) {
             return List.of();
         }
@@ -358,8 +405,10 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             Road road,
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,
-            double spacing) {
-        return samplePhysicalEdgeGeometryPoints(network, road, alignment, oriented, spacing);
+            double spacing,
+            boolean forceIncludeDesignEnd) {
+        return samplePhysicalEdgeGeometryPoints(
+            network, road, alignment, oriented, spacing, forceIncludeDesignEnd);
     }
 
     /**
@@ -370,8 +419,10 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             Road road,
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,
-            double spacing) {
-        return samplePlanCenterline(network, road, alignment, oriented, spacing).stream()
+            double spacing,
+            boolean forceIncludeDesignEnd) {
+        return samplePlanCenterline(network, road, alignment, oriented, spacing, forceIncludeDesignEnd)
+            .stream()
             .map(PlanCenterlineSample::position)
             .toList();
     }

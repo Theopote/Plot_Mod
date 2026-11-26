@@ -118,8 +118,7 @@ public final class RoadPlanGeometry {
 
     /**
      * Point on the instance polyline at a <strong>canonical</strong> station
-     * (converts via domain map; falls back to instance-domain lookup only when the
-     * numeric domains are equal-length and the map is unavailable).
+     * (converts via domain map). Mapping failure returns empty — no equal-length identity fallback.
      */
     public static Optional<Vec2d> instancePointAtStation(
             RoadNetwork network,
@@ -127,13 +126,7 @@ public final class RoadPlanGeometry {
             double chainageMeters) {
         double instance = RoadStationing.toInstanceChainage(network, road, chainageMeters);
         if (!Double.isFinite(instance)) {
-            double canonicalTotal = canonicalLength(network, road);
-            double instanceTotal = instanceLength(network, road);
-            if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
-                instance = chainageMeters;
-            } else {
-                return Optional.empty();
-            }
+            return Optional.empty();
         }
         return instancePointAtInstanceChainage(network, road, instance);
     }
@@ -236,12 +229,57 @@ public final class RoadPlanGeometry {
         if (total <= STATION_EPSILON) {
             return List.of();
         }
-        List<PlanCenterlineSample> samples = new ArrayList<>();
-        for (double chainage = 0.0; chainage <= total + STATION_EPSILON; chainage += spacing) {
-            double clamped = Math.min(chainage, total);
-            appendRoadSampleIfDistinct(network, road, samples, clamped);
+        List<Double> stations = new ArrayList<>();
+        stations.add(0.0);
+        for (double chainage = spacing; chainage < total - STATION_EPSILON; chainage += spacing) {
+            stations.add(chainage);
         }
-        appendRoadSampleIfDistinct(network, road, samples, total);
+        stations.add(total);
+        // Polyline vertices → canonical via oriented instance stations.
+        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge == null || edge.getCenterlinePoints() == null) {
+                continue;
+            }
+            List<Vec2d> points = edge.getCenterlinePoints();
+            double walked = 0.0;
+            for (int i = 0; i < points.size() - 1; i++) {
+                walked += points.get(i).distance(points.get(i + 1));
+                if (!segment.containsGeometryLocal(walked)) {
+                    continue;
+                }
+                double instanceStation = segment.roadStationAtGeometryLocal(walked);
+                double canonical = RoadStationing.toCanonicalChainage(network, road, instanceStation);
+                if (Double.isFinite(canonical)
+                        && canonical > STATION_EPSILON
+                        && canonical < total - STATION_EPSILON) {
+                    stations.add(canonical);
+                }
+            }
+        }
+        // HA element boundaries in canonical domain.
+        if (hasDesignAlignment(network, road)) {
+            RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
+            double nativeWalked = 0.0;
+            for (HorizontalAlignmentElement element : alignment.getElements()) {
+                nativeWalked += element.getLength();
+                if (nativeWalked <= STATION_EPSILON || nativeWalked >= designLength(network, road) - STATION_EPSILON) {
+                    continue;
+                }
+                double canonical = canonicalFromHaNative(
+                    network, road, nativeWalked, designLength(network, road));
+                if (Double.isFinite(canonical)
+                        && canonical > STATION_EPSILON
+                        && canonical < total - STATION_EPSILON) {
+                    stations.add(canonical);
+                }
+            }
+        }
+        stations.sort(Double::compareTo);
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        for (double chainage : stations) {
+            appendRoadSampleIfDistinct(network, road, samples, chainage);
+        }
         return List.copyOf(samples);
     }
 
@@ -359,6 +397,11 @@ public final class RoadPlanGeometry {
         Road road = network.getRoadForEdge(edge);
         if (road == null) {
             return List.of();
+        }
+        // Prefer physical HA-native sampling when design alignment is present (does not require
+        // a reliable domain map for equal-length materialization ranges).
+        if (hasDesignAlignment(network, road)) {
+            return resolvePhysicalEdgeCenterlineSamples(network, edge, sampleSpacingMeters);
         }
         List<OrientedRoadSegment> slices = RoadStationing.orientedSegmentsForEdge(network, road, edge.getId());
         if (slices.isEmpty()) {
@@ -690,7 +733,7 @@ public final class RoadPlanGeometry {
                 Vec2d point = new Vec2d(pose.x(), pose.y());
                 if (samples.isEmpty()
                         || samples.getLast().position().distance(point) > STATION_EPSILON) {
-                    samples.add(new PlanCenterlineSample(point, clamped));
+                    samples.add(PlanCenterlineSample.haNative(point, clamped));
                 }
             });
         }
@@ -698,7 +741,7 @@ public final class RoadPlanGeometry {
             Vec2d point = new Vec2d(pose.x(), pose.y());
             if (samples.isEmpty()
                     || samples.getLast().position().distance(point) > STATION_EPSILON) {
-                samples.add(new PlanCenterlineSample(point, total));
+                samples.add(PlanCenterlineSample.haNative(point, total));
             }
         });
         return List.copyOf(samples);
@@ -713,7 +756,7 @@ public final class RoadPlanGeometry {
             if (samples.isEmpty()
                     || samples.getLast().position().distance(point) > STATION_EPSILON
                     || Math.abs(samples.getLast().canonicalStation() - canonicalStation) > STATION_EPSILON) {
-                samples.add(new PlanCenterlineSample(point, canonicalStation));
+                samples.add(PlanCenterlineSample.canonical(point, canonicalStation));
             }
         });
     }

@@ -243,8 +243,12 @@ public final class TunnelPortalPlanner {
         Vec2d leftNormal = com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry
             .chainLeftNormal(segment, chainForward);
         Vec2d center = segment.start.lerp(segment.end, location.t());
-        int targetY = DesignElevationSource.resolveTargetElevation(
+        var resolvedY = DesignElevationSource.resolveTargetElevation(
             designElevation, buildProfile, info, location.geometryLocal(), location.t(), worldStation);
+        if (resolvedY.isEmpty()) {
+            return false;
+        }
+        int targetY = resolvedY.getAsInt();
         if (elevationSnapper != null) {
             targetY = elevationSnapper.snap(center, targetY);
         }

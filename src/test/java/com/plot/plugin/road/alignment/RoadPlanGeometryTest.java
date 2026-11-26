@@ -100,7 +100,9 @@ class RoadPlanGeometryTest {
         road.setHorizontalAlignment(alignment);
 
         Vec2d planPoint = RoadStationing.pointAtStation(network, road, 0.0).orElseThrow();
-        Vec2d instancePoint = RoadStationing.instancePointAtStation(network, road, 0.0).orElseThrow();
+        // Offset HA vs instance → domain map unreliable → no equal-length identity fallback.
+        assertTrue(RoadStationing.instancePointAtStation(network, road, 0.0).isEmpty());
+        Vec2d instancePoint = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 0.0).orElseThrow();
 
         assertEquals(7.0, planPoint.y, 1e-6);
         assertEquals(0.0, instancePoint.y, 1e-6);

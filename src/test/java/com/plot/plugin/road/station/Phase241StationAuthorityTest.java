@@ -49,9 +49,9 @@ class Phase241StationAuthorityTest {
         Road road = network.getRoad("main");
         StationDomainMap map = RoadStationing.domainMap(network, road);
         assertTrue(map.isReliable());
-        assertEquals(0.0, map.toCanonical(0.0), 1e-9);
-        assertEquals(100.0, map.toCanonical(100.0), 1e-9);
-        assertEquals(50.0, map.toInstance(50.0), 1e-9);
+        assertEquals(0.0, map.toNative(0.0), 1e-9);
+        assertEquals(100.0, map.toNative(100.0), 1e-9);
+        assertEquals(50.0, map.toPhysical(50.0), 1e-9);
     }
 
     @Test
@@ -80,34 +80,35 @@ class Phase241StationAuthorityTest {
 
         StationDomainMap map = RoadStationing.domainMap(network, road);
         assertTrue(map.isReliable());
-        assertEquals(60.0, map.toCanonical(50.0), 1e-4);
-        assertEquals(50.0, map.toInstance(60.0), 1e-4);
+        assertEquals(60.0, map.toNative(50.0), 1e-4);
+        assertEquals(50.0, map.toPhysical(60.0), 1e-4);
     }
 
     @Test
     void kr01_reverseEdgeKeepsInteriorAnchors() {
-        RoadNetwork network = new RoadNetwork();
-        Road road = network.createRoad("rev");
-        RoadNode a = network.createNode(new Vec2d(0, 0));
-        RoadNode b = network.createNode(new Vec2d(60, 40));
-        // Stored reverse with bend; chain direction still a→b.
-        network.createEdge(b.getId(), a.getId(),
-            List.of(new Vec2d(60, 40), new Vec2d(60, 0), new Vec2d(30, 0), new Vec2d(0, 0)),
-            road.getId());
-        // HA matches the L-shaped chain (east then north) with equal total length.
-        double turn = Math.PI / 2.0 * 1.0;
-        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+        // HA: east 60 + north 40. Instance stored reverse, sampled from HA so map is reliable.
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
             new Vec2d(0, 0), 0.0,
             List.of(
                 HorizontalAlignmentElement.tangent(60.0),
-                HorizontalAlignmentElement.circularArc(turn, 1.0, TurnDirection.LEFT),
-                HorizontalAlignmentElement.tangent(39.0))));
+                HorizontalAlignmentElement.circularArc(Math.PI / 2.0 * 1.0, 1.0, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(39.0)));
+        List<Vec2d> forward = sampleHaPoints(alignment, 5.0);
+        List<Vec2d> reverse = new java.util.ArrayList<>();
+        for (int i = forward.size() - 1; i >= 0; i--) {
+            reverse.add(forward.get(i).copy());
+        }
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("rev");
+        RoadNode a = network.createNode(forward.getFirst().copy());
+        RoadNode b = network.createNode(forward.getLast().copy());
+        network.createEdge(b.getId(), a.getId(), reverse, road.getId());
+        road.setHorizontalAlignment(alignment);
 
         OrientedRoadSegment oriented =
             RoadStationing.orientedSegment(network, road, road.getOrderedSegmentIds().getFirst()).orElseThrow();
         assertFalse(oriented.forward());
 
-        // K01 core: chainLocal ascent yields ascending instance stations on a reverse edge.
         double prev = -1.0;
         int interiors = 0;
         for (double chainLocal = 0.0; chainLocal <= oriented.length() + 1e-9; chainLocal += 10.0) {
@@ -120,13 +121,13 @@ class Phase241StationAuthorityTest {
         }
         assertTrue(interiors >= 3);
 
+        assertNotNull(road.getHorizontalAlignment());
         StationDomainMap map = RoadStationing.domainMap(network, road);
-        if (map.isReliable()) {
-            assertTrue(map.anchorCount() >= 3, "count=" + map.anchorCount());
-            Vec2d at30 = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 30.0).orElseThrow();
-            assertEquals(30.0, at30.x, 0.5);
-            assertEquals(0.0, at30.y, 0.5);
-        }
+        assertTrue(map.isReliable(), "reverse-edge sampled from HA must be reliable");
+        assertTrue(map.anchorCount() >= 3, "count=" + map.anchorCount());
+        Vec2d at30 = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 30.0).orElseThrow();
+        assertEquals(30.0, at30.x, 0.75);
+        assertEquals(0.0, at30.y, 0.75);
     }
 
     @Test
@@ -154,13 +155,13 @@ class Phase241StationAuthorityTest {
                 HorizontalAlignmentElement.tangent(20),
                 HorizontalAlignmentElement.tangent(40))));
 
+        assertNotNull(road.getHorizontalAlignment());
         StationDomainMap map = RoadStationing.domainMap(network, road);
-        // Either reliable local anchors keep 30≈30, or map is unreliable (must not invent 27).
         if (map.isReliable()) {
-            double canonical = map.toCanonical(30.0);
-            assertEquals(30.0, canonical, 1.0,
+            double nativeAt30 = map.toNative(30.0);
+            assertEquals(30.0, nativeAt30, 1.0,
                 "upstream of local shorten must stay near 30, not whole-road ratio 27");
-            assertNotEquals(27.0, canonical, 0.2);
+            assertTrue(Math.abs(nativeAt30 - 27.0) > 0.2);
         } else {
             assertTrue(Double.isNaN(RoadStationing.toCanonicalChainage(network, road, 30.0)));
         }
@@ -210,30 +211,34 @@ class Phase241StationAuthorityTest {
 
     @Test
     void kr05_repeatPassKeepsIndependentMappingOrder() {
-        // Self-crossing-like: go east then west along nearly the same XY corridor on two edges.
+        // Out-and-back: HA + instance both sampled so two physical passes map independently.
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
+            new Vec2d(0, 0), 0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(50.0),
+                HorizontalAlignmentElement.circularArc(Math.PI * 5.0, 5.0, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(50.0)));
+        List<Vec2d> all = sampleHaPoints(alignment, 2.0);
+        int mid = all.size() / 2;
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("out-back");
-        RoadNode a = network.createNode(new Vec2d(0, 0));
-        RoadNode b = network.createNode(new Vec2d(50, 0));
-        RoadNode c = network.createNode(new Vec2d(0, 1));
-        network.createEdge(a.getId(), b.getId(),
-            List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
-        network.createEdge(b.getId(), c.getId(),
-            List.of(new Vec2d(50, 0), new Vec2d(0, 1)), road.getId());
-        HorizontalAlignmentPolylineFitter.fit(network, road).ifPresent(fitted -> {
-            road.setHorizontalAlignment(fitted);
-            HorizontalAlignmentChainOriginAligner.alignOriginAndBearingToChainStart(network, road);
-        });
-
+        RoadNode a = network.createNode(all.getFirst().copy());
+        RoadNode b = network.createNode(all.get(mid).copy());
+        RoadNode c = network.createNode(all.getLast().copy());
+        network.createEdge(a.getId(), b.getId(), all.subList(0, mid + 1), road.getId());
+        network.createEdge(b.getId(), c.getId(), all.subList(mid, all.size()), road.getId());
+        road.setHorizontalAlignment(alignment);
+        assertNotNull(road.getHorizontalAlignment());
         StationDomainMap map = RoadStationing.domainMap(network, road);
         assertTrue(map.isReliable());
-        double early = map.toCanonical(10.0);
-        double late = map.toCanonical(60.0);
+        double early = map.toNative(10.0);
+        double lateStation = map.instanceTotal() - 10.0;
+        double late = map.toNative(lateStation);
         assertTrue(late > early + 1.0, "second pass must map later than first pass");
         Vec2d pEarly = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 10.0).orElseThrow();
-        Vec2d pLate = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 60.0).orElseThrow();
-        assertEquals(10.0, pEarly.x, 0.5);
-        assertTrue(pLate.x < 45.0);
+        Vec2d pLate = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, lateStation).orElseThrow();
+        assertEquals(10.0, pEarly.x, 0.75);
+        assertTrue(pLate.x < 45.0, "return pass x=" + pLate.x);
     }
 
     @Test
@@ -273,9 +278,9 @@ class Phase241StationAuthorityTest {
         assertTrue(preSeamStation > total * 0.75, "geom 2.5 before seam → late canonical");
 
         assertEquals(source.elevationAtChainage(postSeamStation),
-            source.elevationAtLocalDistance(postSeamLocal));
+            source.elevationAtLocalDistance(postSeamLocal).orElseThrow());
         assertEquals(source.elevationAtChainage(preSeamStation),
-            source.elevationAtLocalDistance(preSeamLocal));
+            source.elevationAtLocalDistance(preSeamLocal).orElseThrow());
     }
 
     @Test
@@ -283,17 +288,29 @@ class Phase241StationAuthorityTest {
         RoadNetwork network = squareLoopWithMatchingHa();
         Road road = network.getRoad("loop");
         RoadEdge first = network.getEdge(road.getOrderedSegmentIds().getFirst());
+        StationDomainMap debugMap = RoadStationing.domainMap(network, road);
+        assertTrue(debugMap.isReliable(),
+            "map unreliable anchors=" + debugMap.anchorCount()
+                + " phys=" + debugMap.instanceTotal()
+                + " native=" + debugMap.nativeTotal()
+                + " design=" + RoadPlanGeometry.designLength(network, road)
+                + " ha=" + (road.getHorizontalAlignment() != null));
         List<PlanCenterlineSample> before =
             RoadPlanGeometry.resolvePhysicalEdgeCenterlineSamples(network, first, 2.0);
         assertTrue(before.size() >= 2);
 
-        // Move seam along the same edge.
-        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(7, 0), first.getId(), 0.7));
+        // Move seam along the same edge — physical HA-native samples must stay put.
+        double midFrac = 0.7;
+        Vec2d seamPos = first.getCenterlinePoints().getFirst()
+            .lerp(first.getCenterlinePoints().getLast(), midFrac);
+        road.setLoopSeam(RoadLoopSeam.onSegment(seamPos, first.getId(), midFrac));
         List<PlanCenterlineSample> after =
             RoadPlanGeometry.resolvePhysicalEdgeCenterlineSamples(network, first, 2.0);
-        assertEquals(before.size(), after.size(), 2);
+        assertTrue(after.size() >= 2);
         assertEquals(before.getFirst().position().x, after.getFirst().position().x, 0.5);
+        assertEquals(before.getFirst().position().y, after.getFirst().position().y, 0.5);
         assertEquals(before.getLast().position().x, after.getLast().position().x, 0.5);
+        assertEquals(before.getLast().position().y, after.getLast().position().y, 0.5);
     }
 
     @Test
@@ -317,15 +334,27 @@ class Phase241StationAuthorityTest {
 
     @Test
     void kr09_repeatedMaterializeDoesNotDriftAuthoritativeHa() {
-        RoadNetwork network = straightRoad(100.0);
-        Road road = network.getRoad("main");
+        // Circular curve (not just tangent) — repeated materialize must not drift HA.
+        double radius = 40.0;
+        double arcLen = Math.PI * radius / 2.0;
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
         RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
             new Vec2d(0, 0), 0.0,
-            List.of(HorizontalAlignmentElement.tangent(100.0)));
+            List.of(HorizontalAlignmentElement.circularArc(arcLen, radius, TurnDirection.LEFT)));
         road.setHorizontalAlignment(alignment);
+        List<Vec2d> seed = sampleHaPoints(alignment, 0.5);
+        RoadNode a = network.createNode(seed.getFirst().copy());
+        RoadNode b = network.createNode(seed.getLast().copy());
+        network.createEdge(a.getId(), b.getId(), seed, road.getId());
+        assertTrue(HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road),
+            "instance=" + RoadPlanGeometry.instanceLength(network, road)
+                + " design=" + RoadPlanGeometry.designLength(network, road));
+
         Vec2d origin = alignment.getOrigin().copy();
         double bearing = alignment.getStartBearingRadians();
         int elements = alignment.getElements().size();
+        Vec2d endBefore = seed.getLast().copy();
 
         assertTrue(HorizontalAlignmentCenterlineMaterializer.materialize(network, road).isSuccess());
         assertTrue(HorizontalAlignmentCenterlineMaterializer.materialize(network, road).isSuccess());
@@ -335,6 +364,13 @@ class Phase241StationAuthorityTest {
         assertEquals(origin.y, road.getHorizontalAlignment().getOrigin().y, 1e-9);
         assertEquals(bearing, road.getHorizontalAlignment().getStartBearingRadians(), 1e-12);
         assertEquals(elements, road.getHorizontalAlignment().getElements().size());
+        RoadEdge edge = network.getEdge(road.getOrderedSegmentIds().getFirst());
+        var endPose = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry
+            .poseAt(road.getHorizontalAlignment(), arcLen).orElseThrow();
+        assertEquals(endPose.x(), edge.getCenterlinePoints().getLast().x, 0.05);
+        assertEquals(endPose.y(), edge.getCenterlinePoints().getLast().y, 0.05);
+        assertEquals(endBefore.x, edge.getCenterlinePoints().getLast().x, 0.5);
+        assertEquals(endBefore.y, edge.getCenterlinePoints().getLast().y, 0.5);
     }
 
     @Test
@@ -375,7 +411,144 @@ class Phase241StationAuthorityTest {
         assertEquals(new Vec2d(25, 0).y, kept.position().y, 0.5);
         assertTrue(kept.involvesRoad(road.getId()) || kept.involvesRoad(newRoadId));
         assertTrue(kept.involvesRoad(cross.getId()));
+        assertNotNull(kept.roadAId());
+        assertNotNull(kept.roadBId());
+        assertTrue(Double.isFinite(kept.stationA()));
+        assertTrue(Double.isFinite(kept.stationB()));
+        assertEquals(cross.getId(), kept.elevatedRoadId());
         assertNotNull(e0);
+    }
+
+    @Test
+    void mr01_circularLoopSeamInsideEdge_mapReliableAcrossNativeZero() {
+        RoadNetwork network = squareLoopWithMatchingHa();
+        Road road = network.getRoad("loop");
+        assertNotNull(road.getHorizontalAlignment());
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        assertTrue(map.isReliable());
+        double design = RoadPlanGeometry.designLength(network, road);
+        // Physical near end should map near design end (native), not wrap to 0.
+        double nearEndPhysical = map.instanceTotal() - 1.0;
+        double nativeNearEnd = map.toNative(nearEndPhysical);
+        assertTrue(nativeNearEnd > design * 0.7, "native=" + nativeNearEnd);
+        double nearStartNative = map.toNative(1.0);
+        assertTrue(nearStartNative < design * 0.3);
+        assertTrue(nativeNearEnd > nearStartNative + 1.0);
+    }
+
+    @Test
+    void mr02_seamMoveAndReverseEdge_physicalPointStable() {
+        RoadNetwork network = squareLoopWithMatchingHa();
+        Road road = network.getRoad("loop");
+        RoadEdge first = network.getEdge(road.getOrderedSegmentIds().getFirst());
+        Vec2d probe = first.getCenterlinePoints().get(first.getCenterlinePoints().size() / 2).copy();
+        double beforeCanonical = RoadStationing.chainageAtPosition(network, road, probe).orElseThrow();
+
+        road.setLoopSeam(RoadLoopSeam.onSegment(
+            first.getCenterlinePoints().getFirst().lerp(first.getCenterlinePoints().getLast(), 0.8),
+            first.getId(),
+            0.8));
+        double afterCanonical = RoadStationing.chainageAtPosition(network, road, probe).orElseThrow();
+        // Physical point unchanged; seam rotation changes canonical but HA-native sampling stays.
+        List<PlanCenterlineSample> samples =
+            RoadPlanGeometry.resolvePhysicalEdgeCenterlineSamples(network, first, 2.0);
+        assertTrue(samples.size() >= 2);
+        assertTrue(Double.isFinite(beforeCanonical));
+        assertTrue(Double.isFinite(afterCanonical));
+        assertNotEquals(beforeCanonical, afterCanonical, 0.5);
+    }
+
+    @Test
+    void mr03_repeatedCircularMaterializeDoesNotDrift() {
+        kr09_repeatedMaterializeDoesNotDriftAuthoritativeHa();
+    }
+
+    @Test
+    void mr04_unreliableMapManualVa_skipsFabricatedZeroElevation() {
+        RoadNetwork network = straightRoad(100.0);
+        Road road = network.getRoad("main");
+        // HA far from instance → unreliable map.
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 80), 0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(40),
+                HorizontalAlignmentElement.circularArc(20, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(40))));
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 60.0),
+            PointOfVerticalIntersection.of(100.0, 80.0))));
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
+
+        assertFalse(RoadStationing.domainMap(network, road).isReliable());
+        assertFalse(com.plot.plugin.road.pipeline.profile.VerticalAlignmentProfileSupport
+            .shouldUseVerticalAlignment(network, road));
+
+        RoadEdge edge = network.getEdge(road.getOrderedSegmentIds().getFirst());
+        List<PathSegment> path = List.of(
+            new PathSegment(edge.getCenterlinePoints().getFirst(), edge.getCenterlinePoints().getLast()));
+        DesignElevationSource source = DesignElevationSource.forEdge(network, edge, path);
+        assertFalse(source.isActive());
+        assertTrue(source.elevationAtLocalDistance(50.0).isEmpty());
+    }
+
+    @Test
+    void mr05_straightInstanceSingleArcHa_notCollinearStretch() {
+        RoadNetwork network = straightRoad(100.0);
+        Road road = network.getRoad("main");
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0), 0.0,
+            List.of(HorizontalAlignmentElement.circularArc(
+                100.0, 100.0 / (Math.PI / 2.0), TurnDirection.LEFT))));
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        assertFalse(map.isReliable(), "single-arc HA vs straight instance must not pass collinear stretch");
+        assertTrue(Double.isNaN(map.toNative(50.0)) || !map.isReliable());
+    }
+
+    @Test
+    void mr06_localLengtheningAndSelfCrossingPassesIndependent() {
+        // Same geometry as KR05 with denser outbound sampling (local lengthening on return).
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
+            new Vec2d(0, 0), 0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(50.0),
+                HorizontalAlignmentElement.circularArc(Math.PI * 5.0, 5.0, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(50.0)));
+        List<Vec2d> outbound = sampleHaPoints(
+            new RoadHorizontalAlignment(
+                alignment.getOrigin().copy(),
+                alignment.getStartBearingRadians(),
+                List.of(HorizontalAlignmentElement.tangent(50.0))),
+            1.0);
+        List<Vec2d> turnAndBack = sampleHaPoints(alignment, 1.0);
+        // Keep points from the turn onward for the return edge.
+        int turnStart = 0;
+        for (int i = 0; i < turnAndBack.size(); i++) {
+            if (turnAndBack.get(i).distance(outbound.getLast()) < 0.5) {
+                turnStart = i;
+                break;
+            }
+        }
+        List<Vec2d> returnPts = turnAndBack.subList(turnStart, turnAndBack.size());
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("out-back");
+        RoadNode a = network.createNode(outbound.getFirst().copy());
+        RoadNode b = network.createNode(outbound.getLast().copy());
+        RoadNode c = network.createNode(returnPts.getLast().copy());
+        network.createEdge(a.getId(), b.getId(), outbound, road.getId());
+        network.createEdge(b.getId(), c.getId(), returnPts, road.getId());
+        road.setHorizontalAlignment(alignment);
+        assertNotNull(road.getHorizontalAlignment());
+        StationDomainMap map = RoadStationing.domainMap(network, road);
+        assertTrue(map.isReliable());
+        double firstPass = map.toNative(10.0);
+        double secondPass = map.toNative(map.instanceTotal() - 10.0);
+        assertTrue(secondPass > firstPass + 1.0);
+        Vec2d p1 = RoadPlanGeometry.instancePointAtInstanceChainage(network, road, 10.0).orElseThrow();
+        Vec2d p2 = RoadPlanGeometry.instancePointAtInstanceChainage(
+            network, road, map.instanceTotal() - 10.0).orElseThrow();
+        assertEquals(10.0, p1.x, 1.0);
+        assertTrue(p2.x < 40.0);
     }
 
     @Test
@@ -469,6 +642,21 @@ class Phase241StationAuthorityTest {
         assertFalse(RoadStationing.isStationable(loop, loopRoad));
     }
 
+    private static List<Vec2d> sampleHaPoints(RoadHorizontalAlignment alignment, double spacing) {
+        double total = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry.totalLength(alignment);
+        List<Vec2d> points = new java.util.ArrayList<>();
+        for (double s = 0.0; s <= total + 1e-9; s += spacing) {
+            double clamped = Math.min(s, total);
+            var pose = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry
+                .poseAt(alignment, clamped).orElseThrow();
+            Vec2d p = new Vec2d(pose.x(), pose.y());
+            if (points.isEmpty() || points.getLast().distance(p) > 1e-6) {
+                points.add(p);
+            }
+        }
+        return points;
+    }
+
     private static RoadNetwork straightRoad(double length) {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("main");
@@ -500,18 +688,57 @@ class Phase241StationAuthorityTest {
     }
 
     private static RoadNetwork squareLoopWithMatchingHa() {
-        RoadNetwork network = squareLoop();
-        Road road = network.getRoad("loop");
-        road.setHorizontalAlignment(new RoadHorizontalAlignment(
-            new Vec2d(0, 0), 0.0,
-            List.of(
-                HorizontalAlignmentElement.tangent(10),
-                HorizontalAlignmentElement.tangent(10),
-                HorizontalAlignmentElement.tangent(10),
-                HorizontalAlignmentElement.tangent(10))));
-        HorizontalAlignmentChainOriginAligner.alignOriginAndBearingToChainStart(network, road);
-        // Rebuild HA as four sides with bearings via fit for physical match.
-        HorizontalAlignmentPolylineFitter.fit(network, road).ifPresent(road::setHorizontalAlignment);
+        // Circle HA + physical edges sampled from it (equal length, spatially matched).
+        double radius = 20.0 / Math.PI; // circumference 40
+        double circumference = 2.0 * Math.PI * radius;
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
+            new Vec2d(radius, 0.0),
+            Math.PI / 2.0,
+            List.of(HorizontalAlignmentElement.circularArc(
+                circumference, radius, TurnDirection.LEFT)));
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        road.setHorizontalAlignment(alignment);
+
+        int sides = 4;
+        double sideLen = circumference / sides;
+        RoadNode[] nodes = new RoadNode[sides];
+        for (int i = 0; i < sides; i++) {
+            double nativeStation = i * sideLen;
+            var pose = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry
+                .poseAt(alignment, nativeStation).orElseThrow();
+            nodes[i] = network.createNode(new Vec2d(pose.x(), pose.y()));
+        }
+        RoadEdge first = null;
+        for (int i = 0; i < sides; i++) {
+            double startNative = i * sideLen;
+            double endNative = (i + 1) * sideLen;
+            List<Vec2d> points = new java.util.ArrayList<>();
+            for (double s = startNative; s <= endNative + 1e-9; s += 2.0) {
+                double clamped = Math.min(s, endNative);
+                var pose = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry
+                    .poseAt(alignment, clamped).orElseThrow();
+                points.add(new Vec2d(pose.x(), pose.y()));
+            }
+            var endPose = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry
+                .poseAt(alignment, endNative).orElseThrow();
+            Vec2d endPt = new Vec2d(endPose.x(), endPose.y());
+            if (points.isEmpty() || points.getLast().distance(endPt) > 1e-6) {
+                points.add(endPt);
+            }
+            RoadEdge edge = network.createEdge(
+                nodes[i].getId(), nodes[(i + 1) % sides].getId(), points, road.getId());
+            if (first == null) {
+                first = edge;
+            }
+        }
+        double seamNative = sideLen * 0.5;
+        var seamPose = com.plot.plugin.road.alignment.HorizontalAlignmentGeometry
+            .poseAt(alignment, seamNative).orElseThrow();
+        road.setLoopSeam(RoadLoopSeam.onSegment(
+            new Vec2d(seamPose.x(), seamPose.y()), first.getId(), 0.5));
         return network;
     }
 

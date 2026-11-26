@@ -153,9 +153,9 @@ public final class RoadOverlayGeometry {
                         || Math.abs(merged.getLast().canonicalStation() - station) > 1e-6) {
                     if (!merged.isEmpty()
                             && merged.getLast().position().distance(point) <= 1e-6) {
-                        merged.set(merged.size() - 1, new PlanCenterlineSample(point, station));
+                        merged.set(merged.size() - 1, PlanCenterlineSample.canonical(point, station));
                     } else {
-                        merged.add(new PlanCenterlineSample(point, station));
+                        merged.add(PlanCenterlineSample.canonical(point, station));
                     }
                 }
             });
