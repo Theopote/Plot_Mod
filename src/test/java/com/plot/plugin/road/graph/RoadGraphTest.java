@@ -87,7 +87,8 @@ class RoadGraphTest {
 
         String mergedEdgeId = RoadGraphEdits.of(network)
             .mergeThroughNode(mid.getId())
-            .orElseThrow();
+            .orElseThrow()
+            .mergedEdgeId();
 
         assertEquals(1, network.getEdges().size());
         assertEquals(1, road.getSegmentIds().size());

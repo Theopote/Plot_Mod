@@ -21,6 +21,7 @@ import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
+import com.plot.plugin.road.station.RoadStationDataTransforms.EdgeStationSpan;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationDataSnapshot;
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationRange;
@@ -918,7 +919,7 @@ public final class RoadNetworkManager {
                 StationDataSnapshot stationSnapshot = roadBefore != null
                     ? StationDataSnapshot.capture(roadBefore)
                     : null;
-                Map<String, StationRange> edgeRangesBefore = captureEdgeStationRanges(roadBefore);
+                List<EdgeStationSpan> edgeSpansBefore = captureEdgeStationSpans(roadBefore);
                 var crossingCapture = roadId != null
                     ? com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
                         network, java.util.Set.of(roadId))
@@ -929,7 +930,7 @@ public final class RoadNetworkManager {
                     lastSelectedEdgeId = getPrimarySelectedEdgeId();
                 }
                 ensureSelectionValid();
-                remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeRangesBefore);
+                remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeSpansBefore);
                 if (crossingCapture != null) {
                     var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
                         network, crossingCapture, java.util.Set.of(edgeId));
@@ -948,13 +949,13 @@ public final class RoadNetworkManager {
 
     /**
      * After a segment is removed, keep VA/VCS/facilities aligned with surviving geometry:
-     * head/tail trim via station rescale; middle disconnect via topology split + component extract.
+     * head/tail clip via range extract; middle disconnect via topology split + ordered spans.
      */
     private void remapVerticalDataAfterEdgeDeletion(
             String roadId,
             SegmentGeometrySnapshot before,
             StationDataSnapshot stationSnapshot,
-            Map<String, StationRange> edgeRangesBefore) {
+            List<EdgeStationSpan> edgeSpansBefore) {
         if (roadId == null || roadId.isBlank()) {
             return;
         }
@@ -969,58 +970,83 @@ public final class RoadNetworkManager {
         boolean loopOpen = violations.stream().anyMatch(v ->
             v.kind() == RoadTopologyViolationKind.ROAD_LOOP_OPEN);
         if (disconnectedOrBranching) {
-            // Clear before repair so splitter does not remap with post-delete broken chainage.
+            // Avoid remapping with broken post-delete chainage; re-apply from pre-delete spans.
             road.setVerticalAlignment(null);
             road.setVariableCrossSections(null);
             road.setStationFacilities(null);
             RoadTopologyRoadSplitter.repairRoad(network, road);
-            // Surviving LOOP fragments that became open chains must demote.
             for (Road surviving : network.getRoads().values()) {
                 RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, surviving);
             }
             applyCapturedStationDataToSurvivingRoads(
                 stationSnapshot,
                 before != null ? before.totalLengthBefore() : 0.0,
-                edgeRangesBefore);
+                edgeSpansBefore);
             return;
         }
         if (loopOpen) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, road);
         }
-        if (before == null) {
+        if (before == null || stationSnapshot == null || !stationSnapshot.hasPhase2Data()) {
             return;
         }
-        RoadStationDataTransforms.rescaleAfterGeometryEdit(
-            road,
-            before.rangeStart(),
-            before.oldSegmentLength(),
-            0.0,
-            before.totalLengthBefore());
+        double deletedStart = before.rangeStart();
+        double deletedEnd = before.rangeStart() + before.oldSegmentLength();
+        double total = before.totalLengthBefore();
+        boolean headDelete = deletedStart <= 1e-6;
+        boolean tailDelete = deletedEnd >= total - 1e-6;
+        if (headDelete || tailDelete) {
+            double keepStart = headDelete ? deletedEnd : 0.0;
+            double keepEnd = headDelete ? total : deletedStart;
+            if (keepEnd > keepStart + 1e-6) {
+                stationSnapshot.applyRangeTo(road, total, new StationRange(keepStart, keepEnd));
+            } else {
+                road.setVerticalAlignment(null);
+                road.setVariableCrossSections(null);
+                road.setStationFacilities(null);
+            }
+        } else {
+            // Connected middle delete without topology break — fall back to compress remap.
+            RoadStationDataTransforms.rescaleAfterGeometryEdit(
+                road,
+                before.rangeStart(),
+                before.oldSegmentLength(),
+                0.0,
+                before.totalLengthBefore());
+        }
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
     }
 
-    private Map<String, StationRange> captureEdgeStationRanges(Road road) {
-        LinkedHashMap<String, StationRange> ranges = new LinkedHashMap<>();
+    private List<EdgeStationSpan> captureEdgeStationSpans(Road road) {
+        List<EdgeStationSpan> spans = new ArrayList<>();
         if (road == null) {
-            return ranges;
+            return spans;
         }
+        int slice = 0;
         for (var segment : RoadStationing.orientedSegments(network, road)) {
-            ranges.put(segment.edgeId(),
-                new StationRange(segment.startStation(), segment.endStation()));
+            spans.add(new EdgeStationSpan(
+                segment.edgeId(),
+                segment.startStation(),
+                segment.endStation(),
+                slice++));
         }
-        return ranges;
+        return spans;
     }
 
     private void applyCapturedStationDataToSurvivingRoads(
             StationDataSnapshot snapshot,
             double totalLengthBefore,
-            Map<String, StationRange> edgeRangesBefore) {
+            List<EdgeStationSpan> edgeSpansBefore) {
         if (snapshot == null || !snapshot.hasPhase2Data() || totalLengthBefore <= 1e-6
-                || edgeRangesBefore == null || edgeRangesBefore.isEmpty()) {
+                || edgeSpansBefore == null || edgeSpansBefore.isEmpty()) {
             return;
         }
-        HashSet<String> survivingEdgeIds = new HashSet<>(edgeRangesBefore.keySet());
-        survivingEdgeIds.removeIf(id -> network.getEdge(id) == null);
+        HashSet<String> survivingEdgeIds = new HashSet<>();
+        for (EdgeStationSpan span : edgeSpansBefore) {
+            if (span != null && span.edgeId() != null && network.getEdge(span.edgeId()) != null) {
+                survivingEdgeIds.add(span.edgeId());
+            }
+        }
         LinkedHashSet<String> touchedRoadIds = new LinkedHashSet<>();
         for (String edgeId : survivingEdgeIds) {
             RoadEdge edge = network.getEdge(edgeId);
@@ -1033,22 +1059,37 @@ public final class RoadNetworkManager {
             if (surviving == null) {
                 continue;
             }
-            double rangeStart = Double.POSITIVE_INFINITY;
-            double rangeEnd = 0.0;
-            boolean found = false;
-            for (String segmentId : surviving.getOrderedSegmentIds()) {
-                StationRange range = edgeRangesBefore.get(segmentId);
-                if (range == null || !range.isValid()) {
-                    continue;
+            HashSet<String> roadEdgeIds = new HashSet<>(surviving.getOrderedSegmentIds());
+            List<EdgeStationSpan> roadSpans = new ArrayList<>();
+            for (EdgeStationSpan span : edgeSpansBefore) {
+                if (span != null && span.isValid() && roadEdgeIds.contains(span.edgeId())) {
+                    roadSpans.add(span);
                 }
-                found = true;
-                rangeStart = Math.min(rangeStart, range.start());
-                rangeEnd = Math.max(rangeEnd, range.end());
             }
-            if (!found) {
+            roadSpans.sort(java.util.Comparator.comparingInt(EdgeStationSpan::sliceIndex));
+            List<StationRange> contiguous = new ArrayList<>();
+            double runStart = Double.NaN;
+            double runEnd = Double.NaN;
+            for (EdgeStationSpan span : roadSpans) {
+                if (Double.isNaN(runStart)) {
+                    runStart = span.start();
+                    runEnd = span.end();
+                } else if (Math.abs(span.start() - runEnd) <= 1e-6) {
+                    runEnd = span.end();
+                } else {
+                    contiguous.add(new StationRange(runStart, runEnd));
+                    runStart = span.start();
+                    runEnd = span.end();
+                }
+            }
+            if (!Double.isNaN(runStart)) {
+                contiguous.add(new StationRange(runStart, runEnd));
+            }
+            // Non-contiguous survivor (e.g. seam wrap) — refuse remap rather than min/max swallow.
+            if (contiguous.size() != 1) {
                 continue;
             }
-            snapshot.applyRangeTo(surviving, totalLengthBefore, new StationRange(rangeStart, rangeEnd));
+            snapshot.applyRangeTo(surviving, totalLengthBefore, contiguous.getFirst());
         }
     }
 

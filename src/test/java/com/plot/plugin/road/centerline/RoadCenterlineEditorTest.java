@@ -342,7 +342,7 @@ class RoadCenterlineEditorTest {
     }
 
     @Test
-    void splitEdgeRefitsHorizontalAlignmentFromCenterline() {
+    void splitEdgePreservesHorizontalAlignmentWithoutRefit() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(100, 0));
@@ -356,7 +356,9 @@ class RoadCenterlineEditorTest {
         CenterlineEditResult result = RoadCenterlineEditor.splitAtLocalDistance(network, edge.getId(), 40.0);
         assertTrue(result.isSuccess());
         assertNotNull(road.getHorizontalAlignment());
-        assertEquals(100.0, road.getHorizontalAlignment().totalLength(), 2.0);
+        // Pure topology Split Edge must not refit/clear HA (Phase 2.4.4 M01).
+        assertEquals(50.0, road.getHorizontalAlignment().totalLength(), 1e-6);
+        assertEquals(1, road.getHorizontalAlignment().getElements().size());
     }
 
     @Test

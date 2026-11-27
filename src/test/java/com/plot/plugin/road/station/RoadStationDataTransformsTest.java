@@ -23,6 +23,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadStationDataTransformsTest {
 
@@ -123,11 +124,21 @@ class RoadStationDataTransformsTest {
 
         assertNotNull(tail);
         assertNotNull(head.getVerticalAlignment());
-        assertEquals(1, head.getVerticalAlignment().sortedPvis().size());
+        assertTrue(head.getVerticalAlignment().pviCount() >= 2);
+        assertEquals(0.0, head.getVerticalAlignment().sortedPvis().getFirst().getStation(), 1e-6);
+        assertEquals(10.0, head.getVerticalAlignment().sortedPvis().getLast().getStation(), 1e-6);
+        assertEquals(10.0, head.getVerticalAlignment().sortedPvis().getFirst().getElevation(), 1e-6);
+        assertEquals(
+            com.plot.plugin.road.vertical.VerticalAlignmentGeometry
+                .elevationAt(new RoadVerticalAlignment(List.of(
+                    PointOfVerticalIntersection.of(0.0, 10.0),
+                    PointOfVerticalIntersection.of(30.0, 12.0))), 10.0).orElseThrow(),
+            head.getVerticalAlignment().sortedPvis().getLast().getElevation(),
+            1e-6);
         assertNotNull(tail.getVerticalAlignment());
-        assertEquals(1, tail.getVerticalAlignment().sortedPvis().size());
-        assertEquals(20.0, tail.getVerticalAlignment().sortedPvis().getFirst().getStation(), 1e-6);
-        assertEquals(12.0, tail.getVerticalAlignment().sortedPvis().getFirst().getElevation(), 1e-6);
+        assertTrue(tail.getVerticalAlignment().pviCount() >= 2);
+        assertEquals(0.0, tail.getVerticalAlignment().sortedPvis().getFirst().getStation(), 1e-6);
+        assertEquals(20.0, tail.getVerticalAlignment().sortedPvis().getLast().getStation(), 1e-6);
 
         assertNull(head.getStationFacilities());
         assertNotNull(tail.getStationFacilities());
@@ -281,8 +292,10 @@ class RoadStationDataTransformsTest {
 
         Road merged = network.getRoad(mergedId);
         assertNotNull(merged.getVerticalAlignment());
-        assertEquals(3, merged.getVerticalAlignment().sortedPvis().size());
+        // Split inserts a real boundary PVI; merge keeps it → 4 control points on the restored chain.
+        assertEquals(4, merged.getVerticalAlignment().sortedPvis().size());
         assertEquals(30.0, merged.getVerticalAlignment().sortedPvis().getLast().getStation(), 1e-6);
+        assertEquals(10.0, merged.getVerticalAlignment().sortedPvis().getFirst().getElevation(), 1e-6);
 
         assertNotNull(merged.getStationFacilities());
         assertEquals(2, merged.getStationFacilities().runCount());

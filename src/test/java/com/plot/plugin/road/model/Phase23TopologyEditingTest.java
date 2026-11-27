@@ -19,7 +19,9 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -352,14 +354,14 @@ class Phase23TopologyEditingTest {
             List.of(new Vec2d(5, 0), new Vec2d(10, 0)), road.getId());
         // Degree != 2 after removing one connection artificially — merge should no-op cleanly.
         mid.removeEdge(e2.getId());
-        Optional<String> merged = RoadGraphEdits.of(network).mergeThroughNode(mid.getId());
+        Optional<RoadGraphEdits.MergeResult> merged = RoadGraphEdits.of(network).mergeThroughNode(mid.getId());
         assertTrue(merged.isEmpty());
         assertNotNull(network.getNode(mid.getId()));
         assertNotNull(network.getEdge(e1.getId()));
         // Restore adjacency for a successful merge check path: re-add then force failure via self-loop.
         mid.addEdge(e2.getId());
         // Real success path still works.
-        Optional<String> ok = RoadGraphEdits.of(network).mergeThroughNode(mid.getId());
+        Optional<RoadGraphEdits.MergeResult> ok = RoadGraphEdits.of(network).mergeThroughNode(mid.getId());
         assertTrue(ok.isPresent());
         assertNull(network.getNode(mid.getId()));
     }
@@ -812,9 +814,40 @@ class Phase23TopologyEditingTest {
             converted.sharedElevation(),
             2.5));
 
+        String beforeJson = network.toJson();
+        Map<String, String> edgeOwnershipBefore = new LinkedHashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            edgeOwnershipBefore.put(edge.getId(), edge.getRoadId());
+        }
+        Map<String, Integer> vaCountBefore = new LinkedHashMap<>();
+        Map<String, Integer> vcsCountBefore = new LinkedHashMap<>();
+        Map<String, Integer> facCountBefore = new LinkedHashMap<>();
+        for (Road r : network.getRoads().values()) {
+            vaCountBefore.put(r.getId(),
+                r.getVerticalAlignment() == null ? 0 : r.getVerticalAlignment().pviCount());
+            vcsCountBefore.put(r.getId(),
+                r.getVariableCrossSections() == null ? 0 : r.getVariableCrossSections().stationCount());
+            facCountBefore.put(r.getId(),
+                r.getStationFacilities() == null ? 0 : r.getStationFacilities().runCount());
+        }
+
         String merged = network.mergeRoadTailIntoHead(converted.roadAId(), converted.roadBId());
         assertNull(merged, "model merge must not report success when migration fails");
         assertTrue(network.consumeCrossingMigrationFailure());
+
+        assertEquals(beforeJson, network.toJson(), "failed merge must leave live network JSON unchanged");
+        assertEquals(edgeOwnershipBefore.size(), network.getEdges().size());
+        for (RoadEdge edge : network.getEdges().values()) {
+            assertEquals(edgeOwnershipBefore.get(edge.getId()), edge.getRoadId());
+        }
+        for (Road r : network.getRoads().values()) {
+            assertEquals(vaCountBefore.get(r.getId()),
+                r.getVerticalAlignment() == null ? 0 : r.getVerticalAlignment().pviCount());
+            assertEquals(vcsCountBefore.get(r.getId()),
+                r.getVariableCrossSections() == null ? 0 : r.getVariableCrossSections().stationCount());
+            assertEquals(facCountBefore.get(r.getId()),
+                r.getStationFacilities() == null ? 0 : r.getStationFacilities().runCount());
+        }
     }
 
     @Test

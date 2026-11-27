@@ -80,7 +80,7 @@ public enum CenterlineEditStationPolicy {
             before.totalLengthBefore());
     }
 
-    public void applyRoadSplit(
+    public StationMigrationResult applyRoadSplit(
             Road head,
             Road tail,
             double splitStation,
@@ -88,20 +88,18 @@ public enum CenterlineEditStationPolicy {
         if (this != PARTITION_AND_RESET_TAIL) {
             throw new IllegalStateException("Expected PARTITION_AND_RESET_TAIL, got " + this);
         }
-        RoadStationDataTransforms.applyRoadSplit(head, tail, splitStation, totalLength);
+        return RoadStationDataTransforms.applyRoadSplit(head, tail, splitStation, totalLength);
     }
 
-    /**
-     * @return 是否应在分段迁移完成后重拟合平面线形
-     */
-    public boolean applyRoadSplit(RoadNetwork network, Road head, Road tail, double splitStation) {
+    public StationMigrationResult applyRoadSplit(
+            RoadNetwork network, Road head, Road tail, double splitStation) {
         if (this != PARTITION_AND_RESET_TAIL) {
             throw new IllegalStateException("Expected PARTITION_AND_RESET_TAIL, got " + this);
         }
         return RoadStationDataTransforms.applyRoadSplit(network, head, tail, splitStation);
     }
 
-    public boolean applyRoadMerge(
+    public StationMigrationResult applyRoadMerge(
             Road target,
             Road head,
             Road tail,
@@ -113,11 +111,11 @@ public enum CenterlineEditStationPolicy {
         return RoadStationDataTransforms.applyRoadMerge(target, head, tail, headLength, tailLength);
     }
 
-    public void applyRoadMerge(RoadNetwork network, Road head, Road tail) {
+    public StationMigrationResult applyRoadMerge(RoadNetwork network, Road head, Road tail) {
         if (this != OFFSET_BY_HEAD_LENGTH) {
             throw new IllegalStateException("Expected OFFSET_BY_HEAD_LENGTH, got " + this);
         }
-        RoadStationDataTransforms.applyRoadMerge(network, head, tail);
+        return RoadStationDataTransforms.applyRoadMerge(network, head, tail);
     }
 
     public void applyReverseEdge(RoadNetwork network, String edgeId) {

@@ -132,7 +132,9 @@ class RoadTopologyEditRegressionTest {
         List<PointOfVerticalIntersection> pvis = surviving.getVerticalAlignment().sortedPvis();
         assertEquals(5.0, pvis.stream().filter(p -> Math.abs(p.getElevation() - 70) < 1e-6)
             .findFirst().orElseThrow().getStation(), 1e-6);
-        assertEquals(15.0, pvis.stream().filter(p -> Math.abs(p.getElevation() - 68) < 1e-6)
+        // Clip inserts a real boundary elev at station 0; the former mid PVI (elev 68) rebases to 15.
+        assertEquals(15.0, pvis.stream()
+            .filter(p -> Math.abs(p.getElevation() - 68) < 1e-6 && p.getStation() > 1e-6)
             .findFirst().orElseThrow().getStation(), 1e-6);
     }
 

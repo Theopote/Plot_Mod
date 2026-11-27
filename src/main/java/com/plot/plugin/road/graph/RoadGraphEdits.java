@@ -112,7 +112,7 @@ public final class RoadGraphEdits {
         return split;
     }
 
-    public Optional<String> mergeThroughNode(String nodeId) {
+    public Optional<MergeResult> mergeThroughNode(String nodeId) {
         RoadNode node = network.getNode(nodeId);
         if (node == null || node.getDegree() != 2) {
             return Optional.empty();
@@ -152,6 +152,18 @@ public final class RoadGraphEdits {
             return Optional.empty();
         }
 
+        // Lineage: first old edge is the one attached at merged start (nodeA).
+        RoadEdge firstOld = edgeA.getStartNodeId().equals(nodeA) || edgeA.getEndNodeId().equals(nodeA)
+            ? edgeA : edgeB;
+        RoadEdge secondOld = firstOld == edgeA ? edgeB : edgeA;
+        if (!(firstOld.getStartNodeId().equals(nodeA) || firstOld.getEndNodeId().equals(nodeA))) {
+            firstOld = edgeA;
+            secondOld = edgeB;
+        }
+        double secondLocalOffset = firstOld.getLength();
+        String firstOldId = firstOld.getId();
+        String secondOldId = secondOld.getId();
+
         List<RoadEdge.SlopeOverride> mergedOverrides = mergeSlopeOverrides(edgeA, edgeB, nodeId);
 
         // Snapshot edges before unlink; keep through-node until createEdge succeeds.
@@ -178,7 +190,8 @@ public final class RoadGraphEdits {
             if (through.getDegree() == 0) {
                 network.removeNode(nodeId);
             }
-            return Optional.of(merged.getId());
+            return Optional.of(new MergeResult(
+                merged.getId(), firstOldId, secondOldId, secondLocalOffset));
         } catch (RuntimeException e) {
             if (merged != null && network.getEdge(merged.getId()) != null) {
                 network.unassignEdgeFromRoad(merged.getId());
@@ -337,6 +350,7 @@ public final class RoadGraphEdits {
 
         String startNodeId = edge.getStartNodeId();
         String endNodeId = edge.getEndNodeId();
+        String oldEdgeId = edge.getId();
         double splitDistance = RoadGeometryUtils.calculatePathLength(firstPart);
         double totalLength = edge.getLength();
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
@@ -363,7 +377,8 @@ public final class RoadGraphEdits {
             secondEdge.setSourceRoadId(sourceRoadId);
             firstEdge.setSlopeOverrides(firstSlopes);
             secondEdge.setSlopeOverrides(secondSlopes);
-            return Optional.of(new SplitResult(firstEdge.getId(), secondEdge.getId(), nodeId));
+            return Optional.of(new SplitResult(
+                firstEdge.getId(), secondEdge.getId(), nodeId, oldEdgeId, splitDistance));
         } catch (RuntimeException e) {
             cleanupCreatedChild(secondEdge);
             cleanupCreatedChild(firstEdge);
@@ -792,6 +807,30 @@ public final class RoadGraphEdits {
         return false;
     }
 
-    public record SplitResult(String firstEdgeId, String secondEdgeId, String nodeId) {
+    /**
+     * Edge split lineage: {@code oldEdgeId} → ({@code firstEdgeId}, {@code secondEdgeId})
+     * at geometry-local distance {@code splitGeometryLocal}.
+     */
+    public record SplitResult(
+            String firstEdgeId,
+            String secondEdgeId,
+            String nodeId,
+            String oldEdgeId,
+            double splitGeometryLocal) {
+
+        public SplitResult(String firstEdgeId, String secondEdgeId, String nodeId) {
+            this(firstEdgeId, secondEdgeId, nodeId, null, Double.NaN);
+        }
+    }
+
+    /**
+     * Edge merge lineage: two old edges → one merged edge; {@code secondLocalOffset} is the
+     * geometry-local start of the second old edge along the merged polyline.
+     */
+    public record MergeResult(
+            String mergedEdgeId,
+            String firstOldEdgeId,
+            String secondOldEdgeId,
+            double secondLocalOffset) {
     }
 }

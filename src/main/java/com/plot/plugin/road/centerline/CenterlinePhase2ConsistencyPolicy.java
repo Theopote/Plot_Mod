@@ -24,8 +24,8 @@ import java.util.Set;
  *   <tr><th>操作</th><th>Station policy</th><th>HA</th></tr>
  *   <tr><td>Insert PI（段长不变）</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Fillet</td><td>{@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION}</td><td>refit / clear</td></tr>
- *   <tr><td>Split edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
- *   <tr><td>Merge edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
+ *   <tr><td>Split edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>preserve HA (no refit)</td></tr>
+ *   <tr><td>Merge edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>preserve HA (no refit)</td></tr>
  *   <tr><td>Merge junction node</td><td>{@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Split road</td><td>{@link CenterlineEditStationPolicy#PARTITION_AND_RESET_TAIL}</td><td>clear + refit</td></tr>
  *   <tr><td>Merge road</td><td>{@link CenterlineEditStationPolicy#OFFSET_BY_HEAD_LENGTH}</td><td>clear + refit</td></tr>
@@ -68,6 +68,7 @@ public final class CenterlinePhase2ConsistencyPolicy {
 
     /**
      * 图拓扑变化、总链长不变：Split edge、Merge edge。
+     * Pure topology — do not refit/clear HA; station data and HA chain length stay valid.
      */
     public static void afterGraphTopologyEdit(
             RoadNetwork network,
@@ -76,10 +77,7 @@ public final class CenterlinePhase2ConsistencyPolicy {
         if (operation.defaultStationPolicy() != CenterlineEditStationPolicy.PRESERVE_STATION) {
             throw new IllegalArgumentException("Expected graph edit with PRESERVE_STATION, got " + operation);
         }
-        Road road = roadForEdge(network, anchorEdgeId);
-        if (road != null) {
-            syncHorizontalAlignment(network, road);
-        }
+        // Intentionally no syncHorizontalAlignment — PRESERVE_STATION pure topology.
     }
 
     /**

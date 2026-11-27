@@ -98,6 +98,7 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.SPLIT_FAILED);
         }
         RoadGraphEdits.SplitResult result = split.get();
+        migrateLineageAfterEdgeSplit(network, result);
         return finishEdit(
             network,
             result.firstEdgeId(),
@@ -203,8 +204,120 @@ public final class RoadCenterlineEditor {
         if (network == null || nodeId == null || nodeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.NODE_NOT_FOUND);
         }
-        Optional<String> merged = RoadGraphEdits.of(network).mergeThroughNode(nodeId);
-        return merged.map(s -> finishEdit(network, s, CenterlineEditResult.merged(s), CenterlineEditOperation.MERGE_EDGE)).orElseGet(() -> CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED));
+        Optional<RoadGraphEdits.MergeResult> merged = RoadGraphEdits.of(network).mergeThroughNode(nodeId);
+        if (merged.isEmpty()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
+        }
+        RoadGraphEdits.MergeResult result = merged.get();
+        migrateLineageAfterEdgeMerge(network, result);
+        return finishEdit(
+            network,
+            result.mergedEdgeId(),
+            CenterlineEditResult.merged(result.mergedEdgeId()),
+            CenterlineEditOperation.MERGE_EDGE);
+    }
+
+    /** Remap seam hint + design entry after Split Edge using geometry-local lineage. */
+    static void migrateLineageAfterEdgeSplit(RoadNetwork network, RoadGraphEdits.SplitResult split) {
+        if (network == null || split == null || split.oldEdgeId() == null) {
+            return;
+        }
+        RoadEdge first = network.getEdge(split.firstEdgeId());
+        RoadEdge second = network.getEdge(split.secondEdgeId());
+        if (first == null || second == null || first.getRoadId() == null) {
+            return;
+        }
+        Road road = network.getRoad(first.getRoadId());
+        if (road == null) {
+            return;
+        }
+        if (split.oldEdgeId().equals(road.getDesignEntryEdgeId())) {
+            String entryNode = road.getDesignEntryNodeId();
+            if (entryNode != null && entryNode.equals(second.getStartNodeId())) {
+                road.setDesignEntryEdgeId(second.getId());
+            } else {
+                road.setDesignEntryEdgeId(first.getId());
+                if (road.getDesignEntryNodeId() == null) {
+                    road.setDesignEntryNodeId(first.getStartNodeId());
+                }
+            }
+        }
+        RoadLoopSeam seam = road.getLoopSeam();
+        if (seam == null || seam.segmentHintId() == null
+                || !seam.segmentHintId().equals(split.oldEdgeId())
+                || seam.localFraction() == null
+                || !Double.isFinite(split.splitGeometryLocal())) {
+            return;
+        }
+        double oldLength = first.getLength() + second.getLength();
+        if (oldLength <= 1e-9) {
+            return;
+        }
+        double seamLocal = seam.localFraction() * oldLength;
+        if (seamLocal <= split.splitGeometryLocal() + 1e-9) {
+            double frac = first.getLength() > 1e-9
+                ? Math.max(0.0, Math.min(1.0, seamLocal / first.getLength()))
+                : 0.0;
+            road.setLoopSeam(RoadLoopSeam.onSegment(
+                seam.position() != null ? seam.position().copy() : null,
+                first.getId(),
+                frac));
+        } else {
+            double localOnSecond = seamLocal - split.splitGeometryLocal();
+            double frac = second.getLength() > 1e-9
+                ? Math.max(0.0, Math.min(1.0, localOnSecond / second.getLength()))
+                : 0.0;
+            road.setLoopSeam(RoadLoopSeam.onSegment(
+                seam.position() != null ? seam.position().copy() : null,
+                second.getId(),
+                frac));
+        }
+    }
+
+    /** Remap seam hint + design entry after Merge Edge. */
+    static void migrateLineageAfterEdgeMerge(RoadNetwork network, RoadGraphEdits.MergeResult merge) {
+        if (network == null || merge == null || merge.mergedEdgeId() == null) {
+            return;
+        }
+        RoadEdge merged = network.getEdge(merge.mergedEdgeId());
+        if (merged == null || merged.getRoadId() == null) {
+            return;
+        }
+        Road road = network.getRoad(merged.getRoadId());
+        if (road == null) {
+            return;
+        }
+        String entry = road.getDesignEntryEdgeId();
+        if (merge.firstOldEdgeId().equals(entry) || merge.secondOldEdgeId().equals(entry)) {
+            road.setDesignEntryEdgeId(merged.getId());
+            if (road.getDesignEntryNodeId() == null) {
+                road.setDesignEntryNodeId(merged.getStartNodeId());
+            }
+        }
+        RoadLoopSeam seam = road.getLoopSeam();
+        if (seam == null || seam.segmentHintId() == null || seam.localFraction() == null) {
+            return;
+        }
+        String hint = seam.segmentHintId();
+        if (!hint.equals(merge.firstOldEdgeId()) && !hint.equals(merge.secondOldEdgeId())) {
+            return;
+        }
+        double mergedLength = merged.getLength();
+        if (mergedLength <= 1e-9) {
+            return;
+        }
+        double local;
+        if (hint.equals(merge.firstOldEdgeId())) {
+            local = seam.localFraction() * Math.max(merge.secondLocalOffset(), 0.0);
+        } else {
+            // Approximate prior second-edge length from offset + merged remainder.
+            double secondLen = Math.max(0.0, mergedLength - merge.secondLocalOffset());
+            local = merge.secondLocalOffset() + seam.localFraction() * secondLen;
+        }
+        road.setLoopSeam(RoadLoopSeam.onSegment(
+            seam.position() != null ? seam.position().copy() : null,
+            merged.getId(),
+            Math.max(0.0, Math.min(1.0, local / mergedLength))));
     }
 
     public static CenterlineEditResult reverseEdge(RoadNetwork network, String edgeId) {
