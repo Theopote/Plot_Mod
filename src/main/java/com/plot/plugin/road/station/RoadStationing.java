@@ -668,6 +668,40 @@ public final class RoadStationing {
     }
 
     /**
+     * Canonical station at an edge geometry-local distance, selecting the correct LOOP slice
+     * when an interior seam splits the edge (never clamps into {@code orientations.getFirst()}).
+     */
+    public static OptionalDouble resolveCanonicalStationAtEdgeLocal(
+            RoadNetwork network,
+            Road road,
+            String edgeId,
+            double geometryLocalDistance) {
+        Optional<RoadStation> station = stationAt(network, road, edgeId, geometryLocalDistance);
+        return station.isPresent()
+            ? OptionalDouble.of(station.get().chainageMeters())
+            : OptionalDouble.empty();
+    }
+
+    /**
+     * Oriented slice containing {@code geometryLocalDistance} on {@code edgeId}, if any.
+     */
+    public static Optional<OrientedRoadSegment> orientedSliceContaining(
+            RoadNetwork network,
+            Road road,
+            String edgeId,
+            double geometryLocalDistance) {
+        if (!isStationable(network, road) || edgeId == null || !Double.isFinite(geometryLocalDistance)) {
+            return Optional.empty();
+        }
+        for (OrientedRoadSegment candidate : orientedSegmentsForEdge(network, road, edgeId)) {
+            if (candidate.containsGeometryLocal(geometryLocalDistance)) {
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * 道路桩号 → 边内几何局部距离。
      */
     public static Optional<SegmentStation> edgeLocalDistanceAtRoadStation(
@@ -808,8 +842,7 @@ public final class RoadStationing {
 
     /**
      * Oriented/rotated instance ↔ physical instance.
-     * LINEAR identity unless physical walk is opposed to design ({@code L - s}).
-     * LOOP applies seam offset; opposition also mirrors within the physical total.
+     * LOOP+seam: {@code physical = wrap(seam + σ·rotated, L)} via {@link CyclicStationTransform}.
      */
     public static double rotatedToPhysical(RoadNetwork network, Road road, double rotatedInstance) {
         if (!Double.isFinite(rotatedInstance) || network == null || road == null) {
@@ -819,16 +852,17 @@ public final class RoadStationing {
         if (!(physicalTotal > STATION_EPSILON)) {
             return Double.NaN;
         }
-        boolean opposed = isPhysicalWalkOpposedToDesign(network, road);
-        double station = opposed ? physicalTotal - rotatedInstance : rotatedInstance;
+        int sigma = isPhysicalWalkOpposedToDesign(network, road) ? -1 : 1;
         if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            double station = sigma < 0 ? physicalTotal - rotatedInstance : rotatedInstance;
             return clampStation(station, physicalTotal);
         }
         double seam = physicalSeamStation(network, road);
         if (!Double.isFinite(seam)) {
             return Double.NaN;
         }
-        return clampStation(wrapStation(seam + station, physicalTotal), physicalTotal);
+        double physical = CyclicStationTransform.fromOrigin(seam, sigma, rotatedInstance, physicalTotal);
+        return Double.isFinite(physical) ? clampStation(physical, physicalTotal) : Double.NaN;
     }
 
     public static double physicalToRotated(RoadNetwork network, Road road, double physicalInstance) {
@@ -839,19 +873,17 @@ public final class RoadStationing {
         if (!(physicalTotal > STATION_EPSILON)) {
             return Double.NaN;
         }
-        boolean opposed = isPhysicalWalkOpposedToDesign(network, road);
-        double station = physicalInstance;
-        if (road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null) {
-            double seam = physicalSeamStation(network, road);
-            if (!Double.isFinite(seam)) {
-                return Double.NaN;
-            }
-            station = wrapStation(physicalInstance - seam, physicalTotal);
+        int sigma = isPhysicalWalkOpposedToDesign(network, road) ? -1 : 1;
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            double station = sigma < 0 ? physicalTotal - physicalInstance : physicalInstance;
+            return clampStation(station, physicalTotal);
         }
-        if (opposed) {
-            station = physicalTotal - station;
+        double seam = physicalSeamStation(network, road);
+        if (!Double.isFinite(seam)) {
+            return Double.NaN;
         }
-        return clampStation(station, physicalTotal);
+        double rotated = CyclicStationTransform.toOrigin(seam, sigma, physicalInstance, physicalTotal);
+        return Double.isFinite(rotated) ? clampStation(rotated, physicalTotal) : Double.NaN;
     }
 
     private static double wrapStation(double station, double total) {

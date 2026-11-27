@@ -53,9 +53,11 @@ public final class RoadLampPlanner {
                 var type = ctx.detection().constructionTypes().get(index);
                 if (type.isStructure() && !(type.isBridgeFamily() && placement.bridgeAllowed())) return;
                 var orientation = orientationAt(orientations, local);
-                double station = orientation != null ? orientation.roadStationAtGeometryLocal(local) : local;
+                // Schedule against seam-invariant physical stations so Move Seam does not reshuffle lamps.
+                double station = crossSections.physicalStationAtGeometryLocal(local);
                 Vec2d roadLeft = orientation != null && !orientation.forward() ? left.multiply(-1) : left;
-                var section = crossSections.resolve(station);
+                var section = crossSections.resolve(
+                    orientation != null ? orientation.roadStationAtGeometryLocal(local) : local);
                 double blockStation = station / scale;
                 switch (placement.sides()) {
                     case LEFT -> offer(slots, section, center, roadLeft, blockStation, placement.spacing(), 1, 0);

@@ -55,14 +55,17 @@ class Phase21CrossingGeometryTest {
         // G06 — count and participating roads stay stable
         RoadNetwork network = squareLoopWithBranchAt(new Vec2d(5, 0));
         Road loop = network.getRoad("loop");
-        List<RoadEdge> loopEdges = network.getEdges().values().stream()
-            .filter(e -> loop.getId().equals(e.getRoadId()))
-            .toList();
+        RoadEdge bottom = network.getEdges().values().stream()
+            .filter(e -> loop.getId().equals(e.getRoadId())
+                && e.getCenterlinePoints().getFirst().y == 0
+                && e.getCenterlinePoints().getLast().y == 0)
+            .findFirst()
+            .orElseThrow();
 
         loop.setLoopSeam(RoadLoopSeam.at(new Vec2d(0, 0)));
         Set<String> roadsA = crossingRoadPairs(RoadCrossingDetector.detectAll(network));
 
-        loop.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), loopEdges.getFirst().getId(), 0.5));
+        loop.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), bottom.getId(), 0.5));
         Set<String> roadsB = crossingRoadPairs(RoadCrossingDetector.detectAll(network));
 
         loop.setLoopSeam(RoadLoopSeam.at(new Vec2d(10, 10)));

@@ -49,9 +49,7 @@ public final class RoadStationFacilityGenerator {
             ctx.segments(),
             ctx.heightInfos(),
             ctx.request().crossSections(),
-            stationContext.road(),
-            stationContext.oriented(),
-            stationContext.roadEndStation(),
+            stationContext,
             ctx.pathLength(),
             StationFacilityJunctionTrim.forEdge(
                 stationContext.network(),
@@ -104,13 +102,42 @@ public final class RoadStationFacilityGenerator {
             MaterialResolver materialResolver,
             ElevationSnapper elevationSnapper,
             List<RoadConstructionType> constructionTypes) {
+        generateAlongStations(
+            solids, segments, heightInfos, crossSections,
+            new StationFacilityBuildContext(null, road, oriented),
+            edgeLength > 0.0 ? edgeLength : roadEndStation,
+            trim, unitsPerBlock, designElevation, buildProfile,
+            materialResolver, elevationSnapper, constructionTypes);
+    }
+
+    static void generateAlongStations(
+            RoadSolidModel solids,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            StationFacilityBuildContext stationContext,
+            double edgeLength,
+            StationFacilityJunctionTrim.FacilityEndpointTrim trim,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            MaterialResolver materialResolver,
+            ElevationSnapper elevationSnapper,
+            List<RoadConstructionType> constructionTypes) {
         if (trim == null) {
             trim = StationFacilityJunctionTrim.FacilityEndpointTrim.NONE;
         }
-        if (solids == null || segments == null || heightInfos == null || crossSections == null || road == null
-                || oriented == null) {
+        if (solids == null || segments == null || heightInfos == null || crossSections == null
+                || stationContext == null
+                || stationContext.road() == null
+                || stationContext.oriented() == null) {
             return;
         }
+        Road road = stationContext.road();
+        OrientedRoadSegment oriented = stationContext.oriented();
+        double roadEndStation = stationContext.roadEndStation() > 0.0
+            ? stationContext.roadEndStation()
+            : edgeLength;
 
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
@@ -124,7 +151,9 @@ public final class RoadStationFacilityGenerator {
                 geometryLocalBase += segment.distance;
                 continue;
             }
-            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, oriented.forward());
+            OrientedRoadSegment sliceForNormal = stationContext.sliceContaining(geometryLocalBase);
+            boolean forward = sliceForNormal != null ? sliceForNormal.forward() : oriented.forward();
+            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, forward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
@@ -142,7 +171,7 @@ public final class RoadStationFacilityGenerator {
                     continue;
                 }
                 int targetY = elevationSnapper.snap(center, resolvedY.getAsInt());
-                double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
+                double chainage = stationContext.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!trim.shouldPlace(geometryLocal, edgeLength)) {
                     continue;

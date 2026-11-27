@@ -130,6 +130,8 @@ public final class RoadNetworkManager {
     private boolean loopSeamRemapConfirmPending = false;
     private com.plot.plugin.road.model.RoadLoopSeam pendingLoopSeamReplacement;
     private double pendingLoopSeamShift = 0.0;
+    private long pendingLoopSeamNetworkRevision = -1L;
+    private com.plot.plugin.road.model.RoadLoopSeam pendingLoopSeamBaseline;
     /** 统一 Y 滑条是否持有当前 {@link #hasPendingNetworkEdit()} 事务（避免误提交/取消其它编辑）。 */
     private boolean uniformElevationDragActive = false;
     /** 最近一次「推荐标高」采样结果，供纵断面面板就地展示（不刷顶栏）。 */
@@ -1566,8 +1568,7 @@ public final class RoadNetworkManager {
 
     public void cancelLoopSeamCanvasPick() {
         loopSeamPickSession.cancel();
-        loopSeamRemapConfirmPending = false;
-        pendingLoopSeamReplacement = null;
+        clearPendingLoopSeamRemap();
     }
 
     public boolean isLoopSeamRemapConfirmPending() {
@@ -1578,28 +1579,77 @@ public final class RoadNetworkManager {
         if (!loopSeamRemapConfirmPending || pendingLoopSeamReplacement == null) {
             return;
         }
-        Road road = network.getRoad(loopSeamPickSession.roadId());
+        String roadId = loopSeamPickSession.roadId();
+        Road road = network.getRoad(roadId);
         if (road == null) {
             cancelLoopSeamCanvasPick();
             return;
         }
-        pushUndoSnapshot();
+        if (pendingLoopSeamNetworkRevision != networkRevision
+                || !java.util.Objects.equals(pendingLoopSeamBaseline, road.getLoopSeam())) {
+            clearPendingLoopSeamRemap();
+            loopSeamPickSession.cancel();
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return;
+        }
         double loopLength = RoadStationing.canonicalLength(network, road);
-        com.plot.plugin.road.station.RoadStationDataTransforms.rotateLoopStations(
-            network, road, pendingLoopSeamShift, loopLength);
-        road.setLoopSeam(pendingLoopSeamReplacement);
-        reconcileCrossingsInPlace();
-        loopSeamRemapConfirmPending = false;
-        pendingLoopSeamReplacement = null;
+        RoadNetwork working = network.snapshot();
+        Road workingRoad = working.getRoad(roadId);
+        if (workingRoad == null) {
+            clearPendingLoopSeamRemap();
+            loopSeamPickSession.cancel();
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return;
+        }
+        boolean priorEditedValid =
+            com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasValidEditedProfile(working, workingRoad);
+        if (!RoadStationDataTransforms.rotateLoopStations(
+                working, workingRoad, pendingLoopSeamShift, loopLength)) {
+            clearPendingLoopSeamRemap();
+            loopSeamPickSession.cancel();
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return;
+        }
+        workingRoad.setLoopSeam(pendingLoopSeamReplacement);
+        if (priorEditedValid) {
+            com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                working, workingRoad);
+        } else if (workingRoad.getEffectiveProfileSource()
+                == com.plot.plugin.road.vertical.ProfileSource.EDITED) {
+            workingRoad.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);
+        }
+        if (!loopSeamMigratePhysicallySound(network, road, working, workingRoad, loopLength)) {
+            clearPendingLoopSeamRemap();
+            loopSeamPickSession.cancel();
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return;
+        }
+        pushUndoSnapshot();
+        com.plot.plugin.road.ui.editor.CenterlineEditorApplier.applyToLive(network, working, roadId);
+        com.plot.plugin.road.crossing.RoadCrossingRegistrySync.copyForRoads(
+            network, working, java.util.Set.of(roadId));
+        // Integrity observe only — do not let detector overwrite verified migrator identity.
+        IntersectionResult observe = reconcileCrossingsInPlace();
+        if (observe == IntersectionResult.INCOMPLETE) {
+            adoptIntersectionRepairPending = true;
+        }
+        clearPendingLoopSeamRemap();
         loopSeamPickSession.cancel();
         commitNetworkChange();
         status.success(PlotI18n.tr("plugin.road.loop_seam_updated"));
     }
 
     public void declineLoopSeamRemap() {
+        clearPendingLoopSeamRemap();
+        loopSeamPickSession.cancel();
+    }
+
+    private void clearPendingLoopSeamRemap() {
         loopSeamRemapConfirmPending = false;
         pendingLoopSeamReplacement = null;
-        loopSeamPickSession.cancel();
+        pendingLoopSeamShift = 0.0;
+        pendingLoopSeamNetworkRevision = -1L;
+        pendingLoopSeamBaseline = null;
     }
 
     /**
@@ -1614,8 +1664,14 @@ public final class RoadNetworkManager {
             cancelLoopSeamCanvasPick();
             return false;
         }
+        String preferredEdge = lastSelectedEdgeId;
+        if (preferredEdge != null && !preferredEdge.isBlank()
+                && !road.getOrderedSegmentIds().contains(preferredEdge)) {
+            preferredEdge = null;
+        }
         com.plot.plugin.road.station.RoadLoopSeamService.SeamProjection projection =
-            projectLoopSeam(network, road, worldPosition);
+            com.plot.plugin.road.station.RoadLoopSeamService.projectForPick(
+                network, road, worldPosition, preferredEdge);
         if (projection == null) {
             status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
             return true;
@@ -1631,51 +1687,87 @@ public final class RoadNetworkManager {
             pushUndoSnapshot();
             road.setLoopSeam(replacement);
             loopSeamPickSession.cancel();
+            clearPendingLoopSeamRemap();
             commitNetworkChange();
             status.success(PlotI18n.tr("plugin.road.loop_seam_updated"));
             return true;
         }
         double loopLength = RoadStationing.canonicalLength(network, road);
-        double oldOffset = road.getLoopSeam() != null
-            ? seamCanonicalOffset(network, road, road.getLoopSeam())
-            : 0.0;
-        // SeamProjection.chainStation is instance-oriented-chain domain; rotateLoopStations uses canonical.
-        double newOffset = RoadStationing.toCanonicalChainage(network, road, projection.chainStation());
-        // newStation = oldStation - (newOffset - oldOffset)  => shift = newOffset - oldOffset
-        pendingLoopSeamShift = newOffset - oldOffset;
-        if (pendingLoopSeamShift < -1e-6) {
-            pendingLoopSeamShift += loopLength;
-        } else if (pendingLoopSeamShift > loopLength + 1e-6) {
-            pendingLoopSeamShift -= loopLength;
+        RoadEdge pickEdge = network.getEdge(projection.segmentId());
+        if (pickEdge == null || !(pickEdge.getLength() > 0.0)) {
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return true;
+        }
+        double geometryLocal = projection.geometryLocalFraction() * pickEdge.getLength();
+        // Shift = new seam's canonical station in the *old* stationing system.
+        var newSeamStation = RoadStationing.stationAt(
+            network, road, projection.segmentId(), geometryLocal);
+        if (newSeamStation.isEmpty()) {
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return true;
+        }
+        pendingLoopSeamShift = com.plot.plugin.road.station.CyclicStationTransform.wrap(
+            newSeamStation.get().chainageMeters(), loopLength);
+        if (!Double.isFinite(pendingLoopSeamShift)) {
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return true;
         }
         pendingLoopSeamReplacement = replacement;
+        pendingLoopSeamNetworkRevision = networkRevision;
+        pendingLoopSeamBaseline = road.getLoopSeam();
         loopSeamRemapConfirmPending = true;
         return true;
     }
 
     /**
-     * Canonical seam offset for station rotation. Prefers segmentHintId/localFraction via
-     * {@link com.plot.plugin.road.station.RoadLoopSeamService#resolveFromSeam}; falls back to spatial pick.
+     * Verify seam world XY, VA evaluable, and sampled elevations/coverage lengths match pre-migrate.
      */
-    private static double seamCanonicalOffset(
-            RoadNetwork network,
-            Road road,
-            com.plot.plugin.road.model.RoadLoopSeam seam) {
-        var resolved = com.plot.plugin.road.station.RoadLoopSeamService.resolveFromSeam(network, road, seam);
-        if (resolved == null) {
-            resolved = projectLoopSeam(network, road, seam.position());
+    private static boolean loopSeamMigratePhysicallySound(
+            RoadNetwork beforeNetwork,
+            Road beforeRoad,
+            RoadNetwork afterNetwork,
+            Road afterRoad,
+            double loopLength) {
+        if (!(loopLength > 0.0)) {
+            return false;
         }
-        if (resolved == null) {
-            return 0.0;
+        if (!com.plot.plugin.road.station.RoadLoopSeamService.isSeamResolvable(afterNetwork, afterRoad)) {
+            return false;
         }
-        return RoadStationing.toCanonicalChainage(network, road, resolved.chainStation());
-    }
-
-    private static com.plot.plugin.road.station.RoadLoopSeamService.SeamProjection projectLoopSeam(
-            RoadNetwork network,
-            Road road,
-            Vec2d worldPosition) {
-        return com.plot.plugin.road.station.RoadLoopSeamService.projectForPick(network, road, worldPosition);
+        if (afterRoad.getVerticalAlignment() != null
+                && !afterRoad.getVerticalAlignment().isEmpty()
+                && !VerticalAlignmentGeometry.isEvaluable(afterRoad.getVerticalAlignment())) {
+            return false;
+        }
+        // Geometry-local samples: same world point → elevations must match under rotated VA.
+        for (String edgeId : beforeRoad.getOrderedSegmentIds()) {
+            RoadEdge edge = beforeNetwork.getEdge(edgeId);
+            if (edge == null || !(edge.getLength() > 1e-6)) {
+                continue;
+            }
+            for (double frac : new double[] {0.25, 0.5, 0.75}) {
+                double geometryLocal = frac * edge.getLength();
+                var beforeStation = RoadStationing.stationAt(beforeNetwork, beforeRoad, edgeId, geometryLocal);
+                var afterStation = RoadStationing.stationAt(afterNetwork, afterRoad, edgeId, geometryLocal);
+                if (beforeStation.isEmpty() || afterStation.isEmpty()) {
+                    continue;
+                }
+                if (beforeRoad.getVerticalAlignment() != null
+                        && VerticalAlignmentGeometry.isEvaluable(beforeRoad.getVerticalAlignment())
+                        && afterRoad.getVerticalAlignment() != null
+                        && VerticalAlignmentGeometry.isEvaluable(afterRoad.getVerticalAlignment())) {
+                    var beforeElev = VerticalAlignmentGeometry.elevationAt(
+                        beforeRoad.getVerticalAlignment(), beforeStation.get().chainageMeters());
+                    var afterElev = VerticalAlignmentGeometry.elevationAt(
+                        afterRoad.getVerticalAlignment(), afterStation.get().chainageMeters());
+                    if (beforeElev.isPresent() && afterElev.isPresent()
+                            && Math.abs(beforeElev.getAsDouble() - afterElev.getAsDouble()) > 1e-2) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     /**

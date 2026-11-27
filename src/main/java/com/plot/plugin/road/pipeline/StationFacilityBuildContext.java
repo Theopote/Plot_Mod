@@ -7,15 +7,27 @@ import com.plot.plugin.road.model.facility.StationFacilityResolver;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
+import java.util.List;
+
 /**
  * 单条边生成时的桩号附属设施上下文。
  */
 public record StationFacilityBuildContext(
         RoadNetwork network,
         Road road,
-        OrientedRoadSegment oriented) {
+        OrientedRoadSegment oriented,
+        List<OrientedRoadSegment> slices) {
 
-    public static final StationFacilityBuildContext EMPTY = new StationFacilityBuildContext(null, null, null);
+    public static final StationFacilityBuildContext EMPTY =
+        new StationFacilityBuildContext(null, null, null, List.of());
+
+    public StationFacilityBuildContext {
+        slices = slices != null ? List.copyOf(slices) : List.of();
+    }
+
+    public StationFacilityBuildContext(RoadNetwork network, Road road, OrientedRoadSegment oriented) {
+        this(network, road, oriented, oriented != null ? List.of(oriented) : List.of());
+    }
 
     public boolean isActive() {
         return network != null && road != null && oriented != null && StationFacilityResolver.hasStationFacilities(road);
@@ -36,6 +48,34 @@ public record StationFacilityBuildContext(
         return RoadStationing.canonicalLength(network, road);
     }
 
+    /** Instance/canonical station at geometry-local, selecting the correct LOOP slice. */
+    public double chainageAtGeometryLocal(double geometryLocalDistance) {
+        if (network != null && road != null && edgeId() != null) {
+            var canonical = RoadStationing.resolveCanonicalStationAtEdgeLocal(
+                network, road, edgeId(), geometryLocalDistance);
+            if (canonical.isPresent()) {
+                return canonical.getAsDouble();
+            }
+        }
+        OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
+        if (slice != null) {
+            return slice.roadStationAtGeometryLocal(geometryLocalDistance);
+        }
+        return oriented != null ? oriented.roadStationAtGeometryLocal(geometryLocalDistance) : geometryLocalDistance;
+    }
+
+    public OrientedRoadSegment sliceContaining(double geometryLocalDistance) {
+        for (OrientedRoadSegment slice : slices) {
+            if (slice.containsGeometryLocal(geometryLocalDistance)) {
+                return slice;
+            }
+        }
+        if (slices.size() == 1) {
+            return slices.getFirst();
+        }
+        return oriented;
+    }
+
     public static StationFacilityBuildContext forEdge(RoadNetwork network, RoadEdge edge) {
         if (network == null || edge == null) {
             return EMPTY;
@@ -51,8 +91,11 @@ public record StationFacilityBuildContext(
         if (!RoadStationing.isStationable(network, road)) {
             return EMPTY;
         }
-        return RoadStationing.orientedSegment(network, road, edge.getId())
-            .map(oriented -> new StationFacilityBuildContext(network, road, oriented))
-            .orElse(EMPTY);
+        List<OrientedRoadSegment> slices =
+            RoadStationing.orientedSegmentsForEdge(network, road, edge.getId());
+        if (slices.isEmpty()) {
+            return EMPTY;
+        }
+        return new StationFacilityBuildContext(network, road, slices.getFirst(), slices);
     }
 }

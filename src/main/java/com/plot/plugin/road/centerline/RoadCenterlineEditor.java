@@ -79,20 +79,6 @@ public final class RoadCenterlineEditor {
             CenterlineEditOperation.INSERT_PI);
     }
 
-    public static CenterlineEditResult insertPiAtRoadStation(
-            RoadNetwork network,
-            Road road,
-            String edgeId,
-            double roadStation) {
-        if (road == null) {
-            return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
-        }
-        return RoadStationing.resolve(network, road, roadStation)
-            .filter(segment -> edgeId.equals(segment.segmentId()))
-            .map(segment -> insertPiAtLocalDistance(network, edgeId, segment.localDistance()))
-            .orElseGet(() -> CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE));
-    }
-
     public static CenterlineEditResult splitAtLocalDistance(
             RoadNetwork network,
             String edgeId,
@@ -167,13 +153,6 @@ public final class RoadCenterlineEditor {
             before,
             CenterlineEditResult.success(),
             CenterlineEditOperation.DELETE_PI);
-    }
-
-    /**
-     * 圆角几何预览（不写回网络）；返回完整新折线，无法构造时返回 {@code null}。
-     */
-    public static List<Vec2d> previewFillet(List<Vec2d> points, int vertexIndex, double radius) {
-        return RoadCenterlineFillet.filletVertex(points, vertexIndex, radius);
     }
 
     /**

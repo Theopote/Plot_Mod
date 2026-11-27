@@ -50,13 +50,16 @@ public final class RoadLoopSeamService {
         if (road == null || road.getLoopSeam() == null) {
             return null;
         }
-        SeamProjection projection = projectOntoOrientedChain(network, road, road.getLoopSeam().position());
-        return projection != null ? projection.position().copy() : road.getLoopSeam().position().copy();
+        SeamProjection projection = resolveFromSeam(network, road, road.getLoopSeam());
+        if (projection != null && projection.position() != null) {
+            return projection.position().copy();
+        }
+        return road.getLoopSeam().position() != null ? road.getLoopSeam().position().copy() : null;
     }
 
     /**
-     * Whether a LOOP seam can be resolved onto the road chain (finite position, optional
-     * segment hint exists, and projection lands on the centerline within node tolerance).
+     * Whether a LOOP seam can be resolved onto the road chain. Prefers segment hint; does not
+     * paper over a bad hint with nearest-point fallback alone.
      */
     public static boolean isSeamResolvable(RoadNetwork network, Road road) {
         if (network == null || road == null || road.getLoopSeam() == null) {
@@ -67,10 +70,19 @@ public final class RoadLoopSeamService {
         if (position == null || !Double.isFinite(position.x) || !Double.isFinite(position.y)) {
             return false;
         }
-        if (seam.segmentHintId() != null && network.getEdge(seam.segmentHintId()) == null) {
-            return false;
+        if (seam.segmentHintId() != null) {
+            RoadEdge hinted = network.getEdge(seam.segmentHintId());
+            if (hinted == null || !road.getOrderedSegmentIds().contains(seam.segmentHintId())) {
+                return false;
+            }
+            if (seam.localFraction() == null
+                    || !Double.isFinite(seam.localFraction())
+                    || seam.localFraction() < -EPSILON
+                    || seam.localFraction() > 1.0 + EPSILON) {
+                return false;
+            }
         }
-        SeamProjection projection = projectOntoOrientedChain(network, road, position);
+        SeamProjection projection = resolveFromSeam(network, road, seam);
         if (projection == null || projection.position() == null) {
             return false;
         }
@@ -283,21 +295,12 @@ public final class RoadLoopSeamService {
         return points.getLast().copy();
     }
 
+    /**
+     * Seam-migrate a point station. Invalid input returns {@link Double#NaN}
+     * (never a legal zero as failure sentinel).
+     */
     public static double rotateLoopStation(double oldStation, double shift, double loopLength) {
-        if (!Double.isFinite(oldStation) || !Double.isFinite(shift) || loopLength <= EPSILON) {
-            return 0.0;
-        }
-        double rotated = oldStation - shift;
-        while (rotated < -EPSILON) {
-            rotated += loopLength;
-        }
-        while (rotated > loopLength + EPSILON) {
-            rotated -= loopLength;
-        }
-        if (rotated < 0.0) {
-            return 0.0;
-        }
-        return Math.min(rotated, loopLength);
+        return CyclicStationTransform.rotateByShift(oldStation, shift, loopLength);
     }
 
     private static String fallbackNodeId(RoadNetwork network, Road road) {
@@ -338,7 +341,32 @@ public final class RoadLoopSeamService {
     }
 
     public static SeamProjection projectForPick(RoadNetwork network, Road road, Vec2d query) {
-        return projectOntoOrientedChain(network, road, query);
+        return projectForPick(network, road, query, null);
+    }
+
+    /**
+     * Canvas seam pick. Prefers {@code preferredEdgeId} when it belongs to the road.
+     * Self-crossing dual-pass ties that cannot be distinguished are rejected ({@code null}).
+     */
+    public static SeamProjection projectForPick(
+            RoadNetwork network,
+            Road road,
+            Vec2d query,
+            String preferredEdgeId) {
+        if (query == null || network == null || road == null) {
+            return null;
+        }
+        String preferred = preferredEdgeId;
+        if (preferred != null && !road.getOrderedSegmentIds().contains(preferred)) {
+            preferred = null;
+        }
+        if (preferred != null) {
+            SeamProjection onPreferred = projectOntoOrientedChain(network, road, query, preferred, false);
+            if (onPreferred != null) {
+                return onPreferred;
+            }
+        }
+        return projectOntoOrientedChain(network, road, query, null, true);
     }
 
     /**
@@ -356,35 +384,50 @@ public final class RoadLoopSeamService {
     }
 
     private static SeamProjection projectOntoOrientedChain(RoadNetwork network, Road road, Vec2d query) {
+        return projectOntoOrientedChain(network, road, query, null, false);
+    }
+
+    private static SeamProjection projectOntoOrientedChain(
+            RoadNetwork network,
+            Road road,
+            Vec2d query,
+            String edgeFilter,
+            boolean rejectAmbiguous) {
         if (query == null) {
             return null;
         }
         SeamProjection best = null;
+        SeamProjection second = null;
         double bestDistance = Double.MAX_VALUE;
+        double secondDistance = Double.MAX_VALUE;
         for (OrientedRoadSegment segment : RoadStationing.orientedSegmentsWithoutLoopRotation(network, road)) {
+            if (edgeFilter != null && !edgeFilter.equals(segment.edgeId())) {
+                continue;
+            }
             RoadEdge edge = network.getEdge(segment.edgeId());
             if (edge == null) {
                 continue;
             }
             List<Vec2d> points = edge.getCenterlinePoints();
+            if (points.size() < 2) {
+                continue;
+            }
             double edgeLength = edge.getLength();
+            double[] prefix = new double[points.size()];
+            prefix[0] = 0.0;
+            for (int i = 1; i < points.size(); i++) {
+                prefix[i] = prefix[i - 1] + points.get(i - 1).distance(points.get(i));
+            }
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec2d start = points.get(i);
                 Vec2d end = points.get(i + 1);
                 Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, query);
                 double distance = projected.distance(query);
-                if (distance >= bestDistance) {
-                    continue;
-                }
-                double geometryLocal = start.distance(projected);
-                for (int j = 0; j < i; j++) {
-                    geometryLocal += points.get(j).distance(points.get(j + 1));
-                }
+                double geometryLocal = prefix[i] + start.distance(projected);
                 double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
                 double chainFraction = segment.length() > EPSILON ? chainLocal / segment.length() : 0.0;
                 double geometryFraction = edgeLength > EPSILON ? geometryLocal / edgeLength : 0.0;
-                bestDistance = distance;
-                best = new SeamProjection(
+                SeamProjection candidate = new SeamProjection(
                     projected.copy(),
                     segment.edgeId(),
                     segment.entryNodeId(),
@@ -392,9 +435,33 @@ public final class RoadLoopSeamService {
                     chainFraction,
                     geometryFraction,
                     segment.startStation() + chainLocal);
+                if (distance < bestDistance - EPSILON) {
+                    second = best;
+                    secondDistance = bestDistance;
+                    best = candidate;
+                    bestDistance = distance;
+                } else if (distance < secondDistance - EPSILON) {
+                    second = candidate;
+                    secondDistance = distance;
+                }
             }
         }
+        if (rejectAmbiguous && best != null && second != null
+                && Math.abs(bestDistance - secondDistance) <= com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE
+                && !samePickPass(best, second)) {
+            return null;
+        }
         return best;
+    }
+
+    private static boolean samePickPass(SeamProjection a, SeamProjection b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        if (!a.segmentId().equals(b.segmentId())) {
+            return false;
+        }
+        return Math.abs(a.geometryLocalFraction() - b.geometryLocalFraction()) <= 1e-3;
     }
 
     private static int comparePosition(Vec2d left, Vec2d right) {

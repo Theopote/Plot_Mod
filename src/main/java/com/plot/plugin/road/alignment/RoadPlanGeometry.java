@@ -636,8 +636,8 @@ public final class RoadPlanGeometry {
 
     /**
      * Canonical (design-entry) station → HA native station.
-     * LINEAR: identity unless physical/HA walk is opposed to design ({@code L - s}).
-     * LOOP with seam: seam offset (opposition handled in rotated↔physical).
+     * LINEAR: identity unless opposed ({@code L - s}).
+     * LOOP: {@code n = wrap(o + σ·s, L)} via {@link com.plot.plugin.road.station.CyclicStationTransform}.
      */
     public static double haNativeStation(RoadNetwork network, Road road, double canonicalStation) {
         if (road == null || !Double.isFinite(canonicalStation)) {
@@ -653,20 +653,18 @@ public final class RoadPlanGeometry {
         }
         double designLen = designLength(network, road);
         if (designLen <= STATION_EPSILON) {
-            return canonicalStation;
+            return Double.NaN;
         }
         double offset = seamHaNativeOffset(network, road);
         if (!Double.isFinite(offset)) {
             return Double.NaN;
         }
-        double nativeStation = canonicalStation + offset;
-        if (nativeStation >= designLen - STATION_EPSILON) {
-            nativeStation -= designLen;
-        }
-        return Math.max(0.0, Math.min(nativeStation, designLen));
+        int sigma = RoadStationing.isPhysicalWalkOpposedToDesign(network, road) ? -1 : 1;
+        return com.plot.plugin.road.station.CyclicStationTransform.fromOrigin(
+            offset, sigma, canonicalStation, designLen);
     }
 
-    /** HA native → canonical (design-entry). LINEAR opposed uses {@code L - s}. */
+    /** HA native → canonical (design-entry). LOOP uses {@code s = wrap(σ·(n − o), L)}. */
     public static double canonicalFromHaNative(
             RoadNetwork network,
             Road road,
@@ -685,19 +683,15 @@ public final class RoadPlanGeometry {
         }
         double designLen = designTotal > STATION_EPSILON ? designTotal : designLength(network, road);
         if (designLen <= STATION_EPSILON) {
-            return nativeStation;
+            return Double.NaN;
         }
         double offset = seamHaNativeOffset(network, road);
         if (!Double.isFinite(offset)) {
             return Double.NaN;
         }
-        double canonical = nativeStation - offset;
-        if (canonical < -STATION_EPSILON) {
-            canonical += designLen;
-        } else if (canonical >= designLen - STATION_EPSILON) {
-            canonical -= designLen;
-        }
-        return Math.max(0.0, Math.min(canonical, designLen));
+        int sigma = RoadStationing.isPhysicalWalkOpposedToDesign(network, road) ? -1 : 1;
+        return com.plot.plugin.road.station.CyclicStationTransform.toOrigin(
+            offset, sigma, nativeStation, designLen);
     }
 
     public static double seamHaNativeOffset(RoadNetwork network, Road road) {

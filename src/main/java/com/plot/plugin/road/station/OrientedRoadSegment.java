@@ -95,19 +95,54 @@ public record OrientedRoadSegment(
     }
 
     /**
-     * 端点节点处道路桩号；非端点返回 empty。
+     * Topology-node station on this slice only.
+     * Interior seam cuts are not topology nodes: a partial slice whose chain end sits mid-edge
+     * does not report the far topology node; {@code geometryChainStart > 0} similarly hides entry.
      */
     public OptionalDouble roadStationAtNode(String nodeId) {
         if (nodeId == null || nodeId.isBlank()) {
             return OptionalDouble.empty();
         }
-        if (entryNodeId.equals(nodeId) && geometryChainStart <= EPSILON) {
-            return OptionalDouble.of(startStation);
-        }
-        if (exitNodeId.equals(nodeId) && geometryChainEnd >= length + geometryChainStart - EPSILON) {
-            return OptionalDouble.of(endStation());
+        if (forward) {
+            if (entryNodeId.equals(nodeId) && geometryChainStart <= EPSILON) {
+                return OptionalDouble.of(startStation);
+            }
+            // Post-seam forward tails (start>0) end at the edge exit node.
+            // Pre-seam heads end at the seam — not a topology node — even though exitNodeId
+            // still names the edge's exit; require the slice to reach the geometric edge end.
+            if (exitNodeId.equals(nodeId) && reachesForwardExitNode()) {
+                return OptionalDouble.of(endStation());
+            }
+        } else {
+            // Reverse storage: chain entry is at geometric end; chain exit at geometric start.
+            if (entryNodeId.equals(nodeId) && reachesReverseEntryNode()) {
+                return OptionalDouble.of(startStation);
+            }
+            if (exitNodeId.equals(nodeId) && geometryChainStart <= EPSILON) {
+                return OptionalDouble.of(endStation());
+            }
         }
         return OptionalDouble.empty();
+    }
+
+    private boolean reachesForwardExitNode() {
+        if (geometryChainStart > EPSILON) {
+            // Interior seam → edge-end tail: chain exit is the topology exit node.
+            return true;
+        }
+        // Full edge from geom 0: endStation is the exit node. A LOOP pre-seam head also has
+        // start=0 with end=length(=seam), but then a sibling post-seam slice owns the real exit;
+        // callers iterate all slices and the post-seam match wins. Keep full-edge behavior.
+        return geometryChainEnd >= length + geometryChainStart - EPSILON;
+    }
+
+    private boolean reachesReverseEntryNode() {
+        if (geometryChainStart > EPSILON) {
+            // Reverse pre-seam (geom seam→full): chain start is topology entry (geom end).
+            return true;
+        }
+        // Full reverse edge (0→length) includes geom end at chain start.
+        return geometryChainEnd >= length - EPSILON;
     }
 
     public OrientedRoadSegment withStartStation(double newStartStation) {

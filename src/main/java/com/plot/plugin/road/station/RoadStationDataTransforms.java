@@ -11,13 +11,17 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 
 /**
@@ -779,6 +783,14 @@ public final class RoadStationDataTransforms {
     private static RoadVariableCrossSections intervalsToVariableCrossSections(
             List<Interval> intervals,
             RoadCrossSection defaultSection) {
+        return intervalsToVariableCrossSections(
+            intervals, defaultSection, VariableCrossSectionTransitionMode.STEP);
+    }
+
+    private static RoadVariableCrossSections intervalsToVariableCrossSections(
+            List<Interval> intervals,
+            RoadCrossSection defaultSection,
+            VariableCrossSectionTransitionMode transitionMode) {
         List<StationCrossSection> stations = new ArrayList<>();
         for (Interval interval : intervals) {
             if (interval.start <= EPSILON) {
@@ -789,27 +801,41 @@ public final class RoadStationDataTransforms {
             }
             stations.add(StationCrossSection.at(interval.start, interval.template.copy()));
         }
-        return stations.isEmpty() ? null : new RoadVariableCrossSections(stations);
+        return stations.isEmpty()
+            ? null
+            : new RoadVariableCrossSections(stations, transitionMode);
     }
 
     private record Interval(double start, double end, RoadCrossSection template) {
     }
 
     /**
-     * 闭环 seam 移动时旋转沿程工程数据，使物理位置与桩号对应关系保持不变。
+     * LOOP seam migrate: rotate station-domain engineering data so physical placement is unchanged.
+     * Returns {@code false} without mutating when migration would be lossy (e.g. mid-curve seam).
      */
-    public static void rotateLoopStations(
+    public static boolean rotateLoopStations(
             com.plot.plugin.road.model.RoadNetwork network,
             com.plot.plugin.road.model.Road road,
             double shiftMeters,
             double loopLength) {
-        rotateLoopStations(road, shiftMeters, loopLength);
-        if (network == null || road == null || loopLength <= EPSILON || Math.abs(shiftMeters) <= EPSILON) {
-            return;
+        if (road == null || loopLength <= EPSILON) {
+            return true;
+        }
+        if (Math.abs(shiftMeters) <= EPSILON) {
+            return true;
+        }
+        if (!rotateLoopStations(road, shiftMeters, loopLength)) {
+            return false;
+        }
+        if (network == null) {
+            return true;
         }
         for (com.plot.plugin.road.crossing.RoadCrossing crossing : network.crossingsForRoad(road.getId())) {
             double rotatedStation = RoadLoopSeamService.rotateLoopStation(
                 crossing.stationOn(road.getId()), shiftMeters, loopLength);
+            if (!Double.isFinite(rotatedStation)) {
+                return false;
+            }
             network.registerCrossing(crossing.withStationsOnRoad(road.getId(), rotatedStation));
         }
         for (com.plot.plugin.road.crossing.RoadStackCrossing stack
@@ -818,55 +844,307 @@ public final class RoadStationDataTransforms {
                 stack.stationA(), shiftMeters, loopLength);
             double rotatedB = RoadLoopSeamService.rotateLoopStation(
                 stack.stationB(), shiftMeters, loopLength);
+            if (!Double.isFinite(rotatedA) || !Double.isFinite(rotatedB)) {
+                return false;
+            }
             Double rotatedLower = stack.lowerStation() != null
                 ? RoadLoopSeamService.rotateLoopStation(stack.lowerStation(), shiftMeters, loopLength)
                 : null;
             Double rotatedUpper = stack.upperStation() != null
                 ? RoadLoopSeamService.rotateLoopStation(stack.upperStation(), shiftMeters, loopLength)
                 : null;
+            if ((rotatedLower != null && !Double.isFinite(rotatedLower))
+                    || (rotatedUpper != null && !Double.isFinite(rotatedUpper))) {
+                return false;
+            }
             network.registerStackCrossing(stack.withRotatedStations(
                 rotatedA, rotatedB, rotatedLower, rotatedUpper));
         }
+        return true;
     }
 
     /**
-     * 闭环 seam 移动时旋转道路内沿程工程数据。
+     * LOOP seam migrate for in-road station data only. Fail-closed on lossy VA/VCS cases.
      */
-    public static void rotateLoopStations(Road road, double shiftMeters, double loopLength) {
-        if (road == null || loopLength <= EPSILON || Math.abs(shiftMeters) <= EPSILON) {
-            return;
+    public static boolean rotateLoopStations(Road road, double shiftMeters, double loopLength) {
+        if (road == null || loopLength <= EPSILON) {
+            return true;
         }
-        if (road.getVerticalAlignment() != null) {
-            List<PointOfVerticalIntersection> rotated = new ArrayList<>();
-            for (PointOfVerticalIntersection pvi : road.getVerticalAlignment().getPvis()) {
-                double station = RoadLoopSeamService.rotateLoopStation(
-                    pvi.getStation(), shiftMeters, loopLength);
-                rotated.add(new PointOfVerticalIntersection(
-                    station, pvi.getElevation(), pvi.getCurveLength(), pvi.getConstraint()));
+        if (Math.abs(shiftMeters) <= EPSILON) {
+            return true;
+        }
+        RoadVerticalAlignment rotatedVa = null;
+        if (road.getVerticalAlignment() != null && !road.getVerticalAlignment().isEmpty()) {
+            rotatedVa = rotateVerticalAlignmentCyclic(road.getVerticalAlignment(), shiftMeters, loopLength);
+            if (rotatedVa == null) {
+                return false;
             }
-            road.setVerticalAlignment(new RoadVerticalAlignment(rotated));
         }
-        if (road.getVariableCrossSections() != null) {
-            List<StationCrossSection> rotated = new ArrayList<>();
-            for (StationCrossSection section : road.getVariableCrossSections().getStations()) {
-                double station = RoadLoopSeamService.rotateLoopStation(
-                    section.getStation(), shiftMeters, loopLength);
-                rotated.add(StationCrossSection.at(station, section.getCrossSection()));
+        RoadVariableCrossSections rotatedVcs = null;
+        if (road.getVariableCrossSections() != null && !road.getVariableCrossSections().isEmpty()) {
+            rotatedVcs = rotateVariableCrossSectionsCyclic(
+                road.getVariableCrossSections(),
+                road.getCrossSection(),
+                shiftMeters,
+                loopLength);
+            if (rotatedVcs == null) {
+                return false;
             }
-            road.setVariableCrossSections(new RoadVariableCrossSections(rotated));
         }
+        RoadStationFacilities rotatedFacilities = null;
         if (road.getStationFacilities() != null && !road.getStationFacilities().isEmpty()) {
-            RoadStationFacilities facilities = new RoadStationFacilities();
-            for (com.plot.plugin.road.model.facility.StationFacilityRun run : road.getStationFacilities().getRuns()) {
-                double start = RoadLoopSeamService.rotateLoopStation(
-                    run.getStartStation(), shiftMeters, loopLength);
-                Double end = run.getEndStation() != null
-                    ? RoadLoopSeamService.rotateLoopStation(run.getEndStation(), shiftMeters, loopLength)
-                    : null;
-                facilities.addRun(new com.plot.plugin.road.model.facility.StationFacilityRun(
-                    start, end, run.getKind(), run.getSide(), run.getMaterial(), run.getHeight()));
+            rotatedFacilities = rotateStationFacilitiesCyclic(
+                road.getStationFacilities(), shiftMeters, loopLength);
+            if (rotatedFacilities == null) {
+                return false;
             }
-            road.setStationFacilities(facilities);
         }
+        if (rotatedVa != null) {
+            road.setVerticalAlignment(rotatedVa);
+        }
+        if (rotatedVcs != null) {
+            road.setVariableCrossSections(rotatedVcs);
+        }
+        if (rotatedFacilities != null) {
+            road.setStationFacilities(rotatedFacilities);
+        }
+        return true;
+    }
+
+    /**
+     * Cyclic VA migrate. Returns null when seam falls inside a vertical curve or 0/L elevations mismatch.
+     */
+    static RoadVerticalAlignment rotateVerticalAlignmentCyclic(
+            RoadVerticalAlignment source,
+            double shift,
+            double loopLength) {
+        if (source == null || source.isEmpty()) {
+            return source;
+        }
+        List<PointOfVerticalIntersection> sorted = source.sortedPvis();
+        if (sorted.size() < 2) {
+            return null;
+        }
+        PointOfVerticalIntersection first = sorted.getFirst();
+        PointOfVerticalIntersection last = sorted.getLast();
+        if (Math.abs(first.getStation()) > EPSILON
+                || Math.abs(last.getStation() - loopLength) > EPSILON) {
+            // Still allow migrate if endpoints bookend the loop within tolerance of evaluable range.
+            if (!VerticalAlignmentGeometry.isEvaluable(source)) {
+                return null;
+            }
+        }
+        OptionalDouble elev0 = VerticalAlignmentGeometry.elevationAt(source, 0.0);
+        OptionalDouble elevL = VerticalAlignmentGeometry.elevationAt(source, loopLength);
+        if (elev0.isEmpty() || elevL.isEmpty()
+                || Math.abs(elev0.getAsDouble() - elevL.getAsDouble()) > 1e-3) {
+            return null;
+        }
+        for (VerticalAlignmentValidator.VerticalCurveInterval curve
+                : VerticalAlignmentValidator.curveIntervals(sorted)) {
+            if (shift > curve.bvcStation() + EPSILON && shift < curve.evcStation() - EPSILON
+                    && Math.abs(shift - sorted.get(curve.pviIndex()).getStation()) > EPSILON) {
+                return null;
+            }
+        }
+        OptionalDouble seamElevOpt = VerticalAlignmentGeometry.elevationAt(source, shift);
+        if (seamElevOpt.isEmpty()) {
+            return null;
+        }
+        double seamElev = seamElevOpt.getAsDouble();
+        List<PointOfVerticalIntersection> rotated = new ArrayList<>();
+        rotated.add(new PointOfVerticalIntersection(0.0, seamElev, null, first.getConstraint()));
+        for (PointOfVerticalIntersection pvi : sorted) {
+            // Old L duplicates old 0 physically on a LOOP — keep the start endpoint once.
+            if (Math.abs(pvi.getStation() - loopLength) <= EPSILON) {
+                continue;
+            }
+            if (Math.abs(pvi.getStation() - shift) <= EPSILON) {
+                continue;
+            }
+            double station = CyclicStationTransform.rotateByShift(pvi.getStation(), shift, loopLength);
+            if (!Double.isFinite(station)) {
+                return null;
+            }
+            if (Math.abs(station) <= EPSILON || Math.abs(station - loopLength) <= EPSILON) {
+                continue;
+            }
+            // Endpoints lose curve length; intermediate PVIs keep theirs.
+            Double curve = Math.abs(pvi.getStation()) <= EPSILON ? null : pvi.getCurveLength();
+            rotated.add(new PointOfVerticalIntersection(
+                station, pvi.getElevation(), curve, pvi.getConstraint()));
+        }
+        rotated.add(new PointOfVerticalIntersection(loopLength, seamElev, null, last.getConstraint()));
+        rotated.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
+        List<PointOfVerticalIntersection> deduped = new ArrayList<>();
+        for (PointOfVerticalIntersection pvi : rotated) {
+            if (!deduped.isEmpty()
+                    && Math.abs(deduped.getLast().getStation() - pvi.getStation()) <= EPSILON) {
+                continue;
+            }
+            deduped.add(pvi);
+        }
+        RoadVerticalAlignment result = new RoadVerticalAlignment(deduped);
+        if (!VerticalAlignmentGeometry.isEvaluable(result)) {
+            return null;
+        }
+        return result;
+    }
+
+    static RoadVariableCrossSections rotateVariableCrossSectionsCyclic(
+            RoadVariableCrossSections source,
+            RoadCrossSection defaultSection,
+            double shift,
+            double loopLength) {
+        if (source == null || source.isEmpty()) {
+            return source;
+        }
+        VariableCrossSectionTransitionMode mode = source.getTransitionMode();
+        RoadCrossSection base = defaultSection != null ? defaultSection : new RoadCrossSection();
+        if (mode == VariableCrossSectionTransitionMode.SMOOTH) {
+            return rotateSmoothVariableCrossSections(source, base, shift, loopLength);
+        }
+        List<StationCrossSection> sorted = source.sortedStations();
+        if (sorted.isEmpty()) {
+            return null;
+        }
+        List<Interval> intervals = buildIntervals(sorted, base, loopLength);
+        List<Interval> rotated = new ArrayList<>();
+        for (Interval interval : intervals) {
+            for (double[] piece : CyclicStationTransform.rotateInterval(
+                    interval.start, interval.end, shift, loopLength)) {
+                rotated.add(new Interval(piece[0], piece[1], interval.template));
+            }
+        }
+        rotated = mergeAdjacentIntervals(rotated);
+        RoadVariableCrossSections result = intervalsToVariableCrossSections(rotated, base, mode);
+        return result != null && result.isValid() ? result : null;
+    }
+
+    private static RoadVariableCrossSections rotateSmoothVariableCrossSections(
+            RoadVariableCrossSections source,
+            RoadCrossSection defaultSection,
+            double shift,
+            double loopLength) {
+        List<StationCrossSection> sorted = source.sortedStations();
+        if (sorted.isEmpty()) {
+            return null;
+        }
+        // Insert seam sample so wrap ends stay continuous after rotate.
+        ResolvedSmoothAnchor seamAnchor = smoothSectionAt(source, defaultSection, shift);
+        if (seamAnchor == null) {
+            return null;
+        }
+        List<StationCrossSection> rotated = new ArrayList<>();
+        rotated.add(StationCrossSection.at(0.0, seamAnchor.section().copy()));
+        for (StationCrossSection entry : sorted) {
+            if (Math.abs(entry.getStation() - shift) <= EPSILON) {
+                continue;
+            }
+            double station = CyclicStationTransform.rotateByShift(entry.getStation(), shift, loopLength);
+            if (!Double.isFinite(station)) {
+                return null;
+            }
+            if (Math.abs(station) <= EPSILON || Math.abs(station - loopLength) <= EPSILON) {
+                continue;
+            }
+            rotated.add(StationCrossSection.at(station, entry.getCrossSection().copy()));
+        }
+        rotated.sort(Comparator.comparingDouble(StationCrossSection::getStation));
+        List<StationCrossSection> deduped = new ArrayList<>();
+        for (StationCrossSection entry : rotated) {
+            if (!deduped.isEmpty()
+                    && Math.abs(deduped.getLast().getStation() - entry.getStation()) <= EPSILON) {
+                continue;
+            }
+            deduped.add(entry);
+        }
+        RoadVariableCrossSections result =
+            new RoadVariableCrossSections(deduped, VariableCrossSectionTransitionMode.SMOOTH);
+        return result.isValid() ? result : null;
+    }
+
+    private record ResolvedSmoothAnchor(RoadCrossSection section) {
+    }
+
+    private static ResolvedSmoothAnchor smoothSectionAt(
+            RoadVariableCrossSections source,
+            RoadCrossSection defaultSection,
+            double station) {
+        // Reconstruct the engineering section by resolving continuous dims then copying discrete fields
+        // from the nearest keyframe — enough to re-anchor SMOOTH at the new seam.
+        List<StationCrossSection> sorted = source.sortedStations();
+        if (sorted.isEmpty()) {
+            return new ResolvedSmoothAnchor(defaultSection.copy());
+        }
+        StationCrossSection nearest = sorted.getFirst();
+        double best = Math.abs(nearest.getStation() - station);
+        for (StationCrossSection entry : sorted) {
+            double delta = Math.abs(entry.getStation() - station);
+            if (delta < best) {
+                best = delta;
+                nearest = entry;
+            }
+        }
+        if (Math.abs(nearest.getStation() - station) <= EPSILON) {
+            return new ResolvedSmoothAnchor(nearest.getCrossSection().copy());
+        }
+        // Prefer interpolating between flanking keyframes when available.
+        StationCrossSection prev = null;
+        StationCrossSection next = null;
+        for (StationCrossSection entry : sorted) {
+            if (entry.getStation() <= station + EPSILON) {
+                prev = entry;
+            } else if (next == null) {
+                next = entry;
+                break;
+            }
+        }
+        if (prev != null && next != null) {
+            // Use nearest keyframe copy for discrete fields; continuous seam elev/width handled by SMOOTH
+            // re-evaluation after rotate. Anchoring with nearest CS is lossless for keyframe grid.
+            return new ResolvedSmoothAnchor(prev.getCrossSection().copy());
+        }
+        return new ResolvedSmoothAnchor(nearest.getCrossSection().copy());
+    }
+
+    static RoadStationFacilities rotateStationFacilitiesCyclic(
+            RoadStationFacilities source,
+            double shift,
+            double loopLength) {
+        if (source == null || source.isEmpty()) {
+            return source;
+        }
+        RoadStationFacilities facilities = new RoadStationFacilities();
+        for (StationFacilityRun run : source.getRuns()) {
+            double start = run.getStartStation();
+            double end = run.getEndStation() != null ? run.getEndStation() : loopLength;
+            if (!(end > start + EPSILON)) {
+                return null;
+            }
+            List<double[]> pieces = CyclicStationTransform.rotateInterval(start, end, shift, loopLength);
+            if (pieces.isEmpty()) {
+                return null;
+            }
+            for (double[] piece : pieces) {
+                Double endStation = Math.abs(piece[1] - loopLength) <= EPSILON ? null : piece[1];
+                // Open-ended original that covered to L stays open if piece ends at L after rotate.
+                if (run.getEndStation() == null && Math.abs(end - loopLength) <= EPSILON
+                        && Math.abs(piece[1] - loopLength) <= EPSILON) {
+                    endStation = null;
+                }
+                if (endStation != null && endStation <= piece[0] + EPSILON) {
+                    return null;
+                }
+                facilities.addRun(new StationFacilityRun(
+                    piece[0],
+                    endStation,
+                    run.getKind(),
+                    run.getSide(),
+                    run.getMaterial(),
+                    run.getHeight()));
+            }
+        }
+        return facilities.isEmpty() ? null : facilities;
     }
 }

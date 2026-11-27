@@ -117,10 +117,43 @@ public final class CrossSectionBuildContext {
     }
 
     public double chainageAtGeometryLocal(double geometryLocalDistance) {
-        if (!isVariable()) {
-            return geometryLocalDistance;
+        OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
+        if (slice == null) {
+            return isVariable() && oriented != null
+                ? oriented.roadStationAtGeometryLocal(geometryLocalDistance)
+                : geometryLocalDistance;
         }
-        return oriented.roadStationAtGeometryLocal(geometryLocalDistance);
+        double instance = slice.roadStationAtGeometryLocal(geometryLocalDistance);
+        if (network != null && road != null) {
+            double canonical = RoadStationing.toCanonicalChainage(network, road, instance);
+            return Double.isFinite(canonical) ? canonical : instance;
+        }
+        return instance;
+    }
+
+    /** Seam-invariant physical station for lamp phase grids. */
+    public double physicalStationAtGeometryLocal(double geometryLocalDistance) {
+        OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
+        if (slice == null || network == null || road == null) {
+            return chainageAtGeometryLocal(geometryLocalDistance);
+        }
+        double instance = slice.roadStationAtGeometryLocal(geometryLocalDistance);
+        double physical = RoadStationing.rotatedToPhysical(network, road, instance);
+        return Double.isFinite(physical) ? physical : instance;
+    }
+
+    private OrientedRoadSegment sliceContaining(double geometryLocalDistance) {
+        if (lightingOrientations != null) {
+            for (OrientedRoadSegment slice : lightingOrientations) {
+                if (slice.containsGeometryLocal(geometryLocalDistance)) {
+                    return slice;
+                }
+            }
+            if (lightingOrientations.size() == 1) {
+                return lightingOrientations.getFirst();
+            }
+        }
+        return oriented;
     }
 
     public ResolvedCrossSection resolve(double chainageMeters) {
