@@ -953,11 +953,12 @@ public final class RoadStationing {
         }
         double instanceTotal = RoadPlanGeometry.instanceLength(network, road);
         double canonicalTotal = RoadPlanGeometry.canonicalLength(network, road);
-        boolean loopSeam = road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null;
-        if (loopSeam && Math.abs(canonicalChainage) <= STATION_EPSILON) {
+        // All LOOP roads (explicit or virtual seam origin) pin point endpoints 0 / L.
+        boolean loop = road.getTopologyMode() == RoadTopologyMode.LOOP;
+        if (loop && Math.abs(canonicalChainage) <= STATION_EPSILON) {
             return 0.0;
         }
-        if (loopSeam && Math.abs(canonicalChainage - canonicalTotal) <= STATION_EPSILON) {
+        if (loop && Math.abs(canonicalChainage - canonicalTotal) <= STATION_EPSILON) {
             return instanceTotal;
         }
         double nativeStation = RoadPlanGeometry.haNativeStation(network, road, canonicalChainage);
@@ -989,11 +990,12 @@ public final class RoadStationing {
         }
         double instanceTotal = RoadPlanGeometry.instanceLength(network, road);
         double canonicalTotal = RoadPlanGeometry.canonicalLength(network, road);
-        boolean loopSeam = road.getTopologyMode() == RoadTopologyMode.LOOP && road.getLoopSeam() != null;
-        if (loopSeam && Math.abs(instanceChainage) <= STATION_EPSILON) {
+        // All LOOP roads (explicit or virtual seam origin) pin point endpoints 0 / L.
+        boolean loop = road.getTopologyMode() == RoadTopologyMode.LOOP;
+        if (loop && Math.abs(instanceChainage) <= STATION_EPSILON) {
             return 0.0;
         }
-        if (loopSeam && Math.abs(instanceChainage - instanceTotal) <= STATION_EPSILON) {
+        if (loop && Math.abs(instanceChainage - instanceTotal) <= STATION_EPSILON) {
             return canonicalTotal;
         }
         double physical = rotatedToPhysical(network, road, instanceChainage);

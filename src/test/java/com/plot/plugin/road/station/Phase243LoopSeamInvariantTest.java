@@ -243,20 +243,27 @@ class Phase243LoopSeamInvariantTest {
             anchors, VariableCrossSectionTransitionMode.SMOOTH));
         assertFalse(RoadStationDataTransforms.rotateLoopStations(road, 40.0, 100.0, config));
 
-        // Identical discrete attrs (same lane count/materials) with continuous width only → allow.
+        // Mid-span continuous-width rematerialize cannot prove displayEquals → refuse.
         RoadCrossSection narrowSame = sectionWithTravelWidth(8);
         RoadCrossSection wideSameLanes = sectionWithTravelWidth(12); // still 2 lanes
         List<StationCrossSection> sameDiscrete = List.of(
             StationCrossSection.at(0.0, narrowSame),
             StationCrossSection.at(80.0, wideSameLanes),
             StationCrossSection.at(100.0, narrowSame));
-        Road roadOk = new Road("loop-ok");
-        roadOk.setCrossSection(narrowSame);
-        roadOk.setVariableCrossSections(new RoadVariableCrossSections(
+        Road roadMid = new Road("loop-mid");
+        roadMid.setCrossSection(narrowSame);
+        roadMid.setVariableCrossSections(new RoadVariableCrossSections(
             sameDiscrete, VariableCrossSectionTransitionMode.SMOOTH));
-        assertTrue(RoadStationDataTransforms.rotateLoopStations(roadOk, 40.0, 100.0, config));
+        assertFalse(RoadStationDataTransforms.rotateLoopStations(roadMid, 40.0, 100.0, config));
+
+        // Seam on an existing keyframe → lossless rotate allowed.
+        Road roadOnKey = new Road("loop-key");
+        roadOnKey.setCrossSection(narrowSame);
+        roadOnKey.setVariableCrossSections(new RoadVariableCrossSections(
+            sameDiscrete, VariableCrossSectionTransitionMode.SMOOTH));
+        assertTrue(RoadStationDataTransforms.rotateLoopStations(roadOnKey, 80.0, 100.0, config));
         assertEquals(VariableCrossSectionTransitionMode.SMOOTH,
-            roadOk.getVariableCrossSections().getTransitionMode());
+            roadOnKey.getVariableCrossSections().getTransitionMode());
     }
 
     @Test
@@ -668,21 +675,27 @@ class Phase243LoopSeamInvariantTest {
     @Test
     void gen06_smoothSplitPreservesWidths() {
         RoadSystemConfig config = flatWidthConfig();
-        Road road = new Road("loop");
         RoadCrossSection narrow = sectionWithTravelWidth(8);
         RoadCrossSection wide = sectionWithTravelWidth(12); // same lane count as 8
-        road.setCrossSection(narrow);
-        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
-            StationCrossSection.at(0.0, narrow),
-            StationCrossSection.at(25.0, wide),
-            StationCrossSection.at(75.0, narrow),
-            StationCrossSection.at(100.0, narrow)), VariableCrossSectionTransitionMode.SMOOTH));
-        assertTrue(RoadStationDataTransforms.rotateLoopStations(road, 50.0, 100.0, config));
         List<StationCrossSection> beforeAnchors = List.of(
             StationCrossSection.at(0.0, narrow),
             StationCrossSection.at(25.0, wide),
             StationCrossSection.at(75.0, narrow),
             StationCrossSection.at(100.0, narrow));
+
+        // Mid-span rematerialize cannot prove displayEquals → refuse.
+        Road roadMid = new Road("loop-mid");
+        roadMid.setCrossSection(narrow);
+        roadMid.setVariableCrossSections(new RoadVariableCrossSections(
+            beforeAnchors, VariableCrossSectionTransitionMode.SMOOTH));
+        assertFalse(RoadStationDataTransforms.rotateLoopStations(roadMid, 50.0, 100.0, config));
+
+        // Seam on existing keyframe → displayEquals preserved after rotate.
+        Road road = new Road("loop");
+        road.setCrossSection(narrow);
+        road.setVariableCrossSections(new RoadVariableCrossSections(
+            beforeAnchors, VariableCrossSectionTransitionMode.SMOOTH));
+        assertTrue(RoadStationDataTransforms.rotateLoopStations(road, 25.0, 100.0, config));
         for (double s = 0.0; s < 100.0; s += 10.0) {
             var before = VariableCrossSectionResolver.resolve(
                 narrow, beforeAnchors, VariableCrossSectionTransitionMode.SMOOTH, s, config);
@@ -690,14 +703,9 @@ class Phase243LoopSeamInvariantTest {
                 narrow,
                 road.getVariableCrossSections().sortedStations(),
                 VariableCrossSectionTransitionMode.SMOOTH,
-                CyclicStationTransform.rotateByShift(s, 50.0, 100.0),
+                CyclicStationTransform.rotateByShift(s, 25.0, 100.0),
                 config);
-            assertEquals(before.carriagewayWidth, after.carriagewayWidth, "SMOOTH width at s=" + s);
-            assertEquals(before.laneCount, after.laneCount, "SMOOTH lanes at s=" + s);
-            assertEquals(
-                before.carriagewayMaterial != null ? before.carriagewayMaterial.getPrimaryMaterial() : null,
-                after.carriagewayMaterial != null ? after.carriagewayMaterial.getPrimaryMaterial() : null,
-                "SMOOTH material at s=" + s);
+            assertTrue(before.displayEquals(after), "SMOOTH display at s=" + s);
         }
     }
 

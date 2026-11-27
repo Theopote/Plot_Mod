@@ -1619,7 +1619,7 @@ public final class RoadNetworkManager {
             workingRoad.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);
         }
         if (!loopSeamMigratePhysicallySound(
-                network, road, working, workingRoad, loopLength, config)) {
+                network, road, working, workingRoad, loopLength, pendingLoopSeamShift, config)) {
             clearPendingLoopSeamRemap();
             loopSeamPickSession.cancel();
             status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
@@ -1704,19 +1704,8 @@ public final class RoadNetworkManager {
                         before.upperStation() != null, after.upperStation() != null)) {
                 return false;
             }
-            var beforeA = RoadStationing.pointAtStation(beforeNetwork, beforeRoad, before.stationA());
-            var afterA = RoadStationing.pointAtStation(afterNetwork, afterRoad, after.stationA());
-            var beforeB = RoadStationing.pointAtStation(beforeNetwork, beforeRoad, before.stationB());
-            var afterB = RoadStationing.pointAtStation(afterNetwork, afterRoad, after.stationB());
-            if (beforeA.isEmpty() || afterA.isEmpty() || beforeB.isEmpty() || afterB.isEmpty()) {
-                return false;
-            }
-            // Dual-pass identity: both physical passes stay at the same world XY (order may swap).
-            boolean sameOrder = beforeA.get().distance(afterA.get()) <= 0.1
-                && beforeB.get().distance(afterB.get()) <= 0.1;
-            boolean swapped = beforeA.get().distance(afterB.get()) <= 0.1
-                && beforeB.get().distance(afterA.get()) <= 0.1;
-            if (!sameOrder && !swapped) {
+            // Dual-pass identity: Edge ID + geometry-local (XY alone cannot distinguish self-cross).
+            if (!stackPassIdentityEquals(beforeNetwork, beforeRoad, afterNetwork, afterRoad, before, after)) {
                 return false;
             }
             if (before.position() != null && after.position() != null
@@ -1813,12 +1802,68 @@ public final class RoadNetworkManager {
     /**
      * Critical-station physical equivalence: length, XY, elev, width; empty stationAt fails closed.
      */
+    private static boolean stackPassIdentityEquals(
+            RoadNetwork beforeNetwork,
+            Road beforeRoad,
+            RoadNetwork afterNetwork,
+            Road afterRoad,
+            com.plot.plugin.road.crossing.RoadStackCrossing before,
+            com.plot.plugin.road.crossing.RoadStackCrossing after) {
+        var beforeA = RoadStationing.edgeLocalDistanceAtRoadStation(
+            beforeNetwork, beforeRoad, before.stationA());
+        var beforeB = RoadStationing.edgeLocalDistanceAtRoadStation(
+            beforeNetwork, beforeRoad, before.stationB());
+        var afterA = RoadStationing.edgeLocalDistanceAtRoadStation(
+            afterNetwork, afterRoad, after.stationA());
+        var afterB = RoadStationing.edgeLocalDistanceAtRoadStation(
+            afterNetwork, afterRoad, after.stationB());
+        if (beforeA.isEmpty() || beforeB.isEmpty() || afterA.isEmpty() || afterB.isEmpty()) {
+            return false;
+        }
+        boolean sameOrder = samePhysicalPass(beforeA.get(), afterA.get())
+            && samePhysicalPass(beforeB.get(), afterB.get());
+        boolean swapped = samePhysicalPass(beforeA.get(), afterB.get())
+            && samePhysicalPass(beforeB.get(), afterA.get());
+        if (!sameOrder && !swapped) {
+            return false;
+        }
+        if (before.lowerStation() == null || before.upperStation() == null
+                || after.lowerStation() == null || after.upperStation() == null) {
+            return true;
+        }
+        var beforeLower = RoadStationing.edgeLocalDistanceAtRoadStation(
+            beforeNetwork, beforeRoad, before.lowerStation());
+        var beforeUpper = RoadStationing.edgeLocalDistanceAtRoadStation(
+            beforeNetwork, beforeRoad, before.upperStation());
+        var afterLower = RoadStationing.edgeLocalDistanceAtRoadStation(
+            afterNetwork, afterRoad, after.lowerStation());
+        var afterUpper = RoadStationing.edgeLocalDistanceAtRoadStation(
+            afterNetwork, afterRoad, after.upperStation());
+        if (beforeLower.isEmpty() || beforeUpper.isEmpty()
+                || afterLower.isEmpty() || afterUpper.isEmpty()) {
+            return false;
+        }
+        return samePhysicalPass(beforeLower.get(), afterLower.get())
+            && samePhysicalPass(beforeUpper.get(), afterUpper.get());
+    }
+
+    private static boolean samePhysicalPass(
+            com.plot.plugin.road.station.SegmentStation left,
+            com.plot.plugin.road.station.SegmentStation right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        return java.util.Objects.equals(left.segmentId(), right.segmentId())
+            && Math.abs(left.localDistance() - right.localDistance()) <= 0.05;
+    }
+
     private static boolean loopSeamMigratePhysicallySound(
             RoadNetwork beforeNetwork,
             Road beforeRoad,
             RoadNetwork afterNetwork,
             Road afterRoad,
             double loopLength,
+            double seamShift,
             RoadSystemConfig defaults) {
         if (!(loopLength > 0.0)) {
             return false;
@@ -1916,7 +1961,7 @@ public final class RoadNetworkManager {
         if (beforeRoad.getStationFacilities() != null && !beforeRoad.getStationFacilities().isEmpty()
                 && afterRoad.getStationFacilities() != null) {
             return facilityCoverageByIdentityEquals(
-                beforeRoad, loopLength, afterRoad, afterLength);
+                beforeRoad, loopLength, afterRoad, afterLength, seamShift);
         }
         return true;
     }
@@ -1925,36 +1970,96 @@ public final class RoadNetworkManager {
             Road beforeRoad,
             double beforeLength,
             Road afterRoad,
-            double afterLength) {
-        java.util.Map<String, Double> beforeKeys = facilityCoverageKeys(beforeRoad, beforeLength);
-        java.util.Map<String, Double> afterKeys = facilityCoverageKeys(afterRoad, afterLength);
-        if (beforeKeys.size() != afterKeys.size()) {
+            double afterLength,
+            double seamShift) {
+        java.util.List<FacilityIntervalPiece> beforePieces =
+            mergeAdjacentFacilityPieces(facilityIntervalPieces(beforeRoad, beforeLength, 0.0));
+        java.util.List<FacilityIntervalPiece> afterPieces =
+            mergeAdjacentFacilityPieces(facilityIntervalPieces(afterRoad, afterLength, seamShift));
+        if (beforePieces.size() != afterPieces.size()) {
             return false;
         }
-        for (var entry : beforeKeys.entrySet()) {
-            Double after = afterKeys.get(entry.getKey());
-            if (after == null || Math.abs(after - entry.getValue()) > 1e-2) {
+        java.util.ArrayList<FacilityIntervalPiece> remaining = new java.util.ArrayList<>(afterPieces);
+        for (FacilityIntervalPiece before : beforePieces) {
+            int match = -1;
+            for (int i = 0; i < remaining.size(); i++) {
+                FacilityIntervalPiece after = remaining.get(i);
+                if (!before.identity().equals(after.identity())) {
+                    continue;
+                }
+                if (Math.abs(before.start() - after.start()) <= 1e-2
+                        && Math.abs(before.end() - after.end()) <= 1e-2) {
+                    match = i;
+                    break;
+                }
+            }
+            if (match < 0) {
                 return false;
             }
+            remaining.remove(match);
         }
-        return true;
+        return remaining.isEmpty();
     }
 
-    private static java.util.Map<String, Double> facilityCoverageKeys(Road road, double loopLength) {
-        java.util.Map<String, Double> keys = new java.util.HashMap<>();
+    /**
+     * Facility intervals in the pre-migrate station frame.
+     * {@code seamShift} inverse-rotates after-migrate stations back for comparison.
+     */
+    private static java.util.List<FacilityIntervalPiece> facilityIntervalPieces(
+            Road road,
+            double loopLength,
+            double seamShift) {
+        java.util.List<FacilityIntervalPiece> pieces = new java.util.ArrayList<>();
         if (road.getStationFacilities() == null) {
-            return keys;
+            return pieces;
         }
         for (var run : road.getStationFacilities().getRuns()) {
             double end = run.getEndStation() != null ? run.getEndStation() : loopLength;
             if (!(end > run.getStartStation())) {
                 continue;
             }
-            String key = run.getKind() + "|" + run.getSide() + "|"
-                + java.util.Objects.toString(run.getMaterial(), "");
-            keys.merge(key, end - run.getStartStation(), Double::sum);
+            String identity = run.getKind() + "|" + run.getSide() + "|"
+                + java.util.Objects.toString(run.getMaterial(), "") + "|"
+                + java.util.Objects.toString(run.getHeight(), "");
+            if (Math.abs(seamShift) <= 1e-9) {
+                pieces.add(new FacilityIntervalPiece(identity, run.getStartStation(), end));
+                continue;
+            }
+            // Inverse of rotateByShift(s, shift): rotateByShift(s, -shift).
+            for (double[] piece : com.plot.plugin.road.station.CyclicStationTransform.rotateInterval(
+                    run.getStartStation(), end, -seamShift, loopLength)) {
+                pieces.add(new FacilityIntervalPiece(identity, piece[0], piece[1]));
+            }
         }
-        return keys;
+        pieces.sort(java.util.Comparator
+            .comparing(FacilityIntervalPiece::identity)
+            .thenComparingDouble(FacilityIntervalPiece::start)
+            .thenComparingDouble(FacilityIntervalPiece::end));
+        return pieces;
+    }
+
+    private static java.util.List<FacilityIntervalPiece> mergeAdjacentFacilityPieces(
+            java.util.List<FacilityIntervalPiece> pieces) {
+        if (pieces.isEmpty()) {
+            return pieces;
+        }
+        java.util.List<FacilityIntervalPiece> merged = new java.util.ArrayList<>();
+        FacilityIntervalPiece current = pieces.getFirst();
+        for (int i = 1; i < pieces.size(); i++) {
+            FacilityIntervalPiece next = pieces.get(i);
+            if (current.identity().equals(next.identity())
+                    && Math.abs(current.end() - next.start()) <= 1e-2) {
+                current = new FacilityIntervalPiece(current.identity(), current.start(), next.end());
+            } else {
+                merged.add(current);
+                current = next;
+            }
+        }
+        merged.add(current);
+        return merged;
+    }
+
+    private record FacilityIntervalPiece(String identity, double start, double end) {
     }
 
     /**

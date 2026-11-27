@@ -64,10 +64,8 @@ public final class CrossSectionBuildContext {
             return fixed(start);
         }
         var lampPlacement = road.getCrossSection().getStreetFurniture().getRoadLampPlacement();
-        // Bind slices when station-domain matters: VCS, lamps, or LOOP (dual-slice / seam).
-        boolean needsStations = lampPlacement != null
-            || VariableCrossSectionResolver.hasVariableSections(road)
-            || road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP;
+        // Bind slices when station-domain matters: VCS, lamps, facilities, or LOOP.
+        boolean needsStations = requiresStationBinding(road, lampPlacement);
         List<OrientedRoadSegment> orientations = needsStations && RoadStationing.isStationable(network, road)
             ? RoadStationing.orientedSegmentsForEdge(network, road, edge.getId())
             : List.of();
@@ -141,7 +139,7 @@ public final class CrossSectionBuildContext {
     public double chainageAtGeometryLocal(double geometryLocalDistance) {
         OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
         if (slice == null) {
-            return isVariable() ? Double.NaN : geometryLocalDistance;
+            return requiresStationBinding() ? Double.NaN : geometryLocalDistance;
         }
         if (network != null && road != null && slice.edgeId() != null) {
             var canonical = RoadStationing.resolveCanonicalStationAtEdgeLocal(
@@ -167,7 +165,7 @@ public final class CrossSectionBuildContext {
     public double physicalStationAtGeometryLocal(double geometryLocalDistance) {
         OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
         if (slice == null) {
-            return isVariable() ? Double.NaN : geometryLocalDistance;
+            return requiresStationBinding() ? Double.NaN : geometryLocalDistance;
         }
         if (network == null || road == null) {
             return slice.roadStationAtGeometryLocal(geometryLocalDistance);
@@ -181,12 +179,54 @@ public final class CrossSectionBuildContext {
     }
 
     private double failClosedOrLinearInstance(OrientedRoadSegment slice, double geometryLocalDistance) {
-        if (isVariable()
-                || (road != null
-                    && road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP)) {
+        if (requiresStationBinding()) {
             return Double.NaN;
         }
         return slice.roadStationAtGeometryLocal(geometryLocalDistance);
+    }
+
+    private boolean requiresStationBinding() {
+        RoadLampPlacement lamp = lightingPlacement();
+        return requiresStationBinding(road, lamp);
+    }
+
+    private static boolean requiresStationBinding(Road road, RoadLampPlacement lampPlacement) {
+        if (road == null) {
+            return false;
+        }
+        if (VariableCrossSectionResolver.hasVariableSections(road)) {
+            return true;
+        }
+        if (road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP) {
+            return true;
+        }
+        if (road.getStationFacilities() != null && !road.getStationFacilities().isEmpty()) {
+            return true;
+        }
+        if (lampPlacement != null && lampPlacement.enabled()) {
+            return true;
+        }
+        return hasLegacyStreetlightSpacing(road);
+    }
+
+    private static boolean hasLegacyStreetlightSpacing(Road road) {
+        if (road == null || road.getCrossSection() == null) {
+            return false;
+        }
+        Integer spacing = road.getCrossSection().getStreetFurniture().getStreetlightSpacing();
+        if (spacing != null && spacing > 0) {
+            return true;
+        }
+        if (road.getVariableCrossSections() == null) {
+            return false;
+        }
+        for (StationCrossSection entry : road.getVariableCrossSections().getStations()) {
+            Integer entrySpacing = entry.getCrossSection().getStreetFurniture().getStreetlightSpacing();
+            if (entrySpacing != null && entrySpacing > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private OrientedRoadSegment sliceContaining(double geometryLocalDistance) {

@@ -26,6 +26,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -44,7 +45,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,45 +57,58 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class Phase243LoopSeamGenerationIT {
 
+    private static final double EDGE = 60.0;
+
     @Test
     void ig01_dualSliceAsymmetricPavementWidth() {
         RoadSystemConfig config = flatConfig();
         RoadNetwork network = new RoadNetwork();
-        Road road = createSquareLoop(network, "loop");
+        Road road = createSquareLoop(network, "loop", EDGE);
         String edgeId = road.getOrderedSegmentIds().getFirst();
         RoadEdge edge = network.getEdge(edgeId);
-        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), edgeId, 0.5));
+        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(EDGE * 0.5, 0), edgeId, 0.5));
         RoadDesignDirectionAuthority.ensureBound(network, road);
 
         road.setCrossSection(sectionWithTravelWidth(8));
+        double narrowStation = RoadStationing.resolveCanonicalStationAtEdgeLocal(
+            network, road, edgeId, edge.getLength() * 0.25).orElseThrow();
         double wideStation = RoadStationing.resolveCanonicalStationAtEdgeLocal(
             network, road, edgeId, edge.getLength() * 0.75).orElseThrow();
+        assertNotEquals(narrowStation, wideStation, 1.0);
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
-            StationCrossSection.at(wideStation, sectionWithTravelWidth(16))),
+            StationCrossSection.at(Math.min(narrowStation, wideStation), sectionWithTravelWidth(8)),
+            StationCrossSection.at(Math.max(narrowStation, wideStation), sectionWithTravelWidth(16))),
             VariableCrossSectionTransitionMode.STEP));
+
+        CrossSectionBuildContext ctx = CrossSectionBuildContext.forEdge(network, edge, config);
+        int widthAt025 = ctx.resolve(ctx.chainageAtGeometryLocal(edge.getLength() * 0.25)).carriagewayWidth;
+        int widthAt075 = ctx.resolve(ctx.chainageAtGeometryLocal(edge.getLength() * 0.75)).carriagewayWidth;
+        assertEquals(8, Math.min(widthAt025, widthAt075));
+        assertEquals(16, Math.max(widthAt025, widthAt075));
 
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadNode start = network.getNode(edge.getStartNodeId());
         RoadNode end = network.getNode(edge.getEndNodeId());
-        RoadGenerationResult result = generator.generateEdge(
+        EdgeGenerationResult outcome = generator.generateEdgeOutcome(
             network, edge, start, end, new FlatTerrainSampler(64), null);
+        assertTrue(outcome.isSuccess(), "dual-slice edge must generate");
+        RoadGenerationResult result = outcome.geometry();
         assertFalse(result.roadBlocks.isEmpty(), "dual-slice edge must place pavement");
 
-        // Dual-slice edge: samples exist on both geometry halves of the seam edge.
-        Set<Integer> zAtLow = lateralExtents(result, 1, 4);
-        Set<Integer> zAtHigh = lateralExtents(result, 6, 9);
+        // Interior windows away from nodes / seam: compare the half that maps to 8 vs 16.
+        Set<Integer> zAtLow = lateralExtents(result, 10, 20);
+        Set<Integer> zAtHigh = lateralExtents(result, 40, 50);
         assertFalse(zAtLow.isEmpty(), "narrow-side pavement missing");
         assertFalse(zAtHigh.isEmpty(), "wide-side pavement missing");
         int halfLow = zAtLow.stream().mapToInt(Math::abs).max().orElse(0);
         int halfHigh = zAtHigh.stream().mapToInt(Math::abs).max().orElse(0);
-        // Prefer stronger assert when extents differ; otherwise at least both halves placed.
-        if (halfHigh == halfLow) {
-            assertTrue(result.roadBlocks.size() > 8, "expected multi-slice pavement volume");
-        } else {
-            assertTrue(halfHigh > halfLow,
-                "wide slice half=" + halfHigh + " should exceed narrow half=" + halfLow);
-        }
+        int wideHalf = Math.max(halfLow, halfHigh);
+        int narrowHalf = Math.min(halfLow, halfHigh);
+        assertTrue(wideHalf > narrowHalf,
+            "wide slice half=" + wideHalf + " must exceed narrow half=" + narrowHalf);
+        assertTrue(wideHalf >= narrowHalf + 3,
+            "expected clearly wider pavement; wide=" + wideHalf + " narrow=" + narrowHalf);
     }
 
     @Test
@@ -100,48 +116,74 @@ class Phase243LoopSeamGenerationIT {
         RoadSystemConfig config = flatConfig();
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(true);
+        config.setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        config.setLaneDividers(true);
         RoadNetworkManager manager = new RoadNetworkManager(config, new RoadProjectStatus());
         RoadNetwork network = manager.getNetwork();
-        Road road = createSquareLoop(network, "loop");
+        Road road = createSquareLoop(network, "loop", EDGE);
         double L = RoadStationing.canonicalLength(network, road);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 64.0),
             PointOfVerticalIntersection.of(L, 64.0))));
+        road.getCrossSection().getCarriageway().setLaneCount(2);
+        road.getCrossSection().getCarriageway().applyUniformDefaultLaneWidth(4);
+        road.getCrossSection().getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        road.getCrossSection().getMarkings().setLaneDividers(true);
         road.getCrossSection().getStreetFurniture().setRoadLampPlacement(
             new RoadLampPlacement(
                 RoadLampPresets.ALL.getFirst().style(),
                 RoadLampPlacement.Sides.BOTH, 8, 0, 2, true, false));
         RoadStationFacilities facilities = new RoadStationFacilities();
         facilities.addRun(StationFacilityRun.of(
-            5.0, 15.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT));
+            5.0, 25.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT));
         road.setStationFacilities(facilities);
+
+        RoadLoopSeam oldSeam = road.getLoopSeam();
+        assertNotNull(oldSeam);
 
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
-        Set<BlockPos> beforeRoad = generateAllRoadBlocks(generator, network, terrain);
+        assertAllEdgesSuccess(generator, network, terrain);
+        Set<BlockPos> beforeRoad = generateLayerBlocks(generator, network, terrain, RoadSolidLayer.ROAD);
+        Set<BlockPos> beforeMarkings = generateLayerBlocks(
+            generator, network, terrain, RoadSolidLayer.MARKING);
+        Set<BlockPos> beforeGuardrails = generateLayerBlocks(
+            generator, network, terrain, RoadSolidLayer.GUARDRAIL);
         Set<BlockPos> beforeLamps = generateAllLampSupports(generator, network, terrain);
+        assertFalse(beforeRoad.isEmpty());
+        assertFalse(beforeMarkings.isEmpty(), "markings must generate for IG02");
+        assertFalse(beforeGuardrails.isEmpty(), "guardrails must generate for IG02");
+        assertFalse(beforeLamps.isEmpty(), "lamp supports must generate for IG02");
 
         String edgeId = road.getOrderedSegmentIds().getFirst();
         manager.setPrimarySelectedEdge(edgeId);
         manager.beginLoopSeamCanvasPick(road.getId());
-        assertTrue(manager.tryApplyLoopSeamPick(new Vec2d(5, 0)));
-        if (manager.isLoopSeamRemapConfirmPending()) {
-            manager.confirmLoopSeamRemap();
-        }
+        assertTrue(manager.tryApplyLoopSeamPick(new Vec2d(EDGE * 0.5, 0)));
+        assertTrue(manager.isLoopSeamRemapConfirmPending());
+        manager.confirmLoopSeamRemap();
 
-        Set<BlockPos> afterRoad = generateAllRoadBlocks(
-            generator, manager.getNetwork(), terrain);
+        Road afterRoad = manager.getNetwork().getRoad("loop");
+        assertNotNull(afterRoad);
+        assertNotEquals(oldSeam, afterRoad.getLoopSeam(), "seam must move");
+        assertAllEdgesSuccess(generator, manager.getNetwork(), terrain);
+
+        Set<BlockPos> afterRoadBlocks = generateLayerBlocks(
+            generator, manager.getNetwork(), terrain, RoadSolidLayer.ROAD);
+        Set<BlockPos> afterMarkings = generateLayerBlocks(
+            generator, manager.getNetwork(), terrain, RoadSolidLayer.MARKING);
+        Set<BlockPos> afterGuardrails = generateLayerBlocks(
+            generator, manager.getNetwork(), terrain, RoadSolidLayer.GUARDRAIL);
         Set<BlockPos> afterLamps = generateAllLampSupports(
             generator, manager.getNetwork(), terrain);
-        assertFalse(beforeRoad.isEmpty());
-        assertEqualsSet(beforeRoad, afterRoad);
+        assertEqualsSet(beforeRoad, afterRoadBlocks);
+        assertEqualsSet(beforeMarkings, afterMarkings);
+        assertEqualsSet(beforeGuardrails, afterGuardrails);
         assertEqualsSet(beforeLamps, afterLamps);
     }
 
     @Test
     void ig03_nanStationFailsEdgeGeneration() {
-        // Core sampler must fail-closed, not skip into a gapped success.
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0));
         assertThrows(IllegalStateException.class, () -> RoadPathStationSampler.forEach(
             List.of(segment),
@@ -159,8 +201,7 @@ class Phase243LoopSeamGenerationIT {
 
         RoadSystemConfig config = flatConfig();
         RoadNetwork network = new RoadNetwork();
-        Road road = createSquareLoop(network, "loop");
-        // VCS forces station resolve; mismatched HA makes domain convert fail → NaN on LOOP.
+        Road road = createSquareLoop(network, "loop", EDGE);
         road.setCrossSection(sectionWithTravelWidth(8));
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
             StationCrossSection.at(10.0, sectionWithTravelWidth(16))),
@@ -181,8 +222,47 @@ class Phase243LoopSeamGenerationIT {
             new FlatTerrainSampler(64),
             null);
         assertTrue(outcome.isFailed(), "unresolvable station map must fail the edge");
-        assertTrue(outcome.geometry().roadBlocks.isEmpty()
-            || outcome.isFailed());
+        assertTrue(outcome.geometry().roadBlocks.isEmpty(),
+            "failed edge must not produce applyable pavement");
+    }
+
+    @Test
+    void virtualSeamOriginRoundTrip() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = createSquareLoop(network, "loop", EDGE);
+        road.setLoopSeam(null);
+        RoadDesignDirectionAuthority.ensureBound(network, road);
+        double origin = RoadStationing.loopPhysicalOriginStation(network, road);
+        assertTrue(Double.isFinite(origin), "virtual seam origin must resolve");
+        double L = RoadStationing.canonicalLength(network, road);
+        assertTrue(L > 0.0);
+        double instance0 = RoadStationing.toInstanceChainage(network, road, 0.0);
+        double instanceL = RoadStationing.toInstanceChainage(network, road, L);
+        assertEquals(0.0, instance0, 1e-6);
+        double instanceTotal = com.plot.plugin.road.alignment.RoadPlanGeometry.instanceLength(network, road);
+        assertEquals(instanceTotal, instanceL, 1e-6);
+        assertEquals(0.0, RoadStationing.toCanonicalChainage(network, road, 0.0), 1e-6);
+        assertEquals(L, RoadStationing.toCanonicalChainage(network, road, instanceTotal), 1e-6);
+    }
+
+    @Test
+    void uniformLoopMissingSliceReturnsNan() {
+        // Open LOOP is not stationable → forEdge binds no slices → require binding → NaN.
+        RoadSystemConfig config = flatConfig();
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("open-loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(EDGE, 0));
+        RoadNode c = network.createNode(new Vec2d(EDGE, EDGE));
+        RoadEdge edge = network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(EDGE, 0)), road.getId());
+        network.createEdge(
+            b.getId(), c.getId(), List.of(new Vec2d(EDGE, 0), new Vec2d(EDGE, EDGE)), road.getId());
+        assertFalse(RoadStationing.isStationable(network, road));
+        CrossSectionBuildContext ctx = CrossSectionBuildContext.forEdge(network, edge, config);
+        assertTrue(Double.isNaN(ctx.chainageAtGeometryLocal(edge.getLength() * 0.5)));
+        assertTrue(Double.isNaN(ctx.physicalStationAtGeometryLocal(edge.getLength() * 0.5)));
     }
 
     @Test
@@ -197,8 +277,29 @@ class Phase243LoopSeamGenerationIT {
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
             StationCrossSection.at(20.0, asphalt),
             StationCrossSection.at(60.0, stone)), VariableCrossSectionTransitionMode.SMOOTH));
-        // Seam inside span moves discrete switch — must refuse.
         assertFalse(RoadStationDataTransforms.rotateLoopStations(road, 30.0, 100.0, config));
+    }
+
+    private static void assertAllEdgesSuccess(
+            RoadGenerator generator,
+            RoadNetwork network,
+            FlatTerrainSampler terrain) {
+        for (Road road : network.getRoads().values()) {
+            for (String edgeId : road.getOrderedSegmentIds()) {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge == null) {
+                    continue;
+                }
+                EdgeGenerationResult outcome = generator.generateEdgeOutcome(
+                    network,
+                    edge,
+                    network.getNode(edge.getStartNodeId()),
+                    network.getNode(edge.getEndNodeId()),
+                    terrain,
+                    null);
+                assertTrue(outcome.isSuccess(), "edge " + edgeId + " must succeed: " + outcome.message());
+            }
+        }
     }
 
     private static void assertEqualsSet(Set<BlockPos> before, Set<BlockPos> after) {
@@ -206,10 +307,11 @@ class Phase243LoopSeamGenerationIT {
             "generation sets differ; before=" + before.size() + " after=" + after.size());
     }
 
-    private static Set<BlockPos> generateAllRoadBlocks(
+    private static Set<BlockPos> generateLayerBlocks(
             RoadGenerator generator,
             RoadNetwork network,
-            FlatTerrainSampler terrain) {
+            FlatTerrainSampler terrain,
+            RoadSolidLayer layer) {
         Set<BlockPos> blocks = new HashSet<>();
         for (Road road : network.getRoads().values()) {
             for (String edgeId : road.getOrderedSegmentIds()) {
@@ -224,7 +326,14 @@ class Phase243LoopSeamGenerationIT {
                     network.getNode(edge.getEndNodeId()),
                     terrain,
                     null);
-                blocks.addAll(result.roadBlocks);
+                for (var entry : result.placementLayers.entrySet()) {
+                    if (entry.getValue() == layer) {
+                        blocks.add(entry.getKey());
+                    }
+                }
+                if (layer == RoadSolidLayer.ROAD) {
+                    blocks.addAll(result.roadBlocks);
+                }
             }
         }
         return blocks;
@@ -295,18 +404,21 @@ class Phase243LoopSeamGenerationIT {
         return section;
     }
 
-    private static Road createSquareLoop(RoadNetwork network, String id) {
+    private static Road createSquareLoop(RoadNetwork network, String id, double side) {
         Road road = network.createRoad(id);
         road.setTopologyMode(RoadTopologyMode.LOOP);
         RoadNode a = network.createNode(new Vec2d(0, 0));
-        RoadNode b = network.createNode(new Vec2d(10, 0));
-        RoadNode c = network.createNode(new Vec2d(10, 10));
-        RoadNode d = network.createNode(new Vec2d(0, 10));
+        RoadNode b = network.createNode(new Vec2d(side, 0));
+        RoadNode c = network.createNode(new Vec2d(side, side));
+        RoadNode d = network.createNode(new Vec2d(0, side));
         RoadEdge e0 = network.createEdge(a.getId(), b.getId(),
-            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
-        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
-        network.createEdge(c.getId(), d.getId(), List.of(new Vec2d(10, 10), new Vec2d(0, 10)), road.getId());
-        network.createEdge(d.getId(), a.getId(), List.of(new Vec2d(0, 10), new Vec2d(0, 0)), road.getId());
+            List.of(new Vec2d(0, 0), new Vec2d(side, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(),
+            List.of(new Vec2d(side, 0), new Vec2d(side, side)), road.getId());
+        network.createEdge(c.getId(), d.getId(),
+            List.of(new Vec2d(side, side), new Vec2d(0, side)), road.getId());
+        network.createEdge(d.getId(), a.getId(),
+            List.of(new Vec2d(0, side), new Vec2d(0, 0)), road.getId());
         road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(0, 0), e0.getId(), 0.0));
         RoadDesignDirectionAuthority.ensureBound(network, road);
         return road;

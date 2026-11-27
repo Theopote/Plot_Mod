@@ -1101,15 +1101,28 @@ public final class RoadStationDataTransforms {
         if (sorted.isEmpty()) {
             return new RoadVariableCrossSections(List.of(), VariableCrossSectionTransitionMode.SMOOTH);
         }
-        // Refuse when seam splits a span whose endpoints disagree on discrete attrs —
-        // inserting the seam keyframe would move the t=0.5 discrete switch.
-        if (smoothSeamWouldMoveDiscreteSwitch(sorted, defaultSection, shift, defaults)) {
-            return null;
+        // Prefer an existing keyframe at the seam (lossless). Otherwise rematerialize and verify.
+        RoadCrossSection seamSection = null;
+        for (StationCrossSection entry : sorted) {
+            if (Math.abs(entry.getStation() - shift) <= EPSILON) {
+                seamSection = entry.getCrossSection().copy();
+                break;
+            }
         }
-        RoadCrossSection seamSection = interpolateSmoothCrossSection(
-            source, defaultSection, shift, defaults);
+        if (seamSection == null && Math.abs(shift) <= EPSILON) {
+            seamSection = defaultSection != null ? defaultSection.copy() : new RoadCrossSection();
+        }
         if (seamSection == null) {
-            return null;
+            // Refuse when seam splits a span whose endpoints disagree on discrete attrs —
+            // inserting the seam keyframe would move the t=0.5 discrete switch.
+            if (smoothSeamWouldMoveDiscreteSwitch(sorted, defaultSection, shift, defaults)) {
+                return null;
+            }
+            seamSection = interpolateSmoothCrossSection(
+                source, defaultSection, shift, defaults);
+            if (seamSection == null) {
+                return null;
+            }
         }
         List<StationCrossSection> rotated = new ArrayList<>();
         rotated.add(StationCrossSection.at(0.0, seamSection.copy()));
@@ -1152,7 +1165,8 @@ public final class RoadStationDataTransforms {
         if (!result.isValid()) {
             return null;
         }
-        // Physical equivalence: continuous width + discrete display attrs at mapped stations.
+        // Full display equivalence (widths, lanes, markings, bands, slopes, lamps, …).
+        // Mid-span rematerialize that fails displayEquals (incl. integer quantize) → refuse.
         java.util.LinkedHashSet<Double> sampleStations = new java.util.LinkedHashSet<>();
         double step = Math.max(loopLength / 32.0, 0.5);
         for (double s = 0.0; s < loopLength - EPSILON; s += step) {
@@ -1176,7 +1190,7 @@ public final class RoadStationDataTransforms {
             ResolvedCrossSection after = VariableCrossSectionResolver.resolve(
                 defaultSection, result.sortedStations(), VariableCrossSectionTransitionMode.SMOOTH,
                 afterStation, defaults);
-            if (!smoothResolvedEquivalent(before, after)) {
+            if (!before.displayEquals(after)) {
                 return null;
             }
         }
@@ -1212,16 +1226,6 @@ public final class RoadStationDataTransforms {
             }
         }
         return false;
-    }
-
-    private static boolean smoothResolvedEquivalent(ResolvedCrossSection before, ResolvedCrossSection after) {
-        if (before == null || after == null) {
-            return false;
-        }
-        if (before.carriagewayWidth != after.carriagewayWidth) {
-            return false;
-        }
-        return smoothDiscreteEquals(before, after);
     }
 
     private static boolean smoothDiscreteEquals(ResolvedCrossSection a, ResolvedCrossSection b) {
