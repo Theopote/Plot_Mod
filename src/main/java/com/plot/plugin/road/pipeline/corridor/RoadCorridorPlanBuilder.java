@@ -192,7 +192,8 @@ public final class RoadCorridorPlanBuilder {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
-            crossSections.samplingOriented(),
+            crossSections.samplingOriented().forward(),
+            crossSections::chainageAtGeometryLocal,
             unitsPerBlock,
             designElevation,
             buildProfile,

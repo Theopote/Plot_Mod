@@ -1618,7 +1618,14 @@ public final class RoadNetworkManager {
                 == com.plot.plugin.road.vertical.ProfileSource.EDITED) {
             workingRoad.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);
         }
-        if (!loopSeamMigratePhysicallySound(network, road, working, workingRoad, loopLength)) {
+        if (!loopSeamMigratePhysicallySound(
+                network, road, working, workingRoad, loopLength, config)) {
+            clearPendingLoopSeamRemap();
+            loopSeamPickSession.cancel();
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return;
+        }
+        if (!loopSeamCrossingIntegrityOk(network, road, working, workingRoad)) {
             clearPendingLoopSeamRemap();
             loopSeamPickSession.cancel();
             status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
@@ -1628,15 +1635,64 @@ public final class RoadNetworkManager {
         com.plot.plugin.road.ui.editor.CenterlineEditorApplier.applyToLive(network, working, roadId);
         com.plot.plugin.road.crossing.RoadCrossingRegistrySync.copyForRoads(
             network, working, java.util.Set.of(roadId));
-        // Integrity observe only — do not let detector overwrite verified migrator identity.
-        IntersectionResult observe = reconcileCrossingsInPlace();
-        if (observe == IntersectionResult.INCOMPLETE) {
-            adoptIntersectionRepairPending = true;
-        }
+        // Migrator identity is authoritative — do not run mutating reconcile after apply.
         clearPendingLoopSeamRemap();
         loopSeamPickSession.cancel();
         commitNetworkChange();
         status.success(PlotI18n.tr("plugin.road.loop_seam_updated"));
+    }
+
+    /** Pending seam shift (canonical meters) while remap confirm is open; NaN when idle. */
+    public double pendingLoopSeamShiftMeters() {
+        return pendingLoopSeamShift;
+    }
+
+    /**
+     * Crossing / stack identity must survive migrate on the working copy before live apply.
+     */
+    private static boolean loopSeamCrossingIntegrityOk(
+            RoadNetwork beforeNetwork,
+            Road beforeRoad,
+            RoadNetwork afterNetwork,
+            Road afterRoad) {
+        String roadId = beforeRoad.getId();
+        for (com.plot.plugin.road.crossing.RoadCrossing before
+                : beforeNetwork.crossingsForRoad(roadId)) {
+            com.plot.plugin.road.crossing.RoadCrossing after = afterNetwork.getCrossing(before.id());
+            if (after == null) {
+                return false;
+            }
+            if (before.type() != after.type()) {
+                return false;
+            }
+            if (!java.util.Objects.equals(before.crossingClearance(), after.crossingClearance())) {
+                return false;
+            }
+            if (!Double.isFinite(after.stationOn(roadId))) {
+                return false;
+            }
+        }
+        for (com.plot.plugin.road.crossing.RoadStackCrossing before
+                : beforeNetwork.stackCrossingsForRoad(roadId)) {
+            com.plot.plugin.road.crossing.RoadStackCrossing after =
+                afterNetwork.getStackCrossing(before.id());
+            if (after == null) {
+                return false;
+            }
+            if (before.type() != after.type()) {
+                return false;
+            }
+            if (!Double.isFinite(after.stationA()) || !Double.isFinite(after.stationB())) {
+                return false;
+            }
+            if (!java.util.Objects.equals(before.crossingClearance(), after.crossingClearance())) {
+                return false;
+            }
+        }
+        return afterNetwork.crossingsForRoad(roadId).size()
+                == beforeNetwork.crossingsForRoad(roadId).size()
+            && afterNetwork.stackCrossingsForRoad(roadId).size()
+                == beforeNetwork.stackCrossingsForRoad(roadId).size();
     }
 
     public void declineLoopSeamRemap() {
@@ -1720,18 +1776,23 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * Verify seam world XY, VA evaluable, and sampled elevations/coverage lengths match pre-migrate.
+     * Critical-station physical equivalence: length, XY, elev, width; empty stationAt fails closed.
      */
     private static boolean loopSeamMigratePhysicallySound(
             RoadNetwork beforeNetwork,
             Road beforeRoad,
             RoadNetwork afterNetwork,
             Road afterRoad,
-            double loopLength) {
+            double loopLength,
+            RoadSystemConfig defaults) {
         if (!(loopLength > 0.0)) {
             return false;
         }
         if (!com.plot.plugin.road.station.RoadLoopSeamService.isSeamResolvable(afterNetwork, afterRoad)) {
+            return false;
+        }
+        double afterLength = RoadStationing.canonicalLength(afterNetwork, afterRoad);
+        if (Math.abs(afterLength - loopLength) > 1e-3) {
             return false;
         }
         if (afterRoad.getVerticalAlignment() != null
@@ -1739,18 +1800,55 @@ public final class RoadNetworkManager {
                 && !VerticalAlignmentGeometry.isEvaluable(afterRoad.getVerticalAlignment())) {
             return false;
         }
-        // Geometry-local samples: same world point → elevations must match under rotated VA.
+        java.util.LinkedHashSet<Double> criticalFracs = new java.util.LinkedHashSet<>();
+        criticalFracs.add(0.0);
+        criticalFracs.add(0.25);
+        criticalFracs.add(0.5);
+        criticalFracs.add(0.75);
+        criticalFracs.add(1.0);
+        if (beforeRoad.getVariableCrossSections() != null) {
+            for (var entry : beforeRoad.getVariableCrossSections().getStations()) {
+                for (String edgeId : beforeRoad.getOrderedSegmentIds()) {
+                    RoadEdge edge = beforeNetwork.getEdge(edgeId);
+                    if (edge == null || !(edge.getLength() > 1e-6)) {
+                        continue;
+                    }
+                    var local = RoadStationing.edgeLocalDistanceAtRoadStation(
+                        beforeNetwork, beforeRoad, entry.getStation());
+                    if (local.isPresent() && local.get().segmentId().equals(edgeId)) {
+                        criticalFracs.add(local.get().localDistance() / edge.getLength());
+                    }
+                }
+            }
+        }
+        RoadSystemConfig resolveDefaults = defaults != null ? defaults : new RoadSystemConfig("plot");
         for (String edgeId : beforeRoad.getOrderedSegmentIds()) {
             RoadEdge edge = beforeNetwork.getEdge(edgeId);
             if (edge == null || !(edge.getLength() > 1e-6)) {
                 continue;
             }
-            for (double frac : new double[] {0.25, 0.5, 0.75}) {
-                double geometryLocal = frac * edge.getLength();
-                var beforeStation = RoadStationing.stationAt(beforeNetwork, beforeRoad, edgeId, geometryLocal);
-                var afterStation = RoadStationing.stationAt(afterNetwork, afterRoad, edgeId, geometryLocal);
+            for (double frac : criticalFracs) {
+                double clampedFrac = Math.max(0.0, Math.min(1.0, frac));
+                double geometryLocal = clampedFrac * edge.getLength();
+                if (clampedFrac >= 1.0 - 1e-9) {
+                    geometryLocal = edge.getLength();
+                }
+                var beforeStation = RoadStationing.stationAt(
+                    beforeNetwork, beforeRoad, edgeId, geometryLocal);
+                var afterStation = RoadStationing.stationAt(
+                    afterNetwork, afterRoad, edgeId, geometryLocal);
                 if (beforeStation.isEmpty() || afterStation.isEmpty()) {
-                    continue;
+                    return false;
+                }
+                var beforeXy = RoadStationing.pointAtStation(
+                    beforeNetwork, beforeRoad, beforeStation.get().chainageMeters());
+                var afterXy = RoadStationing.pointAtStation(
+                    afterNetwork, afterRoad, afterStation.get().chainageMeters());
+                if (beforeXy.isEmpty() || afterXy.isEmpty()) {
+                    return false;
+                }
+                if (beforeXy.get().distance(afterXy.get()) > 0.05) {
+                    return false;
                 }
                 if (beforeRoad.getVerticalAlignment() != null
                         && VerticalAlignmentGeometry.isEvaluable(beforeRoad.getVerticalAlignment())
@@ -1760,14 +1858,49 @@ public final class RoadNetworkManager {
                         beforeRoad.getVerticalAlignment(), beforeStation.get().chainageMeters());
                     var afterElev = VerticalAlignmentGeometry.elevationAt(
                         afterRoad.getVerticalAlignment(), afterStation.get().chainageMeters());
-                    if (beforeElev.isPresent() && afterElev.isPresent()
-                            && Math.abs(beforeElev.getAsDouble() - afterElev.getAsDouble()) > 1e-2) {
+                    if (beforeElev.isEmpty() || afterElev.isEmpty()) {
+                        return false;
+                    }
+                    if (Math.abs(beforeElev.getAsDouble() - afterElev.getAsDouble()) > 1e-2) {
+                        return false;
+                    }
+                }
+                if (beforeRoad.getVariableCrossSections() != null
+                        && !beforeRoad.getVariableCrossSections().isEmpty()
+                        && afterRoad.getVariableCrossSections() != null) {
+                    var beforeCs = com.plot.plugin.road.model.section.VariableCrossSectionResolver.resolve(
+                        beforeNetwork, beforeRoad, beforeStation.get().chainageMeters(), resolveDefaults);
+                    var afterCs = com.plot.plugin.road.model.section.VariableCrossSectionResolver.resolve(
+                        afterNetwork, afterRoad, afterStation.get().chainageMeters(), resolveDefaults);
+                    if (beforeCs.carriagewayWidth != afterCs.carriagewayWidth) {
                         return false;
                     }
                 }
             }
         }
+        if (beforeRoad.getStationFacilities() != null && !beforeRoad.getStationFacilities().isEmpty()
+                && afterRoad.getStationFacilities() != null) {
+            double beforeCoverage = facilityCoverageLength(beforeRoad, loopLength);
+            double afterCoverage = facilityCoverageLength(afterRoad, afterLength);
+            if (Math.abs(beforeCoverage - afterCoverage) > 1e-2) {
+                return false;
+            }
+        }
         return true;
+    }
+
+    private static double facilityCoverageLength(Road road, double loopLength) {
+        double coverage = 0.0;
+        if (road.getStationFacilities() == null) {
+            return 0.0;
+        }
+        for (var run : road.getStationFacilities().getRuns()) {
+            double end = run.getEndStation() != null ? run.getEndStation() : loopLength;
+            if (end > run.getStartStation()) {
+                coverage += end - run.getStartStation();
+            }
+        }
+        return coverage;
     }
 
     /**

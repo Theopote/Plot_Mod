@@ -64,9 +64,13 @@ public final class CrossSectionBuildContext {
             return fixed(start);
         }
         var lampPlacement = road.getCrossSection().getStreetFurniture().getRoadLampPlacement();
-        boolean needsStations = lampPlacement != null || VariableCrossSectionResolver.hasVariableSections(road);
+        // Bind slices when station-domain matters: VCS, lamps, or LOOP (dual-slice / seam).
+        boolean needsStations = lampPlacement != null
+            || VariableCrossSectionResolver.hasVariableSections(road)
+            || road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP;
         List<OrientedRoadSegment> orientations = needsStations && RoadStationing.isStationable(network, road)
-            ? RoadStationing.orientedSegmentsForEdge(network, road, edge.getId()) : List.of();
+            ? RoadStationing.orientedSegmentsForEdge(network, road, edge.getId())
+            : List.of();
         return new CrossSectionBuildContext(start, network, road, orientations, config,
             lampPlacement != null && StationFacilityJunctionTrim.shouldTrimLightingAtNode(network, road, edge.getStartNodeId()),
             lampPlacement != null && StationFacilityJunctionTrim.shouldTrimLightingAtNode(network, road, edge.getEndNodeId()));
@@ -116,17 +120,32 @@ public final class CrossSectionBuildContext {
         return new OrientedRoadSegment(null, true, null, null, 0.0, Double.POSITIVE_INFINITY);
     }
 
+    /**
+     * Canonical station at geometry-local.
+     * Uniform / fixed edges without slices use geometry-local; variable multi-slice misses and
+     * failed domain converts are fail-closed {@link Double#NaN} (no silent instance substitute).
+     */
     public double chainageAtGeometryLocal(double geometryLocalDistance) {
         OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
         if (slice == null) {
-            return isVariable() && oriented != null
-                ? oriented.roadStationAtGeometryLocal(geometryLocalDistance)
-                : geometryLocalDistance;
+            return isVariable() ? Double.NaN : geometryLocalDistance;
+        }
+        if (network != null && road != null && slice.edgeId() != null) {
+            var canonical = RoadStationing.resolveCanonicalStationAtEdgeLocal(
+                network, road, slice.edgeId(), geometryLocalDistance);
+            if (canonical.isPresent()) {
+                return canonical.getAsDouble();
+            }
+            // LOOP / variable: never substitute instance (wrong domain). LINEAR uniform may.
+            return failClosedOrLinearInstance(slice, geometryLocalDistance);
         }
         double instance = slice.roadStationAtGeometryLocal(geometryLocalDistance);
         if (network != null && road != null) {
             double canonical = RoadStationing.toCanonicalChainage(network, road, instance);
-            return Double.isFinite(canonical) ? canonical : instance;
+            if (Double.isFinite(canonical)) {
+                return canonical;
+            }
+            return failClosedOrLinearInstance(slice, geometryLocalDistance);
         }
         return instance;
     }
@@ -134,12 +153,35 @@ public final class CrossSectionBuildContext {
     /** Seam-invariant physical station for lamp phase grids. */
     public double physicalStationAtGeometryLocal(double geometryLocalDistance) {
         OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
-        if (slice == null || network == null || road == null) {
-            return chainageAtGeometryLocal(geometryLocalDistance);
+        if (slice == null) {
+            return isVariable() ? Double.NaN : geometryLocalDistance;
+        }
+        if (network == null || road == null) {
+            return slice.roadStationAtGeometryLocal(geometryLocalDistance);
         }
         double instance = slice.roadStationAtGeometryLocal(geometryLocalDistance);
         double physical = RoadStationing.rotatedToPhysical(network, road, instance);
-        return Double.isFinite(physical) ? physical : instance;
+        if (Double.isFinite(physical)) {
+            return physical;
+        }
+        return failClosedOrLinearInstance(slice, geometryLocalDistance);
+    }
+
+    private double failClosedOrLinearInstance(OrientedRoadSegment slice, double geometryLocalDistance) {
+        if (isVariable()
+                || (road != null
+                    && road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP)) {
+            return Double.NaN;
+        }
+        return slice.roadStationAtGeometryLocal(geometryLocalDistance);
+    }
+
+    public boolean chainForwardAtGeometryLocal(double geometryLocalDistance) {
+        OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
+        if (slice != null) {
+            return slice.forward();
+        }
+        return oriented == null || oriented.forward();
     }
 
     private OrientedRoadSegment sliceContaining(double geometryLocalDistance) {

@@ -45,9 +45,17 @@ public final class RoadLampPlanner {
         double end = length - trim.skipEnd() - (crossSections.setbackEnd() ? setback : 0.0);
         var orientations = crossSections.lightingOrientations();
         var slots = new LinkedHashMap<Slot, Sample>();
-        var geometryOrientation = new OrientedRoadSegment(null, true, null, null, 0.0, Double.POSITIVE_INFINITY);
-        RoadPathStationSampler.forEach(ctx.segments(), ctx.heightInfos(), geometryOrientation, scale,
-            ctx.request().designElevation(), ctx.buildProfile(), null,
+        // Sampler chainage arg is geometry-local so lamp phase uses physical and VCS uses canonical.
+        RoadPathStationSampler.forEach(
+            ctx.segments(),
+            ctx.heightInfos(),
+            true,
+            local -> local,
+            scale,
+            ctx.request().designElevation(),
+            ctx.buildProfile(),
+            null,
+            null,
             (center, left, y, local, index) -> {
                 if (local + 1e-6 < start || local > end + 1e-6 || local >= length - 1e-6) return;
                 var type = ctx.detection().constructionTypes().get(index);
@@ -55,9 +63,15 @@ public final class RoadLampPlanner {
                 var orientation = orientationAt(orientations, local);
                 // Schedule against seam-invariant physical stations so Move Seam does not reshuffle lamps.
                 double station = crossSections.physicalStationAtGeometryLocal(local);
+                if (!Double.isFinite(station)) {
+                    return;
+                }
                 Vec2d roadLeft = orientation != null && !orientation.forward() ? left.multiply(-1) : left;
-                var section = crossSections.resolve(
-                    orientation != null ? orientation.roadStationAtGeometryLocal(local) : local);
+                double canonical = crossSections.chainageAtGeometryLocal(local);
+                if (!Double.isFinite(canonical)) {
+                    return;
+                }
+                var section = crossSections.resolve(canonical);
                 double blockStation = station / scale;
                 switch (placement.sides()) {
                     case LEFT -> offer(slots, section, center, roadLeft, blockStation, placement.spacing(), 1, 0);

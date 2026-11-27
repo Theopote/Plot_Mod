@@ -643,7 +643,7 @@ public final class RoadPlanGeometry {
         if (road == null || !Double.isFinite(canonicalStation)) {
             return Double.NaN;
         }
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
             double designLen = designLength(network, road);
             if (designLen > STATION_EPSILON
                     && RoadStationing.isPhysicalWalkOpposedToDesign(network, road)) {
@@ -651,6 +651,7 @@ public final class RoadPlanGeometry {
             }
             return canonicalStation;
         }
+        // LOOP (explicit or virtual design-entry seam): Cyclic o/σ contract — never LINEAR identity.
         double designLen = designLength(network, road);
         if (designLen <= STATION_EPSILON) {
             return Double.NaN;
@@ -673,7 +674,7 @@ public final class RoadPlanGeometry {
         if (road == null || !Double.isFinite(nativeStation)) {
             return Double.NaN;
         }
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
             double designLen = designTotal > STATION_EPSILON ? designTotal : designLength(network, road);
             if (designLen > STATION_EPSILON
                     && RoadStationing.isPhysicalWalkOpposedToDesign(network, road)) {
@@ -704,21 +705,22 @@ public final class RoadPlanGeometry {
 
     private static double seamHaNativeOffsetUncached(RoadNetwork network, Road road) {
         if (network == null || road == null
-                || road.getTopologyMode() != RoadTopologyMode.LOOP
-                || road.getLoopSeam() == null) {
+                || road.getTopologyMode() != RoadTopologyMode.LOOP) {
             return 0.0;
         }
         if (!hasDesignAlignment(network, road)) {
             return 0.0;
         }
-        // Single authority: physical seam identity → StationDomainMap → HA native.
-        // Do not re-project seam XY onto the full HA (ambiguous on self-crossing loops).
-        double physicalSeam = RoadStationing.physicalSeamStation(network, road);
-        if (!Double.isFinite(physicalSeam)) {
-            return Double.NaN;
-        }
         StationDomainMap map = RoadStationing.domainMap(network, road);
         if (map == null || !map.isReliable()) {
+            return Double.NaN;
+        }
+        // Explicit seam: physical seam identity → HA native.
+        // No seam: virtual origin at design-entry physical station (typically 0).
+        double physicalSeam = road.getLoopSeam() != null
+            ? RoadStationing.physicalSeamStation(network, road)
+            : 0.0;
+        if (!Double.isFinite(physicalSeam)) {
             return Double.NaN;
         }
         return map.toNative(physicalSeam, false);

@@ -48,20 +48,23 @@ public record StationFacilityBuildContext(
         return RoadStationing.canonicalLength(network, road);
     }
 
-    /** Instance/canonical station at geometry-local, selecting the correct LOOP slice. */
+    /**
+     * Canonical station at geometry-local. Fail-closed NaN when network resolve fails
+     * (no silent instance fallback).
+     */
     public double chainageAtGeometryLocal(double geometryLocalDistance) {
         if (network != null && road != null && edgeId() != null) {
             var canonical = RoadStationing.resolveCanonicalStationAtEdgeLocal(
                 network, road, edgeId(), geometryLocalDistance);
-            if (canonical.isPresent()) {
-                return canonical.getAsDouble();
-            }
+            return canonical.isPresent() ? canonical.getAsDouble() : Double.NaN;
         }
         OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
         if (slice != null) {
             return slice.roadStationAtGeometryLocal(geometryLocalDistance);
         }
-        return oriented != null ? oriented.roadStationAtGeometryLocal(geometryLocalDistance) : geometryLocalDistance;
+        return oriented != null
+            ? oriented.roadStationAtGeometryLocal(geometryLocalDistance)
+            : geometryLocalDistance;
     }
 
     public OrientedRoadSegment sliceContaining(double geometryLocalDistance) {

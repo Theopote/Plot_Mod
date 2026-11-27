@@ -240,7 +240,8 @@ public final class RoadStationing {
                 station,
                 original.length(),
                 0.0,
-                original.length()));
+                original.length(),
+                original.fullEdgeLength() > 0.0 ? original.fullEdgeLength() : original.length()));
             station += original.length();
         }
         return reversed;
@@ -324,6 +325,7 @@ public final class RoadStationing {
                 station,
                 edgeLength,
                 0.0,
+                edgeLength,
                 edgeLength));
             station += edgeLength;
         }
@@ -853,11 +855,12 @@ public final class RoadStationing {
             return Double.NaN;
         }
         int sigma = isPhysicalWalkOpposedToDesign(network, road) ? -1 : 1;
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
             double station = sigma < 0 ? physicalTotal - rotatedInstance : rotatedInstance;
             return clampStation(station, physicalTotal);
         }
-        double seam = physicalSeamStation(network, road);
+        // LOOP: explicit seam or virtual design-entry origin (physical 0).
+        double seam = road.getLoopSeam() != null ? physicalSeamStation(network, road) : 0.0;
         if (!Double.isFinite(seam)) {
             return Double.NaN;
         }
@@ -874,11 +877,11 @@ public final class RoadStationing {
             return Double.NaN;
         }
         int sigma = isPhysicalWalkOpposedToDesign(network, road) ? -1 : 1;
-        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
             double station = sigma < 0 ? physicalTotal - physicalInstance : physicalInstance;
             return clampStation(station, physicalTotal);
         }
-        double seam = physicalSeamStation(network, road);
+        double seam = road.getLoopSeam() != null ? physicalSeamStation(network, road) : 0.0;
         if (!Double.isFinite(seam)) {
             return Double.NaN;
         }

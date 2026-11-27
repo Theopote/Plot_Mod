@@ -204,10 +204,7 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.NODE_NOT_FOUND);
         }
         Optional<String> merged = RoadGraphEdits.of(network).mergeThroughNode(nodeId);
-        if (merged.isEmpty()) {
-            return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
-        }
-        return finishEdit(network, merged.get(), CenterlineEditResult.merged(merged.get()), CenterlineEditOperation.MERGE_EDGE);
+        return merged.map(s -> finishEdit(network, s, CenterlineEditResult.merged(s), CenterlineEditOperation.MERGE_EDGE)).orElseGet(() -> CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED));
     }
 
     public static CenterlineEditResult reverseEdge(RoadNetwork network, String edgeId) {

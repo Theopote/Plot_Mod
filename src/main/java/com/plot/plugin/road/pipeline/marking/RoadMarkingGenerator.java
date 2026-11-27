@@ -62,10 +62,12 @@ public final class RoadMarkingGenerator {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
-            crossSections.samplingOriented(),
+            crossSections.samplingOriented().forward(),
+            crossSections::chainageAtGeometryLocal,
             unitsPerBlock,
             designElevation,
             buildProfile,
+            null,
             null,
             (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 int index = sampleIndex.getAndIncrement();

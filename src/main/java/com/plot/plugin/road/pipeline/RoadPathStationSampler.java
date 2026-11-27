@@ -13,6 +13,9 @@ import java.util.List;
 
 /**
  * 沿路径分段采样，附带道路桩号（chainage）。
+ * <p>
+ * Chainage comes from {@link GeometryLocalStationResolver} (canonical / physical / instance).
+ * {@link OrientedRoadSegment} is used only for chain left-normal orientation.
  */
 public final class RoadPathStationSampler {
 
@@ -29,6 +32,15 @@ public final class RoadPathStationSampler {
         int snap(Vec2d center, int targetY);
     }
 
+    /**
+     * Geometry-local distance along the edge path → station for resolve / StationSample.
+     * Return {@link Double#NaN} to skip the sample (fail-closed).
+     */
+    @FunctionalInterface
+    public interface GeometryLocalStationResolver {
+        double stationAtGeometryLocal(double geometryLocal);
+    }
+
     public static void forEach(
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
@@ -39,11 +51,13 @@ public final class RoadPathStationSampler {
         forEach(
             segments,
             heightInfos,
-            new OrientedRoadSegment(null, true, null, null, segmentStartStation, Double.POSITIVE_INFINITY),
+            true,
+            local -> segmentStartStation + local,
             unitsPerBlock,
             DesignElevationSource.inactive(),
             BuildHeightProfile.inactive(),
             elevationSnapper,
+            null,
             consumer);
     }
 
@@ -58,14 +72,17 @@ public final class RoadPathStationSampler {
         forEach(
             segments,
             heightInfos,
-            new OrientedRoadSegment(null, true, null, null, segmentStartStation, Double.POSITIVE_INFINITY),
+            true,
+            local -> segmentStartStation + local,
             unitsPerBlock,
             designElevation,
             BuildHeightProfile.inactive(),
             elevationSnapper,
+            null,
             consumer);
     }
 
+    /** Legacy: oriented provides both forward and instance station (single-slice). */
     public static void forEach(
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
@@ -87,6 +104,7 @@ public final class RoadPathStationSampler {
             consumer);
     }
 
+    /** Legacy: oriented provides both forward and instance station (single-slice). */
     public static void forEach(
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
@@ -97,7 +115,37 @@ public final class RoadPathStationSampler {
             ElevationSnapper elevationSnapper,
             StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
             StationSampleConsumer consumer) {
-        if (segments == null || heightInfos == null || consumer == null || oriented == null) {
+        if (oriented == null) {
+            return;
+        }
+        forEach(
+            segments,
+            heightInfos,
+            oriented.forward(),
+            oriented::roadStationAtGeometryLocal,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            elevationSnapper,
+            endpointTrim,
+            consumer);
+    }
+
+    /**
+     * Preferred entry: explicit chain-forward + station resolver (canonical/physical/instance).
+     */
+    public static void forEach(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            boolean chainForward,
+            GeometryLocalStationResolver stations,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            ElevationSnapper elevationSnapper,
+            StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
+            StationSampleConsumer consumer) {
+        if (segments == null || heightInfos == null || consumer == null || stations == null) {
             return;
         }
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
@@ -109,7 +157,7 @@ public final class RoadPathStationSampler {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, oriented.forward());
+            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
@@ -133,7 +181,10 @@ public final class RoadPathStationSampler {
                 if (elevationSnapper != null) {
                     targetY = elevationSnapper.snap(center, targetY);
                 }
-                double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
+                double chainage = stations.stationAtGeometryLocal(geometryLocal);
+                if (!Double.isFinite(chainage)) {
+                    continue;
+                }
                 consumer.accept(center, leftNormal, targetY, chainage, i);
             }
             geometryLocalBase += segment.distance;

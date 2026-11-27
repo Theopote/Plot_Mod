@@ -172,6 +172,9 @@ public final class RoadStationFacilityGenerator {
                 }
                 int targetY = elevationSnapper.snap(center, resolvedY.getAsInt());
                 double chainage = stationContext.chainageAtGeometryLocal(geometryLocal);
+                if (!Double.isFinite(chainage)) {
+                    continue;
+                }
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!trim.shouldPlace(geometryLocal, edgeLength)) {
                     continue;

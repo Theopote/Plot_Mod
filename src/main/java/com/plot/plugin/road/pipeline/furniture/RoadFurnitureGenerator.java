@@ -109,10 +109,12 @@ public final class RoadFurnitureGenerator {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
-            crossSections.samplingOriented(),
+            crossSections.samplingOriented().forward(),
+            crossSections::chainageAtGeometryLocal,
             unitsPerBlock,
             designElevation,
             buildProfile,
+            null,
             null,
             (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 RoadConstructionType constructionType = RoadConstructionClassifier.constructionTypeAt(

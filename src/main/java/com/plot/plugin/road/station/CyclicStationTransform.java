@@ -14,26 +14,20 @@ public final class CyclicStationTransform {
     private CyclicStationTransform() {
     }
 
-    /** Wrap into {@code [0, length)}; invalid input → NaN. */
+    /** Wrap into {@code [0, length)}; invalid input → NaN. O(1) floor mod. */
     public static double wrap(double value, double length) {
         if (!Double.isFinite(value) || !Double.isFinite(length) || length <= EPSILON) {
             return Double.NaN;
         }
-        double result = value;
-        while (result >= length - EPSILON) {
-            result -= length;
-        }
-        while (result < -EPSILON) {
+        double result = value - length * Math.floor(value / length);
+        if (result < 0.0) {
             result += length;
         }
-        if (result < 0.0) {
-            result = 0.0;
-        }
-        if (result > length) {
-            result = length;
-        }
         // Prefer exact 0 over exact L for open-point semantics when nearly equal.
-        if (Math.abs(result - length) <= EPSILON) {
+        if (result >= length - EPSILON || Math.abs(result - length) <= EPSILON) {
+            return 0.0;
+        }
+        if (result < EPSILON) {
             return 0.0;
         }
         return result;

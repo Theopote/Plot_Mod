@@ -1,5 +1,6 @@
 package com.plot.plugin.road.station;
 
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.HorizontalAlignmentChainOriginAligner;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPolylineFitter;
 import com.plot.plugin.road.model.Road;
@@ -7,16 +8,20 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
+import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
+import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -59,13 +64,13 @@ public final class RoadStationDataTransforms {
         RoadStationFacilities stationFacilities = head.getStationFacilities();
 
         tail.setVerticalAlignment(extractTailVerticalAlignment(verticalAlignment, splitStation));
-        tail.setVariableCrossSections(extractTailVariableCrossSections(
-            variableCrossSections, head.getCrossSection(), splitStation, totalLength));
+        tail.setVariableCrossSections(nullIfEmpty(extractTailVariableCrossSections(
+            variableCrossSections, head.getCrossSection(), splitStation, totalLength)));
         tail.setStationFacilities(extractTailStationFacilities(stationFacilities, splitStation, totalLength));
 
         head.setVerticalAlignment(trimHeadVerticalAlignment(verticalAlignment, splitStation));
-        head.setVariableCrossSections(trimHeadVariableCrossSections(
-            variableCrossSections, head.getCrossSection(), splitStation, totalLength));
+        head.setVariableCrossSections(nullIfEmpty(trimHeadVariableCrossSections(
+            variableCrossSections, head.getCrossSection(), splitStation, totalLength)));
         head.setStationFacilities(trimHeadStationFacilities(stationFacilities, splitStation, totalLength));
 
         if (refitHorizontalAlignment) {
@@ -801,9 +806,13 @@ public final class RoadStationDataTransforms {
             }
             stations.add(StationCrossSection.at(interval.start, interval.template.copy()));
         }
-        return stations.isEmpty()
-            ? null
-            : new RoadVariableCrossSections(stations, transitionMode);
+        // Empty = success clear (all default); never null — null is reserved for hard failure upstream.
+        return new RoadVariableCrossSections(stations, transitionMode);
+    }
+
+    /** Persist empty VCS as cleared ({@code null}) on the road model. */
+    private static RoadVariableCrossSections nullIfEmpty(RoadVariableCrossSections sections) {
+        return sections == null || sections.isEmpty() ? null : sections;
     }
 
     private record Interval(double start, double end, RoadCrossSection template) {
@@ -824,20 +833,20 @@ public final class RoadStationDataTransforms {
         if (Math.abs(shiftMeters) <= EPSILON) {
             return true;
         }
-        if (!rotateLoopStations(road, shiftMeters, loopLength)) {
-            return false;
-        }
         if (network == null) {
-            return true;
+            return rotateLoopStations(road, shiftMeters, loopLength);
         }
+        // Compute all crossing/stack replacements first — fail without mutating anything.
+        List<com.plot.plugin.road.crossing.RoadCrossing> crossingUpdates = new ArrayList<>();
         for (com.plot.plugin.road.crossing.RoadCrossing crossing : network.crossingsForRoad(road.getId())) {
             double rotatedStation = RoadLoopSeamService.rotateLoopStation(
                 crossing.stationOn(road.getId()), shiftMeters, loopLength);
             if (!Double.isFinite(rotatedStation)) {
                 return false;
             }
-            network.registerCrossing(crossing.withStationsOnRoad(road.getId(), rotatedStation));
+            crossingUpdates.add(crossing.withStationsOnRoad(road.getId(), rotatedStation));
         }
+        List<com.plot.plugin.road.crossing.RoadStackCrossing> stackUpdates = new ArrayList<>();
         for (com.plot.plugin.road.crossing.RoadStackCrossing stack
                 : network.stackCrossingsForRoad(road.getId())) {
             double rotatedA = RoadLoopSeamService.rotateLoopStation(
@@ -857,8 +866,17 @@ public final class RoadStationDataTransforms {
                     || (rotatedUpper != null && !Double.isFinite(rotatedUpper))) {
                 return false;
             }
-            network.registerStackCrossing(stack.withRotatedStations(
+            stackUpdates.add(stack.withRotatedStations(
                 rotatedA, rotatedB, rotatedLower, rotatedUpper));
+        }
+        if (!rotateLoopStations(road, shiftMeters, loopLength)) {
+            return false;
+        }
+        for (com.plot.plugin.road.crossing.RoadCrossing update : crossingUpdates) {
+            network.registerCrossing(update);
+        }
+        for (com.plot.plugin.road.crossing.RoadStackCrossing update : stackUpdates) {
+            network.registerStackCrossing(update);
         }
         return true;
     }
@@ -880,6 +898,7 @@ public final class RoadStationDataTransforms {
                 return false;
             }
         }
+        boolean clearVcs = false;
         RoadVariableCrossSections rotatedVcs = null;
         if (road.getVariableCrossSections() != null && !road.getVariableCrossSections().isEmpty()) {
             rotatedVcs = rotateVariableCrossSectionsCyclic(
@@ -890,6 +909,7 @@ public final class RoadStationDataTransforms {
             if (rotatedVcs == null) {
                 return false;
             }
+            clearVcs = rotatedVcs.isEmpty();
         }
         RoadStationFacilities rotatedFacilities = null;
         if (road.getStationFacilities() != null && !road.getStationFacilities().isEmpty()) {
@@ -902,7 +922,9 @@ public final class RoadStationDataTransforms {
         if (rotatedVa != null) {
             road.setVerticalAlignment(rotatedVa);
         }
-        if (rotatedVcs != null) {
+        if (clearVcs) {
+            road.setVariableCrossSections(null);
+        } else if (rotatedVcs != null) {
             road.setVariableCrossSections(rotatedVcs);
         }
         if (rotatedFacilities != null) {
@@ -940,10 +962,16 @@ public final class RoadStationDataTransforms {
                 || Math.abs(elev0.getAsDouble() - elevL.getAsDouble()) > 1e-3) {
             return null;
         }
+        // Curved PVI station is still mid-parabola (PVI ≠ road surface). Refuse that and
+        // any strict interior; allow exactly BVC/EVC (tangent junctions).
         for (VerticalAlignmentValidator.VerticalCurveInterval curve
                 : VerticalAlignmentValidator.curveIntervals(sorted)) {
-            if (shift > curve.bvcStation() + EPSILON && shift < curve.evcStation() - EPSILON
-                    && Math.abs(shift - sorted.get(curve.pviIndex()).getStation()) > EPSILON) {
+            boolean atBvc = Math.abs(shift - curve.bvcStation()) <= EPSILON;
+            boolean atEvc = Math.abs(shift - curve.evcStation()) <= EPSILON;
+            if (atBvc || atEvc) {
+                continue;
+            }
+            if (shift >= curve.bvcStation() - EPSILON && shift <= curve.evcStation() + EPSILON) {
                 return null;
             }
         }
@@ -953,13 +981,17 @@ public final class RoadStationDataTransforms {
         }
         double seamElev = seamElevOpt.getAsDouble();
         List<PointOfVerticalIntersection> rotated = new ArrayList<>();
-        rotated.add(new PointOfVerticalIntersection(0.0, seamElev, null, first.getConstraint()));
+        // Synthesized seam ends do not inherit unrelated old endpoint constraints.
+        rotated.add(new PointOfVerticalIntersection(
+            0.0, seamElev, null, VerticalControlPointConstraint.FREE));
         for (PointOfVerticalIntersection pvi : sorted) {
             // Old L duplicates old 0 physically on a LOOP — keep the start endpoint once.
             if (Math.abs(pvi.getStation() - loopLength) <= EPSILON) {
                 continue;
             }
             if (Math.abs(pvi.getStation() - shift) <= EPSILON) {
+                // Seam lands on this PVI: constraint follows only if it is not a curved PVI
+                // (curved case already refused above). Plain PVI elevation is seamElev.
                 continue;
             }
             double station = CyclicStationTransform.rotateByShift(pvi.getStation(), shift, loopLength);
@@ -967,14 +999,16 @@ public final class RoadStationDataTransforms {
                 return null;
             }
             if (Math.abs(station) <= EPSILON || Math.abs(station - loopLength) <= EPSILON) {
+                // Physical point coincides with new seam ends — constraint already FREE at ends.
                 continue;
             }
-            // Endpoints lose curve length; intermediate PVIs keep theirs.
+            // Endpoints lose curve length; intermediate PVIs keep theirs and constraints.
             Double curve = Math.abs(pvi.getStation()) <= EPSILON ? null : pvi.getCurveLength();
             rotated.add(new PointOfVerticalIntersection(
                 station, pvi.getElevation(), curve, pvi.getConstraint()));
         }
-        rotated.add(new PointOfVerticalIntersection(loopLength, seamElev, null, last.getConstraint()));
+        rotated.add(new PointOfVerticalIntersection(
+            loopLength, seamElev, null, VerticalControlPointConstraint.FREE));
         rotated.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
         List<PointOfVerticalIntersection> deduped = new ArrayList<>();
         for (PointOfVerticalIntersection pvi : rotated) {
@@ -996,17 +1030,28 @@ public final class RoadStationDataTransforms {
             RoadCrossSection defaultSection,
             double shift,
             double loopLength) {
+        return rotateVariableCrossSectionsCyclic(
+            source, defaultSection, shift, loopLength, new RoadSystemConfig("plot"));
+    }
+
+    static RoadVariableCrossSections rotateVariableCrossSectionsCyclic(
+            RoadVariableCrossSections source,
+            RoadCrossSection defaultSection,
+            double shift,
+            double loopLength,
+            RoadSystemConfig defaults) {
         if (source == null || source.isEmpty()) {
             return source;
         }
         VariableCrossSectionTransitionMode mode = source.getTransitionMode();
         RoadCrossSection base = defaultSection != null ? defaultSection : new RoadCrossSection();
+        RoadSystemConfig config = defaults != null ? defaults : new RoadSystemConfig("plot");
         if (mode == VariableCrossSectionTransitionMode.SMOOTH) {
-            return rotateSmoothVariableCrossSections(source, base, shift, loopLength);
+            return rotateSmoothVariableCrossSections(source, base, shift, loopLength, config);
         }
         List<StationCrossSection> sorted = source.sortedStations();
         if (sorted.isEmpty()) {
-            return null;
+            return new RoadVariableCrossSections(List.of(), mode);
         }
         List<Interval> intervals = buildIntervals(sorted, base, loopLength);
         List<Interval> rotated = new ArrayList<>();
@@ -1018,25 +1063,36 @@ public final class RoadStationDataTransforms {
         }
         rotated = mergeAdjacentIntervals(rotated);
         RoadVariableCrossSections result = intervalsToVariableCrossSections(rotated, base, mode);
-        return result != null && result.isValid() ? result : null;
+        return result.isValid() ? result : null;
     }
 
     private static RoadVariableCrossSections rotateSmoothVariableCrossSections(
             RoadVariableCrossSections source,
             RoadCrossSection defaultSection,
             double shift,
-            double loopLength) {
+            double loopLength,
+            RoadSystemConfig defaults) {
         List<StationCrossSection> sorted = source.sortedStations();
         if (sorted.isEmpty()) {
-            return null;
+            return new RoadVariableCrossSections(List.of(), VariableCrossSectionTransitionMode.SMOOTH);
         }
-        // Insert seam sample so wrap ends stay continuous after rotate.
-        ResolvedSmoothAnchor seamAnchor = smoothSectionAt(source, defaultSection, shift);
-        if (seamAnchor == null) {
+        RoadCrossSection seamSection = interpolateSmoothCrossSection(
+            source, defaultSection, shift, defaults);
+        if (seamSection == null) {
             return null;
         }
         List<StationCrossSection> rotated = new ArrayList<>();
-        rotated.add(StationCrossSection.at(0.0, seamAnchor.section().copy()));
+        rotated.add(StationCrossSection.at(0.0, seamSection.copy()));
+        // Explicit implicit default@0 when the old profile used it as a SMOOTH start anchor.
+        boolean hasZeroKeyframe = sorted.stream().anyMatch(e -> Math.abs(e.getStation()) <= EPSILON);
+        if (!hasZeroKeyframe && Math.abs(shift) > EPSILON) {
+            double rotatedZero = CyclicStationTransform.rotateByShift(0.0, shift, loopLength);
+            if (Double.isFinite(rotatedZero)
+                    && Math.abs(rotatedZero) > EPSILON
+                    && Math.abs(rotatedZero - loopLength) > EPSILON) {
+                rotated.add(StationCrossSection.at(rotatedZero, defaultSection.copy()));
+            }
+        }
         for (StationCrossSection entry : sorted) {
             if (Math.abs(entry.getStation() - shift) <= EPSILON) {
                 continue;
@@ -1050,6 +1106,8 @@ public final class RoadStationDataTransforms {
             }
             rotated.add(StationCrossSection.at(station, entry.getCrossSection().copy()));
         }
+        // Close the loop for SMOOTH: same seam sample at L so last→L lerps to seam.
+        rotated.add(StationCrossSection.at(loopLength, seamSection.copy()));
         rotated.sort(Comparator.comparingDouble(StationCrossSection::getStation));
         List<StationCrossSection> deduped = new ArrayList<>();
         for (StationCrossSection entry : rotated) {
@@ -1061,51 +1119,106 @@ public final class RoadStationDataTransforms {
         }
         RoadVariableCrossSections result =
             new RoadVariableCrossSections(deduped, VariableCrossSectionTransitionMode.SMOOTH);
-        return result.isValid() ? result : null;
-    }
-
-    private record ResolvedSmoothAnchor(RoadCrossSection section) {
-    }
-
-    private static ResolvedSmoothAnchor smoothSectionAt(
-            RoadVariableCrossSections source,
-            RoadCrossSection defaultSection,
-            double station) {
-        // Reconstruct the engineering section by resolving continuous dims then copying discrete fields
-        // from the nearest keyframe — enough to re-anchor SMOOTH at the new seam.
-        List<StationCrossSection> sorted = source.sortedStations();
-        if (sorted.isEmpty()) {
-            return new ResolvedSmoothAnchor(defaultSection.copy());
+        if (!result.isValid()) {
+            return null;
         }
-        StationCrossSection nearest = sorted.getFirst();
-        double best = Math.abs(nearest.getStation() - station);
-        for (StationCrossSection entry : sorted) {
-            double delta = Math.abs(entry.getStation() - station);
-            if (delta < best) {
-                best = delta;
-                nearest = entry;
+        // Physical equivalence: mapped stations must resolve to the same continuous width.
+        for (double s = 0.0; s < loopLength - EPSILON; s += Math.max(loopLength / 16.0, 1.0)) {
+            ResolvedCrossSection before = VariableCrossSectionResolver.resolve(
+                defaultSection, sorted, VariableCrossSectionTransitionMode.SMOOTH, s, defaults);
+            double afterStation = CyclicStationTransform.rotateByShift(s, shift, loopLength);
+            ResolvedCrossSection after = VariableCrossSectionResolver.resolve(
+                defaultSection, result.sortedStations(), VariableCrossSectionTransitionMode.SMOOTH,
+                afterStation, defaults);
+            if (before.carriagewayWidth != after.carriagewayWidth) {
+                return null;
             }
         }
-        if (Math.abs(nearest.getStation() - station) <= EPSILON) {
-            return new ResolvedSmoothAnchor(nearest.getCrossSection().copy());
+        return result;
+    }
+
+    /**
+     * True SMOOTH sample at {@code station}: continuous lerp + discrete nearer-side, materialized
+     * as a {@link RoadCrossSection} keyframe. Never copies a flanking keyframe wholesale.
+     */
+    static RoadCrossSection interpolateSmoothCrossSection(
+            RoadVariableCrossSections source,
+            RoadCrossSection defaultSection,
+            double station,
+            RoadSystemConfig defaults) {
+        if (source == null) {
+            return defaultSection != null ? defaultSection.copy() : new RoadCrossSection();
         }
-        // Prefer interpolating between flanking keyframes when available.
+        RoadSystemConfig config = defaults != null ? defaults : new RoadSystemConfig("plot");
+        RoadCrossSection base = defaultSection != null ? defaultSection : new RoadCrossSection();
+        List<StationCrossSection> sorted = source.sortedStations();
+        ResolvedCrossSection resolved = VariableCrossSectionResolver.resolve(
+            base, sorted, VariableCrossSectionTransitionMode.SMOOTH, station, config);
+        RoadCrossSection discreteTemplate = nearestKeyframeTemplate(sorted, base, station);
+        return materializeResolvedAsCrossSection(resolved, discreteTemplate, config);
+    }
+
+    private static RoadCrossSection nearestKeyframeTemplate(
+            List<StationCrossSection> sorted,
+            RoadCrossSection defaultSection,
+            double station) {
+        if (sorted == null || sorted.isEmpty()) {
+            return defaultSection.copy();
+        }
         StationCrossSection prev = null;
         StationCrossSection next = null;
         for (StationCrossSection entry : sorted) {
             if (entry.getStation() <= station + EPSILON) {
                 prev = entry;
-            } else if (next == null) {
+            } else {
                 next = entry;
                 break;
             }
         }
-        if (prev != null && next != null) {
-            // Use nearest keyframe copy for discrete fields; continuous seam elev/width handled by SMOOTH
-            // re-evaluation after rotate. Anchoring with nearest CS is lossless for keyframe grid.
-            return new ResolvedSmoothAnchor(prev.getCrossSection().copy());
+        if (prev == null) {
+            // Before first keyframe: implicit default@0 is the from-side (t from 0).
+            double first = sorted.getFirst().getStation();
+            double t = first > EPSILON ? station / first : 0.0;
+            return t < 0.5 ? defaultSection.copy() : sorted.getFirst().getCrossSection().copy();
         }
-        return new ResolvedSmoothAnchor(nearest.getCrossSection().copy());
+        if (next == null) {
+            return prev.getCrossSection().copy();
+        }
+        double span = next.getStation() - prev.getStation();
+        double t = span > EPSILON ? (station - prev.getStation()) / span : 0.0;
+        return (t < 0.5 ? prev : next).getCrossSection().copy();
+    }
+
+    private static RoadCrossSection materializeResolvedAsCrossSection(
+            ResolvedCrossSection resolved,
+            RoadCrossSection discreteTemplate,
+            RoadSystemConfig defaults) {
+        CrossSectionDraft draft = CrossSectionDraft.fromCrossSection(discreteTemplate, defaults);
+        draft.setLaneCount(Math.max(1, resolved.laneCount));
+        draft.setWidth(Math.max(1, resolved.carriagewayWidth));
+        if (resolved.laneWidths != null) {
+            for (int i = 0; i < resolved.laneWidths.size(); i++) {
+                Integer w = resolved.laneWidths.get(i);
+                if (w != null && w > 0) {
+                    draft.setLaneWidthAt(i, w);
+                }
+            }
+        }
+        draft.setIncludeShoulder(resolved.includeShoulder);
+        draft.setShoulderWidth(Math.max(0, resolved.shoulderWidth));
+        draft.setIncludeSidewalk(resolved.includeSidewalk);
+        draft.setSidewalkWidth(Math.max(0, resolved.sidewalkWidth));
+        draft.setIncludeBikeLane(resolved.includeBikeLane);
+        draft.setBikeLaneWidth(Math.max(0, resolved.bikeLaneWidth));
+        draft.setIncludeMedian(resolved.includeMedian);
+        draft.setMedianWidth(Math.max(0, resolved.medianWidth));
+        draft.setMedianHeight(Math.max(0, resolved.medianHeight));
+        draft.setFillSlopeRatio(resolved.fillSlopeRatio);
+        draft.setCutSlopeRatio(resolved.cutSlopeRatio);
+        if (resolved.streetlightSpacing != null) {
+            draft.setStreetlightSpacing(resolved.streetlightSpacing);
+        }
+        return draft.toCrossSection();
     }
 
     static RoadStationFacilities rotateStationFacilitiesCyclic(

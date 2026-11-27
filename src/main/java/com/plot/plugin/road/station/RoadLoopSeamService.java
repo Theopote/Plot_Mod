@@ -206,7 +206,8 @@ public final class RoadLoopSeamService {
                 station,
                 tailLength,
                 postSeamGeomStart,
-                postSeamGeomEnd));
+                postSeamGeomEnd,
+                fullEdgeLength));
             station += tailLength;
 
             for (int k = 1; k < base.size(); k++) {
@@ -223,7 +224,8 @@ public final class RoadLoopSeamService {
                 station,
                 seamChainLocal,
                 preSeamGeomStart,
-                preSeamGeomEnd));
+                preSeamGeomEnd,
+                fullEdgeLength));
         }
         return List.copyOf(rotated);
     }
@@ -360,13 +362,28 @@ public final class RoadLoopSeamService {
         if (preferred != null && !road.getOrderedSegmentIds().contains(preferred)) {
             preferred = null;
         }
-        if (preferred != null) {
-            SeamProjection onPreferred = projectOntoOrientedChain(network, road, query, preferred, false);
-            if (onPreferred != null) {
-                return onPreferred;
-            }
+        // Always score globally with ambiguity reject; preferred edge only breaks near-ties.
+        SeamProjection global = projectOntoOrientedChain(network, road, query, null, true);
+        if (preferred == null) {
+            return global;
         }
-        return projectOntoOrientedChain(network, road, query, null, true);
+        SeamProjection onPreferred = projectOntoOrientedChain(network, road, query, preferred, true);
+        if (onPreferred == null) {
+            return global;
+        }
+        double preferredDist = onPreferred.position().distance(query);
+        if (preferredDist > com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE) {
+            return global;
+        }
+        if (global == null) {
+            return onPreferred;
+        }
+        double globalDist = global.position().distance(query);
+        // Preferred wins only when it is within pick tolerance of the global nearest.
+        if (preferredDist <= globalDist + com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE) {
+            return onPreferred;
+        }
+        return global;
     }
 
     /**
@@ -458,10 +475,34 @@ public final class RoadLoopSeamService {
         if (a == null || b == null) {
             return false;
         }
-        if (!a.segmentId().equals(b.segmentId())) {
-            return false;
+        if (a.segmentId().equals(b.segmentId())
+                && Math.abs(a.geometryLocalFraction() - b.geometryLocalFraction()) <= 1e-3) {
+            return true;
         }
-        return Math.abs(a.geometryLocalFraction() - b.geometryLocalFraction()) <= 1e-3;
+        // Adjacent edges meeting at a shared topo node are one physical pass.
+        if (sharesTopoNode(a, b)) {
+            boolean aAtNode = a.localFraction() <= EPSILON || a.localFraction() >= 1.0 - EPSILON;
+            boolean bAtNode = b.localFraction() <= EPSILON || b.localFraction() >= 1.0 - EPSILON;
+            if (aAtNode && bAtNode && a.position().distance(b.position())
+                    <= com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE) {
+                return true;
+            }
+        }
+        // Near-coincident XY with near-equal chain stations → same pass (incl. LOOP 0≈L).
+        if (a.position().distance(b.position())
+                <= com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE
+                && Math.abs(a.chainStation() - b.chainStation())
+                    <= com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean sharesTopoNode(SeamProjection a, SeamProjection b) {
+        return a.entryNodeId().equals(b.entryNodeId())
+            || a.entryNodeId().equals(b.exitNodeId())
+            || a.exitNodeId().equals(b.entryNodeId())
+            || a.exitNodeId().equals(b.exitNodeId());
     }
 
     private static int comparePosition(Vec2d left, Vec2d right) {

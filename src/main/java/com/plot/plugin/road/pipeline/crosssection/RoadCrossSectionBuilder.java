@@ -292,11 +292,13 @@ public final class RoadCrossSectionBuilder {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
-            crossSections.samplingOriented(),
+            crossSections.samplingOriented().forward(),
+            crossSections::chainageAtGeometryLocal,
             unitsPerBlock,
             designElevation,
             buildProfile,
             host::snapEndpointElevation,
+            null,
             (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.includeMedian || crossSection.medianWidth <= 0
