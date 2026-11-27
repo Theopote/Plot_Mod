@@ -20,9 +20,11 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
@@ -33,86 +35,110 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Phase 2.4.4 generation regressions MIG01–MIG02.
+ * Phase 2.4.4 generation regressions MIG01–MIG02 (non-empty pavement/marking/guardrail).
  */
 class Phase244StationMigrationGenerationIT {
 
     @Test
     void mig01_splitEdgeThenMergeEdgeGenerationEquivalent() {
-        RoadSystemConfig config = flatConfig();
+        RoadSystemConfig config = markedConfig();
         RoadNetwork network = new RoadNetwork();
         Road road = linear(network, "mig01", 2, 40.0);
-        road.setCrossSection(section(8));
-        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
-            StationCrossSection.at(20.0, section(12))),
-            VariableCrossSectionTransitionMode.STEP));
-        road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(5.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT))));
-        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
-            PointOfVerticalIntersection.of(0.0, 64.0),
-            PointOfVerticalIntersection.of(80.0, 66.0))));
-
+        seedEngineering(road, 80.0);
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+
+        assertAllEdgesSuccess(generator, network, terrain);
         Set<BlockPos> beforeRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);
         Set<BlockPos> beforeMark = generateLayer(generator, network, terrain, RoadSolidLayer.MARKING);
+        Set<BlockPos> beforeRail = generateLayer(generator, network, terrain, RoadSolidLayer.GUARDRAIL);
+        assertFalse(beforeRoad.isEmpty(), "pavement must be non-empty");
+        assertFalse(beforeMark.isEmpty(), "markings must be non-empty");
+        assertFalse(beforeRail.isEmpty(), "guardrails must be non-empty");
 
         String edgeId = road.getOrderedSegmentIds().getFirst();
         assertTrue(RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, 20.0).isSuccess());
+        assertAllEdgesSuccess(generator, network, terrain);
         String midNode = network.getEdge(road.getOrderedSegmentIds().getFirst()).getEndNodeId();
         assertTrue(RoadCenterlineEditor.mergeThroughNode(network, midNode).isSuccess());
+        assertAllEdgesSuccess(generator, network, terrain);
+        assertEquals(ProfileSource.EDITED, network.getRoad(road.getId()).getStoredProfileSource());
 
         Set<BlockPos> afterRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);
         Set<BlockPos> afterMark = generateLayer(generator, network, terrain, RoadSolidLayer.MARKING);
+        Set<BlockPos> afterRail = generateLayer(generator, network, terrain, RoadSolidLayer.GUARDRAIL);
         assertEquals(beforeRoad, afterRoad, "pavement set must match after split→merge edge");
         assertEquals(beforeMark, afterMark, "marking set must match after split→merge edge");
+        assertEquals(beforeRail, afterRail, "guardrail set must match after split→merge edge");
     }
 
     @Test
     void mig02_splitRoadThenMergeRoadGenerationEquivalent() {
-        RoadSystemConfig config = flatConfig();
+        RoadSystemConfig config = markedConfig();
         RoadNetwork network = new RoadNetwork();
         Road road = linear(network, "mig02", 3, 30.0);
-        road.setCrossSection(section(8));
-        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
-            PointOfVerticalIntersection.of(0.0, 64.0),
-            PointOfVerticalIntersection.of(45.0, 65.0),
-            PointOfVerticalIntersection.of(90.0, 64.0))));
-        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
-            StationCrossSection.at(30.0, section(10))),
-            VariableCrossSectionTransitionMode.STEP));
-        road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(10.0, 70.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT))));
-
+        seedEngineering(road, 90.0);
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+
+        assertAllEdgesSuccess(generator, network, terrain);
         Set<BlockPos> beforeRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);
         Set<BlockPos> beforeMark = generateLayer(generator, network, terrain, RoadSolidLayer.MARKING);
+        Set<BlockPos> beforeRail = generateLayer(generator, network, terrain, RoadSolidLayer.GUARDRAIL);
+        assertFalse(beforeRoad.isEmpty());
+        assertFalse(beforeMark.isEmpty());
+        assertFalse(beforeRail.isEmpty());
 
         String splitSeg = RoadSegmentOrdering.orderedSegmentIds(network, road).get(1);
-        String tailId = network.splitRoadBeforeSegment(road.getId(), splitSeg);
+        String tailId = network.splitRoadBeforeSegment(road.getId(), splitSeg, config);
         assertNotNull(tailId);
-        String merged = network.mergeRoadTailIntoHead(road.getId(), tailId);
+        assertAllEdgesSuccess(generator, network, terrain);
+        String merged = network.mergeRoadTailIntoHead(road.getId(), tailId, config);
         assertEquals(road.getId(), merged);
+        assertAllEdgesSuccess(generator, network, terrain);
+        assertEquals(ProfileSource.EDITED, network.getRoad(road.getId()).getStoredProfileSource());
 
         Set<BlockPos> afterRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);
         Set<BlockPos> afterMark = generateLayer(generator, network, terrain, RoadSolidLayer.MARKING);
-        assertEquals(beforeRoad, afterRoad, "pavement set must match after split→merge road");
-        assertEquals(beforeMark, afterMark, "marking set must match after split→merge road");
+        Set<BlockPos> afterRail = generateLayer(generator, network, terrain, RoadSolidLayer.GUARDRAIL);
+        assertEquals(beforeRoad, afterRoad);
+        assertEquals(beforeMark, afterMark);
+        assertEquals(beforeRail, afterRail);
     }
 
-    private static RoadSystemConfig flatConfig() {
+    private static void seedEngineering(Road road, double length) {
+        RoadCrossSection section = section(8);
+        section.getCarriageway().setLaneCount(2);
+        section.getCarriageway().applyUniformDefaultLaneWidth(4);
+        section.getMarkings().setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        section.getMarkings().setLaneDividers(true);
+        road.setCrossSection(section);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(length * 0.5, 65.0),
+            PointOfVerticalIntersection.of(length, 64.0))));
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setEditedGeometrySignature(42);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(length * 0.3, section(10))),
+            VariableCrossSectionTransitionMode.STEP));
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(5.0, length * 0.8, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT))));
+    }
+
+    private static RoadSystemConfig markedConfig() {
         RoadSystemConfig config = new RoadSystemConfig("phase244-mig");
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setCenterLineStyle(CenterLineStyle.NONE);
-        config.setLaneDividers(false);
+        config.setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
+        config.setLaneDividers(true);
         return config;
     }
 
@@ -132,6 +158,28 @@ class Phase244StationMigrationGenerationIT {
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setWidth(width);
         return section;
+    }
+
+    private static void assertAllEdgesSuccess(
+            RoadGenerator generator,
+            RoadNetwork network,
+            FlatTerrainSampler terrain) {
+        for (Road road : network.getRoads().values()) {
+            for (String edgeId : road.getOrderedSegmentIds()) {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge == null) {
+                    continue;
+                }
+                EdgeGenerationResult outcome = generator.generateEdgeOutcome(
+                    network,
+                    edge,
+                    network.getNode(edge.getStartNodeId()),
+                    network.getNode(edge.getEndNodeId()),
+                    terrain,
+                    null);
+                assertTrue(outcome.isSuccess(), "edge " + edgeId + ": " + outcome.message());
+            }
+        }
     }
 
     private static Set<BlockPos> generateLayer(

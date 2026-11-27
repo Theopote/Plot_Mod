@@ -50,13 +50,15 @@ class CenterlineHorizontalAlignmentSyncTest {
             List.of(new Vec2d(0, 0), new Vec2d(50, 0), new Vec2d(50, 50)),
             road.getId());
 
-        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of());
-        alignment.addElement(HorizontalAlignmentElement.tangent(50.0));
-        alignment.addElement(HorizontalAlignmentElement.tangent(50.0));
-        road.setHorizontalAlignment(alignment);
-
+        // Instance-domain fillet first (no HA), then seed HA and sync — verifies refit path.
+        // Pre-setting a mismatched corner HA makes StationDomainMap unreliable (N03 refuse).
         assertTrue(RoadCenterlineEditor.filletVertex(network, edge.getId(), 1, 5.0).isSuccess());
-
+        var fitted = HorizontalAlignmentPolylineFitter.fit(network, road);
+        assertTrue(fitted.isPresent());
+        road.setHorizontalAlignment(fitted.get());
+        assertEquals(
+            CenterlineHorizontalAlignmentSync.Outcome.FITTED,
+            CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, road));
         assertNotNull(road.getHorizontalAlignment());
         assertTrue(road.getHorizontalAlignment().getElements().size() >= 2);
     }

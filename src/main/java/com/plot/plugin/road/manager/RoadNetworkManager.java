@@ -916,10 +916,19 @@ public final class RoadNetworkManager {
                 String roadId = edge.getRoadId();
                 Road roadBefore = roadId != null ? network.getRoad(roadId) : null;
                 SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+                if (roadBefore != null && network.hasProtectedAlongTrackData(roadBefore)
+                        && before == null) {
+                    // Canonical capture failed with along-track data — refuse.
+                    return Boolean.FALSE;
+                }
                 StationDataSnapshot stationSnapshot = roadBefore != null
                     ? StationDataSnapshot.capture(roadBefore)
                     : null;
                 List<EdgeStationSpan> edgeSpansBefore = captureEdgeStationSpans(roadBefore);
+                if (roadBefore != null && network.hasProtectedAlongTrackData(roadBefore)
+                        && edgeSpansBefore.isEmpty()) {
+                    return Boolean.FALSE;
+                }
                 var crossingCapture = roadId != null
                     ? com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
                         network, java.util.Set.of(roadId))
@@ -930,7 +939,10 @@ public final class RoadNetworkManager {
                     lastSelectedEdgeId = getPrimarySelectedEdgeId();
                 }
                 ensureSelectionValid();
-                remapVerticalDataAfterEdgeDeletion(roadId, before, stationSnapshot, edgeSpansBefore);
+                if (!remapVerticalDataAfterEdgeDeletion(
+                        roadId, before, stationSnapshot, edgeSpansBefore)) {
+                    return Boolean.FALSE;
+                }
                 if (crossingCapture != null) {
                     var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
                         network, crossingCapture, java.util.Set.of(edgeId));
@@ -938,7 +950,6 @@ public final class RoadNetworkManager {
                         return Boolean.FALSE;
                     }
                 }
-                observeReconcileInPlace();
                 return Boolean.TRUE;
             },
             Boolean.TRUE::equals);
@@ -948,20 +959,20 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * After a segment is removed, keep VA/VCS/facilities aligned with surviving geometry:
-     * head/tail clip via range extract; middle disconnect via topology split + ordered spans.
+     * After a segment is removed, keep VA/VCS/facilities aligned with surviving geometry.
+     * @return false when migration cannot be completed losslessly (caller must abort).
      */
-    private void remapVerticalDataAfterEdgeDeletion(
+    private boolean remapVerticalDataAfterEdgeDeletion(
             String roadId,
             SegmentGeometrySnapshot before,
             StationDataSnapshot stationSnapshot,
             List<EdgeStationSpan> edgeSpansBefore) {
         if (roadId == null || roadId.isBlank()) {
-            return;
+            return true;
         }
         Road road = network.getRoad(roadId);
         if (road == null) {
-            return;
+            return true;
         }
         var violations = RoadTopologyInvariantValidator.validateRoad(network, road);
         boolean disconnectedOrBranching = violations.stream().anyMatch(v ->
@@ -970,7 +981,7 @@ public final class RoadNetworkManager {
         boolean loopOpen = violations.stream().anyMatch(v ->
             v.kind() == RoadTopologyViolationKind.ROAD_LOOP_OPEN);
         if (disconnectedOrBranching) {
-            // Avoid remapping with broken post-delete chainage; re-apply from pre-delete spans.
+            // Clear only after we know we will restore from pre-delete spans; restore must succeed.
             road.setVerticalAlignment(null);
             road.setVariableCrossSections(null);
             road.setStationFacilities(null);
@@ -978,17 +989,16 @@ public final class RoadNetworkManager {
             for (Road surviving : network.getRoads().values()) {
                 RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, surviving);
             }
-            applyCapturedStationDataToSurvivingRoads(
+            return applyCapturedStationDataToSurvivingRoads(
                 stationSnapshot,
                 before != null ? before.totalLengthBefore() : 0.0,
                 edgeSpansBefore);
-            return;
         }
         if (loopOpen) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, road);
         }
         if (before == null || stationSnapshot == null || !stationSnapshot.hasPhase2Data()) {
-            return;
+            return true;
         }
         double deletedStart = before.rangeStart();
         double deletedEnd = before.rangeStart() + before.oldSegmentLength();
@@ -999,14 +1009,17 @@ public final class RoadNetworkManager {
             double keepStart = headDelete ? deletedEnd : 0.0;
             double keepEnd = headDelete ? total : deletedStart;
             if (keepEnd > keepStart + 1e-6) {
-                stationSnapshot.applyRangeTo(road, total, new StationRange(keepStart, keepEnd));
+                var result = stationSnapshot.applyRangeTo(
+                    road, total, new StationRange(keepStart, keepEnd));
+                if (!result.isSuccess()) {
+                    return false;
+                }
             } else {
                 road.setVerticalAlignment(null);
                 road.setVariableCrossSections(null);
                 road.setStationFacilities(null);
             }
         } else {
-            // Connected middle delete without topology break — fall back to compress remap.
             RoadStationDataTransforms.rescaleAfterGeometryEdit(
                 road,
                 before.rangeStart(),
@@ -1015,6 +1028,7 @@ public final class RoadNetworkManager {
                 before.totalLengthBefore());
         }
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+        return true;
     }
 
     private List<EdgeStationSpan> captureEdgeStationSpans(Road road) {
@@ -1024,22 +1038,26 @@ public final class RoadNetworkManager {
         }
         int slice = 0;
         for (var segment : RoadStationing.orientedSegments(network, road)) {
-            spans.add(new EdgeStationSpan(
-                segment.edgeId(),
-                segment.startStation(),
-                segment.endStation(),
-                slice++));
+            double cStart = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation());
+            double cEnd = RoadStationing.toCanonicalChainage(
+                network, road, segment.endStation());
+            if (!Double.isFinite(cStart) || !Double.isFinite(cEnd)) {
+                return List.of();
+            }
+            spans.add(new EdgeStationSpan(segment.edgeId(), cStart, cEnd, slice++));
         }
         return spans;
     }
 
-    private void applyCapturedStationDataToSurvivingRoads(
+    /** @return false when any survivor cannot be remapped losslessly. */
+    private boolean applyCapturedStationDataToSurvivingRoads(
             StationDataSnapshot snapshot,
             double totalLengthBefore,
             List<EdgeStationSpan> edgeSpansBefore) {
         if (snapshot == null || !snapshot.hasPhase2Data() || totalLengthBefore <= 1e-6
                 || edgeSpansBefore == null || edgeSpansBefore.isEmpty()) {
-            return;
+            return !snapshotHasStationEngineering(snapshot);
         }
         HashSet<String> survivingEdgeIds = new HashSet<>();
         for (EdgeStationSpan span : edgeSpansBefore) {
@@ -1085,12 +1103,22 @@ public final class RoadNetworkManager {
             if (!Double.isNaN(runStart)) {
                 contiguous.add(new StationRange(runStart, runEnd));
             }
-            // Non-contiguous survivor (e.g. seam wrap) — refuse remap rather than min/max swallow.
             if (contiguous.size() != 1) {
-                continue;
+                return false;
             }
-            snapshot.applyRangeTo(surviving, totalLengthBefore, contiguous.getFirst());
+            var result = snapshot.applyRangeTo(
+                surviving, totalLengthBefore, contiguous.getFirst());
+            if (!result.isSuccess()) {
+                return false;
+            }
         }
+        return true;
+    }
+
+    private static boolean snapshotHasStationEngineering(StationDataSnapshot snapshot) {
+        return snapshot != null && (snapshot.verticalAlignment() != null
+            || snapshot.variableCrossSections() != null
+            || snapshot.stationFacilities() != null);
     }
 
     public void deleteRoad(String roadId) {
@@ -1137,7 +1165,7 @@ public final class RoadNetworkManager {
             return null;
         }
         pushUndoSnapshot();
-        String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId);
+        String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId, config);
         boolean migrationFailed = network.consumeCrossingMigrationFailure();
         if (newRoadId == null || migrationFailed) {
             abortPendingNetworkEdit();
@@ -1151,8 +1179,7 @@ public final class RoadNetworkManager {
             }
             return null;
         }
-        // Model already migrated ownership; observe reconcile for pending design ambiguity.
-        observeReconcileInPlace();
+        // Crossing ownership already reapplied on the working copy before adopt.
         commitNetworkChange();
         return newRoadId;
     }
@@ -1172,7 +1199,7 @@ public final class RoadNetworkManager {
         boolean alongProtected = network.hasProtectedAlongTrackData(headBefore)
             || network.hasProtectedAlongTrackData(tailBefore);
         pushUndoSnapshot();
-        String mergedId = network.mergeRoadTailIntoHead(headRoadId, tailRoadId);
+        String mergedId = network.mergeRoadTailIntoHead(headRoadId, tailRoadId, config);
         boolean migrationFailed = network.consumeCrossingMigrationFailure();
         if (mergedId == null || migrationFailed) {
             abortPendingNetworkEdit();
@@ -1183,7 +1210,6 @@ public final class RoadNetworkManager {
             }
             return null;
         }
-        observeReconcileInPlace();
         commitNetworkChange();
         return mergedId;
     }

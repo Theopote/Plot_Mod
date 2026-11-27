@@ -24,6 +24,8 @@ import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignm
 import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossSectionsData;
 import com.plot.plugin.road.model.StationFacilityPersistence.StationFacilitiesData;
 import com.plot.plugin.road.station.CenterlineEditOperation;
+import com.plot.plugin.road.station.OrientedRoadSegment;
+import com.plot.plugin.road.station.RoadLoopSeamService;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.model.section.BikeLane;
@@ -572,6 +574,13 @@ public class RoadNetwork {
      * @return 新 Road 的 id；失败时 null
      */
     public String splitRoadBeforeSegment(String roadId, String segmentEdgeId) {
+        return splitRoadBeforeSegment(roadId, segmentEdgeId, null);
+    }
+
+    public String splitRoadBeforeSegment(
+            String roadId,
+            String segmentEdgeId,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         crossingMigrationFailure = false;
         Road road = roads.get(roadId);
         if (road == null || segmentEdgeId == null || segmentEdgeId.isBlank()) {
@@ -587,7 +596,7 @@ public class RoadNetwork {
         }
         // Atomic: mutate working copy only; adopt on success.
         RoadNetwork working = snapshot();
-        String newRoadId = working.splitRoadBeforeSegmentMutating(roadId, segmentEdgeId);
+        String newRoadId = working.splitRoadBeforeSegmentMutating(roadId, segmentEdgeId, defaults);
         if (newRoadId == null) {
             crossingMigrationFailure = working.crossingMigrationFailure;
             return null;
@@ -596,7 +605,10 @@ public class RoadNetwork {
         return newRoadId;
     }
 
-    private String splitRoadBeforeSegmentMutating(String roadId, String segmentEdgeId) {
+    private String splitRoadBeforeSegmentMutating(
+            String roadId,
+            String segmentEdgeId,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         Road road = roads.get(roadId);
         if (road == null) {
             return null;
@@ -609,6 +621,11 @@ public class RoadNetwork {
         List<String> headIds = new ArrayList<>(segmentIds.subList(0, index));
         List<String> tailIds = new ArrayList<>(segmentIds.subList(index, segmentIds.size()));
         double splitStation = RoadStationing.segmentStartStation(this, road, segmentEdgeId);
+        // Non-finite / unresolved station must refuse — never skip migration after topology mutate.
+        if (!Double.isFinite(splitStation) || splitStation < 0.0) {
+            return null;
+        }
+        List<OrientedRoadSegment> designWalk = RoadStationing.orientedSegments(this, road);
         String priorEntryNode = road.getDesignEntryNodeId();
         String priorEntryEdge = road.getDesignEntryEdgeId();
         var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
@@ -617,14 +634,14 @@ public class RoadNetwork {
         newRoad.copyEngineeringFrom(road);
 
         com.plot.plugin.road.station.StationMigrationResult migration =
-            com.plot.plugin.road.station.StationMigrationResult.ok(false);
-        if (splitStation >= 0.0) {
-            migration = CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy()
-                .applyRoadSplit(this, road, newRoad, splitStation);
-            if (!migration.isSuccess()) {
-                roads.remove(newRoad.getId());
-                return null;
-            }
+            CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy()
+                .applyRoadSplit(this, road, newRoad, splitStation, defaults);
+        if (!migration.isSuccess()) {
+            roads.remove(newRoad.getId());
+            return null;
+        }
+        if (migration.requiresHaRefit()) {
+            // Domain-map reliability checked after topology + refit below.
         }
         for (String segmentId : tailIds) {
             assignEdgeToRoad(segmentId, newRoad.getId());
@@ -634,30 +651,18 @@ public class RoadNetwork {
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, road);
         RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, newRoad);
 
-        // Explicit design-entry inheritance from prior walk — no min-XY rebind.
-        if (priorEntryEdge != null && headIds.contains(priorEntryEdge)) {
-            road.setDesignEntryNodeId(priorEntryNode);
-            road.setDesignEntryEdgeId(priorEntryEdge);
-        } else if (!headIds.isEmpty()) {
-            RoadEdge headFirst = edges.get(headIds.getFirst());
-            if (headFirst != null) {
-                road.setDesignEntryEdgeId(headFirst.getId());
-                road.setDesignEntryNodeId(headFirst.getStartNodeId());
-            }
-        }
-        if (!tailIds.isEmpty()) {
-            RoadEdge tailFirst = edges.get(tailIds.getFirst());
-            if (tailFirst != null) {
-                newRoad.setDesignEntryEdgeId(tailFirst.getId());
-                newRoad.setDesignEntryNodeId(tailFirst.getStartNodeId());
-            }
-        }
+        // Design entry from original oriented walk — never Edge storage start.
+        bindDesignEntryFromWalk(road, headIds, designWalk, priorEntryEdge, priorEntryNode);
+        bindDesignEntryFromWalk(newRoad, tailIds, designWalk, null, null);
 
         if (migration.requiresHaRefit()) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, road);
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, newRoad);
             if (road.getHorizontalAlignment() == null || newRoad.getHorizontalAlignment() == null) {
-                // Fit failed after clearing — refuse rather than keep orphaned stations.
+                crossingMigrationFailure = true;
+                return null;
+            }
+            if (!stationDomainReliable(road) || !stationDomainReliable(newRoad)) {
                 crossingMigrationFailure = true;
                 return null;
             }
@@ -669,6 +674,54 @@ public class RoadNetwork {
             return null;
         }
         return newRoad.getId();
+    }
+
+    private boolean stationDomainReliable(Road road) {
+        if (road == null || road.getHorizontalAlignment() == null) {
+            return true;
+        }
+        var map = RoadStationing.domainMap(this, road);
+        return map != null && map.isReliable();
+    }
+
+    /**
+     * Bind design entry from the first oriented segment whose edge remains in {@code keepEdgeIds}.
+     * Prefer prior entry when it still belongs to this road; otherwise use walk entryNodeId.
+     */
+    private void bindDesignEntryFromWalk(
+            Road target,
+            List<String> keepEdgeIds,
+            List<OrientedRoadSegment> designWalk,
+            String priorEntryEdge,
+            String priorEntryNode) {
+        if (target == null || keepEdgeIds == null || keepEdgeIds.isEmpty()) {
+            return;
+        }
+        Set<String> keep = Set.copyOf(keepEdgeIds);
+        if (priorEntryEdge != null && keep.contains(priorEntryEdge)) {
+            target.setDesignEntryEdgeId(priorEntryEdge);
+            if (priorEntryNode != null) {
+                target.setDesignEntryNodeId(priorEntryNode);
+                return;
+            }
+            if (designWalk != null) {
+                for (OrientedRoadSegment segment : designWalk) {
+                    if (priorEntryEdge.equals(segment.edgeId())) {
+                        target.setDesignEntryNodeId(segment.entryNodeId());
+                        return;
+                    }
+                }
+            }
+        }
+        if (designWalk != null) {
+            for (OrientedRoadSegment segment : designWalk) {
+                if (keep.contains(segment.edgeId())) {
+                    target.setDesignEntryEdgeId(segment.edgeId());
+                    target.setDesignEntryNodeId(segment.entryNodeId());
+                    return;
+                }
+            }
+        }
     }
 
     /** Replace live maps with a successful working-copy snapshot (ownership transfer). */
@@ -706,6 +759,13 @@ public class RoadNetwork {
      * @return 合并后的 road id（即 head）；失败时 null
      */
     public String mergeRoadTailIntoHead(String headRoadId, String tailRoadId) {
+        return mergeRoadTailIntoHead(headRoadId, tailRoadId, null);
+    }
+
+    public String mergeRoadTailIntoHead(
+            String headRoadId,
+            String tailRoadId,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         crossingMigrationFailure = false;
         if (headRoadId == null || tailRoadId == null || headRoadId.equals(tailRoadId)) {
             return null;
@@ -756,7 +816,7 @@ public class RoadNetwork {
         }
 
         RoadNetwork working = snapshot();
-        String mergedId = working.mergeRoadTailIntoHeadMutating(headRoadId, tailRoadId);
+        String mergedId = working.mergeRoadTailIntoHeadMutating(headRoadId, tailRoadId, defaults);
         if (mergedId == null) {
             crossingMigrationFailure = working.crossingMigrationFailure;
             return null;
@@ -765,7 +825,10 @@ public class RoadNetwork {
         return mergedId;
     }
 
-    private String mergeRoadTailIntoHeadMutating(String headRoadId, String tailRoadId) {
+    private String mergeRoadTailIntoHeadMutating(
+            String headRoadId,
+            String tailRoadId,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         Road head = roads.get(headRoadId);
         Road tail = roads.get(tailRoadId);
         if (head == null || tail == null) {
@@ -807,11 +870,14 @@ public class RoadNetwork {
             return null;
         }
 
+        // Prepend inherits tail design entry; append keeps head entry.
         String priorEntryNode = head.getDesignEntryNodeId();
         String priorEntryEdge = head.getDesignEntryEdgeId();
+        List<OrientedRoadSegment> entryWalk = RoadStationing.orientedSegments(this, head);
         if (prependTail) {
             priorEntryNode = tail.getDesignEntryNodeId();
             priorEntryEdge = tail.getDesignEntryEdgeId();
+            entryWalk = RoadStationing.orientedSegments(this, tail);
         }
 
         double headLengthBefore = RoadStationing.canonicalLength(this, head);
@@ -823,12 +889,12 @@ public class RoadNetwork {
         List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
         if (appendTail) {
             migration = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
-                .applyRoadMerge(head, head, tail, headLengthBefore, tailLengthBefore);
+                .applyRoadMerge(head, head, tail, headLengthBefore, tailLengthBefore, defaults);
             mergedSegments.addAll(headSegments);
             mergedSegments.addAll(tailSegments);
         } else {
             migration = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
-                .applyRoadMerge(head, tail, head, tailLengthBefore, headLengthBefore);
+                .applyRoadMerge(head, tail, head, tailLengthBefore, headLengthBefore, defaults);
             mergedSegments.addAll(tailSegments);
             mergedSegments.addAll(headSegments);
         }
@@ -841,25 +907,20 @@ public class RoadNetwork {
         head.reorderSegments(mergedSegments);
         roads.remove(tailRoadId);
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, head);
-        if (!RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head)) {
+        boolean becameLoop = RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head);
+        if (!becameLoop) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, head);
         }
 
-        // Explicit design entry after final segment order — no min-XY rebind.
-        if (priorEntryEdge != null && mergedSegments.contains(priorEntryEdge)) {
-            head.setDesignEntryEdgeId(priorEntryEdge);
-            head.setDesignEntryNodeId(priorEntryNode);
-        } else if (!mergedSegments.isEmpty()) {
-            RoadEdge first = edges.get(mergedSegments.getFirst());
-            if (first != null) {
-                head.setDesignEntryEdgeId(first.getId());
-                head.setDesignEntryNodeId(first.getStartNodeId());
-            }
+        bindDesignEntryFromWalk(head, mergedSegments, entryWalk, priorEntryEdge, priorEntryNode);
+        if (becameLoop && head.getLoopSeam() == null) {
+            // Default seam must match final splice origin — no min-XY rebind of design direction.
+            head.setLoopSeam(RoadLoopSeamService.computeDefault(this, head));
         }
 
         if (migration.requiresHaRefit()) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
-            if (head.getHorizontalAlignment() == null) {
+            if (head.getHorizontalAlignment() == null || !stationDomainReliable(head)) {
                 crossingMigrationFailure = true;
                 return null;
             }

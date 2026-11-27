@@ -152,7 +152,7 @@ public final class RoadGraphEdits {
             return Optional.empty();
         }
 
-        // Lineage: first old edge is the one attached at merged start (nodeA).
+        // Lineage: first old edge spans nodeA→through; second spans through→nodeB.
         RoadEdge firstOld = edgeA.getStartNodeId().equals(nodeA) || edgeA.getEndNodeId().equals(nodeA)
             ? edgeA : edgeB;
         RoadEdge secondOld = firstOld == edgeA ? edgeB : edgeA;
@@ -160,7 +160,14 @@ public final class RoadGraphEdits {
             firstOld = edgeA;
             secondOld = edgeB;
         }
-        double secondLocalOffset = firstOld.getLength();
+        double firstOldLength = firstOld.getLength();
+        double secondOldLength = secondOld.getLength();
+        double secondLocalOffset = firstOldLength;
+        // Storage reversed relative to merged polyline direction nodeA→through→nodeB.
+        boolean firstReversed = firstOld.getStartNodeId().equals(nodeId)
+            && firstOld.getEndNodeId().equals(nodeA);
+        boolean secondReversed = secondOld.getStartNodeId().equals(nodeB)
+            && secondOld.getEndNodeId().equals(nodeId);
         String firstOldId = firstOld.getId();
         String secondOldId = secondOld.getId();
 
@@ -191,7 +198,14 @@ public final class RoadGraphEdits {
                 network.removeNode(nodeId);
             }
             return Optional.of(new MergeResult(
-                merged.getId(), firstOldId, secondOldId, secondLocalOffset));
+                merged.getId(),
+                firstOldId,
+                secondOldId,
+                secondLocalOffset,
+                firstOldLength,
+                secondOldLength,
+                firstReversed,
+                secondReversed));
         } catch (RuntimeException e) {
             if (merged != null && network.getEdge(merged.getId()) != null) {
                 network.unassignEdgeFromRoad(merged.getId());
@@ -824,13 +838,19 @@ public final class RoadGraphEdits {
     }
 
     /**
-     * Edge merge lineage: two old edges → one merged edge; {@code secondLocalOffset} is the
-     * geometry-local start of the second old edge along the merged polyline.
+     * Edge merge lineage: two old edges → one merged edge.
+     * {@code secondLocalOffset} is the geometry-local start of the second old edge along the
+     * merged polyline. {@code *Reversed} means the old edge's storage direction was mirrored
+     * into the merged polyline (local distance must use {@code L - d}).
      */
     public record MergeResult(
             String mergedEdgeId,
             String firstOldEdgeId,
             String secondOldEdgeId,
-            double secondLocalOffset) {
+            double secondLocalOffset,
+            double firstOldLength,
+            double secondOldLength,
+            boolean firstReversed,
+            boolean secondReversed) {
     }
 }

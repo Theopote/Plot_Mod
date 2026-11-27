@@ -16,7 +16,9 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -185,11 +187,16 @@ public final class RoadStationDataTransforms {
         boolean refitHorizontalAlignment = head.getHorizontalAlignment() != null
             || tail.getHorizontalAlignment() != null;
 
+        boolean headHasVa = head.getVerticalAlignment() != null && !head.getVerticalAlignment().isEmpty();
+        boolean tailHasVa = tail.getVerticalAlignment() != null && !tail.getVerticalAlignment().isEmpty();
+        // One-sided VA would silently extend profile onto AUTO side — refuse.
+        if (headHasVa != tailHasVa) {
+            return StationMigrationResult.rejected("one-sided VA merge refused");
+        }
+
         RoadVerticalAlignment mergedVa = mergeVerticalAlignments(
             head.getVerticalAlignment(), tail.getVerticalAlignment(), headLength);
-        if ((head.getVerticalAlignment() != null && !head.getVerticalAlignment().isEmpty()
-                || tail.getVerticalAlignment() != null && !tail.getVerticalAlignment().isEmpty())
-                && mergedVa == null) {
+        if ((headHasVa || tailHasVa) && mergedVa == null) {
             return StationMigrationResult.rejected("VA merge elev/constraint conflict");
         }
 
@@ -213,17 +220,88 @@ public final class RoadStationDataTransforms {
             headLength,
             tailLength);
 
+        var mergedFlat = mergeFlatVerticalIntents(head, tail);
+        if (mergedFlat.rejected()) {
+            return StationMigrationResult.rejected(mergedFlat.diagnostic());
+        }
+
         target.setVerticalAlignment(mergedVa);
         target.setVariableCrossSections(nullIfEmpty(mergedVcs));
         target.setStationFacilities(mergedFac);
+        if (mergedFlat.intent() != null) {
+            target.setFlatVerticalIntent(mergedFlat.intent());
+        }
         if (head.getCrossSection() != null) {
             target.setCrossSection(head.getCrossSection().copy());
         }
+        rebindEditedProfileSignature(target, head, tail);
 
         if (refitHorizontalAlignment) {
             target.setHorizontalAlignment(null);
         }
         return StationMigrationResult.ok(refitHorizontalAlignment);
+    }
+
+    private record FlatMergeOutcome(
+            FlatVerticalIntent intent,
+            boolean rejected,
+            String diagnostic) {
+        static FlatMergeOutcome ok(FlatVerticalIntent intent) {
+            return new FlatMergeOutcome(intent, false, "");
+        }
+
+        static FlatMergeOutcome refuse(String diagnostic) {
+            return new FlatMergeOutcome(null, true, diagnostic);
+        }
+    }
+
+    private static FlatMergeOutcome mergeFlatVerticalIntents(Road head, Road tail) {
+        FlatVerticalIntent headIntent = head.getFlatVerticalIntent();
+        FlatVerticalIntent tailIntent = tail.getFlatVerticalIntent();
+        if (headIntent == null && tailIntent == null) {
+            return FlatMergeOutcome.ok(null);
+        }
+        if (headIntent == null) {
+            return FlatMergeOutcome.ok(tailIntent.copy());
+        }
+        if (tailIntent == null) {
+            return FlatMergeOutcome.ok(headIntent.copy());
+        }
+        if (Math.abs(headIntent.getBaseElevation() - tailIntent.getBaseElevation()) > 1e-3) {
+            return FlatMergeOutcome.refuse("flat base elevation conflict");
+        }
+        FlatVerticalIntent merged = headIntent.copy();
+        for (var entry : tailIntent.getIntersectionOverrides().entrySet()) {
+            Double existing = merged.getIntersectionOverride(entry.getKey());
+            if (existing != null && Math.abs(existing - entry.getValue()) > 1e-3) {
+                return FlatMergeOutcome.refuse("flat override conflict");
+            }
+            merged.setIntersectionOverride(entry.getKey(), entry.getValue());
+        }
+        return FlatMergeOutcome.ok(merged);
+    }
+
+    private static void rebindEditedProfileSignature(Road target, Road head, Road tail) {
+        if (target == null) {
+            return;
+        }
+        boolean headEdited = head != null
+            && head.getStoredProfileSource() == ProfileSource.EDITED
+            && head.getEditedGeometrySignature() != 0;
+        boolean tailEdited = tail != null
+            && tail.getStoredProfileSource() == ProfileSource.EDITED
+            && tail.getEditedGeometrySignature() != 0;
+        if (!headEdited && !tailEdited) {
+            return;
+        }
+        // Preserve EDITED; signature rebound after final geometry by caller when possible.
+        if (headEdited) {
+            target.setProfileSource(ProfileSource.EDITED);
+            target.setEditedGeometrySignature(head.getEditedGeometrySignature());
+        } else {
+            target.setProfileSource(ProfileSource.EDITED);
+            target.setEditedGeometrySignature(tail.getEditedGeometrySignature());
+        }
     }
 
     public static StationMigrationResult applyRoadMerge(RoadNetwork network, Road head, Road tail) {
@@ -308,10 +386,29 @@ public final class RoadStationDataTransforms {
             newSegmentLength));
     }
 
+    /**
+     * Dual-domain geometry capture: {@code instanceLength} for polyline PI/fillet policy;
+     * canonical range for VA/VCS/facility clip. Do not mix domains.
+     */
     public record SegmentGeometrySnapshot(
-            double rangeStart,
-            double oldSegmentLength,
-            double totalLengthBefore) {
+            double instanceLength,
+            double canonicalRangeStart,
+            double canonicalRangeEnd,
+            double canonicalTotalLength) {
+
+        /** Canonical start — station-data callers. */
+        public double rangeStart() {
+            return canonicalRangeStart;
+        }
+
+        /** Canonical segment length — station-data remap. */
+        public double oldSegmentLength() {
+            return Math.max(0.0, canonicalRangeEnd - canonicalRangeStart);
+        }
+
+        public double totalLengthBefore() {
+            return canonicalTotalLength;
+        }
 
         public static SegmentGeometrySnapshot capture(RoadNetwork network, String edgeId) {
             if (network == null || edgeId == null || edgeId.isBlank()) {
@@ -325,16 +422,23 @@ public final class RoadStationDataTransforms {
             if (road == null) {
                 return null;
             }
-            // Canonical domain only — never mix instance polyline length into station clip.
             Optional<OrientedRoadSegment> oriented =
                 RoadStationing.orientedSegment(network, road, edgeId);
             if (oriented.isEmpty()) {
                 return null;
             }
             OrientedRoadSegment segment = oriented.get();
+            double cStart = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation());
+            double cEnd = RoadStationing.toCanonicalChainage(
+                network, road, segment.endStation());
+            if (!Double.isFinite(cStart) || !Double.isFinite(cEnd) || cEnd < cStart - EPSILON) {
+                return null;
+            }
             return new SegmentGeometrySnapshot(
-                segment.startStation(),
-                segment.length(),
+                edge.getLength(),
+                cStart,
+                cEnd,
                 RoadStationing.canonicalLength(network, road));
         }
     }
@@ -428,7 +532,10 @@ public final class RoadStationDataTransforms {
             }
         }
         remapped = mergeAdjacentIntervals(remapped);
-        return intervalsToVariableCrossSections(remapped, defaultSection);
+        VariableCrossSectionTransitionMode mode = source != null
+            ? source.getTransitionMode()
+            : VariableCrossSectionTransitionMode.STEP;
+        return intervalsToVariableCrossSections(remapped, defaultSection, mode);
     }
 
     static RoadStationFacilities rescaleStationFacilities(
@@ -467,40 +574,55 @@ public final class RoadStationDataTransforms {
 
     /**
      * 从 {@code source} 的沿桩号工程数据中提取 {@code [rangeStart, rangeEnd)}，写入 {@code target} 并重映射为 K0+000 起。
+     * Fail-closed：有源 VA 却无法无损裁剪时拒绝且不修改 target。
      */
-    public static void applyStationRangeExtract(
+    public static StationMigrationResult applyStationRangeExtract(
             Road source,
             Road target,
             double totalSourceLength,
             double rangeStart,
             double rangeEnd) {
         if (source == null || target == null || totalSourceLength <= EPSILON) {
-            return;
+            return StationMigrationResult.rejected("invalid extract args");
         }
         if (rangeEnd <= rangeStart + EPSILON) {
             target.setVerticalAlignment(null);
             target.setVariableCrossSections(null);
             target.setStationFacilities(null);
-            return;
+            return StationMigrationResult.ok(false);
         }
         double stationOffset = -rangeStart;
         RoadCrossSection defaultSection = source.getCrossSection();
-        // extractVerticalAlignmentRange already remaps to [0, L] — do not re-apply -rangeStart.
-        target.setVerticalAlignment(extractVerticalAlignmentRange(
-            source.getVerticalAlignment(), rangeStart, rangeEnd));
-        target.setVariableCrossSections(remapVariableCrossSections(
-            source.getVariableCrossSections(),
-            defaultSection,
-            totalSourceLength,
-            rangeStart,
-            rangeEnd,
-            stationOffset));
-        target.setStationFacilities(remapStationFacilities(
+        RoadVerticalAlignment sourceVa = source.getVerticalAlignment();
+        RoadVerticalAlignment extractedVa = null;
+        if (sourceVa != null && !sourceVa.isEmpty()) {
+            extractedVa = extractVerticalAlignmentRange(sourceVa, rangeStart, rangeEnd);
+            if (extractedVa == null) {
+                return StationMigrationResult.rejected("VA extract not lossless");
+            }
+        }
+        RoadVariableCrossSections extractedVcs;
+        try {
+            extractedVcs = remapVariableCrossSections(
+                source.getVariableCrossSections(),
+                defaultSection,
+                totalSourceLength,
+                rangeStart,
+                rangeEnd,
+                stationOffset);
+        } catch (StationMigrationRefuseException e) {
+            return StationMigrationResult.rejected(e.getMessage());
+        }
+        RoadStationFacilities extractedFac = remapStationFacilities(
             source.getStationFacilities(),
             totalSourceLength,
             rangeStart,
             rangeEnd,
-            stationOffset));
+            stationOffset);
+        target.setVerticalAlignment(extractedVa);
+        target.setVariableCrossSections(nullIfEmpty(extractedVcs));
+        target.setStationFacilities(extractedFac);
+        return StationMigrationResult.ok(false);
     }
 
     /**
@@ -526,15 +648,22 @@ public final class RoadStationDataTransforms {
                 }
                 continue;
             }
+            double cStart = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation());
+            double cEnd = RoadStationing.toCanonicalChainage(
+                network, road, segment.endStation());
+            if (!Double.isFinite(cStart) || !Double.isFinite(cEnd)) {
+                return List.of();
+            }
             if (Double.isNaN(runStart)) {
-                runStart = segment.startStation();
-                runEnd = segment.endStation();
-            } else if (Math.abs(segment.startStation() - runEnd) <= EPSILON) {
-                runEnd = segment.endStation();
+                runStart = cStart;
+                runEnd = cEnd;
+            } else if (Math.abs(cStart - runEnd) <= EPSILON) {
+                runEnd = cEnd;
             } else {
                 ranges.add(new StationRange(runStart, runEnd));
-                runStart = segment.startStation();
-                runEnd = segment.endStation();
+                runStart = cStart;
+                runEnd = cEnd;
             }
         }
         if (!Double.isNaN(runStart)) {
@@ -588,16 +717,18 @@ public final class RoadStationDataTransforms {
                 road.getHorizontalAlignment() != null);
         }
 
-        public void applyRangeTo(Road target, double totalSourceLength, StationRange range) {
+        public StationMigrationResult applyRangeTo(
+                Road target, double totalSourceLength, StationRange range) {
             if (target == null || !range.isValid()) {
-                return;
+                return StationMigrationResult.rejected("invalid apply range");
             }
             Road scratch = new Road("snapshot");
             scratch.setVerticalAlignment(verticalAlignment);
             scratch.setVariableCrossSections(variableCrossSections);
             scratch.setStationFacilities(stationFacilities);
             scratch.setCrossSection(target.getCrossSection());
-            applyStationRangeExtract(scratch, target, totalSourceLength, range.start(), range.end());
+            return applyStationRangeExtract(
+                scratch, target, totalSourceLength, range.start(), range.end());
         }
 
         public boolean hasPhase2Data() {
@@ -852,10 +983,17 @@ public final class RoadStationDataTransforms {
                         if (Math.abs(last.getElevation() - pvi.getElevation()) > 1e-3) {
                             return null;
                         }
-                        if (last.getConstraint() != pvi.getConstraint()
-                                && last.getConstraint() != VerticalControlPointConstraint.FREE
-                                && pvi.getConstraint() != VerticalControlPointConstraint.FREE) {
+                        VerticalControlPointConstraint mergedConstraint = mergeConstraints(
+                            last.getConstraint(), pvi.getConstraint());
+                        if (mergedConstraint == null) {
                             return null;
+                        }
+                        if (mergedConstraint != last.getConstraint()) {
+                            merged.set(merged.size() - 1, new PointOfVerticalIntersection(
+                                last.getStation(),
+                                last.getElevation(),
+                                last.getCurveLength(),
+                                mergedConstraint));
                         }
                         continue;
                     }
@@ -872,6 +1010,23 @@ public final class RoadStationDataTransforms {
         }
         RoadVerticalAlignment result = new RoadVerticalAlignment(merged);
         return VerticalAlignmentGeometry.isEvaluable(result) ? result : null;
+    }
+
+    /** FREE yields to a concrete constraint; incompatible non-FREE pair → null (refuse). */
+    private static VerticalControlPointConstraint mergeConstraints(
+            VerticalControlPointConstraint headConstraint,
+            VerticalControlPointConstraint tailConstraint) {
+        VerticalControlPointConstraint head = headConstraint != null
+            ? headConstraint : VerticalControlPointConstraint.FREE;
+        VerticalControlPointConstraint tail = tailConstraint != null
+            ? tailConstraint : VerticalControlPointConstraint.FREE;
+        if (head == VerticalControlPointConstraint.FREE) {
+            return tail;
+        }
+        if (tail == VerticalControlPointConstraint.FREE) {
+            return head;
+        }
+        return head == tail ? head : null;
     }
 
     static RoadVariableCrossSections mergeVariableCrossSections(
@@ -917,7 +1072,14 @@ public final class RoadStationDataTransforms {
             intervalsToVariableCrossSections(intervals, mergedDefault, mode);
         if (mode == VariableCrossSectionTransitionMode.SMOOTH
                 && !smoothVcsPhysicallySound(
-                    head, tail, mergedDefault, headLength, tailLength, result, defaults)) {
+                    head,
+                    tail,
+                    mergedDefault,
+                    tailSectionDefault,
+                    headLength,
+                    tailLength,
+                    result,
+                    defaults)) {
             return null;
         }
         return result;
@@ -926,7 +1088,8 @@ public final class RoadStationDataTransforms {
     private static boolean smoothVcsPhysicallySound(
             RoadVariableCrossSections head,
             RoadVariableCrossSections tail,
-            RoadCrossSection defaultSection,
+            RoadCrossSection headDefault,
+            RoadCrossSection tailDefault,
             double headLength,
             double tailLength,
             RoadVariableCrossSections merged,
@@ -934,6 +1097,8 @@ public final class RoadStationDataTransforms {
         if (merged == null) {
             return false;
         }
+        RoadCrossSection mergedDefault = headDefault != null ? headDefault : new RoadCrossSection();
+        RoadCrossSection tailSectionDefault = tailDefault != null ? tailDefault : mergedDefault;
         RoadSystemConfig config = defaults != null ? defaults : new RoadSystemConfig("plot");
         double total = headLength + tailLength;
         double step = Math.max(total / 32.0, 0.5);
@@ -941,7 +1106,7 @@ public final class RoadStationDataTransforms {
             ResolvedCrossSection expected;
             if (s < headLength - EPSILON) {
                 expected = VariableCrossSectionResolver.resolve(
-                    defaultSection,
+                    mergedDefault,
                     head != null ? head.sortedStations() : List.of(),
                     VariableCrossSectionTransitionMode.SMOOTH,
                     s,
@@ -949,14 +1114,14 @@ public final class RoadStationDataTransforms {
             } else {
                 double local = Math.max(0.0, s - headLength);
                 expected = VariableCrossSectionResolver.resolve(
-                    defaultSection,
+                    tailSectionDefault,
                     tail != null ? tail.sortedStations() : List.of(),
                     VariableCrossSectionTransitionMode.SMOOTH,
                     local,
                     config);
             }
             ResolvedCrossSection actual = VariableCrossSectionResolver.resolve(
-                defaultSection,
+                mergedDefault,
                 merged.sortedStations(),
                 VariableCrossSectionTransitionMode.SMOOTH,
                 s,

@@ -57,11 +57,16 @@ public final class CenterlinePhase2ConsistencyPolicy {
         if (road == null) {
             return;
         }
+        // Length-change policy uses instance polyline; station remap uses canonical lengths.
         CenterlineEditStationPolicy policy = operation.resolveStationPolicy(
-            before.oldSegmentLength(),
+            before.instanceLength(),
             edge.getLength());
         if (policy == CenterlineEditStationPolicy.REPARAMETERIZE_STATION) {
-            policy.applySegmentGeometryEdit(road, before, edge.getLength());
+            double ratio = before.instanceLength() > 1e-9
+                ? edge.getLength() / before.instanceLength()
+                : 1.0;
+            double newCanonicalLength = before.oldSegmentLength() * ratio;
+            policy.applySegmentGeometryEdit(road, before, newCanonicalLength);
         }
         syncHorizontalAlignment(network, road);
     }

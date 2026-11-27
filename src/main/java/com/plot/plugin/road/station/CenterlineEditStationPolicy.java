@@ -85,18 +85,38 @@ public enum CenterlineEditStationPolicy {
             Road tail,
             double splitStation,
             double totalLength) {
+        return applyRoadSplit(head, tail, splitStation, totalLength, null);
+    }
+
+    public StationMigrationResult applyRoadSplit(
+            Road head,
+            Road tail,
+            double splitStation,
+            double totalLength,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         if (this != PARTITION_AND_RESET_TAIL) {
             throw new IllegalStateException("Expected PARTITION_AND_RESET_TAIL, got " + this);
         }
-        return RoadStationDataTransforms.applyRoadSplit(head, tail, splitStation, totalLength);
+        return RoadStationDataTransforms.applyRoadSplit(
+            head, tail, splitStation, totalLength, defaults);
     }
 
     public StationMigrationResult applyRoadSplit(
             RoadNetwork network, Road head, Road tail, double splitStation) {
+        return applyRoadSplit(network, head, tail, splitStation, null);
+    }
+
+    public StationMigrationResult applyRoadSplit(
+            RoadNetwork network,
+            Road head,
+            Road tail,
+            double splitStation,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         if (this != PARTITION_AND_RESET_TAIL) {
             throw new IllegalStateException("Expected PARTITION_AND_RESET_TAIL, got " + this);
         }
-        return RoadStationDataTransforms.applyRoadSplit(network, head, tail, splitStation);
+        return RoadStationDataTransforms.applyRoadSplit(
+            network, head, tail, splitStation, defaults);
     }
 
     public StationMigrationResult applyRoadMerge(
@@ -105,17 +125,42 @@ public enum CenterlineEditStationPolicy {
             Road tail,
             double headLength,
             double tailLength) {
+        return applyRoadMerge(target, head, tail, headLength, tailLength, null);
+    }
+
+    public StationMigrationResult applyRoadMerge(
+            Road target,
+            Road head,
+            Road tail,
+            double headLength,
+            double tailLength,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         if (this != OFFSET_BY_HEAD_LENGTH) {
             throw new IllegalStateException("Expected OFFSET_BY_HEAD_LENGTH, got " + this);
         }
-        return RoadStationDataTransforms.applyRoadMerge(target, head, tail, headLength, tailLength);
+        return RoadStationDataTransforms.applyRoadMerge(
+            target, head, tail, headLength, tailLength, defaults);
     }
 
     public StationMigrationResult applyRoadMerge(RoadNetwork network, Road head, Road tail) {
+        return applyRoadMerge(network, head, tail, null);
+    }
+
+    public StationMigrationResult applyRoadMerge(
+            RoadNetwork network,
+            Road head,
+            Road tail,
+            com.plot.plugin.config.RoadSystemConfig defaults) {
         if (this != OFFSET_BY_HEAD_LENGTH) {
             throw new IllegalStateException("Expected OFFSET_BY_HEAD_LENGTH, got " + this);
         }
-        return RoadStationDataTransforms.applyRoadMerge(network, head, tail);
+        if (network == null || head == null || tail == null) {
+            return StationMigrationResult.rejected("invalid merge network args");
+        }
+        double headLength = RoadStationing.canonicalLength(network, head);
+        double tailLength = RoadStationing.canonicalLength(network, tail);
+        return RoadStationDataTransforms.applyRoadMerge(
+            head, head, tail, headLength, tailLength, defaults);
     }
 
     public void applyReverseEdge(RoadNetwork network, String edgeId) {

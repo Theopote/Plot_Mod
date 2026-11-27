@@ -15,10 +15,12 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.station.CenterlineEditOperation;
+import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadDesignDirectionAuthority;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
@@ -70,6 +72,9 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE);
         }
         SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+        if (before == null && edge.getRoadId() != null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+        }
         edge.setCenterlinePoints(updated.get());
         return finishEdit(
             network,
@@ -91,6 +96,16 @@ public final class RoadCenterlineEditor {
         if (splitPoint == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE);
         }
+        // Capture design entry + seam before topology replaces the edge.
+        Road roadBefore = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
+        String priorEntryEdge = roadBefore != null ? roadBefore.getDesignEntryEdgeId() : null;
+        String priorEntryNode = roadBefore != null ? roadBefore.getDesignEntryNodeId() : null;
+        RoadLoopSeam priorSeam = roadBefore != null && roadBefore.getLoopSeam() != null
+            ? roadBefore.getLoopSeam() : null;
+        Optional<OrientedRoadSegment> priorOriented = roadBefore != null
+            ? RoadStationing.orientedSegment(network, roadBefore, edgeId)
+            : Optional.empty();
+
         // Local-arc split: keep segment index; never re-pick nearest segment by plane coords.
         Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network)
             .splitEdgeAtLocalDistance(edgeId, localDistance);
@@ -98,7 +113,8 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.SPLIT_FAILED);
         }
         RoadGraphEdits.SplitResult result = split.get();
-        migrateLineageAfterEdgeSplit(network, result);
+        migrateLineageAfterEdgeSplit(
+            network, result, priorEntryEdge, priorEntryNode, priorSeam, priorOriented.orElse(null));
         return finishEdit(
             network,
             result.firstEdgeId(),
@@ -139,6 +155,9 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_VERTEX);
         }
         SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+        if (before == null && edge.getRoadId() != null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+        }
         List<Vec2d> updated = new ArrayList<>(points.size() - 1);
         for (int i = 0; i < points.size(); i++) {
             if (i == vertexIndex) {
@@ -191,6 +210,9 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_RADIUS);
         }
         SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+        if (before == null && edge.getRoadId() != null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+        }
         edge.setCenterlinePoints(filleted);
         return finishEdit(
             network,
@@ -204,12 +226,39 @@ public final class RoadCenterlineEditor {
         if (network == null || nodeId == null || nodeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.NODE_NOT_FOUND);
         }
+        RoadNode through = network.getNode(nodeId);
+        if (through == null || through.getDegree() != 2) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
+        }
+        List<String> connected = List.copyOf(through.getConnectedEdgeIds());
+        if (connected.size() != 2) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
+        }
+        RoadEdge previewA = network.getEdge(connected.get(0));
+        RoadEdge previewB = network.getEdge(connected.get(1));
+        String roadId = previewA != null && previewA.getRoadId() != null
+            ? previewA.getRoadId()
+            : (previewB != null ? previewB.getRoadId() : null);
+        Road roadBefore = roadId != null ? network.getRoad(roadId) : null;
+        String priorEntryEdge = roadBefore != null ? roadBefore.getDesignEntryEdgeId() : null;
+        String priorEntryNode = roadBefore != null ? roadBefore.getDesignEntryNodeId() : null;
+        RoadLoopSeam priorSeam = roadBefore != null ? roadBefore.getLoopSeam() : null;
+        // Through-node is the design entry: must rebuild onto a surviving endpoint or refuse.
+        if (priorEntryNode != null && priorEntryNode.equals(nodeId)) {
+            String rebuildNode = survivingEndpointForDeletedEntry(
+                previewA, previewB, nodeId, priorEntryEdge);
+            if (rebuildNode == null) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
+            }
+            priorEntryNode = rebuildNode;
+        }
+
         Optional<RoadGraphEdits.MergeResult> merged = RoadGraphEdits.of(network).mergeThroughNode(nodeId);
         if (merged.isEmpty()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
         }
         RoadGraphEdits.MergeResult result = merged.get();
-        migrateLineageAfterEdgeMerge(network, result);
+        migrateLineageAfterEdgeMerge(network, result, priorEntryEdge, priorEntryNode, priorSeam);
         return finishEdit(
             network,
             result.mergedEdgeId(),
@@ -217,8 +266,42 @@ public final class RoadCenterlineEditor {
             CenterlineEditOperation.MERGE_EDGE);
     }
 
-    /** Remap seam hint + design entry after Split Edge using geometry-local lineage. */
-    static void migrateLineageAfterEdgeSplit(RoadNetwork network, RoadGraphEdits.SplitResult split) {
+    /**
+     * When merge deletes the design-entry node, keep the far endpoint of the entry edge.
+     */
+    private static String survivingEndpointForDeletedEntry(
+            RoadEdge edgeA,
+            RoadEdge edgeB,
+            String throughNodeId,
+            String priorEntryEdgeId) {
+        RoadEdge entryEdge = null;
+        if (priorEntryEdgeId != null) {
+            if (edgeA != null && priorEntryEdgeId.equals(edgeA.getId())) {
+                entryEdge = edgeA;
+            } else if (edgeB != null && priorEntryEdgeId.equals(edgeB.getId())) {
+                entryEdge = edgeB;
+            }
+        }
+        if (entryEdge == null) {
+            return null;
+        }
+        if (throughNodeId.equals(entryEdge.getStartNodeId())) {
+            return entryEdge.getEndNodeId();
+        }
+        if (throughNodeId.equals(entryEdge.getEndNodeId())) {
+            return entryEdge.getStartNodeId();
+        }
+        return null;
+    }
+
+    /** Remap seam hint + design entry after Split Edge using pre-captured lineage. */
+    static void migrateLineageAfterEdgeSplit(
+            RoadNetwork network,
+            RoadGraphEdits.SplitResult split,
+            String priorEntryEdge,
+            String priorEntryNode,
+            RoadLoopSeam priorSeam,
+            OrientedRoadSegment priorOriented) {
         if (network == null || split == null || split.oldEdgeId() == null) {
             return;
         }
@@ -231,18 +314,29 @@ public final class RoadCenterlineEditor {
         if (road == null) {
             return;
         }
-        if (split.oldEdgeId().equals(road.getDesignEntryEdgeId())) {
-            String entryNode = road.getDesignEntryNodeId();
-            if (entryNode != null && entryNode.equals(second.getStartNodeId())) {
+        if (split.oldEdgeId().equals(priorEntryEdge)) {
+            String entryNode = priorEntryNode;
+            if (entryNode == null && priorOriented != null) {
+                entryNode = priorOriented.entryNodeId();
+            }
+            // Never use second.getStartNodeId() (always the new split node) as design entry.
+            if (entryNode != null && entryNode.equals(second.getEndNodeId())) {
                 road.setDesignEntryEdgeId(second.getId());
+                road.setDesignEntryNodeId(second.getEndNodeId());
+            } else if (entryNode != null && entryNode.equals(first.getStartNodeId())) {
+                road.setDesignEntryEdgeId(first.getId());
+                road.setDesignEntryNodeId(first.getStartNodeId());
+            } else if (priorOriented != null && !priorOriented.forward()) {
+                // Reverse storage: design walk enters at old storage end → second child.
+                road.setDesignEntryEdgeId(second.getId());
+                road.setDesignEntryNodeId(second.getEndNodeId());
             } else {
                 road.setDesignEntryEdgeId(first.getId());
-                if (road.getDesignEntryNodeId() == null) {
-                    road.setDesignEntryNodeId(first.getStartNodeId());
-                }
+                road.setDesignEntryNodeId(
+                    entryNode != null ? entryNode : first.getStartNodeId());
             }
         }
-        RoadLoopSeam seam = road.getLoopSeam();
+        RoadLoopSeam seam = priorSeam != null ? priorSeam : road.getLoopSeam();
         if (seam == null || seam.segmentHintId() == null
                 || !seam.segmentHintId().equals(split.oldEdgeId())
                 || seam.localFraction() == null
@@ -254,28 +348,28 @@ public final class RoadCenterlineEditor {
             return;
         }
         double seamLocal = seam.localFraction() * oldLength;
+        Vec2d seamPos = seam.position() != null ? seam.position().copy() : null;
         if (seamLocal <= split.splitGeometryLocal() + 1e-9) {
             double frac = first.getLength() > 1e-9
                 ? Math.max(0.0, Math.min(1.0, seamLocal / first.getLength()))
                 : 0.0;
-            road.setLoopSeam(RoadLoopSeam.onSegment(
-                seam.position() != null ? seam.position().copy() : null,
-                first.getId(),
-                frac));
+            road.setLoopSeam(RoadLoopSeam.onSegment(seamPos, first.getId(), frac));
         } else {
             double localOnSecond = seamLocal - split.splitGeometryLocal();
             double frac = second.getLength() > 1e-9
                 ? Math.max(0.0, Math.min(1.0, localOnSecond / second.getLength()))
                 : 0.0;
-            road.setLoopSeam(RoadLoopSeam.onSegment(
-                seam.position() != null ? seam.position().copy() : null,
-                second.getId(),
-                frac));
+            road.setLoopSeam(RoadLoopSeam.onSegment(seamPos, second.getId(), frac));
         }
     }
 
-    /** Remap seam hint + design entry after Merge Edge. */
-    static void migrateLineageAfterEdgeMerge(RoadNetwork network, RoadGraphEdits.MergeResult merge) {
+    /** Remap seam hint + design entry after Merge Edge using reverse-aware lineage. */
+    static void migrateLineageAfterEdgeMerge(
+            RoadNetwork network,
+            RoadGraphEdits.MergeResult merge,
+            String priorEntryEdge,
+            String priorEntryNode,
+            RoadLoopSeam priorSeam) {
         if (network == null || merge == null || merge.mergedEdgeId() == null) {
             return;
         }
@@ -287,14 +381,20 @@ public final class RoadCenterlineEditor {
         if (road == null) {
             return;
         }
-        String entry = road.getDesignEntryEdgeId();
-        if (merge.firstOldEdgeId().equals(entry) || merge.secondOldEdgeId().equals(entry)) {
+        if (merge.firstOldEdgeId().equals(priorEntryEdge)
+                || merge.secondOldEdgeId().equals(priorEntryEdge)) {
             road.setDesignEntryEdgeId(merged.getId());
-            if (road.getDesignEntryNodeId() == null) {
+            if (priorEntryNode != null
+                    && (priorEntryNode.equals(merged.getStartNodeId())
+                        || priorEntryNode.equals(merged.getEndNodeId()))) {
+                road.setDesignEntryNodeId(priorEntryNode);
+            } else if (priorEntryNode != null) {
+                road.setDesignEntryNodeId(priorEntryNode);
+            } else {
                 road.setDesignEntryNodeId(merged.getStartNodeId());
             }
         }
-        RoadLoopSeam seam = road.getLoopSeam();
+        RoadLoopSeam seam = priorSeam != null ? priorSeam : road.getLoopSeam();
         if (seam == null || seam.segmentHintId() == null || seam.localFraction() == null) {
             return;
         }
@@ -308,11 +408,22 @@ public final class RoadCenterlineEditor {
         }
         double local;
         if (hint.equals(merge.firstOldEdgeId())) {
-            local = seam.localFraction() * Math.max(merge.secondLocalOffset(), 0.0);
+            double oldLen = merge.firstOldLength() > 1e-9
+                ? merge.firstOldLength() : Math.max(merge.secondLocalOffset(), 0.0);
+            double dOld = seam.localFraction() * oldLen;
+            if (merge.firstReversed()) {
+                dOld = oldLen - dOld;
+            }
+            local = dOld;
         } else {
-            // Approximate prior second-edge length from offset + merged remainder.
-            double secondLen = Math.max(0.0, mergedLength - merge.secondLocalOffset());
-            local = merge.secondLocalOffset() + seam.localFraction() * secondLen;
+            double oldLen = merge.secondOldLength() > 1e-9
+                ? merge.secondOldLength()
+                : Math.max(0.0, mergedLength - merge.secondLocalOffset());
+            double dOld = seam.localFraction() * oldLen;
+            if (merge.secondReversed()) {
+                dOld = oldLen - dOld;
+            }
+            local = merge.secondLocalOffset() + dOld;
         }
         road.setLoopSeam(RoadLoopSeam.onSegment(
             seam.position() != null ? seam.position().copy() : null,
@@ -817,7 +928,7 @@ public final class RoadCenterlineEditor {
                     operation,
                     edgeId,
                     before);
-            } else {
+            } else if (operation.defaultStationPolicy() == CenterlineEditStationPolicy.PRESERVE_STATION) {
                 CenterlinePhase2ConsistencyPolicy.afterGraphTopologyEdit(network, operation, edgeId);
             }
         }
