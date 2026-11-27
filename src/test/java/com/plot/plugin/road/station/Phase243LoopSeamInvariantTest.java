@@ -236,32 +236,27 @@ class Phase243LoopSeamInvariantTest {
             config);
         assertEquals(12, seamSection.resolve(config).carriagewayWidth);
 
+        // Different lane counts → discrete switch moves when seam splits the span → refuse.
         Road road = new Road("loop");
         road.setCrossSection(narrow);
         road.setVariableCrossSections(new RoadVariableCrossSections(
             anchors, VariableCrossSectionTransitionMode.SMOOTH));
-        assertTrue(RoadStationDataTransforms.rotateLoopStations(road, 40.0, 100.0));
-        assertEquals(VariableCrossSectionTransitionMode.SMOOTH,
-            road.getVariableCrossSections().getTransitionMode());
-        assertEquals(12, VariableCrossSectionResolver.resolve(
-            narrow,
-            road.getVariableCrossSections().sortedStations(),
-            VariableCrossSectionTransitionMode.SMOOTH,
-            0.0,
-            config).carriagewayWidth);
+        assertFalse(RoadStationDataTransforms.rotateLoopStations(road, 40.0, 100.0, config));
 
-        for (double s = 0.0; s < 100.0; s += 12.5) {
-            int before = VariableCrossSectionResolver.resolve(
-                narrow, anchors, VariableCrossSectionTransitionMode.SMOOTH, s, config)
-                .carriagewayWidth;
-            int after = VariableCrossSectionResolver.resolve(
-                narrow,
-                road.getVariableCrossSections().sortedStations(),
-                VariableCrossSectionTransitionMode.SMOOTH,
-                CyclicStationTransform.rotateByShift(s, 40.0, 100.0),
-                config).carriagewayWidth;
-            assertEquals(before, after, "SMOOTH width at s=" + s);
-        }
+        // Identical discrete attrs (same lane count/materials) with continuous width only → allow.
+        RoadCrossSection narrowSame = sectionWithTravelWidth(8);
+        RoadCrossSection wideSameLanes = sectionWithTravelWidth(12); // still 2 lanes
+        List<StationCrossSection> sameDiscrete = List.of(
+            StationCrossSection.at(0.0, narrowSame),
+            StationCrossSection.at(80.0, wideSameLanes),
+            StationCrossSection.at(100.0, narrowSame));
+        Road roadOk = new Road("loop-ok");
+        roadOk.setCrossSection(narrowSame);
+        roadOk.setVariableCrossSections(new RoadVariableCrossSections(
+            sameDiscrete, VariableCrossSectionTransitionMode.SMOOTH));
+        assertTrue(RoadStationDataTransforms.rotateLoopStations(roadOk, 40.0, 100.0, config));
+        assertEquals(VariableCrossSectionTransitionMode.SMOOTH,
+            roadOk.getVariableCrossSections().getTransitionMode());
     }
 
     @Test
@@ -675,26 +670,34 @@ class Phase243LoopSeamInvariantTest {
         RoadSystemConfig config = flatWidthConfig();
         Road road = new Road("loop");
         RoadCrossSection narrow = sectionWithTravelWidth(8);
-        RoadCrossSection wide = sectionWithTravelWidth(16);
+        RoadCrossSection wide = sectionWithTravelWidth(12); // same lane count as 8
         road.setCrossSection(narrow);
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(0.0, narrow),
             StationCrossSection.at(25.0, wide),
-            StationCrossSection.at(75.0, narrow)), VariableCrossSectionTransitionMode.SMOOTH));
-        assertTrue(RoadStationDataTransforms.rotateLoopStations(road, 50.0, 100.0));
+            StationCrossSection.at(75.0, narrow),
+            StationCrossSection.at(100.0, narrow)), VariableCrossSectionTransitionMode.SMOOTH));
+        assertTrue(RoadStationDataTransforms.rotateLoopStations(road, 50.0, 100.0, config));
+        List<StationCrossSection> beforeAnchors = List.of(
+            StationCrossSection.at(0.0, narrow),
+            StationCrossSection.at(25.0, wide),
+            StationCrossSection.at(75.0, narrow),
+            StationCrossSection.at(100.0, narrow));
         for (double s = 0.0; s < 100.0; s += 10.0) {
-            int before = VariableCrossSectionResolver.resolve(
-                narrow,
-                List.of(StationCrossSection.at(25.0, wide), StationCrossSection.at(75.0, narrow)),
-                VariableCrossSectionTransitionMode.SMOOTH,
-                s,
-                config).carriagewayWidth;
-            int after = VariableCrossSectionResolver.resolve(
+            var before = VariableCrossSectionResolver.resolve(
+                narrow, beforeAnchors, VariableCrossSectionTransitionMode.SMOOTH, s, config);
+            var after = VariableCrossSectionResolver.resolve(
                 narrow,
                 road.getVariableCrossSections().sortedStations(),
                 VariableCrossSectionTransitionMode.SMOOTH,
                 CyclicStationTransform.rotateByShift(s, 50.0, 100.0),
-                config).carriagewayWidth;
-            assertEquals(before, after);
+                config);
+            assertEquals(before.carriagewayWidth, after.carriagewayWidth, "SMOOTH width at s=" + s);
+            assertEquals(before.laneCount, after.laneCount, "SMOOTH lanes at s=" + s);
+            assertEquals(
+                before.carriagewayMaterial != null ? before.carriagewayMaterial.getPrimaryMaterial() : null,
+                after.carriagewayMaterial != null ? after.carriagewayMaterial.getPrimaryMaterial() : null,
+                "SMOOTH material at s=" + s);
         }
     }
 

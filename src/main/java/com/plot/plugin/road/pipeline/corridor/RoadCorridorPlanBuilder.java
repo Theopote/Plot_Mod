@@ -199,6 +199,7 @@ public final class RoadCorridorPlanBuilder {
             buildProfile,
             snapper,
             endpointTrim,
+            true,
             (center, leftNormal, targetY, chainage, segmentIndex) -> stations.add(
                 new StationSample(
                     center,

@@ -133,6 +133,7 @@ public final class RoadPathStationSampler {
 
     /**
      * Preferred entry: explicit chain-forward + station resolver (canonical/physical/instance).
+     * Non-finite stations are skipped (decoration-safe).
      */
     public static void forEach(
             List<PathSegment> segments,
@@ -144,6 +145,27 @@ public final class RoadPathStationSampler {
             BuildHeightProfile buildProfile,
             ElevationSnapper elevationSnapper,
             StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
+            StationSampleConsumer consumer) {
+        forEach(
+            segments, heightInfos, chainForward, stations, unitsPerBlock,
+            designElevation, buildProfile, elevationSnapper, endpointTrim, false, consumer);
+    }
+
+    /**
+     * @param requireFiniteStation when true, non-finite chainage fails the edge (core geometry);
+     *                             when false, the sample is skipped (lamps / optional furniture).
+     */
+    public static void forEach(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            boolean chainForward,
+            GeometryLocalStationResolver stations,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            ElevationSnapper elevationSnapper,
+            StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
+            boolean requireFiniteStation,
             StationSampleConsumer consumer) {
         if (segments == null || heightInfos == null || consumer == null || stations == null) {
             return;
@@ -183,6 +205,10 @@ public final class RoadPathStationSampler {
                 }
                 double chainage = stations.stationAtGeometryLocal(geometryLocal);
                 if (!Double.isFinite(chainage)) {
+                    if (requireFiniteStation) {
+                        throw new IllegalStateException(
+                            "station resolve failed at geometryLocal=" + geometryLocal);
+                    }
                     continue;
                 }
                 consumer.accept(center, leftNormal, targetY, chainage, i);

@@ -1604,7 +1604,7 @@ public final class RoadNetworkManager {
         boolean priorEditedValid =
             com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasValidEditedProfile(working, workingRoad);
         if (!RoadStationDataTransforms.rotateLoopStations(
-                working, workingRoad, pendingLoopSeamShift, loopLength)) {
+                working, workingRoad, pendingLoopSeamShift, loopLength, config)) {
             clearPendingLoopSeamRemap();
             loopSeamPickSession.cancel();
             status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
@@ -1668,7 +1668,15 @@ public final class RoadNetworkManager {
             if (!java.util.Objects.equals(before.crossingClearance(), after.crossingClearance())) {
                 return false;
             }
-            if (!Double.isFinite(after.stationOn(roadId))) {
+            double beforeStation = before.stationOn(roadId);
+            double afterStation = after.stationOn(roadId);
+            if (!Double.isFinite(afterStation)) {
+                return false;
+            }
+            var beforeXy = RoadStationing.pointAtStation(beforeNetwork, beforeRoad, beforeStation);
+            var afterXy = RoadStationing.pointAtStation(afterNetwork, afterRoad, afterStation);
+            if (beforeXy.isEmpty() || afterXy.isEmpty()
+                    || beforeXy.get().distance(afterXy.get()) > 0.1) {
                 return false;
             }
         }
@@ -1686,6 +1694,33 @@ public final class RoadNetworkManager {
                 return false;
             }
             if (!java.util.Objects.equals(before.crossingClearance(), after.crossingClearance())) {
+                return false;
+            }
+            if (!java.util.Objects.equals(before.sharedElevation(), after.sharedElevation())) {
+                return false;
+            }
+            if (!java.util.Objects.equals(before.lowerStation() != null, after.lowerStation() != null)
+                    || !java.util.Objects.equals(
+                        before.upperStation() != null, after.upperStation() != null)) {
+                return false;
+            }
+            var beforeA = RoadStationing.pointAtStation(beforeNetwork, beforeRoad, before.stationA());
+            var afterA = RoadStationing.pointAtStation(afterNetwork, afterRoad, after.stationA());
+            var beforeB = RoadStationing.pointAtStation(beforeNetwork, beforeRoad, before.stationB());
+            var afterB = RoadStationing.pointAtStation(afterNetwork, afterRoad, after.stationB());
+            if (beforeA.isEmpty() || afterA.isEmpty() || beforeB.isEmpty() || afterB.isEmpty()) {
+                return false;
+            }
+            // Dual-pass identity: both physical passes stay at the same world XY (order may swap).
+            boolean sameOrder = beforeA.get().distance(afterA.get()) <= 0.1
+                && beforeB.get().distance(afterB.get()) <= 0.1;
+            boolean swapped = beforeA.get().distance(afterB.get()) <= 0.1
+                && beforeB.get().distance(afterA.get()) <= 0.1;
+            if (!sameOrder && !swapped) {
+                return false;
+            }
+            if (before.position() != null && after.position() != null
+                    && before.position().distance(after.position()) > 0.1) {
                 return false;
             }
         }
@@ -1872,7 +1907,7 @@ public final class RoadNetworkManager {
                         beforeNetwork, beforeRoad, beforeStation.get().chainageMeters(), resolveDefaults);
                     var afterCs = com.plot.plugin.road.model.section.VariableCrossSectionResolver.resolve(
                         afterNetwork, afterRoad, afterStation.get().chainageMeters(), resolveDefaults);
-                    if (beforeCs.carriagewayWidth != afterCs.carriagewayWidth) {
+                    if (!beforeCs.displayEquals(afterCs)) {
                         return false;
                     }
                 }
@@ -1880,25 +1915,46 @@ public final class RoadNetworkManager {
         }
         if (beforeRoad.getStationFacilities() != null && !beforeRoad.getStationFacilities().isEmpty()
                 && afterRoad.getStationFacilities() != null) {
-            double beforeCoverage = facilityCoverageLength(beforeRoad, loopLength);
-            double afterCoverage = facilityCoverageLength(afterRoad, afterLength);
-            return !(Math.abs(beforeCoverage - afterCoverage) > 1e-2);
+            return facilityCoverageByIdentityEquals(
+                beforeRoad, loopLength, afterRoad, afterLength);
         }
         return true;
     }
 
-    private static double facilityCoverageLength(Road road, double loopLength) {
-        double coverage = 0.0;
+    private static boolean facilityCoverageByIdentityEquals(
+            Road beforeRoad,
+            double beforeLength,
+            Road afterRoad,
+            double afterLength) {
+        java.util.Map<String, Double> beforeKeys = facilityCoverageKeys(beforeRoad, beforeLength);
+        java.util.Map<String, Double> afterKeys = facilityCoverageKeys(afterRoad, afterLength);
+        if (beforeKeys.size() != afterKeys.size()) {
+            return false;
+        }
+        for (var entry : beforeKeys.entrySet()) {
+            Double after = afterKeys.get(entry.getKey());
+            if (after == null || Math.abs(after - entry.getValue()) > 1e-2) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static java.util.Map<String, Double> facilityCoverageKeys(Road road, double loopLength) {
+        java.util.Map<String, Double> keys = new java.util.HashMap<>();
         if (road.getStationFacilities() == null) {
-            return 0.0;
+            return keys;
         }
         for (var run : road.getStationFacilities().getRuns()) {
             double end = run.getEndStation() != null ? run.getEndStation() : loopLength;
-            if (end > run.getStartStation()) {
-                coverage += end - run.getStartStation();
+            if (!(end > run.getStartStation())) {
+                continue;
             }
+            String key = run.getKind() + "|" + run.getSide() + "|"
+                + java.util.Objects.toString(run.getMaterial(), "");
+            keys.merge(key, end - run.getStartStation(), Double::sum);
         }
-        return coverage;
+        return keys;
     }
 
     /**

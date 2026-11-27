@@ -715,11 +715,8 @@ public final class RoadPlanGeometry {
         if (map == null || !map.isReliable()) {
             return Double.NaN;
         }
-        // Explicit seam: physical seam identity → HA native.
-        // No seam: virtual origin at design-entry physical station (typically 0).
-        double physicalSeam = road.getLoopSeam() != null
-            ? RoadStationing.physicalSeamStation(network, road)
-            : 0.0;
+        // Explicit seam or virtual design-entry origin on the HA physical walk — never assume 0.
+        double physicalSeam = RoadStationing.loopPhysicalOriginStation(network, road);
         if (!Double.isFinite(physicalSeam)) {
             return Double.NaN;
         }

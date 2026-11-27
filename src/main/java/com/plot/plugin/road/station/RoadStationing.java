@@ -773,6 +773,62 @@ public final class RoadStationing {
     }
 
     /**
+     * Virtual seam origin when no explicit LOOP seam: physical station of the persisted
+     * design-entry node/edge on the HA physical materialization walk.
+     * Never assume 0 — HA may rotate the walk start away from the design entry.
+     */
+    public static double designEntryPhysicalStation(RoadNetwork network, Road road) {
+        if (network == null || road == null
+                || road.getTopologyMode() != RoadTopologyMode.LOOP) {
+            return Double.NaN;
+        }
+        RoadDesignDirectionAuthority.ensureBound(network, road);
+        String entryNodeId = road.getDesignEntryNodeId();
+        String entryEdgeId = road.getDesignEntryEdgeId();
+        if (entryNodeId == null || entryNodeId.isBlank()
+                || entryEdgeId == null || entryEdgeId.isBlank()) {
+            return Double.NaN;
+        }
+        List<OrientedRoadSegment> physical = physicalEdgeSegmentsForMaterialization(network, road);
+        for (OrientedRoadSegment segment : physical) {
+            if (!entryEdgeId.equals(segment.edgeId())) {
+                continue;
+            }
+            OptionalDouble atNode = segment.roadStationAtNode(entryNodeId);
+            if (atNode.isPresent()) {
+                return atNode.getAsDouble();
+            }
+            // Entry node is the chain entry of this physical segment.
+            if (entryNodeId.equals(segment.entryNodeId())) {
+                return segment.startStation();
+            }
+            if (entryNodeId.equals(segment.exitNodeId())) {
+                return segment.endStation();
+            }
+        }
+        // Fallback: first physical segment that touches the entry node.
+        for (OrientedRoadSegment segment : physical) {
+            OptionalDouble atNode = segment.roadStationAtNode(entryNodeId);
+            if (atNode.isPresent()) {
+                return atNode.getAsDouble();
+            }
+        }
+        return Double.NaN;
+    }
+
+    /** Explicit seam physical station, or virtual design-entry origin when seam is null. */
+    public static double loopPhysicalOriginStation(RoadNetwork network, Road road) {
+        if (network == null || road == null
+                || road.getTopologyMode() != RoadTopologyMode.LOOP) {
+            return Double.NaN;
+        }
+        if (road.getLoopSeam() != null) {
+            return physicalSeamStation(network, road);
+        }
+        return designEntryPhysicalStation(network, road);
+    }
+
+    /**
      * Seam arc length on the physical materialization chain
      * ({@link #physicalEdgeSegmentsForMaterialization}).
      */
@@ -831,8 +887,8 @@ public final class RoadStationing {
             double station = sigma < 0 ? physicalTotal - rotatedInstance : rotatedInstance;
             return clampStation(station, physicalTotal);
         }
-        // LOOP: explicit seam or virtual design-entry origin (physical 0).
-        double seam = road.getLoopSeam() != null ? physicalSeamStation(network, road) : 0.0;
+        // LOOP: explicit seam or virtual design-entry origin on the physical walk.
+        double seam = loopPhysicalOriginStation(network, road);
         if (!Double.isFinite(seam)) {
             return Double.NaN;
         }
@@ -853,7 +909,7 @@ public final class RoadStationing {
             double station = sigma < 0 ? physicalTotal - physicalInstance : physicalInstance;
             return clampStation(station, physicalTotal);
         }
-        double seam = road.getLoopSeam() != null ? physicalSeamStation(network, road) : 0.0;
+        double seam = loopPhysicalOriginStation(network, road);
         if (!Double.isFinite(seam)) {
             return Double.NaN;
         }

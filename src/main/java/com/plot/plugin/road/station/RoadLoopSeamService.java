@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /** 闭环剖面开口点：默认选择、链上投影与遍历起点解析。 */
@@ -348,6 +349,7 @@ public final class RoadLoopSeamService {
 
     /**
      * Canvas seam pick. Prefers {@code preferredEdgeId} when it belongs to the road.
+     * Distance filter applies to global and preferred alike; far nearest returns null.
      * Self-crossing dual-pass ties that cannot be distinguished are rejected ({@code null}).
      */
     public static SeamProjection projectForPick(
@@ -362,28 +364,45 @@ public final class RoadLoopSeamService {
         if (preferred != null && !road.getOrderedSegmentIds().contains(preferred)) {
             preferred = null;
         }
-        // Always score globally with ambiguity reject; preferred edge only breaks near-ties.
-        SeamProjection global = projectOntoOrientedChain(network, road, query, null, true);
-        if (preferred == null) {
-            return global;
+        double pickTol = com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE;
+        List<ScoredProjection> near = collectNearProjections(network, road, query, null, pickTol);
+        if (near.isEmpty()) {
+            return null;
         }
-        SeamProjection onPreferred = projectOntoOrientedChain(network, road, query, preferred, true);
-        if (onPreferred == null) {
-            return global;
+        List<ScoredProjection> distinct = dedupePasses(near);
+        if (distinct.size() >= 2) {
+            // Prefer edge only disambiguates among near-tolerance survivors of distinct passes.
+            if (preferred != null) {
+                List<ScoredProjection> onPreferred = new ArrayList<>();
+                for (ScoredProjection scored : distinct) {
+                    if (preferred.equals(scored.projection().segmentId())) {
+                        onPreferred.add(scored);
+                    }
+                }
+                if (onPreferred.size() == 1) {
+                    return onPreferred.getFirst().projection();
+                }
+                if (onPreferred.isEmpty()) {
+                    return null;
+                }
+            }
+            return null;
         }
-        double preferredDist = onPreferred.position().distance(query);
-        if (preferredDist > com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE) {
-            return global;
+        SeamProjection best = distinct.getFirst().projection();
+        if (preferred != null && preferred.equals(best.segmentId())) {
+            return best;
         }
-        if (global == null) {
-            return onPreferred;
+        if (preferred != null) {
+            List<ScoredProjection> preferredNear =
+                collectNearProjections(network, road, query, preferred, pickTol);
+            List<ScoredProjection> preferredDistinct = dedupePasses(preferredNear);
+            if (preferredDistinct.size() == 1
+                    && preferredDistinct.getFirst().distance()
+                        <= distinct.getFirst().distance() + pickTol) {
+                return preferredDistinct.getFirst().projection();
+            }
         }
-        double globalDist = global.position().distance(query);
-        // Preferred wins only when it is within pick tolerance of the global nearest.
-        if (preferredDist <= globalDist + com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE) {
-            return onPreferred;
-        }
-        return global;
+        return best;
     }
 
     /**
@@ -400,23 +419,34 @@ public final class RoadLoopSeamService {
             double chainStation) {
     }
 
-    private static SeamProjection projectOntoOrientedChain(RoadNetwork network, Road road, Vec2d query) {
-        return projectOntoOrientedChain(network, road, query, null, false);
+    private record ScoredProjection(SeamProjection projection, double distance) {
     }
 
-    private static SeamProjection projectOntoOrientedChain(
+    /**
+     * Resolve/overlay projection: nearest in-tolerance pass wins.
+     * Unlike {@link #projectForPick}, dual-pass self-crossings are not rejected —
+     * callers need a concrete seam station even when XY is ambiguous.
+     */
+    private static SeamProjection projectOntoOrientedChain(RoadNetwork network, Road road, Vec2d query) {
+        List<ScoredProjection> near = collectNearProjections(
+            network, road, query, null, com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE);
+        if (near.isEmpty()) {
+            return null;
+        }
+        List<ScoredProjection> distinct = dedupePasses(near);
+        return distinct.isEmpty() ? null : distinct.getFirst().projection();
+    }
+
+    private static List<ScoredProjection> collectNearProjections(
             RoadNetwork network,
             Road road,
             Vec2d query,
             String edgeFilter,
-            boolean rejectAmbiguous) {
+            double pickTol) {
+        List<ScoredProjection> near = new ArrayList<>();
         if (query == null) {
-            return null;
+            return near;
         }
-        SeamProjection best = null;
-        SeamProjection second = null;
-        double bestDistance = Double.MAX_VALUE;
-        double secondDistance = Double.MAX_VALUE;
         for (OrientedRoadSegment segment : RoadStationing.orientedSegmentsWithoutLoopRotation(network, road)) {
             if (edgeFilter != null && !edgeFilter.equals(segment.edgeId())) {
                 continue;
@@ -440,35 +470,52 @@ public final class RoadLoopSeamService {
                 Vec2d end = points.get(i + 1);
                 Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, query);
                 double distance = projected.distance(query);
+                if (distance > pickTol) {
+                    continue;
+                }
                 double geometryLocal = prefix[i] + start.distance(projected);
                 double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
                 double chainFraction = segment.length() > EPSILON ? chainLocal / segment.length() : 0.0;
                 double geometryFraction = edgeLength > EPSILON ? geometryLocal / edgeLength : 0.0;
-                SeamProjection candidate = new SeamProjection(
-                    projected.copy(),
-                    segment.edgeId(),
-                    segment.entryNodeId(),
-                    segment.exitNodeId(),
-                    chainFraction,
-                    geometryFraction,
-                    segment.startStation() + chainLocal);
-                if (distance < bestDistance - EPSILON) {
-                    second = best;
-                    secondDistance = bestDistance;
-                    best = candidate;
-                    bestDistance = distance;
-                } else if (distance < secondDistance - EPSILON) {
-                    second = candidate;
-                    secondDistance = distance;
-                }
+                near.add(new ScoredProjection(
+                    new SeamProjection(
+                        projected.copy(),
+                        segment.edgeId(),
+                        segment.entryNodeId(),
+                        segment.exitNodeId(),
+                        chainFraction,
+                        geometryFraction,
+                        segment.startStation() + chainLocal),
+                    distance));
             }
         }
-        if (rejectAmbiguous && best != null && second != null
-                && Math.abs(bestDistance - secondDistance) <= com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE
-                && !samePickPass(best, second)) {
-            return null;
+        near.sort((a, b) -> {
+            int byDist = Double.compare(a.distance(), b.distance());
+            return byDist != 0 ? byDist : comparePosition(a.projection().position(), b.projection().position());
+        });
+        return near;
+    }
+
+    /** Collapse same-pass candidates; keep nearest per distinct physical pass. */
+    private static List<ScoredProjection> dedupePasses(List<ScoredProjection> near) {
+        List<ScoredProjection> distinct = new ArrayList<>();
+        for (ScoredProjection scored : near) {
+            boolean merged = false;
+            for (int i = 0; i < distinct.size(); i++) {
+                if (samePickPass(scored.projection(), distinct.get(i).projection())) {
+                    if (scored.distance() + EPSILON < distinct.get(i).distance()) {
+                        distinct.set(i, scored);
+                    }
+                    merged = true;
+                    break;
+                }
+            }
+            if (!merged) {
+                distinct.add(scored);
+            }
         }
-        return best;
+        distinct.sort(Comparator.comparingDouble(ScoredProjection::distance));
+        return distinct;
     }
 
     private static boolean samePickPass(SeamProjection a, SeamProjection b) {

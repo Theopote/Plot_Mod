@@ -253,6 +253,10 @@ public final class RoadCrossSectionBuilder {
                 }
                 int targetY = host.snapEndpointElevation(center, resolvedY.getAsInt());
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
+                if (!Double.isFinite(chainage)) {
+                    throw new IllegalStateException(
+                        "bridge deck station resolve failed at geometryLocal=" + geometryLocal);
+                }
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int carriagewayWidth = crossSection.carriagewayWidth;
                 int minOffset = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
@@ -299,6 +303,7 @@ public final class RoadCrossSectionBuilder {
             buildProfile,
             host::snapEndpointElevation,
             null,
+            true,
             (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.includeMedian || crossSection.medianWidth <= 0

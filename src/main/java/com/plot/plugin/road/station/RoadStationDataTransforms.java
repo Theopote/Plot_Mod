@@ -827,6 +827,15 @@ public final class RoadStationDataTransforms {
             com.plot.plugin.road.model.Road road,
             double shiftMeters,
             double loopLength) {
+        return rotateLoopStations(network, road, shiftMeters, loopLength, null);
+    }
+
+    public static boolean rotateLoopStations(
+            com.plot.plugin.road.model.RoadNetwork network,
+            com.plot.plugin.road.model.Road road,
+            double shiftMeters,
+            double loopLength,
+            RoadSystemConfig defaults) {
         if (road == null || loopLength <= EPSILON) {
             return true;
         }
@@ -834,7 +843,7 @@ public final class RoadStationDataTransforms {
             return true;
         }
         if (network == null) {
-            return rotateLoopStations(road, shiftMeters, loopLength);
+            return rotateLoopStations(road, shiftMeters, loopLength, defaults);
         }
         // Compute all crossing/stack replacements first — fail without mutating anything.
         List<com.plot.plugin.road.crossing.RoadCrossing> crossingUpdates = new ArrayList<>();
@@ -869,7 +878,7 @@ public final class RoadStationDataTransforms {
             stackUpdates.add(stack.withRotatedStations(
                 rotatedA, rotatedB, rotatedLower, rotatedUpper));
         }
-        if (!rotateLoopStations(road, shiftMeters, loopLength)) {
+        if (!rotateLoopStations(road, shiftMeters, loopLength, defaults)) {
             return false;
         }
         for (com.plot.plugin.road.crossing.RoadCrossing update : crossingUpdates) {
@@ -885,6 +894,14 @@ public final class RoadStationDataTransforms {
      * LOOP seam migrate for in-road station data only. Fail-closed on lossy VA/VCS cases.
      */
     public static boolean rotateLoopStations(Road road, double shiftMeters, double loopLength) {
+        return rotateLoopStations(road, shiftMeters, loopLength, null);
+    }
+
+    public static boolean rotateLoopStations(
+            Road road,
+            double shiftMeters,
+            double loopLength,
+            RoadSystemConfig defaults) {
         if (road == null || loopLength <= EPSILON) {
             return true;
         }
@@ -901,11 +918,15 @@ public final class RoadStationDataTransforms {
         boolean clearVcs = false;
         RoadVariableCrossSections rotatedVcs = null;
         if (road.getVariableCrossSections() != null && !road.getVariableCrossSections().isEmpty()) {
+            if (!road.getVariableCrossSections().isValid()) {
+                return false;
+            }
             rotatedVcs = rotateVariableCrossSectionsCyclic(
                 road.getVariableCrossSections(),
                 road.getCrossSection(),
                 shiftMeters,
-                loopLength);
+                loopLength,
+                defaults);
             if (rotatedVcs == null) {
                 return false;
             }
@@ -980,18 +1001,27 @@ public final class RoadStationDataTransforms {
             return null;
         }
         double seamElev = seamElevOpt.getAsDouble();
+        // If seam lands on an existing non-curve PVI, keep that physical point's constraint
+        // on the new 0/L ends; truly synthesized ends stay FREE.
+        VerticalControlPointConstraint endConstraint = VerticalControlPointConstraint.FREE;
+        for (PointOfVerticalIntersection pvi : sorted) {
+            if (Math.abs(pvi.getStation() - shift) <= EPSILON) {
+                endConstraint = pvi.getConstraint() != null
+                    ? pvi.getConstraint()
+                    : VerticalControlPointConstraint.FREE;
+                break;
+            }
+        }
         List<PointOfVerticalIntersection> rotated = new ArrayList<>();
-        // Synthesized seam ends do not inherit unrelated old endpoint constraints.
         rotated.add(new PointOfVerticalIntersection(
-            0.0, seamElev, null, VerticalControlPointConstraint.FREE));
+            0.0, seamElev, null, endConstraint));
         for (PointOfVerticalIntersection pvi : sorted) {
             // Old L duplicates old 0 physically on a LOOP — keep the start endpoint once.
             if (Math.abs(pvi.getStation() - loopLength) <= EPSILON) {
                 continue;
             }
             if (Math.abs(pvi.getStation() - shift) <= EPSILON) {
-                // Seam lands on this PVI: constraint follows only if it is not a curved PVI
-                // (curved case already refused above). Plain PVI elevation is seamElev.
+                // Seam lands on this PVI: elev/constraint already applied to new ends.
                 continue;
             }
             double station = CyclicStationTransform.rotateByShift(pvi.getStation(), shift, loopLength);
@@ -999,7 +1029,7 @@ public final class RoadStationDataTransforms {
                 return null;
             }
             if (Math.abs(station) <= EPSILON || Math.abs(station - loopLength) <= EPSILON) {
-                // Physical point coincides with new seam ends — constraint already FREE at ends.
+                // Physical point coincides with new seam ends — ends already carry constraint.
                 continue;
             }
             // Endpoints lose curve length; intermediate PVIs keep theirs and constraints.
@@ -1008,7 +1038,7 @@ public final class RoadStationDataTransforms {
                 station, pvi.getElevation(), curve, pvi.getConstraint()));
         }
         rotated.add(new PointOfVerticalIntersection(
-            loopLength, seamElev, null, VerticalControlPointConstraint.FREE));
+            loopLength, seamElev, null, endConstraint));
         rotated.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
         List<PointOfVerticalIntersection> deduped = new ArrayList<>();
         for (PointOfVerticalIntersection pvi : rotated) {
@@ -1029,19 +1059,14 @@ public final class RoadStationDataTransforms {
             RoadVariableCrossSections source,
             RoadCrossSection defaultSection,
             double shift,
-            double loopLength) {
-        return rotateVariableCrossSectionsCyclic(
-            source, defaultSection, shift, loopLength, new RoadSystemConfig("plot"));
-    }
-
-    static RoadVariableCrossSections rotateVariableCrossSectionsCyclic(
-            RoadVariableCrossSections source,
-            RoadCrossSection defaultSection,
-            double shift,
             double loopLength,
             RoadSystemConfig defaults) {
         if (source == null || source.isEmpty()) {
             return source;
+        }
+        // Non-empty invalid VCS is migrate failure — never success-clear.
+        if (!source.isValid()) {
+            return null;
         }
         VariableCrossSectionTransitionMode mode = source.getTransitionMode();
         RoadCrossSection base = defaultSection != null ? defaultSection : new RoadCrossSection();
@@ -1075,6 +1100,11 @@ public final class RoadStationDataTransforms {
         List<StationCrossSection> sorted = source.sortedStations();
         if (sorted.isEmpty()) {
             return new RoadVariableCrossSections(List.of(), VariableCrossSectionTransitionMode.SMOOTH);
+        }
+        // Refuse when seam splits a span whose endpoints disagree on discrete attrs —
+        // inserting the seam keyframe would move the t=0.5 discrete switch.
+        if (smoothSeamWouldMoveDiscreteSwitch(sorted, defaultSection, shift, defaults)) {
+            return null;
         }
         RoadCrossSection seamSection = interpolateSmoothCrossSection(
             source, defaultSection, shift, defaults);
@@ -1122,19 +1152,112 @@ public final class RoadStationDataTransforms {
         if (!result.isValid()) {
             return null;
         }
-        // Physical equivalence: mapped stations must resolve to the same continuous width.
-        for (double s = 0.0; s < loopLength - EPSILON; s += Math.max(loopLength / 16.0, 1.0)) {
+        // Physical equivalence: continuous width + discrete display attrs at mapped stations.
+        java.util.LinkedHashSet<Double> sampleStations = new java.util.LinkedHashSet<>();
+        double step = Math.max(loopLength / 32.0, 0.5);
+        for (double s = 0.0; s < loopLength - EPSILON; s += step) {
+            sampleStations.add(s);
+        }
+        for (StationCrossSection entry : sorted) {
+            sampleStations.add(entry.getStation());
+        }
+        sampleStations.add(shift);
+        for (double s : sampleStations) {
+            if (!(s >= 0.0) || s > loopLength + EPSILON) {
+                continue;
+            }
+            double clamped = Math.min(s, loopLength);
             ResolvedCrossSection before = VariableCrossSectionResolver.resolve(
-                defaultSection, sorted, VariableCrossSectionTransitionMode.SMOOTH, s, defaults);
-            double afterStation = CyclicStationTransform.rotateByShift(s, shift, loopLength);
+                defaultSection, sorted, VariableCrossSectionTransitionMode.SMOOTH, clamped, defaults);
+            double afterStation = CyclicStationTransform.rotateByShift(clamped, shift, loopLength);
+            if (!Double.isFinite(afterStation)) {
+                return null;
+            }
             ResolvedCrossSection after = VariableCrossSectionResolver.resolve(
                 defaultSection, result.sortedStations(), VariableCrossSectionTransitionMode.SMOOTH,
                 afterStation, defaults);
-            if (before.carriagewayWidth != after.carriagewayWidth) {
+            if (!smoothResolvedEquivalent(before, after)) {
                 return null;
             }
         }
         return result;
+    }
+
+    /**
+     * True when {@code shift} lies strictly inside a SMOOTH span whose endpoint templates
+     * resolve to different discrete attrs (lane count / materials / markings / bands).
+     */
+    private static boolean smoothSeamWouldMoveDiscreteSwitch(
+            List<StationCrossSection> sorted,
+            RoadCrossSection defaultSection,
+            double shift,
+            RoadSystemConfig defaults) {
+        RoadCrossSection base = defaultSection != null ? defaultSection : new RoadCrossSection();
+        List<StationCrossSection> anchors = new ArrayList<>();
+        boolean hasZero = sorted.stream().anyMatch(e -> Math.abs(e.getStation()) <= EPSILON);
+        if (!hasZero) {
+            anchors.add(StationCrossSection.at(0.0, base));
+        }
+        anchors.addAll(sorted);
+        for (int i = 0; i < anchors.size() - 1; i++) {
+            StationCrossSection left = anchors.get(i);
+            StationCrossSection right = anchors.get(i + 1);
+            if (shift <= left.getStation() + EPSILON || shift >= right.getStation() - EPSILON) {
+                continue;
+            }
+            ResolvedCrossSection a = left.getCrossSection().resolve(defaults);
+            ResolvedCrossSection b = right.getCrossSection().resolve(defaults);
+            if (!smoothDiscreteEquals(a, b)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean smoothResolvedEquivalent(ResolvedCrossSection before, ResolvedCrossSection after) {
+        if (before == null || after == null) {
+            return false;
+        }
+        if (before.carriagewayWidth != after.carriagewayWidth) {
+            return false;
+        }
+        return smoothDiscreteEquals(before, after);
+    }
+
+    private static boolean smoothDiscreteEquals(ResolvedCrossSection a, ResolvedCrossSection b) {
+        return a.laneCount == b.laneCount
+            && a.includeMedian == b.includeMedian
+            && a.laneDividers == b.laneDividers
+            && a.centerLineStyle == b.centerLineStyle
+            && a.centerLineSolid == b.centerLineSolid
+            && a.includeShoulder == b.includeShoulder
+            && a.includeBikeLane == b.includeBikeLane
+            && a.includeSidewalk == b.includeSidewalk
+            && a.includeSlopeBatter == b.includeSlopeBatter
+            && a.includeRetainingWall == b.includeRetainingWall
+            && materialMixEquals(a.carriagewayMaterial, b.carriagewayMaterial)
+            && java.util.Objects.equals(a.medianMaterial, b.medianMaterial)
+            && java.util.Objects.equals(a.markingMaterial, b.markingMaterial)
+            && java.util.Objects.equals(a.shoulderMaterial, b.shoulderMaterial)
+            && java.util.Objects.equals(a.bikeLaneMaterial, b.bikeLaneMaterial)
+            && java.util.Objects.equals(a.sidewalkMaterial, b.sidewalkMaterial)
+            && java.util.Objects.equals(a.fillSlopeMaterial, b.fillSlopeMaterial)
+            && java.util.Objects.equals(a.cutSlopeMaterial, b.cutSlopeMaterial)
+            && java.util.Objects.equals(a.retainingWallMaterial, b.retainingWallMaterial);
+    }
+
+    private static boolean materialMixEquals(
+            com.plot.core.material.MaterialMix left,
+            com.plot.core.material.MaterialMix right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        return java.util.Objects.equals(left.getPrimaryMaterial(), right.getPrimaryMaterial())
+            && java.util.Objects.equals(left.getAccentMaterial(), right.getAccentMaterial())
+            && Float.compare(left.getAccentRatio(), right.getAccentRatio()) == 0;
     }
 
     /**

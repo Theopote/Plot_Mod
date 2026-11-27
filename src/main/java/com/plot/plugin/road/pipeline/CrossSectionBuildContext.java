@@ -77,10 +77,10 @@ public final class CrossSectionBuildContext {
     }
 
     public boolean isVariable() {
+        // Do not require oriented binding — missing slices must not mask an existing VCS.
         return network != null
             && road != null
             && config != null
-            && oriented != null
             && VariableCrossSectionResolver.hasVariableSections(road);
     }
 
@@ -110,14 +110,27 @@ public final class CrossSectionBuildContext {
     }
 
     public double segmentStartStation() {
-        return isVariable() ? oriented.startStation() : 0.0;
+        OrientedRoadSegment bound = primaryBoundOrientation();
+        return bound != null ? bound.startStation() : 0.0;
     }
 
     public OrientedRoadSegment samplingOriented() {
-        if (isVariable()) {
-            return oriented;
+        OrientedRoadSegment bound = primaryBoundOrientation();
+        if (bound != null) {
+            return bound;
         }
         return new OrientedRoadSegment(null, true, null, null, 0.0, Double.POSITIVE_INFINITY);
+    }
+
+    /** First bound orientation (VCS or uniform LOOP reverse slice), if any. */
+    private OrientedRoadSegment primaryBoundOrientation() {
+        if (oriented != null) {
+            return oriented;
+        }
+        if (lightingOrientations != null && !lightingOrientations.isEmpty()) {
+            return lightingOrientations.getFirst();
+        }
+        return null;
     }
 
     /**
