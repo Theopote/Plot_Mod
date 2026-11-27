@@ -174,15 +174,6 @@ public final class RoadStationing {
         return true;
     }
 
-    private static int indexWithEntryNode(List<OrientedRoadSegment> segments, String entryNodeId) {
-        for (int i = 0; i < segments.size(); i++) {
-            if (entryNodeId.equals(segments.get(i).entryNodeId())) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
     private static List<OrientedRoadSegment> rotateSegments(List<OrientedRoadSegment> segments, int bestIndex) {
         List<OrientedRoadSegment> rotated = new ArrayList<>(segments.size());
         double station = 0.0;
@@ -685,25 +676,6 @@ public final class RoadStationing {
     }
 
     /**
-     * Oriented slice containing {@code geometryLocalDistance} on {@code edgeId}, if any.
-     */
-    public static Optional<OrientedRoadSegment> orientedSliceContaining(
-            RoadNetwork network,
-            Road road,
-            String edgeId,
-            double geometryLocalDistance) {
-        if (!isStationable(network, road) || edgeId == null || !Double.isFinite(geometryLocalDistance)) {
-            return Optional.empty();
-        }
-        for (OrientedRoadSegment candidate : orientedSegmentsForEdge(network, road, edgeId)) {
-            if (candidate.containsGeometryLocal(geometryLocalDistance)) {
-                return Optional.of(candidate);
-            }
-        }
-        return Optional.empty();
-    }
-
-    /**
      * 道路桩号 → 边内几何局部距离。
      */
     public static Optional<SegmentStation> edgeLocalDistanceAtRoadStation(
@@ -889,17 +861,6 @@ public final class RoadStationing {
         return Double.isFinite(rotated) ? clampStation(rotated, physicalTotal) : Double.NaN;
     }
 
-    private static double wrapStation(double station, double total) {
-        double value = station;
-        while (value >= total - STATION_EPSILON) {
-            value -= total;
-        }
-        while (value < -STATION_EPSILON) {
-            value += total;
-        }
-        return value;
-    }
-
     private static double clampStation(double station, double total) {
         if (station < 0.0) {
             return 0.0;
@@ -1002,13 +963,6 @@ public final class RoadStationing {
     }
 
     private record SegmentChainBinding(String segmentId, String entryNodeId) {
-    }
-
-    private static List<SegmentChainBinding> segmentChainBindings(
-            RoadNetwork network,
-            Road road,
-            boolean applyLoopSeam) {
-        return segmentChainBindings(network, road, applyLoopSeam, true);
     }
 
     private static List<SegmentChainBinding> segmentChainBindings(

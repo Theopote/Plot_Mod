@@ -176,14 +176,6 @@ public final class CrossSectionBuildContext {
         return slice.roadStationAtGeometryLocal(geometryLocalDistance);
     }
 
-    public boolean chainForwardAtGeometryLocal(double geometryLocalDistance) {
-        OrientedRoadSegment slice = sliceContaining(geometryLocalDistance);
-        if (slice != null) {
-            return slice.forward();
-        }
-        return oriented == null || oriented.forward();
-    }
-
     private OrientedRoadSegment sliceContaining(double geometryLocalDistance) {
         if (lightingOrientations != null) {
             for (OrientedRoadSegment slice : lightingOrientations) {

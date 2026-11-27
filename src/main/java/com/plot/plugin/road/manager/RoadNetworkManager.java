@@ -1882,9 +1882,7 @@ public final class RoadNetworkManager {
                 && afterRoad.getStationFacilities() != null) {
             double beforeCoverage = facilityCoverageLength(beforeRoad, loopLength);
             double afterCoverage = facilityCoverageLength(afterRoad, afterLength);
-            if (Math.abs(beforeCoverage - afterCoverage) > 1e-2) {
-                return false;
-            }
+            return !(Math.abs(beforeCoverage - afterCoverage) > 1e-2);
         }
         return true;
     }
