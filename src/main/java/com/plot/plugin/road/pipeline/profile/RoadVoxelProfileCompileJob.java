@@ -140,7 +140,10 @@ public final class RoadVoxelProfileCompileJob {
             if (alignment != null) {
                 // The explicit editor override is authoritative only in this disposable snapshot.
                 road.setVerticalAlignment(alignment.copy());
-                ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+                if (!ResolvedProfileAuthority.markEditedProfileConfirmed(network, road)) {
+                    fail("edited vertical alignment is not valid for compilation");
+                    return;
+                }
             } else if (bound) {
                 road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
             }

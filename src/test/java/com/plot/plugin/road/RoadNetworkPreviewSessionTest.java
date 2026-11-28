@@ -102,7 +102,7 @@ class RoadNetworkPreviewSessionTest {
         RoadNode n2 = localNetwork.createNode(new Vec2d(100, 0));
         localNetwork.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
-        ResolvedProfileAuthority.markEditedProfileConfirmed(localNetwork, road);
+        ResolvedProfileAuthority.claimEditedWithoutValidation(localNetwork, road);
 
         var session = local.beginPreviewSession(localNetwork, new FlatTerrainSampler(64));
         local.preparePreviewSession(session);
@@ -203,7 +203,7 @@ class RoadNetworkPreviewSessionTest {
         RoadNode n2 = localNetwork.createNode(new Vec2d(100, 0));
         RoadEdge edge = localNetwork.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
-        ResolvedProfileAuthority.markEditedProfileConfirmed(localNetwork, road);
+        ResolvedProfileAuthority.claimEditedWithoutValidation(localNetwork, road);
 
         var session = local.beginPreviewSession(localNetwork, new FlatTerrainSampler(64));
         local.preparePreviewSession(session);
@@ -277,7 +277,7 @@ class RoadNetworkPreviewSessionTest {
         RoadNode n2 = localNetwork.createNode(new Vec2d(100, 0));
         localNetwork.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
-        ResolvedProfileAuthority.markEditedProfileConfirmed(localNetwork, road);
+        ResolvedProfileAuthority.claimEditedWithoutValidation(localNetwork, road);
 
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
         RoadNetworkGenerator.NetworkGenerationResult sync = local.generateAll(localNetwork, terrain);
@@ -297,5 +297,57 @@ class RoadNetworkPreviewSessionTest {
         assertTrue(incremental.networkResult().hasPartialFailure());
         assertEquals(sync.getFailedEdgeIds(), incremental.networkResult().getFailedEdgeIds());
         assertEquals(sync.successEdgeCount(), incremental.networkResult().successEdgeCount());
+        // VD-T11: blocked edges publish no SUCCESS placement geometry.
+        for (String failedId : sync.getFailedEdgeIds()) {
+            assertFalse(sync.getEdgeResults().containsKey(failedId));
+            assertFalse(incremental.networkResult().getEdgeResults().containsKey(failedId));
+        }
+    }
+
+    /** VD-T09: EDITED + AUTO junction — final pavement at shared node uses design Y. */
+    @Test
+    void editedAndAutoJunctionFinalPavementSharesDesignY() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        RoadNetworkGenerator local = new RoadNetworkGenerator(new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance()));
+        RoadNetwork localNetwork = new RoadNetwork();
+        Road edited = localNetwork.createRoad("edited");
+        edited.setWidth(6);
+        edited.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        edited.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 80.0),
+            PointOfVerticalIntersection.of(40.0, 80.0))));
+        Road auto = localNetwork.createRoad("auto");
+        auto.setWidth(6);
+        RoadNode shared = localNetwork.createNode(new Vec2d(0, 0));
+        RoadNode endEdited = localNetwork.createNode(new Vec2d(40, 0));
+        RoadNode endAuto = localNetwork.createNode(new Vec2d(0, 40));
+        localNetwork.createEdge(
+            shared.getId(), endEdited.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), edited.getId());
+        localNetwork.createEdge(
+            shared.getId(), endAuto.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 40)), auto.getId());
+        ResolvedProfileAuthority.markEditedProfileConfirmed(localNetwork, edited);
+        shared.setManualElevation(70.0, com.plot.plugin.road.model.ManualElevationOrigin.PROFILE_PROPAGATED);
+
+        RoadNetworkGenerator.PreviewResult preview =
+            local.generatePreview(localNetwork, new FlatTerrainSampler(64));
+        assertFalse(preview.networkResult().hasPartialFailure());
+        Integer sharedY = preview.networkResult().getNodeElevations().get(shared.getId());
+        assertEquals(80, sharedY);
+
+        int nearSharedPavementY = Integer.MIN_VALUE;
+        for (var pos : preview.aggregate().roadBlocks) {
+            if (Math.abs(pos.getX()) <= 2 && Math.abs(pos.getZ()) <= 2) {
+                nearSharedPavementY = pos.getY();
+                break;
+            }
+        }
+        assertEquals(80, nearSharedPavementY, "junction pavement should follow EDITED design Y");
     }
 }
+

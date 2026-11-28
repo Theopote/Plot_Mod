@@ -79,6 +79,10 @@ class RoadSemanticAcceptanceTest {
         assertTrue(run.metrics().bridgeBlocks() > 0 || run.metrics().fillBlocks() > 0,
             "unsmoothed steep EDITED must produce bridge and/or fill structure");
         assertTrue(run.metrics().bridgeCount() >= 1 || run.metrics().fillVolume() > 0);
+        // VD-T10: surface present; orphan pillars forbidden (integrity field).
+        var aggregate = run.preview().aggregate();
+        assertTrue(aggregate != null && !aggregate.roadBlocks.isEmpty());
+        assertEquals(0, aggregate.orphanSlopePillarCount);
     }
 
     @Test

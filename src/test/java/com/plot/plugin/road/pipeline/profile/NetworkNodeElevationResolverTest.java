@@ -329,6 +329,101 @@ class NetworkNodeElevationResolverTest {
         assertFalse(samples.equals(List.of(70, 70)));
     }
 
+    /** VD-T03: GS elevated forced Y equal to residual derived lock must not fall to networkY. */
+    @Test
+    void gradeSeparatedUpperForcedNotReplacedByMatchingDerivedLock() {
+        RoadNetwork network = new RoadNetwork();
+        Road under = network.createRoad("under");
+        Road over = network.createRoad("over");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setManualElevation(64.0);
+        RoadNode north = network.createNode(new Vec2d(0, 40));
+        RoadNode south = network.createNode(new Vec2d(0, -40));
+        RoadNode east = network.createNode(new Vec2d(40, 0));
+        RoadNode west = network.createNode(new Vec2d(-40, 0));
+        network.createEdge(junction.getId(), north.getId(),
+            java.util.List.of(junction.getPosition(), north.getPosition()), under.getId());
+        network.createEdge(junction.getId(), south.getId(),
+            java.util.List.of(junction.getPosition(), south.getPosition()), under.getId());
+        RoadEdge overEdge = network.createEdge(junction.getId(), east.getId(),
+            java.util.List.of(junction.getPosition(), east.getPosition()), over.getId());
+        network.createEdge(junction.getId(), west.getId(),
+            java.util.List.of(junction.getPosition(), west.getPosition()), over.getId());
+        assertTrue(network.setNodeGradeSeparation(junction.getId(), true, over.getId(), 8.0));
+        // Residual derived lock happens to equal the elevated deck (64+8).
+        junction.setManualElevation(72.0, ManualElevationOrigin.PROFILE_PROPAGATED);
+
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGeneratorProfileContext profileContext =
+            new RoadGeneratorProfileContext(config, (pathPoints, segments) -> 1.0);
+        GradeSeparationPolicy gradeSeparation = new GradeSeparationPolicy(profileContext);
+        NodeTargetHeightResolver nodeTargetHeights =
+            new NodeTargetHeightResolver(profileContext, gradeSeparation);
+        ProfileEndpointHeightResolver endpoints =
+            new ProfileEndpointHeightResolver(gradeSeparation, nodeTargetHeights);
+
+        Map<String, Integer> networkY = Map.of(junction.getId(), 64);
+        Integer forced = endpoints.resolve(
+            junction, network, overEdge, new FlatTerrainSampler(64), true, networkY);
+        assertEquals(72, forced, "elevated GS forced must not be replaced by underpass networkY");
+    }
+
+    /** VD-T04: null-origin lock yields like PROFILE_PROPAGATED. */
+    @Test
+    void nullOriginLockYieldsLikePropagated() {
+        RoadNetwork network = buildTwoSegmentRoad();
+        RoadNode middle = network.getNodes().values().stream()
+            .filter(node -> node.getConnectedEdgeIds().size() == 2)
+            .findFirst()
+            .orElseThrow();
+        middle.setManualElevation(70.0, null);
+
+        NetworkNodeElevationResult result = createResolver().resolveDetailed(
+            network, new FlatTerrainSampler(64), null);
+        assertEquals(90, result.heights().get(middle.getId()));
+
+        RoadEdge firstEdge = network.getEdge(
+            RoadStationing.orderedSegments(network, network.getRoad("design")).getFirst());
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGeneratorProfileContext profileContext =
+            new RoadGeneratorProfileContext(config, (pathPoints, segments) -> 1.0);
+        GradeSeparationPolicy gradeSeparation = new GradeSeparationPolicy(profileContext);
+        Integer forced = gradeSeparation.resolveForcedEndpointHeight(
+            middle, network, firstEdge, new FlatTerrainSampler(64), false,
+            (n, net, t, roadId) -> 64, (e, n, net, t) -> 64);
+        assertEquals(90, forced);
+    }
+
+    /** VD-T05: two EDITED designs differing by exactly 1 block → hard conflict. */
+    @Test
+    void editedDesignsDifferingByOneBlockAreHardConflict() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadA.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 80.0),
+            PointOfVerticalIntersection.of(40.0, 80.0))));
+        Road roadB = network.createRoad("b");
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 81.0),
+            PointOfVerticalIntersection.of(40.0, 81.0))));
+        RoadNode shared = network.createNode(new Vec2d(0, 0));
+        RoadNode endA = network.createNode(new Vec2d(40, 0));
+        RoadNode endB = network.createNode(new Vec2d(0, 40));
+        network.createEdge(shared.getId(), endA.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(40, 0)), roadA.getId());
+        network.createEdge(shared.getId(), endB.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(0, 40)), roadB.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, roadA);
+        RoadTestFixtures.confirmEditedProfileGeometry(network, roadB);
+
+        NetworkNodeElevationResult result = createResolver().resolveDetailed(
+            network, new FlatTerrainSampler(64), null);
+        assertTrue(result.hasHardConflicts());
+        assertTrue(result.conflictNodeIds().contains(shared.getId()));
+    }
+
     /** VB09: compatible AUTO + EDITED junction still resolves. */
     @Test
     void compatibleAutoAndEditedJunctionResolves() {

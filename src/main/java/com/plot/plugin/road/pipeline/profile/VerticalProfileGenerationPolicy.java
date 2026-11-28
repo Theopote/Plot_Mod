@@ -319,7 +319,7 @@ public final class VerticalProfileGenerationPolicy {
     }
 
     private static boolean isPropagatedManualElevationOrigin(ManualElevationOrigin origin) {
-        return origin == null || origin == ManualElevationOrigin.PROFILE_PROPAGATED;
+        return ElevationLockAuthority.isPropagatedOrLegacy(origin);
     }
 
     /** 统计生成快照上仍保留的手动节点锁数量（诊断用）。 */

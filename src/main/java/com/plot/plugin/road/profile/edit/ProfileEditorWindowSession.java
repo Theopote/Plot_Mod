@@ -453,6 +453,20 @@ public final class ProfileEditorWindowSession {
             return ConfirmResult.NO_CHANGES;
         }
 
+        // Normalize + validate EDITED curves on the working copy before touching live.
+        for (String roadId : diff.roadIds()) {
+            com.plot.plugin.road.model.Road workingRoad = workingNetwork.getRoad(roadId);
+            if (workingRoad == null
+                    || !com.plot.plugin.road.vertical.ResolvedProfileAuthority
+                        .hasStoredEditedCurve(workingRoad)) {
+                continue;
+            }
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    workingNetwork, workingRoad)) {
+                return ConfirmResult.CONSTRAINT_CONFLICT;
+            }
+        }
+
         ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
         ProfileEditorNetworkApplier.apply(
             workingNetwork,
@@ -462,9 +476,15 @@ public final class ProfileEditorWindowSession {
             diff.crossingIds());
         for (String roadId : diff.roadIds()) {
             com.plot.plugin.road.model.Road road = live.getRoad(roadId);
-            if (road != null) {
-                com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
-                    live, road);
+            if (road == null
+                    || !com.plot.plugin.road.vertical.ResolvedProfileAuthority
+                        .hasStoredEditedCurve(road)) {
+                continue;
+            }
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    live, road)) {
+                ctx.finishNetworkEdit();
+                return ConfirmResult.CONSTRAINT_CONFLICT;
             }
         }
         ctx.finishNetworkEdit();
@@ -516,8 +536,13 @@ public final class ProfileEditorWindowSession {
         ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
         for (String roadId : rebindRoadIds) {
             com.plot.plugin.road.model.Road road = live.getRoad(roadId);
-            if (road != null) {
-                com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(live, road);
+            if (road == null) {
+                continue;
+            }
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    live, road)) {
+                ctx.finishNetworkEdit();
+                return ConfirmResult.CONSTRAINT_CONFLICT;
             }
         }
         ctx.finishNetworkEdit();

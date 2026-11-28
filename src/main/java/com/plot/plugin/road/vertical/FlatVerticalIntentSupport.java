@@ -46,8 +46,11 @@ public final class FlatVerticalIntentSupport {
     }
 
     public static void syncCompiledAlignment(RoadNetwork network, Road road, double maxGradePercent) {
-        // Persist compiled FLAT VA only for roads that are already FLAT. Network-uniform
-        // synthesis for non-FLAT roads is read-side only (resolveIntent / resolve).
+        // Never persist under network-uniform overlay — read paths must stay pure.
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return;
+        }
+        // Persist compiled FLAT VA only for roads that are already FLAT.
         if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
             return;
         }

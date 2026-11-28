@@ -47,4 +47,11 @@ public final class RoadTestFixtures {
         road.setProfileSource(ProfileSource.EDITED);
         road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
     }
+
+    /**
+     * Claim EDITED without requiring a valid VA (incomplete / illegal curves for fail-closed tests).
+     */
+    public static void claimEditedWithoutValidation(RoadNetwork network, Road road) {
+        com.plot.plugin.road.vertical.ResolvedProfileAuthority.claimEditedWithoutValidation(network, road);
+    }
 }

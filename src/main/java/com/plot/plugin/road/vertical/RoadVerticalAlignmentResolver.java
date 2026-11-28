@@ -31,13 +31,13 @@ public final class RoadVerticalAlignmentResolver {
             RoadNetwork network,
             Road road,
             double maxGradePercent) {
+        // Uniform overlay must not compile into live stored VA (even for native FLAT roads).
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return resolve(network, road, maxGradePercent);
+        }
         if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT) {
             FlatVerticalIntentSupport.syncCompiledAlignment(network, road, maxGradePercent);
             return road.getVerticalAlignment();
-        }
-        // Network-uniform FLAT: compile without mutating stored road VA/mode.
-        if (NetworkElevationAuthority.isUniformFlat(network)) {
-            return resolve(network, road, maxGradePercent);
         }
         return road != null ? road.getVerticalAlignment() : null;
     }

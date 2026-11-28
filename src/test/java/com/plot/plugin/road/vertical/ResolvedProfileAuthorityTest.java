@@ -128,7 +128,7 @@ class ResolvedProfileAuthorityTest {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(10.0, 70.0),
             PointOfVerticalIntersection.of(30.0, 74.0))));
-        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        ResolvedProfileAuthority.claimEditedWithoutValidation(network, road);
 
         assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
         assertEquals(
@@ -151,7 +151,7 @@ class ResolvedProfileAuthorityTest {
             PointOfVerticalIntersection.of(20.0, 72.0),
             PointOfVerticalIntersection.of(20.0, 74.0),
             PointOfVerticalIntersection.of(40.0, 76.0))));
-        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        ResolvedProfileAuthority.claimEditedWithoutValidation(network, road);
 
         var resolution = ResolvedProfileAuthority.resolve(network, road);
         // Solve kind is not EDITED (curve unusable), but source stays EDITED and generation blocks.
@@ -172,7 +172,8 @@ class ResolvedProfileAuthorityTest {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(-5.0, 70.0),
             PointOfVerticalIntersection.of(40.0, 74.0))));
-        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertFalse(ResolvedProfileAuthority.markEditedProfileConfirmed(network, road));
+        ResolvedProfileAuthority.claimEditedWithoutValidation(network, road);
         assertEquals(
             ResolvedProfileAuthority.EditedValidity.INCOMPLETE_COVERAGE,
             ResolvedProfileAuthority.evaluateEditedValidity(network, road));
@@ -180,10 +181,7 @@ class ResolvedProfileAuthorityTest {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 70.0),
             PointOfVerticalIntersection.of(50.0, 74.0))));
-        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
-        assertEquals(
-            ResolvedProfileAuthority.EditedValidity.INCOMPLETE_COVERAGE,
-            ResolvedProfileAuthority.evaluateEditedValidity(network, road));
+        assertFalse(ResolvedProfileAuthority.markEditedProfileConfirmed(network, road));
         assertFalse(EditedProfileRebindValidator.coversCanonicalLength(
             network, road, road.getVerticalAlignment()));
     }
@@ -206,7 +204,8 @@ class ResolvedProfileAuthorityTest {
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 80.49),
             PointOfVerticalIntersection.of(length, 80.51))));
-        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertFalse(ResolvedProfileAuthority.markEditedProfileConfirmed(network, road));
+        ResolvedProfileAuthority.claimEditedWithoutValidation(network, road);
 
         assertEquals(
             ResolvedProfileAuthority.EditedValidity.LOOP_ELEVATION_MISMATCH,
@@ -305,6 +304,33 @@ class ResolvedProfileAuthorityTest {
         assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
         assertEquals(70.0, road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-9);
         assertEquals(74.0, road.getVerticalAlignment().getPvis().getLast().getElevation(), 1e-9);
+    }
+
+    /** VD-T06/T07: native FLAT with junction override survives UNIFORM_FLAT read/write overlay. */
+    @Test
+    void uniformFlatDoesNotMutateNativeFlatStorageOrOverrides() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("flat");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(40, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId());
+        FlatVerticalIntentSupport.enableFlatWithBase(network, road, new com.plot.plugin.config.RoadSystemConfig("t"), 70.0);
+        FlatVerticalIntent intent = road.getFlatVerticalIntent();
+        intent.setIntersectionOverride(a.getId(), 72.0);
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, 5.0);
+        RoadVerticalAlignment storedBefore = road.getVerticalAlignment().copy();
+
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(90);
+        RoadVerticalAlignment synced = RoadVerticalAlignmentResolver.resolveSynced(network, road, 5.0);
+        assertEquals(90.0, synced.getPvis().getFirst().getElevation(), 1e-9);
+        assertEquals(storedBefore.getPvis().getFirst().getElevation(),
+            road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-9);
+        assertEquals(72.0, road.getFlatVerticalIntent().getIntersectionOverride(a.getId()), 1e-9);
+
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.PER_ROAD);
+        assertEquals(72.0, road.getFlatVerticalIntent().getIntersectionOverride(a.getId()), 1e-9);
+        assertEquals(RoadVerticalMode.FLAT, road.getVerticalMode());
     }
 
     private static RoadNetwork buildRoadWithAlignment(ProfileSource source) {

@@ -19,10 +19,17 @@ public final class ElevationLockAuthority {
 
     /**
      * Derived locks that must not override a valid EDITED/FLAT design Y or first-pass network Y.
+     * {@code null} origin is legacy derived data (same as PROFILE_PROPAGATED).
      */
     public static boolean yieldsToDesignOrNetwork(ManualElevationOrigin origin) {
-        return origin == ManualElevationOrigin.PROFILE_PROPAGATED
+        return origin == null
+            || origin == ManualElevationOrigin.PROFILE_PROPAGATED
             || origin == ManualElevationOrigin.CROSSING
             || origin == ManualElevationOrigin.GRADE_SEPARATED;
+    }
+
+    /** Legacy / propagated locks cleared when switching away from design authority. */
+    public static boolean isPropagatedOrLegacy(ManualElevationOrigin origin) {
+        return origin == null || origin == ManualElevationOrigin.PROFILE_PROPAGATED;
     }
 }

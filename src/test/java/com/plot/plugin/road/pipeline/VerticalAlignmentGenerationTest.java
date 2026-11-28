@@ -99,7 +99,7 @@ class VerticalAlignmentGenerationTest {
         RoadNode n2 = network.createNode(new Vec2d(100, 0));
         RoadEdge edge = network.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
-        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        ResolvedProfileAuthority.claimEditedWithoutValidation(network, road);
 
         assertTrue(ResolvedProfileAuthority.isIllegalEditedClaim(network, road));
 
@@ -157,3 +157,4 @@ class VerticalAlignmentGenerationTest {
         return generator.generateEdge(network, edge, start, end, terrain, null);
     }
 }
+

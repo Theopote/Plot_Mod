@@ -2114,8 +2114,13 @@ public final class RoadNetworkManager {
         }
         workingRoad.setLoopSeam(pendingLoopSeamReplacement);
         if (priorEditedValid) {
-            com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
-                working, workingRoad);
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    working, workingRoad)) {
+                clearPendingLoopSeamRemap();
+                loopSeamPickSession.cancel();
+                status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+                return;
+            }
         } else if (workingRoad.getEffectiveProfileSource()
                 == com.plot.plugin.road.vertical.ProfileSource.EDITED) {
             workingRoad.setProfileSource(com.plot.plugin.road.vertical.ProfileSource.AUTO);

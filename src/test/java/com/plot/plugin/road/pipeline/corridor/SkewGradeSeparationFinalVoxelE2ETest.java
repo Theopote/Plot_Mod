@@ -153,6 +153,80 @@ class SkewGradeSeparationFinalVoxelE2ETest {
                 + "shaftDeck=" + shaftDeckColumns + " underside=" + shaftDeckUnderside);
     }
 
+    /** VD-T08: mountain / covered skew GS — lining allowed; clearance must not punch deck. */
+    @Test
+    void mountainSkewGradeSepKeepsDeckAndAllowsCoverLining() {
+        RoadSystemConfig config = new RoadSystemConfig("skew-gs-mountain");
+        config.setTerrainStyle(RoadTerrainStyle.SMOOTH);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setDefaultCrossingClearance(6.0);
+        config.setMaxSlope(100.0f);
+
+        RoadNetwork network = skewedGradeSeparatedCross(Math.toRadians(30));
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        RoadGenerator generator = new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
+        RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
+        TerrainSampler terrain = hillTerrain(64, 78);
+        RoadNetworkGenerator.PreviewResult preview = networkGenerator.generatePreview(network, terrain);
+        RoadGenerationResult aggregate = preview.aggregate();
+        assertNotNull(aggregate);
+
+        Integer deckY = RoadJunctionGenerator.resolveElevatedDeckY(junction, 64, network, config);
+        assertNotNull(deckY);
+        assertTrue(deckY > 64);
+
+        double coreRadius = Math.max(6.0, config.getDefaultCrossingClearance());
+        int upperRoad = 0;
+        int structuralOrLiningUnderside = 0;
+        int upperUndersideCleared = 0;
+        int overburdenSolidAboveDeck = 0;
+
+        for (var entry : aggregate.placementRecords.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (Math.hypot(pos.getX(), pos.getZ()) > coreRadius) {
+                continue;
+            }
+            BlockRecord record = entry.getValue();
+            RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+            if (record == null) {
+                continue;
+            }
+            boolean air = "minecraft:air".equals(record.newBlockId);
+            if (pos.getY() == deckY && !air
+                    && (layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.BRIDGE)) {
+                upperRoad++;
+            }
+            if (pos.getY() == deckY - 1 && !air
+                    && (layer == RoadSolidLayer.BRIDGE || layer == RoadSolidLayer.SUBGRADE
+                        || layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.TUNNEL)) {
+                structuralOrLiningUnderside++;
+            }
+            if (pos.getY() == deckY - 1 && air
+                    && aggregate.placementMaterialPriorities.getOrDefault(
+                        pos, RoadSolidMaterialPriority.DEFAULT) == RoadSolidMaterialPriority.CLEARANCE) {
+                upperUndersideCleared++;
+            }
+            if (pos.getY() > deckY && !air
+                    && Math.hypot(pos.getX(), pos.getZ()) < 8) {
+                overburdenSolidAboveDeck++;
+            }
+        }
+
+        assertTrue(upperRoad > 0, "mountain skew must stamp elevated pavement");
+        assertTrue(structuralOrLiningUnderside > 0,
+            "covered GS may use structural underside or tunnel lining");
+        assertEquals(0, upperUndersideCleared,
+            "CLEARANCE must not punch elevated underside under hill cover");
+        assertTrue(overburdenSolidAboveDeck > 0 || structuralOrLiningUnderside > 0,
+            "hill cover or lining should remain near junction");
+    }
+
     private static RoadNetwork skewedGradeSeparatedCross(double radians) {
         RoadNetwork network = new RoadNetwork();
         Road underpass = network.createRoad("underpass");
@@ -187,5 +261,19 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         return new Vec2d(
             point.x * Math.cos(angle) - point.y * Math.sin(angle),
             point.x * Math.sin(angle) + point.y * Math.cos(angle));
+    }
+
+    private static TerrainSampler hillTerrain(int floorY, int hillY) {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return Math.hypot(point.x, point.y) < 8 ? hillY : floorY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
     }
 }

@@ -188,31 +188,58 @@ public final class ResolvedProfileAuthority {
     }
 
     /**
-     * 确认编辑曲线后写入来源与几何签名。
-     * Within-tolerance endpoints are snapped to exact 0/L (elevations unchanged).
-     * Returns false when snap would yield a non-evaluable curve (e.g. duplicate stations).
+     * User confirm / rebind: normalize endpoints to 0/L, then bind EDITED only when the result
+     * is a VALID claim. Incomplete / not-evaluable / unreliable curves return false without
+     * changing ProfileSource. Illegal EDITED load/test construction must use an explicit
+     * claim helper, not this method.
      */
     public static boolean markEditedProfileConfirmed(RoadNetwork network, Road road) {
         if (road == null || network == null) {
             return false;
         }
+        if (!RoadStationing.isStationable(network, road)) {
+            return false;
+        }
+        if (!RoadStationing.domainMap(network, road).isReliable()) {
+            return false;
+        }
         RoadVerticalAlignment alignment = road.getVerticalAlignment();
-        if (alignment != null && !alignment.isEmpty()) {
-            RoadVerticalAlignment normalized =
-                EditedProfileRebindValidator.normalizeEndpointsToCanonical(network, road, alignment);
-            if (normalized != null) {
-                if (!VerticalAlignmentGeometry.isEvaluable(normalized)) {
-                    return false;
-                }
-                road.setVerticalAlignment(normalized);
-            }
+        if (alignment == null || alignment.isEmpty()) {
+            return false;
+        }
+        RoadVerticalAlignment normalized =
+            EditedProfileRebindValidator.normalizeEndpointsToCanonical(network, road, alignment);
+        if (normalized == null) {
+            return false;
+        }
+        if (!VerticalAlignmentGeometry.isEvaluable(normalized)) {
+            return false;
+        }
+        if (!loopElevationsConsistent(network, road, normalized)) {
+            return false;
+        }
+        road.setVerticalAlignment(normalized);
+        if (road.getVerticalMode() != RoadVerticalMode.FLAT) {
+            road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        }
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
+        return hasValidEditedProfile(network, road);
+    }
+
+    /**
+     * Bind EDITED source + signature without validity checks. For fail-closed generation
+     * tests / loading archived illegal claims — never use for user confirm.
+     */
+    public static void claimEditedWithoutValidation(RoadNetwork network, Road road) {
+        if (road == null || network == null) {
+            return;
         }
         if (road.getVerticalMode() != RoadVerticalMode.FLAT) {
             road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         }
         road.setProfileSource(ProfileSource.EDITED);
         road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
-        return true;
     }
 
     /**

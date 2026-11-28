@@ -544,6 +544,65 @@ class ProfileEditorWindowSessionTest {
         assertFalse(manager.canUndo());
     }
 
+    /** VD-T01: illegal confirm must leave live VA/source/revision unchanged. */
+    @Test
+    void confirmIllegalCoverageLeavesLiveUnchanged() {
+        ProfileEditorWindowSession session = openSession();
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+        workingRoad.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(20.0, 64.0),
+            PointOfVerticalIntersection.of(80.0, 70.0))));
+        session.markTouched(workingRoad);
+
+        ProfileSource beforeSource = live.getRoad(road.getId()).getEffectiveProfileSource();
+        RoadVerticalAlignment before = live.getRoad(road.getId()).getVerticalAlignment().copy();
+        long revision = manager.getNetworkRevision();
+
+        ProfileEditorWindowSession.ConfirmResult result =
+            session.confirm(testContext(), live, config);
+
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT, result);
+        assertEquals(beforeSource, live.getRoad(road.getId()).getEffectiveProfileSource());
+        assertTrue(ProfileEditorNetworkApplier.alignmentPvisEqual(
+            before, live.getRoad(road.getId()).getVerticalAlignment()));
+        assertEquals(revision, manager.getNetworkRevision());
+    }
+
+    /** VD-T02: multi-road batch rejects entirely when one road is illegal. */
+    @Test
+    void confirmMultiRoadRejectsWhenAnyRoadIllegal() {
+        Road other = live.createRoad("other");
+        RoadNode start = live.createNode(new Vec2d(0, 20));
+        RoadNode end = live.createNode(new Vec2d(100, 20));
+        live.createEdge(start.getId(), end.getId(), List.of(start.getPosition(), end.getPosition()), other.getId());
+        other.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        other.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            PointOfVerticalIntersection.of(100, 64))));
+
+        ProfileEditorWindowSession session = openSession();
+        Road workingA = session.editingNetwork().getRoad(road.getId());
+        Road workingB = session.editingNetwork().getRoad(other.getId());
+        mutatePvi(workingA, 1, 72.0);
+        session.markTouched(workingA);
+        workingB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(10.0, 64.0),
+            PointOfVerticalIntersection.of(90.0, 64.0))));
+        session.markTouched(workingB);
+
+        double midBefore = live.getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation();
+        RoadVerticalAlignment otherBefore = live.getRoad(other.getId()).getVerticalAlignment().copy();
+        ProfileSource otherStoredBefore = live.getRoad(other.getId()).getStoredProfileSource();
+        ProfileEditorWindowSession.ConfirmResult result =
+            session.confirm(testContext(), live, config);
+
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT, result);
+        assertEquals(midBefore, live.getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation());
+        assertTrue(ProfileEditorNetworkApplier.alignmentPvisEqual(
+            otherBefore, live.getRoad(other.getId()).getVerticalAlignment()));
+        assertEquals(otherStoredBefore, live.getRoad(other.getId()).getStoredProfileSource());
+    }
+
     private static void mutatePvi(Road road, int index, double elevation) {
         RoadVerticalAlignment updated = VerticalProfileControlPoints.withElevation(
             road.getVerticalAlignment(), index, elevation, road);
