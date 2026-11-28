@@ -165,6 +165,8 @@ class RoadVerticalIntentSplitTest {
         road.getFlatVerticalIntent().setIntersectionOverride(c.getId(), 71.0);
         road.getFlatVerticalIntent().setIntersectionOverride(d.getId(), 74.0);
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+        // T01: compiled VA blocks direct repair on branching; keep flat intent for partition.
+        road.setVerticalAlignment(null);
 
         RoadTopologyRoadSplitter.repairAfterAdopt(network);
 
@@ -199,6 +201,7 @@ class RoadVerticalIntentSplitTest {
         FlatVerticalIntentSupport.enableFlatWithBase(network, road, config, 68.0);
         road.getFlatVerticalIntent().setIntersectionOverride(b.getId(), 74.0);
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+        road.setVerticalAlignment(null); // T01: allow direct repair with flat intent only
 
         RoadTopologyRoadSplitter.repairAfterAdopt(network);
 
@@ -224,6 +227,7 @@ class RoadVerticalIntentSplitTest {
         road.getFlatVerticalIntent().setIntersectionOverride(b.getId(), 71.0);
         road.getFlatVerticalIntent().setIntersectionOverride(d.getId(), 75.0);
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+        road.setVerticalAlignment(null); // T01: allow direct repair with flat intent only
 
         RoadTopologyRoadSplitter.repairAfterAdopt(network);
 
@@ -255,6 +259,7 @@ class RoadVerticalIntentSplitTest {
         road.getFlatVerticalIntent().setIntersectionOverride(c.getId(), 72.0);
         road.getFlatVerticalIntent().setIntersectionOverride(d.getId(), 75.0);
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+        road.setVerticalAlignment(null); // T01: allow direct repair with flat intent only
 
         RoadTopologyRoadSplitter.repairAfterAdopt(network);
 
@@ -297,6 +302,7 @@ class RoadVerticalIntentSplitTest {
 
         FlatVerticalIntentSupport.enableFlatWithBase(network, road, config, 68.0);
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+        road.setVerticalAlignment(null); // T01: allow direct repair with flat intent only
 
         RoadTopologyRoadSplitter.repairAfterAdopt(network);
 

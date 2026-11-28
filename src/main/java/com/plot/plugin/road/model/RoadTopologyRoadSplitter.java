@@ -376,9 +376,15 @@ public final class RoadTopologyRoadSplitter {
             return -1;
         }
         boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
-        // Physical anchors need a stationable chain; branching/disconnected repairs verify via
-        // applyRangeTo dry-run here and Manager post-verify after components are stationable (S03).
-        boolean physicalVerify = mapStationData && RoadStationing.isStationable(network, road);
+        boolean stationable = RoadStationing.isStationable(network, road);
+        // T01: protected VA/VCS/facilities on disconnected/branching topology cannot prove
+        // physical equivalence here. Refuse direct repair; Manager Delete Edge clears along-track
+        // before repairRoad and verifies externally after components are stationable.
+        if (network.hasProtectedAlongTrackData(road) && !stationable) {
+            return -1;
+        }
+        // Physical anchors need a stationable chain (S03).
+        boolean physicalVerify = mapStationData && stationable;
         var vaCap = physicalVerify
             ? RoadStationDataTransforms.captureVaPhysicalAnchors(network, road)
             : RoadStationDataTransforms.VaAnchorCapture.none();

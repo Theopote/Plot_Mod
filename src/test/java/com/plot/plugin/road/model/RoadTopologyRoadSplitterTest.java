@@ -196,8 +196,8 @@ class RoadTopologyRoadSplitterTest {
         RoadNode n2 = network.createNode(new Vec2d(10, 0));
         RoadNode n3 = network.createNode(new Vec2d(100, 0));
         RoadNode n4 = network.createNode(new Vec2d(110, 0));
-        String edgeNear = network.createEdge(
-            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()).getId();
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
         network.createEdge(
             n3.getId(), n4.getId(), List.of(new Vec2d(100, 0), new Vec2d(110, 0)), road.getId());
 
@@ -205,22 +205,11 @@ class RoadTopologyRoadSplitterTest {
             StationFacilityRun.of(2.0, 8.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
         )));
 
-        RoadTopologyRoadSplitter.repairAfterAdopt(network);
-
-        Road keptRoad = network.getRoads().values().stream()
-            .filter(candidate -> RoadSegmentOrdering.orderedSegmentIds(network, candidate).contains(edgeNear))
-            .findFirst()
-            .orElseThrow();
-        assertNotNull(keptRoad.getStationFacilities());
-        assertEquals(1, keptRoad.getStationFacilities().runCount());
-        assertEquals(2.0, keptRoad.getStationFacilities().sortedRuns().getFirst().getStartStation(), 1e-6);
-
-        Road farRoad = network.getRoads().values().stream()
-            .filter(candidate -> candidate != keptRoad)
-            .findFirst()
-            .orElseThrow();
-        assertNull(farRoad.getStationFacilities());
-        assertEquals(edgeNear, RoadSegmentOrdering.orderedSegmentIds(network, keptRoad).getFirst());
+        // T01: protected facilities on disconnected topology — direct repair must refuse.
+        String before = network.toJson();
+        var repair = RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        assertTrue(repair.migrationFailed());
+        assertEquals(before, network.toJson());
     }
 
     @Test
@@ -236,7 +225,7 @@ class RoadTopologyRoadSplitterTest {
             b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
         network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
 
-        // VA must cover the full oriented walk so every fork component can extract losslessly (Q04).
+        // T01: protected VA/facilities on branching topology — direct repair must refuse.
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 9.0),
             PointOfVerticalIntersection.of(10.0, 10.0),
@@ -246,21 +235,11 @@ class RoadTopologyRoadSplitterTest {
             StationFacilityRun.of(12.0, 18.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT)
         )));
 
+        String before = network.toJson();
         var repair = RoadTopologyRoadSplitter.repairAfterAdopt(network);
-        assertFalse(repair.migrationFailed());
-
-        Road branchRoad = network.getRoads().values().stream()
-            .filter(candidate -> candidate.getOrderedSegmentIds().contains(edgeBc))
-            .findFirst()
-            .orElseThrow();
-
-        assertNotNull(branchRoad.getStationFacilities());
-        StationFacilityRun run = branchRoad.getStationFacilities().sortedRuns().getFirst();
-        assertEquals(2.0, run.getStartStation(), 1e-6);
-        assertEquals(8.0, run.getEndStation(), 1e-6);
-        assertNotNull(branchRoad.getVerticalAlignment());
-        assertTrue(branchRoad.getVerticalAlignment().sortedPvis().size() >= 2);
-        assertEquals(0.0, branchRoad.getVerticalAlignment().sortedPvis().getFirst().getStation(), 1e-6);
-        assertEquals(10.0, branchRoad.getVerticalAlignment().sortedPvis().getLast().getStation(), 1e-6);
+        assertTrue(repair.migrationFailed());
+        assertEquals(before, network.toJson());
+        assertTrue(network.getRoads().values().stream()
+            .anyMatch(candidate -> candidate.getOrderedSegmentIds().contains(edgeBc)));
     }
 }

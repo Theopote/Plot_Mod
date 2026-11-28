@@ -710,6 +710,37 @@ class Phase244StationMigrationInvariantTest {
     }
 
     @Test
+    void directRepairRefusesProtectedAlongTrackOnBranchingTopology() {
+        // T01: branching + VA cannot prove physical equivalence via direct repair.
+        Road road = network.createRoad("t01-fork");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(10, 10));
+        network.createEdge(a.getId(), b.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(b.getId(), d.getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(10.0, 11.0),
+            PointOfVerticalIntersection.of(20.0, 12.0))));
+        assertTrue(network.hasProtectedAlongTrackData(road));
+        assertFalse(RoadStationing.isStationable(network, road));
+        String before = network.toJson();
+        long revision = manager.getNetworkRevision();
+        var result = manager.repairTopology(road);
+        network = manager.getNetwork();
+        assertTrue(result.migrationFailed());
+        assertEquals(before, network.toJson());
+        assertEquals(revision, manager.getNetworkRevision());
+        assertFalse(manager.canUndo());
+        assertEquals(1, network.getRoads().size());
+    }
+
+    @Test
     void openMergeToLoopPreservesVaVcsFacilitiesAndSpliceOrigin() {
         // Non-min-XY design origin at (40,0): min-XY would be (0,0) — seam must stay at splice.
         Road head = network.createRoad("loop-head");
