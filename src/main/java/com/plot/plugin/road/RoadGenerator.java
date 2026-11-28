@@ -184,7 +184,15 @@ public class RoadGenerator {
      * 路网节点统一标高（第一遍）：按各边自然高程决议，供边生成第二遍强制对齐端点。
      */
     public Map<String, Integer> resolveNetworkNodeElevations(RoadNetwork network, TerrainSampler terrain) {
-        return networkNodeElevationResolver.resolve(
+        return resolveNetworkNodeElevationsDetailed(network, terrain).heights();
+    }
+
+    /**
+     * First-pass elevations plus hard design-conflict nodes for generation gating.
+     */
+    public com.plot.plugin.road.pipeline.profile.NetworkNodeElevationResult
+            resolveNetworkNodeElevationsDetailed(RoadNetwork network, TerrainSampler terrain) {
+        return networkNodeElevationResolver.resolveDetailed(
             network,
             terrain,
             (nodeId, samples, spread, height) -> LOGGER.info(

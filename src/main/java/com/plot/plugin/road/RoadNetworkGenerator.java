@@ -29,7 +29,6 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.RoadCorridorTerrainPrefetch;
-import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import com.plot.api.world.IClientWorldAccess;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -544,10 +543,21 @@ public class RoadNetworkGenerator {
             LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
         try (var ignored = session.stationingCache().activate()) {
-            // Fail-closed preflight: confirmed design VA without a reliable station map.
+            // Fail-closed preflight: illegal EDITED / unreliable design map must not generate.
             for (var road : generationNetwork.getRoads().values()) {
-                if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority
-                        .usesEditedProfileForGeneration(generationNetwork, road)) {
+                var resolution = com.plot.plugin.road.vertical.ResolvedProfileAuthority
+                    .resolve(generationNetwork, road);
+                if (resolution.blocksGeneration()) {
+                    String message = "edited vertical alignment is not valid for generation on road "
+                        + road.getId() + " (" + resolution.editedValidity() + ")";
+                    for (String edgeId : road.getOrderedSegmentIds()) {
+                        session.networkResult().recordEdgeOutcome(
+                            edgeId,
+                            com.plot.plugin.road.pipeline.EdgeGenerationResult.failed(message));
+                    }
+                    continue;
+                }
+                if (!resolution.usesEditedProfile()) {
                     continue;
                 }
                 if (com.plot.plugin.road.station.RoadStationing.domainMap(generationNetwork, road)
@@ -562,15 +572,26 @@ public class RoadNetworkGenerator {
                         com.plot.plugin.road.pipeline.EdgeGenerationResult.failed(message));
                 }
             }
-            int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
-                generationNetwork,
-                roadGenerator.getConfig());
-            if (smoothedRoads > 0) {
-                LOGGER.info("生成前已自动平缓 {} 条道路纵断面坡度", smoothedRoads);
+            // W04: do not auto-smooth confirmed EDITED curves before generation.
+            // VerticalAlignmentGradeSmoother remains available for explicit user optimization.
+            var nodeElevationResult =
+                roadGenerator.resolveNetworkNodeElevationsDetailed(generationNetwork, session.terrain());
+            session.networkResult().setNodeElevations(nodeElevationResult.heights());
+            if (nodeElevationResult.hasHardConflicts()) {
+                for (String nodeId : nodeElevationResult.conflictNodeIds()) {
+                    RoadNode conflictNode = generationNetwork.getNode(nodeId);
+                    if (conflictNode == null) {
+                        continue;
+                    }
+                    String message = "hard elevation conflict at node " + nodeId
+                        + " samples=" + nodeElevationResult.conflictSamples().getOrDefault(nodeId, List.of());
+                    for (String edgeId : conflictNode.getConnectedEdgeIds()) {
+                        session.networkResult().recordEdgeOutcome(
+                            edgeId,
+                            com.plot.plugin.road.pipeline.EdgeGenerationResult.failed(message));
+                    }
+                }
             }
-            Map<String, Integer> nodeElevations =
-                roadGenerator.resolveNetworkNodeElevations(generationNetwork, session.terrain());
-            session.networkResult().setNodeElevations(nodeElevations);
             session.markPrepared();
         }
     }

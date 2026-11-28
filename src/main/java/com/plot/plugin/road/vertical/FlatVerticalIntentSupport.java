@@ -28,6 +28,11 @@ public final class FlatVerticalIntentSupport {
         if (road == null) {
             return null;
         }
+        // Network-uniform FLAT authority: synthesize from network Y without requiring road.verticalMode.
+        // Do not mutate live stored intent when reading through this path for uniform override.
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return new FlatVerticalIntent(NetworkElevationAuthority.effectiveUniformY(network));
+        }
         FlatVerticalIntent stored = road.getFlatVerticalIntent();
         if (stored != null) {
             return stored;
@@ -41,6 +46,8 @@ public final class FlatVerticalIntentSupport {
     }
 
     public static void syncCompiledAlignment(RoadNetwork network, Road road, double maxGradePercent) {
+        // Persist compiled FLAT VA only for roads that are already FLAT. Network-uniform
+        // synthesis for non-FLAT roads is read-side only (resolveIntent / resolve).
         if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
             return;
         }

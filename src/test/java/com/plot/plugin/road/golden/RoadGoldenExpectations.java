@@ -31,9 +31,10 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
         530, 0, 0, 58, 0, 0, 112, 0, 0, 474, 0, 0, List.of());
 
-    // Acute shared-vertex pavement fan (≥90°) + longitudinal step cladding.
+    // EDITED slope kept as-authored (W04: no pre-generation grade smooth). Steep 64→72
+    // over 30 m spans as bridge/fill rather than a smoothed embankment-only profile.
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
-        244, 84, 0, 0, 0, 0, 0, 0, 84, 244, 0, 0, List.of());
+        248, 88, 0, 0, 128, 0, 0, 0, 88, 376, 1, 0, List.of());
 
     // FIT_TERRAIN after Phase 2.4.5.1 V04/V05 terrain-trend sign/blend fixes.
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(

@@ -93,9 +93,11 @@ class RoadSlopeConstructionE2ETest {
         Road road = network.getRoads().values().iterator().next();
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         road.setIncludeSlopeBatter(true);
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 64),
-            PointOfVerticalIntersection.of(40, 64))));
+            PointOfVerticalIntersection.of(length, 64))));
+        com.plot.plugin.road.RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = slopeEnabledConfig();
         RoadGenerationResult edge = singleEdgePreview(network, config, new FlatTerrainSampler(88));
@@ -129,9 +131,11 @@ class RoadSlopeConstructionE2ETest {
         RoadNetwork network = scenario.network();
         Road road = network.getRoads().values().iterator().next();
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 64),
-            PointOfVerticalIntersection.of(40, 64))));
+            PointOfVerticalIntersection.of(length, 64))));
+        com.plot.plugin.road.RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = slopeEnabledConfig();
         config.setMaxSlope(40.0f);

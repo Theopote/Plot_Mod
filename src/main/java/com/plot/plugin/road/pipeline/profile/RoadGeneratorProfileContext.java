@@ -63,11 +63,11 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
     Road road = network.getRoadForEdge(edge);
     ResolvedProfileAuthority.Resolution authority = ResolvedProfileAuthority.resolve(network, road);
     String roadId = road != null ? road.getId() : "?";
-    // Illegal EDITED claim (incomplete / unreliable / loop mismatch) must fail closed.
-    if (ResolvedProfileAuthority.isIllegalEditedClaim(network, road)) {
+    // Illegal EDITED claim carried on Resolution — fail closed (do not terrain-solve).
+    if (authority.blocksGeneration()) {
       throw new IllegalStateException(
           "edited vertical alignment is not valid for generation on road " + roadId
-              + " (" + ResolvedProfileAuthority.evaluateEditedValidity(network, road) + ")");
+              + " (" + authority.editedValidity() + ")");
     }
     boolean requiresDesignAuthority =
         authority.kind() == ResolvedProfileAuthority.Kind.EDITED

@@ -45,9 +45,21 @@ public final class NetworkNodeElevationResolver {
             RoadNetwork network,
             TerrainSampler terrain,
             JunctionMismatchLogger mismatchLogger) {
+        return resolveDetailed(network, terrain, mismatchLogger).heights();
+    }
+
+    /**
+     * Same as {@link #resolve} but retains hard design-conflict node IDs for generation gating.
+     */
+    public NetworkNodeElevationResult resolveDetailed(
+            RoadNetwork network,
+            TerrainSampler terrain,
+            JunctionMismatchLogger mismatchLogger) {
         Map<String, Integer> resolved = new LinkedHashMap<>();
+        java.util.Set<String> hardConflicts = new java.util.LinkedHashSet<>();
+        Map<String, List<Integer>> hardConflictSamples = new LinkedHashMap<>();
         if (network == null || terrain == null) {
-            return resolved;
+            return NetworkNodeElevationResult.empty();
         }
 
         Map<String, List<Integer>> naturalHeightsByNode = collectNaturalHeights(network, terrain);
@@ -75,14 +87,16 @@ public final class NetworkNodeElevationResolver {
                     == com.plot.plugin.road.model.ManualElevationOrigin.USER;
                 if (userLock) {
                     if (designed.conflicts().contains(node.getId())
-                            || (designedY != null
-                                && Math.abs(designedY - locked)
-                                    > RoadSlopeUtils.JunctionHeightResolution.SIGNIFICANT_SPREAD_THRESHOLD)) {
-                        // USER lock vs EDITED design hard conflict: do not silently pick one.
+                            || (designedY != null && designedY != locked)) {
+                        // USER lock vs EDITED design hard conflict: integer Y must match.
+                        hardConflicts.add(node.getId());
+                        hardConflictSamples.put(
+                            node.getId(),
+                            List.of(locked, designedY != null ? designedY : locked));
                         if (mismatchLogger != null) {
                             mismatchLogger.logSignificantMismatch(
                                 node.getId(),
-                                List.of(locked, designedY != null ? designedY : locked),
+                                hardConflictSamples.get(node.getId()),
                                 designedY != null ? Math.abs(designedY - locked) : 0,
                                 locked);
                         }
@@ -97,6 +111,10 @@ public final class NetworkNodeElevationResolver {
                     continue;
                 }
                 if (designed.conflicts().contains(node.getId())) {
+                    hardConflicts.add(node.getId());
+                    hardConflictSamples.put(
+                        node.getId(),
+                        designed.conflictSamples().getOrDefault(node.getId(), List.of()));
                     continue;
                 }
                 resolved.put(node.getId(), locked);
@@ -105,6 +123,8 @@ public final class NetworkNodeElevationResolver {
             // Two valid EDITED designs that disagree: never average into a fake consensus.
             if (designed.conflicts().contains(node.getId())) {
                 List<Integer> conflictSamples = designed.conflictSamples().getOrDefault(node.getId(), List.of());
+                hardConflicts.add(node.getId());
+                hardConflictSamples.put(node.getId(), conflictSamples);
                 if (mismatchLogger != null && !conflictSamples.isEmpty()) {
                     RoadSlopeUtils.JunctionHeightResolution resolution =
                         RoadSlopeUtils.resolveJunctionHeight(conflictSamples);
@@ -129,9 +149,12 @@ public final class NetworkNodeElevationResolver {
             }
             resolved.put(node.getId(), resolution.height());
         }
+        hardConflicts.addAll(designed.conflicts());
+        designed.conflictSamples().forEach(hardConflictSamples::putIfAbsent);
+
         java.util.Set<String> designedPinned = new java.util.LinkedHashSet<>(designed.targets().keySet());
         // Conflict nodes stay unresolved — refine must not invent an average for them.
-        designedPinned.addAll(designed.conflicts());
+        designedPinned.addAll(hardConflicts);
         resolved = JunctionFeasibleElevationResolver.refine(
             network,
             naturalHeightsByNode,
@@ -147,7 +170,9 @@ public final class NetworkNodeElevationResolver {
             approachConstraints,
             resolved,
             designedPinned);
-        return AutomaticNodeElevationContinuity.project(network, approachConstraints, refined);
+        Map<String, Integer> projected =
+            AutomaticNodeElevationContinuity.project(network, approachConstraints, refined);
+        return new NetworkNodeElevationResult(projected, hardConflicts, hardConflictSamples);
     }
 
     private record DesignedElevationConsensus(
@@ -175,12 +200,10 @@ public final class NetworkNodeElevationResolver {
             if (values == null || values.isEmpty()) {
                 return;
             }
-            // 有设计纵断面时只用设计样本决议，避免无 VA 的贴地边把平交口均值拉低。
-            // 设计之间散布过大：硬冲突，禁止平均写入 targets。
+            // Hard design constraints: integer elevations must agree exactly (not soft terrain spread).
             RoadSlopeUtils.JunctionHeightResolution resolution =
                 RoadSlopeUtils.resolveJunctionHeight(values);
-            if (resolution.spread()
-                    <= RoadSlopeUtils.JunctionHeightResolution.SIGNIFICANT_SPREAD_THRESHOLD) {
+            if (resolution.spread() == 0) {
                 targets.put(id, resolution.height());
             } else {
                 conflicts.add(id);
@@ -358,3 +381,6 @@ public final class NetworkNodeElevationResolver {
             .add(naturalHeight);
     }
 }
+
+
+

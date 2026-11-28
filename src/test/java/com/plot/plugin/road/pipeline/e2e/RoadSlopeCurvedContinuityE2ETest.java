@@ -33,9 +33,11 @@ class RoadSlopeCurvedContinuityE2ETest {
         Road road = network.getRoads().values().iterator().next();
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         road.setIncludeSlopeBatter(true);
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, 64),
-            PointOfVerticalIntersection.of(40, 64))));
+            PointOfVerticalIntersection.of(length, 64))));
+        com.plot.plugin.road.RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         // cover≈8，低于 deep-daylight，保留开敞弯道挖方边坡。
         RoadGenerationResult edge = preview(network, slopeEnabledConfig(), new FlatTerrainSampler(72));

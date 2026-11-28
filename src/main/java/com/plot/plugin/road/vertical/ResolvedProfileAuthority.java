@@ -7,6 +7,9 @@ import com.plot.plugin.road.station.RoadStationing;
 
 /**
  * 生成时纵断面权威解析：自动设计、用户编辑曲线、水平道路三选一，不混用。
+ * <p>
+ * Note: EDITED geometry signatures now include HA element fields. Saved projects from
+ * older builds may need a one-time reconfirm after upgrade (signature mismatch → AUTO).
  */
 public final class ResolvedProfileAuthority {
 
@@ -20,7 +23,7 @@ public final class ResolvedProfileAuthority {
 
     /**
      * Why an EDITED source is not currently valid for generation.
-     * {@link #NONE} means the road is not claiming EDITED, or EDITED is valid.
+     * {@link #NONE} means the road is not claiming EDITED, or EDITED is valid under FLAT/AUTO.
      */
     public enum EditedValidity {
         VALID,
@@ -34,9 +37,22 @@ public final class ResolvedProfileAuthority {
         LOOP_ELEVATION_MISMATCH
     }
 
-    public record Resolution(Kind kind, boolean editedSignatureStale) {
+    public record Resolution(Kind kind, EditedValidity editedValidity, boolean editedSignatureStale) {
+        public Resolution(Kind kind, boolean editedSignatureStale) {
+            this(kind, EditedValidity.NONE, editedSignatureStale);
+        }
+
         public boolean usesEditedProfile() {
             return kind == Kind.EDITED;
+        }
+
+        /** Confirmed EDITED claim that must not generate (keep source; fail closed). */
+        public boolean blocksGeneration() {
+            return editedValidity == EditedValidity.INCOMPLETE_COVERAGE
+                || editedValidity == EditedValidity.LOOP_ELEVATION_MISMATCH
+                || editedValidity == EditedValidity.UNRELIABLE_DOMAIN
+                || editedValidity == EditedValidity.NOT_EVALUABLE
+                || editedValidity == EditedValidity.NOT_STATIONABLE;
         }
     }
 
@@ -45,24 +61,28 @@ public final class ResolvedProfileAuthority {
 
     public static Resolution resolve(RoadNetwork network, Road road) {
         if (road == null || network == null) {
-            return new Resolution(Kind.AUTO, false);
+            return new Resolution(Kind.AUTO, EditedValidity.NONE, false);
         }
         if (NetworkElevationAuthority.isUniformFlat(network)) {
-            return new Resolution(Kind.FLAT, false);
+            return new Resolution(Kind.FLAT, EditedValidity.NONE, false);
         }
         RoadVerticalMode mode = road.getVerticalMode();
         if (mode == RoadVerticalMode.FLAT) {
-            return new Resolution(Kind.FLAT, false);
+            return new Resolution(Kind.FLAT, EditedValidity.NONE, false);
         }
         if (road.getEffectiveProfileSource() == ProfileSource.EDITED) {
-            if (hasValidEditedProfile(network, road)) {
-                return new Resolution(Kind.EDITED, false);
+            EditedValidity validity = evaluateEditedValidity(network, road);
+            if (validity == EditedValidity.VALID) {
+                return new Resolution(Kind.EDITED, EditedValidity.VALID, false);
             }
-            // Keep Kind.AUTO only as a non-EDITED generation kind marker; callers that still
-            // see ProfileSource.EDITED must fail closed rather than silently terrain-solve.
-            return new Resolution(Kind.AUTO, true);
+            if (validity == EditedValidity.SIGNATURE_MISMATCH) {
+                // Geometry stale — treat as AUTO for solve dispatch; demote via invalidate.
+                return new Resolution(Kind.AUTO, EditedValidity.SIGNATURE_MISMATCH, true);
+            }
+            // Illegal confirmed EDITED: keep claim visible via validity; do not use as AUTO design.
+            return new Resolution(Kind.AUTO, validity, false);
         }
-        return new Resolution(Kind.AUTO, false);
+        return new Resolution(Kind.AUTO, EditedValidity.NONE, false);
     }
 
     public static boolean usesEditedProfileForGeneration(RoadNetwork network, Road road) {
@@ -75,25 +95,11 @@ public final class ResolvedProfileAuthority {
     }
 
     /**
-     * Fail-closed gate: user still wants a <em>confirmed</em> EDITED curve that cannot generate.
-     * Geometry-stale / unbound-signature claims are not illegal — {@link #resolve} treats them as
-     * AUTO without mutating; {@link #invalidateEditedProfileIfStale} demotes when appropriate.
+     * Fail-closed gate: confirmed EDITED that cannot legally generate.
+     * Prefer {@link Resolution#blocksGeneration()} from {@link #resolve}.
      */
     public static boolean isIllegalEditedClaim(RoadNetwork network, Road road) {
-        if (!claimsEditedProfile(road)) {
-            return false;
-        }
-        // Only fail closed when the geometry signature still matches (user confirmed this path)
-        // but the curve itself is incomplete, loop-broken, or unmappable.
-        if (!EditedProfileGeometry.matches(network, road, road.getEditedGeometrySignature())) {
-            return false;
-        }
-        EditedValidity validity = evaluateEditedValidity(network, road);
-        return validity == EditedValidity.INCOMPLETE_COVERAGE
-            || validity == EditedValidity.LOOP_ELEVATION_MISMATCH
-            || validity == EditedValidity.UNRELIABLE_DOMAIN
-            || validity == EditedValidity.NOT_EVALUABLE
-            || validity == EditedValidity.NOT_STATIONABLE;
+        return resolve(network, road).blocksGeneration();
     }
 
     public static EditedValidity evaluateEditedValidity(RoadNetwork network, Road road) {
@@ -103,6 +109,11 @@ public final class ResolvedProfileAuthority {
         if (road.getEffectiveProfileSource() != ProfileSource.EDITED
                 && !hasStoredEditedCurve(road)) {
             return EditedValidity.NONE;
+        }
+        // Signature mismatch first when claiming EDITED — distinguishes stale geometry from illegal VA.
+        if (road.getEffectiveProfileSource() == ProfileSource.EDITED
+                && !EditedProfileGeometry.matches(network, road, road.getEditedGeometrySignature())) {
+            return EditedValidity.SIGNATURE_MISMATCH;
         }
         if (!RoadStationing.isStationable(network, road)) {
             return EditedValidity.NOT_STATIONABLE;
@@ -120,12 +131,7 @@ public final class ResolvedProfileAuthority {
         if (!loopElevationsConsistent(network, road, alignment)) {
             return EditedValidity.LOOP_ELEVATION_MISMATCH;
         }
-        if (road.getEffectiveProfileSource() == ProfileSource.EDITED
-                && !EditedProfileGeometry.matches(network, road, road.getEditedGeometrySignature())) {
-            return EditedValidity.SIGNATURE_MISMATCH;
-        }
         if (road.getEffectiveProfileSource() != ProfileSource.EDITED) {
-            // Stored curve checked for activation: signature checked separately by canActivate.
             return EditedValidity.NONE;
         }
         return EditedValidity.VALID;
@@ -194,10 +200,8 @@ public final class ResolvedProfileAuthority {
     }
 
     /**
-     * 几何变更后使 EDITED 来源失效并切回 AUTO（保留保存的 VA）。
-     * Signature / evaluability / stationability failures demote to AUTO.
-     * Incomplete coverage or LOOP mismatch with a still-matching geometry signature
-     * keeps EDITED so generation can fail closed instead of silently switching to AUTO.
+     * Plane-geometry change only: demote EDITED → AUTO when signature mismatches (keep VA).
+     * Illegal VA / topology / domain failures are not demoted — generation must fail closed.
      */
     public static boolean invalidateEditedProfileIfStale(RoadNetwork network, Road road) {
         if (road == null || network == null) {
@@ -209,18 +213,14 @@ public final class ResolvedProfileAuthority {
         if (hasValidEditedProfile(network, road)) {
             return false;
         }
-        // Prefer geometry-staleness demotion even when coverage also fails after a path edit.
-        if (!RoadStationing.isStationable(network, road)
-                || !VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
-                || !EditedProfileGeometry.matches(network, road, road.getEditedGeometrySignature())) {
+        if (!EditedProfileGeometry.matches(network, road, road.getEditedGeometrySignature())) {
             road.setProfileSource(ProfileSource.AUTO);
             return true;
         }
-        // Matching signature but incomplete/loop/unreliable — keep EDITED for fail-closed.
         return false;
     }
 
-    private static boolean loopElevationsConsistent(
+    static boolean loopElevationsConsistent(
             RoadNetwork network,
             Road road,
             RoadVerticalAlignment alignment) {
@@ -232,6 +232,15 @@ public final class ResolvedProfileAuthority {
         if (start.isEmpty() || end.isEmpty()) {
             return false;
         }
-        return Math.abs(start.getAsDouble() - end.getAsDouble()) <= LOOP_ELEVATION_TOLERANCE;
+        double continuousDelta = Math.abs(start.getAsDouble() - end.getAsDouble());
+        if (continuousDelta > LOOP_ELEVATION_TOLERANCE) {
+            return false;
+        }
+        // Integer pavement must also meet at the seam (avoids 80.49 vs 80.51 → 80/81).
+        int startBlock = com.plot.core.geometry.VoxelElevationDiscretizer
+            .quantizeContinuous(start.getAsDouble());
+        int endBlock = com.plot.core.geometry.VoxelElevationDiscretizer
+            .quantizeContinuous(end.getAsDouble());
+        return startBlock == endBlock;
     }
 }

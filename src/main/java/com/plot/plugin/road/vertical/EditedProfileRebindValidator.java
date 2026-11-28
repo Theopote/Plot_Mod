@@ -5,6 +5,8 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -58,7 +60,10 @@ public final class EditedProfileRebindValidator {
         return validate(network, road, config) == null;
     }
 
-    /** True when VA endpoints cover canonical stations 0–L within tolerance. */
+    /**
+     * True when VA endpoints correspond to canonical stations 0 and L (bidirectional).
+     * Rejects curves that start before 0, end after L, or leave a gap inside the road.
+     */
     public static boolean coversCanonicalLength(
             RoadNetwork network,
             Road road,
@@ -70,7 +75,63 @@ public final class EditedProfileRebindValidator {
         if (!Double.isFinite(length) || length <= ENDPOINT_STATION_TOLERANCE) {
             return false;
         }
-        return alignment.startStation() <= ENDPOINT_STATION_TOLERANCE
-            && alignment.endStation() >= length - ENDPOINT_STATION_TOLERANCE;
+        double start = alignment.startStation();
+        double end = alignment.endStation();
+        if (!Double.isFinite(start) || !Double.isFinite(end)) {
+            return false;
+        }
+        // Bidirectional: must sit at 0 and L within tolerance; no overhang beyond path.
+        if (Math.abs(start) > ENDPOINT_STATION_TOLERANCE) {
+            return false;
+        }
+        if (Math.abs(end - length) > ENDPOINT_STATION_TOLERANCE) {
+            return false;
+        }
+        if (start < -ENDPOINT_STATION_TOLERANCE || end > length + ENDPOINT_STATION_TOLERANCE) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * When endpoints are within tolerance of 0/L, return a copy with stations snapped to
+     * exact 0 and L (elevations unchanged). Returns null if coverage is not valid.
+     */
+    public static RoadVerticalAlignment normalizeEndpointsToCanonical(
+            RoadNetwork network,
+            Road road,
+            RoadVerticalAlignment alignment) {
+        if (!coversCanonicalLength(network, road, alignment)) {
+            return null;
+        }
+        double length = RoadStationing.canonicalLength(network, road);
+        List<PointOfVerticalIntersection> pvis = alignment.getPvis();
+        if (pvis.size() < 2) {
+            return null;
+        }
+        List<PointOfVerticalIntersection> normalized = new ArrayList<>(pvis.size());
+        for (int i = 0; i < pvis.size(); i++) {
+            PointOfVerticalIntersection pvi = pvis.get(i);
+            if (i == 0) {
+                normalized.add(copyWithStation(pvi, 0.0));
+            } else if (i == pvis.size() - 1) {
+                normalized.add(copyWithStation(pvi, length));
+            } else {
+                normalized.add(pvi);
+            }
+        }
+        return new RoadVerticalAlignment(normalized);
+    }
+
+    private static PointOfVerticalIntersection copyWithStation(
+            PointOfVerticalIntersection source,
+            double station) {
+        PointOfVerticalIntersection copy = source.hasCurve()
+            ? PointOfVerticalIntersection.withCurve(station, source.getElevation(), source.getCurveLength())
+            : PointOfVerticalIntersection.of(station, source.getElevation());
+        if (source.getConstraint() != null) {
+            return copy.withConstraint(source.getConstraint());
+        }
+        return copy;
     }
 }

@@ -1,5 +1,6 @@
 package com.plot.plugin.road.pipeline.profile;
 
+import com.plot.core.geometry.VoxelElevationDiscretizer;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -333,8 +334,6 @@ public final class VerticalAlignmentProfileSolver {
             waterCrossingMarkers);
     }
 
-    private static final double ENDPOINT_COMPAT_TOLERANCE = 0.51;
-
     private static List<Double> buildDesignProfileElevations(
             ProfileGroundSampler.SampleData sampleData,
             @SuppressWarnings("unused") Integer manualStartHeight,
@@ -366,6 +365,7 @@ public final class VerticalAlignmentProfileSolver {
         return elevations;
     }
 
+    /** Integer pavement must match; continuous 0.51 tolerance can still quantize to different Y. */
     static boolean endpointsCompatibleWithDesign(
             List<Double> designElevations,
             Integer manualStartHeight,
@@ -374,11 +374,13 @@ public final class VerticalAlignmentProfileSolver {
             return manualStartHeight == null && manualEndHeight == null;
         }
         if (manualStartHeight != null
-                && Math.abs(designElevations.getFirst() - manualStartHeight) > ENDPOINT_COMPAT_TOLERANCE) {
+                && VoxelElevationDiscretizer.quantizeContinuous(designElevations.getFirst())
+                    != manualStartHeight.intValue()) {
             return false;
         }
         if (manualEndHeight != null
-                && Math.abs(designElevations.getLast() - manualEndHeight) > ENDPOINT_COMPAT_TOLERANCE) {
+                && VoxelElevationDiscretizer.quantizeContinuous(designElevations.getLast())
+                    != manualEndHeight.intValue()) {
             return false;
         }
         return true;
@@ -508,3 +510,4 @@ public final class VerticalAlignmentProfileSolver {
         return worldDistances;
     }
 }
+

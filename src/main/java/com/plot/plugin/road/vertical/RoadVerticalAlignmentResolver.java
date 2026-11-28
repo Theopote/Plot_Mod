@@ -16,7 +16,8 @@ public final class RoadVerticalAlignmentResolver {
         if (road == null) {
             return null;
         }
-        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT
+                || NetworkElevationAuthority.isUniformFlat(network)) {
             FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
             if (intent == null) {
                 return null;
@@ -32,6 +33,11 @@ public final class RoadVerticalAlignmentResolver {
             double maxGradePercent) {
         if (road != null && road.getVerticalMode() == RoadVerticalMode.FLAT) {
             FlatVerticalIntentSupport.syncCompiledAlignment(network, road, maxGradePercent);
+            return road.getVerticalAlignment();
+        }
+        // Network-uniform FLAT: compile without mutating stored road VA/mode.
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            return resolve(network, road, maxGradePercent);
         }
         return road != null ? road.getVerticalAlignment() : null;
     }

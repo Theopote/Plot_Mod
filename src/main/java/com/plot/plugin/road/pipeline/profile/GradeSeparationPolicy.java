@@ -157,6 +157,17 @@ public final class GradeSeparationPolicy {
             }
         }
         if (node.getManualElevation() != null) {
+            var origin = node.getManualElevationOrigin();
+            // USER / crossing / grade-separated locks remain hard; propagated locks yield to
+            // a valid EDITED/FLAT design endpoint when present (same rule as pass-1).
+            boolean derived = origin == com.plot.plugin.road.model.ManualElevationOrigin.PROFILE_PROPAGATED;
+            if (derived) {
+                var designed = VerticalAlignmentEndpointHeight.atNode(
+                    network, edge, node, context.roadConfig());
+                if (designed.isPresent()) {
+                    return designed.getAsInt();
+                }
+            }
             return node.getManualElevation().intValue();
         }
         return null;

@@ -140,6 +140,99 @@ class ResolvedProfileAuthorityTest {
         assertFalse(ResolvedProfileAuthority.canActivateEditedProfile(network, road));
     }
 
+    /** VB01: not-evaluable EDITED survives as EDITED and blocks generation (not demoted to AUTO). */
+    @Test
+    void notEvaluableEditedSurvivesAndBlocksGeneration() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        // Duplicate stations → not evaluable.
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(20.0, 72.0),
+            PointOfVerticalIntersection.of(20.0, 74.0),
+            PointOfVerticalIntersection.of(40.0, 76.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+
+        var resolution = ResolvedProfileAuthority.resolve(network, road);
+        // Solve kind is not EDITED (curve unusable), but source stays EDITED and generation blocks.
+        assertFalse(resolution.usesEditedProfile());
+        assertEquals(
+            ResolvedProfileAuthority.EditedValidity.NOT_EVALUABLE,
+            resolution.editedValidity());
+        assertTrue(resolution.blocksGeneration());
+        assertFalse(ResolvedProfileAuthority.invalidateEditedProfileIfStale(network, road));
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+    }
+
+    /** VB02: VA start &lt; 0 or end &gt; L is rejected. */
+    @Test
+    void vaOutsideCanonicalRangeIsRejected() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(-5.0, 70.0),
+            PointOfVerticalIntersection.of(40.0, 74.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertEquals(
+            ResolvedProfileAuthority.EditedValidity.INCOMPLETE_COVERAGE,
+            ResolvedProfileAuthority.evaluateEditedValidity(network, road));
+
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(50.0, 74.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertEquals(
+            ResolvedProfileAuthority.EditedValidity.INCOMPLETE_COVERAGE,
+            ResolvedProfileAuthority.evaluateEditedValidity(network, road));
+        assertFalse(EditedProfileRebindValidator.coversCanonicalLength(
+            network, road, road.getVerticalAlignment()));
+    }
+
+    /** VB03: LOOP tiny continuous delta but different integer Y → mismatch. */
+    @Test
+    void loopIntegerSeamMismatchRejected() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("loop");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setTopologyMode(com.plot.plugin.road.model.RoadTopologyMode.LOOP);
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(40, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 30));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(40, 0), new Vec2d(20, 30)), road.getId());
+        network.createEdge(c.getId(), a.getId(), List.of(new Vec2d(20, 30), new Vec2d(0, 0)), road.getId());
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
+        // Continuous delta 0.02 within 0.51, but rounds to 80 vs 81.
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 80.49),
+            PointOfVerticalIntersection.of(length, 80.51))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+
+        assertEquals(
+            ResolvedProfileAuthority.EditedValidity.LOOP_ELEVATION_MISMATCH,
+            ResolvedProfileAuthority.evaluateEditedValidity(network, road));
+        assertTrue(ResolvedProfileAuthority.resolve(network, road).blocksGeneration());
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+    }
+
+    /** VB08: network-uniform FLAT intent synthesizes without mutating non-FLAT road mode. */
+    @Test
+    void networkUniformFlatSynthesizesIntentWithoutMutatingMode() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.AUTO);
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(72);
+        Road road = network.getRoad("r1");
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        assertEquals(72.0, intent.getBaseElevation(), 1e-6);
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+        assertEquals(
+            ResolvedProfileAuthority.Kind.FLAT,
+            ResolvedProfileAuthority.resolve(network, road).kind());
+        assertTrue(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road));
+    }
+
     private static RoadNetwork buildRoadWithAlignment(ProfileSource source) {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
