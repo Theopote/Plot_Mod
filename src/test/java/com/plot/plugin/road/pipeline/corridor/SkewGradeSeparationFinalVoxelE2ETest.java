@@ -185,7 +185,6 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         int upperRoad = 0;
         int structuralOrLiningUnderside = 0;
         int upperUndersideCleared = 0;
-        int overburdenSolidAboveDeck = 0;
 
         for (var entry : aggregate.placementRecords.entrySet()) {
             BlockPos pos = entry.getKey();
@@ -212,10 +211,6 @@ class SkewGradeSeparationFinalVoxelE2ETest {
                         pos, RoadSolidMaterialPriority.DEFAULT) == RoadSolidMaterialPriority.CLEARANCE) {
                 upperUndersideCleared++;
             }
-            if (pos.getY() > deckY && !air
-                    && Math.hypot(pos.getX(), pos.getZ()) < 8) {
-                overburdenSolidAboveDeck++;
-            }
         }
 
         assertTrue(upperRoad > 0, "mountain skew must stamp elevated pavement");
@@ -223,8 +218,75 @@ class SkewGradeSeparationFinalVoxelE2ETest {
             "covered GS may use structural underside or tunnel lining");
         assertEquals(0, upperUndersideCleared,
             "CLEARANCE must not punch elevated underside under hill cover");
-        assertTrue(overburdenSolidAboveDeck > 0 || structuralOrLiningUnderside > 0,
-            "hill cover or lining should remain near junction");
+        assertTrue(countProtectedOverburdenSolid(terrain, aggregate, deckY, 8) > 0,
+            "hill overburden above deck must remain in the protected core");
+    }
+
+    /** VE-T05: overburden helper must fail when protected cover is cleared in placements. */
+    @Test
+    void overburdenHelperFailsWhenProtectedCoverIsCleared() {
+        TerrainSampler terrain = hillTerrain(64, 78);
+        int deckY = 72;
+        double radius = 8;
+        int withTerrainOnly = countProtectedOverburdenSolid(
+            terrain, new RoadGenerationResult(0), deckY, radius);
+        assertTrue(withTerrainOnly > 0, "hill terrain must provide overburden baseline");
+
+        RoadGenerationResult cleared = new RoadGenerationResult(0);
+        int r = (int) Math.ceil(radius);
+        for (int x = -r; x <= r; x++) {
+            for (int z = -r; z <= r; z++) {
+                if (Math.hypot(x, z) > radius) {
+                    continue;
+                }
+                for (int y = deckY + 1; y <= deckY + 8; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    cleared.placementRecords.put(pos,
+                        new BlockRecord(pos, "minecraft:stone", "minecraft:air"));
+                }
+            }
+        }
+        assertEquals(0, countProtectedOverburdenSolid(terrain, cleared, deckY, radius),
+            "cleared overburden must not count as preserved cover");
+    }
+
+    /**
+     * Final solid = placement air → empty; placement solid → solid; no record → terrain solid.
+     */
+    static int countProtectedOverburdenSolid(
+            TerrainSampler terrain,
+            RoadGenerationResult aggregate,
+            int deckY,
+            double radius) {
+        int solid = 0;
+        int r = (int) Math.ceil(radius);
+        for (int x = -r; x <= r; x++) {
+            for (int z = -r; z <= r; z++) {
+                if (Math.hypot(x, z) > radius) {
+                    continue;
+                }
+                for (int y = deckY + 1; y <= deckY + 8; y++) {
+                    if (isFinalSolid(terrain, aggregate, x, y, z)) {
+                        solid++;
+                    }
+                }
+            }
+        }
+        return solid;
+    }
+
+    static boolean isFinalSolid(
+            TerrainSampler terrain,
+            RoadGenerationResult aggregate,
+            int x,
+            int y,
+            int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        BlockRecord record = aggregate.placementRecords.get(pos);
+        if (record != null) {
+            return record.newBlockId != null && !"minecraft:air".equals(record.newBlockId);
+        }
+        return terrain != null && terrain.isSolidBlock(x, y, z);
     }
 
     private static RoadNetwork skewedGradeSeparatedCross(double radians) {

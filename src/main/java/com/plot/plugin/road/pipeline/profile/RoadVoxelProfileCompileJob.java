@@ -197,9 +197,10 @@ public final class RoadVoxelProfileCompileJob {
     private void assemble() {
         long started = clock.getAsLong();
         try (var ignored = stationingCache.activate()) {
+            // Always assemble from the post-prepare confirmed curve on the disposable road.
             result = RoadVoxelProfileCompiler.compileFromEdgeResults(
                 network, road, config, edgeResults, options, bounds,
-                alignment != null ? alignment : road.getVerticalAlignment());
+                road.getVerticalAlignment());
         } finally {
             assemblingNanos += Math.max(0L, clock.getAsLong() - started);
         }

@@ -7,12 +7,14 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.ProfileSource;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.core.terrain.FlatTerrainSampler;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -304,7 +306,7 @@ class RoadNetworkPreviewSessionTest {
         }
     }
 
-    /** VD-T09: EDITED + AUTO junction — final pavement at shared node uses design Y. */
+    /** VD-T09 / VE-T06: EDITED + AUTO junction — seam columns share design Y. */
     @Test
     void editedAndAutoJunctionFinalPavementSharesDesignY() {
         RoadSystemConfig config = new RoadSystemConfig("test");
@@ -340,14 +342,128 @@ class RoadNetworkPreviewSessionTest {
         Integer sharedY = preview.networkResult().getNodeElevations().get(shared.getId());
         assertEquals(80, sharedY);
 
-        int nearSharedPavementY = Integer.MIN_VALUE;
-        for (var pos : preview.aggregate().roadBlocks) {
-            if (Math.abs(pos.getX()) <= 2 && Math.abs(pos.getZ()) <= 2) {
-                nearSharedPavementY = pos.getY();
-                break;
+        assertTrue(assertSeamPavementContinuous(preview.aggregate(), 80),
+            "expected seam columns must keep continuous pavement at design Y");
+    }
+
+    /** VE-T06 negative: missing/wrong-Y seam column fails the continuity helper. */
+    @Test
+    void seamPavementHelperFailsOnMissingOrWrongY() {
+        RoadGenerationResult empty = new RoadGenerationResult(0);
+        assertFalse(assertSeamPavementContinuous(empty, 80));
+
+        RoadGenerationResult wrongY = new RoadGenerationResult(0);
+        wrongY.roadBlocks.add(new BlockPos(0, 70, 0));
+        wrongY.roadBlocks.add(new BlockPos(1, 70, 0));
+        wrongY.roadBlocks.add(new BlockPos(2, 70, 0));
+        wrongY.roadBlocks.add(new BlockPos(0, 70, 1));
+        wrongY.roadBlocks.add(new BlockPos(0, 70, 2));
+        assertFalse(assertSeamPavementContinuous(wrongY, 80));
+    }
+
+    /**
+     * VE-T07: mixed legal + illegal EDITED — sync and incremental agree on failures
+     * and successful placement keys/block ids.
+     */
+    @Test
+    void mixedLegalIllegalSyncAndIncrementalPlacementsMatch() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        RoadNetworkGenerator local = new RoadNetworkGenerator(new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance()));
+        RoadNetwork localNetwork = new RoadNetwork();
+
+        Road legal = localNetwork.createRoad("legal");
+        legal.setWidth(6);
+        legal.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        legal.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(40.0, 70.0))));
+        RoadNode l1 = localNetwork.createNode(new Vec2d(0, 0));
+        RoadNode l2 = localNetwork.createNode(new Vec2d(40, 0));
+        localNetwork.createEdge(l1.getId(), l2.getId(), List.of(l1.getPosition(), l2.getPosition()), legal.getId());
+        ResolvedProfileAuthority.markEditedProfileConfirmed(localNetwork, legal);
+
+        Road illegal = localNetwork.createRoad("illegal");
+        illegal.setWidth(6);
+        illegal.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        illegal.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(10.0, 90.0),
+            PointOfVerticalIntersection.of(30.0, 95.0))));
+        RoadNode i1 = localNetwork.createNode(new Vec2d(0, 40));
+        RoadNode i2 = localNetwork.createNode(new Vec2d(40, 40));
+        localNetwork.createEdge(i1.getId(), i2.getId(), List.of(i1.getPosition(), i2.getPosition()), illegal.getId());
+        ResolvedProfileAuthority.claimEditedWithoutValidation(localNetwork, illegal);
+
+        FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+        RoadNetworkGenerator.NetworkGenerationResult sync = local.generateAll(localNetwork, terrain);
+
+        var session = local.beginPreviewSession(localNetwork, terrain);
+        local.preparePreviewSession(session);
+        while (session.hasMoreEdges()) {
+            local.tickPreviewSessionEdges(session, 1);
+        }
+        local.applyPreviewSessionTunnelConnectivity(session);
+        while (session.hasMoreJunctions()) {
+            local.tickPreviewSessionJunctions(session, 1);
+        }
+        RoadNetworkGenerator.PreviewResult incremental = local.completePreviewSession(session);
+
+        assertTrue(sync.hasPartialFailure());
+        assertEquals(sync.getFailedEdgeIds(), incremental.networkResult().getFailedEdgeIds());
+        assertEquals(sync.successEdgeCount(), incremental.networkResult().successEdgeCount());
+        assertFalse(sync.getFailedEdgeIds().isEmpty());
+        assertTrue(sync.successEdgeCount() > 0);
+
+        assertEquals(
+            placementFingerprint(sync.getEdgeResults()),
+            placementFingerprint(incremental.networkResult().getEdgeResults()));
+    }
+
+    /** Expected near-junction seam columns on both arms (not the whole corridor). */
+    static boolean assertSeamPavementContinuous(RoadGenerationResult aggregate, int expectedY) {
+        if (aggregate == null) {
+            return false;
+        }
+        int[][] columns = {
+            {0, 0}, {1, 0}, {2, 0},
+            {0, 1}, {0, 2}
+        };
+        for (int[] column : columns) {
+            boolean found = false;
+            for (var pos : aggregate.roadBlocks) {
+                if (pos.getX() == column[0] && pos.getZ() == column[1] && pos.getY() == expectedY) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
             }
         }
-        assertEquals(80, nearSharedPavementY, "junction pavement should follow EDITED design Y");
+        return true;
+    }
+
+    private static String placementFingerprint(
+            java.util.Map<String, RoadGenerationResult> edgeResults) {
+        StringBuilder sb = new StringBuilder();
+        edgeResults.entrySet().stream()
+            .sorted(java.util.Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                sb.append(entry.getKey()).append(':');
+                entry.getValue().placementRecords.entrySet().stream()
+                    .sorted(java.util.Comparator.comparing(e -> e.getKey().asLong()))
+                    .forEach(e -> sb.append(e.getKey().asLong())
+                        .append('=')
+                        .append(e.getValue().newBlockId)
+                        .append(';'));
+                sb.append('|');
+            });
+        return sb.toString();
     }
 }
 

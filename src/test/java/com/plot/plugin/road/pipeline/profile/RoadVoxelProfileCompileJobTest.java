@@ -191,6 +191,33 @@ class RoadVoxelProfileCompileJobTest {
         assertEquals(com.plot.plugin.road.vertical.ProfileSource.AUTO, savedRoad.getEffectiveProfileSource());
     }
 
+    /** VE-T03: assemble uses post-normalize VA (0/L), not the raw inset override stations. */
+    @Test
+    void assembleUsesNormalizedOverrideNotRawInsetStations() {
+        var source = network(2);
+        var frozen = source.snapshot();
+        var road = frozen.getRoad("road");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setFlatVerticalIntent(null);
+        double length = 40.0;
+        var override = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.5, 80),
+            PointOfVerticalIntersection.of(length - 0.5, 80)));
+        var clock = new AtomicLong();
+        var job = new RoadVoxelProfileCompileJob(frozen, road, config,
+            new CountingGenerator(clock), new FlatTerrainSampler(60), Map.of(),
+            ProfileCompileOptions.defaults(), null, override, clock::get);
+        while (!job.isDone()) {
+            job.advance(1000);
+        }
+        assertTrue(job.result().feasible(), job.result().failureReason());
+        var confirmed = road.getVerticalAlignment();
+        assertNotNull(confirmed);
+        assertEquals(0.0, confirmed.startStation(), 1e-9);
+        assertEquals(length, confirmed.endStation(), 1e-9);
+        assertTrue(job.result().samples().stream().allMatch(s -> s.buildY() == 80));
+    }
+
     private RoadVoxelProfileCompileJob job(RoadNetwork frozen, CountingGenerator generator, AtomicLong clock) {
         return new RoadVoxelProfileCompileJob(frozen, frozen.getRoad("road"), config, generator,
             new FlatTerrainSampler(60), Map.of(), ProfileCompileOptions.defaults(), null, null, clock::get);

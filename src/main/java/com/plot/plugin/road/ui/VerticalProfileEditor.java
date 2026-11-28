@@ -642,6 +642,9 @@ final class VerticalProfileEditor {
         if (liveNetwork == null) {
             return;
         }
+        if (applyUniformFlatEditorPolicy(ctx, liveNetwork)) {
+            return;
+        }
         long liveRevision = ctx.networkManager().getNetworkRevision();
         if (windowSession == null) {
             windowSession = ProfileEditorWindowSession.open(liveNetwork, liveRevision);
@@ -671,6 +674,46 @@ final class VerticalProfileEditor {
             return;
         }
         externalTopologyConflict = true;
+    }
+
+    /**
+     * While UNIFORM_FLAT is active: clean sessions auto-close; dirty sessions stay in
+     * external-conflict mode and must not reopen into an editable working copy.
+     *
+     * @return true when the caller should stop further session sync this frame
+     */
+    boolean applyUniformFlatEditorPolicy(RoadUiContext ctx, RoadNetwork liveNetwork) {
+        if (!com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(liveNetwork)) {
+            return false;
+        }
+        boolean dirty = windowSession != null
+            && (windowSession.isDirty() || profileEditSession.isDirty());
+        if (!dirty) {
+            if (ctx != null) {
+                ctx.networkManager().setVerticalUiFeedback(
+                    com.plot.plugin.road.manager.RoadStatus.Severity.WARNING,
+                    PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+                com.plot.plugin.road.ui.RoadPanelScopedStatus.clearFromToolbarIfPresent(ctx.status());
+            }
+            editorWindowOpen.set(false);
+            discardWindowSession();
+            return true;
+        }
+        externalTopologyConflict = true;
+        return true;
+    }
+
+    boolean isEditorWindowOpen() {
+        return editorWindowOpen.get();
+    }
+
+    boolean hasExternalTopologyConflict() {
+        return externalTopologyConflict;
+    }
+
+    /** Package-visible session sync for lifecycle tests. */
+    void syncWindowSessionForTest(RoadUiContext ctx, RoadNetwork liveNetwork) {
+        ensureWindowSession(ctx, liveNetwork);
     }
 
     private void discardWindowSession() {
@@ -730,6 +773,11 @@ final class VerticalProfileEditor {
             boolean notifyCommitted) {
         if (windowSession == null) {
             return true;
+        }
+        if (com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(liveNetwork)) {
+            externalTopologyConflict = true;
+            ctx.status().warning(PlotI18n.tr("plugin.road.uniform_flat_profile_editor_blocked"));
+            return false;
         }
         if (profileEditSession.isActive()) {
             Road current = windowSession.editingNetwork().getRoad(editorRoadId);

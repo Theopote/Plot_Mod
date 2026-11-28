@@ -603,6 +603,91 @@ class ProfileEditorWindowSessionTest {
         assertEquals(otherStoredBefore, live.getRoad(other.getId()).getStoredProfileSource());
     }
 
+    /**
+     * VE-T01: multi-road stale rebind — post-normalization junction conflict must not
+     * partially bind any road on live.
+     */
+    @Test
+    void staleRebindBatchRejectsWithoutPartialLiveBind() {
+        Road other = live.createRoad("other-rebind");
+        RoadNode start = live.createNode(new Vec2d(0, 30));
+        RoadNode end = live.createNode(new Vec2d(100, 30));
+        live.createEdge(start.getId(), end.getId(), List.of(start.getPosition(), end.getPosition()), other.getId());
+
+        double preNormAt5 = 60.0 + (80.0 - 60.0) * (5.0 - 0.5) / (10.0 - 0.5);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.5, 60.0),
+            PointOfVerticalIntersection.of(10.0, 80.0),
+            PointOfVerticalIntersection.of(99.5, 80.0))));
+        // Keep inset endpoints on live so rebind normalize can still change junction Y.
+        ResolvedProfileAuthority.claimEditedWithoutValidation(live, road);
+        road.setEditedGeometrySignature(com.plot.plugin.road.vertical.EditedProfileGeometry.UNBOUND_SIGNATURE);
+
+        other.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        other.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, preNormAt5),
+            PointOfVerticalIntersection.of(100.0, preNormAt5))));
+        ResolvedProfileAuthority.claimEditedWithoutValidation(live, other);
+        other.setEditedGeometrySignature(com.plot.plugin.road.vertical.EditedProfileGeometry.UNBOUND_SIGNATURE);
+
+        live.registerCrossing(com.plot.plugin.road.crossing.RoadCrossing.atGrade(
+            road.getId(), 5.0, other.getId(), 5.0, new Vec2d(5, 0)));
+
+        int roadSigBefore = road.getEditedGeometrySignature();
+        int otherSigBefore = other.getEditedGeometrySignature();
+        long revision = manager.getNetworkRevision();
+
+        ProfileEditorWindowSession session = openSession();
+        session.markTouched(session.editingNetwork().getRoad(road.getId()));
+        session.markTouched(session.editingNetwork().getRoad(other.getId()));
+
+        assertEquals(
+            ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT,
+            session.confirm(testContext(), live, config));
+        assertEquals(roadSigBefore, live.getRoad(road.getId()).getEditedGeometrySignature());
+        assertEquals(otherSigBefore, live.getRoad(other.getId()).getEditedGeometrySignature());
+        assertEquals(revision, manager.getNetworkRevision());
+        assertFalse(manager.canUndo());
+    }
+
+    /**
+     * VE-T02: dirty confirm — pre-norm junction OK, endpoint snap changes interpolated Y → reject.
+     */
+    @Test
+    void confirmRejectsWhenEndpointNormalizationBreaksJunction() {
+        Road other = live.createRoad("other-norm");
+        RoadNode start = live.createNode(new Vec2d(0, 40));
+        RoadNode end = live.createNode(new Vec2d(100, 40));
+        live.createEdge(start.getId(), end.getId(), List.of(start.getPosition(), end.getPosition()), other.getId());
+
+        double preNormAt5 = 60.0 + (80.0 - 60.0) * (5.0 - 0.5) / (10.0 - 0.5);
+        other.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        other.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, preNormAt5),
+            PointOfVerticalIntersection.of(100.0, preNormAt5))));
+        live.registerCrossing(com.plot.plugin.road.crossing.RoadCrossing.atGrade(
+            road.getId(), 5.0, other.getId(), 5.0, new Vec2d(5, 0)));
+
+        ProfileEditorWindowSession session = openSession();
+        Road working = session.editingNetwork().getRoad(road.getId());
+        working.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.5, 60.0),
+            PointOfVerticalIntersection.of(10.0, 80.0),
+            PointOfVerticalIntersection.of(99.5, 80.0))));
+        session.markTouched(working);
+
+        RoadVerticalAlignment before = live.getRoad(road.getId()).getVerticalAlignment().copy();
+        long revision = manager.getNetworkRevision();
+
+        assertEquals(
+            ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT,
+            session.confirm(testContext(), live, config));
+        assertTrue(ProfileEditorNetworkApplier.alignmentPvisEqual(
+            before, live.getRoad(road.getId()).getVerticalAlignment()));
+        assertEquals(revision, manager.getNetworkRevision());
+    }
+
     private static void mutatePvi(Road road, int index, double elevation) {
         RoadVerticalAlignment updated = VerticalProfileControlPoints.withElevation(
             road.getVerticalAlignment(), index, elevation, road);

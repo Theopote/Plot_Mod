@@ -453,18 +453,9 @@ public final class ProfileEditorWindowSession {
             return ConfirmResult.NO_CHANGES;
         }
 
-        // Normalize + validate EDITED curves on the working copy before touching live.
-        for (String roadId : diff.roadIds()) {
-            com.plot.plugin.road.model.Road workingRoad = workingNetwork.getRoad(roadId);
-            if (workingRoad == null
-                    || !com.plot.plugin.road.vertical.ResolvedProfileAuthority
-                        .hasStoredEditedCurve(workingRoad)) {
-                continue;
-            }
-            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
-                    workingNetwork, workingRoad)) {
-                return ConfirmResult.CONSTRAINT_CONFLICT;
-            }
+        // Normalize + bind + post-normalization constraint check on working only.
+        if (!prepareWorkingEditedClaims(diff.roadIds(), propagateSeeds, config, false)) {
+            return ConfirmResult.CONSTRAINT_CONFLICT;
         }
 
         ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
@@ -474,19 +465,6 @@ public final class ProfileEditorWindowSession {
             diff.roadIds(),
             diff.nodeIds(),
             diff.crossingIds());
-        for (String roadId : diff.roadIds()) {
-            com.plot.plugin.road.model.Road road = live.getRoad(roadId);
-            if (road == null
-                    || !com.plot.plugin.road.vertical.ResolvedProfileAuthority
-                        .hasStoredEditedCurve(road)) {
-                continue;
-            }
-            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
-                    live, road)) {
-                ctx.finishNetworkEdit();
-                return ConfirmResult.CONSTRAINT_CONFLICT;
-            }
-        }
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
@@ -527,29 +505,60 @@ public final class ProfileEditorWindowSession {
         if (rebindRoadIds.isEmpty()) {
             return null;
         }
-        for (String roadId : rebindRoadIds) {
-            com.plot.plugin.road.model.Road workingRoad = workingNetwork.getRoad(roadId);
-            if (EditedProfileRebindValidator.validate(workingNetwork, workingRoad, config) != null) {
-                return ConfirmResult.CONSTRAINT_CONFLICT;
-            }
+        if (!prepareWorkingEditedClaims(rebindRoadIds, rebindRoadIds, config, true)) {
+            return ConfirmResult.CONSTRAINT_CONFLICT;
         }
         ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
-        for (String roadId : rebindRoadIds) {
-            com.plot.plugin.road.model.Road road = live.getRoad(roadId);
-            if (road == null) {
-                continue;
-            }
-            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
-                    live, road)) {
-                ctx.finishNetworkEdit();
-                return ConfirmResult.CONSTRAINT_CONFLICT;
-            }
-        }
+        ProfileEditorNetworkApplier.apply(
+            workingNetwork,
+            live,
+            rebindRoadIds,
+            Set.of(),
+            Set.of());
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
         return ConfirmResult.APPLIED;
+    }
+
+    /**
+     * Normalize/bind EDITED claims on the working copy, then re-validate constraints
+     * against the post-normalization candidate. Never touches live.
+     *
+     * @param requireRebindValidator when true, also run {@link EditedProfileRebindValidator}
+     *     (grade/coverage) before binding — used by stale rebind.
+     */
+    private boolean prepareWorkingEditedClaims(
+            Set<String> roadIds,
+            Set<String> constraintSeeds,
+            RoadSystemConfig config,
+            boolean requireRebindValidator) {
+        if (roadIds == null || roadIds.isEmpty()) {
+            return true;
+        }
+        for (String roadId : roadIds) {
+            com.plot.plugin.road.model.Road workingRoad = workingNetwork.getRoad(roadId);
+            if (workingRoad == null
+                    || !com.plot.plugin.road.vertical.ResolvedProfileAuthority
+                        .hasStoredEditedCurve(workingRoad)) {
+                continue;
+            }
+            if (requireRebindValidator
+                    && EditedProfileRebindValidator.validate(workingNetwork, workingRoad, config) != null) {
+                return false;
+            }
+            if (!com.plot.plugin.road.vertical.ResolvedProfileAuthority.markEditedProfileConfirmed(
+                    workingNetwork, workingRoad)) {
+                return false;
+            }
+        }
+        Set<String> seeds = constraintSeeds != null && !constraintSeeds.isEmpty()
+            ? constraintSeeds
+            : roadIds;
+        unresolvedConstraints = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.validate(
+            workingNetwork, seeds, config);
+        return unresolvedConstraints.isEmpty();
     }
 
     /** 传播后可能调整相邻道路，将其加入 touched 集（供编辑期中间传播使用）。 */

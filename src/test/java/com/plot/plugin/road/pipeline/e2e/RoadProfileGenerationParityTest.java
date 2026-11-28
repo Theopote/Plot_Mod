@@ -183,6 +183,11 @@ class RoadProfileGenerationParityTest {
         RoadSystemConfig config = baseConfig(configId);
         RoadGenerator generator = generator(config);
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+        // Pass null override so AUTO dormant stored curves are not force-bound as EDITED.
+        // Explicit editor drafts must go through the compile job / non-null override path.
+        RoadVerticalAlignment override = ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)
+            ? road.getVerticalAlignment()
+            : null;
         VoxelProfileCompileResult compile = RoadVoxelProfileCompiler.compile(
             network,
             road,
@@ -192,7 +197,7 @@ class RoadProfileGenerationParityTest {
             Map.of(),
             ProfileCompileOptions.defaults(),
             null,
-            road.getVerticalAlignment());
+            override);
         assertTrue(compile.feasible(), compile.failureReason());
         RoadBenchmarkHarness.PreviewRun preview =
             RoadBenchmarkHarness.generatePreview(network, generator, terrain);

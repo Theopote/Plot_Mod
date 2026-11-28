@@ -14,6 +14,7 @@ import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 
@@ -67,6 +68,13 @@ public final class RoadVoxelProfileCompiler {
         if (!RoadStationing.isStationable(network, road)) {
             return VoxelProfileCompileResult.failed("road is not stationable");
         }
+        if (alignmentOverride != null) {
+            road.setVerticalAlignment(alignmentOverride.copy());
+            if (!ResolvedProfileAuthority.markEditedProfileConfirmed(network, road)) {
+                return VoxelProfileCompileResult.failed(
+                    "edited vertical alignment is not valid for compilation");
+            }
+        }
         ProfileCompileOptions effective = options != null ? options : ProfileCompileOptions.defaults();
         Map<String, Integer> elevations = nodeElevations != null ? nodeElevations : Map.of();
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
@@ -89,11 +97,8 @@ public final class RoadVoxelProfileCompiler {
         if (edgeResults.isEmpty()) {
             return VoxelProfileCompileResult.failed("no edge profile samples");
         }
-        RoadVerticalAlignment alignment = alignmentOverride != null
-            ? alignmentOverride
-            : road.getVerticalAlignment();
         return compileFromEdgeResults(
-            network, road, config, edgeResults, effective, elevationBounds, alignment);
+            network, road, config, edgeResults, effective, elevationBounds, road.getVerticalAlignment());
     }
 
     public static VoxelProfileCompileResult compileFromEdgeResults(
