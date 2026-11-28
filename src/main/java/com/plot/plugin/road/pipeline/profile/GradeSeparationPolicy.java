@@ -158,16 +158,17 @@ public final class GradeSeparationPolicy {
         }
         if (node.getManualElevation() != null) {
             var origin = node.getManualElevationOrigin();
-            // USER / crossing / grade-separated locks remain hard; propagated locks yield to
-            // a valid EDITED/FLAT design endpoint when present (same rule as pass-1).
-            boolean derived = origin == com.plot.plugin.road.model.ManualElevationOrigin.PROFILE_PROPAGATED;
-            if (derived) {
+            // Shared with pass-1: yieldable locks defer to design on this edge, else null so
+            // ProfileEndpointHeightResolver can apply first-pass networkY (AUTO+EDITED agree).
+            if (ElevationLockAuthority.yieldsToDesignOrNetwork(origin)) {
                 var designed = VerticalAlignmentEndpointHeight.atNode(
                     network, edge, node, context.roadConfig());
                 if (designed.isPresent()) {
                     return designed.getAsInt();
                 }
+                return null;
             }
+            // USER (and unknown) remain hard.
             return node.getManualElevation().intValue();
         }
         return null;

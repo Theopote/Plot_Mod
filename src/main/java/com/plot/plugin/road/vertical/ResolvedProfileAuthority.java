@@ -187,16 +187,32 @@ public final class ResolvedProfileAuthority {
             road.getEditedGeometrySignature());
     }
 
-    /** 确认编辑曲线后写入来源与几何签名。 */
-    public static void markEditedProfileConfirmed(RoadNetwork network, Road road) {
+    /**
+     * 确认编辑曲线后写入来源与几何签名。
+     * Within-tolerance endpoints are snapped to exact 0/L (elevations unchanged).
+     * Returns false when snap would yield a non-evaluable curve (e.g. duplicate stations).
+     */
+    public static boolean markEditedProfileConfirmed(RoadNetwork network, Road road) {
         if (road == null || network == null) {
-            return;
+            return false;
+        }
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        if (alignment != null && !alignment.isEmpty()) {
+            RoadVerticalAlignment normalized =
+                EditedProfileRebindValidator.normalizeEndpointsToCanonical(network, road, alignment);
+            if (normalized != null) {
+                if (!VerticalAlignmentGeometry.isEvaluable(normalized)) {
+                    return false;
+                }
+                road.setVerticalAlignment(normalized);
+            }
         }
         if (road.getVerticalMode() != RoadVerticalMode.FLAT) {
             road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         }
         road.setProfileSource(ProfileSource.EDITED);
         road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
+        return true;
     }
 
     /**

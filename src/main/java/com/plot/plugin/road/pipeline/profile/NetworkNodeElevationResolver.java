@@ -83,16 +83,22 @@ public final class NetworkNodeElevationResolver {
             if (node.getManualElevation() != null) {
                 int locked = node.getManualElevation().intValue();
                 Integer designedY = designed.targets().get(node.getId());
-                boolean userLock = node.getManualElevationOrigin()
-                    == com.plot.plugin.road.model.ManualElevationOrigin.USER;
-                if (userLock) {
+                var origin = node.getManualElevationOrigin();
+                if (ElevationLockAuthority.isHardUserLock(origin)) {
                     if (designed.conflicts().contains(node.getId())
                             || (designedY != null && designedY != locked)) {
                         // USER lock vs EDITED design hard conflict: integer Y must match.
                         hardConflicts.add(node.getId());
-                        hardConflictSamples.put(
-                            node.getId(),
-                            List.of(locked, designedY != null ? designedY : locked));
+                        java.util.ArrayList<Integer> samples = new java.util.ArrayList<>();
+                        samples.add(locked);
+                        List<Integer> designedSamples = designed.conflictSamples()
+                            .getOrDefault(node.getId(), List.of());
+                        if (!designedSamples.isEmpty()) {
+                            samples.addAll(designedSamples);
+                        } else if (designedY != null) {
+                            samples.add(designedY);
+                        }
+                        hardConflictSamples.put(node.getId(), List.copyOf(samples));
                         if (mismatchLogger != null) {
                             mismatchLogger.logSignificantMismatch(
                                 node.getId(),
@@ -105,7 +111,7 @@ public final class NetworkNodeElevationResolver {
                     resolved.put(node.getId(), locked);
                     continue;
                 }
-                // Propagated/derived locks yield to a valid EDITED consensus.
+                // Yieldable locks (propagated / crossing / GS marker) yield to design consensus.
                 if (designedY != null) {
                     resolved.put(node.getId(), designedY);
                     continue;

@@ -367,8 +367,18 @@ public final class RoadStationDataTransforms {
             }
             return true;
         }
-        if (!VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return false;
+        }
+        RoadVerticalAlignment normalized =
+            com.plot.plugin.road.vertical.EditedProfileRebindValidator
+                .normalizeEndpointsToCanonical(network, road, alignment);
+        if (normalized != null) {
+            if (!VerticalAlignmentGeometry.isEvaluable(normalized)) {
+                return false;
+            }
+            road.setVerticalAlignment(normalized);
         }
         road.setProfileSource(ProfileSource.EDITED);
         road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));

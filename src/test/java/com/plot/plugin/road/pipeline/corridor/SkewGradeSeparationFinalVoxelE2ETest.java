@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -19,8 +20,11 @@ import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,7 +52,8 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
-        TerrainSampler terrain = hillTerrain(64, 78);
+        // Open-air GS: flat terrain — false tunnel lining must not appear under the deck.
+        TerrainSampler terrain = new FlatTerrainSampler(64);
         RoadNetworkGenerator.PreviewResult preview = networkGenerator.generatePreview(network, terrain);
         RoadGenerationResult aggregate = preview.aggregate();
         assertNotNull(aggregate);
@@ -58,15 +63,14 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         assertNotNull(deckY);
         assertTrue(deckY > 64, "elevated deck must sit above underpass");
 
-        // Window: junction core around resolved deckY / clearance (hypot ≤ clearance).
-        // Column-paired: elevated pavement at deckY keeps a solid structural cell at deckY-1
-        // (BRIDGE/SUBGRADE/ROAD/TUNNEL — current elevated morphology stamps underside as TUNNEL).
         double coreRadius = Math.max(6.0, config.getDefaultCrossingClearance());
-        java.util.Set<Long> upperRoadColumns = new java.util.HashSet<>();
-        java.util.Set<Long> upperUndersideColumns = new java.util.HashSet<>();
+        Set<Long> shaftColumns = new HashSet<>();
+        Set<Long> upperRoadColumns = new HashSet<>();
+        Set<Long> structuralUndersideColumns = new HashSet<>();
         int lowerRoad = 0;
         int lowerShaftAir = 0;
         int upperUndersideCleared = 0;
+        int tunnelUnderDeck = 0;
 
         for (var entry : aggregate.placementRecords.entrySet()) {
             BlockPos pos = entry.getKey();
@@ -82,6 +86,7 @@ class SkewGradeSeparationFinalVoxelE2ETest {
             long column = (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
             if (pos.getY() > 64 && pos.getY() < deckY && air) {
                 lowerShaftAir++;
+                shaftColumns.add(column);
             }
             if (pos.getY() == 64 && !air
                     && (layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.SHOULDER
@@ -92,10 +97,14 @@ class SkewGradeSeparationFinalVoxelE2ETest {
                     && (layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.BRIDGE)) {
                 upperRoadColumns.add(column);
             }
-            if (pos.getY() == deckY - 1 && !air
-                    && (layer == RoadSolidLayer.BRIDGE || layer == RoadSolidLayer.SUBGRADE
-                        || layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.TUNNEL)) {
-                upperUndersideColumns.add(column);
+            if (pos.getY() == deckY - 1 && !air) {
+                if (layer == RoadSolidLayer.TUNNEL) {
+                    tunnelUnderDeck++;
+                }
+                if (layer == RoadSolidLayer.BRIDGE || layer == RoadSolidLayer.SUBGRADE
+                        || layer == RoadSolidLayer.ROAD) {
+                    structuralUndersideColumns.add(column);
+                }
             }
             if (pos.getY() == deckY - 1 && air
                     && aggregate.placementMaterialPriorities.getOrDefault(
@@ -104,11 +113,26 @@ class SkewGradeSeparationFinalVoxelE2ETest {
             }
         }
 
+        // VC11: open-air interchange must not stamp tunnel lining under the elevated deck.
+        assertEquals(0, tunnelUnderDeck,
+            "open-air skew GS must not place TUNNEL underside under elevated pavement");
+
         int upperRoad = upperRoadColumns.size();
         int upperUndersideIntact = 0;
         for (long column : upperRoadColumns) {
-            if (upperUndersideColumns.contains(column)) {
+            if (structuralUndersideColumns.contains(column)) {
                 upperUndersideIntact++;
+            }
+        }
+
+        int shaftDeckColumns = 0;
+        int shaftDeckUnderside = 0;
+        for (long column : shaftColumns) {
+            if (upperRoadColumns.contains(column)) {
+                shaftDeckColumns++;
+                if (structuralUndersideColumns.contains(column)) {
+                    shaftDeckUnderside++;
+                }
             }
         }
 
@@ -123,6 +147,10 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         assertTrue(upperUndersideIntact * 2 >= upperRoad,
             "most elevated pavement columns in the deck/clearance core should keep continuous underside; "
                 + "pavement=" + upperRoad + " underside=" + upperUndersideIntact);
+        assertTrue(shaftDeckColumns > 0, "shaft+deck columns must exist in core");
+        assertEquals(shaftDeckColumns, shaftDeckUnderside,
+            "every elevated pavement column over the underpass shaft must keep structural underside; "
+                + "shaftDeck=" + shaftDeckColumns + " underside=" + shaftDeckUnderside);
     }
 
     private static RoadNetwork skewedGradeSeparatedCross(double radians) {
@@ -159,19 +187,5 @@ class SkewGradeSeparationFinalVoxelE2ETest {
         return new Vec2d(
             point.x * Math.cos(angle) - point.y * Math.sin(angle),
             point.x * Math.sin(angle) + point.y * Math.cos(angle));
-    }
-
-    private static TerrainSampler hillTerrain(int floorY, int hillY) {
-        return new TerrainSampler() {
-            @Override
-            public int sampleSurfaceY(Vec2d point) {
-                return Math.hypot(point.x, point.y) < 8 ? hillY : floorY;
-            }
-
-            @Override
-            public boolean isSolidBlock(int x, int y, int z) {
-                return y <= sampleSurfaceY(new Vec2d(x, z));
-            }
-        };
     }
 }

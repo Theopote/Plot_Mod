@@ -65,6 +65,14 @@ public final class FlatVerticalIntentSupport {
             Road road,
             double baseElevation,
             double maxGradePercent) {
+        if (!Double.isFinite(baseElevation)) {
+            return;
+        }
+        // Network-uniform overlay: write network Y, do not mutate ephemeral/per-road intent.
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            network.setUniformElevationY((int) Math.round(baseElevation));
+            return;
+        }
         FlatVerticalIntent intent = resolveIntent(network, road);
         if (intent == null) {
             return;
@@ -83,8 +91,15 @@ public final class FlatVerticalIntentSupport {
             Road road,
             double baseElevation,
             double maxGradePercent) {
+        if (!Double.isFinite(baseElevation)) {
+            return;
+        }
+        if (NetworkElevationAuthority.isUniformFlat(network)) {
+            network.setUniformElevationY((int) Math.round(baseElevation));
+            return;
+        }
         FlatVerticalIntent intent = resolveIntent(network, road);
-        if (intent == null || !Double.isFinite(baseElevation)) {
+        if (intent == null) {
             return;
         }
         intent.setBaseElevation(baseElevation);
@@ -102,12 +117,16 @@ public final class FlatVerticalIntentSupport {
 
     /** 纵断面编辑器绿线：始终为 intent 基准高程的严格水平线。 */
     public static RoadVerticalAlignment strictEditorAlignment(RoadNetwork network, Road road) {
-        if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
-            return road != null ? road.getVerticalAlignment() : null;
+        if (road == null) {
+            return null;
+        }
+        boolean networkUniform = NetworkElevationAuthority.isUniformFlat(network);
+        if (!networkUniform && road.getVerticalMode() != RoadVerticalMode.FLAT) {
+            return road.getVerticalAlignment();
         }
         FlatVerticalIntent intent = resolveIntent(network, road);
         if (intent == null || !RoadStationing.isStationable(network, road)) {
-            return road.getVerticalAlignment();
+            return networkUniform ? null : road.getVerticalAlignment();
         }
         return VerticalProfileDesignRules.flatAlignment(
             RoadStationing.canonicalLength(network, road),
@@ -119,11 +138,12 @@ public final class FlatVerticalIntentSupport {
             RoadNetwork network,
             Road road,
             List<RoadProfileIntersection> intersections) {
-        if (road == null
-                || road.getVerticalMode() != RoadVerticalMode.FLAT
-                || intersections == null
-                || intersections.isEmpty()) {
+        if (road == null || intersections == null || intersections.isEmpty()) {
             return intersections != null ? intersections : List.of();
+        }
+        boolean networkUniform = NetworkElevationAuthority.isUniformFlat(network);
+        if (!networkUniform && road.getVerticalMode() != RoadVerticalMode.FLAT) {
+            return intersections;
         }
         FlatVerticalIntent intent = resolveIntent(network, road);
         if (intent == null) {

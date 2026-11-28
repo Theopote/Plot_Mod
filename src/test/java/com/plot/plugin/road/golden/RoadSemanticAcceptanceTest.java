@@ -6,6 +6,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * B. Semantic Acceptance：手写正确性断言，检测「行为是不是正确」。
  */
@@ -56,6 +59,26 @@ class RoadSemanticAcceptanceTest {
     void r06SlopedEmbankmentSemantics() {
         RoadSemanticAcceptanceAssertions.assertEmbankmentSemantics(
             RoadGoldenHarness.run(RoadGoldenScenarioFactory.r06Sloped()));
+    }
+
+    /** VC14: steep EDITED R06 keeps authored PVIs and expected bridge/fill morphology (no pre-gen smooth). */
+    @Test
+    void r06SteepEditedMorphologyKeepsAuthoredProfile() {
+        var scenario = RoadGoldenScenarioFactory.r06Sloped();
+        var road = scenario.network().getRoads().values().iterator().next();
+        double startY = road.getVerticalAlignment().getPvis().getFirst().getElevation();
+        double endY = road.getVerticalAlignment().getPvis().getLast().getElevation();
+        var run = RoadGoldenHarness.run(scenario);
+        assertEquals(startY,
+            run.network().getRoad(road.getId()).getVerticalAlignment().getPvis().getFirst().getElevation(),
+            1e-9);
+        assertEquals(endY,
+            run.network().getRoad(road.getId()).getVerticalAlignment().getPvis().getLast().getElevation(),
+            1e-9);
+        assertTrue(run.metrics().surfaceBlocks() > 0);
+        assertTrue(run.metrics().bridgeBlocks() > 0 || run.metrics().fillBlocks() > 0,
+            "unsmoothed steep EDITED must produce bridge and/or fill structure");
+        assertTrue(run.metrics().bridgeCount() >= 1 || run.metrics().fillVolume() > 0);
     }
 
     @Test

@@ -215,6 +215,37 @@ class ResolvedProfileAuthorityTest {
         assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
     }
 
+    /** VC04: within-tolerance endpoints snap to 0/L on confirm (elevations unchanged). */
+    @Test
+    void confirmNormalizesEndpointsWithinTolerance() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.AUTO);
+        Road road = network.getRoad("r1");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.8, 70.0),
+            PointOfVerticalIntersection.of(39.2, 74.0))));
+        assertTrue(ResolvedProfileAuthority.markEditedProfileConfirmed(network, road));
+        assertEquals(0.0, road.getVerticalAlignment().startStation(), 1e-9);
+        assertEquals(40.0, road.getVerticalAlignment().endStation(), 1e-9);
+        assertEquals(70.0, road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-9);
+        assertEquals(74.0, road.getVerticalAlignment().getPvis().getLast().getElevation(), 1e-9);
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+    }
+
+    /** VC05: endpoint snap that duplicates an interior PVI station must refuse confirm. */
+    @Test
+    void confirmRejectsSnapThatCreatesDuplicateStations() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.AUTO);
+        Road road = network.getRoad("r1");
+        // L=40; mid PVI already at L; snapping end 40.5 → 40 duplicates station 40.
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(40.0, 72.0),
+            PointOfVerticalIntersection.of(40.5, 74.0))));
+        assertFalse(ResolvedProfileAuthority.markEditedProfileConfirmed(network, road));
+        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
+    }
+
     /** VB08: network-uniform FLAT intent synthesizes without mutating non-FLAT road mode. */
     @Test
     void networkUniformFlatSynthesizesIntentWithoutMutatingMode() {
@@ -231,6 +262,49 @@ class ResolvedProfileAuthorityTest {
             ResolvedProfileAuthority.Kind.FLAT,
             ResolvedProfileAuthority.resolve(network, road).kind());
         assertTrue(VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road));
+    }
+
+    /** VC09: uniform FLAT editor alignment matches overlay Y while stored EDITED VA remains. */
+    @Test
+    void uniformFlatEditorAlignmentDoesNotExposeStaleEditedCurve() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        RoadVerticalAlignment stored = road.getVerticalAlignment();
+        assertEquals(70.0, stored.getPvis().getFirst().getElevation(), 1e-9);
+
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(70);
+
+        RoadVerticalAlignment editor = FlatVerticalIntentSupport.strictEditorAlignment(network, road);
+        assertEquals(70.0, editor.getPvis().getFirst().getElevation(), 1e-9);
+        assertEquals(70.0, editor.getPvis().getLast().getElevation(), 1e-9);
+        assertEquals(stored.getPvis().getFirst().getElevation(),
+            road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-9);
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+
+        FlatVerticalIntentSupport.setWholeRoadElevation(network, road, 75.0, 5.0);
+        assertEquals(75, network.getUniformElevationY());
+        assertEquals(70.0, road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-9);
+    }
+
+    /** VC10: clearing UNIFORM_FLAT restores per-road design authority. */
+    @Test
+    void clearingUniformFlatRestoresPerRoadDesign() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(70);
+        assertEquals(ResolvedProfileAuthority.Kind.FLAT,
+            ResolvedProfileAuthority.resolve(network, road).kind());
+
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.PER_ROAD);
+        assertEquals(ResolvedProfileAuthority.Kind.EDITED,
+            ResolvedProfileAuthority.resolve(network, road).kind());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        assertEquals(70.0, road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-9);
+        assertEquals(74.0, road.getVerticalAlignment().getPvis().getLast().getElevation(), 1e-9);
     }
 
     private static RoadNetwork buildRoadWithAlignment(ProfileSource source) {

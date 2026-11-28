@@ -375,12 +375,12 @@ public final class VerticalAlignmentProfileSolver {
         }
         if (manualStartHeight != null
                 && VoxelElevationDiscretizer.quantizeContinuous(designElevations.getFirst())
-                    != manualStartHeight.intValue()) {
+                    != manualStartHeight) {
             return false;
         }
         if (manualEndHeight != null
                 && VoxelElevationDiscretizer.quantizeContinuous(designElevations.getLast())
-                    != manualEndHeight.intValue()) {
+                    != manualEndHeight) {
             return false;
         }
         return true;

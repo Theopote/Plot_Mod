@@ -16,6 +16,7 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -218,6 +219,114 @@ class NetworkNodeElevationResolverTest {
             (n, net, t, roadId) -> 64, (e, n, net, t) -> 64);
 
         assertEquals(90, forced);
+    }
+
+    /** VC06: EDITED + AUTO + old propagated lock — both edges use first-pass Y. */
+    @Test
+    void editedAndAutoWithPropagatedLockShareResolvedY() {
+        RoadNetwork network = new RoadNetwork();
+        Road edited = network.createRoad("edited");
+        edited.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        edited.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 90.0),
+            PointOfVerticalIntersection.of(40.0, 90.0))));
+        Road auto = network.createRoad("auto");
+        auto.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        RoadNode shared = network.createNode(new Vec2d(0, 0));
+        RoadNode endEdited = network.createNode(new Vec2d(40, 0));
+        RoadNode endAuto = network.createNode(new Vec2d(0, 40));
+        RoadEdge editedEdge = network.createEdge(
+            shared.getId(), endEdited.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(40, 0)), edited.getId());
+        RoadEdge autoEdge = network.createEdge(
+            shared.getId(), endAuto.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(0, 40)), auto.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, edited);
+        shared.setManualElevation(70.0, ManualElevationOrigin.PROFILE_PROPAGATED);
+
+        NetworkNodeElevationResolver resolver = createResolver();
+        NetworkNodeElevationResult pass1 = resolver.resolveDetailed(
+            network, new FlatTerrainSampler(64), null);
+        assertEquals(90, pass1.heights().get(shared.getId()));
+
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGeneratorProfileContext profileContext =
+            new RoadGeneratorProfileContext(config, (pathPoints, segments) -> 1.0);
+        GradeSeparationPolicy gradeSeparation = new GradeSeparationPolicy(profileContext);
+        NodeTargetHeightResolver nodeTargetHeights =
+            new NodeTargetHeightResolver(profileContext, gradeSeparation);
+        ProfileEndpointHeightResolver endpoints =
+            new ProfileEndpointHeightResolver(gradeSeparation, nodeTargetHeights);
+
+        Integer editedY = endpoints.resolve(
+            shared, network, editedEdge, new FlatTerrainSampler(64), false, pass1.heights());
+        Integer autoY = endpoints.resolve(
+            shared, network, autoEdge, new FlatTerrainSampler(64), false, pass1.heights());
+        assertEquals(90, editedY);
+        assertEquals(90, autoY);
+    }
+
+    /** VC07: CROSSING lock yields to EDITED like pass-1. */
+    @Test
+    void crossingLockYieldsToEditedDesign() {
+        RoadNetwork network = buildTwoSegmentRoad();
+        RoadNode middle = network.getNodes().values().stream()
+            .filter(node -> node.getConnectedEdgeIds().size() == 2)
+            .findFirst()
+            .orElseThrow();
+        middle.setManualElevation(70.0, ManualElevationOrigin.CROSSING);
+
+        NetworkNodeElevationResult result = createResolver().resolveDetailed(
+            network, new FlatTerrainSampler(64), null);
+        assertEquals(90, result.heights().get(middle.getId()));
+
+        RoadEdge firstEdge = network.getEdge(
+            RoadStationing.orderedSegments(network, network.getRoad("design")).getFirst());
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGeneratorProfileContext profileContext =
+            new RoadGeneratorProfileContext(config, (pathPoints, segments) -> 1.0);
+        GradeSeparationPolicy gradeSeparation = new GradeSeparationPolicy(profileContext);
+        Integer forced = gradeSeparation.resolveForcedEndpointHeight(
+            middle, network, firstEdge, new FlatTerrainSampler(64), false,
+            (n, net, t, roadId) -> 64, (e, n, net, t) -> 64);
+        assertEquals(90, forced);
+    }
+
+    /** VC12: USER vs multi-EDITED conflict keeps all distinct sample Y values. */
+    @Test
+    void userVsMultiEditedConflictKeepsCompleteSamples() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadA.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 80.0),
+            PointOfVerticalIntersection.of(40.0, 80.0))));
+        Road roadB = network.createRoad("b");
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 90.0),
+            PointOfVerticalIntersection.of(40.0, 90.0))));
+        RoadNode shared = network.createNode(new Vec2d(0, 0));
+        RoadNode endA = network.createNode(new Vec2d(40, 0));
+        RoadNode endB = network.createNode(new Vec2d(0, 40));
+        network.createEdge(
+            shared.getId(), endA.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(40, 0)), roadA.getId());
+        network.createEdge(
+            shared.getId(), endB.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(0, 40)), roadB.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, roadA);
+        RoadTestFixtures.confirmEditedProfileGeometry(network, roadB);
+        shared.setManualElevation(70.0, ManualElevationOrigin.USER);
+
+        NetworkNodeElevationResult result = createResolver().resolveDetailed(
+            network, new FlatTerrainSampler(64), null);
+        assertTrue(result.hasHardConflicts());
+        List<Integer> samples = result.conflictSamples().get(shared.getId());
+        assertTrue(samples.contains(70));
+        assertTrue(samples.contains(80));
+        assertTrue(samples.contains(90));
+        assertFalse(samples.equals(List.of(70, 70)));
     }
 
     /** VB09: compatible AUTO + EDITED junction still resolves. */

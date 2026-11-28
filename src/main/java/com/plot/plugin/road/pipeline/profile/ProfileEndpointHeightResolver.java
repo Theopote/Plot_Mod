@@ -39,6 +39,15 @@ public final class ProfileEndpointHeightResolver {
             nodeTargetHeights.naturalEdgeHeightAtNode(),
             networkY);
         if (forced != null) {
+            // Yieldable manual origins must not override first-pass consensus when GS did not
+            // elevate this edge (forced then comes only from design-or-null path).
+            var origin = node.getManualElevationOrigin();
+            if (networkY != null
+                    && ElevationLockAuthority.yieldsToDesignOrNetwork(origin)
+                    && node.getManualElevation() != null
+                    && forced.intValue() == node.getManualElevation().intValue()) {
+                return networkY;
+            }
             return forced;
         }
         return networkY;

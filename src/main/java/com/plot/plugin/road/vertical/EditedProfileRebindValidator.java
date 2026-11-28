@@ -56,10 +56,6 @@ public final class EditedProfileRebindValidator {
         return null;
     }
 
-    public static boolean canRebind(RoadNetwork network, Road road, RoadSystemConfig config) {
-        return validate(network, road, config) == null;
-    }
-
     /**
      * True when VA endpoints correspond to canonical stations 0 and L (bidirectional).
      * Rejects curves that start before 0, end after L, or leave a gap inside the road.

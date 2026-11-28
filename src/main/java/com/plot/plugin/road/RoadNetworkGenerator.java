@@ -7,6 +7,7 @@ import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.crossing.SnapshotMaterialization;
+import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
@@ -209,6 +210,12 @@ public class RoadNetworkGenerator {
             if (edgeId == null || outcome == null) {
                 return;
             }
+            // Preflight / hard-conflict failures are sticky: later SUCCESS must not clear them
+            // or publish apply-able geometry for a blocked edge.
+            if (failedEdgeIds.contains(edgeId)
+                    && outcome.outcome() != EdgeGenerationOutcome.FAILED) {
+                return;
+            }
             edgeOutcomes.put(edgeId, outcome);
             switch (outcome.outcome()) {
                 case SUCCESS -> edgeResults.put(edgeId, outcome.geometry());
@@ -221,6 +228,7 @@ public class RoadNetworkGenerator {
                 case FAILED -> {
                     failedEdgeIds.add(edgeId);
                     errors.add("edge " + edgeId + ": " + outcome.message());
+                    edgeResults.remove(edgeId);
                     RoadGenerationResult geometry = outcome.geometry();
                     if (geometry != null
                             && (geometry.droppedSolidCount > 0 || !geometry.placementRecords.isEmpty())) {
@@ -619,6 +627,10 @@ public class RoadNetworkGenerator {
             for (RoadEdge edge : batch) {
                 if (processed > 0 && System.nanoTime() - started >= budgetNanos) break;
                 processed++;
+                // Preflight already blocked this edge — do not regenerate or overwrite FAIL.
+                if (networkResult.getFailedEdgeIds().contains(edge.getId())) {
+                    continue;
+                }
                 long edgeStarted = System.nanoTime();
                 RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
                 RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
@@ -932,8 +944,12 @@ public class RoadNetworkGenerator {
         try (var ignored = session.stationingCache().activate()) {
             Map<String, Integer> nodeElevations = session.nodeElevations();
             RoadNetwork generationNetwork = session.generationNetwork();
+            Set<String> blockedEdges = session.networkResult().getFailedEdgeIds();
             Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
             for (RoadEdge edge : generationNetwork.getEdges().values()) {
+                if (blockedEdges.contains(edge.getId())) {
+                    continue;
+                }
                 RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
                 RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
                 if (start == null || end == null) {
